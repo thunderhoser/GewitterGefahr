@@ -61,7 +61,7 @@ VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT = numpy.array(
      500.5])
 
 
-class PolygonTests(unittest.TestCase):
+class PolygonsTests(unittest.TestCase):
     """Each method is a unit test for polygons.py."""
 
     def test_get_longest_inner_list(self):
