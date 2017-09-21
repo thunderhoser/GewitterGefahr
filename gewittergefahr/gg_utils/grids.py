@@ -7,7 +7,6 @@ DEFINITIONS
 
 import numpy
 
-
 # TODO(thunderhoser): add error-checking to all methods.
 
 
