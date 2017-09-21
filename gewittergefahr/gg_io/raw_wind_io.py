@@ -12,6 +12,10 @@ import pandas
 
 # TODO(thunderhoser): add error-checking to all methods.
 
+# TODO(thunderhoser): find better way to deal with missing wind directions.
+# Currently changing them all to 0 degrees, but this masks the difference
+# between actual 0 degrees and NaN.
+
 TOLERANCE = 1e-6
 WIND_DIR_DEFAULT_DEG = 0.
 
