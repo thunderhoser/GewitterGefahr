@@ -2,12 +2,59 @@
 
 import numpy
 import unittest
+import shapely.geometry
 from gewittergefahr.gg_utils import polygons
+
+TOLERANCE = 1e-6
 
 SHORT_LIST = []
 MEDIUM_LIST = [0, 1, 2, 3]
 LONG_LIST = [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]
 LIST_OF_LISTS = [SHORT_LIST, MEDIUM_LIST, LONG_LIST]
+
+EXTERIOR_VERTEX_X_METRES = numpy.array([0., 0., 10., 10., 0.])
+EXTERIOR_VERTEX_Y_METRES = numpy.array([0., 10., 10., 0., 0.])
+EXTERIOR_VERTEX_METRES_LIST = [(0., 0.), (0., 10.), (10., 10.), (10., 0.),
+                               (0., 0.)]
+
+HOLE1_VERTEX_X_METRES = numpy.array([2., 2., 4., 4., 2.])
+HOLE1_VERTEX_Y_METRES = numpy.array([2., 4., 4., 2., 2.])
+HOLE1_VERTEX_METRES_LIST = [(2., 2.), (2., 4.), (4., 4.), (4., 2.), (2., 2.)]
+
+HOLE2_VERTEX_X_METRES = numpy.array([6., 6., 8., 8., 6.])
+HOLE2_VERTEX_Y_METRES = numpy.array([6., 8., 8., 6., 6.])
+HOLE2_VERTEX_METRES_LIST = [(6., 6.), (6., 8.), (8., 8.), (8., 6.), (6., 6.)]
+NUM_HOLES = 2
+
+MERGED_VERTEX_X_METRES = numpy.array([0., 0., 10., 10., 0., numpy.nan,
+                                      2., 2., 4., 4., 2., numpy.nan,
+                                      6., 6., 8., 8., 6.])
+MERGED_VERTEX_Y_METRES = numpy.array([0., 10., 10., 0., 0., numpy.nan,
+                                      2., 4., 4., 2., 2., numpy.nan,
+                                      6., 8., 8., 6., 6.])
+MERGED_VERTEX_METRES_LIST = [(0., 0.), (0., 10.), (10., 10.), (10., 0.),
+                             (0., 0.), (numpy.nan, numpy.nan), (2., 2.),
+                             (2., 4.), (4., 4.), (4., 2.), (2., 2.),
+                             (numpy.nan, numpy.nan), (6., 6.), (6., 8.),
+                             (8., 8.), (8., 6.), (6., 6.)]
+
+POLYGON_OBJECT = shapely.geometry.Polygon(shell=EXTERIOR_VERTEX_METRES_LIST,
+                                          holes=(HOLE1_VERTEX_METRES_LIST,
+                                                 HOLE2_VERTEX_METRES_LIST))
+
+SMALL_BUFFER_DIST_METRES = 2.5
+LARGE_BUFFER_DIST_METRES = 5.
+
+VERTEX_X_METRES_SMALL_BUFFER = numpy.array([-2.5, -2.5, 12.5, 12.5, -2.5])
+VERTEX_Y_METRES_SMALL_BUFFER = numpy.array([-2.5, 12.5, 12.5, -2.5, -2.5])
+
+VERTEX_X_METRES_LARGE_BUFFER = numpy.array([-5., -5., 15., 15., -5.])
+VERTEX_Y_METRES_LARGE_BUFFER = numpy.array([-5., 15., 15., -5., -5.])
+
+VERTEX_X_METRES_NESTED_BUFFER = numpy.array(
+    [-5., -5., 15., 15., -5., numpy.nan, -2.5, -2.5, 12.5, 12.5, -2.5])
+VERTEX_Y_METRES_NESTED_BUFFER = numpy.array(
+    [-5., 15., 15., -5., -5., numpy.nan, -2.5, 12.5, 12.5, -2.5, -2.5])
 
 FIRST_VERTEX_ROW = 5
 FIRST_VERTEX_COLUMN = 5
@@ -69,6 +116,154 @@ class PolygonsTests(unittest.TestCase):
 
         this_longest_list = polygons._get_longest_inner_list(LIST_OF_LISTS)
         self.assertTrue(this_longest_list == LONG_LIST)
+
+    def test_separate_exterior_and_holes(self):
+        """Ensures correct output from _separate_exterior_and_holes."""
+
+        this_vertex_dict = polygons._separate_exterior_and_holes(
+            MERGED_VERTEX_X_METRES, MERGED_VERTEX_Y_METRES)
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
+                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
+                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
+                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
+                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
+
+    def test_merge_exterior_and_holes(self):
+        """Ensures correct output from _merge_exterior_and_holes."""
+
+        (this_vertex_x_metres,
+         this_vertex_y_metres) = polygons._merge_exterior_and_holes(
+            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+            hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
+                                       HOLE2_VERTEX_X_METRES],
+            hole_y_vertex_metres_list=[HOLE1_VERTEX_Y_METRES,
+                                       HOLE2_VERTEX_Y_METRES])
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_x_metres, MERGED_VERTEX_X_METRES,
+                           atol=TOLERANCE, equal_nan=True))
+        self.assertTrue(
+            numpy.allclose(this_vertex_y_metres, MERGED_VERTEX_Y_METRES,
+                           atol=TOLERANCE, equal_nan=True))
+
+    def text_vertex_arrays_to_list(self):
+        """Ensures correct output from _vertex_arrays_to_list."""
+
+        this_vertex_metres_list = polygons._vertex_arrays_to_list(
+            MERGED_VERTEX_X_METRES, MERGED_VERTEX_Y_METRES)
+
+        self.assertTrue(
+            len(this_vertex_metres_list) == len(MERGED_VERTEX_METRES_LIST))
+
+        for i in range(len(MERGED_VERTEX_METRES_LIST)):
+            self.assertTrue(
+                numpy.allclose(numpy.asarray(this_vertex_metres_list[i]),
+                               numpy.asarray(MERGED_VERTEX_METRES_LIST[i]),
+                               atol=TOLERANCE, equal_nan=True))
+
+    def test_vertex_list_to_arrays(self):
+        """Ensures correct output from _vertex_list_to_arrays."""
+
+        (this_vertex_x_metres,
+         this_vertex_y_metres) = polygons._vertex_list_to_arrays(
+            MERGED_VERTEX_METRES_LIST)
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_x_metres, MERGED_VERTEX_X_METRES,
+                           atol=TOLERANCE, equal_nan=True))
+        self.assertTrue(
+            numpy.allclose(this_vertex_y_metres, MERGED_VERTEX_Y_METRES,
+                           atol=TOLERANCE, equal_nan=True))
+
+    def test_vertices_to_polygon_object(self):
+        """Ensures correct output from _vertices_to_polygon_object.
+
+        This is not strictly a unit test.  _vertices_to_polygon_object is used
+        to convert to a polygon object, and then _polygon_object_to_vertices is
+        used to convert back to vertex arrays.  The output of
+        _polygon_object_to_vertices is compared with the input to
+        _vertices_to_polygon_object, and both sets of vertex arrays must be
+        equal.
+        """
+
+        this_polygon_object = polygons._vertices_to_polygon_object(
+            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+            hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
+                                       HOLE2_VERTEX_X_METRES],
+            hole_y_vertex_metres_list=[HOLE1_VERTEX_Y_METRES,
+                                       HOLE2_VERTEX_Y_METRES])
+
+        this_vertex_dict = polygons._polygon_object_to_vertices(
+            this_polygon_object)
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
+                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
+                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
+                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
+                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
+
+    def test_polygon_object_to_vertices(self):
+        """Ensures correct output from _polygon_object_to_vertices."""
+
+        this_vertex_dict = polygons._polygon_object_to_vertices(POLYGON_OBJECT)
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
+                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
+                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
+                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
+                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
 
     def test_get_direction_of_vertex_pair_up(self):
         """Ensures correct output from _get_direction_of_vertex_pair.
@@ -237,6 +432,65 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(
             numpy.array_equal(these_vertex_columns,
                               VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
+
+    def test_make_buffer_around_simple_polygon_small(self):
+        """Ensures correct output from make_buffer_around_simple_polygon.
+
+        In this case, using smaller of the two buffer distances.
+        """
+
+        (this_buffer_vertex_x_metres, this_buffer_vertex_y_metres) = (
+            polygons.make_buffer_around_simple_polygon(
+                EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+                max_buffer_dist_metres=SMALL_BUFFER_DIST_METRES,
+                preserve_angles=True))
+
+        self.assertTrue(numpy.allclose(this_buffer_vertex_x_metres,
+                                       VERTEX_X_METRES_SMALL_BUFFER,
+                                       atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(this_buffer_vertex_y_metres,
+                                       VERTEX_Y_METRES_SMALL_BUFFER,
+                                       atol=TOLERANCE))
+
+    def test_make_buffer_around_simple_polygon_large(self):
+        """Ensures correct output from make_buffer_around_simple_polygon.
+
+        In this case, using larger of the two buffer distances.
+        """
+
+        (this_buffer_vertex_x_metres, this_buffer_vertex_y_metres) = (
+            polygons.make_buffer_around_simple_polygon(
+                EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+                max_buffer_dist_metres=LARGE_BUFFER_DIST_METRES,
+                preserve_angles=True))
+
+        self.assertTrue(numpy.allclose(this_buffer_vertex_x_metres,
+                                       VERTEX_X_METRES_LARGE_BUFFER,
+                                       atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(this_buffer_vertex_y_metres,
+                                       VERTEX_Y_METRES_LARGE_BUFFER,
+                                       atol=TOLERANCE))
+
+    def test_make_buffer_around_simple_polygon_nested(self):
+        """Ensures correct output from make_buffer_around_simple_polygon.
+
+        In this case, using two buffer distances (one to create exterior of
+        polygon, one to create hole).
+        """
+
+        (this_buffer_vertex_x_metres, this_buffer_vertex_y_metres) = (
+            polygons.make_buffer_around_simple_polygon(
+                EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+                min_buffer_dist_metres=SMALL_BUFFER_DIST_METRES,
+                max_buffer_dist_metres=LARGE_BUFFER_DIST_METRES,
+                preserve_angles=True))
+
+        self.assertTrue(numpy.allclose(this_buffer_vertex_x_metres,
+                                       VERTEX_X_METRES_NESTED_BUFFER,
+                                       atol=TOLERANCE, equal_nan=True))
+        self.assertTrue(numpy.allclose(this_buffer_vertex_y_metres,
+                                       VERTEX_Y_METRES_NESTED_BUFFER,
+                                       atol=TOLERANCE, equal_nan=True))
 
 
 if __name__ == '__main__':
