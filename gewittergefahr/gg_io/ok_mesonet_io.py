@@ -1,4 +1,10 @@
-"""IO methods for Oklahoma Mesonet data."""
+"""IO methods for Oklahoma Mesonet data.
+
+Each raw file is space-delimited and contains data for all stations at one
+5-minute time step.  Unfortunately there is no way to script the downloading of
+these files, because they are not available to the public.  They were provided
+to us by Oklahoma Mesonet employees.
+"""
 
 import numpy
 import pandas

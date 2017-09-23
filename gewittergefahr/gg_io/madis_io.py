@@ -20,7 +20,11 @@ wind observations, listed below:
 
 import numpy
 import pandas
+import time
+import os
+import os.path
 from netCDF4 import Dataset
+from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
 
@@ -33,6 +37,22 @@ CSV_FILE_NAME = (
     '/localdata/ryan.lagerquist/aasswp/madis_mesonet_winds_2011-06-08-07.csv')
 
 DATA_SOURCE = 'madis'
+FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
+FTP_ROOT_DIRECTORY_NAME = 'archive'
+
+GZIP_FILE_EXTENSION = '.gz'
+NETCDF_FILE_EXTENSION = '.netcdf'
+
+# LDAD = Local Data Acquisition and Dissemination system.
+LDAD_SUBDATASET_NAMES = ['coop', 'hcn', 'hfmetar', 'mesonet', 'nepp', 'urbanet']
+NON_LDAD_SUBDATASET_NAMES = ['maritime', 'metar', 'sao']
+SUBDATASET_NAMES = LDAD_SUBDATASET_NAMES + NON_LDAD_SUBDATASET_NAMES
+
+YEAR_STRING_FORMAT = '%Y'
+MONTH_STRING_FORMAT = '%m'
+YEAR_MONTH_STRING_FORMAT = '%Y%m'
+DAY_OF_MONTH_STRING_FORMAT = '%d'
+TIME_STRING_FORMAT = '%Y%m%d_%H00'
 
 LOW_QUALITY_FLAGS = ['X', 'Q', 'k', 'B']
 DEFAULT_QUALITY_FLAG = 'y'
@@ -76,6 +96,135 @@ COLUMN_NAMES_ORIG = [STATION_ID_COLUMN_ORIG, STATION_NAME_COLUMN_ORIG,
                      WIND_DIR_FLAG_COLUMN_ORIG,
                      WIND_GUST_SPEED_FLAG_COLUMN_ORIG,
                      WIND_GUST_DIR_FLAG_COLUMN_ORIG]
+
+
+def _time_unix_sec_to_year_string(unix_time_sec):
+    """Converts time from Unix format to string describing year.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: year_string: Year (format "yyyy").
+    """
+
+    return time.strftime(YEAR_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _time_unix_sec_to_month_string(unix_time_sec):
+    """Converts time from Unix format to string describing month.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: month_string: Month (format "mm").
+    """
+
+    return time.strftime(MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _time_unix_sec_to_year_month_string(unix_time_sec):
+    """Converts time from Unix format to string describing year/month.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: year_month_string: Year/month (format "yyyymm").
+    """
+
+    return time.strftime(YEAR_MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _time_unix_sec_to_day_of_month_string(unix_time_sec):
+    """Converts time from Unix format to string describing day of month.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: day_of_month_string: Day of month (format "dd").
+    """
+
+    return time.strftime(DAY_OF_MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _time_unix_sec_to_string(unix_time_sec):
+    """Converts time from Unix format to string.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: time_string: String (format "yyyymmdd_HH00").
+    """
+
+    return time.strftime(TIME_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _get_ftp_file_name(unix_time_sec, subdataset_name):
+    """Generates expected file path on FTP server for given date and subdataset.
+
+    :param unix_time_sec: Time in Unix format.
+    :param subdataset_name: Name of subdataset.
+    :return: ftp_file_name: Expected file path on FTP server.
+    """
+
+    if subdataset_name in LDAD_SUBDATASET_NAMES:
+        first_subdir_name = 'LDAD'
+        second_subdir_name = 'netCDF'
+    else:
+        first_subdir_name = 'point'
+        second_subdir_name = 'netcdf'
+
+    ftp_directory_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:s}/{6:s}'.format(
+        FTP_ROOT_DIRECTORY_NAME, _time_unix_sec_to_year_string(unix_time_sec),
+        _time_unix_sec_to_month_string(unix_time_sec),
+        _time_unix_sec_to_day_of_month_string(unix_time_sec), first_subdir_name,
+        subdataset_name, second_subdir_name)
+
+    return '{0:s}/{1:s}{2:s}'.format(ftp_directory_name,
+                                     _time_unix_sec_to_string(unix_time_sec),
+                                     GZIP_FILE_EXTENSION)
+
+
+def _get_local_file_name(unix_time_sec=None, subdataset_name=None,
+                         file_extension=None, top_local_directory_name=None,
+                         raise_error_if_missing=True):
+    """Generates expected path of raw MADIS file on local machine.
+
+    :param unix_time_sec: Time in Unix format.
+    :param subdataset_name: Name of subdataset.
+    :param file_extension: File extension (either ".netcdf" or ".gz").
+    :param top_local_directory_name: Path to top-level directory with raw MADIS
+        files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: local_file_name: Expected path of raw MADIS file on local machine.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    local_file_name = '{0:s}/{1:s}/{2:s}/{3:s}{4:s}'.format(
+        top_local_directory_name, subdataset_name,
+        _time_unix_sec_to_year_month_string(unix_time_sec),
+        _time_unix_sec_to_string(unix_time_sec), file_extension)
+
+    if raise_error_if_missing and not os.path.isfile(local_file_name):
+        raise ValueError(
+            'Cannot find file.  Expected at location: ' + local_file_name)
+
+    return local_file_name
+
+
+def _extract_netcdf_from_gzip(gzip_file_name):
+    """Extracts NetCDF file from gzip file.
+
+    The gzip file should contain only one NetCDF file, which makes this easy.
+
+    :param gzip_file_name: Path to input file.
+    :return: netcdf_file_name: Path to output file.
+    :raises: ValueError: if `gzip_file_name` does not end with ".gz".
+    """
+
+    if not gzip_file_name.endswith(GZIP_FILE_EXTENSION):
+        error_string = (
+            'gzip file (' + gzip_file_name + ') does not end with "' +
+            GZIP_FILE_EXTENSION + '".  Cannot generate name for unzipped file.')
+        raise ValueError(error_string)
+
+    netcdf_file_name = (
+        gzip_file_name[:-len(GZIP_FILE_EXTENSION)] + NETCDF_FILE_EXTENSION)
+    unix_command_str = 'gunzip -v -c {0:s} > {1:s}'.format(gzip_file_name,
+                                                           netcdf_file_name)
+    os.system(unix_command_str)
+
+    return netcdf_file_name
 
 
 def _convert_column_name(column_name_orig):
@@ -212,6 +361,74 @@ def _remove_low_quality_data(wind_table):
         wind_table[[raw_wind_io.WIND_SPEED_COLUMN,
                     raw_wind_io.WIND_GUST_SPEED_COLUMN]].notnull().any(
             axis=1)]
+
+
+def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
+                           top_local_directory_name=None, ftp_user_name=None,
+                           ftp_password=None, raise_error_if_fails=True):
+    """Downloads gzip file from FTP server.
+
+    The gzip file should contain a single NetCDF file, containing all data for
+    one subdataset and one hour.
+
+    :param unix_time_sec: Time in Unix format.
+    :param subdataset_name: Name of subdataset.
+    :param top_local_directory_name: Path to top-level directory for raw MADIS
+        files.
+    :param ftp_user_name: Username on FTP server.  If you want to login
+        anonymously, leave this as None.
+    :param ftp_password: Password on FTP server.  If you want to login
+        anonymously, leave this as None.
+    :param raise_error_if_fails: Boolean flag.  If True and download fails, will
+        raise error.
+    :return: local_gzip_file_name: Path to file on local machine.  If download
+        failed but raise_error_if_fails = False, this will be None.
+    """
+
+    ftp_file_name = _get_ftp_file_name(unix_time_sec, subdataset_name)
+
+    local_gzip_file_name = _get_local_file_name(
+        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
+        file_extension=GZIP_FILE_EXTENSION,
+        top_local_directory_name=top_local_directory_name,
+        raise_error_if_missing=False)
+
+    return downloads.download_file_from_ftp(
+        server_name=FTP_SERVER_NAME, user_name=ftp_user_name,
+        password=ftp_password, ftp_file_name=ftp_file_name,
+        local_file_name=local_gzip_file_name,
+        raise_error_if_fails=raise_error_if_fails)
+
+
+def download_netcdf_from_ftp(unix_time_sec=None, subdataset_name=None,
+                             top_local_directory_name=None, ftp_user_name=None,
+                             ftp_password=None, raise_error_if_fails=True):
+    """Downloads NetCDF file from FTP server.
+
+    The only difference between this method and download_gzip_from_ftp is that
+    this method unzips the gzip file.
+
+    :param unix_time_sec: See documentation for download_gzip_from_ftp.
+    :param subdataset_name: See documentation for download_gzip_from_ftp.
+    :param top_local_directory_name: See documentation for
+        download_gzip_from_ftp.
+    :param ftp_user_name: See documentation for download_gzip_from_ftp.
+    :param ftp_password: See documentation for download_gzip_from_ftp.
+    :param raise_error_if_fails: See documentation for download_gzip_from_ftp.
+    :return: local_netcdf_file_name: Path to file on local machine.  If download
+        failed but raise_error_if_fails = False, this will be None.
+    """
+
+    local_gzip_file_name = download_gzip_from_ftp(
+        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
+        top_local_directory_name=top_local_directory_name,
+        ftp_user_name=ftp_user_name, ftp_password=ftp_password,
+        raise_error_if_fails=raise_error_if_fails)
+
+    if local_gzip_file_name is None:
+        return None
+
+    return _extract_netcdf_from_gzip(local_gzip_file_name)
 
 
 def read_winds_from_netcdf(netcdf_file_name):

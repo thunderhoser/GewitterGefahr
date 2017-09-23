@@ -8,6 +8,8 @@ from gewittergefahr.gg_io import hfmetar_io
 TOLERANCE = 1e-6
 
 UTC_TIME_STRING = '201709150243'
+UTC_MONTH_STRING = '201709'
+UTC_YEAR_STRING = '2017'
 UNIX_TIME_SEC = 1505443380
 
 UNIX_TIME_SEC_NEG_OFFSET_DIFF_DAYS = 1505443380  # 0243 UTC 15 Sep 2017
@@ -108,6 +110,20 @@ class HfmetarIoTests(unittest.TestCase):
         this_time_unix_sec = hfmetar_io._time_string_to_unix_sec(
             UTC_TIME_STRING)
         self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+
+    def test_time_unix_sec_to_month_string(self):
+        """Ensures correct output from _time_unix_sec_to_month_string."""
+
+        this_month_string = hfmetar_io._time_unix_sec_to_month_string(
+            UNIX_TIME_SEC)
+        self.assertTrue(this_month_string == UTC_MONTH_STRING)
+
+    def test_time_unix_sec_to_year_string(self):
+        """Ensures correct output from _time_unix_sec_to_year_string."""
+
+        this_year_string = hfmetar_io._time_unix_sec_to_year_string(
+            UNIX_TIME_SEC)
+        self.assertTrue(this_year_string == UTC_YEAR_STRING)
 
     def test_local_time_to_unix_neg_offset_diff_days(self):
         """Ensures correct output from _local_time_string_to_unix_sec.

@@ -1,6 +1,14 @@
 """IO methods for reports of damaging SLW* in the Storm Events database.
 
 * SLW = straight-line wind
+
+Raw files are downloaded from here: ftp://ftp.ncdc.noaa.gov/pub/data/swdi/
+stormevents/csvfiles/StormEvents_details*.csv.gz
+
+Unfortunately there is no way to script the download, because the file names
+contain last-modified dates.  Each gzip file contains only one CSV file, so this
+code does not handle the gzip files.  This code assumes that the raw data format
+(or "native format") is CSV.
 """
 
 import numpy

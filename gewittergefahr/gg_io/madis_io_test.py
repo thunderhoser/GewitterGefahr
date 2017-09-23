@@ -10,9 +10,28 @@ from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_io import madis_io
 
 TOLERANCE = 1e-6
-
 COLUMN_NAME_ORIG = madis_io.TIME_COLUMN_ORIG
 COLUMN_NAME = raw_wind_io.TIME_COLUMN
+
+UNIX_TIME_SEC = 1506127260  # 0041 UTC 23 Sep 2017
+YEAR_STRING = '2017'
+YEAR_MONTH_STRING = '201709'
+MONTH_STRING = '09'
+DAY_OF_MONTH_STRING = '23'
+TIME_STRING = '20170923_0000'
+
+SUBDATASET_NAME_LDAD = 'hfmetar'
+EXPECTED_FTP_FILE_NAME_LDAD = (
+    'archive/2017/09/23/LDAD/hfmetar/netCDF/20170923_0000.gz')
+TOP_LOCAL_DIRECTORY_NAME = 'madis_data'
+EXPECTED_LOCAL_GZIP_FILE_NAME_LDAD = (
+    'madis_data/hfmetar/201709/20170923_0000.gz')
+
+SUBDATASET_NAME_NON_LDAD = 'maritime'
+EXPECTED_FTP_FILE_NAME_NON_LDAD = (
+    'archive/2017/09/23/point/maritime/netcdf/20170923_0000.gz')
+EXPECTED_LOCAL_GZIP_FILE_NAME_NON_LDAD = (
+    'madis_data/maritime/201709/20170923_0000.gz')
 
 CHAR_MATRIX = numpy.array([['f', 'o', 'o', 'b', 'a', 'r'],
                            ['f', 'o', 'o', ' ', ' ', ' '],
@@ -153,6 +172,91 @@ WIND_TABLE_NO_LOW_QUALITY_DATA.drop(FLAG_COLUMNS, axis=1, inplace=True)
 
 class MadisIoTests(unittest.TestCase):
     """Each method is a unit test for madis_io.py."""
+
+    def test_time_unix_sec_to_year_string(self):
+        """Ensures correct output from _time_unix_sec_to_year_string."""
+
+        this_year_string = madis_io._time_unix_sec_to_year_string(UNIX_TIME_SEC)
+        self.assertTrue(this_year_string == YEAR_STRING)
+
+    def test_time_unix_sec_to_year_month_string(self):
+        """Ensures correct output from _time_unix_sec_to_year_month_string."""
+
+        this_year_month_string = madis_io._time_unix_sec_to_year_month_string(
+            UNIX_TIME_SEC)
+        self.assertTrue(this_year_month_string == YEAR_MONTH_STRING)
+
+    def test_time_unix_sec_to_month_string(self):
+        """Ensures correct output from _time_unix_sec_to_month_string."""
+
+        this_month_string = madis_io._time_unix_sec_to_month_string(
+            UNIX_TIME_SEC)
+        self.assertTrue(this_month_string == MONTH_STRING)
+
+    def test_time_unix_sec_to_day_of_month_string(self):
+        """Ensures correct output from _time_unix_sec_to_day_of_month_string."""
+
+        this_day_of_month_string = (
+            madis_io._time_unix_sec_to_day_of_month_string(UNIX_TIME_SEC))
+        self.assertTrue(this_day_of_month_string == DAY_OF_MONTH_STRING)
+
+    def test_time_unix_sec_to_string(self):
+        """Ensures correct output from _time_unix_sec_to_string."""
+
+        this_time_string = madis_io._time_unix_sec_to_string(UNIX_TIME_SEC)
+        self.assertTrue(this_time_string == TIME_STRING)
+
+    def test_get_ftp_file_name_ldad(self):
+        """Ensures correct output from _get_ftp_file_name.
+        
+        In this case, subdataset is HFMETAR, which is part of the LDAD (Local
+        Data Acquisition and Dissemination) system.
+        """
+
+        this_ftp_file_name = madis_io._get_ftp_file_name(
+            UNIX_TIME_SEC, SUBDATASET_NAME_LDAD)
+        self.assertTrue(this_ftp_file_name == EXPECTED_FTP_FILE_NAME_LDAD)
+
+    def test_get_ftp_file_name_non_ldad(self):
+        """Ensures correct output from _get_ftp_file_name.
+
+        In this case, subdataset is maritime, which is *not* part of LDAD.
+        """
+
+        this_ftp_file_name = madis_io._get_ftp_file_name(
+            UNIX_TIME_SEC, SUBDATASET_NAME_NON_LDAD)
+        self.assertTrue(this_ftp_file_name == EXPECTED_FTP_FILE_NAME_NON_LDAD)
+
+    def test_get_local_file_name_ldad(self):
+        """Ensures correct output from _get_local_file_name.
+
+        In this case, subdataset is HFMETAR, which is part of LDAD.
+        """
+
+        this_local_file_name = madis_io._get_local_file_name(
+            unix_time_sec=UNIX_TIME_SEC, subdataset_name=SUBDATASET_NAME_LDAD,
+            file_extension=madis_io.GZIP_FILE_EXTENSION,
+            top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME,
+            raise_error_if_missing=False)
+
+        self.assertTrue(
+            this_local_file_name == EXPECTED_LOCAL_GZIP_FILE_NAME_LDAD)
+
+    def test_get_local_file_name_non_ldad(self):
+        """Ensures correct output from _get_local_file_name.
+
+        In this case, subdataset is maritime, which is *not* part of LDAD.
+        """
+
+        this_local_file_name = madis_io._get_local_file_name(
+            unix_time_sec=UNIX_TIME_SEC,
+            subdataset_name=SUBDATASET_NAME_NON_LDAD,
+            file_extension=madis_io.GZIP_FILE_EXTENSION,
+            top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME,
+            raise_error_if_missing=False)
+
+        self.assertTrue(
+            this_local_file_name == EXPECTED_LOCAL_GZIP_FILE_NAME_NON_LDAD)
 
     def test_convert_column_name(self):
         """Ensures correct output from _convert_column_name."""
