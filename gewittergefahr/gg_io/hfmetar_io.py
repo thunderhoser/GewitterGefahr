@@ -11,6 +11,7 @@ import numpy
 import pandas
 import time
 import calendar
+import os.path
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
@@ -303,6 +304,92 @@ def _remove_invalid_wind_data(wind_table):
     return wind_table
 
 
+def _get_pathless_raw_1minute_file_name(station_id, month_unix_sec):
+    """Generates pathless name for raw 1-minute file.
+
+    :param station_id: String ID for station.
+    :param month_unix_sec: Month in Unix format.
+    :return: pathless_raw_file_name: Pathless name for raw 1-minute file.
+    """
+
+    return '{0:s}{1:s}{2:s}.{3:s}'.format(
+        PATHLESS_FILE_NAME_PREFIX_1MINUTE, station_id,
+        _time_unix_sec_to_month_string(month_unix_sec), RAW_FILE_EXTENSION)
+
+
+def _get_pathless_raw_5minute_file_name(station_id, month_unix_sec):
+    """Generates pathless name for raw 5-minute file.
+
+    :param station_id: String ID for station.
+    :param month_unix_sec: Month in Unix format.
+    :return: pathless_raw_file_name: Pathless name for raw 5-minute file.
+    """
+
+    return '{0:s}{1:s}{2:s}.{3:s}'.format(
+        PATHLESS_FILE_NAME_PREFIX_5MINUTE, station_id,
+        _time_unix_sec_to_month_string(month_unix_sec), RAW_FILE_EXTENSION)
+
+
+def find_local_raw_1minute_file(station_id=None, month_unix_sec=None,
+                                top_directory_name=None,
+                                raise_error_if_missing=True):
+    """Finds raw 1-minute file on local machine.
+
+    This file should contain 1-minute METARs for one station-month.
+
+    :param station_id: String ID for station.
+    :param month_unix_sec: Month in Unix format.
+    :param top_directory_name: Top-level directory for raw 1-minute files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: raw_1minute_file_name: File path.  If raise_error_if_missing =
+        False and file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_raw_1minute_file_name(station_id,
+                                                             month_unix_sec)
+    raw_1minute_file_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_directory_name, station_id, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_1minute_file_name):
+        raise ValueError(
+            'Cannot find raw 1-minute file.  Expected at location: ' +
+            raw_1minute_file_name)
+
+    return raw_1minute_file_name
+
+
+def find_local_raw_5minute_file(station_id=None, month_unix_sec=None,
+                                top_directory_name=None,
+                                raise_error_if_missing=True):
+    """Finds raw 5-minute file on local machine.
+
+    This file should contain 5-minute METARs for one station-month.
+
+    :param station_id: String ID for station.
+    :param month_unix_sec: Month in Unix format.
+    :param top_directory_name: Top-level directory for raw 1-minute files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: raw_1minute_file_name: File path.  If raise_error_if_missing =
+        False and file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_raw_5minute_file_name(station_id,
+                                                             month_unix_sec)
+    raw_5minute_file_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_directory_name, station_id, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_5minute_file_name):
+        raise ValueError(
+            'Cannot find raw 5-minute file.  Expected at location: ' +
+            raw_5minute_file_name)
+
+    return raw_5minute_file_name
+
+
 def read_station_metadata_from_text(text_file_name):
     """Reads metadata for ASOS stations from text file.
 
@@ -380,12 +467,13 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
         failed but raise_error_if_fails = False, will return None.
     """
 
-    pathless_file_name = '{0:s}{1:s}{2:s}.{3:s}'.format(
-        PATHLESS_FILE_NAME_PREFIX_1MINUTE, station_id,
-        _time_unix_sec_to_month_string(month_unix_sec), RAW_FILE_EXTENSION)
+    local_file_name = find_local_raw_1minute_file(
+        station_id=station_id, month_unix_sec=month_unix_sec,
+        top_directory_name=top_local_directory_name,
+        raise_error_if_missing=False)
 
-    local_file_name = '{0:s}/{1:s}/{2:s}'.format(top_local_directory_name,
-                                                 station_id, pathless_file_name)
+    pathless_file_name = _get_pathless_raw_1minute_file_name(station_id,
+                                                             month_unix_sec)
     online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
         TOP_ONLINE_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
         _time_unix_sec_to_year_string(month_unix_sec), pathless_file_name)
@@ -410,13 +498,13 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         failed but raise_error_if_fails = False, will return None.
     """
 
-    pathless_file_name = '{0:s}{1:s}{2:s}.{3:s}'.format(
-        PATHLESS_FILE_NAME_PREFIX_5MINUTE, station_id,
-        _time_unix_sec_to_month_string(month_unix_sec), RAW_FILE_EXTENSION)
+    local_file_name = find_local_raw_5minute_file(
+        station_id=station_id, month_unix_sec=month_unix_sec,
+        top_directory_name=top_local_directory_name,
+        raise_error_if_missing=False)
 
-    local_file_name = '{0:s}/{1:s}/{2:s}'.format(top_local_directory_name,
-                                                 station_id, pathless_file_name)
-
+    pathless_file_name = _get_pathless_raw_5minute_file_name(station_id,
+                                                             month_unix_sec)
     online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
         TOP_ONLINE_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
         _time_unix_sec_to_year_string(month_unix_sec), pathless_file_name)

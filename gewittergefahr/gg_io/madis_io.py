@@ -156,6 +156,9 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
     :return: ftp_file_name: Expected file path on FTP server.
     """
 
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
+                                                     GZIP_FILE_EXTENSION)
+
     if subdataset_name in LDAD_SUBDATASET_NAMES:
         first_subdir_name = 'LDAD'
         second_subdir_name = 'netCDF'
@@ -169,37 +172,7 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
         _time_unix_sec_to_day_of_month_string(unix_time_sec), first_subdir_name,
         subdataset_name, second_subdir_name)
 
-    return '{0:s}/{1:s}{2:s}'.format(ftp_directory_name,
-                                     _time_unix_sec_to_string(unix_time_sec),
-                                     GZIP_FILE_EXTENSION)
-
-
-def _get_local_file_name(unix_time_sec=None, subdataset_name=None,
-                         file_extension=None, top_local_directory_name=None,
-                         raise_error_if_missing=True):
-    """Generates expected path of raw MADIS file on local machine.
-
-    :param unix_time_sec: Time in Unix format.
-    :param subdataset_name: Name of subdataset.
-    :param file_extension: File extension (either ".netcdf" or ".gz").
-    :param top_local_directory_name: Path to top-level directory with raw MADIS
-        files.
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.
-    :return: local_file_name: Expected path of raw MADIS file on local machine.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
-    """
-
-    local_file_name = '{0:s}/{1:s}/{2:s}/{3:s}{4:s}'.format(
-        top_local_directory_name, subdataset_name,
-        _time_unix_sec_to_year_month_string(unix_time_sec),
-        _time_unix_sec_to_string(unix_time_sec), file_extension)
-
-    if raise_error_if_missing and not os.path.isfile(local_file_name):
-        raise ValueError(
-            'Cannot find file.  Expected at location: ' + local_file_name)
-
-    return local_file_name
+    return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
 
 
 def _extract_netcdf_from_gzip(gzip_file_name):
@@ -363,6 +336,50 @@ def _remove_low_quality_data(wind_table):
             axis=1)]
 
 
+def _get_pathless_raw_file_name(unix_time_sec, file_extension):
+    """Generates pathless name for raw MADIS file.
+
+    :param unix_time_sec: Time in Unix format.
+    :param file_extension: File extension (either ".netcdf" or ".gz").
+    :return: pathless_raw_file_name: Pathless name for raw MADIS file.
+    """
+
+    return '{0:s}{1:s}'.format(_time_unix_sec_to_string(unix_time_sec),
+                               file_extension)
+
+
+def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
+                        file_extension=None, top_local_directory_name=None,
+                        raise_error_if_missing=True):
+    """Finds raw file on local machine.
+
+    This file should contain all data for one subdataset and hour.
+
+    :param unix_time_sec: Time in Unix format.
+    :param subdataset_name: Name of subdataset.
+    :param file_extension: File extension (either ".netcdf" or ".gz").
+    :param top_local_directory_name: Top-level directory with raw MADIS files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: raw_file_name: File path.  If raise_error_if_missing = False and
+        file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
+                                                     file_extension)
+
+    raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_local_directory_name, subdataset_name,
+        _time_unix_sec_to_year_month_string(unix_time_sec), pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        raise ValueError(
+            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+
+    return raw_file_name
+
+
 def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
                            top_local_directory_name=None, ftp_user_name=None,
                            ftp_password=None, raise_error_if_fails=True):
@@ -387,7 +404,7 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
 
     ftp_file_name = _get_ftp_file_name(unix_time_sec, subdataset_name)
 
-    local_gzip_file_name = _get_local_file_name(
+    local_gzip_file_name = find_local_raw_file(
         unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
         file_extension=GZIP_FILE_EXTENSION,
         top_local_directory_name=top_local_directory_name,

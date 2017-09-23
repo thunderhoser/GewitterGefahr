@@ -4,6 +4,18 @@ import numpy
 import unittest
 from gewittergefahr.gg_io import storm_events_io
 
+YEAR_1DIGIT = 2
+YEAR_2DIGITS = 33
+YEAR_3DIGITS = 707
+YEAR_4DIGITS = 3094
+YEAR_5DIGITS = 40550
+
+YEAR_STRING_1DIGIT = '0002'
+YEAR_STRING_2DIGITS = '0033'
+YEAR_STRING_3DIGITS = '0707'
+YEAR_STRING_4DIGITS = '3094'
+YEAR_STRING_5DIGITS = '40550'
+
 TIME_ZONE_STRING_WITH_NUMBER = 'CST-6'
 TIME_ZONE_STRING_NO_NUMBER = 'CST'
 TIME_ZONE_STRING_INVALID = 'foo'
@@ -29,9 +41,43 @@ EVENT_TYPE_STRING_SLW_SOME_CAPS = 'ThUnDeRsToRm WiNd'
 EVENT_TYPE_STRING_SLW_TRAILING_WHITESPACE = '\t   thunderstorm wind \r\n'
 EVENT_TYPE_STRING_NOT_SLW = 'tornado'
 
+YEAR_FOR_RAW_FILE = 2015
+RAW_DIRECTORY_NAME = 'storm_events/raw_files'
+RAW_FILE_NAME = 'storm_events/raw_files/storm_events2015.csv'
+
 
 class StormEventsIoTests(unittest.TestCase):
     """Each method is a unit test for storm_events_io.py."""
+
+    def test_year_int_to_string_1digit(self):
+        """Ensures correct output from _year_int_to_string for 1-digit year."""
+
+        this_year_string = storm_events_io._year_int_to_string(YEAR_1DIGIT)
+        self.assertTrue(this_year_string == YEAR_STRING_1DIGIT)
+
+    def test_year_int_to_string_2digits(self):
+        """Ensures correct output from _year_int_to_string for 2-digit year."""
+
+        this_year_string = storm_events_io._year_int_to_string(YEAR_2DIGITS)
+        self.assertTrue(this_year_string == YEAR_STRING_2DIGITS)
+
+    def test_year_int_to_string_3digits(self):
+        """Ensures correct output from _year_int_to_string for 3-digit year."""
+
+        this_year_string = storm_events_io._year_int_to_string(YEAR_3DIGITS)
+        self.assertTrue(this_year_string == YEAR_STRING_3DIGITS)
+
+    def test_year_int_to_string_4digits(self):
+        """Ensures correct output from _year_int_to_string for 4-digit year."""
+
+        this_year_string = storm_events_io._year_int_to_string(YEAR_4DIGITS)
+        self.assertTrue(this_year_string == YEAR_STRING_4DIGITS)
+
+    def test_year_int_to_string_5digits(self):
+        """Ensures correct output from _year_int_to_string for 5-digit year."""
+
+        this_year_string = storm_events_io._year_int_to_string(YEAR_5DIGITS)
+        self.assertTrue(this_year_string == YEAR_STRING_5DIGITS)
 
     def test_time_zone_to_utc_offset_string_with_number(self):
         """Ensures correct output from _time_zone_string_to_utc_offset.
@@ -181,6 +227,14 @@ class StormEventsIoTests(unittest.TestCase):
         this_flag = storm_events_io._is_event_thunderstorm_wind(
             EVENT_TYPE_STRING_NOT_SLW)
         self.assertFalse(this_flag)
+
+    def test_find_local_raw_file(self):
+        """Ensures correct output from find_local_raw_file."""
+
+        this_file_name = storm_events_io.find_local_raw_file(
+            YEAR_FOR_RAW_FILE, directory_name=RAW_DIRECTORY_NAME,
+            raise_error_if_missing=False)
+        self.assertTrue(this_file_name == RAW_FILE_NAME)
 
 
 if __name__ == '__main__':

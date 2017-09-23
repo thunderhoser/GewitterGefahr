@@ -100,6 +100,16 @@ WIND_STRING_5MINUTE_NO_GUST_SPEED = (
     WIND_STRING_5MINUTE_PREFIX + ' AUTO 02008GKT')
 WIND_ARRAY_5MINUTE_NO_GUST_SPEED = numpy.full(4, numpy.nan)
 
+STATION_ID = 'CYEG'
+MONTH_UNIX_SEC = 1506194267  # Sep 2017
+PATHLESS_RAW_1MINUTE_FILE_NAME = '64060CYEG201709.dat'
+TOP_DIRECTORY_NAME_RAW_1MINUTE = 'hfmetar/1minute/raw_files'
+RAW_1MINUTE_FILE_NAME = 'hfmetar/1minute/raw_files/CYEG/64060CYEG201709.dat'
+
+PATHLESS_RAW_5MINUTE_FILE_NAME = '64010CYEG201709.dat'
+TOP_DIRECTORY_NAME_RAW_5MINUTE = 'hfmetar/5minute/raw_files'
+RAW_5MINUTE_FILE_NAME = 'hfmetar/5minute/raw_files/CYEG/64010CYEG201709.dat'
+
 
 class HfmetarIoTests(unittest.TestCase):
     """Each method is a unit test for hfmetar_io.py."""
@@ -454,6 +464,41 @@ class HfmetarIoTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(this_wind_array,
                                        WIND_ARRAY_5MINUTE_NO_GUST_SPEED,
                                        atol=TOLERANCE, equal_nan=True))
+
+    def test_get_pathless_raw_1minute_file_name(self):
+        """Ensures correct output from _get_pathless_raw_1minute_file_name."""
+
+        this_pathless_file_name = hfmetar_io._get_pathless_raw_1minute_file_name(
+            STATION_ID, MONTH_UNIX_SEC)
+        self.assertTrue(
+            this_pathless_file_name == PATHLESS_RAW_1MINUTE_FILE_NAME)
+
+    def test_get_pathless_raw_5minute_file_name(self):
+        """Ensures correct output from _get_pathless_raw_5minute_file_name."""
+
+        this_pathless_file_name = (
+            hfmetar_io._get_pathless_raw_5minute_file_name(STATION_ID,
+                                                           MONTH_UNIX_SEC))
+        self.assertTrue(
+            this_pathless_file_name == PATHLESS_RAW_5MINUTE_FILE_NAME)
+
+    def test_find_local_raw_1minute_file(self):
+        """Ensures correct output from find_local_raw_1minute_file."""
+
+        this_file_name = hfmetar_io.find_local_raw_1minute_file(
+            station_id=STATION_ID, month_unix_sec=MONTH_UNIX_SEC,
+            top_directory_name=TOP_DIRECTORY_NAME_RAW_1MINUTE,
+            raise_error_if_missing=False)
+        self.assertTrue(this_file_name == RAW_1MINUTE_FILE_NAME)
+
+    def test_find_local_raw_5minute_file(self):
+        """Ensures correct output from find_local_raw_5minute_file."""
+
+        this_file_name = hfmetar_io.find_local_raw_5minute_file(
+            station_id=STATION_ID, month_unix_sec=MONTH_UNIX_SEC,
+            top_directory_name=TOP_DIRECTORY_NAME_RAW_5MINUTE,
+            raise_error_if_missing=False)
+        self.assertTrue(this_file_name == RAW_5MINUTE_FILE_NAME)
 
 
 if __name__ == '__main__':

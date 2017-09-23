@@ -15,6 +15,7 @@ import numpy
 import pandas
 import time
 import calendar
+import os.path
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
 
@@ -27,6 +28,7 @@ ORIG_CSV_FILE_NAME = (
 
 NEW_CSV_FILE_NAME = '/localdata/ryan.lagerquist/aasswp/slw_reports_2011.csv'
 
+PATHLESS_RAW_FILE_PREFIX = 'storm_events'
 HOURS_TO_SECONDS = 3600
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
@@ -46,6 +48,17 @@ UTC_OFFSETS_HOURS = numpy.array([-8, -8, -7, -7, -6, -6, -5, -5, -4, -4])
 MONTH_NAMES_3LETTERS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
                         'Sep', 'Oct', 'Nov', 'Dec']
 TIME_FORMAT = '%d-%b-%y %H:%M:%S'
+
+
+def _year_int_to_string(year):
+    """Converts year from integer to string.
+
+    :param year: Integer year.
+    :return: year_string: String in format "yyyy" (with leading zeros if
+        necessary).
+    """
+
+    return '{0:04d}'.format(int(year))
 
 
 def _time_zone_string_to_utc_offset(time_zone_string):
@@ -154,6 +167,31 @@ def _remove_invalid_data(wind_table):
         raw_wind_io.LONGITUDE_COLUMN] = myrorss_io.convert_lng_positive_in_west(
         wind_table[raw_wind_io.LONGITUDE_COLUMN].values)
     return wind_table
+
+
+def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
+    """Finds raw file on local machine.
+
+    This file should contain all storm reports for one year.
+
+    :param year: [integer] Will look for file from this year.
+    :param directory_name: Name of directory with Storm Events files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: raw_file_name: File path.  If raise_error_if_missing = False and
+        file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    raw_file_name = '{0:s}/{1:s}{2:s}.csv'.format(directory_name,
+                                                  PATHLESS_RAW_FILE_PREFIX,
+                                                  _year_int_to_string(year))
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        raise ValueError(
+            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+
+    return raw_file_name
 
 
 def read_slw_reports_from_orig_csv(csv_file_name):

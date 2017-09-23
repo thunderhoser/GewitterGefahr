@@ -10,6 +10,7 @@ import numpy
 import pandas
 import time
 import calendar
+import os.path
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
 
@@ -25,9 +26,14 @@ NEW_WIND_FILE_NAME = (
     '/localdata/ryan.lagerquist/aasswp/ok_mesonet_winds_2010-07-27-055500.csv')
 
 DATA_SOURCE = 'ok_mesonet'
+RAW_FILE_EXTENSION = '.mdf'
 
-DATE_FORMAT = '%Y-%m-%d'
 MINUTES_TO_SECONDS = 60
+DATE_FORMAT = '%Y-%m-%d'
+YEAR_STRING_FORMAT = '%Y'
+MONTH_STRING_FORMAT = '%b'
+DAY_OF_MONTH_STRING_FORMAT = '%d'
+TIME_STRING_FORMAT = '%Y%m%d%H%M'
 
 STATION_ID_COLUMN_IN_METADATA = 'stid'
 STATION_NAME_COLUMN_ORIG = 'name'
@@ -49,6 +55,47 @@ ORIG_WIND_DATA_COLUMN_NAMES = [
     STATION_ID_COLUMN_IN_WIND_DATA, WIND_SPEED_COLUMN_ORIG,
     WIND_DIR_COLUMN_ORIG, WIND_GUST_SPEED_COLUMN_ORIG,
     MINUTES_INTO_DAY_COLUMN_ORIG]
+
+
+def _time_unix_sec_to_year_string(unix_time_sec):
+    """Converts time from Unix format to string describing year.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: year_string: Year (format "yyyy").
+    """
+
+    return time.strftime(YEAR_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _time_unix_sec_to_month_string(unix_time_sec):
+    """Converts time from Unix format to string describing month.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: month_string: Month (3-letter abbrev all in lower case).
+    """
+
+    return time.strftime(MONTH_STRING_FORMAT,
+                         time.gmtime(unix_time_sec)).lower()
+
+
+def _time_unix_sec_to_day_of_month_string(unix_time_sec):
+    """Converts time from Unix format to string describing day of month.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: day_of_month_string: Day of month (format "dd").
+    """
+
+    return time.strftime(DAY_OF_MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _time_unix_sec_to_string(unix_time_sec):
+    """Converts time from Unix format to string.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: time_string: String (format "yyyymmddHHMM").
+    """
+
+    return time.strftime(TIME_STRING_FORMAT, time.gmtime(unix_time_sec))
 
 
 def _date_string_to_unix_sec(date_string):
@@ -149,6 +196,36 @@ def _remove_invalid_wind_data(wind_table):
         invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
 
     return wind_table
+
+
+def find_local_raw_file(unix_time_sec=None, top_directory_name=None,
+                        raise_error_if_missing=False):
+    """Finds raw file on local machine.
+
+    This file should contain all variables for all stations at one 5-minute time
+    step.
+
+    :param unix_time_sec: Time in Unix format.
+    :param top_directory_name: Top-level directory with raw Oklahoma Mesonet
+        files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: raw_file_name: File path.  If raise_error_if_missing = False and
+        file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}{5:s}'.format(
+        top_directory_name, _time_unix_sec_to_year_string(unix_time_sec),
+        _time_unix_sec_to_month_string(unix_time_sec),
+        _time_unix_sec_to_day_of_month_string(unix_time_sec),
+        _time_unix_sec_to_string(unix_time_sec), RAW_FILE_EXTENSION)
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        raise ValueError(
+            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+
+    return raw_file_name
 
 
 def read_station_metadata_from_orig_csv(csv_file_name):

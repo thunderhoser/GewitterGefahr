@@ -19,6 +19,7 @@ YEAR_MONTH_STRING = '201709'
 MONTH_STRING = '09'
 DAY_OF_MONTH_STRING = '23'
 TIME_STRING = '20170923_0000'
+EXPECTED_PATHLESS_FILE_NAME = '20170923_0000.gz'
 
 SUBDATASET_NAME_LDAD = 'hfmetar'
 EXPECTED_FTP_FILE_NAME_LDAD = (
@@ -227,28 +228,27 @@ class MadisIoTests(unittest.TestCase):
             UNIX_TIME_SEC, SUBDATASET_NAME_NON_LDAD)
         self.assertTrue(this_ftp_file_name == EXPECTED_FTP_FILE_NAME_NON_LDAD)
 
-    def test_get_local_file_name_ldad(self):
-        """Ensures correct output from _get_local_file_name.
+    def test_find_local_raw_file_ldad(self):
+        """Ensures correct output from find_local_raw_file.
 
         In this case, subdataset is HFMETAR, which is part of LDAD.
         """
 
-        this_local_file_name = madis_io._get_local_file_name(
+        this_file_name = madis_io.find_local_raw_file(
             unix_time_sec=UNIX_TIME_SEC, subdataset_name=SUBDATASET_NAME_LDAD,
             file_extension=madis_io.GZIP_FILE_EXTENSION,
             top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME,
             raise_error_if_missing=False)
 
-        self.assertTrue(
-            this_local_file_name == EXPECTED_LOCAL_GZIP_FILE_NAME_LDAD)
+        self.assertTrue(this_file_name == EXPECTED_LOCAL_GZIP_FILE_NAME_LDAD)
 
-    def test_get_local_file_name_non_ldad(self):
-        """Ensures correct output from _get_local_file_name.
+    def test_find_local_raw_file_non_ldad(self):
+        """Ensures correct output from find_local_raw_file.
 
         In this case, subdataset is maritime, which is *not* part of LDAD.
         """
 
-        this_local_file_name = madis_io._get_local_file_name(
+        this_file_name = madis_io.find_local_raw_file(
             unix_time_sec=UNIX_TIME_SEC,
             subdataset_name=SUBDATASET_NAME_NON_LDAD,
             file_extension=madis_io.GZIP_FILE_EXTENSION,
@@ -256,7 +256,7 @@ class MadisIoTests(unittest.TestCase):
             raise_error_if_missing=False)
 
         self.assertTrue(
-            this_local_file_name == EXPECTED_LOCAL_GZIP_FILE_NAME_NON_LDAD)
+            this_file_name == EXPECTED_LOCAL_GZIP_FILE_NAME_NON_LDAD)
 
     def test_convert_column_name(self):
         """Ensures correct output from _convert_column_name."""
@@ -299,6 +299,13 @@ class MadisIoTests(unittest.TestCase):
             this_table_with_errors)
 
         self.assertTrue(this_wind_table.equals(WIND_TABLE_NO_LOW_QUALITY_DATA))
+
+    def test_get_pathless_raw_file_name(self):
+        """Ensures correct output from _get_pathless_raw_file_name."""
+
+        this_pathless_file_name = madis_io._get_pathless_raw_file_name(
+            UNIX_TIME_SEC, madis_io.GZIP_FILE_EXTENSION)
+        self.assertTrue(this_pathless_file_name == EXPECTED_PATHLESS_FILE_NAME)
 
 
 if __name__ == '__main__':
