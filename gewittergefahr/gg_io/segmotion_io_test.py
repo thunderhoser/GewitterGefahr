@@ -7,13 +7,20 @@ import pandas
 from gewittergefahr.gg_io import segmotion_io
 
 TOLERANCE = 1e-6
-
 XML_COLUMN_NAME_ORIG = segmotion_io.NORTH_VELOCITY_COLUMN_ORIG
 XML_COLUMN_NAME = segmotion_io.NORTH_VELOCITY_COLUMN
-
 STATS_COLUMN_NAMES = [segmotion_io.EAST_VELOCITY_COLUMN,
                       segmotion_io.NORTH_VELOCITY_COLUMN,
                       segmotion_io.START_TIME_COLUMN, segmotion_io.AGE_COLUMN]
+
+MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
+MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
+BUFFER_LAT_COLUMN_NAMES = ['vertex_latitudes_deg_buffer_0m',
+                           'vertex_latitudes_deg_buffer_0_5000m',
+                           'vertex_latitudes_deg_buffer_5000_10000m']
+BUFFER_LNG_COLUMN_NAMES = ['vertex_longitudes_deg_buffer_0m',
+                           'vertex_longitudes_deg_buffer_0_5000m',
+                           'vertex_longitudes_deg_buffer_5000_10000m']
 
 TIME_STRING = '20170910-181300'
 UNIX_TIME_SEC = 1505067180
@@ -169,6 +176,19 @@ class SegmotionIoTests(unittest.TestCase):
                                EXPECTED_POLYGON_TABLE[
                                    GRID_POINT_LNG_COLUMN].values[i],
                                atol=TOLERANCE))
+
+    def test_distance_buffers_to_column_names(self):
+        """Ensures correct output from _distance_buffers_to_column_names."""
+
+        (these_buffer_lat_column_names,
+         these_buffer_lng_column_names) = (
+            segmotion_io._distance_buffers_to_column_names(
+                MIN_BUFFER_DISTS_METRES, MAX_BUFFER_DISTS_METRES))
+
+        self.assertTrue(
+            these_buffer_lat_column_names == BUFFER_LAT_COLUMN_NAMES)
+        self.assertTrue(
+            these_buffer_lng_column_names == BUFFER_LNG_COLUMN_NAMES)
 
     def test_join_stats_and_polygons(self):
         """Ensures correct output from join_stats_and_polygons."""

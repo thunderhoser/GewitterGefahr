@@ -351,6 +351,56 @@ def _remove_redundant_vertices(vertex_rows_orig, vertex_columns_orig):
     return vertex_rows, vertex_columns
 
 
+def _patch_diag_connections_in_binary_matrix(binary_matrix):
+    """Patches diagonal connections in binary image matrix.
+
+    When two pixels P and Q are connected only diagonally, this method "patches"
+    the connection by adding another pixel -- adjacent to both P and Q -- to the
+    image.  In other words, this method flips one bit in the image from False to
+    True.
+
+    If diagonal connections are not patched, points_in_poly_to_vertices will
+    create disjoint polygons.
+
+    M = number of rows in binary image
+    N = number of columns in binary image
+
+    :param binary_matrix: M-by-N numpy array of Boolean flags.  The flag at each
+        pixel [i, j] indicates whether or not the pixel is inside a polygon.
+    :return: binary_matrix: Same as input, except that diagonal connections are
+        patched.
+    """
+
+    num_rows = binary_matrix.shape[0]
+    num_columns = binary_matrix.shape[1]
+    found_diag_connection = True
+
+    while found_diag_connection:
+        found_diag_connection = False
+
+        for i in range(num_rows - 1):
+            for j in range(num_columns):
+                if not binary_matrix[i, j]:
+                    continue
+
+                if j != 0 and binary_matrix[i + 1, j - 1]:
+                    if not (binary_matrix[i + 1, j] or binary_matrix[i, j - 1]):
+                        binary_matrix[i + 1, j] = True
+                        found_diag_connection = True
+                        break
+
+                if j != num_columns - 1 and binary_matrix[i + 1, j + 1]:
+                    if not (binary_matrix[i + 1, j] or binary_matrix[i, j + 1]):
+                        binary_matrix[i + 1, j] = True
+                        found_diag_connection = True
+                        break
+
+            if found_diag_connection:
+                break
+
+    return binary_matrix
+
+
 def _points_in_poly_to_binary_matrix(row_indices, column_indices):
     """Converts list of grid points in polygon to binary matrix.
 
@@ -481,32 +531,32 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
                                              vertex_columns_orig[i + 1] - 0.5])
         elif this_direction == UP_RIGHT_DIRECTION_NAME:
             rows_to_append = numpy.array(
-                [vertex_rows_orig[i] + 0.5, vertex_rows_orig[i] - 0.5,
-                 vertex_rows_orig[i] - 0.5])
+                [vertex_rows_orig[i] + 0.5, vertex_rows_orig[i + 1] + 0.5,
+                 vertex_rows_orig[i + 1] + 0.5])
             columns_to_append = numpy.array(
                 [vertex_columns_orig[i] + 0.5, vertex_columns_orig[i] + 0.5,
-                 vertex_columns_orig[i] + 1.5])
+                 vertex_columns_orig[i + 1] + 0.5])
         elif this_direction == UP_LEFT_DIRECTION_NAME:
             rows_to_append = numpy.array(
                 [vertex_rows_orig[i] - 0.5, vertex_rows_orig[i] - 0.5,
-                 vertex_rows_orig[i] - 1.5])
+                 vertex_rows_orig[i + 1] - 0.5])
             columns_to_append = numpy.array(
-                [vertex_columns_orig[i] + 0.5, vertex_columns_orig[i] - 0.5,
-                 vertex_columns_orig[i] - 0.5])
+                [vertex_columns_orig[i] + 0.5, vertex_columns_orig[i + 1] + 0.5,
+                 vertex_columns_orig[i + 1] + 0.5])
         elif this_direction == DOWN_RIGHT_DIRECTION_NAME:
             rows_to_append = numpy.array(
                 [vertex_rows_orig[i] + 0.5, vertex_rows_orig[i] + 0.5,
-                 vertex_rows_orig[i] + 1.5])
+                 vertex_rows_orig[i + 1] + 0.5])
             columns_to_append = numpy.array(
-                [vertex_columns_orig[i] - 0.5, vertex_columns_orig[i] + 0.5,
-                 vertex_columns_orig[i] + 0.5])
+                [vertex_columns_orig[i] - 0.5, vertex_columns_orig[i + 1] - 0.5,
+                 vertex_columns_orig[i + 1] - 0.5])
         elif this_direction == DOWN_LEFT_DIRECTION_NAME:
             rows_to_append = numpy.array(
-                [vertex_rows_orig[i] + 0.5, vertex_rows_orig[i] - 0.5,
-                 vertex_rows_orig[i] - 0.5])
+                [vertex_rows_orig[i] - 0.5, vertex_rows_orig[i + 1] - 0.5,
+                 vertex_rows_orig[i + 1] - 0.5])
             columns_to_append = numpy.array(
-                [vertex_columns_orig[i] - 0.5, vertex_columns_orig[i] - 0.5,
-                 vertex_columns_orig[i] - 1.5])
+                [vertex_columns_orig[i] - 0.5, vertex_columns_orig[i + 1] - 0.5,
+                 vertex_columns_orig[i + 1] - 0.5])
 
         vertex_rows = numpy.concatenate((vertex_rows, rows_to_append))
         vertex_columns = numpy.concatenate((vertex_columns, columns_to_append))
@@ -538,6 +588,7 @@ def points_in_poly_to_vertices(row_indices, column_indices):
     (binary_matrix, first_row_index,
      first_column_index) = _points_in_poly_to_binary_matrix(row_indices,
                                                             column_indices)
+    binary_matrix = _patch_diag_connections_in_binary_matrix(binary_matrix)
 
     _, contour_list, _ = cv2.findContours(binary_matrix.astype(numpy.uint8),
                                           cv2.RETR_EXTERNAL,
@@ -570,7 +621,7 @@ def points_in_poly_to_vertices(row_indices, column_indices):
 
 def make_buffer_around_simple_polygon(orig_vertex_x_metres,
                                       orig_vertex_y_metres,
-                                      min_buffer_dist_metres=None,
+                                      min_buffer_dist_metres=numpy.nan,
                                       max_buffer_dist_metres=None,
                                       preserve_angles=False):
     """Creates buffer around simple polygon.
@@ -584,7 +635,7 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
         original vertices.
     :param min_buffer_dist_metres: Minimum buffer distance.  If defined, the
         original polygon will *not* be included in the new polygon (e.g., "0-5
-        km outside the storm").  If None, the original polygon *will* be
+        km outside the storm").  If NaN, the original polygon *will* be
         included in the new polygon (e.g, "within 5 km of the storm").
     :param max_buffer_dist_metres: Maximum buffer distance.
     :param preserve_angles: Boolean flag.  If True, will preserve the angles of
@@ -612,7 +663,7 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
     max_buffer_vertex_dict = _polygon_object_to_vertices(
         max_buffer_polygon_object)
 
-    if min_buffer_dist_metres is None:
+    if numpy.isnan(min_buffer_dist_metres):
         return (max_buffer_vertex_dict[EXTERIOR_X_COLUMN],
                 max_buffer_vertex_dict[EXTERIOR_Y_COLUMN])
 

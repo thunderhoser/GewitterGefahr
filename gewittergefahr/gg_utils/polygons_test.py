@@ -107,6 +107,28 @@ VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT = numpy.array(
     [500.5, 500.5, 501.5, 501.5, 503.5, 503.5, 504.5, 504.5, 502.5, 502.5,
      500.5])
 
+BINARY_MATRIX_2DIAG_CONNECTIONS = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
+                                               [0, 0, 1, 1, 0, 0, 0, 0],
+                                               [0, 1, 1, 1, 0, 0, 0, 0],
+                                               [0, 0, 0, 0, 1, 0, 0, 0],
+                                               [0, 0, 0, 0, 0, 1, 1, 0],
+                                               [0, 0, 0, 0, 1, 1, 1, 1]],
+                                              dtype=bool)
+BINARY_MATRIX_1DIAG_CONNECTION = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
+                                              [0, 0, 1, 1, 0, 0, 0, 0],
+                                              [0, 1, 1, 1, 0, 0, 0, 0],
+                                              [0, 0, 0, 1, 1, 0, 0, 0],
+                                              [0, 0, 0, 0, 0, 1, 1, 0],
+                                              [0, 0, 0, 0, 1, 1, 1, 1]],
+                                             dtype=bool)
+BINARY_MATRIX_NO_DIAG_CONNECTIONS = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
+                                                 [0, 0, 1, 1, 0, 0, 0, 0],
+                                                 [0, 1, 1, 1, 0, 0, 0, 0],
+                                                 [0, 0, 0, 1, 1, 0, 0, 0],
+                                                 [0, 0, 0, 0, 1, 1, 1, 0],
+                                                 [0, 0, 0, 0, 1, 1, 1, 1]],
+                                                dtype=bool)
+
 
 class PolygonsTests(unittest.TestCase):
     """Each method is a unit test for polygons.py."""
@@ -367,6 +389,41 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(
             numpy.array_equal(these_vertex_columns,
                               VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
+
+    def test_patch_diag_connections_2diag_connections(self):
+        """Ensures correct output from _patch_diag_connections_in_binary_matrix.
+
+        In this case there are 2 diagonal connections to patch.
+        """
+
+        this_binary_matrix = polygons._patch_diag_connections_in_binary_matrix(
+            BINARY_MATRIX_2DIAG_CONNECTIONS)
+        self.assertTrue(
+            numpy.array_equal(this_binary_matrix,
+                              BINARY_MATRIX_NO_DIAG_CONNECTIONS))
+
+    def test_patch_diag_connections_1diag_connections(self):
+        """Ensures correct output from _patch_diag_connections_in_binary_matrix.
+
+        In this case there is one diagonal connection to patch.
+        """
+
+        this_binary_matrix = polygons._patch_diag_connections_in_binary_matrix(
+            BINARY_MATRIX_1DIAG_CONNECTION)
+        self.assertTrue(
+            numpy.array_equal(this_binary_matrix,
+                              BINARY_MATRIX_NO_DIAG_CONNECTIONS))
+
+    def test_patch_diag_connections_no_diag_connections(self):
+        """Ensures correct output from _patch_diag_connections_in_binary_matrix.
+
+        In this case there are no diagonal connections to patch.
+        """
+
+        this_binary_matrix = polygons._patch_diag_connections_in_binary_matrix(
+            BINARY_MATRIX_NO_DIAG_CONNECTIONS)
+        self.assertTrue(numpy.array_equal(this_binary_matrix,
+                                          BINARY_MATRIX_NO_DIAG_CONNECTIONS))
 
     def test_points_in_poly_to_binary_matrix(self):
         """Ensures correct output from _points_in_poly_to_binary_matrix."""

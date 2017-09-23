@@ -7,6 +7,7 @@ import collections
 import numpy
 import pandas
 from netCDF4 import Dataset
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import number_rounding as rounder
 
 # TODO(thunderhoser): add error-checking to all methods.
@@ -205,6 +206,33 @@ def latlng_to_rowcol(latitudes_deg, longitudes_deg, nw_grid_point_lat_deg=None,
         (nw_grid_point_lat_deg - latitudes_deg) / lat_spacing_deg, 0.5)
 
     return rows, columns
+
+
+def get_center_of_grid(nw_grid_point_lat_deg=None, nw_grid_point_lng_deg=None,
+                       lat_spacing_deg=None, lng_spacing_deg=None,
+                       num_lat_in_grid=None, num_lng_in_grid=None):
+    """Finds center of grid.
+
+    :param nw_grid_point_lat_deg: Latitude (deg N) at center of northwesternmost
+        grid point.
+    :param nw_grid_point_lng_deg: Longitude (deg E) at center of
+        northwesternmost grid point.
+    :param lat_spacing_deg: Spacing (deg N) between adjacent grid rows.
+    :param lng_spacing_deg: Spacing (deg E) between adjacent grid columns.
+    :param num_lat_in_grid: Number of grid rows (unique latitudes).
+    :param num_lng_in_grid: Number of grid columns (unique longitudes).
+    :return: center_latitude_deg: Latitude (deg N) at center of grid.
+    :return: center_longitude_deg: Longitude (deg E) at center of grid.
+    """
+
+    min_latitude_deg = nw_grid_point_lat_deg - (
+        (num_lat_in_grid - 1) * lat_spacing_deg)
+
+    max_longitude_deg = nw_grid_point_lng_deg + (
+        (num_lng_in_grid - 1) * lng_spacing_deg)
+
+    return (numpy.mean(numpy.array([min_latitude_deg, nw_grid_point_lat_deg])),
+            numpy.mean(numpy.array([nw_grid_point_lng_deg, max_longitude_deg])))
 
 
 def read_metadata_from_netcdf(netcdf_file_name):

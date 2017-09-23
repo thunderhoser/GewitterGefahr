@@ -52,6 +52,11 @@ EXPECTED_GRID_LNG_DEG = numpy.array(
     [230., 230.01, 230.02, 230.03, 230.04, 230.05, 230.06, 230.07, 230.08,
      230.09, 230.1])
 
+NUM_LAT_IN_GRID = 3501
+NUM_LNG_IN_GRID = 7001
+CENTER_LAT_IN_GRID_DEG = 37.5
+CENTER_LNG_IN_GRID_DEG = 265.
+
 
 class MyrorssIoTests(unittest.TestCase):
     """Each method is a unit test for myrorss_io.py."""
@@ -117,6 +122,23 @@ class MyrorssIoTests(unittest.TestCase):
             numpy.allclose(these_grid_rows, GRID_ROWS, atol=TOLERANCE))
         self.assertTrue(
             numpy.allclose(these_grid_columns, GRID_COLUMNS, atol=TOLERANCE))
+
+    def test_get_center_of_grid(self):
+        """Ensures correct output from get_center_of_grid."""
+
+        (this_center_lat_deg,
+         this_center_lng_deg) = myrorss_io.get_center_of_grid(
+            nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
+            nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
+            lat_spacing_deg=LAT_SPACING_DEG, lng_spacing_deg=LNG_SPACING_DEG,
+            num_lat_in_grid=NUM_LAT_IN_GRID, num_lng_in_grid=NUM_LNG_IN_GRID)
+
+        self.assertTrue(numpy.allclose(numpy.array([this_center_lat_deg]),
+                                       numpy.array([CENTER_LAT_IN_GRID_DEG]),
+                                       atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(numpy.array([this_center_lng_deg]),
+                                       numpy.array([CENTER_LNG_IN_GRID_DEG]),
+                                       atol=TOLERANCE))
 
 
 if __name__ == '__main__':

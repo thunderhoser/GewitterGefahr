@@ -12,12 +12,17 @@ import calendar
 import xml.etree.ElementTree as ElementTree
 import numpy
 from netCDF4 import Dataset
+import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import myrorss_sparse_to_full as sparse_to_full
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import projections
 
 # TODO(thunderhoser): add error-checking to all methods.
 # TODO(thunderhoser): replace main method with named high-level method.
+
+MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
+MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
 XML_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
@@ -61,6 +66,9 @@ VERTEX_LAT_COLUMN = 'vertex_latitudes_deg'
 VERTEX_LNG_COLUMN = 'vertex_longitudes_deg'
 VERTEX_ROW_COLUMN = 'vertex_rows'
 VERTEX_COLUMN_COLUMN = 'vertex_columns'
+
+BUFFER_VERTEX_LAT_COLUMN_PREFIX = 'vertex_latitudes_deg_buffer_'
+BUFFER_VERTEX_LNG_COLUMN_PREFIX = 'vertex_longitudes_deg_buffer_'
 
 
 def _convert_xml_column_name(column_name_orig):
@@ -172,6 +180,47 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
 
     return polygon_table.loc[
         polygon_table[STORM_ID_COLUMN] != str(int(SENTINEL_VALUE))]
+
+
+def _distance_buffers_to_column_names(min_buffer_dists_metres,
+                                      max_buffer_dists_metres):
+    """Generates column name for each distance buffer.
+
+    N = number of distance buffers
+
+    :param min_buffer_dists_metres: length-N numpy array of minimum distances
+        (integers).
+    :param max_buffer_dists_metres: length-N numpy array of maximum distances
+        (integers).
+    :return: buffer_lat_column_names: length-N list of column names for vertex
+        latitudes.
+    :return: buffer_lng_column_names: length-N list of column names for vertex
+        longitudes.
+    """
+
+    num_buffers = len(max_buffer_dists_metres)
+    buffer_lat_column_names = [''] * num_buffers
+    buffer_lng_column_names = [''] * num_buffers
+
+    for j in range(num_buffers):
+        if numpy.isnan(min_buffer_dists_metres[j]):
+            buffer_lat_column_names[j] = '{0:s}{1:d}m'.format(
+                BUFFER_VERTEX_LAT_COLUMN_PREFIX,
+                int(max_buffer_dists_metres[j]))
+            buffer_lng_column_names[j] = '{0:s}{1:d}m'.format(
+                BUFFER_VERTEX_LNG_COLUMN_PREFIX,
+                int(max_buffer_dists_metres[j]))
+        else:
+            buffer_lat_column_names[j] = '{0:s}{1:d}_{2:d}m'.format(
+                BUFFER_VERTEX_LAT_COLUMN_PREFIX,
+                int(min_buffer_dists_metres[j]),
+                int(max_buffer_dists_metres[j]))
+            buffer_lng_column_names[j] = '{0:s}{1:d}_{2:d}m'.format(
+                BUFFER_VERTEX_LNG_COLUMN_PREFIX,
+                int(min_buffer_dists_metres[j]),
+                int(max_buffer_dists_metres[j]))
+
+    return buffer_lat_column_names, buffer_lng_column_names
 
 
 def extract_file_from_gzip(gzip_file_name):
@@ -334,11 +383,88 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict):
     return polygon_table
 
 
+def make_buffers_around_polygons(polygon_table, min_buffer_dists_metres=None,
+                                 max_buffer_dists_metres=None,
+                                 central_latitude_deg=None,
+                                 central_longitude_deg=None):
+    """Creates one or more buffers around each polygon.
+
+    N = number of buffers
+    V = number of vertices in polygon (different for each buffer and storm cell)
+
+    :param polygon_table: pandas DataFrame created by read_polygons_from_netcdf.
+    :param min_buffer_dists_metres: length-N numpy array of minimum buffer
+        distances.  If min_buffer_dists_metres[i] is NaN, the [i]th buffer
+        includes the original polygon.  If min_buffer_dists_metres[i] is
+        defined, the [i]th buffer is a "nested" buffer, not including the
+        original polygon.
+    :param max_buffer_dists_metres: length-N numpy array of maximum buffer
+        distances.  Must be all real numbers (no NaN).
+    :param central_latitude_deg: Central latitude (deg N) for azimuthal
+        equidistant projection.
+    :param central_longitude_deg: Central longitude (deg E) for azimuthal
+        equidistant projection.
+    :return: polygon_table: Same as input data, but with 2*N additional columns.
+    polygon_table.vertex_lat_buffer<j>_deg: length-V numpy array with latitudes
+        (deg N) of vertices in [j + 1]th buffer around storm.
+    polygon_table.vertex_lng_buffer<j>_deg: length-V numpy array with longitudes
+        (deg E) of vertices in [j + 1]th buffer around storm.
+    """
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg, central_longitude_deg)
+
+    min_buffer_dists_metres = numpy.round(min_buffer_dists_metres)
+    max_buffer_dists_metres = numpy.round(max_buffer_dists_metres)
+
+    (buffer_lat_column_names,
+     buffer_lng_column_names) = _distance_buffers_to_column_names(
+        min_buffer_dists_metres, max_buffer_dists_metres)
+
+    nested_array = polygon_table[
+        [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
+
+    argument_dict = {}
+    num_buffers = len(max_buffer_dists_metres)
+    for j in range(num_buffers):
+        argument_dict.update({buffer_lat_column_names[j]: nested_array,
+                              buffer_lng_column_names[j]: nested_array})
+    polygon_table = polygon_table.assign(**argument_dict)
+
+    num_storms = len(polygon_table.index)
+    for i in range(num_storms):
+        (orig_vertex_x_metres,
+         orig_vertex_y_metres) = projections.project_latlng_to_xy(
+            polygon_table[VERTEX_LAT_COLUMN].values[i],
+            polygon_table[VERTEX_LNG_COLUMN].values[i],
+            projection_object=projection_object)
+
+        for j in range(num_buffers):
+            (buffer_vertex_x_metres, buffer_vertex_y_metres) = (
+                polygons.make_buffer_around_simple_polygon(
+                    orig_vertex_x_metres, orig_vertex_y_metres,
+                    min_buffer_dist_metres=min_buffer_dists_metres[j],
+                    max_buffer_dist_metres=max_buffer_dists_metres[j]))
+
+            (buffer_vertex_lat_deg,
+             buffer_vertex_lng_deg) = projections.project_xy_to_latlng(
+                buffer_vertex_x_metres, buffer_vertex_y_metres,
+                projection_object=projection_object)
+
+            polygon_table[buffer_lat_column_names[j]].values[
+                i] = buffer_vertex_lat_deg
+            polygon_table[buffer_lng_column_names[j]].values[
+                i] = buffer_vertex_lng_deg
+
+    return polygon_table
+
+
 def join_stats_and_polygons(stats_table, polygon_table):
     """Joins tables with storm statistics and polygons.
 
     :param stats_table: pandas DataFrame created by read_stats_from_xml.
-    :param polygon_table: pandas DataFrame created by read_polygons_from_netcdf.
+    :param polygon_table: pandas DataFrame created by read_polygons_from_netcdf
+        or make_buffers_around_polygons.
     :return: storm_table: pandas DataFrame with columns from both stats_table
         and polygon_table.
     """
@@ -379,6 +505,24 @@ if __name__ == '__main__':
 
     metadata_dict = myrorss_io.read_metadata_from_netcdf(NETCDF_FILE_NAME)
     polygon_table = read_polygons_from_netcdf(NETCDF_FILE_NAME, metadata_dict)
+    print polygon_table
+
+    (central_latitude_deg,
+     central_longitude_deg) = myrorss_io.get_center_of_grid(
+        nw_grid_point_lat_deg=metadata_dict[
+            myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+        nw_grid_point_lng_deg=metadata_dict[
+            myrorss_io.NW_GRID_POINT_LNG_COLUMN],
+        lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
+        lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN],
+        num_lat_in_grid=metadata_dict[myrorss_io.NUM_LAT_COLUMN],
+        num_lng_in_grid=metadata_dict[myrorss_io.NUM_LNG_COLUMN])
+
+    polygon_table = make_buffers_around_polygons(
+        polygon_table, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,
+        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES,
+        central_latitude_deg=central_latitude_deg,
+        central_longitude_deg=central_longitude_deg)
     print polygon_table
 
     storm_table = join_stats_and_polygons(stats_table, polygon_table)
