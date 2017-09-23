@@ -10,6 +10,7 @@ and lead time.
 import os.path
 import time
 from gewittergefahr.gg_io import grib_io
+from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import file_system_utils
 
 # TODO(thunderhoser): add error-checking to all methods.
@@ -211,17 +212,9 @@ def download_grib_or_grib2_file(init_time_unix_sec, lead_time_hours,
         model_id_for_pathless_file_name=model_id_for_pathless_file_name,
         file_extension=file_extension, raise_error_if_missing=False)
 
-    file_system_utils.mkdir_recursive_if_necessary(local_file_name)
-    grib_io.download_grib_file_via_http(online_file_name, local_file_name)
-
-    if raise_error_if_fails and not os.path.isfile(local_file_name):
-        raise ValueError(
-            'Download failed.  Local file expected at: ' + local_file_name)
-
-    if not os.path.isfile(local_file_name):
-        local_file_name = None
-
-    return local_file_name
+    return downloads.download_file_from_url(
+        online_file_name, local_file_name,
+        raise_error_if_fails=raise_error_if_fails)
 
 
 def read_variable_from_grib(grib_file_name, init_time_unix_sec=None,

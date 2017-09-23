@@ -7,7 +7,7 @@ instructions.
 
 import os
 import numpy
-from urllib2 import urlopen
+from gewittergefahr.gg_io import downloads
 
 # TODO(thunderhoser): add error-checking to all methods.
 # TODO(thunderhoser): add README_grib to this directory.
@@ -140,33 +140,6 @@ def _read_variable_from_text(text_file_name, num_grid_rows=None,
     return _replace_sentinels_with_nan(data_matrix, sentinel_value)
 
 
-def download_grib_file_via_http(url_name, local_file_name):
-    """Downloads grib file via HTTP.
-
-    :param url_name: Path to online grib file.
-    :param local_file_name: grib file will be saved here on local machine.
-    """
-
-    response_object = urlopen(url_name)
-
-    with open(local_file_name, 'wb') as local_file_handle:
-        while True:
-            this_chunk = response_object.read(NUM_BYTES_PER_DOWNLOAD_CHUNK)
-            if not this_chunk:
-                break
-            local_file_handle.write(this_chunk)
-
-
-def download_grib2_file_via_http(url_name, local_file_name):
-    """Downloads grib2 file via HTTP.
-
-    :param url_name: Path to online grib2 file.
-    :param local_file_name: grib2 file will be saved here on local machine.
-    """
-
-    download_grib_file_via_http(url_name, local_file_name)
-
-
 def read_variable_from_grib(grib_file_name, grib_var_name=None,
                             text_file_name=None,
                             wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
@@ -243,8 +216,9 @@ def read_variable_from_grib2(grib2_file_name, grib2_var_name=None,
 
 
 if __name__ == '__main__':
-    download_grib_file_via_http(NARR_FILE_NAME_ONLINE, NARR_FILE_NAME_LOCAL)
-    download_grib_file_via_http(RAP_FILE_NAME_ONLINE, RAP_FILE_NAME_LOCAL)
+    downloads.download_file_from_url(NARR_FILE_NAME_ONLINE,
+                                     NARR_FILE_NAME_LOCAL)
+    downloads.download_file_from_url(RAP_FILE_NAME_ONLINE, RAP_FILE_NAME_LOCAL)
 
     narr_h500_matrix_metres = (
         read_variable_from_grib(NARR_FILE_NAME_LOCAL,

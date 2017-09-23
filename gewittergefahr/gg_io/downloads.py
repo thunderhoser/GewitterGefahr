@@ -19,7 +19,7 @@ def download_file_from_url(file_url, local_file_name,
         method will raise an error.
     :return: local_file_name: Path to file on local machine.  If download failed
         but raise_error_if_fails = False, this will be None.
-        :raises: ValueError: if raise_error_if_fails = True and download failed.
+    :raises: ValueError: if raise_error_if_fails = True and download failed.
     """
 
     response_object = urlopen(file_url)
