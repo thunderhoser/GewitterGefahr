@@ -8,8 +8,40 @@ from gewittergefahr.gg_io import myrorss_io
 
 TOLERANCE = 1e-6
 
-RADAR_VAR_NAME_ORIG = 'MergedReflectivityQCComposite'
-RADAR_VAR_NAME = 'reflectivity_column_max_dbz'
+UNIX_TIME_SEC_1200UTC = 1506168000
+UNIX_TIME_SEC_0000UTC = 1506211200
+UNIX_TIME_SEC_115959UTC = 1506254399
+SPC_DATE_STRING = '20170923'
+
+UNIX_TIME_SEC = 1506202714
+TIME_STRING = '20170923-213834'
+
+VARIABLE_NAME_0METRES = myrorss_io.MID_LEVEL_SHEAR_NAME
+VARIABLE_NAME_250METRES = myrorss_io.SHI_NAME
+VARIABLE_NAME_MANY_HEIGHTS = myrorss_io.REFL_NAME
+
+VARIABLE_NAMES_FOR_DICT = [myrorss_io.LOW_LEVEL_SHEAR_NAME,
+                           myrorss_io.REFL_M10CELSIUS_NAME,
+                           myrorss_io.REFL_NAME]
+REFL_HEIGHTS_M_AGL = numpy.array([0., 1000., 2000., 3000., 5000., 10000.])
+EXPECTED_VARIABLE_DICT = {myrorss_io.LOW_LEVEL_SHEAR_NAME: numpy.array([0.]),
+                          myrorss_io.REFL_M10CELSIUS_NAME: numpy.array([250.]),
+                          myrorss_io.REFL_NAME: REFL_HEIGHTS_M_AGL}
+
+TIME_FOR_FILE_UNIX_SEC = 1286705410  # 101010 UTC 10 Oct 2010
+SPC_DATE_FOR_FILE_UNIX_SEC = 1286705410  # any time from 1200 UTC 9 Oct - 10 Oct
+VARIABLE_NAME_FOR_FILE = myrorss_io.REFL_M20CELSIUS_NAME
+HEIGHT_FOR_FILE_M_AGL = 250.
+EXPECTED_DIR_NAME_IN_TAR_FILE = myrorss_io.REFL_M20CELSIUS_NAME_ORIG + '/00.25'
+EXPECTED_PATHLESS_RAW_FILE_NAME = '20101010-101010.netcdf.gz'
+
+TOP_RAW_DIRECTORY_NAME = 'myrorss'
+EXPECTED_RAW_FILE_NAME = (
+    'myrorss/20101009/' + myrorss_io.REFL_M20CELSIUS_NAME_ORIG +
+    '/00.25/20101010-101010.netcdf.gz')
+
+VARIABLE_NAME_NEW = myrorss_io.REFL_COLUMN_MAX_NAME
+VARIABLE_NAME_ORIG = myrorss_io.REFL_COLUMN_MAX_NAME_ORIG
 
 GRID_ROWS = numpy.linspace(0, 10, num=11, dtype=int)
 GRID_COLUMNS = numpy.linspace(0, 10, num=11, dtype=int)
@@ -25,7 +57,7 @@ SPARSE_GRID_DICT_WITH_SENTINELS = {myrorss_io.GRID_ROW_COLUMN: GRID_ROWS,
                                    myrorss_io.GRID_COLUMN_COLUMN: GRID_COLUMNS,
                                    myrorss_io.NUM_GRID_CELL_COLUMN:
                                        GRID_CELL_COUNTS,
-                                   RADAR_VAR_NAME: RADAR_VALUES}
+                                   VARIABLE_NAME_NEW: RADAR_VALUES}
 SPARSE_GRID_TABLE_WITH_SENTINELS = pandas.DataFrame.from_dict(
     SPARSE_GRID_DICT_WITH_SENTINELS)
 
@@ -61,17 +93,138 @@ CENTER_LNG_IN_GRID_DEG = 265.
 class MyrorssIoTests(unittest.TestCase):
     """Each method is a unit test for myrorss_io.py."""
 
-    def test_convert_var_name(self):
-        """Ensures correct output from _convert_var_name."""
+    def test_time_unix_sec_to_spc_date_1200utc(self):
+        """Ensures correct output from _time_unix_sec_to_spc_date.
 
-        this_radar_var_name = myrorss_io._convert_var_name(RADAR_VAR_NAME_ORIG)
-        self.assertTrue(this_radar_var_name == RADAR_VAR_NAME)
+        In this case the time is 1200 UTC 23 Sep 2017 (beginning of SPC date
+        "20170923").
+        """
+
+        this_spc_date_string = myrorss_io.time_unix_sec_to_spc_date(
+            UNIX_TIME_SEC_1200UTC)
+        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
+
+    def test_time_unix_sec_to_spc_date_0000utc(self):
+        """Ensures correct output from _time_unix_sec_to_spc_date.
+
+        In this case the time is 0000 UTC 24 Sep 2017 (middle of SPC date
+        "20170923").
+        """
+
+        this_spc_date_string = myrorss_io.time_unix_sec_to_spc_date(
+            UNIX_TIME_SEC_0000UTC)
+        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
+
+    def test_time_unix_sec_to_spc_date_115959utc(self):
+        """Ensures correct output from _time_unix_sec_to_spc_date.
+
+        In this case the time is 115959 UTC 24 Sep 2017 (end of SPC date
+        "20170923").
+        """
+
+        this_spc_date_string = myrorss_io.time_unix_sec_to_spc_date(
+            UNIX_TIME_SEC_115959UTC)
+        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
+
+    def test_time_unix_sec_to_string(self):
+        """Ensures correct output from _time_unix_sec_to_string."""
+
+        this_time_string = myrorss_io._time_unix_sec_to_string(UNIX_TIME_SEC)
+        self.assertTrue(this_time_string == TIME_STRING)
+
+    def test_variable_to_valid_heights_0metres(self):
+        """Ensures correct output from _variable_to_valid_heights.
+
+        In this case the only valid height is 0 metres.
+        """
+
+        these_heights_m_agl = myrorss_io._variable_to_valid_heights(
+            VARIABLE_NAME_0METRES)
+        self.assertTrue(numpy.allclose(these_heights_m_agl, numpy.array([0.]),
+                                       atol=TOLERANCE))
+
+    def test_variable_to_valid_heights_250metres(self):
+        """Ensures correct output from _variable_to_valid_heights.
+
+        In this case the only valid height is 250 metres.
+        """
+
+        these_heights_m_agl = myrorss_io._variable_to_valid_heights(
+            VARIABLE_NAME_250METRES)
+        self.assertTrue(
+            numpy.allclose(these_heights_m_agl, numpy.array([250.]),
+                           atol=TOLERANCE))
+
+    def test_variable_to_valid_heights_many(self):
+        """Ensures correct output from _variable_to_valid_heights.
+
+        In this case there are many valid heights.
+        """
+
+        these_heights_m_agl = myrorss_io._variable_to_valid_heights(
+            VARIABLE_NAME_MANY_HEIGHTS)
+        self.assertTrue(len(these_heights_m_agl) > 1)
+
+    def test_var_height_arrays_to_dict(self):
+        """Ensures correct output from _var_height_arrays_to_dict."""
+
+        this_variable_dict = myrorss_io._var_height_arrays_to_dict(
+            VARIABLE_NAMES_FOR_DICT, REFL_HEIGHTS_M_AGL)
+        self.assertTrue(
+            this_variable_dict.keys() == EXPECTED_VARIABLE_DICT.keys())
+
+        for j in range(len(VARIABLE_NAMES_FOR_DICT)):
+            this_key = VARIABLE_NAMES_FOR_DICT[j]
+            self.assertTrue(numpy.allclose(this_variable_dict[this_key],
+                                           EXPECTED_VARIABLE_DICT[this_key],
+                                           atol=TOLERANCE))
+
+    def test_get_directory_in_tar_file(self):
+        """Ensures correct output from _get_directory_in_tar_file."""
+
+        this_directory_name = myrorss_io._get_directory_in_tar_file(
+            VARIABLE_NAME_FOR_FILE, HEIGHT_FOR_FILE_M_AGL)
+        self.assertTrue(this_directory_name == EXPECTED_DIR_NAME_IN_TAR_FILE)
+
+    def test_get_pathless_raw_file_name(self):
+        """Ensures correct output from _get_pathless_raw_file_name."""
+
+        this_pathless_file_name = myrorss_io._get_pathless_raw_file_name(
+            TIME_FOR_FILE_UNIX_SEC)
+        self.assertTrue(
+            this_pathless_file_name == EXPECTED_PATHLESS_RAW_FILE_NAME)
+
+    def test_var_name_orig_to_new(self):
+        """Ensures correct output from _var_name_orig_to_new."""
+
+        this_var_name_new = myrorss_io._var_name_orig_to_new(VARIABLE_NAME_ORIG)
+        self.assertTrue(this_var_name_new == VARIABLE_NAME_NEW)
+
+    def test_var_name_new_to_orig(self):
+        """Ensures correct output from _var_name_new_to_orig."""
+
+        this_var_name_orig = myrorss_io._var_name_new_to_orig(VARIABLE_NAME_NEW)
+        self.assertTrue(this_var_name_orig == VARIABLE_NAME_ORIG)
+
+    def test_find_local_raw_file(self):
+        """Ensures correct output from find_local_raw_file."""
+
+        this_file_name = myrorss_io.find_local_raw_file(
+            unix_time_sec=TIME_FOR_FILE_UNIX_SEC,
+            spc_date_unix_sec=SPC_DATE_FOR_FILE_UNIX_SEC,
+            variable_name=VARIABLE_NAME_FOR_FILE,
+            height_m_agl=HEIGHT_FOR_FILE_M_AGL,
+            top_directory_name=TOP_RAW_DIRECTORY_NAME,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == EXPECTED_RAW_FILE_NAME)
 
     def test_remove_sentinels(self):
         """Ensures correct output from _remove_sentinels."""
 
         sparse_grid_table_no_sentinels = myrorss_io._remove_sentinels(
-            SPARSE_GRID_TABLE_WITH_SENTINELS, RADAR_VAR_NAME, SENTINEL_VALUES)
+            SPARSE_GRID_TABLE_WITH_SENTINELS, VARIABLE_NAME_NEW,
+            SENTINEL_VALUES)
         self.assertTrue(sparse_grid_table_no_sentinels.equals(
             EXPECTED_SPARSE_GRID_TABLE_NO_SENTINELS))
 

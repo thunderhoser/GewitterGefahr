@@ -1,7 +1,19 @@
-"""IO methods for segmotion* output.
+"""IO methods for segmotion output.
 
-* segmotion, or w2segmotionll, is a storm-tracking algorithm in the WDSS-II
-(Warning Decision Support System -- Integrated Information) software package.
+DEFINITIONS
+
+segmotion (or w2segmotionll) = storm-tracking algorithm in WDSS-II.
+
+WDSS-II = Warning Decision Support System -- Integrated Information, a software
+package for the visualization and analysis of thunderstorm-related data.
+
+SPC = Storm Prediction Center
+
+SPC date = a 24-hour period, starting and ending at 1200 UTC.  This is unlike a
+normal person's day, which starts and ends at 0000 UTC.  An SPC date is
+referenced by the calendar day at the beginning of the SPC date.  In other
+words, SPC date "Sep 23 2017" actually runs from 1200 UTC 23 Sep 2017 -
+1200 UTC 24 Sep 2017.
 """
 
 import pandas
@@ -12,7 +24,6 @@ import calendar
 import xml.etree.ElementTree as ElementTree
 import numpy
 from netCDF4 import Dataset
-import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import myrorss_sparse_to_full as sparse_to_full
 from gewittergefahr.gg_utils import polygons
@@ -20,6 +31,9 @@ from gewittergefahr.gg_utils import projections
 
 # TODO(thunderhoser): add error-checking to all methods.
 # TODO(thunderhoser): replace main method with named high-level method.
+
+# TODO(thunderhoser): implement _rename_dirs_scale_in_metres2.
+# TODO(thunderhoser): write unit tests for all file-management methods.
 
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
@@ -34,9 +48,15 @@ NETCDF_FILE_NAME = (
     'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
 
 GZIP_FILE_EXTENSION = '.gz'
+STATS_FILE_EXTENSION1 = '.xml'
+STATS_FILE_EXTENSION2 = '.gz'
+POLYGON_FILE_EXTENSION1 = '.netcdf'
+POLYGON_FILE_EXTENSION2 = '.gz'
+
+STATS_DIR_NAME_PART = 'TrackingTable'
+POLYGON_DIR_NAME_PART = 'ClusterID'
 
 TIME_FORMAT_SEGMOTION = '%Y%m%d-%H%M%S'
-TIME_FORMAT_DEFAULT = '%Y-%m-%d-%H%M%S'
 SENTINEL_VALUE = -9999
 
 STORM_ID_COLUMN = 'storm_id'
@@ -93,6 +113,46 @@ def _time_string_to_unix_sec(time_string):
     """
 
     return calendar.timegm(time.strptime(time_string, TIME_FORMAT_SEGMOTION))
+
+
+def _time_unix_sec_to_string(unix_time_sec):
+    """Converts time from Unix format to string.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: time_string: Time string (format "yyyymmdd-HHMMSS").
+    """
+
+    return time.strftime(TIME_FORMAT_SEGMOTION, time.gmtime(unix_time_sec))
+
+
+def _get_pathless_stats_file_name(unix_time_sec):
+    """Generates pathless name for statistics file.
+
+    This file should contain storm stats (everything except polygons) for one
+    time step and one tracking scale.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: pathless_stats_file_name: Pathless name for statistics file.
+    """
+
+    return '{0:s}{1:s}{2:s}'.format(_time_unix_sec_to_string(unix_time_sec),
+                                    STATS_FILE_EXTENSION1,
+                                    STATS_FILE_EXTENSION2)
+
+
+def _get_pathless_polygon_file_name(unix_time_sec):
+    """Generates pathless name for polygon file.
+
+    This file should contain storm outlines (polygons) for one time step and one
+    tracking scale.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: pathless_polygon_file_name: Pathless name for polygon file.
+    """
+
+    return '{0:s}{1:s}{2:s}'.format(_time_unix_sec_to_string(unix_time_sec),
+                                    POLYGON_FILE_EXTENSION1,
+                                    POLYGON_FILE_EXTENSION2)
 
 
 def _remove_rows_with_nan(input_table):
@@ -221,6 +281,161 @@ def _distance_buffers_to_column_names(min_buffer_dists_metres,
                 int(max_buffer_dists_metres[j]))
 
     return buffer_lat_column_names, buffer_lng_column_names
+
+
+def _get_stats_directory_in_tar_file(spc_date_string, tracking_scale_ordinal):
+    """Generates expected name of stats directory in tar file.
+
+    This directory should contain storm statistics for the given tracking scale.
+
+    N = number of tracking scales in tar file
+
+    :param spc_date_unix_sec: SPC date in format "yyyymmdd".
+    :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
+        [0, N - 1]).
+    :return: stats_directory_name: Expected name of directory in tar file.
+    """
+
+    return '{0:s}/{1:s}/scale_{2:d}'.format(
+        spc_date_string, STATS_DIR_NAME_PART, tracking_scale_ordinal)
+
+
+def _get_polygon_directory_in_tar_file(spc_date_string, tracking_scale_ordinal):
+    """Generates expected name of polygon directory in tar file.
+
+    This directory should contain storm outlines (polygons) for the given
+    tracking scale.
+
+    N = number of tracking scales in tar file
+
+    :param spc_date_unix_sec: SPC date in format "yyyymmdd".
+    :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
+        [0, N - 1]).
+    :return: polygon_directory_name: Expected name of directory in tar file.
+    """
+
+    return '{0:s}/{1:s}/scale_{2:d}'.format(
+        spc_date_string, POLYGON_DIR_NAME_PART, tracking_scale_ordinal)
+
+
+def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
+                        top_target_directory_name=None,
+                        scales_to_extract_ordinal=None,
+                        scales_to_extract_metres2=None):
+    """Unzips tar file with all segmotion output for one SPC date.
+
+    N = number of tracking scales in tar file
+    n = number of scales to extract
+
+    :param tar_file_name: Path to input file.
+    :param spc_date_unix_sec: SPC date in Unix format.
+    :param top_target_directory_name: Top-level output directory.  This method
+        will create a subdirectory for the SPC date.
+    :param scales_to_extract_ordinal: length-n numpy array of tracking scales to
+        extract.  Each array element must be an ordinal number in [0, N - 1].
+    :param scales_to_extract_metres2: length-n numpy array of tracking scales to
+        extract (m^2).
+    :return: target_directory_name: Path to output directory.  This will be
+        "<top_target_directory_name>/<yyyymmdd>", where <yyyymmdd> is the SPC
+        date.
+    """
+
+    unix_command_string = (
+        'tar -C "' + top_target_directory_name + '" -xvf "' + tar_file_name +
+        '"')
+
+    num_scales_to_extract = len(scales_to_extract_ordinal)
+    for j in range(num_scales_to_extract):
+        this_stats_dir_name = _get_stats_directory_in_tar_file(
+            spc_date_unix_sec, scales_to_extract_ordinal[j])
+        this_polygon_dir_name = _get_polygon_directory_in_tar_file(
+            spc_date_unix_sec, scales_to_extract_ordinal[j])
+
+        unix_command_string += (
+            ' "' + this_stats_dir_name + '" "' + this_polygon_dir_name + '"')
+
+    os.system(unix_command_string)
+
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    target_directory_name = '{0:s}/{1:s}'.format(top_target_directory_name,
+                                                 spc_date_string)
+
+    _rename_dirs_scale_in_metres2(target_directory_name)
+    return target_directory_name
+
+
+def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
+                          top_raw_directory_name=None,
+                          tracking_scale_ordinal=None,
+                          raise_error_if_missing=True):
+    """Finds statistics file on local machine.
+
+    This file should contain storm stats (everything except polygons) for one
+    time step and one tracking scale.
+
+    :param unix_time_sec: Time in Unix format.
+    :param spc_date_unix_sec: SPC date in Unix format.
+    :param top_raw_directory_name: Top-level directory for raw segmotion files.
+    :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
+        [0, N - 1]).
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: stats_file_name: File path.  If raise_error_if_missing = False and
+        file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_stats_file_name(unix_time_sec)
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+
+    directory_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_raw_directory_name, spc_date_string,
+        _get_stats_directory_in_tar_file(spc_date_string,
+                                         tracking_scale_ordinal))
+    stats_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(stats_file_name):
+        raise ValueError(
+            'Cannot find storm-statistics file.  Expected at location: ' +
+            stats_file_name)
+
+    return stats_file_name
+
+
+def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
+                            top_raw_directory_name=None,
+                            tracking_scale_ordinal=None,
+                            raise_error_if_missing=True):
+    """Finds polygon file on local machine.
+
+    This file should contain storm outlines (polygons) for one time step and one
+    tracking scale.
+
+    :param unix_time_sec: See documentation for find_local_stats_file.
+    :param spc_date_unix_sec: See documentation for find_local_stats_file.
+    :param top_raw_directory_name: See documentation for find_local_stats_file.
+    :param tracking_scale_ordinal: See documentation for find_local_stats_file.
+    :param raise_error_if_missing: See documentation for find_local_stats_file.
+    :return: polygon_file_name: File path.  If raise_error_if_missing = False
+        and file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_polygon_file_name(unix_time_sec)
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+
+    directory_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_raw_directory_name, spc_date_string,
+        _get_polygon_directory_in_tar_file(spc_date_string,
+                                           tracking_scale_ordinal))
+    polygon_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(polygon_file_name):
+        raise ValueError(
+            'Cannot find polygon file.  Expected at location: ' +
+            polygon_file_name)
+
+    return polygon_file_name
 
 
 def extract_file_from_gzip(gzip_file_name):

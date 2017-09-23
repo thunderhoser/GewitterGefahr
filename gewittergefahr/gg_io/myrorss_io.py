@@ -1,13 +1,24 @@
-"""IO methods for MYRORSS* data.
+"""IO methods for MYRORSS data.
 
-* MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
+DEFINITIONS
+
+MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
+
+SPC = Storm Prediction Center
+
+SPC date = a 24-hour period, starting and ending at 1200 UTC.  This is unlike a
+normal person's day, which starts and ends at 0000 UTC.  An SPC date is
+referenced by the calendar day at the beginning of the SPC date.  In other
+words, SPC date "Sep 23 2017" actually runs from 1200 UTC 23 Sep 2017 -
+1200 UTC 24 Sep 2017.
 """
 
 import collections
 import numpy
 import pandas
+import time
+import os
 from netCDF4 import Dataset
-from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import number_rounding as rounder
 
 # TODO(thunderhoser): add error-checking to all methods.
@@ -44,35 +55,192 @@ GRID_ROW_COLUMN_ORIG = 'pixel_x'
 GRID_COLUMN_COLUMN_ORIG = 'pixel_y'
 NUM_GRID_CELL_COLUMN_ORIG = 'pixel_count'
 
-RADAR_VAR_NAMES = ['echo_top_18dbz_km', 'echo_top_50dbz_km',
-                   'low_level_shear_s01', 'mid_level_shear_s01',
-                   'reflectivity_dbz', 'reflectivity_column_max_dbz', 'mesh_mm',
-                   'reflectivity_0celsius_dbz', 'reflectivity_m10celsius_dbz',
-                   'reflectivity_m20celsius_dbz',
-                   'reflectivity_lowest_altitude_dbz', 'shi', 'vil_mm',
-                   'storm_id']
-RADAR_VAR_NAMES_ORIG = ['EchoTop_18', 'EchoTop_50', 'MergedLLShear',
-                        'MergedMLShear', 'MergedReflectivityQC',
-                        'MergedReflectivityQCComposite', 'MESH',
-                        'Reflectivity_0C', 'Reflectivity_-10C',
-                        'Reflectivity_-20C', 'ReflectivityAtLowestAltitude',
-                        'SHI', 'VIL', 'ClusterID']
+ECHO_TOP_18DBZ_NAME = 'echo_top_18dbz_km'
+ECHO_TOP_50DBZ_NAME = 'echo_top_50dbz_km'
+LOW_LEVEL_SHEAR_NAME = 'low_level_shear_s01'
+MID_LEVEL_SHEAR_NAME = 'mid_level_shear_s01'
+REFL_NAME = 'reflectivity_dbz'
+REFL_COLUMN_MAX_NAME = 'reflectivity_column_max_dbz'
+MESH_NAME = 'mesh_mm'
+REFL_0CELSIUS_NAME = 'reflectivity_0celsius_dbz'
+REFL_M10CELSIUS_NAME = 'reflectivity_m10celsius_dbz'
+REFL_M20CELSIUS_NAME = 'reflectivity_m20celsius_dbz'
+REFL_LOWEST_ALTITUDE_NAME = 'reflectivity_lowest_altitude_dbz'
+SHI_NAME = 'shi'
+VIL_NAME = 'vil_mm'
+STORM_ID_NAME = 'storm_id'
 
+ECHO_TOP_18DBZ_NAME_ORIG = 'EchoTop_18'
+ECHO_TOP_50DBZ_NAME_ORIG = 'EchoTop_50'
+LOW_LEVEL_SHEAR_NAME_ORIG = 'MergedLLShear'
+MID_LEVEL_SHEAR_NAME_ORIG = 'MergedMLShear'
+REFL_NAME_ORIG = 'MergedReflectivityQC'
+REFL_COLUMN_MAX_NAME_ORIG = 'MergedReflectivityQCComposite'
+MESH_NAME_ORIG = 'MESH'
+REFL_0CELSIUS_NAME_ORIG = 'Reflectivity_0C'
+REFL_M10CELSIUS_NAME_ORIG = 'Reflectivity_-10C'
+REFL_M20CELSIUS_NAME_ORIG = 'Reflectivity_-20C'
+REFL_LOWEST_ALTITUDE_NAME_ORIG = 'ReflectivityAtLowestAltitude'
+SHI_NAME_ORIG = 'SHI'
+VIL_NAME_ORIG = 'VIL'
+STORM_ID_NAME_ORIG = 'ClusterID'
+
+RADAR_VAR_NAMES = [ECHO_TOP_18DBZ_NAME, ECHO_TOP_50DBZ_NAME,
+                   LOW_LEVEL_SHEAR_NAME, MID_LEVEL_SHEAR_NAME, REFL_NAME,
+                   REFL_COLUMN_MAX_NAME, MESH_NAME, REFL_0CELSIUS_NAME,
+                   REFL_M10CELSIUS_NAME, REFL_M20CELSIUS_NAME,
+                   REFL_LOWEST_ALTITUDE_NAME, SHI_NAME, VIL_NAME, STORM_ID_NAME]
+
+RADAR_VAR_NAMES_ORIG = [ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_50DBZ_NAME_ORIG,
+                        LOW_LEVEL_SHEAR_NAME_ORIG, MID_LEVEL_SHEAR_NAME_ORIG,
+                        REFL_NAME_ORIG, REFL_COLUMN_MAX_NAME_ORIG,
+                        MESH_NAME_ORIG, REFL_0CELSIUS_NAME_ORIG,
+                        REFL_M10CELSIUS_NAME_ORIG, REFL_M20CELSIUS_NAME_ORIG,
+                        REFL_LOWEST_ALTITUDE_NAME_ORIG, SHI_NAME_ORIG,
+                        VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
+
+HEIGHT_ARRAY_COLUMN = 'heights_m_agl'
 RELATIVE_TOLERANCE = 1e-6
 
+TIME_FORMAT = '%Y%m%d-%H%M%S'
+SPC_DATE_FORMAT = '%Y%m%d'
+DAYS_TO_SECONDS = 86400
+METRES_TO_KM = 1e-3
 
-def _convert_var_name(var_name_orig):
-    """Converts variable from original to new format.
+RAW_FILE_EXTENSION1 = '.netcdf'
+RAW_FILE_EXTENSION2 = '.gz'
 
-    "Original format" = MYRORSS format; new format = my format.
 
-    :param var_name_orig: Variable name in original format.
-    :return: var_name: Variable name in new format.
+def _time_unix_sec_to_string(unix_time_sec):
+    """Converts time from Unix format to string.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: time_string: Time string (format "yyyymmdd-HHMMSS").
     """
 
-    orig_var_flags = [s == var_name_orig for s in RADAR_VAR_NAMES_ORIG]
-    orig_var_index = numpy.where(orig_var_flags)[0][0]
-    return RADAR_VAR_NAMES[orig_var_index]
+    return time.strftime(TIME_FORMAT, time.gmtime(unix_time_sec))
+
+
+def _variable_to_valid_heights(variable_name):
+    """Returns valid heights for given radar variable.
+
+    :param variable_name: Name of radar variable (must be in `RADAR_VAR_NAMES`).
+    :return: valid_heights_m_agl: 1-D numpy array of valid heights (metres above
+        ground level).
+    """
+
+    if variable_name == ECHO_TOP_18DBZ_NAME:
+        return numpy.array([250.])
+    elif variable_name == ECHO_TOP_50DBZ_NAME:
+        return numpy.array([250.])
+    elif variable_name == LOW_LEVEL_SHEAR_NAME:
+        return numpy.array([0.])
+    elif variable_name == MID_LEVEL_SHEAR_NAME:
+        return numpy.array([0.])
+    elif variable_name == REFL_NAME:
+        return numpy.array(
+            [250., 500., 750., 1000., 1250., 1500., 1750., 2000., 2250., 2500.,
+             2750., 3000., 3500., 4000., 4500., 5000., 5500., 6000., 6500.,
+             7000., 7500., 8000., 8500., 9000., 10000., 11000., 12000., 13000.,
+             14000., 15000., 16000., 17000., 18000., 19000., 20000.])
+    elif variable_name == REFL_COLUMN_MAX_NAME:
+        return numpy.array([250.])
+    elif variable_name == MESH_NAME:
+        return numpy.array([250.])
+    elif variable_name == REFL_0CELSIUS_NAME:
+        return numpy.array([250.])
+    elif variable_name == REFL_M10CELSIUS_NAME:
+        return numpy.array([250.])
+    elif variable_name == REFL_M20CELSIUS_NAME:
+        return numpy.array([250.])
+    elif variable_name == REFL_LOWEST_ALTITUDE_NAME:
+        return numpy.array([250.])
+    elif variable_name == SHI_NAME:
+        return numpy.array([250.])
+    elif variable_name == VIL_NAME:
+        return numpy.array([250.])
+
+    return None
+
+
+def _var_height_arrays_to_dict(variable_names, refl_heights_m_agl):
+    """Converts two arrays (radar variables and heights) to dictionary.
+
+    V = number of variables
+
+    :param variable_names: length-V list with names of radar variables.  Each
+        list element must be in `RADAR_VAR_NAMES`.
+    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
+        above ground level).  These will be used only for the variable
+        "reflectivity_dbz", since all others have only one valid height.
+    :return: var_to_heights_dict_m_agl: Dictionary.  Each key is a variable
+        name, and each value is a 1-D numpy array of heights (metres above
+        ground level).
+    """
+
+    var_to_heights_dict_m_agl = {}
+    for j in range(len(variable_names)):
+        if variable_names[j] == REFL_NAME:
+            var_to_heights_dict_m_agl.update(
+                {variable_names[j]: refl_heights_m_agl})
+        else:
+            var_to_heights_dict_m_agl.update(
+                {variable_names[j]:
+                     _variable_to_valid_heights(variable_names[j])})
+
+    return var_to_heights_dict_m_agl
+
+
+def _get_directory_in_tar_file(variable_name, height_m_agl):
+    """Generates expected name of directory in tar file.
+
+    :param variable_name: Name of radar variable.  Must be in `RADAR_VAR_NAMES`.
+    :param height_m_agl: Height (metres above ground level).
+    :return: directory_name: Expected name of directory in tar file.
+    """
+
+    return '{0:s}/{1:05.2f}'.format(_var_name_new_to_orig(variable_name),
+                                    height_m_agl * METRES_TO_KM)
+
+
+def _get_pathless_raw_file_name(unix_time_sec):
+    """Generates pathless name for raw MYRORSS file.
+
+    This file should contain one variable at one height and one time step.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: pathless_raw_file_name: Pathless name for MYRORSS file.
+    """
+
+    return '{0:s}{1:s}{2:s}'.format(_time_unix_sec_to_string(unix_time_sec),
+                                    RAW_FILE_EXTENSION1, RAW_FILE_EXTENSION2)
+
+
+def _var_name_orig_to_new(variable_name_orig):
+    """Converts name of radar variable from original to new format.
+
+    :param variable_name_orig: Original variable name (must be in
+        `RADAR_VAR_NAMES_ORIG`).
+    :return: variable_name: New variable name (in `RADAR_VAR_NAMES`).
+    """
+
+    found_in_orig_flags = [s == variable_name_orig for s in
+                           RADAR_VAR_NAMES_ORIG]
+    found_in_orig_index = numpy.where(found_in_orig_flags)[0][0]
+    return RADAR_VAR_NAMES[found_in_orig_index]
+
+
+def _var_name_new_to_orig(variable_name):
+    """Converts name of radar variable from new to original format.
+
+    :param variable_name: New variable name (must be in `RADAR_VAR_NAMES`).
+    :return: variable_name_orig: Original variable name (in
+        `RADAR_VAR_NAMES_ORIG`).
+    """
+
+    found_in_new_flags = [s == variable_name for s in RADAR_VAR_NAMES]
+    found_in_new_index = numpy.where(found_in_new_flags)[0][0]
+    return RADAR_VAR_NAMES_ORIG[found_in_new_index]
 
 
 def _remove_sentinels(sparse_grid_table, var_name, sentinel_values):
@@ -101,6 +269,90 @@ def _remove_sentinels(sparse_grid_table, var_name, sentinel_values):
     sparse_grid_table.drop(sparse_grid_table.index[sentinel_indices], axis=0,
                            inplace=True)
     return sparse_grid_table
+
+
+def time_unix_sec_to_spc_date(unix_time_sec):
+    """Converts time from Unix format to SPC date.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: spc_date_string: SPC date at the given time, in format "yyyymmdd".
+    """
+
+    return time.strftime(SPC_DATE_FORMAT,
+                         time.gmtime(unix_time_sec - DAYS_TO_SECONDS / 2))
+
+
+def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
+                        top_target_directory_name=None,
+                        var_to_heights_dict_m_agl=None):
+    """Unzips tar file with all radar variables for one SPC date.
+
+    :param tar_file_name: Path to input file.
+    :param spc_date_unix_sec: SPC date in Unix format.
+    :param top_target_directory_name: Top-level output directory.  This method
+        will create a subdirectory for the SPC date.
+    :param var_to_heights_dict_m_agl: Dictionary with variable-height pairs to
+        extract.  For the format of this dictionary, see
+        _var_height_arrays_to_dict.
+    :return: target_directory_name: Path to output directory.  This will be
+        "<top_target_directory_name>/<yyyymmdd>", where <yyyymmdd> is the SPC
+        date.
+    """
+
+    target_directory_name = '{0:s}/{1:s}'.format(top_target_directory_name,
+                                                 time_unix_sec_to_spc_date(
+                                                     spc_date_unix_sec))
+
+    unix_command_string = (
+        'tar -C "' + target_directory_name + '" -xvf "' + tar_file_name + '"')
+
+    variable_names = var_to_heights_dict_m_agl.keys()
+    for j in range(len(variable_names)):
+        these_heights_m_agl = var_to_heights_dict_m_agl[variable_names[j]]
+
+        for k in range(len(these_heights_m_agl)):
+            this_directory_name = (
+                _get_directory_in_tar_file(variable_names[j],
+                                           these_heights_m_agl[k]))
+
+            unix_command_string += ' "' + this_directory_name + '"'
+
+    os.system(unix_command_string)
+    return target_directory_name
+
+
+def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
+                        variable_name=None, height_m_agl=None,
+                        top_directory_name=None, raise_error_if_missing=True):
+    """Finds raw MYRORSS file on local machine.
+
+    This should contain one radar variable at one height and one time step.
+
+    :param unix_time_sec: Time in Unix format.
+    :param spc_date_unix_sec: SPC date in Unix format.
+    :param variable_name: Variable name in new format (must be in
+        `RADAR_VAR_NAMES`).
+    :param height_m_agl: Height (metres above ground level).
+    :param top_directory_name: Top-level directory for raw MYRORSS files.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: raw_file_name: File path.  If raise_error_if_missing = False and
+        file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
+    directory_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_directory_name, time_unix_sec_to_spc_date(spc_date_unix_sec),
+        _get_directory_in_tar_file(variable_name, height_m_agl))
+
+    raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        raise ValueError(
+            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+
+    return raw_file_name
 
 
 def convert_lng_negative_in_west(input_longitudes_deg):
@@ -283,7 +535,7 @@ def read_metadata_from_netcdf(netcdf_file_name):
                      UNIX_TIME_COLUMN:
                          getattr(netcdf_dataset, UNIX_TIME_COLUMN_ORIG),
                      VAR_NAME_COLUMN_ORIG: var_name_orig,
-                     VAR_NAME_COLUMN: _convert_var_name(var_name_orig)}
+                     VAR_NAME_COLUMN: _var_name_orig_to_new(var_name_orig)}
 
     metadata_dict[NW_GRID_POINT_LAT_COLUMN] = rounder.floor_to_nearest(
         metadata_dict[NW_GRID_POINT_LAT_COLUMN],
@@ -327,7 +579,7 @@ def read_sparse_grid_from_netcdf(netcdf_file_name, var_name_orig,
     """
 
     netcdf_dataset = Dataset(netcdf_file_name)
-    var_name = _convert_var_name(var_name_orig)
+    var_name = _var_name_orig_to_new(var_name_orig)
 
     sparse_grid_dict = {
         GRID_ROW_COLUMN: netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG][:],
