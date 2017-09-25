@@ -20,7 +20,7 @@ import time
 import os
 from netCDF4 import Dataset
 from gewittergefahr.gg_utils import number_rounding as rounder
-from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import unzipping
 
 # TODO(thunderhoser): add error-checking to all methods.
 
@@ -108,8 +108,8 @@ SPC_DATE_FORMAT = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
 METRES_TO_KM = 1e-3
 
-RAW_FILE_EXTENSION1 = '.netcdf'
-RAW_FILE_EXTENSION2 = '.gz'
+UNZIPPED_FILE_EXTENSION = '.netcdf'
+ZIPPED_FILE_EXTENSION = '.gz'
 
 
 def _time_unix_sec_to_string(unix_time_sec):
@@ -204,17 +204,24 @@ def _get_directory_in_tar_file(variable_name, height_m_agl):
                                     height_m_agl * METRES_TO_KM)
 
 
-def _get_pathless_raw_file_name(unix_time_sec):
+def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
     """Generates pathless name for raw MYRORSS file.
 
     This file should contain one variable at one height and one time step.
 
     :param unix_time_sec: Time in Unix format.
+    :param zipped: Boolean flag.  If True, will generate name for zipped file.
+        If False, will generate name for unzipped file.
     :return: pathless_raw_file_name: Pathless name for MYRORSS file.
     """
 
-    return '{0:s}{1:s}{2:s}'.format(_time_unix_sec_to_string(unix_time_sec),
-                                    RAW_FILE_EXTENSION1, RAW_FILE_EXTENSION2)
+    if zipped:
+        return '{0:s}{1:s}{2:s}'.format(
+            _time_unix_sec_to_string(unix_time_sec), UNZIPPED_FILE_EXTENSION,
+            ZIPPED_FILE_EXTENSION)
+    else:
+        return '{0:s}{1:s}'.format(
+            _time_unix_sec_to_string(unix_time_sec), UNZIPPED_FILE_EXTENSION)
 
 
 def _var_name_orig_to_new(variable_name_orig):
@@ -303,30 +310,28 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
     target_directory_name = '{0:s}/{1:s}'.format(top_target_directory_name,
                                                  time_unix_sec_to_spc_date(
                                                      spc_date_unix_sec))
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=target_directory_name)
-
-    unix_command_string = (
-        'tar -C "' + target_directory_name + '" -xvf "' + tar_file_name + '"')
 
     variable_names = var_to_heights_dict_m_agl.keys()
+    directory_names_to_unzip = []
     for j in range(len(variable_names)):
         these_heights_m_agl = var_to_heights_dict_m_agl[variable_names[j]]
 
         for k in range(len(these_heights_m_agl)):
-            this_directory_name = (
+            directory_names_to_unzip.append(
                 _get_directory_in_tar_file(variable_names[j],
                                            these_heights_m_agl[k]))
 
-            unix_command_string += ' "' + this_directory_name + '"'
+    unzipping.unzip_tar(tar_file_name,
+                        target_directory_name=target_directory_name,
+                        file_and_dir_names_to_unzip=directory_names_to_unzip)
 
-    os.system(unix_command_string)
     return target_directory_name
 
 
 def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
                         variable_name=None, height_m_agl=None,
-                        top_directory_name=None, raise_error_if_missing=True):
+                        top_directory_name=None, zipped=True,
+                        raise_error_if_missing=True):
     """Finds raw MYRORSS file on local machine.
 
     This should contain one radar variable at one height and one time step.
@@ -337,6 +342,8 @@ def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
         `RADAR_VAR_NAMES`).
     :param height_m_agl: Height (metres above ground level).
     :param top_directory_name: Top-level directory for raw MYRORSS files.
+    :param zipped: Boolean flag.  If True, will look for zipped file.  If False,
+        will look for unzipped file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: raw_file_name: File path.  If raise_error_if_missing = False and
@@ -344,7 +351,8 @@ def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
+                                                     zipped=zipped)
     directory_name = '{0:s}/{1:s}/{2:s}'.format(
         top_directory_name, time_unix_sec_to_spc_date(spc_date_unix_sec),
         _get_directory_in_tar_file(variable_name, height_m_agl))
@@ -356,6 +364,38 @@ def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
             'Cannot find raw file.  Expected at location: ' + raw_file_name)
 
     return raw_file_name
+
+
+def extract_netcdf_from_gzip(unix_time_sec=None, spc_date_unix_sec=None,
+                             variable_name=None, height_m_agl=None,
+                             top_directory_name=None):
+    """Extracts NetCDF file from gzip archive.
+    
+    Keep in mind that all gzip archive contain only one file.
+    
+    :param unix_time_sec: Time in Unix format.
+    :param spc_date_unix_sec: SPC date in Unix format.
+    :param variable_name: Variable name in new format (must be in
+        `RADAR_VAR_NAMES`).
+    :param height_m_agl: Height (metres above ground level).
+    :param top_directory_name: Top-level directory for raw MYRORSS files.
+    :return: netcdf_file_name: Path to output file.
+    """
+
+    gzip_file_name = find_local_raw_file(
+        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        variable_name=variable_name, height_m_agl=height_m_agl,
+        top_directory_name=top_directory_name, zipped=True,
+        raise_error_if_missing=True)
+
+    netcdf_file_name = find_local_raw_file(
+        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        variable_name=variable_name, height_m_agl=height_m_agl,
+        top_directory_name=top_directory_name, zipped=False,
+        raise_error_if_missing=False)
+
+    unzipping.unzip_gzip(gzip_file_name, netcdf_file_name)
+    return netcdf_file_name
 
 
 def convert_lng_negative_in_west(input_longitudes_deg):

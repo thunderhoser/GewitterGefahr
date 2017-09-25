@@ -33,12 +33,16 @@ SPC_DATE_FOR_FILE_UNIX_SEC = 1286705410  # any time from 1200 UTC 9 Oct - 10 Oct
 VARIABLE_NAME_FOR_FILE = myrorss_io.REFL_M20CELSIUS_NAME
 HEIGHT_FOR_FILE_M_AGL = 250.
 EXPECTED_DIR_NAME_IN_TAR_FILE = myrorss_io.REFL_M20CELSIUS_NAME_ORIG + '/00.25'
-EXPECTED_PATHLESS_RAW_FILE_NAME = '20101010-101010.netcdf.gz'
+EXPECTED_PATHLESS_GZIP_FILE_NAME = '20101010-101010.netcdf.gz'
+EXPECTED_PATHLESS_NETCDF_FILE_NAME = '20101010-101010.netcdf'
 
 TOP_RAW_DIRECTORY_NAME = 'myrorss'
-EXPECTED_RAW_FILE_NAME = (
+EXPECTED_GZIP_FILE_NAME = (
     'myrorss/20101009/' + myrorss_io.REFL_M20CELSIUS_NAME_ORIG +
     '/00.25/20101010-101010.netcdf.gz')
+EXPECTED_NETCDF_FILE_NAME = (
+    'myrorss/20101009/' + myrorss_io.REFL_M20CELSIUS_NAME_ORIG +
+    '/00.25/20101010-101010.netcdf')
 
 VARIABLE_NAME_NEW = myrorss_io.REFL_COLUMN_MAX_NAME
 VARIABLE_NAME_ORIG = myrorss_io.REFL_COLUMN_MAX_NAME_ORIG
@@ -186,13 +190,27 @@ class MyrorssIoTests(unittest.TestCase):
             VARIABLE_NAME_FOR_FILE, HEIGHT_FOR_FILE_M_AGL)
         self.assertTrue(this_directory_name == EXPECTED_DIR_NAME_IN_TAR_FILE)
 
-    def test_get_pathless_raw_file_name(self):
-        """Ensures correct output from _get_pathless_raw_file_name."""
+    def test_get_pathless_gzip_file_name(self):
+        """Ensures correct output from _get_pathless_raw_file_name.
+
+        In this case the expected file is a gzip archive.
+        """
 
         this_pathless_file_name = myrorss_io._get_pathless_raw_file_name(
-            TIME_FOR_FILE_UNIX_SEC)
+            TIME_FOR_FILE_UNIX_SEC, zipped=True)
         self.assertTrue(
-            this_pathless_file_name == EXPECTED_PATHLESS_RAW_FILE_NAME)
+            this_pathless_file_name == EXPECTED_PATHLESS_GZIP_FILE_NAME)
+
+    def test_get_pathless_netcdf_file_name(self):
+        """Ensures correct output from _get_pathless_raw_file_name.
+
+        In this case the expected file is a NetCDF.
+        """
+
+        this_pathless_file_name = myrorss_io._get_pathless_raw_file_name(
+            TIME_FOR_FILE_UNIX_SEC, zipped=False)
+        self.assertTrue(
+            this_pathless_file_name == EXPECTED_PATHLESS_NETCDF_FILE_NAME)
 
     def test_var_name_orig_to_new(self):
         """Ensures correct output from _var_name_orig_to_new."""
@@ -206,18 +224,37 @@ class MyrorssIoTests(unittest.TestCase):
         this_var_name_orig = myrorss_io._var_name_new_to_orig(VARIABLE_NAME_NEW)
         self.assertTrue(this_var_name_orig == VARIABLE_NAME_ORIG)
 
-    def test_find_local_raw_file(self):
-        """Ensures correct output from find_local_raw_file."""
+    def test_find_local_gzip_file(self):
+        """Ensures correct output from find_local_gzip_file.
+
+        In this case the expected file is a gzip archive.
+        """
 
         this_file_name = myrorss_io.find_local_raw_file(
             unix_time_sec=TIME_FOR_FILE_UNIX_SEC,
             spc_date_unix_sec=SPC_DATE_FOR_FILE_UNIX_SEC,
             variable_name=VARIABLE_NAME_FOR_FILE,
             height_m_agl=HEIGHT_FOR_FILE_M_AGL,
-            top_directory_name=TOP_RAW_DIRECTORY_NAME,
+            top_directory_name=TOP_RAW_DIRECTORY_NAME, zipped=True,
             raise_error_if_missing=False)
 
-        self.assertTrue(this_file_name == EXPECTED_RAW_FILE_NAME)
+        self.assertTrue(this_file_name == EXPECTED_GZIP_FILE_NAME)
+
+    def test_find_local_netcdf_file(self):
+        """Ensures correct output from find_local_gzip_file.
+
+        In this case the expected file is a NetCDF.
+        """
+
+        this_file_name = myrorss_io.find_local_raw_file(
+            unix_time_sec=TIME_FOR_FILE_UNIX_SEC,
+            spc_date_unix_sec=SPC_DATE_FOR_FILE_UNIX_SEC,
+            variable_name=VARIABLE_NAME_FOR_FILE,
+            height_m_agl=HEIGHT_FOR_FILE_M_AGL,
+            top_directory_name=TOP_RAW_DIRECTORY_NAME, zipped=False,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == EXPECTED_NETCDF_FILE_NAME)
 
     def test_remove_sentinels(self):
         """Ensures correct output from _remove_sentinels."""

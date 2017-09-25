@@ -28,12 +28,10 @@ from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import myrorss_sparse_to_full as sparse_to_full
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import unzipping
 
 # TODO(thunderhoser): add error-checking to all methods.
 # TODO(thunderhoser): replace main method with named high-level method.
-
-# TODO(thunderhoser): implement _rename_dirs_scale_in_metres2.
-# TODO(thunderhoser): write unit tests for all file-management methods.
 
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
@@ -47,11 +45,9 @@ NETCDF_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
     'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
 
-GZIP_FILE_EXTENSION = '.gz'
-STATS_FILE_EXTENSION1 = '.xml'
-STATS_FILE_EXTENSION2 = '.gz'
-POLYGON_FILE_EXTENSION1 = '.netcdf'
-POLYGON_FILE_EXTENSION2 = '.gz'
+ZIPPED_FILE_EXTENSION = '.gz'
+STATS_FILE_EXTENSION = '.xml'
+POLYGON_FILE_EXTENSION = '.netcdf'
 
 STATS_DIR_NAME_PART = 'TrackingTable'
 POLYGON_DIR_NAME_PART = 'ClusterID'
@@ -253,34 +249,46 @@ def _distance_buffers_to_column_names(min_buffer_dists_metres,
     return buffer_lat_column_names, buffer_lng_column_names
 
 
-def _get_pathless_stats_file_name(unix_time_sec):
+def _get_pathless_stats_file_name(unix_time_sec, zipped=True):
     """Generates pathless name for statistics file.
 
     This file should contain storm stats (everything except polygons) for one
     time step and one tracking scale.
 
     :param unix_time_sec: Time in Unix format.
+    :param zipped: Boolean flag.  If True, will generate name for zipped file.
+        If False, will generate name for unzipped file.
     :return: pathless_stats_file_name: Pathless name for statistics file.
     """
 
-    return '{0:s}{1:s}{2:s}'.format(_time_unix_sec_to_string(unix_time_sec),
-                                    STATS_FILE_EXTENSION1,
-                                    STATS_FILE_EXTENSION2)
+    if zipped:
+        return '{0:s}{1:s}{2:s}'.format(
+            _time_unix_sec_to_string(unix_time_sec), STATS_FILE_EXTENSION,
+            ZIPPED_FILE_EXTENSION)
+    else:
+        return '{0:s}{1:s}'.format(
+            _time_unix_sec_to_string(unix_time_sec), STATS_FILE_EXTENSION)
 
 
-def _get_pathless_polygon_file_name(unix_time_sec):
+def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
     """Generates pathless name for polygon file.
 
     This file should contain storm outlines (polygons) for one time step and one
     tracking scale.
 
     :param unix_time_sec: Time in Unix format.
+    :param zipped: Boolean flag.  If True, will generate name for zipped file.
+        If False, will generate name for unzipped file.
     :return: pathless_polygon_file_name: Pathless name for polygon file.
     """
 
-    return '{0:s}{1:s}{2:s}'.format(_time_unix_sec_to_string(unix_time_sec),
-                                    POLYGON_FILE_EXTENSION1,
-                                    POLYGON_FILE_EXTENSION2)
+    if zipped:
+        return '{0:s}{1:s}{2:s}'.format(
+            _time_unix_sec_to_string(unix_time_sec), POLYGON_FILE_EXTENSION,
+            ZIPPED_FILE_EXTENSION)
+    else:
+        return '{0:s}{1:s}'.format(
+            _time_unix_sec_to_string(unix_time_sec), POLYGON_FILE_EXTENSION)
 
 
 def _get_relative_stats_dir_ordinal_scale(spc_date_string,
@@ -419,22 +427,20 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
         date.
     """
 
-    unix_command_string = (
-        'tar -C "' + top_target_directory_name + '" -xvf "' + tar_file_name +
-        '"')
     spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
 
     num_scales_to_extract = len(scales_to_extract_ordinal)
+    directory_names_to_unzip = []
     for j in range(num_scales_to_extract):
-        this_stats_dir_name = _get_relative_stats_dir_ordinal_scale(
-            spc_date_string, scales_to_extract_ordinal[j])
-        this_polygon_dir_name = _get_relative_polygon_dir_ordinal_scale(
-            spc_date_string, scales_to_extract_ordinal[j])
+        directory_names_to_unzip.append(_get_relative_stats_dir_ordinal_scale(
+            spc_date_string, scales_to_extract_ordinal[j]))
+        directory_names_to_unzip.append(_get_relative_polygon_dir_ordinal_scale(
+            spc_date_string, scales_to_extract_ordinal[j]))
 
-        unix_command_string += (
-            ' "' + this_stats_dir_name + '" "' + this_polygon_dir_name + '"')
+    unzipping.unzip_tar(tar_file_name,
+                        target_directory_name=top_target_directory_name,
+                        file_and_dir_names_to_unzip=directory_names_to_unzip)
 
-    os.system(unix_command_string)
     target_directory_name = '{0:s}/{1:s}'.format(top_target_directory_name,
                                                  spc_date_string)
 
@@ -448,7 +454,7 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
 
 def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
                           top_raw_directory_name=None,
-                          tracking_scale_metres2=None,
+                          tracking_scale_metres2=None, zipped=True,
                           raise_error_if_missing=True):
     """Finds statistics file on local machine.
 
@@ -459,6 +465,8 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     :param spc_date_unix_sec: SPC date in Unix format.
     :param top_raw_directory_name: Top-level directory for raw segmotion files.
     :param tracking_scale_metres2: Tracking scale.
+    :param zipped: Boolean flag.  If True, will look for zipped file.  If False,
+        will look for unzipped file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: stats_file_name: File path.  If raise_error_if_missing = False and
@@ -466,7 +474,8 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    pathless_file_name = _get_pathless_stats_file_name(unix_time_sec)
+    pathless_file_name = _get_pathless_stats_file_name(unix_time_sec,
+                                                       zipped=zipped)
     spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
 
     directory_name = '{0:s}/{1:s}'.format(
@@ -485,7 +494,7 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
 
 def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
                             top_raw_directory_name=None,
-                            tracking_scale_metres2=None,
+                            tracking_scale_metres2=None, zipped=True,
                             raise_error_if_missing=True):
     """Finds polygon file on local machine.
 
@@ -496,13 +505,15 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     :param spc_date_unix_sec: See documentation for find_local_stats_file.
     :param top_raw_directory_name: See documentation for find_local_stats_file.
     :param tracking_scale_metres2: See documentation for find_local_stats_file.
+    :param zipped: See documentation for find_local_stats_file.
     :param raise_error_if_missing: See documentation for find_local_stats_file.
     :return: polygon_file_name: File path.  If raise_error_if_missing = False
         and file is missing, this will be the *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    pathless_file_name = _get_pathless_polygon_file_name(unix_time_sec)
+    pathless_file_name = _get_pathless_polygon_file_name(unix_time_sec,
+                                                         zipped=zipped)
     spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
 
     directory_name = '{0:s}/{1:s}'.format(
@@ -519,27 +530,60 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     return polygon_file_name
 
 
-def extract_file_from_gzip(gzip_file_name):
-    """Extracts single file from gzip archive.
-    
-    :param gzip_file_name: Path to input file.
-    :return: unzipped_file_name: Path to unzipped file.  Same as
-        `gzip_file_name`, except with ".gz" removed from the end.
-    :raises: ValueError: gzip_file_name does not end with ".gz".
+def extract_stats_file_from_gzip(unix_time_sec=None, spc_date_unix_sec=None,
+                                 top_raw_directory_name=None,
+                                 tracking_scale_metres2=None):
+    """Extracts statistics file from gzip archive.
+
+    :param unix_time_sec: See documentation for find_local_stats_file.
+    :param spc_date_unix_sec: See documentation for find_local_stats_file.
+    :param top_raw_directory_name: See documentation for find_local_stats_file.
+    :param tracking_scale_metres2: See documentation for find_local_stats_file.
+    :return: stats_file_name: Path to extracted file.
     """
 
-    if not gzip_file_name.endswith(GZIP_FILE_EXTENSION):
-        err_string = (
-            'gzip file (' + gzip_file_name + ') does not end with "' +
-            GZIP_FILE_EXTENSION + '".  Cannot generate name for unzipped file.')
-        raise ValueError(err_string)
+    gzip_file_name = find_local_stats_file(
+        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        top_raw_directory_name=top_raw_directory_name,
+        tracking_scale_metres2=tracking_scale_metres2, zipped=True,
+        raise_error_if_missing=True)
 
-    unzipped_file_name = gzip_file_name[:-len(GZIP_FILE_EXTENSION)]
-    unix_command_str = 'gunzip -v -c {0:s} > {1:s}'.format(gzip_file_name,
-                                                           unzipped_file_name)
-    os.system(unix_command_str)
+    stats_file_name = find_local_stats_file(
+        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        top_raw_directory_name=top_raw_directory_name,
+        tracking_scale_metres2=tracking_scale_metres2, zipped=False,
+        raise_error_if_missing=False)
 
-    return unzipped_file_name
+    unzipping.unzip_gzip(gzip_file_name, stats_file_name)
+    return stats_file_name
+
+
+def extract_polygon_file_from_gzip(unix_time_sec=None, spc_date_unix_sec=None,
+                                   top_raw_directory_name=None,
+                                   tracking_scale_metres2=None):
+    """Extracts polygon file from gzip archive.
+
+    :param unix_time_sec: See documentation for find_local_stats_file.
+    :param spc_date_unix_sec: See documentation for find_local_stats_file.
+    :param top_raw_directory_name: See documentation for find_local_stats_file.
+    :param tracking_scale_metres2: See documentation for find_local_stats_file.
+    :return: polygon_file_name: Path to extracted file.
+    """
+
+    gzip_file_name = find_local_polygon_file(
+        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        top_raw_directory_name=top_raw_directory_name,
+        tracking_scale_metres2=tracking_scale_metres2, zipped=True,
+        raise_error_if_missing=True)
+
+    polygon_file_name = find_local_polygon_file(
+        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        top_raw_directory_name=top_raw_directory_name,
+        tracking_scale_metres2=tracking_scale_metres2, zipped=False,
+        raise_error_if_missing=False)
+
+    unzipping.unzip_gzip(gzip_file_name, polygon_file_name)
+    return polygon_file_name
 
 
 def read_stats_from_xml(xml_file_name):

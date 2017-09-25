@@ -27,6 +27,7 @@ from netCDF4 import Dataset
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
+from gewittergefahr.gg_utils import unzipping
 
 # TODO(thunderhoser): add error-checking to all methods.
 # TODO(thunderhoser): replace main method with named high-level method.
@@ -175,31 +176,6 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
     return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
 
 
-def _extract_netcdf_from_gzip(gzip_file_name):
-    """Extracts NetCDF file from gzip file.
-
-    The gzip file should contain only one NetCDF file, which makes this easy.
-
-    :param gzip_file_name: Path to input file.
-    :return: netcdf_file_name: Path to output file.
-    :raises: ValueError: if `gzip_file_name` does not end with ".gz".
-    """
-
-    if not gzip_file_name.endswith(GZIP_FILE_EXTENSION):
-        error_string = (
-            'gzip file (' + gzip_file_name + ') does not end with "' +
-            GZIP_FILE_EXTENSION + '".  Cannot generate name for unzipped file.')
-        raise ValueError(error_string)
-
-    netcdf_file_name = (
-        gzip_file_name[:-len(GZIP_FILE_EXTENSION)] + NETCDF_FILE_EXTENSION)
-    unix_command_str = 'gunzip -v -c {0:s} > {1:s}'.format(gzip_file_name,
-                                                           netcdf_file_name)
-    os.system(unix_command_str)
-
-    return netcdf_file_name
-
-
 def _convert_column_name(column_name_orig):
     """Converts column name from original format to new format.
 
@@ -346,6 +322,34 @@ def _get_pathless_raw_file_name(unix_time_sec, file_extension):
 
     return '{0:s}{1:s}'.format(_time_unix_sec_to_string(unix_time_sec),
                                file_extension)
+
+
+def extract_netcdf_from_gzip(unix_time_sec=None, subdataset_name=None,
+                             top_raw_directory_name=None):
+    """Extracts NetCDF file from gzip archive.
+
+    Keep in mind that all gzip archive contain only one file.
+
+    :param unix_time_sec: Time in Unix format.
+    :param subdataset_name: Name of subdataset.
+    :param top_raw_directory_name: Top-level directory with raw MADIS files.
+    :return: netcdf_file_name: Path to output file.
+    """
+
+    gzip_file_name = find_local_raw_file(
+        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
+        file_extension=GZIP_FILE_EXTENSION,
+        top_local_directory_name=top_raw_directory_name,
+        raise_error_if_missing=True)
+
+    netcdf_file_name = find_local_raw_file(
+        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
+        file_extension=NETCDF_FILE_EXTENSION,
+        top_local_directory_name=top_raw_directory_name,
+        raise_error_if_missing=False)
+
+    unzipping.unzip_gzip(gzip_file_name, netcdf_file_name)
+    return netcdf_file_name
 
 
 def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
