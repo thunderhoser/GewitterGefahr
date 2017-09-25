@@ -23,7 +23,7 @@ def download_file_from_url(file_url, local_file_name,
     """
 
     response_object = urlopen(file_url)
-    file_system_utils.mkdir_recursive_if_necessary(local_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=local_file_name)
 
     with open(local_file_name, 'wb') as local_file_handle:
         while True:
@@ -68,7 +68,7 @@ def download_file_from_ftp(server_name=None, user_name=None, password=None,
     else:
         ftp_object = FTP(server_name, user_name, password)
 
-    file_system_utils.mkdir_recursive_if_necessary(local_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=local_file_name)
     local_file_handle = open(local_file_name, 'wb')
     ftp_object.retrbinary('RETR ' + ftp_file_name, local_file_handle.write,
                           blocksize=NUM_BYTES_PER_DOWNLOAD_CHUNK)

@@ -258,7 +258,7 @@ def read_variable_from_grib(grib_file_name, init_time_unix_sec=None,
         model_id_for_pathless_file_name=model_id_for_text_file_name,
         variable_name=grib_var_name, raise_error_if_missing=False)
 
-    file_system_utils.mkdir_recursive_if_necessary(text_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
     data_matrix = (
         grib_io.read_variable_from_grib(grib_file_name,
                                         grib_var_name=grib_var_name,
@@ -316,7 +316,7 @@ def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
         model_id_for_pathless_file_name=model_id_for_text_file_name,
         variable_name=grib2_var_name, raise_error_if_missing=False)
 
-    file_system_utils.mkdir_recursive_if_necessary(text_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
     data_matrix = (
         grib_io.read_variable_from_grib2(grib2_file_name,
                                          grib2_var_name=grib2_var_name,

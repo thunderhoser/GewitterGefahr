@@ -13,6 +13,27 @@ STATS_COLUMN_NAMES = [segmotion_io.EAST_VELOCITY_COLUMN,
                       segmotion_io.NORTH_VELOCITY_COLUMN,
                       segmotion_io.START_TIME_COLUMN, segmotion_io.AGE_COLUMN]
 
+UNIX_TIME_SEC = 1505067180
+TIME_STRING = '20170910-181300'
+PATHLESS_STATS_FILE_NAME = '20170910-181300.xml.gz'
+PATHLESS_POLYGON_FILE_NAME = '20170910-181300.netcdf.gz'
+
+SPC_DATE_STRING = '20170910'
+TRACKING_SCALE_ORDINAL = 0
+TRACKING_SCALE_METRES2 = 5e7
+RELATIVE_STATS_DIR_NAME_ORDINAL_SCALE = '20170910/TrackingTable/scale_0'
+RELATIVE_POLYGON_DIR_NAME_ORDINAL_SCALE = '20170910/ClusterID/scale_0'
+RELATIVE_STATS_DIR_NAME_PHYSICAL_SCALE = (
+    '20170910/TrackingTable/scale_50000000m2')
+RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE = '20170910/ClusterID/scale_50000000m2'
+
+SPC_DATE_UNIX_SEC = 1505066400
+TOP_RAW_DIRECTORY_NAME = 'segmotion'
+EXPECTED_STATS_FILE_NAME = (
+    'segmotion/20170910/TrackingTable/scale_50000000m2/20170910-181300.xml.gz')
+EXPECTED_POLYGON_FILE_NAME = (
+    'segmotion/20170910/ClusterID/scale_50000000m2/20170910-181300.netcdf.gz')
+
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 BUFFER_LAT_COLUMN_NAMES = ['vertex_latitudes_deg_buffer_0m',
@@ -21,9 +42,6 @@ BUFFER_LAT_COLUMN_NAMES = ['vertex_latitudes_deg_buffer_0m',
 BUFFER_LNG_COLUMN_NAMES = ['vertex_longitudes_deg_buffer_0m',
                            'vertex_longitudes_deg_buffer_0_5000m',
                            'vertex_longitudes_deg_buffer_5000_10000m']
-
-TIME_STRING = '20170910-181300'
-UNIX_TIME_SEC = 1505067180
 
 STORM_IDS = ['0', '1', '2', '3', '4', None]
 EAST_VELOCITIES_M_S01 = numpy.array([5., 7.5, 10., 8., 2.5, 4.])
@@ -189,6 +207,78 @@ class SegmotionIoTests(unittest.TestCase):
             these_buffer_lat_column_names == BUFFER_LAT_COLUMN_NAMES)
         self.assertTrue(
             these_buffer_lng_column_names == BUFFER_LNG_COLUMN_NAMES)
+
+    def test_get_pathless_stats_file_name(self):
+        """Ensures correct output from _get_pathless_stats_file_name."""
+
+        this_pathless_file_name = segmotion_io._get_pathless_stats_file_name(
+            UNIX_TIME_SEC)
+        self.assertTrue(this_pathless_file_name == PATHLESS_STATS_FILE_NAME)
+
+    def test_get_pathless_polygon_file_name(self):
+        """Ensures correct output from _get_pathless_polygon_file_name."""
+
+        this_pathless_file_name = segmotion_io._get_pathless_polygon_file_name(
+            UNIX_TIME_SEC)
+        self.assertTrue(this_pathless_file_name == PATHLESS_POLYGON_FILE_NAME)
+
+    def test_get_relative_stats_dir_ordinal_scale(self):
+        """Ensures correct output from _get_relative_stats_dir_ordinal_scale."""
+
+        this_relative_dir_name = (
+            segmotion_io._get_relative_stats_dir_ordinal_scale(
+                SPC_DATE_STRING, TRACKING_SCALE_ORDINAL))
+        self.assertTrue(
+            this_relative_dir_name == RELATIVE_STATS_DIR_NAME_ORDINAL_SCALE)
+
+    def test_get_relative_polygon_dir_ordinal_scale(self):
+        """Need correct output from _get_relative_polygon_dir_ordinal_scale."""
+
+        this_relative_dir_name = (
+            segmotion_io._get_relative_polygon_dir_ordinal_scale(
+                SPC_DATE_STRING, TRACKING_SCALE_ORDINAL))
+        self.assertTrue(
+            this_relative_dir_name == RELATIVE_POLYGON_DIR_NAME_ORDINAL_SCALE)
+
+    def test_get_relative_stats_dir_physical_scale(self):
+        """Need correct output from _get_relative_stats_dir_physical_scale."""
+
+        this_relative_dir_name = (
+            segmotion_io._get_relative_stats_dir_physical_scale(
+                SPC_DATE_STRING, TRACKING_SCALE_METRES2))
+        self.assertTrue(
+            this_relative_dir_name == RELATIVE_STATS_DIR_NAME_PHYSICAL_SCALE)
+
+    def test_get_relative_polygon_dir_physical_scale(self):
+        """Need correct output from _get_relative_polygon_dir_physical_scale."""
+
+        this_relative_dir_name = (
+            segmotion_io._get_relative_polygon_dir_physical_scale(
+                SPC_DATE_STRING, TRACKING_SCALE_METRES2))
+        self.assertTrue(
+            this_relative_dir_name == RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE)
+
+    def test_find_local_stats_file(self):
+        """Ensures correct output from find_local_stats_file."""
+
+        this_stats_file_name = segmotion_io.find_local_stats_file(
+            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
+            tracking_scale_metres2=TRACKING_SCALE_METRES2,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_stats_file_name == EXPECTED_STATS_FILE_NAME)
+
+    def test_find_local_polygon_file(self):
+        """Ensures correct output from find_local_polygon_file."""
+
+        this_polygon_file_name = segmotion_io.find_local_polygon_file(
+            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
+            tracking_scale_metres2=TRACKING_SCALE_METRES2,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_polygon_file_name == EXPECTED_POLYGON_FILE_NAME)
 
     def test_join_stats_and_polygons(self):
         """Ensures correct output from join_stats_and_polygons."""

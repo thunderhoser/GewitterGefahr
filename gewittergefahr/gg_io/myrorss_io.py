@@ -20,6 +20,7 @@ import time
 import os
 from netCDF4 import Dataset
 from gewittergefahr.gg_utils import number_rounding as rounder
+from gewittergefahr.gg_utils import file_system_utils
 
 # TODO(thunderhoser): add error-checking to all methods.
 
@@ -302,6 +303,8 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
     target_directory_name = '{0:s}/{1:s}'.format(top_target_directory_name,
                                                  time_unix_sec_to_spc_date(
                                                      spc_date_unix_sec))
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=target_directory_name)
 
     unix_command_string = (
         'tar -C "' + target_directory_name + '" -xvf "' + tar_file_name + '"')
