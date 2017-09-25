@@ -449,7 +449,9 @@ def download_netcdf_from_ftp(unix_time_sec=None, subdataset_name=None,
     if local_gzip_file_name is None:
         return None
 
-    return _extract_netcdf_from_gzip(local_gzip_file_name)
+    return extract_netcdf_from_gzip(
+        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
+        top_raw_directory_name=top_local_directory_name)
 
 
 def read_winds_from_netcdf(netcdf_file_name):
