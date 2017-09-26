@@ -2,6 +2,7 @@
 
 import os
 import os.path
+from gewittergefahr.gg_utils import error_checking
 
 
 def mkdir_recursive_if_necessary(directory_name=None, file_name=None):
@@ -16,6 +17,10 @@ def mkdir_recursive_if_necessary(directory_name=None, file_name=None):
     """
 
     if directory_name is None:
+        error_checking.assert_is_string(file_name)
         directory_name = os.path.dirname(file_name)
+    else:
+        error_checking.assert_is_string(directory_name)
+
     if not os.path.isdir(directory_name):
         os.makedirs(directory_name)

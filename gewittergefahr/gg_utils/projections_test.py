@@ -1,12 +1,13 @@
 """Unit tests for projections.py."""
 
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_utils import projections
 
 TOLERANCE = 1e-6
 
 STANDARD_LATITUDES_DEG = numpy.array([50., 50.])
+CENTRAL_LATITUDE_DEG = 40.
 CENTRAL_LONGITUDE_DEG = 253.
 FALSE_EASTING_METRES = 0.
 FALSE_NORTHING_METRES = 0.
@@ -25,6 +26,12 @@ class ProjectionsTests(unittest.TestCase):
 
         projections.init_lambert_conformal_projection(STANDARD_LATITUDES_DEG,
                                                       CENTRAL_LONGITUDE_DEG)
+
+    def test_init_azimuthal_equidistant_projection_no_crash(self):
+        """Ensures that init_azimuthal_equidistant_projection does not crash."""
+
+        projections.init_azimuthal_equidistant_projection(CENTRAL_LATITUDE_DEG,
+                                                          CENTRAL_LONGITUDE_DEG)
 
     def test_project_latlng_to_xy(self):
         """Ensures that project_latlng_to_xy does not crash.
@@ -70,16 +77,16 @@ class ProjectionsTests(unittest.TestCase):
 
         (these_x_coords_metres,
          these_y_coords_metres) = projections.project_latlng_to_xy(
-            LATITUDES_DEG, LONGITUDES_DEG, projection_object=projection_object,
-            false_easting_metres=FALSE_EASTING_METRES,
-            false_northing_metres=FALSE_NORTHING_METRES)
+             LATITUDES_DEG, LONGITUDES_DEG, projection_object=projection_object,
+             false_easting_metres=FALSE_EASTING_METRES,
+             false_northing_metres=FALSE_NORTHING_METRES)
 
         (these_latitudes_deg,
          these_longitudes_deg) = projections.project_xy_to_latlng(
-            these_x_coords_metres, these_y_coords_metres,
-            projection_object=projection_object,
-            false_easting_metres=FALSE_EASTING_METRES,
-            false_northing_metres=FALSE_NORTHING_METRES)
+             these_x_coords_metres, these_y_coords_metres,
+             projection_object=projection_object,
+             false_easting_metres=FALSE_EASTING_METRES,
+             false_northing_metres=FALSE_NORTHING_METRES)
 
         self.assertTrue(
             numpy.allclose(these_latitudes_deg, LATITUDES_DEG, atol=TOLERANCE))

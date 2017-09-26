@@ -1,7 +1,7 @@
 """Unit tests for polygons.py."""
 
-import numpy
 import unittest
+import numpy
 import shapely.geometry
 from gewittergefahr.gg_utils import polygons
 
@@ -173,11 +173,11 @@ class PolygonsTests(unittest.TestCase):
 
         (this_vertex_x_metres,
          this_vertex_y_metres) = polygons._merge_exterior_and_holes(
-            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
-            hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
-                                       HOLE2_VERTEX_X_METRES],
-            hole_y_vertex_metres_list=[HOLE1_VERTEX_Y_METRES,
-                                       HOLE2_VERTEX_Y_METRES])
+             EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+             hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
+                                        HOLE2_VERTEX_X_METRES],
+             hole_y_vertex_metres_list=[HOLE1_VERTEX_Y_METRES,
+                                        HOLE2_VERTEX_Y_METRES])
 
         self.assertTrue(
             numpy.allclose(this_vertex_x_metres, MERGED_VERTEX_X_METRES,
@@ -206,7 +206,7 @@ class PolygonsTests(unittest.TestCase):
 
         (this_vertex_x_metres,
          this_vertex_y_metres) = polygons._vertex_list_to_arrays(
-            MERGED_VERTEX_METRES_LIST)
+             MERGED_VERTEX_METRES_LIST)
 
         self.assertTrue(
             numpy.allclose(this_vertex_x_metres, MERGED_VERTEX_X_METRES,
@@ -380,8 +380,8 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows,
          these_vertex_columns) = polygons._remove_redundant_vertices(
-            VERTEX_ROWS_GRID_CELL_EDGES_REDUNDANT,
-            VERTEX_COLUMNS_GRID_CELL_EDGES_REDUNDANT)
+             VERTEX_ROWS_GRID_CELL_EDGES_REDUNDANT,
+             VERTEX_COLUMNS_GRID_CELL_EDGES_REDUNDANT)
 
         self.assertTrue(
             numpy.array_equal(these_vertex_rows,
@@ -430,7 +430,7 @@ class PolygonsTests(unittest.TestCase):
 
         (this_point_in_polygon_matrix, this_first_row_index,
          this_first_column_index) = polygons._points_in_poly_to_binary_matrix(
-            ROW_INDICES_IN_POLYGON, COLUMN_INDICES_IN_POLYGON)
+             ROW_INDICES_IN_POLYGON, COLUMN_INDICES_IN_POLYGON)
 
         self.assertTrue(numpy.array_equal(this_point_in_polygon_matrix,
                                           POINT_IN_POLYGON_MATRIX))
@@ -442,7 +442,7 @@ class PolygonsTests(unittest.TestCase):
 
         (these_row_indices,
          these_column_indices) = polygons._binary_matrix_to_points_in_poly(
-            POINT_IN_POLYGON_MATRIX, FIRST_ROW_INDEX, FIRST_COLUMN_INDEX)
+             POINT_IN_POLYGON_MATRIX, FIRST_ROW_INDEX, FIRST_COLUMN_INDEX)
 
         self.assertTrue(
             numpy.array_equal(these_row_indices, ROW_INDICES_IN_POLYGON))
@@ -461,13 +461,13 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows_redundant,
          these_vertex_columns_redundant) = (
-            polygons._adjust_vertices_to_grid_cell_edges(
-                VERTEX_ROWS_GRID_POINTS, VERTEX_COLUMNS_GRID_POINTS))
+             polygons._adjust_vertices_to_grid_cell_edges(
+                 VERTEX_ROWS_GRID_POINTS, VERTEX_COLUMNS_GRID_POINTS))
 
         (these_vertex_rows_non_redundant,
          these_vertex_columns_non_redundant) = (
-            polygons._remove_redundant_vertices(these_vertex_rows_redundant,
-                                                these_vertex_columns_redundant))
+             polygons._remove_redundant_vertices(
+                 these_vertex_rows_redundant, these_vertex_columns_redundant))
 
         self.assertTrue(
             numpy.array_equal(these_vertex_rows_non_redundant,
@@ -481,7 +481,7 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows,
          these_vertex_columns) = polygons.points_in_poly_to_vertices(
-            ROW_INDICES_IN_POLYGON, COLUMN_INDICES_IN_POLYGON)
+             ROW_INDICES_IN_POLYGON, COLUMN_INDICES_IN_POLYGON)
 
         self.assertTrue(
             numpy.array_equal(these_vertex_rows,

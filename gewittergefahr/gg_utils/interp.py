@@ -1,6 +1,8 @@
 """Interpolation methods."""
 
+import numpy
 import scipy.interpolate
+from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_TEMPORAL_INTERP_METHOD = 'linear'
 DEFAULT_DEGREE_FOR_SPATIAL_INTERP = 3
@@ -28,6 +30,9 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
         where the last axis is time (length P).  The first (D - 1) dimensions
         have the same length as in input_matrix.
     """
+
+    error_checking.assert_is_integer_array(query_times_unix_sec)
+    error_checking.assert_is_numpy_array(query_times_unix_sec, num_dimensions=1)
 
     interp_object = scipy.interpolate.interp1d(
         sorted_input_times_unix_sec, input_matrix, kind=method_string,
@@ -60,6 +65,14 @@ def interp_from_xy_grid_to_points(
     :return: interp_values: length-P numpy array with data interpolated to query
         points.
     """
+
+    error_checking.assert_is_real_number_array(query_x_metres)
+    error_checking.assert_is_numpy_array(query_x_metres, num_dimensions=1)
+    num_query_points = len(query_x_metres)
+
+    error_checking.assert_is_real_number_array(query_y_metres)
+    error_checking.assert_is_numpy_array(
+        query_y_metres, exact_dimensions=numpy.array([num_query_points]))
 
     interp_object = scipy.interpolate.RectBivariateSpline(
         sorted_grid_point_y_metres, sorted_grid_point_x_metres, input_matrix,

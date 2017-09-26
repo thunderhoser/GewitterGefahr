@@ -25,14 +25,14 @@ def convert_lng_negative_in_west(longitudes_deg):
         longitudes_deg = numpy.full(1, longitudes_deg)
 
     error_checking.assert_is_numpy_array(longitudes_deg)
-    for i in range(len(longitudes_deg)):
-        error_checking.assert_is_valid_longitude(longitudes_deg[i])
-
-    positive_in_west_flags = longitudes_deg > 180
-    positive_in_west_indices = numpy.where(positive_in_west_flags)[0]
+    for _, this_longitude_deg in numpy.ndenumerate(longitudes_deg):
+        if numpy.isnan(this_longitude_deg):
+            continue
+        error_checking.assert_is_valid_longitude(this_longitude_deg)
 
     longitudes_negative_in_west_deg = copy.deepcopy(longitudes_deg)
-    longitudes_negative_in_west_deg[positive_in_west_indices] -= 360
+    longitudes_negative_in_west_deg[
+        longitudes_negative_in_west_deg > 180.] -= 360.
     if was_input_array:
         return longitudes_negative_in_west_deg
 
@@ -54,14 +54,14 @@ def convert_lng_positive_in_west(longitudes_deg):
         longitudes_deg = numpy.full(1, longitudes_deg)
 
     error_checking.assert_is_numpy_array(longitudes_deg)
-    for i in range(len(longitudes_deg)):
-        error_checking.assert_is_valid_longitude(longitudes_deg[i])
-
-    negative_flags = longitudes_deg < 0
-    negative_indices = numpy.where(negative_flags)[0]
+    for _, this_longitude_deg in numpy.ndenumerate(longitudes_deg):
+        if numpy.isnan(this_longitude_deg):
+            continue
+        error_checking.assert_is_valid_longitude(this_longitude_deg)
 
     longitudes_positive_in_west_deg = copy.deepcopy(longitudes_deg)
-    longitudes_positive_in_west_deg[negative_indices] += 360
+    longitudes_positive_in_west_deg[
+        longitudes_positive_in_west_deg < 0.] += 360.
     if was_input_array:
         return longitudes_positive_in_west_deg
 

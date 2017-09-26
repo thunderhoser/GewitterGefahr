@@ -1,7 +1,7 @@
 """Unit tests for grids.py."""
 
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_utils import grids
 
 TOLERANCE = 1e-6
@@ -88,10 +88,10 @@ class GridsTests(unittest.TestCase):
 
         (grid_cell_edge_x_metres,
          grid_cell_edge_y_metres) = grids.get_xy_grid_cell_edges(
-            x_min_metres=X_MIN_METRES, y_min_metres=Y_MIN_METRES,
-            x_spacing_metres=X_SPACING_METRES,
-            y_spacing_metres=Y_SPACING_METRES, num_rows=NUM_XY_ROWS,
-            num_columns=NUM_XY_COLUMNS)
+             x_min_metres=X_MIN_METRES, y_min_metres=Y_MIN_METRES,
+             x_spacing_metres=X_SPACING_METRES,
+             y_spacing_metres=Y_SPACING_METRES, num_rows=NUM_XY_ROWS,
+             num_columns=NUM_XY_COLUMNS)
 
         self.assertTrue(
             numpy.allclose(grid_cell_edge_x_metres,
@@ -107,10 +107,10 @@ class GridsTests(unittest.TestCase):
 
         (grid_point_latitudes_deg,
          grid_point_longitudes_deg) = grids.get_latlng_grid_points(
-            min_latitude_deg=MIN_LATITUDE_DEG,
-            min_longitude_deg=MIN_LONGITUDE_DEG,
-            lat_spacing_deg=LAT_SPACING_DEG, lng_spacing_deg=LNG_SPACING_DEG,
-            num_rows=NUM_LATLNG_ROWS, num_columns=NUM_LATLNG_COLUMNS)
+             min_latitude_deg=MIN_LATITUDE_DEG,
+             min_longitude_deg=MIN_LONGITUDE_DEG,
+             lat_spacing_deg=LAT_SPACING_DEG, lng_spacing_deg=LNG_SPACING_DEG,
+             num_rows=NUM_LATLNG_ROWS, num_columns=NUM_LATLNG_COLUMNS)
 
         self.assertTrue(
             numpy.allclose(grid_point_latitudes_deg,
@@ -126,10 +126,10 @@ class GridsTests(unittest.TestCase):
 
         (grid_cell_edge_latitudes_deg,
          grid_cell_edge_longitudes_deg) = grids.get_latlng_grid_cell_edges(
-            min_latitude_deg=MIN_LATITUDE_DEG,
-            min_longitude_deg=MIN_LONGITUDE_DEG,
-            lat_spacing_deg=LAT_SPACING_DEG, lng_spacing_deg=LNG_SPACING_DEG,
-            num_rows=NUM_LATLNG_ROWS, num_columns=NUM_LATLNG_COLUMNS)
+             min_latitude_deg=MIN_LATITUDE_DEG,
+             min_longitude_deg=MIN_LONGITUDE_DEG,
+             lat_spacing_deg=LAT_SPACING_DEG, lng_spacing_deg=LNG_SPACING_DEG,
+             num_rows=NUM_LATLNG_ROWS, num_columns=NUM_LATLNG_COLUMNS)
 
         self.assertTrue(
             numpy.allclose(grid_cell_edge_latitudes_deg,
@@ -145,7 +145,7 @@ class GridsTests(unittest.TestCase):
 
         (grid_point_x_matrix_metres,
          grid_point_y_matrix_metres) = grids.xy_vectors_to_matrices(
-            EXPECTED_GRID_POINT_X_METRES, EXPECTED_GRID_POINT_Y_METRES)
+             EXPECTED_GRID_POINT_X_METRES, EXPECTED_GRID_POINT_Y_METRES)
 
         self.assertTrue(numpy.allclose(grid_point_x_matrix_metres,
                                        EXPECTED_GRID_POINT_X_MATRIX_METRES,
@@ -159,8 +159,8 @@ class GridsTests(unittest.TestCase):
 
         (grid_point_lat_matrix_deg,
          grid_point_lng_matrix_deg) = grids.latlng_vectors_to_matrices(
-            EXPECTED_GRID_POINT_LATITUDES_DEG,
-            EXPECTED_GRID_POINT_LONGITUDES_DEG)
+             EXPECTED_GRID_POINT_LATITUDES_DEG,
+             EXPECTED_GRID_POINT_LONGITUDES_DEG)
 
         self.assertTrue(numpy.allclose(grid_point_lat_matrix_deg,
                                        EXPECTED_GRID_POINT_LAT_MATRIX_DEG,

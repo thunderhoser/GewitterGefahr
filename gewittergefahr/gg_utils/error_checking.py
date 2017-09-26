@@ -201,8 +201,8 @@ def assert_is_boolean_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    for this_element in input_variable:
-        assert_is_boolean(this_element)
+    for _, x in numpy.ndenumerate(numpy.asarray(input_variable)):
+        assert_is_boolean(x)
 
 
 def assert_is_float(input_variable):

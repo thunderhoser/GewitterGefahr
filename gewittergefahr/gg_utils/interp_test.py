@@ -1,7 +1,7 @@
 """Unit tests for interp.py."""
 
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_utils import interp
 
 TOLERANCE = 1e-6

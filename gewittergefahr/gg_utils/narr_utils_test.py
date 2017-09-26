@@ -1,7 +1,7 @@
 """Unit tests for narr_utils.py."""
 
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_utils import narr_utils
 
 MAX_MEAN_DISTANCE_ERROR_METRES = 250.
@@ -33,11 +33,11 @@ class NarrUtilsTests(unittest.TestCase):
 
         (grid_point_x_matrix_metres,
          grid_point_y_matrix_metres) = narr_utils.project_latlng_to_xy(
-            grid_point_lat_matrix_deg, grid_point_lng_matrix_deg)
+             grid_point_lat_matrix_deg, grid_point_lng_matrix_deg)
 
         (expected_grid_point_x_matrix_metres,
          expected_grid_point_y_matrix_metres) = (
-            narr_utils.get_xy_grid_point_matrices())
+             narr_utils.get_xy_grid_point_matrices())
 
         x_error_matrix_metres = (
             grid_point_x_matrix_metres - expected_grid_point_x_matrix_metres)

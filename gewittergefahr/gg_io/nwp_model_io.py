@@ -133,8 +133,7 @@ def find_local_text_file(init_time_unix_sec, lead_time_hours,
     :param top_directory_name: Top-level directory with text files for the given
         model.
     :param model_id: See documentation for _get_pathless_text_file_name.
-    :param file_extension: See documentation for _get_pathless_text_file_name.
-    :param raise_error_if_missing:
+    :param variable_id: See documentation for _get_pathless_text_file_name.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: text_file_name: Path to text file.  If file is missing but

@@ -9,8 +9,6 @@ import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 
-# TODO(thunderhoser): add error-checking to all methods.
-
 X_MIN_METRES = 0.
 Y_MIN_METRES = 0.
 X_SPACING_METRES = 32463.

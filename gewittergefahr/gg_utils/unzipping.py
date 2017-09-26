@@ -2,6 +2,7 @@
 
 import os
 from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 
 
 def unzip_tar(tar_file_name, target_directory_name=None,
@@ -16,13 +17,16 @@ def unzip_tar(tar_file_name, target_directory_name=None,
         `target_directory_name`.
     """
 
+    error_checking.assert_is_string(tar_file_name)
+    error_checking.assert_is_string_array(file_and_dir_names_to_unzip)
+
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=target_directory_name)
 
     unix_command_string = 'tar -C "{0:s}" -xvf "{1:s}"'.format(
         target_directory_name, tar_file_name)
-    for i in range(len(file_and_dir_names_to_unzip)):
-        unix_command_string += ' "' + file_and_dir_names_to_unzip[i] + '"'
+    for this_relative_path in file_and_dir_names_to_unzip:
+        unix_command_string += ' "' + this_relative_path + '"'
 
     os.system(unix_command_string)
 
@@ -36,6 +40,8 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
     :param extracted_file_name: The one file in the gzip archive will be saved
         here.
     """
+
+    error_checking.assert_is_string(gzip_file_name)
 
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=extracted_file_name)

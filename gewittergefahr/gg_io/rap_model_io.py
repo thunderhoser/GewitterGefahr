@@ -106,14 +106,14 @@ def find_local_grib2_file(init_time_unix_sec, lead_time_hours,
     return nwp_model_io.find_local_raw_file(
         init_time_unix_sec, lead_time_hours,
         top_directory_name=top_directory_name,
-        model_id_for_pathless_file_name=grid_metadata_dict[MODEL_ID_COLUMN],
+        model_id=grid_metadata_dict[MODEL_ID_COLUMN],
         file_extension=RAW_FILE_EXTENSION,
         raise_error_if_missing=raise_error_if_missing)
 
 
 def find_local_text_file(init_time_unix_sec, lead_time_hours,
                          grid_id=ID_FOR_130GRID, top_directory_name=None,
-                         variable_name=None, raise_error_if_missing=True):
+                         variable_id=None, raise_error_if_missing=True):
     """Finds text file on local machine.
 
     :param init_time_unix_sec: Initialization time in Unix format.
@@ -121,7 +121,7 @@ def find_local_text_file(init_time_unix_sec, lead_time_hours,
     :param grid_id: String ID for grid (either "130" or "252").
     :param top_directory_name: Top-level directory containing text files with
         RAP data.
-    :param variable_name: Variable name used in file name.
+    :param variable_id: Variable ID used in file name.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: text_file_name: Path to text file on local machine.  If file is
@@ -134,8 +134,7 @@ def find_local_text_file(init_time_unix_sec, lead_time_hours,
     return nwp_model_io.find_local_text_file(
         init_time_unix_sec, lead_time_hours,
         top_directory_name=top_directory_name,
-        model_id_for_pathless_file_name=grid_metadata_dict[MODEL_ID_COLUMN],
-        variable_name=variable_name,
+        model_id=grid_metadata_dict[MODEL_ID_COLUMN], variable_id=variable_id,
         raise_error_if_missing=raise_error_if_missing)
 
 
@@ -161,15 +160,14 @@ def download_grib2_file(init_time_unix_sec, lead_time_hours,
         init_time_unix_sec, lead_time_hours,
         top_online_directory_name=grid_metadata_dict[TOP_ONLINE_DIR_COLUMN],
         top_local_directory_name=top_local_directory_name,
-        model_id_for_pathless_file_name=grid_metadata_dict[MODEL_ID_COLUMN],
+        model_id=grid_metadata_dict[MODEL_ID_COLUMN],
         file_extension=RAW_FILE_EXTENSION,
         raise_error_if_fails=raise_error_if_fails)
 
 
 def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
                              lead_time_hours=None, grid_id=ID_FOR_130GRID,
-                             grib2_var_name=None,
-                             top_local_dir_name_for_text_file=None,
+                             grib2_var_name=None, top_local_text_dir_name=None,
                              wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
                              delete_text_file=True):
     """Reads single field from grib2 file.
@@ -183,8 +181,8 @@ def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
     :param grid_id: String ID for grid (either "130" or "252").
     :param grib2_var_name: Name of variable being read.  This must be the name
         used in grib2 files (e.g., "HGT:500 mb" for 500-mb height).
-    :param top_local_dir_name_for_text_file: Top-level directory containing text
-        files with RAP data.
+    :param top_local_text_dir_name: Top-level directory containing text files
+        with RAP data.
     :param wgrib2_exe_name: Path to wgrib2 executable.
     :param delete_text_file: Boolean flag.  If True, text file with single field
         will be deleted immediately after reading.
@@ -200,8 +198,8 @@ def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
     return nwp_model_io.read_variable_from_grib2(
         grib2_file_name, init_time_unix_sec=init_time_unix_sec,
         lead_time_hours=lead_time_hours, grib2_var_name=grib2_var_name,
-        top_local_dir_name_for_text_file=top_local_dir_name_for_text_file,
-        model_id_for_text_file_name=grid_metadata_dict[MODEL_ID_COLUMN],
+        top_local_text_dir_name=top_local_text_dir_name,
+        model_id_for_text_file=grid_metadata_dict[MODEL_ID_COLUMN],
         wgrib2_exe_name=wgrib2_exe_name,
         num_grid_rows=grid_metadata_dict[NUM_ROWS_COLUMN],
         num_grid_columns=grid_metadata_dict[NUM_COLUMNS_COLUMN],
@@ -219,7 +217,7 @@ if __name__ == '__main__':
         local_grib2_file_name, init_time_unix_sec=INIT_TIME_UNIX_SEC,
         lead_time_hours=LEAD_TIME_HOURS, grid_id=ID_FOR_130GRID,
         grib2_var_name=GRIB2_VAR_NAME,
-        top_local_dir_name_for_text_file=TOP_LOCAL_TEXT_DIR_NAME_130GRID)
+        top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME_130GRID)
     print data_matrix
     print '\n'
 
@@ -233,5 +231,5 @@ if __name__ == '__main__':
         local_grib2_file_name, init_time_unix_sec=INIT_TIME_UNIX_SEC,
         lead_time_hours=LEAD_TIME_HOURS, grid_id=ID_FOR_252GRID,
         grib2_var_name=GRIB2_VAR_NAME,
-        top_local_dir_name_for_text_file=TOP_LOCAL_TEXT_DIR_NAME_252GRID)
+        top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME_252GRID)
     print data_matrix

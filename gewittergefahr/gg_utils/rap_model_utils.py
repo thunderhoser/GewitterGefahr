@@ -8,8 +8,7 @@ DEFINITIONS
 import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
-
-# TODO(thunderhoser): add error-checking to all methods.
+from gewittergefahr.gg_utils import error_checking
 
 X_MIN_METRES = 0.
 Y_MIN_METRES = 0.
@@ -42,6 +41,21 @@ STANDARD_LATITUDES_DEG = numpy.array([25., 25.])
 CENTRAL_LONGITUDE_DEG = 265.
 
 
+def _check_grid_id(grid_id):
+    """Ensures that grid ID is valid.
+
+    :param grid_id: Grid ID (should be either "130" or "252").
+    :raises: ValueError: grid_id is neither "130" nor "252".
+    """
+
+    error_checking.assert_is_string(grid_id)
+    if grid_id not in [ID_FOR_130GRID, ID_FOR_252GRID]:
+        error_string = (
+            'grid_id should be either "' + ID_FOR_130GRID + '" or "' +
+            ID_FOR_252GRID + '".  Instead, got "' + grid_id + '".')
+        raise ValueError(error_string)
+
+
 def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
     """Returns metadata for grid.
 
@@ -60,6 +74,8 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
     metadata_dict.false_northing_metres: See documentation for
         `projections.project_latlng_to_xy`.
     """
+
+    _check_grid_id(grid_id)
 
     if grid_id == ID_FOR_130GRID:
         return {NUM_ROWS_COLUMN: NUM_ROWS_130GRID,
@@ -225,7 +241,7 @@ def get_xy_grid_cell_edge_matrices(grid_id=ID_FOR_130GRID):
 
     (grid_cell_edge_x_unique_metres,
      grid_cell_edge_y_unique_metres) = get_xy_grid_cell_edges_unique(
-        grid_id=grid_id)
+         grid_id=grid_id)
     return grids.xy_vectors_to_matrices(grid_cell_edge_x_unique_metres,
                                         grid_cell_edge_y_unique_metres)
 
@@ -275,7 +291,7 @@ def get_latlng_grid_cell_edge_matrices(grid_id=ID_FOR_130GRID,
 
     (grid_cell_edge_x_matrix_metres,
      grid_cell_edge_y_matrix_metres) = get_xy_grid_cell_edge_matrices(
-        grid_id=grid_id)
+         grid_id=grid_id)
 
     return project_xy_to_latlng(grid_cell_edge_x_matrix_metres,
                                 grid_cell_edge_y_matrix_metres,

@@ -6,12 +6,38 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 
 TOLERANCE = 1e-6
 
-LONGITUDES_MIXED_SIGNS_DEG = numpy.array(
-    [-160., 240., -80., 320., 0., 40., 80., 120., 160., 180.])
-LONGITUDES_POSITIVE_IN_WEST_DEG = numpy.array(
-    [200., 240., 280., 320., 0., 40., 80., 120., 160., 180.])
-LONGITUDES_NEGATIVE_IN_WEST_DEG = numpy.array(
-    [-160., -120., -80., -40., 0., 40., 80., 120., 160., 180.])
+LONGITUDES_POSITIVE_IN_WEST_DEG = numpy.array([
+    [numpy.nan, 45., 90.],
+    [45., 90., 135.],
+    [90., 135., 180.],
+    [135., 180., 225.],
+    [180., 225., 270.],
+    [225., 270., 315.],
+    [270., 315., 0.],
+    [315., 0., numpy.nan],
+    [0., numpy.nan, numpy.nan]])
+
+LONGITUDES_NEGATIVE_IN_WEST_DEG = numpy.array([
+    [numpy.nan, 45., 90.],
+    [45., 90., 135.],
+    [90., 135., 180.],
+    [135., 180., -135.],
+    [180., -135., -90.],
+    [-135., -90., -45.],
+    [-90., -45., 0.],
+    [-45., 0., numpy.nan],
+    [0., numpy.nan, numpy.nan]])
+
+LONGITUDES_MIXED_SIGNS_DEG = numpy.array([
+    [numpy.nan, 45., 90.],
+    [45., 90., 135.],
+    [90., 135., 180.],
+    [135., 180., 225.],
+    [180., -135., 270.],
+    [-135., -90., 315.],
+    [270., -45., 0.],
+    [315., 0., numpy.nan],
+    [0., numpy.nan, numpy.nan]])
 
 
 class LongitudeConversionTests(unittest.TestCase):
@@ -27,7 +53,8 @@ class LongitudeConversionTests(unittest.TestCase):
             LONGITUDES_MIXED_SIGNS_DEG)
         self.assertTrue(
             numpy.allclose(these_longitudes_deg,
-                           LONGITUDES_NEGATIVE_IN_WEST_DEG, atol=TOLERANCE))
+                           LONGITUDES_NEGATIVE_IN_WEST_DEG, atol=TOLERANCE,
+                           equal_nan=True))
 
     def test_convert_lng_negative_in_west_inputs_negative(self):
         """Ensures correct output from convert_lng_negative_in_west.
@@ -39,7 +66,8 @@ class LongitudeConversionTests(unittest.TestCase):
             LONGITUDES_NEGATIVE_IN_WEST_DEG)
         self.assertTrue(
             numpy.allclose(these_longitudes_deg,
-                           LONGITUDES_NEGATIVE_IN_WEST_DEG, atol=TOLERANCE))
+                           LONGITUDES_NEGATIVE_IN_WEST_DEG, atol=TOLERANCE,
+                           equal_nan=True))
 
     def test_convert_lng_negative_in_west_inputs_positive(self):
         """Ensures correct output from convert_lng_negative_in_west.
@@ -51,7 +79,8 @@ class LongitudeConversionTests(unittest.TestCase):
             LONGITUDES_POSITIVE_IN_WEST_DEG)
         self.assertTrue(
             numpy.allclose(these_longitudes_deg,
-                           LONGITUDES_NEGATIVE_IN_WEST_DEG, atol=TOLERANCE))
+                           LONGITUDES_NEGATIVE_IN_WEST_DEG, atol=TOLERANCE,
+                           equal_nan=True))
 
     def test_convert_lng_positive_in_west_inputs_mixed(self):
         """Ensures correct output from convert_lng_positive_in_west.
@@ -63,7 +92,8 @@ class LongitudeConversionTests(unittest.TestCase):
             LONGITUDES_MIXED_SIGNS_DEG)
         self.assertTrue(
             numpy.allclose(these_longitudes_deg,
-                           LONGITUDES_POSITIVE_IN_WEST_DEG, atol=TOLERANCE))
+                           LONGITUDES_POSITIVE_IN_WEST_DEG, atol=TOLERANCE,
+                           equal_nan=True))
 
     def test_convert_lng_positive_in_west_inputs_negative(self):
         """Ensures correct output from convert_lng_positive_in_west.
@@ -75,7 +105,8 @@ class LongitudeConversionTests(unittest.TestCase):
             LONGITUDES_NEGATIVE_IN_WEST_DEG)
         self.assertTrue(
             numpy.allclose(these_longitudes_deg,
-                           LONGITUDES_POSITIVE_IN_WEST_DEG, atol=TOLERANCE))
+                           LONGITUDES_POSITIVE_IN_WEST_DEG, atol=TOLERANCE,
+                           equal_nan=True))
 
     def test_convert_lng_positive_in_west_inputs_positive(self):
         """Ensures correct output from convert_lng_positive_in_west.
@@ -87,7 +118,8 @@ class LongitudeConversionTests(unittest.TestCase):
             LONGITUDES_POSITIVE_IN_WEST_DEG)
         self.assertTrue(
             numpy.allclose(these_longitudes_deg,
-                           LONGITUDES_POSITIVE_IN_WEST_DEG, atol=TOLERANCE))
+                           LONGITUDES_POSITIVE_IN_WEST_DEG, atol=TOLERANCE,
+                           equal_nan=True))
 
 
 if __name__ == '__main__':

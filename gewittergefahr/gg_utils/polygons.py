@@ -1,15 +1,14 @@
 """Processing methods for polygons.
 
-Currently the only polygons in AASSWP are storm-cell outlines.  However, I may
-end up adding other polygons.
+Currently the only polygons in GewitterGefahr are storm-cell outlines.  However,
+I may add other polygons.
 """
 
 import copy
 import numpy
 import cv2
 import shapely.geometry
-
-# TODO(thunderhoser): add error-checking to all methods.
+from gewittergefahr.gg_utils import error_checking
 
 UP_DIRECTION_NAME = 'up'
 DOWN_DIRECTION_NAME = 'down'
@@ -24,6 +23,40 @@ EXTERIOR_X_COLUMN = 'exterior_x_metres'
 EXTERIOR_Y_COLUMN = 'exterior_y_metres'
 HOLE_X_COLUMN = 'hole_x_metres_list'
 HOLE_Y_COLUMN = 'hole_y_metres_list'
+
+
+def _check_vertex_arrays(vertex_x_metres, vertex_y_metres):
+    """Checks vertex arrays for errors.
+
+    V = number of vertices
+
+    :param vertex_x_metres: length-V numpy array with x-coordinates of vertices.
+        The first NaN separates the exterior from the first hole; the [i]th NaN
+        separates the [i - 1]th hole from the [i]th hole.
+    :param vertex_y_metres: Same as above, except for y-coordinates.
+    :raises: ValueError: if vertex_x_metres[k] is NaN but vertex_y_metres[k] is
+        not NaN, or vice-versa, for any k.
+    """
+
+    error_checking.assert_is_real_number_array(vertex_x_metres)
+    error_checking.assert_is_numpy_array(vertex_x_metres, num_dimensions=1)
+    num_vertices = len(vertex_x_metres)
+
+    error_checking.assert_is_real_number_array(vertex_y_metres)
+    error_checking.assert_is_numpy_array(
+        vertex_y_metres, exact_dimensions=numpy.array([num_vertices]))
+
+    x_nan_indices = numpy.where(numpy.isnan(vertex_x_metres))[0]
+    y_nan_indices = numpy.where(numpy.isnan(vertex_y_metres))[0]
+    if not numpy.array_equal(x_nan_indices, y_nan_indices):
+        error_string = (
+            '\nThe following elements of `vertex_x_metres` are NaN:\n' +
+            str(x_nan_indices) +
+            '\nThe following elements of `vertex_y_metres` are NaN:\n' +
+            str(y_nan_indices) +
+            '\nAs shown above, NaN entries (polygon discontinuities) do not '
+            'match.')
+        raise ValueError(error_string)
 
 
 def _get_longest_inner_list(list_of_lists):
@@ -63,8 +96,10 @@ def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
     vertex_dict.hole_y_metres_list: Same as above, except for y-coordinates.
     """
 
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
+
     nan_indices = numpy.where(numpy.isnan(vertex_x_metres))[0]
-    if len(nan_indices) == 0:
+    if not nan_indices:
         return {EXTERIOR_X_COLUMN: vertex_x_metres,
                 EXTERIOR_Y_COLUMN: vertex_y_metres, HOLE_X_COLUMN: [],
                 HOLE_Y_COLUMN: []}
@@ -81,9 +116,9 @@ def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
             this_hole_y_metres = vertex_y_metres[(nan_indices[i] + 1):]
         else:
             this_hole_x_metres = vertex_x_metres[
-                                 (nan_indices[i] + 1):nan_indices[i + 1]]
+                (nan_indices[i] + 1):nan_indices[i + 1]]
             this_hole_y_metres = vertex_y_metres[
-                                 (nan_indices[i] + 1):nan_indices[i + 1]]
+                (nan_indices[i] + 1):nan_indices[i + 1]]
 
         hole_x_metres_list.append(this_hole_x_metres)
         hole_y_metres_list.append(this_hole_y_metres)
@@ -119,12 +154,27 @@ def _merge_exterior_and_holes(exterior_vertex_x_metres,
     :return: vertex_y_metres: Same as above, except for y-coordinates.
     """
 
+    _check_vertex_arrays(exterior_vertex_x_metres, exterior_vertex_y_metres)
+
+    error_checking.assert_is_real_number_array(exterior_vertex_x_metres)
+    error_checking.assert_is_numpy_array(exterior_vertex_x_metres,
+                                         num_dimensions=1)
+    num_vertices = len(exterior_vertex_x_metres)
+
+    error_checking.assert_is_real_number_array(exterior_vertex_y_metres)
+    error_checking.assert_is_numpy_array(
+        exterior_vertex_y_metres, exact_dimensions=numpy.array([num_vertices]))
+
     vertex_x_metres = copy.deepcopy(exterior_vertex_x_metres)
     vertex_y_metres = copy.deepcopy(exterior_vertex_y_metres)
     if hole_x_vertex_metres_list is None:
         return vertex_x_metres, vertex_y_metres
 
     num_holes = len(hole_x_vertex_metres_list)
+    for i in range(num_holes):
+        _check_vertex_arrays(hole_x_vertex_metres_list[i],
+                             hole_y_vertex_metres_list[i])
+
     single_nan_array = numpy.array([numpy.nan])
 
     for i in range(num_holes):
@@ -146,6 +196,8 @@ def _vertex_arrays_to_list(vertex_x_metres, vertex_y_metres):
     :return: vertex_metres_list: List of V elements, where the [i]th element is
         a tuple with (x-coordinate, y-coordinate).
     """
+
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
 
     num_vertices = len(vertex_x_metres)
     vertex_metres_list = []
@@ -284,6 +336,11 @@ def _get_direction_of_vertex_pair(first_row, second_row, first_column,
         "down_right", or "down_left").
     """
 
+    error_checking.assert_is_not_nan(first_row)
+    error_checking.assert_is_not_nan(second_row)
+    error_checking.assert_is_not_nan(first_column)
+    error_checking.assert_is_not_nan(second_column)
+
     if first_column == second_column:
         if second_row > first_row:
             return DOWN_DIRECTION_NAME
@@ -326,6 +383,8 @@ def _remove_redundant_vertices(vertex_rows_orig, vertex_columns_orig):
     :return: vertex_columns: length-V numpy array with column indices of final
         vertices.
     """
+
+    _check_vertex_arrays(vertex_columns_orig, vertex_rows_orig)
 
     num_vertices_orig = len(vertex_rows_orig)
     vertex_rows = numpy.array([])
@@ -370,6 +429,9 @@ def _patch_diag_connections_in_binary_matrix(binary_matrix):
     :return: binary_matrix: Same as input, except that diagonal connections are
         patched.
     """
+
+    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean_array(binary_matrix)
 
     num_rows = binary_matrix.shape[0]
     num_columns = binary_matrix.shape[1]
@@ -422,6 +484,14 @@ def _points_in_poly_to_binary_matrix(row_indices, column_indices):
         later to convert the subgrid back to the full grid.
     """
 
+    error_checking.assert_is_integer_array(row_indices)
+    error_checking.assert_is_numpy_array(row_indices, num_dimensions=1)
+    num_points = len(row_indices)
+
+    error_checking.assert_is_integer_array(column_indices)
+    error_checking.assert_is_numpy_array(
+        column_indices, exact_dimensions=numpy.array([num_points]))
+
     num_rows_in_subgrid = max(row_indices) - min(row_indices) + 3
     num_columns_in_subgrid = max(column_indices) - min(column_indices) + 3
 
@@ -464,6 +534,11 @@ def _binary_matrix_to_points_in_poly(binary_matrix, first_row_index,
         points in polygon.
     """
 
+    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean_array(binary_matrix)
+    error_checking.assert_is_integer(first_row_index)
+    error_checking.assert_is_integer(first_column_index)
+
     num_rows_in_subgrid = binary_matrix.shape[0]
     num_columns_in_subgrid = binary_matrix.shape[1]
     binary_vector = numpy.reshape(binary_matrix,
@@ -497,6 +572,8 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
     :return: vertex_columns: length-V numpy array with column coordinates of new
         vertices.
     """
+
+    _check_vertex_arrays(vertex_columns_orig, vertex_rows_orig)
 
     num_orig_vertices = len(vertex_rows_orig)
     vertex_rows = numpy.array([])
@@ -649,6 +726,11 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
         [i]th NaN separates the [i - 1]th hole from the [i]th hole.
     :return: buffer_vertex_y_metres: Same as above, except for y-coordinates.
     """
+
+    _check_vertex_arrays(orig_vertex_x_metres, orig_vertex_y_metres)
+    error_checking.assert_is_real_number(min_buffer_dist_metres)
+    error_checking.assert_is_not_nan(max_buffer_dist_metres)
+    error_checking.assert_is_boolean(preserve_angles)
 
     if preserve_angles:
         join_style = shapely.geometry.JOIN_STYLE.mitre
