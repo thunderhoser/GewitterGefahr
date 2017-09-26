@@ -1,16 +1,11 @@
 """Unit tests for hfmetar_io.py."""
 
 import copy
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_io import hfmetar_io
 
 TOLERANCE = 1e-6
-
-UTC_TIME_STRING = '201709150243'
-UTC_MONTH_STRING = '201709'
-UTC_YEAR_STRING = '2017'
-UNIX_TIME_SEC = 1505443380
 
 UNIX_TIME_SEC_NEG_OFFSET_DIFF_DAYS = 1505443380  # 0243 UTC 15 Sep 2017
 LOCAL_TIME_STRING_NEG_OFFSET_DIFF_DAYS = '201709142143'
@@ -113,27 +108,6 @@ RAW_5MINUTE_FILE_NAME = 'hfmetar/5minute/raw_files/CYEG/64010CYEG201709.dat'
 
 class HfmetarIoTests(unittest.TestCase):
     """Each method is a unit test for hfmetar_io.py."""
-
-    def test_time_string_to_unix_sec(self):
-        """Ensures correct output from _time_string_to_unix_sec."""
-
-        this_time_unix_sec = hfmetar_io._time_string_to_unix_sec(
-            UTC_TIME_STRING)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
-
-    def test_time_unix_sec_to_month_string(self):
-        """Ensures correct output from _time_unix_sec_to_month_string."""
-
-        this_month_string = hfmetar_io._time_unix_sec_to_month_string(
-            UNIX_TIME_SEC)
-        self.assertTrue(this_month_string == UTC_MONTH_STRING)
-
-    def test_time_unix_sec_to_year_string(self):
-        """Ensures correct output from _time_unix_sec_to_year_string."""
-
-        this_year_string = hfmetar_io._time_unix_sec_to_year_string(
-            UNIX_TIME_SEC)
-        self.assertTrue(this_year_string == UTC_YEAR_STRING)
 
     def test_local_time_to_unix_neg_offset_diff_days(self):
         """Ensures correct output from _local_time_string_to_unix_sec.
@@ -468,8 +442,9 @@ class HfmetarIoTests(unittest.TestCase):
     def test_get_pathless_raw_1minute_file_name(self):
         """Ensures correct output from _get_pathless_raw_1minute_file_name."""
 
-        this_pathless_file_name = hfmetar_io._get_pathless_raw_1minute_file_name(
-            STATION_ID, MONTH_UNIX_SEC)
+        this_pathless_file_name = (
+            hfmetar_io._get_pathless_raw_1minute_file_name(STATION_ID,
+                                                           MONTH_UNIX_SEC))
         self.assertTrue(
             this_pathless_file_name == PATHLESS_RAW_1MINUTE_FILE_NAME)
 

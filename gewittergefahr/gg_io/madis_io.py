@@ -18,42 +18,37 @@ wind observations, listed below:
 - urbanet stations
 """
 
-import numpy
-import pandas
-import time
 import os
 import os.path
+import numpy
+import pandas
 from netCDF4 import Dataset
 from gewittergefahr.gg_io import downloads
-from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import unzipping
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
-# TODO(thunderhoser): replace main method with named high-level method.
-
-NETCDF_FILE_NAME = (
-    '/localdata/ryan.lagerquist/aasswp/madis_mesonet_2011-06-08-07.netcdf')
-CSV_FILE_NAME = (
-    '/localdata/ryan.lagerquist/aasswp/madis_mesonet_winds_2011-06-08-07.csv')
+# TODO(thunderhoser): replace main method with named method.
 
 DATA_SOURCE = 'madis'
 FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
 FTP_ROOT_DIRECTORY_NAME = 'archive'
 
-GZIP_FILE_EXTENSION = '.gz'
-NETCDF_FILE_EXTENSION = '.netcdf'
+ZIPPED_FILE_EXTENSION = '.gz'
+UNZIPPED_FILE_EXTENSION = '.netcdf'
 
 # LDAD = Local Data Acquisition and Dissemination system.
 LDAD_SUBDATASET_NAMES = ['coop', 'hcn', 'hfmetar', 'mesonet', 'nepp', 'urbanet']
 NON_LDAD_SUBDATASET_NAMES = ['maritime', 'metar', 'sao']
 SUBDATASET_NAMES = LDAD_SUBDATASET_NAMES + NON_LDAD_SUBDATASET_NAMES
 
-YEAR_STRING_FORMAT = '%Y'
-MONTH_STRING_FORMAT = '%m'
-YEAR_MONTH_STRING_FORMAT = '%Y%m'
-DAY_OF_MONTH_STRING_FORMAT = '%d'
-TIME_STRING_FORMAT = '%Y%m%d_%H00'
+TIME_FORMAT_YEAR = '%Y'
+TIME_FORMAT_MONTH = '%m'
+TIME_FORMAT_MONTH_YEAR = '%Y%m'
+TIME_FORMAT_DAY_OF_MONTH = '%d'
+TIME_FORMAT_HOUR = '%Y%m%d_%H00'
 
 LOW_QUALITY_FLAGS = ['X', 'Q', 'k', 'B']
 DEFAULT_QUALITY_FLAG = 'y'
@@ -98,93 +93,21 @@ COLUMN_NAMES_ORIG = [STATION_ID_COLUMN_ORIG, STATION_NAME_COLUMN_ORIG,
                      WIND_GUST_SPEED_FLAG_COLUMN_ORIG,
                      WIND_GUST_DIR_FLAG_COLUMN_ORIG]
 
-
-def _time_unix_sec_to_year_string(unix_time_sec):
-    """Converts time from Unix format to string describing year.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: year_string: Year (format "yyyy").
-    """
-
-    return time.strftime(YEAR_STRING_FORMAT, time.gmtime(unix_time_sec))
+# The following constants are used only in the main method.
+NETCDF_FILE_NAME = (
+    '/localdata/ryan.lagerquist/aasswp/madis_mesonet_2011-06-08-07.netcdf')
+CSV_FILE_NAME = (
+    '/localdata/ryan.lagerquist/aasswp/madis_mesonet_winds_2011-06-08-07.csv')
 
 
-def _time_unix_sec_to_month_string(unix_time_sec):
-    """Converts time from Unix format to string describing month.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: month_string: Month (format "mm").
-    """
-
-    return time.strftime(MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _time_unix_sec_to_year_month_string(unix_time_sec):
-    """Converts time from Unix format to string describing year/month.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: year_month_string: Year/month (format "yyyymm").
-    """
-
-    return time.strftime(YEAR_MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _time_unix_sec_to_day_of_month_string(unix_time_sec):
-    """Converts time from Unix format to string describing day of month.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: day_of_month_string: Day of month (format "dd").
-    """
-
-    return time.strftime(DAY_OF_MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _time_unix_sec_to_string(unix_time_sec):
-    """Converts time from Unix format to string.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: time_string: String (format "yyyymmdd_HH00").
-    """
-
-    return time.strftime(TIME_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _get_ftp_file_name(unix_time_sec, subdataset_name):
-    """Generates expected file path on FTP server for given date and subdataset.
-
-    :param unix_time_sec: Time in Unix format.
-    :param subdataset_name: Name of subdataset.
-    :return: ftp_file_name: Expected file path on FTP server.
-    """
-
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
-                                                     GZIP_FILE_EXTENSION)
-
-    if subdataset_name in LDAD_SUBDATASET_NAMES:
-        first_subdir_name = 'LDAD'
-        second_subdir_name = 'netCDF'
-    else:
-        first_subdir_name = 'point'
-        second_subdir_name = 'netcdf'
-
-    ftp_directory_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:s}/{6:s}'.format(
-        FTP_ROOT_DIRECTORY_NAME, _time_unix_sec_to_year_string(unix_time_sec),
-        _time_unix_sec_to_month_string(unix_time_sec),
-        _time_unix_sec_to_day_of_month_string(unix_time_sec), first_subdir_name,
-        subdataset_name, second_subdir_name)
-
-    return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
-
-
-def _convert_column_name(column_name_orig):
-    """Converts column name from original format to new format.
-
-    "Original format" = MADIS format; new format = my format.
+def _column_name_orig_to_new(column_name_orig):
+    """Converts column name from orig (MADIS) to new (GewitterGefahr) format.
 
     :param column_name_orig: Column name in original format.
     :return: column_name: Column name in new format.
     """
 
+    error_checking.assert_is_string(column_name_orig)
     orig_column_flags = [s == column_name_orig for s in COLUMN_NAMES_ORIG]
     orig_column_index = numpy.where(orig_column_flags)[0][0]
     return COLUMN_NAMES[orig_column_index]
@@ -200,13 +123,46 @@ def _char_matrix_to_string_list(char_matrix):
     :return: strings: length-M list of strings.
     """
 
+    error_checking.assert_is_array(char_matrix)
+    num_strings = len(char_matrix)
+    for i in range(num_strings):
+        error_checking.assert_is_string_array(char_matrix[i])
+
     num_strings = char_matrix.shape[0]
     strings = [''] * num_strings
-
     for i in range(num_strings):
         strings[i] = ''.join(char_matrix[i, :]).strip()
 
     return strings
+
+
+def _get_ftp_file_name(unix_time_sec, subdataset_name):
+    """Generates expected file path on FTP server for given date and subdataset.
+
+    :param unix_time_sec: Time in Unix format.
+    :param subdataset_name: Name of subdataset.
+    :return: ftp_file_name: Expected file path on FTP server.
+    """
+
+    error_checking.assert_is_string(subdataset_name)
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
+
+    if subdataset_name in LDAD_SUBDATASET_NAMES:
+        first_subdir_name = 'LDAD'
+        second_subdir_name = 'netCDF'
+    else:
+        first_subdir_name = 'point'
+        second_subdir_name = 'netcdf'
+
+    ftp_directory_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:s}/{6:s}'.format(
+        FTP_ROOT_DIRECTORY_NAME,
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_YEAR),
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MONTH),
+        time_conversion.unix_sec_to_string(unix_time_sec,
+                                           TIME_FORMAT_DAY_OF_MONTH),
+        first_subdir_name, subdataset_name, second_subdir_name)
+
+    return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
 
 
 def _remove_invalid_data(wind_table):
@@ -258,9 +214,9 @@ def _remove_invalid_data(wind_table):
     wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
         invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
 
-    wind_table[
-        raw_wind_io.LONGITUDE_COLUMN] = myrorss_io.convert_lng_positive_in_west(
-        wind_table[raw_wind_io.LONGITUDE_COLUMN].values)
+    wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
+        lng_conversion.convert_lng_positive_in_west(
+            wind_table[raw_wind_io.LONGITUDE_COLUMN].values))
     return wind_table
 
 
@@ -309,19 +265,27 @@ def _remove_low_quality_data(wind_table):
     return wind_table.loc[
         wind_table[[raw_wind_io.WIND_SPEED_COLUMN,
                     raw_wind_io.WIND_GUST_SPEED_COLUMN]].notnull().any(
-            axis=1)]
+                        axis=1)]
 
 
-def _get_pathless_raw_file_name(unix_time_sec, file_extension):
+def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
     """Generates pathless name for raw MADIS file.
 
     :param unix_time_sec: Time in Unix format.
-    :param file_extension: File extension (either ".netcdf" or ".gz").
+    :param zipped: Boolean flag.  If True, will generate name for zipped file.
+        If False, will generate name for unzipped file.
     :return: pathless_raw_file_name: Pathless name for raw MADIS file.
     """
 
-    return '{0:s}{1:s}'.format(_time_unix_sec_to_string(unix_time_sec),
-                               file_extension)
+    error_checking.assert_is_boolean(zipped)
+    if zipped:
+        return '{0:s}{1:s}'.format(
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_HOUR),
+            ZIPPED_FILE_EXTENSION)
+
+    return '{0:s}{1:s}'.format(
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_HOUR),
+        UNZIPPED_FILE_EXTENSION)
 
 
 def extract_netcdf_from_gzip(unix_time_sec=None, subdataset_name=None,
@@ -338,14 +302,12 @@ def extract_netcdf_from_gzip(unix_time_sec=None, subdataset_name=None,
 
     gzip_file_name = find_local_raw_file(
         unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        file_extension=GZIP_FILE_EXTENSION,
-        top_local_directory_name=top_raw_directory_name,
+        top_local_directory_name=top_raw_directory_name, zipped=True,
         raise_error_if_missing=True)
 
     netcdf_file_name = find_local_raw_file(
         unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        file_extension=NETCDF_FILE_EXTENSION,
-        top_local_directory_name=top_raw_directory_name,
+        top_local_directory_name=top_raw_directory_name, zipped=False,
         raise_error_if_missing=False)
 
     unzipping.unzip_gzip(gzip_file_name, netcdf_file_name)
@@ -353,7 +315,7 @@ def extract_netcdf_from_gzip(unix_time_sec=None, subdataset_name=None,
 
 
 def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
-                        file_extension=None, top_local_directory_name=None,
+                        top_local_directory_name=None, zipped=True,
                         raise_error_if_missing=True):
     """Finds raw file on local machine.
 
@@ -361,8 +323,9 @@ def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
 
     :param unix_time_sec: Time in Unix format.
     :param subdataset_name: Name of subdataset.
-    :param file_extension: File extension (either ".netcdf" or ".gz").
     :param top_local_directory_name: Top-level directory with raw MADIS files.
+    :param zipped: Boolean flag.  If True, will look for zipped file.  If False,
+        will look for unzipped file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: raw_file_name: File path.  If raise_error_if_missing = False and
@@ -370,12 +333,18 @@ def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_string(subdataset_name)
+    error_checking.assert_is_string(top_local_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
-                                                     file_extension)
+                                                     zipped=zipped)
 
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_local_directory_name, subdataset_name,
-        _time_unix_sec_to_year_month_string(unix_time_sec), pathless_file_name)
+        time_conversion.unix_sec_to_string(unix_time_sec,
+                                           TIME_FORMAT_MONTH_YEAR),
+        pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
@@ -410,8 +379,7 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
 
     local_gzip_file_name = find_local_raw_file(
         unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        file_extension=GZIP_FILE_EXTENSION,
-        top_local_directory_name=top_local_directory_name,
+        top_local_directory_name=top_local_directory_name, zipped=True,
         raise_error_if_missing=False)
 
     return downloads.download_file_from_ftp(
@@ -475,6 +443,7 @@ def read_winds_from_netcdf(netcdf_file_name):
         origin).
     """
 
+    error_checking.assert_file_exists(netcdf_file_name)
     netcdf_dataset = Dataset(netcdf_file_name)
     station_names = _char_matrix_to_string_list(
         netcdf_dataset.variables[STATION_NAME_COLUMN_ORIG][:])
@@ -496,13 +465,13 @@ def read_winds_from_netcdf(netcdf_file_name):
 
     wind_speeds_m_s01 = netcdf_dataset.variables[WIND_SPEED_COLUMN_ORIG][:]
     wind_speed_quality_flags = netcdf_dataset.variables[
-                                   WIND_SPEED_FLAG_COLUMN_ORIG][:]
+        WIND_SPEED_FLAG_COLUMN_ORIG][:]
     num_observations = len(wind_speeds_m_s01)
 
     try:
         wind_directions_deg = netcdf_dataset.variables[WIND_DIR_COLUMN_ORIG][:]
         wind_dir_quality_flags = netcdf_dataset.variables[
-                                     WIND_DIR_FLAG_COLUMN_ORIG][:]
+            WIND_DIR_FLAG_COLUMN_ORIG][:]
     except KeyError:
         wind_directions_deg = numpy.full(num_observations,
                                          raw_wind_io.WIND_DIR_DEFAULT_DEG)
@@ -510,9 +479,9 @@ def read_winds_from_netcdf(netcdf_file_name):
 
     try:
         wind_gust_speeds_m_s01 = netcdf_dataset.variables[
-                                     WIND_GUST_SPEED_COLUMN_ORIG][:]
+            WIND_GUST_SPEED_COLUMN_ORIG][:]
         wind_gust_speed_quality_flags = netcdf_dataset.variables[
-                                            WIND_GUST_SPEED_FLAG_COLUMN_ORIG][:]
+            WIND_GUST_SPEED_FLAG_COLUMN_ORIG][:]
     except KeyError:
         wind_gust_speeds_m_s01 = numpy.full(num_observations, numpy.nan)
         wind_gust_speed_quality_flags = (
@@ -520,9 +489,9 @@ def read_winds_from_netcdf(netcdf_file_name):
 
     try:
         wind_gust_directions_deg = netcdf_dataset.variables[
-                                       WIND_GUST_DIR_COLUMN_ORIG][:]
+            WIND_GUST_DIR_COLUMN_ORIG][:]
         wind_gust_dir_quality_flags = netcdf_dataset.variables[
-                                          WIND_GUST_DIR_FLAG_COLUMN_ORIG][:]
+            WIND_GUST_DIR_FLAG_COLUMN_ORIG][:]
     except KeyError:
         wind_gust_directions_deg = numpy.full(num_observations,
                                               raw_wind_io.WIND_DIR_DEFAULT_DEG)
@@ -531,11 +500,11 @@ def read_winds_from_netcdf(netcdf_file_name):
     wind_dict = {raw_wind_io.STATION_ID_COLUMN: station_ids,
                  raw_wind_io.STATION_NAME_COLUMN: station_names,
                  raw_wind_io.LATITUDE_COLUMN: netcdf_dataset.variables[
-                                                  LATITUDE_COLUMN_ORIG][:],
+                     LATITUDE_COLUMN_ORIG][:],
                  raw_wind_io.LONGITUDE_COLUMN: netcdf_dataset.variables[
-                                                   LONGITUDE_COLUMN_ORIG][:],
+                     LONGITUDE_COLUMN_ORIG][:],
                  raw_wind_io.ELEVATION_COLUMN: netcdf_dataset.variables[
-                                                   ELEVATION_COLUMN_ORIG][:],
+                     ELEVATION_COLUMN_ORIG][:],
                  raw_wind_io.TIME_COLUMN: numpy.array(unix_times_sec).astype(
                      int),
                  raw_wind_io.WIND_SPEED_COLUMN: wind_speeds_m_s01,

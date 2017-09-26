@@ -7,41 +7,23 @@ HFMETARs are available only for ASOS (Automated Surface Observing System)
 stations.
 """
 
+import os.path
 import numpy
 import pandas
-import time
-import calendar
-import os.path
 from gewittergefahr.gg_io import downloads
-from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
-# TODO(thunderhoser): replace main method with named high-level method.
+# TODO(thunderhoser): replace main method with named method.
 
-ORIG_METAFILE_NAME = '/localdata/ryan.lagerquist/aasswp/asos-stations.txt'
-NEW_METAFILE_NAME = (
-    '/localdata/ryan.lagerquist/aasswp/hfmetar_station_metadata.csv')
-
-ORIG_STATION_ID_1MINUTE = 'KBGD'
-STATION_ID_1MINUTE = 'BGD_hfmetar'
-MONTH_1MINUTE_UNIX_SEC = 1454284800  # Feb 2016
-TOP_LOCAL_DIR_NAME_1MINUTE = '/localdata/ryan.lagerquist/aasswp/hfmetar1'
-CSV_FILE_NAME_1MINUTE = (
-    '/localdata/ryan.lagerquist/aasswp/hfmetar1/hfmetar1_wind_BGD_201602.csv')
-
-ORIG_STATION_ID_5MINUTE = 'KHKA'
-STATION_ID_5MINUTE = 'HKA_hfmetar'
-MONTH_5MINUTE_UNIX_SEC = 1410253749  # Sep 2014
-TOP_LOCAL_DIR_NAME_5MINUTE = '/localdata/ryan.lagerquist/aasswp/hfmetar5'
-CSV_FILE_NAME_5MINUTE = (
-    '/localdata/ryan.lagerquist/aasswp/hfmetar5/hfmetar5_wind_HKA_201409.csv')
-
-YEAR_STRING_FORMAT = '%Y'
-MONTH_STRING_FORMAT = '%Y%m'
-TIME_FORMAT = '%Y%m%d%H%M'
+TIME_FORMAT_YEAR = '%Y'
+TIME_FORMAT_MONTH = '%Y%m'
+TIME_FORMAT_HOUR_MINUTE = '%Y%m%d%H%M'
 
 DATA_SOURCE = 'hfmetar'
+RAW_FILE_EXTENSION = '.dat'
 UTC_OFFSET_COLUMN = 'utc_offset_hours'
 
 PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64060'
@@ -51,9 +33,6 @@ ONLINE_SUBDIR_PREFIX_1MINUTE = '6406-'
 PATHLESS_FILE_NAME_PREFIX_5MINUTE = '64010'
 TOP_ONLINE_DIR_NAME_5MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-fivemin'
 ONLINE_SUBDIR_PREFIX_5MINUTE = '6401-'
-
-RAW_FILE_EXTENSION = 'dat'
-NUM_BYTES_PER_DOWNLOAD_CHUNK = 16384
 
 FEET_TO_METRES = 1. / 3.2808
 HOURS_TO_SECONDS = 3600
@@ -77,52 +56,38 @@ METADATA_COLUMNS_TO_MERGE = [raw_wind_io.STATION_ID_COLUMN,
                              raw_wind_io.LONGITUDE_COLUMN,
                              raw_wind_io.ELEVATION_COLUMN]
 
+# The following constants are used only in the main method.
+ORIG_METAFILE_NAME = '/localdata/ryan.lagerquist/aasswp/asos-stations.txt'
+NEW_METAFILE_NAME = (
+    '/localdata/ryan.lagerquist/aasswp/hfmetar_station_metadata.csv')
 
-def _time_string_to_unix_sec(time_string):
-    """Converts time from string to Unix format (sec since 0000 UTC 1 Jan 1970).
+ORIG_STATION_ID_1MINUTE = 'KBGD'
+STATION_ID_1MINUTE = 'BGD_hfmetar'
+MONTH_1MINUTE_UNIX_SEC = 1454284800  # Feb 2016
+TOP_LOCAL_DIR_NAME_1MINUTE = '/localdata/ryan.lagerquist/aasswp/hfmetar1'
+CSV_FILE_NAME_1MINUTE = (
+    '/localdata/ryan.lagerquist/aasswp/hfmetar1/hfmetar1_wind_BGD_201602.csv')
 
-    :param time_string: Time string (format "yyyymmddHHMM").
-    :return: unix_time_sec: Time in Unix format.
-    """
-
-    return calendar.timegm(time.strptime(time_string, TIME_FORMAT))
-
-
-def _time_unix_sec_to_month_string(unix_time_sec):
-    """Converts time from Unix format to string describing month.
-
-    :param unix_time_sec: Time in Unix format (seconds since 0000 UTC 1 Jan
-        1970).
-    :return: month_string: Month (format "yyyymm").
-    """
-
-    return time.strftime(MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _time_unix_sec_to_year_string(unix_time_sec):
-    """Converts time from Unix format to string describing year.
-
-    :param unix_time_sec: Time in Unix format (seconds since 0000 UTC 1 Jan
-        1970).
-    :return: year_string: Year (format "yyyy").
-    """
-
-    return time.strftime(YEAR_STRING_FORMAT, time.gmtime(unix_time_sec))
+ORIG_STATION_ID_5MINUTE = 'KHKA'
+STATION_ID_5MINUTE = 'HKA_hfmetar'
+MONTH_5MINUTE_UNIX_SEC = 1410253749  # Sep 2014
+TOP_LOCAL_DIR_NAME_5MINUTE = '/localdata/ryan.lagerquist/aasswp/hfmetar5'
+CSV_FILE_NAME_5MINUTE = (
+    '/localdata/ryan.lagerquist/aasswp/hfmetar5/hfmetar5_wind_HKA_201409.csv')
 
 
 def _local_time_string_to_unix_sec(local_time_string, utc_offset_hours):
     """Converts time from local string to Unix format.
 
-    Unix format = seconds since 0000 UTC 1 Jan 1970.
-
-    :param local_time_string: Local time, formatted as "yyyymmddHHMM".
-    :param utc_offset_hours: Difference between UTC and local time zone (local
-        minus UTC).
-    :return: unix_time_sec: Seconds since 0000 UTC 1 Jan 1970.
+    :param local_time_string: Local time (format "yyyymmddHHMM").
+    :param utc_offset_hours: Local time minus UTC.
+    :return: unix_time_sec: Time in Unix format.
     """
 
-    local_time_unix_sec = _time_string_to_unix_sec(local_time_string)
-    return local_time_unix_sec - utc_offset_hours * HOURS_TO_SECONDS
+    error_checking.assert_is_integer(utc_offset_hours)
+    return time_conversion.string_to_unix_sec(
+        local_time_string, TIME_FORMAT_HOUR_MINUTE) - (
+            utc_offset_hours * HOURS_TO_SECONDS)
 
 
 def _parse_1minute_wind_from_line(line_string):
@@ -135,6 +100,7 @@ def _parse_1minute_wind_from_line(line_string):
     wind_gust_direction_deg: Direction of wind gust (degrees of origin).
     """
 
+    error_checking.assert_is_string(line_string)
     words = line_string.split()
 
     try:
@@ -173,6 +139,7 @@ def _parse_5minute_wind_from_line(line_string):
     wind_gust_direction_deg: Direction of wind gust (degrees of origin).
     """
 
+    error_checking.assert_is_string(line_string)
     wind_gust_direction_deg = numpy.nan
     words = line_string.split()
 
@@ -257,9 +224,9 @@ def _remove_invalid_station_metadata(station_metadata_table):
     station_metadata_table[raw_wind_io.ELEVATION_COLUMN].values[
         invalid_indices] = numpy.nan
 
-    station_metadata_table[
-        raw_wind_io.LONGITUDE_COLUMN] = myrorss_io.convert_lng_positive_in_west(
-        station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values)
+    station_metadata_table[raw_wind_io.LONGITUDE_COLUMN] = (
+        lng_conversion.convert_lng_positive_in_west(
+            station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values))
     return station_metadata_table
 
 
@@ -312,9 +279,11 @@ def _get_pathless_raw_1minute_file_name(station_id, month_unix_sec):
     :return: pathless_raw_file_name: Pathless name for raw 1-minute file.
     """
 
-    return '{0:s}{1:s}{2:s}.{3:s}'.format(
+    error_checking.assert_is_string(station_id)
+    return '{0:s}{1:s}{2:s}{3:s}'.format(
         PATHLESS_FILE_NAME_PREFIX_1MINUTE, station_id,
-        _time_unix_sec_to_month_string(month_unix_sec), RAW_FILE_EXTENSION)
+        time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_MONTH),
+        RAW_FILE_EXTENSION)
 
 
 def _get_pathless_raw_5minute_file_name(station_id, month_unix_sec):
@@ -325,9 +294,11 @@ def _get_pathless_raw_5minute_file_name(station_id, month_unix_sec):
     :return: pathless_raw_file_name: Pathless name for raw 5-minute file.
     """
 
-    return '{0:s}{1:s}{2:s}.{3:s}'.format(
+    error_checking.assert_is_string(station_id)
+    return '{0:s}{1:s}{2:s}{3:s}'.format(
         PATHLESS_FILE_NAME_PREFIX_5MINUTE, station_id,
-        _time_unix_sec_to_month_string(month_unix_sec), RAW_FILE_EXTENSION)
+        time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_MONTH),
+        RAW_FILE_EXTENSION)
 
 
 def find_local_raw_1minute_file(station_id=None, month_unix_sec=None,
@@ -346,6 +317,9 @@ def find_local_raw_1minute_file(station_id=None, month_unix_sec=None,
         False and file is missing, this will be the *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_raw_1minute_file_name(station_id,
                                                              month_unix_sec)
@@ -376,6 +350,9 @@ def find_local_raw_5minute_file(station_id=None, month_unix_sec=None,
         False and file is missing, this will be the *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_raw_5minute_file_name(station_id,
                                                              month_unix_sec)
@@ -408,6 +385,8 @@ def read_station_metadata_from_text(text_file_name):
         time and UTC (local minus UTC).
     """
 
+    error_checking.assert_file_exists(text_file_name)
+
     num_lines_read = 0
     station_ids = []
     station_names = []
@@ -423,11 +402,11 @@ def read_station_metadata_from_text(text_file_name):
 
         this_station_id = raw_wind_io.append_source_to_station_id(
             this_line[
-            STATION_ID_CHAR_INDICES[0]:STATION_ID_CHAR_INDICES[1]].strip(),
+                STATION_ID_CHAR_INDICES[0]:STATION_ID_CHAR_INDICES[1]].strip(),
             DATA_SOURCE)
 
         this_station_name = (this_line[STATION_NAME_CHAR_INDICES[0]:
-        STATION_NAME_CHAR_INDICES[1]].strip())
+                                       STATION_NAME_CHAR_INDICES[1]].strip())
 
         station_ids.append(this_station_id)
         station_names.append(this_station_name)
@@ -476,7 +455,8 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
                                                              month_unix_sec)
     online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
         TOP_ONLINE_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
-        _time_unix_sec_to_year_string(month_unix_sec), pathless_file_name)
+        time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_YEAR),
+        pathless_file_name)
 
     return downloads.download_file_from_url(
         online_file_name, local_file_name,
@@ -507,7 +487,8 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
                                                              month_unix_sec)
     online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
         TOP_ONLINE_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
-        _time_unix_sec_to_year_string(month_unix_sec), pathless_file_name)
+        time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_YEAR),
+        pathless_file_name)
 
     return downloads.download_file_from_url(
         online_file_name, local_file_name,
@@ -537,6 +518,8 @@ def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
         origin).
     """
 
+    error_checking.assert_file_exists(text_file_name)
+
     unix_times_sec = []
     wind_speeds_m_s01 = []
     wind_directions_deg = []
@@ -546,10 +529,10 @@ def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
     for this_line in open(text_file_name, 'r').readlines():
         this_local_hour_string = (
             this_line[LOCAL_TIME_CHAR_INDICES_1MINUTE_FILE[0]:
-            LOCAL_TIME_CHAR_INDICES_1MINUTE_FILE[1]])
+                      LOCAL_TIME_CHAR_INDICES_1MINUTE_FILE[1]])
         this_local_date_string = (
             this_line[LOCAL_DATE_CHAR_INDICES_1MINUTE_FILE[0]:
-            LOCAL_DATE_CHAR_INDICES_1MINUTE_FILE[1]])
+                      LOCAL_DATE_CHAR_INDICES_1MINUTE_FILE[1]])
 
         this_local_time_string = this_local_date_string + this_local_hour_string
         this_time_unix_sec = _local_time_string_to_unix_sec(
@@ -558,7 +541,7 @@ def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
         (this_wind_speed_m_s01, this_wind_direction_deg,
          this_wind_gust_speed_m_s01,
          this_wind_gust_direction_deg) = _parse_1minute_wind_from_line(
-            this_line)
+             this_line)
 
         unix_times_sec.append(this_time_unix_sec)
         wind_speeds_m_s01.append(this_wind_speed_m_s01)
@@ -601,6 +584,8 @@ def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
         origin).
     """
 
+    error_checking.assert_file_exists(text_file_name)
+
     unix_times_sec = []
     wind_speeds_m_s01 = []
     wind_directions_deg = []
@@ -610,14 +595,14 @@ def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
     for this_line in open(text_file_name, 'r').readlines():
         this_local_time_string = (
             this_line[LOCAL_TIME_CHAR_INDICES_5MINUTE_FILE[0]:
-            LOCAL_TIME_CHAR_INDICES_5MINUTE_FILE[1]])
+                      LOCAL_TIME_CHAR_INDICES_5MINUTE_FILE[1]])
         this_time_unix_sec = _local_time_string_to_unix_sec(
             this_local_time_string, utc_offset_hours)
 
         (this_wind_speed_m_s01, this_wind_direction_deg,
          this_wind_gust_speed_m_s01,
          this_wind_gust_direction_deg) = _parse_5minute_wind_from_line(
-            this_line)
+             this_line)
 
         unix_times_sec.append(this_time_unix_sec)
         wind_speeds_m_s01.append(this_wind_speed_m_s01)
@@ -653,6 +638,8 @@ def merge_winds_and_metadata(wind_table, station_metadata_table, station_id):
     wind_table.longitude_deg: Longitude (deg E).
     wind_table.elevation_m_asl: Elevation (metres above sea level).
     """
+
+    error_checking.assert_is_string(station_id)
 
     num_observations = len(wind_table.index)
     station_id_list = [station_id] * num_observations

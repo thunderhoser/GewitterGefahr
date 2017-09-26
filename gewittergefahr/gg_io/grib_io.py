@@ -8,10 +8,17 @@ instructions.
 import os
 import numpy
 from gewittergefahr.gg_io import downloads
+from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
 # TODO(thunderhoser): add README_grib to this directory.
+# TODO(thunderhoser): replace main method with named method.
 
+RELATIVE_TOLERANCE = 1e-6
+WGRIB_EXE_NAME_DEFAULT = '/usr/bin/wgrib'
+WGRIB2_EXE_NAME_DEFAULT = '/usr/bin/wgrib2'
+
+# The following constants are used in the main method only.
 NARR_FILE_NAME_ONLINE = (
     'https://nomads.ncdc.noaa.gov/data/narr/201408/20140810/'
     'narr-a_221_20140810_1200_000.grb')
@@ -42,13 +49,6 @@ NUM_ROWS_IN_RAP = 337
 NUM_COLUMNS_IN_RAP = 451
 RAP_SENTINEL_VALUE = 9.999e20
 
-RELATIVE_TOLERANCE = 1e-6
-NUM_BYTES_PER_DOWNLOAD_CHUNK = 16384
-
-# Default paths to wgrib and wgrib2 executables.
-WGRIB_EXE_NAME_DEFAULT = '/usr/bin/wgrib'
-WGRIB2_EXE_NAME_DEFAULT = '/usr/bin/wgrib2'
-
 
 def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
     """Replaces all instances of sentinel value with NaN.
@@ -60,8 +60,11 @@ def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
         NaN.
     """
 
+    error_checking.assert_is_numpy_array(data_matrix)
     if sentinel_value is None:
         return data_matrix
+
+    error_checking.assert_is_real_number(sentinel_value)
 
     data_vector = numpy.reshape(data_matrix, data_matrix.size)
     sentinel_flags = numpy.isclose(data_vector, sentinel_value,
@@ -85,6 +88,11 @@ def _extract_variable_grib_to_text(grib_file_name, grib_var_name=None,
     :param wgrib_exe_name: Path to wgrib executable.
     """
 
+    error_checking.assert_file_exists(grib_file_name)
+    error_checking.assert_is_string(grib_var_name)
+    error_checking.assert_file_exists(wgrib_exe_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
+
     wgrib_command_string = (
         '"' + wgrib_exe_name + '" "' + grib_file_name + '" -s | grep -w "' +
         grib_var_name + '" | "' + wgrib_exe_name + '" -i "' + grib_file_name +
@@ -105,6 +113,11 @@ def _extract_variable_grib2_to_text(grib2_file_name, grib2_var_name=None,
     :param text_file_name: Path to output file.
     :param wgrib2_exe_name: Path to wgrib2 executable.
     """
+
+    error_checking.assert_file_exists(grib2_file_name)
+    error_checking.assert_is_string(grib2_var_name)
+    error_checking.assert_file_exists(wgrib2_exe_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
 
     wgrib2_command_string = (
         '"' + wgrib2_exe_name + '" "' + grib2_file_name + '" -s | grep -w "' +
@@ -134,6 +147,12 @@ def _read_variable_from_text(text_file_name, num_grid_rows=None,
         and longitude increases while traveling right across the rows.
     """
 
+    error_checking.assert_file_exists(text_file_name)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_positive(num_grid_rows)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_positive(num_grid_columns)
+
     data_matrix = numpy.reshape(numpy.loadtxt(text_file_name),
                                 (num_grid_rows, num_grid_columns))
 
@@ -159,6 +178,8 @@ def read_variable_from_grib(grib_file_name, grib_var_name=None,
         executing this method.
     :return: data_matrix: See documentation for _read_variable_from_text.
     """
+
+    error_checking.assert_is_boolean(delete_text_file)
 
     _extract_variable_grib_to_text(grib_file_name, grib_var_name=grib_var_name,
                                    text_file_name=text_file_name,
@@ -198,6 +219,8 @@ def read_variable_from_grib2(grib2_file_name, grib2_var_name=None,
         executing this method.
     :return: data_matrix: See documentation for _read_variable_from_text.
     """
+
+    error_checking.assert_is_boolean(delete_text_file)
 
     _extract_variable_grib2_to_text(grib2_file_name,
                                     grib2_var_name=grib2_var_name,

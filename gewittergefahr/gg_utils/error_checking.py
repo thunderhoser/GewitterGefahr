@@ -3,12 +3,21 @@
 These methods are designed mainly to check for errors in input arguments.
 """
 
-import numpy
 import numbers
 import os.path
+import numpy
 
 BOOLEAN_TYPES = (bool, numpy.bool_)
 REAL_NUMBER_TYPES = (float, numbers.Integral)
+
+MIN_LATITUDE_DEG = -90.
+MAX_LATITUDE_DEG = 90.
+MIN_LNG_NEGATIVE_IN_WEST_DEG = -180.
+MAX_LNG_NEGATIVE_IN_WEST_DEG = 180.
+MIN_LNG_POSITIVE_IN_WEST_DEG = 0.
+MAX_LNG_POSITIVE_IN_WEST_DEG = 360.
+MIN_LONGITUDE_DEG = -180.
+MAX_LONGITUDE_DEG = 360.
 
 
 def assert_is_non_array(input_variable):
@@ -119,7 +128,8 @@ def assert_is_string_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    [assert_is_string(s) for s in input_variable]
+    for this_element in input_variable:
+        assert_is_string(this_element)
 
 
 def assert_file_exists(file_name):
@@ -167,7 +177,8 @@ def assert_is_integer_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    [assert_is_integer(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_integer(this_element)
 
 
 def assert_is_boolean(input_variable):
@@ -190,7 +201,8 @@ def assert_is_boolean_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    [assert_is_boolean(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_boolean(this_element)
 
 
 def assert_is_float(input_variable):
@@ -213,7 +225,8 @@ def assert_is_float_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    [assert_is_float(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_float(this_element)
 
 
 def assert_is_real_number(input_variable):
@@ -237,7 +250,8 @@ def assert_is_real_number_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    [assert_is_real_number(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_real_number(this_element)
 
 
 def assert_is_not_nan(input_variable):
@@ -260,7 +274,8 @@ def assert_is_not_nan_array(input_variable):
     """
 
     assert_is_array(input_variable)
-    [assert_is_not_nan(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_not_nan(this_element)
 
 
 def assert_is_positive(input_variable):
@@ -283,7 +298,8 @@ def assert_is_positive_array(input_variable):
     """
 
     assert_is_real_number_array(input_variable)
-    [assert_is_positive(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_positive(this_element)
 
 
 def assert_is_non_negative(input_variable):
@@ -307,7 +323,8 @@ def assert_is_non_negative_array(input_variable):
     """
 
     assert_is_real_number_array(input_variable)
-    [assert_is_non_negative(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_non_negative(this_element)
 
 
 def assert_is_negative(input_variable):
@@ -330,7 +347,8 @@ def assert_is_negative_array(input_variable):
     """
 
     assert_is_real_number_array(input_variable)
-    [assert_is_negative(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_negative(this_element)
 
 
 def assert_is_non_positive(input_variable):
@@ -354,4 +372,72 @@ def assert_is_non_positive_array(input_variable):
     """
 
     assert_is_real_number_array(input_variable)
-    [assert_is_non_positive(n) for n in input_variable]
+    for this_element in input_variable:
+        assert_is_non_positive(this_element)
+
+
+def assert_is_valid_latitude(latitude_deg):
+    """Raises error if input variable is not valid latitude.
+
+    :param latitude_deg: Input variable (should be latitude in deg N).
+    :raises: ValueError: if input variable is not valid latitude.
+    """
+
+    assert_is_real_number(latitude_deg)
+    if not MIN_LATITUDE_DEG <= latitude_deg <= MAX_LATITUDE_DEG:
+        raise ValueError(
+            'Latitude should be in range [' + str(MIN_LATITUDE_DEG) + ', ' +
+            str(MAX_LATITUDE_DEG) + '] deg N.  Instead, got ' +
+            str(latitude_deg) + ' deg N.')
+
+
+def assert_is_valid_longitude(longitude_deg):
+    """Raises error if input variable is not valid longitude.
+
+    :param longitude_deg: Input variable (should be longitude in deg E).
+    :raises: ValueError: if input variable is not valid longitude.
+    """
+
+    assert_is_real_number(longitude_deg)
+
+    if not MIN_LONGITUDE_DEG <= longitude_deg <= MAX_LONGITUDE_DEG:
+        raise ValueError(
+            'Longitude should be in range [' + str(MIN_LONGITUDE_DEG) + ', ' +
+            str(MAX_LONGITUDE_DEG) + '] deg E.  Instead, got ' +
+            str(longitude_deg) + ' deg E.')
+
+
+def assert_is_valid_lng_positive_in_west(longitude_deg):
+    """Raises error if input variable is not valid longitude.
+
+    :param longitude_deg: Input variable (should be longitude in deg E, with
+        values > 180 deg E in western hemisphere).
+    :raises: ValueError: if input variable is not valid longitude.
+    """
+
+    assert_is_real_number(longitude_deg)
+
+    if not (MIN_LNG_POSITIVE_IN_WEST_DEG <= longitude_deg <=
+            MAX_LNG_POSITIVE_IN_WEST_DEG):
+        raise ValueError(
+            'Longitude should be in range [' + str(MIN_LNG_POSITIVE_IN_WEST_DEG)
+            + ', ' + str(MAX_LNG_POSITIVE_IN_WEST_DEG) +
+            '] deg E.  Instead, got ' + str(longitude_deg) + ' deg E.')
+
+
+def assert_is_valid_lng_negative_in_west(longitude_deg):
+    """Raises error if input variable is not valid longitude.
+
+    :param longitude_deg: Input variable (should be longitude in deg E, with
+        values < 0 deg E in western hemisphere).
+    :raises: ValueError: if input variable is not valid longitude.
+    """
+
+    assert_is_real_number(longitude_deg)
+
+    if not (MIN_LNG_NEGATIVE_IN_WEST_DEG <= longitude_deg <=
+            MAX_LNG_NEGATIVE_IN_WEST_DEG):
+        raise ValueError(
+            'Longitude should be in range [' + str(MIN_LNG_NEGATIVE_IN_WEST_DEG)
+            + ', ' + str(MAX_LNG_NEGATIVE_IN_WEST_DEG) +
+            '] deg E.  Instead, got ' + str(longitude_deg) + ' deg E.')

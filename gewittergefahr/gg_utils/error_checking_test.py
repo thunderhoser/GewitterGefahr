@@ -1,8 +1,8 @@
 """Unit tests for error_checking.py."""
 
 import unittest
-import numpy
 import os.path
+import numpy
 from gewittergefahr.gg_utils import error_checking
 
 GRID_POINT_FILE_NAME = 'grid_point_latlng_grid130.data'
@@ -37,6 +37,13 @@ MIXED_SIGN_NUMPY_ARRAY = numpy.array([8., 0., -4., 2.5, -17.])
 NAN_NUMPY_ARRAY = numpy.array([numpy.nan, numpy.nan, numpy.nan, numpy.nan])
 MIXED_NAN_NUMPY_ARRAY = numpy.array([numpy.nan, 0., numpy.nan, 3.])
 NUMPY_ARRAY_WITHOUT_NANS = numpy.array([-8., 0., 16., 3.])
+
+LATITUDE_VALID_DEG = 45.
+LATITUDE_INVALID_DEG = -100.
+LONGITUDE_VALID_DEG = 45.
+LONGITUDE_NEGATIVE_IN_WEST_DEG = -90.
+LONGITUDE_POSITIVE_IN_WEST_DEG = 270.
+LONGITUDE_INVALID_DEG = 500.
 
 
 class ErrorCheckingTests(unittest.TestCase):
@@ -580,6 +587,80 @@ class ErrorCheckingTests(unittest.TestCase):
         """Checks assert_is_non_positive_array; input is all non-positives."""
 
         error_checking.assert_is_non_positive_array(NON_POSITIVE_NUMPY_ARRAY)
+
+    def test_assert_is_valid_latitude_false(self):
+        """Checks assert_is_valid_latitude when input is bad latitude."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_latitude(LATITUDE_INVALID_DEG)
+
+    def test_assert_is_valid_latitude_nan(self):
+        """Checks assert_is_valid_latitude when input is NaN."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_latitude(numpy.nan)
+
+    def test_assert_is_valid_latitude_true(self):
+        """Checks assert_is_valid_latitude when input is valid."""
+
+        error_checking.assert_is_valid_latitude(LATITUDE_VALID_DEG)
+
+    def test_assert_is_valid_longitude_false(self):
+        """Checks assert_is_valid_longitude when input is bad longitude."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_longitude(LONGITUDE_INVALID_DEG)
+
+    def test_assert_is_valid_longitude_nan(self):
+        """Checks assert_is_valid_longitude when input is NaN."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_longitude(numpy.nan)
+
+    def test_assert_is_valid_longitude_true(self):
+        """Checks assert_is_valid_longitude when input is valid."""
+
+        error_checking.assert_is_valid_longitude(LONGITUDE_VALID_DEG)
+
+    def test_assert_is_valid_lng_positive_in_west_false(self):
+        """Checks assert_is_valid_lng_positive_in_west when input is bad lng."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_lng_positive_in_west(
+                LONGITUDE_NEGATIVE_IN_WEST_DEG)
+
+    def test_assert_is_valid_lng_positive_in_west_nan(self):
+        """Checks assert_is_valid_lng_positive_in_west when input is NaN."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_lng_positive_in_west(numpy.nan)
+
+    def test_assert_is_valid_lng_positive_in_west_true(self):
+        """Checks assert_is_valid_lng_positive_in_west when input is valid."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_lng_positive_in_west(
+                LONGITUDE_POSITIVE_IN_WEST_DEG)
+
+    def test_assert_is_valid_lng_negative_in_west_false(self):
+        """Checks assert_is_valid_lng_negative_in_west when input is bad lng."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_lng_positive_in_west(
+                LONGITUDE_POSITIVE_IN_WEST_DEG)
+
+    def test_assert_is_valid_lng_negative_in_west_nan(self):
+        """Checks assert_is_valid_lng_negative_in_west when input is NaN."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_lng_positive_in_west(numpy.nan)
+
+    def test_assert_is_valid_lng_negative_in_west_true(self):
+        """Checks assert_is_valid_lng_negative_in_west when input is true."""
+
+        with self.assertRaises(ValueError):
+            error_checking.assert_is_valid_lng_positive_in_west(
+                LONGITUDE_NEGATIVE_IN_WEST_DEG)
 
 
 if __name__ == '__main__':

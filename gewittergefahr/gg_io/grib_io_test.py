@@ -1,8 +1,8 @@
 """Unit tests for grib_io.py."""
 
 import copy
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_io import grib_io
 
 TOLERANCE = 1e-6
