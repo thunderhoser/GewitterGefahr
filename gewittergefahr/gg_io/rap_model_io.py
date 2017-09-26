@@ -2,11 +2,12 @@
 
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
+# TODO(thunderhoser): replace main method with named method.
 
 SENTINEL_VALUE = 9.999e20
-RAW_FILE_EXTENSION = 'grb2'
+RAW_FILE_EXTENSION = '.grb2'
 
 ID_FOR_130GRID = '130'
 NUM_ROWS_130GRID = 337
@@ -25,8 +26,7 @@ NUM_COLUMNS_COLUMN = 'num_grid_columns'
 MODEL_ID_COLUMN = 'model_id_for_file_names'
 TOP_ONLINE_DIR_COLUMN = 'top_online_directory_name'
 
-# TODO(thunderhoser): get rid of main method and constants defined below.
-
+# The following constants are used only in the main method.
 INIT_TIME_UNIX_SEC = 1475031600  # 0300 UTC 28 Sep 2016
 LEAD_TIME_HOURS = 10
 GRIB2_VAR_NAME = 'HGT:500 mb'
@@ -42,6 +42,21 @@ TOP_LOCAL_TEXT_DIR_NAME_252GRID = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/rap252/text')
 
 
+def _check_grid_id(grid_id):
+    """Ensures that grid ID is valid.
+
+    :param grid_id: Grid ID (should be either "130" or "252").
+    :raises: ValueError: grid_id is neither "130" nor "252".
+    """
+
+    error_checking.assert_is_string(grid_id)
+    if grid_id not in [ID_FOR_130GRID, ID_FOR_252GRID]:
+        error_string = (
+            'grid_id should be either "' + ID_FOR_130GRID + '" or "' +
+            ID_FOR_252GRID + '".  Instead, got "' + grid_id + '".')
+        raise ValueError(error_string)
+
+
 def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
     """Returns metadata for grid.
 
@@ -54,6 +69,8 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
     metadata_dict.top_online_directory_name: Top-level web directory with grib2
         files on this grid.
     """
+
+    _check_grid_id(grid_id)
 
     if grid_id == ID_FOR_130GRID:
         return {NUM_ROWS_COLUMN: NUM_ROWS_130GRID,

@@ -7,19 +7,18 @@ other words, lead time is zero.
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
 
-# TODO(thunderhoser): add error-checking to all methods.
+# TODO(thunderhoser): replace main method with named method.
 
 LEAD_TIME_HOURS = 0
 NUM_GRID_ROWS = 277
 NUM_GRID_COLUMNS = 349
 SENTINEL_VALUE = 9.999e20
 
-RAW_FILE_EXTENSION = 'grb'
+RAW_FILE_EXTENSION = '.grb'
 MODEL_ID_FOR_FILE_NAMES = 'narr-a_221'
 TOP_ONLINE_DIRECTORY_NAME = 'https://nomads.ncdc.noaa.gov/data/narr'
 
-# TODO(thunderhoser): get rid of main method and constants defined below.
-
+# The following constants are used only in the main method.
 VALID_TIME_UNIX_SEC = 1404712800
 GRIB_VAR_NAME = 'HGT:500 mb'
 TOP_LOCAL_DIR_NAME_FOR_GRIB = (
