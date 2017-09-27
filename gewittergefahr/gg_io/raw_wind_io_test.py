@@ -11,31 +11,32 @@ DATA_SOURCE = 'madis'
 EXPECTED_STATION_ID_WITH_SOURCE = 'CYEG_madis'
 
 ELEVATIONS_M_ASL = numpy.array(
-    [-1000., 0., 1000., 5000., 10000., numpy.nan, None])
+    [-1000., 0., 1000., 5000., 10000., numpy.nan, numpy.nan])
 EXPECTED_ELEV_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
-LATITUDES_DEG = numpy.array([-100., -90., 0., 90., 1000., numpy.nan, None])
+LATITUDES_DEG = numpy.array([-100., -90., 0., 90., 1000., numpy.nan, numpy.nan])
 EXPECTED_LAT_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
 LONGITUDES_DEG = numpy.array(
-    [-200., -180., 0., 180., 360., 500., numpy.nan, None])
+    [-200., -180., 0., 180., 360., 500., numpy.nan, numpy.nan])
 EXPECTED_LNG_INVALID_INDICES = numpy.array([0, 5, 6, 7], dtype=int)
 EXPECTED_INVALID_INDICES_NEGATIVE_IN_WEST = numpy.array([0, 4, 5, 6, 7],
                                                         dtype=int)
 EXPECTED_INVALID_INDICES_POSITIVE_IN_WEST = numpy.array([0, 1, 5, 6, 7],
                                                         dtype=int)
 
-WIND_SPEEDS_M_S01 = numpy.array([-10., 0., 5., 100., 400., numpy.nan, None])
+WIND_SPEEDS_M_S01 = numpy.array(
+    [-10., 0., 5., 100., 400., numpy.nan, numpy.nan])
 EXPECTED_SPEED_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
 WIND_DIRECTIONS_DEG = numpy.array(
-    [-10., 0., 180., 359.99, 360., 5000., numpy.nan, None])
+    [-10., 0., 180., 359.99, 360., 5000., numpy.nan, numpy.nan])
 EXPECTED_DIRECTION_INVALID_INDICES = numpy.array([0, 4, 5, 6, 7], dtype=int)
 
 WIND_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
-    [10., 20., 30., 5., numpy.nan, None, 15.]).astype(numpy.float64)
+    [10., 20., 30., 5., numpy.nan, numpy.nan, 15.])
 WIND_GUST_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
-    [numpy.nan, None, 40., 7.5, 3., 7., 10.]).astype(numpy.float64)
+    [numpy.nan, numpy.nan, 40., 7.5, 3., 7., 10.])
 WIND_DIRECTIONS_TO_CONVERT_DEG = numpy.array(
     [0., 45., 110., 200., 210., 255., 315.])
 WIND_GUST_DIRECTIONS_TO_CONVERT_DEG = numpy.array(
@@ -122,8 +123,9 @@ class RawWindIoTests(unittest.TestCase):
 
         (max_wind_speeds_m_s01,
          max_wind_directions_deg) = raw_wind_io.get_max_of_sustained_and_gust(
-            WIND_SPEEDS_TO_CONVERT_M_S01, WIND_GUST_SPEEDS_TO_CONVERT_M_S01,
-            WIND_DIRECTIONS_TO_CONVERT_DEG, WIND_GUST_DIRECTIONS_TO_CONVERT_DEG)
+             WIND_SPEEDS_TO_CONVERT_M_S01, WIND_GUST_SPEEDS_TO_CONVERT_M_S01,
+             WIND_DIRECTIONS_TO_CONVERT_DEG,
+             WIND_GUST_DIRECTIONS_TO_CONVERT_DEG)
 
         self.assertTrue(numpy.allclose(max_wind_speeds_m_s01,
                                        EXPECTED_MAX_WIND_SPEEDS_M_S01,
@@ -150,7 +152,7 @@ class RawWindIoTests(unittest.TestCase):
 
         (wind_speeds_m_s01,
          wind_directions_deg) = raw_wind_io.uv_to_speed_and_direction(
-            EXPECTED_MAX_U_WINDS_M_S01, EXPECTED_MAX_V_WINDS_M_S01)
+             EXPECTED_MAX_U_WINDS_M_S01, EXPECTED_MAX_V_WINDS_M_S01)
 
         self.assertTrue(
             numpy.allclose(wind_speeds_m_s01, EXPECTED_MAX_WIND_SPEEDS_M_S01,

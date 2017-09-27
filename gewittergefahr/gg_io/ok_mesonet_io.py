@@ -6,34 +6,25 @@ these files, because they are not available to the public.  They were provided
 to us by Oklahoma Mesonet employees.
 """
 
+import os.path
 import numpy
 import pandas
-import time
-import calendar
-import os.path
-from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
-# TODO(thunderhoser): replace main method with named high-level method.
-
-ORIG_METAFILE_NAME = '/localdata/ryan.lagerquist/aasswp/geoinfo.csv'
-ORIG_WIND_FILE_NAME = '/localdata/ryan.lagerquist/aasswp/201007270555.mdf'
-
-NEW_METAFILE_NAME = (
-    '/localdata/ryan.lagerquist/aasswp/ok_mesonet_station_metadata.csv')
-NEW_WIND_FILE_NAME = (
-    '/localdata/ryan.lagerquist/aasswp/ok_mesonet_winds_2010-07-27-055500.csv')
+# TODO(thunderhoser): replace main method with named method.
 
 DATA_SOURCE = 'ok_mesonet'
 RAW_FILE_EXTENSION = '.mdf'
 
 MINUTES_TO_SECONDS = 60
-DATE_FORMAT = '%Y-%m-%d'
-YEAR_STRING_FORMAT = '%Y'
-MONTH_STRING_FORMAT = '%b'
-DAY_OF_MONTH_STRING_FORMAT = '%d'
-TIME_STRING_FORMAT = '%Y%m%d%H%M'
+TIME_FORMAT_YEAR = '%Y'
+TIME_FORMAT_3LETTER_MONTH = '%b'
+TIME_FORMAT_DAY_OF_MONTH = '%d'
+TIME_FORMAT_DATE = '%Y-%m-%d'
+TIME_FORMAT_MINUTE = '%Y%m%d%H%M'
 
 STATION_ID_COLUMN_IN_METADATA = 'stid'
 STATION_NAME_COLUMN_ORIG = 'name'
@@ -56,60 +47,29 @@ ORIG_WIND_DATA_COLUMN_NAMES = [
     WIND_DIR_COLUMN_ORIG, WIND_GUST_SPEED_COLUMN_ORIG,
     MINUTES_INTO_DAY_COLUMN_ORIG]
 
+# The following constants are used only in the main method.
+ORIG_METAFILE_NAME = '/localdata/ryan.lagerquist/aasswp/geoinfo.csv'
+ORIG_WIND_FILE_NAME = '/localdata/ryan.lagerquist/aasswp/201007270555.mdf'
 
-def _time_unix_sec_to_year_string(unix_time_sec):
-    """Converts time from Unix format to string describing year.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: year_string: Year (format "yyyy").
-    """
-
-    return time.strftime(YEAR_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _time_unix_sec_to_month_string(unix_time_sec):
-    """Converts time from Unix format to string describing month.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: month_string: Month (3-letter abbrev all in lower case).
-    """
-
-    return time.strftime(MONTH_STRING_FORMAT,
-                         time.gmtime(unix_time_sec)).lower()
-
-
-def _time_unix_sec_to_day_of_month_string(unix_time_sec):
-    """Converts time from Unix format to string describing day of month.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: day_of_month_string: Day of month (format "dd").
-    """
-
-    return time.strftime(DAY_OF_MONTH_STRING_FORMAT, time.gmtime(unix_time_sec))
-
-
-def _time_unix_sec_to_string(unix_time_sec):
-    """Converts time from Unix format to string.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: time_string: String (format "yyyymmddHHMM").
-    """
-
-    return time.strftime(TIME_STRING_FORMAT, time.gmtime(unix_time_sec))
+NEW_METAFILE_NAME = (
+    '/localdata/ryan.lagerquist/aasswp/ok_mesonet_station_metadata.csv')
+NEW_WIND_FILE_NAME = (
+    '/localdata/ryan.lagerquist/aasswp/ok_mesonet_winds_2010-07-27-055500.csv')
 
 
 def _date_string_to_unix_sec(date_string):
-    """Converts date from string to Unix format (sec since 0000 UTC 1 Jan 1970).
+    """Converts date from string to Unix format.
 
-    :param date_string: Date string (format "xx yyyy mm dd HH MM SS", where the
-        xx is meaningless).
-    :return: unix_date_sec: Valid date (seconds, at beginning of day, since 0000
-        UTC 1 Jan 1970).
+    :param date_string: String in format "xx yyyy mm dd HH MM SS", where the xx
+        is meaningless.
+    :return: unix_date_sec: Date in Unix format.
     """
+
+    error_checking.assert_is_string(date_string)
 
     words = date_string.split()
     date_string = words[1] + '-' + words[2] + '-' + words[3]
-    return calendar.timegm(time.strptime(date_string, DATE_FORMAT))
+    return time_conversion.string_to_unix_sec(date_string, TIME_FORMAT_DATE)
 
 
 def _read_valid_date_from_text(text_file_name):
@@ -120,6 +80,7 @@ def _read_valid_date_from_text(text_file_name):
         UTC 1 Jan 1970).
     """
 
+    error_checking.assert_file_exists(text_file_name)
     num_lines_read = 0
 
     for this_line in open(text_file_name, 'r').readlines():
@@ -154,8 +115,10 @@ def _remove_invalid_station_metadata(station_metadata_table):
         invalid_indices] = numpy.nan
 
     station_metadata_table[
-        raw_wind_io.LONGITUDE_COLUMN] = myrorss_io.convert_lng_positive_in_west(
-        station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values)
+        raw_wind_io.LONGITUDE_COLUMN] = (
+            lng_conversion.convert_lng_positive_in_west(
+                station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values))
+
     return station_metadata_table
 
 
@@ -215,11 +178,18 @@ def find_local_raw_file(unix_time_sec=None, top_directory_name=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}{5:s}'.format(
-        top_directory_name, _time_unix_sec_to_year_string(unix_time_sec),
-        _time_unix_sec_to_month_string(unix_time_sec),
-        _time_unix_sec_to_day_of_month_string(unix_time_sec),
-        _time_unix_sec_to_string(unix_time_sec), RAW_FILE_EXTENSION)
+        top_directory_name,
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_YEAR),
+        time_conversion.unix_sec_to_string(unix_time_sec,
+                                           TIME_FORMAT_3LETTER_MONTH).lower(),
+        time_conversion.unix_sec_to_string(unix_time_sec,
+                                           TIME_FORMAT_DAY_OF_MONTH),
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MINUTE),
+        RAW_FILE_EXTENSION)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
@@ -244,6 +214,8 @@ def read_station_metadata_from_orig_csv(csv_file_name):
     station_metadata_table.longitude_deg: Longitude (deg E).
     station_metadata_table.elevation_m_asl: Elevation (metres above sea level).
     """
+
+    error_checking.assert_file_exists(csv_file_name)
 
     station_metadata_table = pandas.read_csv(csv_file_name, header=0, sep=',',
                                              dtype={ELEVATION_COLUMN_ORIG:
@@ -278,6 +250,7 @@ def read_winds_from_text(text_file_name):
         origin).
     """
 
+    error_checking.assert_file_exists(text_file_name)
     unix_date_sec = _read_valid_date_from_text(text_file_name)
 
     wind_table = pandas.read_csv(text_file_name, delim_whitespace=True,
@@ -322,9 +295,10 @@ def merge_winds_and_metadata(wind_table, station_metadata_table):
 
     num_observations = len(wind_table.index)
     for i in range(num_observations):
-        wind_table[raw_wind_io.STATION_ID_COLUMN].values[
-            i] = raw_wind_io.append_source_to_station_id(
-            wind_table[raw_wind_io.STATION_ID_COLUMN].values[i], DATA_SOURCE)
+        wind_table[raw_wind_io.STATION_ID_COLUMN].values[i] = (
+            raw_wind_io.append_source_to_station_id(
+                wind_table[raw_wind_io.STATION_ID_COLUMN].values[i],
+                DATA_SOURCE))
 
     return wind_table
 

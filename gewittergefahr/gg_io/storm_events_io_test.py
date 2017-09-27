@@ -1,7 +1,7 @@
 """Unit tests for storm_events_io.py."""
 
-import numpy
 import unittest
+import numpy
 from gewittergefahr.gg_io import storm_events_io
 
 YEAR_1DIGIT = 2

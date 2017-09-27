@@ -9,8 +9,8 @@
 
 import numpy
 import pandas
-
-# TODO(thunderhoser): add error-checking to all methods.
+from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): find better way to deal with missing wind directions.
 # Currently changing them all to 0 degrees, but this masks the difference
@@ -68,7 +68,9 @@ def append_source_to_station_id(station_id, data_source):
         appended.
     """
 
-    return station_id + '_' + data_source
+    error_checking.assert_is_string(station_id)
+    error_checking.assert_is_string(data_source)
+    return '{0:s}_{1:s}'.format(station_id, data_source)
 
 
 def check_elevations(elevations_m_asl):
@@ -83,6 +85,9 @@ def check_elevations(elevations_m_asl):
         array will contain 4 and 11.
     """
 
+    error_checking.assert_is_real_number_array(elevations_m_asl)
+    error_checking.assert_is_numpy_array(elevations_m_asl, num_dimensions=1)
+
     valid_flags = numpy.logical_and(elevations_m_asl >= MIN_ELEVATION_M_ASL,
                                     elevations_m_asl <= MAX_ELEVATION_M_ASL)
     return numpy.where(numpy.invert(valid_flags))[0]
@@ -96,6 +101,9 @@ def check_latitudes(latitudes_deg):
     :param latitudes_deg: length-N numpy array of latitudes (deg N).
     :return: invalid_indices: 1-D numpy array with indices of invalid latitudes.
     """
+
+    error_checking.assert_is_real_number_array(latitudes_deg)
+    error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(latitudes_deg >= MIN_LATITUDE_DEG,
                                     latitudes_deg <= MAX_LATITUDE_DEG)
@@ -112,6 +120,9 @@ def check_longitudes(longitudes_deg):
         longitudes.
     """
 
+    error_checking.assert_is_real_number_array(longitudes_deg)
+    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
+
     valid_flags = numpy.logical_and(longitudes_deg >= MIN_LONGITUDE_DEG,
                                     longitudes_deg <= MAX_LONGITUDE_DEG)
     return numpy.where(numpy.invert(valid_flags))[0]
@@ -127,6 +138,9 @@ def check_longitudes_negative_in_west(longitudes_deg):
     :return: invalid_indices: 1-D numpy array with indices of invalid
         longitudes.
     """
+
+    error_checking.assert_is_real_number_array(longitudes_deg)
+    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
         longitudes_deg >= MIN_LNG_NEGATIVE_IN_WEST_DEG,
@@ -145,6 +159,9 @@ def check_longitudes_positive_in_west(longitudes_deg):
         longitudes.
     """
 
+    error_checking.assert_is_real_number_array(longitudes_deg)
+    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
+
     valid_flags = numpy.logical_and(
         longitudes_deg >= MIN_LNG_POSITIVE_IN_WEST_DEG,
         longitudes_deg <= MAX_LNG_POSITIVE_IN_WEST_DEG)
@@ -159,6 +176,9 @@ def check_wind_speeds(wind_speeds_m_s01):
     :param wind_speeds_m_s01: length-N numpy array of wind speeds (m/s).
     :return: invalid_indices: 1-D numpy array with indices of invalid speeds.
     """
+
+    error_checking.assert_is_real_number_array(wind_speeds_m_s01)
+    error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
         wind_speeds_m_s01 >= MIN_WIND_SPEED_M_S01,
@@ -176,6 +196,9 @@ def check_wind_directions(wind_directions_deg):
     :return: invalid_indices: 1-D numpy array with indices of invalid
         directions.
     """
+
+    error_checking.assert_is_real_number_array(wind_directions_deg)
+    error_checking.assert_is_numpy_array(wind_directions_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
         wind_directions_deg >= MIN_WIND_DIRECTION_DEG,
@@ -218,6 +241,25 @@ def get_max_of_sustained_and_gust(wind_speeds_m_s01, wind_gust_speeds_m_s01,
         max wind (degrees of origin).
     """
 
+    error_checking.assert_is_real_number_array(wind_speeds_m_s01)
+    error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
+    num_observations = len(wind_speeds_m_s01)
+
+    error_checking.assert_is_real_number_array(wind_gust_speeds_m_s01)
+    error_checking.assert_is_numpy_array(
+        wind_gust_speeds_m_s01,
+        exact_dimensions=numpy.array([num_observations]))
+
+    error_checking.assert_is_real_number_array(wind_directions_deg)
+    error_checking.assert_is_numpy_array(
+        wind_directions_deg,
+        exact_dimensions=numpy.array([num_observations]))
+
+    error_checking.assert_is_real_number_array(wind_gust_directions_deg)
+    error_checking.assert_is_numpy_array(
+        wind_gust_directions_deg,
+        exact_dimensions=numpy.array([num_observations]))
+
     wind_speed_matrix_m_s01 = numpy.vstack(
         (wind_speeds_m_s01, wind_gust_speeds_m_s01))
     wind_direction_matrix_deg = numpy.vstack(
@@ -252,6 +294,15 @@ def speed_and_direction_to_uv(wind_speeds_m_s01, wind_directions_deg):
     :return: v_winds_m_s01: length-N numpy array of v-components (m/s).
     """
 
+    error_checking.assert_is_real_number_array(wind_speeds_m_s01)
+    error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
+    num_observations = len(wind_speeds_m_s01)
+
+    error_checking.assert_is_real_number_array(wind_directions_deg)
+    error_checking.assert_is_numpy_array(
+        wind_directions_deg,
+        exact_dimensions=numpy.array([num_observations]))
+
     u_winds_m_s01 = -1 * wind_speeds_m_s01 * numpy.sin(
         wind_directions_deg * DEGREES_TO_RADIANS)
     v_winds_m_s01 = -1 * wind_speeds_m_s01 * numpy.cos(
@@ -270,6 +321,14 @@ def uv_to_speed_and_direction(u_winds_m_s01, v_winds_m_s01):
     :return: wind_directions_deg: length-N numpy array of wind directions
         (degrees of origin).
     """
+
+    error_checking.assert_is_real_number_array(u_winds_m_s01)
+    error_checking.assert_is_numpy_array(u_winds_m_s01, num_dimensions=1)
+    num_observations = len(u_winds_m_s01)
+
+    error_checking.assert_is_real_number_array(v_winds_m_s01)
+    error_checking.assert_is_numpy_array(
+        v_winds_m_s01, exact_dimensions=numpy.array([num_observations]))
 
     wind_directions_deg = RADIANS_TO_DEGREES * numpy.arctan2(-u_winds_m_s01,
                                                              -v_winds_m_s01)
@@ -315,10 +374,10 @@ def sustained_and_gust_to_uv_max(wind_table):
 
     (max_wind_speeds_m_s01,
      max_wind_directions_deg) = get_max_of_sustained_and_gust(
-        wind_table[WIND_SPEED_COLUMN].values,
-        wind_table[WIND_GUST_SPEED_COLUMN].values,
-        wind_table[WIND_DIR_COLUMN].values,
-        wind_table[WIND_GUST_DIR_COLUMN].values)
+         wind_table[WIND_SPEED_COLUMN].values,
+         wind_table[WIND_GUST_SPEED_COLUMN].values,
+         wind_table[WIND_DIR_COLUMN].values,
+         wind_table[WIND_GUST_DIR_COLUMN].values)
 
     columns_to_drop = [WIND_SPEED_COLUMN, WIND_DIR_COLUMN,
                        WIND_GUST_SPEED_COLUMN, WIND_GUST_DIR_COLUMN]
@@ -347,6 +406,7 @@ def write_station_metadata_to_csv(station_metadata_table, csv_file_name):
     :param csv_file_name: Path to output file.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
     station_metadata_table.to_csv(csv_file_name, header=True, sep=',',
                                   index=False)
 
@@ -361,6 +421,7 @@ def read_station_metadata_from_csv(csv_file_name):
         write_station_metadata_to_csv
     """
 
+    error_checking.assert_file_exists(csv_file_name)
     return pandas.read_csv(csv_file_name, header=0, sep=',')
 
 
@@ -380,6 +441,7 @@ def write_winds_to_csv(wind_table, csv_file_name):
     :param csv_file_name: Path to output file.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
     wind_table.to_csv(csv_file_name, header=True, sep=',', index=False)
 
 
@@ -391,4 +453,5 @@ def read_winds_from_csv(csv_file_name):
         sustained_and_gust_to_uv_max.
     """
 
+    error_checking.assert_file_exists(csv_file_name)
     return pandas.read_csv(csv_file_name, header=0, sep=',')

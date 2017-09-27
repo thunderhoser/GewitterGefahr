@@ -11,24 +11,18 @@ code does not handle the gzip files.  This code assumes that the raw data format
 (or "native format") is CSV.
 """
 
+import os.path
 import numpy
 import pandas
-import time
-import calendar
-import os.path
-from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import raw_wind_io
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
-# TODO(thunderhoser): replace main method with named high-level method.
-
-ORIG_CSV_FILE_NAME = (
-    '/localdata/ryan.lagerquist/software/matlab/madis/raw_files/storm_events/'
-    'storm_events2011.csv')
-
-NEW_CSV_FILE_NAME = '/localdata/ryan.lagerquist/aasswp/slw_reports_2011.csv'
+# TODO(thunderhoser): replace main method with named method.
 
 PATHLESS_RAW_FILE_PREFIX = 'storm_events'
+REQUIRED_EVENT_TYPE = 'thunderstorm wind'
 HOURS_TO_SECONDS = 3600
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
@@ -39,8 +33,6 @@ WIND_SPEED_COLUMN_ORIG = 'MAGNITUDE'
 LATITUDE_COLUMN_ORIG = 'BEGIN_LAT'
 LONGITUDE_COLUMN_ORIG = 'BEGIN_LON'
 
-REQUIRED_EVENT_TYPE = 'thunderstorm wind'
-
 TIME_ZONE_STRINGS = ['PST', 'PST-8', 'MST', 'MST-7', 'CST', 'CST-6', 'EST',
                      'EST-5', 'AST', 'AST-4']
 UTC_OFFSETS_HOURS = numpy.array([-8, -8, -7, -7, -6, -6, -5, -5, -4, -4])
@@ -49,15 +41,22 @@ MONTH_NAMES_3LETTERS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
                         'Sep', 'Oct', 'Nov', 'Dec']
 TIME_FORMAT = '%d-%b-%y %H:%M:%S'
 
+# The following constants are used only in the main method.
+ORIG_CSV_FILE_NAME = (
+    '/localdata/ryan.lagerquist/software/matlab/madis/raw_files/storm_events/'
+    'storm_events2011.csv')
+NEW_CSV_FILE_NAME = '/localdata/ryan.lagerquist/aasswp/slw_reports_2011.csv'
 
-def _year_int_to_string(year):
-    """Converts year from integer to string.
+
+def _year_number_to_string(year):
+    """Converts year from number to string.
 
     :param year: Integer year.
     :return: year_string: String in format "yyyy" (with leading zeros if
         necessary).
     """
 
+    error_checking.assert_is_integer(year)
     return '{0:04d}'.format(int(year))
 
 
@@ -66,9 +65,10 @@ def _time_zone_string_to_utc_offset(time_zone_string):
 
     :param time_zone_string: String describing time zone (examples: "PST",
         "MST", etc.).
-    :return: utc_offset_hours: Difference between local time and UTC (local
-        minus UTC).
+    :return: utc_offset_hours: Local time minus UTC.
     """
+
+    error_checking.assert_is_string(time_zone_string)
 
     time_zone_string = time_zone_string.strip().upper()
     tz_string_flags = [s == time_zone_string for s in TIME_ZONE_STRINGS]
@@ -86,7 +86,9 @@ def _capitalize_months(orig_string):
     :return: new_string: New string.
     """
 
+    error_checking.assert_is_string(orig_string)
     new_string = orig_string.lower()
+
     for i in range(len(MONTH_NAMES_3LETTERS)):
         new_string = new_string.replace(MONTH_NAMES_3LETTERS[i].lower(),
                                         MONTH_NAMES_3LETTERS[i])
@@ -95,29 +97,27 @@ def _capitalize_months(orig_string):
 
 
 def _time_string_to_unix_sec(time_string):
-    """Converts time from string to Unix format (sec since 0000 UTC 1 Jan 1970).
+    """Converts time from string to Unix format.
 
     :param time_string: Time string (format "dd-mmm-yy HH:MM:SS").
     :return: unix_time_sec: Time in Unix format.
     """
 
     time_string = _capitalize_months(time_string)
-    return calendar.timegm(time.strptime(time_string, TIME_FORMAT))
+    return time_conversion.string_to_unix_sec(time_string, TIME_FORMAT)
 
 
 def _local_time_string_to_unix_sec(local_time_string, utc_offset_hours):
     """Converts time from local string to Unix format.
 
-    Unix format = seconds since 0000 UTC 1 Jan 1970.
-
-    :param local_time_string: Local time, formatted as "dd-mmm-yy HH:MM:SS".
-    :param utc_offset_hours: Difference between UTC and local time zone (local
-        minus UTC).
-    :return: unix_time_sec: Seconds since 0000 UTC 1 Jan 1970.
+    :param local_time_string: Local time (format "dd-mmm-yy HH:MM:SS").
+    :param utc_offset_hours: Local time minus UTC.
+    :return: unix_time_sec: UTC time in Unix format.
     """
 
-    local_time_unix_sec = _time_string_to_unix_sec(local_time_string)
-    return local_time_unix_sec - utc_offset_hours * HOURS_TO_SECONDS
+    error_checking.assert_is_not_nan(utc_offset_hours)
+    return _time_string_to_unix_sec(local_time_string) - (
+        utc_offset_hours * HOURS_TO_SECONDS)
 
 
 def _is_event_thunderstorm_wind(event_type_string):
@@ -129,6 +129,7 @@ def _is_event_thunderstorm_wind(event_type_string):
     :return: is_thunderstorm_wind: Boolean flag, either True or False.
     """
 
+    error_checking.assert_is_string(event_type_string)
     index_of_thunderstorm_wind = event_type_string.lower().find(
         REQUIRED_EVENT_TYPE)
     return index_of_thunderstorm_wind != -1
@@ -163,9 +164,9 @@ def _remove_invalid_data(wind_table):
     invalid_indices = raw_wind_io.check_wind_speeds(absolute_v_winds_m_s01)
     wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
 
-    wind_table[
-        raw_wind_io.LONGITUDE_COLUMN] = myrorss_io.convert_lng_positive_in_west(
-        wind_table[raw_wind_io.LONGITUDE_COLUMN].values)
+    wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
+        lng_conversion.convert_lng_positive_in_west(
+            wind_table[raw_wind_io.LONGITUDE_COLUMN].values))
     return wind_table
 
 
@@ -183,9 +184,11 @@ def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    raw_file_name = '{0:s}/{1:s}{2:s}.csv'.format(directory_name,
-                                                  PATHLESS_RAW_FILE_PREFIX,
-                                                  _year_int_to_string(year))
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    raw_file_name = '{0:s}/{1:s}{2:s}.csv'.format(
+        directory_name, PATHLESS_RAW_FILE_PREFIX, _year_number_to_string(year))
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
@@ -209,6 +212,7 @@ def read_slw_reports_from_orig_csv(csv_file_name):
         directions are due north.
     """
 
+    error_checking.assert_file_exists(csv_file_name)
     report_table = pandas.read_csv(csv_file_name, header=0, sep=',')
 
     num_reports = len(report_table.index)
