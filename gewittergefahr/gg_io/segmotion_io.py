@@ -16,44 +16,32 @@ words, SPC date "Sep 23 2017" actually runs from 1200 UTC 23 Sep 2017 -
 1200 UTC 24 Sep 2017.
 """
 
-import pandas
-import pickle
-import time
 import os
-import calendar
+import pickle
 import xml.etree.ElementTree as ElementTree
 import numpy
+import pandas
 from netCDF4 import Dataset
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import myrorss_sparse_to_full as sparse_to_full
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import unzipping
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add error-checking to all methods.
-# TODO(thunderhoser): replace main method with named high-level method.
-
-MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
-MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
-
-XML_FILE_NAME = (
-    '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-124818_'
-    'TrackingTable_0050.00.xml')
-
-NETCDF_FILE_NAME = (
-    '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
+# TODO(thunderhoser): replace main method with named method.
 
 ZIPPED_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
-
 STATS_DIR_NAME_PART = 'TrackingTable'
 POLYGON_DIR_NAME_PART = 'ClusterID'
 
-TIME_FORMAT_SEGMOTION = '%Y%m%d-%H%M%S'
 SENTINEL_VALUE = -9999
+TIME_FORMAT = '%Y%m%d-%H%M%S'
 
 STORM_ID_COLUMN = 'storm_id'
 EAST_VELOCITY_COLUMN = 'east_velocity_m_s01'
@@ -86,39 +74,31 @@ VERTEX_COLUMN_COLUMN = 'vertex_columns'
 BUFFER_VERTEX_LAT_COLUMN_PREFIX = 'vertex_latitudes_deg_buffer_'
 BUFFER_VERTEX_LNG_COLUMN_PREFIX = 'vertex_longitudes_deg_buffer_'
 
+# The following constants are used only in the main method.
+MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
+MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
-def _convert_xml_column_name(column_name_orig):
-    """Converts name of XML column from original to new format.
+XML_FILE_NAME = (
+    '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
+    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-124818_'
+    'TrackingTable_0050.00.xml')
 
-    "Original format" = format in XML file; new format = my format.
+NETCDF_FILE_NAME = (
+    '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
+    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
+
+
+def _xml_column_name_orig_to_new(column_name_orig):
+    """Converts name of XML column from original (segmotion) to new format.
 
     :param column_name_orig: Column name in original format.
     :return: column_name: Column name in new format.
     """
 
+    error_checking.assert_is_string(column_name_orig)
     orig_column_flags = [c == column_name_orig for c in XML_COLUMN_NAMES_ORIG]
     orig_column_index = numpy.where(orig_column_flags)[0][0]
     return XML_COLUMN_NAMES[orig_column_index]
-
-
-def _time_string_to_unix_sec(time_string):
-    """Converts time from string to Unix format (sec since 0000 UTC 1 Jan 1970).
-
-    :param time_string: Time string (format "yyyymmdd-HHMMSS").
-    :return: unix_time_sec: Time in Unix format.
-    """
-
-    return calendar.timegm(time.strptime(time_string, TIME_FORMAT_SEGMOTION))
-
-
-def _time_unix_sec_to_string(unix_time_sec):
-    """Converts time from Unix format to string.
-
-    :param unix_time_sec: Time in Unix format.
-    :return: time_string: Time string (format "yyyymmdd-HHMMSS").
-    """
-
-    return time.strftime(TIME_FORMAT_SEGMOTION, time.gmtime(unix_time_sec))
 
 
 def _remove_rows_with_nan(input_table):
@@ -166,12 +146,30 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
         (all integers) of grid points in storm cell.
     """
 
+    error_checking.assert_is_numpy_array(unique_center_lat_deg,
+                                         num_dimensions=1)
+    for this_latitude_deg in unique_center_lat_deg:
+        error_checking.assert_is_valid_latitude(this_latitude_deg)
+
+    error_checking.assert_is_numpy_array(unique_center_lng_deg,
+                                         num_dimensions=1)
+    unique_center_lng_deg = lng_conversion.convert_lng_positive_in_west(
+        unique_center_lng_deg)
+
+    # error_checking.assert_is_real_number_array(numeric_storm_id_matrix)
+    num_lat_in_grid = len(unique_center_lat_deg)
+    num_lng_in_grid = len(unique_center_lng_deg)
+    error_checking.assert_is_numpy_array(
+        numeric_storm_id_matrix,
+        exact_dimensions=numpy.array([num_lat_in_grid, num_lng_in_grid]))
+
     numeric_storm_id_matrix[
         numpy.isnan(numeric_storm_id_matrix)] = SENTINEL_VALUE
     unique_numeric_storm_ids, indices_orig_to_unique = numpy.unique(
         numeric_storm_id_matrix, return_inverse=True)
 
-    unique_storm_ids = [str(int(id)) for id in unique_numeric_storm_ids]
+    unique_storm_ids = [str(int(this_id)) for this_id in
+                        unique_numeric_storm_ids]
     polygon_dict = {STORM_ID_COLUMN: unique_storm_ids}
     polygon_table = pandas.DataFrame.from_dict(polygon_dict)
 
@@ -184,9 +182,6 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
     polygon_table = polygon_table.assign(**argument_dict)
 
     num_storms = len(unique_numeric_storm_ids)
-    num_lat_in_grid = len(unique_center_lat_deg)
-    num_lng_in_grid = len(unique_center_lng_deg)
-
     for i in range(num_storms):
         if unique_numeric_storm_ids[i] == SENTINEL_VALUE:
             continue
@@ -194,7 +189,7 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
         this_storm_linear_indices = numpy.where(indices_orig_to_unique == i)[0]
         (this_storm_row_indices,
          this_storm_column_indices) = numpy.unravel_index(
-            this_storm_linear_indices, (num_lat_in_grid, num_lng_in_grid))
+             this_storm_linear_indices, (num_lat_in_grid, num_lng_in_grid))
 
         polygon_table[GRID_POINT_ROW_COLUMN].values[i] = this_storm_row_indices
         polygon_table[GRID_POINT_COLUMN_COLUMN].values[
@@ -224,7 +219,15 @@ def _distance_buffers_to_column_names(min_buffer_dists_metres,
         longitudes.
     """
 
-    num_buffers = len(max_buffer_dists_metres)
+    error_checking.assert_is_real_number_array(min_buffer_dists_metres)
+    error_checking.assert_is_numpy_array(min_buffer_dists_metres,
+                                         num_dimensions=1)
+
+    num_buffers = len(min_buffer_dists_metres)
+    error_checking.assert_is_not_nan_array(max_buffer_dists_metres)
+    error_checking.assert_is_numpy_array(
+        max_buffer_dists_metres, exact_dimensions=numpy.array([num_buffers]))
+
     buffer_lat_column_names = [''] * num_buffers
     buffer_lng_column_names = [''] * num_buffers
 
@@ -261,13 +264,16 @@ def _get_pathless_stats_file_name(unix_time_sec, zipped=True):
     :return: pathless_stats_file_name: Pathless name for statistics file.
     """
 
+    error_checking.assert_is_boolean(zipped)
+
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            _time_unix_sec_to_string(unix_time_sec), STATS_FILE_EXTENSION,
-            ZIPPED_FILE_EXTENSION)
-    else:
-        return '{0:s}{1:s}'.format(
-            _time_unix_sec_to_string(unix_time_sec), STATS_FILE_EXTENSION)
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+            STATS_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
+
+    return '{0:s}{1:s}'.format(
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+        STATS_FILE_EXTENSION)
 
 
 def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
@@ -282,28 +288,35 @@ def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
     :return: pathless_polygon_file_name: Pathless name for polygon file.
     """
 
+    error_checking.assert_is_boolean(zipped)
+
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            _time_unix_sec_to_string(unix_time_sec), POLYGON_FILE_EXTENSION,
-            ZIPPED_FILE_EXTENSION)
-    else:
-        return '{0:s}{1:s}'.format(
-            _time_unix_sec_to_string(unix_time_sec), POLYGON_FILE_EXTENSION)
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+            POLYGON_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
+
+    return '{0:s}{1:s}'.format(
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+        POLYGON_FILE_EXTENSION)
 
 
 def _get_relative_stats_dir_ordinal_scale(spc_date_string,
                                           tracking_scale_ordinal):
     """Generates expected relative path for stats directory.
-    
+
     This directory should contain storm statistics for the given tracking scale.
 
     N = number of tracking scales
-    
+
     :param spc_date_string: SPC date in format "yyyymmdd".
     :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
         [0, N - 1]).
     :return: stats_directory_name: Expected relative path for stats directory.
     """
+
+    error_checking.assert_is_string(spc_date_string)
+    error_checking.assert_is_integer(tracking_scale_ordinal)
+    error_checking.assert_is_non_negative(tracking_scale_ordinal)
 
     return '{0:s}/{1:s}/scale_{2:d}'.format(
         spc_date_string, STATS_DIR_NAME_PART, tracking_scale_ordinal)
@@ -312,15 +325,18 @@ def _get_relative_stats_dir_ordinal_scale(spc_date_string,
 def _get_relative_stats_dir_physical_scale(spc_date_string,
                                            tracking_scale_metres2):
     """Generates expected relative path for stats directory.
-    
+
     This directory should contain storm statistics for the given tracking scale.
 
     N = number of tracking scales
-    
+
     :param spc_date_string: SPC date in format "yyyymmdd".
     :param tracking_scale_metres2: Tracking scale.
     :return: stats_directory_name: Expected relative path for stats directory.
     """
+
+    error_checking.assert_is_string(spc_date_string)
+    error_checking.assert_is_positive(tracking_scale_metres2)
 
     return '{0:s}/{1:s}/scale_{2:d}m2'.format(
         spc_date_string, STATS_DIR_NAME_PART, int(tracking_scale_metres2))
@@ -329,18 +345,22 @@ def _get_relative_stats_dir_physical_scale(spc_date_string,
 def _get_relative_polygon_dir_ordinal_scale(spc_date_string,
                                             tracking_scale_ordinal):
     """Generates expected relative path for polygon directory.
-    
+
     This directory should contain storm outlines (polygons) for the given
     tracking scale.
 
     N = number of tracking scales
-    
+
     :param spc_date_string: SPC date in format "yyyymmdd".
     :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
         [0, N - 1]).
     :return: polygon_directory_name: Expected relative path for polygon
         directory.
     """
+
+    error_checking.assert_is_string(spc_date_string)
+    error_checking.assert_is_integer(tracking_scale_ordinal)
+    error_checking.assert_is_non_negative(tracking_scale_ordinal)
 
     return '{0:s}/{1:s}/scale_{2:d}'.format(
         spc_date_string, POLYGON_DIR_NAME_PART, tracking_scale_ordinal)
@@ -349,17 +369,20 @@ def _get_relative_polygon_dir_ordinal_scale(spc_date_string,
 def _get_relative_polygon_dir_physical_scale(spc_date_string,
                                              tracking_scale_metres2):
     """Generates expected relative path for polygon directory.
-    
+
     This directory should contain storm outlines (polygons) for the given
     tracking scale.
 
     N = number of tracking scales
-    
+
     :param spc_date_string: SPC date in format "yyyymmdd".
     :param tracking_scale_metres2: Tracking scale.
     :return: polygon_directory_name: Expected relative path for polygon
         directory.
     """
+
+    error_checking.assert_is_string(spc_date_string)
+    error_checking.assert_is_positive(tracking_scale_metres2)
 
     return '{0:s}/{1:s}/scale_{2:d}m2'.format(
         spc_date_string, POLYGON_DIR_NAME_PART, int(tracking_scale_metres2))
@@ -386,7 +409,19 @@ def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
         (m^2).
     """
 
-    num_scales = len(tracking_scales_metres2)
+    error_checking.assert_directory_exists(top_raw_directory_name)
+    error_checking.assert_is_string(spc_date_string)
+
+    error_checking.assert_is_non_negative_array(tracking_scales_ordinal)
+    error_checking.assert_is_integer_array(tracking_scales_ordinal)
+    error_checking.assert_is_numpy_array(tracking_scales_ordinal,
+                                         num_dimensions=1)
+
+    num_scales = len(tracking_scales_ordinal)
+    error_checking.assert_is_positive_array(tracking_scales_metres2)
+    error_checking.assert_is_numpy_array(
+        tracking_scales_metres2, exact_dimensions=numpy.array([num_scales]))
+
     for j in range(num_scales):
         orig_stats_dir_name = '{0:s}/{1:s}'.format(
             top_raw_directory_name, _get_relative_stats_dir_ordinal_scale(
@@ -427,10 +462,21 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
         date.
     """
 
-    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    error_checking.assert_file_exists(tar_file_name)
+    error_checking.assert_is_non_negative_array(scales_to_extract_ordinal)
+    error_checking.assert_is_integer_array(scales_to_extract_ordinal)
+    error_checking.assert_is_numpy_array(scales_to_extract_ordinal,
+                                         num_dimensions=1)
 
     num_scales_to_extract = len(scales_to_extract_ordinal)
+    error_checking.assert_is_positive_array(scales_to_extract_metres2)
+    error_checking.assert_is_numpy_array(
+        scales_to_extract_metres2,
+        exact_dimensions=numpy.array([num_scales_to_extract]))
+
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
     directory_names_to_unzip = []
+
     for j in range(num_scales_to_extract):
         directory_names_to_unzip.append(_get_relative_stats_dir_ordinal_scale(
             spc_date_string, scales_to_extract_ordinal[j]))
@@ -474,6 +520,9 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_string(top_raw_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
     pathless_file_name = _get_pathless_stats_file_name(unix_time_sec,
                                                        zipped=zipped)
     spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
@@ -511,6 +560,9 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
         and file is missing, this will be the *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
+
+    error_checking.assert_is_string(top_raw_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_polygon_file_name(unix_time_sec,
                                                          zipped=zipped)
@@ -599,6 +651,7 @@ def read_stats_from_xml(xml_file_name):
     stats_table.age_sec: Age of storm cell (seconds).
     """
 
+    error_checking.assert_file_exists(xml_file_name)
     xml_tree = ElementTree.parse(xml_file_name)
 
     storm_dict = {}
@@ -613,7 +666,7 @@ def read_stats_from_xml(xml_file_name):
 
             this_column_name_orig = this_element.attrib['name']
             if this_column_name_orig in XML_COLUMN_NAMES_ORIG:
-                this_column_name = _convert_xml_column_name(
+                this_column_name = _xml_column_name_orig_to_new(
                     this_column_name_orig)
                 this_column_values = []
 
@@ -632,8 +685,8 @@ def read_stats_from_xml(xml_file_name):
             this_column_values.append(
                 int(numpy.round(float(this_element.attrib['value']))))
         elif this_column_name == START_TIME_COLUMN:
-            this_column_values.append(
-                _time_string_to_unix_sec(this_element.attrib['value']))
+            this_column_values.append(time_conversion.string_to_unix_sec(
+                this_element.attrib['value'], TIME_FORMAT))
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
     return _remove_rows_with_nan(stats_table)
@@ -668,9 +721,11 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict):
         half-integers) of vertices in storm polygon.
     """
 
+    error_checking.assert_file_exists(netcdf_file_name)
     netcdf_dataset = Dataset(netcdf_file_name)
-    storm_id_var_name = metadata_dict[myrorss_io.VAR_NAME_COLUMN]
-    storm_id_var_name_orig = metadata_dict[myrorss_io.VAR_NAME_COLUMN_ORIG]
+
+    storm_id_var_name = metadata_dict[myrorss_io.FIELD_NAME_COLUMN]
+    storm_id_var_name_orig = metadata_dict[myrorss_io.FIELD_NAME_COLUMN_ORIG]
 
     sparse_grid_dict = {
         myrorss_io.GRID_ROW_COLUMN:
@@ -684,7 +739,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict):
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     (numeric_storm_id_matrix, unique_center_lat_deg,
      unique_center_lng_deg) = sparse_to_full.sparse_to_full_grid_wrapper(
-        sparse_grid_table, metadata_dict)
+         sparse_grid_table, metadata_dict)
 
     polygon_table = _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
                                                     unique_center_lat_deg,
@@ -701,24 +756,22 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict):
     num_storms = len(polygon_table.index)
     for i in range(num_storms):
         (polygon_table[VERTEX_ROW_COLUMN].values[i],
-         polygon_table[VERTEX_COLUMN_COLUMN].values[
-             i]) = polygons.points_in_poly_to_vertices(
-            polygon_table[GRID_POINT_ROW_COLUMN].values[i],
-            polygon_table[GRID_POINT_COLUMN_COLUMN].values[i])
+         polygon_table[VERTEX_COLUMN_COLUMN].values[i]) = (
+             polygons.points_in_poly_to_vertices(
+                 polygon_table[GRID_POINT_ROW_COLUMN].values[i],
+                 polygon_table[GRID_POINT_COLUMN_COLUMN].values[i]))
 
         (polygon_table[VERTEX_LAT_COLUMN].values[i],
-         polygon_table[VERTEX_LNG_COLUMN].values[
-             i]) = myrorss_io.rowcol_to_latlng(
-            polygon_table[VERTEX_ROW_COLUMN].values[i],
-            polygon_table[VERTEX_COLUMN_COLUMN].values[
-                i], nw_grid_point_lat_deg=metadata_dict[
-                myrorss_io.NW_GRID_POINT_LAT_COLUMN],
-            nw_grid_point_lng_deg=metadata_dict[
-                myrorss_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=metadata_dict[
-                myrorss_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=metadata_dict[
-                myrorss_io.LNG_SPACING_COLUMN])
+         polygon_table[VERTEX_LNG_COLUMN].values[i]) = (
+             myrorss_io.rowcol_to_latlng(
+                 polygon_table[VERTEX_ROW_COLUMN].values[i],
+                 polygon_table[VERTEX_COLUMN_COLUMN].values[i],
+                 nw_grid_point_lat_deg=
+                 metadata_dict[myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+                 nw_grid_point_lng_deg=
+                 metadata_dict[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN]))
 
     return polygon_table
 
@@ -754,12 +807,9 @@ def make_buffers_around_polygons(polygon_table, min_buffer_dists_metres=None,
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg, central_longitude_deg)
 
-    min_buffer_dists_metres = numpy.round(min_buffer_dists_metres)
-    max_buffer_dists_metres = numpy.round(max_buffer_dists_metres)
-
     (buffer_lat_column_names,
      buffer_lng_column_names) = _distance_buffers_to_column_names(
-        min_buffer_dists_metres, max_buffer_dists_metres)
+         min_buffer_dists_metres, max_buffer_dists_metres)
 
     nested_array = polygon_table[
         [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
@@ -775,9 +825,9 @@ def make_buffers_around_polygons(polygon_table, min_buffer_dists_metres=None,
     for i in range(num_storms):
         (orig_vertex_x_metres,
          orig_vertex_y_metres) = projections.project_latlng_to_xy(
-            polygon_table[VERTEX_LAT_COLUMN].values[i],
-            polygon_table[VERTEX_LNG_COLUMN].values[i],
-            projection_object=projection_object)
+             polygon_table[VERTEX_LAT_COLUMN].values[i],
+             polygon_table[VERTEX_LNG_COLUMN].values[i],
+             projection_object=projection_object)
 
         for j in range(num_buffers):
             (buffer_vertex_x_metres, buffer_vertex_y_metres) = (
@@ -788,8 +838,8 @@ def make_buffers_around_polygons(polygon_table, min_buffer_dists_metres=None,
 
             (buffer_vertex_lat_deg,
              buffer_vertex_lng_deg) = projections.project_xy_to_latlng(
-                buffer_vertex_x_metres, buffer_vertex_y_metres,
-                projection_object=projection_object)
+                 buffer_vertex_x_metres, buffer_vertex_y_metres,
+                 projection_object=projection_object)
 
             polygon_table[buffer_lat_column_names[j]].values[
                 i] = buffer_vertex_lat_deg
@@ -819,6 +869,7 @@ def write_stats_and_polygons_to_pickle(storm_table, pickle_file_name):
     :param pickle_file_name: Path to output file.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_table, pickle_file_handle)
     pickle_file_handle.close()
@@ -832,6 +883,8 @@ def read_stats_and_polygons_from_pickle(pickle_file_name):
     :return: storm_table: pandas DataFrame with columns produced by
         join_stats_and_polygons.
     """
+
+    error_checking.assert_file_exists(pickle_file_name)
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_table = pickle.load(pickle_file_handle)
@@ -847,16 +900,16 @@ if __name__ == '__main__':
     polygon_table = read_polygons_from_netcdf(NETCDF_FILE_NAME, metadata_dict)
     print polygon_table
 
-    (central_latitude_deg,
-     central_longitude_deg) = myrorss_io.get_center_of_grid(
-        nw_grid_point_lat_deg=metadata_dict[
-            myrorss_io.NW_GRID_POINT_LAT_COLUMN],
-        nw_grid_point_lng_deg=metadata_dict[
-            myrorss_io.NW_GRID_POINT_LNG_COLUMN],
-        lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
-        lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN],
-        num_lat_in_grid=metadata_dict[myrorss_io.NUM_LAT_COLUMN],
-        num_lng_in_grid=metadata_dict[myrorss_io.NUM_LNG_COLUMN])
+    (central_latitude_deg, central_longitude_deg) = (
+        myrorss_io.get_center_of_grid(
+            nw_grid_point_lat_deg=
+            metadata_dict[myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+            nw_grid_point_lng_deg=
+            metadata_dict[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
+            lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN],
+            num_lat_in_grid=metadata_dict[myrorss_io.NUM_LAT_COLUMN],
+            num_lng_in_grid=metadata_dict[myrorss_io.NUM_LNG_COLUMN]))
 
     polygon_table = make_buffers_around_polygons(
         polygon_table, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,

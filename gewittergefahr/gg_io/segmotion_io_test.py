@@ -147,18 +147,12 @@ EXPECTED_JOINED_TABLE = EXPECTED_JOINED_TABLE.assign(**ARGUMENT_DICT)
 class SegmotionIoTests(unittest.TestCase):
     """Each method is a unit test for segmotion_io.py."""
 
-    def test_convert_xml_column_name(self):
-        """Ensures correct output from _convert_xml_column_name."""
+    def test_xml_column_name_orig_to_new(self):
+        """Ensures correct output from _xml_column_name_orig_to_new."""
 
-        this_xml_column_name = segmotion_io._convert_xml_column_name(
+        this_xml_column_name = segmotion_io._xml_column_name_orig_to_new(
             XML_COLUMN_NAME_ORIG)
         self.assertTrue(this_xml_column_name == XML_COLUMN_NAME)
-
-    def test_time_string_to_unix_sec(self):
-        """Ensures correct output from _time_string_to_unix_sec."""
-
-        this_time_unix_sec = segmotion_io._time_string_to_unix_sec(TIME_STRING)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
 
     def test_remove_rows_with_nan(self):
         """Ensures correct output from _remove_rows_with_nan."""
@@ -174,40 +168,34 @@ class SegmotionIoTests(unittest.TestCase):
             NUMERIC_STORM_ID_MATRIX, UNIQUE_CENTER_LAT_DEG,
             UNIQUE_CENTER_LNG_DEG)
 
-        self.assertTrue(numpy.array_equal(mask_table[STORM_ID_COLUMN].values,
-                                          EXPECTED_POLYGON_TABLE[
-                                              STORM_ID_COLUMN].values))
+        self.assertTrue(numpy.array_equal(
+            mask_table[STORM_ID_COLUMN].values,
+            EXPECTED_POLYGON_TABLE[STORM_ID_COLUMN].values))
 
         num_storms = len(mask_table.index)
         for i in range(num_storms):
-            self.assertTrue(
-                numpy.array_equal(mask_table[GRID_POINT_ROW_COLUMN].values[i],
-                                  EXPECTED_POLYGON_TABLE[
-                                      GRID_POINT_ROW_COLUMN].values[
-                                      i]))
-            self.assertTrue(
-                numpy.array_equal(
-                    mask_table[GRID_POINT_COLUMN_COLUMN].values[i],
-                    EXPECTED_POLYGON_TABLE[
-                        GRID_POINT_COLUMN_COLUMN].values[i]))
-            self.assertTrue(
-                numpy.allclose(mask_table[GRID_POINT_LAT_COLUMN].values[i],
-                               EXPECTED_POLYGON_TABLE[
-                                   GRID_POINT_LAT_COLUMN].values[i],
-                               atol=TOLERANCE))
-            self.assertTrue(
-                numpy.allclose(mask_table[GRID_POINT_LNG_COLUMN].values[i],
-                               EXPECTED_POLYGON_TABLE[
-                                   GRID_POINT_LNG_COLUMN].values[i],
-                               atol=TOLERANCE))
+            self.assertTrue(numpy.array_equal(
+                mask_table[GRID_POINT_ROW_COLUMN].values[i],
+                EXPECTED_POLYGON_TABLE[GRID_POINT_ROW_COLUMN].values[i]))
+            self.assertTrue(numpy.array_equal(
+                mask_table[GRID_POINT_COLUMN_COLUMN].values[i],
+                EXPECTED_POLYGON_TABLE[GRID_POINT_COLUMN_COLUMN].values[i]))
+            self.assertTrue(numpy.allclose(
+                mask_table[GRID_POINT_LAT_COLUMN].values[i],
+                EXPECTED_POLYGON_TABLE[GRID_POINT_LAT_COLUMN].values[i],
+                atol=TOLERANCE))
+            self.assertTrue(numpy.allclose(
+                mask_table[GRID_POINT_LNG_COLUMN].values[i],
+                EXPECTED_POLYGON_TABLE[GRID_POINT_LNG_COLUMN].values[i],
+                atol=TOLERANCE))
 
     def test_distance_buffers_to_column_names(self):
         """Ensures correct output from _distance_buffers_to_column_names."""
 
         (these_buffer_lat_column_names,
          these_buffer_lng_column_names) = (
-            segmotion_io._distance_buffers_to_column_names(
-                MIN_BUFFER_DISTS_METRES, MAX_BUFFER_DISTS_METRES))
+             segmotion_io._distance_buffers_to_column_names(
+                 MIN_BUFFER_DISTS_METRES, MAX_BUFFER_DISTS_METRES))
 
         self.assertTrue(
             these_buffer_lat_column_names == BUFFER_LAT_COLUMN_NAMES)
@@ -367,26 +355,20 @@ class SegmotionIoTests(unittest.TestCase):
 
         num_storms = len(joined_table.index)
         for i in range(num_storms):
-            self.assertTrue(
-                numpy.array_equal(joined_table[GRID_POINT_ROW_COLUMN].values[i],
-                                  EXPECTED_JOINED_TABLE[
-                                      GRID_POINT_ROW_COLUMN].values[
-                                      i]))
-            self.assertTrue(
-                numpy.array_equal(
-                    joined_table[GRID_POINT_COLUMN_COLUMN].values[i],
-                    EXPECTED_JOINED_TABLE[
-                        GRID_POINT_COLUMN_COLUMN].values[i]))
-            self.assertTrue(
-                numpy.allclose(joined_table[GRID_POINT_LAT_COLUMN].values[i],
-                               EXPECTED_JOINED_TABLE[
-                                   GRID_POINT_LAT_COLUMN].values[i],
-                               atol=TOLERANCE))
-            self.assertTrue(
-                numpy.allclose(joined_table[GRID_POINT_LNG_COLUMN].values[i],
-                               EXPECTED_JOINED_TABLE[
-                                   GRID_POINT_LNG_COLUMN].values[i],
-                               atol=TOLERANCE))
+            self.assertTrue(numpy.array_equal(
+                joined_table[GRID_POINT_ROW_COLUMN].values[i],
+                EXPECTED_JOINED_TABLE[GRID_POINT_ROW_COLUMN].values[i]))
+            self.assertTrue(numpy.array_equal(
+                joined_table[GRID_POINT_COLUMN_COLUMN].values[i],
+                EXPECTED_JOINED_TABLE[GRID_POINT_COLUMN_COLUMN].values[i]))
+            self.assertTrue(numpy.allclose(
+                joined_table[GRID_POINT_LAT_COLUMN].values[i],
+                EXPECTED_JOINED_TABLE[GRID_POINT_LAT_COLUMN].values[i],
+                atol=TOLERANCE))
+            self.assertTrue(numpy.allclose(
+                joined_table[GRID_POINT_LNG_COLUMN].values[i],
+                EXPECTED_JOINED_TABLE[GRID_POINT_LNG_COLUMN].values[i],
+                atol=TOLERANCE))
 
 
 if __name__ == '__main__':
