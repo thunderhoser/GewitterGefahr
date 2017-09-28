@@ -286,6 +286,12 @@ def read_winds_from_text(text_file_name):
     wind_table[raw_wind_io.TIME_COLUMN] = unix_date_sec + (
         wind_table[raw_wind_io.TIME_COLUMN].values * MINUTES_TO_SECONDS)
 
+    argument_dict = {
+        raw_wind_io.WIND_DIR_COLUMN:
+            numpy.array(wind_table[raw_wind_io.WIND_DIR_COLUMN].values,
+                        dtype=float)}
+    wind_table = wind_table.assign(**argument_dict)
+
     num_observations = len(wind_table.index)
     wind_gust_directions_deg = numpy.full(num_observations, numpy.nan)
     argument_dict = {raw_wind_io.WIND_GUST_DIR_COLUMN: wind_gust_directions_deg}
