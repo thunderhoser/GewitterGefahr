@@ -22,8 +22,8 @@ import os
 import os.path
 import numpy
 import pandas
-from netCDF4 import Dataset
 from gewittergefahr.gg_io import downloads
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
@@ -415,11 +415,15 @@ def download_netcdf_from_ftp(unix_time_sec=None, subdataset_name=None,
         top_raw_directory_name=top_local_directory_name)
 
 
-def read_winds_from_netcdf(netcdf_file_name):
+def read_winds_from_netcdf(netcdf_file_name, raise_error_if_fails=True):
     """Reads wind data from NetCDF file.
 
+    If file cannot be opened, returns None.
+
     :param netcdf_file_name: Path to input file.
-    :return: wind_table: pandas DataFrame with the following columns.
+    :return: wind_table: If file cannot be opened and raise_error_if_fails =
+        False, this is None.  Otherwise, it is a pandas DataFrame with the
+        following columns.
     wind_table.station_id: String ID for station.
     wind_table.station_name: Verbose name for station.
     wind_table.latitude_deg: Latitude (deg N).
@@ -437,7 +441,11 @@ def read_winds_from_netcdf(netcdf_file_name):
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    netcdf_dataset = Dataset(netcdf_file_name)
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
+                                           raise_error_if_fails)
+    if netcdf_dataset is None:
+        return None
+
     station_names = _char_matrix_to_string_list(
         netcdf_dataset.variables[STATION_NAME_COLUMN_ORIG][:])
 

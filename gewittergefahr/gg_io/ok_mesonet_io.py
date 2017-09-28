@@ -6,6 +6,7 @@ these files, because they are not available to the public.  They were provided
 to us by Oklahoma Mesonet employees.
 """
 
+import os
 import os.path
 import numpy
 import pandas
@@ -55,6 +56,16 @@ NEW_METAFILE_NAME = (
     '/localdata/ryan.lagerquist/aasswp/ok_mesonet_station_metadata.csv')
 NEW_WIND_FILE_NAME = (
     '/localdata/ryan.lagerquist/aasswp/ok_mesonet_winds_2010-07-27-055500.csv')
+
+
+def _is_file_empty(file_name):
+    """Determines whether or not file is empty.
+
+    :param file_name: Path to input file.
+    :return: file_empty_flag: Boolean flag.  If True, file is empty.
+    """
+
+    return os.stat(file_name).st_size == 0
 
 
 def _date_string_to_unix_sec(date_string):
@@ -248,8 +259,18 @@ def read_winds_from_text(text_file_name):
     """
 
     error_checking.assert_file_exists(text_file_name)
-    unix_date_sec = _read_valid_date_from_text(text_file_name)
+    if _is_file_empty(text_file_name):
+        wind_dict = {
+            raw_wind_io.STATION_ID_COLUMN: numpy.array([], dtype='|S1'),
+            raw_wind_io.TIME_COLUMN: numpy.array([], dtype=int),
+            raw_wind_io.WIND_SPEED_COLUMN: numpy.array([]),
+            raw_wind_io.WIND_DIR_COLUMN: numpy.array([]),
+            raw_wind_io.WIND_GUST_SPEED_COLUMN: numpy.array([]),
+            raw_wind_io.WIND_GUST_DIR_COLUMN: numpy.array([])}
 
+        return pandas.DataFrame.from_dict(wind_dict)
+
+    unix_date_sec = _read_valid_date_from_text(text_file_name)
     wind_table = pandas.read_csv(text_file_name, delim_whitespace=True,
                                  skiprows=[0, 1])
     wind_table = wind_table[ORIG_WIND_DATA_COLUMN_NAMES]

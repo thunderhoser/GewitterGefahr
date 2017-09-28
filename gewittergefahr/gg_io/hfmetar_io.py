@@ -223,8 +223,7 @@ def _remove_invalid_station_metadata(station_metadata_table):
 
     station_metadata_table[raw_wind_io.LONGITUDE_COLUMN] = (
         lng_conversion.convert_lng_positive_in_west(
-            station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values,
-            allow_nan=False))
+            station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values))
     return station_metadata_table
 
 
@@ -258,12 +257,13 @@ def _remove_invalid_wind_data(wind_table):
 
     invalid_indices = raw_wind_io.check_wind_directions(
         wind_table[raw_wind_io.WIND_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[invalid_indices] = numpy.nan
+    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[
+        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
 
     invalid_indices = raw_wind_io.check_wind_directions(
         wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values)
     wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
-        invalid_indices] = numpy.nan
+        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
 
     return wind_table
 

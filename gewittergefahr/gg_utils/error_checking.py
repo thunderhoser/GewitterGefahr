@@ -114,7 +114,7 @@ def assert_is_numpy_array(input_variable, num_dimensions=None,
 
     if exact_dimensions is not None:
         assert_is_integer_numpy_array(exact_dimensions)
-        assert_is_greater_numpy_array(exact_dimensions, 0)
+        assert_is_geq_numpy_array(exact_dimensions, 0)
         assert_is_numpy_array(exact_dimensions, num_dimensions=1)
 
         if not numpy.array_equal(input_variable.shape, exact_dimensions):

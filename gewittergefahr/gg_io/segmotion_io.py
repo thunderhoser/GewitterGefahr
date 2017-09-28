@@ -21,7 +21,7 @@ import pickle
 import xml.etree.ElementTree as ElementTree
 import numpy
 import pandas
-from netCDF4 import Dataset
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import myrorss_io
 from gewittergefahr.gg_io import myrorss_sparse_to_full as sparse_to_full
 from gewittergefahr.gg_utils import polygons
@@ -644,16 +644,23 @@ def read_stats_from_xml(xml_file_name):
     return _remove_rows_with_nan(stats_table)
 
 
-def read_polygons_from_netcdf(netcdf_file_name, metadata_dict):
+def read_polygons_from_netcdf(netcdf_file_name, metadata_dict,
+                              raise_error_if_fails=True):
     """Reads storm polygons (outlines of storm cells) from NetCDF file.
 
     P = number of grid points in storm cell (different for each storm cell)
     V = number of vertices in storm polygon (different for each storm cell)
 
+    If file cannot be opened, returns None.
+
     :param netcdf_file_name: Path to input file.
     :param metadata_dict: Dictionary with metadata from NetCDF file, in format
         produced by `myrorss_io.read_metadata_from_netcdf`.
-    :return: polygon_table: pandas DataFrame with the following columns.
+    :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
+        and file cannot be opened, will raise error.
+    :return: polygon_table: If file cannot be opened and raise_error_if_fails =
+        False, this is None.  Otherwise, it is a pandas DataFrame with the
+        following columns.
     polygon_table.storm_id: String ID for storm cell.
     polygon_table.grid_point_latitudes_deg: length-P numpy array with latitudes
         (deg N) of grid points in storm cell.
@@ -674,7 +681,10 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict):
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    netcdf_dataset = Dataset(netcdf_file_name)
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
+                                           raise_error_if_fails)
+    if netcdf_dataset is None:
+        return None
 
     storm_id_var_name = metadata_dict[myrorss_io.FIELD_NAME_COLUMN]
     storm_id_var_name_orig = metadata_dict[myrorss_io.FIELD_NAME_COLUMN_ORIG]

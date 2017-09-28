@@ -16,7 +16,7 @@ words, SPC date "Sep 23 2017" actually runs from 1200 UTC 23 Sep 2017 -
 import os
 import numpy
 import pandas
-from netCDF4 import Dataset
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
@@ -40,6 +40,7 @@ LAT_SPACING_COLUMN_ORIG = 'LatGridSpacing'
 LNG_SPACING_COLUMN_ORIG = 'LonGridSpacing'
 NUM_LAT_COLUMN_ORIG = 'Lat'
 NUM_LNG_COLUMN_ORIG = 'Lon'
+NUM_PIXELS_COLUMN_ORIG = 'pixel'
 HEIGHT_COLUMN_ORIG = 'Height'
 UNIX_TIME_COLUMN_ORIG = 'Time'
 FIELD_NAME_COLUMN_ORIG = 'TypeName'
@@ -101,7 +102,7 @@ RADAR_FIELD_NAMES_ORIG = [ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_50DBZ_NAME_ORIG,
                           VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
 
 HEIGHT_ARRAY_COLUMN = 'heights_m_agl'
-RELATIVE_TOLERANCE = 1e-6
+SENTINEL_TOLERANCE = 10.
 
 TIME_FORMAT_SECONDS = '%Y%m%d-%H%M%S'
 TIME_FORMAT_SPC_DATE = '%Y%m%d'
@@ -340,7 +341,7 @@ def _remove_sentinels(sparse_grid_table, field_name, sentinel_values):
     for i in range(len(sentinel_values)):
         these_sentinel_flags = numpy.isclose(
             sparse_grid_table[field_name].values, sentinel_values[i],
-            rtol=RELATIVE_TOLERANCE)
+            atol=SENTINEL_TOLERANCE)
         sentinel_flags = numpy.logical_or(sentinel_flags, these_sentinel_flags)
 
     sentinel_indices = numpy.where(sentinel_flags)[0]
@@ -598,13 +599,19 @@ def get_center_of_grid(nw_grid_point_lat_deg=None, nw_grid_point_lng_deg=None,
             numpy.mean(numpy.array([nw_grid_point_lng_deg, max_longitude_deg])))
 
 
-def read_metadata_from_netcdf(netcdf_file_name):
+def read_metadata_from_netcdf(netcdf_file_name, raise_error_if_fails=True):
     """Reads metadata from NetCDF file.
 
     This file should contain one radar field at one height and one time step.
 
+    If file cannot be opened, returns None.
+
     :param netcdf_file_name: Path to input file.
-    :return: metadata_dict: Dictionary with the following keys.
+    :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
+        and file cannot be opened, will raise error.
+    :return: metadata_dict: If file cannot be opened and raise_error_if_fails =
+        False, this is None.  Otherwise, it is a dictionary with the following
+        keys.
     metadata_dict.nw_grid_point_lat_deg: Latitude (deg N) at center of
         northwesternmost grid point.
     metadata_dict.nw_grid_point_lng_deg: Longitude (deg E) at center of
@@ -624,7 +631,11 @@ def read_metadata_from_netcdf(netcdf_file_name):
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    netcdf_dataset = Dataset(netcdf_file_name)
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
+                                           raise_error_if_fails)
+    if netcdf_dataset is None:
+        return None
+
     field_name_orig = str(getattr(netcdf_dataset, FIELD_NAME_COLUMN_ORIG))
 
     metadata_dict = {
@@ -663,17 +674,24 @@ def read_metadata_from_netcdf(netcdf_file_name):
     return metadata_dict
 
 
-def read_sparse_grid_from_netcdf(netcdf_file_name, field_name_orig,
-                                 sentinel_values):
+def read_sparse_grid_from_netcdf(netcdf_file_name, field_name_orig=None,
+                                 sentinel_values=None,
+                                 raise_error_if_fails=True):
     """Reads sparse grid from NetCDF file.
 
     This file should contain one radar field at one height and one time step.
+
+    If file cannot be opened, returns None.
 
     :param netcdf_file_name: Path to input file.
     :param field_name_orig: Name of radar field (must be in
         `RADAR_FIELD_NAMES_ORIG`).
     :param sentinel_values: 1-D numpy array of sentinel values.
-    :return: sparse_grid_table: pandas DataFrame with the following columns.
+    :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
+        and file cannot be opened, will raise error.
+    :return: sparse_grid_table: If file cannot be opened and
+        raise_error_if_fails = False, this is None.  Otherwise, it is a pandas
+        DataFrame with the following columns.
     sparse_grid_table.grid_row: Grid row (increasing from north to south).
     sparse_grid_table.grid_column: Grid column (increasing from west to east).
     sparse_grid_table.<field_name>: Value of radar field.
@@ -686,7 +704,11 @@ def read_sparse_grid_from_netcdf(netcdf_file_name, field_name_orig,
     error_checking.assert_is_numpy_array_without_nan(sentinel_values)
     error_checking.assert_is_numpy_array(sentinel_values, num_dimensions=1)
 
-    netcdf_dataset = Dataset(netcdf_file_name)
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
+                                           raise_error_if_fails)
+    if netcdf_dataset is None:
+        return None
+
     field_name = _field_name_orig_to_new(field_name_orig)
 
     sparse_grid_dict = {

@@ -48,7 +48,7 @@ def sparse_to_full_grid(sparse_grid_table, field_name=None,
 
     num_data_runs = len(data_start_indices)
     num_data_values = numpy.sum(
-        sparse_grid_table[myrorss_io.NUM_GRID_CELL_COLUMN].values)
+        sparse_grid_table[myrorss_io.NUM_GRID_CELL_COLUMN].values).astype(int)
 
     data_indices = numpy.full(num_data_values, numpy.nan, dtype=int)
     data_values = numpy.full(num_data_values, numpy.nan)
