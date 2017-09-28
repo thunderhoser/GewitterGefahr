@@ -41,6 +41,13 @@ EVENT_TYPE_STRING_SLW_SOME_CAPS = 'ThUnDeRsToRm WiNd'
 EVENT_TYPE_STRING_SLW_TRAILING_WHITESPACE = '\t   thunderstorm wind \r\n'
 EVENT_TYPE_STRING_NOT_SLW = 'tornado'
 
+NUM_WIND_REPORTS = 11
+FAKE_STATION_IDS = [
+    '000000_storm_events', '000001_storm_events', '000002_storm_events',
+    '000003_storm_events', '000004_storm_events', '000005_storm_events',
+    '000006_storm_events', '000007_storm_events', '000008_storm_events',
+    '000009_storm_events', '000010_storm_events']
+
 YEAR_FOR_RAW_FILE = 2015
 RAW_DIRECTORY_NAME = 'storm_events/raw_files'
 RAW_FILE_NAME = 'storm_events/raw_files/storm_events2015.csv'
@@ -227,6 +234,13 @@ class StormEventsIoTests(unittest.TestCase):
         this_flag = storm_events_io._is_event_thunderstorm_wind(
             EVENT_TYPE_STRING_NOT_SLW)
         self.assertFalse(this_flag)
+
+    def test_generate_fake_station_ids(self):
+        """Ensures correct output from _generate_fake_station_ids."""
+
+        these_station_ids = storm_events_io._generate_fake_station_ids(
+            NUM_WIND_REPORTS)
+        self.assertTrue(these_station_ids == FAKE_STATION_IDS)
 
     def test_find_local_raw_file(self):
         """Ensures correct output from find_local_raw_file."""

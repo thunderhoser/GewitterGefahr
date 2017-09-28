@@ -21,6 +21,7 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
+DATA_SOURCE = 'storm_events'
 PATHLESS_RAW_FILE_PREFIX = 'storm_events'
 REQUIRED_EVENT_TYPE = 'thunderstorm wind'
 HOURS_TO_SECONDS = 3600
@@ -126,6 +127,26 @@ def _is_event_thunderstorm_wind(event_type_string):
     index_of_thunderstorm_wind = event_type_string.lower().find(
         REQUIRED_EVENT_TYPE)
     return index_of_thunderstorm_wind != -1
+
+
+def _generate_fake_station_ids(num_reports):
+    """Generates a fake station ID for each wind report.
+
+    All other wind datasets (high-frequency METARs, MADIS, and Oklahoma Mesonet)
+    have station IDs.  This makes Storm Events look like the other datasets
+    (i.e., ensures that all datasets have the same columns), which allows them
+    to be easily merged.
+
+    N = number of wind reports
+
+    :param num_reports: Number of wind reports.
+    :return: station_ids: length-N list of string IDs.
+    """
+
+    numeric_station_ids = numpy.linspace(0, num_reports - 1, num=num_reports,
+                                         dtype=int)
+    return [raw_wind_io.append_source_to_station_id(
+        '{0:06d}'.format(i), DATA_SOURCE) for i in numeric_station_ids]
 
 
 def _remove_invalid_data(wind_table):
@@ -236,13 +257,18 @@ def read_slw_reports_from_orig_csv(csv_file_name):
     (u_winds_m_s01, v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
         wind_speeds_m_s01, wind_directions_deg)
 
-    wind_dict = {raw_wind_io.TIME_COLUMN: unix_times_sec,
-                 raw_wind_io.LATITUDE_COLUMN: report_table[
-                     LATITUDE_COLUMN_ORIG].values,
-                 raw_wind_io.LONGITUDE_COLUMN: report_table[
-                     LONGITUDE_COLUMN_ORIG].values,
-                 raw_wind_io.U_WIND_COLUMN: u_winds_m_s01,
-                 raw_wind_io.V_WIND_COLUMN: v_winds_m_s01}
+    station_ids = _generate_fake_station_ids(num_reports)
+
+    wind_dict = {
+        raw_wind_io.TIME_COLUMN: unix_times_sec,
+        raw_wind_io.LATITUDE_COLUMN: report_table[LATITUDE_COLUMN_ORIG].values,
+        raw_wind_io.LONGITUDE_COLUMN:
+            report_table[LONGITUDE_COLUMN_ORIG].values,
+        raw_wind_io.STATION_ID_COLUMN: station_ids,
+        raw_wind_io.STATION_NAME_COLUMN: station_ids,
+        raw_wind_io.ELEVATION_COLUMN: numpy.full(num_reports, numpy.nan),
+        raw_wind_io.U_WIND_COLUMN: u_winds_m_s01,
+        raw_wind_io.V_WIND_COLUMN: v_winds_m_s01}
 
     wind_table = pandas.DataFrame.from_dict(wind_dict)
     return _remove_invalid_data(wind_table)
