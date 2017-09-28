@@ -199,13 +199,12 @@ def _remove_invalid_data(wind_table):
 
     invalid_indices = raw_wind_io.check_wind_directions(
         wind_table[raw_wind_io.WIND_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[
-        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
+    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[invalid_indices] = numpy.nan
 
     invalid_indices = raw_wind_io.check_wind_directions(
         wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values)
     wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
-        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
+        invalid_indices] = numpy.nan
 
     wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
         lng_conversion.convert_lng_positive_in_west(
@@ -237,7 +236,7 @@ def _remove_low_quality_data(wind_table):
                       wind_table[WIND_DIR_FLAG_COLUMN].values]
     low_quality_indices = numpy.where(is_low_quality)[0]
     wind_table[raw_wind_io.WIND_DIR_COLUMN].values[
-        low_quality_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
+        low_quality_indices] = numpy.nan
 
     is_low_quality = [f in LOW_QUALITY_FLAGS for f in
                       wind_table[WIND_GUST_SPEED_FLAG_COLUMN].values]
@@ -249,7 +248,7 @@ def _remove_low_quality_data(wind_table):
                       wind_table[WIND_GUST_DIR_FLAG_COLUMN].values]
     low_quality_indices = numpy.where(is_low_quality)[0]
     wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
-        low_quality_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
+        low_quality_indices] = numpy.nan
 
     columns_to_drop = [WIND_SPEED_FLAG_COLUMN, WIND_DIR_FLAG_COLUMN,
                        WIND_GUST_SPEED_FLAG_COLUMN, WIND_GUST_DIR_FLAG_COLUMN]
@@ -467,8 +466,7 @@ def read_winds_from_netcdf(netcdf_file_name):
         wind_dir_quality_flags = netcdf_dataset.variables[
             WIND_DIR_FLAG_COLUMN_ORIG][:]
     except KeyError:
-        wind_directions_deg = numpy.full(num_observations,
-                                         raw_wind_io.WIND_DIR_DEFAULT_DEG)
+        wind_directions_deg = numpy.full(num_observations, numpy.nan)
         wind_dir_quality_flags = [DEFAULT_QUALITY_FLAG] * num_observations
 
     try:
@@ -487,8 +485,7 @@ def read_winds_from_netcdf(netcdf_file_name):
         wind_gust_dir_quality_flags = netcdf_dataset.variables[
             WIND_GUST_DIR_FLAG_COLUMN_ORIG][:]
     except KeyError:
-        wind_gust_directions_deg = numpy.full(num_observations,
-                                              raw_wind_io.WIND_DIR_DEFAULT_DEG)
+        wind_gust_directions_deg = numpy.full(num_observations, numpy.nan)
         wind_gust_dir_quality_flags = [DEFAULT_QUALITY_FLAG] * num_observations
 
     wind_dict = {raw_wind_io.STATION_ID_COLUMN: station_ids,

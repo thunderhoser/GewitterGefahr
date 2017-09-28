@@ -148,13 +148,12 @@ def _remove_invalid_wind_data(wind_table):
 
     invalid_indices = raw_wind_io.check_wind_directions(
         wind_table[raw_wind_io.WIND_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[
-        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
+    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[invalid_indices] = numpy.nan
 
     invalid_indices = raw_wind_io.check_wind_directions(
         wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values)
     wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
-        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
+        invalid_indices] = numpy.nan
 
     return wind_table
 

@@ -44,7 +44,9 @@ WIND_GUST_DIRECTIONS_TO_CONVERT_DEG = numpy.array(
 
 EXPECTED_MAX_WIND_SPEEDS_M_S01 = numpy.array([10., 20., 40., 7.5, 3., 7., 15.])
 EXPECTED_MAX_WIND_DIRECTIONS_DEG = numpy.array(
-    [0., 45., 90., 180., 225., 270., 315.])
+    [raw_wind_io.WIND_DIR_DEFAULT_DEG, 45., 90., 180., 225., 270., 315.])
+EXPECTED_MAX_WIND_DIRS_WITH_NAN_DEG = numpy.array(
+    [numpy.nan, 45., 90., 180., 225., 270., 315.])
 
 HALF_SQRT_OF_TWO = numpy.sqrt(2.) / 2
 EXPECTED_MAX_U_WINDS_M_S01 = numpy.array(
@@ -134,8 +136,27 @@ class RawWindIoTests(unittest.TestCase):
                                        EXPECTED_MAX_WIND_DIRECTIONS_DEG,
                                        atol=TOLERANCE))
 
-    def test_speed_and_direction_to_uv(self):
-        """Ensures correct output from speed_and_direction_to_uv."""
+    def test_speed_and_direction_to_uv_with_nan(self):
+        """Ensures correct output from speed_and_direction_to_uv.
+
+        In this case, input array of wind directions contains NaN.
+        """
+
+        (u_winds_m_s01, v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
+            EXPECTED_MAX_WIND_SPEEDS_M_S01, EXPECTED_MAX_WIND_DIRS_WITH_NAN_DEG)
+
+        self.assertTrue(
+            numpy.allclose(u_winds_m_s01, EXPECTED_MAX_U_WINDS_M_S01,
+                           atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(v_winds_m_s01, EXPECTED_MAX_V_WINDS_M_S01,
+                           atol=TOLERANCE))
+
+    def test_speed_and_direction_to_uv_without_nan(self):
+        """Ensures correct output from speed_and_direction_to_uv.
+
+        In this case, input array of wind directions does not contain NaN.
+        """
 
         (u_winds_m_s01, v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
             EXPECTED_MAX_WIND_SPEEDS_M_S01, EXPECTED_MAX_WIND_DIRECTIONS_DEG)

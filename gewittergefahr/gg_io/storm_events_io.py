@@ -200,10 +200,8 @@ def read_slw_reports_from_orig_csv(csv_file_name):
     wind_table.longitude_deg: Longitude (deg E).
     wind_table.unix_time_sec: Observation time (seconds since 0000 UTC 1 Jan
         1970).
-    wind_table.u_wind_m_s01: u-component of wind (m/s), assuming that all
-        directions are due north.
-    wind_table.v_wind_m_s01: v-component of wind (m/s), assuming that all
-        directions are due north.
+    wind_table.u_wind_m_s01: u-component of wind (m/s).
+    wind_table.v_wind_m_s01: v-component of wind (m/s).
     """
 
     error_checking.assert_file_exists(csv_file_name)
@@ -231,10 +229,12 @@ def read_slw_reports_from_orig_csv(csv_file_name):
         unix_times_sec[i] = _local_time_string_to_unix_sec(
             report_table[TIME_COLUMN_ORIG].values[i], this_utc_offset_hours)
 
-    # Wind direction is not included in storm reports, so assume due north.
-    u_winds_m_s01 = numpy.full(num_reports, 0.)
-    v_winds_m_s01 = -KT_TO_METRES_PER_SECOND * report_table[
+    wind_speeds_m_s01 = KT_TO_METRES_PER_SECOND * report_table[
         WIND_SPEED_COLUMN_ORIG].values
+    wind_directions_deg = numpy.full(num_reports,
+                                     raw_wind_io.WIND_DIR_DEFAULT_DEG)
+    (u_winds_m_s01, v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
+        wind_speeds_m_s01, wind_directions_deg)
 
     wind_dict = {raw_wind_io.TIME_COLUMN: unix_times_sec,
                  raw_wind_io.LATITUDE_COLUMN: report_table[

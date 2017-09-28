@@ -7,6 +7,7 @@
 - LSRs (local storm reports)
 """
 
+import copy
 import numpy
 import pandas
 from gewittergefahr.gg_utils import file_system_utils
@@ -303,10 +304,14 @@ def speed_and_direction_to_uv(wind_speeds_m_s01, wind_directions_deg):
         wind_directions_deg,
         exact_dimensions=numpy.array([num_observations]))
 
+    these_wind_directions_deg = copy.deepcopy(wind_directions_deg)
+    these_wind_directions_deg[
+        numpy.isnan(these_wind_directions_deg)] = WIND_DIR_DEFAULT_DEG
+
     u_winds_m_s01 = -1 * wind_speeds_m_s01 * numpy.sin(
-        wind_directions_deg * DEGREES_TO_RADIANS)
+        these_wind_directions_deg * DEGREES_TO_RADIANS)
     v_winds_m_s01 = -1 * wind_speeds_m_s01 * numpy.cos(
-        wind_directions_deg * DEGREES_TO_RADIANS)
+        these_wind_directions_deg * DEGREES_TO_RADIANS)
     return u_winds_m_s01, v_winds_m_s01
 
 
