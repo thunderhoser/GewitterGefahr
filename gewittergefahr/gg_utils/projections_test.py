@@ -12,10 +12,22 @@ CENTRAL_LONGITUDE_DEG = 253.
 FALSE_EASTING_METRES = 0.
 FALSE_NORTHING_METRES = 0.
 
-LATITUDES_DEG = numpy.array([51.05, 53.55, 52.27, 50.05, 49.7])
-LONGITUDES_DEG = numpy.array([245.95, 246.53, 246.2, 249.33, 247.18])
-X_COORDS_METRES = numpy.array([100., 500., 1000., 10000., -3000.])
-Y_COORDS_METRES = numpy.array([-6000., 7500., 8000., 900., -5.])
+LATITUDES_DEG = numpy.array([[42., -35., numpy.nan],
+                             [61., -33., -30.],
+                             [-44., 39., 44.],
+                             [33., -46., numpy.nan]])
+LONGITUDES_DEG = numpy.array([[287., 254., numpy.nan],
+                              [211., 276., 97.],
+                              [117., 284., 68.],
+                              [86., 260., numpy.nan]])
+X_COORDS_METRES = numpy.array([[4045., 539., numpy.nan],
+                               [1354., 4523., 1644.],
+                               [4750., 1838., 4847.],
+                               [3050., 4847., numpy.nan]])
+Y_COORDS_METRES = numpy.array([[4540., 3905., numpy.nan],
+                               [5413., 2345., 4416.],
+                               [5047., 3818., 4748.],
+                               [5030., 4748., numpy.nan]])
 
 
 class ProjectionsTests(unittest.TestCase):
@@ -89,9 +101,11 @@ class ProjectionsTests(unittest.TestCase):
              false_northing_metres=FALSE_NORTHING_METRES)
 
         self.assertTrue(
-            numpy.allclose(these_latitudes_deg, LATITUDES_DEG, atol=TOLERANCE))
-        self.assertTrue(numpy.allclose(these_longitudes_deg, LONGITUDES_DEG,
-                                       atol=TOLERANCE))
+            numpy.allclose(these_latitudes_deg, LATITUDES_DEG, atol=TOLERANCE,
+                           equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            these_longitudes_deg, LONGITUDES_DEG, atol=TOLERANCE,
+            equal_nan=True))
 
 
 if __name__ == '__main__':

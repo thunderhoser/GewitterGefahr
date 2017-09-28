@@ -86,17 +86,26 @@ def project_latlng_to_xy(latitudes_deg, longitudes_deg, projection_object=None,
     error_checking.assert_is_not_nan(false_easting_metres)
     error_checking.assert_is_not_nan(false_northing_metres)
 
-    nan_flags = numpy.logical_or(numpy.isnan(latitudes_deg),
-                                 numpy.isnan(longitudes_deg))
-    nan_indices = numpy.where(nan_flags)[0]
-
     x_coords_metres, y_coords_metres = projection_object(longitudes_deg,
                                                          latitudes_deg)
-    x_coords_metres[nan_indices] = numpy.nan
-    y_coords_metres[nan_indices] = numpy.nan
 
-    return (x_coords_metres + false_easting_metres,
-            y_coords_metres + false_northing_metres)
+    num_points = latitudes_deg.size
+    nan_flags = numpy.logical_or(
+        numpy.isnan(numpy.reshape(latitudes_deg, num_points)),
+        numpy.isnan(numpy.reshape(longitudes_deg, num_points)))
+    nan_indices = numpy.where(nan_flags)[0]
+
+    x_coords_metres_flat = numpy.reshape(x_coords_metres, num_points)
+    x_coords_metres_flat[nan_indices] = numpy.nan
+    x_coords_metres = numpy.reshape(
+        x_coords_metres_flat, shape_of_coord_arrays) + false_easting_metres
+
+    y_coords_metres_flat = numpy.reshape(y_coords_metres, num_points)
+    y_coords_metres_flat[nan_indices] = numpy.nan
+    y_coords_metres = numpy.reshape(
+        y_coords_metres_flat, shape_of_coord_arrays) + false_northing_metres
+
+    return x_coords_metres, y_coords_metres
 
 
 def project_xy_to_latlng(x_coords_metres, y_coords_metres,
@@ -127,15 +136,23 @@ def project_xy_to_latlng(x_coords_metres, y_coords_metres,
     error_checking.assert_is_not_nan(false_easting_metres)
     error_checking.assert_is_not_nan(false_northing_metres)
 
-    nan_flags = numpy.logical_or(numpy.isnan(x_coords_metres),
-                                 numpy.isnan(y_coords_metres))
-    nan_indices = numpy.where(nan_flags)[0]
-
     (longitudes_deg, latitudes_deg) = projection_object(
         x_coords_metres - false_easting_metres,
         y_coords_metres - false_northing_metres, inverse=True)
-    latitudes_deg[nan_indices] = numpy.nan
-    longitudes_deg[nan_indices] = numpy.nan
 
-    return latitudes_deg, lng_conversion.convert_lng_positive_in_west(
-        longitudes_deg, allow_nan=True)
+    num_points = x_coords_metres.size
+    nan_flags = numpy.logical_or(
+        numpy.isnan(numpy.reshape(x_coords_metres, num_points)),
+        numpy.isnan(numpy.reshape(y_coords_metres, num_points)))
+    nan_indices = numpy.where(nan_flags)[0]
+
+    latitudes_deg_flat = numpy.reshape(latitudes_deg, num_points)
+    latitudes_deg_flat[nan_indices] = numpy.nan
+
+    longitudes_deg_flat = numpy.reshape(longitudes_deg, num_points)
+    longitudes_deg_flat[nan_indices] = numpy.nan
+    longitudes_deg_flat = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg_flat, allow_nan=True)
+
+    return (numpy.reshape(latitudes_deg_flat, shape_of_coord_arrays),
+            numpy.reshape(longitudes_deg_flat, shape_of_coord_arrays))
