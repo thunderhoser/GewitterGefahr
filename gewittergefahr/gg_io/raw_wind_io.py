@@ -85,7 +85,7 @@ def check_elevations(elevations_m_asl):
         array will contain 4 and 11.
     """
 
-    error_checking.assert_is_real_number_array(elevations_m_asl)
+    error_checking.assert_is_real_numpy_array(elevations_m_asl)
     error_checking.assert_is_numpy_array(elevations_m_asl, num_dimensions=1)
 
     valid_flags = numpy.logical_and(elevations_m_asl >= MIN_ELEVATION_M_ASL,
@@ -102,7 +102,7 @@ def check_latitudes(latitudes_deg):
     :return: invalid_indices: 1-D numpy array with indices of invalid latitudes.
     """
 
-    error_checking.assert_is_real_number_array(latitudes_deg)
+    error_checking.assert_is_real_numpy_array(latitudes_deg)
     error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(latitudes_deg >= MIN_LATITUDE_DEG,
@@ -120,7 +120,7 @@ def check_longitudes(longitudes_deg):
         longitudes.
     """
 
-    error_checking.assert_is_real_number_array(longitudes_deg)
+    error_checking.assert_is_real_numpy_array(longitudes_deg)
     error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(longitudes_deg >= MIN_LONGITUDE_DEG,
@@ -139,7 +139,7 @@ def check_longitudes_negative_in_west(longitudes_deg):
         longitudes.
     """
 
-    error_checking.assert_is_real_number_array(longitudes_deg)
+    error_checking.assert_is_real_numpy_array(longitudes_deg)
     error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
@@ -159,7 +159,7 @@ def check_longitudes_positive_in_west(longitudes_deg):
         longitudes.
     """
 
-    error_checking.assert_is_real_number_array(longitudes_deg)
+    error_checking.assert_is_real_numpy_array(longitudes_deg)
     error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
@@ -177,7 +177,7 @@ def check_wind_speeds(wind_speeds_m_s01):
     :return: invalid_indices: 1-D numpy array with indices of invalid speeds.
     """
 
-    error_checking.assert_is_real_number_array(wind_speeds_m_s01)
+    error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
     error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
@@ -197,7 +197,7 @@ def check_wind_directions(wind_directions_deg):
         directions.
     """
 
-    error_checking.assert_is_real_number_array(wind_directions_deg)
+    error_checking.assert_is_real_numpy_array(wind_directions_deg)
     error_checking.assert_is_numpy_array(wind_directions_deg, num_dimensions=1)
 
     valid_flags = numpy.logical_and(
@@ -241,21 +241,21 @@ def get_max_of_sustained_and_gust(wind_speeds_m_s01, wind_gust_speeds_m_s01,
         max wind (degrees of origin).
     """
 
-    error_checking.assert_is_real_number_array(wind_speeds_m_s01)
+    error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
     error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
     num_observations = len(wind_speeds_m_s01)
 
-    error_checking.assert_is_real_number_array(wind_gust_speeds_m_s01)
+    error_checking.assert_is_real_numpy_array(wind_gust_speeds_m_s01)
     error_checking.assert_is_numpy_array(
         wind_gust_speeds_m_s01,
         exact_dimensions=numpy.array([num_observations]))
 
-    error_checking.assert_is_real_number_array(wind_directions_deg)
+    error_checking.assert_is_real_numpy_array(wind_directions_deg)
     error_checking.assert_is_numpy_array(
         wind_directions_deg,
         exact_dimensions=numpy.array([num_observations]))
 
-    error_checking.assert_is_real_number_array(wind_gust_directions_deg)
+    error_checking.assert_is_real_numpy_array(wind_gust_directions_deg)
     error_checking.assert_is_numpy_array(
         wind_gust_directions_deg,
         exact_dimensions=numpy.array([num_observations]))
@@ -294,11 +294,11 @@ def speed_and_direction_to_uv(wind_speeds_m_s01, wind_directions_deg):
     :return: v_winds_m_s01: length-N numpy array of v-components (m/s).
     """
 
-    error_checking.assert_is_real_number_array(wind_speeds_m_s01)
+    error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
     error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
     num_observations = len(wind_speeds_m_s01)
 
-    error_checking.assert_is_real_number_array(wind_directions_deg)
+    error_checking.assert_is_real_numpy_array(wind_directions_deg)
     error_checking.assert_is_numpy_array(
         wind_directions_deg,
         exact_dimensions=numpy.array([num_observations]))
@@ -322,11 +322,11 @@ def uv_to_speed_and_direction(u_winds_m_s01, v_winds_m_s01):
         (degrees of origin).
     """
 
-    error_checking.assert_is_real_number_array(u_winds_m_s01)
+    error_checking.assert_is_real_numpy_array(u_winds_m_s01)
     error_checking.assert_is_numpy_array(u_winds_m_s01, num_dimensions=1)
     num_observations = len(u_winds_m_s01)
 
-    error_checking.assert_is_real_number_array(v_winds_m_s01)
+    error_checking.assert_is_real_numpy_array(v_winds_m_s01)
     error_checking.assert_is_numpy_array(
         v_winds_m_s01, exact_dimensions=numpy.array([num_observations]))
 

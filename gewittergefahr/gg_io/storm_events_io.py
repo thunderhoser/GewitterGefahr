@@ -56,7 +56,6 @@ def _year_number_to_string(year):
         necessary).
     """
 
-    error_checking.assert_is_integer(year)
     return '{0:04d}'.format(int(year))
 
 
@@ -67,8 +66,6 @@ def _time_zone_string_to_utc_offset(time_zone_string):
         "MST", etc.).
     :return: utc_offset_hours: Local time minus UTC.
     """
-
-    error_checking.assert_is_string(time_zone_string)
 
     time_zone_string = time_zone_string.strip().upper()
     tz_string_flags = [s == time_zone_string for s in TIME_ZONE_STRINGS]
@@ -86,9 +83,7 @@ def _capitalize_months(orig_string):
     :return: new_string: New string.
     """
 
-    error_checking.assert_is_string(orig_string)
     new_string = orig_string.lower()
-
     for i in range(len(MONTH_NAMES_3LETTERS)):
         new_string = new_string.replace(MONTH_NAMES_3LETTERS[i].lower(),
                                         MONTH_NAMES_3LETTERS[i])
@@ -115,7 +110,6 @@ def _local_time_string_to_unix_sec(local_time_string, utc_offset_hours):
     :return: unix_time_sec: UTC time in Unix format.
     """
 
-    error_checking.assert_is_not_nan(utc_offset_hours)
     return _time_string_to_unix_sec(local_time_string) - (
         utc_offset_hours * HOURS_TO_SECONDS)
 
@@ -129,7 +123,6 @@ def _is_event_thunderstorm_wind(event_type_string):
     :return: is_thunderstorm_wind: Boolean flag, either True or False.
     """
 
-    error_checking.assert_is_string(event_type_string)
     index_of_thunderstorm_wind = event_type_string.lower().find(
         REQUIRED_EVENT_TYPE)
     return index_of_thunderstorm_wind != -1
@@ -166,7 +159,7 @@ def _remove_invalid_data(wind_table):
 
     wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
         lng_conversion.convert_lng_positive_in_west(
-            wind_table[raw_wind_io.LONGITUDE_COLUMN].values))
+            wind_table[raw_wind_io.LONGITUDE_COLUMN].values, allow_nan=False))
     return wind_table
 
 
@@ -184,6 +177,7 @@ def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_integer(year)
     error_checking.assert_is_string(directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
@@ -255,7 +249,7 @@ def read_slw_reports_from_orig_csv(csv_file_name):
 
 
 if __name__ == '__main__':
-    wind_table = read_slw_reports_from_orig_csv(ORIG_CSV_FILE_NAME)
-    print wind_table
+    WIND_TABLE = read_slw_reports_from_orig_csv(ORIG_CSV_FILE_NAME)
+    print WIND_TABLE
 
-    raw_wind_io.write_winds_to_csv(wind_table, NEW_CSV_FILE_NAME)
+    raw_wind_io.write_winds_to_csv(WIND_TABLE, NEW_CSV_FILE_NAME)

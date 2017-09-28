@@ -188,7 +188,6 @@ def _field_to_valid_heights(field_name):
     :raises: ValueError: if `field_name` is "storm_id".
     """
 
-    _check_field_name(field_name)
     if field_name == STORM_ID_NAME:
         error_string = (
             'field_name should not be "' + STORM_ID_NAME +
@@ -237,7 +236,7 @@ def _check_reflectivity_heights(heights_m_agl):
     :raises: ValueError: if any element of heights_m_agl is invalid.
     """
 
-    error_checking.assert_is_integer_array(heights_m_agl)
+    error_checking.assert_is_integer_numpy_array(heights_m_agl)
     error_checking.assert_is_numpy_array(heights_m_agl, num_dimensions=1)
 
     valid_heights_m_agl = _field_to_valid_heights(REFL_NAME)
@@ -271,7 +270,6 @@ def _field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None):
         (metres above ground level).
     """
 
-    error_checking.assert_is_string_array(field_names)
     field_to_heights_dict_m_agl = {}
 
     for j in range(len(field_names)):
@@ -314,8 +312,6 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
     :return: pathless_raw_file_name: Pathless name for MYRORSS file.
     """
 
-    error_checking.assert_is_boolean(zipped)
-
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
             time_conversion.unix_sec_to_string(unix_time_sec,
@@ -337,10 +333,6 @@ def _remove_sentinels(sparse_grid_table, field_name, sentinel_values):
     :return: sparse_grid_table: Same as input, except that rows with a sentinel
         value are removed.
     """
-
-    _check_field_name(field_name)
-    error_checking.assert_is_real_number_array(sentinel_values)
-    error_checking.assert_is_not_nan_array(sentinel_values)
 
     num_rows = len(sparse_grid_table.index)
     sentinel_flags = numpy.full(num_rows, False, dtype=bool)
@@ -430,7 +422,9 @@ def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    _check_field_name(field_name)
     error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
@@ -496,22 +490,22 @@ def rowcol_to_latlng(rows, columns, nw_grid_point_lat_deg=None,
     :return: longitudes_deg: length-P numpy array of longitudes (deg E).
     """
 
-    error_checking.assert_is_integer_array(rows)
-    error_checking.assert_is_non_negative_array(rows)
+    error_checking.assert_is_real_numpy_array(rows)
+    error_checking.assert_is_geq_numpy_array(rows, -0.5, allow_nan=True)
     error_checking.assert_is_numpy_array(rows, num_dimensions=1)
     num_points = len(rows)
 
-    error_checking.assert_is_integer_array(columns)
-    error_checking.assert_is_non_negative_array(columns)
+    error_checking.assert_is_real_numpy_array(columns)
+    error_checking.assert_is_geq_numpy_array(columns, -0.5, allow_nan=True)
     error_checking.assert_is_numpy_array(
-        columns, num_dimensions=1, exact_dimensions=numpy.array([num_points]))
+        columns, exact_dimensions=numpy.array([num_points]))
 
     error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
     nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
-        nw_grid_point_lng_deg)
+        nw_grid_point_lng_deg, allow_nan=False)
 
-    error_checking.assert_is_positive(lat_spacing_deg)
-    error_checking.assert_is_positive(lng_spacing_deg)
+    error_checking.assert_is_greater(lat_spacing_deg, 0)
+    error_checking.assert_is_greater(lng_spacing_deg, 0)
 
     latitudes_deg = rounder.round_to_nearest(
         nw_grid_point_lat_deg - lat_spacing_deg * rows,
@@ -520,7 +514,7 @@ def rowcol_to_latlng(rows, columns, nw_grid_point_lat_deg=None,
         nw_grid_point_lng_deg + lng_spacing_deg * columns,
         lng_spacing_deg / 2)
     return latitudes_deg, lng_conversion.convert_lng_positive_in_west(
-        longitudes_deg)
+        longitudes_deg, allow_nan=False)
 
 
 def latlng_to_rowcol(latitudes_deg, longitudes_deg, nw_grid_point_lat_deg=None,
@@ -543,22 +537,21 @@ def latlng_to_rowcol(latitudes_deg, longitudes_deg, nw_grid_point_lat_deg=None,
         east).
     """
 
+    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg, allow_nan=True)
     error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
     num_points = len(latitudes_deg)
-    for i in range(num_points):
-        error_checking.assert_is_valid_latitude(latitudes_deg[i])
 
-    longitudes_deg = lng_conversion.convert_lng_positive_in_west(longitudes_deg)
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(longitudes_deg,
+                                                                 allow_nan=True)
     error_checking.assert_is_numpy_array(
-        longitudes_deg, num_dimensions=1,
-        exact_dimensions=numpy.array([num_points]))
+        longitudes_deg, exact_dimensions=numpy.array([num_points]))
 
     error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
     nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
-        nw_grid_point_lng_deg)
+        nw_grid_point_lng_deg, allow_nan=False)
 
-    error_checking.assert_is_positive(lat_spacing_deg)
-    error_checking.assert_is_positive(lng_spacing_deg)
+    error_checking.assert_is_greater(lat_spacing_deg, 0)
+    error_checking.assert_is_greater(lng_spacing_deg, 0)
 
     columns = rounder.round_to_nearest(
         (longitudes_deg - nw_grid_point_lng_deg) / lng_spacing_deg, 0.5)
@@ -586,14 +579,14 @@ def get_center_of_grid(nw_grid_point_lat_deg=None, nw_grid_point_lng_deg=None,
 
     error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
     nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
-        nw_grid_point_lng_deg)
+        nw_grid_point_lng_deg, allow_nan=False)
 
-    error_checking.assert_is_positive(lat_spacing_deg)
-    error_checking.assert_is_positive(lng_spacing_deg)
-    error_checking.assert_is_positive(num_lat_in_grid)
+    error_checking.assert_is_greater(lat_spacing_deg, 0)
+    error_checking.assert_is_greater(lng_spacing_deg, 0)
     error_checking.assert_is_integer(num_lat_in_grid)
-    error_checking.assert_is_positive(num_lng_in_grid)
+    error_checking.assert_is_greater(num_lat_in_grid, 0)
     error_checking.assert_is_integer(num_lng_in_grid)
+    error_checking.assert_is_greater(num_lng_in_grid, 0)
 
     min_latitude_deg = nw_grid_point_lat_deg - (
         (num_lat_in_grid - 1) * lat_spacing_deg)
@@ -638,7 +631,8 @@ def read_metadata_from_netcdf(netcdf_file_name):
         NW_GRID_POINT_LAT_COLUMN: getattr(netcdf_dataset,
                                           NW_GRID_POINT_LAT_COLUMN_ORIG),
         NW_GRID_POINT_LNG_COLUMN: lng_conversion.convert_lng_positive_in_west(
-            getattr(netcdf_dataset, NW_GRID_POINT_LNG_COLUMN_ORIG)),
+            getattr(netcdf_dataset, NW_GRID_POINT_LNG_COLUMN_ORIG),
+            allow_nan=False),
         LAT_SPACING_COLUMN: getattr(netcdf_dataset, LAT_SPACING_COLUMN_ORIG),
         LNG_SPACING_COLUMN: getattr(netcdf_dataset, LNG_SPACING_COLUMN_ORIG),
         NUM_LAT_COLUMN: netcdf_dataset.dimensions[NUM_LAT_COLUMN_ORIG].size,
@@ -689,6 +683,9 @@ def read_sparse_grid_from_netcdf(netcdf_file_name, field_name_orig,
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
+    error_checking.assert_is_numpy_array_without_nan(sentinel_values)
+    error_checking.assert_is_numpy_array(sentinel_values, num_dimensions=1)
+
     netcdf_dataset = Dataset(netcdf_file_name)
     field_name = _field_name_orig_to_new(field_name_orig)
 

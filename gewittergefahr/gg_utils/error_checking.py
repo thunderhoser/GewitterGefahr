@@ -8,8 +8,13 @@ import numbers
 import os.path
 import numpy
 
+# TODO(thunderhoser): Fix hack in `REAL_NUMBER_TYPES` (where I added a bunch of
+# numpy types).  There must be a better way to deal with all numpy float and int
+# types.
+
 BOOLEAN_TYPES = (bool, numpy.bool_)
-REAL_NUMBER_TYPES = (float, numbers.Integral)
+REAL_NUMBER_TYPES = (float, numpy.float16, numpy.float32, numpy.float64,
+                     numbers.Integral)
 TREE_TYPES = (tuple, list)
 ARRAY_TYPES = (tuple, list, numpy.ndarray)
 
@@ -218,8 +223,8 @@ def assert_is_integer_numpy_array(input_variable):
     if not numpy.issubdtype(input_variable.dtype, int):
         error_string = (
             '\n' + str(input_variable) +
-            '\nInput array (shown above) has type "' + input_variable.dtype +
-            '", which is not integer.')
+            '\nInput array (shown above) has type "' +
+            str(input_variable.dtype) + '", which is not integer.')
         raise TypeError(error_string)
 
 
@@ -247,8 +252,8 @@ def assert_is_boolean_numpy_array(input_variable):
     if input_variable.dtype != numpy.bool_:
         error_string = (
             '\n' + str(input_variable) +
-            '\nInput array (shown above) has type "' + input_variable.dtype +
-            '", which is not Boolean.')
+            '\nInput array (shown above) has type "' +
+            str(input_variable.dtype) + '", which is not Boolean.')
         raise TypeError(error_string)
 
 
@@ -276,8 +281,8 @@ def assert_is_float_numpy_array(input_variable):
     if not numpy.issubdtype(input_variable.dtype, float):
         error_string = (
             '\n' + str(input_variable) +
-            '\nInput array (shown above) has type "' + input_variable.dtype +
-            '", which is not float.')
+            '\nInput array (shown above) has type "' +
+            str(input_variable.dtype) + '", which is not float.')
         raise TypeError(error_string)
 
 
@@ -290,6 +295,7 @@ def assert_is_real_number(input_variable):
 
     if (isinstance(input_variable, BOOLEAN_TYPES) or not isinstance(
             input_variable, REAL_NUMBER_TYPES)):
+        print type(input_variable)
         error_string = ('\n' + str(input_variable) +
                         '\nInput variable (shown above) is not real number.')
         raise TypeError(error_string)
@@ -307,8 +313,8 @@ def assert_is_real_numpy_array(input_variable):
             input_variable.dtype, float)):
         error_string = (
             '\n' + str(input_variable) +
-            '\nInput array (shown above) has type "' + input_variable.dtype +
-            '", which is not a real number.')
+            '\nInput array (shown above) has type "' +
+            str(input_variable.dtype) + '", which is not a real number.')
         raise TypeError(error_string)
 
 

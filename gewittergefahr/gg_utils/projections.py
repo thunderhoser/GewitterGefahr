@@ -25,13 +25,13 @@ def init_lambert_conformal_projection(standard_latitudes_deg,
         Lambert conformal projection.
     """
 
+    error_checking.assert_is_valid_lat_numpy_array(standard_latitudes_deg)
     error_checking.assert_is_numpy_array(standard_latitudes_deg,
                                          exact_dimensions=numpy.array([2]))
-    for this_latitude_deg in standard_latitudes_deg:
-        error_checking.assert_is_valid_latitude(this_latitude_deg)
 
+    error_checking.assert_is_non_array(central_longitude_deg)
     central_longitude_deg = lng_conversion.convert_lng_positive_in_west(
-        central_longitude_deg)
+        central_longitude_deg, allow_nan=False)
 
     return Proj(proj='lcc', lat_1=standard_latitudes_deg[0],
                 lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
@@ -49,8 +49,9 @@ def init_azimuthal_equidistant_projection(central_latitude_deg,
     """
 
     error_checking.assert_is_valid_latitude(central_latitude_deg)
+    error_checking.assert_is_non_array(central_longitude_deg)
     central_longitude_deg = lng_conversion.convert_lng_positive_in_west(
-        central_longitude_deg)
+        central_longitude_deg, allow_nan=False)
 
     return Proj(proj='aeqd', lat_0=central_latitude_deg,
                 lon_0=central_longitude_deg)
@@ -73,16 +74,14 @@ def project_latlng_to_xy(latitudes_deg, longitudes_deg, projection_object=None,
     :return: y_coords_metres: numpy array of y-coordinates with shape S.
     """
 
-    error_checking.assert_is_numpy_array(latitudes_deg)
-    for _, this_latitude_deg in numpy.ndenumerate(latitudes_deg):
-        if numpy.isnan(this_latitude_deg):
-            continue
-        error_checking.assert_is_valid_latitude(this_latitude_deg)
+    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg,
+                                                   allow_nan=True)
 
     shape_of_coord_arrays = latitudes_deg.shape
     error_checking.assert_is_numpy_array(
         longitudes_deg, exact_dimensions=numpy.asarray(shape_of_coord_arrays))
-    longitudes_deg = lng_conversion.convert_lng_positive_in_west(longitudes_deg)
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(longitudes_deg,
+                                                                 allow_nan=True)
 
     error_checking.assert_is_not_nan(false_easting_metres)
     error_checking.assert_is_not_nan(false_northing_metres)
@@ -118,13 +117,12 @@ def project_xy_to_latlng(x_coords_metres, y_coords_metres,
     :return: longitudes_deg: length-P numpy array of longitudes (deg E).
     """
 
-    error_checking.assert_is_numpy_array(x_coords_metres)
-    error_checking.assert_is_real_number_array(x_coords_metres)
+    error_checking.assert_is_real_numpy_array(x_coords_metres)
 
     shape_of_coord_arrays = x_coords_metres.shape
     error_checking.assert_is_numpy_array(
         y_coords_metres, exact_dimensions=numpy.asarray(shape_of_coord_arrays))
-    error_checking.assert_is_real_number_array(y_coords_metres)
+    error_checking.assert_is_real_numpy_array(y_coords_metres)
 
     error_checking.assert_is_not_nan(false_easting_metres)
     error_checking.assert_is_not_nan(false_northing_metres)
@@ -140,4 +138,4 @@ def project_xy_to_latlng(x_coords_metres, y_coords_metres,
     longitudes_deg[nan_indices] = numpy.nan
 
     return latitudes_deg, lng_conversion.convert_lng_positive_in_west(
-        longitudes_deg)
+        longitudes_deg, allow_nan=True)

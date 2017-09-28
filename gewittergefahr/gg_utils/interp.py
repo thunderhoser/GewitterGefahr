@@ -31,7 +31,15 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
         have the same length as in input_matrix.
     """
 
-    error_checking.assert_is_integer_array(query_times_unix_sec)
+    error_checking.assert_is_numpy_array_without_nan(input_matrix)
+    error_checking.assert_is_integer_numpy_array(sorted_input_times_unix_sec)
+    error_checking.assert_is_numpy_array_without_nan(
+        sorted_input_times_unix_sec)
+    error_checking.assert_is_numpy_array(sorted_input_times_unix_sec,
+                                         num_dimensions=1)
+
+    error_checking.assert_is_integer_numpy_array(query_times_unix_sec)
+    error_checking.assert_is_numpy_array_without_nan(query_times_unix_sec)
     error_checking.assert_is_numpy_array(query_times_unix_sec, num_dimensions=1)
 
     interp_object = scipy.interpolate.interp1d(
@@ -66,11 +74,14 @@ def interp_from_xy_grid_to_points(
         points.
     """
 
-    error_checking.assert_is_real_number_array(query_x_metres)
+    error_checking.assert_is_numpy_array_without_nan(input_matrix)
+    error_checking.assert_is_numpy_array(input_matrix, num_dimensions=2)
+
+    error_checking.assert_is_numpy_array_without_nan(query_x_metres)
     error_checking.assert_is_numpy_array(query_x_metres, num_dimensions=1)
     num_query_points = len(query_x_metres)
 
-    error_checking.assert_is_real_number_array(query_y_metres)
+    error_checking.assert_is_numpy_array_without_nan(query_y_metres)
     error_checking.assert_is_numpy_array(
         query_y_metres, exact_dimensions=numpy.array([num_query_points]))
 

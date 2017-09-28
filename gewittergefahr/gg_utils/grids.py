@@ -36,12 +36,12 @@ def get_xy_grid_points(x_min_metres=None, y_min_metres=None,
 
     error_checking.assert_is_not_nan(x_min_metres)
     error_checking.assert_is_not_nan(y_min_metres)
-    error_checking.assert_is_positive(x_spacing_metres)
-    error_checking.assert_is_positive(y_spacing_metres)
+    error_checking.assert_is_greater(x_spacing_metres, 0.)
+    error_checking.assert_is_greater(y_spacing_metres, 0.)
     error_checking.assert_is_integer(num_rows)
-    error_checking.assert_is_positive(num_rows)
+    error_checking.assert_is_greater(num_rows, 0)
     error_checking.assert_is_integer(num_columns)
-    error_checking.assert_is_positive(num_columns)
+    error_checking.assert_is_greater(num_columns, 0)
 
     x_max_metres = x_min_metres + (num_columns - 1) * x_spacing_metres
     y_max_metres = y_min_metres + (num_rows - 1) * y_spacing_metres
@@ -79,13 +79,13 @@ def get_latlng_grid_points(min_latitude_deg=None, min_longitude_deg=None,
 
     error_checking.assert_is_valid_latitude(min_latitude_deg)
     min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
-        min_longitude_deg)
-    error_checking.assert_is_positive(lat_spacing_deg)
-    error_checking.assert_is_positive(lng_spacing_deg)
+        min_longitude_deg, allow_nan=False)
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
     error_checking.assert_is_integer(num_rows)
-    error_checking.assert_is_positive(num_rows)
+    error_checking.assert_is_greater(num_rows, 0)
     error_checking.assert_is_integer(num_columns)
-    error_checking.assert_is_positive(num_columns)
+    error_checking.assert_is_greater(num_columns, 0)
 
     max_latitude_deg = min_latitude_deg + (num_rows - 1) * lat_spacing_deg
     max_longitude_deg = min_longitude_deg + (num_columns - 1) * lng_spacing_deg
@@ -188,9 +188,9 @@ def xy_vectors_to_matrices(x_unique_metres, y_unique_metres):
         y_unique_metres[i].  Each column in this matrix is the same.
     """
 
-    error_checking.assert_is_not_nan_array(x_unique_metres)
+    error_checking.assert_is_numpy_array_without_nan(x_unique_metres)
     error_checking.assert_is_numpy_array(x_unique_metres, num_dimensions=1)
-    error_checking.assert_is_not_nan_array(y_unique_metres)
+    error_checking.assert_is_numpy_array_without_nan(y_unique_metres)
     error_checking.assert_is_numpy_array(y_unique_metres, num_dimensions=1)
 
     return numpy.meshgrid(x_unique_metres, y_unique_metres)
@@ -217,14 +217,12 @@ def latlng_vectors_to_matrices(unique_latitudes_deg, unique_longitudes_deg):
         matrix is the same.
     """
 
+    error_checking.assert_is_valid_lat_numpy_array(unique_latitudes_deg)
     error_checking.assert_is_numpy_array(unique_latitudes_deg, num_dimensions=1)
-    for this_latitude_deg in unique_latitudes_deg:
-        error_checking.assert_is_valid_latitude(this_latitude_deg)
-
     error_checking.assert_is_numpy_array(unique_longitudes_deg,
                                          num_dimensions=1)
     unique_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
-        unique_longitudes_deg)
+        unique_longitudes_deg, allow_nan=False)
 
     (longitude_matrix_deg, latitude_matrix_deg) = numpy.meshgrid(
         unique_longitudes_deg, unique_latitudes_deg)

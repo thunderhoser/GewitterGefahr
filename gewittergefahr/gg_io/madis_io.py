@@ -107,7 +107,6 @@ def _column_name_orig_to_new(column_name_orig):
     :return: column_name: Column name in new format.
     """
 
-    error_checking.assert_is_string(column_name_orig)
     orig_column_flags = [s == column_name_orig for s in COLUMN_NAMES_ORIG]
     orig_column_index = numpy.where(orig_column_flags)[0][0]
     return COLUMN_NAMES[orig_column_index]
@@ -122,11 +121,6 @@ def _char_matrix_to_string_list(char_matrix):
     :param char_matrix: M-by-N character matrix.
     :return: strings: length-M list of strings.
     """
-
-    error_checking.assert_is_array(char_matrix)
-    num_strings = len(char_matrix)
-    for i in range(num_strings):
-        error_checking.assert_is_string_array(char_matrix[i])
 
     num_strings = char_matrix.shape[0]
     strings = [''] * num_strings
@@ -144,7 +138,6 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
     :return: ftp_file_name: Expected file path on FTP server.
     """
 
-    error_checking.assert_is_string(subdataset_name)
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
 
     if subdataset_name in LDAD_SUBDATASET_NAMES:
@@ -216,7 +209,7 @@ def _remove_invalid_data(wind_table):
 
     wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
         lng_conversion.convert_lng_positive_in_west(
-            wind_table[raw_wind_io.LONGITUDE_COLUMN].values))
+            wind_table[raw_wind_io.LONGITUDE_COLUMN].values, allow_nan=False))
     return wind_table
 
 
@@ -277,7 +270,6 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
     :return: pathless_raw_file_name: Pathless name for raw MADIS file.
     """
 
-    error_checking.assert_is_boolean(zipped)
     if zipped:
         return '{0:s}{1:s}'.format(
             time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_HOUR),
@@ -335,6 +327,7 @@ def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
 
     error_checking.assert_is_string(subdataset_name)
     error_checking.assert_is_string(top_local_directory_name)
+    error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
@@ -375,6 +368,7 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
         failed but raise_error_if_fails = False, this will be None.
     """
 
+    error_checking.assert_is_string(subdataset_name)
     ftp_file_name = _get_ftp_file_name(unix_time_sec, subdataset_name)
 
     local_gzip_file_name = find_local_raw_file(
@@ -522,10 +516,10 @@ def read_winds_from_netcdf(netcdf_file_name):
 
 
 if __name__ == '__main__':
-    wind_table = read_winds_from_netcdf(NETCDF_FILE_NAME)
-    print wind_table
+    WIND_TABLE = read_winds_from_netcdf(NETCDF_FILE_NAME)
+    print WIND_TABLE
 
-    wind_table = raw_wind_io.sustained_and_gust_to_uv_max(wind_table)
-    print wind_table
+    WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
+    print WIND_TABLE
 
-    raw_wind_io.write_winds_to_csv(wind_table, CSV_FILE_NAME)
+    raw_wind_io.write_winds_to_csv(WIND_TABLE, CSV_FILE_NAME)

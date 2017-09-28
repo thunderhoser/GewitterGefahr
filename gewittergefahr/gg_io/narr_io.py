@@ -123,13 +123,13 @@ def read_variable_from_grib(grib_file_name, valid_time_unix_sec=None,
 
 
 if __name__ == '__main__':
-    local_grib_file_name = download_grib_file(
+    LOCAL_GRIB_FILE_NAME = download_grib_file(
         VALID_TIME_UNIX_SEC,
         top_local_directory_name=TOP_LOCAL_GRIB_DIR_NAME)
-    print local_grib_file_name
+    print LOCAL_GRIB_FILE_NAME
 
-    (data_matrix, local_text_file_name) = read_variable_from_grib(
-        local_grib_file_name, valid_time_unix_sec=VALID_TIME_UNIX_SEC,
+    (DATA_MATRIX, _) = read_variable_from_grib(
+        LOCAL_GRIB_FILE_NAME, valid_time_unix_sec=VALID_TIME_UNIX_SEC,
         grib_var_name=GRIB_VAR_NAME,
         top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME)
-    print data_matrix
+    print DATA_MATRIX

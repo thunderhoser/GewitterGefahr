@@ -11,7 +11,6 @@ from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add README_grib to this directory.
 # TODO(thunderhoser): replace main method with named method.
 
 RELATIVE_TOLERANCE = 1e-6
@@ -60,11 +59,8 @@ def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
         NaN.
     """
 
-    error_checking.assert_is_numpy_array(data_matrix)
     if sentinel_value is None:
         return data_matrix
-
-    error_checking.assert_is_real_number(sentinel_value)
 
     data_vector = numpy.reshape(data_matrix, data_matrix.size)
     sentinel_flags = numpy.isclose(data_vector, sentinel_value,
@@ -88,9 +84,6 @@ def _extract_variable_grib_to_text(grib_file_name, grib_var_name=None,
     :param wgrib_exe_name: Path to wgrib executable.
     """
 
-    error_checking.assert_file_exists(grib_file_name)
-    error_checking.assert_is_string(grib_var_name)
-    error_checking.assert_file_exists(wgrib_exe_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
 
     wgrib_command_string = (
@@ -114,9 +107,6 @@ def _extract_variable_grib2_to_text(grib2_file_name, grib2_var_name=None,
     :param wgrib2_exe_name: Path to wgrib2 executable.
     """
 
-    error_checking.assert_file_exists(grib2_file_name)
-    error_checking.assert_is_string(grib2_var_name)
-    error_checking.assert_file_exists(wgrib2_exe_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
 
     wgrib2_command_string = (
@@ -147,12 +137,6 @@ def _read_variable_from_text(text_file_name, num_grid_rows=None,
         and longitude increases while traveling right across the rows.
     """
 
-    error_checking.assert_file_exists(text_file_name)
-    error_checking.assert_is_integer(num_grid_rows)
-    error_checking.assert_is_positive(num_grid_rows)
-    error_checking.assert_is_integer(num_grid_columns)
-    error_checking.assert_is_positive(num_grid_columns)
-
     data_matrix = numpy.reshape(numpy.loadtxt(text_file_name),
                                 (num_grid_rows, num_grid_columns))
 
@@ -179,7 +163,16 @@ def read_variable_from_grib(grib_file_name, grib_var_name=None,
     :return: data_matrix: See documentation for _read_variable_from_text.
     """
 
+    error_checking.assert_file_exists(grib_file_name)
+    error_checking.assert_is_string(grib_var_name)
+    error_checking.assert_file_exists(wgrib_exe_name)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_greater(num_grid_rows, 0)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_greater(num_grid_columns, 0)
     error_checking.assert_is_boolean(delete_text_file)
+    if sentinel_value is not None:
+        error_checking.assert_is_not_nan(sentinel_value)
 
     _extract_variable_grib_to_text(grib_file_name, grib_var_name=grib_var_name,
                                    text_file_name=text_file_name,
@@ -220,7 +213,16 @@ def read_variable_from_grib2(grib2_file_name, grib2_var_name=None,
     :return: data_matrix: See documentation for _read_variable_from_text.
     """
 
+    error_checking.assert_file_exists(grib2_file_name)
+    error_checking.assert_is_string(grib2_var_name)
+    error_checking.assert_file_exists(wgrib2_exe_name)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_greater(num_grid_rows, 0)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_greater(num_grid_columns, 0)
     error_checking.assert_is_boolean(delete_text_file)
+    if sentinel_value is not None:
+        error_checking.assert_is_not_nan(sentinel_value)
 
     _extract_variable_grib2_to_text(grib2_file_name,
                                     grib2_var_name=grib2_var_name,
@@ -243,7 +245,7 @@ if __name__ == '__main__':
                                      NARR_FILE_NAME_LOCAL)
     downloads.download_file_from_url(RAP_FILE_NAME_ONLINE, RAP_FILE_NAME_LOCAL)
 
-    narr_h500_matrix_metres = (
+    NARR_H500_MATRIX_METRES = (
         read_variable_from_grib(NARR_FILE_NAME_LOCAL,
                                 grib_var_name=H500_NAME_GRIB,
                                 text_file_name=NARR_H500_FILE_NAME,
@@ -251,11 +253,11 @@ if __name__ == '__main__':
                                 num_grid_rows=NUM_ROWS_IN_NARR,
                                 num_grid_columns=NUM_COLUMNS_IN_NARR,
                                 sentinel_value=NARR_SENTINEL_VALUE))
-    print narr_h500_matrix_metres
-    print numpy.nanmin(narr_h500_matrix_metres)
-    print numpy.nanmax(narr_h500_matrix_metres)
+    print NARR_H500_MATRIX_METRES
+    print numpy.nanmin(NARR_H500_MATRIX_METRES)
+    print numpy.nanmax(NARR_H500_MATRIX_METRES)
 
-    rap_h500_matrix_metres = (
+    RAP_H500_MATRIX_METRES = (
         read_variable_from_grib2(RAP_FILE_NAME_LOCAL,
                                  grib2_var_name=H500_NAME_GRIB,
                                  text_file_name=RAP_H500_FILE_NAME,
@@ -263,6 +265,6 @@ if __name__ == '__main__':
                                  num_grid_rows=NUM_ROWS_IN_RAP,
                                  num_grid_columns=NUM_COLUMNS_IN_RAP,
                                  sentinel_value=RAP_SENTINEL_VALUE))
-    print rap_h500_matrix_metres
-    print numpy.nanmin(rap_h500_matrix_metres)
-    print numpy.nanmax(rap_h500_matrix_metres)
+    print RAP_H500_MATRIX_METRES
+    print numpy.nanmin(RAP_H500_MATRIX_METRES)
+    print numpy.nanmax(RAP_H500_MATRIX_METRES)

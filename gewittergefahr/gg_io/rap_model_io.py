@@ -207,29 +207,29 @@ def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
 
 
 if __name__ == '__main__':
-    local_grib2_file_name = download_grib2_file(
+    LOCAL_GRIB2_FILE_NAME = download_grib2_file(
         INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS, grid_id=ID_FOR_130GRID,
         top_local_directory_name=TOP_LOCAL_GRIB_DIR_NAME_130GRID,
         raise_error_if_fails=True)
-    print local_grib2_file_name
+    print LOCAL_GRIB2_FILE_NAME
 
-    (data_matrix, local_text_file_name) = read_variable_from_grib2(
-        local_grib2_file_name, init_time_unix_sec=INIT_TIME_UNIX_SEC,
+    (DATA_MATRIX, LOCAL_TEXT_FILE_NAME) = read_variable_from_grib2(
+        LOCAL_GRIB2_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
         lead_time_hours=LEAD_TIME_HOURS, grid_id=ID_FOR_130GRID,
         grib2_var_name=GRIB2_VAR_NAME,
         top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME_130GRID)
-    print data_matrix
+    print DATA_MATRIX
     print '\n'
 
-    local_grib2_file_name = download_grib2_file(
+    LOCAL_GRIB2_FILE_NAME = download_grib2_file(
         INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS, grid_id=ID_FOR_252GRID,
         top_local_directory_name=TOP_LOCAL_GRIB_DIR_NAME_252GRID,
         raise_error_if_fails=True)
-    print local_grib2_file_name
+    print LOCAL_GRIB2_FILE_NAME
 
-    (data_matrix, local_text_file_name) = read_variable_from_grib2(
-        local_grib2_file_name, init_time_unix_sec=INIT_TIME_UNIX_SEC,
+    (DATA_MATRIX, LOCAL_TEXT_FILE_NAME) = read_variable_from_grib2(
+        LOCAL_GRIB2_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
         lead_time_hours=LEAD_TIME_HOURS, grid_id=ID_FOR_252GRID,
         grib2_var_name=GRIB2_VAR_NAME,
         top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME_252GRID)
-    print data_matrix
+    print DATA_MATRIX

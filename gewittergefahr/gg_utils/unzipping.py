@@ -18,8 +18,7 @@ def unzip_tar(tar_file_name, target_directory_name=None,
     """
 
     error_checking.assert_is_string(tar_file_name)
-    error_checking.assert_is_string_array(file_and_dir_names_to_unzip)
-
+    error_checking.assert_is_string_list(file_and_dir_names_to_unzip)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=target_directory_name)
 
@@ -42,7 +41,6 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
     """
 
     error_checking.assert_is_string(gzip_file_name)
-
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=extracted_file_name)
 

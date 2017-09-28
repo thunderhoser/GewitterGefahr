@@ -38,11 +38,11 @@ def _check_vertex_arrays(vertex_x_metres, vertex_y_metres):
         not NaN, or vice-versa, for any k.
     """
 
-    error_checking.assert_is_real_number_array(vertex_x_metres)
+    error_checking.assert_is_real_numpy_array(vertex_x_metres)
     error_checking.assert_is_numpy_array(vertex_x_metres, num_dimensions=1)
     num_vertices = len(vertex_x_metres)
 
-    error_checking.assert_is_real_number_array(vertex_y_metres)
+    error_checking.assert_is_real_numpy_array(vertex_y_metres)
     error_checking.assert_is_numpy_array(
         vertex_y_metres, exact_dimensions=numpy.array([num_vertices]))
 
@@ -98,12 +98,13 @@ def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
 
     _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
 
-    nan_indices = numpy.where(numpy.isnan(vertex_x_metres))[0]
-    if not nan_indices:
+    nan_flags = numpy.isnan(vertex_x_metres)
+    if not numpy.any(nan_flags):
         return {EXTERIOR_X_COLUMN: vertex_x_metres,
                 EXTERIOR_Y_COLUMN: vertex_y_metres, HOLE_X_COLUMN: [],
                 HOLE_Y_COLUMN: []}
 
+    nan_indices = numpy.where(nan_flags)[0]
     num_holes = len(nan_indices)
     exterior_x_metres = vertex_x_metres[0:nan_indices[0]]
     exterior_y_metres = vertex_y_metres[0:nan_indices[0]]
@@ -155,15 +156,6 @@ def _merge_exterior_and_holes(exterior_vertex_x_metres,
     """
 
     _check_vertex_arrays(exterior_vertex_x_metres, exterior_vertex_y_metres)
-
-    error_checking.assert_is_real_number_array(exterior_vertex_x_metres)
-    error_checking.assert_is_numpy_array(exterior_vertex_x_metres,
-                                         num_dimensions=1)
-    num_vertices = len(exterior_vertex_x_metres)
-
-    error_checking.assert_is_real_number_array(exterior_vertex_y_metres)
-    error_checking.assert_is_numpy_array(
-        exterior_vertex_y_metres, exact_dimensions=numpy.array([num_vertices]))
 
     vertex_x_metres = copy.deepcopy(exterior_vertex_x_metres)
     vertex_y_metres = copy.deepcopy(exterior_vertex_y_metres)
@@ -336,11 +328,6 @@ def _get_direction_of_vertex_pair(first_row, second_row, first_column,
         "down_right", or "down_left").
     """
 
-    error_checking.assert_is_not_nan(first_row)
-    error_checking.assert_is_not_nan(second_row)
-    error_checking.assert_is_not_nan(first_column)
-    error_checking.assert_is_not_nan(second_column)
-
     if first_column == second_column:
         if second_row > first_row:
             return DOWN_DIRECTION_NAME
@@ -430,9 +417,6 @@ def _patch_diag_connections_in_binary_matrix(binary_matrix):
         patched.
     """
 
-    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
-    error_checking.assert_is_boolean_array(binary_matrix)
-
     num_rows = binary_matrix.shape[0]
     num_columns = binary_matrix.shape[1]
     found_diag_connection = True
@@ -484,14 +468,6 @@ def _points_in_poly_to_binary_matrix(row_indices, column_indices):
         later to convert the subgrid back to the full grid.
     """
 
-    error_checking.assert_is_integer_array(row_indices)
-    error_checking.assert_is_numpy_array(row_indices, num_dimensions=1)
-    num_points = len(row_indices)
-
-    error_checking.assert_is_integer_array(column_indices)
-    error_checking.assert_is_numpy_array(
-        column_indices, exact_dimensions=numpy.array([num_points]))
-
     num_rows_in_subgrid = max(row_indices) - min(row_indices) + 3
     num_columns_in_subgrid = max(column_indices) - min(column_indices) + 3
 
@@ -533,11 +509,6 @@ def _binary_matrix_to_points_in_poly(binary_matrix, first_row_index,
     :return: column_indices: length-P numpy array with column indices of grid
         points in polygon.
     """
-
-    error_checking.assert_is_numpy_array(binary_matrix, num_dimensions=2)
-    error_checking.assert_is_boolean_array(binary_matrix)
-    error_checking.assert_is_integer(first_row_index)
-    error_checking.assert_is_integer(first_column_index)
 
     num_rows_in_subgrid = binary_matrix.shape[0]
     num_columns_in_subgrid = binary_matrix.shape[1]
@@ -662,6 +633,16 @@ def points_in_poly_to_vertices(row_indices, column_indices):
         vertices.  All half-integers.
     """
 
+    error_checking.assert_is_integer_numpy_array(row_indices)
+    error_checking.assert_is_numpy_array_without_nan(row_indices)
+    error_checking.assert_is_numpy_array(row_indices, num_dimensions=1)
+    num_points = len(row_indices)
+
+    error_checking.assert_is_integer_numpy_array(column_indices)
+    error_checking.assert_is_numpy_array_without_nan(column_indices)
+    error_checking.assert_is_numpy_array(
+        column_indices, exact_dimensions=numpy.array([num_points]))
+
     (binary_matrix, first_row_index,
      first_column_index) = _points_in_poly_to_binary_matrix(row_indices,
                                                             column_indices)
@@ -729,7 +710,13 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
 
     _check_vertex_arrays(orig_vertex_x_metres, orig_vertex_y_metres)
     error_checking.assert_is_real_number(min_buffer_dist_metres)
+    error_checking.assert_is_geq(min_buffer_dist_metres, 0., allow_nan=True)
+
     error_checking.assert_is_not_nan(max_buffer_dist_metres)
+    if not numpy.isnan(min_buffer_dist_metres):
+        error_checking.assert_is_greater(max_buffer_dist_metres,
+                                         min_buffer_dist_metres)
+
     error_checking.assert_is_boolean(preserve_angles)
 
     if preserve_angles:

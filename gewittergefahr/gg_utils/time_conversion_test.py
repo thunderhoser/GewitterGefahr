@@ -13,7 +13,6 @@ TIME_FORMAT_HOUR = '%Y-%m-%d-%H00'
 TIME_FORMAT_MINUTE = '%Y-%m-%d-%H%M'
 TIME_FORMAT_SECOND = '%Y-%m-%d-%H%M%S'
 
-UNIX_TIME_SEC = 1506403233
 TIME_STRING_YEAR = '2017'
 TIME_STRING_NUMERIC_MONTH = '09'
 TIME_STRING_3LETTER_MONTH = 'Sep'
@@ -24,6 +23,13 @@ TIME_STRING_HOUR = '2017-09-26-0500'
 TIME_STRING_MINUTE = '2017-09-26-0520'
 TIME_STRING_SECOND = '2017-09-26-052033'
 
+UNIX_TIME_YEAR_SEC = 1483228800
+UNIX_TIME_MONTH_SEC = 1504224000
+UNIX_TIME_DATE_SEC = 1506384000
+UNIX_TIME_HOUR_SEC = 1506402000
+UNIX_TIME_MINUTE_SEC = 1506403200
+UNIX_TIME_SEC = 1506403233
+
 
 class TimeConversionTests(unittest.TestCase):
     """Each method is a unit test for time_conversion.py."""
@@ -33,56 +39,35 @@ class TimeConversionTests(unittest.TestCase):
 
         this_time_unix_sec = time_conversion.string_to_unix_sec(
             TIME_STRING_YEAR, TIME_FORMAT_YEAR)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
-
-    def test_string_to_unix_sec_numeric_month(self):
-        """Ensures correctness of string_to_unix_sec; string = numeric month."""
-
-        this_time_unix_sec = time_conversion.string_to_unix_sec(
-            TIME_STRING_NUMERIC_MONTH, TIME_FORMAT_NUMERIC_MONTH)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
-
-    def test_string_to_unix_sec_3letter_month(self):
-        """Ensures correctness of string_to_unix_sec; string = 3-lttr month."""
-
-        this_time_unix_sec = time_conversion.string_to_unix_sec(
-            TIME_STRING_3LETTER_MONTH, TIME_FORMAT_3LETTER_MONTH)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+        self.assertTrue(this_time_unix_sec == UNIX_TIME_YEAR_SEC)
 
     def test_string_to_unix_sec_year_month(self):
         """Ensures correctness of string_to_unix_sec; string = year-month."""
 
         this_time_unix_sec = time_conversion.string_to_unix_sec(
             TIME_STRING_YEAR_MONTH, TIME_FORMAT_YEAR_MONTH)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
-
-    def test_string_to_unix_sec_day_of_month(self):
-        """Ensures correctness of string_to_unix_sec; string = day of month."""
-
-        this_time_unix_sec = time_conversion.string_to_unix_sec(
-            TIME_STRING_DAY_OF_MONTH, TIME_FORMAT_DAY_OF_MONTH)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+        self.assertTrue(this_time_unix_sec == UNIX_TIME_MONTH_SEC)
 
     def test_string_to_unix_sec_date(self):
         """Ensures correctness of string_to_unix_sec; string = full date."""
 
         this_time_unix_sec = time_conversion.string_to_unix_sec(
             TIME_STRING_DATE, TIME_FORMAT_DATE)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+        self.assertTrue(this_time_unix_sec == UNIX_TIME_DATE_SEC)
 
     def test_string_to_unix_sec_hour(self):
         """Ensures correctness of string_to_unix_sec; string = full hour."""
 
         this_time_unix_sec = time_conversion.string_to_unix_sec(
             TIME_STRING_HOUR, TIME_FORMAT_HOUR)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+        self.assertTrue(this_time_unix_sec == UNIX_TIME_HOUR_SEC)
 
     def test_string_to_unix_sec_minute(self):
         """Ensures correctness of string_to_unix_sec; string = full minute."""
 
         this_time_unix_sec = time_conversion.string_to_unix_sec(
             TIME_STRING_MINUTE, TIME_FORMAT_MINUTE)
-        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+        self.assertTrue(this_time_unix_sec == UNIX_TIME_MINUTE_SEC)
 
     def test_string_to_unix_sec_second(self):
         """Ensures correctness of string_to_unix_sec; string = full second."""

@@ -65,8 +65,6 @@ def _date_string_to_unix_sec(date_string):
     :return: unix_date_sec: Date in Unix format.
     """
 
-    error_checking.assert_is_string(date_string)
-
     words = date_string.split()
     date_string = words[1] + '-' + words[2] + '-' + words[3]
     return time_conversion.string_to_unix_sec(date_string, TIME_FORMAT_DATE)
@@ -80,7 +78,6 @@ def _read_valid_date_from_text(text_file_name):
         UTC 1 Jan 1970).
     """
 
-    error_checking.assert_file_exists(text_file_name)
     num_lines_read = 0
 
     for this_line in open(text_file_name, 'r').readlines():
@@ -117,7 +114,8 @@ def _remove_invalid_station_metadata(station_metadata_table):
     station_metadata_table[
         raw_wind_io.LONGITUDE_COLUMN] = (
             lng_conversion.convert_lng_positive_in_west(
-                station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values))
+                station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values,
+                allow_nan=False))
 
     return station_metadata_table
 
@@ -304,14 +302,14 @@ def merge_winds_and_metadata(wind_table, station_metadata_table):
 
 
 if __name__ == '__main__':
-    station_metadata_table = read_station_metadata_from_orig_csv(
+    STATION_METADATA_TABLE = read_station_metadata_from_orig_csv(
         ORIG_METAFILE_NAME)
-    raw_wind_io.write_station_metadata_to_csv(station_metadata_table,
+    raw_wind_io.write_station_metadata_to_csv(STATION_METADATA_TABLE,
                                               NEW_METAFILE_NAME)
 
-    wind_table = read_winds_from_text(ORIG_WIND_FILE_NAME)
-    wind_table = raw_wind_io.sustained_and_gust_to_uv_max(wind_table)
-    wind_table = merge_winds_and_metadata(wind_table, station_metadata_table)
-    print wind_table
+    WIND_TABLE = read_winds_from_text(ORIG_WIND_FILE_NAME)
+    WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
+    WIND_TABLE = merge_winds_and_metadata(WIND_TABLE, STATION_METADATA_TABLE)
+    print WIND_TABLE
 
-    raw_wind_io.write_winds_to_csv(wind_table, NEW_WIND_FILE_NAME)
+    raw_wind_io.write_winds_to_csv(WIND_TABLE, NEW_WIND_FILE_NAME)

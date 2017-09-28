@@ -84,7 +84,6 @@ def _local_time_string_to_unix_sec(local_time_string, utc_offset_hours):
     :return: unix_time_sec: Time in Unix format.
     """
 
-    error_checking.assert_is_integer(utc_offset_hours)
     return time_conversion.string_to_unix_sec(
         local_time_string, TIME_FORMAT_HOUR_MINUTE) - (
             utc_offset_hours * HOURS_TO_SECONDS)
@@ -100,7 +99,6 @@ def _parse_1minute_wind_from_line(line_string):
     wind_gust_direction_deg: Direction of wind gust (degrees of origin).
     """
 
-    error_checking.assert_is_string(line_string)
     words = line_string.split()
 
     try:
@@ -139,7 +137,6 @@ def _parse_5minute_wind_from_line(line_string):
     wind_gust_direction_deg: Direction of wind gust (degrees of origin).
     """
 
-    error_checking.assert_is_string(line_string)
     wind_gust_direction_deg = numpy.nan
     words = line_string.split()
 
@@ -226,7 +223,8 @@ def _remove_invalid_station_metadata(station_metadata_table):
 
     station_metadata_table[raw_wind_io.LONGITUDE_COLUMN] = (
         lng_conversion.convert_lng_positive_in_west(
-            station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values))
+            station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values,
+            allow_nan=False))
     return station_metadata_table
 
 
@@ -279,7 +277,6 @@ def _get_pathless_raw_1minute_file_name(station_id, month_unix_sec):
     :return: pathless_raw_file_name: Pathless name for raw 1-minute file.
     """
 
-    error_checking.assert_is_string(station_id)
     return '{0:s}{1:s}{2:s}{3:s}'.format(
         PATHLESS_FILE_NAME_PREFIX_1MINUTE, station_id,
         time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_MONTH),
@@ -294,7 +291,6 @@ def _get_pathless_raw_5minute_file_name(station_id, month_unix_sec):
     :return: pathless_raw_file_name: Pathless name for raw 5-minute file.
     """
 
-    error_checking.assert_is_string(station_id)
     return '{0:s}{1:s}{2:s}{3:s}'.format(
         PATHLESS_FILE_NAME_PREFIX_5MINUTE, station_id,
         time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_MONTH),
@@ -318,6 +314,7 @@ def find_local_raw_1minute_file(station_id=None, month_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_string(station_id)
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
@@ -351,6 +348,7 @@ def find_local_raw_5minute_file(station_id=None, month_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_string(station_id)
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
@@ -519,6 +517,7 @@ def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
     """
 
     error_checking.assert_file_exists(text_file_name)
+    error_checking.assert_is_not_nan(utc_offset_hours)
 
     unix_times_sec = []
     wind_speeds_m_s01 = []
@@ -585,6 +584,7 @@ def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
     """
 
     error_checking.assert_file_exists(text_file_name)
+    error_checking.assert_is_not_nan(utc_offset_hours)
 
     unix_times_sec = []
     wind_speeds_m_s01 = []
@@ -653,56 +653,56 @@ def merge_winds_and_metadata(wind_table, station_metadata_table, station_id):
 
 if __name__ == '__main__':
     # Read metadata from original text file; write to new CSV file.
-    station_metadata_table = read_station_metadata_from_text(ORIG_METAFILE_NAME)
-    raw_wind_io.write_station_metadata_to_csv(station_metadata_table,
+    STATION_METADATA_TABLE = read_station_metadata_from_text(ORIG_METAFILE_NAME)
+    raw_wind_io.write_station_metadata_to_csv(STATION_METADATA_TABLE,
                                               NEW_METAFILE_NAME)
 
     # Download 1-minute METARs and convert file type.
-    orig_1minute_file_name = download_1minute_file(
+    ORIG_1MINUTE_FILE_NAME = download_1minute_file(
         station_id=ORIG_STATION_ID_1MINUTE,
         month_unix_sec=MONTH_1MINUTE_UNIX_SEC,
         top_local_directory_name=TOP_LOCAL_DIR_NAME_1MINUTE,
         raise_error_if_fails=True)
 
-    these_station_flags = [s == STATION_ID_1MINUTE for s in
-                           station_metadata_table[
+    THESE_STATION_FLAGS = [s == STATION_ID_1MINUTE for s in
+                           STATION_METADATA_TABLE[
                                raw_wind_io.STATION_ID_COLUMN].values]
-    this_station_index = numpy.where(these_station_flags)[0][0]
-    this_utc_offset_hours = station_metadata_table[UTC_OFFSET_COLUMN].values[
-        this_station_index]
+    THIS_STATION_INDEX = numpy.where(THESE_STATION_FLAGS)[0][0]
+    THIS_UTC_OFFSET_HOURS = STATION_METADATA_TABLE[UTC_OFFSET_COLUMN].values[
+        THIS_STATION_INDEX]
 
-    wind_table_1minute = read_1minute_winds_from_text(orig_1minute_file_name,
-                                                      this_utc_offset_hours)
-    wind_table_1minute = raw_wind_io.sustained_and_gust_to_uv_max(
-        wind_table_1minute)
-    wind_table_1minute = merge_winds_and_metadata(wind_table_1minute,
-                                                  station_metadata_table,
+    WIND_TABLE_1MINUTE = read_1minute_winds_from_text(ORIG_1MINUTE_FILE_NAME,
+                                                      THIS_UTC_OFFSET_HOURS)
+    WIND_TABLE_1MINUTE = raw_wind_io.sustained_and_gust_to_uv_max(
+        WIND_TABLE_1MINUTE)
+    WIND_TABLE_1MINUTE = merge_winds_and_metadata(WIND_TABLE_1MINUTE,
+                                                  STATION_METADATA_TABLE,
                                                   STATION_ID_1MINUTE)
-    print wind_table_1minute
+    print WIND_TABLE_1MINUTE
 
-    raw_wind_io.write_winds_to_csv(wind_table_1minute, CSV_FILE_NAME_1MINUTE)
+    raw_wind_io.write_winds_to_csv(WIND_TABLE_1MINUTE, CSV_FILE_NAME_1MINUTE)
 
     # Download 5-minute METARs and convert file type.
-    orig_5minute_file_name = download_5minute_file(
+    ORIG_5MINUTE_FILE_NAME = download_5minute_file(
         station_id=ORIG_STATION_ID_5MINUTE,
         month_unix_sec=MONTH_5MINUTE_UNIX_SEC,
         top_local_directory_name=TOP_LOCAL_DIR_NAME_5MINUTE,
         raise_error_if_fails=True)
 
-    these_station_flags = [s == STATION_ID_5MINUTE for s in
-                           station_metadata_table[
+    THESE_STATION_FLAGS = [s == STATION_ID_5MINUTE for s in
+                           STATION_METADATA_TABLE[
                                raw_wind_io.STATION_ID_COLUMN].values]
-    this_station_index = numpy.where(these_station_flags)[0][0]
-    this_utc_offset_hours = station_metadata_table[UTC_OFFSET_COLUMN].values[
-        this_station_index]
+    THIS_STATION_INDEX = numpy.where(THESE_STATION_FLAGS)[0][0]
+    THIS_UTC_OFFSET_HOURS = STATION_METADATA_TABLE[UTC_OFFSET_COLUMN].values[
+        THIS_STATION_INDEX]
 
-    wind_table_5minute = read_5minute_winds_from_text(orig_5minute_file_name,
-                                                      this_utc_offset_hours)
-    wind_table_5minute = raw_wind_io.sustained_and_gust_to_uv_max(
-        wind_table_5minute)
-    wind_table_5minute = merge_winds_and_metadata(wind_table_5minute,
-                                                  station_metadata_table,
+    WIND_TABLE_5MINUTE = read_5minute_winds_from_text(ORIG_5MINUTE_FILE_NAME,
+                                                      THIS_UTC_OFFSET_HOURS)
+    WIND_TABLE_5MINUTE = raw_wind_io.sustained_and_gust_to_uv_max(
+        WIND_TABLE_5MINUTE)
+    WIND_TABLE_5MINUTE = merge_winds_and_metadata(WIND_TABLE_5MINUTE,
+                                                  STATION_METADATA_TABLE,
                                                   STATION_ID_5MINUTE)
-    print wind_table_5minute
+    print WIND_TABLE_5MINUTE
 
-    raw_wind_io.write_winds_to_csv(wind_table_5minute, CSV_FILE_NAME_5MINUTE)
+    raw_wind_io.write_winds_to_csv(WIND_TABLE_5MINUTE, CSV_FILE_NAME_5MINUTE)

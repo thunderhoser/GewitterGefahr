@@ -29,8 +29,6 @@ def _lead_time_number_to_string(lead_time_hours):
         3 digits, with leading zeros if necessary.
     """
 
-    error_checking.assert_is_integer(lead_time_hours)
-    error_checking.assert_is_non_negative(lead_time_hours)
     return '{0:03d}'.format(lead_time_hours)
 
 
@@ -46,9 +44,6 @@ def _get_pathless_raw_file_name(init_time_unix_sec, lead_time_hours,
         for the RAP.
     :return: pathless_file_name: Expected pathless file name.
     """
-
-    error_checking.assert_is_string(model_id)
-    error_checking.assert_is_string(file_extension)
 
     return '{0:s}_{1:s}_{2:s}{3:s}'.format(
         model_id, time_conversion.unix_sec_to_string(init_time_unix_sec,
@@ -68,9 +63,6 @@ def _get_pathless_text_file_name(init_time_unix_sec, lead_time_hours,
         "HGT:500mb" for 500-mb height.
     :return: pathless_file_name: Expected pathless file name.
     """
-
-    error_checking.assert_is_string(model_id)
-    error_checking.assert_is_string(variable_id)
 
     return '{0:s}_{1:s}_{2:s}_{3:s}{4:s}'.format(
         model_id, time_conversion.unix_sec_to_string(init_time_unix_sec,
@@ -100,7 +92,11 @@ def find_local_raw_file(init_time_unix_sec, lead_time_hours,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_integer(init_time_unix_sec)
+    error_checking.assert_is_integer(lead_time_hours)
     error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_string(model_id)
+    error_checking.assert_is_string(file_extension)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_raw_file_name(
@@ -141,7 +137,11 @@ def find_local_text_file(init_time_unix_sec, lead_time_hours,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    error_checking.assert_is_integer(init_time_unix_sec)
+    error_checking.assert_is_integer(lead_time_hours)
     error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_string(model_id)
+    error_checking.assert_is_string(variable_id)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     pathless_file_name = _get_pathless_text_file_name(
@@ -182,6 +182,8 @@ def download_grib_or_grib2_file(init_time_unix_sec, lead_time_hours,
     :raises: ValueError: if raise_error_if_fails = True and download failed.
     """
 
+    error_checking.assert_is_integer(init_time_unix_sec)
+    error_checking.assert_is_integer(lead_time_hours)
     error_checking.assert_is_string(top_online_directory_name)
     error_checking.assert_is_boolean(raise_error_if_fails)
 

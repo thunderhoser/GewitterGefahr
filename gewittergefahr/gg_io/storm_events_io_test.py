@@ -49,34 +49,34 @@ RAW_FILE_NAME = 'storm_events/raw_files/storm_events2015.csv'
 class StormEventsIoTests(unittest.TestCase):
     """Each method is a unit test for storm_events_io.py."""
 
-    def test_year_int_to_string_1digit(self):
-        """Ensures correct output from _year_int_to_string for 1-digit year."""
+    def test_year_number_to_string_1digit(self):
+        """Ensures correctness of _year_number_to_string for 1-digit year."""
 
-        this_year_string = storm_events_io._year_int_to_string(YEAR_1DIGIT)
+        this_year_string = storm_events_io._year_number_to_string(YEAR_1DIGIT)
         self.assertTrue(this_year_string == YEAR_STRING_1DIGIT)
 
-    def test_year_int_to_string_2digits(self):
-        """Ensures correct output from _year_int_to_string for 2-digit year."""
+    def test_year_number_to_string_2digits(self):
+        """Ensures correctness of _year_number_to_string for 2-digit year."""
 
-        this_year_string = storm_events_io._year_int_to_string(YEAR_2DIGITS)
+        this_year_string = storm_events_io._year_number_to_string(YEAR_2DIGITS)
         self.assertTrue(this_year_string == YEAR_STRING_2DIGITS)
 
-    def test_year_int_to_string_3digits(self):
-        """Ensures correct output from _year_int_to_string for 3-digit year."""
+    def test_year_number_to_string_3digits(self):
+        """Ensures correctness of _year_number_to_string for 3-digit year."""
 
-        this_year_string = storm_events_io._year_int_to_string(YEAR_3DIGITS)
+        this_year_string = storm_events_io._year_number_to_string(YEAR_3DIGITS)
         self.assertTrue(this_year_string == YEAR_STRING_3DIGITS)
 
-    def test_year_int_to_string_4digits(self):
-        """Ensures correct output from _year_int_to_string for 4-digit year."""
+    def test_year_number_to_string_4digits(self):
+        """Ensures correctness of _year_number_to_string for 4-digit year."""
 
-        this_year_string = storm_events_io._year_int_to_string(YEAR_4DIGITS)
+        this_year_string = storm_events_io._year_number_to_string(YEAR_4DIGITS)
         self.assertTrue(this_year_string == YEAR_STRING_4DIGITS)
 
-    def test_year_int_to_string_5digits(self):
-        """Ensures correct output from _year_int_to_string for 5-digit year."""
+    def test_year_number_to_string_5digits(self):
+        """Ensures correctness of _year_number_to_string for 5-digit year."""
 
-        this_year_string = storm_events_io._year_int_to_string(YEAR_5DIGITS)
+        this_year_string = storm_events_io._year_number_to_string(YEAR_5DIGITS)
         self.assertTrue(this_year_string == YEAR_STRING_5DIGITS)
 
     def test_time_zone_to_utc_offset_string_with_number(self):

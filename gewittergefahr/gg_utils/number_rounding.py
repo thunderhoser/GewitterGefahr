@@ -15,11 +15,11 @@ def round_to_nearest(input_value, rounding_base):
     """
 
     if isinstance(input_value, collections.Iterable):
-        error_checking.assert_is_real_number_array(input_value)
+        error_checking.assert_is_real_numpy_array(input_value)
     else:
         error_checking.assert_is_real_number(input_value)
 
-    error_checking.assert_is_positive(rounding_base)
+    error_checking.assert_is_greater(rounding_base, 0)
     return rounding_base * numpy.round(input_value / rounding_base)
 
 
@@ -33,11 +33,11 @@ def ceiling_to_nearest(input_value, rounding_base):
     """
 
     if isinstance(input_value, collections.Iterable):
-        error_checking.assert_is_real_number_array(input_value)
+        error_checking.assert_is_real_numpy_array(input_value)
     else:
         error_checking.assert_is_real_number(input_value)
 
-    error_checking.assert_is_positive(rounding_base)
+    error_checking.assert_is_greater(rounding_base, 0)
     return rounding_base * numpy.ceil(input_value / rounding_base)
 
 
@@ -51,9 +51,9 @@ def floor_to_nearest(input_value, rounding_base):
     """
 
     if isinstance(input_value, collections.Iterable):
-        error_checking.assert_is_real_number_array(input_value)
+        error_checking.assert_is_real_numpy_array(input_value)
     else:
         error_checking.assert_is_real_number(input_value)
 
-    error_checking.assert_is_positive(rounding_base)
+    error_checking.assert_is_greater(rounding_base, 0)
     return rounding_base * numpy.floor(input_value / rounding_base)

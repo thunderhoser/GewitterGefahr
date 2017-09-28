@@ -34,9 +34,9 @@ def sparse_to_full_grid(sparse_grid_table, field_name=None,
 
     error_checking.assert_is_string(field_name)
     error_checking.assert_is_integer(num_lat_in_grid)
-    error_checking.assert_is_positive(num_lat_in_grid)
+    error_checking.assert_is_greater(num_lat_in_grid, 0)
     error_checking.assert_is_integer(num_lng_in_grid)
-    error_checking.assert_is_positive(num_lng_in_grid)
+    error_checking.assert_is_greater(num_lng_in_grid, 0)
 
     data_start_indices = numpy.ravel_multi_index(
         (sparse_grid_table[myrorss_io.GRID_ROW_COLUMN].values,
