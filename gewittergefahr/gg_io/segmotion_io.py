@@ -17,6 +17,7 @@ words, SPC date "Sep 23 2017" actually runs from 1200 UTC 23 Sep 2017 -
 """
 
 import os
+import glob
 import pickle
 import xml.etree.ElementTree as ElementTree
 import numpy
@@ -36,11 +37,15 @@ from gewittergefahr.gg_utils import error_checking
 ZIPPED_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
+PROCESSED_FILE_EXTENSION = '.p'
+PROCESSED_FILE_PREFIX = 'segmotion_'
 STATS_DIR_NAME_PART = 'TrackingTable'
 POLYGON_DIR_NAME_PART = 'ClusterID'
 
 SENTINEL_VALUE = -9999
-TIME_FORMAT = '%Y%m%d-%H%M%S'
+TIME_FORMAT_ORIG = '%Y%m%d-%H%M%S'
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+TIME_COLUMN = 'unix_time_sec'
 
 STORM_ID_COLUMN = 'storm_id'
 EAST_VELOCITY_COLUMN = 'east_velocity_m_s01'
@@ -74,6 +79,7 @@ BUFFER_VERTEX_LAT_COLUMN_PREFIX = 'vertex_latitudes_deg_buffer_'
 BUFFER_VERTEX_LNG_COLUMN_PREFIX = 'vertex_longitudes_deg_buffer_'
 
 # The following constants are used only in the main method.
+SPC_DATE_UNIX_SEC = 1092228498
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
@@ -107,6 +113,21 @@ def _remove_rows_with_nan(input_table):
     """
 
     return input_table.loc[input_table.notnull().all(axis=1)]
+
+
+def _append_spc_date_to_storm_ids(storm_ids_orig, spc_date_string):
+    """Appends SPC date to each storm ID.
+
+    This ensures that storm IDs from different days will be unique.
+
+    N = number of storms
+
+    :param storm_ids_orig: length-N list of string IDs.
+    :param spc_date_string: SPC date in format "yyyymmdd".
+    :return: storm_ids: Same as input, except with date appended to each ID.
+    """
+
+    return ['{0:s}_{1:s}'.format(s, spc_date_string) for s in storm_ids_orig]
 
 
 def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
@@ -242,11 +263,11 @@ def _get_pathless_stats_file_name(unix_time_sec, zipped=True):
 
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
             STATS_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
         STATS_FILE_EXTENSION)
 
 
@@ -264,12 +285,28 @@ def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
 
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
             POLYGON_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
         POLYGON_FILE_EXTENSION)
+
+
+def _get_pathless_processed_file_name(unix_time_sec):
+    """Generates pathless name for processed file.
+
+    This file should contain both statistics and polygons for one time step and
+    one tracking scale.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: pathless_processed_file_name: Pathless name for processed file.
+    """
+
+    return '{0:s}{1:s}{2:s}'.format(
+        PROCESSED_FILE_PREFIX,
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+        PROCESSED_FILE_EXTENSION)
 
 
 def _get_relative_stats_dir_ordinal_scale(spc_date_string,
@@ -295,8 +332,6 @@ def _get_relative_stats_dir_physical_scale(spc_date_string,
     """Generates expected relative path for stats directory.
 
     This directory should contain storm statistics for the given tracking scale.
-
-    N = number of tracking scales
 
     :param spc_date_string: SPC date in format "yyyymmdd".
     :param tracking_scale_metres2: Tracking scale.
@@ -334,8 +369,6 @@ def _get_relative_polygon_dir_physical_scale(spc_date_string,
     This directory should contain storm outlines (polygons) for the given
     tracking scale.
 
-    N = number of tracking scales
-
     :param spc_date_string: SPC date in format "yyyymmdd".
     :param tracking_scale_metres2: Tracking scale.
     :return: polygon_directory_name: Expected relative path for polygon
@@ -344,6 +377,19 @@ def _get_relative_polygon_dir_physical_scale(spc_date_string,
 
     return '{0:s}/{1:s}/scale_{2:d}m2'.format(
         spc_date_string, POLYGON_DIR_NAME_PART, int(tracking_scale_metres2))
+
+
+def _get_relative_processed_directory(spc_date_string, tracking_scale_metres2):
+    """Generates expected relative path for directory with processed files.
+
+    :param spc_date_string: SPC date in format "yyyymmdd".
+    :param tracking_scale_metres2: Tracking scale.
+    :return: processed_directory_name: Expected relative path for directory with
+        processed files.
+    """
+
+    return '{0:s}/scale_{1:d}m2'.format(
+        spc_date_string, int(tracking_scale_metres2))
 
 
 def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
@@ -590,10 +636,11 @@ def extract_polygon_file_from_gzip(unix_time_sec=None, spc_date_unix_sec=None,
     return polygon_file_name
 
 
-def read_stats_from_xml(xml_file_name):
+def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
     """Reads storm statistics from XML file.
 
     :param xml_file_name: Path to input file.
+    :param spc_date_unix_sec: SPC date in Unix format.
     :return: stats_table: pandas DataFrame with the following columns.
     stats_table.storm_id: String ID for storm cell.
     stats_table.east_velocity_m_s01: Eastward velocity (m/s).
@@ -638,13 +685,20 @@ def read_stats_from_xml(xml_file_name):
                 int(numpy.round(float(this_element.attrib['value']))))
         elif this_column_name == START_TIME_COLUMN:
             this_column_values.append(time_conversion.string_to_unix_sec(
-                this_element.attrib['value'], TIME_FORMAT))
+                this_element.attrib['value'], TIME_FORMAT_ORIG))
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
+
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    storm_ids = _append_spc_date_to_storm_ids(
+        stats_table[STORM_ID_COLUMN].values, spc_date_string)
+
+    stats_table = stats_table.assign(**{STORM_ID_COLUMN: storm_ids})
     return _remove_rows_with_nan(stats_table)
 
 
-def read_polygons_from_netcdf(netcdf_file_name, metadata_dict,
+def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
+                              spc_date_unix_sec=None,
                               raise_error_if_fails=True):
     """Reads storm polygons (outlines of storm cells) from NetCDF file.
 
@@ -656,12 +710,14 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict,
     :param netcdf_file_name: Path to input file.
     :param metadata_dict: Dictionary with metadata from NetCDF file, in format
         produced by `myrorss_io.read_metadata_from_netcdf`.
+    :param spc_date_unix_sec: SPC date in Unix format.
     :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
         and file cannot be opened, will raise error.
     :return: polygon_table: If file cannot be opened and raise_error_if_fails =
         False, this is None.  Otherwise, it is a pandas DataFrame with the
         following columns.
     polygon_table.storm_id: String ID for storm cell.
+    polygon_table.unix_time_sec: Time in Unix format.
     polygon_table.grid_point_latitudes_deg: length-P numpy array with latitudes
         (deg N) of grid points in storm cell.
     polygon_table.grid_point_longitudes_deg: length-P numpy array with
@@ -707,15 +763,24 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict,
                                                     unique_center_lat_deg,
                                                     unique_center_lng_deg)
 
+    num_storms = len(polygon_table.index)
+    unix_times_sec = numpy.full(
+        num_storms, metadata_dict[myrorss_io.UNIX_TIME_COLUMN], dtype=int)
+
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    storm_ids = _append_spc_date_to_storm_ids(
+        polygon_table[STORM_ID_COLUMN].values, spc_date_string)
+
     nested_array = polygon_table[
         [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
+
     argument_dict = {VERTEX_LAT_COLUMN: nested_array,
                      VERTEX_LNG_COLUMN: nested_array,
                      VERTEX_ROW_COLUMN: nested_array,
-                     VERTEX_COLUMN_COLUMN: nested_array}
+                     VERTEX_COLUMN_COLUMN: nested_array,
+                     TIME_COLUMN: unix_times_sec, STORM_ID_COLUMN: storm_ids}
     polygon_table = polygon_table.assign(**argument_dict)
 
-    num_storms = len(polygon_table.index)
     for i in range(num_storms):
         (polygon_table[VERTEX_ROW_COLUMN].values[i],
          polygon_table[VERTEX_COLUMN_COLUMN].values[i]) = (
@@ -839,42 +904,131 @@ def join_stats_and_polygons(stats_table, polygon_table):
     return polygon_table.merge(stats_table, on=STORM_ID_COLUMN, how='inner')
 
 
-def write_stats_and_polygons_to_pickle(storm_table, pickle_file_name):
-    """Writes storm statistics and polygons to Pickle file.
+def find_processed_file(unix_time_sec=None, spc_date_unix_sec=None,
+                        top_processed_dir_name=None,
+                        tracking_scale_metres2=None,
+                        raise_error_if_missing=True):
+    """Finds processed file on local machine.
 
-    :param storm_table: pandas DataFrame created by join_stats_and_polygons.
-    :param pickle_file_name: Path to output file.
+    :param unix_time_sec: Time in Unix format.
+    :param spc_date_unix_sec: SPC date in Unix format.
+    :param top_processed_dir_name: Top-level directory for processed segmotion
+        files.
+    :param tracking_scale_metres2: Tracking scale (m^2).
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: processed_file_name: Path to processed file.  If
+        raise_error_if_missing = False and file is missing, this will be the
+        *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_table, pickle_file_handle)
-    pickle_file_handle.close()
+    error_checking.assert_is_string(top_processed_dir_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    pathless_file_name = _get_pathless_processed_file_name(unix_time_sec)
+    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    relative_directory_name = _get_relative_processed_directory(
+        spc_date_string, tracking_scale_metres2)
+
+    processed_file_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_processed_dir_name, relative_directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(processed_file_name):
+        raise ValueError('Cannot find processed file.  Expected at location: ' +
+                         processed_file_name)
+
+    return processed_file_name
 
 
-def read_stats_and_polygons_from_pickle(pickle_file_name):
-    """Reads storm statistics and polygons from Pickle file.
+def glob_processed_files_many_spc_dates(spc_dates_unix_sec,
+                                        top_processed_dir_name=None,
+                                        tracking_scale_metres2=None,
+                                        raise_error_if_missing=True):
+    """Globs for processed files from many SPC dates.
 
-    :param pickle_file_name: Path to input file (should be written by
-        write_stats_and_polygons_to_pickle).
-    :return: storm_table: pandas DataFrame with columns produced by
+    N = number of SPC dates
+
+    :param spc_dates_unix_sec: length-N numpy array of SPC dates in Unix format.
+    :param top_processed_dir_name: Top-level directory for processed segmotion
+        files.
+    :param tracking_scale_metres2: Tracking scale (m^2).
+    :param raise_error_if_missing: Boolean flag.  If True and there is any SPC
+        date with no files, this method will raise an error.
+    :return: processed_file_names: 1-D list of paths to processed files.
+    :raises: ValueError: if raise_error_if_missing = True and there is any SPC
+        date with no files.
+    """
+
+    error_checking.assert_is_numpy_array(spc_dates_unix_sec, num_dimensions=1)
+    error_checking.assert_is_string(top_processed_dir_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    processed_file_names = []
+    num_spc_dates = len(spc_dates_unix_sec)
+
+    for i in range(num_spc_dates):
+        this_spc_date_string = myrorss_io.time_unix_sec_to_spc_date(
+            spc_dates_unix_sec[i])
+        this_directory_name = '{0:s}/{1:s}'.format(
+            top_processed_dir_name, _get_relative_processed_directory(
+                this_spc_date_string, tracking_scale_metres2))
+        this_file_pattern = '{0:s}/*{1:s}'.format(this_directory_name,
+                                                  PROCESSED_FILE_EXTENSION)
+
+        these_processed_file_names = glob.glob(this_file_pattern)
+        if not these_processed_file_names:
+            if not raise_error_if_missing:
+                continue
+
+            error_string = (
+                'Cannot find processed files for SPC date "' +
+                this_spc_date_string + '".  Expected in directory: ' +
+                this_directory_name)
+            raise ValueError(error_string)
+
+        processed_file_names += these_processed_file_names
+
+    return processed_file_names
+
+
+def write_processed_file(storm_table, processed_file_name):
+    """Writes storm stats and polygons (at one time step and scale) to Pickle.
+
+    :param storm_table: pandas DataFrame created by join_stats_and_polygons.
+    :param processed_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        file_name=processed_file_name)
+    processed_file_handle = open(processed_file_name, 'wb')
+    pickle.dump(storm_table, processed_file_handle)
+    processed_file_handle.close()
+
+
+def read_processed_file(processed_file_name):
+    """Reads storm stats and polygons (at one time step and scale) from Pickle.
+
+    :param processed_file_name: Path to input file.
+    :return: storm_table: pandas DataFrame with columns generated by
         join_stats_and_polygons.
     """
 
-    error_checking.assert_file_exists(pickle_file_name)
-
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    storm_table = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
+    processed_file_handle = open(processed_file_name, 'rb')
+    storm_table = pickle.load(processed_file_handle)
+    processed_file_handle.close()
     return storm_table
 
 
 if __name__ == '__main__':
-    STATS_TABLE = read_stats_from_xml(XML_FILE_NAME)
+    STATS_TABLE = read_stats_from_xml(
+        XML_FILE_NAME, spc_date_unix_sec=SPC_DATE_UNIX_SEC)
     print STATS_TABLE
 
     METADATA_DICT = myrorss_io.read_metadata_from_netcdf(NETCDF_FILE_NAME)
-    POLYGON_TABLE = read_polygons_from_netcdf(NETCDF_FILE_NAME, METADATA_DICT)
+    POLYGON_TABLE = read_polygons_from_netcdf(
+        NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
+        spc_date_unix_sec=SPC_DATE_UNIX_SEC)
     print POLYGON_TABLE
 
     (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (

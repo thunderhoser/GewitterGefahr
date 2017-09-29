@@ -19,8 +19,13 @@ PATHLESS_STATS_FILE_NAME_ZIPPED = '20170910-181300.xml.gz'
 PATHLESS_POLYGON_FILE_NAME_ZIPPED = '20170910-181300.netcdf.gz'
 PATHLESS_STATS_FILE_NAME_UNZIPPED = '20170910-181300.xml'
 PATHLESS_POLYGON_FILE_NAME_UNZIPPED = '20170910-181300.netcdf'
+PATHLESS_PROCESSED_FILE_NAME = 'segmotion_2017-09-10-181300.p'
 
 SPC_DATE_STRING = '20170910'
+SPC_DATE_UNIX_SEC = 1505066400
+STORM_IDS_NO_SPC_DATE = ['989', '657', '212']
+STORM_IDS_WITH_SPC_DATE = ['989_20170910', '657_20170910', '212_20170910']
+
 TRACKING_SCALE_ORDINAL = 0
 TRACKING_SCALE_METRES2 = 5e7
 RELATIVE_STATS_DIR_NAME_ORDINAL_SCALE = '20170910/TrackingTable/scale_0'
@@ -28,8 +33,8 @@ RELATIVE_POLYGON_DIR_NAME_ORDINAL_SCALE = '20170910/ClusterID/scale_0'
 RELATIVE_STATS_DIR_NAME_PHYSICAL_SCALE = (
     '20170910/TrackingTable/scale_50000000m2')
 RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE = '20170910/ClusterID/scale_50000000m2'
+RELATIVE_PROCESSED_DIR_NAME = '20170910/scale_50000000m2'
 
-SPC_DATE_UNIX_SEC = 1505066400
 TOP_RAW_DIRECTORY_NAME = 'segmotion'
 EXPECTED_STATS_FILE_NAME_ZIPPED = (
     'segmotion/20170910/TrackingTable/scale_50000000m2/20170910-181300.xml.gz')
@@ -39,6 +44,11 @@ EXPECTED_STATS_FILE_NAME_UNZIPPED = (
     'segmotion/20170910/TrackingTable/scale_50000000m2/20170910-181300.xml')
 EXPECTED_POLYGON_FILE_NAME_UNZIPPED = (
     'segmotion/20170910/ClusterID/scale_50000000m2/20170910-181300.netcdf')
+
+TOP_PROCESSED_DIR_NAME = 'segmotion_processed'
+EXPECTED_PROCESSED_FILE_NAME = (
+    'segmotion_processed/20170910/scale_50000000m2/segmotion_'
+    '2017-09-10-181300.p')
 
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
@@ -161,6 +171,13 @@ class SegmotionIoTests(unittest.TestCase):
             STATS_TABLE_WITH_NANS)
         self.assertTrue(this_stats_table.equals(STATS_TABLE_WITHOUT_NANS))
 
+    def test_append_spc_date_to_storm_ids(self):
+        """Ensures correct output from _append_spc_date_to_storm_ids."""
+
+        these_storm_ids = segmotion_io._append_spc_date_to_storm_ids(
+            STORM_IDS_NO_SPC_DATE, SPC_DATE_STRING)
+        self.assertTrue(these_storm_ids == STORM_IDS_WITH_SPC_DATE)
+
     def test_storm_id_matrix_to_coord_lists(self):
         """Ensures correct output from _storm_id_matrix_to_coord_lists."""
 
@@ -246,6 +263,13 @@ class SegmotionIoTests(unittest.TestCase):
         self.assertTrue(
             this_pathless_file_name == PATHLESS_POLYGON_FILE_NAME_UNZIPPED)
 
+    def test_get_pathless_processed_file_name(self):
+        """Ensures correct output from _get_pathless_processed_file_name."""
+
+        this_pathless_file_name = (
+            segmotion_io._get_pathless_processed_file_name(UNIX_TIME_SEC))
+        self.assertTrue(this_pathless_file_name == PATHLESS_PROCESSED_FILE_NAME)
+
     def test_get_relative_stats_dir_ordinal_scale(self):
         """Ensures correct output from _get_relative_stats_dir_ordinal_scale."""
 
@@ -281,6 +305,14 @@ class SegmotionIoTests(unittest.TestCase):
                 SPC_DATE_STRING, TRACKING_SCALE_METRES2))
         self.assertTrue(
             this_relative_dir_name == RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE)
+
+    def test_get_relative_processed_directory(self):
+        """Ensures correct output from _get_relative_processed_directory."""
+
+        this_relative_dir_name = (
+            segmotion_io._get_relative_processed_directory(
+                SPC_DATE_STRING, TRACKING_SCALE_METRES2))
+        self.assertTrue(this_relative_dir_name == RELATIVE_PROCESSED_DIR_NAME)
 
     def test_find_local_stats_file_zipped(self):
         """Ensures correct output from find_local_stats_file.
@@ -340,6 +372,18 @@ class SegmotionIoTests(unittest.TestCase):
 
         self.assertTrue(
             this_polygon_file_name == EXPECTED_POLYGON_FILE_NAME_UNZIPPED)
+
+    def test_find_processed_file(self):
+        """Ensures correct output from find_processed_file."""
+
+        this_processed_file_name = segmotion_io.find_processed_file(
+            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            top_processed_dir_name=TOP_PROCESSED_DIR_NAME,
+            tracking_scale_metres2=TRACKING_SCALE_METRES2,
+            raise_error_if_missing=False)
+
+        self.assertTrue(
+            this_processed_file_name == EXPECTED_PROCESSED_FILE_NAME)
 
     def test_join_stats_and_polygons(self):
         """Ensures correct output from join_stats_and_polygons."""
