@@ -13,6 +13,16 @@ STATS_COLUMN_NAMES = [segmotion_io.EAST_VELOCITY_COLUMN,
                       segmotion_io.NORTH_VELOCITY_COLUMN,
                       segmotion_io.START_TIME_COLUMN, segmotion_io.AGE_COLUMN]
 
+SPC_DATE_STRING = '20170910'
+SPC_DATE_UNIX_SEC = 1505066400
+STORM_IDS_NO_SPC_DATE = ['989', '657', '212']
+STORM_IDS_WITH_SPC_DATE = ['989_20170910', '657_20170910', '212_20170910']
+
+LATITUDE_POINTS_DEG = numpy.array([50., 51., 52., 53., 55.])
+LONGITUDE_POINTS_DEG = numpy.array([263., 246., 253., 247., 241.])
+CENTROID_LAT_DEG = 52.2
+CENTROID_LNG_DEG = 250.
+
 UNIX_TIME_SEC = 1505067180
 TIME_STRING = '20170910-181300'
 PATHLESS_STATS_FILE_NAME_ZIPPED = '20170910-181300.xml.gz'
@@ -20,11 +30,6 @@ PATHLESS_POLYGON_FILE_NAME_ZIPPED = '20170910-181300.netcdf.gz'
 PATHLESS_STATS_FILE_NAME_UNZIPPED = '20170910-181300.xml'
 PATHLESS_POLYGON_FILE_NAME_UNZIPPED = '20170910-181300.netcdf'
 PATHLESS_PROCESSED_FILE_NAME = 'segmotion_2017-09-10-181300.p'
-
-SPC_DATE_STRING = '20170910'
-SPC_DATE_UNIX_SEC = 1505066400
-STORM_IDS_NO_SPC_DATE = ['989', '657', '212']
-STORM_IDS_WITH_SPC_DATE = ['989_20170910', '657_20170910', '212_20170910']
 
 TRACKING_SCALE_ORDINAL = 0
 TRACKING_SCALE_METRES2 = 5e7
@@ -177,6 +182,18 @@ class SegmotionIoTests(unittest.TestCase):
         these_storm_ids = segmotion_io._append_spc_date_to_storm_ids(
             STORM_IDS_NO_SPC_DATE, SPC_DATE_STRING)
         self.assertTrue(these_storm_ids == STORM_IDS_WITH_SPC_DATE)
+
+    def test_get_latlng_centroid(self):
+        """Ensures correct output from _get_latlng_centroid."""
+
+        (this_centroid_lat_deg,
+         this_centroid_lng_deg) = segmotion_io._get_latlng_centroid(
+             LATITUDE_POINTS_DEG, LONGITUDE_POINTS_DEG)
+
+        self.assertTrue(numpy.isclose(
+            this_centroid_lat_deg, CENTROID_LAT_DEG, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_centroid_lng_deg, CENTROID_LNG_DEG, atol=TOLERANCE))
 
     def test_storm_id_matrix_to_coord_lists(self):
         """Ensures correct output from _storm_id_matrix_to_coord_lists."""

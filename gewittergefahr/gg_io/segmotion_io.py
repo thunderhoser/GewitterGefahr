@@ -70,6 +70,8 @@ GRID_POINT_LNG_COLUMN = 'grid_point_longitudes_deg'
 GRID_POINT_ROW_COLUMN = 'grid_point_rows'
 GRID_POINT_COLUMN_COLUMN = 'grid_point_columns'
 
+CENTROID_LAT_COLUMN = 'centroid_lat_deg'
+CENTROID_LNG_COLUMN = 'centroid_lng_deg'
 VERTEX_LAT_COLUMN = 'vertex_latitudes_deg'
 VERTEX_LNG_COLUMN = 'vertex_longitudes_deg'
 VERTEX_ROW_COLUMN = 'vertex_rows'
@@ -128,6 +130,22 @@ def _append_spc_date_to_storm_ids(storm_ids_orig, spc_date_string):
     """
 
     return ['{0:s}_{1:s}'.format(s, spc_date_string) for s in storm_ids_orig]
+
+
+def _get_latlng_centroid(latitudes_deg, longitudes_deg):
+    """Computes centroid of set of lat-long points.
+
+    N = number of points
+
+    :param latitudes_deg: length-N numpy array of latitudes (deg N).
+    :param longitudes_deg: length-N numpy array of longitudes (deg E).
+    :return: centroid_lat_deg: Latitude at centroid (deg N).
+    :return: centroid_lng_deg: Longitude at centroid (deg E).
+    """
+
+    return (numpy.mean(latitudes_deg[numpy.invert(numpy.isnan(latitudes_deg))]),
+            numpy.mean(
+                longitudes_deg[numpy.invert(numpy.isnan(longitudes_deg))]))
 
 
 def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
@@ -718,6 +736,8 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         following columns.
     polygon_table.storm_id: String ID for storm cell.
     polygon_table.unix_time_sec: Time in Unix format.
+    polygon_table.centroid_lat_deg: Latitude at centroid of storm cell (deg N).
+    polygon_table.centroid_lng_deg: Longitude at centroid of storm cell (deg E).
     polygon_table.grid_point_latitudes_deg: length-P numpy array with latitudes
         (deg N) of grid points in storm cell.
     polygon_table.grid_point_longitudes_deg: length-P numpy array with
@@ -771,6 +791,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     storm_ids = _append_spc_date_to_storm_ids(
         polygon_table[STORM_ID_COLUMN].values, spc_date_string)
 
+    simple_array = polygon_table[STORM_ID_COLUMN].values.tolist()
     nested_array = polygon_table[
         [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
 
@@ -778,6 +799,8 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
                      VERTEX_LNG_COLUMN: nested_array,
                      VERTEX_ROW_COLUMN: nested_array,
                      VERTEX_COLUMN_COLUMN: nested_array,
+                     CENTROID_LAT_COLUMN: simple_array,
+                     CENTROID_LNG_COLUMN: simple_array,
                      TIME_COLUMN: unix_times_sec, STORM_ID_COLUMN: storm_ids}
     polygon_table = polygon_table.assign(**argument_dict)
 
@@ -799,6 +822,11 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
                  metadata_dict[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
                  lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
                  lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN]))
+
+        (polygon_table[CENTROID_LAT_COLUMN].values[i],
+         polygon_table[CENTROID_LNG_COLUMN].values[i]) = _get_latlng_centroid(
+             polygon_table[VERTEX_LAT_COLUMN].values[i],
+             polygon_table[VERTEX_LNG_COLUMN].values[i])
 
     return polygon_table
 
