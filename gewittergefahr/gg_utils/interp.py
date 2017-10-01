@@ -11,7 +11,8 @@ SMOOTHING_FACTOR_FOR_SPATIAL_INTERP = 0
 
 def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
                    query_times_unix_sec=None,
-                   method_string=DEFAULT_TEMPORAL_INTERP_METHOD):
+                   method_string=DEFAULT_TEMPORAL_INTERP_METHOD,
+                   allow_extrap=False):
     """Interpolates data in time.
 
     D = number of dimensions (for both input_matrix and interp_matrix)
@@ -26,6 +27,11 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
         format).
     :param method_string: Interpolation method.  See documentation of
         `scipy.interpolate.interp1d` for valid options.
+    :param allow_extrap: Boolean flag.  If True, this method may extrapolate
+        outside the time range of the original data.  If False, this method may
+        *not* extrapolate.  If False and query_times_unix_sec includes a value
+        outside the range of sorted_input_times_unix_sec,
+        `interp_object(query_times_unix_sec)` will raise an error.
     :return: interp_matrix: D-dimensional numpy array of interpolated values,
         where the last axis is time (length P).  The first (D - 1) dimensions
         have the same length as in input_matrix.
@@ -37,14 +43,21 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
         sorted_input_times_unix_sec)
     error_checking.assert_is_numpy_array(sorted_input_times_unix_sec,
                                          num_dimensions=1)
+    error_checking.assert_is_boolean(allow_extrap)
 
     error_checking.assert_is_integer_numpy_array(query_times_unix_sec)
     error_checking.assert_is_numpy_array_without_nan(query_times_unix_sec)
     error_checking.assert_is_numpy_array(query_times_unix_sec, num_dimensions=1)
 
-    interp_object = scipy.interpolate.interp1d(
-        sorted_input_times_unix_sec, input_matrix, kind=method_string,
-        bounds_error=True, assume_sorted=True)
+    if allow_extrap:
+        interp_object = scipy.interpolate.interp1d(
+            sorted_input_times_unix_sec, input_matrix, kind=method_string,
+            bounds_error=False, fill_value='extrapolate', assume_sorted=True)
+    else:
+        interp_object = scipy.interpolate.interp1d(
+            sorted_input_times_unix_sec, input_matrix, kind=method_string,
+            bounds_error=True, assume_sorted=True)
+
     return interp_object(query_times_unix_sec)
 
 

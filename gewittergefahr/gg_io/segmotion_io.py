@@ -94,6 +94,10 @@ NETCDF_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
     'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
 
+PICKLE_FILE_NAME = (
+    '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed/'
+    '20040811/scale_50000000m2/segmotion_2004-08-11-124818.p')
+
 
 def _xml_column_name_orig_to_new(column_name_orig):
     """Converts name of XML column from original (segmotion) to new format.
@@ -791,7 +795,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     storm_ids = _append_spc_date_to_storm_ids(
         polygon_table[STORM_ID_COLUMN].values, spc_date_string)
 
-    simple_array = polygon_table[STORM_ID_COLUMN].values.tolist()
+    simple_array = numpy.full(num_storms, numpy.nan)
     nested_array = polygon_table[
         [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
 
@@ -1079,3 +1083,5 @@ if __name__ == '__main__':
 
     STORM_TABLE = join_stats_and_polygons(STATS_TABLE, POLYGON_TABLE)
     print STORM_TABLE
+
+    write_processed_file(STORM_TABLE, PICKLE_FILE_NAME)
