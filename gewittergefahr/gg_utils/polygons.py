@@ -223,89 +223,6 @@ def _vertex_list_to_arrays(vertex_metres_list):
     return vertex_x_metres, vertex_y_metres
 
 
-def _vertices_to_polygon_object(exterior_vertex_x_metres,
-                                exterior_vertex_y_metres,
-                                hole_x_vertex_metres_list=None,
-                                hole_y_vertex_metres_list=None):
-    """Converts arrays of vertex coords to `shapely.geometry.Polygon` object.
-
-    :param exterior_vertex_x_metres: numpy array (length V_e) with x-coordinates
-        of exterior vertices.
-    :param exterior_vertex_y_metres: numpy array (length V_e) with y-coordinates
-        of exterior vertices.
-    :param hole_x_vertex_metres_list: List of H elements, where the [i]th
-        element is a numpy array (length V_hi) with x-coordinates of interior
-        vertices.
-    :param hole_y_vertex_metres_list: Same as above, except for y-coordinates.
-    :return: polygon_object: Instance of `shapely.geometry.Polygon`.
-    :raises: ValueError: if resulting polygon is invalid.
-    """
-
-    exterior_vertex_metres_list = _vertex_arrays_to_list(
-        exterior_vertex_x_metres, exterior_vertex_y_metres)
-
-    if hole_x_vertex_metres_list is None:
-        return shapely.geometry.Polygon(shell=exterior_vertex_metres_list)
-
-    num_holes = len(hole_x_vertex_metres_list)
-    hole_vertex_metres_list_of_lists = []
-    for i in range(num_holes):
-        hole_vertex_metres_list_of_lists.append(
-            _vertex_arrays_to_list(hole_x_vertex_metres_list[i],
-                                   hole_y_vertex_metres_list[i]))
-
-    polygon_object = shapely.geometry.Polygon(
-        shell=exterior_vertex_metres_list,
-        holes=tuple(hole_vertex_metres_list_of_lists))
-
-    if not polygon_object.is_valid:
-        raise ValueError('Resulting polygon is invalid.')
-
-    return polygon_object
-
-
-def _polygon_object_to_vertices(polygon_object):
-    """Converts `shapely.geometry.Polygon` object to arrays of vertex coords.
-
-    H = number of holes
-    V_e = number of exterior vertices
-    V_hi = number of vertices in [i]th hole
-
-    :param polygon_object: Instance of `shapely.geometry.Polygon`.
-    :return: vertex_dict: Dictionary with the following keys.
-    vertex_dict.exterior_x_metres: numpy array (length V_e) with x-coordinates
-        of exterior vertices.
-    vertex_dict.exterior_y_metres: numpy array (length V_e) with y-coordinates
-        of exterior vertices.
-    vertex_dict.hole_x_metres_list: List of H elements, where the [i]th element
-        is a numpy array (length V_hi) with x-coordinates of interior vertices.
-    vertex_dict.hole_y_metres_list: Same as above, except for y-coordinates.
-    """
-
-    exterior_x_metres, exterior_y_metres = _vertex_list_to_arrays(
-        list(polygon_object.exterior.coords))
-
-    num_holes = len(polygon_object.interiors)
-    if num_holes == 0:
-        return {EXTERIOR_X_COLUMN: exterior_x_metres,
-                EXTERIOR_Y_COLUMN: exterior_y_metres, HOLE_X_COLUMN: [],
-                HOLE_Y_COLUMN: []}
-
-    hole_x_metres_list = []
-    hole_y_metres_list = []
-    for i in range(num_holes):
-        (this_hole_x_metres, this_hole_y_metres) = _vertex_list_to_arrays(
-            list(polygon_object.interiors[i].coords))
-
-        hole_x_metres_list.append(this_hole_x_metres)
-        hole_y_metres_list.append(this_hole_y_metres)
-
-    return {EXTERIOR_X_COLUMN: exterior_x_metres,
-            EXTERIOR_Y_COLUMN: exterior_y_metres,
-            HOLE_X_COLUMN: hole_x_metres_list,
-            HOLE_Y_COLUMN: hole_y_metres_list}
-
-
 def _get_direction_of_vertex_pair(first_row, second_row, first_column,
                                   second_column):
     """Finds direction between a pair of vertices.  The 8 valid directions are:
@@ -612,6 +529,89 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
     return vertex_rows, vertex_columns
 
 
+def vertices_to_polygon_object(exterior_vertex_x_metres,
+                               exterior_vertex_y_metres,
+                               hole_x_vertex_metres_list=None,
+                               hole_y_vertex_metres_list=None):
+    """Converts arrays of vertex coords to `shapely.geometry.Polygon` object.
+
+    :param exterior_vertex_x_metres: numpy array (length V_e) with x-coordinates
+        of exterior vertices.
+    :param exterior_vertex_y_metres: numpy array (length V_e) with y-coordinates
+        of exterior vertices.
+    :param hole_x_vertex_metres_list: List of H elements, where the [i]th
+        element is a numpy array (length V_hi) with x-coordinates of interior
+        vertices.
+    :param hole_y_vertex_metres_list: Same as above, except for y-coordinates.
+    :return: polygon_object: Instance of `shapely.geometry.Polygon`.
+    :raises: ValueError: if resulting polygon is invalid.
+    """
+
+    exterior_vertex_metres_list = _vertex_arrays_to_list(
+        exterior_vertex_x_metres, exterior_vertex_y_metres)
+
+    if hole_x_vertex_metres_list is None:
+        return shapely.geometry.Polygon(shell=exterior_vertex_metres_list)
+
+    num_holes = len(hole_x_vertex_metres_list)
+    hole_vertex_metres_list_of_lists = []
+    for i in range(num_holes):
+        hole_vertex_metres_list_of_lists.append(
+            _vertex_arrays_to_list(hole_x_vertex_metres_list[i],
+                                   hole_y_vertex_metres_list[i]))
+
+    polygon_object = shapely.geometry.Polygon(
+        shell=exterior_vertex_metres_list,
+        holes=tuple(hole_vertex_metres_list_of_lists))
+
+    if not polygon_object.is_valid:
+        raise ValueError('Resulting polygon is invalid.')
+
+    return polygon_object
+
+
+def polygon_object_to_vertices(polygon_object):
+    """Converts `shapely.geometry.Polygon` object to arrays of vertex coords.
+
+    H = number of holes
+    V_e = number of exterior vertices
+    V_hi = number of vertices in [i]th hole
+
+    :param polygon_object: Instance of `shapely.geometry.Polygon`.
+    :return: vertex_dict: Dictionary with the following keys.
+    vertex_dict.exterior_x_metres: numpy array (length V_e) with x-coordinates
+        of exterior vertices.
+    vertex_dict.exterior_y_metres: numpy array (length V_e) with y-coordinates
+        of exterior vertices.
+    vertex_dict.hole_x_metres_list: List of H elements, where the [i]th element
+        is a numpy array (length V_hi) with x-coordinates of interior vertices.
+    vertex_dict.hole_y_metres_list: Same as above, except for y-coordinates.
+    """
+
+    exterior_x_metres, exterior_y_metres = _vertex_list_to_arrays(
+        list(polygon_object.exterior.coords))
+
+    num_holes = len(polygon_object.interiors)
+    if num_holes == 0:
+        return {EXTERIOR_X_COLUMN: exterior_x_metres,
+                EXTERIOR_Y_COLUMN: exterior_y_metres, HOLE_X_COLUMN: [],
+                HOLE_Y_COLUMN: []}
+
+    hole_x_metres_list = []
+    hole_y_metres_list = []
+    for i in range(num_holes):
+        (this_hole_x_metres, this_hole_y_metres) = _vertex_list_to_arrays(
+            list(polygon_object.interiors[i].coords))
+
+        hole_x_metres_list.append(this_hole_x_metres)
+        hole_y_metres_list.append(this_hole_y_metres)
+
+    return {EXTERIOR_X_COLUMN: exterior_x_metres,
+            EXTERIOR_Y_COLUMN: exterior_y_metres,
+            HOLE_X_COLUMN: hole_x_metres_list,
+            HOLE_Y_COLUMN: hole_y_metres_list}
+
+
 def points_in_poly_to_vertices(row_indices, column_indices):
     """Converts list of grid points in polygon to list of vertices.
 
@@ -677,6 +677,27 @@ def points_in_poly_to_vertices(row_indices, column_indices):
     return _remove_redundant_vertices(vertex_rows, vertex_columns)
 
 
+def is_point_in_or_on_polygon(polygon_object=None, query_x_metres=None,
+                              query_y_metres=None):
+    """Returns True if point is inside/touching the polygon, False otherwise.
+
+    :param polygon_object: Instance of `shapely.geometry.Polygon`.
+    :param query_x_metres: x-coordinate of query point.
+    :param query_y_metres: y-coordinate of query point.
+    :return: point_in_polygon_flag: Boolean flag.  True if point is
+        inside/touching the polygon, False otherwise.
+    """
+
+    error_checking.assert_is_not_nan(query_x_metres)
+    error_checking.assert_is_not_nan(query_y_metres)
+
+    point_object = shapely.geometry.Point(query_x_metres, query_y_metres)
+    if polygon_object.contains(point_object):
+        return True
+
+    return polygon_object.touches(point_object)
+
+
 def make_buffer_around_simple_polygon(orig_vertex_x_metres,
                                       orig_vertex_y_metres,
                                       min_buffer_dist_metres=numpy.nan,
@@ -724,12 +745,12 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
     else:
         join_style = shapely.geometry.JOIN_STYLE.round
 
-    orig_polygon_object = _vertices_to_polygon_object(orig_vertex_x_metres,
-                                                      orig_vertex_y_metres)
+    orig_polygon_object = vertices_to_polygon_object(orig_vertex_x_metres,
+                                                     orig_vertex_y_metres)
 
     max_buffer_polygon_object = orig_polygon_object.buffer(
         max_buffer_dist_metres, join_style=join_style)
-    max_buffer_vertex_dict = _polygon_object_to_vertices(
+    max_buffer_vertex_dict = polygon_object_to_vertices(
         max_buffer_polygon_object)
 
     if numpy.isnan(min_buffer_dist_metres):
@@ -738,7 +759,7 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
 
     min_buffer_polygon_object = orig_polygon_object.buffer(
         min_buffer_dist_metres, join_style=join_style)
-    min_buffer_vertex_dict = _polygon_object_to_vertices(
+    min_buffer_vertex_dict = polygon_object_to_vertices(
         min_buffer_polygon_object)
 
     return _merge_exterior_and_holes(

@@ -56,6 +56,22 @@ VERTEX_X_METRES_NESTED_BUFFER = numpy.array(
 VERTEX_Y_METRES_NESTED_BUFFER = numpy.array(
     [-5., 15., 15., -5., -5., numpy.nan, -2.5, 12.5, 12.5, -2.5, -2.5])
 
+EXTERIOR_X_METRES_NESTED_BUFFER = numpy.array([-5., -5., 15., 15., -5.])
+EXTERIOR_Y_METRES_NESTED_BUFFER = numpy.array([-5., 15., 15., -5., -5.])
+HOLE_X_METRES_NESTED_BUFFER = numpy.array([-2.5, -2.5, 12.5, 12.5, -2.5])
+HOLE_Y_METRES_NESTED_BUFFER = numpy.array([-2.5, 12.5, 12.5, -2.5, -2.5])
+POLYGON_OBJECT_NESTED_BUFFER = polygons.vertices_to_polygon_object(
+    EXTERIOR_X_METRES_NESTED_BUFFER, EXTERIOR_Y_METRES_NESTED_BUFFER,
+    hole_x_vertex_metres_list=[HOLE_X_METRES_NESTED_BUFFER],
+    hole_y_vertex_metres_list=[HOLE_Y_METRES_NESTED_BUFFER])
+
+X_IN_NESTED_BUFFER = -4.
+X_ON_NESTED_BUFFER = -2.5
+X_OUTSIDE_NESTED_BUFFER = 3.
+Y_IN_NESTED_BUFFER = 5.
+Y_ON_NESTED_BUFFER = 5.
+Y_OUTSIDE_NESTED_BUFFER = 5.
+
 FIRST_VERTEX_ROW = 5
 FIRST_VERTEX_COLUMN = 5
 SECOND_VERTEX_ROW_UP = 4
@@ -215,78 +231,6 @@ class PolygonsTests(unittest.TestCase):
             numpy.allclose(this_vertex_y_metres, MERGED_VERTEX_Y_METRES,
                            atol=TOLERANCE, equal_nan=True))
 
-    def test_vertices_to_polygon_object(self):
-        """Ensures correct output from _vertices_to_polygon_object.
-
-        This is not strictly a unit test.  _vertices_to_polygon_object is used
-        to convert to a polygon object, and then _polygon_object_to_vertices is
-        used to convert back to vertex arrays.  The output of
-        _polygon_object_to_vertices is compared with the input to
-        _vertices_to_polygon_object, and both sets of vertex arrays must be
-        equal.
-        """
-
-        this_polygon_object = polygons._vertices_to_polygon_object(
-            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
-            hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
-                                       HOLE2_VERTEX_X_METRES],
-            hole_y_vertex_metres_list=[HOLE1_VERTEX_Y_METRES,
-                                       HOLE2_VERTEX_Y_METRES])
-
-        this_vertex_dict = polygons._polygon_object_to_vertices(
-            this_polygon_object)
-
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
-                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
-                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
-
-        self.assertTrue(
-            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
-                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
-                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
-
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
-                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
-                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
-
-    def test_polygon_object_to_vertices(self):
-        """Ensures correct output from _polygon_object_to_vertices."""
-
-        this_vertex_dict = polygons._polygon_object_to_vertices(POLYGON_OBJECT)
-
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
-                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
-                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
-
-        self.assertTrue(
-            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
-                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
-                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
-
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
-                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
-        self.assertTrue(
-            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
-                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
-
     def test_get_direction_of_vertex_pair_up(self):
         """Ensures correct output from _get_direction_of_vertex_pair.
 
@@ -428,11 +372,11 @@ class PolygonsTests(unittest.TestCase):
     def test_points_in_poly_to_binary_matrix(self):
         """Ensures correct output from _points_in_poly_to_binary_matrix."""
 
-        (this_point_in_polygon_matrix, this_first_row_index,
+        (this_point_in_or_on_polygon_matrix, this_first_row_index,
          this_first_column_index) = polygons._points_in_poly_to_binary_matrix(
              ROW_INDICES_IN_POLYGON, COLUMN_INDICES_IN_POLYGON)
 
-        self.assertTrue(numpy.array_equal(this_point_in_polygon_matrix,
+        self.assertTrue(numpy.array_equal(this_point_in_or_on_polygon_matrix,
                                           POINT_IN_POLYGON_MATRIX))
         self.assertTrue(this_first_row_index == FIRST_ROW_INDEX)
         self.assertTrue(this_first_column_index == FIRST_COLUMN_INDEX)
@@ -475,6 +419,112 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(
             numpy.array_equal(these_vertex_columns_non_redundant,
                               VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
+
+    def test_vertices_to_polygon_object(self):
+        """Ensures correct output from vertices_to_polygon_object.
+
+        This is not strictly a unit test.  vertices_to_polygon_object is used
+        to convert to a polygon object, and then polygon_object_to_vertices is
+        used to convert back to vertex arrays.  The output of
+        polygon_object_to_vertices is compared with the input to
+        vertices_to_polygon_object, and both sets of vertex arrays must be
+        equal.
+        """
+
+        this_polygon_object = polygons.vertices_to_polygon_object(
+            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+            hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
+                                       HOLE2_VERTEX_X_METRES],
+            hole_y_vertex_metres_list=[HOLE1_VERTEX_Y_METRES,
+                                       HOLE2_VERTEX_Y_METRES])
+
+        this_vertex_dict = polygons.polygon_object_to_vertices(
+            this_polygon_object)
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
+                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
+                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
+                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
+                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
+
+    def test_polygon_object_to_vertices(self):
+        """Ensures correct output from polygon_object_to_vertices."""
+
+        this_vertex_dict = polygons.polygon_object_to_vertices(POLYGON_OBJECT)
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                           EXTERIOR_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                           EXTERIOR_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            len(this_vertex_dict[polygons.HOLE_X_COLUMN]) == NUM_HOLES)
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][0],
+                           HOLE1_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][0],
+                           HOLE1_VERTEX_Y_METRES, atol=TOLERANCE))
+
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_X_COLUMN][1],
+                           HOLE2_VERTEX_X_METRES, atol=TOLERANCE))
+        self.assertTrue(
+            numpy.allclose(this_vertex_dict[polygons.HOLE_Y_COLUMN][1],
+                           HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
+
+    def test_is_point_in_or_on_polygon_false(self):
+        """Ensures correct output from _is_point_in_or_on_polygon.
+
+        In this case, answer is no.
+        """
+
+        this_flag = polygons.is_point_in_or_on_polygon(
+            POLYGON_OBJECT_NESTED_BUFFER,
+            query_x_metres=X_OUTSIDE_NESTED_BUFFER,
+            query_y_metres=Y_OUTSIDE_NESTED_BUFFER)
+        self.assertFalse(this_flag)
+
+    def test_is_point_in_or_on_polygon_boundary(self):
+        """Ensures correct output from _is_point_in_or_on_polygon.
+
+        In this case, answer is yes (point touches polygon).
+        """
+
+        this_flag = polygons.is_point_in_or_on_polygon(
+            POLYGON_OBJECT_NESTED_BUFFER, query_x_metres=X_ON_NESTED_BUFFER,
+            query_y_metres=Y_ON_NESTED_BUFFER)
+        self.assertTrue(this_flag)
+
+    def test_is_point_in_or_on_polygon_true(self):
+        """Ensures correct output from _is_point_in_or_on_polygon.
+
+        In this case, answer is yes (point is within polygon).
+        """
+
+        this_flag = polygons.is_point_in_or_on_polygon(
+            POLYGON_OBJECT_NESTED_BUFFER, query_x_metres=X_IN_NESTED_BUFFER,
+            query_y_metres=Y_IN_NESTED_BUFFER)
+        self.assertTrue(this_flag)
 
     def test_points_in_poly_to_vertices(self):
         """Ensures correct output from points_in_poly_to_vertices."""
