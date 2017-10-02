@@ -68,25 +68,6 @@ MAX_TIME_BEFORE_START_SEC = 1020
 MAX_TIME_AFTER_END_SEC = 1020
 
 
-def _get_latlng_centroid(latitudes_deg, longitudes_deg):
-    """Computes centroid of set of lat-long points.
-
-    N = number of points
-
-    :param latitudes_deg: length-N numpy array of latitudes (deg N).
-    :param longitudes_deg: length-N numpy array of longitudes (deg E).
-    :return: centroid_lat_deg: Latitude at centroid (deg N).
-    :return: centroid_lng_deg: Longitude at centroid (deg E).
-    """
-
-    # TODO(thunderhoser): Put this method in common file.  Currently defined
-    # both here and in segmotion_io.py.
-
-    return (numpy.mean(latitudes_deg[numpy.invert(numpy.isnan(latitudes_deg))]),
-            numpy.mean(
-                longitudes_deg[numpy.invert(numpy.isnan(longitudes_deg))]))
-
-
 def _get_xy_bounding_box_of_storms(storm_object_table, padding_metres=None):
     """Returns bounding box of all storm objects.
 
@@ -251,7 +232,8 @@ def _project_storms_to_equidistant(storm_object_table):
         future to convert between projection (x-y) and lat-long coordinates.
     """
 
-    (global_centroid_lat_deg, global_centroid_lng_deg) = _get_latlng_centroid(
+    (global_centroid_lat_deg,
+     global_centroid_lng_deg) = polygons.get_latlng_centroid(
         storm_object_table[segmotion_io.CENTROID_LAT_COLUMN].values,
         storm_object_table[segmotion_io.CENTROID_LNG_COLUMN].values)
 

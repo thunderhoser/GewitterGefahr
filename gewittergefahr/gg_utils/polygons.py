@@ -529,6 +529,22 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
     return vertex_rows, vertex_columns
 
 
+def get_latlng_centroid(latitudes_deg, longitudes_deg):
+    """Computes centroid of set of lat-long points.
+
+    N = number of points
+
+    :param latitudes_deg: length-N numpy array of latitudes (deg N).
+    :param longitudes_deg: length-N numpy array of longitudes (deg E).
+    :return: centroid_lat_deg: Latitude at centroid (deg N).
+    :return: centroid_lng_deg: Longitude at centroid (deg E).
+    """
+
+    return (numpy.mean(latitudes_deg[numpy.invert(numpy.isnan(latitudes_deg))]),
+            numpy.mean(
+                longitudes_deg[numpy.invert(numpy.isnan(longitudes_deg))]))
+
+
 def vertices_to_polygon_object(exterior_vertex_x_metres,
                                exterior_vertex_y_metres,
                                hole_x_vertex_metres_list=None,

@@ -72,6 +72,11 @@ Y_IN_NESTED_BUFFER = 5.
 Y_ON_NESTED_BUFFER = 5.
 Y_OUTSIDE_NESTED_BUFFER = 5.
 
+LATITUDE_POINTS_DEG = numpy.array([50., 51., 52., 53., 55.])
+LONGITUDE_POINTS_DEG = numpy.array([263., 246., 253., 247., 241.])
+CENTROID_LAT_DEG = 52.2
+CENTROID_LNG_DEG = 250.
+
 FIRST_VERTEX_ROW = 5
 FIRST_VERTEX_COLUMN = 5
 SECOND_VERTEX_ROW_UP = 4
@@ -419,6 +424,18 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(
             numpy.array_equal(these_vertex_columns_non_redundant,
                               VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
+
+    def test_get_latlng_centroid(self):
+        """Ensures correct output from _get_latlng_centroid."""
+
+        (this_centroid_lat_deg,
+         this_centroid_lng_deg) = polygons.get_latlng_centroid(
+            LATITUDE_POINTS_DEG, LONGITUDE_POINTS_DEG)
+
+        self.assertTrue(numpy.isclose(
+            this_centroid_lat_deg, CENTROID_LAT_DEG, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_centroid_lng_deg, CENTROID_LNG_DEG, atol=TOLERANCE))
 
     def test_vertices_to_polygon_object(self):
         """Ensures correct output from vertices_to_polygon_object.
