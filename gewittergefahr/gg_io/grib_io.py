@@ -6,6 +6,8 @@ instructions.
 """
 
 import os
+import subprocess
+import warnings
 import numpy
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import file_system_utils
@@ -73,7 +75,8 @@ def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
 
 def _extract_variable_grib_to_text(grib_file_name, grib_var_name=None,
                                    text_file_name=None,
-                                   wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT):
+                                   wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
+                                   raise_error_if_fails=True):
     """Extracts one variable, at all grid points, from grib file to text file.
 
     :param grib_file_name: Path to input file.
@@ -82,8 +85,14 @@ def _extract_variable_grib_to_text(grib_file_name, grib_var_name=None,
         geopotential height as "HGT:500 mb".
     :param text_file_name: Path to output file.
     :param wgrib_exe_name: Path to wgrib executable.
+    :param raise_error_if_fails: Boolean flag.  If command fails and
+        raise_error_if_fails = True, this method will raise an error.
+    :return: success: Boolean flag.  If command succeeded, this is True.  If
+        command failed and raise_error_if_fails = False, this is False.
+    :raises: OSError: if command fails and raise_error_if_fails = True.
     """
 
+    error_checking.assert_is_boolean(raise_error_if_fails)
     file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
 
     wgrib_command_string = (
@@ -91,12 +100,26 @@ def _extract_variable_grib_to_text(grib_file_name, grib_var_name=None,
         grib_var_name + '" | "' + wgrib_exe_name + '" -i "' + grib_file_name +
         '" -text -nh -o "' + text_file_name + '"')
 
-    os.system(wgrib_command_string)
+    try:
+        subprocess.call(wgrib_command_string, shell=True)
+    except OSError as this_exception:
+        if raise_error_if_fails:
+            raise
+
+        warn_string = (
+            '\n' + wgrib_command_string +
+            '\nCommand (shown above) failed (details shown below).\n' +
+            str(this_exception))
+        warnings.warn(warn_string)
+        return False
+
+    return True
 
 
 def _extract_variable_grib2_to_text(grib2_file_name, grib2_var_name=None,
                                     text_file_name=None,
-                                    wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT):
+                                    wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
+                                    raise_error_if_fails=True):
     """Extracts one variable, at all grid points, from grib2 file to text file.
 
     :param grib2_file_name: Path to input file.
@@ -105,20 +128,40 @@ def _extract_variable_grib2_to_text(grib2_file_name, grib2_var_name=None,
         geopotential height as "HGT:500 mb".
     :param text_file_name: Path to output file.
     :param wgrib2_exe_name: Path to wgrib2 executable.
+    :param raise_error_if_fails: Boolean flag.  If command fails and
+        raise_error_if_fails = True, this method will raise an error.
+    :return: success: Boolean flag.  If command succeeded, this is True.  If
+        command failed and raise_error_if_fails = False, this is False.
+    :raises: OSError: if command fails and raise_error_if_fails = True.
     """
 
+    error_checking.assert_is_boolean(raise_error_if_fails)
     file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
 
     wgrib2_command_string = (
         '"' + wgrib2_exe_name + '" "' + grib2_file_name + '" -s | grep -w "' +
-        grib2_var_name + '" | "' + wgrib2_exe_name + '" -i "' + grib2_file_name +
-        '" -no_header -text "' + text_file_name + '"')
+        grib2_var_name + '" | "' + wgrib2_exe_name + '" -i "' +
+        grib2_file_name + '" -no_header -text "' + text_file_name + '"')
 
-    os.system(wgrib2_command_string)
+    try:
+        subprocess.call(wgrib2_command_string, shell=True)
+    except OSError as this_exception:
+        if raise_error_if_fails:
+            raise
+
+        warn_string = (
+            '\n' + wgrib2_command_string +
+            '\nCommand (shown above) failed (details shown below).\n' +
+            str(this_exception))
+        warnings.warn(warn_string)
+        return False
+
+    return True
 
 
 def _read_variable_from_text(text_file_name, num_grid_rows=None,
-                             num_grid_columns=None, sentinel_value=None):
+                             num_grid_columns=None, sentinel_value=None,
+                             raise_error_if_fails=True):
     """Reads one variable, at all grid points, from text file.
 
     M = number of rows in grid
@@ -130,15 +173,32 @@ def _read_variable_from_text(text_file_name, num_grid_rows=None,
     :param num_grid_columns: Number of columns in grid.
     :param sentinel_value: Sentinel value.  All instances of this value will be
         replaced with NaN.
-    :return: data_matrix: M-by-N numpy array with values read from file.  If the
-        grid is regular in x-y, x increases while traveling right across the
-        rows and y increases while traveling down the columns.  If the grid is
-        regular in lat-long, latitude increases while traveling down the columns
-        and longitude increases while traveling right across the rows.
+    :param raise_error_if_fails: Boolean flag.  If `numpy.reshape` fails (wrong
+        number of grid points in file) and raise_error_if_fails = True, this
+        method will raise an error.
+    :return: data_matrix: If read fails and raise_error_if_fails = False: None.
+        Otherwise: M-by-N numpy array with values read from file.  If the grid
+        is regular in x-y, x increases while traveling right across the rows and
+        y increases while traveling down the columns.  If the grid is regular in
+        lat-long, latitude increases while traveling down the columns and
+        longitude increases while traveling right across the rows.
+    :raises: ValueError: if read fails and raise_error_if_fails = True.
     """
 
-    data_matrix = numpy.reshape(numpy.loadtxt(text_file_name),
-                                (num_grid_rows, num_grid_columns))
+    data_vector = numpy.loadtxt(text_file_name)
+
+    try:
+        data_matrix = numpy.reshape(data_vector,
+                                    (num_grid_rows, num_grid_columns))
+    except ValueError as this_exception:
+        if raise_error_if_fails:
+            raise
+
+        warn_string = (
+            '\n' + str(this_exception) + '\nnumpy.reshape failed (probably ' +
+            'wrong number of grid points in file -- details shown above).')
+        warnings.warn(warn_string)
+        return None
 
     return _replace_sentinels_with_nan(data_matrix, sentinel_value)
 
