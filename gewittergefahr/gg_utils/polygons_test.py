@@ -12,6 +12,21 @@ MEDIUM_LIST = [0, 1, 2, 3]
 LONG_LIST = [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]
 LIST_OF_LISTS = [SHORT_LIST, MEDIUM_LIST, LONG_LIST]
 
+VERTEX_X_METRES_LONG = numpy.array([0., 2., 2., 4., 4., 1., 1., 0., 0.])
+VERTEX_Y_METRES_LONG = numpy.array([0., 0., -1., -1., 4., 4., 2., 2., 0.])
+VERTEX_X_METRES_MEDIUM = numpy.array([0., 2., 4., 4., 2., 0., 0.])
+VERTEX_Y_METRES_MEDIUM = numpy.array([0., -1., 0., 2., 3., 2., 0.])
+VERTEX_X_METRES_SHORT = numpy.array([0., 4., 2., 0.])
+VERTEX_Y_METRES_SHORT = numpy.array([0., 0., 4., 0.])
+
+NAN_ARRAY = numpy.array([numpy.nan])
+VERTEX_X_METRES_COMPLEX = numpy.concatenate((
+    VERTEX_X_METRES_LONG, NAN_ARRAY, VERTEX_X_METRES_MEDIUM, NAN_ARRAY,
+    VERTEX_X_METRES_SHORT))
+VERTEX_Y_METRES_COMPLEX = numpy.concatenate((
+    VERTEX_Y_METRES_LONG, NAN_ARRAY, VERTEX_Y_METRES_MEDIUM, NAN_ARRAY,
+    VERTEX_Y_METRES_SHORT))
+
 EXTERIOR_VERTEX_X_METRES = numpy.array([0., 0., 10., 10., 0.])
 EXTERIOR_VERTEX_Y_METRES = numpy.array([0., 10., 10., 0., 0.])
 EXTERIOR_VERTEX_METRES_LIST = [(0., 0.), (0., 10.), (10., 10.), (10., 0.),
@@ -41,6 +56,15 @@ MERGED_VERTEX_METRES_LIST = [(0., 0.), (0., 10.), (10., 10.), (10., 0.),
 POLYGON_OBJECT = shapely.geometry.Polygon(shell=EXTERIOR_VERTEX_METRES_LIST,
                                           holes=(HOLE1_VERTEX_METRES_LIST,
                                                  HOLE2_VERTEX_METRES_LIST))
+
+VERTEX_ROWS_SIMPLE = numpy.array(
+    [3.5, 3.5, 4.5, 4.5, -0.5, -0.5, 1.5, 1.5, 3.5])
+VERTEX_COLUMNS_SIMPLE = numpy.array(
+    [-0.5, 1.5, 1.5, 3.5, 3.5, 0.5, 0.5, -0.5, -0.5])
+GRID_POINT_ROWS_IN_SIMPLE_POLY = numpy.array(
+    [0, 0, 0, 1, 1, 1, 2, 2, 2, 2, 3, 3, 3, 3, 4, 4])
+GRID_POINT_COLUMNS_IN_SIMPLE_POLY = numpy.array(
+    [1, 2, 3, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 2, 3])
 
 SMALL_BUFFER_DIST_METRES = 2.5
 LARGE_BUFFER_DIST_METRES = 5.
@@ -112,8 +136,12 @@ FIRST_COLUMN_INDEX = 500
 
 VERTEX_ROWS_GRID_POINTS = numpy.array(
     [101, 102, 103, 103, 104, 102, 102, 101, 101])
+VERTEX_ROWS_GRID_POINTS_COMPLEX = numpy.array(
+    [101, 102, 103, 103, 104, 102, 102, 101, 101, numpy.nan, 0, 1, 1, 0, 0])
 VERTEX_COLUMNS_GRID_POINTS = numpy.array(
     [501, 501, 502, 503, 504, 504, 503, 502, 501])
+VERTEX_COLUMNS_GRID_POINTS_COMPLEX = numpy.array(
+    [501, 501, 502, 503, 504, 504, 503, 502, 501, numpy.nan, 0, 0, 1, 1, 0])
 
 VERTEX_ROWS_GRID_CELL_EDGES_REDUNDANT = numpy.array(
     [100.5, 102.5, 102.5, 103.5, 103.5, 103.5, 103.5, 103.5, 104.5, 104.5,
@@ -159,6 +187,36 @@ class PolygonsTests(unittest.TestCase):
 
         this_longest_list = polygons._get_longest_inner_list(LIST_OF_LISTS)
         self.assertTrue(this_longest_list == LONG_LIST)
+
+    def test_get_longest_simple_polygon_complex(self):
+        """Ensures correct output from _get_longest_simple_polygon.
+
+        In this case, input is a complex polygon.
+        """
+
+        (these_vertex_x_metres,
+         these_vertex_y_metres) = polygons._get_longest_simple_polygon(
+             VERTEX_X_METRES_COMPLEX, VERTEX_Y_METRES_COMPLEX)
+
+        self.assertTrue(numpy.allclose(
+            these_vertex_x_metres, VERTEX_X_METRES_LONG, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_vertex_y_metres, VERTEX_Y_METRES_LONG, atol=TOLERANCE))
+
+    def test_get_longest_simple_polygon_simple(self):
+        """Ensures correct output from _get_longest_simple_polygon.
+
+        In this case, input is already a simple polygon.
+        """
+
+        (these_vertex_x_metres,
+         these_vertex_y_metres) = polygons._get_longest_simple_polygon(
+             VERTEX_X_METRES_LONG, VERTEX_Y_METRES_LONG)
+
+        self.assertTrue(numpy.allclose(
+            these_vertex_x_metres, VERTEX_X_METRES_LONG, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_vertex_y_metres, VERTEX_Y_METRES_LONG, atol=TOLERANCE))
 
     def test_separate_exterior_and_holes(self):
         """Ensures correct output from _separate_exterior_and_holes."""
@@ -430,7 +488,7 @@ class PolygonsTests(unittest.TestCase):
 
         (this_centroid_lat_deg,
          this_centroid_lng_deg) = polygons.get_latlng_centroid(
-            LATITUDE_POINTS_DEG, LONGITUDE_POINTS_DEG)
+             LATITUDE_POINTS_DEG, LONGITUDE_POINTS_DEG)
 
         self.assertTrue(numpy.isclose(
             this_centroid_lat_deg, CENTROID_LAT_DEG, atol=TOLERANCE))
@@ -556,6 +614,52 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(
             numpy.array_equal(these_vertex_columns,
                               VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
+
+    def test_simple_polygon_to_grid_points(self):
+        """Ensures correct output from simple_polygon_to_grid_points."""
+
+        (these_grid_point_rows,
+         these_grid_point_columns) = polygons.simple_polygon_to_grid_points(
+             VERTEX_ROWS_SIMPLE, VERTEX_COLUMNS_SIMPLE)
+
+        self.assertTrue(numpy.array_equal(these_grid_point_rows,
+                                          GRID_POINT_ROWS_IN_SIMPLE_POLY))
+        self.assertTrue(numpy.array_equal(these_grid_point_columns,
+                                          GRID_POINT_COLUMNS_IN_SIMPLE_POLY))
+
+    def test_fix_probsevere_vertices_simple(self):
+        """Ensures correct output from fix_probsevere_vertices.
+
+        In this case, input is a simple polygon.
+        """
+
+        (these_vertex_rows,
+         these_vertex_columns) = polygons.fix_probsevere_vertices(
+             VERTEX_ROWS_GRID_POINTS, VERTEX_COLUMNS_GRID_POINTS)
+
+        self.assertTrue(numpy.allclose(
+            these_vertex_rows, VERTEX_ROWS_GRID_CELL_EDGES_NON_REDUNDANT,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_vertex_columns, VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT,
+            atol=TOLERANCE))
+
+    def test_fix_probsevere_vertices_complex(self):
+        """Ensures correct output from fix_probsevere_vertices.
+
+        In this case, input is a complex polygon.
+        """
+
+        (these_vertex_rows,
+         these_vertex_columns) = polygons.fix_probsevere_vertices(
+             VERTEX_ROWS_GRID_POINTS_COMPLEX, VERTEX_COLUMNS_GRID_POINTS_COMPLEX)
+
+        self.assertTrue(numpy.allclose(
+            these_vertex_rows, VERTEX_ROWS_GRID_CELL_EDGES_NON_REDUNDANT,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_vertex_columns, VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT,
+            atol=TOLERANCE))
 
     def test_make_buffer_around_simple_polygon_small(self):
         """Ensures correct output from make_buffer_around_simple_polygon.

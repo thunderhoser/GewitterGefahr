@@ -8,6 +8,7 @@ import copy
 import numpy
 import cv2
 import shapely.geometry
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
 
 UP_DIRECTION_NAME = 'up'
@@ -74,6 +75,57 @@ def _get_longest_inner_list(list_of_lists):
     return list_of_lists[numpy.argmax(list_lengths)]
 
 
+def _get_longest_simple_polygon(vertex_x_metres, vertex_y_metres):
+    """Finds longest simple polygon (i.e., longest run of vertices without NaN).
+
+    v = number of vertices in original polygon.  This polygon may be complex
+        (i.e., made of several disjoint simple polygons).
+    V = number of vertices in simple polygon
+
+    :param vertex_x_metres: length-v numpy array with x-coordinates of vertices.
+    :param vertex_y_metres: length-v numpy array with y-coordinates of vertices.
+    :return: simple_vertex_x_metres: length-V numpy array with x-coordinates of
+        vertices.
+    :return: simple_vertex_y_metres: length-V numpy array with y-coordinates of
+        vertices.
+    """
+
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
+
+    nan_flags = numpy.isnan(vertex_x_metres)
+    if not numpy.any(nan_flags):
+        return vertex_x_metres, vertex_y_metres
+
+    nan_indices = numpy.where(nan_flags)[0]
+    num_simple_polygons = len(nan_indices) + 1
+    start_indices_by_polygon = numpy.full(num_simple_polygons, -1, dtype=int)
+    end_indices_by_polygon = numpy.full(num_simple_polygons, -1, dtype=int)
+
+    for i in range(num_simple_polygons):
+        if i == 0:
+            start_indices_by_polygon[i] = 0
+            end_indices_by_polygon[i] = nan_indices[i] - 1
+        elif i == num_simple_polygons - 1:
+            start_indices_by_polygon[i] = nan_indices[i - 1] + 1
+            end_indices_by_polygon[i] = len(vertex_x_metres) - 1
+        else:
+            start_indices_by_polygon[i] = nan_indices[i - 1] + 1
+            end_indices_by_polygon[i] = nan_indices[i] - 1
+
+    num_vertices_by_polygon = (
+        end_indices_by_polygon - start_indices_by_polygon + 1)
+    max_index = numpy.argmax(num_vertices_by_polygon)
+
+    simple_vertex_x_metres = (
+        vertex_x_metres[start_indices_by_polygon[max_index]:
+                        (end_indices_by_polygon[max_index] + 1)])
+    simple_vertex_y_metres = (
+        vertex_y_metres[start_indices_by_polygon[max_index]:
+                        (end_indices_by_polygon[max_index] + 1)])
+
+    return simple_vertex_x_metres, simple_vertex_y_metres
+
+
 def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
     """Separates exterior of polygon from holes in polygon.
 
@@ -116,10 +168,10 @@ def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
             this_hole_x_metres = vertex_x_metres[(nan_indices[i] + 1):]
             this_hole_y_metres = vertex_y_metres[(nan_indices[i] + 1):]
         else:
-            this_hole_x_metres = vertex_x_metres[
-                (nan_indices[i] + 1):nan_indices[i + 1]]
-            this_hole_y_metres = vertex_y_metres[
-                (nan_indices[i] + 1):nan_indices[i + 1]]
+            this_hole_x_metres = (
+                vertex_x_metres[(nan_indices[i] + 1):nan_indices[i + 1]])
+            this_hole_y_metres = (
+                vertex_y_metres[(nan_indices[i] + 1):nan_indices[i + 1]])
 
         hole_x_metres_list.append(this_hole_x_metres)
         hole_y_metres_list.append(this_hole_y_metres)
@@ -690,6 +742,95 @@ def points_in_poly_to_vertices(row_indices, column_indices):
     vertex_columns += first_column_index
     vertex_rows, vertex_columns = _adjust_vertices_to_grid_cell_edges(
         vertex_rows, vertex_columns)
+    return _remove_redundant_vertices(vertex_rows, vertex_columns)
+
+
+def simple_polygon_to_grid_points(vertex_rows, vertex_columns):
+    """Finds grid points in simple polygon.
+
+    V = number of vertices
+    P = number of grid points in polygon
+
+    :param vertex_rows: length-V numpy array with row indices (half-integers) of
+        vertices.
+    :param vertex_columns: length-V numpy array with column indices (half-
+        integers) of vertices.
+    :return: grid_point_rows: length-P numpy array with row indices (integers)
+        of grid points in polygon.
+    :return: grid_point_columns: length-P numpy array with column indices
+        (integers) of grid points in polygon.
+    """
+
+    polygon_object = vertices_to_polygon_object(vertex_columns, vertex_rows)
+
+    min_grid_point_row = numpy.floor(numpy.min(vertex_rows))
+    max_grid_point_row = numpy.ceil(numpy.max(vertex_rows))
+    num_grid_point_rows = max_grid_point_row - min_grid_point_row + 1
+    min_grid_point_column = numpy.floor(numpy.min(vertex_columns))
+    max_grid_point_column = numpy.ceil(numpy.max(vertex_columns))
+    num_grid_point_columns = max_grid_point_column - min_grid_point_column + 1
+
+    unique_grid_point_rows = numpy.linspace(
+        min_grid_point_row, max_grid_point_row, num=num_grid_point_rows,
+        dtype=int)
+    unique_grid_point_columns = numpy.linspace(
+        min_grid_point_column, max_grid_point_column,
+        num=num_grid_point_columns, dtype=int)
+
+    (grid_point_column_matrix,
+     grid_point_row_matrix) = grids.xy_vectors_to_matrices(
+         unique_grid_point_columns, unique_grid_point_rows)
+
+    grid_point_row_vector = numpy.reshape(grid_point_row_matrix,
+                                          grid_point_row_matrix.size)
+    grid_point_column_vector = numpy.reshape(grid_point_column_matrix,
+                                             grid_point_column_matrix.size)
+
+    num_grid_points = len(grid_point_row_vector)
+    in_polygon_flags = numpy.full(num_grid_points, False, dtype=bool)
+    for i in range(num_grid_points):
+        in_polygon_flags[i] = is_point_in_or_on_polygon(
+            polygon_object, query_x_metres=grid_point_column_vector[i],
+            query_y_metres=grid_point_row_vector[i])
+
+    in_polygon_indices = numpy.where(in_polygon_flags)[0]
+    return (grid_point_row_vector[in_polygon_indices],
+            grid_point_column_vector[in_polygon_indices])
+
+
+def fix_probsevere_vertices(orig_vertex_rows, orig_vertex_columns):
+    """Fixes vertices of storm object generated by probSevere.
+
+    Specifically, this method moves vertices from grid points to grid-cell
+    edges.  In other words, this method ensures that vertices form a perfect
+    outline of grid cells inside the polygon, rather than cutting through grid
+    cells.
+
+    v = number of original vertices
+    V = number of new vertices
+
+    :param orig_vertex_rows: length-v numpy array with row indices of vertices
+        (integers).
+    :param orig_vertex_columns: length-v numpy array with column indices of
+        vertices (integers).
+    :return: vertex_rows: length-V numpy array with row indices of vertices
+        (half-integers).
+    :return: vertex_columns: length-V numpy array with column indices of
+        vertices (half-integers).
+    """
+
+    orig_vertex_columns, orig_vertex_rows = _get_longest_simple_polygon(
+        orig_vertex_columns, orig_vertex_rows)
+
+    if (orig_vertex_rows[0] != orig_vertex_rows[-1] or
+            orig_vertex_columns[0] != orig_vertex_columns[-1]):
+        orig_vertex_rows = numpy.concatenate((
+            orig_vertex_rows, numpy.array([orig_vertex_rows[0]])))
+        orig_vertex_columns = numpy.concatenate((
+            orig_vertex_columns, numpy.array([orig_vertex_columns[0]])))
+
+    vertex_rows, vertex_columns = _adjust_vertices_to_grid_cell_edges(
+        orig_vertex_rows, orig_vertex_columns)
     return _remove_redundant_vertices(vertex_rows, vertex_columns)
 
 
