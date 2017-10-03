@@ -23,7 +23,6 @@ TIME_FORMAT_HOUR_MINUTE = '%Y%m%d%H%M'
 
 DATA_SOURCE = 'hfmetar'
 RAW_FILE_EXTENSION = '.dat'
-UTC_OFFSET_COLUMN = 'utc_offset_hours'
 
 PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64060'
 TOP_ONLINE_DIR_NAME_1MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin'
@@ -199,7 +198,7 @@ def _remove_invalid_metadata_rows(station_metadata_table):
     """Removes any row with invalid station metadata.
 
     :param station_metadata_table: pandas DataFrame created by
-        read_station_metadata_from_text.
+        read_station_metadata_from_raw_file.
     :return: station_metadata_table: Same as input, with the following
         exceptions.
         [1] Any row with invalid latitude or longitude is removed.
@@ -216,7 +215,7 @@ def _remove_invalid_wind_rows(wind_table):
     """Removes any row with invalid wind data.
 
     :param wind_table: pandas DataFrame created by either
-        read_1minute_winds_from_text or read_5minute_winds_from_text.
+        read_1minute_winds_from_raw_file or read_5minute_winds_from_raw_file.
     :return: wind_table: Same as input, with the following exceptions.
         [1] Any row with invalid wind speed is removed.
         [2] Any invalid wind direction is changed to NaN.
@@ -322,11 +321,11 @@ def find_local_raw_5minute_file(station_id=None, month_unix_sec=None,
     return raw_5minute_file_name
 
 
-def read_station_metadata_from_text(text_file_name):
-    """Reads metadata for ASOS stations from text file.
+def read_station_metadata_from_raw_file(text_file_name):
+    """Reads metadata for ASOS stations from raw file.
 
-    This text file is provided by the National Climatic Data Center (NCDC) and
-    can be found here: www.ncdc.noaa.gov/homr/file/asos-stations.txt
+    This file is provided by the National Climatic Data Center (NCDC) and can be
+    found here: www.ncdc.noaa.gov/homr/file/asos-stations.txt
 
     :param text_file_name: Path to input file.
     :return: station_metadata_table: pandas DataFrame with the following
@@ -379,7 +378,7 @@ def read_station_metadata_from_text(text_file_name):
                              raw_wind_io.LATITUDE_COLUMN: latitudes_deg,
                              raw_wind_io.LONGITUDE_COLUMN: longitudes_deg,
                              raw_wind_io.ELEVATION_COLUMN: elevations_m_asl,
-                             UTC_OFFSET_COLUMN: utc_offsets_hours}
+                             raw_wind_io.UTC_OFFSET_COLUMN: utc_offsets_hours}
 
     station_metadata_table = pandas.DataFrame.from_dict(station_metadata_dict)
     station_metadata_table[raw_wind_io.ELEVATION_COLUMN] *= FEET_TO_METRES
@@ -389,7 +388,7 @@ def read_station_metadata_from_text(text_file_name):
 def download_1minute_file(station_id=None, month_unix_sec=None,
                           top_local_directory_name=None,
                           raise_error_if_fails=True):
-    """Downloads text file with 1-minute METARs for one station-month.
+    """Downloads file with 1-minute METARs for one station-month.
 
     :param station_id: String ID for station.
     :param month_unix_sec: Month in Unix format (sec since 0000 UTC 1 Jan 1970).
@@ -397,8 +396,9 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
         containing 1-minute METARs.
     :param raise_error_if_fails: Boolean flag.  If True and download fails, will
         raise error.
-    :return: local_file_name: Path to text file on local machine.  If download
-        failed but raise_error_if_fails = False, will return None.
+    :return: local_file_name: Path to downloaded file on local machine.  If
+        download failed but raise_error_if_fails = False, local_file_name =
+        None.
     """
 
     local_file_name = find_local_raw_1minute_file(
@@ -421,7 +421,7 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
 def download_5minute_file(station_id=None, month_unix_sec=None,
                           top_local_directory_name=None,
                           raise_error_if_fails=True):
-    """Downloads text file with 5-minute METARs for one station-month.
+    """Downloads file with 5-minute METARs for one station-month.
 
     :param station_id: String ID for station.
     :param month_unix_sec: Month in Unix format (sec since 0000 UTC 1 Jan 1970).
@@ -429,8 +429,9 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         containing 5-minute METARs.
     :param raise_error_if_fails: Boolean flag.  If True and download fails, will
         raise error.
-    :return: local_file_name: Path to text file on local machine.  If download
-        failed but raise_error_if_fails = False, will return None.
+    :return: local_file_name: Path to downloaded file on local machine.  If
+        download failed but raise_error_if_fails = False, local_file_name =
+        None.
     """
 
     local_file_name = find_local_raw_5minute_file(
@@ -450,13 +451,11 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         raise_error_if_fails=raise_error_if_fails)
 
 
-def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
-    """Reads wind data from text file with 1-minute METARs.
+def read_1minute_winds_from_raw_file(text_file_name, utc_offset_hours):
+    """Reads 1-minute wind observations from raw file.
 
-    These text files are provided by the National Climatic Data Center (NCDC)
-    here: ftp.ncdc.noaa.gov/pub/data/asos-onemin/
-
-    Each file contains data for one station and one month.
+    This file should contain 1-minute METARs for one station-month (see
+    download_1minute_file).
 
     :param text_file_name: Path to input file.
     :param utc_offset_hours: Difference between local station time and UTC
@@ -517,13 +516,11 @@ def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
     return _remove_invalid_wind_rows(wind_table)
 
 
-def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
-    """Reads wind data from text file with 5-minute METARs.
+def read_5minute_winds_from_raw_file(text_file_name, utc_offset_hours):
+    """Reads 5-minute wind observations from raw file.
 
-    These text files are provided by the National Climatic Data Center (NCDC)
-    here: ftp.ncdc.noaa.gov/pub/data/asos-fivemin/
-
-    Each file contains data for one station and one month.
+    This file should contain 5-minute METARs for one station-month (see
+    download_5minute_file).
 
     :param text_file_name: Path to input file.
     :param utc_offset_hours: Difference between local station time and UTC
@@ -579,16 +576,17 @@ def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
     return _remove_invalid_wind_rows(wind_table)
 
 
-def merge_winds_and_metadata(wind_table, station_metadata_table, station_id):
+def merge_winds_and_station_metadata(wind_table, station_metadata_table,
+                                     station_id):
     """Merges wind data with metadata for observing stations.
 
-    :param wind_table: pandas DataFrame created by read_1minute_winds_from_text,
-        read_5minute_winds_from_text, or
+    :param wind_table: pandas DataFrame created by
+        read_1minute_winds_from_raw_file, read_5minute_winds_from_raw_file, or
         `raw_wind_io.sustained_and_gust_to_uv_max`.
     :param station_metadata_table: pandas DataFrame created by
-        read_station_metadata_from_text.
+        read_station_metadata_from_raw_file.
     :param station_id: String ID for station in wind_table.
-    :return: wind_table: Same as input but with additional columns listed below.
+    :return: wind_table: Same as input, but with the following extra columns.
     wind_table.station_id: String ID for station.
     wind_table.station_name: Verbose name for station.
     wind_table.latitude_deg: Latitude (deg N).
@@ -608,9 +606,10 @@ def merge_winds_and_metadata(wind_table, station_metadata_table, station_id):
 
 if __name__ == '__main__':
     # Read metadata from original text file; write to new CSV file.
-    STATION_METADATA_TABLE = read_station_metadata_from_text(ORIG_METAFILE_NAME)
-    raw_wind_io.write_station_metadata_to_csv(STATION_METADATA_TABLE,
-                                              NEW_METAFILE_NAME)
+    STATION_METADATA_TABLE = read_station_metadata_from_raw_file(
+        ORIG_METAFILE_NAME)
+    raw_wind_io.write_station_metadata_to_processed_file(STATION_METADATA_TABLE,
+                                                         NEW_METAFILE_NAME)
 
     # Download 1-minute METARs and convert file type.
     ORIG_1MINUTE_FILE_NAME = download_1minute_file(
@@ -619,23 +618,23 @@ if __name__ == '__main__':
         top_local_directory_name=TOP_LOCAL_DIR_NAME_1MINUTE,
         raise_error_if_fails=True)
 
-    THESE_STATION_FLAGS = [s == STATION_ID_1MINUTE for s in
-                           STATION_METADATA_TABLE[
-                               raw_wind_io.STATION_ID_COLUMN].values]
+    THESE_STATION_FLAGS = [
+        s == STATION_ID_1MINUTE for s in STATION_METADATA_TABLE[
+            raw_wind_io.STATION_ID_COLUMN].values]
     THIS_STATION_INDEX = numpy.where(THESE_STATION_FLAGS)[0][0]
-    THIS_UTC_OFFSET_HOURS = STATION_METADATA_TABLE[UTC_OFFSET_COLUMN].values[
-        THIS_STATION_INDEX]
+    THIS_UTC_OFFSET_HOURS = STATION_METADATA_TABLE[
+        raw_wind_io.UTC_OFFSET_COLUMN].values[THIS_STATION_INDEX]
 
-    WIND_TABLE_1MINUTE = read_1minute_winds_from_text(ORIG_1MINUTE_FILE_NAME,
-                                                      THIS_UTC_OFFSET_HOURS)
+    WIND_TABLE_1MINUTE = read_1minute_winds_from_raw_file(
+        ORIG_1MINUTE_FILE_NAME, THIS_UTC_OFFSET_HOURS)
     WIND_TABLE_1MINUTE = raw_wind_io.sustained_and_gust_to_uv_max(
         WIND_TABLE_1MINUTE)
-    WIND_TABLE_1MINUTE = merge_winds_and_metadata(WIND_TABLE_1MINUTE,
-                                                  STATION_METADATA_TABLE,
-                                                  STATION_ID_1MINUTE)
+    WIND_TABLE_1MINUTE = merge_winds_and_station_metadata(
+        WIND_TABLE_1MINUTE, STATION_METADATA_TABLE, STATION_ID_1MINUTE)
     print WIND_TABLE_1MINUTE
 
-    raw_wind_io.write_winds_to_csv(WIND_TABLE_1MINUTE, CSV_FILE_NAME_1MINUTE)
+    raw_wind_io.write_winds_to_processed_file(WIND_TABLE_1MINUTE,
+                                              CSV_FILE_NAME_1MINUTE)
 
     # Download 5-minute METARs and convert file type.
     ORIG_5MINUTE_FILE_NAME = download_5minute_file(
@@ -644,20 +643,20 @@ if __name__ == '__main__':
         top_local_directory_name=TOP_LOCAL_DIR_NAME_5MINUTE,
         raise_error_if_fails=True)
 
-    THESE_STATION_FLAGS = [s == STATION_ID_5MINUTE for s in
-                           STATION_METADATA_TABLE[
-                               raw_wind_io.STATION_ID_COLUMN].values]
+    THESE_STATION_FLAGS = [
+        s == STATION_ID_5MINUTE for s in STATION_METADATA_TABLE[
+            raw_wind_io.STATION_ID_COLUMN].values]
     THIS_STATION_INDEX = numpy.where(THESE_STATION_FLAGS)[0][0]
-    THIS_UTC_OFFSET_HOURS = STATION_METADATA_TABLE[UTC_OFFSET_COLUMN].values[
-        THIS_STATION_INDEX]
+    THIS_UTC_OFFSET_HOURS = STATION_METADATA_TABLE[
+        raw_wind_io.UTC_OFFSET_COLUMN].values[THIS_STATION_INDEX]
 
-    WIND_TABLE_5MINUTE = read_5minute_winds_from_text(ORIG_5MINUTE_FILE_NAME,
-                                                      THIS_UTC_OFFSET_HOURS)
+    WIND_TABLE_5MINUTE = read_5minute_winds_from_raw_file(
+        ORIG_5MINUTE_FILE_NAME, THIS_UTC_OFFSET_HOURS)
     WIND_TABLE_5MINUTE = raw_wind_io.sustained_and_gust_to_uv_max(
         WIND_TABLE_5MINUTE)
-    WIND_TABLE_5MINUTE = merge_winds_and_metadata(WIND_TABLE_5MINUTE,
-                                                  STATION_METADATA_TABLE,
-                                                  STATION_ID_5MINUTE)
+    WIND_TABLE_5MINUTE = merge_winds_and_station_metadata(
+        WIND_TABLE_5MINUTE, STATION_METADATA_TABLE, STATION_ID_5MINUTE)
     print WIND_TABLE_5MINUTE
 
-    raw_wind_io.write_winds_to_csv(WIND_TABLE_5MINUTE, CSV_FILE_NAME_5MINUTE)
+    raw_wind_io.write_winds_to_processed_file(WIND_TABLE_5MINUTE,
+                                              CSV_FILE_NAME_5MINUTE)

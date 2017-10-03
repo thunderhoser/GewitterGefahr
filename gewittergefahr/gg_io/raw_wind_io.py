@@ -41,6 +41,7 @@ STATION_NAME_COLUMN = 'station_name'
 LATITUDE_COLUMN = 'latitude_deg'
 LONGITUDE_COLUMN = 'longitude_deg'
 ELEVATION_COLUMN = 'elevation_m_asl'
+UTC_OFFSET_COLUMN = 'utc_offset_hours'
 WIND_SPEED_COLUMN = 'wind_speed_m_s01'
 WIND_DIR_COLUMN = 'wind_direction_deg'
 WIND_GUST_SPEED_COLUMN = 'wind_gust_speed_m_s01'
@@ -49,27 +50,24 @@ U_WIND_COLUMN = 'u_wind_m_s01'
 V_WIND_COLUMN = 'v_wind_m_s01'
 TIME_COLUMN = 'unix_time_sec'
 
+REQUIRED_STATION_METADATA_COLUMNS = [
+    STATION_ID_COLUMN, STATION_NAME_COLUMN, LATITUDE_COLUMN, LONGITUDE_COLUMN,
+    ELEVATION_COLUMN]
 
-def append_source_to_station_id(station_id, data_source):
-    """Appends data source to station ID.
+STATION_METADATA_COLUMNS = REQUIRED_STATION_METADATA_COLUMNS + [
+    UTC_OFFSET_COLUMN]
 
-    There are 4 possible data sources: "madis", "hfmetar", "ok_mesonet", and
-    "lsr".  For the non-abbreviated versions, see the docstring for this file.
+STATION_METADATA_COLUMN_TYPE_DICT = {
+    STATION_ID_COLUMN: str, STATION_NAME_COLUMN: str,
+    LATITUDE_COLUMN: numpy.float64, LONGITUDE_COLUMN: numpy.float64,
+    ELEVATION_COLUMN: numpy.float64, UTC_OFFSET_COLUMN: numpy.float64}
 
-    The data source will be append with an underscore.  For example, if the
-    station ID is "CYEG" and data source is "madis", the new ID will be
-    "CYEG_madis".  Stations from different sources might have the same IDs, so
-    this ensures the uniqueness of IDs.
-
-    :param station_id: String ID for station.
-    :param data_source: String ID for data source.
-    :return: station_id: Same as input, but with underscore and data source
-        appended.
-    """
-
-    error_checking.assert_is_string(station_id)
-    error_checking.assert_is_string(data_source)
-    return '{0:s}_{1:s}'.format(station_id, data_source)
+WIND_COLUMNS = REQUIRED_STATION_METADATA_COLUMNS + [TIME_COLUMN, U_WIND_COLUMN,
+                                                    V_WIND_COLUMN]
+WIND_COLUMN_TYPE_DICT = copy.deepcopy(STATION_METADATA_COLUMN_TYPE_DICT)
+WIND_COLUMN_TYPE_DICT.update({TIME_COLUMN: numpy.int64,
+                              U_WIND_COLUMN: numpy.float64,
+                              V_WIND_COLUMN: numpy.float64})
 
 
 def _check_elevations(elevations_m_asl):
@@ -213,6 +211,28 @@ def _check_wind_directions(wind_directions_deg):
         wind_directions_deg >= MIN_WIND_DIRECTION_DEG,
         wind_directions_deg <= MAX_WIND_DIRECTION_DEG)
     return numpy.where(numpy.invert(valid_flags))[0]
+
+
+def append_source_to_station_id(station_id, data_source):
+    """Appends data source to station ID.
+
+    There are 4 possible data sources: "madis", "hfmetar", "ok_mesonet", and
+    "lsr".  For the non-abbreviated versions, see the docstring for this file.
+
+    The data source will be append with an underscore.  For example, if the
+    station ID is "CYEG" and data source is "madis", the new ID will be
+    "CYEG_madis".  Stations from different sources might have the same IDs, so
+    this ensures the uniqueness of IDs.
+
+    :param station_id: String ID for station.
+    :param data_source: String ID for data source.
+    :return: station_id: Same as input, but with underscore and data source
+        appended.
+    """
+
+    error_checking.assert_is_string(station_id)
+    error_checking.assert_is_string(data_source)
+    return '{0:s}_{1:s}'.format(station_id, data_source)
 
 
 def remove_invalid_rows(input_table, check_speed_flag=False,
@@ -510,10 +530,15 @@ def sustained_and_gust_to_uv_max(wind_table):
     return wind_table.assign(**argument_dict)
 
 
-def write_station_metadata_to_csv(station_metadata_table, csv_file_name):
-    """Writes metadata for weather stations* to CSV file.
+def write_station_metadata_to_processed_file(station_metadata_table,
+                                             csv_file_name):
+    """Writes metadata for weather stations to file.
 
-    * These may be either HFMETAR or Oklahoma Mesonet stations.
+    This is considered a "processed file," as opposed to a "raw file".  A "raw
+    file" is one taken directly from another database, in the native format of
+    said database.  For examples, see
+    `hfmetar_io.read_station_metadata_from_raw_file` and
+    `ok_mesonet_io.read_station_metadata_from_raw_file`.
 
     :param station_metadata_table: pandas DataFrame with the following columns.
     station_metadata_table.station_id: String ID for station.
@@ -521,32 +546,40 @@ def write_station_metadata_to_csv(station_metadata_table, csv_file_name):
     station_metadata_table.latitude_deg: Latitude (deg N).
     station_metadata_table.longitude_deg: Longitude (deg E).
     station_metadata_table.elevation_m_asl: Elevation (metres above sea level).
-    station_metadata_table.utc_offset_hours: [HFMETAR only] Difference between
-        local station time and UTC (local minus UTC).
+    station_metadata_table.utc_offset_hours [optional]: Local time minus UTC.
     :param csv_file_name: Path to output file.
     """
 
+    error_checking.assert_columns_in_dataframe(
+        station_metadata_table, REQUIRED_STATION_METADATA_COLUMNS)
+
     file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
-    station_metadata_table.to_csv(csv_file_name, header=True, sep=',',
-                                  index=False)
+    station_metadata_table.to_csv(
+        csv_file_name, header=True, columns=STATION_METADATA_COLUMNS,
+        index=False)
 
 
-def read_station_metadata_from_csv(csv_file_name):
-    """Reads metadata for weather stations* from CSV file.
-
-    * These may be either HFMETAR or Oklahoma Mesonet stations.
+def read_station_metadata_from_processed_file(csv_file_name):
+    """Reads metadata for weather stations from file.
 
     :param csv_file_name: Path to input file.
-    :return: station_metadata_table: pandas DataFrame with columns specified in
-        write_station_metadata_to_csv
+    :return: station_metadata_table: See documentation for
+        write_station_metadata_to_processed_file.
     """
 
     error_checking.assert_file_exists(csv_file_name)
-    return pandas.read_csv(csv_file_name, header=0, sep=',')
+    return pandas.read_csv(
+        csv_file_name, header=0, usecols=STATION_METADATA_COLUMNS,
+        dtype=STATION_METADATA_COLUMN_TYPE_DICT)
 
 
-def write_winds_to_csv(wind_table, csv_file_name):
-    """Writes wind data to CSV file.
+def write_winds_to_processed_file(wind_table, csv_file_name):
+    """Writes wind observations to file.
+
+    This is considered a "processed file," as opposed to a "raw file".  A "raw
+    file" is one taken directly from another database, in the native format of
+    said database.  For examples, see `madis_io.read_winds_from_raw_file` and
+    `ok_mesonet_io.read_winds_from_raw_file`.
 
     :param wind_table: pandas DataFrame with the following columns.
     wind_table.station_id: String ID for station.
@@ -554,24 +587,26 @@ def write_winds_to_csv(wind_table, csv_file_name):
     wind_table.latitude_deg: Latitude (deg N).
     wind_table.longitude_deg: Longitude (deg E).
     wind_table.elevation_m_asl: Elevation (metres above sea level).
-    wind_table.unit_time_sec: Observation time (seconds since 0000 UTC 1 Jan
-        1970).
-    wind_table.u_wind_m_s01: Northward component (m/s) of wind.
-    wind_table.v_wind_m_s01: Eastward component (m/s) of wind.
+    wind_table.unix_time_sec: Valid time in Unix format.
+    wind_table.u_wind_m_s01: u-wind (metres per second).
+    wind_table.v_wind_m_s01: v-wind (metres per second).
     :param csv_file_name: Path to output file.
     """
 
+    error_checking.assert_columns_in_dataframe(wind_table, WIND_COLUMNS)
     file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
-    wind_table.to_csv(csv_file_name, header=True, sep=',', index=False)
+    wind_table.to_csv(csv_file_name, header=True, columns=WIND_COLUMNS,
+                      index=False)
 
 
-def read_winds_from_csv(csv_file_name):
-    """Reads wind data from CSV file.
+def read_winds_from_processed_file(csv_file_name):
+    """Reads wind observations from file.
 
     :param csv_file_name: Path to input file.
-    :return: wind_table: pandas DataFrame with columns produced by
-        sustained_and_gust_to_uv_max.
+    :return: wind_table: See documentation for write_winds_to_processed_file.
     """
 
     error_checking.assert_file_exists(csv_file_name)
-    return pandas.read_csv(csv_file_name, header=0, sep=',')
+    return pandas.read_csv(
+        csv_file_name, header=0, usecols=WIND_COLUMNS,
+        dtype=WIND_COLUMN_TYPE_DICT)

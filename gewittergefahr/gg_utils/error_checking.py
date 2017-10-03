@@ -7,6 +7,7 @@ import copy
 import numbers
 import os.path
 import numpy
+import pandas
 
 # TODO(thunderhoser): Fix hack in `REAL_NUMBER_TYPES` (where I added a bunch of
 # numpy types).  There must be a better way to deal with all numpy float and int
@@ -47,6 +48,33 @@ def _traverse_array(input_array):
 
     else:
         yield input_array
+
+
+def assert_columns_in_dataframe(input_table, column_names):
+    """Input variable must be pandas DataFrame with given columns.
+
+    :param input_table: pandas DataFrame.
+    :param column_names: 1-D list with names of desired columns.
+    :raises: TypeError: input is not pandas DataFrame.
+    :raises: KeyError: input_table is missing any of the desired columns.
+    """
+
+    if not isinstance(input_table, pandas.DataFrame):
+        error_string = (
+            '\n' + str(input_table) +
+            '\nInput variable (shown above) has type "' + str(type(input_table))
+            + '", which is not "pandas.DataFrame".')
+        raise TypeError(error_string)
+
+    for this_name in column_names:
+        if this_name in input_table:
+            continue
+
+        error_string = (
+            '\n' + str(input_table) +
+            '\npandas DataFrame (shown above) is missing column "' + this_name
+            + '".')
+        raise KeyError(error_string)
 
 
 def assert_is_array(input_variable):

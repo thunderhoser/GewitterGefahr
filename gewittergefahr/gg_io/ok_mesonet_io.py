@@ -80,12 +80,15 @@ def _date_string_to_unix_sec(date_string):
     return time_conversion.string_to_unix_sec(date_string, TIME_FORMAT_DATE)
 
 
-def _read_valid_date_from_text(text_file_name):
-    """Reads valid date from text file provided by Oklahoma Mesonet.
+def _read_date_from_raw_file(text_file_name):
+    """Reads date from raw file.
+
+    This file should contain all variables for all stations and one 5-minute
+    time step.
 
     :param text_file_name: Path to input file.
-    :return: unix_date_sec: Valid date (seconds, at beginning of day, since 0000
-        UTC 1 Jan 1970).
+    :return: unix_date_sec: Date (seconds, at beginning of day, since 0000 UTC
+        1 Jan 1970).
     """
 
     num_lines_read = 0
@@ -100,7 +103,7 @@ def _remove_invalid_metadata_rows(station_metadata_table):
     """Removes any row with invalid station metadata.
 
     :param station_metadata_table: pandas DataFrame created by
-        read_station_metadata_from_orig_csv.
+        read_station_metadata_from_raw_file.
     :return: station_metadata_table: Same as input, with the following
         exceptions.
         [1] Any row with invalid latitude or longitude is removed.
@@ -116,8 +119,7 @@ def _remove_invalid_metadata_rows(station_metadata_table):
 def _remove_invalid_wind_rows(wind_table):
     """Removes any row with invalid wind data.
 
-    :param wind_table: pandas DataFrame created by either
-        read_1minute_winds_from_text or read_5minute_winds_from_text.
+    :param wind_table: pandas DataFrame created by read_winds_from_raw_file.
     :return: wind_table: Same as input, with the following exceptions.
         [1] Any row with invalid wind speed is removed.
         [2] Any invalid wind direction is changed to NaN.
@@ -131,8 +133,8 @@ def find_local_raw_file(unix_time_sec=None, top_directory_name=None,
                         raise_error_if_missing=False):
     """Finds raw file on local machine.
 
-    This file should contain all variables for all stations at one 5-minute time
-    step.
+    This file should contain all variables for all stations and one 5-minute
+    time step.
 
     :param unix_time_sec: Time in Unix format.
     :param top_directory_name: Top-level directory with raw Oklahoma Mesonet
@@ -164,10 +166,10 @@ def find_local_raw_file(unix_time_sec=None, top_directory_name=None,
     return raw_file_name
 
 
-def read_station_metadata_from_orig_csv(csv_file_name):
-    """Reads metadata for Oklahoma Mesonet stations from CSV file.
+def read_station_metadata_from_raw_file(csv_file_name):
+    """Reads metadata for Oklahoma Mesonet stations from raw file.
 
-    This CSV file is provided by the Oklahoma Mesonet and can be found here:
+    This file is provided by the Oklahoma Mesonet and can be found here:
     www.mesonet.org/index.php/api/siteinfo/from_all_active_with_geo_fields/
     format/csv/
 
@@ -209,8 +211,11 @@ def read_station_metadata_from_orig_csv(csv_file_name):
     return station_metadata_table
 
 
-def read_winds_from_text(text_file_name):
-    """Reads wind data from text file provided by Oklahoma Mesonet.
+def read_winds_from_raw_file(text_file_name):
+    """Reads wind observations from raw file.
+
+    This file should contain all variables for all stations and one 5-minute
+    time step.
 
     :param text_file_name: Path to input file.
     :return: wind_table: pandas DataFrame with the following columns.
@@ -238,7 +243,7 @@ def read_winds_from_text(text_file_name):
 
         return pandas.DataFrame.from_dict(wind_dict)
 
-    unix_date_sec = _read_valid_date_from_text(text_file_name)
+    unix_date_sec = _read_date_from_raw_file(text_file_name)
     wind_table = pandas.read_csv(text_file_name, delim_whitespace=True,
                                  skiprows=[0, 1])
     wind_table = wind_table[ORIG_WIND_DATA_COLUMN_NAMES]
@@ -274,12 +279,12 @@ def read_winds_from_text(text_file_name):
     return _remove_invalid_wind_rows(wind_table)
 
 
-def merge_winds_and_metadata(wind_table, station_metadata_table):
+def merge_winds_and_station_metadata(wind_table, station_metadata_table):
     """Merges wind data with metadata for observing stations.
 
-    :param wind_table: pandas DataFrame created by read_winds_from_text.
+    :param wind_table: pandas DataFrame created by read_winds_from_raw_file.
     :param station_metadata_table: pandas DataFrame created by
-        read_station_metadata_from_orig_csv.
+        read_station_metadata_from_raw_file.
     :return: wind_table: Same as input but with additional columns listed below.
     wind_table.station_id: String ID for station.
     wind_table.station_name: Verbose name for station.
@@ -293,14 +298,15 @@ def merge_winds_and_metadata(wind_table, station_metadata_table):
 
 
 if __name__ == '__main__':
-    STATION_METADATA_TABLE = read_station_metadata_from_orig_csv(
+    STATION_METADATA_TABLE = read_station_metadata_from_raw_file(
         ORIG_METAFILE_NAME)
-    raw_wind_io.write_station_metadata_to_csv(STATION_METADATA_TABLE,
-                                              NEW_METAFILE_NAME)
+    raw_wind_io.write_station_metadata_to_processed_file(STATION_METADATA_TABLE,
+                                                         NEW_METAFILE_NAME)
 
-    WIND_TABLE = read_winds_from_text(ORIG_WIND_FILE_NAME)
+    WIND_TABLE = read_winds_from_raw_file(ORIG_WIND_FILE_NAME)
     WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
-    WIND_TABLE = merge_winds_and_metadata(WIND_TABLE, STATION_METADATA_TABLE)
+    WIND_TABLE = merge_winds_and_station_metadata(WIND_TABLE,
+                                                  STATION_METADATA_TABLE)
     print WIND_TABLE
 
-    raw_wind_io.write_winds_to_csv(WIND_TABLE, NEW_WIND_FILE_NAME)
+    raw_wind_io.write_winds_to_processed_file(WIND_TABLE, NEW_WIND_FILE_NAME)

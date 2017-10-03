@@ -160,7 +160,7 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
 def _remove_invalid_wind_rows(wind_table):
     """Removes any row with invalid wind data.
 
-    :param wind_table: pandas DataFrame created by read_winds_from_netcdf.
+    :param wind_table: pandas DataFrame created by read_winds_from_raw_file.
     :return: wind_table: Same as input, with the following exceptions.
         [1] Any row with invalid wind speed, latitude, or longitude is removed.
         [2] Any invalid wind direction or elevation is changed to NaN.
@@ -175,15 +175,14 @@ def _remove_invalid_wind_rows(wind_table):
 def _remove_low_quality_data(wind_table):
     """Removes low-quality wind data.
 
-    Low-quality wind speeds will be changed to NaN, and low-quality wind
-    directions will be changed to 0 deg N.  Any row left with only low-quality
-    wind speeds will be removed.
+    Low-quality wind speeds and directions will be changed to NaN.  Any row with
+    only low-quality wind speeds (both sustained and gust) will be removed.
 
-    :param wind_table: pandas DataFrame created by read_winds_from_netcdf.
-    :return: wind_table: Same as input, with 4 exceptions.  [1] Low-quality wind
-        speeds are NaN; [2] low-quality wind directions are 0 deg N; [3] rows
-        with only low-quality wind speeds have been removed; [4] quality flags
-        have been removed.
+    :param wind_table: pandas DataFrame created by read_winds_from_raw_file.
+    :return: wind_table: Same as input, with the following exceptions.
+        [1] Low-quality wind speeds and directions are changed to NaN.
+        [2] Any row with only low-quality wind speeds is removed.
+        [3] Quality flags (columns) are removed.
     """
 
     is_low_quality = [f in LOW_QUALITY_FLAGS for f in
@@ -243,7 +242,7 @@ def extract_netcdf_from_gzip(unix_time_sec=None, subdataset_name=None,
                              top_raw_directory_name=None):
     """Extracts NetCDF file from gzip archive.
 
-    Keep in mind that all gzip archive contain only one file.
+    This file should contain all variables for one subdataset and one hour.
 
     :param unix_time_sec: Time in Unix format.
     :param subdataset_name: Name of subdataset.
@@ -269,8 +268,6 @@ def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
                         top_local_directory_name=None, zipped=True,
                         raise_error_if_missing=True):
     """Finds raw file on local machine.
-
-    This file should contain all data for one subdataset and hour.
 
     :param unix_time_sec: Time in Unix format.
     :param subdataset_name: Name of subdataset.
@@ -310,8 +307,8 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
                            ftp_password=None, raise_error_if_fails=True):
     """Downloads gzip file from FTP server.
 
-    The gzip file should contain a single NetCDF file, containing all data for
-    one subdataset and one hour.
+    The gzip file should contain a single NetCDF file, containing all variables
+    for one subdataset and one hour.
 
     :param unix_time_sec: Time in Unix format.
     :param subdataset_name: Name of subdataset.
@@ -342,43 +339,10 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
         raise_error_if_fails=raise_error_if_fails)
 
 
-def download_netcdf_from_ftp(unix_time_sec=None, subdataset_name=None,
-                             top_local_directory_name=None, ftp_user_name=None,
-                             ftp_password=None, raise_error_if_fails=True):
-    """Downloads NetCDF file from FTP server.
+def read_winds_from_raw_file(netcdf_file_name, raise_error_if_fails=True):
+    """Reads wind observations from raw file.
 
-    The only difference between this method and download_gzip_from_ftp is that
-    this method unzips the gzip file.
-
-    :param unix_time_sec: See documentation for download_gzip_from_ftp.
-    :param subdataset_name: See documentation for download_gzip_from_ftp.
-    :param top_local_directory_name: See documentation for
-        download_gzip_from_ftp.
-    :param ftp_user_name: See documentation for download_gzip_from_ftp.
-    :param ftp_password: See documentation for download_gzip_from_ftp.
-    :param raise_error_if_fails: See documentation for download_gzip_from_ftp.
-    :return: local_netcdf_file_name: Path to file on local machine.  If download
-        failed but raise_error_if_fails = False, this will be None.
-    """
-
-    local_gzip_file_name = download_gzip_from_ftp(
-        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        top_local_directory_name=top_local_directory_name,
-        ftp_user_name=ftp_user_name, ftp_password=ftp_password,
-        raise_error_if_fails=raise_error_if_fails)
-
-    if local_gzip_file_name is None:
-        return None
-
-    return extract_netcdf_from_gzip(
-        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        top_raw_directory_name=top_local_directory_name)
-
-
-def read_winds_from_netcdf(netcdf_file_name, raise_error_if_fails=True):
-    """Reads wind data from NetCDF file.
-
-    If file cannot be opened, returns None.
+    This file should contain all variables for one subdataset and one hour.
 
     :param netcdf_file_name: Path to input file.
     :return: wind_table: If file cannot be opened and raise_error_if_fails =
@@ -481,10 +445,10 @@ def read_winds_from_netcdf(netcdf_file_name, raise_error_if_fails=True):
 
 
 if __name__ == '__main__':
-    WIND_TABLE = read_winds_from_netcdf(NETCDF_FILE_NAME)
+    WIND_TABLE = read_winds_from_raw_file(NETCDF_FILE_NAME)
     print WIND_TABLE
 
     WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
     print WIND_TABLE
 
-    raw_wind_io.write_winds_to_csv(WIND_TABLE, CSV_FILE_NAME)
+    raw_wind_io.write_winds_to_processed_file(WIND_TABLE, CSV_FILE_NAME)

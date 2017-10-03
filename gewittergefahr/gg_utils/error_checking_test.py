@@ -3,7 +3,13 @@
 import unittest
 import os.path
 import numpy
+import pandas
 from gewittergefahr.gg_utils import error_checking
+
+COLUMNS_IN_DATAFRAME = ['foo', 'bar']
+FAKE_COLUMNS_IN_DATAFRAME = ['foo', 'bar', 'moo']
+DATAFRAME = pandas.DataFrame.from_dict(
+    {'foo': numpy.array([]), 'bar': numpy.array([])})
 
 GRID_POINT_FILE_NAME = 'grid_point_latlng_grid130.data'
 GRID_POINT_DIR_NAME = os.path.dirname(os.path.realpath(GRID_POINT_FILE_NAME))
@@ -156,6 +162,47 @@ LNG_NUMPY_ARRAY_NEGATIVE_IN_WEST_DEG = numpy.array([[-73., -106.],
 
 class ErrorCheckingTests(unittest.TestCase):
     """Each method is a unit test for error_checking.py."""
+
+    def test_assert_columns_in_dataframe_list(self):
+        """Checks assert_columns_in_dataframe when input is list."""
+
+        with self.assertRaises(TypeError):
+            error_checking.assert_columns_in_dataframe(
+                REAL_NUMBER_LIST, FAKE_COLUMNS_IN_DATAFRAME)
+
+    def test_assert_columns_in_dataframe_tuple(self):
+        """Checks assert_columns_in_dataframe when input is tuple."""
+
+        with self.assertRaises(TypeError):
+            error_checking.assert_columns_in_dataframe(
+                REAL_NUMBER_TUPLE, FAKE_COLUMNS_IN_DATAFRAME)
+
+    def test_assert_columns_in_dataframe_numpy_array(self):
+        """Checks assert_columns_in_dataframe when input is numpy array."""
+
+        with self.assertRaises(TypeError):
+            error_checking.assert_columns_in_dataframe(
+                REAL_NUMPY_ARRAY, FAKE_COLUMNS_IN_DATAFRAME)
+
+    def test_assert_columns_in_dataframe_missing_columns(self):
+        """Checks assert_columns_in_dataframe.
+
+        In this case, input is pandas DataFrame but is missing one of the
+        desired columns.
+        """
+
+        with self.assertRaises(KeyError):
+            error_checking.assert_columns_in_dataframe(
+                DATAFRAME, FAKE_COLUMNS_IN_DATAFRAME)
+
+    def test_assert_columns_in_dataframe_true(self):
+        """Checks assert_columns_in_dataframe.
+
+        In this case, input is pandas DataFrame with all desired columns.
+        """
+
+        error_checking.assert_columns_in_dataframe(DATAFRAME,
+                                                   COLUMNS_IN_DATAFRAME)
 
     def test_assert_is_array_scalar(self):
         """Checks assert_is_array when input is scalar."""

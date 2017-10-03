@@ -22,7 +22,9 @@ from gewittergefahr.gg_utils import error_checking
 
 DATA_SOURCE = 'storm_events'
 PATHLESS_RAW_FILE_PREFIX = 'storm_events'
+RAW_FILE_EXTENSION = '.csv'
 REQUIRED_EVENT_TYPE = 'thunderstorm wind'
+
 HOURS_TO_SECONDS = 3600
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
@@ -180,8 +182,9 @@ def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
     error_checking.assert_is_string(directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    raw_file_name = '{0:s}/{1:s}{2:s}.csv'.format(
-        directory_name, PATHLESS_RAW_FILE_PREFIX, _year_number_to_string(year))
+    raw_file_name = '{0:s}/{1:s}{2:s}{3:s}'.format(
+        directory_name, PATHLESS_RAW_FILE_PREFIX, _year_number_to_string(year),
+        RAW_FILE_EXTENSION)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
@@ -190,8 +193,10 @@ def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
     return raw_file_name
 
 
-def read_slw_reports_from_orig_csv(csv_file_name):
-    """Reads SLW reports from original CSV file (one in the raw database).
+def read_wind_reports_from_raw_file(csv_file_name):
+    """Reads straight-line-wind reports from raw file.
+
+    This file should contain all storm reports for one year.
 
     :param csv_file_name: Path to input file.
     :return: wind_table: pandas DataFrame with the following columns.
@@ -253,7 +258,7 @@ def read_slw_reports_from_orig_csv(csv_file_name):
 
 
 if __name__ == '__main__':
-    WIND_TABLE = read_slw_reports_from_orig_csv(ORIG_CSV_FILE_NAME)
+    WIND_TABLE = read_wind_reports_from_raw_file(ORIG_CSV_FILE_NAME)
     print WIND_TABLE
 
-    raw_wind_io.write_winds_to_csv(WIND_TABLE, NEW_CSV_FILE_NAME)
+    raw_wind_io.write_winds_to_processed_file(WIND_TABLE, NEW_CSV_FILE_NAME)
