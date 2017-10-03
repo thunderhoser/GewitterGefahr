@@ -27,7 +27,6 @@ from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
@@ -158,58 +157,19 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
     return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
 
 
-def _remove_invalid_data(wind_table):
-    """Removes rows with invalid wind data.
-
-    "Invalid wind data" means that latitude, longitude, elevation, sustained
-    speed, and/or gust speed are out of range.  If either wind direction
-    (sustained or gust) is out of range, it will simply be replaced with 0 deg
-    (due north), since we don't really care about direction.
+def _remove_invalid_wind_rows(wind_table):
+    """Removes any row with invalid wind data.
 
     :param wind_table: pandas DataFrame created by read_winds_from_netcdf.
-    :return: wind_table: Same as input, except that [1] invalid rows have been
-        removed and [2] invalid wind directions have been changed to 0 deg.
+    :return: wind_table: Same as input, with the following exceptions.
+        [1] Any row with invalid wind speed, latitude, or longitude is removed.
+        [2] Any invalid wind direction or elevation is changed to NaN.
+        [3] All longitudes are positive in western hemisphere.
     """
 
-    invalid_indices = raw_wind_io.check_latitudes(
-        wind_table[raw_wind_io.LATITUDE_COLUMN].values)
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_longitudes(
-        wind_table[raw_wind_io.LONGITUDE_COLUMN].values)
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_elevations(
-        wind_table[raw_wind_io.ELEVATION_COLUMN].values)
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_sustained_indices = raw_wind_io.check_wind_speeds(
-        wind_table[raw_wind_io.WIND_SPEED_COLUMN].values)
-    wind_table[raw_wind_io.WIND_SPEED_COLUMN].values[
-        invalid_sustained_indices] = numpy.nan
-
-    invalid_gust_indices = raw_wind_io.check_wind_speeds(
-        wind_table[raw_wind_io.WIND_GUST_SPEED_COLUMN].values)
-    wind_table[raw_wind_io.WIND_GUST_SPEED_COLUMN].values[
-        invalid_gust_indices] = numpy.nan
-
-    invalid_indices = list(
-        set(invalid_gust_indices).intersection(invalid_sustained_indices))
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_wind_directions(
-        wind_table[raw_wind_io.WIND_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[invalid_indices] = numpy.nan
-
-    invalid_indices = raw_wind_io.check_wind_directions(
-        wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
-        invalid_indices] = numpy.nan
-
-    wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
-        lng_conversion.convert_lng_positive_in_west(
-            wind_table[raw_wind_io.LONGITUDE_COLUMN].values, allow_nan=False))
-    return wind_table
+    return raw_wind_io.remove_invalid_rows(
+        wind_table, check_speed_flag=True, check_direction_flag=True,
+        check_lat_flag=True, check_lng_flag=True, check_elevation_flag=True)
 
 
 def _remove_low_quality_data(wind_table):
@@ -516,7 +476,7 @@ def read_winds_from_netcdf(netcdf_file_name, raise_error_if_fails=True):
                  WIND_GUST_DIR_FLAG_COLUMN: wind_gust_dir_quality_flags}
 
     wind_table = pandas.DataFrame.from_dict(wind_dict)
-    wind_table = _remove_invalid_data(wind_table)
+    wind_table = _remove_invalid_wind_rows(wind_table)
     return _remove_low_quality_data(wind_table)
 
 

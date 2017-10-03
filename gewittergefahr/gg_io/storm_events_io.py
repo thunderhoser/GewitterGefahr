@@ -16,7 +16,6 @@ import numpy
 import pandas
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
@@ -149,39 +148,18 @@ def _generate_fake_station_ids(num_reports):
         '{0:06d}'.format(i), DATA_SOURCE) for i in numeric_station_ids]
 
 
-def _remove_invalid_data(wind_table):
-    """Removes any row with invalid data.
+def _remove_invalid_wind_rows(wind_table):
+    """Removes any row with invalid wind data.
 
-    "Invalid data" means that either [a] time is NaN or [b] latitude, longitude,
-    or wind speed is out of range.
-
-    :param wind_table: pandas DataFrame created by
-        read_slw_reports_from_orig_csv.
-    :return: wind_table: Same as input, except that any row with invalid data
-        has been removed.
+    :param wind_table: pandas DataFrame created by either
+        read_1minute_winds_from_text or read_5minute_winds_from_text.
+    :return: wind_table: Same as input, except that any row with invalid v-wind,
+        latitude, longitude, or time is removed.
     """
 
-    invalid_flags = numpy.isnan(wind_table[raw_wind_io.TIME_COLUMN].values)
-    invalid_indices = numpy.where(invalid_flags)[0]
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_latitudes(
-        wind_table[raw_wind_io.LATITUDE_COLUMN].values)
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_longitudes(
-        wind_table[raw_wind_io.LONGITUDE_COLUMN].values)
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    absolute_v_winds_m_s01 = numpy.absolute(
-        wind_table[raw_wind_io.V_WIND_COLUMN].values)
-    invalid_indices = raw_wind_io.check_wind_speeds(absolute_v_winds_m_s01)
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    wind_table[raw_wind_io.LONGITUDE_COLUMN] = (
-        lng_conversion.convert_lng_positive_in_west(
-            wind_table[raw_wind_io.LONGITUDE_COLUMN].values, allow_nan=False))
-    return wind_table
+    return raw_wind_io.remove_invalid_rows(
+        wind_table, check_v_wind_flag=True, check_lat_flag=True,
+        check_lng_flag=True, check_time_flag=True)
 
 
 def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
@@ -271,7 +249,7 @@ def read_slw_reports_from_orig_csv(csv_file_name):
         raw_wind_io.V_WIND_COLUMN: v_winds_m_s01}
 
     wind_table = pandas.DataFrame.from_dict(wind_dict)
-    return _remove_invalid_data(wind_table)
+    return _remove_invalid_wind_rows(wind_table)
 
 
 if __name__ == '__main__':

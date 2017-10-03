@@ -10,12 +10,9 @@
 import copy
 import numpy
 import pandas
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-
-# TODO(thunderhoser): find better way to deal with missing wind directions.
-# Currently changing them all to 0 degrees, but this masks the difference
-# between actual 0 degrees and NaN.
 
 TOLERANCE = 1e-6
 WIND_DIR_DEFAULT_DEG = 0.
@@ -25,7 +22,8 @@ RADIANS_TO_DEGREES = 180. / numpy.pi
 
 MIN_WIND_DIRECTION_DEG = 0.
 MAX_WIND_DIRECTION_DEG = 360. - TOLERANCE
-MIN_WIND_SPEED_M_S01 = 0.
+MIN_SIGNED_WIND_SPEED_M_S01 = -100.
+MIN_ABSOLUTE_WIND_SPEED_M_S01 = 0.
 MAX_WIND_SPEED_M_S01 = 100.
 MIN_ELEVATION_M_ASL = -418.  # Lowest point on land (shore of Dead Sea).
 MAX_ELEVATION_M_ASL = 8848.  # Highest point on land (Mount Everest).
@@ -74,7 +72,7 @@ def append_source_to_station_id(station_id, data_source):
     return '{0:s}_{1:s}'.format(station_id, data_source)
 
 
-def check_elevations(elevations_m_asl):
+def _check_elevations(elevations_m_asl):
     """Finds invalid surface elevations.
 
     N = number of elevations
@@ -94,7 +92,7 @@ def check_elevations(elevations_m_asl):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def check_latitudes(latitudes_deg):
+def _check_latitudes(latitudes_deg):
     """Finds invalid latitudes.
 
     N = number of latitudes.
@@ -111,7 +109,7 @@ def check_latitudes(latitudes_deg):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def check_longitudes(longitudes_deg):
+def _check_longitudes(longitudes_deg):
     """Finds invalid longitudes.
 
     N = number of longitudes.
@@ -129,7 +127,7 @@ def check_longitudes(longitudes_deg):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def check_longitudes_negative_in_west(longitudes_deg):
+def _check_longitudes_negative_in_west(longitudes_deg):
     """Finds invalid longitudes.
 
     N = number of longitudes.
@@ -149,7 +147,7 @@ def check_longitudes_negative_in_west(longitudes_deg):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def check_longitudes_positive_in_west(longitudes_deg):
+def _check_longitudes_positive_in_west(longitudes_deg):
     """Finds invalid longitudes.
 
     N = number of longitudes.
@@ -169,25 +167,35 @@ def check_longitudes_positive_in_west(longitudes_deg):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def check_wind_speeds(wind_speeds_m_s01):
+def _check_wind_speeds(wind_speeds_m_s01, one_component=False):
     """Finds invalid wind speeds.
 
     N = number of observations.
 
     :param wind_speeds_m_s01: length-N numpy array of wind speeds (m/s).
+    :param one_component: Boolean flag.  If True, wind speeds are only one
+        component (either u or v), which means that they can be negative.  If
+        False, wind speeds are absolute (vector magnitudes), so they cannot be
+        negative.
     :return: invalid_indices: 1-D numpy array with indices of invalid speeds.
     """
 
     error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
     error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
+    error_checking.assert_is_boolean(one_component)
+
+    if one_component:
+        this_min_wind_speed_m_s01 = MIN_SIGNED_WIND_SPEED_M_S01
+    else:
+        this_min_wind_speed_m_s01 = MIN_ABSOLUTE_WIND_SPEED_M_S01
 
     valid_flags = numpy.logical_and(
-        wind_speeds_m_s01 >= MIN_WIND_SPEED_M_S01,
+        wind_speeds_m_s01 >= this_min_wind_speed_m_s01,
         wind_speeds_m_s01 <= MAX_WIND_SPEED_M_S01)
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def check_wind_directions(wind_directions_deg):
+def _check_wind_directions(wind_directions_deg):
     """Finds invalid wind directions.
 
     N = number of observations
@@ -205,6 +213,107 @@ def check_wind_directions(wind_directions_deg):
         wind_directions_deg >= MIN_WIND_DIRECTION_DEG,
         wind_directions_deg <= MAX_WIND_DIRECTION_DEG)
     return numpy.where(numpy.invert(valid_flags))[0]
+
+
+def remove_invalid_rows(input_table, check_speed_flag=False,
+                        check_direction_flag=False, check_u_wind_flag=False,
+                        check_v_wind_flag=False, check_lat_flag=False,
+                        check_lng_flag=False, check_elevation_flag=False,
+                        check_time_flag=False):
+    """Removes any row with invalid data from pandas DataFrame.
+
+    However, this method does not remove rows with invalid wind direction or
+    elevation.  It simply sets the wind direction or elevation to NaN, so that
+    it will not be mistaken for valid data.  Also, this method converts
+    longitudes to positive (180...360 deg E) in western hemisphere.
+
+    :param input_table: pandas DataFrame.
+    :param check_speed_flag: Boolean flag.  If True, will check wind speed.
+    :param check_direction_flag: Boolean flag.  If True, will check wind
+        direction.
+    :param check_u_wind_flag: Boolean flag.  If True, will check u-wind.
+    :param check_v_wind_flag: Boolean flag.  If True, will check v-wind.
+    :param check_lat_flag: Boolean flag.  If True, will check latitude.
+    :param check_lng_flag: Boolean flag.  If True, will check longitude.
+    :param check_elevation_flag: Boolean flag.  If True, will check elevation.
+    :param check_time_flag: Boolean flag.  If True, will check time.
+    :return: output_table: Same as input_table, except that some rows may be
+        gone.
+    """
+
+    error_checking.assert_is_boolean(check_speed_flag)
+    error_checking.assert_is_boolean(check_direction_flag)
+    error_checking.assert_is_boolean(check_u_wind_flag)
+    error_checking.assert_is_boolean(check_v_wind_flag)
+    error_checking.assert_is_boolean(check_lat_flag)
+    error_checking.assert_is_boolean(check_lng_flag)
+    error_checking.assert_is_boolean(check_elevation_flag)
+    error_checking.assert_is_boolean(check_time_flag)
+
+    if check_speed_flag:
+        invalid_sustained_indices = _check_wind_speeds(
+            input_table[WIND_SPEED_COLUMN].values, one_component=False)
+        input_table[WIND_SPEED_COLUMN].values[
+            invalid_sustained_indices] = numpy.nan
+
+        invalid_gust_indices = _check_wind_speeds(
+            input_table[WIND_GUST_SPEED_COLUMN].values, one_component=False)
+        input_table[WIND_GUST_SPEED_COLUMN].values[
+            invalid_gust_indices] = numpy.nan
+
+        invalid_indices = list(
+            set(invalid_gust_indices).intersection(invalid_sustained_indices))
+        input_table.drop(input_table.index[invalid_indices], axis=0,
+                         inplace=True)
+
+    if check_direction_flag:
+        invalid_indices = _check_wind_directions(
+            input_table[WIND_DIR_COLUMN].values)
+        input_table[WIND_DIR_COLUMN].values[invalid_indices] = numpy.nan
+
+        invalid_indices = _check_wind_directions(
+            input_table[WIND_GUST_DIR_COLUMN].values)
+        input_table[WIND_GUST_DIR_COLUMN].values[invalid_indices] = numpy.nan
+
+    if check_u_wind_flag:
+        invalid_indices = _check_wind_speeds(input_table[U_WIND_COLUMN].values,
+                                             one_component=True)
+        input_table.drop(input_table.index[invalid_indices], axis=0,
+                         inplace=True)
+
+    if check_v_wind_flag:
+        invalid_indices = _check_wind_speeds(input_table[V_WIND_COLUMN].values,
+                                             one_component=True)
+        input_table.drop(input_table.index[invalid_indices], axis=0,
+                         inplace=True)
+
+    if check_lat_flag:
+        invalid_indices = _check_latitudes(input_table[LATITUDE_COLUMN].values)
+        input_table.drop(input_table.index[invalid_indices], axis=0,
+                         inplace=True)
+
+    if check_lng_flag:
+        invalid_indices = _check_longitudes(
+            input_table[LONGITUDE_COLUMN].values)
+        input_table.drop(input_table.index[invalid_indices], axis=0,
+                         inplace=True)
+
+        input_table[LONGITUDE_COLUMN] = (
+            lng_conversion.convert_lng_positive_in_west(
+                input_table[LONGITUDE_COLUMN].values))
+
+    if check_elevation_flag:
+        invalid_indices = _check_elevations(
+            input_table[ELEVATION_COLUMN].values)
+        input_table[ELEVATION_COLUMN].values[invalid_indices] = numpy.nan
+
+    if check_time_flag:
+        invalid_flags = numpy.isnan(input_table[TIME_COLUMN].values)
+        invalid_indices = numpy.where(invalid_flags)[0]
+        input_table.drop(input_table.index[invalid_indices], axis=0,
+                         inplace=True)
+
+    return input_table
 
 
 def get_max_of_sustained_and_gust(wind_speeds_m_s01, wind_gust_speeds_m_s01,
@@ -279,6 +388,12 @@ def get_max_of_sustained_and_gust(wind_speeds_m_s01, wind_gust_speeds_m_s01,
     all_wind_directions_deg = numpy.reshape(wind_direction_matrix_deg,
                                             2 * num_observations)
     max_wind_directions_deg = all_wind_directions_deg[linear_indices]
+
+    nan_flags = numpy.isnan(max_wind_directions_deg)
+    nan_indices = numpy.where(nan_flags)[0]
+    for i in nan_indices:
+        max_wind_directions_deg[i] = numpy.nanmax(
+            wind_direction_matrix_deg[:, i])
 
     return max_wind_speeds_m_s01, max_wind_directions_deg
 

@@ -204,19 +204,6 @@ class MadisIoTests(unittest.TestCase):
             UNIX_TIME_SEC, SUBDATASET_NAME_NON_LDAD)
         self.assertTrue(this_ftp_file_name == FTP_FILE_NAME_NON_LDAD)
 
-    def test_remove_invalid_data_none_invalid(self):
-        """Ensures correctness of _remove_invalid_data with no invalid data."""
-
-        this_wind_table = madis_io._remove_invalid_data(WIND_TABLE_PERFECT_DATA)
-        self.assertTrue(this_wind_table.equals(WIND_TABLE_PERFECT_DATA))
-
-    def test_remove_invalid_data_some_invalid(self):
-        """Correctness of _remove_invalid_data with some invalid data."""
-
-        this_table_with_errors = copy.deepcopy(WIND_TABLE_WITH_ERRORS)
-        this_wind_table = madis_io._remove_invalid_data(this_table_with_errors)
-        self.assertTrue(this_wind_table.equals(WIND_TABLE_NO_ERRORS))
-
     def test_remove_low_quality_data_no_low_quality(self):
         """Correctness of _remove_low_quality_data with no low-quality data."""
 

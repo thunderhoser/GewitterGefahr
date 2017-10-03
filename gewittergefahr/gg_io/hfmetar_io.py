@@ -13,7 +13,6 @@ import pandas
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
@@ -196,76 +195,35 @@ def _parse_5minute_wind_from_line(line_string):
             wind_gust_direction_deg)
 
 
-def _remove_invalid_station_metadata(station_metadata_table):
-    """Removes invalid metadata for ASOS stations.
+def _remove_invalid_metadata_rows(station_metadata_table):
+    """Removes any row with invalid station metadata.
 
     :param station_metadata_table: pandas DataFrame created by
         read_station_metadata_from_text.
-    :return: station_metadata_table: Same as input, except that [a] any row with
-        an invalid latitude or longitude has been removed and [b] any invalid
-        elevation has been changed to NaN.
+    :return: station_metadata_table: Same as input, with the following
+        exceptions.
+        [1] Any row with invalid latitude or longitude is removed.
+        [2] Any invalid elevation is changed to NaN.
+        [3] All longitudes are positive in western hemisphere.
     """
 
-    invalid_indices = raw_wind_io.check_latitudes(
-        station_metadata_table[raw_wind_io.LATITUDE_COLUMN].values)
-    station_metadata_table.drop(station_metadata_table.index[invalid_indices],
-                                axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_longitudes(
-        station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values)
-    station_metadata_table.drop(station_metadata_table.index[invalid_indices],
-                                axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_elevations(
-        station_metadata_table[raw_wind_io.ELEVATION_COLUMN].values)
-    station_metadata_table[raw_wind_io.ELEVATION_COLUMN].values[
-        invalid_indices] = numpy.nan
-
-    station_metadata_table[raw_wind_io.LONGITUDE_COLUMN] = (
-        lng_conversion.convert_lng_positive_in_west(
-            station_metadata_table[raw_wind_io.LONGITUDE_COLUMN].values))
-    return station_metadata_table
+    return raw_wind_io.remove_invalid_rows(
+        station_metadata_table, check_lat_flag=True, check_lng_flag=True,
+        check_elevation_flag=True)
 
 
-def _remove_invalid_wind_data(wind_table):
-    """Removes rows with invalid data.
-
-    "Invalid data" means that either sustained wind speed and/or gust speed is
-    out of range.  If either wind direction (sustained or gust) is out of range,
-    it will simply be replaced with 0 deg (due north), since we don't really
-    care about direction.
+def _remove_invalid_wind_rows(wind_table):
+    """Removes any row with invalid wind data.
 
     :param wind_table: pandas DataFrame created by either
         read_1minute_winds_from_text or read_5minute_winds_from_text.
-    :return: wind_table: Same as input, except that [1] invalid rows have been
-        removed and [2] invalid wind directions have been changed to 0 deg.
+    :return: wind_table: Same as input, with the following exceptions.
+        [1] Any row with invalid wind speed is removed.
+        [2] Any invalid wind direction is changed to NaN.
     """
 
-    invalid_sustained_indices = raw_wind_io.check_wind_speeds(
-        wind_table[raw_wind_io.WIND_SPEED_COLUMN].values)
-    wind_table[raw_wind_io.WIND_SPEED_COLUMN].values[
-        invalid_sustained_indices] = numpy.nan
-
-    invalid_gust_indices = raw_wind_io.check_wind_speeds(
-        wind_table[raw_wind_io.WIND_GUST_SPEED_COLUMN].values)
-    wind_table[raw_wind_io.WIND_GUST_SPEED_COLUMN].values[
-        invalid_gust_indices] = numpy.nan
-
-    invalid_indices = list(
-        set(invalid_gust_indices).intersection(invalid_sustained_indices))
-    wind_table.drop(wind_table.index[invalid_indices], axis=0, inplace=True)
-
-    invalid_indices = raw_wind_io.check_wind_directions(
-        wind_table[raw_wind_io.WIND_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_DIR_COLUMN].values[
-        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
-
-    invalid_indices = raw_wind_io.check_wind_directions(
-        wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values)
-    wind_table[raw_wind_io.WIND_GUST_DIR_COLUMN].values[
-        invalid_indices] = raw_wind_io.WIND_DIR_DEFAULT_DEG
-
-    return wind_table
+    return raw_wind_io.remove_invalid_rows(
+        wind_table, check_speed_flag=True, check_direction_flag=True)
 
 
 def _get_pathless_raw_1minute_file_name(station_id, month_unix_sec):
@@ -425,7 +383,7 @@ def read_station_metadata_from_text(text_file_name):
 
     station_metadata_table = pandas.DataFrame.from_dict(station_metadata_dict)
     station_metadata_table[raw_wind_io.ELEVATION_COLUMN] *= FEET_TO_METRES
-    return _remove_invalid_station_metadata(station_metadata_table)
+    return _remove_invalid_metadata_rows(station_metadata_table)
 
 
 def download_1minute_file(station_id=None, month_unix_sec=None,
@@ -556,7 +514,7 @@ def read_1minute_winds_from_text(text_file_name, utc_offset_hours):
     wind_table = pandas.DataFrame.from_dict(wind_dict)
     wind_table[raw_wind_io.WIND_SPEED_COLUMN] *= KT_TO_METRES_PER_SECOND
     wind_table[raw_wind_io.WIND_GUST_SPEED_COLUMN] *= KT_TO_METRES_PER_SECOND
-    return _remove_invalid_wind_data(wind_table)
+    return _remove_invalid_wind_rows(wind_table)
 
 
 def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
@@ -618,7 +576,7 @@ def read_5minute_winds_from_text(text_file_name, utc_offset_hours):
     wind_table = pandas.DataFrame.from_dict(wind_dict)
     wind_table[raw_wind_io.WIND_SPEED_COLUMN] *= KT_TO_METRES_PER_SECOND
     wind_table[raw_wind_io.WIND_GUST_SPEED_COLUMN] *= KT_TO_METRES_PER_SECOND
-    return _remove_invalid_wind_data(wind_table)
+    return _remove_invalid_wind_rows(wind_table)
 
 
 def merge_winds_and_metadata(wind_table, station_metadata_table, station_id):
@@ -640,9 +598,7 @@ def merge_winds_and_metadata(wind_table, station_metadata_table, station_id):
 
     error_checking.assert_is_string(station_id)
 
-    num_observations = len(wind_table.index)
-    station_id_list = [station_id] * num_observations
-
+    station_id_list = [station_id] * len(wind_table.index)
     argument_dict = {raw_wind_io.STATION_ID_COLUMN: station_id_list}
     wind_table = wind_table.assign(**argument_dict)
 
