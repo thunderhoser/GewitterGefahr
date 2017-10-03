@@ -8,8 +8,10 @@
 """
 
 import copy
+import os.path
 import numpy
 import pandas
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -19,6 +21,12 @@ WIND_DIR_DEFAULT_DEG = 0.
 
 DEGREES_TO_RADIANS = numpy.pi / 180
 RADIANS_TO_DEGREES = 180. / numpy.pi
+
+TIME_FORMAT_MONTH_YEAR = '%Y%m'
+TIME_FORMAT_SECOND = '%Y-%m-%d-%H%M%S'
+PROCESSED_WIND_FILE_PREFIX = 'wind-observations'
+PROCESSED_FILE_EXTENSION = '.csv'
+MADIS_DATA_SOURCE = 'madis'
 
 MIN_WIND_DIRECTION_DEG = 0.
 MAX_WIND_DIRECTION_DEG = 360. - TOLERANCE
@@ -211,6 +219,35 @@ def _check_wind_directions(wind_directions_deg):
         wind_directions_deg >= MIN_WIND_DIRECTION_DEG,
         wind_directions_deg <= MAX_WIND_DIRECTION_DEG)
     return numpy.where(numpy.invert(valid_flags))[0]
+
+
+def _get_pathless_name_for_processed_wind_file(start_time_unix_sec=None,
+                                               end_time_unix_sec=None,
+                                               data_source=None,
+                                               madis_subdataset=None):
+    """Generates pathless name for processed wind file.
+
+    :param start_time_unix_sec: Start time in Unix format.
+    :param end_time_unix_sec: End time in Unix format.
+    :param data_source: String ID for data source.
+    :param madis_subdataset: String ID for subdataset in MADIS.
+    :return: pathless_processed_file_name: Pathless name for processed wind
+        file.
+    """
+
+    if data_source == MADIS_DATA_SOURCE:
+        full_data_source = '{0:s}_{1:s}'.format(data_source.replace('_', '-'),
+                                                madis_subdataset)
+    else:
+        full_data_source = data_source.replace('_', '-')
+
+    return '{0:s}_{1:s}_{2:s}_{3:s}{4:s}'.format(
+        PROCESSED_WIND_FILE_PREFIX, full_data_source,
+        time_conversion.unix_sec_to_string(start_time_unix_sec,
+                                           TIME_FORMAT_SECOND),
+        time_conversion.unix_sec_to_string(end_time_unix_sec,
+                                           TIME_FORMAT_SECOND),
+        PROCESSED_FILE_EXTENSION)
 
 
 def append_source_to_station_id(station_id, data_source):
@@ -571,6 +608,57 @@ def read_station_metadata_from_processed_file(csv_file_name):
     return pandas.read_csv(
         csv_file_name, header=0, usecols=STATION_METADATA_COLUMNS,
         dtype=STATION_METADATA_COLUMN_TYPE_DICT)
+
+
+def find_processed_wind_file(start_time_unix_sec=None, end_time_unix_sec=None,
+                             data_source=None, madis_subdataset=None,
+                             top_directory_name=None,
+                             raise_error_if_missing=True):
+    """Finds processed wind file on local machine.
+
+    :param start_time_unix_sec: Start time in Unix format.
+    :param end_time_unix_sec: End time in Unix format.
+    :param data_source: String ID for data source ("hfmetar", "madis",
+        "ok_mesonet", "storm_events", or "merged").
+    :param madis_subdataset: String ID for subdataset in MADIS ("coop", "hcn",
+        "hfmetar", "maritime", "mesonet", "metar", "nepp", "sao", or "urbanet").
+    :param top_directory_name: Top-level directory for processed files with wind
+        observations.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: processed_file_name: File path.  If raise_error_if_missing = False
+        and file is missing, this will be the *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    error_checking.assert_is_string(data_source)
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+    if data_source == MADIS_DATA_SOURCE:
+        error_checking.assert_is_string(madis_subdataset)
+
+    pathless_file_name = _get_pathless_name_for_processed_wind_file(
+        start_time_unix_sec=start_time_unix_sec,
+        end_time_unix_sec=end_time_unix_sec, data_source=data_source,
+        madis_subdataset=madis_subdataset)
+
+    if data_source == MADIS_DATA_SOURCE:
+        full_data_source = '{0:s}/{1:s}'.format(data_source, madis_subdataset)
+    else:
+        full_data_source = data_source
+
+    processed_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_directory_name, full_data_source,
+        time_conversion.unix_sec_to_string(start_time_unix_sec,
+                                           TIME_FORMAT_MONTH_YEAR),
+        pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(processed_file_name):
+        raise ValueError(
+            'Cannot find processed wind file.  Expected at location: ' +
+            processed_file_name)
+
+    return processed_file_name
 
 
 def write_winds_to_processed_file(wind_table, csv_file_name):

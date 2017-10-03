@@ -6,10 +6,6 @@ from gewittergefahr.gg_io import raw_wind_io
 
 TOLERANCE = 1e-6
 
-STATION_ID_WITHOUT_SOURCE = 'CYEG'
-DATA_SOURCE = 'madis'
-STATION_ID_WITH_SOURCE = 'CYEG_madis'
-
 ELEVATIONS_M_ASL = numpy.array(
     [-1000., 0., 1000., 5000., 10000., numpy.nan, None], dtype=numpy.float64)
 ELEV_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
@@ -36,6 +32,29 @@ ABSOLUTE_SPEED_INVALID_INDICES = numpy.array([0, 1, 2, 6, 7, 8], dtype=int)
 WIND_DIRECTIONS_DEG = numpy.array(
     [-10., 0., 180., 359.99, 360., 5000., numpy.nan, None], dtype=numpy.float64)
 DIRECTION_INVALID_INDICES = numpy.array([0, 4, 5, 6, 7], dtype=int)
+
+STATION_ID_WITHOUT_SOURCE = 'CYEG'
+DATA_SOURCE = 'madis'
+STATION_ID_WITH_SOURCE = 'CYEG_madis'
+
+FILE_START_TIME_UNIX_SEC = 1506999600  # 0300 UTC 3 Oct 2017
+FILE_END_TIME_UNIX_SEC = 1507003200  # 0400 UTC 3 Oct 2017
+MADIS_DATA_SOURCE = 'madis'
+MADIS_SUBDATASET = 'nepp'
+NON_MADIS_DATA_SOURCE = 'ok_mesonet'
+
+PATHLESS_FILE_NAME_MADIS = (
+    'wind-observations_madis_nepp_2017-10-03-030000_2017-10-03-040000.csv')
+PATHLESS_FILE_NAME_NON_MADIS = (
+    'wind-observations_ok-mesonet_2017-10-03-030000_2017-10-03-040000.csv')
+
+TOP_DIRECTORY_NAME = 'wind'
+PROCESSED_FILE_NAME_MADIS = (
+    'wind/madis/nepp/201710/wind-observations_madis_nepp_2017-10-03-030000_'
+    '2017-10-03-040000.csv')
+PROCESSED_FILE_NAME_NON_MADIS = (
+    'wind/ok_mesonet/201710/wind-observations_ok-mesonet_2017-10-03-030000_'
+    '2017-10-03-040000.csv')
 
 WIND_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
     [5., 10., 20., 30., numpy.nan, 6.6, 0., 40.])
@@ -64,13 +83,6 @@ EXPECTED_MAX_V_WINDS_M_S01 = numpy.array(
 
 class RawWindIoTests(unittest.TestCase):
     """Each method is a unit test for raw_wind_io.py."""
-
-    def test_append_source_to_station_id(self):
-        """Ensures correct output from append_source_to_station_id."""
-
-        this_station_id = raw_wind_io.append_source_to_station_id(
-            STATION_ID_WITHOUT_SOURCE, DATA_SOURCE)
-        self.assertTrue(this_station_id, STATION_ID_WITH_SOURCE)
 
     def test_check_elevations(self):
         """Ensures correct output from _check_elevations."""
@@ -141,6 +153,40 @@ class RawWindIoTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(these_invalid_indices,
                                           DIRECTION_INVALID_INDICES))
 
+    def test_get_pathless_name_for_processed_wind_file_madis(self):
+        """Ensures correctness of _get_pathless_name_for_processed_wind_file.
+
+        In this case, data source is MADIS.
+        """
+
+        this_pathless_file_name = (
+            raw_wind_io._get_pathless_name_for_processed_wind_file(
+                start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
+                end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
+                data_source=MADIS_DATA_SOURCE,
+                madis_subdataset=MADIS_SUBDATASET))
+        self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME_MADIS)
+
+    def test_get_pathless_name_for_processed_wind_file_non_madis(self):
+        """Ensures correctness of _get_pathless_name_for_processed_wind_file.
+
+        In this case, data source is not MADIS.
+        """
+
+        this_pathless_file_name = (
+            raw_wind_io._get_pathless_name_for_processed_wind_file(
+                start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
+                end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
+                data_source=NON_MADIS_DATA_SOURCE))
+        self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME_NON_MADIS)
+
+    def test_append_source_to_station_id(self):
+        """Ensures correct output from append_source_to_station_id."""
+
+        this_station_id = raw_wind_io.append_source_to_station_id(
+            STATION_ID_WITHOUT_SOURCE, DATA_SOURCE)
+        self.assertTrue(this_station_id, STATION_ID_WITH_SOURCE)
+
     def test_get_max_of_sustained_and_gust(self):
         """Ensures correct output from _get_max_of_sustained_and_gust."""
 
@@ -200,6 +246,32 @@ class RawWindIoTests(unittest.TestCase):
             these_wind_speeds_m_s01, MAX_WIND_SPEEDS_M_S01, atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
             these_wind_directions_deg, MAX_WIND_DIRECTIONS_DEG, atol=TOLERANCE))
+
+    def test_find_processed_wind_file_madis(self):
+        """Ensures correct output from find_processed_wind_file.
+
+        In this case, data source is MADIS.
+        """
+
+        this_file_name = raw_wind_io.find_processed_wind_file(
+            start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
+            end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
+            data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET,
+            top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
+        self.assertTrue(this_file_name == PROCESSED_FILE_NAME_MADIS)
+
+    def test_find_processed_wind_file_non_madis(self):
+        """Ensures correct output from find_processed_wind_file.
+
+        In this case, data source is not MADIS.
+        """
+
+        this_file_name = raw_wind_io.find_processed_wind_file(
+            start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
+            end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
+            data_source=NON_MADIS_DATA_SOURCE,
+            top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
+        self.assertTrue(this_file_name == PROCESSED_FILE_NAME_NON_MADIS)
 
 
 if __name__ == '__main__':
