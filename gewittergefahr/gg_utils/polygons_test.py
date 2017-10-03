@@ -635,7 +635,7 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows,
          these_vertex_columns) = polygons.fix_probsevere_vertices(
-             VERTEX_ROWS_GRID_POINTS, VERTEX_COLUMNS_GRID_POINTS)
+             VERTEX_ROWS_GRID_POINTS[::-1], VERTEX_COLUMNS_GRID_POINTS[::-1])
 
         self.assertTrue(numpy.allclose(
             these_vertex_rows, VERTEX_ROWS_GRID_CELL_EDGES_NON_REDUNDANT,
@@ -652,7 +652,8 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows,
          these_vertex_columns) = polygons.fix_probsevere_vertices(
-             VERTEX_ROWS_GRID_POINTS_COMPLEX, VERTEX_COLUMNS_GRID_POINTS_COMPLEX)
+             VERTEX_ROWS_GRID_POINTS_COMPLEX[::-1],
+             VERTEX_COLUMNS_GRID_POINTS_COMPLEX[::-1])
 
         self.assertTrue(numpy.allclose(
             these_vertex_rows, VERTEX_ROWS_GRID_CELL_EDGES_NON_REDUNDANT,

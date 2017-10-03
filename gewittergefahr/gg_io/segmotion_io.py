@@ -50,20 +50,17 @@ TIME_COLUMN = 'unix_time_sec'
 STORM_ID_COLUMN = 'storm_id'
 EAST_VELOCITY_COLUMN = 'east_velocity_m_s01'
 NORTH_VELOCITY_COLUMN = 'north_velocity_m_s01'
-START_TIME_COLUMN = 'start_time_unix_sec'
 AGE_COLUMN = 'age_sec'
 
 STORM_ID_COLUMN_ORIG = 'RowName'
 EAST_VELOCITY_COLUMN_ORIG = 'MotionEast'
 NORTH_VELOCITY_COLUMN_ORIG = 'MotionSouth'
-START_TIME_COLUMN_ORIG = 'StartTime'
 AGE_COLUMN_ORIG = 'Age'
 
 XML_COLUMN_NAMES = [STORM_ID_COLUMN, EAST_VELOCITY_COLUMN,
-                    NORTH_VELOCITY_COLUMN, START_TIME_COLUMN, AGE_COLUMN]
+                    NORTH_VELOCITY_COLUMN, AGE_COLUMN]
 XML_COLUMN_NAMES_ORIG = [STORM_ID_COLUMN_ORIG, EAST_VELOCITY_COLUMN_ORIG,
-                         NORTH_VELOCITY_COLUMN_ORIG, START_TIME_COLUMN_ORIG,
-                         AGE_COLUMN_ORIG]
+                         NORTH_VELOCITY_COLUMN_ORIG, AGE_COLUMN_ORIG]
 
 GRID_POINT_LAT_COLUMN = 'grid_point_latitudes_deg'
 GRID_POINT_LNG_COLUMN = 'grid_point_longitudes_deg'
@@ -651,8 +648,6 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
     stats_table.storm_id: String ID for storm cell.
     stats_table.east_velocity_m_s01: Eastward velocity (m/s).
     stats_table.north_velocity_m_s01: Northward velocity (m/s).
-    stats_table.start_time_unix_sec: Start time of storm cell (seconds since
-        0000 UTC 1 Jan 1970).
     stats_table.age_sec: Age of storm cell (seconds).
     """
 
@@ -689,9 +684,6 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
         elif this_column_name == AGE_COLUMN:
             this_column_values.append(
                 int(numpy.round(float(this_element.attrib['value']))))
-        elif this_column_name == START_TIME_COLUMN:
-            this_column_values.append(time_conversion.string_to_unix_sec(
-                this_element.attrib['value'], TIME_FORMAT_ORIG))
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
 
@@ -1043,6 +1035,7 @@ if __name__ == '__main__':
     print STATS_TABLE
 
     METADATA_DICT = myrorss_io.read_metadata_from_netcdf(NETCDF_FILE_NAME)
+    print METADATA_DICT
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
         spc_date_unix_sec=SPC_DATE_UNIX_SEC)

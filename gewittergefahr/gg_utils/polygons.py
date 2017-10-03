@@ -25,6 +25,8 @@ EXTERIOR_Y_COLUMN = 'exterior_y_metres'
 HOLE_X_COLUMN = 'hole_x_metres_list'
 HOLE_Y_COLUMN = 'hole_y_metres_list'
 
+# TODO(thunderhoser): add method that sorts vertices in counterclockwise order.
+
 
 def _check_vertex_arrays(vertex_x_metres, vertex_y_metres):
     """Checks vertex arrays for errors.
@@ -572,7 +574,7 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
                 [vertex_rows_orig[i] - 0.5, vertex_rows_orig[i + 1] - 0.5,
                  vertex_rows_orig[i + 1] - 0.5])
             columns_to_append = numpy.array(
-                [vertex_columns_orig[i] - 0.5, vertex_columns_orig[i + 1] - 0.5,
+                [vertex_columns_orig[i] - 0.5, vertex_columns_orig[i] - 0.5,
                  vertex_columns_orig[i + 1] - 0.5])
 
         vertex_rows = numpy.concatenate((vertex_rows, rows_to_append))
@@ -818,6 +820,9 @@ def fix_probsevere_vertices(orig_vertex_rows, orig_vertex_columns):
     :return: vertex_columns: length-V numpy array with column indices of
         vertices (half-integers).
     """
+
+    orig_vertex_rows = orig_vertex_rows[::-1]
+    orig_vertex_columns = orig_vertex_columns[::-1]
 
     orig_vertex_columns, orig_vertex_rows = _get_longest_simple_polygon(
         orig_vertex_columns, orig_vertex_rows)
