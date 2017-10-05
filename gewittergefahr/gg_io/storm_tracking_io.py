@@ -1,10 +1,19 @@
-"""IO methods for storm-tracking output (both polygons and track statistics)."""
+"""IO methods for storm-tracking output (both polygons and track statistics).
+
+--- DEFINITIONS ---
+
+SPC = Storm Prediction Center
+
+SPC date = a 24-hour period running from 1200-1200 UTC.  If time is discretized
+in seconds, the period runs from 120000-115959 UTC.  This is unlike a human
+date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
+"""
 
 import os
 import glob
 import pickle
 import numpy
-from gewittergefahr.gg_io import myrorss_io
+from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import time_conversion
@@ -139,7 +148,7 @@ def _get_relative_processed_directory(data_source=None, spc_date_unix_sec=None,
     """
 
     if data_source == SEGMOTION_SOURCE_ID:
-        date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+        date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
     else:
         date_string = time_conversion.unix_sec_to_string(unix_time_sec,
                                                          DATE_FORMAT)

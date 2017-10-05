@@ -1,6 +1,6 @@
 """IO methods for segmotion output.
 
-DEFINITIONS
+--- DEFINITIONS ---
 
 segmotion (or w2segmotionll) = storm-tracking algorithm in WDSS-II.
 
@@ -9,11 +9,9 @@ package for the visualization and analysis of thunderstorm-related data.
 
 SPC = Storm Prediction Center
 
-SPC date = a 24-hour period, starting and ending at 1200 UTC.  This is unlike a
-normal person's day, which starts and ends at 0000 UTC.  An SPC date is
-referenced by the calendar day at the beginning of the SPC date.  In other
-words, SPC date "Sep 23 2017" actually runs from 1200 UTC 23 Sep 2017 -
-1200 UTC 24 Sep 2017.
+SPC date = a 24-hour period running from 1200-1200 UTC.  If time is discretized
+in seconds, the period runs from 120000-115959 UTC.  This is unlike a human
+date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 """
 
 import os
@@ -21,9 +19,9 @@ import xml.etree.ElementTree as ElementTree
 import numpy
 import pandas
 from gewittergefahr.gg_io import netcdf_io
-from gewittergefahr.gg_io import myrorss_io
-from gewittergefahr.gg_io import myrorss_sparse_to_full as sparse_to_full
+from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
@@ -345,7 +343,7 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
         scales_to_extract_metres2,
         exact_dimensions=numpy.array([num_scales_to_extract]))
 
-    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
     directory_names_to_unzip = []
 
     for j in range(num_scales_to_extract):
@@ -398,7 +396,7 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
 
     pathless_file_name = _get_pathless_stats_file_name(unix_time_sec,
                                                        zipped=zipped)
-    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
 
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name,
@@ -441,7 +439,7 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
 
     pathless_file_name = _get_pathless_polygon_file_name(unix_time_sec,
                                                          zipped=zipped)
-    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
 
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name,
@@ -505,7 +503,7 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
 
-    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
         stats_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 
@@ -525,7 +523,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
 
     :param netcdf_file_name: Path to input file.
     :param metadata_dict: Dictionary with metadata from NetCDF file, in format
-        produced by `myrorss_io.read_metadata_from_netcdf`.
+        produced by `radar_io.read_metadata_from_raw_file`.
     :param spc_date_unix_sec: SPC date in Unix format.
     :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
         and file cannot be opened, will raise error.
@@ -560,30 +558,29 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     if netcdf_dataset is None:
         return None
 
-    storm_id_var_name = metadata_dict[myrorss_io.FIELD_NAME_COLUMN]
-    storm_id_var_name_orig = metadata_dict[myrorss_io.FIELD_NAME_COLUMN_ORIG]
+    storm_id_var_name = metadata_dict[radar_io.FIELD_NAME_COLUMN]
+    storm_id_var_name_orig = metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG]
 
     sparse_grid_dict = {
-        myrorss_io.GRID_ROW_COLUMN:
-            netcdf_dataset.variables[myrorss_io.GRID_ROW_COLUMN_ORIG][:],
-        myrorss_io.GRID_COLUMN_COLUMN:
-            netcdf_dataset.variables[myrorss_io.GRID_COLUMN_COLUMN_ORIG][:],
-        myrorss_io.NUM_GRID_CELL_COLUMN:
-            netcdf_dataset.variables[myrorss_io.NUM_GRID_CELL_COLUMN_ORIG][:],
+        radar_io.GRID_ROW_COLUMN:
+            netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG][:],
+        radar_io.GRID_COLUMN_COLUMN:
+            netcdf_dataset.variables[radar_io.GRID_COLUMN_COLUMN_ORIG][:],
+        radar_io.NUM_GRID_CELL_COLUMN:
+            netcdf_dataset.variables[radar_io.NUM_GRID_CELL_COLUMN_ORIG][:],
         storm_id_var_name: netcdf_dataset.variables[storm_id_var_name_orig][:]}
 
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     (numeric_storm_id_matrix, _, _) = (
-        sparse_to_full.sparse_to_full_grid_wrapper(sparse_grid_table,
-                                                   metadata_dict))
+        radar_s2f.sparse_to_full_grid(sparse_grid_table, metadata_dict))
 
     polygon_table = _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix)
 
     num_storms = len(polygon_table.index)
     unix_times_sec = numpy.full(
-        num_storms, metadata_dict[myrorss_io.UNIX_TIME_COLUMN], dtype=int)
+        num_storms, metadata_dict[radar_io.UNIX_TIME_COLUMN], dtype=int)
 
-    spc_date_string = myrorss_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
         polygon_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 
@@ -619,27 +616,27 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
 
         (polygon_table[tracking_io.GRID_POINT_LAT_COLUMN].values[i],
          polygon_table[tracking_io.GRID_POINT_LNG_COLUMN].values[i]) = (
-             myrorss_io.rowcol_to_latlng(
+             radar_io.rowcol_to_latlng(
                  polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
                  polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i],
                  nw_grid_point_lat_deg=
-                 metadata_dict[myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+                 metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
                  nw_grid_point_lng_deg=
-                 metadata_dict[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
-                 lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
-                 lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN]))
+                 metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN]))
 
         (polygon_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
          polygon_table[tracking_io.VERTEX_LNG_COLUMN].values[i]) = (
-             myrorss_io.rowcol_to_latlng(
+             radar_io.rowcol_to_latlng(
                  polygon_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
                  polygon_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i],
                  nw_grid_point_lat_deg=
-                 metadata_dict[myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+                 metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
                  nw_grid_point_lng_deg=
-                 metadata_dict[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
-                 lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
-                 lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN]))
+                 metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN]))
 
         (polygon_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
          polygon_table[tracking_io.CENTROID_LNG_COLUMN].values[i]) = (
@@ -669,22 +666,23 @@ if __name__ == '__main__':
         XML_FILE_NAME, spc_date_unix_sec=SPC_DATE_UNIX_SEC)
     print STATS_TABLE
 
-    METADATA_DICT = myrorss_io.read_metadata_from_netcdf(NETCDF_FILE_NAME)
+    METADATA_DICT = radar_io.read_metadata_from_raw_file(
+        NETCDF_FILE_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
         spc_date_unix_sec=SPC_DATE_UNIX_SEC)
     print POLYGON_TABLE
 
     (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (
-        myrorss_io.get_center_of_grid(
+        radar_io.get_center_of_grid(
             nw_grid_point_lat_deg=
-            METADATA_DICT[myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+            METADATA_DICT[radar_io.NW_GRID_POINT_LAT_COLUMN],
             nw_grid_point_lng_deg=
-            METADATA_DICT[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=METADATA_DICT[myrorss_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=METADATA_DICT[myrorss_io.LNG_SPACING_COLUMN],
-            num_lat_in_grid=METADATA_DICT[myrorss_io.NUM_LAT_COLUMN],
-            num_lng_in_grid=METADATA_DICT[myrorss_io.NUM_LNG_COLUMN]))
+            METADATA_DICT[radar_io.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=METADATA_DICT[radar_io.LAT_SPACING_COLUMN],
+            lng_spacing_deg=METADATA_DICT[radar_io.LNG_SPACING_COLUMN],
+            num_grid_rows=METADATA_DICT[radar_io.NUM_LAT_COLUMN],
+            num_grid_columns=METADATA_DICT[radar_io.NUM_LNG_COLUMN]))
 
     POLYGON_TABLE = tracking_io.make_buffers_around_polygons(
         POLYGON_TABLE, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,

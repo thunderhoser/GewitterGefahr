@@ -4,7 +4,7 @@ import json
 import os.path
 import numpy
 import pandas
-from gewittergefahr.gg_io import myrorss_io
+from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
@@ -216,7 +216,7 @@ def read_storm_objects_from_raw_file(json_file_name):
         these_vertex_lat_deg = this_vertex_matrix_deg[:, LAT_COLUMN_INDEX_ORIG]
         these_vertex_lng_deg = this_vertex_matrix_deg[:, LNG_COLUMN_INDEX_ORIG]
 
-        (these_vertex_rows, these_vertex_columns) = myrorss_io.latlng_to_rowcol(
+        (these_vertex_rows, these_vertex_columns) = radar_io.latlng_to_rowcol(
             these_vertex_lat_deg, these_vertex_lng_deg,
             nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
             nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
@@ -230,7 +230,7 @@ def read_storm_objects_from_raw_file(json_file_name):
 
         (storm_object_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
          storm_object_table[tracking_io.VERTEX_LNG_COLUMN].values[i]) = (
-             myrorss_io.rowcol_to_latlng(
+             radar_io.rowcol_to_latlng(
                  storm_object_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
                  storm_object_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i],
                  nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
@@ -246,7 +246,7 @@ def read_storm_objects_from_raw_file(json_file_name):
 
         (storm_object_table[tracking_io.GRID_POINT_LAT_COLUMN].values[i],
          storm_object_table[tracking_io.GRID_POINT_LNG_COLUMN].values[i]) = (
-             myrorss_io.rowcol_to_latlng(
+             radar_io.rowcol_to_latlng(
                  storm_object_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
                  storm_object_table[
                      tracking_io.GRID_POINT_COLUMN_COLUMN].values[i],
@@ -269,12 +269,12 @@ if __name__ == '__main__':
     print STORM_OBJECT_TABLE
 
     (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (
-        myrorss_io.get_center_of_grid(
+        radar_io.get_center_of_grid(
             nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
             nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
             lat_spacing_deg=GRID_LAT_SPACING_DEG,
-            lng_spacing_deg=GRID_LNG_SPACING_DEG, num_lat_in_grid=NUM_GRID_ROWS,
-            num_lng_in_grid=NUM_GRID_COLUMNS))
+            lng_spacing_deg=GRID_LNG_SPACING_DEG, num_grid_rows=NUM_GRID_ROWS,
+            num_grid_columns=NUM_GRID_COLUMNS))
 
     STORM_OBJECT_TABLE = tracking_io.make_buffers_around_polygons(
         STORM_OBJECT_TABLE, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,
