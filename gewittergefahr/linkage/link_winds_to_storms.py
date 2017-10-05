@@ -14,7 +14,7 @@ import glob
 import pickle
 import numpy
 import pandas
-from gewittergefahr.gg_io import segmotion_io
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import interp
@@ -24,11 +24,13 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): turn main method into end-to-end example.
 # TODO(thunderhoser): replace main method with named method.
+# TODO(thunderhoser): add method to ensure that wind files cover the required
+# time period.
 
 STORM_COLUMNS_TO_KEEP = [
-    segmotion_io.STORM_ID_COLUMN, segmotion_io.TIME_COLUMN,
-    segmotion_io.CENTROID_LAT_COLUMN, segmotion_io.CENTROID_LNG_COLUMN,
-    segmotion_io.VERTEX_LAT_COLUMN, segmotion_io.VERTEX_LNG_COLUMN]
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
+    tracking_io.VERTEX_LAT_COLUMN, tracking_io.VERTEX_LNG_COLUMN]
 
 WIND_COLUMNS_TO_KEEP = [
     raw_wind_io.STATION_ID_COLUMN, raw_wind_io.LATITUDE_COLUMN,
@@ -109,7 +111,7 @@ def _read_storm_objects(processed_segmotion_file_names):
     """Reads storm objects from processed segmotion files.
 
     Each file should contain storm statistics and polygons for one time step and
-    one tracking scale.  See `segmotion_io.write_processed_file`.
+    one tracking scale.  See `storm_tracking_io.write_processed_file`.
 
     N = number of files
     V = number of vertices in a given storm object
@@ -137,7 +139,7 @@ def _read_storm_objects(processed_segmotion_file_names):
     file_indices = numpy.array([])
 
     for i in range(len(processed_segmotion_file_names)):
-        this_storm_object_table = segmotion_io.read_processed_file(
+        this_storm_object_table = tracking_io.read_processed_file(
             processed_segmotion_file_names[i])
         this_storm_object_table = this_storm_object_table[STORM_COLUMNS_TO_KEEP]
 
@@ -192,7 +194,8 @@ def _read_wind_observations(processed_wind_file_names,
     list_of_tables = []
 
     for this_file_name in processed_wind_file_names:
-        this_wind_table = raw_wind_io.read_winds_from_csv(this_file_name)
+        this_wind_table = raw_wind_io.read_winds_from_processed_file(
+            this_file_name)
         this_wind_table = this_wind_table[STORM_COLUMNS_TO_KEEP]
 
         invalid_rows = numpy.logical_or(
@@ -234,20 +237,20 @@ def _project_storms_to_equidistant(storm_object_table):
 
     (global_centroid_lat_deg,
      global_centroid_lng_deg) = polygons.get_latlng_centroid(
-        storm_object_table[segmotion_io.CENTROID_LAT_COLUMN].values,
-        storm_object_table[segmotion_io.CENTROID_LNG_COLUMN].values)
+         storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+         storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values)
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)
 
     (centroids_x_metres, centroids_y_metres) = projections.project_latlng_to_xy(
-        storm_object_table[segmotion_io.CENTROID_LAT_COLUMN].values,
-        storm_object_table[segmotion_io.CENTROID_LNG_COLUMN].values,
+        storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+        storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
         projection_object=projection_object)
 
     nested_array = storm_object_table[[
-        segmotion_io.STORM_ID_COLUMN,
-        segmotion_io.STORM_ID_COLUMN]].values.tolist()
+        tracking_io.STORM_ID_COLUMN,
+        tracking_io.STORM_ID_COLUMN]].values.tolist()
     argument_dict = {
         CENTROID_X_COLUMN: centroids_x_metres,
         CENTROID_Y_COLUMN: centroids_y_metres, VERTICES_X_COLUMN: nested_array,
@@ -259,8 +262,8 @@ def _project_storms_to_equidistant(storm_object_table):
         (storm_object_table[VERTICES_X_COLUMN].values[i],
          storm_object_table[VERTICES_Y_COLUMN].values[i]) = (
              projections.project_latlng_to_xy(
-                 storm_object_table[segmotion_io.VERTEX_LAT_COLUMN].values[i],
-                 storm_object_table[segmotion_io.VERTEX_LNG_COLUMN].values[i],
+                 storm_object_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
+                 storm_object_table[tracking_io.VERTEX_LNG_COLUMN].values[i],
                  projection_object=projection_object))
 
     return storm_object_table, projection_object
@@ -340,7 +343,7 @@ def _storm_objects_to_cells(storm_object_table):
     """
 
     storm_id_numpy_array = numpy.array(
-        storm_object_table[segmotion_io.STORM_ID_COLUMN].values)
+        storm_object_table[tracking_io.STORM_ID_COLUMN].values)
     unique_storm_ids, storm_ids_orig_to_unique = numpy.unique(
         storm_id_numpy_array, return_inverse=True)
 
@@ -353,10 +356,10 @@ def _storm_objects_to_cells(storm_object_table):
         these_storm_object_indices = numpy.where(
             storm_ids_orig_to_unique == i)[0]
         start_times_unix_sec[these_storm_object_indices] = numpy.min(
-            storm_object_table[segmotion_io.TIME_COLUMN].values[
+            storm_object_table[tracking_io.TIME_COLUMN].values[
                 these_storm_object_indices])
         end_times_unix_sec[these_storm_object_indices] = numpy.max(
-            storm_object_table[segmotion_io.TIME_COLUMN].values[
+            storm_object_table[tracking_io.TIME_COLUMN].values[
                 these_storm_object_indices])
 
     argument_dict = {START_TIME_COLUMN: start_times_unix_sec,
@@ -427,19 +430,19 @@ def _interp_one_storm_in_time(storm_object_table_1cell, storm_id=None,
     """
 
     sort_indices = numpy.argsort(
-        storm_object_table_1cell[segmotion_io.TIME_COLUMN].values)
+        storm_object_table_1cell[tracking_io.TIME_COLUMN].values)
     centroid_matrix = numpy.vstack((
         storm_object_table_1cell[CENTROID_X_COLUMN].values[sort_indices],
         storm_object_table_1cell[CENTROID_Y_COLUMN].values[sort_indices]))
 
     interp_centroid_vector = interp.interp_in_time(
         centroid_matrix, sorted_input_times_unix_sec=storm_object_table_1cell[
-            segmotion_io.TIME_COLUMN].values[sort_indices],
+            tracking_io.TIME_COLUMN].values[sort_indices],
         query_times_unix_sec=numpy.array([query_time_unix_sec]),
         allow_extrap=True)
 
     absolute_time_diffs_sec = numpy.absolute(
-        storm_object_table_1cell[segmotion_io.TIME_COLUMN].values -
+        storm_object_table_1cell[tracking_io.TIME_COLUMN].values -
         query_time_unix_sec)
     nearest_time_index = numpy.argmin(absolute_time_diffs_sec)
 
@@ -453,7 +456,7 @@ def _interp_one_storm_in_time(storm_object_table_1cell, storm_id=None,
     storm_id_list = [storm_id] * num_vertices
 
     interp_vertex_dict_1object = {
-        segmotion_io.STORM_ID_COLUMN: storm_id_list,
+        tracking_io.STORM_ID_COLUMN: storm_id_list,
         VERTEX_X_COLUMN: storm_object_table_1cell[VERTICES_X_COLUMN].values[
             nearest_time_index] + x_diff_metres,
         VERTEX_Y_COLUMN: storm_object_table_1cell[VERTICES_Y_COLUMN].values[
@@ -502,7 +505,7 @@ def _interp_storms_in_time(storm_object_table, query_time_unix_sec=None,
         min_end_time_unix_sec=min_end_time_unix_sec)
 
     storm_id_numpy_array = numpy.array(
-        filtered_storm_object_table[segmotion_io.STORM_ID_COLUMN].values)
+        filtered_storm_object_table[tracking_io.STORM_ID_COLUMN].values)
     unique_storm_ids = numpy.unique(storm_id_numpy_array)
 
     list_of_tables = []
@@ -511,7 +514,7 @@ def _interp_storms_in_time(storm_object_table, query_time_unix_sec=None,
         this_storm_cell_table = (
             filtered_storm_object_table.loc[
                 filtered_storm_object_table[
-                    segmotion_io.STORM_ID_COLUMN] == unique_storm_ids[i]])
+                    tracking_io.STORM_ID_COLUMN] == unique_storm_ids[i]])
         if len(this_storm_cell_table.index) == 1:
             continue
 
@@ -581,11 +584,11 @@ def _find_nearest_storms_one_time(interp_vertex_table,
         this_min_index = these_valid_indices[
             numpy.argmin(these_distances_metres)]
         nearest_storm_ids[k] = interp_vertex_table[
-            segmotion_io.STORM_ID_COLUMN].values[this_min_index]
+            tracking_io.STORM_ID_COLUMN].values[this_min_index]
 
         this_storm_indices = [
             s == nearest_storm_ids[k] for s in interp_vertex_table[
-                segmotion_io.STORM_ID_COLUMN].values]
+                tracking_io.STORM_ID_COLUMN].values]
         this_polygon_object = polygons.vertices_to_polygon_object(
             interp_vertex_table[VERTEX_X_COLUMN].values[this_storm_indices],
             interp_vertex_table[VERTEX_Y_COLUMN].values[this_storm_indices])
@@ -700,8 +703,8 @@ def _link_winds_and_storms(storm_object_table=None, wind_table=None):
     """
 
     nested_array = storm_object_table[[
-        segmotion_io.STORM_ID_COLUMN,
-        segmotion_io.STORM_ID_COLUMN]].values.tolist()
+        tracking_io.STORM_ID_COLUMN,
+        tracking_io.STORM_ID_COLUMN]].values.tolist()
     argument_dict = {
         STATION_IDS_COLUMN: nested_array, WIND_LATS_COLUMN: nested_array,
         WIND_LNGS_COLUMN: nested_array, U_WINDS_COLUMN: nested_array,
@@ -728,7 +731,7 @@ def _link_winds_and_storms(storm_object_table=None, wind_table=None):
             continue
 
         this_storm_flags = [s == this_storm_id for s in storm_object_table[
-            segmotion_io.STORM_ID_COLUMN].values]
+            tracking_io.STORM_ID_COLUMN].values]
         this_storm_rows = numpy.where(this_storm_flags)[0]
 
         for i in range(len(this_storm_rows)):
@@ -748,7 +751,7 @@ def _link_winds_and_storms(storm_object_table=None, wind_table=None):
 
             this_relative_time_sec = (
                 wind_table[raw_wind_io.TIME_COLUMN].values[k] -
-                linkage_table[segmotion_io.TIME_COLUMN].values[j])
+                linkage_table[tracking_io.TIME_COLUMN].values[j])
             linkage_table[RELATIVE_TIMES_COLUMN].values[j].append(
                 this_relative_time_sec)
 
@@ -816,7 +819,7 @@ if __name__ == '__main__':
     PROCESSED_SEGMOTION_FILE_NAMES = glob.glob(
         PROCESSED_SEGMOTION_DIR_NAME + '/*.p')
     STORM_OBJECT_TABLE = _read_storm_objects(PROCESSED_SEGMOTION_FILE_NAMES)
-    STORM_OBJECT_TABLE = _project_storms_to_equidistant(STORM_OBJECT_TABLE)
+    STORM_OBJECT_TABLE, _ = _project_storms_to_equidistant(STORM_OBJECT_TABLE)
     STORM_OBJECT_TABLE = _storm_objects_to_cells(STORM_OBJECT_TABLE)
     print STORM_OBJECT_TABLE
 
