@@ -1,6 +1,7 @@
 """IO methods for probSevere storm-tracking."""
 
 import json
+import os.path
 import numpy
 import pandas
 from gewittergefahr.gg_io import myrorss_io
@@ -12,6 +13,13 @@ from gewittergefahr.gg_utils import error_checking
 # TODO(thunderhoser): add file-management code (will include transferring
 # raw files from NSSL machine to local machine).
 # TODO(thunderhoser): replace main method with named method.
+
+RAW_FILE_PREFIX = 'SSEC_AWIPS_PROBSEVERE'
+RAW_FILE_EXTENSION = '.json'
+TIME_FORMAT_IN_RAW_FILE_NAMES = '%Y%m%d_%H%M%S'
+
+TIME_FORMAT_DATE = '%Y%m%d'
+TIME_FORMAT_IN_RAW_FILES = '%Y%m%d_%H%M%S UTC'
 
 TIME_COLUMN_ORIG = 'validTime'
 FEATURES_COLUMN_ORIG = 'features'
@@ -36,8 +44,6 @@ GRID_LNG_SPACING_DEG = 0.01
 NUM_GRID_ROWS = 3501
 NUM_GRID_COLUMNS = 7001
 
-TIME_FORMAT_ORIG = '%Y%m%d_%H%M%S UTC'
-
 # The following constants are used only in the main method.
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
@@ -50,6 +56,66 @@ RAW_FILE_NAME = (
     'probSevere/20170629/2017-06-29-122639_probSevere_0050.00.json')
 TOP_PROCESSED_DIR_NAME = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/probSevere')
+
+
+def _get_pathless_raw_file_name(unix_time_sec):
+    """Generates pathless name for raw file.
+
+    This file should contain all storm objects for one tracking scale and one
+    time step.
+
+    :param unix_time_sec: Time in Unix format.
+    :return: pathless_raw_file_name: Pathless name for raw file.
+    """
+
+    return '{0:s}_{1:s}{2:s}'.format(
+        RAW_FILE_PREFIX, time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_IN_RAW_FILE_NAMES),
+        RAW_FILE_EXTENSION)
+
+
+def get_raw_file_name_on_ftp(unix_time_sec, top_ftp_directory_name):
+    """Generates name of raw file on FTP server.
+
+    :param unix_time_sec: Time in Unix format.
+    :param top_ftp_directory_name: Top-level directory with raw files on FTP
+        server.  This should be only the directory, not including user name and
+        host name.  Example: "/data/storm_tracking/probSevere".
+    :return: raw_ftp_file_name: Expected path on FTP server.
+    """
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
+    return '{0:s}/{1:s}'.format(top_ftp_directory_name, pathless_file_name)
+
+
+def find_raw_file_on_local_machine(unix_time_sec=None,
+                                   top_local_directory_name=None,
+                                   raise_error_if_missing=True):
+    """Generates name of raw file on local machine.
+
+    :param unix_time_sec: Time in Unix format.
+    :param top_local_directory_name: Top-level directory with raw files on local
+        machine.
+    :param raise_error_if_missing: Boolean flag.  If raise_error_if_missing =
+        True and file is missing, will raise error.
+    :return: raw_local_file_name: Path on local machine.  If
+        raise_error_if_missing = False and file is missing, this will be the
+        *expected* path.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
+    raw_local_file_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_local_directory_name,
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_DATE),
+        pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_local_file_name):
+        raise ValueError(
+            'Cannot find raw file.  Expected at location: ' +
+            raw_local_file_name)
+
+    return raw_local_file_name
 
 
 def read_storm_objects_from_raw_file(json_file_name):
@@ -96,7 +162,7 @@ def read_storm_objects_from_raw_file(json_file_name):
 
     unix_time_sec = time_conversion.string_to_unix_sec(
         probsevere_dict[TIME_COLUMN_ORIG].encode('ascii', 'ignore'),
-        TIME_FORMAT_ORIG)
+        TIME_FORMAT_IN_RAW_FILES)
     num_storms = len(probsevere_dict[FEATURES_COLUMN_ORIG])
     unix_times_sec = numpy.full(num_storms, unix_time_sec, dtype=int)
 
