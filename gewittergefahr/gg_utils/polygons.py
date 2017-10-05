@@ -11,6 +11,13 @@ import shapely.geometry
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): Some vocabulary in this file is very misleading.  For
+# example, some methods with inputs in "metres" can also deal with lat-long
+# points and row-column points, whereas some can't.  Also, some methods work
+# only for simple polygons, whereas some work for both simple and complex.  I
+# should make method/variable names more informative, so that methods are not
+# misused.
+
 UP_DIRECTION_NAME = 'up'
 DOWN_DIRECTION_NAME = 'down'
 RIGHT_DIRECTION_NAME = 'right'
@@ -25,10 +32,8 @@ EXTERIOR_Y_COLUMN = 'exterior_y_metres'
 HOLE_X_COLUMN = 'hole_x_metres_list'
 HOLE_Y_COLUMN = 'hole_y_metres_list'
 
-# TODO(thunderhoser): add method that sorts vertices in counterclockwise order.
 
-
-def _check_vertex_arrays(vertex_x_metres, vertex_y_metres):
+def _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=True):
     """Checks vertex arrays for errors.
 
     V = number of vertices
@@ -37,15 +42,24 @@ def _check_vertex_arrays(vertex_x_metres, vertex_y_metres):
         The first NaN separates the exterior from the first hole; the [i]th NaN
         separates the [i - 1]th hole from the [i]th hole.
     :param vertex_y_metres: Same as above, except for y-coordinates.
+    :param allow_nan: Boolean flag.  If allow_nan = False and there is any NaN
+        in the vertex arrays, `error_checking.assert_is_numpy_array_without_nan`
+        will raise an error.
     :raises: ValueError: if vertex_x_metres[k] is NaN but vertex_y_metres[k] is
         not NaN, or vice-versa, for any k.
     """
 
-    error_checking.assert_is_real_numpy_array(vertex_x_metres)
+    error_checking.assert_is_boolean(allow_nan)
+
+    if allow_nan:
+        error_checking.assert_is_real_numpy_array(vertex_x_metres)
+        error_checking.assert_is_real_numpy_array(vertex_y_metres)
+    else:
+        error_checking.assert_is_numpy_array_without_nan(vertex_x_metres)
+        error_checking.assert_is_numpy_array_without_nan(vertex_y_metres)
+
     error_checking.assert_is_numpy_array(vertex_x_metres, num_dimensions=1)
     num_vertices = len(vertex_x_metres)
-
-    error_checking.assert_is_real_numpy_array(vertex_y_metres)
     error_checking.assert_is_numpy_array(
         vertex_y_metres, exact_dimensions=numpy.array([num_vertices]))
 
@@ -92,7 +106,7 @@ def _get_longest_simple_polygon(vertex_x_metres, vertex_y_metres):
         vertices.
     """
 
-    _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=True)
 
     nan_flags = numpy.isnan(vertex_x_metres)
     if not numpy.any(nan_flags):
@@ -150,7 +164,7 @@ def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
     vertex_dict.hole_y_metres_list: Same as above, except for y-coordinates.
     """
 
-    _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=True)
 
     nan_flags = numpy.isnan(vertex_x_metres)
     if not numpy.any(nan_flags):
@@ -209,7 +223,8 @@ def _merge_exterior_and_holes(exterior_vertex_x_metres,
     :return: vertex_y_metres: Same as above, except for y-coordinates.
     """
 
-    _check_vertex_arrays(exterior_vertex_x_metres, exterior_vertex_y_metres)
+    _check_vertex_arrays(exterior_vertex_x_metres, exterior_vertex_y_metres,
+                         allow_nan=False)
 
     vertex_x_metres = copy.deepcopy(exterior_vertex_x_metres)
     vertex_y_metres = copy.deepcopy(exterior_vertex_y_metres)
@@ -219,7 +234,7 @@ def _merge_exterior_and_holes(exterior_vertex_x_metres,
     num_holes = len(hole_x_vertex_metres_list)
     for i in range(num_holes):
         _check_vertex_arrays(hole_x_vertex_metres_list[i],
-                             hole_y_vertex_metres_list[i])
+                             hole_y_vertex_metres_list[i], allow_nan=False)
 
     single_nan_array = numpy.array([numpy.nan])
 
@@ -243,7 +258,7 @@ def _vertex_arrays_to_list(vertex_x_metres, vertex_y_metres):
         a tuple with (x-coordinate, y-coordinate).
     """
 
-    _check_vertex_arrays(vertex_x_metres, vertex_y_metres)
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=False)
 
     num_vertices = len(vertex_x_metres)
     vertex_metres_list = []
@@ -342,7 +357,7 @@ def _remove_redundant_vertices(vertex_rows_orig, vertex_columns_orig):
         vertices.
     """
 
-    _check_vertex_arrays(vertex_columns_orig, vertex_rows_orig)
+    _check_vertex_arrays(vertex_columns_orig, vertex_rows_orig, allow_nan=False)
 
     num_vertices_orig = len(vertex_rows_orig)
     vertex_rows = numpy.array([])
@@ -515,7 +530,7 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
         vertices.
     """
 
-    _check_vertex_arrays(vertex_columns_orig, vertex_rows_orig)
+    _check_vertex_arrays(vertex_columns_orig, vertex_rows_orig, allow_nan=False)
 
     num_orig_vertices = len(vertex_rows_orig)
     vertex_rows = numpy.array([])
@@ -581,6 +596,44 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
         vertex_columns = numpy.concatenate((vertex_columns, columns_to_append))
 
     return vertex_rows, vertex_columns
+
+
+def sort_vertices_counterclockwise(vertex_x_metres, vertex_y_metres):
+    """Sorts vertices of a simple polygon in counterclockwise order.
+
+    This method assumes that the vertices are already sorted in either clockwise
+    or counterclockwise order, so it "sorts" by either leaving the arrays alone
+    or reversing the order.
+
+    V = number of vertices
+
+    :param vertex_x_metres: length-V numpy array with x-coordinates of vertices.
+    :param vertex_y_metres: length-V numpy array with y-coordinates of vertices.
+    :return: vertex_x_metres: length-V numpy array of x-coordinates in CCW
+        order.
+    :return: vertex_y_metres: length-V numpy array of y-coordinates in CCW
+        order.
+    """
+
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=False)
+
+    num_vertices = len(vertex_x_metres)
+    signed_area_metres2 = 0.
+
+    for i in range(num_vertices - 1):
+        this_x_diff_metres = vertex_x_metres[i + 1] - vertex_x_metres[i]
+        this_y_sum_metres = vertex_y_metres[i + 1] + vertex_y_metres[i]
+        if this_x_diff_metres == this_y_sum_metres == 0:
+            continue
+
+        signed_area_metres2 = signed_area_metres2 + (
+            this_x_diff_metres * this_y_sum_metres)
+
+    is_polygon_ccw = signed_area_metres2 < 0
+    if is_polygon_ccw:
+        return vertex_x_metres, vertex_y_metres
+
+    return vertex_x_metres[::-1], vertex_y_metres[::-1]
 
 
 def get_latlng_centroid(latitudes_deg, longitudes_deg):
@@ -821,9 +874,6 @@ def fix_probsevere_vertices(orig_vertex_rows, orig_vertex_columns):
         vertices (half-integers).
     """
 
-    orig_vertex_rows = orig_vertex_rows[::-1]
-    orig_vertex_columns = orig_vertex_columns[::-1]
-
     orig_vertex_columns, orig_vertex_rows = _get_longest_simple_polygon(
         orig_vertex_columns, orig_vertex_rows)
 
@@ -833,6 +883,10 @@ def fix_probsevere_vertices(orig_vertex_rows, orig_vertex_columns):
             orig_vertex_rows, numpy.array([orig_vertex_rows[0]])))
         orig_vertex_columns = numpy.concatenate((
             orig_vertex_columns, numpy.array([orig_vertex_columns[0]])))
+
+    (orig_vertex_columns, orig_vertex_rows) = sort_vertices_counterclockwise(
+        orig_vertex_columns, -1 * orig_vertex_rows)
+    orig_vertex_rows *= -1
 
     vertex_rows, vertex_columns = _adjust_vertices_to_grid_cell_edges(
         orig_vertex_rows, orig_vertex_columns)
@@ -891,7 +945,8 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
     :return: buffer_vertex_y_metres: Same as above, except for y-coordinates.
     """
 
-    _check_vertex_arrays(orig_vertex_x_metres, orig_vertex_y_metres)
+    _check_vertex_arrays(orig_vertex_x_metres, orig_vertex_y_metres,
+                         allow_nan=False)
     error_checking.assert_is_real_number(min_buffer_dist_metres)
     error_checking.assert_is_geq(min_buffer_dist_metres, 0., allow_nan=True)
 

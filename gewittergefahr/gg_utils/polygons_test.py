@@ -483,6 +483,34 @@ class PolygonsTests(unittest.TestCase):
             numpy.array_equal(these_vertex_columns_non_redundant,
                               VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
 
+    def test_sort_vertices_counterclockwise_already_ccw(self):
+        """Ensures correct output from sort_vertices_counterclockwise.
+
+        In this case, vertices are already counterclockwise."""
+
+        (these_vertex_x_metres,
+         these_vertex_y_metres) = polygons.sort_vertices_counterclockwise(
+             VERTEX_X_METRES_LONG, VERTEX_Y_METRES_LONG)
+
+        self.assertTrue(numpy.allclose(
+            these_vertex_x_metres, VERTEX_X_METRES_LONG, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_vertex_y_metres, VERTEX_Y_METRES_LONG, atol=TOLERANCE))
+
+    def test_sort_vertices_counterclockwise_not_ccw(self):
+        """Ensures correct output from sort_vertices_counterclockwise.
+
+        In this case, input vertices are sorted clockwise."""
+
+        (these_vertex_x_metres,
+         these_vertex_y_metres) = polygons.sort_vertices_counterclockwise(
+             VERTEX_X_METRES_LONG[::-1], VERTEX_Y_METRES_LONG[::-1])
+
+        self.assertTrue(numpy.allclose(
+            these_vertex_x_metres, VERTEX_X_METRES_LONG, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_vertex_y_metres, VERTEX_Y_METRES_LONG, atol=TOLERANCE))
+
     def test_get_latlng_centroid(self):
         """Ensures correct output from _get_latlng_centroid."""
 
@@ -635,7 +663,7 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows,
          these_vertex_columns) = polygons.fix_probsevere_vertices(
-             VERTEX_ROWS_GRID_POINTS[::-1], VERTEX_COLUMNS_GRID_POINTS[::-1])
+             VERTEX_ROWS_GRID_POINTS, VERTEX_COLUMNS_GRID_POINTS)
 
         self.assertTrue(numpy.allclose(
             these_vertex_rows, VERTEX_ROWS_GRID_CELL_EDGES_NON_REDUNDANT,
@@ -652,8 +680,8 @@ class PolygonsTests(unittest.TestCase):
 
         (these_vertex_rows,
          these_vertex_columns) = polygons.fix_probsevere_vertices(
-             VERTEX_ROWS_GRID_POINTS_COMPLEX[::-1],
-             VERTEX_COLUMNS_GRID_POINTS_COMPLEX[::-1])
+             VERTEX_ROWS_GRID_POINTS_COMPLEX,
+             VERTEX_COLUMNS_GRID_POINTS_COMPLEX)
 
         self.assertTrue(numpy.allclose(
             these_vertex_rows, VERTEX_ROWS_GRID_CELL_EDGES_NON_REDUNDANT,
