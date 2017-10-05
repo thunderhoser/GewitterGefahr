@@ -442,35 +442,6 @@ def find_local_raw_file(unix_time_sec=None, spc_date_unix_sec=None,
     return raw_file_name
 
 
-def extract_netcdf_from_gzip(unix_time_sec=None, spc_date_unix_sec=None,
-                             field_name=None, height_m_agl=None,
-                             top_directory_name=None):
-    """Extracts NetCDF file from gzip archive.
-
-    :param unix_time_sec: Time in Unix format.
-    :param spc_date_unix_sec: SPC date in Unix format.
-    :param field_name: Name of radar field (must be in `RADAR_FIELD_NAMES`).
-    :param height_m_agl: Height (integer metres above ground level).
-    :param top_directory_name: Top-level directory for raw MYRORSS files.
-    :return: netcdf_file_name: Path to output file.
-    """
-
-    gzip_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
-        field_name=field_name, height_m_agl=height_m_agl,
-        top_directory_name=top_directory_name, zipped=True,
-        raise_error_if_missing=True)
-
-    netcdf_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
-        field_name=field_name, height_m_agl=height_m_agl,
-        top_directory_name=top_directory_name, zipped=False,
-        raise_error_if_missing=False)
-
-    unzipping.unzip_gzip(gzip_file_name, netcdf_file_name)
-    return netcdf_file_name
-
-
 def rowcol_to_latlng(rows, columns, nw_grid_point_lat_deg=None,
                      nw_grid_point_lng_deg=None, lat_spacing_deg=None,
                      lng_spacing_deg=None):

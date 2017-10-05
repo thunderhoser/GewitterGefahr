@@ -4,7 +4,7 @@ import json
 import numpy
 import pandas
 from gewittergefahr.gg_io import myrorss_io
-from gewittergefahr.gg_io import segmotion_io
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
@@ -26,8 +26,8 @@ LAT_COLUMN_INDEX_ORIG = 1
 LNG_COLUMN_INDEX_ORIG = 0
 
 NON_POLYGON_COLUMNS = [
-    segmotion_io.STORM_ID_COLUMN, segmotion_io.EAST_VELOCITY_COLUMN,
-    segmotion_io.NORTH_VELOCITY_COLUMN, segmotion_io.TIME_COLUMN]
+    tracking_io.STORM_ID_COLUMN, tracking_io.EAST_VELOCITY_COLUMN,
+    tracking_io.NORTH_VELOCITY_COLUMN, tracking_io.TIME_COLUMN]
 
 NW_GRID_POINT_LAT_DEG = 55.
 NW_GRID_POINT_LNG_DEG = 230.
@@ -46,17 +46,6 @@ RAW_FILE_NAME = (
 PROCESSED_FILE_NAME = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/probSevere/'
     'probSevere_2017-06-29-122639.p')
-
-
-def _remove_rows_with_nan(input_table):
-    """Removes any row with NaN from pandas DataFrame.
-
-    :param input_table: pandas DataFrame.
-    :return: output_table: Same as input_table, except that some rows may be
-        gone.
-    """
-
-    return input_table.loc[input_table.notnull().all(axis=1)]
 
 
 def read_storm_objects_from_raw_file(json_file_name):
@@ -122,28 +111,28 @@ def read_storm_objects_from_raw_file(json_file_name):
                 NORTH_VELOCITY_COLUMN_ORIG])
 
     storm_object_dict = {
-        segmotion_io.STORM_ID_COLUMN: storm_ids,
-        segmotion_io.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
-        segmotion_io.NORTH_VELOCITY_COLUMN: north_velocities_m_s01,
-        segmotion_io.TIME_COLUMN: unix_times_sec}
+        tracking_io.STORM_ID_COLUMN: storm_ids,
+        tracking_io.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+        tracking_io.NORTH_VELOCITY_COLUMN: north_velocities_m_s01,
+        tracking_io.TIME_COLUMN: unix_times_sec}
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
-    storm_object_table = _remove_rows_with_nan(storm_object_table)
+    storm_object_table = tracking_io.remove_rows_with_nan(storm_object_table)
 
     simple_array = numpy.full(num_storms, numpy.nan)
     nested_array = storm_object_table[[
-        segmotion_io.STORM_ID_COLUMN,
-        segmotion_io.STORM_ID_COLUMN]].values.tolist()
+        tracking_io.STORM_ID_COLUMN,
+        tracking_io.STORM_ID_COLUMN]].values.tolist()
 
-    argument_dict = {segmotion_io.CENTROID_LAT_COLUMN: simple_array,
-                     segmotion_io.CENTROID_LNG_COLUMN: simple_array,
-                     segmotion_io.GRID_POINT_LAT_COLUMN: nested_array,
-                     segmotion_io.GRID_POINT_LNG_COLUMN: nested_array,
-                     segmotion_io.GRID_POINT_ROW_COLUMN: nested_array,
-                     segmotion_io.GRID_POINT_COLUMN_COLUMN: nested_array,
-                     segmotion_io.VERTEX_LAT_COLUMN: nested_array,
-                     segmotion_io.VERTEX_LNG_COLUMN: nested_array,
-                     segmotion_io.VERTEX_ROW_COLUMN: nested_array,
-                     segmotion_io.VERTEX_COLUMN_COLUMN: nested_array}
+    argument_dict = {tracking_io.CENTROID_LAT_COLUMN: simple_array,
+                     tracking_io.CENTROID_LNG_COLUMN: simple_array,
+                     tracking_io.GRID_POINT_LAT_COLUMN: nested_array,
+                     tracking_io.GRID_POINT_LNG_COLUMN: nested_array,
+                     tracking_io.GRID_POINT_ROW_COLUMN: nested_array,
+                     tracking_io.GRID_POINT_COLUMN_COLUMN: nested_array,
+                     tracking_io.VERTEX_LAT_COLUMN: nested_array,
+                     tracking_io.VERTEX_LNG_COLUMN: nested_array,
+                     tracking_io.VERTEX_ROW_COLUMN: nested_array,
+                     tracking_io.VERTEX_COLUMN_COLUMN: nested_array}
     storm_object_table = storm_object_table.assign(**argument_dict)
 
     for i in range(num_storms):
@@ -160,47 +149,43 @@ def read_storm_objects_from_raw_file(json_file_name):
             lat_spacing_deg=GRID_LAT_SPACING_DEG,
             lng_spacing_deg=GRID_LNG_SPACING_DEG)
 
-        (storm_object_table[segmotion_io.VERTEX_ROW_COLUMN].values[i],
-         storm_object_table[segmotion_io.VERTEX_COLUMN_COLUMN].values[i]) = (
-            polygons.fix_probsevere_vertices(these_vertex_rows,
-                                             these_vertex_columns))
+        (storm_object_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
+         storm_object_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i]) = (
+             polygons.fix_probsevere_vertices(these_vertex_rows,
+                                              these_vertex_columns))
 
-        (storm_object_table[segmotion_io.VERTEX_LAT_COLUMN].values[i],
-         storm_object_table[segmotion_io.VERTEX_LNG_COLUMN].values[i]) = (
-            myrorss_io.rowcol_to_latlng(
-                storm_object_table[segmotion_io.VERTEX_ROW_COLUMN].values[i],
-                storm_object_table[segmotion_io.VERTEX_COLUMN_COLUMN].values[i],
-                nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
-                nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
-                lat_spacing_deg=GRID_LAT_SPACING_DEG,
-                lng_spacing_deg=GRID_LNG_SPACING_DEG))
+        (storm_object_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
+         storm_object_table[tracking_io.VERTEX_LNG_COLUMN].values[i]) = (
+             myrorss_io.rowcol_to_latlng(
+                 storm_object_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
+                 storm_object_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i],
+                 nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
+                 nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
+                 lat_spacing_deg=GRID_LAT_SPACING_DEG,
+                 lng_spacing_deg=GRID_LNG_SPACING_DEG))
 
-        (storm_object_table[
-             segmotion_io.GRID_POINT_ROW_COLUMN].values[i],
-         storm_object_table[
-             segmotion_io.GRID_POINT_COLUMN_COLUMN].values[i]) = (
-            polygons.simple_polygon_to_grid_points(
-                storm_object_table[segmotion_io.VERTEX_ROW_COLUMN].values[i],
-                storm_object_table[
-                    segmotion_io.VERTEX_COLUMN_COLUMN].values[i]))
+        (storm_object_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
+         storm_object_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]) = (
+             polygons.simple_polygon_to_grid_points(
+                 storm_object_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
+                 storm_object_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i]))
 
-        (storm_object_table[segmotion_io.GRID_POINT_LAT_COLUMN].values[i],
-         storm_object_table[segmotion_io.GRID_POINT_LNG_COLUMN].values[i]) = (
-            myrorss_io.rowcol_to_latlng(
-                storm_object_table[
-                    segmotion_io.GRID_POINT_ROW_COLUMN].values[i],
-                storm_object_table[
-                    segmotion_io.GRID_POINT_COLUMN_COLUMN].values[i],
-                nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
-                nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
-                lat_spacing_deg=GRID_LAT_SPACING_DEG,
-                lng_spacing_deg=GRID_LNG_SPACING_DEG))
+        (storm_object_table[tracking_io.GRID_POINT_LAT_COLUMN].values[i],
+         storm_object_table[tracking_io.GRID_POINT_LNG_COLUMN].values[i]) = (
+             myrorss_io.rowcol_to_latlng(
+                 storm_object_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
+                 storm_object_table[
+                     tracking_io.GRID_POINT_COLUMN_COLUMN].values[i],
+                 nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
+                 nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
+                 lat_spacing_deg=GRID_LAT_SPACING_DEG,
+                 lng_spacing_deg=GRID_LNG_SPACING_DEG))
 
-        (storm_object_table[segmotion_io.CENTROID_LAT_COLUMN].values[i],
-         storm_object_table[segmotion_io.CENTROID_LNG_COLUMN].values[i]) = (
-            polygons.get_latlng_centroid(
-                storm_object_table[segmotion_io.VERTEX_LAT_COLUMN].values[i],
-                storm_object_table[segmotion_io.VERTEX_LNG_COLUMN].values[i]))
+        (storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
+         storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values[i]) = (
+             polygons.get_latlng_centroid(
+                 storm_object_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
+                 storm_object_table[tracking_io.VERTEX_LNG_COLUMN].values[i]))
 
     return storm_object_table
 
