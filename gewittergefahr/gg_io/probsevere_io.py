@@ -33,6 +33,8 @@ NW_GRID_POINT_LAT_DEG = 55.
 NW_GRID_POINT_LNG_DEG = 230.
 GRID_LAT_SPACING_DEG = 0.01
 GRID_LNG_SPACING_DEG = 0.01
+NUM_GRID_ROWS = 3501
+NUM_GRID_COLUMNS = 7001
 
 TIME_FORMAT_ORIG = '%Y%m%d_%H%M%S UTC'
 
@@ -40,12 +42,14 @@ TIME_FORMAT_ORIG = '%Y%m%d_%H%M%S UTC'
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
+UNIX_TIME_SEC = 1498739199
+TRACKING_SCALE_METRES2 = 4e7
+
 RAW_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
     'probSevere/20170629/2017-06-29-122639_probSevere_0050.00.json')
-PROCESSED_FILE_NAME = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/probSevere/'
-    'probSevere_2017-06-29-122639.p')
+TOP_PROCESSED_DIR_NAME = (
+    '/localdata/ryan.lagerquist/gewittergefahr_junk/probSevere')
 
 
 def read_storm_objects_from_raw_file(json_file_name):
@@ -60,29 +64,30 @@ def read_storm_objects_from_raw_file(json_file_name):
     :param json_file_name: Path to input file.
     :return: storm_object_table: pandas DataFrame with the following columns.
     storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Time in Unix format.
     storm_object_table.east_velocity_m_s01: Eastward velocity (m/s).
     storm_object_table.north_velocity_m_s01: Northward velocity (m/s).
-    storm_object_table.unix_time_sec: Time in Unix format.
+    storm_object_table.age_sec: Age of storm cell (seconds).
     storm_object_table.centroid_lat_deg: Latitude at centroid of storm object
         (deg N).
     storm_object_table.centroid_lng_deg: Longitude at centroid of storm object
         (deg E).
     storm_object_table.grid_point_latitudes_deg: length-P numpy array with
-        latitudes (deg N) of grid points in polygon.
+        latitudes (deg N) of grid points in storm object.
     storm_object_table.grid_point_longitudes_deg: length-P numpy array with
-        longitudes (deg E) of grid points in polygon.
+        longitudes (deg E) of grid points in storm object.
     storm_object_table.grid_point_rows: length-P numpy array with row indices
-        (integers) of grid points in polygon.
+        (integers) of grid points in storm object.
     storm_object_table.grid_point_columns: length-P numpy array with column
-        indices (integers) of grid points in polygon.
+        indices (integers) of grid points in storm object.
     storm_object_table.vertex_latitudes_deg: length-V numpy array with latitudes
-        (deg N) of vertices in polygon.
+        (deg N) of vertices in bounding polygon.
     storm_object_table.vertex_longitudes_deg: length-V numpy array with
-        longitudes (deg E) of vertices in polygon.
+        longitudes (deg E) of vertices in bounding polygon.
     storm_object_table.vertex_rows: length-V numpy array with row indices (half-
-        integers) of vertices in polygon.
+        integers) of vertices in bounding polygon.
     storm_object_table.vertex_columns: length-V numpy array with column indices
-        (half-integers) of vertices in polygon.
+        (half-integers) of vertices in bounding polygon.
     """
 
     error_checking.assert_file_exists(json_file_name)
@@ -118,12 +123,15 @@ def read_storm_objects_from_raw_file(json_file_name):
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
     storm_object_table = tracking_io.remove_rows_with_nan(storm_object_table)
 
+    num_storms = len(storm_object_table.index)
+    storm_ages_sec = numpy.full(num_storms, numpy.nan)
     simple_array = numpy.full(num_storms, numpy.nan)
     nested_array = storm_object_table[[
         tracking_io.STORM_ID_COLUMN,
         tracking_io.STORM_ID_COLUMN]].values.tolist()
 
-    argument_dict = {tracking_io.CENTROID_LAT_COLUMN: simple_array,
+    argument_dict = {tracking_io.AGE_COLUMN: storm_ages_sec,
+                     tracking_io.CENTROID_LAT_COLUMN: simple_array,
                      tracking_io.CENTROID_LNG_COLUMN: simple_array,
                      tracking_io.GRID_POINT_LAT_COLUMN: nested_array,
                      tracking_io.GRID_POINT_LNG_COLUMN: nested_array,
@@ -193,3 +201,27 @@ def read_storm_objects_from_raw_file(json_file_name):
 if __name__ == '__main__':
     STORM_OBJECT_TABLE = read_storm_objects_from_raw_file(RAW_FILE_NAME)
     print STORM_OBJECT_TABLE
+
+    (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (
+        myrorss_io.get_center_of_grid(
+            nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
+            nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
+            lat_spacing_deg=GRID_LAT_SPACING_DEG,
+            lng_spacing_deg=GRID_LNG_SPACING_DEG, num_lat_in_grid=NUM_GRID_ROWS,
+            num_lng_in_grid=NUM_GRID_COLUMNS))
+
+    STORM_OBJECT_TABLE = tracking_io.make_buffers_around_polygons(
+        STORM_OBJECT_TABLE, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,
+        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES,
+        central_latitude_deg=CENTRAL_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_LONGITUDE_DEG)
+    print STORM_OBJECT_TABLE
+
+    PROCESSED_FILE_NAME = tracking_io.find_processed_file(
+        unix_time_sec=UNIX_TIME_SEC,
+        data_source=tracking_io.PROBSEVERE_SOURCE_ID,
+        top_processed_dir_name=TOP_PROCESSED_DIR_NAME,
+        tracking_scale_metres2=TRACKING_SCALE_METRES2,
+        raise_error_if_missing=False)
+
+    tracking_io.write_processed_file(STORM_OBJECT_TABLE, PROCESSED_FILE_NAME)
