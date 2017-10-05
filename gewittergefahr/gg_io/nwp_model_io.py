@@ -204,7 +204,7 @@ def download_grib_or_grib2_file(init_time_unix_sec, lead_time_hours,
         top_directory_name=top_local_directory_name, model_id=model_id,
         file_extension=file_extension, raise_error_if_missing=False)
 
-    return downloads.download_file_from_url(
+    return downloads.download_file_via_http(
         online_file_name, local_file_name,
         raise_error_if_fails=raise_error_if_fails)
 

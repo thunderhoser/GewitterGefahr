@@ -413,7 +413,7 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
         time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_YEAR),
         pathless_file_name)
 
-    return downloads.download_file_from_url(
+    return downloads.download_file_via_http(
         online_file_name, local_file_name,
         raise_error_if_fails=raise_error_if_fails)
 
@@ -446,7 +446,7 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_YEAR),
         pathless_file_name)
 
-    return downloads.download_file_from_url(
+    return downloads.download_file_via_http(
         online_file_name, local_file_name,
         raise_error_if_fails=raise_error_if_fails)
 

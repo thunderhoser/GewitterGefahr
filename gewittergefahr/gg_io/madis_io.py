@@ -332,7 +332,7 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
         top_local_directory_name=top_local_directory_name, zipped=True,
         raise_error_if_missing=False)
 
-    return downloads.download_file_from_ftp(
+    return downloads.download_file_via_ftp(
         server_name=FTP_SERVER_NAME, user_name=ftp_user_name,
         password=ftp_password, ftp_file_name=ftp_file_name,
         local_file_name=local_gzip_file_name,

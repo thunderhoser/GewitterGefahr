@@ -301,9 +301,9 @@ def read_variable_from_grib2(grib2_file_name, grib2_var_name=None,
 
 
 if __name__ == '__main__':
-    downloads.download_file_from_url(NARR_FILE_NAME_ONLINE,
+    downloads.download_file_via_http(NARR_FILE_NAME_ONLINE,
                                      NARR_FILE_NAME_LOCAL)
-    downloads.download_file_from_url(RAP_FILE_NAME_ONLINE, RAP_FILE_NAME_LOCAL)
+    downloads.download_file_via_http(RAP_FILE_NAME_ONLINE, RAP_FILE_NAME_LOCAL)
 
     NARR_H500_MATRIX_METRES = (
         read_variable_from_grib(NARR_FILE_NAME_LOCAL,
