@@ -133,39 +133,22 @@ def _append_spc_date_to_storm_ids(storm_ids_orig, spc_date_string):
     return ['{0:s}_{1:s}'.format(s, spc_date_string) for s in storm_ids_orig]
 
 
-def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
-                                    unique_center_lat_deg,
-                                    unique_center_lng_deg):
-    """Converts matrix of storm IDs to one coordinate list for each storm cell.
+def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix):
+    """Converts matrix of storm IDs to one coordinate list* for each storm cell.
 
-    The coordinate list for each storm cell is a list of grid points inside the
-    storm.
+    * list of grid points inside the storm
 
-    M = number of grid-point latitudes (unique latitudes at centers of grid
-        cells)
-    N = number of grid-point longitudes (unique longitudes at centers of grid
-        cells)
-    P = number of grid points in storm cell (different for each storm cell)
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+    P = number of grid points in a given storm cell
 
-    :param numeric_storm_id_matrix: M-by-N numpy array with numeric storm IDs.
-    :param unique_center_lat_deg: length-M numpy array of unique latitudes
-        (deg N).  If unique_center_lat_deg is increasing (decreasing), latitudes
-        in numeric_storm_id_matrix increase (decrease) while going down a
-        column.
-    :param unique_center_lng_deg: length-N numpy array of unique longitudes
-        (deg E).  If unique_center_lng_deg is increasing (decreasing),
-        longitudes in numeric_storm_id_matrix increase (decrease) while going
-        right across a row.
+    :param numeric_storm_id_matrix: M-by-N numpy array of numeric storm IDs.
     :return: polygon_table: pandas DataFrame with the following columns.
     polygon_table.storm_id: String ID for storm cell.
-    polygon_table.grid_point_latitudes_deg: length-P numpy array with latitudes
-        (deg N) of grid points in storm cell.
-    polygon_table.grid_point_longitudes_deg: length-P numpy array with
-        longitudes (deg E) of grid points in storm cell.
-    polygon_table.grid_point_rows: length-P numpy array with row indices (all
-        integers) of grid points in storm cell.
+    polygon_table.grid_point_rows: length-P numpy array with row indices
+        (integers) of grid points in storm cell.
     polygon_table.grid_point_columns: length-P numpy array with column indices
-        (all integers) of grid points in storm cell.
+        (integers) of grid points in storm cell.
     """
 
     numeric_storm_id_matrix[
@@ -180,14 +163,12 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
 
     nested_array = polygon_table[
         [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
-    argument_dict = {GRID_POINT_LAT_COLUMN: nested_array,
-                     GRID_POINT_LNG_COLUMN: nested_array,
-                     GRID_POINT_ROW_COLUMN: nested_array,
+    argument_dict = {GRID_POINT_ROW_COLUMN: nested_array,
                      GRID_POINT_COLUMN_COLUMN: nested_array}
     polygon_table = polygon_table.assign(**argument_dict)
 
-    num_lat_in_grid = len(unique_center_lat_deg)
-    num_lng_in_grid = len(unique_center_lng_deg)
+    num_grid_rows = numeric_storm_id_matrix.shape[0]
+    num_grid_columns = numeric_storm_id_matrix.shape[1]
     num_storms = len(unique_numeric_storm_ids)
 
     for i in range(num_storms):
@@ -197,15 +178,11 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
         this_storm_linear_indices = numpy.where(indices_orig_to_unique == i)[0]
         (this_storm_row_indices,
          this_storm_column_indices) = numpy.unravel_index(
-             this_storm_linear_indices, (num_lat_in_grid, num_lng_in_grid))
+             this_storm_linear_indices, (num_grid_rows, num_grid_columns))
 
         polygon_table[GRID_POINT_ROW_COLUMN].values[i] = this_storm_row_indices
         polygon_table[GRID_POINT_COLUMN_COLUMN].values[
             i] = this_storm_column_indices
-        polygon_table[GRID_POINT_LAT_COLUMN].values[i] = unique_center_lat_deg[
-            this_storm_row_indices]
-        polygon_table[GRID_POINT_LNG_COLUMN].values[i] = unique_center_lng_deg[
-            this_storm_column_indices]
 
     return polygon_table.loc[
         polygon_table[STORM_ID_COLUMN] != str(int(SENTINEL_VALUE))]
@@ -755,13 +732,11 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         storm_id_var_name: netcdf_dataset.variables[storm_id_var_name_orig][:]}
 
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
-    (numeric_storm_id_matrix, unique_center_lat_deg,
-     unique_center_lng_deg) = sparse_to_full.sparse_to_full_grid_wrapper(
-         sparse_grid_table, metadata_dict)
+    (numeric_storm_id_matrix, _, _) = (
+        sparse_to_full.sparse_to_full_grid_wrapper(sparse_grid_table,
+                                                   metadata_dict))
 
-    polygon_table = _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix,
-                                                    unique_center_lat_deg,
-                                                    unique_center_lng_deg)
+    polygon_table = _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix)
 
     num_storms = len(polygon_table.index)
     unix_times_sec = numpy.full(
@@ -775,7 +750,9 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     nested_array = polygon_table[
         [STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
 
-    argument_dict = {VERTEX_LAT_COLUMN: nested_array,
+    argument_dict = {GRID_POINT_LAT_COLUMN: nested_array,
+                     GRID_POINT_LNG_COLUMN: nested_array,
+                     VERTEX_LAT_COLUMN: nested_array,
                      VERTEX_LNG_COLUMN: nested_array,
                      VERTEX_ROW_COLUMN: nested_array,
                      VERTEX_COLUMN_COLUMN: nested_array,
@@ -791,6 +768,24 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
                  polygon_table[GRID_POINT_ROW_COLUMN].values[i],
                  polygon_table[GRID_POINT_COLUMN_COLUMN].values[i]))
 
+        (polygon_table[GRID_POINT_ROW_COLUMN].values[i],
+         polygon_table[GRID_POINT_COLUMN_COLUMN].values[i]) = (
+             polygons.simple_polygon_to_grid_points(
+                 polygon_table[VERTEX_ROW_COLUMN].values[i],
+                 polygon_table[VERTEX_COLUMN_COLUMN].values[i]))
+
+        (polygon_table[GRID_POINT_LAT_COLUMN].values[i],
+         polygon_table[GRID_POINT_LNG_COLUMN].values[i]) = (
+             myrorss_io.rowcol_to_latlng(
+                 polygon_table[GRID_POINT_ROW_COLUMN].values[i],
+                 polygon_table[GRID_POINT_COLUMN_COLUMN].values[i],
+                 nw_grid_point_lat_deg=
+                 metadata_dict[myrorss_io.NW_GRID_POINT_LAT_COLUMN],
+                 nw_grid_point_lng_deg=
+                 metadata_dict[myrorss_io.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=metadata_dict[myrorss_io.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=metadata_dict[myrorss_io.LNG_SPACING_COLUMN]))
+
         (polygon_table[VERTEX_LAT_COLUMN].values[i],
          polygon_table[VERTEX_LNG_COLUMN].values[i]) = (
              myrorss_io.rowcol_to_latlng(
@@ -805,9 +800,9 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
 
         (polygon_table[CENTROID_LAT_COLUMN].values[i],
          polygon_table[CENTROID_LNG_COLUMN].values[i]) = (
-            polygons.get_latlng_centroid(
-                polygon_table[VERTEX_LAT_COLUMN].values[i],
-                polygon_table[VERTEX_LNG_COLUMN].values[i]))
+             polygons.get_latlng_centroid(
+                 polygon_table[VERTEX_LAT_COLUMN].values[i],
+                 polygon_table[VERTEX_LNG_COLUMN].values[i]))
 
     return polygon_table
 
@@ -1035,7 +1030,6 @@ if __name__ == '__main__':
     print STATS_TABLE
 
     METADATA_DICT = myrorss_io.read_metadata_from_netcdf(NETCDF_FILE_NAME)
-    print METADATA_DICT
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
         spc_date_unix_sec=SPC_DATE_UNIX_SEC)

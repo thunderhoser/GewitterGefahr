@@ -11,7 +11,7 @@ XML_COLUMN_NAME_ORIG = segmotion_io.NORTH_VELOCITY_COLUMN_ORIG
 XML_COLUMN_NAME = segmotion_io.NORTH_VELOCITY_COLUMN
 STATS_COLUMN_NAMES = [segmotion_io.EAST_VELOCITY_COLUMN,
                       segmotion_io.NORTH_VELOCITY_COLUMN,
-                      segmotion_io.START_TIME_COLUMN, segmotion_io.AGE_COLUMN]
+                      segmotion_io.AGE_COLUMN]
 
 SPC_DATE_STRING = '20170910'
 SPC_DATE_UNIX_SEC = 1505066400
@@ -62,14 +62,11 @@ BUFFER_LNG_COLUMN_NAMES = ['vertex_longitudes_deg_buffer_0m',
 STORM_IDS = ['0', '1', '2', '3', '4', None]
 EAST_VELOCITIES_M_S01 = numpy.array([5., 7.5, 10., 8., 2.5, 4.])
 NORTH_VELOCITIES_M_S01 = numpy.array([6., 9., numpy.nan, 3., -3., 4.])
-START_TIMES_UNIX_SEC = numpy.array(
-    [1505259103, 1505259103, 1505259103, 1505259103, 1505259103, 1505259103])
 STORM_AGES_SEC = numpy.array([3000, numpy.nan, 2700, 2450, 1000, 3300])
 
 STATS_DICT = {segmotion_io.STORM_ID_COLUMN: STORM_IDS,
               segmotion_io.EAST_VELOCITY_COLUMN: EAST_VELOCITIES_M_S01,
               segmotion_io.NORTH_VELOCITY_COLUMN: NORTH_VELOCITIES_M_S01,
-              segmotion_io.START_TIME_COLUMN: START_TIMES_UNIX_SEC,
               segmotion_io.AGE_COLUMN: STORM_AGES_SEC}
 STATS_TABLE_WITH_NANS = pandas.DataFrame.from_dict(STATS_DICT)
 
@@ -147,8 +144,6 @@ ARGUMENT_DICT = {segmotion_io.EAST_VELOCITY_COLUMN:
                      EAST_VELOCITIES_M_S01[STATS_TABLE_INDICES_TO_JOIN],
                  segmotion_io.NORTH_VELOCITY_COLUMN:
                      NORTH_VELOCITIES_M_S01[STATS_TABLE_INDICES_TO_JOIN],
-                 segmotion_io.START_TIME_COLUMN:
-                     START_TIMES_UNIX_SEC[STATS_TABLE_INDICES_TO_JOIN],
                  segmotion_io.AGE_COLUMN:
                      STORM_AGES_SEC[STATS_TABLE_INDICES_TO_JOIN]}
 EXPECTED_JOINED_TABLE = EXPECTED_JOINED_TABLE.assign(**ARGUMENT_DICT)
@@ -182,8 +177,7 @@ class SegmotionIoTests(unittest.TestCase):
         """Ensures correct output from _storm_id_matrix_to_coord_lists."""
 
         mask_table = segmotion_io._storm_id_matrix_to_coord_lists(
-            NUMERIC_STORM_ID_MATRIX, UNIQUE_CENTER_LAT_DEG,
-            UNIQUE_CENTER_LNG_DEG)
+            NUMERIC_STORM_ID_MATRIX)
 
         self.assertTrue(numpy.array_equal(
             mask_table[STORM_ID_COLUMN].values,
@@ -197,14 +191,6 @@ class SegmotionIoTests(unittest.TestCase):
             self.assertTrue(numpy.array_equal(
                 mask_table[GRID_POINT_COLUMN_COLUMN].values[i],
                 EXPECTED_POLYGON_TABLE[GRID_POINT_COLUMN_COLUMN].values[i]))
-            self.assertTrue(numpy.allclose(
-                mask_table[GRID_POINT_LAT_COLUMN].values[i],
-                EXPECTED_POLYGON_TABLE[GRID_POINT_LAT_COLUMN].values[i],
-                atol=TOLERANCE))
-            self.assertTrue(numpy.allclose(
-                mask_table[GRID_POINT_LNG_COLUMN].values[i],
-                EXPECTED_POLYGON_TABLE[GRID_POINT_LNG_COLUMN].values[i],
-                atol=TOLERANCE))
 
     def test_distance_buffers_to_column_names(self):
         """Ensures correct output from _distance_buffers_to_column_names."""
