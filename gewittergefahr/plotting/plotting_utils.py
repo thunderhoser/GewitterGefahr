@@ -2,6 +2,7 @@
 
 import numpy
 import matplotlib.pyplot as pyplot
+import matplotlib.colors
 from mpl_toolkits.basemap import Basemap
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
@@ -41,6 +42,9 @@ EARTH_RADIUS_METRES = 6370997.
 # Constants for LCC (Lambert conformal conic) projection.
 DEFAULT_LCC_STANDARD_LATS_DEG = numpy.array([25., 25.])
 DEFAULT_LCC_CENTRAL_LNG_DEG = 265.
+
+COLOUR_BAR_PADDING = 0.05
+DEFAULT_COLOUR_BAR_ORIENTATION = 'horizontal'
 
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
@@ -265,3 +269,47 @@ def plot_meridians(basemap_object=None, axes_object=None,
         meridians_deg, color=line_colour, linewidth=line_width,
         labels=[False, False, False, True], ax=axes_object,
         zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
+
+
+def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
+                          colour_min=None, colour_max=None,
+                          orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
+                          extend_min=True, extend_max=True):
+    """Adds linear colour bar to existing plot.
+
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param values_to_colour: numpy array of values to which the colour map will
+        be applied.
+    :param colour_map: Instance of `matplotlib.pyplot.cm`.
+    :param colour_min: Minimum value for colour map.
+    :param orientation: Orientation (either "horizontal" or "vertical").
+    :param colour_max: Maximum value for colour map.
+    :param extend_min: Boolean flag.  If extend_min = True, will add arrow to
+        bottom end of colour bar.  Otherwise, bottom of colour bar will be
+        rectangular.
+    :param extend_max: Same as extend_min, but for upper end of colour bar.
+    """
+
+    error_checking.assert_is_real_numpy_array(values_to_colour)
+    error_checking.assert_is_greater(colour_max, colour_min)
+    error_checking.assert_is_boolean(extend_min)
+    error_checking.assert_is_boolean(extend_max)
+
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=colour_min, vmax=colour_max, clip=False)
+    scalar_mappable_object = pyplot.cm.ScalarMappable(
+        cmap=colour_map, norm=colour_norm_object)
+    scalar_mappable_object.set_array(values_to_colour)
+
+    if extend_min and extend_max:
+        extend_argument = 'both'
+    elif extend_min:
+        extend_argument = 'min'
+    elif extend_max:
+        extend_argument = 'max'
+    else:
+        extend_argument = 'neither'
+
+    pyplot.colorbar(
+        ax=axes_object, mappable=scalar_mappable_object,
+        orientation=orientation, pad=COLOUR_BAR_PADDING, extend=extend_argument)

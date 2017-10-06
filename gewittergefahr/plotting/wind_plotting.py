@@ -1,7 +1,6 @@
 """Plotting methods for wind."""
 
 import numpy
-import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
@@ -14,13 +13,11 @@ DEFAULT_COLOUR_MAXIMUM_KT = 50.
 
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
-# TODO(thunderhoser): When manipulating a figure, should pass around
-# `matplotlib.axes.Axes` objects, not `mpl_toolkits.basemap.Basemap`.
-
 
 def plot_wind_barbs(
-        basemap_object=None, latitudes_deg=None, longitudes_deg=None,
-        u_winds_m_s01=None, v_winds_m_s01=None, barb_length=DEFAULT_BARB_LENGTH,
+        basemap_object=None, axes_object=None,
+        latitudes_deg=None, longitudes_deg=None, u_winds_m_s01=None,
+        v_winds_m_s01=None, barb_length=DEFAULT_BARB_LENGTH,
         empty_barb_radius=DEFAULT_EMPTY_BARB_RADIUS, fill_empty_barb=False,
         colour_map=DEFAULT_COLOUR_MAP,
         colour_minimum_kt=DEFAULT_COLOUR_MINIMUM_KT,
@@ -30,6 +27,7 @@ def plot_wind_barbs(
     N = number of wind barbs
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param latitudes_deg: length-N numpy array of latitudes (deg N).
     :param longitudes_deg: length-N numpy array of longitudes (deg E).
     :param u_winds_m_s01: length-N numpy array of eastward wind velocities
@@ -72,22 +70,12 @@ def plot_wind_barbs(
 
     size_dict = {'emptybarb': empty_barb_radius}
     colour_limits_kt = numpy.array([colour_minimum_kt, colour_maximum_kt])
-    wind_speeds_m_s01 = numpy.sqrt(u_winds_m_s01**2 + v_winds_m_s01**2)
+    wind_speeds_m_s01 = numpy.sqrt(u_winds_m_s01 ** 2 + v_winds_m_s01 ** 2)
 
-    basemap_object.barbs(
+    axes_object.barbs(
         x_coords_metres, y_coords_metres,
         u_winds_m_s01 * METRES_PER_SECOND_TO_KT,
         v_winds_m_s01 * METRES_PER_SECOND_TO_KT,
         wind_speeds_m_s01 * METRES_PER_SECOND_TO_KT, length=barb_length,
         sizes=size_dict, fill_empty=fill_empty_barb, rounding=False,
         cmap=colour_map, clim=colour_limits_kt)
-
-    # TODO(thunderhoser): deal with colour bars in a different method.
-
-    colour_norm_object = matplotlib.colors.Normalize(
-        vmin=colour_minimum_kt, vmax=colour_maximum_kt, clip=False)
-    scalar_mappable_object = pyplot.cm.ScalarMappable(
-        cmap=colour_map, norm=colour_norm_object)
-    scalar_mappable_object.set_array(
-        wind_speeds_m_s01 * METRES_PER_SECOND_TO_KT)
-    pyplot.colorbar(scalar_mappable_object, extend='max')
