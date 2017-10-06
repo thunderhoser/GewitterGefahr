@@ -7,9 +7,6 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): When manipulating a figure, should pass around
-# `matplotlib.axes.Axes` objects, not `mpl_toolkits.basemap.Basemap`.
-
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
 DEFAULT_BOUNDARY_RESOLUTION_STRING = 'l'
@@ -31,12 +28,12 @@ DEFAULT_COAST_COLOUR = numpy.array([31., 120., 180.]) / 255
 DEFAULT_RIVER_COLOUR = numpy.array([166., 206., 227.]) / 255
 DEFAULT_PARALLEL_MERIDIAN_COLOUR = numpy.array([0., 0., 0.]) / 255
 
-Z_ORDER_MERIDIANS_AND_PARALLELS = -100
-Z_ORDER_RIVERS = -90
-Z_ORDER_COAST = -80
-Z_ORDER_COUNTRIES = -70
-Z_ORDER_STATES_AND_PROVINCES = -60
-Z_ORDER_COUNTIES = -50
+Z_ORDER_MERIDIANS_AND_PARALLELS = -1e6
+Z_ORDER_RIVERS = -1e5
+Z_ORDER_COAST = -1e4
+Z_ORDER_COUNTRIES = -1000
+Z_ORDER_STATES_AND_PROVINCES = -100
+Z_ORDER_COUNTIES = -10
 
 ELLIPSOID = 'sphere'
 EARTH_RADIUS_METRES = 6370997.
@@ -77,6 +74,8 @@ def init_lambert_conformal_map(
     :param max_latitude_deg: Latitude at upper-right corner (deg N).
     :param min_longitude_deg: Longitude at bottom-left corner (deg E).
     :param max_longitude_deg: Longitude at upper-right corner (deg E).
+    :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     """
 
@@ -101,9 +100,10 @@ def init_lambert_conformal_map(
     max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         max_longitude_deg)
 
-    pyplot.figure(figsize=(fig_width_inches, fig_height_inches))
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(fig_width_inches, fig_height_inches))
 
-    return Basemap(
+    basemap_object = Basemap(
         projection='lcc', lat_1=standard_latitudes_deg[0],
         lat_2=standard_latitudes_deg[1], lon_0=central_longitude_deg,
         rsphere=EARTH_RADIUS_METRES, ellps=ELLIPSOID,
@@ -111,82 +111,98 @@ def init_lambert_conformal_map(
         llcrnrlon=min_longitude_deg, urcrnrlat=max_latitude_deg,
         urcrnrlon=max_longitude_deg)
 
+    return figure_object, axes_object, basemap_object
 
-def plot_countries(basemap_object, line_width=DEFAULT_COUNTRY_WIDTH,
+
+def plot_countries(basemap_object=None, axes_object=None,
+                   line_width=DEFAULT_COUNTRY_WIDTH,
                    line_colour=DEFAULT_COUNTRY_COLOUR):
     """Plots national borders.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param line_width: Line width (real positive number).
     :param line_colour: Colour (in any format accepted by `matplotlib.colors`).
     """
 
     basemap_object.drawcountries(
-        linewidth=line_width, color=line_colour, zorder=Z_ORDER_COUNTRIES)
+        linewidth=line_width, color=line_colour, ax=axes_object,
+        zorder=Z_ORDER_COUNTRIES)
 
 
-def plot_states_and_provinces(basemap_object,
+def plot_states_and_provinces(basemap_object=None, axes_object=None,
                               line_width=DEFAULT_STATE_PROVINCE_WIDTH,
                               line_colour=DEFAULT_STATE_PROVINCE_COLOUR):
     """Plots state and provincial borders.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param line_width: Line width (real positive number).
     :param line_colour: Colour (in any format accepted by `matplotlib.colors`).
     """
 
     basemap_object.drawstates(
-        linewidth=line_width, color=line_colour,
+        linewidth=line_width, color=line_colour, ax=axes_object,
         zorder=Z_ORDER_STATES_AND_PROVINCES)
 
 
-def plot_counties(basemap_object, line_width=DEFAULT_COUNTY_WIDTH,
+def plot_counties(basemap_object=None, axes_object=None,
+                  line_width=DEFAULT_COUNTY_WIDTH,
                   line_colour=DEFAULT_COUNTY_COLOUR):
     """Plots county borders.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param line_width: Line width (real positive number).
     :param line_colour: Colour (in any format accepted by `matplotlib.colors`).
     """
 
     basemap_object.drawcounties(
-        linewidth=line_width, color=line_colour, zorder=Z_ORDER_COUNTIES)
+        linewidth=line_width, color=line_colour, ax=axes_object,
+        zorder=Z_ORDER_COUNTIES)
 
 
-def plot_coastlines(basemap_object, line_width=DEFAULT_COAST_WIDTH,
+def plot_coastlines(basemap_object=None, axes_object=None,
+                    line_width=DEFAULT_COAST_WIDTH,
                     line_colour=DEFAULT_COAST_COLOUR):
     """Plots coastlines (with oceans and lakes).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param line_width: Line width (real positive number).
     :param line_colour: Colour (in any format accepted by `matplotlib.colors`).
     """
 
     basemap_object.drawcoastlines(
-        linewidth=line_width, color=line_colour, zorder=Z_ORDER_COAST)
+        linewidth=line_width, color=line_colour, ax=axes_object,
+        zorder=Z_ORDER_COAST)
 
 
-def plot_rivers(basemap_object, line_width=DEFAULT_RIVER_WIDTH,
+def plot_rivers(basemap_object=None, axes_object=None,
+                line_width=DEFAULT_RIVER_WIDTH,
                 line_colour=DEFAULT_RIVER_COLOUR):
     """Plots rivers.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param line_width: Line width (real positive number).
     :param line_colour: Colour (in any format accepted by `matplotlib.colors`).
     """
 
     basemap_object.drawrivers(
-        linewidth=line_width, color=line_colour, zorder=Z_ORDER_RIVERS)
+        linewidth=line_width, color=line_colour, ax=axes_object,
+        zorder=Z_ORDER_RIVERS)
 
 
-def plot_parallels(basemap_object, bottom_left_lat_deg=None,
-                   upper_right_lat_deg=None,
+def plot_parallels(basemap_object=None, axes_object=None,
+                   bottom_left_lat_deg=None, upper_right_lat_deg=None,
                    parallel_spacing_deg=DEFAULT_PARALLEL_SPACING_DEG,
                    line_width=DEFAULT_PARALLEL_MERIDIAN_WIDTH,
                    line_colour=DEFAULT_PARALLEL_MERIDIAN_COLOUR):
     """Draws parallels (lines of equal latitude).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param bottom_left_lat_deg: Latitude at bottom-left corner (deg N).
     :param upper_right_lat_deg: Latitude at upper-right corner (deg N).
     :param parallel_spacing_deg: Spacing between successive parallels (deg N).
@@ -208,18 +224,20 @@ def plot_parallels(basemap_object, bottom_left_lat_deg=None,
     parallels_deg = numpy.linspace(
         min_parallel_deg, max_parallel_deg, num=num_parallels_deg)
     basemap_object.drawparallels(
-        parallels_deg, labels=[True, False, False, False], linewidth=line_width,
-        color=line_colour, zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
+        parallels_deg, color=line_colour, linewidth=line_width,
+        labels=[True, False, False, False], ax=axes_object,
+        zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
 
 
-def plot_meridians(basemap_object, bottom_left_lng_deg=None,
-                   upper_right_lng_deg=None,
+def plot_meridians(basemap_object=None, axes_object=None,
+                   bottom_left_lng_deg=None, upper_right_lng_deg=None,
                    meridian_spacing_deg=DEFAULT_MERIDIAN_SPACING_DEG,
                    line_width=DEFAULT_PARALLEL_MERIDIAN_WIDTH,
                    line_colour=DEFAULT_PARALLEL_MERIDIAN_COLOUR):
     """Draws meridians (lines of equal longitude).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param bottom_left_lng_deg: Longitude at bottom-left corner (deg E).
     :param upper_right_lng_deg: Longitude at upper-right corner (deg E).
     :param meridian_spacing_deg: Spacing between successive meridians (deg N).
@@ -244,5 +262,6 @@ def plot_meridians(basemap_object, bottom_left_lng_deg=None,
     meridians_deg = numpy.linspace(
         min_meridian_deg, max_meridian_deg, num=num_meridians_deg)
     basemap_object.drawmeridians(
-        meridians_deg, labels=[False, False, False, True], linewidth=line_width,
-        color=line_colour, zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
+        meridians_deg, color=line_colour, linewidth=line_width,
+        labels=[False, False, False, True], ax=axes_object,
+        zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
