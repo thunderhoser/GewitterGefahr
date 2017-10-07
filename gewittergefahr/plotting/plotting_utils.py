@@ -211,7 +211,7 @@ def plot_counties(basemap_object=None, axes_object=None,
 
     basemap_object.drawcounties(
         linewidth=line_width, color=line_colour, ax=axes_object,
-        zorder=Z_ORDER_COUNTIES, drawbounds=True)
+        zorder=Z_ORDER_COUNTIES)
 
 
 def plot_coastlines(basemap_object=None, axes_object=None,

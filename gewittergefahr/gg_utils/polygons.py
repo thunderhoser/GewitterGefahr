@@ -142,111 +142,6 @@ def _get_longest_simple_polygon(vertex_x_metres, vertex_y_metres):
     return simple_vertex_x_metres, simple_vertex_y_metres
 
 
-def _separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
-    """Separates exterior of polygon from holes in polygon.
-
-    V = number of vertices
-    H = number of holes
-    V_e = number of exterior vertices
-    V_hi = number of vertices in [i]th hole
-
-    :param vertex_x_metres: length-V numpy array with x-coordinates of vertices.
-        The first NaN separates the exterior from the first hole; the [i]th NaN
-        separates the [i - 1]th hole from the [i]th hole.
-    :param vertex_y_metres: Same as above, except for y-coordinates.
-    :return: vertex_dict: Dictionary with the following keys.
-    vertex_dict.exterior_x_metres: numpy array (length V_e) with x-coordinates
-        of exterior vertices.
-    vertex_dict.exterior_y_metres: numpy array (length V_e) with y-coordinates
-        of exterior vertices.
-    vertex_dict.hole_x_metres_list: List of H elements, where the [i]th element
-        is a numpy array (length V_hi) with x-coordinates of interior vertices.
-    vertex_dict.hole_y_metres_list: Same as above, except for y-coordinates.
-    """
-
-    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=True)
-
-    nan_flags = numpy.isnan(vertex_x_metres)
-    if not numpy.any(nan_flags):
-        return {EXTERIOR_X_COLUMN: vertex_x_metres,
-                EXTERIOR_Y_COLUMN: vertex_y_metres, HOLE_X_COLUMN: [],
-                HOLE_Y_COLUMN: []}
-
-    nan_indices = numpy.where(nan_flags)[0]
-    num_holes = len(nan_indices)
-    exterior_x_metres = vertex_x_metres[0:nan_indices[0]]
-    exterior_y_metres = vertex_y_metres[0:nan_indices[0]]
-    hole_x_metres_list = []
-    hole_y_metres_list = []
-
-    for i in range(num_holes):
-        if i == num_holes - 1:
-            this_hole_x_metres = vertex_x_metres[(nan_indices[i] + 1):]
-            this_hole_y_metres = vertex_y_metres[(nan_indices[i] + 1):]
-        else:
-            this_hole_x_metres = (
-                vertex_x_metres[(nan_indices[i] + 1):nan_indices[i + 1]])
-            this_hole_y_metres = (
-                vertex_y_metres[(nan_indices[i] + 1):nan_indices[i + 1]])
-
-        hole_x_metres_list.append(this_hole_x_metres)
-        hole_y_metres_list.append(this_hole_y_metres)
-
-    return {EXTERIOR_X_COLUMN: exterior_x_metres,
-            EXTERIOR_Y_COLUMN: exterior_y_metres,
-            HOLE_X_COLUMN: hole_x_metres_list,
-            HOLE_Y_COLUMN: hole_y_metres_list}
-
-
-def _merge_exterior_and_holes(exterior_vertex_x_metres,
-                              exterior_vertex_y_metres,
-                              hole_x_vertex_metres_list=None,
-                              hole_y_vertex_metres_list=None):
-    """Merges exterior of polygon with holes in polygon.
-
-    V = number of vertices
-    H = number of holes
-    V_e = number of exterior vertices
-    V_hi = number of vertices in [i]th hole
-
-    :param exterior_vertex_x_metres: numpy array (length V_e) with x-coordinates
-        of exterior vertices.
-    :param exterior_vertex_y_metres: numpy array (length V_e) with y-coordinates
-        of exterior vertices.
-    :param hole_x_vertex_metres_list: List of H elements, where the [i]th
-        element is a numpy array (length V_hi) with x-coordinates of interior
-        vertices.
-    :param hole_y_vertex_metres_list: Same as above, except for y-coordinates.
-    :return: vertex_x_metres: length-V numpy array with x-coordinates of
-        vertices.  The first NaN separates the exterior from the first hole; the
-        [i]th NaN separates the [i - 1]th hole from the [i]th hole.
-    :return: vertex_y_metres: Same as above, except for y-coordinates.
-    """
-
-    _check_vertex_arrays(exterior_vertex_x_metres, exterior_vertex_y_metres,
-                         allow_nan=False)
-
-    vertex_x_metres = copy.deepcopy(exterior_vertex_x_metres)
-    vertex_y_metres = copy.deepcopy(exterior_vertex_y_metres)
-    if hole_x_vertex_metres_list is None:
-        return vertex_x_metres, vertex_y_metres
-
-    num_holes = len(hole_x_vertex_metres_list)
-    for i in range(num_holes):
-        _check_vertex_arrays(hole_x_vertex_metres_list[i],
-                             hole_y_vertex_metres_list[i], allow_nan=False)
-
-    single_nan_array = numpy.array([numpy.nan])
-
-    for i in range(num_holes):
-        vertex_x_metres = numpy.concatenate(
-            (vertex_x_metres, single_nan_array, hole_x_vertex_metres_list[i]))
-        vertex_y_metres = numpy.concatenate(
-            (vertex_y_metres, single_nan_array, hole_y_vertex_metres_list[i]))
-
-    return vertex_x_metres, vertex_y_metres
-
-
 def _vertex_arrays_to_list(vertex_x_metres, vertex_y_metres):
     """Converts vertex coordinates from two arrays to one list.
 
@@ -596,6 +491,111 @@ def _adjust_vertices_to_grid_cell_edges(vertex_rows_orig, vertex_columns_orig):
         vertex_columns = numpy.concatenate((vertex_columns, columns_to_append))
 
     return vertex_rows, vertex_columns
+
+
+def separate_exterior_and_holes(vertex_x_metres, vertex_y_metres):
+    """Separates exterior of polygon from holes in polygon.
+
+    V = number of vertices
+    H = number of holes
+    V_e = number of exterior vertices
+    V_hi = number of vertices in [i]th hole
+
+    :param vertex_x_metres: length-V numpy array with x-coordinates of vertices.
+        The first NaN separates the exterior from the first hole; the [i]th NaN
+        separates the [i - 1]th hole from the [i]th hole.
+    :param vertex_y_metres: Same as above, except for y-coordinates.
+    :return: vertex_dict: Dictionary with the following keys.
+    vertex_dict.exterior_x_metres: numpy array (length V_e) with x-coordinates
+        of exterior vertices.
+    vertex_dict.exterior_y_metres: numpy array (length V_e) with y-coordinates
+        of exterior vertices.
+    vertex_dict.hole_x_metres_list: List of H elements, where the [i]th element
+        is a numpy array (length V_hi) with x-coordinates of interior vertices.
+    vertex_dict.hole_y_metres_list: Same as above, except for y-coordinates.
+    """
+
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=True)
+
+    nan_flags = numpy.isnan(vertex_x_metres)
+    if not numpy.any(nan_flags):
+        return {EXTERIOR_X_COLUMN: vertex_x_metres,
+                EXTERIOR_Y_COLUMN: vertex_y_metres, HOLE_X_COLUMN: [],
+                HOLE_Y_COLUMN: []}
+
+    nan_indices = numpy.where(nan_flags)[0]
+    num_holes = len(nan_indices)
+    exterior_x_metres = vertex_x_metres[0:nan_indices[0]]
+    exterior_y_metres = vertex_y_metres[0:nan_indices[0]]
+    hole_x_metres_list = []
+    hole_y_metres_list = []
+
+    for i in range(num_holes):
+        if i == num_holes - 1:
+            this_hole_x_metres = vertex_x_metres[(nan_indices[i] + 1):]
+            this_hole_y_metres = vertex_y_metres[(nan_indices[i] + 1):]
+        else:
+            this_hole_x_metres = (
+                vertex_x_metres[(nan_indices[i] + 1):nan_indices[i + 1]])
+            this_hole_y_metres = (
+                vertex_y_metres[(nan_indices[i] + 1):nan_indices[i + 1]])
+
+        hole_x_metres_list.append(this_hole_x_metres)
+        hole_y_metres_list.append(this_hole_y_metres)
+
+    return {EXTERIOR_X_COLUMN: exterior_x_metres,
+            EXTERIOR_Y_COLUMN: exterior_y_metres,
+            HOLE_X_COLUMN: hole_x_metres_list,
+            HOLE_Y_COLUMN: hole_y_metres_list}
+
+
+def merge_exterior_and_holes(exterior_vertex_x_metres,
+                             exterior_vertex_y_metres,
+                             hole_x_vertex_metres_list=None,
+                             hole_y_vertex_metres_list=None):
+    """Merges exterior of polygon with holes in polygon.
+
+    V = number of vertices
+    H = number of holes
+    V_e = number of exterior vertices
+    V_hi = number of vertices in [i]th hole
+
+    :param exterior_vertex_x_metres: numpy array (length V_e) with x-coordinates
+        of exterior vertices.
+    :param exterior_vertex_y_metres: numpy array (length V_e) with y-coordinates
+        of exterior vertices.
+    :param hole_x_vertex_metres_list: List of H elements, where the [i]th
+        element is a numpy array (length V_hi) with x-coordinates of interior
+        vertices.
+    :param hole_y_vertex_metres_list: Same as above, except for y-coordinates.
+    :return: vertex_x_metres: length-V numpy array with x-coordinates of
+        vertices.  The first NaN separates the exterior from the first hole; the
+        [i]th NaN separates the [i - 1]th hole from the [i]th hole.
+    :return: vertex_y_metres: Same as above, except for y-coordinates.
+    """
+
+    _check_vertex_arrays(exterior_vertex_x_metres, exterior_vertex_y_metres,
+                         allow_nan=False)
+
+    vertex_x_metres = copy.deepcopy(exterior_vertex_x_metres)
+    vertex_y_metres = copy.deepcopy(exterior_vertex_y_metres)
+    if hole_x_vertex_metres_list is None:
+        return vertex_x_metres, vertex_y_metres
+
+    num_holes = len(hole_x_vertex_metres_list)
+    for i in range(num_holes):
+        _check_vertex_arrays(hole_x_vertex_metres_list[i],
+                             hole_y_vertex_metres_list[i], allow_nan=False)
+
+    single_nan_array = numpy.array([numpy.nan])
+
+    for i in range(num_holes):
+        vertex_x_metres = numpy.concatenate(
+            (vertex_x_metres, single_nan_array, hole_x_vertex_metres_list[i]))
+        vertex_y_metres = numpy.concatenate(
+            (vertex_y_metres, single_nan_array, hole_y_vertex_metres_list[i]))
+
+    return vertex_x_metres, vertex_y_metres
 
 
 def sort_vertices_counterclockwise(vertex_x_metres, vertex_y_metres):
@@ -979,7 +979,7 @@ def make_buffer_around_simple_polygon(orig_vertex_x_metres,
     min_buffer_vertex_dict = polygon_object_to_vertices(
         min_buffer_polygon_object)
 
-    return _merge_exterior_and_holes(
+    return merge_exterior_and_holes(
         max_buffer_vertex_dict[EXTERIOR_X_COLUMN],
         max_buffer_vertex_dict[EXTERIOR_Y_COLUMN],
         hole_x_vertex_metres_list=[min_buffer_vertex_dict[EXTERIOR_X_COLUMN]],

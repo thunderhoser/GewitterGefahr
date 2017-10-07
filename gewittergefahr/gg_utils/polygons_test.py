@@ -221,7 +221,7 @@ class PolygonsTests(unittest.TestCase):
     def test_separate_exterior_and_holes(self):
         """Ensures correct output from _separate_exterior_and_holes."""
 
-        this_vertex_dict = polygons._separate_exterior_and_holes(
+        this_vertex_dict = polygons.separate_exterior_and_holes(
             MERGED_VERTEX_X_METRES, MERGED_VERTEX_Y_METRES)
 
         self.assertTrue(
@@ -248,10 +248,10 @@ class PolygonsTests(unittest.TestCase):
                            HOLE2_VERTEX_Y_METRES, atol=TOLERANCE))
 
     def test_merge_exterior_and_holes(self):
-        """Ensures correct output from _merge_exterior_and_holes."""
+        """Ensures correct output from merge_exterior_and_holes."""
 
         (this_vertex_x_metres,
-         this_vertex_y_metres) = polygons._merge_exterior_and_holes(
+         this_vertex_y_metres) = polygons.merge_exterior_and_holes(
              EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
              hole_x_vertex_metres_list=[HOLE1_VERTEX_X_METRES,
                                         HOLE2_VERTEX_X_METRES],
