@@ -8,6 +8,10 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): Create high-level method that deals with all projections,
+# which will be called by init_lambert_conformal_map and
+# init_equidistant_cylindrical_map.
+
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
 DEFAULT_BOUNDARY_RESOLUTION_STRING = 'l'
@@ -118,6 +122,50 @@ def init_lambert_conformal_map(
     return figure_object, axes_object, basemap_object
 
 
+def init_equidistant_cylindrical_map(
+        fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
+        fig_height_inches=DEFAULT_FIG_HEIGHT_INCHES,
+        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING,
+        min_latitude_deg=None, max_latitude_deg=None, min_longitude_deg=None,
+        max_longitude_deg=None):
+    """Initializes map with equidistant cylindrical projection.
+
+    :param fig_width_inches: Figure width.
+    :param fig_height_inches: Figure height.
+    :param resolution_string: See documentation for init_lambert_conformal_map.
+    :param min_latitude_deg: Latitude at bottom-left corner (deg N).
+    :param max_latitude_deg: Latitude at upper-right corner (deg N).
+    :param min_longitude_deg: Longitude at bottom-left corner (deg E).
+    :param max_longitude_deg: Longitude at upper-right corner (deg E).
+    :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    """
+
+    error_checking.assert_is_greater(fig_width_inches, 0)
+    error_checking.assert_is_greater(fig_height_inches, 0)
+    error_checking.assert_is_string(resolution_string)
+    error_checking.assert_is_valid_latitude(min_latitude_deg)
+    error_checking.assert_is_valid_latitude(max_latitude_deg)
+
+    error_checking.assert_is_non_array(max_longitude_deg)
+    error_checking.assert_is_non_array(min_longitude_deg)
+    min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        min_longitude_deg)
+    max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        max_longitude_deg)
+
+    figure_object, axes_object = pyplot.subplots(
+        1, 1, figsize=(fig_width_inches, fig_height_inches))
+
+    basemap_object = Basemap(
+        projection='cyl', resolution=resolution_string,
+        llcrnrlat=min_latitude_deg, llcrnrlon=min_longitude_deg,
+        urcrnrlat=max_latitude_deg, urcrnrlon=max_longitude_deg)
+
+    return figure_object, axes_object, basemap_object
+
+
 def plot_countries(basemap_object=None, axes_object=None,
                    line_width=DEFAULT_COUNTRY_WIDTH,
                    line_colour=DEFAULT_COUNTRY_COLOUR):
@@ -163,7 +211,7 @@ def plot_counties(basemap_object=None, axes_object=None,
 
     basemap_object.drawcounties(
         linewidth=line_width, color=line_colour, ax=axes_object,
-        zorder=Z_ORDER_COUNTIES)
+        zorder=Z_ORDER_COUNTIES, drawbounds=True)
 
 
 def plot_coastlines(basemap_object=None, axes_object=None,

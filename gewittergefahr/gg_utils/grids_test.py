@@ -63,6 +63,19 @@ EXPECTED_GRID_POINT_LNG_MATRIX_DEG = (
                  [240., 241., 242., 243., 244., 245., 246., 247.],
                  [240., 241., 242., 243., 244., 245., 246., 247.]]))
 
+FIELD_MATRIX_AT_GRID_POINTS = numpy.array([
+    [0., 1., 2., 3., 3., 2., 1., 0.],
+    [-2., 2., 4., 6., 6., 4., 2., -2.],
+    [5., 10., 15., 20., 20., 15., 10., 5.],
+    [0., 0., 0., 0., 0., 0., 0., 0.]])
+EXPECTED_FIELD_MATRIX_AT_EDGES = numpy.array([
+    [0., 1., 2., 3., 3., 2., 1., 0., numpy.nan],
+    [-2., 2., 4., 6., 6., 4., 2., -2., numpy.nan],
+    [5., 10., 15., 20., 20., 15., 10., 5., numpy.nan],
+    [0., 0., 0., 0., 0., 0., 0., 0., numpy.nan],
+    [numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan,
+     numpy.nan, numpy.nan, numpy.nan]])
+
 
 class GridsTests(unittest.TestCase):
     """Each method is a unit test for grids.py."""
@@ -168,6 +181,27 @@ class GridsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(grid_point_lng_matrix_deg,
                                        EXPECTED_GRID_POINT_LNG_MATRIX_DEG,
                                        atol=TOLERANCE))
+
+    def test_latlng_field_grid_points_to_edges(self):
+        """Ensures correct output from latlng_field_grid_points_to_edges."""
+
+        (this_field_matrix_at_edges,
+         these_edge_latitudes_deg,
+         these_edge_longitudes_deg) = grids.latlng_field_grid_points_to_edges(
+             field_matrix=FIELD_MATRIX_AT_GRID_POINTS,
+             min_latitude_deg=MIN_LATITUDE_DEG,
+             min_longitude_deg=MIN_LONGITUDE_DEG,
+             lat_spacing_deg=LAT_SPACING_DEG, lng_spacing_deg=LNG_SPACING_DEG)
+
+        self.assertTrue(numpy.allclose(
+            these_edge_latitudes_deg, EXPECTED_GRID_CELL_EDGE_LATITUDES_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_edge_longitudes_deg, EXPECTED_GRID_CELL_EDGE_LONGITUDES_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_field_matrix_at_edges, EXPECTED_FIELD_MATRIX_AT_EDGES,
+            equal_nan=True, atol=TOLERANCE))
 
 
 if __name__ == '__main__':

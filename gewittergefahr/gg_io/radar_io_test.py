@@ -152,21 +152,21 @@ class RadarIoTests(unittest.TestCase):
                                             data_source=radar_io.MRMS_SOURCE_ID)
 
     def test_check_field_name_valid(self):
-        """Ensures correct output from _check_field_name.
+        """Ensures correct output from check_field_name.
 
         In this case, field name is valid.
         """
 
-        radar_io._check_field_name(LL_SHEAR_NAME_NEW)
+        radar_io.check_field_name(LL_SHEAR_NAME_NEW)
 
     def test_check_field_name_invalid(self):
-        """Ensures correct output from _check_field_name.
+        """Ensures correct output from check_field_name.
 
         In this case, field name is invalid.
         """
 
         with self.assertRaises(ValueError):
-            radar_io._check_field_name(LL_SHEAR_NAME_NEW_FAKE)
+            radar_io.check_field_name(LL_SHEAR_NAME_NEW_FAKE)
 
     def test_field_name_orig_to_new_myrorss(self):
         """Ensures correct output from _field_name_orig_to_new.

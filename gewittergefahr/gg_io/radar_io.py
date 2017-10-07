@@ -71,6 +71,12 @@ SHI_NAME = 'shi'
 VIL_NAME = 'vil_mm'
 STORM_ID_NAME = 'storm_id'
 
+ECHO_TOP_NAMES = [ECHO_TOP_18DBZ_NAME, ECHO_TOP_50DBZ_NAME]
+SHEAR_NAMES = [LOW_LEVEL_SHEAR_NAME, MID_LEVEL_SHEAR_NAME]
+REFLECTIVITY_NAMES = [
+    REFL_NAME, REFL_COLUMN_MAX_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
+    REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME]
+
 ECHO_TOP_18DBZ_NAME_ORIG = 'EchoTop_18'
 ECHO_TOP_50DBZ_NAME_ORIG = 'EchoTop_50'
 REFL_NAME_ORIG = 'MergedReflectivityQC'
@@ -166,22 +172,6 @@ def _check_field_name_orig(field_name_orig, data_source=None):
             '\n\n' + str(valid_field_names) +
             '\n\nValid field names (listed above) do not include "' +
             field_name_orig + '".')
-        raise ValueError(error_string)
-
-
-def _check_field_name(field_name):
-    """Ensures that name of radar field is recognized.
-
-    :param field_name: Name of radar field in new format (as opposed to MYRORSS
-        or MRMS format).
-    :raises: ValueError: if name of radar field is not recognized.
-    """
-
-    if field_name not in RADAR_FIELD_NAMES:
-        error_string = (
-            '\n\n' + str(RADAR_FIELD_NAMES) +
-            '\n\nValid field names (listed above) do not include "' +
-            field_name + '".')
         raise ValueError(error_string)
 
 
@@ -375,6 +365,22 @@ def _remove_sentinels(sparse_grid_table, field_name=None, sentinel_values=None):
     sparse_grid_table.drop(sparse_grid_table.index[sentinel_indices], axis=0,
                            inplace=True)
     return sparse_grid_table
+
+
+def check_field_name(field_name):
+    """Ensures that name of radar field is recognized.
+
+    :param field_name: Name of radar field in new format (as opposed to MYRORSS
+        or MRMS format).
+    :raises: ValueError: if name of radar field is not recognized.
+    """
+
+    if field_name not in RADAR_FIELD_NAMES:
+        error_string = (
+            '\n\n' + str(RADAR_FIELD_NAMES) +
+            '\n\nValid field names (listed above) do not include "' +
+            field_name + '".')
+        raise ValueError(error_string)
 
 
 def time_unix_sec_to_spc_date(unix_time_sec):
