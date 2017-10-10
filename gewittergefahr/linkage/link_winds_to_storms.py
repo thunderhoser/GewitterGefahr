@@ -30,7 +30,7 @@ from gewittergefahr.gg_utils import error_checking
 STORM_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
-    tracking_io.VERTEX_LAT_COLUMN, tracking_io.VERTEX_LNG_COLUMN]
+    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN]
 
 WIND_COLUMNS_TO_KEEP = [
     raw_wind_io.STATION_ID_COLUMN, raw_wind_io.LATITUDE_COLUMN,
@@ -259,11 +259,16 @@ def _project_storms_to_equidistant(storm_object_table):
 
     num_storm_objects = len(storm_object_table.index)
     for i in range(num_storm_objects):
+        this_vertex_dict_latlng = (
+            polygons.polygon_object_to_vertex_arrays(
+                storm_object_table[
+                    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i]))
+
         (storm_object_table[VERTICES_X_COLUMN].values[i],
          storm_object_table[VERTICES_Y_COLUMN].values[i]) = (
              projections.project_latlng_to_xy(
-                 storm_object_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
-                 storm_object_table[tracking_io.VERTEX_LNG_COLUMN].values[i],
+                 this_vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN],
+                 this_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
                  projection_object=projection_object))
 
     return storm_object_table, projection_object
