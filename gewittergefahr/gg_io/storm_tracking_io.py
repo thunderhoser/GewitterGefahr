@@ -195,17 +195,11 @@ def make_buffers_around_polygons(storm_object_table,
         equidistant projection.
     :param central_longitude_deg: Central longitude (deg E) for azimuthal
         equidistant projection.
-    :return: storm_object_table: Same as input, but with 2*N extra columns.
-    storm_object_table.vertex_latitudes_deg_buffer_<D>m: length-V numpy array
-        with latitudes (deg N) of vertices in D-metre buffer around storm.
-    storm_object_table.vertex_longitudes_deg_buffer_<D>m: length-V numpy array
-        with longitudes (deg E) of vertices in D-metre buffer around storm.
-    storm_object_table.vertex_latitudes_deg_buffer_<d>_<D>m: length-V numpy
-        array with latitudes (deg N) of vertices inside D-metre buffer, but
-        outside d-metre buffer, around storm.
-    storm_object_table.vertex_longitudes_deg_buffer_<d>_<D>m: length-V numpy
-        array with longitudes (deg E) of vertices inside D-metre buffer, but
-        outside d-metre buffer, around storm.
+    :return: storm_object_table: Same as input, but with N extra columns.
+    storm_object_table.polygon_object_buffer_<D>m: Instance of
+        `shapely.geometry.Polygon` for D-metre buffer around storm.
+    storm_object_table.polygon_object_buffer_<d>_<D>m: Instance of
+        `shapely.geometry.Polygon` for d-to-D-metre buffer around storm.
     """
 
     error_checking.assert_is_geq_numpy_array(
@@ -250,11 +244,11 @@ def make_buffers_around_polygons(storm_object_table,
              projection_object=projection_object)
 
         for j in range(num_buffers):
-            (buffer_vertex_x_metres, buffer_vertex_y_metres) = (
-                polygons.make_buffer_around_simple_polygon(
-                    orig_vertex_x_metres, orig_vertex_y_metres,
-                    min_buffer_dist_metres=min_buffer_dists_metres[j],
-                    max_buffer_dist_metres=max_buffer_dists_metres[j]))
+            (buffer_vertex_x_metres,
+             buffer_vertex_y_metres) = polygons.buffer_simple_polygon(
+                 orig_vertex_x_metres, orig_vertex_y_metres,
+                 min_buffer_dist_metres=min_buffer_dists_metres[j],
+                 max_buffer_dist_metres=max_buffer_dists_metres[j])
 
             (buffer_vertex_lat_deg,
              buffer_vertex_lng_deg) = projections.project_xy_to_latlng(

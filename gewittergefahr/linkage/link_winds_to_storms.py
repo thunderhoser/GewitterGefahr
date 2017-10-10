@@ -589,12 +589,12 @@ def _find_nearest_storms_one_time(interp_vertex_table,
         this_storm_indices = [
             s == nearest_storm_ids[k] for s in interp_vertex_table[
                 tracking_io.STORM_ID_COLUMN].values]
-        this_polygon_object = polygons.vertices_to_polygon_object(
+        this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             interp_vertex_table[VERTEX_X_COLUMN].values[this_storm_indices],
             interp_vertex_table[VERTEX_Y_COLUMN].values[this_storm_indices])
         this_point_in_polygon_flag = polygons.is_point_in_or_on_polygon(
-            this_polygon_object, query_x_metres=wind_x_coords_metres[k],
-            query_y_metres=wind_y_coords_metres[k])
+            this_polygon_object, query_x_coordinate=wind_x_coords_metres[k],
+            query_y_coordinate=wind_y_coords_metres[k])
 
         if this_point_in_polygon_flag:
             linkage_distances_metres[k] = 0.

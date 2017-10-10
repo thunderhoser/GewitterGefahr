@@ -173,11 +173,10 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
             numpy.flipud(vertex_dict[polygons.HOLE_X_COLUMN][i]),
             numpy.flipud(vertex_dict[polygons.HOLE_Y_COLUMN][i]))
 
-    polygon_object = polygons.vertices_to_polygon_object(
-        exterior_vertex_x_metres=exterior_x_metres,
-        exterior_vertex_y_metres=exterior_y_metres,
-        hole_x_vertex_metres_list=hole_list_x_metres,
-        hole_y_vertex_metres_list=hole_list_y_metres)
+    polygon_object = polygons.vertex_arrays_to_polygon_object(
+        exterior_x_metres, exterior_y_metres,
+        hole_x_coords_list=hole_list_x_metres,
+        hole_y_coords_list=hole_list_y_metres)
 
     polygon_patch = PolygonPatch(
         polygon_object, lw=line_width, ec=line_colour, fc=fill_colour)

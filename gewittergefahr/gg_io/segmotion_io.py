@@ -604,7 +604,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     for i in range(num_storms):
         (polygon_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
          polygon_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i]) = (
-             polygons.points_in_poly_to_vertices(
+             polygons.grid_points_in_poly_to_vertices(
                  polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
                  polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]))
 
