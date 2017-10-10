@@ -542,14 +542,10 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         integers) of grid points in storm cell.
     polygon_table.grid_point_columns: length-P numpy array with column indices
         (all integers) of grid points in storm cell.
-    polygon_table.vertex_latitudes_deg: length-V numpy array with latitudes (deg
-        N) of vertices in storm polygon.
-    polygon_table.vertex_longitudes_deg: length-V numpy array with longitudes
-        (deg E) of vertices in storm polygon.
-    polygon_table.vertex_rows: length-V numpy array with row indices (all half-
-        integers) of vertices in storm polygon.
-    polygon_table.vertex_columns: length-V numpy array with column indices (all
-        half-integers) of vertices in storm polygon.
+    polygon_table.polygon_object_latlng: Instance of `shapely.geometry.Polygon`
+        with vertices in lat-long coordinates.
+    polygon_table.polygon_object_rowcol: Instance of `shapely.geometry.Polygon`
+        with vertices in row-column coordinates.
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
@@ -585,6 +581,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         polygon_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 
     simple_array = numpy.full(num_storms, numpy.nan)
+    object_array = numpy.full(num_storms, numpy.nan, dtype=object)
     nested_array = polygon_table[[
         tracking_io.STORM_ID_COLUMN,
         tracking_io.STORM_ID_COLUMN]].values.tolist()
@@ -595,24 +592,20 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
                      tracking_io.CENTROID_LNG_COLUMN: simple_array,
                      tracking_io.GRID_POINT_LAT_COLUMN: nested_array,
                      tracking_io.GRID_POINT_LNG_COLUMN: nested_array,
-                     tracking_io.VERTEX_LAT_COLUMN: nested_array,
-                     tracking_io.VERTEX_LNG_COLUMN: nested_array,
-                     tracking_io.VERTEX_ROW_COLUMN: nested_array,
-                     tracking_io.VERTEX_COLUMN_COLUMN: nested_array}
+                     tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
+                     tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
     polygon_table = polygon_table.assign(**argument_dict)
 
     for i in range(num_storms):
-        (polygon_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
-         polygon_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i]) = (
-             polygons.grid_points_in_poly_to_vertices(
-                 polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
-                 polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]))
+        these_vertex_rows, these_vertex_columns = (
+            polygons.grid_points_in_poly_to_vertices(
+                polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
+                polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]))
 
         (polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
          polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]) = (
              polygons.simple_polygon_to_grid_points(
-                 polygon_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
-                 polygon_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i]))
+                 these_vertex_rows, these_vertex_columns))
 
         (polygon_table[tracking_io.GRID_POINT_LAT_COLUMN].values[i],
          polygon_table[tracking_io.GRID_POINT_LNG_COLUMN].values[i]) = (
@@ -626,23 +619,26 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
                  lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
                  lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN]))
 
-        (polygon_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
-         polygon_table[tracking_io.VERTEX_LNG_COLUMN].values[i]) = (
-             radar_io.rowcol_to_latlng(
-                 polygon_table[tracking_io.VERTEX_ROW_COLUMN].values[i],
-                 polygon_table[tracking_io.VERTEX_COLUMN_COLUMN].values[i],
-                 nw_grid_point_lat_deg=
-                 metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
-                 nw_grid_point_lng_deg=
-                 metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-                 lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-                 lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN]))
+        these_vertex_lat_deg, these_vertex_lng_deg = radar_io.rowcol_to_latlng(
+            these_vertex_rows, these_vertex_columns,
+            nw_grid_point_lat_deg=
+            metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
+            nw_grid_point_lng_deg=
+            metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
+            lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN])
 
         (polygon_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
          polygon_table[tracking_io.CENTROID_LNG_COLUMN].values[i]) = (
              polygons.get_latlng_centroid(
-                 polygon_table[tracking_io.VERTEX_LAT_COLUMN].values[i],
-                 polygon_table[tracking_io.VERTEX_LNG_COLUMN].values[i]))
+                 these_vertex_lat_deg, these_vertex_lng_deg))
+
+        polygon_table[tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
+            polygons.vertex_arrays_to_polygon_object(
+                these_vertex_columns, these_vertex_rows))
+        polygon_table[tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
+            polygons.vertex_arrays_to_polygon_object(
+                these_vertex_lng_deg, these_vertex_lat_deg))
 
     return polygon_table
 

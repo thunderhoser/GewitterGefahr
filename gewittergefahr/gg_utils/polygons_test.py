@@ -686,11 +686,22 @@ class PolygonsTests(unittest.TestCase):
         In this case the buffer distance is smaller.
         """
 
+        this_buffer_polygon_object = polygons.buffer_simple_polygon(
+            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+            max_buffer_dist_metres=SMALL_BUFFER_DIST_METRES,
+            preserve_angles=True)
+
+        this_buffer_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+            this_buffer_polygon_object)
+
         this_buffer_vertex_x_metres, this_buffer_vertex_y_metres = (
-            polygons.buffer_simple_polygon(
-                EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
-                max_buffer_dist_metres=SMALL_BUFFER_DIST_METRES,
-                preserve_angles=True))
+            polygons.merge_exterior_and_holes(
+                this_buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                this_buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                hole_x_coords_list=
+                this_buffer_vertex_dict[polygons.HOLE_X_COLUMN],
+                hole_y_coords_list=
+                this_buffer_vertex_dict[polygons.HOLE_Y_COLUMN]))
 
         self.assertTrue(numpy.allclose(
             this_buffer_vertex_x_metres, VERTEX_X_METRES_SMALL_BUFFER,
@@ -705,11 +716,22 @@ class PolygonsTests(unittest.TestCase):
         In this case the buffer distance is larger.
         """
 
+        this_buffer_polygon_object = polygons.buffer_simple_polygon(
+            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+            max_buffer_dist_metres=LARGE_BUFFER_DIST_METRES,
+            preserve_angles=True)
+
+        this_buffer_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+            this_buffer_polygon_object)
+
         this_buffer_vertex_x_metres, this_buffer_vertex_y_metres = (
-            polygons.buffer_simple_polygon(
-                EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
-                max_buffer_dist_metres=LARGE_BUFFER_DIST_METRES,
-                preserve_angles=True))
+            polygons.merge_exterior_and_holes(
+                this_buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                this_buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                hole_x_coords_list=
+                this_buffer_vertex_dict[polygons.HOLE_X_COLUMN],
+                hole_y_coords_list=
+                this_buffer_vertex_dict[polygons.HOLE_Y_COLUMN]))
 
         self.assertTrue(numpy.allclose(
             this_buffer_vertex_x_metres, VERTEX_X_METRES_LARGE_BUFFER,
@@ -725,12 +747,23 @@ class PolygonsTests(unittest.TestCase):
         exterior, small distance used to create hole).
         """
 
+        this_buffer_polygon_object = polygons.buffer_simple_polygon(
+            EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
+            min_buffer_dist_metres=SMALL_BUFFER_DIST_METRES,
+            max_buffer_dist_metres=LARGE_BUFFER_DIST_METRES,
+            preserve_angles=True)
+
+        this_buffer_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+            this_buffer_polygon_object)
+
         this_buffer_vertex_x_metres, this_buffer_vertex_y_metres = (
-            polygons.buffer_simple_polygon(
-                EXTERIOR_VERTEX_X_METRES, EXTERIOR_VERTEX_Y_METRES,
-                min_buffer_dist_metres=SMALL_BUFFER_DIST_METRES,
-                max_buffer_dist_metres=LARGE_BUFFER_DIST_METRES,
-                preserve_angles=True))
+            polygons.merge_exterior_and_holes(
+                this_buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                this_buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                hole_x_coords_list=
+                this_buffer_vertex_dict[polygons.HOLE_X_COLUMN],
+                hole_y_coords_list=
+                this_buffer_vertex_dict[polygons.HOLE_Y_COLUMN]))
 
         self.assertTrue(numpy.allclose(
             this_buffer_vertex_x_metres, VERTEX_X_METRES_NESTED_BUFFER,

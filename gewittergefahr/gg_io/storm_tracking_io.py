@@ -42,20 +42,16 @@ GRID_POINT_LAT_COLUMN = 'grid_point_latitudes_deg'
 GRID_POINT_LNG_COLUMN = 'grid_point_longitudes_deg'
 GRID_POINT_ROW_COLUMN = 'grid_point_rows'
 GRID_POINT_COLUMN_COLUMN = 'grid_point_columns'
-VERTEX_LAT_COLUMN = 'vertex_latitudes_deg'
-VERTEX_LNG_COLUMN = 'vertex_longitudes_deg'
-VERTEX_ROW_COLUMN = 'vertex_rows'
-VERTEX_COLUMN_COLUMN = 'vertex_columns'
+POLYGON_OBJECT_LATLNG_COLUMN = 'polygon_object_latlng'
+POLYGON_OBJECT_ROWCOL_COLUMN = 'polygon_object_rowcol'
 
 MANDATORY_COLUMNS = [
     STORM_ID_COLUMN, TIME_COLUMN, EAST_VELOCITY_COLUMN, NORTH_VELOCITY_COLUMN,
     AGE_COLUMN, CENTROID_LAT_COLUMN, CENTROID_LNG_COLUMN, GRID_POINT_LAT_COLUMN,
     GRID_POINT_LNG_COLUMN, GRID_POINT_ROW_COLUMN, GRID_POINT_COLUMN_COLUMN,
-    VERTEX_LAT_COLUMN, VERTEX_LNG_COLUMN, VERTEX_ROW_COLUMN,
-    VERTEX_COLUMN_COLUMN]
+    POLYGON_OBJECT_LATLNG_COLUMN, POLYGON_OBJECT_ROWCOL_COLUMN]
 
-BUFFER_VERTEX_LAT_COLUMN_PREFIX = 'vertex_latitudes_deg_buffer'
-BUFFER_VERTEX_LNG_COLUMN_PREFIX = 'vertex_longitudes_deg_buffer'
+BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_buffer'
 
 
 def _check_data_source(data_source):
@@ -78,41 +74,29 @@ def _distance_buffers_to_column_names(min_buffer_dists_metres,
                                       max_buffer_dists_metres):
     """Generates column name for each distance buffer.
 
-    N = number of distance buffers
+    N = number of buffers
 
-    :param min_buffer_dists_metres: length-N numpy array of minimum distances
-        (integers).
-    :param max_buffer_dists_metres: length-N numpy array of maximum distances
-        (integers).
-    :return: buffer_lat_column_names: length-N list of column names for vertex
-        latitudes.
-    :return: buffer_lng_column_names: length-N list of column names for vertex
-        longitudes.
+    :param min_buffer_dists_metres: length-N numpy array of minimum distances.
+    :param max_buffer_dists_metres: length-N numpy array of maximum distances.
+    :return: buffer_column_names: length-N list of column names for buffer
+        polygons.
     """
 
     num_buffers = len(min_buffer_dists_metres)
-    buffer_lat_column_names = [''] * num_buffers
-    buffer_lng_column_names = [''] * num_buffers
+    buffer_column_names = [''] * num_buffers
 
     for j in range(num_buffers):
         if numpy.isnan(min_buffer_dists_metres[j]):
-            buffer_lat_column_names[j] = '{0:s}_{1:d}m'.format(
-                BUFFER_VERTEX_LAT_COLUMN_PREFIX,
-                int(max_buffer_dists_metres[j]))
-            buffer_lng_column_names[j] = '{0:s}_{1:d}m'.format(
-                BUFFER_VERTEX_LNG_COLUMN_PREFIX,
+            buffer_column_names[j] = '{0:s}_{1:d}m'.format(
+                BUFFER_POLYGON_COLUMN_PREFIX,
                 int(max_buffer_dists_metres[j]))
         else:
-            buffer_lat_column_names[j] = '{0:s}_{1:d}_{2:d}m'.format(
-                BUFFER_VERTEX_LAT_COLUMN_PREFIX,
-                int(min_buffer_dists_metres[j]),
-                int(max_buffer_dists_metres[j]))
-            buffer_lng_column_names[j] = '{0:s}_{1:d}_{2:d}m'.format(
-                BUFFER_VERTEX_LNG_COLUMN_PREFIX,
+            buffer_column_names[j] = '{0:s}_{1:d}_{2:d}m'.format(
+                BUFFER_POLYGON_COLUMN_PREFIX,
                 int(min_buffer_dists_metres[j]),
                 int(max_buffer_dists_metres[j]))
 
-    return buffer_lat_column_names, buffer_lng_column_names
+    return buffer_column_names
 
 
 def _get_pathless_processed_file_name(unix_time_sec, data_source):
@@ -223,42 +207,63 @@ def make_buffers_around_polygons(storm_object_table,
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg, central_longitude_deg)
 
-    (buffer_lat_column_names,
-     buffer_lng_column_names) = _distance_buffers_to_column_names(
-         min_buffer_dists_metres, max_buffer_dists_metres)
-
-    nested_array = storm_object_table[[
-        STORM_ID_COLUMN, STORM_ID_COLUMN]].values.tolist()
-    argument_dict = {}
-    for j in range(num_buffers):
-        argument_dict.update({buffer_lat_column_names[j]: nested_array,
-                              buffer_lng_column_names[j]: nested_array})
-    storm_object_table = storm_object_table.assign(**argument_dict)
+    buffer_column_names = _distance_buffers_to_column_names(
+        min_buffer_dists_metres, max_buffer_dists_metres)
 
     num_storms = len(storm_object_table.index)
+    object_array = numpy.full(num_storms, numpy.nan, dtype=object)
+
+    argument_dict = {}
+    for j in range(num_buffers):
+        argument_dict.update({buffer_column_names[j]: object_array})
+    storm_object_table = storm_object_table.assign(**argument_dict)
+
     for i in range(num_storms):
+        orig_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
+            storm_object_table[POLYGON_OBJECT_LATLNG_COLUMN].values[i])
+
         (orig_vertex_x_metres,
          orig_vertex_y_metres) = projections.project_latlng_to_xy(
-             storm_object_table[VERTEX_LAT_COLUMN].values[i],
-             storm_object_table[VERTEX_LNG_COLUMN].values[i],
+             orig_vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN],
+             orig_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
              projection_object=projection_object)
 
         for j in range(num_buffers):
-            (buffer_vertex_x_metres,
-             buffer_vertex_y_metres) = polygons.buffer_simple_polygon(
-                 orig_vertex_x_metres, orig_vertex_y_metres,
-                 min_buffer_dist_metres=min_buffer_dists_metres[j],
-                 max_buffer_dist_metres=max_buffer_dists_metres[j])
+            buffer_polygon_object_xy = polygons.buffer_simple_polygon(
+                orig_vertex_x_metres, orig_vertex_y_metres,
+                min_buffer_dist_metres=min_buffer_dists_metres[j],
+                max_buffer_dist_metres=max_buffer_dists_metres[j])
 
-            (buffer_vertex_lat_deg,
-             buffer_vertex_lng_deg) = projections.project_xy_to_latlng(
-                 buffer_vertex_x_metres, buffer_vertex_y_metres,
-                 projection_object=projection_object)
+            buffer_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+                buffer_polygon_object_xy)
 
-            storm_object_table[buffer_lat_column_names[j]].values[
-                i] = buffer_vertex_lat_deg
-            storm_object_table[buffer_lng_column_names[j]].values[
-                i] = buffer_vertex_lng_deg
+            (buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+             buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN]) = (
+                 projections.project_xy_to_latlng(
+                     buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                     buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                     projection_object=projection_object))
+
+            this_num_holes = len(buffer_vertex_dict[polygons.HOLE_X_COLUMN])
+            for k in range(this_num_holes):
+                (buffer_vertex_dict[polygons.HOLE_Y_COLUMN][k],
+                 buffer_vertex_dict[polygons.HOLE_X_COLUMN][k]) = (
+                     projections.project_xy_to_latlng(
+                         buffer_vertex_dict[polygons.HOLE_X_COLUMN][k],
+                         buffer_vertex_dict[polygons.HOLE_Y_COLUMN][k],
+                         projection_object=projection_object))
+
+            buffer_polygon_object_latlng = (
+                polygons.vertex_arrays_to_polygon_object(
+                    buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                    buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                    hole_x_coords_list=
+                    buffer_vertex_dict[polygons.HOLE_X_COLUMN],
+                    hole_y_coords_list=
+                    buffer_vertex_dict[polygons.HOLE_Y_COLUMN]))
+
+            storm_object_table[buffer_column_names[j]].values[
+                i] = buffer_polygon_object_latlng
 
     return storm_object_table
 

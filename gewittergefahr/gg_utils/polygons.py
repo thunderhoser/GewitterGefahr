@@ -464,6 +464,7 @@ def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
             row_indices_orig[i], row_indices_orig[i + 1],
             column_indices_orig[i], column_indices_orig[i + 1])
 
+        # TODO(thunderhoser): put the following block in another method.
         if this_direction in COMPLEX_DIRECTIONS:
             this_absolute_row_diff = numpy.absolute(
                 row_indices_orig[i + 1] - row_indices_orig[i])
@@ -1020,10 +1021,7 @@ def buffer_simple_polygon(orig_vertex_x_metres, orig_vertex_y_metres,
         all vertices.  However, this means that buffer distances will not be
         strictly respected.  It is highly recommended that you leave this as
         False.
-    :return: buffer_vertex_x_metres: length-V numpy array with x-coordinates of
-        vertices.  The first NaN separates the exterior from the first hole, and
-        the [i]th NaN separates the [i - 1]th hole from the [i]th hole.
-    :return: buffer_vertex_y_metres: Same as above, except for y-coordinates.
+    :return: buffer_polygon_object: Instance of `shapely.geometry.polygon`.
     """
 
     _check_vertex_arrays(
@@ -1047,19 +1045,18 @@ def buffer_simple_polygon(orig_vertex_x_metres, orig_vertex_y_metres,
         orig_vertex_x_metres, orig_vertex_y_metres)
     max_buffer_polygon_object = orig_polygon_object.buffer(
         max_buffer_dist_metres, join_style=join_style)
-    max_buffer_vertex_dict = polygon_object_to_vertex_arrays(
-        max_buffer_polygon_object)
 
     if numpy.isnan(min_buffer_dist_metres):
-        return (max_buffer_vertex_dict[EXTERIOR_X_COLUMN],
-                max_buffer_vertex_dict[EXTERIOR_Y_COLUMN])
+        return max_buffer_polygon_object
 
     min_buffer_polygon_object = orig_polygon_object.buffer(
         min_buffer_dist_metres, join_style=join_style)
     min_buffer_vertex_dict = polygon_object_to_vertex_arrays(
         min_buffer_polygon_object)
+    max_buffer_vertex_dict = polygon_object_to_vertex_arrays(
+        max_buffer_polygon_object)
 
-    return merge_exterior_and_holes(
+    return vertex_arrays_to_polygon_object(
         max_buffer_vertex_dict[EXTERIOR_X_COLUMN],
         max_buffer_vertex_dict[EXTERIOR_Y_COLUMN],
         hole_x_coords_list=[min_buffer_vertex_dict[EXTERIOR_X_COLUMN]],
