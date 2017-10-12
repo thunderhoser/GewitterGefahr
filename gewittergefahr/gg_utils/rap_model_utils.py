@@ -64,7 +64,7 @@ LOWEST_GPH_COLUMN_ORIG = 'HGT:sfc'
 LOWEST_U_WIND_COLUMN_ORIG = 'UGRD:10 m above gnd'
 LOWEST_V_WIND_COLUMN_ORIG = 'VGRD:10 m above gnd'
 
-PRESSURE_LEVELS_MB = numpy.linspace(100., 1000., num=37)
+PRESSURE_LEVELS_MB = numpy.linspace(100, 1000, num=37, dtype=int)
 IS_WIND_EARTH_RELATIVE = False
 WIND_ROTATION_FILE_NAME_130GRID = 'wind_rotation_angles_grid130.data'
 WIND_ROTATION_FILE_NAME_252GRID = 'wind_rotation_angles_grid252.data'

@@ -17,9 +17,9 @@ Y_SPACING_METRES = 32463.
 NUM_GRID_ROWS = 277
 NUM_GRID_COLUMNS = 349
 
-TOP_PRESSURE_LEVELS_MB = numpy.linspace(100., 300., num=9)
-MID_PRESSURE_LEVELS_MB = numpy.linspace(350., 700., num=8)
-BOTTOM_PRESSURE_LEVELS_MB = numpy.linspace(725., 1000., num=12)
+TOP_PRESSURE_LEVELS_MB = numpy.linspace(100, 300, num=9, dtype=int)
+MID_PRESSURE_LEVELS_MB = numpy.linspace(350, 700, num=8, dtype=int)
+BOTTOM_PRESSURE_LEVELS_MB = numpy.linspace(725, 1000, num=12, dtype=int)
 PRESSURE_LEVELS_MB = numpy.concatenate((
     TOP_PRESSURE_LEVELS_MB, MID_PRESSURE_LEVELS_MB, BOTTOM_PRESSURE_LEVELS_MB))
 
