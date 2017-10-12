@@ -8,6 +8,7 @@ DEFINITIONS
 import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import nwp_model_utils
 
 X_MIN_METRES = 0.
 Y_MIN_METRES = 0.
@@ -24,10 +25,29 @@ PRESSURE_LEVELS_MB = numpy.concatenate((
 
 IS_WIND_EARTH_RELATIVE = True
 
-MAIN_SOUNDING_COLUMNS_ORIG = ['TMP', 'SPFH', 'HGT', 'UGRD', 'VGRD']
+MAIN_TEMPERATURE_COLUMN_ORIG = 'TMP'
+MAIN_SPFH_COLUMN_ORIG = 'SPFH'
+MAIN_GPH_COLUMN_ORIG = 'HGT'
+MAIN_U_WIND_COLUMN_ORIG = 'UGRD'
+MAIN_V_WIND_COLUMN_ORIG = 'VGRD'
+
 MAIN_SOUNDING_COLUMNS = [
-    'temperature_kelvins', 'specific_humidity',
-    'geopotential_height_metres', 'u_wind_m_s01', 'v_wind_m_s01']
+    nwp_model_utils.MAIN_TEMPERATURE_COLUMN, nwp_model_utils.MAIN_SPFH_COLUMN,
+    nwp_model_utils.MAIN_GPH_COLUMN, nwp_model_utils.MAIN_U_WIND_COLUMN,
+    nwp_model_utils.MAIN_V_WIND_COLUMN]
+MAIN_SOUNDING_COLUMNS_ORIG = [
+    MAIN_TEMPERATURE_COLUMN_ORIG, MAIN_SPFH_COLUMN_ORIG, MAIN_GPH_COLUMN_ORIG,
+    MAIN_U_WIND_COLUMN_ORIG, MAIN_V_WIND_COLUMN_ORIG]
+
+LOWEST_TEMPERATURE_COLUMN = 'temperature_kelvins_2m_agl'
+LOWEST_SPFH_COLUMN = 'specific_humidity_2m_agl'
+LOWEST_U_WIND_COLUMN = 'u_wind_m_s01_10m_agl'
+LOWEST_V_WIND_COLUMN = 'v_wind_m_s01_10m_agl'
+
+LOWEST_TEMPERATURE_COLUMN_ORIG = 'TMP:2 m above gnd'
+LOWEST_SPFH_COLUMN_ORIG = 'SPFH:2 m above gnd'
+LOWEST_U_WIND_COLUMN_ORIG = 'UGRD:10 m above gnd'
+LOWEST_V_WIND_COLUMN_ORIG = 'VGRD:10 m above gnd'
 
 # Projection parameters.
 STANDARD_LATITUDES_DEG = numpy.array([50., 50.])

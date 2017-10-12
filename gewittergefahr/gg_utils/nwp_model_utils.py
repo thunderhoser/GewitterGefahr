@@ -7,6 +7,13 @@ from gewittergefahr.gg_utils import error_checking
 
 TIME_FORMAT = '%Y%m%d-%H%M%S'
 
+MAIN_TEMPERATURE_COLUMN = 'temperature_kelvins'
+MAIN_RH_COLUMN = 'relative_humidity'
+MAIN_SPFH_COLUMN = 'specific_humidity'
+MAIN_GPH_COLUMN = 'geopotential_height_metres'
+MAIN_U_WIND_COLUMN = 'u_wind_m_s01'
+MAIN_V_WIND_COLUMN = 'v_wind_m_s01'
+
 LINEAR_AND_SUBLINEAR_INTERP_METHODS = ['linear', 'nearest', 'zero', 'slinear']
 SUPERLINEAR_INTERP_METHODS = ['quadratic', 'cubic']
 TEMPORAL_INTERP_METHODS = (
