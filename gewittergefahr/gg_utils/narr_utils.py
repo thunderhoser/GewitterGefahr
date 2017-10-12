@@ -16,6 +16,19 @@ Y_SPACING_METRES = 32463.
 NUM_GRID_ROWS = 277
 NUM_GRID_COLUMNS = 349
 
+TOP_PRESSURE_LEVELS_MB = numpy.linspace(100., 300., num=9)
+MID_PRESSURE_LEVELS_MB = numpy.linspace(350., 700., num=8)
+BOTTOM_PRESSURE_LEVELS_MB = numpy.linspace(725., 1000., num=12)
+PRESSURE_LEVELS_MB = numpy.concatenate((
+    TOP_PRESSURE_LEVELS_MB, MID_PRESSURE_LEVELS_MB, BOTTOM_PRESSURE_LEVELS_MB))
+
+IS_WIND_EARTH_RELATIVE = True
+
+MAIN_SOUNDING_COLUMNS_ORIG = ['TMP', 'SPFH', 'HGT', 'UGRD', 'VGRD']
+MAIN_SOUNDING_COLUMNS = [
+    'temperature_kelvins', 'specific_humidity',
+    'geopotential_height_metres', 'u_wind_m_s01', 'v_wind_m_s01']
+
 # Projection parameters.
 STANDARD_LATITUDES_DEG = numpy.array([50., 50.])
 CENTRAL_LONGITUDE_DEG = 253.

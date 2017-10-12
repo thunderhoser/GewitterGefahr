@@ -35,6 +35,17 @@ X_SPACING_COLUMN = 'x_spacing_metres'
 Y_SPACING_COLUMN = 'y_spacing_metres'
 FALSE_EASTING_COLUMN = 'false_easting_metres'
 FALSE_NORTHING_COLUMN = 'false_northing_metres'
+WIND_ROTATION_FILE_NAME_COLUMN = 'wind_rotation_file_name'
+
+MAIN_SOUNDING_COLUMNS_ORIG = ['TMP', 'RH', 'HGT', 'UGRD', 'VGRD']
+MAIN_SOUNDING_COLUMNS = [
+    'temperature_kelvins', 'relative_humidity', 'geopotential_height_metres',
+    'u_wind_m_s01', 'v_wind_m_s01']
+
+PRESSURE_LEVELS_MB = numpy.linspace(100., 1000., num=37)
+IS_WIND_EARTH_RELATIVE = False
+WIND_ROTATION_FILE_NAME_130GRID = 'wind_rotation_angles_grid130.data'
+WIND_ROTATION_FILE_NAME_252GRID = 'wind_rotation_angles_grid252.data'
 
 # Projection parameters.
 STANDARD_LATITUDES_DEG = numpy.array([25., 25.])
@@ -73,6 +84,8 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
         `projections.project_latlng_to_xy`.
     metadata_dict.false_northing_metres: See documentation for
         `projections.project_latlng_to_xy`.
+    metadata_dict.wind_rotation_file_name: Path to file with wind-rotation
+        angles.
     """
 
     _check_grid_id(grid_id)
@@ -83,14 +96,16 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
                 X_SPACING_COLUMN: X_SPACING_130GRID_METRES,
                 Y_SPACING_COLUMN: Y_SPACING_130GRID_METRES,
                 FALSE_EASTING_COLUMN: FALSE_EASTING_130GRID_METRES,
-                FALSE_NORTHING_COLUMN: FALSE_NORTHING_130GRID_METRES}
+                FALSE_NORTHING_COLUMN: FALSE_NORTHING_130GRID_METRES,
+                WIND_ROTATION_FILE_NAME_COLUMN: WIND_ROTATION_FILE_NAME_130GRID}
 
     return {NUM_ROWS_COLUMN: NUM_ROWS_252GRID,
             NUM_COLUMNS_COLUMN: NUM_COLUMNS_252GRID,
             X_SPACING_COLUMN: X_SPACING_252GRID_METRES,
             Y_SPACING_COLUMN: Y_SPACING_252GRID_METRES,
             FALSE_EASTING_COLUMN: FALSE_EASTING_252GRID_METRES,
-            FALSE_NORTHING_COLUMN: FALSE_NORTHING_252GRID_METRES}
+            FALSE_NORTHING_COLUMN: FALSE_NORTHING_252GRID_METRES,
+            WIND_ROTATION_FILE_NAME_COLUMN: WIND_ROTATION_FILE_NAME_252GRID}
 
 
 def init_projection():
@@ -102,6 +117,37 @@ def init_projection():
 
     return projections.init_lambert_conformal_projection(STANDARD_LATITUDES_DEG,
                                                          CENTRAL_LONGITUDE_DEG)
+
+
+def read_wind_rotation_angles(grid_id=ID_FOR_130GRID):
+    """Reads wind-rotation angles (one for each grid point).
+
+    These angles are required to rotate winds from grid-relative (the native
+    format) to Earth-relative.  The rotation is done by
+    `nwp_model_utils.rotate_winds`.
+
+    M = number of grid rows
+    N = number of grid columns
+
+    :param grid_id: String ID for grid (either "130" or "252").
+    :return: cosine_matrix: M-by-N numpy array with cosine of rotation angle.
+        x-coordinate increases while moving right across a row, and y-coordinate
+        increases while moving down a column.
+    :return: sine_matrix: Same as above, but with sines rather than cosines.
+    """
+
+    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    (cosine_vector, sine_vector) = numpy.loadtxt(
+        grid_metadata_dict[WIND_ROTATION_FILE_NAME_COLUMN], unpack=True)
+
+    cosine_matrix = numpy.reshape(
+        cosine_vector, (grid_metadata_dict[NUM_ROWS_COLUMN],
+                        grid_metadata_dict[NUM_COLUMNS_COLUMN]))
+    sine_matrix = numpy.reshape(
+        sine_vector, (grid_metadata_dict[NUM_ROWS_COLUMN],
+                      grid_metadata_dict[NUM_COLUMNS_COLUMN]))
+
+    return cosine_matrix, sine_matrix
 
 
 def project_latlng_to_xy(latitudes_deg, longitudes_deg, grid_id=ID_FOR_130GRID,
