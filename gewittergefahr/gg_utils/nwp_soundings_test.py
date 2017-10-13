@@ -7,9 +7,19 @@ import pandas
 from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import nwp_soundings
 
+TOLERANCE = 1e-6
+
+# The following constants are used to test _check_model_name.
 FAKE_MODEL_NAME = 'ecmwf'
 MINIMUM_PRESSURE_MB = 950.
 
+# The following constants are used to test _fahrenheit_to_kelvins.
+TEMPERATURES_FAHRENHEIT = numpy.array(
+    [-130., -76., -40., -4., 32., 68., numpy.nan])
+TEMPERATURES_KELVINS = numpy.array(
+    [183.15, 213.15, 233.15, 253.15, 273.15, 293.15, numpy.nan])
+
+# The following constants are used to test _get_sounding_columns.
 RAP_SOUNDING_COLUMNS = [
     'temperature_kelvins_950mb', 'temperature_kelvins_975mb',
     'temperature_kelvins_1000mb', rap_model_utils.LOWEST_TEMPERATURE_COLUMN,
@@ -50,6 +60,7 @@ NARR_SOUNDING_COLUMNS_ORIG = [
     'UGRD:950 mb', 'UGRD:975 mb', 'UGRD:1000 mb',
     'VGRD:950 mb', 'VGRD:975 mb', 'VGRD:1000 mb']
 
+# The following constants are used to test _remove_subsurface_sounding_data.
 SURFACE_ROW = 3
 THESE_PRESSURES_MB = numpy.array(
     [1000., 965., 962., 936.87, 936.8669, 925., 904.95, 889., 873.9, 877.])
@@ -100,6 +111,7 @@ THIS_SOUNDING_DICT = {
 }
 SOUNDING_TABLE_WITH_SENTINELS = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
+# The following constants are used to test _sort_sounding_table_by_height.
 THESE_PRESSURES_MB = numpy.array(
     [1000., 965., 962., 936.87, 936.8669, 925., 904.95, 889., 877., 873.9])
 THESE_HEIGHTS_M_ASL = numpy.array(
@@ -129,6 +141,7 @@ THIS_SOUNDING_DICT = {
 SOUNDING_TABLE_WITH_SENTINELS_SORTED = pandas.DataFrame.from_dict(
     THIS_SOUNDING_DICT)
 
+# The following constants are used to test _remove_redundant_sounding_data.
 THESE_PRESSURES_MB = numpy.array(
     [1000., 965., 962., 936.87, 936.8669, 925., 904.95, 889., 877., 873.9])
 THESE_HEIGHTS_M_ASL = numpy.array(
@@ -157,6 +170,7 @@ THIS_SOUNDING_DICT = {
 }
 SOUNDING_TABLE_NO_REDUNDANT = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
+# The following constants are used to test _remove_subsurface_sounding_data.
 THESE_PRESSURES_MB = numpy.array(
     [1000., 936.87, 936.8669, 925., 904.95, 889., 877., 873.9])
 THESE_HEIGHTS_M_ASL = numpy.array(
@@ -180,6 +194,132 @@ THIS_SOUNDING_DICT = {
     nwp_soundings.V_WIND_COLUMN_FOR_SOUNDING_INDICES: THESE_V_WINDS_KT
 }
 SOUNDING_TABLE_NO_SUBSURFACE = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
+
+# The following constants are used to test _split_vector_column.
+VECTOR_COLUMN = 'vector'
+VECTOR_COLUMN_AS_TABLE = pandas.DataFrame.from_dict(
+    {VECTOR_COLUMN: numpy.full(8, numpy.nan)})
+
+THIS_NESTED_ARRAY = VECTOR_COLUMN_AS_TABLE[[
+    VECTOR_COLUMN, VECTOR_COLUMN]].values.tolist()
+VECTOR_COLUMN_AS_TABLE = VECTOR_COLUMN_AS_TABLE.assign(
+    **{VECTOR_COLUMN: THIS_NESTED_ARRAY})
+
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[0] = numpy.array([1., 0.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[1] = numpy.array([1., 1.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[2] = numpy.array([0., 1.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[3] = numpy.array([-1., 1.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[4] = numpy.array([-1., 0.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[5] = numpy.array([-1., -1.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[6] = numpy.array([0., -1.])
+VECTOR_COLUMN_AS_TABLE[VECTOR_COLUMN].values[7] = numpy.array([1., -1.])
+
+ROOT2 = numpy.sqrt(2.)
+HALF_ROOT2 = ROOT2 / 2
+
+THESE_X_COMPONENTS = numpy.array([1., 1., 0., -1., -1., -1., 0., 1.])
+THESE_Y_COMPONENTS = numpy.array([0., 1., 1., 1., 0., -1., -1., -1.])
+THESE_MAGNITUDES = numpy.array([1., ROOT2, 1., ROOT2, 1., ROOT2, 1., ROOT2])
+THESE_COSINES = numpy.array(
+    [1., HALF_ROOT2, 0., -HALF_ROOT2, -1., -HALF_ROOT2, 0., HALF_ROOT2])
+THESE_SINES = numpy.array(
+    [0., HALF_ROOT2, 1., HALF_ROOT2, 0., -HALF_ROOT2, -1., -HALF_ROOT2])
+
+X_COMPONENT_COLUMN = 'vector_x'
+Y_COMPONENT_COLUMN = 'vector_y'
+MAGNITUDE_COLUMN = 'vector_magnitude'
+COSINE_COLUMN = 'vector_cos'
+SINE_COLUMN = 'vector_sin'
+
+VECTOR_COMPONENT_DICT = {
+    X_COMPONENT_COLUMN: THESE_X_COMPONENTS,
+    Y_COMPONENT_COLUMN: THESE_Y_COMPONENTS, MAGNITUDE_COLUMN: THESE_MAGNITUDES,
+    COSINE_COLUMN: THESE_COSINES, SINE_COLUMN: THESE_SINES}
+VECTOR_COMPONENT_TABLE = pandas.DataFrame.from_dict(VECTOR_COMPONENT_DICT)
+
+# The following constants are used to test convert_sounding_indices.
+CONVECTIVE_TEMPERATURE_NAME = 'convective_temperature_kelvins'
+WIND_MEAN_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01'
+RELATIVE_HUMIDITY_SURFACE_NAME = 'relative_humidity_surface'
+DERECHO_COMPOSITE_NAME = 'derecho_composite_param'
+
+SOUNDING_INDEX_METAFILE_NAME = 'sounding_index_metadata.csv'
+SOUNDING_INDEX_METADATA_TABLE = (
+    nwp_soundings.read_metadata_for_sounding_indices(
+        SOUNDING_INDEX_METAFILE_NAME))
+
+SOUNDING_INDEX_NAMES = SOUNDING_INDEX_METADATA_TABLE[
+    nwp_soundings.SOUNDING_INDEX_NAME_COLUMN].values
+SHARPPY_NAMES = SOUNDING_INDEX_METADATA_TABLE[
+    nwp_soundings.SHARPPY_NAME_COLUMN].values
+
+THESE_FLAGS = [s == CONVECTIVE_TEMPERATURE_NAME for s in SOUNDING_INDEX_NAMES]
+CONVECTIVE_TEMPERATURE_NAME_SHARPPY = SHARPPY_NAMES[
+    numpy.where(THESE_FLAGS)[0][0]]
+
+THESE_FLAGS = [s == WIND_MEAN_0TO1KM_NAME for s in SOUNDING_INDEX_NAMES]
+WIND_MEAN_0TO1KM_NAME_SHARPPY = SHARPPY_NAMES[numpy.where(THESE_FLAGS)[0][0]]
+
+THESE_FLAGS = [s == RELATIVE_HUMIDITY_SURFACE_NAME for s in
+               SOUNDING_INDEX_NAMES]
+RH_SURFACE_NAME_SHARPPY = SHARPPY_NAMES[numpy.where(THESE_FLAGS)[0][0]]
+
+THESE_FLAGS = [s == DERECHO_COMPOSITE_NAME for s in SOUNDING_INDEX_NAMES]
+DERECHO_COMPOSITE_NAME_SHARPPY = SHARPPY_NAMES[numpy.where(THESE_FLAGS)[0][0]]
+
+CONVECTIVE_TEMPERATURES_FAHRENHEIT = copy.deepcopy(TEMPERATURES_FAHRENHEIT)
+U_WINDS_0TO1KM_AGL_KT = numpy.array([10., 10., 0., -10., -10., -10., 0.])
+V_WINDS_0TO1KM_AGL_KT = numpy.array([0., 10., 10., 10., 0., -10., -10.])
+RH_SURFACE_PERCENTAGES = numpy.array([40., 50., 60., 70., 80., 90., 100.])
+DERECHO_COMPOSITE_PARAMS = numpy.array([0., 5., 10., 15., 20., 25., 30.])
+
+SOUNDING_INDEX_DICT_SHARPPY = {
+    CONVECTIVE_TEMPERATURE_NAME_SHARPPY: CONVECTIVE_TEMPERATURES_FAHRENHEIT,
+    RH_SURFACE_NAME_SHARPPY: RH_SURFACE_PERCENTAGES,
+    DERECHO_COMPOSITE_NAME_SHARPPY: DERECHO_COMPOSITE_PARAMS}
+SOUNDING_INDEX_TABLE_SHARPPY = pandas.DataFrame.from_dict(
+    SOUNDING_INDEX_DICT_SHARPPY)
+
+THIS_NESTED_ARRAY = SOUNDING_INDEX_TABLE_SHARPPY[[
+    RH_SURFACE_NAME_SHARPPY, RH_SURFACE_NAME_SHARPPY]].values.tolist()
+SOUNDING_INDEX_TABLE_SHARPPY = SOUNDING_INDEX_TABLE_SHARPPY.assign(
+    **{WIND_MEAN_0TO1KM_NAME_SHARPPY: THIS_NESTED_ARRAY})
+
+for s in range(len(U_WINDS_0TO1KM_AGL_KT)):
+    SOUNDING_INDEX_TABLE_SHARPPY[WIND_MEAN_0TO1KM_NAME_SHARPPY].values[s] = (
+        numpy.array([U_WINDS_0TO1KM_AGL_KT[s], V_WINDS_0TO1KM_AGL_KT[s]]))
+
+TEN_KT_IN_MPS = 5.144444
+ROOT200_KT_IN_MPS = 7.275343
+U_WIND_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01_x'
+V_WIND_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01_y'
+WIND_SPEED_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01_magnitude'
+WIND_COS_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01_cos'
+WIND_SIN_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01_sin'
+
+CONVECTIVE_TEMPERATURES_KELVINS = copy.deepcopy(TEMPERATURES_KELVINS)
+U_WINDS_M_S01 = numpy.array(
+    [TEN_KT_IN_MPS, TEN_KT_IN_MPS, 0., -TEN_KT_IN_MPS, -TEN_KT_IN_MPS,
+     -TEN_KT_IN_MPS, 0.])
+V_WINDS_M_S01 = numpy.array(
+    [0., TEN_KT_IN_MPS, TEN_KT_IN_MPS, TEN_KT_IN_MPS, 0., -TEN_KT_IN_MPS,
+     -TEN_KT_IN_MPS])
+WIND_SPEEDS_M_S01 = numpy.array(
+    [TEN_KT_IN_MPS, ROOT200_KT_IN_MPS, TEN_KT_IN_MPS, ROOT200_KT_IN_MPS,
+     TEN_KT_IN_MPS, ROOT200_KT_IN_MPS, TEN_KT_IN_MPS])
+WIND_COSINES = numpy.array(
+    [1., HALF_ROOT2, 0., -HALF_ROOT2, -1., -HALF_ROOT2, 0.])
+WIND_SINES = numpy.array([0., HALF_ROOT2, 1., HALF_ROOT2, 0., -HALF_ROOT2, -1.])
+RH_SURFACE_UNITLESS = numpy.array([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.])
+
+SOUNDING_INDEX_DICT = {
+    CONVECTIVE_TEMPERATURE_NAME: CONVECTIVE_TEMPERATURES_KELVINS,
+    U_WIND_0TO1KM_NAME: U_WINDS_M_S01, V_WIND_0TO1KM_NAME: V_WINDS_M_S01,
+    WIND_SPEED_0TO1KM_NAME: WIND_SPEEDS_M_S01,
+    WIND_COS_0TO1KM_NAME: WIND_COSINES, WIND_SIN_0TO1KM_NAME: WIND_SINES,
+    RELATIVE_HUMIDITY_SURFACE_NAME: RH_SURFACE_UNITLESS,
+    DERECHO_COMPOSITE_NAME: DERECHO_COMPOSITE_PARAMS}
+SOUNDING_INDEX_TABLE = pandas.DataFrame.from_dict(SOUNDING_INDEX_DICT)
 
 
 class NwpSoundingsTests(unittest.TestCase):
@@ -209,6 +349,15 @@ class NwpSoundingsTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             nwp_soundings._check_model_name(FAKE_MODEL_NAME)
+
+    def test_fahrenheit_to_kelvins(self):
+        """Ensures correct output from _fahrenheit_to_kelvins."""
+
+        these_temperatures_kelvins = nwp_soundings._fahrenheit_to_kelvins(
+            TEMPERATURES_FAHRENHEIT)
+        self.assertTrue(numpy.allclose(
+            these_temperatures_kelvins, TEMPERATURES_KELVINS, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_get_sounding_columns_rap(self):
         """Ensures correct output from _get_sounding_columns.
@@ -282,6 +431,36 @@ class NwpSoundingsTests(unittest.TestCase):
             remove_subsurface_rows=True)
         self.assertTrue(
             this_sounding_table.equals(SOUNDING_TABLE_NO_SUBSURFACE))
+
+    def test_split_vector_column(self):
+        """Ensures correct output from _split_vector_column."""
+
+        this_component_dict = nwp_soundings._split_vector_column(
+            VECTOR_COLUMN_AS_TABLE)
+        this_component_table = pandas.DataFrame.from_dict(this_component_dict)
+
+        self.assertTrue(set(list(this_component_table)) ==
+                        set(list(VECTOR_COMPONENT_TABLE)))
+
+        for this_column in list(this_component_table):
+            self.assertTrue(numpy.allclose(
+                this_component_table[this_column].values,
+                VECTOR_COMPONENT_TABLE[this_column].values, atol=TOLERANCE))
+
+    def test_convert_sounding_indices(self):
+        """Ensures correct output from convert_sounding_indices."""
+
+        this_sounding_index_table = nwp_soundings.convert_sounding_indices(
+            SOUNDING_INDEX_TABLE_SHARPPY, SOUNDING_INDEX_METADATA_TABLE)
+
+        self.assertTrue(set(list(this_sounding_index_table)) ==
+                        set(list(SOUNDING_INDEX_TABLE)))
+
+        for this_column in list(this_sounding_index_table):
+            self.assertTrue(numpy.allclose(
+                this_sounding_index_table[this_column].values,
+                SOUNDING_INDEX_TABLE[this_column].values, atol=TOLERANCE,
+                equal_nan=True))
 
 
 if __name__ == '__main__':
