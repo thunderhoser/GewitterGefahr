@@ -2,23 +2,97 @@
 
 import unittest
 import numpy
+import pandas
 from gewittergefahr.gg_utils import nwp_model_utils
 
 TOLERANCE = 1e-6
 
-MIN_QUERY_TIME_UNIX_SEC = 1507766400  # 0000 UTC 12 Oct 2017
-MODEL_TIME_STEP_SEC = 10800  # 3 hours
+MODEL_TIME_STEP_HOURS = 3
 FAKE_INTERP_METHOD = 'foo'
-
 SUBLINEAR_INTERP_METHOD = 'nearest'
 LINEAR_INTERP_METHOD = 'linear'
-MODEL_TIMES_FOR_LINEAR_AND_SUBLINEAR_INTERP_UNIX_SEC = numpy.array(
-    [1507766400, 1507777200])
-
 QUADRATIC_INTERP_METHOD = 'quadratic'
 CUBIC_INTERP_METHOD = 'cubic'
-MODEL_TIMES_FOR_SUPERLINEAR_INTERP_UNIX_SEC = numpy.array(
+
+# 2200 UTC 11 Oct, 2300 UTC 11 Oct, ..., 0400 UTC 12 Oct 2017
+QUERY_TIMES_UNIX_SEC = numpy.array(
+    [1507759200, 1507762800, 1507766400, 1507770000, 1507773600, 1507777200,
+     1507780600])
+
+# 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct 2017
+MIN_QUERY_TIMES_UNIX_SEC = numpy.array([1507755600, 1507766400, 1507777200])
+
+# 0000 UTC 12 Oct, 0300 UTC 12 Oct, 0600 UTC 12 Oct 2017
+MAX_QUERY_TIMES_UNIX_SEC = numpy.array([1507766400, 1507777200, 1507788000])
+
+# 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct, 0600 UTC 12 Oct 2017
+MODEL_TIMES_NONSUPERLINEAR_INTERP_UNIX_SEC = numpy.array(
     [1507755600, 1507766400, 1507777200, 1507788000])
+
+# 1800 UTC 11 Oct, 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct,
+# 0600 UTC 12 Oct, 0900 UTC 12 Oct 2017
+MODEL_TIMES_SUPERLINEAR_INTERP_UNIX_SEC = numpy.array(
+    [1507744800, 1507755600, 1507766400, 1507777200, 1507788000, 1507798800])
+
+THIS_DICT = {nwp_model_utils.MIN_QUERY_TIME_COLUMN: MIN_QUERY_TIMES_UNIX_SEC,
+             nwp_model_utils.MAX_QUERY_TIME_COLUMN: MAX_QUERY_TIMES_UNIX_SEC}
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP = pandas.DataFrame.from_dict(
+    THIS_DICT)
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP = pandas.DataFrame.from_dict(
+    THIS_DICT)
+
+THIS_NESTED_ARRAY = QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[[
+    nwp_model_utils.MIN_QUERY_TIME_COLUMN,
+    nwp_model_utils.MIN_QUERY_TIME_COLUMN]].values.tolist()
+THIS_ARGUMENT_DICT = {
+    nwp_model_utils.MODEL_TIMES_COLUMN: THIS_NESTED_ARRAY,
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN: THIS_NESTED_ARRAY}
+
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP = (
+    QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP.assign(
+        **THIS_ARGUMENT_DICT))
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP = (
+    QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP.assign(**THIS_ARGUMENT_DICT))
+
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array(
+        [1507755600, 1507766400])
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array(
+        [1507766400, 1507777200])
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array(
+        [1507777200, 1507788000])
+
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0] = numpy.array(
+        [True, True, False, False], dtype=bool)
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[1] = numpy.array(
+        [False, True, True, False], dtype=bool)
+QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[2] = numpy.array(
+        [False, False, True, True], dtype=bool)
+
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array(
+        [1507744800, 1507755600, 1507766400, 1507777200])
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array(
+        [1507755600, 1507766400, 1507777200, 1507788000])
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array(
+        [1507766400, 1507777200, 1507788000, 1507798800])
+
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0] = numpy.array(
+        [True, True, True, True, False, False], dtype=bool)
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[1] = numpy.array(
+        [False, True, True, True, True, False], dtype=bool)
+QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+    nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[2] = numpy.array(
+        [False, False, True, True, True, True], dtype=bool)
 
 HALF_ROOT3 = numpy.sqrt(3) / 2
 U_WINDS_GRID_RELATIVE_M_S01 = numpy.array(
@@ -53,21 +127,9 @@ class NwpModelUtilsTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             nwp_model_utils.get_times_needed_for_interp(
-                min_query_time_unix_sec=MIN_QUERY_TIME_UNIX_SEC,
-                model_time_step_sec=MODEL_TIME_STEP_SEC,
+                query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
+                model_time_step_hours=MODEL_TIME_STEP_HOURS,
                 method_string=FAKE_INTERP_METHOD)
-
-    def test_get_times_needed_for_interp_bad_query_time(self):
-        """Ensures correct output from get_times_needed_for_interp.
-
-        In this case, minimum query time is not multiple of model time step.
-        """
-
-        with self.assertRaises(ValueError):
-            nwp_model_utils.get_times_needed_for_interp(
-                min_query_time_unix_sec=MIN_QUERY_TIME_UNIX_SEC + 1,
-                model_time_step_sec=MODEL_TIME_STEP_SEC,
-                method_string=LINEAR_INTERP_METHOD)
 
     def test_get_times_needed_for_interp_sublinear(self):
         """Ensures correct output from get_times_needed_for_interp.
@@ -75,14 +137,27 @@ class NwpModelUtilsTests(unittest.TestCase):
         In this case, interpolation method is sublinear.
         """
 
-        these_model_times_unix_sec = (
+        these_model_times_unix_sec, this_query_to_model_times_table = (
             nwp_model_utils.get_times_needed_for_interp(
-                min_query_time_unix_sec=MIN_QUERY_TIME_UNIX_SEC,
-                model_time_step_sec=MODEL_TIME_STEP_SEC,
+                query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
+                model_time_step_hours=MODEL_TIME_STEP_HOURS,
                 method_string=SUBLINEAR_INTERP_METHOD))
+
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
-            MODEL_TIMES_FOR_LINEAR_AND_SUBLINEAR_INTERP_UNIX_SEC))
+            MODEL_TIMES_NONSUPERLINEAR_INTERP_UNIX_SEC))
+
+        self.assertTrue(
+            set(list(this_query_to_model_times_table)) ==
+            set(list(QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP)))
+
+        this_num_rows = len(this_query_to_model_times_table.index)
+        for this_column in list(this_query_to_model_times_table):
+            for i in range(this_num_rows):
+                self.assertTrue(numpy.array_equal(
+                    this_query_to_model_times_table[this_column].values[i],
+                    QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+                        this_column].values[i]))
 
     def test_get_times_needed_for_interp_linear(self):
         """Ensures correct output from get_times_needed_for_interp.
@@ -90,44 +165,83 @@ class NwpModelUtilsTests(unittest.TestCase):
         In this case, interpolation method is linear.
         """
 
-        these_model_times_unix_sec = (
+        these_model_times_unix_sec, this_query_to_model_times_table = (
             nwp_model_utils.get_times_needed_for_interp(
-                min_query_time_unix_sec=MIN_QUERY_TIME_UNIX_SEC,
-                model_time_step_sec=MODEL_TIME_STEP_SEC,
+                query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
+                model_time_step_hours=MODEL_TIME_STEP_HOURS,
                 method_string=LINEAR_INTERP_METHOD))
+
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
-            MODEL_TIMES_FOR_LINEAR_AND_SUBLINEAR_INTERP_UNIX_SEC))
+            MODEL_TIMES_NONSUPERLINEAR_INTERP_UNIX_SEC))
+
+        self.assertTrue(
+            set(list(this_query_to_model_times_table)) ==
+            set(list(QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP)))
+
+        this_num_rows = len(this_query_to_model_times_table.index)
+        for this_column in list(this_query_to_model_times_table):
+            for i in range(this_num_rows):
+                self.assertTrue(numpy.array_equal(
+                    this_query_to_model_times_table[this_column].values[i],
+                    QUERY_TO_MODEL_TIMES_TABLE_NONSUPERLINEAR_INTERP[
+                        this_column].values[i]))
 
     def test_get_times_needed_for_interp_quadratic(self):
         """Ensures correct output from get_times_needed_for_interp.
 
-        In this case, interpolation method is quadratic spline.
+        In this case, interpolation method is quadratic.
         """
 
-        these_model_times_unix_sec = (
+        these_model_times_unix_sec, this_query_to_model_times_table = (
             nwp_model_utils.get_times_needed_for_interp(
-                min_query_time_unix_sec=MIN_QUERY_TIME_UNIX_SEC,
-                model_time_step_sec=MODEL_TIME_STEP_SEC,
+                query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
+                model_time_step_hours=MODEL_TIME_STEP_HOURS,
                 method_string=QUADRATIC_INTERP_METHOD))
+
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
-            MODEL_TIMES_FOR_SUPERLINEAR_INTERP_UNIX_SEC))
+            MODEL_TIMES_SUPERLINEAR_INTERP_UNIX_SEC))
+
+        self.assertTrue(
+            set(list(this_query_to_model_times_table)) ==
+            set(list(QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP)))
+
+        this_num_rows = len(this_query_to_model_times_table.index)
+        for this_column in list(this_query_to_model_times_table):
+            for i in range(this_num_rows):
+                self.assertTrue(numpy.array_equal(
+                    this_query_to_model_times_table[this_column].values[i],
+                    QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+                        this_column].values[i]))
 
     def test_get_times_needed_for_interp_cubic(self):
         """Ensures correct output from get_times_needed_for_interp.
 
-        In this case, interpolation method is cubic spline.
+        In this case, interpolation method is cubic.
         """
 
-        these_model_times_unix_sec = (
+        these_model_times_unix_sec, this_query_to_model_times_table = (
             nwp_model_utils.get_times_needed_for_interp(
-                min_query_time_unix_sec=MIN_QUERY_TIME_UNIX_SEC,
-                model_time_step_sec=MODEL_TIME_STEP_SEC,
+                query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
+                model_time_step_hours=MODEL_TIME_STEP_HOURS,
                 method_string=CUBIC_INTERP_METHOD))
+
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
-            MODEL_TIMES_FOR_SUPERLINEAR_INTERP_UNIX_SEC))
+            MODEL_TIMES_SUPERLINEAR_INTERP_UNIX_SEC))
+
+        self.assertTrue(
+            set(list(this_query_to_model_times_table)) ==
+            set(list(QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP)))
+
+        this_num_rows = len(this_query_to_model_times_table.index)
+        for this_column in list(this_query_to_model_times_table):
+            for i in range(this_num_rows):
+                self.assertTrue(numpy.array_equal(
+                    this_query_to_model_times_table[this_column].values[i],
+                    QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
+                        this_column].values[i]))
 
     def test_rotate_winds(self):
         """Ensures correct output from rotate_winds."""
