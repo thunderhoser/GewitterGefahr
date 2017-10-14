@@ -13,6 +13,9 @@ from gewittergefahr.gg_utils import error_checking
 
 X_MIN_METRES = 0.
 Y_MIN_METRES = 0.
+INIT_TIME_STEP_HOURS = 1
+FORECAST_TIME_STEP_HOURS = 1
+SENTINEL_VALUE = 9.999e20
 
 ID_FOR_130GRID = '130'
 NUM_ROWS_130GRID = 337
@@ -21,6 +24,8 @@ X_SPACING_130GRID_METRES = 13545.
 Y_SPACING_130GRID_METRES = 13545.
 FALSE_EASTING_130GRID_METRES = 3332090.43552
 FALSE_NORTHING_130GRID_METRES = -2279020.17888
+TOP_ONLINE_DIR_NAME_130GRID = 'https://nomads.ncdc.noaa.gov/data/rap130'
+WIND_ROTATION_FILE_NAME_130GRID = 'wind_rotation_angles_grid130.data'
 
 ID_FOR_252GRID = '252'
 NUM_ROWS_252GRID = 225
@@ -29,6 +34,8 @@ X_SPACING_252GRID_METRES = 20317.625
 Y_SPACING_252GRID_METRES = 20317.625
 FALSE_EASTING_252GRID_METRES = 3332109.11198
 FALSE_NORTHING_252GRID_METRES = -2279005.97252
+TOP_ONLINE_DIR_NAME_252GRID = 'https://nomads.ncdc.noaa.gov/data/rap252'
+WIND_ROTATION_FILE_NAME_252GRID = 'wind_rotation_angles_grid252.data'
 
 NUM_ROWS_COLUMN = 'num_grid_rows'
 NUM_COLUMNS_COLUMN = 'num_grid_columns'
@@ -36,6 +43,7 @@ X_SPACING_COLUMN = 'x_spacing_metres'
 Y_SPACING_COLUMN = 'y_spacing_metres'
 FALSE_EASTING_COLUMN = 'false_easting_metres'
 FALSE_NORTHING_COLUMN = 'false_northing_metres'
+TOP_ONLINE_DIRECTORY_COLUMN = 'top_online_directory_name'
 WIND_ROTATION_FILE_NAME_COLUMN = 'wind_rotation_file_name'
 
 MAIN_TEMPERATURE_COLUMN_ORIG = 'TMP'
@@ -64,10 +72,8 @@ LOWEST_GPH_COLUMN_ORIG = 'HGT:sfc'
 LOWEST_U_WIND_COLUMN_ORIG = 'UGRD:10 m above gnd'
 LOWEST_V_WIND_COLUMN_ORIG = 'VGRD:10 m above gnd'
 
-PRESSURE_LEVELS_MB = numpy.linspace(100, 1000, num=37, dtype=int)
 IS_WIND_EARTH_RELATIVE = False
-WIND_ROTATION_FILE_NAME_130GRID = 'wind_rotation_angles_grid130.data'
-WIND_ROTATION_FILE_NAME_252GRID = 'wind_rotation_angles_grid252.data'
+PRESSURE_LEVELS_MB = numpy.linspace(100, 1000, num=37, dtype=int)
 
 # Projection parameters.
 STANDARD_LATITUDES_DEG = numpy.array([25., 25.])
@@ -89,7 +95,7 @@ def _check_grid_id(grid_id):
         raise ValueError(error_string)
 
 
-def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
+def get_metadata_for_grid(grid_id=ID_FOR_130GRID):
     """Returns metadata for grid.
 
     :param grid_id: String ID for grid (either "130" or "252").
@@ -106,6 +112,8 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
         `projections.project_latlng_to_xy`.
     metadata_dict.false_northing_metres: See documentation for
         `projections.project_latlng_to_xy`.
+    metadata_dict.top_online_directory_name: Name of top-level directory with
+        grib files online.
     metadata_dict.wind_rotation_file_name: Path to file with wind-rotation
         angles.
     """
@@ -119,6 +127,7 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
                 Y_SPACING_COLUMN: Y_SPACING_130GRID_METRES,
                 FALSE_EASTING_COLUMN: FALSE_EASTING_130GRID_METRES,
                 FALSE_NORTHING_COLUMN: FALSE_NORTHING_130GRID_METRES,
+                TOP_ONLINE_DIRECTORY_COLUMN: TOP_ONLINE_DIR_NAME_130GRID,
                 WIND_ROTATION_FILE_NAME_COLUMN: WIND_ROTATION_FILE_NAME_130GRID}
 
     return {NUM_ROWS_COLUMN: NUM_ROWS_252GRID,
@@ -127,6 +136,7 @@ def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
             Y_SPACING_COLUMN: Y_SPACING_252GRID_METRES,
             FALSE_EASTING_COLUMN: FALSE_EASTING_252GRID_METRES,
             FALSE_NORTHING_COLUMN: FALSE_NORTHING_252GRID_METRES,
+            TOP_ONLINE_DIRECTORY_COLUMN: TOP_ONLINE_DIR_NAME_252GRID,
             WIND_ROTATION_FILE_NAME_COLUMN: WIND_ROTATION_FILE_NAME_252GRID}
 
 
@@ -158,7 +168,7 @@ def read_wind_rotation_angles(grid_id=ID_FOR_130GRID):
     :return: sine_matrix: Same as above, but with sines rather than cosines.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    grid_metadata_dict = get_metadata_for_grid(grid_id)
     (cosine_vector, sine_vector) = numpy.loadtxt(
         grid_metadata_dict[WIND_ROTATION_FILE_NAME_COLUMN], unpack=True)
 
@@ -188,7 +198,7 @@ def project_latlng_to_xy(latitudes_deg, longitudes_deg, grid_id=ID_FOR_130GRID,
     :return: y_coords_metres: length-P numpy array of y-coordinates.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    grid_metadata_dict = get_metadata_for_grid(grid_id)
 
     if projection_object is None:
         projection_object = init_projection()
@@ -215,7 +225,7 @@ def project_xy_to_latlng(x_coords_metres, y_coords_metres,
     :return: longitudes_deg: length-P numpy array of longitudes (deg E).
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    grid_metadata_dict = get_metadata_for_grid(grid_id)
 
     if projection_object is None:
         projection_object = init_projection()
@@ -239,7 +249,7 @@ def get_xy_grid_points_unique(grid_id=ID_FOR_130GRID):
         grid points.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    grid_metadata_dict = get_metadata_for_grid(grid_id)
 
     return grids.get_xy_grid_points(
         x_min_metres=X_MIN_METRES, y_min_metres=Y_MIN_METRES,
@@ -262,7 +272,7 @@ def get_xy_grid_cell_edges_unique(grid_id=ID_FOR_130GRID):
         coordinates of grid-cell edges.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    grid_metadata_dict = get_metadata_for_grid(grid_id)
 
     return grids.get_xy_grid_cell_edges(
         x_min_metres=X_MIN_METRES, y_min_metres=Y_MIN_METRES,

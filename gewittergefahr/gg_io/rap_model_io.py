@@ -1,235 +1,182 @@
-"""IO methods for data from RAP (Rapid Refresh) model."""
+"""IO methods for RAP (Rapid Refresh model) data."""
 
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
-from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.gg_utils import rap_model_utils
 
 # TODO(thunderhoser): replace main method with named method.
 
+# TODO(thunderhoser): put these constants in rap_model_utils.
+GRIB_TYPE = 'grib2'
+MODEL_NAME = 'rap'
 SENTINEL_VALUE = 9.999e20
-RAW_FILE_EXTENSION = '.grb2'
-
-ID_FOR_130GRID = '130'
-NUM_ROWS_130GRID = 337
-NUM_COLUMNS_130GRID = 451
-MODEL_ID_FOR_FILE_NAMES_130GRID = 'rap_130'
-TOP_ONLINE_DIR_NAME_130GRID = 'https://nomads.ncdc.noaa.gov/data/rap130'
-
-ID_FOR_252GRID = '252'
-NUM_ROWS_252GRID = 225
-NUM_COLUMNS_252GRID = 301
-MODEL_ID_FOR_FILE_NAMES_252GRID = 'rap_252'
-TOP_ONLINE_DIR_NAME_252GRID = 'https://nomads.ncdc.noaa.gov/data/rap252'
-
-NUM_ROWS_COLUMN = 'num_grid_rows'
-NUM_COLUMNS_COLUMN = 'num_grid_columns'
-MODEL_ID_COLUMN = 'model_id_for_file_names'
-TOP_ONLINE_DIR_COLUMN = 'top_online_directory_name'
 
 # The following constants are used only in the main method.
-INIT_TIME_UNIX_SEC = 1475031600  # 0300 UTC 28 Sep 2016
+INIT_TIME_UNIX_SEC = 1506567600  # 0300 UTC 28 Sep 2017
 LEAD_TIME_HOURS = 10
 GRIB2_VAR_NAME = 'HGT:500 mb'
 
-TOP_LOCAL_GRIB_DIR_NAME_130GRID = (
+TOP_GRIB_DIRECTORY_NAME_130GRID = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/rap130/grib2')
-TOP_LOCAL_TEXT_DIR_NAME_130GRID = (
+TOP_SINGLE_FIELD_DIR_NAME_130GRID = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/rap130/text')
 
-TOP_LOCAL_GRIB_DIR_NAME_252GRID = (
+TOP_GRIB_DIRECTORY_NAME_252GRID = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/rap252/grib2')
-TOP_LOCAL_TEXT_DIR_NAME_252GRID = (
+TOP_SINGLE_FIELD_DIR_NAME_252GRID = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/rap252/text')
 
 
-def _check_grid_id(grid_id):
-    """Ensures that grid ID is valid.
+def find_grib_file(init_time_unix_sec, lead_time_hours,
+                   grid_id=rap_model_utils.ID_FOR_130GRID,
+                   top_directory_name=None, raise_error_if_missing=True):
+    """Finds grib file with RAP data on local machine.
 
-    :param grid_id: Grid ID (should be either "130" or "252").
-    :raises: ValueError: grid_id is neither "130" nor "252".
-    """
-
-    error_checking.assert_is_string(grid_id)
-    if grid_id not in [ID_FOR_130GRID, ID_FOR_252GRID]:
-        error_string = (
-            'grid_id should be either "' + ID_FOR_130GRID + '" or "' +
-            ID_FOR_252GRID + '".  Instead, got "' + grid_id + '".')
-        raise ValueError(error_string)
-
-
-def _get_metadata_for_grid(grid_id=ID_FOR_130GRID):
-    """Returns metadata for grid.
-
-    :param grid_id: String ID for grid (either "130" or "252").
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict.num_grid_rows: Number of grid rows.
-    metadata_dict.num_grid_columns: Number of grid columns.
-    metadata_dict.model_id_for_file_names: Model ID used in file names (either
-        "rap_130" or "rap_252").
-    metadata_dict.top_online_directory_name: Top-level web directory with grib2
-        files on this grid.
-    """
-
-    _check_grid_id(grid_id)
-
-    if grid_id == ID_FOR_130GRID:
-        return {NUM_ROWS_COLUMN: NUM_ROWS_130GRID,
-                NUM_COLUMNS_COLUMN: NUM_COLUMNS_130GRID,
-                MODEL_ID_COLUMN: MODEL_ID_FOR_FILE_NAMES_130GRID,
-                TOP_ONLINE_DIR_COLUMN: TOP_ONLINE_DIR_NAME_130GRID}
-
-    return {NUM_ROWS_COLUMN: NUM_ROWS_252GRID,
-            NUM_COLUMNS_COLUMN: NUM_COLUMNS_252GRID,
-            MODEL_ID_COLUMN: MODEL_ID_FOR_FILE_NAMES_252GRID,
-            TOP_ONLINE_DIR_COLUMN: TOP_ONLINE_DIR_NAME_252GRID}
-
-
-def find_local_grib2_file(init_time_unix_sec, lead_time_hours,
-                          grid_id=ID_FOR_130GRID,
-                          top_directory_name=None, raise_error_if_missing=True):
-    """Finds grib file on local machine.
-
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param grid_id: String ID for grid (either "130" or "252").
-    :param top_directory_name: Top-level directory containing grib2 files with
+    :param grid_id: String ID for grid (examples: "130" or "252").
+    :param top_directory_name: Name of top-level directory for grib files with
         RAP data.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.
-    :return: grib2_file_name: Path to grib2 file on local machine.  If file is
-        missing but raise_error_if_missing = False, this will be the *expected*
-        path to the grib2 file.
+        will raise an error.
+    :return: grib_file_name: Path to grib file.  If file is missing but
+        raise_error_if_missing = False, this will be the *expected* path.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
-
-    return nwp_model_io.find_local_raw_file(
+    return nwp_model_io.find_grib_file(
         init_time_unix_sec, lead_time_hours,
-        top_directory_name=top_directory_name,
-        model_id=grid_metadata_dict[MODEL_ID_COLUMN],
-        file_extension=RAW_FILE_EXTENSION,
+        top_directory_name=top_directory_name, model_name=MODEL_NAME,
+        grid_id=grid_id, grib_type=GRIB_TYPE,
         raise_error_if_missing=raise_error_if_missing)
 
 
-def find_local_text_file(init_time_unix_sec, lead_time_hours,
-                         grid_id=ID_FOR_130GRID, top_directory_name=None,
-                         variable_id=None, raise_error_if_missing=True):
-    """Finds text file on local machine.
+def find_single_field_file(init_time_unix_sec, lead_time_hours,
+                           grid_id=rap_model_utils.ID_FOR_130GRID,
+                           grib1_field_name=None, top_directory_name=None,
+                           raise_error_if_missing=True):
+    """Finds single-field file with RAP data on local machine.
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    A "single field" is one variable at one time step and all grid cells.
+
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param grid_id: String ID for grid (either "130" or "252").
-    :param top_directory_name: Top-level directory containing text files with
-        RAP data.
-    :param variable_id: Variable ID used in file name.
+    :param grid_id: String ID for grid (examples: "130" or "252").
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
+    :param top_directory_name: Name of top-level directory for single-field
+        files with RAP data.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.
-    :return: text_file_name: Path to text file on local machine.  If file is
+        will raise an error.
+    :return: single_field_file_name: Path to single-field file.  If file is
         missing but raise_error_if_missing = False, this will be the *expected*
-        path to the text file.
+        path.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
-
-    return nwp_model_io.find_local_text_file(
+    return nwp_model_io.find_single_field_file(
         init_time_unix_sec, lead_time_hours,
-        top_directory_name=top_directory_name,
-        model_id=grid_metadata_dict[MODEL_ID_COLUMN], variable_id=variable_id,
+        top_directory_name=top_directory_name, model_name=MODEL_NAME,
+        grid_id=grid_id, grib1_field_name=grib1_field_name,
         raise_error_if_missing=raise_error_if_missing)
 
 
-def download_grib2_file(init_time_unix_sec, lead_time_hours,
-                        grid_id=ID_FOR_130GRID, top_local_directory_name=None,
-                        raise_error_if_fails=True):
-    """Downloads grib2 file to local machine.
+def download_grib_file(init_time_unix_sec, lead_time_hours,
+                       grid_id=rap_model_utils.ID_FOR_130GRID,
+                       top_local_directory_name=None,
+                       raise_error_if_fails=True):
+    """Downloads RAP grib file to local machine.
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param grid_id: String ID for grid (either "130" or "252").
-    :param top_local_directory_name: Top-level directory on local machine
-        containing grib2 files with RAP data.
+    :param grid_id: String ID for grid (examples: "130" or "252").
+    :param top_local_directory_name: Name of top-level directory with RAP grib
+        files on local machine.
     :param raise_error_if_fails: Boolean flag.  If True and download fails, will
-        raise error.
-    :return: local_file_name: Path to grib2 file on local machine.  If download
-        failed but raise_error_if_fails = False, will return None.
+        raise an error.
+    :return: local_file_name: Path to grib file on local machine (after
+        downloading).  If download failed but raise_error_if_fails = False, this
+        will be None.
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
+    grid_metadata_dict = rap_model_utils.get_metadata_for_grid(grid_id)
 
-    return nwp_model_io.download_grib_or_grib2_file(
+    return nwp_model_io.download_grib_file(
         init_time_unix_sec, lead_time_hours,
-        top_online_directory_name=grid_metadata_dict[TOP_ONLINE_DIR_COLUMN],
+        top_online_directory_name=
+        grid_metadata_dict[rap_model_utils.TOP_ONLINE_DIRECTORY_COLUMN],
         top_local_directory_name=top_local_directory_name,
-        model_id=grid_metadata_dict[MODEL_ID_COLUMN],
-        file_extension=RAW_FILE_EXTENSION,
+        model_name=MODEL_NAME, grid_id=grid_id, grib_type=GRIB_TYPE,
         raise_error_if_fails=raise_error_if_fails)
 
 
-def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
-                             lead_time_hours=None, grid_id=ID_FOR_130GRID,
-                             grib2_var_name=None, top_local_text_dir_name=None,
-                             wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
-                             delete_text_file=True):
-    """Reads single field from grib2 file.
+def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
+                              lead_time_hours=None,
+                              grid_id=rap_model_utils.ID_FOR_130GRID,
+                              grib1_field_name=None,
+                              top_single_field_dir_name=None,
+                              wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+                              delete_single_field_file=True,
+                              raise_error_if_fails=True):
+    """Reads single field from RAP grib file.
 
-    M = number of grid rows
-    N = number of grid columns
+    A "single field" is one variable at one time step and all grid cells.
 
-    :param grib2_file_name: Path to input file.
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param grib_file_name: Path to input file.
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param grid_id: String ID for grid (either "130" or "252").
-    :param grib2_var_name: Name of variable being read.  This must be the name
-        used in grib2 files (e.g., "HGT:500 mb" for 500-mb height).
-    :param top_local_text_dir_name: Top-level directory containing text files
-        with RAP data.
+    :param grid_id: String ID for grid (examples: "130" or "252").
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
+    :param top_single_field_dir_name: Name of top-level directory for single-
+        field files with RAP data.
     :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param delete_text_file: Boolean flag.  If True, text file with single field
-        will be deleted immediately after reading.
-    :return: data_matrix: M-by-N numpy array with values of `grib2_var_name`.  x
-        increases while traveling right across the rows, and y increases while
-        traveling down the columns.
-    :return: text_file_name: Path to output file (text file with field extracted
-        from grib2 file).  If delete_text_file = True, this is None.
+    :param delete_single_field_file: Boolean flag.  If True, single-field file
+        will be deleted immediately upon reading.
+    :param raise_error_if_fails: Boolean flag.  If True and field cannot be
+        read, will raise error.  If False and field cannot be read, all return
+        variables will be None.
+    :return: field_matrix: See documentation for
+        `nwp_model_io.read_field_from_grib_file`.
+    :return: single_field_file_name: Path to output file (containing single
+        field).
     """
 
-    grid_metadata_dict = _get_metadata_for_grid(grid_id)
-
-    return nwp_model_io.read_variable_from_grib2(
-        grib2_file_name, init_time_unix_sec=init_time_unix_sec,
-        lead_time_hours=lead_time_hours, grib2_var_name=grib2_var_name,
-        top_local_text_dir_name=top_local_text_dir_name,
-        model_id_for_text_file=grid_metadata_dict[MODEL_ID_COLUMN],
-        wgrib2_exe_name=wgrib2_exe_name,
-        num_grid_rows=grid_metadata_dict[NUM_ROWS_COLUMN],
-        num_grid_columns=grid_metadata_dict[NUM_COLUMNS_COLUMN],
-        sentinel_value=SENTINEL_VALUE, delete_text_file=delete_text_file)
+    return nwp_model_io.read_field_from_grib_file(
+        grib_file_name, init_time_unix_sec=init_time_unix_sec,
+        lead_time_hours=lead_time_hours,
+        top_single_field_dir_name=top_single_field_dir_name,
+        model_name=MODEL_NAME, grid_id=grid_id,
+        grib1_field_name=grib1_field_name, wgrib2_exe_name=wgrib2_exe_name,
+        delete_single_field_file=delete_single_field_file,
+        raise_error_if_fails=raise_error_if_fails)
 
 
 if __name__ == '__main__':
-    LOCAL_GRIB2_FILE_NAME = download_grib2_file(
-        INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS, grid_id=ID_FOR_130GRID,
-        top_local_directory_name=TOP_LOCAL_GRIB_DIR_NAME_130GRID,
+    LOCAL_GRIB_FILE_NAME = download_grib_file(
+        INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
+        grid_id=rap_model_utils.ID_FOR_130GRID,
+        top_local_directory_name=TOP_GRIB_DIRECTORY_NAME_130GRID,
         raise_error_if_fails=True)
-    print LOCAL_GRIB2_FILE_NAME
+    print LOCAL_GRIB_FILE_NAME
 
-    (DATA_MATRIX, LOCAL_TEXT_FILE_NAME) = read_variable_from_grib2(
-        LOCAL_GRIB2_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
-        lead_time_hours=LEAD_TIME_HOURS, grid_id=ID_FOR_130GRID,
-        grib2_var_name=GRIB2_VAR_NAME,
-        top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME_130GRID)
+    DATA_MATRIX, LOCAL_TEXT_FILE_NAME = read_field_from_grib_file(
+        LOCAL_GRIB_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
+        lead_time_hours=LEAD_TIME_HOURS, grid_id=rap_model_utils.ID_FOR_130GRID,
+        grib1_field_name=GRIB2_VAR_NAME,
+        top_single_field_dir_name=TOP_SINGLE_FIELD_DIR_NAME_130GRID)
     print DATA_MATRIX
     print '\n'
 
-    LOCAL_GRIB2_FILE_NAME = download_grib2_file(
-        INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS, grid_id=ID_FOR_252GRID,
-        top_local_directory_name=TOP_LOCAL_GRIB_DIR_NAME_252GRID,
+    LOCAL_GRIB_FILE_NAME = download_grib_file(
+        INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
+        grid_id=rap_model_utils.ID_FOR_252GRID,
+        top_local_directory_name=TOP_GRIB_DIRECTORY_NAME_252GRID,
         raise_error_if_fails=True)
-    print LOCAL_GRIB2_FILE_NAME
+    print LOCAL_GRIB_FILE_NAME
 
-    (DATA_MATRIX, LOCAL_TEXT_FILE_NAME) = read_variable_from_grib2(
-        LOCAL_GRIB2_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
-        lead_time_hours=LEAD_TIME_HOURS, grid_id=ID_FOR_252GRID,
-        grib2_var_name=GRIB2_VAR_NAME,
-        top_local_text_dir_name=TOP_LOCAL_TEXT_DIR_NAME_252GRID)
+    DATA_MATRIX, LOCAL_TEXT_FILE_NAME = read_field_from_grib_file(
+        LOCAL_GRIB_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
+        lead_time_hours=LEAD_TIME_HOURS, grid_id=rap_model_utils.ID_FOR_252GRID,
+        grib1_field_name=GRIB2_VAR_NAME,
+        top_single_field_dir_name=TOP_SINGLE_FIELD_DIR_NAME_252GRID)
     print DATA_MATRIX
+    print '\n'

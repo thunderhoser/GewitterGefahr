@@ -1,4 +1,4 @@
-"""IO methods for grib (gridded binary) and grib2 files.
+"""IO methods for grib and grib2 files.
 
 These methods use wgrib and wgrib2, which are command-line tools for parsing
 grib and grib2 files.  See README_grib (in this directory) for installation
@@ -15,8 +15,14 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
-RELATIVE_TOLERANCE = 1e-6
+SENTINEL_TOLERANCE = 10.
+
+GRIB1_FILE_EXTENSION = '.grb'
+GRIB1_FILE_TYPE = 'grib1'
 WGRIB_EXE_NAME_DEFAULT = '/usr/bin/wgrib'
+
+GRIB2_FILE_EXTENSION = '.grb2'
+GRIB2_FILE_TYPE = 'grib2'
 WGRIB2_EXE_NAME_DEFAULT = '/usr/bin/wgrib2'
 
 # The following constants are used in the main method only.
@@ -51,107 +57,103 @@ NUM_COLUMNS_IN_RAP = 451
 RAP_SENTINEL_VALUE = 9.999e20
 
 
-def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
-    """Replaces all instances of sentinel value with NaN.
+def _get_file_type(grib_file_name):
+    """Determines whether file type is grib1 or grib2.
 
-    :param data_matrix: numpy array with original data values, which may contain
-        sentinels.
+    :param grib_file_name: Path to input file.
+    :return: file_type: Either "grib1" or "grib2".
+    :raises: ValueError: if file type is neither grib1 nor grib2.
+    """
+
+    error_checking.assert_is_string(grib_file_name)
+    if grib_file_name.endswith(GRIB1_FILE_EXTENSION):
+        return GRIB1_FILE_TYPE
+    if grib_file_name.endswith(GRIB2_FILE_EXTENSION):
+        return GRIB2_FILE_TYPE
+
+    error_string = (
+        'Expected file extension to be either "' + GRIB1_FILE_EXTENSION +
+        '" or "' + GRIB2_FILE_EXTENSION + '".  Instead, got:\n' +
+        grib_file_name)
+    raise ValueError(error_string)
+
+
+def _field_name_grib1_to_grib2(grib1_field_name):
+    """Converts field name from grib1 to grib2 format.
+
+    :param grib1_field_name: Field name in grib1 format.
+    :return: grib2_field_name: Field name in grib2 format.
+    """
+
+    return grib1_field_name.replace('gnd', 'ground').replace('sfc', 'surface')
+
+
+def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
+    """Replaces all occurrences of sentinel value with NaN.
+
+    :param data_matrix: numpy array, which may contain sentinels.
     :param sentinel_value: Sentinel value.
-    :return: data_matrix: Same as input, except with all sentinels changed to
-        NaN.
+    :return: data_matrix: numpy array without sentinels.
     """
 
     if sentinel_value is None:
         return data_matrix
 
     data_vector = numpy.reshape(data_matrix, data_matrix.size)
-    sentinel_flags = numpy.isclose(data_vector, sentinel_value,
-                                   rtol=RELATIVE_TOLERANCE)
+    sentinel_flags = numpy.isclose(
+        data_vector, sentinel_value, atol=SENTINEL_TOLERANCE)
 
     sentinel_indices = numpy.where(sentinel_flags)[0]
     data_vector[sentinel_indices] = numpy.nan
     return numpy.reshape(data_vector, data_matrix.shape)
 
 
-def _extract_variable_grib_to_text(grib_file_name, grib_var_name=None,
-                                   text_file_name=None,
-                                   wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-                                   raise_error_if_fails=True):
-    """Extracts one variable, at all grid points, from grib file to text file.
+def _extract_single_field_to_file(grib_file_name, grib1_field_name=None,
+                                  output_file_name=None,
+                                  wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
+                                  wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
+                                  raise_error_if_fails=True):
+    """Extracts single field from grib1 or grib2 file; writes to text file.
 
-    :param grib_file_name: Path to input file.
-    :param grib_var_name: Name of variable to be extracted.  This must be the
-        name used in the grib file.  For example, most grib files store 500-mb
-        geopotential height as "HGT:500 mb".
-    :param text_file_name: Path to output file.
+    A "single field" is one variable at one time step and all grid cells.
+
+    :param grib_file_name: Path to input (grib1 or grib2) file.
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
+    :param output_file_name: Path to output file.
     :param wgrib_exe_name: Path to wgrib executable.
-    :param raise_error_if_fails: Boolean flag.  If command fails and
-        raise_error_if_fails = True, this method will raise an error.
-    :return: success: Boolean flag.  If command succeeded, this is True.  If
-        command failed and raise_error_if_fails = False, this is False.
-    :raises: OSError: if command fails and raise_error_if_fails = True.
-    """
-
-    error_checking.assert_is_boolean(raise_error_if_fails)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
-
-    wgrib_command_string = (
-        '"' + wgrib_exe_name + '" "' + grib_file_name + '" -s | grep -w "' +
-        grib_var_name + '" | "' + wgrib_exe_name + '" -i "' + grib_file_name +
-        '" -text -nh -o "' + text_file_name + '"')
-
-    try:
-        subprocess.call(wgrib_command_string, shell=True)
-    except OSError as this_exception:
-        if raise_error_if_fails:
-            raise
-
-        warn_string = (
-            '\n' + wgrib_command_string +
-            '\nCommand (shown above) failed (details shown below).\n' +
-            str(this_exception))
-        warnings.warn(warn_string)
-        return False
-
-    return True
-
-
-def _extract_variable_grib2_to_text(grib2_file_name, grib2_var_name=None,
-                                    text_file_name=None,
-                                    wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
-                                    raise_error_if_fails=True):
-    """Extracts one variable, at all grid points, from grib2 file to text file.
-
-    :param grib2_file_name: Path to input file.
-    :param grib2_var_name: Name of variable to be extracted.  This must be the
-        name used in the grib2 file.  For example, most grib2 files store 500-mb
-        geopotential height as "HGT:500 mb".
-    :param text_file_name: Path to output file.
     :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_fails: Boolean flag.  If command fails and
-        raise_error_if_fails = True, this method will raise an error.
+        raise_error_if_fails = True, will raise an error.
     :return: success: Boolean flag.  If command succeeded, this is True.  If
         command failed and raise_error_if_fails = False, this is False.
     :raises: OSError: if command fails and raise_error_if_fails = True.
     """
 
-    error_checking.assert_is_boolean(raise_error_if_fails)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
+    grib_file_type = _get_file_type(grib_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
-    wgrib2_command_string = (
-        '"' + wgrib2_exe_name + '" "' + grib2_file_name + '" -s | grep -w "' +
-        grib2_var_name + '" | "' + wgrib2_exe_name + '" -i "' +
-        grib2_file_name + '" -no_header -text "' + text_file_name + '"')
+    if grib_file_type == GRIB1_FILE_TYPE:
+        command_string = (
+            '"' + wgrib_exe_name + '" "' + grib_file_name + '" -s | grep -w "' +
+            grib1_field_name + '" | "' + wgrib_exe_name + '" -i "' +
+            grib_file_name + '" -text -nh -o "' + output_file_name + '"')
+    else:
+        command_string = (
+            '"' + wgrib2_exe_name + '" "' + grib_file_name + '" -s | grep -w "'
+            + _field_name_grib1_to_grib2(grib1_field_name) + '" | "' +
+            wgrib2_exe_name + '" -i "' + grib_file_name + '" -no_header -text "'
+            + output_file_name + '"')
 
     try:
-        subprocess.call(wgrib2_command_string, shell=True)
+        subprocess.call(command_string, shell=True)
     except OSError as this_exception:
         if raise_error_if_fails:
             raise
 
         warn_string = (
-            '\n' + wgrib2_command_string +
-            '\nCommand (shown above) failed (details shown below).\n' +
+            '\n\n' + command_string +
+            '\n\nCommand (shown above) failed (details shown below).\n\n' +
             str(this_exception))
         warnings.warn(warn_string)
         return False
@@ -159,145 +161,131 @@ def _extract_variable_grib2_to_text(grib2_file_name, grib2_var_name=None,
     return True
 
 
-def _read_variable_from_text(text_file_name, num_grid_rows=None,
-                             num_grid_columns=None, sentinel_value=None,
-                             raise_error_if_fails=True):
-    """Reads one variable, at all grid points, from text file.
+def _read_single_field_from_file(input_file_name, num_grid_rows=None,
+                                 num_grid_columns=None, sentinel_value=None,
+                                 raise_error_if_fails=True):
+    """Reads single field from text file.
 
-    M = number of rows in grid
-    N = number of columns in grid
+    A "single field" is one variable at one time step and all grid cells.
 
-    :param text_file_name: Input file.  Should be created by
-        extract_variable_grib_to_text or extract_variable_grib2_to_text.
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+
+    :param input_file_name: Path to input file.  File should be in the format
+        generated by _extract_single_field_to_file.
     :param num_grid_rows: Number of rows in grid.
     :param num_grid_columns: Number of columns in grid.
-    :param sentinel_value: Sentinel value.  All instances of this value will be
+    :param sentinel_value: Sentinel value, all occurrences of which will be
         replaced with NaN.
-    :param raise_error_if_fails: Boolean flag.  If `numpy.reshape` fails (wrong
-        number of grid points in file) and raise_error_if_fails = True, this
-        method will raise an error.
-    :return: data_matrix: If read fails and raise_error_if_fails = False: None.
-        Otherwise: M-by-N numpy array with values read from file.  If the grid
-        is regular in x-y, x increases while traveling right across the rows and
-        y increases while traveling down the columns.  If the grid is regular in
-        lat-long, latitude increases while traveling down the columns and
-        longitude increases while traveling right across the rows.
+    :param raise_error_if_fails: Boolean flag.  If read fails and
+        raise_error_if_fails = True, will raise an error.
+    :return: field_matrix: If read fails, this is None.  Otherwise, M-by-N numpy
+        array with values of field.  If the grid is regular in x-y, x-coordinate
+        increases towards the right and y-coordinate increases towards the
+        bottom.  If the grid is regular in lat-long, longitude increases towards
+        the right and latitude increases towards the bottom.
     :raises: ValueError: if read fails and raise_error_if_fails = True.
     """
 
-    data_vector = numpy.loadtxt(text_file_name)
+    field_vector = numpy.loadtxt(input_file_name)
 
     try:
-        data_matrix = numpy.reshape(data_vector,
-                                    (num_grid_rows, num_grid_columns))
+        field_matrix = numpy.reshape(
+            field_vector, (num_grid_rows, num_grid_columns))
     except ValueError as this_exception:
         if raise_error_if_fails:
             raise
 
         warn_string = (
-            '\n' + str(this_exception) + '\nnumpy.reshape failed (probably ' +
-            'wrong number of grid points in file -- details shown above).')
+            '\n\n' + str(this_exception) + '\n\nnumpy.reshape failed (probably '
+            + 'wrong number of grid points in file -- details shown above).')
         warnings.warn(warn_string)
         return None
 
-    return _replace_sentinels_with_nan(data_matrix, sentinel_value)
+    return _replace_sentinels_with_nan(field_matrix, sentinel_value)
 
 
-def read_variable_from_grib(grib_file_name, grib_var_name=None,
-                            text_file_name=None,
-                            wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-                            num_grid_rows=None, num_grid_columns=None,
-                            sentinel_value=None, delete_text_file=True):
-    """Reads one variable, at all grid points, from grib file.
+def file_type_to_extension(grib_file_type):
+    """Converts file type to extension.
 
-    :param grib_file_name: See documentation for _extract_variable_grib_to_text.
-    :param grib_var_name: See documentation for _extract_variable_grib_to_text.
-    :param text_file_name: See documentation for _extract_variable_grib_to_text.
-    :param wgrib_exe_name: See documentation for _extract_variable_grib_to_text.
-    :param num_grid_rows: See documentation for _read_variable_from_text.
-    :param num_grid_columns: See documentation for _read_variable_from_text.
-    :param sentinel_value: See documentation for _read_variable_from_text.
-    :param delete_text_file: Boolean flag.  If True, will delete text file after
-        reading from it.  In other words, the text file will exist only while
-        executing this method.
-    :return: data_matrix: See documentation for _read_variable_from_text.
+    :param grib_file_type: File type (either "grib1" or "grib2").
+    :return: grib_file_extension: File extension (either ".grb" or ".grb2").
+    :raises: ValueError: if file type is neither "grib1" nor "grib2".
+    """
+
+    error_checking.assert_is_string(grib_file_type)
+    if grib_file_type == GRIB1_FILE_TYPE:
+        return GRIB1_FILE_EXTENSION
+    if grib_file_type == GRIB2_FILE_TYPE:
+        return GRIB2_FILE_EXTENSION
+
+    error_string = (
+        'Expected file type to be either "' + GRIB1_FILE_TYPE + '" or "' +
+        GRIB2_FILE_TYPE + '".  Instead, got:\n' + grib_file_type)
+    raise ValueError(error_string)
+
+
+def read_field_from_grib_file(grib_file_name, grib1_field_name=None,
+                              single_field_file_name=None,
+                              wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
+                              wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
+                              num_grid_rows=None, num_grid_columns=None,
+                              sentinel_value=None,
+                              delete_single_field_file=True,
+                              raise_error_if_fails=True):
+    """Reads single field from grib1 or grib2 file.
+
+    A "single field" is one variable at one time step and all grid cells.
+
+    :param grib_file_name: Path to input (grib1 or grib2) file.
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
+    :param single_field_file_name: Single field will be extracted from grib file
+        to here.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
+    :param num_grid_rows: Number of rows in grid.
+    :param num_grid_columns: Number of columns in grid.
+    :param sentinel_value: Sentinel value, all occurrences of which will be
+        replaced with NaN.
+    :param delete_single_field_file: Boolean flag.  If True, single-field file
+        will be deleted immediately upon reading.
+    :param raise_error_if_fails: Boolean flag.  If read fails and
+        raise_error_if_fails = True, will raise an error.
+    :return: field_matrix: See documentation for _read_single_field_from_file.
     """
 
     error_checking.assert_file_exists(grib_file_name)
-    error_checking.assert_is_string(grib_var_name)
+    error_checking.assert_is_string(grib1_field_name)
     error_checking.assert_file_exists(wgrib_exe_name)
-    error_checking.assert_is_integer(num_grid_rows)
-    error_checking.assert_is_greater(num_grid_rows, 0)
-    error_checking.assert_is_integer(num_grid_columns)
-    error_checking.assert_is_greater(num_grid_columns, 0)
-    error_checking.assert_is_boolean(delete_text_file)
-    if sentinel_value is not None:
-        error_checking.assert_is_not_nan(sentinel_value)
-
-    _extract_variable_grib_to_text(grib_file_name, grib_var_name=grib_var_name,
-                                   text_file_name=text_file_name,
-                                   wgrib_exe_name=wgrib_exe_name)
-
-    data_matrix = _read_variable_from_text(text_file_name,
-                                           num_grid_rows=num_grid_rows,
-                                           num_grid_columns=num_grid_columns,
-                                           sentinel_value=sentinel_value)
-
-    if delete_text_file:
-        os.remove(text_file_name)
-
-    return data_matrix
-
-
-def read_variable_from_grib2(grib2_file_name, grib2_var_name=None,
-                             text_file_name=None,
-                             wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
-                             num_grid_rows=None, num_grid_columns=None,
-                             sentinel_value=None, delete_text_file=True):
-    """Reads one variable, at all grid points, from grib2 file.
-
-    :param grib2_file_name: See documentation for
-        _extract_variable_grib2_to_text.
-    :param grib2_var_name: See documentation for
-        _extract_variable_grib2_to_text.
-    :param text_file_name: See documentation for
-        _extract_variable_grib2_to_text.
-    :param wgrib2_exe_name: See documentation for
-        _extract_variable_grib2_to_text.
-    :param num_grid_rows: See documentation for _read_variable_from_text.
-    :param num_grid_columns: See documentation for _read_variable_from_text.
-    :param sentinel_value: See documentation for _read_variable_from_text.
-    :param delete_text_file: Boolean flag.  If True, will delete text file after
-        reading from it.  In other words, the text file will exist only while
-        executing this method.
-    :return: data_matrix: See documentation for _read_variable_from_text.
-    """
-
-    error_checking.assert_file_exists(grib2_file_name)
-    error_checking.assert_is_string(grib2_var_name)
     error_checking.assert_file_exists(wgrib2_exe_name)
     error_checking.assert_is_integer(num_grid_rows)
     error_checking.assert_is_greater(num_grid_rows, 0)
     error_checking.assert_is_integer(num_grid_columns)
     error_checking.assert_is_greater(num_grid_columns, 0)
-    error_checking.assert_is_boolean(delete_text_file)
     if sentinel_value is not None:
         error_checking.assert_is_not_nan(sentinel_value)
 
-    _extract_variable_grib2_to_text(grib2_file_name,
-                                    grib2_var_name=grib2_var_name,
-                                    text_file_name=text_file_name,
-                                    wgrib2_exe_name=wgrib2_exe_name)
+    error_checking.assert_is_boolean(delete_single_field_file)
+    error_checking.assert_is_boolean(raise_error_if_fails)
 
-    data_matrix = _read_variable_from_text(text_file_name,
-                                           num_grid_rows=num_grid_rows,
-                                           num_grid_columns=num_grid_columns,
-                                           sentinel_value=sentinel_value)
+    success = _extract_single_field_to_file(
+        grib_file_name, grib1_field_name=grib1_field_name,
+        output_file_name=single_field_file_name, wgrib_exe_name=wgrib_exe_name,
+        wgrib2_exe_name=wgrib2_exe_name,
+        raise_error_if_fails=raise_error_if_fails)
+    if not success:
+        return None
 
-    if delete_text_file:
-        os.remove(text_file_name)
+    field_matrix = _read_single_field_from_file(
+        single_field_file_name, num_grid_rows=num_grid_rows,
+        num_grid_columns=num_grid_columns, sentinel_value=sentinel_value,
+        raise_error_if_fails=raise_error_if_fails)
 
-    return data_matrix
+    if delete_single_field_file and os.path.isfile(single_field_file_name):
+        os.remove(single_field_file_name)
+
+    return field_matrix
 
 
 if __name__ == '__main__':
@@ -305,26 +293,23 @@ if __name__ == '__main__':
                                      NARR_FILE_NAME_LOCAL)
     downloads.download_file_via_http(RAP_FILE_NAME_ONLINE, RAP_FILE_NAME_LOCAL)
 
-    NARR_H500_MATRIX_METRES = (
-        read_variable_from_grib(NARR_FILE_NAME_LOCAL,
-                                grib_var_name=H500_NAME_GRIB,
-                                text_file_name=NARR_H500_FILE_NAME,
-                                wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-                                num_grid_rows=NUM_ROWS_IN_NARR,
-                                num_grid_columns=NUM_COLUMNS_IN_NARR,
-                                sentinel_value=NARR_SENTINEL_VALUE))
+    NARR_H500_MATRIX_METRES = read_field_from_grib_file(
+        NARR_FILE_NAME_LOCAL, grib1_field_name=H500_NAME_GRIB,
+        single_field_file_name=NARR_H500_FILE_NAME,
+        wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT, num_grid_rows=NUM_ROWS_IN_NARR,
+        num_grid_columns=NUM_COLUMNS_IN_NARR,
+        sentinel_value=NARR_SENTINEL_VALUE)
     print NARR_H500_MATRIX_METRES
     print numpy.nanmin(NARR_H500_MATRIX_METRES)
     print numpy.nanmax(NARR_H500_MATRIX_METRES)
 
-    RAP_H500_MATRIX_METRES = (
-        read_variable_from_grib2(RAP_FILE_NAME_LOCAL,
-                                 grib2_var_name=H500_NAME_GRIB,
-                                 text_file_name=RAP_H500_FILE_NAME,
-                                 wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
-                                 num_grid_rows=NUM_ROWS_IN_RAP,
-                                 num_grid_columns=NUM_COLUMNS_IN_RAP,
-                                 sentinel_value=RAP_SENTINEL_VALUE))
+    RAP_H500_MATRIX_METRES = read_field_from_grib_file(
+        RAP_FILE_NAME_LOCAL, grib1_field_name=H500_NAME_GRIB,
+        single_field_file_name=RAP_H500_FILE_NAME,
+        wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT, num_grid_rows=NUM_ROWS_IN_RAP,
+        num_grid_columns=NUM_COLUMNS_IN_RAP, sentinel_value=RAP_SENTINEL_VALUE)
     print RAP_H500_MATRIX_METRES
     print numpy.nanmin(RAP_H500_MATRIX_METRES)
     print numpy.nanmax(RAP_H500_MATRIX_METRES)

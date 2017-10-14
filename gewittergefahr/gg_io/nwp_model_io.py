@@ -1,16 +1,10 @@
-"""IO methods for data from NWP (numerical weather prediction) models.
-
-Strings created by time_unix_sec_to_month_string, time_unix_sec_to_date_string,
-time_unix_sec_to_hour_string, and lead_time_hours_to_string are used in
-file/directory names on the NCDC (National Climatic Data Center) website.  Thus,
-these strings are needed to locate model output for a given initialization time
-and lead time.
-"""
+"""IO methods for NWP (numerical weather prediction) data."""
 
 import os.path
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import downloads
-from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import narr_utils
+from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -18,76 +12,139 @@ TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_DATE = '%Y%m%d'
 TIME_FORMAT_HOUR = '%Y%m%d_%H00'
 
-TEXT_FILE_EXTENSION = '.txt'
+SINGLE_FIELD_FILE_EXTENSION = '.txt'
+
+RAP_MODEL_NAME = 'rap'
+NARR_MODEL_NAME = 'narr'
+MODEL_NAMES = [RAP_MODEL_NAME, NARR_MODEL_NAME]
+
+RAP_GRID_IDS = [rap_model_utils.ID_FOR_130GRID, rap_model_utils.ID_FOR_252GRID]
+NARR_ID_FOR_GRIB_FILE_NAMES = 'narr-a_221'
 
 
-def _lead_time_number_to_string(lead_time_hours):
+def _lead_time_to_string(lead_time_hours):
     """Converts lead time from number to string.
 
     :param lead_time_hours: Lead time (integer).
-    :return: lead_time_hour_string: String describing lead time.  This will have
-        3 digits, with leading zeros if necessary.
+    :return: lead_time_hour_string: Lead time as string.  This will have 3
+        digits, with leading zeros if necessary.
     """
 
     return '{0:03d}'.format(lead_time_hours)
 
 
-def _get_pathless_raw_file_name(init_time_unix_sec, lead_time_hours,
-                                model_id=None, file_extension=None):
-    """Generates pathless name for raw file.
+def _check_model_name(model_name):
+    """Ensures that model name is valid.
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :raises: ValueError: if model name is not recognized.
+    """
+
+    if model_name not in MODEL_NAMES:
+        error_string = (
+            '\n\n' + str(MODEL_NAMES) +
+            '\n\nValid models (listed above) do not include the following: "' +
+            model_name + '"')
+        raise ValueError(error_string)
+
+
+def _get_model_id_for_grib_file_names(model_name, grid_id=None):
+    """Generates model ID for grib file names.
+
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :return: model_id: Model ID for grib file names (examples: "narr-a_221",
+        "rap_130", "rap_252").
+    """
+
+    check_grid_id(model_name, grid_id=grid_id)
+    if model_name == NARR_MODEL_NAME:
+        return NARR_ID_FOR_GRIB_FILE_NAMES
+
+    return '{0:s}_{1:s}'.format(model_name, grid_id)
+
+
+def _get_pathless_grib_file_name(init_time_unix_sec, lead_time_hours,
+                                 model_name=None, grid_id=None, grib_type=None):
+    """Generates pathless name for grib file.
+
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param model_id: Model ID for use in pathless file name.  Examples:
-        "narr-a_221" for the NARR, "rap_130" for RAP on the 130 grid.
-    :param file_extension: File extension.  Examples: "grb" for the NARR, "grb2"
-        for the RAP.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :param grib_type: File type (either "grib1" or "grib2").
     :return: pathless_file_name: Expected pathless file name.
     """
 
     return '{0:s}_{1:s}_{2:s}{3:s}'.format(
-        model_id, time_conversion.unix_sec_to_string(init_time_unix_sec,
-                                                     TIME_FORMAT_HOUR),
-        _lead_time_number_to_string(lead_time_hours), file_extension)
+        _get_model_id_for_grib_file_names(model_name, grid_id=grid_id),
+        time_conversion.unix_sec_to_string(
+            init_time_unix_sec, TIME_FORMAT_HOUR),
+        _lead_time_to_string(lead_time_hours),
+        grib_io.file_type_to_extension(grib_type))
 
 
-def _get_pathless_text_file_name(init_time_unix_sec, lead_time_hours,
-                                 model_id=None, variable_id=None):
-    """Generates pathless name for text file.
+def _get_pathless_single_field_file_name(init_time_unix_sec, lead_time_hours,
+                                         model_name=None, grid_id=None,
+                                         grib1_field_name=None):
+    """Generates pathless name for file with single field.
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    A "single field" is one variable at one time step and all grid cells.
+
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param model_id: Model ID for use in pathless file name.  Examples:
-        "narr-a_221" for the NARR, "rap_130" for RAP on the 130 grid.
-    :param variable_id: Variable ID for use in pathless file name.  Example:
-        "HGT:500mb" for 500-mb height.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
     :return: pathless_file_name: Expected pathless file name.
     """
 
     return '{0:s}_{1:s}_{2:s}_{3:s}{4:s}'.format(
-        model_id, time_conversion.unix_sec_to_string(init_time_unix_sec,
-                                                     TIME_FORMAT_HOUR),
-        _lead_time_number_to_string(lead_time_hours),
-        variable_id.replace(' ', ''), TEXT_FILE_EXTENSION)
+        _get_model_id_for_grib_file_names(model_name, grid_id=grid_id),
+        time_conversion.unix_sec_to_string(
+            init_time_unix_sec, TIME_FORMAT_HOUR),
+        _lead_time_to_string(lead_time_hours),
+        grib1_field_name.replace(' ', ''), SINGLE_FIELD_FILE_EXTENSION)
 
 
-def find_local_raw_file(init_time_unix_sec, lead_time_hours,
-                        top_directory_name=None, model_id=None,
-                        file_extension=None, raise_error_if_missing=True):
-    """Finds raw file on local machine.
+def check_grid_id(model_name, grid_id=None):
+    """Ensures that grid ID is valid for the given model.
 
-    This file should all contain data for one model, one initialization time,
-    and one lead time.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :raises: ValueError: if grid ID is not recognized for the given model.
+    """
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    _check_model_name(model_name)
+    if model_name == RAP_MODEL_NAME and grid_id not in RAP_GRID_IDS:
+        error_string = (
+            '\n\n' + str(RAP_GRID_IDS) + '\n\nValid grid IDs for ' +
+            model_name.upper() +
+            ' model (listed above) do not include the following: "' + grid_id +
+            '"')
+        raise ValueError(error_string)
+
+
+def find_grib_file(init_time_unix_sec, lead_time_hours, top_directory_name=None,
+                   model_name=None, grid_id=None, grib_type=None,
+                   raise_error_if_missing=True):
+    """Finds grib file on local machine.
+
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param top_directory_name: Top-level directory with raw files for the given
-        model.
-    :param model_id: See documentation for _get_pathless_raw_file_name.
-    :param file_extension: See documentation for _get_pathless_raw_file_name.
+    :param top_directory_name: Name of top-level directory with grib files.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :param grib_type: File type (either "grib1" or "grib2").
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.
-    :return: raw_file_name: Path to raw file.  If file is missing but
+        will raise an error.
+    :return: grib_file_name: Path to grib file.  If file is missing but
         raise_error_if_missing = False, this will be the *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
@@ -95,91 +152,94 @@ def find_local_raw_file(init_time_unix_sec, lead_time_hours,
     error_checking.assert_is_integer(init_time_unix_sec)
     error_checking.assert_is_integer(lead_time_hours)
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_string(model_id)
-    error_checking.assert_is_string(file_extension)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_raw_file_name(
-        init_time_unix_sec, lead_time_hours, model_id=model_id,
-        file_extension=file_extension)
+    pathless_file_name = _get_pathless_grib_file_name(
+        init_time_unix_sec, lead_time_hours, model_name=model_name,
+        grid_id=grid_id, grib_type=grib_type)
 
-    raw_file_name = '{0:s}/{1:s}/{2:s}'.format(
+    grib_file_name = '{0:s}/{1:s}/{2:s}'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(init_time_unix_sec,
                                            TIME_FORMAT_MONTH),
         pathless_file_name)
 
-    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+    if raise_error_if_missing and not os.path.isfile(grib_file_name):
         raise ValueError(
-            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+            'Cannot find grib file.  Expected at: ' + grib_file_name)
 
-    return raw_file_name
+    return grib_file_name
 
 
-def find_local_text_file(init_time_unix_sec, lead_time_hours,
-                         top_directory_name=None, model_id=None,
-                         variable_id=None, raise_error_if_missing=True):
-    """Finds text file on local machine.
+def find_single_field_file(init_time_unix_sec, lead_time_hours,
+                           top_directory_name=None, model_name=None,
+                           grid_id=None, grib1_field_name=None,
+                           raise_error_if_missing=True):
+    """Finds file with single field on local machine.
 
-    This file should all contain data for one model, one initialization time,
-    one lead time, and one variable.
+    A "single field" is one variable at one time step and all grid cells.
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param top_directory_name: Top-level directory with text files for the given
-        model.
-    :param model_id: See documentation for _get_pathless_text_file_name.
-    :param variable_id: See documentation for _get_pathless_text_file_name.
+    :param top_directory_name: Name of top-level directory with single-field
+        files.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.
-    :return: text_file_name: Path to text file.  If file is missing but
-        raise_error_if_missing = False, this will be the *expected* path.
+        will raise an error.
+    :return: single_field_file_name: Path to single-field file.  If file is
+        missing but raise_error_if_missing = False, this will be the *expected*
+        path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
     error_checking.assert_is_integer(init_time_unix_sec)
     error_checking.assert_is_integer(lead_time_hours)
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_string(model_id)
-    error_checking.assert_is_string(variable_id)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_text_file_name(
-        init_time_unix_sec, lead_time_hours, model_id=model_id,
-        variable_id=variable_id)
+    pathless_file_name = _get_pathless_single_field_file_name(
+        init_time_unix_sec, lead_time_hours, model_name=model_name,
+        grid_id=grid_id, grib1_field_name=grib1_field_name)
 
-    text_file_name = '{0:s}/{1:s}/{2:s}'.format(
+    single_field_file_name = '{0:s}/{1:s}/{2:s}'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(init_time_unix_sec,
                                            TIME_FORMAT_MONTH),
         pathless_file_name)
 
-    if raise_error_if_missing and not os.path.isfile(text_file_name):
+    if raise_error_if_missing and not os.path.isfile(single_field_file_name):
         raise ValueError(
-            'Cannot find text file.  Expected at location: ' + text_file_name)
+            'Cannot find single-field file.  Expected at: ' +
+            single_field_file_name)
 
-    return text_file_name
+    return single_field_file_name
 
 
-def download_grib_or_grib2_file(init_time_unix_sec, lead_time_hours,
-                                top_online_directory_name=None,
-                                top_local_directory_name=None, model_id=None,
-                                file_extension=None, raise_error_if_fails=True):
-    """Downloads grib or grib2 file to local machine.
+def download_grib_file(init_time_unix_sec, lead_time_hours,
+                       top_online_directory_name=None,
+                       top_local_directory_name=None, model_name=None,
+                       grid_id=None, grib_type=None, raise_error_if_fails=True):
+    """Downloads grib file to local machine.
 
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param top_online_directory_name: Top-level directory with raw files for
-        given model on website.
-    :param top_local_directory_name: Top-level directory with raw files for
-        given model on local machine.
-    :param model_id: See documentation for _get_pathless_raw_file_name.
-    :param file_extension: See documentation for _get_pathless_raw_file_name.
+    :param top_online_directory_name: Name of top-level directory with grib
+        files on website.
+    :param top_local_directory_name: Name of top-level directory with grib files
+        on local machine.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :param grib_type: File type (either "grib1" or "grib2").
     :param raise_error_if_fails: Boolean flag.  If True and download fails, will
-        raise error.
-    :return: local_file_name: Path to grib or grib2 file on local machine.  If
-        download failed but raise_error_if_fails = False, will return None.
-    :raises: ValueError: if raise_error_if_fails = True and download failed.
+        raise an error.
+    :return: local_file_name: Path to grib file on local machine (after
+        downloading).  If download failed but raise_error_if_fails = False, this
+        will be None.
     """
 
     error_checking.assert_is_integer(init_time_unix_sec)
@@ -187,9 +247,9 @@ def download_grib_or_grib2_file(init_time_unix_sec, lead_time_hours,
     error_checking.assert_is_string(top_online_directory_name)
     error_checking.assert_is_boolean(raise_error_if_fails)
 
-    pathless_file_name = _get_pathless_raw_file_name(
-        init_time_unix_sec, lead_time_hours, model_id=model_id,
-        file_extension=file_extension)
+    pathless_file_name = _get_pathless_grib_file_name(
+        init_time_unix_sec, lead_time_hours, model_name=model_name,
+        grid_id=grid_id, grib_type=grib_type)
 
     online_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_online_directory_name,
@@ -199,125 +259,78 @@ def download_grib_or_grib2_file(init_time_unix_sec, lead_time_hours,
                                            TIME_FORMAT_DATE),
         pathless_file_name)
 
-    local_file_name = find_local_raw_file(
+    local_file_name = find_grib_file(
         init_time_unix_sec, lead_time_hours,
-        top_directory_name=top_local_directory_name, model_id=model_id,
-        file_extension=file_extension, raise_error_if_missing=False)
+        top_directory_name=top_local_directory_name, model_name=model_name,
+        grid_id=grid_id, grib_type=grib_type, raise_error_if_missing=False)
 
     return downloads.download_file_via_http(
         online_file_name, local_file_name,
         raise_error_if_fails=raise_error_if_fails)
 
 
-def read_variable_from_grib(grib_file_name, init_time_unix_sec=None,
-                            lead_time_hours=None, grib_var_name=None,
-                            top_local_text_dir_name=None,
-                            model_id_for_text_file=None,
-                            wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
-                            num_grid_rows=None, num_grid_columns=None,
-                            sentinel_value=None, delete_text_file=True):
+def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
+                              lead_time_hours=None,
+                              top_single_field_dir_name=None, model_name=None,
+                              grid_id=None, grib1_field_name=None,
+                              wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+                              wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+                              delete_single_field_file=True,
+                              raise_error_if_fails=True):
     """Reads single field from grib file.
 
-    M = number of grid rows
-    N = number of grid columns
+    A "single field" is one variable at one time step and all grid cells.
 
     :param grib_file_name: Path to input file.
-    :param init_time_unix_sec: Initialization time in Unix format.
+    :param init_time_unix_sec: Model-initialization time (Unix format).
     :param lead_time_hours: Lead time (valid time minus init time).
-    :param grib_var_name: Field name in grib format (example: "HGT:500 mb" for
-        500-mb height).
-    :param top_local_text_dir_name: Top-level directory with text files
-        for the given model.
-    :param model_id_for_text_file: See documentation for
-        _get_pathless_text_file_name.
+    :param top_single_field_dir_name: Name of top-level directory for single-
+        field files.
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :param grib_type: File type (either "grib1" or "grib2").
+    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+        is "HGT:500 mb").
     :param wgrib_exe_name: Path to wgrib executable.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :param sentinel_value: Sentinel value for given model.  All instances of
-        `sentinel_value` will be replaced with NaN.
-    :param delete_text_file: Boolean flag.  If True, text file will be deleted
-        immediately after it is read.
-    :return: text_file_name: Path to output file.  If delete_text_file = True,
-        this is None.
-    """
-
-    error_checking.assert_is_boolean(delete_text_file)
-
-    text_file_name = find_local_text_file(
-        init_time_unix_sec, lead_time_hours,
-        top_directory_name=top_local_text_dir_name,
-        model_id=model_id_for_text_file, variable_id=grib_var_name,
-        raise_error_if_missing=False)
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
-    data_matrix = (
-        grib_io.read_variable_from_grib(grib_file_name,
-                                        grib_var_name=grib_var_name,
-                                        text_file_name=text_file_name,
-                                        wgrib_exe_name=wgrib_exe_name,
-                                        num_grid_rows=num_grid_rows,
-                                        num_grid_columns=num_grid_columns,
-                                        sentinel_value=sentinel_value,
-                                        delete_text_file=delete_text_file))
-
-    if delete_text_file:
-        text_file_name = None
-
-    return data_matrix, text_file_name
-
-
-def read_variable_from_grib2(grib2_file_name, init_time_unix_sec=None,
-                             lead_time_hours=None, grib2_var_name=None,
-                             top_local_text_dir_name=None,
-                             model_id_for_text_file=None,
-                             wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
-                             num_grid_rows=None, num_grid_columns=None,
-                             sentinel_value=None, delete_text_file=True):
-    """Reads single field from grib2 file.
-
-    M = number of grid rows
-    N = number of grid columns
-
-    :param grib2_file_name: Path to input file.
-    :param init_time_unix_sec: Initialization time in Unix format.
-    :param lead_time_hours: Lead time (valid time minus init time).
-    :param grib2_var_name: Field name in grib2 format (example: "HGT:500 mb" for
-        500-mb height).
-    :param top_local_text_dir_name: Top-level directory with text files
-        for the given model.
-    :param model_id_for_text_file: See documentation for
-        _get_pathless_text_file_name.
     :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :param sentinel_value: Sentinel value for given model.  All instances of
-        `sentinel_value` will be replaced with NaN.
-    :param delete_text_file: Boolean flag.  If True, text file will be deleted
-        immediately after it is read.
-    :return: text_file_name: Path to output file.  If delete_text_file = True,
-        this is None.
+    :param delete_single_field_file: Boolean flag.  If True, single-field file
+        will be deleted immediately upon reading.
+    :param raise_error_if_fails: Boolean flag.  If True and field cannot be
+        read, will raise error.  If False and field cannot be read, all return
+        variables will be None.
+    :return: field_matrix: See documentation for
+        `grib_io.read_field_from_grib_file`.
+    :return: single_field_file_name: Path to output file (containing single
+        field).
     """
 
-    error_checking.assert_is_boolean(delete_text_file)
-
-    text_file_name = find_local_text_file(
+    single_field_file_name = find_single_field_file(
         init_time_unix_sec, lead_time_hours,
-        top_directory_name=top_local_text_dir_name,
-        model_id=model_id_for_text_file, variable_id=grib2_var_name,
+        top_directory_name=top_single_field_dir_name, model_name=model_name,
+        grid_id=grid_id, grib1_field_name=grib1_field_name,
         raise_error_if_missing=False)
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=text_file_name)
-    data_matrix = (
-        grib_io.read_variable_from_grib2(grib2_file_name,
-                                         grib2_var_name=grib2_var_name,
-                                         text_file_name=text_file_name,
-                                         wgrib2_exe_name=wgrib2_exe_name,
-                                         num_grid_rows=num_grid_rows,
-                                         num_grid_columns=num_grid_columns,
-                                         sentinel_value=sentinel_value,
-                                         delete_text_file=delete_text_file))
+    if model_name == NARR_MODEL_NAME:
+        num_grid_rows = narr_utils.NUM_GRID_ROWS
+        num_grid_columns = narr_utils.NUM_GRID_COLUMNS
+        sentinel_value = narr_utils.SENTINEL_VALUE
+    else:
+        grid_metadata_dict = rap_model_utils.get_metadata_for_grid(grid_id)
+        num_grid_rows = grid_metadata_dict[rap_model_utils.NUM_ROWS_COLUMN]
+        num_grid_columns = grid_metadata_dict[
+            rap_model_utils.NUM_COLUMNS_COLUMN]
+        sentinel_value = rap_model_utils.SENTINEL_VALUE
 
-    if delete_text_file:
-        text_file_name = None
+    field_matrix = grib_io.read_field_from_grib_file(
+        grib_file_name, grib1_field_name=grib1_field_name,
+        single_field_file_name=single_field_file_name,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+        num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
+        sentinel_value=sentinel_value,
+        delete_single_field_file=delete_single_field_file,
+        raise_error_if_fails=raise_error_if_fails)
 
-    return data_matrix, text_file_name
+    if field_matrix is None:
+        return None, None
+    return field_matrix, single_field_file_name
