@@ -1,6 +1,5 @@
 """Conversion methods for temperature."""
 
-import numpy
 from gewittergefahr.gg_utils import error_checking
 
 FAHRENHEIT_TO_CELSIUS_ADDEND = -32.

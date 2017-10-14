@@ -9,22 +9,33 @@ from gewittergefahr.gg_utils import error_checking
 TIME_FORMAT = '%Y%m%d-%H%M%S'
 HOURS_TO_SECONDS = 3600
 
-MAIN_TEMPERATURE_COLUMN = 'temperature_kelvins'
-MAIN_RH_COLUMN = 'relative_humidity'
-MAIN_SPFH_COLUMN = 'specific_humidity'
-MAIN_GPH_COLUMN = 'geopotential_height_metres'
-MAIN_U_WIND_COLUMN = 'u_wind_m_s01'
-MAIN_V_WIND_COLUMN = 'v_wind_m_s01'
+TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES = 'temperature_kelvins'
+RH_COLUMN_FOR_SOUNDING_TABLES = 'relative_humidity_percent'
+SPFH_COLUMN_FOR_SOUNDING_TABLES = 'specific_humidity'
+HEIGHT_COLUMN_FOR_SOUNDING_TABLES = 'geopotential_height_metres'
+U_WIND_COLUMN_FOR_SOUNDING_TABLES = 'u_wind_m_s01'
+V_WIND_COLUMN_FOR_SOUNDING_TABLES = 'v_wind_m_s01'
+
+TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES_GRIB1 = 'TMP'
+RH_COLUMN_FOR_SOUNDING_TABLES_GRIB1 = 'RH'
+SPFH_COLUMN_FOR_SOUNDING_TABLES_GRIB1 = 'SPFH'
+HEIGHT_COLUMN_FOR_SOUNDING_TABLES_GRIB1 = 'HGT'
+U_WIND_COLUMN_FOR_SOUNDING_TABLES_GRIB1 = 'UGRD'
+V_WIND_COLUMN_FOR_SOUNDING_TABLES_GRIB1 = 'VGRD'
 
 MIN_QUERY_TIME_COLUMN = 'min_query_time_unix_sec'
 MAX_QUERY_TIME_COLUMN = 'max_query_time_unix_sec'
 MODEL_TIMES_COLUMN = 'model_times_unix_sec'
 MODEL_TIMES_NEEDED_COLUMN = 'model_time_needed_flags'
 
-LINEAR_AND_SUBLINEAR_INTERP_METHODS = ['linear', 'nearest', 'zero', 'slinear']
+PREVIOUS_INTERP_METHOD = 'previous'
+NEXT_INTERP_METHOD = 'next'
+NOT_REALLY_INTERP_METHODS = [PREVIOUS_INTERP_METHOD, NEXT_INTERP_METHOD]
+SUB_AND_LINEAR_INTERP_METHODS = ['linear', 'nearest', 'zero', 'slinear']
 SUPERLINEAR_INTERP_METHODS = ['quadratic', 'cubic']
 TEMPORAL_INTERP_METHODS = (
-    LINEAR_AND_SUBLINEAR_INTERP_METHODS + SUPERLINEAR_INTERP_METHODS)
+    NOT_REALLY_INTERP_METHODS + SUB_AND_LINEAR_INTERP_METHODS +
+    SUPERLINEAR_INTERP_METHODS)
 
 
 def get_times_needed_for_interp(query_times_unix_sec=None,
@@ -42,8 +53,9 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
         interpolating between model runs (forecasts for the same valid time but
         from different initializations), this should be the model's refresh time
         (hours between successive model runs).
-    :param method_string: Interpolation method.  Valid options are listed in
-        `TEMPORAL_INTERP_METHODS` and described in the documentation for
+    :param method_string: Interpolation method.  Valid options are "previous",
+        "next", "linear", "nearest", "zero", "slinear", "quadratic", and
+        "cubic".  The last 6 methods are described in the documentation for
         `scipy.interpolate.interp1d`.
     :return: model_times_unix_sec: length-M numpy array of model times needed
         (Unix format).
@@ -92,11 +104,22 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
         min_min_query_time_unix_sec + model_time_step_sec,
         max_max_query_time_unix_sec, num=num_ranges, dtype=int)
 
-    min_model_time_unix_sec = copy.deepcopy(min_min_query_time_unix_sec)
-    max_model_time_unix_sec = copy.deepcopy(max_max_query_time_unix_sec)
-    if method_string in SUPERLINEAR_INTERP_METHODS:
-        min_model_time_unix_sec -= model_time_step_sec
-        max_model_time_unix_sec += model_time_step_sec
+    if method_string == PREVIOUS_INTERP_METHOD:
+        min_model_time_unix_sec = copy.deepcopy(min_min_query_time_unix_sec)
+        max_model_time_unix_sec = (
+            max_max_query_time_unix_sec - model_time_step_sec)
+    elif method_string == NEXT_INTERP_METHOD:
+        min_model_time_unix_sec = (
+            min_min_query_time_unix_sec + model_time_step_sec)
+        max_model_time_unix_sec = copy.deepcopy(max_max_query_time_unix_sec)
+    elif method_string in SUB_AND_LINEAR_INTERP_METHODS:
+        min_model_time_unix_sec = copy.deepcopy(min_min_query_time_unix_sec)
+        max_model_time_unix_sec = copy.deepcopy(max_max_query_time_unix_sec)
+    else:
+        min_model_time_unix_sec = (
+            min_min_query_time_unix_sec - model_time_step_sec)
+        max_model_time_unix_sec = (
+            max_max_query_time_unix_sec + model_time_step_sec)
 
     num_model_times = int((max_model_time_unix_sec -
                            min_model_time_unix_sec) / model_time_step_sec) + 1
@@ -118,7 +141,13 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
         **argument_dict)
 
     for i in range(num_ranges):
-        if method_string in LINEAR_AND_SUBLINEAR_INTERP_METHODS:
+        if method_string == PREVIOUS_INTERP_METHOD:
+            these_model_times_unix_sec = numpy.array(
+                [min_query_times_unix_sec[i]], dtype=int)
+        elif method_string == NEXT_INTERP_METHOD:
+            these_model_times_unix_sec = numpy.array(
+                [max_query_times_unix_sec[i]], dtype=int)
+        elif method_string in SUB_AND_LINEAR_INTERP_METHODS:
             these_model_times_unix_sec = numpy.array(
                 [min_query_times_unix_sec[i], max_query_times_unix_sec[i]],
                 dtype=int)
@@ -134,61 +163,6 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
             t in these_model_times_unix_sec for t in model_times_unix_sec]
 
     return model_times_unix_sec, query_to_model_times_table
-
-
-def get_times_needed_for_interp_old(min_query_time_unix_sec=None,
-                                    max_query_time_unix_sec=None,
-                                    model_time_step_hours=None,
-                                    method_string=None):
-    """Finds model times needed for interpolation to a range of query times.
-
-    :param min_query_time_unix_sec: Minimum query time (Unix format).
-    :param max_query_time_unix_sec: Maximum query time (Unix format).
-    :param model_time_step_hours: Model time step.  If interpolating between
-        forecast times (from the same initialization), this should be the
-        model's time resolution (hours between successive forecasts).  If
-        interpolating between model runs (forecasts for the same valid time but
-        from different initializations), this should be the model's refresh time
-        (hours between successive model runs).
-    :param method_string: Interpolation method.  Valid options are listed in
-        `TEMPORAL_INTERP_METHODS` and described in the documentation for
-        `scipy.interpolate.interp1d`.
-    :return: model_times_unix_sec: 1-D numpy array of model times needed for
-        interpolation.
-    :raises: ValueError: if method_string not in TEMPORAL_INTERP_METHODS.
-    """
-
-    # TODO(thunderhoser): get rid of this method.
-
-    error_checking.assert_is_integer(min_query_time_unix_sec)
-    error_checking.assert_is_integer(max_query_time_unix_sec)
-    error_checking.assert_is_geq(max_query_time_unix_sec,
-                                 min_query_time_unix_sec)
-    error_checking.assert_is_integer(model_time_step_hours)
-    error_checking.assert_is_string(method_string)
-
-    if method_string not in TEMPORAL_INTERP_METHODS:
-        error_string = (
-            '\n\n' + str(TEMPORAL_INTERP_METHODS) +
-            '\n\nValid temporal-interp methods (listed above) do not include "'
-            + method_string + '".')
-        raise ValueError(error_string)
-
-    model_time_step_sec = model_time_step_hours * HOURS_TO_SECONDS
-    min_model_time_unix_sec = rounder.floor_to_nearest(
-        float(min_query_time_unix_sec), model_time_step_sec)
-    max_model_time_unix_sec = rounder.ceiling_to_nearest(
-        float(max_query_time_unix_sec), model_time_step_sec)
-    if method_string in SUPERLINEAR_INTERP_METHODS:
-        min_model_time_unix_sec -= model_time_step_sec
-        max_model_time_unix_sec += model_time_step_sec
-
-    num_model_times = int(
-        1 + (max_model_time_unix_sec -
-             min_model_time_unix_sec) / model_time_step_sec)
-    return numpy.linspace(
-        min_model_time_unix_sec, max_model_time_unix_sec, num=num_model_times,
-        dtype=int)
 
 
 def rotate_winds(u_winds_grid_relative_m_s01=None,
