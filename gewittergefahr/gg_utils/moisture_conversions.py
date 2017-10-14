@@ -133,12 +133,15 @@ def specific_humidity_to_dewpoint(specific_humidities_kg_kg01,
     return vapour_pressure_to_dewpoint(vapour_pressures_pascals)
 
 
-def relative_humidity_to_dewpoint(relative_humidities, temperatures_kelvins):
+def relative_humidity_to_dewpoint(relative_humidities, temperatures_kelvins,
+                                  total_pressures_pascals):
     """Converts one or more relative humidities to dewpoints.
 
     :param relative_humidities: numpy array of relative humidities (unitless).
     :param temperatures_kelvins: equivalent-size numpy array of air temperatures
         (K).
+    :param total_pressures_pascals: equivalent-size numpy array of total air
+        pressures (K).
     :return: dewpoints_kelvins: equivalent-size numpy array of dewpoints (K).
     """
 
@@ -148,6 +151,11 @@ def relative_humidity_to_dewpoint(relative_humidities, temperatures_kelvins):
     error_checking.assert_is_numpy_array(
         temperatures_kelvins, exact_dimensions=rh_dimensions)
 
-    vapour_pressures_pascals = (
-        relative_humidities * dewpoint_to_vapour_pressure(temperatures_kelvins))
+    saturated_vapour_pressures_pascals = dewpoint_to_vapour_pressure(
+        temperatures_kelvins)
+    saturated_mixing_ratios_kg_kg01 = vapour_pressure_to_mixing_ratio(
+        saturated_vapour_pressures_pascals, total_pressures_pascals)
+    vapour_pressures_pascals = mixing_ratio_to_vapour_pressure(
+        relative_humidities * saturated_mixing_ratios_kg_kg01,
+        total_pressures_pascals)
     return vapour_pressure_to_dewpoint(vapour_pressures_pascals)

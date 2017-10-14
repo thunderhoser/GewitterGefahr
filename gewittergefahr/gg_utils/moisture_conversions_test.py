@@ -15,8 +15,8 @@ VAPOUR_PRESSURES_PASCALS = numpy.array(
 DEWPOINTS_KELVINS = numpy.array(
     [230.607063, 255.782666, 276.925618, 287.202593, 298.220939])
 TEMPERATURES_KELVINS = numpy.array([273.15, 278.15, 283.15, 288.15, 298.15])
-RELATIVIE_HUMIDITIES = numpy.array(
-    [0.025767, 0.182124, 0.650499, 0.939869, 1.004331])
+RELATIVE_HUMIDITIES = numpy.array(
+    [0.025610, 0.180807, 0.647675, 0.938892, 1.004473])
 
 
 class MoistureConversionsTests(unittest.TestCase):
@@ -89,7 +89,7 @@ class MoistureConversionsTests(unittest.TestCase):
         """Ensures correct output from relative_humidity_to_dewpoint."""
 
         these_dewpoints_k = moisture_conversions.relative_humidity_to_dewpoint(
-            RELATIVIE_HUMIDITIES, TEMPERATURES_KELVINS)
+            RELATIVE_HUMIDITIES, TEMPERATURES_KELVINS, TOTAL_PRESSURES_PASCALS)
         self.assertTrue(numpy.allclose(
             these_dewpoints_k, DEWPOINTS_KELVINS, atol=TOLERANCE))
 
