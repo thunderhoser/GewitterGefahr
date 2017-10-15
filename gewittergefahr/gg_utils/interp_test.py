@@ -6,6 +6,7 @@ from gewittergefahr.gg_utils import interp
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test interp_in_time.
 INPUT_MATRIX_TIME0 = numpy.array([[0., 2., 5., 10.],
                                   [-2., 1., 3., 6.],
                                   [-3.5, -2.5, 3., 8.]])
@@ -39,20 +40,27 @@ EXPECTED_QUERY_MATRIX_TRUE_INTERP = numpy.stack(
 EXPECTED_QUERY_MATRIX_EXTRAP = numpy.expand_dims(EXPECTED_QUERY_MATRIX_TIME8,
                                                  axis=-1)
 
+# The following constants are used to test interp_from_xy_grid_to_points.
 INPUT_MATRIX_FOR_SPATIAL_INTERP = numpy.array([[17., 24., 1., 8.],
                                                [23., 5., 7., 14.],
                                                [4., 6., 13., 20.],
                                                [10., 12., 19., 21.],
                                                [11., 18., 25., 2.]])
 
-POLYNOMIAL_DEGREE_FOR_SPATIAL_INTERP = 1
+SPLINE_DEGREE = 1  # linear
 GRID_POINT_X_METRES = numpy.array([0., 1., 2., 3.])
 GRID_POINT_Y_METRES = numpy.array([0., 2., 4., 6., 8.])
-QUERY_X_METRES = numpy.array([0., 0.5, 1., 1.5, 2., 2.5, 3.])
-QUERY_Y_METRES = numpy.array([0., 2., 2.5, 3., 5., 6., 7.5])
-
-EXPECTED_QUERY_VALUES_FOR_SPATIAL_INTERP = numpy.array(
+QUERY_X_FOR_SPLINE_METRES = numpy.array([0., 0.5, 1., 1.5, 2., 2.5, 3.])
+QUERY_Y_FOR_SPLINE_METRES = numpy.array([0., 2., 2.5, 3., 5., 6., 7.5])
+EXPECTED_QUERY_VALUES_FOR_SPLINE = numpy.array(
     [17., 14., 5.25, 7.75, 16., 20., 6.75])
+
+QUERY_X_FOR_NEAREST_NEIGH_METRES = numpy.array(
+    [0., 0.3, 0.7, 1.2, 1.8, 2.1, 2.9])
+QUERY_Y_FOR_NEAREST_NEIGH_METRES = numpy.array(
+    [0.5, 1.5, 2.5, 4., 5.5, 6.5, 7.7])
+EXPECTED_QUERY_VALUES_FOR_NEAREST_NEIGH = numpy.array(
+    [17., 23., 5., 6., 19., 19., 2])
 
 
 class InterpTests(unittest.TestCase):
@@ -88,19 +96,42 @@ class InterpTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_query_matrix, EXPECTED_QUERY_MATRIX_EXTRAP, atol=TOLERANCE))
 
-    def test_interp_from_xy_grid_to_points(self):
-        """Ensures correct output from interp_from_xy_grid_to_points."""
+    def test_interp_from_xy_grid_to_points_spline(self):
+        """Ensures correct output from interp_from_xy_grid_to_points.
+
+        In this case the interp method is linear spline.
+        """
 
         these_query_values = interp.interp_from_xy_grid_to_points(
             INPUT_MATRIX_FOR_SPATIAL_INTERP,
             sorted_grid_point_x_metres=GRID_POINT_X_METRES,
             sorted_grid_point_y_metres=GRID_POINT_Y_METRES,
-            query_x_metres=QUERY_X_METRES, query_y_metres=QUERY_Y_METRES,
-            polynomial_degree=POLYNOMIAL_DEGREE_FOR_SPATIAL_INTERP)
+            query_x_metres=QUERY_X_FOR_SPLINE_METRES,
+            query_y_metres=QUERY_Y_FOR_SPLINE_METRES,
+            method_string=interp.SPLINE_INTERP_METHOD,
+            spline_degree=SPLINE_DEGREE)
 
-        self.assertTrue(numpy.allclose(these_query_values,
-                                       EXPECTED_QUERY_VALUES_FOR_SPATIAL_INTERP,
-                                       atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_query_values, EXPECTED_QUERY_VALUES_FOR_SPLINE,
+            atol=TOLERANCE))
+
+    def test_interp_from_xy_grid_to_points_nearest(self):
+        """Ensures correct output from interp_from_xy_grid_to_points.
+
+        In this case the interp method is nearest-neighbour.
+        """
+
+        these_query_values = interp.interp_from_xy_grid_to_points(
+            INPUT_MATRIX_FOR_SPATIAL_INTERP,
+            sorted_grid_point_x_metres=GRID_POINT_X_METRES,
+            sorted_grid_point_y_metres=GRID_POINT_Y_METRES,
+            query_x_metres=QUERY_X_FOR_NEAREST_NEIGH_METRES,
+            query_y_metres=QUERY_Y_FOR_NEAREST_NEIGH_METRES,
+            method_string=interp.NEAREST_INTERP_METHOD)
+
+        self.assertTrue(numpy.allclose(
+            these_query_values, EXPECTED_QUERY_VALUES_FOR_NEAREST_NEIGH,
+            atol=TOLERANCE))
 
 
 if __name__ == '__main__':
