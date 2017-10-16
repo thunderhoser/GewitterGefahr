@@ -2,6 +2,7 @@
 
 import unittest
 from gewittergefahr.gg_io import nwp_model_io
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import rap_model_utils
 
 LEAD_TIME_HOURS_1DIGIT = 9
@@ -10,9 +11,6 @@ LEAD_TIME_HOURS_2DIGITS = 12
 LEAD_TIME_STRING_2DIGITS = '012'
 LEAD_TIME_HOURS_3DIGITS = 144
 LEAD_TIME_STRING_3DIGITS = '144'
-
-FAKE_MODEL_NAME = 'foo'
-FAKE_GRID_ID = '9999'
 
 MODEL_ID_RAP130 = 'rap_130'
 MODEL_ID_RAP252 = 'rap_252'
@@ -70,31 +68,6 @@ class NwpModelIoTests(unittest.TestCase):
             LEAD_TIME_HOURS_3DIGITS)
         self.assertTrue(this_lead_time_string == LEAD_TIME_STRING_3DIGITS)
 
-    def test_check_model_name_rap(self):
-        """Ensures correct output from _check_model_name.
-
-        In this case, model is RAP.
-        """
-
-        nwp_model_io._check_model_name(nwp_model_io.RAP_MODEL_NAME)
-
-    def test_check_model_name_narr(self):
-        """Ensures correct output from _check_model_name.
-
-        In this case, model is NARR.
-        """
-
-        nwp_model_io._check_model_name(nwp_model_io.NARR_MODEL_NAME)
-
-    def test_check_model_name_fake(self):
-        """Ensures correct output from _check_model_name.
-
-        In this case, model is unrecognized.
-        """
-
-        with self.assertRaises(ValueError):
-            nwp_model_io._check_model_name(FAKE_MODEL_NAME)
-
     def test_get_model_id_for_grib_file_names_rap130(self):
         """Ensures correct output from _get_model_id_for_grib_file_names.
 
@@ -102,7 +75,7 @@ class NwpModelIoTests(unittest.TestCase):
         """
 
         this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
-            nwp_model_io.RAP_MODEL_NAME, rap_model_utils.ID_FOR_130GRID)
+            nwp_model_utils.RAP_MODEL_NAME, rap_model_utils.ID_FOR_130GRID)
         self.assertTrue(this_model_id == MODEL_ID_RAP130)
 
     def test_get_model_id_for_grib_file_names_rap252(self):
@@ -112,7 +85,7 @@ class NwpModelIoTests(unittest.TestCase):
         """
 
         this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
-            nwp_model_io.RAP_MODEL_NAME, rap_model_utils.ID_FOR_252GRID)
+            nwp_model_utils.RAP_MODEL_NAME, rap_model_utils.ID_FOR_252GRID)
         self.assertTrue(this_model_id == MODEL_ID_RAP252)
 
     def test_get_model_id_for_grib_file_names_narr(self):
@@ -122,7 +95,7 @@ class NwpModelIoTests(unittest.TestCase):
         """
 
         this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
-            nwp_model_io.NARR_MODEL_NAME)
+            nwp_model_utils.NARR_MODEL_NAME)
         self.assertTrue(this_model_id == MODEL_ID_NARR)
 
     def test_get_pathless_grib_file_name(self):
@@ -147,42 +120,6 @@ class NwpModelIoTests(unittest.TestCase):
 
         self.assertTrue(
             this_pathless_file_name == PATHLESS_SINGLE_FIELD_FILE_NAME)
-
-    def test_check_grid_id_narr(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, model is NARR.
-        """
-
-        nwp_model_io.check_grid_id(nwp_model_io.NARR_MODEL_NAME)
-
-    def test_check_grid_id_rap130(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, model is RAP on the 130 grid.
-        """
-
-        nwp_model_io.check_grid_id(nwp_model_io.RAP_MODEL_NAME,
-                                   rap_model_utils.ID_FOR_130GRID)
-
-    def test_check_grid_id_rap252(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, model is RAP on the 252 grid.
-        """
-
-        nwp_model_io.check_grid_id(nwp_model_io.RAP_MODEL_NAME,
-                                   rap_model_utils.ID_FOR_252GRID)
-
-    def test_check_grid_id_fake_grid(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, grid ID is not recognized.
-        """
-
-        with self.assertRaises(ValueError):
-            nwp_model_io.check_grid_id(nwp_model_io.RAP_MODEL_NAME,
-                                       FAKE_GRID_ID)
 
     def test_find_grib_file(self):
         """Ensures correct output from find_grib_file."""

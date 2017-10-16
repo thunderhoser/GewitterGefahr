@@ -6,8 +6,16 @@ import pandas
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
-TIME_FORMAT = '%Y%m%d-%H%M%S'
 HOURS_TO_SECONDS = 3600
+TIME_FORMAT = '%Y%m%d-%H%M%S'
+
+RAP_MODEL_NAME = 'rap'
+NARR_MODEL_NAME = 'narr'
+MODEL_NAMES = [RAP_MODEL_NAME, NARR_MODEL_NAME]
+
+ID_FOR_130GRID = '130'
+ID_FOR_252GRID = '252'
+RAP_GRID_IDS = [ID_FOR_130GRID, ID_FOR_252GRID]
 
 TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES = 'temperature_kelvins'
 RH_COLUMN_FOR_SOUNDING_TABLES = 'relative_humidity_percent'
@@ -36,6 +44,42 @@ SUPERLINEAR_INTERP_METHODS = ['quadratic', 'cubic']
 TEMPORAL_INTERP_METHODS = (
     NOT_REALLY_INTERP_METHODS + SUB_AND_LINEAR_INTERP_METHODS +
     SUPERLINEAR_INTERP_METHODS)
+
+
+def check_model_name(model_name):
+    """Ensures that model name is valid.
+
+    :param model_name: Name of model (either "rap" or "narr" -- this list will
+        be expanded if/when more NWP models are included in GewitterGefahr).
+    :raises: ValueError: model_name is not in list of valid names.
+    """
+
+    error_checking.assert_is_string(model_name)
+    if model_name not in MODEL_NAMES:
+        error_string = (
+            '\n\n' + str(MODEL_NAMES) +
+            '\n\nValid model names (listed above) do not include "' +
+            model_name + '".')
+        raise ValueError(error_string)
+
+
+def check_grid_id(model_name, grid_id=None):
+    """Ensures that grid ID is valid for the given model.
+
+    :param model_name: Name of model (examples: "rap" and "narr").
+    :param grid_id: String ID for RAP grid (either "130" or "252").  If
+        model_name != "rap", this can be left as None.
+    :raises: ValueError: if grid ID is not recognized for the given model.
+    """
+
+    check_model_name(model_name)
+    if model_name == RAP_MODEL_NAME and grid_id not in RAP_GRID_IDS:
+        error_string = (
+            '\n\n' + str(RAP_GRID_IDS) + '\n\nValid grid IDs for ' +
+            model_name.upper() +
+            ' model (listed above) do not include the following: "' + grid_id +
+            '"')
+        raise ValueError(error_string)
 
 
 def get_times_needed_for_interp(query_times_unix_sec=None,

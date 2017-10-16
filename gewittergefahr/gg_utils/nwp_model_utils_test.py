@@ -7,6 +7,9 @@ from gewittergefahr.gg_utils import nwp_model_utils
 
 TOLERANCE = 1e-6
 
+FAKE_MODEL_NAME = 'foo'
+FAKE_GRID_ID = '9999'
+
 MODEL_TIME_STEP_HOURS = 3
 FAKE_INTERP_METHOD = 'foo'
 SUBLINEAR_INTERP_METHOD = 'nearest'
@@ -166,6 +169,67 @@ V_WINDS_EARTH_RELATIVE_M_S01 = numpy.array(
 
 class NwpModelUtilsTests(unittest.TestCase):
     """Each method is a unit test for nwp_model_utils.py."""
+
+    def test_check_model_name_rap(self):
+        """Ensures correct output from check_model_name.
+
+        In this case, model is RAP.
+        """
+
+        nwp_model_utils.check_model_name(nwp_model_utils.RAP_MODEL_NAME)
+
+    def test_check_model_name_narr(self):
+        """Ensures correct output from check_model_name.
+
+        In this case, model is NARR.
+        """
+
+        nwp_model_utils.check_model_name(nwp_model_utils.NARR_MODEL_NAME)
+
+    def test_check_model_name_fake(self):
+        """Ensures correct output from check_model_name.
+
+        In this case, model name is not recognized.
+        """
+
+        with self.assertRaises(ValueError):
+            nwp_model_utils.check_model_name(FAKE_MODEL_NAME)
+
+    def test_check_grid_id_narr(self):
+        """Ensures correct output from check_grid_id.
+
+        In this case, model is NARR.
+        """
+
+        nwp_model_utils.check_grid_id(nwp_model_utils.NARR_MODEL_NAME)
+
+    def test_check_grid_id_rap130(self):
+        """Ensures correct output from check_grid_id.
+
+        In this case, model is RAP on the 130 grid.
+        """
+
+        nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
+                                      nwp_model_utils.ID_FOR_130GRID)
+
+    def test_check_grid_id_rap252(self):
+        """Ensures correct output from check_grid_id.
+
+        In this case, model is RAP on the 252 grid.
+        """
+
+        nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
+                                      nwp_model_utils.ID_FOR_252GRID)
+
+    def test_check_grid_id_fake_grid(self):
+        """Ensures correct output from check_grid_id.
+
+        In this case, grid ID is not recognized.
+        """
+
+        with self.assertRaises(ValueError):
+            nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
+                                          FAKE_GRID_ID)
 
     def test_get_times_needed_for_interp_bad_interp_method(self):
         """Ensures correct output from get_times_needed_for_interp.

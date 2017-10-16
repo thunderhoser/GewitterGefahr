@@ -104,7 +104,8 @@ def read_field_from_grib_file(grib_file_name, valid_time_unix_sec=None,
 
     :param grib_file_name: Path to input file.
     :param valid_time_unix_sec: Valid time (Unix format).
-    :param top_directory_name: Top-level directory with single-field NARR files.
+    :param top_single_field_dir_name: Top-level directory with single-field NARR
+        files.
     :param grib1_field_name: Field name in grib1 format (example: 500-mb height
         is "HGT:500 mb").
     :param wgrib_exe_name: Path to wgrib executable.

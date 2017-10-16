@@ -3,6 +3,7 @@
 import os.path
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import downloads
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import narr_utils
 from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import time_conversion
@@ -13,10 +14,6 @@ TIME_FORMAT_DATE = '%Y%m%d'
 TIME_FORMAT_HOUR = '%Y%m%d_%H00'
 
 SINGLE_FIELD_FILE_EXTENSION = '.txt'
-
-RAP_MODEL_NAME = 'rap'
-NARR_MODEL_NAME = 'narr'
-MODEL_NAMES = [RAP_MODEL_NAME, NARR_MODEL_NAME]
 
 RAP_GRID_IDS = [rap_model_utils.ID_FOR_130GRID, rap_model_utils.ID_FOR_252GRID]
 NARR_ID_FOR_GRIB_FILE_NAMES = 'narr-a_221'
@@ -33,21 +30,6 @@ def _lead_time_to_string(lead_time_hours):
     return '{0:03d}'.format(lead_time_hours)
 
 
-def _check_model_name(model_name):
-    """Ensures that model name is valid.
-
-    :param model_name: Name of model (examples: "rap" and "narr").
-    :raises: ValueError: if model name is not recognized.
-    """
-
-    if model_name not in MODEL_NAMES:
-        error_string = (
-            '\n\n' + str(MODEL_NAMES) +
-            '\n\nValid models (listed above) do not include the following: "' +
-            model_name + '"')
-        raise ValueError(error_string)
-
-
 def _get_model_id_for_grib_file_names(model_name, grid_id=None):
     """Generates model ID for grib file names.
 
@@ -58,8 +40,8 @@ def _get_model_id_for_grib_file_names(model_name, grid_id=None):
         "rap_130", "rap_252").
     """
 
-    check_grid_id(model_name, grid_id=grid_id)
-    if model_name == NARR_MODEL_NAME:
+    nwp_model_utils.check_grid_id(model_name, grid_id=grid_id)
+    if model_name == nwp_model_utils.NARR_MODEL_NAME:
         return NARR_ID_FOR_GRIB_FILE_NAMES
 
     return '{0:s}_{1:s}'.format(model_name, grid_id)
@@ -109,25 +91,6 @@ def _get_pathless_single_field_file_name(init_time_unix_sec, lead_time_hours,
             init_time_unix_sec, TIME_FORMAT_HOUR),
         _lead_time_to_string(lead_time_hours),
         grib1_field_name.replace(' ', ''), SINGLE_FIELD_FILE_EXTENSION)
-
-
-def check_grid_id(model_name, grid_id=None):
-    """Ensures that grid ID is valid for the given model.
-
-    :param model_name: Name of model (examples: "rap" and "narr").
-    :param grid_id: String ID for RAP grid (either "130" or "252").  If
-        model_name != "rap", this can be left as None.
-    :raises: ValueError: if grid ID is not recognized for the given model.
-    """
-
-    _check_model_name(model_name)
-    if model_name == RAP_MODEL_NAME and grid_id not in RAP_GRID_IDS:
-        error_string = (
-            '\n\n' + str(RAP_GRID_IDS) + '\n\nValid grid IDs for ' +
-            model_name.upper() +
-            ' model (listed above) do not include the following: "' + grid_id +
-            '"')
-        raise ValueError(error_string)
 
 
 def find_grib_file(init_time_unix_sec, lead_time_hours, top_directory_name=None,
@@ -289,7 +252,6 @@ def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
     :param model_name: Name of model (examples: "rap" and "narr").
     :param grid_id: String ID for RAP grid (either "130" or "252").  If
         model_name != "rap", this can be left as None.
-    :param grib_type: File type (either "grib1" or "grib2").
     :param grib1_field_name: Field name in grib1 format (example: 500-mb height
         is "HGT:500 mb").
     :param wgrib_exe_name: Path to wgrib executable.
@@ -311,7 +273,7 @@ def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
         grid_id=grid_id, grib1_field_name=grib1_field_name,
         raise_error_if_missing=False)
 
-    if model_name == NARR_MODEL_NAME:
+    if model_name == nwp_model_utils.NARR_MODEL_NAME:
         num_grid_rows = narr_utils.NUM_GRID_ROWS
         num_grid_columns = narr_utils.NUM_GRID_COLUMNS
         sentinel_value = narr_utils.SENTINEL_VALUE

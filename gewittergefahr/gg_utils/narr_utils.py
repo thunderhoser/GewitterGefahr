@@ -10,6 +10,8 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
 
+GRIB_TYPE = 'grib1'
+
 X_MIN_METRES = 0.
 Y_MIN_METRES = 0.
 X_SPACING_METRES = 32463.
@@ -27,29 +29,33 @@ PRESSURE_LEVELS_MB = numpy.concatenate((
 
 IS_WIND_EARTH_RELATIVE = True
 
-MAIN_TEMPERATURE_COLUMN_ORIG = 'TMP'
-MAIN_SPFH_COLUMN_ORIG = 'SPFH'
-MAIN_GPH_COLUMN_ORIG = 'HGT'
-MAIN_U_WIND_COLUMN_ORIG = 'UGRD'
-MAIN_V_WIND_COLUMN_ORIG = 'VGRD'
+COLUMNS_IN_SOUNDING_TABLE = [
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES]
 
-MAIN_SOUNDING_COLUMNS = [
-    nwp_model_utils.MAIN_TEMPERATURE_COLUMN, nwp_model_utils.MAIN_SPFH_COLUMN,
-    nwp_model_utils.MAIN_GPH_COLUMN, nwp_model_utils.MAIN_U_WIND_COLUMN,
-    nwp_model_utils.MAIN_V_WIND_COLUMN]
-MAIN_SOUNDING_COLUMNS_ORIG = [
-    MAIN_TEMPERATURE_COLUMN_ORIG, MAIN_SPFH_COLUMN_ORIG, MAIN_GPH_COLUMN_ORIG,
-    MAIN_U_WIND_COLUMN_ORIG, MAIN_V_WIND_COLUMN_ORIG]
+COLUMNS_IN_SOUNDING_TABLE_GRIB1 = [
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES_GRIB1]
 
-LOWEST_TEMPERATURE_COLUMN = 'temperature_kelvins_2m_agl'
-LOWEST_SPFH_COLUMN = 'specific_humidity_2m_agl'
-LOWEST_U_WIND_COLUMN = 'u_wind_m_s01_10m_agl'
-LOWEST_V_WIND_COLUMN = 'v_wind_m_s01_10m_agl'
+LOWEST_PRESSURE_NAME = 'pressure_pascals_hybrid_level1'
+LOWEST_TEMPERATURE_NAME = 'temperature_kelvins_hybrid_level1'
+LOWEST_SPFH_NAME = 'specific_humidity_hybrid_level1'
+LOWEST_HEIGHT_NAME = 'geopotential_height_metres_hybrid_level1'
+LOWEST_U_WIND_NAME = 'u_wind_m_s01_hybrid_level1'
+LOWEST_V_WIND_NAME = 'v_wind_m_s01_hybrid_level1'
 
-LOWEST_TEMPERATURE_COLUMN_ORIG = 'TMP:2 m above gnd'
-LOWEST_SPFH_COLUMN_ORIG = 'SPFH:2 m above gnd'
-LOWEST_U_WIND_COLUMN_ORIG = 'UGRD:10 m above gnd'
-LOWEST_V_WIND_COLUMN_ORIG = 'VGRD:10 m above gnd'
+LOWEST_PRESSURE_NAME_GRIB1 = 'PRES:hybrid lev 1'
+LOWEST_TEMPERATURE_NAME_GRIB1 = 'TMP:hybrid lev 1'
+LOWEST_SPFH_NAME_GRIB1 = 'SPFH:hybrid lev 1'
+LOWEST_HEIGHT_NAME_GRIB1 = 'HGT:hybrid lev 1'
+LOWEST_U_WIND_NAME_GRIB1 = 'UGRD:hybrid lev 1'
+LOWEST_V_WIND_NAME_GRIB1 = 'VGRD:hybrid lev 1'
 
 # Projection parameters.
 STANDARD_LATITUDES_DEG = numpy.array([50., 50.])
