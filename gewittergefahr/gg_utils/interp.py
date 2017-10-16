@@ -1,16 +1,99 @@
 """Interpolation methods."""
 
 import numpy
+import pandas
 import scipy.interpolate
+from gewittergefahr.gg_io import nwp_model_io
+from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import narr_utils
+from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import error_checking
 
-DEFAULT_TEMPORAL_INTERP_METHOD = 'linear'
+# TODO(thunderhoser): Allow interp_nwp_fields_from_xy_grid to deal with real
+# forecasts, not only zero-hour analyses.
+
+VERY_LARGE_INTEGER = int(1e10)
+
 NEAREST_INTERP_METHOD = 'nearest'
 SPLINE_INTERP_METHOD = 'spline'
 SPATIAL_INTERP_METHODS = [NEAREST_INTERP_METHOD, SPLINE_INTERP_METHOD]
 
 DEFAULT_SPLINE_DEGREE = 3
 SMOOTHING_FACTOR_FOR_SPATIAL_INTERP = 0
+
+PREVIOUS_INTERP_METHOD = 'previous'
+NEXT_INTERP_METHOD = 'next'
+LINEAR_INTERP_METHOD = 'linear'
+SPLINE0_INTERP_METHOD = 'zero'
+SPLINE1_INTERP_METHOD = 'slinear'
+SPLINE2_INTERP_METHOD = 'quadratic'
+SPLINE3_INTERP_METHOD = 'cubic'
+TEMPORAL_INTERP_METHODS = [
+    PREVIOUS_INTERP_METHOD, NEXT_INTERP_METHOD, NEAREST_INTERP_METHOD,
+    LINEAR_INTERP_METHOD, SPLINE0_INTERP_METHOD, SPLINE1_INTERP_METHOD,
+    SPLINE2_INTERP_METHOD, SPLINE3_INTERP_METHOD]
+
+QUERY_TIME_COLUMN = 'unix_time_sec'
+QUERY_LAT_COLUMN = 'latitude_deg'
+QUERY_LNG_COLUMN = 'longitude_deg'
+QUERY_X_COLUMN = 'x_coordinate_metres'
+QUERY_Y_COLUMN = 'y_coordinate_metres'
+
+# interp_nwp_fields_from_xy_grid works only for zero-hour analyses, not real
+# forecasts.
+FORECAST_LEAD_TIME_HOURS = 0
+
+
+def _interp_to_previous_time(input_matrix, input_times_unix_sec=None,
+                             query_times_unix_sec=None):
+    """Interpolates data in time, using the previous-neighbour method.
+
+    :param input_matrix: See documentation for interp_in_time.
+    :param input_times_unix_sec: See documentation for interp_in_time.
+    :param query_times_unix_sec: See documentation for interp_in_time.
+    :return: interp_matrix: See documentation for interp_in_time.
+    """
+
+    error_checking.assert_is_geq_numpy_array(
+        query_times_unix_sec, numpy.min(input_times_unix_sec))
+
+    num_query_times = len(query_times_unix_sec)
+    list_of_interp_matrices = []
+
+    for i in range(num_query_times):
+        these_time_diffs_sec = query_times_unix_sec[i] - input_times_unix_sec
+        these_time_diffs_sec[these_time_diffs_sec < 0] = VERY_LARGE_INTEGER
+        this_previous_index = numpy.argmin(these_time_diffs_sec)
+        list_of_interp_matrices.append(
+            numpy.take(input_matrix, this_previous_index, axis=-1))
+
+    return numpy.stack(list_of_interp_matrices, axis=-1)
+
+
+def _interp_to_next_time(input_matrix, input_times_unix_sec=None,
+                         query_times_unix_sec=None):
+    """Interpolates data in time, using the next-neighbour method.
+
+    :param input_matrix: See documentation for interp_in_time.
+    :param input_times_unix_sec: See documentation for interp_in_time.
+    :param query_times_unix_sec: See documentation for interp_in_time.
+    :return: interp_matrix: See documentation for interp_in_time.
+    """
+
+    error_checking.assert_is_leq_numpy_array(
+        query_times_unix_sec, numpy.max(input_times_unix_sec))
+
+    num_query_times = len(query_times_unix_sec)
+    list_of_interp_matrices = []
+
+    for i in range(num_query_times):
+        these_time_diffs_sec = input_times_unix_sec - query_times_unix_sec[i]
+        these_time_diffs_sec[these_time_diffs_sec < 0] = VERY_LARGE_INTEGER
+        this_next_index = numpy.argmin(these_time_diffs_sec)
+        list_of_interp_matrices.append(
+            numpy.take(input_matrix, this_next_index, axis=-1))
+
+    return numpy.stack(list_of_interp_matrices, axis=-1)
 
 
 def _nn_interp_from_xy_grid_to_points(input_matrix,
@@ -51,10 +134,43 @@ def _nn_interp_from_xy_grid_to_points(input_matrix,
     return interp_values
 
 
+def check_temporal_interp_method(temporal_interp_method):
+    """Ensures that temporal-interpolation method is valid.
+
+    :param temporal_interp_method: Interp method.
+    :raises: ValueError: if `temporal_interp_method not in
+        TEMPORAL_INTERP_METHODS`.
+    """
+
+    error_checking.assert_is_string(temporal_interp_method)
+    if temporal_interp_method not in TEMPORAL_INTERP_METHODS:
+        error_string = (
+            '\n\n' + str(TEMPORAL_INTERP_METHODS) + '\n\nValid temporal-' +
+            'interp methods (listed above) do not include the following: "' +
+            temporal_interp_method + '"')
+        raise ValueError(error_string)
+
+
+def check_spatial_interp_method(spatial_interp_method):
+    """Ensures that spatial-interpolation method is valid.
+
+    :param spatial_interp_method: Interp method.
+    :raises: ValueError: if `spatial_interp_method not in
+        SPATIAL_INTERP_METHODS`.
+    """
+
+    error_checking.assert_is_string(spatial_interp_method)
+    if spatial_interp_method not in SPATIAL_INTERP_METHODS:
+        error_string = (
+            '\n\n' + str(SPATIAL_INTERP_METHODS) + '\n\nValid spatial-' +
+            'interp methods (listed above) do not include the following: "' +
+            spatial_interp_method + '"')
+        raise ValueError(error_string)
+
+
 def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
                    query_times_unix_sec=None,
-                   method_string=DEFAULT_TEMPORAL_INTERP_METHOD,
-                   allow_extrap=False):
+                   method_string=LINEAR_INTERP_METHOD, allow_extrap=False):
     """Interpolates data in time.
 
     D = number of dimensions (for both input_matrix and interp_matrix)
@@ -90,6 +206,17 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
     error_checking.assert_is_integer_numpy_array(query_times_unix_sec)
     error_checking.assert_is_numpy_array_without_nan(query_times_unix_sec)
     error_checking.assert_is_numpy_array(query_times_unix_sec, num_dimensions=1)
+
+    check_temporal_interp_method(method_string)
+    if method_string == PREVIOUS_INTERP_METHOD:
+        return _interp_to_previous_time(
+            input_matrix, input_times_unix_sec=sorted_input_times_unix_sec,
+            query_times_unix_sec=query_times_unix_sec)
+
+    if method_string == NEXT_INTERP_METHOD:
+        return _interp_to_next_time(
+            input_matrix, input_times_unix_sec=sorted_input_times_unix_sec,
+            query_times_unix_sec=query_times_unix_sec)
 
     if allow_extrap:
         interp_object = scipy.interpolate.interp1d(
@@ -152,14 +279,7 @@ def interp_from_xy_grid_to_points(input_matrix, sorted_grid_point_x_metres=None,
     error_checking.assert_is_numpy_array(
         query_y_metres, exact_dimensions=numpy.array([num_query_points]))
 
-    error_checking.assert_is_string(method_string)
-    if method_string not in SPATIAL_INTERP_METHODS:
-        error_string = (
-            '\n\n' + str(SPATIAL_INTERP_METHODS) + '\n\nValid spatial-interp ' +
-            'methods (listed above) do not include the following: "' +
-            method_string + '"')
-        raise ValueError(error_string)
-
+    check_spatial_interp_method(method_string)
     if method_string == NEAREST_INTERP_METHOD:
         return _nn_interp_from_xy_grid_to_points(
             input_matrix, sorted_grid_point_x_metres=sorted_grid_point_x_metres,
@@ -172,3 +292,174 @@ def interp_from_xy_grid_to_points(input_matrix, sorted_grid_point_x_metres=None,
         s=SMOOTHING_FACTOR_FOR_SPATIAL_INTERP)
 
     return interp_object(query_y_metres, query_x_metres, grid=False)
+
+
+def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
+                                   grid_id=rap_model_utils.ID_FOR_130GRID,
+                                   field_names=None, field_names_grib1=None,
+                                   top_grib_directory_name=None,
+                                   temporal_interp_method=None,
+                                   spatial_interp_method=NEAREST_INTERP_METHOD,
+                                   spline_degree=DEFAULT_SPLINE_DEGREE):
+    """Interpolates data from x-y grid in both space and time.
+
+    Each query point consists of (latitude, longitude, time).
+
+    F = number of fields to interpolate
+
+    :param query_point_table: pandas DataFrame with the following columns.
+    query_point_table.unix_time_sec: Time in Unix format.
+    query_point_table.latitude_deg: Latitude (deg N).
+    query_point_table.longitude_deg: Longitude (deg E).
+
+    :param model_name: Name of model.
+    :param grid_id: String ID for grid.
+    :param field_names: length-F list of field names in GewitterGefahr format.
+        These will become column names in the output table.
+    :param field_names_grib1: length-F list of field names in grib1 format.
+        These will be used to read fields from grib files.
+    :param top_grib_directory_name: Name of top-level directory with grib files
+        for given model.
+    :param temporal_interp_method: See documentation for interp_in_time.
+    :param spatial_interp_method: See documentation for
+        interp_from_xy_grid_to_points.
+    :param spline_degree: See documentation for interp_from_xy_grid_to_points.
+    :return: interp_table: pandas DataFrame, where each column is one field and
+        each row is one query point.  Column names are given by the input
+        `field_names`.
+    """
+
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_string_list(field_names_grib1)
+    error_checking.assert_is_numpy_array(numpy.asarray(field_names),
+                                         num_dimensions=1)
+
+    num_fields = len(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(field_names_grib1),
+        exact_dimensions=numpy.array([num_fields]))
+
+    nwp_model_utils.check_model_name(model_name)
+
+    if model_name == nwp_model_utils.NARR_MODEL_NAME:
+        grib_type = narr_utils.GRIB_TYPE
+        init_time_step_hours = narr_utils.INIT_TIME_STEP_HOURS
+        grid_point_x_metres, grid_point_y_metres = (
+            narr_utils.get_xy_grid_points_unique())
+
+        query_x_metres, query_y_metres = narr_utils.project_latlng_to_xy(
+            query_point_table[QUERY_LAT_COLUMN].values,
+            query_point_table[QUERY_LNG_COLUMN].values)
+    else:
+        grib_type = rap_model_utils.GRIB_TYPE
+        init_time_step_hours = rap_model_utils.INIT_TIME_STEP_HOURS
+        grid_point_x_metres, grid_point_y_metres = (
+            rap_model_utils.get_xy_grid_points_unique(grid_id))
+
+        query_x_metres, query_y_metres = rap_model_utils.project_latlng_to_xy(
+            query_point_table[QUERY_LAT_COLUMN].values,
+            query_point_table[QUERY_LNG_COLUMN].values, grid_id=grid_id)
+
+    argument_dict = {
+        QUERY_X_COLUMN: query_x_metres, QUERY_Y_COLUMN: query_y_metres}
+    query_point_table = query_point_table.assign(**argument_dict)
+    query_point_table.drop(
+        [QUERY_LAT_COLUMN, QUERY_LNG_COLUMN], axis=1, inplace=True)
+
+    num_query_points = len(query_point_table.index)
+    nan_array = numpy.full(num_query_points, numpy.nan)
+
+    interp_dict = {}
+    for j in range(num_fields):
+        interp_dict.update({field_names[j]: nan_array})
+    interp_table = pandas.DataFrame.from_dict(interp_dict)
+
+    init_times_unix_sec, query_to_model_times_table = (
+        nwp_model_utils.get_times_needed_for_interp(
+            query_times_unix_sec=query_point_table[QUERY_TIME_COLUMN].values,
+            model_time_step_hours=init_time_step_hours,
+            method_string=temporal_interp_method))
+
+    num_init_times = len(init_times_unix_sec)
+    num_query_time_ranges = len(query_to_model_times_table.index)
+
+    for j in range(num_fields):
+        list_of_2d_model_grids = [None] * num_init_times
+
+        for i in range(num_query_time_ranges):
+            init_time_needed_flags = query_to_model_times_table[
+                nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[i]
+            init_time_needed_indices = numpy.where(init_time_needed_flags)[0]
+            init_time_obsolete_indices = numpy.where(
+                numpy.invert(init_time_needed_flags))[0]
+
+            for this_index in init_time_obsolete_indices:
+                list_of_2d_model_grids[this_index] = None
+
+            for this_index in init_time_needed_indices:
+                this_grib_file_name = nwp_model_io.find_grib_file(
+                    init_times_unix_sec[this_index], 0,
+                    top_directory_name=top_grib_directory_name,
+                    model_name=model_name, grid_id=grid_id, grib_type=grib_type,
+                    raise_error_if_missing=True)
+
+                list_of_2d_model_grids[this_index], _ = (
+                    nwp_model_io.read_field_from_grib_file(
+                        this_grib_file_name,
+                        init_time_unix_sec=init_times_unix_sec[this_index],
+                        lead_time_hours=0,
+                        top_single_field_dir_name=top_grib_directory_name,
+                        model_name=model_name, grid_id=grid_id,
+                        grib1_field_name=field_names_grib1[j]))
+
+            if i == num_query_time_ranges - 1:
+                in_range_flags = (
+                    query_point_table[QUERY_TIME_COLUMN].values >=
+                    query_to_model_times_table[
+                        nwp_model_utils.MIN_QUERY_TIME_COLUMN].values[-1])
+            else:
+                in_range_flags = numpy.logical_and(
+                    query_point_table[QUERY_TIME_COLUMN].values >=
+                    query_to_model_times_table[
+                        nwp_model_utils.MIN_QUERY_TIME_COLUMN].values[i],
+                    query_point_table[QUERY_TIME_COLUMN].values <
+                    query_to_model_times_table[
+                        nwp_model_utils.MAX_QUERY_TIME_COLUMN].values[i]
+                )
+
+            in_range_indices = numpy.where(in_range_flags)[0]
+            model_grids_to_stack = [
+                list_of_2d_model_grids[t] for t in init_time_needed_indices]
+            model_grid_3d = numpy.stack(model_grids_to_stack, axis=-1)
+
+            (these_unique_query_times_unix_sec,
+             these_query_times_orig_to_unique) = numpy.unique(
+                 query_point_table[QUERY_TIME_COLUMN].values[in_range_indices],
+                 return_inverse=True)
+
+            for k in range(len(these_unique_query_times_unix_sec)):
+                interp_model_grid = interp_in_time(
+                    model_grid_3d,
+                    sorted_input_times_unix_sec=
+                    init_times_unix_sec[init_time_needed_indices],
+                    query_times_unix_sec=these_unique_query_times_unix_sec[[k]],
+                    method_string=temporal_interp_method, allow_extrap=False)
+                interp_model_grid = interp_model_grid[:, :, 0]
+
+                these_query_indices = numpy.where(
+                    these_query_times_orig_to_unique == k)[0]
+                these_query_indices = in_range_indices[these_query_indices]
+
+                interp_table[field_names[j]].values[these_query_indices] = (
+                    interp_from_xy_grid_to_points(
+                        interp_model_grid,
+                        sorted_grid_point_x_metres=grid_point_x_metres,
+                        sorted_grid_point_y_metres=grid_point_y_metres,
+                        query_x_metres=query_point_table[QUERY_X_COLUMN].values[
+                            these_query_indices],
+                        query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
+                            these_query_indices],
+                        method_string=spatial_interp_method,
+                        spline_degree=spline_degree))
+
+    return interp_table
