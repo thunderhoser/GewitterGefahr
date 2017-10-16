@@ -9,7 +9,12 @@ import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
+
+DEGREES_TO_RADIANS = numpy.pi / 180.
+
+GRIB_TYPE = 'grib2'
 
 X_MIN_METRES = 0.
 Y_MIN_METRES = 0.
@@ -25,7 +30,6 @@ Y_SPACING_130GRID_METRES = 13545.
 FALSE_EASTING_130GRID_METRES = 3332090.43552
 FALSE_NORTHING_130GRID_METRES = -2279020.17888
 TOP_ONLINE_DIR_NAME_130GRID = 'https://nomads.ncdc.noaa.gov/data/rap130'
-WIND_ROTATION_FILE_NAME_130GRID = 'wind_rotation_angles_grid130.data'
 
 ID_FOR_252GRID = '252'
 NUM_ROWS_252GRID = 225
@@ -35,7 +39,6 @@ Y_SPACING_252GRID_METRES = 20317.625
 FALSE_EASTING_252GRID_METRES = 3332109.11198
 FALSE_NORTHING_252GRID_METRES = -2279005.97252
 TOP_ONLINE_DIR_NAME_252GRID = 'https://nomads.ncdc.noaa.gov/data/rap252'
-WIND_ROTATION_FILE_NAME_252GRID = 'wind_rotation_angles_grid252.data'
 
 NUM_ROWS_COLUMN = 'num_grid_rows'
 NUM_COLUMNS_COLUMN = 'num_grid_columns'
@@ -44,33 +47,34 @@ Y_SPACING_COLUMN = 'y_spacing_metres'
 FALSE_EASTING_COLUMN = 'false_easting_metres'
 FALSE_NORTHING_COLUMN = 'false_northing_metres'
 TOP_ONLINE_DIRECTORY_COLUMN = 'top_online_directory_name'
-WIND_ROTATION_FILE_NAME_COLUMN = 'wind_rotation_file_name'
 
-MAIN_TEMPERATURE_COLUMN_ORIG = 'TMP'
-MAIN_RH_COLUMN_ORIG = 'RH'
-MAIN_GPH_COLUMN_ORIG = 'HGT'
-MAIN_U_WIND_COLUMN_ORIG = 'UGRD'
-MAIN_V_WIND_COLUMN_ORIG = 'VGRD'
+COLUMNS_IN_SOUNDING_TABLE = [
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES]
 
-MAIN_SOUNDING_COLUMNS = [
-    nwp_model_utils.MAIN_TEMPERATURE_COLUMN, nwp_model_utils.MAIN_RH_COLUMN,
-    nwp_model_utils.MAIN_GPH_COLUMN, nwp_model_utils.MAIN_U_WIND_COLUMN,
-    nwp_model_utils.MAIN_V_WIND_COLUMN]
-MAIN_SOUNDING_COLUMNS_ORIG = [
-    MAIN_TEMPERATURE_COLUMN_ORIG, MAIN_RH_COLUMN_ORIG, MAIN_GPH_COLUMN_ORIG,
-    MAIN_U_WIND_COLUMN_ORIG, MAIN_V_WIND_COLUMN_ORIG]
+COLUMNS_IN_SOUNDING_TABLE_GRIB1 = [
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES_GRIB1,
+    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES_GRIB1]
 
-LOWEST_TEMPERATURE_COLUMN = 'temperature_kelvins_2m_agl'
-LOWEST_RH_COLUMN = 'relative_humidity_2m_agl'
-LOWEST_GPH_COLUMN = 'geopotential_height_metres_surface'
-LOWEST_U_WIND_COLUMN = 'u_wind_m_s01_10m_agl'
-LOWEST_V_WIND_COLUMN = 'v_wind_m_s01_10m_agl'
+LOWEST_PRESSURE_NAME = 'pressure_pascals_surface'
+LOWEST_TEMPERATURE_NAME = 'temperature_kelvins_2m_agl'
+LOWEST_RH_NAME = 'relative_humidity_2m_agl'
+LOWEST_HEIGHT_NAME = 'geopotential_height_metres_surface'
+LOWEST_U_WIND_NAME = 'u_wind_m_s01_10m_agl'
+LOWEST_V_WIND_NAME = 'v_wind_m_s01_10m_agl'
 
-LOWEST_TEMPERATURE_COLUMN_ORIG = 'TMP:2 m above gnd'
-LOWEST_RH_COLUMN_ORIG = 'RH:2 m above gnd'
-LOWEST_GPH_COLUMN_ORIG = 'HGT:sfc'
-LOWEST_U_WIND_COLUMN_ORIG = 'UGRD:10 m above gnd'
-LOWEST_V_WIND_COLUMN_ORIG = 'VGRD:10 m above gnd'
+LOWEST_PRESSURE_NAME_GRIB1 = 'PRES:sfc'
+LOWEST_TEMPERATURE_NAME_GRIB1 = 'TMP:2 m above gnd'
+LOWEST_RH_NAME_GRIB1 = 'RH:2 m above gnd'
+LOWEST_HEIGHT_NAME_GRIB1 = 'HGT:sfc'
+LOWEST_U_WIND_NAME_GRIB1 = 'UGRD:10 m above gnd'
+LOWEST_V_WIND_NAME_GRIB1 = 'VGRD:10 m above gnd'
 
 IS_WIND_EARTH_RELATIVE = False
 PRESSURE_LEVELS_MB = numpy.linspace(100, 1000, num=37, dtype=int)
@@ -114,8 +118,6 @@ def get_metadata_for_grid(grid_id=ID_FOR_130GRID):
         `projections.project_latlng_to_xy`.
     metadata_dict.top_online_directory_name: Name of top-level directory with
         grib files online.
-    metadata_dict.wind_rotation_file_name: Path to file with wind-rotation
-        angles.
     """
 
     _check_grid_id(grid_id)
@@ -127,8 +129,7 @@ def get_metadata_for_grid(grid_id=ID_FOR_130GRID):
                 Y_SPACING_COLUMN: Y_SPACING_130GRID_METRES,
                 FALSE_EASTING_COLUMN: FALSE_EASTING_130GRID_METRES,
                 FALSE_NORTHING_COLUMN: FALSE_NORTHING_130GRID_METRES,
-                TOP_ONLINE_DIRECTORY_COLUMN: TOP_ONLINE_DIR_NAME_130GRID,
-                WIND_ROTATION_FILE_NAME_COLUMN: WIND_ROTATION_FILE_NAME_130GRID}
+                TOP_ONLINE_DIRECTORY_COLUMN: TOP_ONLINE_DIR_NAME_130GRID}
 
     return {NUM_ROWS_COLUMN: NUM_ROWS_252GRID,
             NUM_COLUMNS_COLUMN: NUM_COLUMNS_252GRID,
@@ -136,8 +137,7 @@ def get_metadata_for_grid(grid_id=ID_FOR_130GRID):
             Y_SPACING_COLUMN: Y_SPACING_252GRID_METRES,
             FALSE_EASTING_COLUMN: FALSE_EASTING_252GRID_METRES,
             FALSE_NORTHING_COLUMN: FALSE_NORTHING_252GRID_METRES,
-            TOP_ONLINE_DIRECTORY_COLUMN: TOP_ONLINE_DIR_NAME_252GRID,
-            WIND_ROTATION_FILE_NAME_COLUMN: WIND_ROTATION_FILE_NAME_252GRID}
+            TOP_ONLINE_DIRECTORY_COLUMN: TOP_ONLINE_DIR_NAME_252GRID}
 
 
 def init_projection():
@@ -149,37 +149,6 @@ def init_projection():
 
     return projections.init_lambert_conformal_projection(STANDARD_LATITUDES_DEG,
                                                          CENTRAL_LONGITUDE_DEG)
-
-
-def read_wind_rotation_angles(grid_id=ID_FOR_130GRID):
-    """Reads wind-rotation angles (one for each grid point).
-
-    These angles are required to rotate winds from grid-relative (the native
-    format) to Earth-relative.  The rotation is done by
-    `nwp_model_utils.rotate_winds`.
-
-    M = number of grid rows
-    N = number of grid columns
-
-    :param grid_id: String ID for grid (either "130" or "252").
-    :return: cosine_matrix: M-by-N numpy array with cosine of rotation angle.
-        x-coordinate increases while moving right across a row, and y-coordinate
-        increases while moving down a column.
-    :return: sine_matrix: Same as above, but with sines rather than cosines.
-    """
-
-    grid_metadata_dict = get_metadata_for_grid(grid_id)
-    (cosine_vector, sine_vector) = numpy.loadtxt(
-        grid_metadata_dict[WIND_ROTATION_FILE_NAME_COLUMN], unpack=True)
-
-    cosine_matrix = numpy.reshape(
-        cosine_vector, (grid_metadata_dict[NUM_ROWS_COLUMN],
-                        grid_metadata_dict[NUM_COLUMNS_COLUMN]))
-    sine_matrix = numpy.reshape(
-        sine_vector, (grid_metadata_dict[NUM_ROWS_COLUMN],
-                      grid_metadata_dict[NUM_COLUMNS_COLUMN]))
-
-    return cosine_matrix, sine_matrix
 
 
 def project_latlng_to_xy(latitudes_deg, longitudes_deg, grid_id=ID_FOR_130GRID,
@@ -234,6 +203,33 @@ def project_xy_to_latlng(x_coords_metres, y_coords_metres,
         x_coords_metres, y_coords_metres, projection_object=projection_object,
         false_easting_metres=grid_metadata_dict[FALSE_EASTING_COLUMN],
         false_northing_metres=grid_metadata_dict[FALSE_NORTHING_COLUMN])
+
+
+def get_wind_rotation_angles(latitudes_deg, longitudes_deg):
+    """Returns wind-rotation angle for each lat-long point.
+
+    These angles are used to rotate winds from grid-relative to Earth-relative.
+
+    :param latitudes_deg: numpy array of latitudes (deg N).
+    :param longitudes_deg: equivalent-shape numpy array of longitudes (deg E).
+    :return: rotation_angle_cosines: equivalent-shape numpy array with cosines
+        of rotation angles.
+    :return: rotation_angle_sines: equivalent-shape numpy array with sines of
+        rotation angles.
+    """
+
+    error_checking.assert_is_valid_lat_numpy_array(
+        latitudes_deg, allow_nan=False)
+
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg, allow_nan=False)
+    error_checking.assert_is_numpy_array(
+        longitudes_deg, exact_dimensions=numpy.asarray(latitudes_deg.shape))
+
+    rotation_angles = numpy.sin(
+        STANDARD_LATITUDES_DEG[0] * DEGREES_TO_RADIANS) * (
+            longitudes_deg - CENTRAL_LONGITUDE_DEG) * DEGREES_TO_RADIANS
+    return numpy.cos(rotation_angles), numpy.sin(rotation_angles)
 
 
 def get_xy_grid_points_unique(grid_id=ID_FOR_130GRID):
