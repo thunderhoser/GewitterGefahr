@@ -3,6 +3,7 @@
 import numpy
 import pandas
 import scipy.interpolate
+from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import narr_utils
@@ -38,6 +39,11 @@ QUERY_LAT_COLUMN = 'latitude_deg'
 QUERY_LNG_COLUMN = 'longitude_deg'
 QUERY_X_COLUMN = 'x_coordinate_metres'
 QUERY_Y_COLUMN = 'y_coordinate_metres'
+
+FIELD_NAME_GRIB1_COLUMN = 'field_name_grib1'
+ROTATE_WIND_COLUMN = 'rotate_wind'
+FIELD_NAME_OTHER_WIND_COMPONENT_COLUMN = 'field_name_other_wind_component_grib1'
+OTHER_WIND_COMPONENT_INDICES_COLUMN = 'other_wind_component_indices'
 
 # interp_nwp_fields_from_xy_grid works only for zero-hour analyses, not real
 # forecasts.
@@ -132,6 +138,142 @@ def _nn_interp_from_xy_grid_to_points(input_matrix,
         interp_values[i] = input_matrix[this_row, this_column]
 
     return interp_values
+
+
+def _get_wind_rotation_metadata(field_names_grib1, model_name):
+    """Gets metadata for rotation of winds from NWP model.
+
+    F = number of fields to interpolate
+
+    :param field_names_grib1: length-F list of field names in grib1 format.
+        These will be used to read fields from grib files.
+    :param model_name: Name of model.
+    :return: wind_rotation_metadata_table: F-row pandas DataFrame with the
+        following columns.
+    wind_rotation_metadata_table.field_name_grib1: Same as input.
+    wind_rotation_metadata_table.rotate_wind: Boolean flag.  If the [j]th row
+        has rotate_wind = True, the [j]th field is a wind component that must be
+        rotated.
+    wind_rotation_metadata_table.field_name_other_wind_component_grib1: If the
+        [j]th field is a wind component that must be rotated, this is the name
+        (in grib1 format) of the other component in the wind vector.
+    wind_rotation_metadata_table.other_wind_component_indices: If the [j]th
+        field is a wind component that must be rotated and
+        other_wind_component_indices[j] = k, this means the other component in
+        the wind vector is the [k]th field.  If other_wind_component_indices[j]
+        = -1, this means the other wind component was not included in
+        field_names_grib1.
+    """
+
+    nwp_model_utils.check_model_name(model_name)
+
+    num_fields = len(field_names_grib1)
+    rotate_wind_flags = numpy.full(num_fields, False, dtype=bool)
+    field_names_other_wind_component_grib1 = [None] * num_fields
+    other_wind_component_indices = numpy.full(num_fields, -1, dtype=int)
+
+    if model_name == nwp_model_utils.RAP_MODEL_NAME:
+        for j in range(num_fields):
+            rotate_wind_flags[j] = grib_io.is_wind_field(field_names_grib1[j])
+            if not rotate_wind_flags[j]:
+                continue
+
+            field_names_other_wind_component_grib1[j] = (
+                grib_io.field_name_switch_u_and_v(field_names_grib1[j]))
+            if field_names_other_wind_component_grib1[
+                    j] not in field_names_grib1:
+                continue
+
+            other_wind_component_indices[j] = field_names_grib1.index(
+                field_names_other_wind_component_grib1[j])
+
+    wind_rotation_metadata_dict = {
+        FIELD_NAME_GRIB1_COLUMN: field_names_grib1,
+        ROTATE_WIND_COLUMN: rotate_wind_flags,
+        FIELD_NAME_OTHER_WIND_COMPONENT_COLUMN:
+            field_names_other_wind_component_grib1,
+        OTHER_WIND_COMPONENT_INDICES_COLUMN: other_wind_component_indices
+    }
+    return pandas.DataFrame.from_dict(wind_rotation_metadata_dict)
+
+
+def _read_nwp_fields_for_interp(init_times_unix_sec=None,
+                                query_to_model_times_row=None,
+                                field_name_grib1=None,
+                                field_name_other_wind_component_grib1=None,
+                                list_of_model_grids=None,
+                                list_of_model_grids_other_component=None,
+                                model_name=None,
+                                grid_id=rap_model_utils.ID_FOR_130GRID,
+                                grib_type=None, top_grib_directory_name=None):
+    """Reads NWP fields needed for interpolation to range of query times.
+
+    T = number of model-initialization times
+
+    :param init_times_unix_sec: length-T of model-init times (Unix format).
+    :param query_to_model_times_row: Single row of pandas DataFrame created by
+        `nwp_model_utils.get_times_needed_for_interp`.
+    :param field_name_grib1: Name of interpoland (grib1 format).
+    :param field_name_other_wind_component_grib1: If interpoland is a wind
+        component that must be rotated, this is the name of the other wind
+        component in the same vector.
+    :param list_of_model_grids: length-T list, where the [i]th element is either
+        None or the model grid from the [i]th initialization time.
+    :param list_of_model_grids_other_component: Same as above, but for other
+        wind component.
+    :param model_name: Name of model.
+    :param grid_id: String ID for grid.
+    :param grib_type: Type of grib files ("grib1" or "grib2") used by model.
+    :param top_grib_directory_name: Name of top-level directory with grib files
+        for the given model.
+    :return: list_of_model_grids: Same as input, except that the [i]th element
+        is filled (None) only if the [i]th time is (not) needed.
+    :return: list_of_model_grids_other_component: Same as input, except that the
+        [i]th element is filled (None) only if the [i]th time is (not) needed.
+    """
+
+    rotate_wind = field_name_other_wind_component_grib1 is not None
+
+    init_time_needed_flags = query_to_model_times_row[
+        nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0]
+    init_time_needed_indices = numpy.where(init_time_needed_flags)[0]
+    init_time_obsolete_indices = numpy.where(
+        numpy.invert(init_time_needed_flags))[0]
+
+    for this_index in init_time_obsolete_indices:
+        list_of_model_grids[this_index] = None
+        if rotate_wind:
+            list_of_model_grids_other_component[this_index] = None
+
+    for this_index in init_time_needed_indices:
+        this_grib_file_name = nwp_model_io.find_grib_file(
+            init_times_unix_sec[this_index], 0,
+            top_directory_name=top_grib_directory_name,
+            model_name=model_name, grid_id=grid_id, grib_type=grib_type,
+            raise_error_if_missing=True)
+
+        list_of_model_grids[this_index], _ = (
+            nwp_model_io.read_field_from_grib_file(
+                this_grib_file_name,
+                init_time_unix_sec=init_times_unix_sec[this_index],
+                lead_time_hours=0,
+                top_single_field_dir_name=top_grib_directory_name,
+                model_name=model_name, grid_id=grid_id,
+                grib1_field_name=field_name_grib1))
+
+        if rotate_wind:
+            list_of_model_grids_other_component[this_index], _ = (
+                nwp_model_io.read_field_from_grib_file(
+                    this_grib_file_name,
+                    init_time_unix_sec=init_times_unix_sec[this_index],
+                    lead_time_hours=0,
+                    top_single_field_dir_name=top_grib_directory_name,
+                    model_name=model_name, grid_id=grid_id,
+                    grib1_field_name=field_name_other_wind_component_grib1))
+
+    if not rotate_wind:
+        list_of_model_grids_other_component = None
+    return list_of_model_grids, list_of_model_grids_other_component
 
 
 def check_temporal_interp_method(temporal_interp_method):
@@ -298,7 +440,8 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
                                    grid_id=rap_model_utils.ID_FOR_130GRID,
                                    field_names=None, field_names_grib1=None,
                                    top_grib_directory_name=None,
-                                   temporal_interp_method=None,
+                                   temporal_interp_method=
+                                   PREVIOUS_INTERP_METHOD,
                                    spatial_interp_method=NEAREST_INTERP_METHOD,
                                    spline_degree=DEFAULT_SPLINE_DEGREE):
     """Interpolates data from x-y grid in both space and time.
@@ -329,6 +472,9 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
         `field_names`.
     """
 
+    # TODO(thunderhoser): I need to simplify this method, but I'm not sure how
+    # yet.
+
     error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_string_list(field_names_grib1)
     error_checking.assert_is_numpy_array(numpy.asarray(field_names),
@@ -340,7 +486,6 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
         exact_dimensions=numpy.array([num_fields]))
 
     nwp_model_utils.check_model_name(model_name)
-
     if model_name == nwp_model_utils.NARR_MODEL_NAME:
         grib_type = narr_utils.GRIB_TYPE
         init_time_step_hours = narr_utils.INIT_TIME_STEP_HOURS
@@ -350,6 +495,7 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
         query_x_metres, query_y_metres = narr_utils.project_latlng_to_xy(
             query_point_table[QUERY_LAT_COLUMN].values,
             query_point_table[QUERY_LNG_COLUMN].values)
+
     else:
         grib_type = rap_model_utils.GRIB_TYPE
         init_time_step_hours = rap_model_utils.INIT_TIME_STEP_HOURS
@@ -363,8 +509,6 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
     argument_dict = {
         QUERY_X_COLUMN: query_x_metres, QUERY_Y_COLUMN: query_y_metres}
     query_point_table = query_point_table.assign(**argument_dict)
-    query_point_table.drop(
-        [QUERY_LAT_COLUMN, QUERY_LNG_COLUMN], axis=1, inplace=True)
 
     num_query_points = len(query_point_table.index)
     nan_array = numpy.full(num_query_points, numpy.nan)
@@ -374,6 +518,24 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
         interp_dict.update({field_names[j]: nan_array})
     interp_table = pandas.DataFrame.from_dict(interp_dict)
 
+    wind_rotation_metadata_table = _get_wind_rotation_metadata(
+        field_names_grib1, model_name)
+
+    rotate_wind_flags = wind_rotation_metadata_table[ROTATE_WIND_COLUMN].values
+    field_names_other_wind_component_grib1 = wind_rotation_metadata_table[
+        FIELD_NAME_OTHER_WIND_COMPONENT_COLUMN].values
+    other_wind_component_indices = wind_rotation_metadata_table[
+        OTHER_WIND_COMPONENT_INDICES_COLUMN].values
+
+    if numpy.any(rotate_wind_flags):
+        rotation_angle_cosines, rotation_angle_sines = (
+            rap_model_utils.get_wind_rotation_angles(
+                query_point_table[QUERY_LAT_COLUMN].values,
+                query_point_table[QUERY_LNG_COLUMN].values))
+
+    query_point_table.drop(
+        [QUERY_LAT_COLUMN, QUERY_LNG_COLUMN], axis=1, inplace=True)
+
     init_times_unix_sec, query_to_model_times_table = (
         nwp_model_utils.get_times_needed_for_interp(
             query_times_unix_sec=query_point_table[QUERY_TIME_COLUMN].values,
@@ -382,36 +544,16 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
 
     num_init_times = len(init_times_unix_sec)
     num_query_time_ranges = len(query_to_model_times_table.index)
+    interp_done_flags = numpy.full(num_fields, False, dtype=bool)
 
     for j in range(num_fields):
+        if interp_done_flags[j]:
+            continue
+
         list_of_2d_model_grids = [None] * num_init_times
+        list_of_2d_grids_other_wind_component = [None] * num_init_times
 
         for i in range(num_query_time_ranges):
-            init_time_needed_flags = query_to_model_times_table[
-                nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[i]
-            init_time_needed_indices = numpy.where(init_time_needed_flags)[0]
-            init_time_obsolete_indices = numpy.where(
-                numpy.invert(init_time_needed_flags))[0]
-
-            for this_index in init_time_obsolete_indices:
-                list_of_2d_model_grids[this_index] = None
-
-            for this_index in init_time_needed_indices:
-                this_grib_file_name = nwp_model_io.find_grib_file(
-                    init_times_unix_sec[this_index], 0,
-                    top_directory_name=top_grib_directory_name,
-                    model_name=model_name, grid_id=grid_id, grib_type=grib_type,
-                    raise_error_if_missing=True)
-
-                list_of_2d_model_grids[this_index], _ = (
-                    nwp_model_io.read_field_from_grib_file(
-                        this_grib_file_name,
-                        init_time_unix_sec=init_times_unix_sec[this_index],
-                        lead_time_hours=0,
-                        top_single_field_dir_name=top_grib_directory_name,
-                        model_name=model_name, grid_id=grid_id,
-                        grib1_field_name=field_names_grib1[j]))
-
             if i == num_query_time_ranges - 1:
                 in_range_flags = (
                     query_point_table[QUERY_TIME_COLUMN].values >=
@@ -428,9 +570,35 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
                 )
 
             in_range_indices = numpy.where(in_range_flags)[0]
+
+            (list_of_2d_model_grids, list_of_2d_grids_other_wind_component) = (
+                _read_nwp_fields_for_interp(
+                    init_times_unix_sec=init_times_unix_sec,
+                    query_to_model_times_row=
+                    query_to_model_times_table.iloc[[i]],
+                    field_name_grib1=field_names_grib1[j],
+                    field_name_other_wind_component_grib1=
+                    field_names_other_wind_component_grib1[j],
+                    list_of_model_grids=list_of_2d_model_grids,
+                    list_of_model_grids_other_component=
+                    list_of_2d_grids_other_wind_component,
+                    model_name=model_name, grid_id=grid_id, grib_type=grib_type,
+                    top_grib_directory_name=top_grib_directory_name))
+
+            init_time_needed_flags = query_to_model_times_table[
+                nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[i]
+            init_time_needed_indices = numpy.where(init_time_needed_flags)[0]
+
             model_grids_to_stack = [
                 list_of_2d_model_grids[t] for t in init_time_needed_indices]
             model_grid_3d = numpy.stack(model_grids_to_stack, axis=-1)
+
+            if rotate_wind_flags[j]:
+                model_grids_to_stack = [
+                    list_of_2d_grids_other_wind_component[t] for t in
+                    init_time_needed_indices]
+                model_grid_3d_other_wind_component = numpy.stack(
+                    model_grids_to_stack, axis=-1)
 
             (these_unique_query_times_unix_sec,
              these_query_times_orig_to_unique) = numpy.unique(
@@ -446,20 +614,71 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
                     method_string=temporal_interp_method, allow_extrap=False)
                 interp_model_grid = interp_model_grid[:, :, 0]
 
+                if rotate_wind_flags[j]:
+                    interp_model_grid_other_wind_component = interp_in_time(
+                        model_grid_3d_other_wind_component,
+                        sorted_input_times_unix_sec=
+                        init_times_unix_sec[init_time_needed_indices],
+                        query_times_unix_sec=
+                        these_unique_query_times_unix_sec[[k]],
+                        method_string=temporal_interp_method,
+                        allow_extrap=False)
+                    interp_model_grid_other_wind_component = (
+                        interp_model_grid_other_wind_component[:, :, 0])
+
                 these_query_indices = numpy.where(
                     these_query_times_orig_to_unique == k)[0]
                 these_query_indices = in_range_indices[these_query_indices]
 
-                interp_table[field_names[j]].values[these_query_indices] = (
-                    interp_from_xy_grid_to_points(
-                        interp_model_grid,
-                        sorted_grid_point_x_metres=grid_point_x_metres,
-                        sorted_grid_point_y_metres=grid_point_y_metres,
-                        query_x_metres=query_point_table[QUERY_X_COLUMN].values[
-                            these_query_indices],
-                        query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
-                            these_query_indices],
-                        method_string=spatial_interp_method,
-                        spline_degree=spline_degree))
+                these_interp_values = interp_from_xy_grid_to_points(
+                    interp_model_grid,
+                    sorted_grid_point_x_metres=grid_point_x_metres,
+                    sorted_grid_point_y_metres=grid_point_y_metres,
+                    query_x_metres=query_point_table[QUERY_X_COLUMN].values[
+                        these_query_indices],
+                    query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
+                        these_query_indices],
+                    method_string=spatial_interp_method,
+                    spline_degree=spline_degree)
+
+                if rotate_wind_flags[j]:
+                    these_interp_values_other_wind_component = (
+                        interp_from_xy_grid_to_points(
+                            interp_model_grid_other_wind_component,
+                            sorted_grid_point_x_metres=grid_point_x_metres,
+                            sorted_grid_point_y_metres=grid_point_y_metres,
+                            query_x_metres=query_point_table[
+                                QUERY_X_COLUMN].values[these_query_indices],
+                            query_y_metres=query_point_table[
+                                QUERY_Y_COLUMN].values[these_query_indices],
+                            method_string=spatial_interp_method,
+                            spline_degree=spline_degree))
+
+                    if grib_io.is_u_wind_field(field_names_grib1[j]):
+                        (these_interp_values,
+                         these_interp_values_other_wind_component) = (
+                             nwp_model_utils.rotate_winds(
+                                 these_interp_values,
+                                 these_interp_values_other_wind_component,
+                                 rotation_angle_cosines=rotation_angle_cosines,
+                                 rotation_angle_sines=rotation_angle_sines))
+                    else:
+                        (these_interp_values_other_wind_component,
+                         these_interp_values) = nwp_model_utils.rotate_winds(
+                             these_interp_values_other_wind_component,
+                             these_interp_values,
+                             rotation_angle_cosines=rotation_angle_cosines,
+                             rotation_angle_sines=rotation_angle_sines)
+
+                    if other_wind_component_indices[j] != -1:
+                        interp_table[field_names[
+                            other_wind_component_indices[j]]].values[
+                                these_query_indices] = (
+                                    these_interp_values_other_wind_component)
+                        interp_done_flags[
+                            other_wind_component_indices[j]] = True
+
+                interp_table[field_names[j]].values[
+                    these_query_indices] = these_interp_values
 
     return interp_table

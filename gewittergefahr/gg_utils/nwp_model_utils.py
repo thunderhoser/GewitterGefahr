@@ -219,45 +219,36 @@ def rotate_winds(u_winds_grid_relative_m_s01=None,
     u_Earth = u_grid * cos(alpha) + v_grid * sin(alpha)
     v_Earth = v_grid * cos(alpha) - u_grid * sin(alpha)
 
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
-
-    :param u_winds_grid_relative_m_s01: M-by-N numpy array of grid-relative
-        u-winds (towards positive x-direction).
-    :param v_winds_grid_relative_m_s01: M-by-N numpy array of grid-relative
-        v-winds (towards positive y-direction).
-    :param rotation_angle_cosines: M-by-N numpy array with cosines of wind-
+    :param u_winds_grid_relative_m_s01: numpy array of grid-relative u-winds
+        (towards positive x-direction).
+    :param v_winds_grid_relative_m_s01: equivalent-shape numpy array of grid-
+        relative v-winds (towards positive y-direction).
+    :param rotation_angle_cosines: equivalent-shape numpy array with cosines of
         rotation angles.
-    :param rotation_angle_sines: M-by-N numpy array with sines of wind-
+    :param rotation_angle_sines: equivalent-shape numpy array with sines of
         rotation angles.
-    :return: u_winds_earth_relative_m_s01: M-by-N numpy array of Earth-relative
-        (eastward) u-winds.
-    :return: v_winds_earth_relative_m_s01: M-by-N numpy array of Earth-relative
-        (northward) v-winds.
+    :return: u_winds_earth_relative_m_s01: equivalent-shape numpy array of
+        Earth-relative (northward) u-winds.
+    :return: v_winds_earth_relative_m_s01: equivalent-shape numpy array of
+        Earth-relative (eastward) v-winds.
     """
 
     error_checking.assert_is_real_numpy_array(u_winds_grid_relative_m_s01)
-    error_checking.assert_is_numpy_array(u_winds_grid_relative_m_s01,
-                                         num_dimensions=2)
-    num_grid_rows = u_winds_grid_relative_m_s01.shape[0]
-    num_grid_columns = u_winds_grid_relative_m_s01.shape[1]
+    array_dimensions = numpy.asarray(u_winds_grid_relative_m_s01.shape)
 
     error_checking.assert_is_real_numpy_array(v_winds_grid_relative_m_s01)
     error_checking.assert_is_numpy_array(
-        v_winds_grid_relative_m_s01,
-        exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
+        v_winds_grid_relative_m_s01, exact_dimensions=array_dimensions)
 
     error_checking.assert_is_geq_numpy_array(rotation_angle_cosines, -1)
     error_checking.assert_is_leq_numpy_array(rotation_angle_cosines, 1)
     error_checking.assert_is_numpy_array(
-        rotation_angle_cosines,
-        exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
+        rotation_angle_cosines, exact_dimensions=array_dimensions)
 
     error_checking.assert_is_geq_numpy_array(rotation_angle_sines, -1)
     error_checking.assert_is_leq_numpy_array(rotation_angle_sines, 1)
     error_checking.assert_is_numpy_array(
-        rotation_angle_sines,
-        exact_dimensions=numpy.array([num_grid_rows, num_grid_columns]))
+        rotation_angle_sines, exact_dimensions=array_dimensions)
 
     u_winds_earth_relative_m_s01 = (
         rotation_angle_cosines * u_winds_grid_relative_m_s01 +

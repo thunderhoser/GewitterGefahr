@@ -25,6 +25,9 @@ GRIB2_FILE_EXTENSION = '.grb2'
 GRIB2_FILE_TYPE = 'grib2'
 WGRIB2_EXE_NAME_DEFAULT = '/usr/bin/wgrib2'
 
+U_WIND_PREFIX = 'UGRD'
+V_WIND_PREFIX = 'VGRD'
+
 # The following constants are used in the main method only.
 NARR_FILE_NAME_ONLINE = (
     'https://nomads.ncdc.noaa.gov/data/narr/201408/20140810/'
@@ -203,6 +206,58 @@ def _read_single_field_from_file(input_file_name, num_grid_rows=None,
         return None
 
     return _replace_sentinels_with_nan(field_matrix, sentinel_value)
+
+
+def is_wind_field(field_name_grib1):
+    """Returns True if string is field name for a wind component.
+
+    :param field_name_grib1: Field name.
+    :return: is_wind_flag: Boolean flag.
+    """
+
+    return is_u_wind_field(field_name_grib1) or is_v_wind_field(
+        field_name_grib1)
+
+
+def is_u_wind_field(field_name_grib1):
+    """Returns True if string is field name for u-wind at some level.
+
+    :param field_name_grib1: Field name.
+    :return: is_u_wind_flag: Boolean flag.
+    """
+
+    error_checking.assert_is_string(field_name_grib1)
+    return field_name_grib1.startswith(U_WIND_PREFIX)
+
+
+def is_v_wind_field(field_name_grib1):
+    """Returns True if string is field name for v-wind at some level.
+
+    :param field_name_grib1: Field name.
+    :return: is_v_wind_flag: Boolean flag.
+    """
+
+    error_checking.assert_is_string(field_name_grib1)
+    return field_name_grib1.startswith(V_WIND_PREFIX)
+
+
+def field_name_switch_u_and_v(field_name):
+    """Switches u-wind and v-wind in field name.
+
+    If string is field name for u-wind (v-wind) at some level, this method
+    returns the name for v-wind (u-wind) at the same level.
+
+    :param field_name: Field name in grib1 format.
+    :return: field_name_other_component: Field name for other wind component at
+        the same level.  If original field name is non-wind-related,
+        field_name_other_component = field_name.
+    """
+
+    if not is_wind_field(field_name):
+        return field_name
+    if is_u_wind_field(field_name):
+        return field_name.replace(U_WIND_PREFIX, V_WIND_PREFIX)
+    return field_name.replace(V_WIND_PREFIX, U_WIND_PREFIX)
 
 
 def file_type_to_extension(grib_file_type):

@@ -32,6 +32,10 @@ EXPECTED_DATA_MATRIX_NO_SENTINELS = (
                  [numpy.nan, 1001.5, 1001.6, 1002.1, 1002.5],
                  [numpy.nan, numpy.nan, 1002., 1002., 1003.3]]))
 
+U_WIND_NAME = 'UGRD:500 mb'
+V_WIND_NAME = 'VGRD:500 mb'
+NON_WIND_NAME = 'TMP:500 mb'
+
 NON_GRIB_FILE_TYPE = 'text'
 
 
@@ -120,6 +124,81 @@ class GribIoTests(unittest.TestCase):
         self.assertTrue(
             numpy.allclose(this_data_matrix, DATA_MATRIX_WITH_SENTINELS,
                            atol=TOLERANCE))
+
+    def test_is_u_wind_field_true(self):
+        """Ensures correct output from is_u_wind_field.
+
+        In this case the answer is yes.
+        """
+
+        self.assertTrue(grib_io.is_u_wind_field(U_WIND_NAME))
+
+    def test_is_u_wind_field_v_wind(self):
+        """Ensures correct output from is_u_wind_field.
+
+        In this case the answer is no.
+        """
+
+        self.assertFalse(grib_io.is_u_wind_field(V_WIND_NAME))
+
+    def test_is_u_wind_field_non_wind(self):
+        """Ensures correct output from is_u_wind_field.
+
+        In this case the answer is no.
+        """
+
+        self.assertFalse(grib_io.is_u_wind_field(NON_WIND_NAME))
+
+    def test_is_v_wind_field_true(self):
+        """Ensures correct output from is_v_wind_field.
+
+        In this case the answer is yes.
+        """
+
+        self.assertTrue(grib_io.is_v_wind_field(V_WIND_NAME))
+
+    def test_is_v_wind_field_u_wind(self):
+        """Ensures correct output from is_v_wind_field.
+
+        In this case the answer is no.
+        """
+
+        self.assertFalse(grib_io.is_v_wind_field(U_WIND_NAME))
+
+    def test_is_v_wind_field_non_wind(self):
+        """Ensures correct output from is_v_wind_field.
+
+        In this case the answer is no.
+        """
+
+        self.assertFalse(grib_io.is_v_wind_field(NON_WIND_NAME))
+
+    def test_field_name_switch_u_and_v_input_u(self):
+        """Ensures correct output from field_name_switch_u_and_v.
+
+        In this case, input field is u-wind.
+        """
+
+        this_v_wind_name = grib_io.field_name_switch_u_and_v(U_WIND_NAME)
+        self.assertTrue(this_v_wind_name == V_WIND_NAME)
+
+    def test_field_name_switch_u_and_v_input_v(self):
+        """Ensures correct output from field_name_switch_u_and_v.
+
+        In this case, input field is v-wind.
+        """
+
+        this_u_wind_name = grib_io.field_name_switch_u_and_v(V_WIND_NAME)
+        self.assertTrue(this_u_wind_name == U_WIND_NAME)
+
+    def test_field_name_switch_u_and_v_input_neither(self):
+        """Ensures correct output from field_name_switch_u_and_v.
+
+        In this case, input field is non-wind-related.
+        """
+
+        this_field_name = grib_io.field_name_switch_u_and_v(NON_WIND_NAME)
+        self.assertTrue(this_field_name == NON_WIND_NAME)
 
     def test_file_type_to_extension_grib1(self):
         """Ensures correct output from file_type_to_extension.
