@@ -4,46 +4,39 @@ import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import interp
 
 TOLERANCE = 1e-6
 
 FAKE_MODEL_NAME = 'foo'
 FAKE_GRID_ID = '9999'
 
+MAX_MEAN_DISTANCE_ERROR_RAP_METRES = 100.
+MAX_MAX_DISTANCE_ERROR_RAP_METRES = 500.
+GRID130_LATLNG_FILE_NAME = 'grid_point_latlng_grid130.data'
+GRID252_LATLNG_FILE_NAME = 'grid_point_latlng_grid252.data'
+
+MAX_MEAN_DISTANCE_ERROR_NARR_METRES = 250.
+MAX_MAX_DISTANCE_ERROR_NARR_METRES = 1000.
+NARR_LATLNG_FILE_NAME = 'grid_point_latlng_grid221.data'
+
+MAX_MEAN_SIN_OR_COS_ERROR = 1e-5
+MAX_MAX_SIN_OR_COS_ERROR = 1e-4
+GRID130_WIND_ROTATION_FILE_NAME = 'wind_rotation_angles_grid130.data'
+GRID252_WIND_ROTATION_FILE_NAME = 'wind_rotation_angles_grid252.data'
+
+# The following constants are used to test get_times_needed_for_interp.
 MODEL_TIME_STEP_HOURS = 3
-FAKE_INTERP_METHOD = 'foo'
-SUBLINEAR_INTERP_METHOD = 'nearest'
-LINEAR_INTERP_METHOD = 'linear'
-QUADRATIC_INTERP_METHOD = 'quadratic'
-CUBIC_INTERP_METHOD = 'cubic'
-
-# 2200 UTC 11 Oct, 2300 UTC 11 Oct, ..., 0400 UTC 12 Oct 2017
 QUERY_TIMES_UNIX_SEC = numpy.array(
-    [1507759200, 1507762800, 1507766400, 1507770000, 1507773600, 1507777200,
-     1507780600])
-
-# 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct 2017
-MIN_QUERY_TIMES_UNIX_SEC = numpy.array([1507755600, 1507766400, 1507777200])
-
-# 0000 UTC 12 Oct, 0300 UTC 12 Oct, 0600 UTC 12 Oct 2017
-MAX_QUERY_TIMES_UNIX_SEC = numpy.array([1507766400, 1507777200, 1507788000])
-
-# 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct 2017
-MODEL_TIMES_PREV_INTERP_UNIX_SEC = numpy.array(
-    [1507755600, 1507766400, 1507777200])
-
-# 0000 UTC 12 Oct, 0300 UTC 12 Oct, 0600 UTC 12 Oct 2017
-MODEL_TIMES_NEXT_INTERP_UNIX_SEC = numpy.array(
-    [1507766400, 1507777200, 1507788000])
-
-# 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct, 0600 UTC 12 Oct 2017
+    [14400, 18000, 21600, 25200, 28800, 32400, 36000])
+MIN_QUERY_TIMES_UNIX_SEC = numpy.array([10800, 21600, 32400])
+MAX_QUERY_TIMES_UNIX_SEC = numpy.array([21600, 32400, 43200])
+MODEL_TIMES_PREV_INTERP_UNIX_SEC = numpy.array([10800, 21600, 32400])
+MODEL_TIMES_NEXT_INTERP_UNIX_SEC = numpy.array([21600, 32400, 43200])
 MODEL_TIMES_SUB_AND_LINEAR_INTERP_UNIX_SEC = numpy.array(
-    [1507755600, 1507766400, 1507777200, 1507788000])
-
-# 1800 UTC 11 Oct, 2100 UTC 11 Oct, 0000 UTC 12 Oct, 0300 UTC 12 Oct,
-# 0600 UTC 12 Oct, 0900 UTC 12 Oct 2017
+    [10800, 21600, 32400, 43200])
 MODEL_TIMES_SUPERLINEAR_INTERP_UNIX_SEC = numpy.array(
-    [1507744800, 1507755600, 1507766400, 1507777200, 1507788000, 1507798800])
+    [0, 10800, 21600, 32400, 43200, 54000])
 
 THIS_DICT = {nwp_model_utils.MIN_QUERY_TIME_COLUMN: MIN_QUERY_TIMES_UNIX_SEC,
              nwp_model_utils.MAX_QUERY_TIME_COLUMN: MAX_QUERY_TIMES_UNIX_SEC}
@@ -72,11 +65,11 @@ QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP = (
     QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP.assign(**THIS_ARGUMENT_DICT))
 
 QUERY_TO_MODEL_TIMES_TABLE_PREV_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array([1507755600])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array([10800])
 QUERY_TO_MODEL_TIMES_TABLE_PREV_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array([1507766400])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array([21600])
 QUERY_TO_MODEL_TIMES_TABLE_PREV_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array([1507777200])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array([32400])
 
 QUERY_TO_MODEL_TIMES_TABLE_PREV_INTERP[
     nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0] = numpy.array(
@@ -89,11 +82,11 @@ QUERY_TO_MODEL_TIMES_TABLE_PREV_INTERP[
         [False, False, True], dtype=bool)
 
 QUERY_TO_MODEL_TIMES_TABLE_NEXT_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array([1507766400])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array([21600])
 QUERY_TO_MODEL_TIMES_TABLE_NEXT_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array([1507777200])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array([32400])
 QUERY_TO_MODEL_TIMES_TABLE_NEXT_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array([1507788000])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array([43200])
 
 QUERY_TO_MODEL_TIMES_TABLE_NEXT_INTERP[
     nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0] = numpy.array(
@@ -106,14 +99,11 @@ QUERY_TO_MODEL_TIMES_TABLE_NEXT_INTERP[
         [False, False, True], dtype=bool)
 
 QUERY_TO_MODEL_TIMES_TABLE_SUB_AND_LINEAR_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array(
-        [1507755600, 1507766400])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array([10800, 21600])
 QUERY_TO_MODEL_TIMES_TABLE_SUB_AND_LINEAR_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array(
-        [1507766400, 1507777200])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array([21600, 32400])
 QUERY_TO_MODEL_TIMES_TABLE_SUB_AND_LINEAR_INTERP[
-    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array(
-        [1507777200, 1507788000])
+    nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array([32400, 43200])
 
 QUERY_TO_MODEL_TIMES_TABLE_SUB_AND_LINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0] = numpy.array(
@@ -127,13 +117,13 @@ QUERY_TO_MODEL_TIMES_TABLE_SUB_AND_LINEAR_INTERP[
 
 QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_COLUMN].values[0] = numpy.array(
-        [1507744800, 1507755600, 1507766400, 1507777200])
+        [0, 10800, 21600, 32400])
 QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_COLUMN].values[1] = numpy.array(
-        [1507755600, 1507766400, 1507777200, 1507788000])
+        [10800, 21600, 32400, 43200])
 QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_COLUMN].values[2] = numpy.array(
-        [1507766400, 1507777200, 1507788000, 1507798800])
+        [21600, 32400, 43200, 54000])
 
 QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0] = numpy.array(
@@ -145,6 +135,7 @@ QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[2] = numpy.array(
         [False, False, True, True, True, True], dtype=bool)
 
+# The following constants are used to test rotate_winds.
 HALF_ROOT3 = numpy.sqrt(3) / 2
 U_WINDS_GRID_RELATIVE_M_S01 = numpy.array(
     [[0., 5., 10.],
@@ -171,77 +162,44 @@ class NwpModelUtilsTests(unittest.TestCase):
     """Each method is a unit test for nwp_model_utils.py."""
 
     def test_check_model_name_rap(self):
-        """Ensures correct output from check_model_name.
-
-        In this case, model is RAP.
-        """
+        """Ensures correct output from check_model_name when model is RAP."""
 
         nwp_model_utils.check_model_name(nwp_model_utils.RAP_MODEL_NAME)
 
     def test_check_model_name_narr(self):
-        """Ensures correct output from check_model_name.
-
-        In this case, model is NARR.
-        """
+        """Ensures correct output from check_model_name when model is NARR."""
 
         nwp_model_utils.check_model_name(nwp_model_utils.NARR_MODEL_NAME)
 
     def test_check_model_name_fake(self):
-        """Ensures correct output from check_model_name.
-
-        In this case, model name is not recognized.
-        """
+        """Ensures correct output from check_model_name when model is fake."""
 
         with self.assertRaises(ValueError):
             nwp_model_utils.check_model_name(FAKE_MODEL_NAME)
 
     def test_check_grid_id_narr(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, model is NARR.
-        """
+        """Ensures correct output from check_grid_id when model is NARR."""
 
         nwp_model_utils.check_grid_id(nwp_model_utils.NARR_MODEL_NAME)
 
     def test_check_grid_id_rap130(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, model is RAP on the 130 grid.
-        """
+        """Ensures correct output from check_grid_id for RAP on 130 grid."""
 
         nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
                                       nwp_model_utils.ID_FOR_130GRID)
 
     def test_check_grid_id_rap252(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, model is RAP on the 252 grid.
-        """
+        """Ensures correct output from check_grid_id for RAP on 252 grid."""
 
         nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
                                       nwp_model_utils.ID_FOR_252GRID)
 
     def test_check_grid_id_fake_grid(self):
-        """Ensures correct output from check_grid_id.
-
-        In this case, grid ID is not recognized.
-        """
+        """Ensures correct output from check_grid_id for fake grid."""
 
         with self.assertRaises(ValueError):
             nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
                                           FAKE_GRID_ID)
-
-    def test_get_times_needed_for_interp_bad_interp_method(self):
-        """Ensures correct output from get_times_needed_for_interp.
-
-        In this case, interpolation method does not exist.
-        """
-
-        with self.assertRaises(ValueError):
-            nwp_model_utils.get_times_needed_for_interp(
-                query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
-                model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=FAKE_INTERP_METHOD)
 
     def test_get_times_needed_for_interp_previous(self):
         """Ensures correct output from get_times_needed_for_interp.
@@ -253,7 +211,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=nwp_model_utils.PREVIOUS_INTERP_METHOD))
+                method_string=interp.PREVIOUS_INTERP_METHOD))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec, MODEL_TIMES_PREV_INTERP_UNIX_SEC))
@@ -279,7 +237,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=nwp_model_utils.NEXT_INTERP_METHOD))
+                method_string=interp.NEXT_INTERP_METHOD))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec, MODEL_TIMES_NEXT_INTERP_UNIX_SEC))
@@ -295,17 +253,17 @@ class NwpModelUtilsTests(unittest.TestCase):
                     QUERY_TO_MODEL_TIMES_TABLE_NEXT_INTERP[
                         this_column].values[i]))
 
-    def test_get_times_needed_for_interp_sublinear(self):
+    def test_get_times_needed_for_interp_nearest(self):
         """Ensures correct output from get_times_needed_for_interp.
 
-        In this case, interpolation method is sublinear.
+        In this case, interpolation method is nearest-neighbour.
         """
 
         these_model_times_unix_sec, this_query_to_model_times_table = (
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=SUBLINEAR_INTERP_METHOD))
+                method_string=interp.NEAREST_INTERP_METHOD))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -333,7 +291,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=LINEAR_INTERP_METHOD))
+                method_string=interp.LINEAR_INTERP_METHOD))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -361,7 +319,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=QUADRATIC_INTERP_METHOD))
+                method_string=interp.SPLINE2_INTERP_METHOD))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -389,7 +347,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=CUBIC_INTERP_METHOD))
+                method_string=interp.SPLINE3_INTERP_METHOD))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -423,6 +381,214 @@ class NwpModelUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             these_v_winds_earth_relative_m_s01, V_WINDS_EARTH_RELATIVE_M_S01,
             atol=TOLERANCE))
+
+    def test_projection_grid130(self):
+        """Ensures approx correctness of Lambert projection for NCEP 130 grid.
+
+        This method ensures that x-y coordinates for all grid points can be
+        generated accurately from lat-long coordinates.  Specifically, the mean
+        and max distance errors must be <= 100 and 500 metres, respectively.
+
+        NOTE: This test relies on several methods, so it is not a unit test.
+        """
+
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            model_name=nwp_model_utils.RAP_MODEL_NAME,
+            grid_id=nwp_model_utils.ID_FOR_130GRID)
+
+        (grid_point_lng_vector_deg, grid_point_lat_vector_deg) = numpy.loadtxt(
+            GRID130_LATLNG_FILE_NAME, unpack=True)
+        grid_point_lat_matrix_deg = numpy.reshape(
+            grid_point_lat_vector_deg, (num_grid_rows, num_grid_columns))
+        grid_point_lng_matrix_deg = numpy.reshape(
+            grid_point_lng_vector_deg, (num_grid_rows, num_grid_columns))
+
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
+            nwp_model_utils.project_latlng_to_xy(
+                grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
+                model_name=nwp_model_utils.RAP_MODEL_NAME,
+                grid_id=nwp_model_utils.ID_FOR_130GRID))
+
+        (expected_grid_point_x_matrix_metres,
+         expected_grid_point_y_matrix_metres) = (
+             nwp_model_utils.get_xy_grid_point_matrices(
+                 model_name=nwp_model_utils.RAP_MODEL_NAME,
+                 grid_id=nwp_model_utils.ID_FOR_130GRID))
+
+        x_error_matrix_metres = (
+            grid_point_x_matrix_metres - expected_grid_point_x_matrix_metres)
+        y_error_matrix_metres = (
+            grid_point_y_matrix_metres - expected_grid_point_y_matrix_metres)
+        distance_error_matrix_metres = numpy.sqrt(
+            x_error_matrix_metres ** 2 + y_error_matrix_metres ** 2)
+
+        self.assertTrue(numpy.mean(
+            distance_error_matrix_metres) <= MAX_MEAN_DISTANCE_ERROR_RAP_METRES)
+        self.assertTrue(numpy.max(
+            distance_error_matrix_metres) <= MAX_MAX_DISTANCE_ERROR_RAP_METRES)
+
+    def test_projection_grid252(self):
+        """Ensures approx correctness of Lambert projection for NCEP 252 grid.
+
+        See documentation for test_projection_grid130.
+        """
+
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            model_name=nwp_model_utils.RAP_MODEL_NAME,
+            grid_id=nwp_model_utils.ID_FOR_252GRID)
+
+        (grid_point_lng_vector_deg, grid_point_lat_vector_deg) = numpy.loadtxt(
+            GRID252_LATLNG_FILE_NAME, unpack=True)
+        grid_point_lat_matrix_deg = numpy.reshape(
+            grid_point_lat_vector_deg, (num_grid_rows, num_grid_columns))
+        grid_point_lng_matrix_deg = numpy.reshape(
+            grid_point_lng_vector_deg, (num_grid_rows, num_grid_columns))
+
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
+            nwp_model_utils.project_latlng_to_xy(
+                grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
+                model_name=nwp_model_utils.RAP_MODEL_NAME,
+                grid_id=nwp_model_utils.ID_FOR_252GRID))
+
+        (expected_grid_point_x_matrix_metres,
+         expected_grid_point_y_matrix_metres) = (
+             nwp_model_utils.get_xy_grid_point_matrices(
+                 model_name=nwp_model_utils.RAP_MODEL_NAME,
+                 grid_id=nwp_model_utils.ID_FOR_252GRID))
+
+        x_error_matrix_metres = (
+            grid_point_x_matrix_metres - expected_grid_point_x_matrix_metres)
+        y_error_matrix_metres = (
+            grid_point_y_matrix_metres - expected_grid_point_y_matrix_metres)
+        distance_error_matrix_metres = numpy.sqrt(
+            x_error_matrix_metres ** 2 + y_error_matrix_metres ** 2)
+
+        self.assertTrue(numpy.mean(
+            distance_error_matrix_metres) <= MAX_MEAN_DISTANCE_ERROR_RAP_METRES)
+        self.assertTrue(numpy.max(
+            distance_error_matrix_metres) <= MAX_MAX_DISTANCE_ERROR_RAP_METRES)
+
+    def test_projection_narr(self):
+        """Ensures approx correctness of Lambert projection for NARR grid.
+
+        See documentation for test_projection_grid130.
+        """
+
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            nwp_model_utils.NARR_MODEL_NAME)
+
+        (grid_point_lng_vector_deg, grid_point_lat_vector_deg) = numpy.loadtxt(
+            NARR_LATLNG_FILE_NAME, unpack=True)
+        grid_point_lat_matrix_deg = numpy.reshape(
+            grid_point_lat_vector_deg, (num_grid_rows, num_grid_columns))
+        grid_point_lng_matrix_deg = numpy.reshape(
+            grid_point_lng_vector_deg, (num_grid_rows, num_grid_columns))
+
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
+            nwp_model_utils.project_latlng_to_xy(
+                grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
+                model_name=nwp_model_utils.NARR_MODEL_NAME))
+
+        (expected_grid_point_x_matrix_metres,
+         expected_grid_point_y_matrix_metres) = (
+             nwp_model_utils.get_xy_grid_point_matrices(
+                 nwp_model_utils.NARR_MODEL_NAME))
+
+        x_error_matrix_metres = (
+            grid_point_x_matrix_metres - expected_grid_point_x_matrix_metres)
+        y_error_matrix_metres = (
+            grid_point_y_matrix_metres - expected_grid_point_y_matrix_metres)
+        distance_error_matrix_metres = numpy.sqrt(
+            x_error_matrix_metres ** 2 + y_error_matrix_metres ** 2)
+
+        self.assertTrue(numpy.mean(distance_error_matrix_metres) <=
+                        MAX_MEAN_DISTANCE_ERROR_NARR_METRES)
+        self.assertTrue(numpy.max(
+            distance_error_matrix_metres) <= MAX_MAX_DISTANCE_ERROR_NARR_METRES)
+
+    def test_wind_rotation_angles_grid130(self):
+        """Ensures approx correctness of wind-rotation angles on NCEP 130 grid.
+
+        This method ensures that the wind-rotation angle for all grid points can
+        be generated accurately from lat-long coordinates.  Specifically, the
+        mean sine and cosine error must be <= 10^-5 and max error must be
+        <= 10^-4.
+
+        NOTE: This test relies on methods other than get_wind_rotation_angles,
+              so it is not a unit test.
+        """
+
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            model_name=nwp_model_utils.RAP_MODEL_NAME,
+            grid_id=nwp_model_utils.ID_FOR_130GRID)
+
+        expected_cos_vector, expected_sin_vector = numpy.loadtxt(
+            GRID130_WIND_ROTATION_FILE_NAME, unpack=True)
+        expected_cos_matrix = numpy.reshape(
+            expected_cos_vector, (num_grid_rows, num_grid_columns))
+        expected_sin_matrix = numpy.reshape(
+            expected_sin_vector, (num_grid_rows, num_grid_columns))
+
+        grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
+            nwp_model_utils.get_latlng_grid_point_matrices(
+                model_name=nwp_model_utils.RAP_MODEL_NAME,
+                grid_id=nwp_model_utils.ID_FOR_130GRID))
+        rotation_angle_cos_matrix, rotation_angle_sin_matrix = (
+            nwp_model_utils.get_wind_rotation_angles(
+                grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
+                model_name=nwp_model_utils.RAP_MODEL_NAME))
+
+        cos_error_matrix = numpy.absolute(
+            rotation_angle_cos_matrix - expected_cos_matrix)
+        sin_error_matrix = numpy.absolute(
+            rotation_angle_sin_matrix - expected_sin_matrix)
+
+        self.assertTrue(
+            numpy.mean(cos_error_matrix) <= MAX_MEAN_SIN_OR_COS_ERROR)
+        self.assertTrue(numpy.max(cos_error_matrix) <= MAX_MAX_SIN_OR_COS_ERROR)
+
+        self.assertTrue(
+            numpy.mean(sin_error_matrix) <= MAX_MEAN_SIN_OR_COS_ERROR)
+        self.assertTrue(numpy.max(sin_error_matrix) <= MAX_MAX_SIN_OR_COS_ERROR)
+
+    def test_wind_rotation_angles_grid252(self):
+        """Ensures approx correctness of wind-rotation angles on NCEP 252 grid.
+
+        See documentation for test_wind_rotation_angles_grid130.
+        """
+
+        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+            model_name=nwp_model_utils.RAP_MODEL_NAME,
+            grid_id=nwp_model_utils.ID_FOR_252GRID)
+
+        expected_cos_vector, expected_sin_vector = numpy.loadtxt(
+            GRID252_WIND_ROTATION_FILE_NAME, unpack=True)
+        expected_cos_matrix = numpy.reshape(
+            expected_cos_vector, (num_grid_rows, num_grid_columns))
+        expected_sin_matrix = numpy.reshape(
+            expected_sin_vector, (num_grid_rows, num_grid_columns))
+
+        grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
+            nwp_model_utils.get_latlng_grid_point_matrices(
+                model_name=nwp_model_utils.RAP_MODEL_NAME,
+                grid_id=nwp_model_utils.ID_FOR_252GRID))
+        rotation_angle_cos_matrix, rotation_angle_sin_matrix = (
+            nwp_model_utils.get_wind_rotation_angles(
+                grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
+                model_name=nwp_model_utils.RAP_MODEL_NAME))
+
+        cos_error_matrix = numpy.absolute(
+            rotation_angle_cos_matrix - expected_cos_matrix)
+        sin_error_matrix = numpy.absolute(
+            rotation_angle_sin_matrix - expected_sin_matrix)
+
+        self.assertTrue(
+            numpy.mean(cos_error_matrix) <= MAX_MEAN_SIN_OR_COS_ERROR)
+        self.assertTrue(numpy.max(cos_error_matrix) <= MAX_MAX_SIN_OR_COS_ERROR)
+
+        self.assertTrue(
+            numpy.mean(sin_error_matrix) <= MAX_MEAN_SIN_OR_COS_ERROR)
+        self.assertTrue(numpy.max(sin_error_matrix) <= MAX_MAX_SIN_OR_COS_ERROR)
 
 
 if __name__ == '__main__':

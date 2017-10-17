@@ -6,8 +6,6 @@ import scipy.interpolate
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import narr_utils
-from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Allow interp_nwp_fields_from_xy_grid to deal with real
@@ -203,9 +201,8 @@ def _read_nwp_fields_for_interp(init_times_unix_sec=None,
                                 field_name_other_wind_component_grib1=None,
                                 list_of_model_grids=None,
                                 list_of_model_grids_other_component=None,
-                                model_name=None,
-                                grid_id=rap_model_utils.ID_FOR_130GRID,
-                                grib_type=None, top_grib_directory_name=None):
+                                model_name=None, grid_id=None, grib_type=None,
+                                top_grib_directory_name=None):
     """Reads NWP fields needed for interpolation to range of query times.
 
     T = number of model-initialization times
@@ -437,8 +434,8 @@ def interp_from_xy_grid_to_points(input_matrix, sorted_grid_point_x_metres=None,
 
 
 def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
-                                   grid_id=rap_model_utils.ID_FOR_130GRID,
-                                   field_names=None, field_names_grib1=None,
+                                   grid_id=None, field_names=None,
+                                   field_names_grib1=None,
                                    top_grib_directory_name=None,
                                    temporal_interp_method=
                                    PREVIOUS_INTERP_METHOD,
@@ -485,34 +482,21 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
         numpy.asarray(field_names_grib1),
         exact_dimensions=numpy.array([num_fields]))
 
-    nwp_model_utils.check_model_name(model_name)
-    if model_name == nwp_model_utils.NARR_MODEL_NAME:
-        grib_type = narr_utils.GRIB_TYPE
-        init_time_step_hours = narr_utils.INIT_TIME_STEP_HOURS
-        grid_point_x_metres, grid_point_y_metres = (
-            narr_utils.get_xy_grid_points_unique())
+    grib_type = nwp_model_utils.get_grib_type(model_name)
+    _, init_time_step_hours = nwp_model_utils.get_time_steps(model_name)
+    grid_point_x_metres, grid_point_y_metres = (
+        nwp_model_utils.get_xy_grid_points(model_name, grid_id))
 
-        query_x_metres, query_y_metres = narr_utils.project_latlng_to_xy(
-            query_point_table[QUERY_LAT_COLUMN].values,
-            query_point_table[QUERY_LNG_COLUMN].values)
-
-    else:
-        grib_type = rap_model_utils.GRIB_TYPE
-        init_time_step_hours = rap_model_utils.INIT_TIME_STEP_HOURS
-        grid_point_x_metres, grid_point_y_metres = (
-            rap_model_utils.get_xy_grid_points_unique(grid_id))
-
-        query_x_metres, query_y_metres = rap_model_utils.project_latlng_to_xy(
-            query_point_table[QUERY_LAT_COLUMN].values,
-            query_point_table[QUERY_LNG_COLUMN].values, grid_id=grid_id)
-
+    query_x_metres, query_y_metres = nwp_model_utils.project_latlng_to_xy(
+        query_point_table[QUERY_LAT_COLUMN].values,
+        query_point_table[QUERY_LNG_COLUMN].values, model_name=model_name,
+        grid_id=grid_id)
     argument_dict = {
         QUERY_X_COLUMN: query_x_metres, QUERY_Y_COLUMN: query_y_metres}
     query_point_table = query_point_table.assign(**argument_dict)
 
     num_query_points = len(query_point_table.index)
     nan_array = numpy.full(num_query_points, numpy.nan)
-
     interp_dict = {}
     for j in range(num_fields):
         interp_dict.update({field_names[j]: nan_array})
@@ -529,9 +513,10 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
 
     if numpy.any(rotate_wind_flags):
         rotation_angle_cosines, rotation_angle_sines = (
-            rap_model_utils.get_wind_rotation_angles(
+            nwp_model_utils.get_wind_rotation_angles(
                 query_point_table[QUERY_LAT_COLUMN].values,
-                query_point_table[QUERY_LNG_COLUMN].values))
+                query_point_table[QUERY_LNG_COLUMN].values,
+                model_name=model_name))
 
     query_point_table.drop(
         [QUERY_LAT_COLUMN, QUERY_LNG_COLUMN], axis=1, inplace=True)

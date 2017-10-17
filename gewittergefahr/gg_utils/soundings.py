@@ -11,8 +11,6 @@ from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import narr_utils
-from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import error_checking
 
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
@@ -108,22 +106,14 @@ def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
     error_checking.assert_is_geq(minimum_pressure_mb, 0)
     error_checking.assert_is_boolean(return_dict)
 
-    if model_name == nwp_model_utils.RAP_MODEL_NAME:
-        pressure_levels_mb = rap_model_utils.PRESSURE_LEVELS_MB[
-            rap_model_utils.PRESSURE_LEVELS_MB >= minimum_pressure_mb]
-        sounding_table_columns = rap_model_utils.COLUMNS_IN_SOUNDING_TABLE
-        sounding_table_columns_grib1 = (
-            rap_model_utils.COLUMNS_IN_SOUNDING_TABLE_GRIB1)
-
-    else:
-        pressure_levels_mb = narr_utils.PRESSURE_LEVELS_MB[
-            narr_utils.PRESSURE_LEVELS_MB >= minimum_pressure_mb]
-        sounding_table_columns = narr_utils.COLUMNS_IN_SOUNDING_TABLE
-        sounding_table_columns_grib1 = (
-            narr_utils.COLUMNS_IN_SOUNDING_TABLE_GRIB1)
-
-    num_sounding_table_columns = len(sounding_table_columns)
+    pressure_levels_mb = nwp_model_utils.get_pressure_levels(model_name)
+    pressure_levels_mb = pressure_levels_mb[
+        pressure_levels_mb >= minimum_pressure_mb]
     num_pressure_levels = len(pressure_levels_mb)
+
+    sounding_table_columns, sounding_table_columns_grib1 = (
+        nwp_model_utils.get_columns_in_sounding_table(model_name))
+    num_sounding_table_columns = len(sounding_table_columns)
 
     if return_dict:
         sounding_table_to_fields_dict = {}
@@ -150,86 +140,44 @@ def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
 
         if sounding_table_columns[
                 j] == nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
-            if model_name == nwp_model_utils.RAP_MODEL_NAME:
-                this_field_name = rap_model_utils.LOWEST_TEMPERATURE_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        rap_model_utils.LOWEST_TEMPERATURE_NAME_GRIB1)
-            else:
-                this_field_name = narr_utils.LOWEST_TEMPERATURE_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        narr_utils.LOWEST_TEMPERATURE_NAME_GRIB1)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_temperature_name(model_name))
 
-        elif sounding_table_columns[
-                j] == nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES:
-            this_field_name = rap_model_utils.LOWEST_RH_NAME
-            if not return_dict:
-                sounding_field_names_grib1.append(
-                    rap_model_utils.LOWEST_RH_NAME_GRIB1)
-
-        elif sounding_table_columns[
-                j] == nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
-            this_field_name = narr_utils.LOWEST_SPFH_NAME
-            if not return_dict:
-                sounding_field_names_grib1.append(
-                    narr_utils.LOWEST_SPFH_NAME_GRIB1)
+        elif sounding_table_columns[j] in [
+                nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
+                nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES]:
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_humidity_name(model_name))
 
         elif sounding_table_columns[
                 j] == nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES:
-            if model_name == nwp_model_utils.RAP_MODEL_NAME:
-                this_field_name = rap_model_utils.LOWEST_HEIGHT_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        rap_model_utils.LOWEST_HEIGHT_NAME_GRIB1)
-            else:
-                this_field_name = narr_utils.LOWEST_HEIGHT_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        narr_utils.LOWEST_HEIGHT_NAME_GRIB1)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_height_name(model_name))
 
         elif sounding_table_columns[
                 j] == nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES:
-            if model_name == nwp_model_utils.RAP_MODEL_NAME:
-                this_field_name = rap_model_utils.LOWEST_U_WIND_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        rap_model_utils.LOWEST_U_WIND_NAME_GRIB1)
-            else:
-                this_field_name = narr_utils.LOWEST_U_WIND_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        narr_utils.LOWEST_U_WIND_NAME_GRIB1)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_u_wind_name(model_name))
 
         elif sounding_table_columns[
                 j] == nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES:
-            if model_name == nwp_model_utils.RAP_MODEL_NAME:
-                this_field_name = rap_model_utils.LOWEST_V_WIND_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        rap_model_utils.LOWEST_V_WIND_NAME_GRIB1)
-            else:
-                this_field_name = narr_utils.LOWEST_V_WIND_NAME
-                if not return_dict:
-                    sounding_field_names_grib1.append(
-                        narr_utils.LOWEST_V_WIND_NAME_GRIB1)
+            this_field_name, this_field_name_grib1 = (
+                nwp_model_utils.get_lowest_v_wind_name(model_name))
 
         if return_dict:
             sounding_table_to_fields_dict[sounding_table_columns[j]].append(
                 this_field_name)
         else:
             sounding_field_names.append(this_field_name)
+            sounding_field_names_grib1.append(this_field_name_grib1)
 
     if return_dict:
         return sounding_table_to_fields_dict, pressure_levels_mb
 
-    if model_name == nwp_model_utils.RAP_MODEL_NAME:
-        sounding_field_names.append(rap_model_utils.LOWEST_PRESSURE_NAME)
-        sounding_field_names_grib1.append(
-            rap_model_utils.LOWEST_PRESSURE_NAME_GRIB1)
-    else:
-        sounding_field_names.append(narr_utils.LOWEST_PRESSURE_NAME)
-        sounding_field_names_grib1.append(narr_utils.LOWEST_PRESSURE_NAME_GRIB1)
+    this_field_name, this_field_name_grib1 = (
+        nwp_model_utils.get_lowest_pressure_name(model_name))
+    sounding_field_names.append(this_field_name)
+    sounding_field_names_grib1.append(this_field_name_grib1)
 
     return sounding_field_names, sounding_field_names_grib1
 
@@ -730,8 +678,7 @@ def read_metadata_for_sounding_indices():
         usecols=SI_METADATA_COLUMNS, dtype=METADATA_COLUMN_TYPE_DICT)
 
 
-def interp_soundings_from_nwp(query_point_table, model_name=None,
-                              grid_id=rap_model_utils.ID_FOR_130GRID,
+def interp_soundings_from_nwp(query_point_table, model_name=None, grid_id=None,
                               top_grib_directory_name=None):
     """Interpolates soundings from NWP model to query points.
 
@@ -783,10 +730,8 @@ def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
     sounding_table_columns = sounding_table_to_field_dict.keys()
     num_sounding_table_columns = len(sounding_table_columns)
 
-    if model_name == nwp_model_utils.RAP_MODEL_NAME:
-        lowest_pressure_name = rap_model_utils.LOWEST_PRESSURE_NAME
-    else:
-        lowest_pressure_name = narr_utils.LOWEST_PRESSURE_NAME
+    lowest_pressure_name, _ = nwp_model_utils.get_lowest_pressure_name(
+        model_name)
 
     pressure_levels_mb = numpy.concatenate((
         pressure_levels_mb, numpy.array([numpy.nan])))

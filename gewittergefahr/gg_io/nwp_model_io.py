@@ -4,8 +4,6 @@ import os.path
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import narr_utils
-from gewittergefahr.gg_utils import rap_model_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -14,8 +12,6 @@ TIME_FORMAT_DATE = '%Y%m%d'
 TIME_FORMAT_HOUR = '%Y%m%d_%H00'
 
 SINGLE_FIELD_FILE_EXTENSION = '.txt'
-
-RAP_GRID_IDS = [rap_model_utils.ID_FOR_130GRID, rap_model_utils.ID_FOR_252GRID]
 NARR_ID_FOR_GRIB_FILE_NAMES = 'narr-a_221'
 
 
@@ -273,16 +269,9 @@ def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
         grid_id=grid_id, grib1_field_name=grib1_field_name,
         raise_error_if_missing=False)
 
-    if model_name == nwp_model_utils.NARR_MODEL_NAME:
-        num_grid_rows = narr_utils.NUM_GRID_ROWS
-        num_grid_columns = narr_utils.NUM_GRID_COLUMNS
-        sentinel_value = narr_utils.SENTINEL_VALUE
-    else:
-        grid_metadata_dict = rap_model_utils.get_metadata_for_grid(grid_id)
-        num_grid_rows = grid_metadata_dict[rap_model_utils.NUM_ROWS_COLUMN]
-        num_grid_columns = grid_metadata_dict[
-            rap_model_utils.NUM_COLUMNS_COLUMN]
-        sentinel_value = rap_model_utils.SENTINEL_VALUE
+    num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
+        model_name)
+    sentinel_value = nwp_model_utils.SENTINEL_VALUE
 
     field_matrix = grib_io.read_field_from_grib_file(
         grib_file_name, grib1_field_name=grib1_field_name,

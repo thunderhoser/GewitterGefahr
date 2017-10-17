@@ -2,11 +2,10 @@
 
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
-from gewittergefahr.gg_utils import rap_model_utils
+from gewittergefahr.gg_utils import nwp_model_utils
 
 # TODO(thunderhoser): replace main method with named method.
 
-# TODO(thunderhoser): put these constants in rap_model_utils.
 GRIB_TYPE = 'grib2'
 MODEL_NAME = 'rap'
 SENTINEL_VALUE = 9.999e20
@@ -28,7 +27,7 @@ TOP_SINGLE_FIELD_DIR_NAME_252GRID = (
 
 
 def find_grib_file(init_time_unix_sec, lead_time_hours,
-                   grid_id=rap_model_utils.ID_FOR_130GRID,
+                   grid_id=nwp_model_utils.ID_FOR_130GRID,
                    top_directory_name=None, raise_error_if_missing=True):
     """Finds grib file with RAP data on local machine.
 
@@ -51,7 +50,7 @@ def find_grib_file(init_time_unix_sec, lead_time_hours,
 
 
 def find_single_field_file(init_time_unix_sec, lead_time_hours,
-                           grid_id=rap_model_utils.ID_FOR_130GRID,
+                           grid_id=nwp_model_utils.ID_FOR_130GRID,
                            grib1_field_name=None, top_directory_name=None,
                            raise_error_if_missing=True):
     """Finds single-field file with RAP data on local machine.
@@ -80,7 +79,7 @@ def find_single_field_file(init_time_unix_sec, lead_time_hours,
 
 
 def download_grib_file(init_time_unix_sec, lead_time_hours,
-                       grid_id=rap_model_utils.ID_FOR_130GRID,
+                       grid_id=nwp_model_utils.ID_FOR_130GRID,
                        top_local_directory_name=None,
                        raise_error_if_fails=True):
     """Downloads RAP grib file to local machine.
@@ -97,12 +96,12 @@ def download_grib_file(init_time_unix_sec, lead_time_hours,
         will be None.
     """
 
-    grid_metadata_dict = rap_model_utils.get_metadata_for_grid(grid_id)
+    top_online_directory_name = nwp_model_utils.get_top_online_directory(
+        nwp_model_utils.RAP_MODEL_NAME, grid_id)
 
     return nwp_model_io.download_grib_file(
         init_time_unix_sec, lead_time_hours,
-        top_online_directory_name=
-        grid_metadata_dict[rap_model_utils.TOP_ONLINE_DIRECTORY_COLUMN],
+        top_online_directory_name=top_online_directory_name,
         top_local_directory_name=top_local_directory_name,
         model_name=MODEL_NAME, grid_id=grid_id, grib_type=GRIB_TYPE,
         raise_error_if_fails=raise_error_if_fails)
@@ -110,7 +109,7 @@ def download_grib_file(init_time_unix_sec, lead_time_hours,
 
 def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
                               lead_time_hours=None,
-                              grid_id=rap_model_utils.ID_FOR_130GRID,
+                              grid_id=nwp_model_utils.ID_FOR_130GRID,
                               grib1_field_name=None,
                               top_single_field_dir_name=None,
                               wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
@@ -153,14 +152,14 @@ def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
 if __name__ == '__main__':
     LOCAL_GRIB_FILE_NAME = download_grib_file(
         INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
-        grid_id=rap_model_utils.ID_FOR_130GRID,
+        grid_id=nwp_model_utils.ID_FOR_130GRID,
         top_local_directory_name=TOP_GRIB_DIRECTORY_NAME_130GRID,
         raise_error_if_fails=True)
     print LOCAL_GRIB_FILE_NAME
 
     DATA_MATRIX, LOCAL_TEXT_FILE_NAME = read_field_from_grib_file(
         LOCAL_GRIB_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
-        lead_time_hours=LEAD_TIME_HOURS, grid_id=rap_model_utils.ID_FOR_130GRID,
+        lead_time_hours=LEAD_TIME_HOURS, grid_id=nwp_model_utils.ID_FOR_130GRID,
         grib1_field_name=GRIB2_VAR_NAME,
         top_single_field_dir_name=TOP_SINGLE_FIELD_DIR_NAME_130GRID)
     print DATA_MATRIX
@@ -168,14 +167,14 @@ if __name__ == '__main__':
 
     LOCAL_GRIB_FILE_NAME = download_grib_file(
         INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
-        grid_id=rap_model_utils.ID_FOR_252GRID,
+        grid_id=nwp_model_utils.ID_FOR_252GRID,
         top_local_directory_name=TOP_GRIB_DIRECTORY_NAME_252GRID,
         raise_error_if_fails=True)
     print LOCAL_GRIB_FILE_NAME
 
     DATA_MATRIX, LOCAL_TEXT_FILE_NAME = read_field_from_grib_file(
         LOCAL_GRIB_FILE_NAME, init_time_unix_sec=INIT_TIME_UNIX_SEC,
-        lead_time_hours=LEAD_TIME_HOURS, grid_id=rap_model_utils.ID_FOR_252GRID,
+        lead_time_hours=LEAD_TIME_HOURS, grid_id=nwp_model_utils.ID_FOR_252GRID,
         grib1_field_name=GRIB2_VAR_NAME,
         top_single_field_dir_name=TOP_SINGLE_FIELD_DIR_NAME_252GRID)
     print DATA_MATRIX

@@ -8,78 +8,61 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import rap_model_utils
-from gewittergefahr.gg_utils import narr_utils
 
 TOLERANCE = 1e-6
 
 # The following constants are used to test _get_nwp_fields_in_sounding.
 MINIMUM_PRESSURE_MB = 950.
 
+THIS_LOWEST_TEMPERATURE_NAME, THIS_LOWEST_TEMPERATURE_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_temperature_name(nwp_model_utils.RAP_MODEL_NAME))
+THIS_LOWEST_HUMIDITY_NAME, THIS_LOWEST_HUMIDITY_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_humidity_name(nwp_model_utils.RAP_MODEL_NAME))
+THIS_LOWEST_HEIGHT_NAME, THIS_LOWEST_HEIGHT_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_height_name(nwp_model_utils.RAP_MODEL_NAME))
+THIS_LOWEST_U_WIND_NAME, THIS_LOWEST_U_WIND_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_u_wind_name(nwp_model_utils.RAP_MODEL_NAME))
+THIS_LOWEST_V_WIND_NAME, THIS_LOWEST_V_WIND_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_v_wind_name(nwp_model_utils.RAP_MODEL_NAME))
+THIS_LOWEST_PRESSURE_NAME, THIS_LOWEST_PRESSURE_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_pressure_name(nwp_model_utils.RAP_MODEL_NAME))
+
 SOUNDING_FIELD_NAMES_RAP = [
     'temperature_kelvins_950mb', 'temperature_kelvins_975mb',
-    'temperature_kelvins_1000mb', rap_model_utils.LOWEST_TEMPERATURE_NAME,
+    'temperature_kelvins_1000mb', THIS_LOWEST_TEMPERATURE_NAME,
     'relative_humidity_percent_950mb', 'relative_humidity_percent_975mb',
-    'relative_humidity_percent_1000mb', rap_model_utils.LOWEST_RH_NAME,
+    'relative_humidity_percent_1000mb', THIS_LOWEST_HUMIDITY_NAME,
     'geopotential_height_metres_950mb', 'geopotential_height_metres_975mb',
-    'geopotential_height_metres_1000mb', rap_model_utils.LOWEST_HEIGHT_NAME,
+    'geopotential_height_metres_1000mb', THIS_LOWEST_HEIGHT_NAME,
     'u_wind_m_s01_950mb', 'u_wind_m_s01_975mb', 'u_wind_m_s01_1000mb',
-    rap_model_utils.LOWEST_U_WIND_NAME,
+    THIS_LOWEST_U_WIND_NAME,
     'v_wind_m_s01_950mb', 'v_wind_m_s01_975mb', 'v_wind_m_s01_1000mb',
-    rap_model_utils.LOWEST_V_WIND_NAME, rap_model_utils.LOWEST_PRESSURE_NAME]
+    THIS_LOWEST_V_WIND_NAME, THIS_LOWEST_PRESSURE_NAME]
 
 SOUNDING_FIELD_NAMES_GRIB1_RAP = [
     'TMP:950 mb', 'TMP:975 mb', 'TMP:1000 mb',
-    rap_model_utils.LOWEST_TEMPERATURE_NAME_GRIB1,
-    'RH:950 mb', 'RH:975 mb', 'RH:1000 mb',
-    rap_model_utils.LOWEST_RH_NAME_GRIB1,
-    'HGT:950 mb', 'HGT:975 mb', 'HGT:1000 mb',
-    rap_model_utils.LOWEST_HEIGHT_NAME_GRIB1,
-    'UGRD:950 mb', 'UGRD:975 mb', 'UGRD:1000 mb',
-    rap_model_utils.LOWEST_U_WIND_NAME_GRIB1,
-    'VGRD:950 mb', 'VGRD:975 mb', 'VGRD:1000 mb',
-    rap_model_utils.LOWEST_V_WIND_NAME_GRIB1,
-    rap_model_utils.LOWEST_PRESSURE_NAME_GRIB1]
-
-SOUNDING_FIELD_NAMES_NARR = [
-    'temperature_kelvins_950mb', 'temperature_kelvins_975mb',
-    'temperature_kelvins_1000mb', narr_utils.LOWEST_TEMPERATURE_NAME,
-    'specific_humidity_950mb', 'specific_humidity_975mb',
-    'specific_humidity_1000mb', narr_utils.LOWEST_SPFH_NAME,
-    'geopotential_height_metres_950mb', 'geopotential_height_metres_975mb',
-    'geopotential_height_metres_1000mb', narr_utils.LOWEST_HEIGHT_NAME,
-    'u_wind_m_s01_950mb', 'u_wind_m_s01_975mb', 'u_wind_m_s01_1000mb',
-    narr_utils.LOWEST_U_WIND_NAME,
-    'v_wind_m_s01_950mb', 'v_wind_m_s01_975mb', 'v_wind_m_s01_1000mb',
-    narr_utils.LOWEST_V_WIND_NAME, narr_utils.LOWEST_PRESSURE_NAME]
-
-SOUNDING_FIELD_NAMES_GRIB1_NARR = [
-    'TMP:950 mb', 'TMP:975 mb', 'TMP:1000 mb',
-    narr_utils.LOWEST_TEMPERATURE_NAME_GRIB1,
-    'SPFH:950 mb', 'SPFH:975 mb', 'SPFH:1000 mb',
-    narr_utils.LOWEST_SPFH_NAME_GRIB1,
-    'HGT:950 mb', 'HGT:975 mb', 'HGT:1000 mb',
-    narr_utils.LOWEST_HEIGHT_NAME_GRIB1,
-    'UGRD:950 mb', 'UGRD:975 mb', 'UGRD:1000 mb',
-    narr_utils.LOWEST_U_WIND_NAME_GRIB1,
-    'VGRD:950 mb', 'VGRD:975 mb', 'VGRD:1000 mb',
-    narr_utils.LOWEST_V_WIND_NAME_GRIB1, narr_utils.LOWEST_PRESSURE_NAME_GRIB1]
+    THIS_LOWEST_TEMPERATURE_NAME_GRIB1,
+    'RH:950 mb', 'RH:975 mb', 'RH:1000 mb', THIS_LOWEST_HUMIDITY_NAME_GRIB1,
+    'HGT:950 mb', 'HGT:975 mb', 'HGT:1000 mb', THIS_LOWEST_HEIGHT_NAME_GRIB1,
+    'UGRD:950 mb', 'UGRD:975 mb', 'UGRD:1000 mb', THIS_LOWEST_U_WIND_NAME_GRIB1,
+    'VGRD:950 mb', 'VGRD:975 mb', 'VGRD:1000 mb', THIS_LOWEST_V_WIND_NAME_GRIB1,
+    THIS_LOWEST_PRESSURE_NAME_GRIB1]
 
 TEMPERATURE_FIELD_NAMES_RAP = [
     'temperature_kelvins_950mb', 'temperature_kelvins_975mb',
-    'temperature_kelvins_1000mb', rap_model_utils.LOWEST_TEMPERATURE_NAME]
+    'temperature_kelvins_1000mb', THIS_LOWEST_TEMPERATURE_NAME]
 RH_FIELD_NAMES_RAP = [
     'relative_humidity_percent_950mb', 'relative_humidity_percent_975mb',
-    'relative_humidity_percent_1000mb', rap_model_utils.LOWEST_RH_NAME]
+    'relative_humidity_percent_1000mb', THIS_LOWEST_HUMIDITY_NAME]
 HEIGHT_FIELD_NAMES_RAP = [
     'geopotential_height_metres_950mb', 'geopotential_height_metres_975mb',
-    'geopotential_height_metres_1000mb', rap_model_utils.LOWEST_HEIGHT_NAME]
+    'geopotential_height_metres_1000mb', THIS_LOWEST_HEIGHT_NAME]
 U_WIND_FIELD_NAMES_RAP = [
     'u_wind_m_s01_950mb', 'u_wind_m_s01_975mb', 'u_wind_m_s01_1000mb',
-    rap_model_utils.LOWEST_U_WIND_NAME]
+    THIS_LOWEST_U_WIND_NAME]
 V_WIND_FIELD_NAMES_RAP = [
     'v_wind_m_s01_950mb', 'v_wind_m_s01_975mb', 'v_wind_m_s01_1000mb',
-    rap_model_utils.LOWEST_V_WIND_NAME]
+    THIS_LOWEST_V_WIND_NAME]
 SOUNDING_TABLE_TO_FIELDS_DICT_RAP = {
     nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
         TEMPERATURE_FIELD_NAMES_RAP,
@@ -89,21 +72,57 @@ SOUNDING_TABLE_TO_FIELDS_DICT_RAP = {
     nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES: V_WIND_FIELD_NAMES_RAP
 }
 
+THIS_LOWEST_TEMPERATURE_NAME, THIS_LOWEST_TEMPERATURE_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_temperature_name(
+        nwp_model_utils.NARR_MODEL_NAME))
+THIS_LOWEST_HUMIDITY_NAME, THIS_LOWEST_HUMIDITY_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_humidity_name(nwp_model_utils.NARR_MODEL_NAME))
+THIS_LOWEST_HEIGHT_NAME, THIS_LOWEST_HEIGHT_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_height_name(nwp_model_utils.NARR_MODEL_NAME))
+THIS_LOWEST_U_WIND_NAME, THIS_LOWEST_U_WIND_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_u_wind_name(nwp_model_utils.NARR_MODEL_NAME))
+THIS_LOWEST_V_WIND_NAME, THIS_LOWEST_V_WIND_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_v_wind_name(nwp_model_utils.NARR_MODEL_NAME))
+THIS_LOWEST_PRESSURE_NAME, THIS_LOWEST_PRESSURE_NAME_GRIB1 = (
+    nwp_model_utils.get_lowest_pressure_name(nwp_model_utils.NARR_MODEL_NAME))
+
+SOUNDING_FIELD_NAMES_NARR = [
+    'temperature_kelvins_950mb', 'temperature_kelvins_975mb',
+    'temperature_kelvins_1000mb', THIS_LOWEST_TEMPERATURE_NAME,
+    'specific_humidity_950mb', 'specific_humidity_975mb',
+    'specific_humidity_1000mb', THIS_LOWEST_HUMIDITY_NAME,
+    'geopotential_height_metres_950mb', 'geopotential_height_metres_975mb',
+    'geopotential_height_metres_1000mb', THIS_LOWEST_HEIGHT_NAME,
+    'u_wind_m_s01_950mb', 'u_wind_m_s01_975mb', 'u_wind_m_s01_1000mb',
+    THIS_LOWEST_U_WIND_NAME,
+    'v_wind_m_s01_950mb', 'v_wind_m_s01_975mb', 'v_wind_m_s01_1000mb',
+    THIS_LOWEST_V_WIND_NAME, THIS_LOWEST_PRESSURE_NAME]
+
+SOUNDING_FIELD_NAMES_GRIB1_NARR = [
+    'TMP:950 mb', 'TMP:975 mb', 'TMP:1000 mb',
+    THIS_LOWEST_TEMPERATURE_NAME_GRIB1,
+    'SPFH:950 mb', 'SPFH:975 mb', 'SPFH:1000 mb',
+    THIS_LOWEST_HUMIDITY_NAME_GRIB1,
+    'HGT:950 mb', 'HGT:975 mb', 'HGT:1000 mb', THIS_LOWEST_HEIGHT_NAME_GRIB1,
+    'UGRD:950 mb', 'UGRD:975 mb', 'UGRD:1000 mb', THIS_LOWEST_U_WIND_NAME_GRIB1,
+    'VGRD:950 mb', 'VGRD:975 mb', 'VGRD:1000 mb', THIS_LOWEST_V_WIND_NAME_GRIB1,
+    THIS_LOWEST_PRESSURE_NAME_GRIB1]
+
 TEMPERATURE_FIELD_NAMES_NARR = [
     'temperature_kelvins_950mb', 'temperature_kelvins_975mb',
-    'temperature_kelvins_1000mb', narr_utils.LOWEST_TEMPERATURE_NAME]
+    'temperature_kelvins_1000mb', THIS_LOWEST_TEMPERATURE_NAME]
 SPFH_FIELD_NAMES_NARR = [
     'specific_humidity_950mb', 'specific_humidity_975mb',
-    'specific_humidity_1000mb', narr_utils.LOWEST_SPFH_NAME]
+    'specific_humidity_1000mb', THIS_LOWEST_HUMIDITY_NAME]
 HEIGHT_FIELD_NAMES_NARR = [
     'geopotential_height_metres_950mb', 'geopotential_height_metres_975mb',
-    'geopotential_height_metres_1000mb', narr_utils.LOWEST_HEIGHT_NAME]
+    'geopotential_height_metres_1000mb', THIS_LOWEST_HEIGHT_NAME]
 U_WIND_FIELD_NAMES_NARR = [
     'u_wind_m_s01_950mb', 'u_wind_m_s01_975mb', 'u_wind_m_s01_1000mb',
-    narr_utils.LOWEST_U_WIND_NAME]
+    THIS_LOWEST_U_WIND_NAME]
 V_WIND_FIELD_NAMES_NARR = [
     'v_wind_m_s01_950mb', 'v_wind_m_s01_975mb', 'v_wind_m_s01_1000mb',
-    narr_utils.LOWEST_V_WIND_NAME]
+    THIS_LOWEST_V_WIND_NAME]
 SOUNDING_TABLE_TO_FIELDS_DICT_NARR = {
     nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
         TEMPERATURE_FIELD_NAMES_NARR,

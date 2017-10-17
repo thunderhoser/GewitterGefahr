@@ -3,7 +3,6 @@
 import unittest
 from gewittergefahr.gg_io import nwp_model_io
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import rap_model_utils
 
 LEAD_TIME_HOURS_1DIGIT = 9
 LEAD_TIME_STRING_1DIGIT = '009'
@@ -75,7 +74,7 @@ class NwpModelIoTests(unittest.TestCase):
         """
 
         this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
-            nwp_model_utils.RAP_MODEL_NAME, rap_model_utils.ID_FOR_130GRID)
+            nwp_model_utils.RAP_MODEL_NAME, nwp_model_utils.ID_FOR_130GRID)
         self.assertTrue(this_model_id == MODEL_ID_RAP130)
 
     def test_get_model_id_for_grib_file_names_rap252(self):
@@ -85,7 +84,7 @@ class NwpModelIoTests(unittest.TestCase):
         """
 
         this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
-            nwp_model_utils.RAP_MODEL_NAME, rap_model_utils.ID_FOR_252GRID)
+            nwp_model_utils.RAP_MODEL_NAME, nwp_model_utils.ID_FOR_252GRID)
         self.assertTrue(this_model_id == MODEL_ID_RAP252)
 
     def test_get_model_id_for_grib_file_names_narr(self):
