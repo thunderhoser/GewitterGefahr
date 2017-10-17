@@ -93,6 +93,26 @@ class MoistureConversionsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             these_dewpoints_k, DEWPOINTS_KELVINS, atol=TOLERANCE))
 
+    def test_dewpoint_to_specific_humidity(self):
+        """Ensures correct output from dewpoint_to_specific_humidity."""
+
+        these_specific_humidities_kg_kg01 = (
+            moisture_conversions.dewpoint_to_specific_humidity(
+                DEWPOINTS_KELVINS, TOTAL_PRESSURES_PASCALS))
+        self.assertTrue(numpy.allclose(
+            these_specific_humidities_kg_kg01, SPECIFIC_HUMIDITIES_KG_KG01,
+            atol=TOLERANCE))
+
+    def test_dewpoint_to_relative_humidity(self):
+        """Ensures correct output from dewpoint_to_relative_humidity."""
+
+        these_relative_humidities = (
+            moisture_conversions.dewpoint_to_relative_humidity(
+                DEWPOINTS_KELVINS, TEMPERATURES_KELVINS,
+                TOTAL_PRESSURES_PASCALS))
+        self.assertTrue(numpy.allclose(
+            these_relative_humidities, RELATIVE_HUMIDITIES, atol=TOLERANCE))
+
 
 if __name__ == '__main__':
     unittest.main()

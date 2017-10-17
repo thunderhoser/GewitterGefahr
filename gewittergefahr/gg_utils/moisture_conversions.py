@@ -133,6 +133,22 @@ def specific_humidity_to_dewpoint(specific_humidities_kg_kg01,
     return vapour_pressure_to_dewpoint(vapour_pressures_pascals)
 
 
+def dewpoint_to_specific_humidity(dewpoints_kelvins, total_pressures_pascals):
+    """Converts one or more dewpoints to specific humidities.
+
+    :param dewpoints_kelvins: numpy array of dewpoints (K).
+    :param total_pressures_pascals: equivalent-size numpy array of total air
+        pressures (K).
+    :return: specific_humidities_kg_kg01: equivalent-size numpy array of
+        specific humidities (kg per kg).
+    """
+
+    vapour_pressures_pascals = dewpoint_to_vapour_pressure(dewpoints_kelvins)
+    mixing_ratios_kg_kg01 = vapour_pressure_to_mixing_ratio(
+        vapour_pressures_pascals, total_pressures_pascals)
+    return mixing_ratio_to_specific_humidity(mixing_ratios_kg_kg01)
+
+
 def relative_humidity_to_dewpoint(relative_humidities, temperatures_kelvins,
                                   total_pressures_pascals):
     """Converts one or more relative humidities to dewpoints.
@@ -159,3 +175,33 @@ def relative_humidity_to_dewpoint(relative_humidities, temperatures_kelvins,
         relative_humidities * saturated_mixing_ratios_kg_kg01,
         total_pressures_pascals)
     return vapour_pressure_to_dewpoint(vapour_pressures_pascals)
+
+
+def dewpoint_to_relative_humidity(dewpoints_kelvins, temperatures_kelvins,
+                                  total_pressures_pascals):
+    """Converts one or more dewpoints to relative humidities.
+
+    :param dewpoints_kelvins: numpy array of dewpoints (K).
+    :param temperatures_kelvins: equivalent-size numpy array of air temperatures
+        (K).
+    :param total_pressures_pascals: equivalent-size numpy array of total air
+        pressures (K).
+    :return: relative_humidities: equivalent-size numpy array of relative
+        humidities (unitless).
+    """
+
+    error_checking.assert_is_real_numpy_array(dewpoints_kelvins)
+    error_checking.assert_is_real_numpy_array(temperatures_kelvins)
+    dewpoint_dimensions = numpy.asarray(dewpoints_kelvins.shape)
+    error_checking.assert_is_numpy_array(
+        temperatures_kelvins, exact_dimensions=dewpoint_dimensions)
+
+    vapour_pressures_pascals = dewpoint_to_vapour_pressure(dewpoints_kelvins)
+    mixing_ratios_kg_kg01 = vapour_pressure_to_mixing_ratio(
+        vapour_pressures_pascals, total_pressures_pascals)
+
+    saturated_vapour_pressures_pascals = dewpoint_to_vapour_pressure(
+        temperatures_kelvins)
+    saturated_mixing_ratios_kg_kg01 = vapour_pressure_to_mixing_ratio(
+        saturated_vapour_pressures_pascals, total_pressures_pascals)
+    return mixing_ratios_kg_kg01 / saturated_mixing_ratios_kg_kg01
