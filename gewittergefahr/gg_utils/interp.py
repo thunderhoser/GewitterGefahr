@@ -244,29 +244,29 @@ def _read_nwp_fields_for_interp(init_times_unix_sec=None,
 
     for this_index in init_time_needed_indices:
         this_grib_file_name = nwp_model_io.find_grib_file(
-            init_times_unix_sec[this_index], 0,
+            init_times_unix_sec[this_index], lead_time_hours=0,
+            model_name=model_name, grid_id=grid_id,
             top_directory_name=top_grib_directory_name,
-            model_name=model_name, grid_id=grid_id, grib_type=grib_type,
             raise_error_if_missing=True)
 
         list_of_model_grids[this_index], _ = (
             nwp_model_io.read_field_from_grib_file(
                 this_grib_file_name,
                 init_time_unix_sec=init_times_unix_sec[this_index],
-                lead_time_hours=0,
+                lead_time_hours=0, model_name=model_name, grid_id=grid_id,
                 top_single_field_dir_name=top_grib_directory_name,
-                model_name=model_name, grid_id=grid_id,
-                grib1_field_name=field_name_grib1))
+                grib1_field_name=field_name_grib1,
+                delete_single_field_file=True, raise_error_if_fails=True))
 
         if rotate_wind:
             list_of_model_grids_other_component[this_index], _ = (
                 nwp_model_io.read_field_from_grib_file(
                     this_grib_file_name,
                     init_time_unix_sec=init_times_unix_sec[this_index],
-                    lead_time_hours=0,
+                    lead_time_hours=0, model_name=model_name, grid_id=grid_id,
                     top_single_field_dir_name=top_grib_directory_name,
-                    model_name=model_name, grid_id=grid_id,
-                    grib1_field_name=field_name_other_wind_component_grib1))
+                    grib1_field_name=field_name_other_wind_component_grib1,
+                    delete_single_field_file=True, raise_error_if_fails=True))
 
     if not rotate_wind:
         list_of_model_grids_other_component = None

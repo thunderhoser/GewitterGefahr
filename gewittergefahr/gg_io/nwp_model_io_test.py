@@ -18,9 +18,8 @@ MODEL_ID_NARR = 'narr-a_221'
 INIT_TIME_UNIX_SEC = 1505962800  # 0300 UTC 21 Sep 2017
 LEAD_TIME_HOURS = 7
 
-MODEL_NAME_FOR_FILES = 'rap'
-GRID_ID_FOR_FILES = '130'
-GRIB_TYPE_FOR_FILES = 'grib2'
+MODEL_NAME_FOR_FILES = nwp_model_utils.RAP_MODEL_NAME
+GRID_ID_FOR_FILES = nwp_model_utils.ID_FOR_130GRID
 PATHLESS_GRIB_FILE_NAME = 'rap_130_20170921_0300_007.grb2'
 
 TOP_GRIB_DIRECTORY_NAME = 'grib_files'
@@ -67,67 +66,64 @@ class NwpModelIoTests(unittest.TestCase):
             LEAD_TIME_HOURS_3DIGITS)
         self.assertTrue(this_lead_time_string == LEAD_TIME_STRING_3DIGITS)
 
-    def test_get_model_id_for_grib_file_names_rap130(self):
-        """Ensures correct output from _get_model_id_for_grib_file_names.
+    def test_get_model_id_for_file_name_rap130(self):
+        """Ensures correct output from _get_model_id_for_file_name.
 
-        In this case, model is RAP on the 130 grid.
+        In this case, model is RAP on the NCEP 130 grid.
         """
 
-        this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
+        this_model_id = nwp_model_io._get_model_id_for_file_name(
             nwp_model_utils.RAP_MODEL_NAME, nwp_model_utils.ID_FOR_130GRID)
         self.assertTrue(this_model_id == MODEL_ID_RAP130)
 
-    def test_get_model_id_for_grib_file_names_rap252(self):
-        """Ensures correct output from _get_model_id_for_grib_file_names.
+    def test_get_model_id_for_file_name_rap252(self):
+        """Ensures correct output from _get_model_id_for_file_name.
 
-        In this case, model is RAP on the 252 grid.
+        In this case, model is RAP on the NCEP 252 grid.
         """
 
-        this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
+        this_model_id = nwp_model_io._get_model_id_for_file_name(
             nwp_model_utils.RAP_MODEL_NAME, nwp_model_utils.ID_FOR_252GRID)
         self.assertTrue(this_model_id == MODEL_ID_RAP252)
 
-    def test_get_model_id_for_grib_file_names_narr(self):
-        """Ensures correct output from _get_model_id_for_grib_file_names.
+    def test_get_model_id_for_file_name_narr(self):
+        """Ensures correct output from _get_model_id_for_file_name.
 
         In this case, model is NARR.
         """
 
-        this_model_id = nwp_model_io._get_model_id_for_grib_file_names(
+        this_model_id = nwp_model_io._get_model_id_for_file_name(
             nwp_model_utils.NARR_MODEL_NAME)
         self.assertTrue(this_model_id == MODEL_ID_NARR)
 
     def test_get_pathless_grib_file_name(self):
         """Ensures correct output from _get_pathless_grib_file_name."""
 
-        this_pathless_grib_file_name = (
-            nwp_model_io._get_pathless_grib_file_name(
-                INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
-                model_name=MODEL_NAME_FOR_FILES, grid_id=GRID_ID_FOR_FILES,
-                grib_type=GRIB_TYPE_FOR_FILES))
-
-        self.assertTrue(this_pathless_grib_file_name == PATHLESS_GRIB_FILE_NAME)
+        this_pathless_file_name = nwp_model_io._get_pathless_grib_file_name(
+            INIT_TIME_UNIX_SEC, lead_time_hours=LEAD_TIME_HOURS,
+            model_name=MODEL_NAME_FOR_FILES, grid_id=GRID_ID_FOR_FILES)
+        self.assertTrue(this_pathless_file_name == PATHLESS_GRIB_FILE_NAME)
 
     def test_get_pathless_single_field_file_name(self):
         """Ensures correct output from _get_pathless_single_field_file_name."""
 
         this_pathless_file_name = (
             nwp_model_io._get_pathless_single_field_file_name(
-                INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
+                INIT_TIME_UNIX_SEC, lead_time_hours=LEAD_TIME_HOURS,
                 model_name=MODEL_NAME_FOR_FILES, grid_id=GRID_ID_FOR_FILES,
                 grib1_field_name=GRIB1_FIELD_NAME))
 
-        self.assertTrue(
-            this_pathless_file_name == PATHLESS_SINGLE_FIELD_FILE_NAME)
+        self.assertTrue(this_pathless_file_name ==
+                        PATHLESS_SINGLE_FIELD_FILE_NAME)
 
     def test_find_grib_file(self):
         """Ensures correct output from find_grib_file."""
 
         this_grib_file_name = nwp_model_io.find_grib_file(
-            INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
-            top_directory_name=TOP_GRIB_DIRECTORY_NAME,
+            INIT_TIME_UNIX_SEC, lead_time_hours=LEAD_TIME_HOURS,
             model_name=MODEL_NAME_FOR_FILES, grid_id=GRID_ID_FOR_FILES,
-            grib_type=GRIB_TYPE_FOR_FILES, raise_error_if_missing=False)
+            top_directory_name=TOP_GRIB_DIRECTORY_NAME,
+            raise_error_if_missing=False)
 
         self.assertTrue(this_grib_file_name == GRIB_FILE_NAME)
 
@@ -135,10 +131,11 @@ class NwpModelIoTests(unittest.TestCase):
         """Ensures correct output from find_single_field_file."""
 
         this_single_field_file_name = nwp_model_io.find_single_field_file(
-            INIT_TIME_UNIX_SEC, LEAD_TIME_HOURS,
-            top_directory_name=TOP_SINGLE_FIELD_DIR_NAME,
+            INIT_TIME_UNIX_SEC, lead_time_hours=LEAD_TIME_HOURS,
             model_name=MODEL_NAME_FOR_FILES, grid_id=GRID_ID_FOR_FILES,
-            grib1_field_name=GRIB1_FIELD_NAME, raise_error_if_missing=False)
+            grib1_field_name=GRIB1_FIELD_NAME,
+            top_directory_name=TOP_SINGLE_FIELD_DIR_NAME,
+            raise_error_if_missing=False)
 
         self.assertTrue(this_single_field_file_name == SINGLE_FIELD_FILE_NAME)
 
