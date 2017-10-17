@@ -24,6 +24,7 @@ REDUNDANT_HEIGHT_TOLERANCE_METRES = 1e-3
 
 PERCENT_TO_UNITLESS = 0.01
 PASCALS_TO_MB = 0.01
+MB_TO_PASCALS = 100
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
@@ -233,8 +234,7 @@ def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
     return sounding_field_names, sounding_field_names_grib1
 
 
-def _remove_subsurface_sounding_data(sounding_table,
-                                     remove_subsurface_rows=None):
+def _remove_subsurface_sounding_data(sounding_table, delete_rows=None):
     """Removes sounding data from levels below the surface.
 
     :param sounding_table: See documentation for
@@ -257,7 +257,7 @@ def _remove_subsurface_sounding_data(sounding_table,
         sounding_table[HEIGHT_COLUMN_FOR_SHARPPY].values < surface_height_m_asl)
     subsurface_rows = numpy.where(subsurface_flags)[0]
 
-    if remove_subsurface_rows:
+    if delete_rows:
         pressure_1000mb_flags = sounding_table[
             PRESSURE_COLUMN_FOR_SHARPPY].values == 1000
         bad_flags = numpy.logical_and(
@@ -675,7 +675,7 @@ def _convert_sounding_to_sharppy_units(sounding_table):
         dewpoints_kelvins = moisture_conversions.specific_humidity_to_dewpoint(
             sounding_table[
                 nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES].values,
-            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY].values)
+            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY].values * MB_TO_PASCALS)
     else:
         columns_to_drop.append(nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
 
@@ -684,7 +684,7 @@ def _convert_sounding_to_sharppy_units(sounding_table):
                 nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES].values,
             sounding_table[
                 nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values,
-            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY].values)
+            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY].values * MB_TO_PASCALS)
 
     dewpoints_deg_c = temperature_conversions.kelvins_to_celsius(
         dewpoints_kelvins)
@@ -849,7 +849,7 @@ def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
     error_checking.assert_is_not_nan(northward_motion_kt)
 
     sounding_table = _remove_subsurface_sounding_data(
-        sounding_table, remove_subsurface_rows=False)
+        sounding_table, delete_rows=False)
     sounding_table = _sort_sounding_by_height(sounding_table)
     sounding_table = _remove_redundant_sounding_data(sounding_table)
 
@@ -865,7 +865,7 @@ def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
 
     except:
         sounding_table = _remove_subsurface_sounding_data(
-            sounding_table, remove_subsurface_rows=True)
+            sounding_table, delete_rows=True)
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
