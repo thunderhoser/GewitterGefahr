@@ -57,3 +57,19 @@ def floor_to_nearest(input_value, rounding_base):
 
     error_checking.assert_is_greater(rounding_base, 0)
     return rounding_base * numpy.floor(input_value / rounding_base)
+
+
+def round_to_half_integer(input_value):
+    """Rounds numbers to nearest half-integer that is not also an integer.
+
+    :param input_value: Either numpy array of real numbers or scalar real
+        number.
+    :return: output_value: Same as input_value, except rounded.
+    """
+
+    if isinstance(input_value, collections.Iterable):
+        error_checking.assert_is_real_numpy_array(input_value)
+    else:
+        error_checking.assert_is_real_number(input_value)
+
+    return numpy.round(input_value + 0.5) - 0.5
