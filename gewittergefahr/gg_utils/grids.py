@@ -229,6 +229,52 @@ def latlng_vectors_to_matrices(unique_latitudes_deg, unique_longitudes_deg):
     return latitude_matrix_deg, longitude_matrix_deg
 
 
+def xy_field_grid_points_to_edges(field_matrix=None, x_min_metres=None,
+                                  y_min_metres=None, x_spacing_metres=None,
+                                  y_spacing_metres=None):
+    """Re-references x-y field from grid points to edges.
+
+    M = number of rows (unique grid-point x-coordinates)
+    N = number of columns (unique grid-point y-coordinates)
+
+    :param field_matrix: M-by-N numpy array with values of some variable
+        (examples: temperature, radar reflectivity, etc.).  y should increase
+        while traveling down a column, and x should increase while traveling
+        right across a row.
+    :param x_min_metres: Minimum x-coordinate over all grid points.
+    :param y_min_metres: Minimum y-coordinate over all grid points.
+    :param x_spacing_metres: Spacing between adjacent grid points in x-
+        direction.
+    :param y_spacing_metres: Spacing between adjacent grid points in y-
+        direction.
+    :return: field_matrix: Same as input, except that dimensions are now (M + 1)
+        by (N + 1).  The last row and last column contain only NaN's.
+    :return: grid_cell_edge_x_metres: length-(N + 1) numpy array with x-
+        coordinates of grid-cell edges.
+    :return: grid_cell_edge_y_metres: length-(M + 1) numpy array with y-
+        coordinates of grid-cell edges.
+    """
+
+    error_checking.assert_is_real_numpy_array(field_matrix)
+    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
+
+    num_rows = field_matrix.shape[0]
+    num_columns = field_matrix.shape[1]
+
+    grid_cell_edge_x_metres, grid_cell_edge_y_metres = get_xy_grid_cell_edges(
+        x_min_metres=x_min_metres, y_min_metres=y_min_metres,
+        x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres,
+        num_rows=num_rows, num_columns=num_columns)
+
+    nan_row = numpy.full((1, num_columns), numpy.nan)
+    field_matrix = numpy.vstack((field_matrix, nan_row))
+
+    nan_column = numpy.full((num_rows + 1, 1), numpy.nan)
+    field_matrix = numpy.hstack((field_matrix, nan_column))
+
+    return field_matrix, grid_cell_edge_x_metres, grid_cell_edge_y_metres
+
+
 def latlng_field_grid_points_to_edges(
         field_matrix=None, min_latitude_deg=None, min_longitude_deg=None,
         lat_spacing_deg=None, lng_spacing_deg=None):

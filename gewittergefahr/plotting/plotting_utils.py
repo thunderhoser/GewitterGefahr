@@ -9,10 +9,6 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): Create high-level method that deals with all projections,
-# which will be called by init_lambert_conformal_map and
-# init_equidistant_cylindrical_map.
-
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
 DEFAULT_BOUNDARY_RESOLUTION_STRING = 'l'
