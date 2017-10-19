@@ -4,6 +4,7 @@ import numpy
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
 from mpl_toolkits.basemap import Basemap
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
@@ -120,6 +121,69 @@ def init_lambert_conformal_map(
         urcrnrlon=max_longitude_deg)
 
     return figure_object, axes_object, basemap_object
+
+
+def init_map_with_nwp_projection(
+        model_name=None, grid_id=None,
+        fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
+        fig_height_inches=DEFAULT_FIG_HEIGHT_INCHES,
+        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING,
+        min_latitude_deg=None, max_latitude_deg=None, min_longitude_deg=None,
+        max_longitude_deg=None):
+    """Initializes map with NWP (numerical weather prediction)-model projection.
+
+    If min_latitude_deg = max_latitude_deg = min_longitude_deg =
+    max_longitude_deg = None, corners of the map will be corners of the model
+    grid.
+
+    :param model_name: Name of NWP model.
+    :param grid_id: String ID for model grid.
+    :param fig_width_inches: Figure width.
+    :param fig_height_inches: Figure height.
+    :param resolution_string: See documentation for init_lambert_conformal_map.
+    :param min_latitude_deg: Latitude at bottom-left corner (deg N) of map.
+    :param max_latitude_deg: Latitude at upper-right corner (deg N) of map.
+    :param min_longitude_deg: Longitude at bottom-left corner (deg E) of map.
+    :param max_longitude_deg: Longitude at upper-right corner (deg E) of map.
+    :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
+    """
+
+    nwp_model_utils.check_grid_id(model_name, grid_id)
+    map_corners_deg = [
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg]
+
+    if any([c is None for c in map_corners_deg]):
+        grid_cell_edge_x_metres, grid_cell_edge_y_metres = (
+            nwp_model_utils.get_xy_grid_cell_edges(model_name, grid_id))
+        min_latitude_deg_as_array, min_longitude_deg_as_array = (
+            nwp_model_utils.project_xy_to_latlng(
+                numpy.array([grid_cell_edge_x_metres[0]]),
+                numpy.array([grid_cell_edge_y_metres[0]]),
+                projection_object=None, model_name=model_name, grid_id=grid_id))
+        max_latitude_deg_as_array, max_longitude_deg_as_array = (
+            nwp_model_utils.project_xy_to_latlng(
+                numpy.array([grid_cell_edge_x_metres[-1]]),
+                numpy.array([grid_cell_edge_y_metres[-1]]),
+                projection_object=None, model_name=model_name, grid_id=grid_id))
+
+        min_latitude_deg = min_latitude_deg_as_array[0]
+        max_latitude_deg = max_latitude_deg_as_array[0]
+        min_longitude_deg = min_longitude_deg_as_array[0]
+        max_longitude_deg = max_longitude_deg_as_array[0]
+
+    standard_latitudes_deg, central_longitude_deg = (
+        nwp_model_utils.get_projection_params(model_name))
+
+    return init_lambert_conformal_map(
+        standard_latitudes_deg=standard_latitudes_deg,
+        central_longitude_deg=central_longitude_deg,
+        fig_width_inches=fig_width_inches, fig_height_inches=fig_height_inches,
+        resolution_string=resolution_string, min_latitude_deg=min_latitude_deg,
+        max_latitude_deg=max_latitude_deg, min_longitude_deg=min_longitude_deg,
+        max_longitude_deg=max_longitude_deg)
 
 
 def init_equidistant_cylindrical_map(
