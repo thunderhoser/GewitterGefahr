@@ -164,10 +164,8 @@ def make_buffers_around_polygons(storm_object_table,
 
     :param storm_object_table: pandas DataFrame with the following columns.
     storm_object_table.storm_id: String ID for storm cell.
-    storm_object_table.vertex_latitudes_deg: length-V numpy array with latitudes
-        (deg N) of vertices.
-    storm_object_table.vertex_longitudes_deg: length-V numpy array with
-        longitudes (deg E) of vertices.
+    storm_object_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
     :param min_buffer_dists_metres: length-N numpy array of minimum buffer
         distances.  If min_buffer_dists_metres[i] is NaN, the [i]th buffer
         includes the original polygon.  If min_buffer_dists_metres[i] is
@@ -369,7 +367,6 @@ def write_processed_file(storm_object_table, pickle_file_name):
     step and one tracking scale.
 
     P = number of grid points in a given storm object
-    V = number of vertices in a given polygon
 
     :param storm_object_table: pandas DataFrame with at least the following
         columns.
@@ -390,14 +387,10 @@ def write_processed_file(storm_object_table, pickle_file_name):
         (integers) of grid points in storm object.
     storm_object_table.grid_point_columns: length-P numpy array with column
         indices (integers) of grid points in storm object.
-    storm_object_table.vertex_latitudes_deg: length-V numpy array with latitudes
-        (deg N) of vertices in bounding polygon.
-    storm_object_table.vertex_longitudes_deg: length-V numpy array with
-        longitudes (deg E) of vertices in bounding polygon.
-    storm_object_table.vertex_rows: length-V numpy array with row indices (half-
-        integers) of vertices in bounding polygon.
-    storm_object_table.vertex_columns: length-V numpy array with column indices
-        (half-integers) of vertices in bounding polygon.
+    storm_object_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
+    storm_object_table.polygon_object_rowcol: Instance of
+        `shapely.geometry.Polygon`, with vertices in row-column coordinates.
     :param pickle_file_name: Path to output file.
     """
 

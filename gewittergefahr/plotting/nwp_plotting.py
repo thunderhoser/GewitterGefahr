@@ -3,6 +3,7 @@
 import numpy
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 MARKER_TYPE = 'o'
@@ -85,6 +86,21 @@ def plot_scattered_points(axes_object=None, basemap_object=None,
     :param colour_minimum: Minimum value for colour map.
     :param colour_maximum: Maximum value for colour map.
     """
+
+    error_checking.assert_is_numpy_array_without_nan(field_values)
+    error_checking.assert_is_numpy_array(field_values, num_dimensions=1)
+    num_points = len(field_values)
+
+    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg)
+    error_checking.assert_is_numpy_array(
+        latitudes_deg, exact_dimensions=numpy.array([num_points]))
+
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg, allow_nan=False)
+    error_checking.assert_is_numpy_array(
+        longitudes_deg, exact_dimensions=numpy.array([num_points]))
+
+    error_checking.assert_is_greater(colour_maximum, colour_minimum)
 
     x_coords_metres, y_coords_metres = basemap_object(
         longitudes_deg, latitudes_deg)
