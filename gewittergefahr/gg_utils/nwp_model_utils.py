@@ -25,6 +25,9 @@ GRIB1_FILE_TYPE = 'grib1'
 GRIB2_FILE_TYPE = 'grib2'
 SENTINEL_VALUE = 9.999e20
 
+MIN_GRID_POINT_X_METRES = 0.
+MIN_GRID_POINT_Y_METRES = 0.
+
 TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES = 'temperature_kelvins'
 RH_COLUMN_FOR_SOUNDING_TABLES = 'relative_humidity_percent'
 SPFH_COLUMN_FOR_SOUNDING_TABLES = 'specific_humidity'
@@ -474,7 +477,8 @@ def get_xy_grid_points(model_name, grid_id=None):
     num_grid_rows, num_grid_columns = get_grid_dimensions(model_name, grid_id)
 
     return grids.get_xy_grid_points(
-        x_min_metres=0., y_min_metres=0., x_spacing_metres=x_spacing_metres,
+        x_min_metres=MIN_GRID_POINT_X_METRES,
+        y_min_metres=MIN_GRID_POINT_Y_METRES, x_spacing_metres=x_spacing_metres,
         y_spacing_metres=y_spacing_metres, num_rows=num_grid_rows,
         num_columns=num_grid_columns)
 
@@ -498,7 +502,8 @@ def get_xy_grid_cell_edges(model_name, grid_id=None):
     num_grid_rows, num_grid_columns = get_grid_dimensions(model_name, grid_id)
 
     return grids.get_xy_grid_cell_edges(
-        x_min_metres=0., y_min_metres=0., x_spacing_metres=x_spacing_metres,
+        x_min_metres=MIN_GRID_POINT_X_METRES,
+        y_min_metres=MIN_GRID_POINT_Y_METRES, x_spacing_metres=x_spacing_metres,
         y_spacing_metres=y_spacing_metres, num_rows=num_grid_rows,
         num_columns=num_grid_columns)
 

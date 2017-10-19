@@ -44,7 +44,8 @@ EARTH_RADIUS_METRES = 6370997.
 DEFAULT_LCC_STANDARD_LATS_DEG = numpy.array([25., 25.])
 DEFAULT_LCC_CENTRAL_LNG_DEG = 265.
 
-COLOUR_BAR_PADDING = 0.05
+PADDING_FOR_VERTICAL_COLOUR_BAR = 0.05
+PADDING_FOR_HORIZ_COLOUR_BAR = 0.075
 DEFAULT_COLOUR_BAR_ORIENTATION = 'horizontal'
 
 FONT_SIZE = 30
@@ -418,6 +419,11 @@ def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
     else:
         extend_argument = 'neither'
 
+    if orientation == 'horizontal':
+        this_padding = PADDING_FOR_HORIZ_COLOUR_BAR
+    else:
+        this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
+
     pyplot.colorbar(
         ax=axes_object, mappable=scalar_mappable_object,
-        orientation=orientation, pad=COLOUR_BAR_PADDING, extend=extend_argument)
+        orientation=orientation, pad=this_padding, extend=extend_argument)
