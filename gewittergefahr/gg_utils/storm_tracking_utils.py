@@ -1,5 +1,6 @@
 """Methods for processing storm tracks and outlines."""
 
+import copy
 import numpy
 import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
@@ -55,12 +56,13 @@ def _get_grid_points_in_storms(storm_object_table, num_grid_rows=None,
         this_num_grid_points = len(
             storm_object_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i])
         this_storm_id_list = (
-            [storm_object_table[tracking_io.STORM_ID_COLUMN]] *
+            [storm_object_table[tracking_io.STORM_ID_COLUMN].values[i]] *
             this_num_grid_points)
         grid_point_storm_ids += this_storm_id_list
 
     grid_point_flattened_indices = numpy.ravel_multi_index(
-        (grid_point_row_indices, grid_point_column_indices),
+        (grid_point_row_indices.astype(int),
+         grid_point_column_indices.astype(int)),
         (num_grid_rows, num_grid_columns))
 
     grid_points_in_storms_dict = {
@@ -91,7 +93,7 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
         used to detect storm objects.
     :param num_grid_columns: Number of columns (unique grid-point longitudes) in
         grid used to detect storm objects.
-    :return: storm_object_table_small_scale: Same as input, except that some
+    :return: storm_object_table_merged: Same as input, except that some
         small-scale objects may have been replaced with a larger-scale object.
     """
 
@@ -102,6 +104,7 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
     storm_ids_large_scale = storm_object_table_large_scale[
         tracking_io.STORM_ID_COLUMN].values
     num_storms_large_scale = len(storm_ids_large_scale)
+    storm_object_table_merged = copy.deepcopy(storm_object_table_small_scale)
 
     for i in range(num_storms_large_scale):
         these_row_indices = storm_object_table_large_scale[
@@ -134,8 +137,8 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
             these_storm_flags_small_scale)[0][0]
 
         for this_column in COLUMNS_TO_CHANGE_WHEN_MERGING_SCALES:
-            storm_object_table_small_scale[this_column].values[
+            storm_object_table_merged[this_column].values[
                 this_storm_index_small_scale] = storm_object_table_large_scale[
-                this_column].values[i]
+                    this_column].values[i]
 
-    return storm_object_table_small_scale
+    return storm_object_table_merged
