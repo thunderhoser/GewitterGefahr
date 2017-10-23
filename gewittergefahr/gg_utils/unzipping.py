@@ -1,6 +1,6 @@
 """Methods for unzipping files."""
 
-import subprocess
+import os
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -27,7 +27,7 @@ def unzip_tar(tar_file_name, target_directory_name=None,
     for this_relative_path in file_and_dir_names_to_unzip:
         unix_command_string += ' "' + this_relative_path + '"'
 
-    subprocess.call(unix_command_string)
+    os.system(unix_command_string)
 
 
 def unzip_gzip(gzip_file_name, extracted_file_name):
@@ -46,4 +46,4 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
 
     unix_command_string = 'gunzip -v -c "{0:s}" > "{1:s}"'.format(
         gzip_file_name, extracted_file_name)
-    subprocess.call(unix_command_string)
+    os.system(unix_command_string)

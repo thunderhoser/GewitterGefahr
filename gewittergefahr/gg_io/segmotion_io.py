@@ -12,8 +12,6 @@ SPC = Storm Prediction Center
 SPC date = a 24-hour period running from 1200-1200 UTC.  If time is discretized
 in seconds, the period runs from 120000-115959 UTC.  This is unlike a human
 date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
-
-MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
 """
 
 import os
@@ -27,16 +25,9 @@ from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import time_periods
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
-
-TOP_MYRORSS_DIR_NAME_ON_SCHOONER = '/condo/swatcommon/common/myrorss'
-DAYS_TO_SECONDS = 86400
-SPC_DATE_FORMAT = '%Y%m%d'
-SPC_YEAR_FORMAT = '%Y'
 
 ZIPPED_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
@@ -664,148 +655,6 @@ def join_stats_and_polygons(stats_table, polygon_table):
 
     return polygon_table.merge(stats_table, on=tracking_io.STORM_ID_COLUMN,
                                how='inner')
-
-
-def write_slurm_job_for_swat(
-        slurm_file_name, first_spc_date_unix_sec=None,
-        last_spc_date_unix_sec=None,
-        top_myrorss_dir_name=TOP_MYRORSS_DIR_NAME_ON_SCHOONER,
-        slurm_job_name=None, email_address_to_notify=None, use_swat_plus=False):
-    """Writes Slurm job to run segmotion on SWAT nodes on Schooner.
-
-    segmotion will be run independently for each SPC date from
-    first_spc_date_unix_sec...last_spc_date_unix_sec.
-
-    :param slurm_file_name: Path to output file (on local machine).
-    :param first_spc_date_unix_sec: First SPC date (Unix format).
-    :param last_spc_date_unix_sec: Last SPC date (Unix format).
-    :param top_myrorss_dir_name: Name of top-level directory (on supercomputer)
-        with MYRORSS files.  MYRORSS files are the input to segmotion.
-        segmotion output files will also be saved in this directory.
-    :param slurm_job_name: Name of Slurm job (this can be any string you want).
-    :param email_address_to_notify: Slurm will send notifications to this email
-        address.
-    :param use_swat_plus: Boolean flag.  If True, the job will be run on the
-        partition "swat_plus".  If False, the job will be run on the partition
-        "swat".
-    """
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=slurm_file_name)
-    error_checking.assert_is_string(top_myrorss_dir_name)
-    error_checking.assert_is_string(slurm_job_name)
-    error_checking.assert_is_string(email_address_to_notify)
-    error_checking.assert_is_boolean(use_swat_plus)
-
-    first_spc_date_string = radar_io.time_unix_sec_to_spc_date(
-        first_spc_date_unix_sec)
-    first_spc_date_unix_sec = time_conversion.string_to_unix_sec(
-        first_spc_date_string, radar_io.TIME_FORMAT_SPC_DATE)
-
-    last_spc_date_string = radar_io.time_unix_sec_to_spc_date(
-        last_spc_date_unix_sec)
-    last_spc_date_unix_sec = time_conversion.string_to_unix_sec(
-        last_spc_date_string, radar_io.TIME_FORMAT_SPC_DATE)
-
-    spc_dates_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_spc_date_unix_sec,
-        end_time_unix_sec=last_spc_date_unix_sec,
-        time_interval_sec=DAYS_TO_SECONDS, include_endpoint=True)
-    num_spc_dates = len(spc_dates_unix_sec)
-
-    slurm_file_handle = open(slurm_file_name, 'w')
-    slurm_file_handle.write('#!/usr/bin/bash\n\n')
-    slurm_file_handle.write('#SBATCH --job-name="{0:s}"\n'.format(
-        slurm_job_name))
-    slurm_file_handle.write('#SBATCH --ntasks=1\n')
-    slurm_file_handle.write('#SBATCH --nodes=1\n')
-    slurm_file_handle.write('#SBATCH --mem=8000\n')
-    slurm_file_handle.write('#SBATCH --mail-user="{0:s}"\n'.format(
-        email_address_to_notify))
-    slurm_file_handle.write('#SBATCH --mail-type=ALL\n')
-
-    if use_swat_plus:
-        slurm_file_handle.write('#SBATCH -p swat_plus\n')
-    else:
-        slurm_file_handle.write('#SBATCH -p swat\n')
-
-    slurm_file_handle.write('#SBATCH -t 48:00:00\n')
-    slurm_file_handle.write('#SBATCH --array=0-{0:d}\n\n'.format(
-        num_spc_dates - 1))
-
-    spc_date_strings = [''] * num_spc_dates
-    spc_year_strings = [''] * num_spc_dates
-    for i in range(num_spc_dates):
-        spc_date_strings[i] = time_conversion.unix_sec_to_string(
-            spc_dates_unix_sec[i], SPC_DATE_FORMAT)
-        spc_year_strings[i] = time_conversion.unix_sec_to_string(
-            spc_dates_unix_sec[i], SPC_YEAR_FORMAT)
-
-    slurm_file_handle.write('SPC_DATE_STRINGS=(')
-    for i in range(num_spc_dates):
-        if i == 0:
-            slurm_file_handle.write('"{0:s}"'.format(spc_date_strings[i]))
-        else:
-            slurm_file_handle.write(' "{0:s}"'.format(spc_date_strings[i]))
-    slurm_file_handle.write(')\n\n')
-
-    slurm_file_handle.write('SPC_YEAR_STRINGS=(')
-    for i in range(num_spc_dates):
-        if i == 0:
-            slurm_file_handle.write('"{0:s}"'.format(spc_year_strings[i]))
-        else:
-            slurm_file_handle.write(' "{0:s}"'.format(spc_year_strings[i]))
-    slurm_file_handle.write(')\n\n')
-
-    slurm_file_handle.write(
-        'this_spc_date_string=${SPC_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}\n')
-    slurm_file_handle.write(
-        'this_spc_year_string=${SPC_YEAR_STRINGS[$SLURM_ARRAY_TASK_ID]}\n')
-    slurm_file_handle.write(
-        'echo "Slurm array task ID = ${SLURM_ARRAY_TASK_ID}; ' +
-        'SPC date = ${this_spc_date_string}"\n\n')
-
-    slurm_file_handle.write('this_1day_myrorss_dir_name="{0:s}'.format(
-        top_myrorss_dir_name))
-    slurm_file_handle.write(
-        '/${this_spc_year_string}/${this_spc_date_string}"\n')
-    slurm_file_handle.write('mkdir -p "${this_1day_myrorss_dir_name}"\n\n')
-
-    slurm_file_handle.write(
-        'this_1day_myrorss_file_name="${this_1day_myrorss_dir_name}.tar"\n')
-    slurm_file_handle.write(
-        'this_code_index_file_name="${this_1day_myrorss_dir_name}/' +
-        'code_index.xml"\n')
-    slurm_file_handle.write(
-        'this_1day_segmotion_dir_name="${this_1day_myrorss_dir_name}/' +
-        'segmotion"\n')
-    slurm_file_handle.write('mkdir -p "${this_1day_segmotion_dir_name}"\n\n')
-
-    relative_dir_name_for_field = radar_io.get_relative_dir_for_raw_files(
-        field_name=radar_io.REFL_COLUMN_MAX_NAME,
-        data_source=radar_io.MYRORSS_SOURCE_ID)
-
-    untar_command_string = (
-        'tar -C "${this_1day_myrorss_dir_name}" -xvf ' +
-        '"${this_1day_myrorss_file_name}"')
-    untar_command_string += ' "{0:s}"'.format(relative_dir_name_for_field)
-    slurm_file_handle.write('{0:s}\n'.format(untar_command_string))
-
-    slurm_file_handle.write('cd "${this_1day_myrorss_dir_name}"\n')
-    slurm_file_handle.write('makeIndex.pl $PWD code_index.xml\n\n')
-
-    segmotion_command_string = (
-        'w2segmotionll -i "${this_code_index_file_name}" -o ' +
-        '"${this_1day_segmotion_dir_name}"')
-    segmotion_command_string += (
-        ' -T "{0:s}"'.format(radar_io.REFL_COLUMN_MAX_NAME_ORIG))
-    segmotion_command_string += (
-        ' -d "40 57 5 -1" -t 0 -p "40,200,300:0:0,0,0" -k "percent:75:4:0:4" ' +
-        '-m MULTISTAGE:1:5:0 -A NoSuchProduct')
-    slurm_file_handle.write('{0:s}\n\n'.format(segmotion_command_string))
-
-    slurm_file_handle.write('rm -rf "${this_1day_myrorss_dir_name}/')
-    slurm_file_handle.write('{0:s}"'.format(relative_dir_name_for_field))
-    slurm_file_handle.close()
 
 
 if __name__ == '__main__':

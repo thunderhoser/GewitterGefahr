@@ -97,6 +97,9 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
         small-scale objects may have been replaced with a larger-scale object.
     """
 
+    # TODO(thunderhoser): prevent a small-scale storm object from being grown
+    # more than once.
+
     grid_point_table_small_scale = _get_grid_points_in_storms(
         storm_object_table_small_scale, num_grid_rows=num_grid_rows,
         num_grid_columns=num_grid_columns)
