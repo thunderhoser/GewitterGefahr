@@ -556,15 +556,24 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
 
     storm_id_var_name = metadata_dict[radar_io.FIELD_NAME_COLUMN]
     storm_id_var_name_orig = metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG]
+    num_values = len(netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG])
 
-    sparse_grid_dict = {
-        radar_io.GRID_ROW_COLUMN:
-            netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG][:],
-        radar_io.GRID_COLUMN_COLUMN:
-            netcdf_dataset.variables[radar_io.GRID_COLUMN_COLUMN_ORIG][:],
-        radar_io.NUM_GRID_CELL_COLUMN:
-            netcdf_dataset.variables[radar_io.NUM_GRID_CELL_COLUMN_ORIG][:],
-        storm_id_var_name: netcdf_dataset.variables[storm_id_var_name_orig][:]}
+    if num_values == 0:
+        sparse_grid_dict = {
+            radar_io.GRID_ROW_COLUMN: numpy.array([], dtype=int),
+            radar_io.GRID_COLUMN_COLUMN: numpy.array([], dtype=int),
+            radar_io.NUM_GRID_CELL_COLUMN: numpy.array([], dtype=int),
+            storm_id_var_name: numpy.array([], dtype=int)}
+    else:
+        sparse_grid_dict = {
+            radar_io.GRID_ROW_COLUMN:
+                netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG][:],
+            radar_io.GRID_COLUMN_COLUMN:
+                netcdf_dataset.variables[radar_io.GRID_COLUMN_COLUMN_ORIG][:],
+            radar_io.NUM_GRID_CELL_COLUMN:
+                netcdf_dataset.variables[radar_io.NUM_GRID_CELL_COLUMN_ORIG][:],
+            storm_id_var_name:
+                netcdf_dataset.variables[storm_id_var_name_orig][:]}
 
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     (numeric_storm_id_matrix, _, _) = (

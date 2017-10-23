@@ -701,14 +701,22 @@ def read_sparse_grid_from_raw_file(netcdf_file_name, field_name_orig=None,
 
     field_name = _field_name_orig_to_new(field_name_orig,
                                          data_source=data_source)
+    num_values = len(netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG])
 
-    sparse_grid_dict = {
-        GRID_ROW_COLUMN: netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG][:],
-        GRID_COLUMN_COLUMN:
-            netcdf_dataset.variables[GRID_COLUMN_COLUMN_ORIG][:],
-        NUM_GRID_CELL_COLUMN:
-            netcdf_dataset.variables[NUM_GRID_CELL_COLUMN_ORIG][:],
-        field_name: netcdf_dataset.variables[field_name_orig][:]}
+    if num_values == 0:
+        sparse_grid_dict = {
+            GRID_ROW_COLUMN: numpy.array([], dtype=int),
+            GRID_COLUMN_COLUMN: numpy.array([], dtype=int),
+            NUM_GRID_CELL_COLUMN: numpy.array([], dtype=int),
+            field_name: numpy.array([], dtype=int)}
+    else:
+        sparse_grid_dict = {
+            GRID_ROW_COLUMN: netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG][:],
+            GRID_COLUMN_COLUMN:
+                netcdf_dataset.variables[GRID_COLUMN_COLUMN_ORIG][:],
+            NUM_GRID_CELL_COLUMN:
+                netcdf_dataset.variables[NUM_GRID_CELL_COLUMN_ORIG][:],
+            field_name: netcdf_dataset.variables[field_name_orig][:]}
 
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     return _remove_sentinels(sparse_grid_table, field_name, sentinel_values)
