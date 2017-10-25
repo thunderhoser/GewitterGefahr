@@ -57,6 +57,58 @@ def init_azimuthal_equidistant_projection(central_latitude_deg,
                 lon_0=central_longitude_deg)
 
 
+def init_cylindrical_equal_area_projection(min_latitude_deg=None,
+                                           max_latitude_deg=None,
+                                           min_longitude_deg=None,
+                                           max_longitude_deg=None):
+    """Initializes cylindrical equal-area projection.
+
+    :param min_latitude_deg: Latitude at bottom-left corner (deg N).
+    :param max_latitude_deg: Latitude at top-right corner (deg N).
+    :param min_longitude_deg: Longitude at bottom-left corner (deg E).
+    :param max_longitude_deg: Longitude at top-right corner (deg E).
+    :return: projection_object: object created by `pyproj.Proj`, specifying the
+        cylindrical equal-area projection.
+    """
+
+    error_checking.assert_is_valid_latitude(min_latitude_deg)
+    error_checking.assert_is_valid_latitude(max_latitude_deg)
+    error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
+
+    min_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        min_longitude_deg, allow_nan=False)
+    max_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        max_longitude_deg, allow_nan=False)
+    error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
+
+    return Proj(
+        proj='cea', llcrnrlat=min_latitude_deg, urcrnrlat=max_latitude_deg,
+        llcrnrlon=min_longitude_deg, urcrnrlon=max_longitude_deg)
+
+
+def init_lambert_azimuthal_equal_area_projection(standard_latitude_deg=None,
+                                                 central_latitude_deg=None,
+                                                 central_longitude_deg=None):
+    """Initializes Lambert azimuthal equal-area projection.
+
+    :param standard_latitude_deg: Standard latitude (latitude of true scale)
+        (deg N).
+    :param central_latitude_deg: Central latitude (deg N).
+    :param central_longitude_deg: Central longitude (deg E).
+    :return: projection_object: object created by `pyproj.Proj`, specifying the
+        Lambert azimuthal equal-area projection.
+    """
+
+    error_checking.assert_is_valid_latitude(standard_latitude_deg)
+    error_checking.assert_is_valid_latitude(central_latitude_deg)
+    central_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        central_longitude_deg, allow_nan=False)
+
+    return Proj(
+        proj='laea', lat_ts=standard_latitude_deg, lat_0=central_latitude_deg,
+        lon_0=central_longitude_deg)
+
+
 def project_latlng_to_xy(latitudes_deg, longitudes_deg, projection_object=None,
                          false_easting_metres=0., false_northing_metres=0.):
     """Converts from lat-long to projection (x-y) coordinates.

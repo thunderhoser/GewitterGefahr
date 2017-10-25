@@ -380,10 +380,10 @@ class PolygonsTests(unittest.TestCase):
             this_binary_matrix, BINARY_MATRIX_NO_DIAG_CONNECTIONS))
 
     def test_grid_points_in_poly_to_binary_matrix(self):
-        """Ensures correct output from _grid_points_in_poly_to_binary_matrix."""
+        """Ensures correct output from grid_points_in_poly_to_binary_matrix."""
 
         this_binary_matrix, this_first_row_index, this_first_column_index = (
-            polygons._grid_points_in_poly_to_binary_matrix(
+            polygons.grid_points_in_poly_to_binary_matrix(
                 ROW_INDICES_IN_POLYGON, COLUMN_INDICES_IN_POLYGON))
 
         self.assertTrue(numpy.array_equal(

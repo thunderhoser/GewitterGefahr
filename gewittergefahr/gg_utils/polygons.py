@@ -354,48 +354,6 @@ def _patch_diag_connections_in_binary_matrix(binary_matrix):
     return binary_matrix
 
 
-def _grid_points_in_poly_to_binary_matrix(row_indices, column_indices):
-    """Converts list of grid points in polygon to binary image matrix.
-
-    P = number of grid points in polygon
-    M = max(row_indices) - min(row_indices) + 3 = number of rows in subgrid
-    N = max(column_indices) - min(column_indices) + 3 = number of columns in
-        subgrid
-
-    :param row_indices: length-P numpy array with row numbers of grid points in
-        polygon.
-    :param column_indices: length-P numpy array with column numbers of grid
-        points in polygon.
-    :return: binary_matrix: M-by-N numpy array of Boolean flags.
-        binary_matrix[i, j] indicates whether or not pixel [i, j] -- in the
-        subgrid, not necessarily the full grid -- is inside the polygon.
-    :return: first_row_index: Same as min(row_indices) - 1.  This can be used
-        later to convert row numbers from the subgrid to the full grid.
-    :return: first_column_index: Same as min(column_indices) - 1.  This can be
-        used later to convert column numbers from the subgrid to the full grid.
-    """
-
-    num_rows_in_subgrid = max(row_indices) - min(row_indices) + 3
-    num_columns_in_subgrid = max(column_indices) - min(column_indices) + 3
-
-    first_row_index = min(row_indices) - 1
-    first_column_index = min(column_indices) - 1
-    row_indices_in_subgrid = row_indices - first_row_index
-    column_indices_in_subgrid = column_indices - first_column_index
-
-    linear_indices_in_subgrid = numpy.ravel_multi_index(
-        (row_indices_in_subgrid, column_indices_in_subgrid),
-        (num_rows_in_subgrid, num_columns_in_subgrid))
-
-    binary_vector = numpy.full(num_rows_in_subgrid * num_columns_in_subgrid,
-                               False, dtype=bool)
-    binary_vector[linear_indices_in_subgrid] = True
-    binary_matrix = numpy.reshape(binary_vector,
-                                  (num_rows_in_subgrid, num_columns_in_subgrid))
-
-    return binary_matrix, first_row_index, first_column_index
-
-
 def _binary_matrix_to_grid_points_in_poly(binary_matrix, first_row_index,
                                           first_column_index):
     """Converts binary image matrix to list of grid points in polygon.
@@ -672,6 +630,56 @@ def merge_exterior_and_holes(exterior_x_coords, exterior_y_coords,
     return vertex_x_coords, vertex_y_coords
 
 
+def grid_points_in_poly_to_binary_matrix(row_indices, column_indices):
+    """Converts list of grid points in polygon to binary image matrix.
+
+    P = number of grid points in polygon
+    M = max(row_indices) - min(row_indices) + 3 = number of rows in subgrid
+    N = max(column_indices) - min(column_indices) + 3 = number of columns in
+        subgrid
+
+    :param row_indices: length-P numpy array with row numbers of grid points in
+        polygon.
+    :param column_indices: length-P numpy array with column numbers of grid
+        points in polygon.
+    :return: binary_matrix: M-by-N numpy array of Boolean flags.
+        binary_matrix[i, j] indicates whether or not pixel [i, j] -- in the
+        subgrid, not necessarily the full grid -- is inside the polygon.
+    :return: first_row_index: Same as min(row_indices) - 1.  This can be used
+        later to convert row numbers from the subgrid to the full grid.
+    :return: first_column_index: Same as min(column_indices) - 1.  This can be
+        used later to convert column numbers from the subgrid to the full grid.
+    """
+
+    error_checking.assert_is_integer_numpy_array(row_indices)
+    error_checking.assert_is_geq_numpy_array(row_indices, 0)
+    error_checking.assert_is_numpy_array(row_indices, num_dimensions=1)
+
+    error_checking.assert_is_integer_numpy_array(column_indices)
+    error_checking.assert_is_geq_numpy_array(column_indices, 0)
+    error_checking.assert_is_numpy_array(column_indices, num_dimensions=1)
+
+    num_rows_in_subgrid = max(row_indices) - min(row_indices) + 3
+    num_columns_in_subgrid = max(column_indices) - min(column_indices) + 3
+
+    first_row_index = min(row_indices) - 1
+    first_column_index = min(column_indices) - 1
+    row_indices_in_subgrid = row_indices - first_row_index
+    column_indices_in_subgrid = column_indices - first_column_index
+
+    linear_indices_in_subgrid = numpy.ravel_multi_index(
+        (row_indices_in_subgrid, column_indices_in_subgrid),
+        (num_rows_in_subgrid, num_columns_in_subgrid))
+
+    binary_vector = numpy.full(num_rows_in_subgrid * num_columns_in_subgrid,
+                               False, dtype=bool)
+    binary_vector[linear_indices_in_subgrid] = True
+    binary_matrix = numpy.reshape(binary_vector,
+                                  (num_rows_in_subgrid, num_columns_in_subgrid))
+
+    return binary_matrix, first_row_index, first_column_index
+
+
 def sort_vertices_counterclockwise(vertex_x_coords, vertex_y_coords):
     """Sorts vertices of a simple polygon in counterclockwise order.
 
@@ -845,7 +853,7 @@ def grid_points_in_poly_to_vertices(grid_point_row_indices,
         exact_dimensions=numpy.array([num_grid_points]))
 
     (binary_matrix, first_row_index, first_column_index) = (
-        _grid_points_in_poly_to_binary_matrix(
+        grid_points_in_poly_to_binary_matrix(
             grid_point_row_indices, grid_point_column_indices))
     binary_matrix = _patch_diag_connections_in_binary_matrix(binary_matrix)
 
