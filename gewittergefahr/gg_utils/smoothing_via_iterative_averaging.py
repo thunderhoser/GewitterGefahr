@@ -11,94 +11,13 @@ Mansouryar, Mohsen, and Amin Hedayati. "Smoothing via iterative averaging (SIA)
     Electrical Engineering 4.3 (2012): 307.
 """
 
-import copy
 import numpy
+from gewittergefahr.gg_utils import shape_utils
 from gewittergefahr.gg_utils import error_checking
 
 MIN_VERTICES_IN_POLYGON_OR_LINE = 4
 NUM_VERTICES_IN_HALF_WINDOW_DEFAULT = 1
 NUM_ITERATIONS_DEFAULT = 3
-
-
-def _pad_closed_polygon_for_sia(vertex_x_coords, vertex_y_coords,
-                                num_vertices_in_half_window):
-    """Pads closed polygon in preparation for SIA.
-
-    V_u = number of unique vertices
-    V_p = number of vertices after padding
-
-    :param vertex_x_coords: numpy array (length V_u) with x-coordinates of
-        vertices.
-    :param vertex_y_coords: numpy array (length V_u) with y-coordinates of
-        vertices.
-    :param num_vertices_in_half_window: Number of vertices in smoothing half-
-        window.
-    :return: vertex_x_coords_padded: numpy array (length V_p) with x-coordinates
-        of vertices.
-    :return: vertex_y_coords_padded: numpy array (length V_p) with y-coordinates
-        of vertices.
-    """
-
-    vertex_x_coords_start = vertex_x_coords[-num_vertices_in_half_window:]
-    vertex_y_coords_start = vertex_y_coords[-num_vertices_in_half_window:]
-    vertex_x_coords_end = vertex_x_coords[:num_vertices_in_half_window]
-    vertex_y_coords_end = vertex_y_coords[:num_vertices_in_half_window]
-
-    vertex_x_coords_padded = numpy.concatenate((
-        vertex_x_coords_start, vertex_x_coords, vertex_x_coords_end))
-    vertex_y_coords_padded = numpy.concatenate((
-        vertex_y_coords_start, vertex_y_coords, vertex_y_coords_end))
-
-    return vertex_x_coords_padded, vertex_y_coords_padded
-
-
-def _pad_polyline_for_sia(vertex_x_coords, vertex_y_coords,
-                          num_vertices_in_half_window):
-    """Pads polyline (not closed polygon) in preparation for SIA.
-
-    V_u = number of unique vertices
-    V_p = number of vertices after padding
-
-    :param vertex_x_coords: numpy array (length V_u) with x-coordinates of
-        vertices.
-    :param vertex_y_coords: numpy array (length V_u) with y-coordinates of
-        vertices.
-    :param num_vertices_in_half_window: Number of vertices in smoothing half-
-        window.
-    :return: vertex_x_coords_padded: numpy array (length V_p) with x-coordinates
-        of vertices.
-    :return: vertex_y_coords_padded: numpy array (length V_p) with y-coordinates
-        of vertices.
-    """
-
-    x_difference = vertex_x_coords[1] - vertex_x_coords[0]
-    vertex_x_coords_start = numpy.linspace(
-        vertex_x_coords[0] - num_vertices_in_half_window * x_difference,
-        vertex_x_coords[0] - x_difference, num=num_vertices_in_half_window)
-
-    y_difference = vertex_y_coords[1] - vertex_y_coords[0]
-    vertex_y_coords_start = numpy.linspace(
-        vertex_y_coords[0] - num_vertices_in_half_window * y_difference,
-        vertex_y_coords[0] - y_difference, num=num_vertices_in_half_window)
-
-    x_difference = vertex_x_coords[-1] - vertex_x_coords[-2]
-    vertex_x_coords_end = numpy.linspace(
-        vertex_x_coords[-1] + x_difference,
-        vertex_x_coords[-1] + num_vertices_in_half_window * x_difference,
-        num=num_vertices_in_half_window)
-
-    y_difference = vertex_y_coords[-1] - vertex_y_coords[-2]
-    vertex_y_coords_end = numpy.linspace(
-        vertex_y_coords[-1] + y_difference,
-        vertex_y_coords[-1] + num_vertices_in_half_window * y_difference,
-        num=num_vertices_in_half_window)
-
-    vertex_x_coords_padded = numpy.concatenate((
-        vertex_x_coords_start, vertex_x_coords, vertex_x_coords_end))
-    vertex_y_coords_padded = numpy.concatenate((
-        vertex_y_coords_start, vertex_y_coords, vertex_y_coords_end))
-
-    return vertex_x_coords_padded, vertex_y_coords_padded
 
 
 def _sia_one_iteration(vertex_x_coords_padded, vertex_y_coords_padded,
@@ -170,9 +89,7 @@ def sia_for_closed_polygon(
         y-coordinates of vertices.
     """
 
-    vertex_x_coords_smoothed = numpy.asarray(polygon_object.exterior.xy[0])[:-1]
-    vertex_y_coords_smoothed = numpy.asarray(polygon_object.exterior.xy[1])[:-1]
-    num_vertices = len(vertex_x_coords_smoothed)
+    num_vertices = len(polygon_object.exterior.xy[0]) - 1
 
     if check_input_args:
         error_checking.assert_is_geq(
@@ -187,9 +104,10 @@ def sia_for_closed_polygon(
 
     for _ in range(num_iterations):
         vertex_x_coords_padded, vertex_y_coords_padded = (
-            _pad_closed_polygon_for_sia(
-                vertex_x_coords_smoothed, vertex_y_coords_smoothed,
-                num_vertices_in_half_window))
+            shape_utils.pad_closed_polygon(
+                polygon_object,
+                num_padding_vertices=num_vertices_in_half_window,
+                check_input_args=False))
 
         vertex_x_coords_smoothed, vertex_y_coords_smoothed = _sia_one_iteration(
             vertex_x_coords_padded, vertex_y_coords_padded,
@@ -245,14 +163,19 @@ def sia_for_polyline(
     num_vertices_in_half_window = numpy.min(
         numpy.array([num_vertices_in_half_window, num_vertices - 1]))
 
-    vertex_x_coords_smoothed = copy.deepcopy(vertex_x_coords)
-    vertex_y_coords_smoothed = copy.deepcopy(vertex_y_coords)
-
-    for _ in range(num_iterations):
-        vertex_x_coords_padded, vertex_y_coords_padded = (
-            _pad_polyline_for_sia(
-                vertex_x_coords_smoothed, vertex_y_coords_smoothed,
-                num_vertices_in_half_window))
+    for i in range(num_iterations):
+        if i == 0:
+            vertex_x_coords_padded, vertex_y_coords_padded = (
+                shape_utils.pad_polyline(
+                    vertex_x_coords, vertex_y_coords,
+                    num_padding_vertices=num_vertices_in_half_window,
+                    check_input_args=False))
+        else:
+            vertex_x_coords_padded, vertex_y_coords_padded = (
+                shape_utils.pad_polyline(
+                    vertex_x_coords_smoothed, vertex_y_coords_smoothed,
+                    num_padding_vertices=num_vertices_in_half_window,
+                    check_input_args=False))
 
         vertex_x_coords_smoothed, vertex_y_coords_smoothed = _sia_one_iteration(
             vertex_x_coords_padded, vertex_y_coords_padded,
