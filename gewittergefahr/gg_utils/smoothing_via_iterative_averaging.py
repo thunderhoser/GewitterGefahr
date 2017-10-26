@@ -11,8 +11,10 @@ Mansouryar, Mohsen, and Amin Hedayati. "Smoothing via iterative averaging (SIA)
     Electrical Engineering 4.3 (2012): 307.
 """
 
+import copy
 import numpy
 from gewittergefahr.gg_utils import shape_utils
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import error_checking
 
 MIN_VERTICES_IN_POLYGON_OR_LINE = 4
@@ -102,10 +104,16 @@ def sia_for_closed_polygon(
     num_vertices_in_half_window = numpy.min(
         numpy.array([num_vertices_in_half_window, num_vertices - 1]))
 
-    for _ in range(num_iterations):
+    for i in range(num_iterations):
+        if i == 0:
+            this_polygon_object = copy.deepcopy(polygon_object)
+        else:
+            this_polygon_object = polygons.vertex_arrays_to_polygon_object(
+                vertex_x_coords_smoothed, vertex_y_coords_smoothed)
+
         vertex_x_coords_padded, vertex_y_coords_padded = (
             shape_utils.pad_closed_polygon(
-                polygon_object,
+                this_polygon_object,
                 num_padding_vertices=num_vertices_in_half_window,
                 check_input_args=False))
 
