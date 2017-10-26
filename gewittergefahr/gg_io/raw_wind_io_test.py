@@ -2,24 +2,45 @@
 
 import unittest
 import numpy
+import pandas
 from gewittergefahr.gg_io import raw_wind_io
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test
+# _source_and_subdataset_pairs_to_table.
+DATA_SOURCE_BY_PAIR = [
+    raw_wind_io.OK_MESONET_DATA_SOURCE, raw_wind_io.STORM_EVENTS_DATA_SOURCE,
+    raw_wind_io.HFMETAR_DATA_SOURCE]
+DATA_SOURCE_BY_PAIR += (
+    [raw_wind_io.MADIS_DATA_SOURCE] * len(raw_wind_io.MADIS_SUBDATASETS))
+MADIS_SUBDATASET_BY_PAIR = [None] * 3 + raw_wind_io.MADIS_SUBDATASETS
+
+SOURCE_AND_SUBDATASET_PAIRS_AS_DICT = {
+    raw_wind_io.DATA_SOURCE_COLUMN: DATA_SOURCE_BY_PAIR,
+    raw_wind_io.MADIS_SUBDATASET_COLUMN: MADIS_SUBDATASET_BY_PAIR}
+SOURCE_AND_SUBDATASET_PAIRS_AS_TABLE = pandas.DataFrame.from_dict(
+    SOURCE_AND_SUBDATASET_PAIRS_AS_DICT)
+
+# The following constants are used to test _check_elevations.
 ELEVATIONS_M_ASL = numpy.array(
     [-1000., 0., 1000., 5000., 10000., numpy.nan, None], dtype=numpy.float64)
 ELEV_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
+# The following constants are used to test _check_latitudes.
 LATITUDES_DEG = numpy.array(
     [-100., -90., 0., 90., 1000., numpy.nan, None], dtype=numpy.float64)
 LAT_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
+# The following constants are used to test _check_longitudes,
+# _check_longitudes_negative_in_west, and _check_longitudes_positive_in_west.
 LONGITUDES_DEG = numpy.array(
     [-200., -180., 0., 180., 360., 500., numpy.nan, None], dtype=numpy.float64)
 LNG_INVALID_INDICES = numpy.array([0, 5, 6, 7], dtype=int)
 LNG_INVALID_INDICES_NEGATIVE_IN_WEST = numpy.array([0, 4, 5, 6, 7], dtype=int)
 LNG_INVALID_INDICES_POSITIVE_IN_WEST = numpy.array([0, 1, 5, 6, 7], dtype=int)
 
+# The following constants are used to test _check_wind_speeds.
 SIGNED_WIND_SPEEDS_M_S01 = numpy.array(
     [-400., -100., -10., 0., 10., 100., 400., numpy.nan, None],
     dtype=numpy.float64)
@@ -29,14 +50,17 @@ ABSOLUTE_WIND_SPEEDS_M_S01 = numpy.array(
 SIGNED_SPEED_INVALID_INDICES = numpy.array([0, 6, 7, 8], dtype=int)
 ABSOLUTE_SPEED_INVALID_INDICES = numpy.array([0, 1, 2, 6, 7, 8], dtype=int)
 
+# The following constants are used to test _check_wind_directions.
 WIND_DIRECTIONS_DEG = numpy.array(
     [-10., 0., 180., 359.99, 360., 5000., numpy.nan, None], dtype=numpy.float64)
 DIRECTION_INVALID_INDICES = numpy.array([0, 4, 5, 6, 7], dtype=int)
 
+# The following constants are used to test append_source_to_station_id.
 STATION_ID_WITHOUT_SOURCE = 'CYEG'
 DATA_SOURCE = 'madis'
 STATION_ID_WITH_SOURCE = 'CYEG_madis'
 
+# The following constants are used to test _get_pathless_processed_file_name.
 FILE_START_TIME_UNIX_SEC = 1506999600  # 0300 UTC 3 Oct 2017
 FILE_END_TIME_UNIX_SEC = 1507003200  # 0400 UTC 3 Oct 2017
 MADIS_DATA_SOURCE = 'madis'
@@ -48,6 +72,7 @@ PATHLESS_FILE_NAME_MADIS = (
 PATHLESS_FILE_NAME_NON_MADIS = (
     'wind-observations_ok-mesonet_2017-10-03-030000_2017-10-03-040000.csv')
 
+# The following constants are used to test find_processed_file.
 TOP_DIRECTORY_NAME = 'wind'
 PROCESSED_FILE_NAME_MADIS = (
     'wind/madis/nepp/201710/wind-observations_madis_nepp_2017-10-03-030000_'
@@ -56,6 +81,28 @@ PROCESSED_FILE_NAME_NON_MADIS = (
     'wind/ok_mesonet/201710/wind-observations_ok-mesonet_2017-10-03-030000_'
     '2017-10-03-040000.csv')
 
+# The following constants are used to test find_processed_hourly_files.
+PERIOD_START_TIME_UNIX_SEC = 1506993753  # 012233 UTC 3 Oct 2017
+PERIOD_END_TIME_UNIX_SEC = 1507002295  # 034455 UTC 3 Oct 2017
+
+PROCESSED_HOURLY_FILE_NAMES_MADIS = [
+    'wind/madis/nepp/201710/'
+    'wind-observations_madis_nepp_2017-10-03-010000_2017-10-03-015959.csv',
+    'wind/madis/nepp/201710/'
+    'wind-observations_madis_nepp_2017-10-03-020000_2017-10-03-025959.csv',
+    'wind/madis/nepp/201710/'
+    'wind-observations_madis_nepp_2017-10-03-030000_2017-10-03-035959.csv']
+
+PROCESSED_HOURLY_FILE_NAMES_NON_MADIS = [
+    'wind/ok_mesonet/201710/'
+    'wind-observations_ok-mesonet_2017-10-03-010000_2017-10-03-015959.csv',
+    'wind/ok_mesonet/201710/'
+    'wind-observations_ok-mesonet_2017-10-03-020000_2017-10-03-025959.csv',
+    'wind/ok_mesonet/201710/'
+    'wind-observations_ok-mesonet_2017-10-03-030000_2017-10-03-035959.csv'
+]
+
+# The following constants are used to test _get_max_of_sustained_and_gust.
 WIND_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
     [5., 10., 20., 30., numpy.nan, 6.6, 0., 40.])
 WIND_GUST_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
@@ -72,6 +119,8 @@ MAX_WIND_DIRECTIONS_DEG = numpy.array(
 MAX_WIND_DIRECTIONS_WITH_NAN_DEG = numpy.array(
     [numpy.nan, 45., 90., 135., 180., 225., 270., 315.])
 
+# The following constants are used to test speed_and_direction_to_uv and
+# uv_to_speed_and_direction.
 HALF_SQRT_OF_TWO = numpy.sqrt(2.) / 2
 EXPECTED_MAX_U_WINDS_M_S01 = numpy.array(
     [0., -12.5 * HALF_SQRT_OF_TWO, -20., -34. * HALF_SQRT_OF_TWO, 0.,
@@ -83,6 +132,12 @@ EXPECTED_MAX_V_WINDS_M_S01 = numpy.array(
 
 class RawWindIoTests(unittest.TestCase):
     """Each method is a unit test for raw_wind_io.py."""
+
+    def test_source_and_subdataset_pairs_to_table(self):
+        """Ensures correct output from _source_and_subdataset_pairs_to_table."""
+
+        this_table = raw_wind_io._source_and_subdataset_pairs_to_table()
+        self.assertTrue(this_table.equals(SOURCE_AND_SUBDATASET_PAIRS_AS_TABLE))
 
     def test_check_elevations(self):
         """Ensures correct output from _check_elevations."""
@@ -153,31 +208,28 @@ class RawWindIoTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(these_invalid_indices,
                                           DIRECTION_INVALID_INDICES))
 
-    def test_get_pathless_name_for_processed_wind_file_madis(self):
-        """Ensures correctness of _get_pathless_name_for_processed_wind_file.
+    def test_get_pathless_processed_file_name_madis(self):
+        """Ensures correctness of _get_pathless_processed_file_name.
 
         In this case, data source is MADIS.
         """
 
-        this_pathless_file_name = (
-            raw_wind_io._get_pathless_name_for_processed_wind_file(
-                start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
-                end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
-                data_source=MADIS_DATA_SOURCE,
-                madis_subdataset=MADIS_SUBDATASET))
+        this_pathless_file_name = raw_wind_io._get_pathless_processed_file_name(
+            start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
+            end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
+            data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET)
         self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME_MADIS)
 
-    def test_get_pathless_name_for_processed_wind_file_non_madis(self):
-        """Ensures correctness of _get_pathless_name_for_processed_wind_file.
+    def test_get_pathless_processed_file_name_non_madis(self):
+        """Ensures correctness of _get_pathless_processed_file_name.
 
         In this case, data source is not MADIS.
         """
 
-        this_pathless_file_name = (
-            raw_wind_io._get_pathless_name_for_processed_wind_file(
-                start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
-                end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
-                data_source=NON_MADIS_DATA_SOURCE))
+        this_pathless_file_name = raw_wind_io._get_pathless_processed_file_name(
+            start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
+            end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
+            data_source=NON_MADIS_DATA_SOURCE)
         self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME_NON_MADIS)
 
     def test_append_source_to_station_id(self):
@@ -247,31 +299,60 @@ class RawWindIoTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             these_wind_directions_deg, MAX_WIND_DIRECTIONS_DEG, atol=TOLERANCE))
 
-    def test_find_processed_wind_file_madis(self):
-        """Ensures correct output from find_processed_wind_file.
+    def test_find_processed_file_madis(self):
+        """Ensures correct output from find_processed_file.
 
         In this case, data source is MADIS.
         """
 
-        this_file_name = raw_wind_io.find_processed_wind_file(
+        this_file_name = raw_wind_io.find_processed_file(
             start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
             end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
             data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
         self.assertTrue(this_file_name == PROCESSED_FILE_NAME_MADIS)
 
-    def test_find_processed_wind_file_non_madis(self):
-        """Ensures correct output from find_processed_wind_file.
+    def test_find_processed_file_non_madis(self):
+        """Ensures correct output from find_processed_file.
 
         In this case, data source is not MADIS.
         """
 
-        this_file_name = raw_wind_io.find_processed_wind_file(
+        this_file_name = raw_wind_io.find_processed_file(
             start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
             end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
             data_source=NON_MADIS_DATA_SOURCE,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
         self.assertTrue(this_file_name == PROCESSED_FILE_NAME_NON_MADIS)
+
+    def test_find_processed_hourly_files_madis(self):
+        """Ensures correct output from find_processed_hourly_files.
+
+        In this case, data source is MADIS.
+        """
+
+        these_file_names, _ = raw_wind_io.find_processed_hourly_files(
+            start_time_unix_sec=PERIOD_START_TIME_UNIX_SEC,
+            end_time_unix_sec=PERIOD_END_TIME_UNIX_SEC,
+            data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET,
+            top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
+
+        self.assertTrue(these_file_names == PROCESSED_HOURLY_FILE_NAMES_MADIS)
+
+    def test_find_processed_hourly_files_non_madis(self):
+        """Ensures correct output from find_processed_hourly_files.
+
+        In this case, data source is not MADIS.
+        """
+
+        these_file_names, _ = raw_wind_io.find_processed_hourly_files(
+            start_time_unix_sec=PERIOD_START_TIME_UNIX_SEC,
+            end_time_unix_sec=PERIOD_END_TIME_UNIX_SEC,
+            data_source=NON_MADIS_DATA_SOURCE,
+            top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
+
+        self.assertTrue(
+            these_file_names == PROCESSED_HOURLY_FILE_NAMES_NON_MADIS)
 
 
 if __name__ == '__main__':

@@ -354,7 +354,7 @@ def assert_is_not_nan(input_variable):
     """
 
     assert_is_real_number(input_variable)
-    if numpy.isnan(input_variable):
+    if numpy.isnan(float(input_variable)):
         raise ValueError('Input variable is NaN.')
 
 
@@ -366,7 +366,7 @@ def assert_is_numpy_array_without_nan(input_variable):
     """
 
     assert_is_real_numpy_array(input_variable)
-    if numpy.any(numpy.isnan(input_variable)):
+    if numpy.any(numpy.isnan(input_variable.astype(float))):
         raise ValueError("Input array contains one or more NaN's.")
 
 

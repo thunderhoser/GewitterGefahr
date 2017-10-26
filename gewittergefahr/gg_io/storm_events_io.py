@@ -223,7 +223,7 @@ def read_wind_reports_from_raw_file(csv_file_name):
                       inplace=True)
 
     num_reports = len(report_table.index)
-    unix_times_sec = numpy.full(num_reports, numpy.nan, dtype=int)
+    unix_times_sec = numpy.full(num_reports, -1, dtype=int)
     for i in range(num_reports):
         this_utc_offset_hours = _time_zone_string_to_utc_offset(
             report_table[TIME_ZONE_COLUMN_ORIG].values[i])
@@ -261,4 +261,4 @@ if __name__ == '__main__':
     WIND_TABLE = read_wind_reports_from_raw_file(ORIG_CSV_FILE_NAME)
     print WIND_TABLE
 
-    raw_wind_io.write_winds_to_processed_file(WIND_TABLE, NEW_CSV_FILE_NAME)
+    raw_wind_io.write_processed_file(WIND_TABLE, NEW_CSV_FILE_NAME)

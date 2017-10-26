@@ -194,8 +194,7 @@ def _read_wind_observations(processed_wind_file_names,
     list_of_tables = []
 
     for this_file_name in processed_wind_file_names:
-        this_wind_table = raw_wind_io.read_winds_from_processed_file(
-            this_file_name)
+        this_wind_table = raw_wind_io.read_processed_file(this_file_name)
         this_wind_table = this_wind_table[STORM_COLUMNS_TO_KEEP]
 
         invalid_rows = numpy.logical_or(

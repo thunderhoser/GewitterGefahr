@@ -30,6 +30,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
+# TODO(thunderhoser): add CRN (Climate Reference Network) to list of
+# subdatasets.
 
 DATA_SOURCE = 'madis'
 FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
@@ -451,4 +453,4 @@ if __name__ == '__main__':
     WIND_TABLE = raw_wind_io.sustained_and_gust_to_uv_max(WIND_TABLE)
     print WIND_TABLE
 
-    raw_wind_io.write_winds_to_processed_file(WIND_TABLE, CSV_FILE_NAME)
+    raw_wind_io.write_processed_file(WIND_TABLE, CSV_FILE_NAME)

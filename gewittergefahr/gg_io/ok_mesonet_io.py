@@ -309,4 +309,4 @@ if __name__ == '__main__':
                                                   STATION_METADATA_TABLE)
     print WIND_TABLE
 
-    raw_wind_io.write_winds_to_processed_file(WIND_TABLE, NEW_WIND_FILE_NAME)
+    raw_wind_io.write_processed_file(WIND_TABLE, NEW_WIND_FILE_NAME)
