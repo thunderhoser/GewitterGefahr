@@ -1,10 +1,9 @@
-"""IO methods for raw wind data.  Raw wind data come from 4 different sources:
+"""IO methods for raw wind data, which may come from 4 different sources:
 
+- HFMETARs (high-frequency [1- and 5-minute] meteorological aerodrome reports)
 - MADIS (Meteorological Assimilation Data Ingest System)
-- HFMETARs (high-frequency [1-minute and 5-minute] meteorological aerodrome
-  reports)
 - Oklahoma Mesonet stations
-- LSRs (local storm reports)
+- Storm Events (dataset with local storm reports)
 """
 
 import copy
@@ -18,11 +17,6 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): need method to verify data source.
-# TODO(thunderhoser): need method to verify MADIS subdataset.
-# TODO(thunderhoser): change terminology from "source" to "primary source" and
-# "subdataset" to "secondary source"?
-
 TOLERANCE = 1e-6
 WIND_DIR_DEFAULT_DEG = 0.
 
@@ -32,7 +26,7 @@ HOURS_TO_SECONDS = 3600
 
 TIME_FORMAT_MONTH_YEAR = '%Y%m'
 TIME_FORMAT_SECOND = '%Y-%m-%d-%H%M%S'
-PROCESSED_WIND_FILE_PREFIX = 'wind-observations'
+PROCESSED_FILE_PREFIX = 'wind-observations'
 PROCESSED_FILE_EXTENSION = '.csv'
 
 HFMETAR_DATA_SOURCE = 'hfmetar'
@@ -41,29 +35,30 @@ OK_MESONET_DATA_SOURCE = 'ok_mesonet'
 STORM_EVENTS_DATA_SOURCE = 'storm_events'
 MERGED_DATA_SOURCE = 'merged'
 
-NON_MERGED_DATA_SOURCES = [
+PRIMARY_UNMERGED_DATA_SOURCES = [
     HFMETAR_DATA_SOURCE, MADIS_DATA_SOURCE, OK_MESONET_DATA_SOURCE,
     STORM_EVENTS_DATA_SOURCE]
+PRIMARY_DATA_SOURCES = PRIMARY_UNMERGED_DATA_SOURCES + [MERGED_DATA_SOURCE]
 
-MADIS_COOP_SUBDATASET = 'coop'
-MADIS_CRN_SUBDATASET = 'crn'
-MADIS_HCN_SUBDATASET = 'hcn'
-MADIS_HFMETAR_SUBDATASET = 'hfmetar'
-MADIS_MARITIME_SUBDATASET = 'maritime'
-MADIS_MESONET_SUBDATASET = 'mesonet'
-MADIS_METAR_SUBDATASET = 'metar'
-MADIS_NEPP_SUBDATASET = 'nepp'
-MADIS_SAO_SUBDATASET = 'sao'
-MADIS_URBANET_SUBDATASET = 'urbanet'
+MADIS_COOP_DATA_SOURCE = 'coop'
+MADIS_CRN_DATA_SOURCE = 'crn'
+MADIS_HCN_DATA_SOURCE = 'hcn'
+MADIS_HFMETAR_DATA_SOURCE = 'hfmetar'
+MADIS_MARITIME_DATA_SOURCE = 'maritime'
+MADIS_MESONET_DATA_SOURCE = 'mesonet'
+MADIS_METAR_DATA_SOURCE = 'metar'
+MADIS_NEPP_DATA_SOURCE = 'nepp'
+MADIS_SAO_DATA_SOURCE = 'sao'
+MADIS_URBANET_DATA_SOURCE = 'urbanet'
 
-MADIS_SUBDATASETS = [
-    MADIS_COOP_SUBDATASET, MADIS_CRN_SUBDATASET, MADIS_HCN_SUBDATASET,
-    MADIS_HFMETAR_SUBDATASET, MADIS_MARITIME_SUBDATASET,
-    MADIS_MESONET_SUBDATASET, MADIS_METAR_SUBDATASET, MADIS_NEPP_SUBDATASET,
-    MADIS_SAO_SUBDATASET, MADIS_URBANET_SUBDATASET]
+SECONDARY_DATA_SOURCES = [
+    MADIS_COOP_DATA_SOURCE, MADIS_CRN_DATA_SOURCE, MADIS_HCN_DATA_SOURCE,
+    MADIS_HFMETAR_DATA_SOURCE, MADIS_MARITIME_DATA_SOURCE,
+    MADIS_MESONET_DATA_SOURCE, MADIS_METAR_DATA_SOURCE, MADIS_NEPP_DATA_SOURCE,
+    MADIS_SAO_DATA_SOURCE, MADIS_URBANET_DATA_SOURCE]
 
-DATA_SOURCE_COLUMN = 'source'
-MADIS_SUBDATASET_COLUMN = 'madis_subdataset'
+PRIMARY_SOURCE_COLUMN = 'primary_source'
+SECONDARY_SOURCE_COLUMN = 'secondary_source'
 
 MIN_WIND_DIRECTION_DEG = 0.
 MAX_WIND_DIRECTION_DEG = 360. - TOLERANCE
@@ -115,32 +110,34 @@ WIND_COLUMN_TYPE_DICT.update({TIME_COLUMN: numpy.int64,
                               V_WIND_COLUMN: numpy.float64})
 
 
-def _source_and_subdataset_pairs_to_table():
-    """Creates pandas DataFrame with all combos of source and MADIS subdataset.
+def _primary_and_secondary_sources_to_table():
+    """Creates pandas DataFrame with all pairs of primary/secondary data source.
 
-    :return: source_and_subdataset_pairs_as_table: pandas DataFrame with columns
-        listed below.
-    source_and_subdataset_pairs_as_table.source: Name of primary data source.
-    source_and_subdataset_pairs_as_table.madis_subdataset: Name of MADIS
-        subdataset.  For a given row, if source != "madis", madis_subdataset
-        will be None.
+    :return: primary_and_secondary_source_pairs_as_table: pandas DataFrame with
+        columns listed below.
+    primary_and_secondary_source_pairs_as_table.primary_source: Name of primary
+        data source.
+    primary_and_secondary_source_pairs_as_table.secondary_source: Name of
+        secondary source (None if primary_source != "madis").
     """
 
-    unique_sources = set(NON_MERGED_DATA_SOURCES)
-    unique_sources.remove(MADIS_DATA_SOURCE)
-    unique_sources = list(unique_sources)
+    unique_primary_sources = set(PRIMARY_UNMERGED_DATA_SOURCES)
+    unique_primary_sources.remove(MADIS_DATA_SOURCE)
+    unique_primary_sources = list(unique_primary_sources)
 
-    num_subdatasets = len(MADIS_SUBDATASETS)
-    sources_to_append = [MADIS_DATA_SOURCE] * num_subdatasets
-    subdatasets_to_prepend = [None] * len(unique_sources)
+    num_secondary_sources = len(SECONDARY_DATA_SOURCES)
+    primary_sources_to_append = [MADIS_DATA_SOURCE] * num_secondary_sources
+    secondary_sources_to_prepend = [None] * len(unique_primary_sources)
 
-    data_source_by_pair = unique_sources + sources_to_append
-    madis_subdataset_by_pair = subdatasets_to_prepend + MADIS_SUBDATASETS
+    primary_source_by_pair = unique_primary_sources + primary_sources_to_append
+    secondary_source_by_pair = (
+        secondary_sources_to_prepend + SECONDARY_DATA_SOURCES)
 
-    source_and_subdataset_pairs_as_dict = {
-        DATA_SOURCE_COLUMN: data_source_by_pair,
-        MADIS_SUBDATASET_COLUMN: madis_subdataset_by_pair}
-    return pandas.DataFrame.from_dict(source_and_subdataset_pairs_as_dict)
+    primary_and_secondary_source_pairs_as_dict = {
+        PRIMARY_SOURCE_COLUMN: primary_source_by_pair,
+        SECONDARY_SOURCE_COLUMN: secondary_source_by_pair}
+    return pandas.DataFrame.from_dict(
+        primary_and_secondary_source_pairs_as_dict)
 
 
 def _check_elevations(elevations_m_asl):
@@ -287,53 +284,84 @@ def _check_wind_directions(wind_directions_deg):
 
 
 def _get_pathless_processed_file_name(start_time_unix_sec=None,
-                                      end_time_unix_sec=None, data_source=None,
-                                      madis_subdataset=None):
+                                      end_time_unix_sec=None,
+                                      primary_source=None,
+                                      secondary_source=None):
     """Generates pathless name for processed wind file.
 
-    :param start_time_unix_sec: Start time in Unix format.
-    :param end_time_unix_sec: End time in Unix format.
-    :param data_source: String ID for data source.
-    :param madis_subdataset: String ID for subdataset in MADIS.
+    :param start_time_unix_sec: Start time.
+    :param end_time_unix_sec: End time.
+    :param primary_source: String ID for primary data source.
+    :param secondary_source: String ID for secondary data source.
     :return: pathless_processed_file_name: Pathless name for processed wind
         file.
     """
 
-    if data_source == MADIS_DATA_SOURCE:
-        full_data_source = '{0:s}_{1:s}'.format(data_source.replace('_', '-'),
-                                                madis_subdataset)
+    if primary_source == MADIS_DATA_SOURCE:
+        combined_source = '{0:s}_{1:s}'.format(primary_source, secondary_source)
     else:
-        full_data_source = data_source.replace('_', '-')
+        combined_source = primary_source.replace('_', '-')
 
     return '{0:s}_{1:s}_{2:s}_{3:s}{4:s}'.format(
-        PROCESSED_WIND_FILE_PREFIX, full_data_source,
-        time_conversion.unix_sec_to_string(start_time_unix_sec,
-                                           TIME_FORMAT_SECOND),
-        time_conversion.unix_sec_to_string(end_time_unix_sec,
-                                           TIME_FORMAT_SECOND),
+        PROCESSED_FILE_PREFIX, combined_source,
+        time_conversion.unix_sec_to_string(
+            start_time_unix_sec, TIME_FORMAT_SECOND),
+        time_conversion.unix_sec_to_string(
+            end_time_unix_sec, TIME_FORMAT_SECOND),
         PROCESSED_FILE_EXTENSION)
 
 
-def append_source_to_station_id(station_id, data_source):
-    """Appends data source to station ID.
+def check_data_sources(primary_source, secondary_source=None,
+                       allow_merged=False):
+    """Ensures that data sources are valid.
 
-    There are 4 possible data sources: "madis", "hfmetar", "ok_mesonet", and
-    "lsr".  For the non-abbreviated versions, see the docstring for this file.
-
-    The data source will be append with an underscore.  For example, if the
-    station ID is "CYEG" and data source is "madis", the new ID will be
-    "CYEG_madis".  Stations from different sources might have the same IDs, so
-    this ensures the uniqueness of IDs.
-
-    :param station_id: String ID for station.
-    :param data_source: String ID for data source.
-    :return: station_id: Same as input, but with underscore and data source
-        appended.
+    :param primary_source: String ID for primary data source (must be in
+        PRIMARY_DATA_SOURCES or PRIMARY_UNMERGED_DATA_SOURCES).
+    :param secondary_source: String ID for secondary source.  If primary_source
+        != "madis", this should be None.  If primary_source == "madis", this
+        must be in SECONDARY_DATA_SOURCES.
+    :param allow_merged: Boolean flag.  If True, will allow "merged" as primary
+        data source.  If False, will not allow "merged".
+    :raises: ValueError: if primary_source or secondary_source is invalid.
     """
 
-    error_checking.assert_is_string(station_id)
-    error_checking.assert_is_string(data_source)
-    return '{0:s}_{1:s}'.format(station_id, data_source)
+    if allow_merged:
+        valid_primary_sources = copy.deepcopy(PRIMARY_DATA_SOURCES)
+    else:
+        valid_primary_sources = copy.deepcopy(PRIMARY_UNMERGED_DATA_SOURCES)
+
+    if primary_source not in valid_primary_sources:
+        error_string = (
+            '\n\n' + str(valid_primary_sources) + '\n\nValid primary sources ' +
+            '(listed above) do not include "' + primary_source + '".')
+        raise ValueError(error_string)
+
+    if (primary_source == MADIS_DATA_SOURCE and
+                secondary_source not in SECONDARY_DATA_SOURCES):
+        error_string = (
+            '\n\n' + str(SECONDARY_DATA_SOURCES) + '\n\nValid secondary ' +
+            'sources (listed above) do not include "' + secondary_source + '".')
+        raise ValueError(error_string)
+
+
+def append_source_to_station_id(station_id, primary_source=None,
+                                secondary_source=None):
+    """Appends data source to station ID.
+
+    :param station_id: String ID for station.
+    :param primary_source: String ID for primary data source.
+    :param secondary_source: String ID for secondary data source.
+    :return: station_id: Same as input, but with data source appended.
+    """
+
+    check_data_sources(primary_source, secondary_source, allow_merged=False)
+
+    if primary_source == MADIS_DATA_SOURCE:
+        combined_source = '{0:s}_{1:s}'.format(primary_source, secondary_source)
+    else:
+        combined_source = primary_source.replace('_', '-')
+
+    return '{0:s}_{1:s}'.format(station_id, combined_source)
 
 
 def remove_invalid_rows(input_table, check_speed_flag=False,
@@ -675,45 +703,41 @@ def read_station_metadata_from_processed_file(csv_file_name):
 
 
 def find_processed_file(start_time_unix_sec=None, end_time_unix_sec=None,
-                        data_source=None, madis_subdataset=None,
+                        primary_source=None, secondary_source=None,
                         top_directory_name=None, raise_error_if_missing=True):
     """Finds processed wind file on local machine.
 
-    :param start_time_unix_sec: Start time in Unix format.
-    :param end_time_unix_sec: End time in Unix format.
-    :param data_source: String ID for data source ("hfmetar", "madis",
-        "ok_mesonet", "storm_events", or "merged").
-    :param madis_subdataset: String ID for subdataset in MADIS ("coop", "hcn",
-        "hfmetar", "maritime", "mesonet", "metar", "nepp", "sao", or "urbanet").
-    :param top_directory_name: Top-level directory for processed files with wind
-        observations.
+    :param start_time_unix_sec: Start time.
+    :param end_time_unix_sec: End time.
+    :param primary_source: String ID for primary data source.
+    :param secondary_source: String ID for secondary data source.
+    :param top_directory_name: Name of top-level directory with processed wind
+        files.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
-    :return: processed_file_name: File path.  If raise_error_if_missing = False
-        and file is missing, this will be the *expected* path.
+    :return: processed_file_name: Path to processed wind file.  If
+        raise_error_if_missing = False and file is missing, this will be the
+        *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    error_checking.assert_is_string(data_source)
+    check_data_sources(primary_source, secondary_source, allow_merged=True)
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
-    if data_source == MADIS_DATA_SOURCE:
-        error_checking.assert_is_string(madis_subdataset)
 
     pathless_file_name = _get_pathless_processed_file_name(
         start_time_unix_sec=start_time_unix_sec,
-        end_time_unix_sec=end_time_unix_sec, data_source=data_source,
-        madis_subdataset=madis_subdataset)
+        end_time_unix_sec=end_time_unix_sec, primary_source=primary_source,
+        secondary_source=secondary_source)
 
-    if data_source == MADIS_DATA_SOURCE:
-        full_data_source = '{0:s}/{1:s}'.format(data_source, madis_subdataset)
+    if primary_source == MADIS_DATA_SOURCE:
+        combined_source = '{0:s}/{1:s}'.format(primary_source, secondary_source)
     else:
-        full_data_source = data_source
+        combined_source = primary_source
 
     processed_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-        top_directory_name, full_data_source,
-        time_conversion.unix_sec_to_string(start_time_unix_sec,
-                                           TIME_FORMAT_MONTH_YEAR),
+        top_directory_name, combined_source, time_conversion.unix_sec_to_string(
+            start_time_unix_sec, TIME_FORMAT_MONTH_YEAR),
         pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(processed_file_name):
@@ -725,26 +749,23 @@ def find_processed_file(start_time_unix_sec=None, end_time_unix_sec=None,
 
 
 def find_processed_hourly_files(start_time_unix_sec=None,
-                                end_time_unix_sec=None, data_source=None,
-                                madis_subdataset=None, top_directory_name=None,
+                                end_time_unix_sec=None, primary_source=None,
+                                secondary_source=None, top_directory_name=None,
                                 raise_error_if_missing=True):
-    """Finds processed hourly files on local machine.
+    """Finds processed hourly wind files on local machine.
 
     N = number of hours in time period (start_time_unix_sec...end_time_unix_sec)
 
-    :param start_time_unix_sec: Beginning of time period (Unix format).
-    :param end_time_unix_sec: End of time period (Unix format).
-    :param data_source: String ID for data source ("hfmetar", "madis",
-        "ok_mesonet", "storm_events", or "merged").
-    :param madis_subdataset: String ID for subdataset in MADIS (examples:
-        "coop", "hcn", "mesonet", etc.).
+    :param start_time_unix_sec: Beginning of time period.
+    :param end_time_unix_sec: End of time period.
+    :param primary_source: String ID for primary data source.
+    :param secondary_source: String ID for secondary data source.
     :param top_directory_name: Name of top-level directory with processed wind
         files.
     :param raise_error_if_missing: Boolean flag.  If True and *any* file is
         missing, this method will raise an error.
     :return: processed_file_names: length-N list of paths to processed files.
-    :return: hours_unix_sec: length-N numpy array of corresponding hours (Unix
-        format).
+    :return: hours_unix_sec: length-N numpy array of corresponding hours.
     """
 
     min_hour_unix_sec = int(rounder.floor_to_nearest(
@@ -764,7 +785,7 @@ def find_processed_hourly_files(start_time_unix_sec=None,
         processed_file_names[i] = find_processed_file(
             start_time_unix_sec=hours_unix_sec[i],
             end_time_unix_sec=hours_unix_sec[i] + HOURS_TO_SECONDS - 1,
-            data_source=data_source, madis_subdataset=madis_subdataset,
+            primary_source=primary_source, secondary_source=secondary_source,
             top_directory_name=top_directory_name,
             raise_error_if_missing=raise_error_if_missing)
 
@@ -801,32 +822,31 @@ def write_processed_file(wind_table, csv_file_name=None, write_mode='w'):
                       index=False, mode=write_mode)
 
 
-def write_processed_hourly_files(wind_table, write_mode='w', data_source=None,
-                                 madis_subdataset=None,
+def write_processed_hourly_files(wind_table, write_mode='w',
+                                 start_time_unix_sec=None,
+                                 end_time_unix_sec=None, primary_source=None,
+                                 secondary_source=None,
                                  top_directory_name=None):
     """Writes wind observations to hourly files.
 
-    N = number of hours in `wind_table`
+    N = number of hours in time period (start_time_unix_sec...end_time_unix_sec)
 
     :param wind_table: See documentation for write_processed_file.
     :param write_mode: Any string accepted by the built-in method `open`.
-    :param data_source: String ID for data source ("hfmetar", "madis",
-        "ok_mesonet", or "storm_events").
-    :param madis_subdataset: String ID for subdataset in MADIS (examples:
-        "coop", "hcn", "mesonet", etc.).
+    :param start_time_unix_sec: Beginning of time period.
+    :param end_time_unix_sec: End of time period.
+    :param primary_source: String ID for primary data source.
+    :param secondary_source: String ID for secondary data source.
     :param top_directory_name: Name of top-level directory with processed wind
         files.
-    :return: processed_file_names: length-N list of paths to output files.
+    :return: processed_file_names: length-N list of paths to processed files.
     """
-
-    # TODO(thunderhoser): Start/end times should be included as input args to
-    # this method.
 
     processed_file_names, hour_start_times_unix_sec = (
         find_processed_hourly_files(
-            start_time_unix_sec=numpy.min(wind_table[TIME_COLUMN].values),
-            end_time_unix_sec=numpy.max(wind_table[TIME_COLUMN].values),
-            data_source=data_source, madis_subdataset=madis_subdataset,
+            start_time_unix_sec=start_time_unix_sec,
+            end_time_unix_sec=end_time_unix_sec, primary_source=primary_source,
+            secondary_source=secondary_source,
             top_directory_name=top_directory_name,
             raise_error_if_missing=False))
 
@@ -853,51 +873,53 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
 
     N = number of hours in time period (start_time_unix_sec...end_time_unix_sec)
 
-    :param start_time_unix_sec: Beginning of time period (Unix format).
-    :param end_time_unix_sec: End of time period (Unix format).
+    :param start_time_unix_sec: Beginning of time period.
+    :param end_time_unix_sec: End of time period.
     :param top_directory_name: Name of top-level directory with processed wind
         files.
-    :return: merged_file_names: length-N list of paths to merged files.
+    :return: merged_file_names: length-N list of paths to output files.
     """
 
-    source_and_subdataset_pairs_as_table = (
-        _source_and_subdataset_pairs_to_table())
-    num_pairs = len(source_and_subdataset_pairs_as_table.index)
+    primary_and_secondary_source_pairs_as_table = (
+        _primary_and_secondary_sources_to_table())
+    num_combined_sources = len(
+        primary_and_secondary_source_pairs_as_table.index)
 
-    for j in range(num_pairs):
+    for j in range(num_combined_sources):
         if j == 0:
             these_processed_file_names, hour_start_times_unix_sec = (
                 find_processed_hourly_files(
                     start_time_unix_sec=start_time_unix_sec,
                     end_time_unix_sec=end_time_unix_sec,
-                    data_source=source_and_subdataset_pairs_as_table[
-                        DATA_SOURCE_COLUMN].values[j],
-                    madis_subdataset=source_and_subdataset_pairs_as_table[
-                        MADIS_SUBDATASET_COLUMN].values[j],
+                    primary_source=primary_and_secondary_source_pairs_as_table[
+                        PRIMARY_SOURCE_COLUMN].values[j],
+                    secondary_source=
+                    primary_and_secondary_source_pairs_as_table[
+                        SECONDARY_SOURCE_COLUMN].values[j],
                     top_directory_name=top_directory_name,
                     raise_error_if_missing=True))
 
             num_hours = len(hour_start_times_unix_sec)
             processed_file_names_2d = numpy.full(
-                (num_pairs, num_hours), None, dtype=object)
+                (num_combined_sources, num_hours), None, dtype=object)
             processed_file_names_2d[j, :] = these_processed_file_names
 
         else:
             processed_file_names_2d[j, :], _ = find_processed_hourly_files(
                 start_time_unix_sec=start_time_unix_sec,
                 end_time_unix_sec=end_time_unix_sec,
-                data_source=source_and_subdataset_pairs_as_table[
-                    DATA_SOURCE_COLUMN].values[j],
-                madis_subdataset=source_and_subdataset_pairs_as_table[
-                    MADIS_SUBDATASET_COLUMN].values[j],
+                primary_source=primary_and_secondary_source_pairs_as_table[
+                    PRIMARY_SOURCE_COLUMN].values[j],
+                secondary_source=primary_and_secondary_source_pairs_as_table[
+                    SECONDARY_SOURCE_COLUMN].values[j],
                 top_directory_name=top_directory_name,
                 raise_error_if_missing=True)
 
     merged_file_names = [''] * num_hours
     for i in range(num_hours):
-        this_list_of_wind_tables = [None] * num_pairs
+        this_list_of_wind_tables = [None] * num_combined_sources
 
-        for j in range(num_pairs):
+        for j in range(num_combined_sources):
             this_list_of_wind_tables[j] = read_processed_file(
                 processed_file_names_2d[j, i])
 
@@ -913,7 +935,7 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
             start_time_unix_sec=hour_start_times_unix_sec[i],
             end_time_unix_sec=
             hour_start_times_unix_sec[i] + HOURS_TO_SECONDS - 1,
-            data_source=MERGED_DATA_SOURCE,
+            primary_source=MERGED_DATA_SOURCE,
             top_directory_name=top_directory_name, raise_error_if_missing=False)
 
         write_processed_file(
@@ -923,9 +945,9 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
 
 
 def read_processed_file(csv_file_name):
-    """Reads wind observations from file.
+    """Reads wind observations from processed file.
 
-    :param csv_file_name: Path to input file.
+    Path to input file.
     :return: wind_table: See documentation for write_processed_file.
     """
 

@@ -20,8 +20,6 @@ from gewittergefahr.gg_utils import error_checking
 TIME_FORMAT_YEAR = '%Y'
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_HOUR_MINUTE = '%Y%m%d%H%M'
-
-DATA_SOURCE = 'hfmetar'
 RAW_FILE_EXTENSION = '.dat'
 
 PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64060'
@@ -48,11 +46,10 @@ LOCAL_DATE_CHAR_INDICES_1MINUTE_FILE = numpy.array([13, 21], dtype=int)
 LOCAL_TIME_CHAR_INDICES_1MINUTE_FILE = numpy.array([21, 25], dtype=int)
 LOCAL_TIME_CHAR_INDICES_5MINUTE_FILE = numpy.array([13, 25], dtype=int)
 
-METADATA_COLUMNS_TO_MERGE = [raw_wind_io.STATION_ID_COLUMN,
-                             raw_wind_io.STATION_NAME_COLUMN,
-                             raw_wind_io.LATITUDE_COLUMN,
-                             raw_wind_io.LONGITUDE_COLUMN,
-                             raw_wind_io.ELEVATION_COLUMN]
+METADATA_COLUMNS_TO_MERGE = [
+    raw_wind_io.STATION_ID_COLUMN, raw_wind_io.STATION_NAME_COLUMN,
+    raw_wind_io.LATITUDE_COLUMN, raw_wind_io.LONGITUDE_COLUMN,
+    raw_wind_io.ELEVATION_COLUMN]
 
 # The following constants are used only in the main method.
 ORIG_METAFILE_NAME = '/localdata/ryan.lagerquist/aasswp/asos-stations.txt'
@@ -354,10 +351,11 @@ def read_station_metadata_from_raw_file(text_file_name):
         if num_lines_read <= 2:
             continue
 
+        this_station_id_no_source = (
+            this_line[STATION_ID_CHAR_INDICES[0]:STATION_ID_CHAR_INDICES[1]])
         this_station_id = raw_wind_io.append_source_to_station_id(
-            this_line[
-                STATION_ID_CHAR_INDICES[0]:STATION_ID_CHAR_INDICES[1]].strip(),
-            DATA_SOURCE)
+            this_station_id_no_source,
+            primary_source=raw_wind_io.HFMETAR_DATA_SOURCE)
 
         this_station_name = (this_line[STATION_NAME_CHAR_INDICES[0]:
                                        STATION_NAME_CHAR_INDICES[1]].strip())

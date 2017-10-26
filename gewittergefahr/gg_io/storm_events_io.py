@@ -20,7 +20,6 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
-DATA_SOURCE = 'storm_events'
 PATHLESS_RAW_FILE_PREFIX = 'storm_events'
 RAW_FILE_EXTENSION = '.csv'
 REQUIRED_EVENT_TYPE = 'thunderstorm wind'
@@ -147,7 +146,8 @@ def _generate_fake_station_ids(num_reports):
     numeric_station_ids = numpy.linspace(0, num_reports - 1, num=num_reports,
                                          dtype=int)
     return [raw_wind_io.append_source_to_station_id(
-        '{0:06d}'.format(i), DATA_SOURCE) for i in numeric_station_ids]
+        '{0:06d}'.format(i), primary_source=
+        raw_wind_io.STORM_EVENTS_DATA_SOURCE) for i in numeric_station_ids]
 
 
 def _remove_invalid_wind_rows(wind_table):

@@ -1,20 +1,20 @@
-"""IO methods for MADIS (Meteorological Assimilation Data Ingest System) data.
+"""IO methods for MADIS wind data.
 
-DEFINITIONS
+--- DEFINITIONS ---
 
-MADIS consists of many subdatasets.  We use all subdatasets with near-surface
-wind observations, listed below:
+MADIS (the Meteorological Assimilation Data Ingest System) consists of many
+secondary datasets (or "data streams").  We use all secondary datasets with
+near-surface wind observations, listed below:
 
 - coop stations
+- CRN (Climate Reference Network)
 - HCN (Historical Climate Network)
-- HFMETAR (5-minute meteorological aerodrome reports [METARs])
 - maritime observations
-- mesonet stations (from several different mesonets, sadly not including the
+- mesonet observations (from many different mesonets, sadly not including the
   Oklahoma Mesonet)
-- METAR (hourly, as opposed to 5-minute, METARs)
+- hourly METARs (meteorological aerodrome reports)
 - NEPP (New England Pilot Project)
-- SAO (I have no idea what this stands for, but it contains only Canadian
-  stations)
+- SAO (I have no idea what this stands for; Canadian stations only)
 - urbanet stations
 """
 
@@ -30,20 +30,20 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
-# TODO(thunderhoser): add CRN (Climate Reference Network) to list of
-# subdatasets.
 
-DATA_SOURCE = 'madis'
 FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
 FTP_ROOT_DIRECTORY_NAME = 'archive'
-
 ZIPPED_FILE_EXTENSION = '.gz'
 UNZIPPED_FILE_EXTENSION = '.netcdf'
 
-# LDAD = Local Data Acquisition and Dissemination system.
-LDAD_SUBDATASET_NAMES = ['coop', 'hcn', 'hfmetar', 'mesonet', 'nepp', 'urbanet']
-NON_LDAD_SUBDATASET_NAMES = ['maritime', 'metar', 'sao']
-SUBDATASET_NAMES = LDAD_SUBDATASET_NAMES + NON_LDAD_SUBDATASET_NAMES
+SECONDARY_SOURCES_IN_LDAD = [
+    raw_wind_io.MADIS_COOP_DATA_SOURCE, raw_wind_io.MADIS_CRN_DATA_SOURCE,
+    raw_wind_io.MADIS_HCN_DATA_SOURCE, raw_wind_io.HFMETAR_DATA_SOURCE,
+    raw_wind_io.MADIS_MESONET_DATA_SOURCE, raw_wind_io.MADIS_NEPP_DATA_SOURCE,
+    raw_wind_io.MADIS_URBANET_DATA_SOURCE]
+SECONDARY_SOURCES_NON_LDAD = [
+    raw_wind_io.MADIS_MARITIME_DATA_SOURCE, raw_wind_io.MADIS_METAR_DATA_SOURCE,
+    raw_wind_io.MADIS_SAO_DATA_SOURCE]
 
 TIME_FORMAT_YEAR = '%Y'
 TIME_FORMAT_MONTH = '%m'
@@ -131,17 +131,17 @@ def _char_matrix_to_string_list(char_matrix):
     return strings
 
 
-def _get_ftp_file_name(unix_time_sec, subdataset_name):
-    """Generates expected file path on FTP server for given date and subdataset.
+def _get_ftp_file_name(unix_time_sec, secondary_source):
+    """Generates expected path to raw file on FTP server.
 
-    :param unix_time_sec: Time in Unix format.
-    :param subdataset_name: Name of subdataset.
-    :return: ftp_file_name: Expected file path on FTP server.
+    :param unix_time_sec: Valid time.
+    :param secondary_source: String ID for secondary data source.
+    :return: ftp_file_name: Expected path to raw file on FTP server.
     """
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
 
-    if subdataset_name in LDAD_SUBDATASET_NAMES:
+    if secondary_source in SECONDARY_SOURCES_IN_LDAD:
         first_subdir_name = 'LDAD'
         second_subdir_name = 'netCDF'
     else:
@@ -154,7 +154,7 @@ def _get_ftp_file_name(unix_time_sec, subdataset_name):
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MONTH),
         time_conversion.unix_sec_to_string(unix_time_sec,
                                            TIME_FORMAT_DAY_OF_MONTH),
-        first_subdir_name, subdataset_name, second_subdir_name)
+        first_subdir_name, secondary_source, second_subdir_name)
 
     return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
 
@@ -240,62 +240,64 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
         UNZIPPED_FILE_EXTENSION)
 
 
-def extract_netcdf_from_gzip(unix_time_sec=None, subdataset_name=None,
+def extract_netcdf_from_gzip(unix_time_sec=None, secondary_source=None,
                              top_raw_directory_name=None):
     """Extracts NetCDF file from gzip archive.
 
-    This file should contain all variables for one subdataset and one hour.
-
-    :param unix_time_sec: Time in Unix format.
-    :param subdataset_name: Name of subdataset.
-    :param top_raw_directory_name: Top-level directory with raw MADIS files.
+    :param unix_time_sec: Valid time.
+    :param secondary_source: String ID for secondary data source.
+    :param top_raw_directory_name: Name of top-level directory with raw MADIS
+        files.
     :return: netcdf_file_name: Path to output file.
     """
 
     gzip_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        top_local_directory_name=top_raw_directory_name, zipped=True,
+        unix_time_sec=unix_time_sec, secondary_source=secondary_source,
+        top_directory_name=top_raw_directory_name, zipped=True,
         raise_error_if_missing=True)
 
     netcdf_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        top_local_directory_name=top_raw_directory_name, zipped=False,
-        raise_error_if_missing=False)
+        unix_time_sec=unix_time_sec, secondary_source=secondary_source,
+        top_directory_name=top_raw_directory_name, zipped=False,
+        raise_error_if_missing=True)
 
     unzipping.unzip_gzip(gzip_file_name, netcdf_file_name)
     return netcdf_file_name
 
 
-def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
-                        top_local_directory_name=None, zipped=True,
+def find_local_raw_file(unix_time_sec=None, secondary_source=None,
+                        top_directory_name=None, zipped=True,
                         raise_error_if_missing=True):
     """Finds raw file on local machine.
 
-    :param unix_time_sec: Time in Unix format.
-    :param subdataset_name: Name of subdataset.
-    :param top_local_directory_name: Top-level directory with raw MADIS files.
+    This file should contain all fields for one secondary data source and one
+    hour.
+
+    :param unix_time_sec: Valid time.
+    :param secondary_source: String ID for secondary data source.
+    :param top_directory_name: Name of top-level directory with raw MADIS files.
     :param zipped: Boolean flag.  If True, will look for zipped file.  If False,
         will look for unzipped file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
-    :return: raw_file_name: File path.  If raise_error_if_missing = False and
-        file is missing, this will be the *expected* path.
+    :return: raw_file_name: Path to raw file.  If raise_error_if_missing = False
+        and file is missing, this will be the *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    error_checking.assert_is_string(subdataset_name)
-    error_checking.assert_is_string(top_local_directory_name)
+    raw_wind_io.check_data_sources(
+        raw_wind_io.MADIS_DATA_SOURCE, secondary_source)
+    error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
-                                                     zipped=zipped)
+    pathless_file_name = _get_pathless_raw_file_name(
+        unix_time_sec, zipped=zipped)
 
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-        top_local_directory_name, subdataset_name,
-        time_conversion.unix_sec_to_string(unix_time_sec,
-                                           TIME_FORMAT_MONTH_YEAR),
-        pathless_file_name)
+        top_directory_name, secondary_source,
+        time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_MONTH_YEAR), pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
@@ -304,34 +306,32 @@ def find_local_raw_file(unix_time_sec=None, subdataset_name=None,
     return raw_file_name
 
 
-def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
+def download_gzip_from_ftp(unix_time_sec=None, secondary_source=None,
                            top_local_directory_name=None, ftp_user_name=None,
                            ftp_password=None, raise_error_if_fails=True):
     """Downloads gzip file from FTP server.
 
-    The gzip file should contain a single NetCDF file, containing all variables
-    for one subdataset and one hour.
-
-    :param unix_time_sec: Time in Unix format.
-    :param subdataset_name: Name of subdataset.
-    :param top_local_directory_name: Path to top-level directory for raw MADIS
-        files.
+    :param unix_time_sec: Valid time.
+    :param secondary_source: String ID for secondary data source.
+    :param top_local_directory_name: Name of top-level local directory with raw
+        MADIS files.
     :param ftp_user_name: Username on FTP server.  If you want to login
         anonymously, leave this as None.
     :param ftp_password: Password on FTP server.  If you want to login
         anonymously, leave this as None.
-    :param raise_error_if_fails: Boolean flag.  If True and download fails, will
-        raise error.
-    :return: local_gzip_file_name: Path to file on local machine.  If download
-        failed but raise_error_if_fails = False, this will be None.
+    :param raise_error_if_fails: Boolean flag.  If True and download fails, this
+        method will raise an error.
+    :return: local_gzip_file_name: Path to gzip file on local machine.  If
+        download failed but raise_error_if_fails = False, this will be None.
     """
 
-    error_checking.assert_is_string(subdataset_name)
-    ftp_file_name = _get_ftp_file_name(unix_time_sec, subdataset_name)
+    raw_wind_io.check_data_sources(
+        raw_wind_io.MADIS_DATA_SOURCE, secondary_source)
+    ftp_file_name = _get_ftp_file_name(unix_time_sec, secondary_source)
 
     local_gzip_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, subdataset_name=subdataset_name,
-        top_local_directory_name=top_local_directory_name, zipped=True,
+        unix_time_sec=unix_time_sec, secondary_source=secondary_source,
+        top_directory_name=top_local_directory_name, zipped=True,
         raise_error_if_missing=False)
 
     return downloads.download_file_via_ftp(
@@ -341,12 +341,18 @@ def download_gzip_from_ftp(unix_time_sec=None, subdataset_name=None,
         raise_error_if_fails=raise_error_if_fails)
 
 
-def read_winds_from_raw_file(netcdf_file_name, raise_error_if_fails=True):
+def read_winds_from_raw_file(netcdf_file_name, secondary_source=None,
+                             raise_error_if_fails=True):
     """Reads wind observations from raw file.
 
-    This file should contain all variables for one subdataset and one hour.
+    This file should contain all fields for one secondary data source and one
+    hour.
 
     :param netcdf_file_name: Path to input file.
+    :param secondary_source: String ID for secondary data source.
+    :param raise_error_if_fails: Boolean flag.  If True and the read fails, this
+        method will raise an error.  If False and the read fails, this method
+        will return None.
     :return: wind_table: If file cannot be opened and raise_error_if_fails =
         False, this is None.  Otherwise, it is a pandas DataFrame with the
         following columns.
@@ -382,8 +388,9 @@ def read_winds_from_raw_file(netcdf_file_name, raise_error_if_fails=True):
         station_ids = station_names
 
     for i in range(len(station_ids)):
-        station_ids[i] = raw_wind_io.append_source_to_station_id(station_ids[i],
-                                                                 DATA_SOURCE)
+        station_ids[i] = raw_wind_io.append_source_to_station_id(
+            station_ids[i], primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+            secondary_source=secondary_source)
 
     try:
         unix_times_sec = netcdf_dataset.variables[TIME_COLUMN_ORIG][:]

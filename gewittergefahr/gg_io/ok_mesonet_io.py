@@ -16,7 +16,6 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
-DATA_SOURCE = 'ok_mesonet'
 RAW_FILE_EXTENSION = '.mdf'
 
 MINUTES_TO_SECONDS = 60
@@ -206,7 +205,7 @@ def read_station_metadata_from_raw_file(csv_file_name):
         station_metadata_table[raw_wind_io.STATION_ID_COLUMN].values[i] = (
             raw_wind_io.append_source_to_station_id(
                 station_metadata_table[raw_wind_io.STATION_ID_COLUMN].values[i],
-                DATA_SOURCE))
+                primary_source=raw_wind_io.OK_MESONET_DATA_SOURCE))
 
     return station_metadata_table
 
@@ -274,7 +273,7 @@ def read_winds_from_raw_file(text_file_name):
         wind_table[raw_wind_io.STATION_ID_COLUMN].values[i] = (
             raw_wind_io.append_source_to_station_id(
                 wind_table[raw_wind_io.STATION_ID_COLUMN].values[i],
-                DATA_SOURCE))
+                raw_wind_io.OK_MESONET_DATA_SOURCE))
 
     return _remove_invalid_wind_rows(wind_table)
 

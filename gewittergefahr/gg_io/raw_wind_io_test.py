@@ -7,20 +7,24 @@ from gewittergefahr.gg_io import raw_wind_io
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test _check_data_source.
+FAKE_PRIMARY_DATA_SOURCE = 'foo'
+FAKE_SECONDARY_DATA_SOURCE = 'bar'
+
 # The following constants are used to test
-# _source_and_subdataset_pairs_to_table.
-DATA_SOURCE_BY_PAIR = [
+# _primary_and_secondary_sources_to_table.
+PRIMARY_SOURCE_BY_PAIR = [
     raw_wind_io.OK_MESONET_DATA_SOURCE, raw_wind_io.STORM_EVENTS_DATA_SOURCE,
     raw_wind_io.HFMETAR_DATA_SOURCE]
-DATA_SOURCE_BY_PAIR += (
-    [raw_wind_io.MADIS_DATA_SOURCE] * len(raw_wind_io.MADIS_SUBDATASETS))
-MADIS_SUBDATASET_BY_PAIR = [None] * 3 + raw_wind_io.MADIS_SUBDATASETS
+PRIMARY_SOURCE_BY_PAIR += (
+    [raw_wind_io.MADIS_DATA_SOURCE] * len(raw_wind_io.SECONDARY_DATA_SOURCES))
+SECONDARY_SOURCE_BY_PAIR = [None] * 3 + raw_wind_io.SECONDARY_DATA_SOURCES
 
-SOURCE_AND_SUBDATASET_PAIRS_AS_DICT = {
-    raw_wind_io.DATA_SOURCE_COLUMN: DATA_SOURCE_BY_PAIR,
-    raw_wind_io.MADIS_SUBDATASET_COLUMN: MADIS_SUBDATASET_BY_PAIR}
-SOURCE_AND_SUBDATASET_PAIRS_AS_TABLE = pandas.DataFrame.from_dict(
-    SOURCE_AND_SUBDATASET_PAIRS_AS_DICT)
+PRIMARY_AND_SECONDARY_SOURCE_PAIRS_AS_DICT = {
+    raw_wind_io.PRIMARY_SOURCE_COLUMN: PRIMARY_SOURCE_BY_PAIR,
+    raw_wind_io.SECONDARY_SOURCE_COLUMN: SECONDARY_SOURCE_BY_PAIR}
+PRIMARY_AND_SECONDARY_SOURCE_PAIRS_AS_TABLE = pandas.DataFrame.from_dict(
+    PRIMARY_AND_SECONDARY_SOURCE_PAIRS_AS_DICT)
 
 # The following constants are used to test _check_elevations.
 ELEVATIONS_M_ASL = numpy.array(
@@ -32,8 +36,7 @@ LATITUDES_DEG = numpy.array(
     [-100., -90., 0., 90., 1000., numpy.nan, None], dtype=numpy.float64)
 LAT_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
-# The following constants are used to test _check_longitudes,
-# _check_longitudes_negative_in_west, and _check_longitudes_positive_in_west.
+# The following constants are used to test _check_longitudes*.
 LONGITUDES_DEG = numpy.array(
     [-200., -180., 0., 180., 360., 500., numpy.nan, None], dtype=numpy.float64)
 LNG_INVALID_INDICES = numpy.array([0, 5, 6, 7], dtype=int)
@@ -56,26 +59,25 @@ WIND_DIRECTIONS_DEG = numpy.array(
 DIRECTION_INVALID_INDICES = numpy.array([0, 4, 5, 6, 7], dtype=int)
 
 # The following constants are used to test append_source_to_station_id.
-STATION_ID_WITHOUT_SOURCE = 'CYEG'
-DATA_SOURCE = 'madis'
-STATION_ID_WITH_SOURCE = 'CYEG_madis'
+STATION_ID_NO_SOURCE = 'CYEG'
+NON_MADIS_PRIMARY_SOURCE = 'ok_mesonet'
+STATION_ID_NON_MADIS = 'CYEG_ok-mesonet'
+SECONDARY_DATA_SOURCE = 'sao'
+STATION_ID_MADIS = 'CYEG_madis_sao'
 
 # The following constants are used to test _get_pathless_processed_file_name.
 FILE_START_TIME_UNIX_SEC = 1506999600  # 0300 UTC 3 Oct 2017
 FILE_END_TIME_UNIX_SEC = 1507003200  # 0400 UTC 3 Oct 2017
-MADIS_DATA_SOURCE = 'madis'
-MADIS_SUBDATASET = 'nepp'
-NON_MADIS_DATA_SOURCE = 'ok_mesonet'
 
 PATHLESS_FILE_NAME_MADIS = (
-    'wind-observations_madis_nepp_2017-10-03-030000_2017-10-03-040000.csv')
+    'wind-observations_madis_sao_2017-10-03-030000_2017-10-03-040000.csv')
 PATHLESS_FILE_NAME_NON_MADIS = (
     'wind-observations_ok-mesonet_2017-10-03-030000_2017-10-03-040000.csv')
 
 # The following constants are used to test find_processed_file.
 TOP_DIRECTORY_NAME = 'wind'
 PROCESSED_FILE_NAME_MADIS = (
-    'wind/madis/nepp/201710/wind-observations_madis_nepp_2017-10-03-030000_'
+    'wind/madis/sao/201710/wind-observations_madis_sao_2017-10-03-030000_'
     '2017-10-03-040000.csv')
 PROCESSED_FILE_NAME_NON_MADIS = (
     'wind/ok_mesonet/201710/wind-observations_ok-mesonet_2017-10-03-030000_'
@@ -86,12 +88,12 @@ PERIOD_START_TIME_UNIX_SEC = 1506993753  # 012233 UTC 3 Oct 2017
 PERIOD_END_TIME_UNIX_SEC = 1507002295  # 034455 UTC 3 Oct 2017
 
 PROCESSED_HOURLY_FILE_NAMES_MADIS = [
-    'wind/madis/nepp/201710/'
-    'wind-observations_madis_nepp_2017-10-03-010000_2017-10-03-015959.csv',
-    'wind/madis/nepp/201710/'
-    'wind-observations_madis_nepp_2017-10-03-020000_2017-10-03-025959.csv',
-    'wind/madis/nepp/201710/'
-    'wind-observations_madis_nepp_2017-10-03-030000_2017-10-03-035959.csv']
+    'wind/madis/sao/201710/'
+    'wind-observations_madis_sao_2017-10-03-010000_2017-10-03-015959.csv',
+    'wind/madis/sao/201710/'
+    'wind-observations_madis_sao_2017-10-03-020000_2017-10-03-025959.csv',
+    'wind/madis/sao/201710/'
+    'wind-observations_madis_sao_2017-10-03-030000_2017-10-03-035959.csv']
 
 PROCESSED_HOURLY_FILE_NAMES_NON_MADIS = [
     'wind/ok_mesonet/201710/'
@@ -102,7 +104,7 @@ PROCESSED_HOURLY_FILE_NAMES_NON_MADIS = [
     'wind-observations_ok-mesonet_2017-10-03-030000_2017-10-03-035959.csv'
 ]
 
-# The following constants are used to test _get_max_of_sustained_and_gust.
+# The following constants are used to test get_max_of_sustained_and_gust.
 WIND_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
     [5., 10., 20., 30., numpy.nan, 6.6, 0., 40.])
 WIND_GUST_SPEEDS_TO_CONVERT_M_S01 = numpy.array(
@@ -133,11 +135,71 @@ EXPECTED_MAX_V_WINDS_M_S01 = numpy.array(
 class RawWindIoTests(unittest.TestCase):
     """Each method is a unit test for raw_wind_io.py."""
 
-    def test_source_and_subdataset_pairs_to_table(self):
-        """Ensures correct output from _source_and_subdataset_pairs_to_table."""
+    def test_check_data_sources_fake_primary(self):
+        """Ensures correct output from check_data_sources.
 
-        this_table = raw_wind_io._source_and_subdataset_pairs_to_table()
-        self.assertTrue(this_table.equals(SOURCE_AND_SUBDATASET_PAIRS_AS_TABLE))
+        In this case, primary data source is fake.
+        """
+
+        with self.assertRaises(ValueError):
+            raw_wind_io.check_data_sources(
+                primary_source=FAKE_PRIMARY_DATA_SOURCE)
+
+    def test_check_data_sources_merged_not_allowed(self):
+        """Ensures correct output from check_data_sources.
+
+        In this case, primary data source is "merged", which is not allowed.
+        """
+
+        with self.assertRaises(ValueError):
+            raw_wind_io.check_data_sources(
+                primary_source=raw_wind_io.MERGED_DATA_SOURCE,
+                allow_merged=False)
+
+    def test_check_data_sources_merged_allowed(self):
+        """Ensures correct output from check_data_sources.
+
+        In this case, primary data source is "merged", which is allowed.
+        """
+
+        raw_wind_io.check_data_sources(
+            primary_source=raw_wind_io.MERGED_DATA_SOURCE, allow_merged=True)
+
+    def test_check_data_sources_fake_secondary(self):
+        """Ensures correct output from check_data_sources.
+
+        In this case, secondary data source is fake.
+        """
+
+        with self.assertRaises(ValueError):
+            raw_wind_io.check_data_sources(
+                primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+                secondary_source=FAKE_SECONDARY_DATA_SOURCE)
+
+    def test_check_data_sources_madis(self):
+        """Ensures correct output from check_data_sources.
+
+        In this case, primary source is MADIS and secondary source is valid.
+        """
+
+        raw_wind_io.check_data_sources(
+            primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+            secondary_source=SECONDARY_DATA_SOURCE)
+
+    def test_check_data_sources_non_madis(self):
+        """Ensures correct output from check_data_sources.
+
+        In this case, primary source is non-MADIS.
+        """
+
+        raw_wind_io.check_data_sources(primary_source=NON_MADIS_PRIMARY_SOURCE)
+
+    def test_primary_and_secondary_sources_to_table(self):
+        """Ensures correctness of _primary_and_secondary_sources_to_table."""
+
+        this_table = raw_wind_io._primary_and_secondary_sources_to_table()
+        self.assertTrue(this_table.equals(
+            PRIMARY_AND_SECONDARY_SOURCE_PAIRS_AS_TABLE))
 
     def test_check_elevations(self):
         """Ensures correct output from _check_elevations."""
@@ -209,46 +271,59 @@ class RawWindIoTests(unittest.TestCase):
                                           DIRECTION_INVALID_INDICES))
 
     def test_get_pathless_processed_file_name_madis(self):
-        """Ensures correctness of _get_pathless_processed_file_name.
+        """Ensures correct output from _get_pathless_processed_file_name.
 
-        In this case, data source is MADIS.
+        In this case, primary data source is MADIS.
         """
 
         this_pathless_file_name = raw_wind_io._get_pathless_processed_file_name(
             start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
             end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
-            data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET)
+            primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+            secondary_source=SECONDARY_DATA_SOURCE)
         self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME_MADIS)
 
     def test_get_pathless_processed_file_name_non_madis(self):
-        """Ensures correctness of _get_pathless_processed_file_name.
+        """Ensures correct output from _get_pathless_processed_file_name.
 
-        In this case, data source is not MADIS.
+        In this case, primary data source is non-MADIS.
         """
 
         this_pathless_file_name = raw_wind_io._get_pathless_processed_file_name(
             start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
             end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
-            data_source=NON_MADIS_DATA_SOURCE)
+            primary_source=NON_MADIS_PRIMARY_SOURCE)
         self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME_NON_MADIS)
 
-    def test_append_source_to_station_id(self):
-        """Ensures correct output from append_source_to_station_id."""
+    def test_append_source_to_station_id_madis(self):
+        """Ensures correct output from append_source_to_station_id.
+
+        In this case, primary data source is MADIS.
+        """
 
         this_station_id = raw_wind_io.append_source_to_station_id(
-            STATION_ID_WITHOUT_SOURCE, DATA_SOURCE)
-        self.assertTrue(this_station_id, STATION_ID_WITH_SOURCE)
+            STATION_ID_NO_SOURCE, primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+            secondary_source=SECONDARY_DATA_SOURCE)
+        self.assertTrue(this_station_id == STATION_ID_MADIS)
+
+    def test_append_source_to_station_id_non_madis(self):
+        """Ensures correct output from append_source_to_station_id.
+
+        In this case, primary data source is non-MADIS.
+        """
+
+        this_station_id = raw_wind_io.append_source_to_station_id(
+            STATION_ID_NO_SOURCE, primary_source=NON_MADIS_PRIMARY_SOURCE)
+        self.assertTrue(this_station_id == STATION_ID_NON_MADIS)
 
     def test_get_max_of_sustained_and_gust(self):
-        """Ensures correct output from _get_max_of_sustained_and_gust."""
+        """Ensures correct output from get_max_of_sustained_and_gust."""
 
-        (these_max_wind_speeds_m_s01,
-         these_max_wind_directions_deg) = (
-             raw_wind_io.get_max_of_sustained_and_gust(
-                 WIND_SPEEDS_TO_CONVERT_M_S01,
-                 WIND_GUST_SPEEDS_TO_CONVERT_M_S01,
-                 WIND_DIRECTIONS_TO_CONVERT_DEG,
-                 WIND_GUST_DIRECTIONS_TO_CONVERT_DEG))
+        these_max_wind_speeds_m_s01, these_max_wind_directions_deg = (
+            raw_wind_io.get_max_of_sustained_and_gust(
+                WIND_SPEEDS_TO_CONVERT_M_S01, WIND_GUST_SPEEDS_TO_CONVERT_M_S01,
+                WIND_DIRECTIONS_TO_CONVERT_DEG,
+                WIND_GUST_DIRECTIONS_TO_CONVERT_DEG))
 
         self.assertTrue(numpy.allclose(
             these_max_wind_speeds_m_s01, MAX_WIND_SPEEDS_M_S01, atol=TOLERANCE,
@@ -260,12 +335,12 @@ class RawWindIoTests(unittest.TestCase):
     def test_speed_and_direction_to_uv_with_nan(self):
         """Ensures correct output from speed_and_direction_to_uv.
 
-        In this case, input array of directions contains NaN.
+        In this case, input directions include NaN.
         """
 
-        (these_u_winds_m_s01,
-         these_v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
-             MAX_WIND_SPEEDS_M_S01, MAX_WIND_DIRECTIONS_WITH_NAN_DEG)
+        these_u_winds_m_s01, these_v_winds_m_s01 = (
+            raw_wind_io.speed_and_direction_to_uv(
+                MAX_WIND_SPEEDS_M_S01, MAX_WIND_DIRECTIONS_WITH_NAN_DEG))
 
         self.assertTrue(numpy.allclose(
             these_u_winds_m_s01, EXPECTED_MAX_U_WINDS_M_S01, atol=TOLERANCE))
@@ -275,12 +350,12 @@ class RawWindIoTests(unittest.TestCase):
     def test_speed_and_direction_to_uv_without_nan(self):
         """Ensures correct output from speed_and_direction_to_uv.
 
-        In this case, input array of directions does not contain NaN.
+        In this case, input directions do not include NaN.
         """
 
-        (these_u_winds_m_s01,
-         these_v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
-             MAX_WIND_SPEEDS_M_S01, MAX_WIND_DIRECTIONS_DEG)
+        these_u_winds_m_s01, these_v_winds_m_s01 = (
+            raw_wind_io.speed_and_direction_to_uv(
+                MAX_WIND_SPEEDS_M_S01, MAX_WIND_DIRECTIONS_DEG))
 
         self.assertTrue(numpy.allclose(
             these_u_winds_m_s01, EXPECTED_MAX_U_WINDS_M_S01, atol=TOLERANCE))
@@ -290,9 +365,9 @@ class RawWindIoTests(unittest.TestCase):
     def test_uv_to_speed_and_direction(self):
         """Ensures correct output from uv_to_speed_and_direction."""
 
-        (these_wind_speeds_m_s01,
-         these_wind_directions_deg) = raw_wind_io.uv_to_speed_and_direction(
-             EXPECTED_MAX_U_WINDS_M_S01, EXPECTED_MAX_V_WINDS_M_S01)
+        these_wind_speeds_m_s01, these_wind_directions_deg = (
+            raw_wind_io.uv_to_speed_and_direction(
+                EXPECTED_MAX_U_WINDS_M_S01, EXPECTED_MAX_V_WINDS_M_S01))
 
         self.assertTrue(numpy.allclose(
             these_wind_speeds_m_s01, MAX_WIND_SPEEDS_M_S01, atol=TOLERANCE))
@@ -302,39 +377,43 @@ class RawWindIoTests(unittest.TestCase):
     def test_find_processed_file_madis(self):
         """Ensures correct output from find_processed_file.
 
-        In this case, data source is MADIS.
+        In this case, primary data source is MADIS.
         """
 
         this_file_name = raw_wind_io.find_processed_file(
             start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
             end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
-            data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET,
+            primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+            secondary_source=SECONDARY_DATA_SOURCE,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
+
         self.assertTrue(this_file_name == PROCESSED_FILE_NAME_MADIS)
 
     def test_find_processed_file_non_madis(self):
         """Ensures correct output from find_processed_file.
 
-        In this case, data source is not MADIS.
+        In this case, primary data source is non-MADIS.
         """
 
         this_file_name = raw_wind_io.find_processed_file(
             start_time_unix_sec=FILE_START_TIME_UNIX_SEC,
             end_time_unix_sec=FILE_END_TIME_UNIX_SEC,
-            data_source=NON_MADIS_DATA_SOURCE,
+            primary_source=NON_MADIS_PRIMARY_SOURCE,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
+
         self.assertTrue(this_file_name == PROCESSED_FILE_NAME_NON_MADIS)
 
     def test_find_processed_hourly_files_madis(self):
         """Ensures correct output from find_processed_hourly_files.
 
-        In this case, data source is MADIS.
+        In this case, primary data source is MADIS.
         """
 
         these_file_names, _ = raw_wind_io.find_processed_hourly_files(
             start_time_unix_sec=PERIOD_START_TIME_UNIX_SEC,
             end_time_unix_sec=PERIOD_END_TIME_UNIX_SEC,
-            data_source=MADIS_DATA_SOURCE, madis_subdataset=MADIS_SUBDATASET,
+            primary_source=raw_wind_io.MADIS_DATA_SOURCE,
+            secondary_source=SECONDARY_DATA_SOURCE,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
 
         self.assertTrue(these_file_names == PROCESSED_HOURLY_FILE_NAMES_MADIS)
@@ -342,13 +421,13 @@ class RawWindIoTests(unittest.TestCase):
     def test_find_processed_hourly_files_non_madis(self):
         """Ensures correct output from find_processed_hourly_files.
 
-        In this case, data source is not MADIS.
+        In this case, primary data source is non-MADIS.
         """
 
         these_file_names, _ = raw_wind_io.find_processed_hourly_files(
             start_time_unix_sec=PERIOD_START_TIME_UNIX_SEC,
             end_time_unix_sec=PERIOD_END_TIME_UNIX_SEC,
-            data_source=NON_MADIS_DATA_SOURCE,
+            primary_source=NON_MADIS_PRIMARY_SOURCE,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
 
         self.assertTrue(

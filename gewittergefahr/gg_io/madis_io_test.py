@@ -22,13 +22,13 @@ UNIX_TIME_SEC = 1506127260  # 0041 UTC 23 Sep 2017
 PATHLESS_ZIPPED_FILE_NAME = '20170923_0000.gz'
 PATHLESS_UNZIPPED_FILE_NAME = '20170923_0000.netcdf'
 
-SUBDATASET_NAME_LDAD = 'hfmetar'
-FTP_FILE_NAME_LDAD = 'archive/2017/09/23/LDAD/hfmetar/netCDF/20170923_0000.gz'
+SECONDARY_DATA_SOURCE_LDAD = 'crn'
+FTP_FILE_NAME_LDAD = 'archive/2017/09/23/LDAD/crn/netCDF/20170923_0000.gz'
 TOP_LOCAL_DIRECTORY_NAME = 'madis_data'
-ZIPPED_FILE_NAME_LDAD = 'madis_data/hfmetar/201709/20170923_0000.gz'
-UNZIPPED_FILE_NAME_LDAD = 'madis_data/hfmetar/201709/20170923_0000.netcdf'
+ZIPPED_FILE_NAME_LDAD = 'madis_data/crn/201709/20170923_0000.gz'
+UNZIPPED_FILE_NAME_LDAD = 'madis_data/crn/201709/20170923_0000.netcdf'
 
-SUBDATASET_NAME_NON_LDAD = 'maritime'
+SECONDARY_DATA_SOURCE_NON_LDAD = 'maritime'
 FTP_FILE_NAME_NON_LDAD = (
     'archive/2017/09/23/point/maritime/netcdf/20170923_0000.gz')
 ZIPPED_FILE_NAME_NON_LDAD = 'madis_data/maritime/201709/20170923_0000.gz'
@@ -170,7 +170,7 @@ class MadisIoTests(unittest.TestCase):
     """Each method is a unit test for madis_io.py."""
 
     def test_column_name_orig_to_new(self):
-        """Ensures correct output from _column_name_orig_to_new."""
+        """Ensures correct output from _column_name_orig_to_new"""
 
         this_column_name = madis_io._column_name_orig_to_new(COLUMN_NAME_ORIG)
         self.assertTrue(this_column_name == COLUMN_NAME)
@@ -186,33 +186,40 @@ class MadisIoTests(unittest.TestCase):
     def test_get_ftp_file_name_ldad(self):
         """Ensures correct output from _get_ftp_file_name.
 
-        In this case, subdataset is HFMETAR, which is part of the LDAD (Local
-        Data Acquisition and Dissemination) system.
+        In this case, secondary data source is CRN, which is part of the LDAD
+        (Local Data Acquisition and Dissemination) system.
         """
 
         this_ftp_file_name = madis_io._get_ftp_file_name(
-            UNIX_TIME_SEC, SUBDATASET_NAME_LDAD)
+            UNIX_TIME_SEC, SECONDARY_DATA_SOURCE_LDAD)
         self.assertTrue(this_ftp_file_name == FTP_FILE_NAME_LDAD)
 
     def test_get_ftp_file_name_non_ldad(self):
         """Ensures correct output from _get_ftp_file_name.
 
-        In this case, subdataset is maritime, which is *not* part of LDAD.
+        In this case, secondary data source is maritime, which is not part of
+        LDAD.
         """
 
         this_ftp_file_name = madis_io._get_ftp_file_name(
-            UNIX_TIME_SEC, SUBDATASET_NAME_NON_LDAD)
+            UNIX_TIME_SEC, SECONDARY_DATA_SOURCE_NON_LDAD)
         self.assertTrue(this_ftp_file_name == FTP_FILE_NAME_NON_LDAD)
 
     def test_remove_low_quality_data_no_low_quality(self):
-        """Correctness of _remove_low_quality_data with no low-quality data."""
+        """Ensures correct output from _remove_low_quality_data.
+
+        In this case, none of the input data are low-quality.
+        """
 
         this_wind_table = madis_io._remove_low_quality_data(
             WIND_TABLE_PERFECT_DATA)
         self.assertTrue(this_wind_table.equals(WIND_TABLE_PERFECT_DATA))
 
     def test_remove_low_quality_data_some_low_quality(self):
-        """Correctness of _remove_low_quality_data, some low-quality data."""
+        """Ensures correct output from _remove_low_quality_data.
+
+        In this case, some of the input data are low-quality.
+        """
 
         this_table_with_errors = copy.deepcopy(WIND_TABLE_WITH_ERRORS)
         this_wind_table = madis_io._remove_low_quality_data(
@@ -243,60 +250,59 @@ class MadisIoTests(unittest.TestCase):
     def test_find_local_raw_file_ldad_zipped(self):
         """Ensures correct output from find_local_raw_file.
 
-        In this case, looking for zipped file from subdataset HFMETAR, which is
-        part of LDAD.
+        In this case, looking for zipped file from secondary data source CRN,
+        which is part of the LDAD (Local Data Acquisition and Dissemination)
+        system.
         """
 
         this_file_name = madis_io.find_local_raw_file(
-            unix_time_sec=UNIX_TIME_SEC, subdataset_name=SUBDATASET_NAME_LDAD,
-            top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=True,
+            unix_time_sec=UNIX_TIME_SEC,
+            secondary_source=SECONDARY_DATA_SOURCE_LDAD,
+            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=True,
             raise_error_if_missing=False)
-
         self.assertTrue(this_file_name == ZIPPED_FILE_NAME_LDAD)
 
     def test_find_local_raw_file_ldad_unzipped(self):
         """Ensures correct output from find_local_raw_file.
 
-        In this case, looking for unzipped file from subdataset HFMETAR, which
-        is part of LDAD.
+        In this case, looking for unzipped file from secondary data source CRN,
+        which is part of LDAD.
         """
 
         this_file_name = madis_io.find_local_raw_file(
-            unix_time_sec=UNIX_TIME_SEC, subdataset_name=SUBDATASET_NAME_LDAD,
-            top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=False,
+            unix_time_sec=UNIX_TIME_SEC,
+            secondary_source=SECONDARY_DATA_SOURCE_LDAD,
+            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=False,
             raise_error_if_missing=False)
-
         self.assertTrue(this_file_name == UNZIPPED_FILE_NAME_LDAD)
 
     def test_find_local_raw_file_non_ldad_zipped(self):
         """Ensures correct output from find_local_raw_file.
 
-        In this case, looking for zipped file from subdataset maritime, which is
-        not part of LDAD.
+        In this case, looking for zipped file from secondary data source
+        "maritime", which is not part of LDAD.
         """
 
         this_file_name = madis_io.find_local_raw_file(
             unix_time_sec=UNIX_TIME_SEC,
-            subdataset_name=SUBDATASET_NAME_NON_LDAD,
-            top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=True,
+            secondary_source=SECONDARY_DATA_SOURCE_NON_LDAD,
+            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=True,
             raise_error_if_missing=False)
-
         self.assertTrue(this_file_name == ZIPPED_FILE_NAME_NON_LDAD)
 
     def test_find_local_raw_file_non_ldad_unzipped(self):
         """Ensures correct output from find_local_raw_file.
 
-        In this case, looking for unzipped file from subdataset maritime, which
-        is not part of LDAD.
+        In this case, looking for unzipped file from secondary data source
+        "maritime", which is not part of LDAD.
         """
 
         this_file_name = madis_io.find_local_raw_file(
             unix_time_sec=UNIX_TIME_SEC,
-            subdataset_name=SUBDATASET_NAME_NON_LDAD,
-            top_local_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=False,
+            secondary_source=SECONDARY_DATA_SOURCE_NON_LDAD,
+            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=False,
             raise_error_if_missing=False)
-
-        self.assertTrue(this_file_name == UNZIPPED_FILE_NAME_NON_LDAD)
+        self.assertTrue(this_file_name == ZIPPED_FILE_NAME_NON_LDAD)
 
 
 if __name__ == '__main__':
