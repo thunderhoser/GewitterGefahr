@@ -1,6 +1,7 @@
 """Methods for creating and analyzing soundings."""
 
 import os.path
+import pickle
 import numpy
 import pandas
 from sharppy.sharptab import params as sharppy_params
@@ -13,6 +14,8 @@ from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import geodetic_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
@@ -27,6 +30,7 @@ PASCALS_TO_MB = 0.01
 MB_TO_PASCALS = 100
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
+RADIANS_TO_DEGREES = 180. / numpy.pi
 
 PRESSURE_COLUMN_FOR_SHARPPY = 'pressure_mb'
 HEIGHT_COLUMN_FOR_SHARPPY = 'geopotential_height_metres'
@@ -64,6 +68,8 @@ Y_COMPONENT_SUFFIX = 'y'
 MAGNITUDE_SUFFIX = 'magnitude'
 COSINE_SUFFIX = 'cos'
 SINE_SUFFIX = 'sin'
+
+STORM_COLUMNS_TO_WRITE = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 
 def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
@@ -620,6 +626,55 @@ def _convert_sounding_to_sharppy_units(sounding_table):
     return sounding_table.drop(columns_to_drop, axis=1)
 
 
+def _create_query_point_table(storm_object_table, lead_time_seconds):
+    """Creates table of query points.
+
+    Each query point consists of (latitude, longitude, time).
+
+    :param storm_object_table: pandas DataFrame with columns documented in
+        `storm_tracking_io.write_processed_file`.  May contain additional
+        columns.
+    :param lead_time_seconds: Each storm object will be extrapolated this far
+        into the future, given its motion estimate at the valid time.
+    :return: query_point_table: pandas DataFrame with the following columns,
+        where each row is an extrapolated storm object.
+    query_point_table.centroid_lat_deg: Latitude (deg N) of extrapolated
+        centroid.
+    query_point_table.centroid_lng_deg: Longitude (deg E) of extrapolated
+        centroid.
+    query_point_table.unix_time_sec: Time to which position has been
+        extrapolated.
+    """
+
+    if lead_time_seconds == 0:
+        return storm_object_table[[
+            tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
+            tracking_io.TIME_COLUMN]]
+
+    storm_speeds_m_s01, geodetic_bearings_deg = (
+        geodetic_utils.xy_components_to_displacements_and_bearings(
+            storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values,
+            storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
+
+    extrap_latitudes_deg, extrap_longitudes_deg = (
+        geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
+            start_latitudes_deg=
+            storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+            start_longitudes_deg=
+            storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
+            displacements_metres=storm_speeds_m_s01 * lead_time_seconds,
+            geodetic_bearings_deg=geodetic_bearings_deg))
+
+    query_point_dict = {
+        tracking_io.CENTROID_LAT_COLUMN: extrap_latitudes_deg,
+        tracking_io.CENTROID_LNG_COLUMN: extrap_longitudes_deg,
+        tracking_io.TIME_COLUMN:
+            storm_object_table[tracking_io.TIME_COLUMN].values +
+            lead_time_seconds}
+
+    return pandas.DataFrame.from_dict(query_point_dict)
+
+
 def read_metadata_for_sounding_indices():
     """Reads metadata for sounding indices.
 
@@ -885,9 +940,9 @@ def convert_sounding_indices_from_sharppy(sounding_index_table_sharppy,
     return sounding_index_table.assign(**argument_dict)
 
 
-def get_sounding_indices_for_storm_objects(storm_object_table, model_name=None,
-                                           grid_id=None,
-                                           top_grib_directory_name=None):
+def get_sounding_indices_for_storm_objects(
+        storm_object_table, lead_time_seconds=0, model_name=None, grid_id=None,
+        top_grib_directory_name=None):
     """Computes sounding indices for each storm object.
 
     K = number of sounding indices, after decomposition of vectors into scalars
@@ -895,19 +950,23 @@ def get_sounding_indices_for_storm_objects(storm_object_table, model_name=None,
     :param storm_object_table: pandas DataFrame with columns documented in
         `storm_tracking_io.write_processed_file`.  May contain additional
         columns.
+    :param lead_time_seconds: Each storm object will be extrapolated this far
+        into the future, given its motion estimate at the valid time.
     :param model_name: Name of NWP model from which soundings will be
         interpolated.
     :param grid_id: String ID for model grid.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the given model.
-    :return: storm_object_table: Same as input, but with K additional columns.
-        Names of additional columns come from column "sounding_index_name" of
-        the table generated by read_metadata_for_sounding_indices.
+    :return: storm_sounding_index_table: Same as input, but with K additional
+        columns.  Names of additional columns are GewitterGefahr names for
+        sounding indices (see column "sounding_index_name" of the table
+        generated by read_metadata_for_sounding_indices).
     """
 
-    query_point_table = storm_object_table[[
-        tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
-        tracking_io.TIME_COLUMN]]
+    error_checking.assert_is_integer(lead_time_seconds)
+    error_checking.assert_is_geq(lead_time_seconds, 0)
+    query_point_table = _create_query_point_table(
+        storm_object_table, lead_time_seconds)
 
     column_dict_old_to_new = {
         tracking_io.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
@@ -950,3 +1009,46 @@ def get_sounding_indices_for_storm_objects(storm_object_table, model_name=None,
     sounding_index_table = convert_sounding_indices_from_sharppy(
         sounding_index_table_sharppy, sounding_index_metadata_table)
     return pandas.concat([storm_object_table, sounding_index_table], axis=1)
+
+
+def write_sounding_indices_for_storm_objects(storm_sounding_index_table,
+                                             pickle_file_name):
+    """Writes sounding indices for storm objects to a Pickle file.
+
+    :param storm_sounding_index_table: pandas DataFrame created by
+        get_sounding_indices_for_storm_objects.  Each row is one storm object.
+        This method will print columns "storm_id", "unix_time_sec", and sounding
+        indices.
+    :param pickle_file_name: Path to output file.
+    """
+
+    sounding_index_metadata_table = read_metadata_for_sounding_indices()
+    columns_to_write = STORM_COLUMNS_TO_WRITE + list(
+        sounding_index_metadata_table[SI_NAME_COLUMN].values)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(
+        storm_sounding_index_table[columns_to_write], pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_sounding_indices_for_storm_objects(pickle_file_name):
+    """Reads sounding indices for storm objects from a Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_sounding_index_table: pandas DataFrame with columns
+        documented in write_sounding_indices_for_storm_objects.
+    """
+
+    sounding_index_metadata_table = read_metadata_for_sounding_indices()
+    expected_columns = STORM_COLUMNS_TO_WRITE + list(
+        sounding_index_metadata_table[SI_NAME_COLUMN].values)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_sounding_index_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(
+        storm_sounding_index_table, expected_columns)
+    return storm_sounding_index_table
