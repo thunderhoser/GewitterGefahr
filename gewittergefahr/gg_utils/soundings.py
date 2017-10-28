@@ -1,5 +1,6 @@
 """Methods for creating and analyzing soundings."""
 
+import os.path
 import numpy
 import pandas
 from sharppy.sharptab import params as sharppy_params
@@ -7,6 +8,7 @@ from sharppy.sharptab import winds as sharppy_winds
 from sharppy.sharptab import interp as sharppy_interp
 from sharppy.sharptab import profile as sharppy_profile
 from sharppy.sharptab import utils as sharppy_utils
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import interp
@@ -45,10 +47,8 @@ CONVERSION_FACTOR_COLUMN = 'conversion_factor'
 IS_VECTOR_COLUMN = 'is_vector'
 IN_MUPCL_OBJECT_COLUMN = 'in_mupcl_object'
 
-# TODO(thunderhoser): Make this path relative... somehow.
-METAFILE_NAME_FOR_SOUNDING_INDICES = (
-    '/localdata/ryan.lagerquist/gewittergefahr_master/GewitterGefahr/'
-    'gewittergefahr/gg_utils/sounding_index_metadata.csv')
+METAFILE_NAME_FOR_SOUNDING_INDICES = os.path.join(
+    os.path.dirname(__file__), 'sounding_index_metadata.csv')
 
 SI_METADATA_COLUMNS = [
     SI_NAME_COLUMN, SI_NAME_COLUMN_SHARPPY, CONVERSION_FACTOR_COLUMN,
@@ -318,9 +318,8 @@ def _adjust_srw_for_storm_motion(profile_object, eastward_motion_kt=None,
         profile_object, sharppy_interp.to_msl(profile_object, 11000.))
 
     this_depth_metres = (profile_object.mupcl.elhght - profile_object.ebotm) / 2
-    equilibrium_level_mb = sharppy_interp.pres(
-        profile_object,
-        sharppy_interp.to_msl(
+    effective_bulk_layer_top_mb = sharppy_interp.pres(
+        profile_object, sharppy_interp.to_msl(
             profile_object, profile_object.ebotm + this_depth_metres))
 
     profile_object.srw_1km = sharppy_winds.sr_wind(
@@ -348,8 +347,9 @@ def _adjust_srw_for_storm_motion(profile_object, eastward_motion_kt=None,
         profile_object, pbot=pressure_at_9km_mb, ptop=pressure_at_11km_mb,
         stu=eastward_motion_kt, stv=northward_motion_kt)
     profile_object.srw_ebw = sharppy_winds.sr_wind(
-        profile_object, pbot=profile_object.ebottom, ptop=equilibrium_level_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        profile_object, pbot=profile_object.ebottom,
+        ptop=effective_bulk_layer_top_mb, stu=eastward_motion_kt,
+        stv=northward_motion_kt)
     profile_object.srw_eff = sharppy_winds.sr_wind(
         profile_object, pbot=profile_object.ebottom, ptop=profile_object.etop,
         stu=eastward_motion_kt, stv=northward_motion_kt)
@@ -387,60 +387,29 @@ def _adjust_sounding_indices_for_storm_motion(profile_object,
     profile_object.srh3km = sharppy_winds.helicity(
         profile_object, 0., 3000., stu=eastward_motion_kt,
         stv=northward_motion_kt)
-    profile_object.right_esrh = sharppy_winds.helicity(
-        profile_object, profile_object.ebotm, profile_object.etopm,
-        stu=profile_object.srwind[0], stv=profile_object.srwind[1])
-
-    this_shear_magnitude_m_s01 = KT_TO_METRES_PER_SECOND * numpy.sqrt(
-        profile_object.sfc_6km_shear[0] ** 2 +
-        profile_object.sfc_6km_shear[1] ** 2)
-
-    profile_object.stp_fixed = sharppy_params.stp_fixed(
-        profile_object.sfcpcl.bplus, profile_object.sfcpcl.lclhght,
-        profile_object.srh1km[0], this_shear_magnitude_m_s01)
-    profile_object.stp_cin = sharppy_params.stp_cin(
-        profile_object.mlpcl.bplus, profile_object.right_esrh[0],
-        profile_object.ebwspd * KT_TO_METRES_PER_SECOND,
-        profile_object.mlpcl.lclhght, profile_object.mlpcl.bminus)
-    profile_object.right_scp = sharppy_params.scp(
-        profile_object.mupcl.bplus, profile_object.right_esrh[0],
-        profile_object.ebwspd * KT_TO_METRES_PER_SECOND)
-
-    profile_object.get_traj()  # Recomputes updraft tilt.
-
-    profile_object.lhp = sharppy_params.lhp(profile_object)
-    profile_object.x_totals = sharppy_params.c_totals(profile_object)
-    profile_object.v_totals = sharppy_params.v_totals(profile_object)
-    profile_object.sherb = sharppy_params.sherb(
-        profile_object, effective=True, ebottom=profile_object.ebottom,
-        etop=profile_object.etop, mupcl=profile_object.mupcl)
-    profile_object.dcp = sharppy_params.dcp(profile_object)
-    profile_object.sweat = sharppy_params.sweat(profile_object)
-    profile_object.thetae_diff = sharppy_params.thetae_diff(
-        profile_object)
-
     profile_object.ehi1km = sharppy_params.ehi(
         profile_object, profile_object.mupcl, 0., 1000., stu=eastward_motion_kt,
         stv=northward_motion_kt)
     profile_object.ehi3km = sharppy_params.ehi(
         profile_object, profile_object.mupcl, 0., 3000., stu=eastward_motion_kt,
         stv=northward_motion_kt)
-    profile_object.right_ehi = sharppy_params.ehi(
-        profile_object, profile_object.mupcl, profile_object.ebotm,
-        profile_object.etopm, stu=profile_object.srwind[0],
-        stv=profile_object.srwind[1])
-    profile_object.left_ehi = sharppy_params.ehi(
-        profile_object, profile_object.mupcl, profile_object.ebotm,
-        profile_object.etopm, stu=profile_object.srwind[2],
-        stv=profile_object.srwind[3])
 
-    boundary_layer_top_mb = sharppy_params.pbl_top(profile_object)
-    boundary_layer_top_m_asl = sharppy_interp.hght(
-        profile_object, boundary_layer_top_mb)
-    profile_object.pbl_depth = sharppy_interp.to_agl(
-        profile_object, boundary_layer_top_m_asl)
+    effective_layer_srh_j_kg01 = sharppy_winds.helicity(
+        profile_object, profile_object.ebotm, profile_object.etopm,
+        stu=eastward_motion_kt, stv=northward_motion_kt)[1]
+    profile_object.stp_cin = sharppy_params.stp_cin(
+        profile_object.mlpcl.bplus, effective_layer_srh_j_kg01,
+        profile_object.ebwspd * KT_TO_METRES_PER_SECOND,
+        profile_object.mlpcl.lclhght, profile_object.mlpcl.bminus)
 
-    profile_object.edepthm = profile_object.etopm - profile_object.ebotm
+    this_shear_magnitude_m_s01 = KT_TO_METRES_PER_SECOND * numpy.sqrt(
+        profile_object.sfc_6km_shear[0] ** 2 +
+        profile_object.sfc_6km_shear[1] ** 2)
+    profile_object.stp_fixed = sharppy_params.stp_fixed(
+        profile_object.sfcpcl.bplus, profile_object.sfcpcl.lclhght,
+        profile_object.srh1km[0], this_shear_magnitude_m_s01)
+
+    profile_object.get_traj()  # Recomputes updraft tilt.
     return profile_object
 
 
@@ -496,7 +465,6 @@ def _sharppy_profile_to_table(profile_object, sounding_index_metadata_table):
         are SHARPpy names for sounding indices and values are in SHARPpy units.
     """
 
-    # TODO(thunderhoser): maybe move the next 2 commands elsewhere?
     profile_object.mupcl.brndenom = profile_object.mupcl.brnshear
     profile_object.mupcl.brnshear = numpy.array(
         [profile_object.mupcl.brnu, profile_object.mupcl.brnv])
@@ -821,6 +789,40 @@ def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
             u=sounding_table[U_WIND_COLUMN_FOR_SHARPPY].values,
             v=sounding_table[V_WIND_COLUMN_FOR_SHARPPY].values)
 
+    profile_object.right_esrh = sharppy_winds.helicity(
+        profile_object, profile_object.ebotm, profile_object.etopm,
+        stu=profile_object.srwind[0], stv=profile_object.srwind[1])
+    profile_object.right_ehi = sharppy_params.ehi(
+        profile_object, profile_object.mupcl, profile_object.ebotm,
+        profile_object.etopm, stu=profile_object.srwind[0],
+        stv=profile_object.srwind[1])
+    profile_object.left_ehi = sharppy_params.ehi(
+        profile_object, profile_object.mupcl, profile_object.ebotm,
+        profile_object.etopm, stu=profile_object.srwind[2],
+        stv=profile_object.srwind[3])
+
+    profile_object.lhp = sharppy_params.lhp(profile_object)
+    profile_object.x_totals = sharppy_params.c_totals(profile_object)
+    profile_object.v_totals = sharppy_params.v_totals(profile_object)
+    profile_object.sherb = sharppy_params.sherb(
+        profile_object, effective=True, ebottom=profile_object.ebottom,
+        etop=profile_object.etop, mupcl=profile_object.mupcl)
+    profile_object.dcp = sharppy_params.dcp(profile_object)
+    profile_object.sweat = sharppy_params.sweat(profile_object)
+    profile_object.thetae_diff = sharppy_params.thetae_diff(
+        profile_object)
+
+    profile_object.right_scp = sharppy_params.scp(
+        profile_object.mupcl.bplus, profile_object.right_esrh[0],
+        profile_object.ebwspd * KT_TO_METRES_PER_SECOND)
+
+    boundary_layer_top_mb = sharppy_params.pbl_top(profile_object)
+    boundary_layer_top_m_asl = sharppy_interp.hght(
+        profile_object, boundary_layer_top_mb)
+    profile_object.pbl_depth = sharppy_interp.to_agl(
+        profile_object, boundary_layer_top_m_asl)
+    profile_object.edepthm = profile_object.etopm - profile_object.ebotm
+
     profile_object = _adjust_sounding_indices_for_storm_motion(
         profile_object, eastward_motion_kt=eastward_motion_kt,
         northward_motion_kt=northward_motion_kt)
@@ -881,3 +883,70 @@ def convert_sounding_indices_from_sharppy(sounding_index_table_sharppy,
         sounding_index_table[CONVECTIVE_TEMPERATURE_NAME].values)
     argument_dict = {CONVECTIVE_TEMPERATURE_NAME: temperatures_kelvins}
     return sounding_index_table.assign(**argument_dict)
+
+
+def get_sounding_indices_for_storm_objects(storm_object_table, model_name=None,
+                                           grid_id=None,
+                                           top_grib_directory_name=None):
+    """Computes sounding indices for each storm object.
+
+    K = number of sounding indices, after decomposition of vectors into scalars
+
+    :param storm_object_table: pandas DataFrame with columns documented in
+        `storm_tracking_io.write_processed_file`.  May contain additional
+        columns.
+    :param model_name: Name of NWP model from which soundings will be
+        interpolated.
+    :param grid_id: String ID for model grid.
+    :param top_grib_directory_name: Name of top-level directory with grib files
+        for the given model.
+    :return: storm_object_table: Same as input, but with K additional columns.
+        Names of additional columns come from column "sounding_index_name" of
+        the table generated by read_metadata_for_sounding_indices.
+    """
+
+    query_point_table = storm_object_table[[
+        tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
+        tracking_io.TIME_COLUMN]]
+
+    column_dict_old_to_new = {
+        tracking_io.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
+        tracking_io.CENTROID_LNG_COLUMN: interp.QUERY_LNG_COLUMN,
+        tracking_io.TIME_COLUMN: interp.QUERY_TIME_COLUMN}
+    query_point_table.rename(columns=column_dict_old_to_new, inplace=True)
+
+    interp_table = interp_soundings_from_nwp(
+        query_point_table, model_name=model_name, grid_id=grid_id,
+        top_grib_directory_name=top_grib_directory_name)
+
+    list_of_sounding_tables = interp_table_to_sharppy_sounding_tables(
+        interp_table, model_name)
+
+    num_storm_objects = len(list_of_sounding_tables)
+    list_of_sharppy_index_tables = [None] * num_storm_objects
+    sounding_index_metadata_table = read_metadata_for_sounding_indices()
+
+    for i in range(num_storm_objects):
+        print ('Computing sounding indices for storm object ' + str(i + 1) +
+               '/' + str(num_storm_objects) + '...')
+
+        list_of_sharppy_index_tables[i] = get_sounding_indices_from_sharppy(
+            list_of_sounding_tables[i],
+            eastward_motion_kt=
+            storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
+            northward_motion_kt=
+            storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
+            sounding_index_metadata_table=sounding_index_metadata_table)
+
+        if i == 0:
+            continue
+
+        list_of_sharppy_index_tables[i], _ = (
+            list_of_sharppy_index_tables[i].align(
+                list_of_sharppy_index_tables[0], axis=1))
+
+    sounding_index_table_sharppy = pandas.concat(
+        list_of_sharppy_index_tables, axis=0, ignore_index=True)
+    sounding_index_table = convert_sounding_indices_from_sharppy(
+        sounding_index_table_sharppy, sounding_index_metadata_table)
+    return pandas.concat([storm_object_table, sounding_index_table], axis=1)

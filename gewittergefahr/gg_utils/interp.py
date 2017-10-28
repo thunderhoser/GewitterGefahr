@@ -334,7 +334,7 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
         have the same length as in input_matrix.
     """
 
-    error_checking.assert_is_numpy_array_without_nan(input_matrix)
+    # error_checking.assert_is_numpy_array_without_nan(input_matrix)
     error_checking.assert_is_integer_numpy_array(sorted_input_times_unix_sec)
     error_checking.assert_is_numpy_array_without_nan(
         sorted_input_times_unix_sec)
