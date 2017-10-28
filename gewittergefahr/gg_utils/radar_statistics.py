@@ -1,4 +1,7 @@
-"""Methods for processing radar data."""
+"""Methods for computing radar statistics.
+
+These are usually spatial statistics based on values inside a storm object.
+"""
 
 import numpy
 import scipy.stats
@@ -29,14 +32,14 @@ STORM_OBJECT_TO_GRID_PTS_COLUMNS = [
 GRID_POINT_LATLNG_COLUMNS = [storm_tracking_io.GRID_POINT_LAT_COLUMN,
                              storm_tracking_io.GRID_POINT_LNG_COLUMN]
 
-MEAN_STRING = 'mean'
-STDEV_STRING = 'standard_deviation'
-SKEWNESS_STRING = 'skewness'
-KURTOSIS_STRING = 'kurtosis'
-VALID_STRING_STATS = [
-    MEAN_STRING, STDEV_STRING, SKEWNESS_STRING, KURTOSIS_STRING]
-DEFAULT_STRING_STATS = [
-    MEAN_STRING, STDEV_STRING, SKEWNESS_STRING, KURTOSIS_STRING]
+AVERAGE_NAME = 'mean'
+STANDARD_DEVIATION_NAME = 'standard_deviation'
+SKEWNESS_NAME = 'skewness'
+KURTOSIS_NAME = 'kurtosis'
+STATISTIC_NAMES = [
+    AVERAGE_NAME, STANDARD_DEVIATION_NAME, SKEWNESS_NAME, KURTOSIS_NAME]
+DEFAULT_STATISTIC_NAMES = [
+    AVERAGE_NAME, STANDARD_DEVIATION_NAME, SKEWNESS_NAME, KURTOSIS_NAME]
 
 DEFAULT_PERCENTILE_LEVELS = numpy.array([0., 5., 25., 50., 75., 95., 100.])
 
@@ -173,31 +176,31 @@ def _are_grids_equal(metadata_dict_orig, metadata_dict_new):
     return metadata_dict_orig == metadata_dict_new
 
 
-def _check_stats_to_compute(string_statistics, percentile_levels):
-    """Ensures that statistics to compute are valid.
+def _check_statistic_names(statistic_names, percentile_levels):
+    """Ensures that statistic names are valid.
 
-    :param string_statistics: 1-D list of non-percentile-based statistics.
+    :param statistic_names: 1-D list with names of non-percentile-based
+        statistics.
     :param percentile_levels: 1-D numpy array of percentile levels.
-    :raises: ValueError: if any element of string_statistics is not in
-        VALID_STRING_STATS.
+    :raises: ValueError: if any element of `statistic_names` is not in
+        `STATISTIC_NAMES`.
     """
 
-    error_checking.assert_is_string_list(string_statistics)
+    error_checking.assert_is_string_list(statistic_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(string_statistics), num_dimensions=1)
+        numpy.array(statistic_names), num_dimensions=1)
 
     error_checking.assert_is_numpy_array(percentile_levels, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(percentile_levels, 0.)
     error_checking.assert_is_leq_numpy_array(percentile_levels, 100.)
 
-    for this_string in string_statistics:
-        if this_string in VALID_STRING_STATS:
+    for this_name in statistic_names:
+        if this_name in STATISTIC_NAMES:
             continue
 
         error_string = (
-            '\n\n' + str(VALID_STRING_STATS) + '\n\nValid non-percentile ' +
-            'stats (listed above) do not include the following: "' +
-            this_string + '"')
+            '\n\n' + str(STATISTIC_NAMES) + '\n\nValid statistic names ' +
+            '(listed above) do not include the following: "' + this_name + '"')
         raise ValueError(error_string)
 
 
@@ -357,45 +360,45 @@ def get_grid_points_in_storm_objects(storm_object_table,
     return storm_object_to_grid_points_table[STORM_OBJECT_TO_GRID_PTS_COLUMNS]
 
 
-def get_spatial_statistics(radar_field, string_statistics=DEFAULT_STRING_STATS,
+def get_spatial_statistics(radar_field, statistic_names=DEFAULT_STATISTIC_NAMES,
                            percentile_levels=DEFAULT_PERCENTILE_LEVELS):
     """Computes spatial statistics for a single radar field.
 
-    "Single field" = one variable at one elevation, one time step, several
-    spatial locations.
+    "Single field" = one variable at one elevation, one time step, many spatial
+    locations.
 
     Radar field may have any number of dimensions (1-D, 2-D, etc.).
 
-    N = number of non-percentile statistics
-    P = number of percentiles
+    N = number of non-percentile-based statistics
+    P = number of percentile levels
 
     :param radar_field: numpy array.  Each position in the array should be a
         different spatial location.
-    :param string_statistics: length-N list of non-percentile statistics.
+    :param statistic_names: length-N list of non-percentile-based statistics.
     :param percentile_levels: length-P numpy array of percentile levels.
-    :return: string_stat_results: length-N numpy array of values for non-
-        percentile statistics.
-    :return: percentile_results: length-P numpy array of values for percentiles.
+    :return: statistic_values: length-N numpy with values of non-percentile-
+        based statistics.
+    :return: percentile_values: length-P numpy array of percentiles.
     """
 
     error_checking.assert_is_real_numpy_array(radar_field)
-    _check_stats_to_compute(string_statistics, percentile_levels)
+    _check_statistic_names(statistic_names, percentile_levels)
 
-    num_string_stats = len(string_statistics)
-    string_stat_results = numpy.full(num_string_stats, numpy.nan)
-    for i in range(num_string_stats):
-        if string_statistics[i] == MEAN_STRING:
-            string_stat_results[i] = numpy.nanmean(radar_field)
-        elif string_statistics[i] == STDEV_STRING:
-            string_stat_results[i] = numpy.nanstd(radar_field, ddof=1)
-        elif string_statistics[i] == SKEWNESS_STRING:
-            string_stat_results[i] = scipy.stats.skew(
+    num_statistics = len(statistic_names)
+    statistic_values = numpy.full(num_statistics, numpy.nan)
+    for i in range(num_statistics):
+        if statistic_names[i] == AVERAGE_NAME:
+            statistic_values[i] = numpy.nanmean(radar_field)
+        elif statistic_names[i] == STANDARD_DEVIATION_NAME:
+            statistic_values[i] = numpy.nanstd(radar_field, ddof=1)
+        elif statistic_names[i] == SKEWNESS_NAME:
+            statistic_values[i] = scipy.stats.skew(
                 radar_field, bias=False, nan_policy='omit', axis=None)
-        elif string_statistics[i] == KURTOSIS_STRING:
-            string_stat_results[i] = scipy.stats.kurtosis(
+        elif statistic_names[i] == KURTOSIS_NAME:
+            statistic_values[i] = scipy.stats.kurtosis(
                 radar_field, fisher=True, bias=False, nan_policy='omit',
                 axis=None)
 
-    percentile_results = numpy.nanpercentile(
+    percentile_values = numpy.nanpercentile(
         radar_field, percentile_levels, interpolation='linear')
-    return string_stat_results, percentile_results
+    return statistic_values, percentile_values

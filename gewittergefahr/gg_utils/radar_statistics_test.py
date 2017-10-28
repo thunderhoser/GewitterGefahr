@@ -1,11 +1,13 @@
-"""Unit tests for radar_utils.py."""
+"""Unit tests for radar_statistics.py."""
 
 import unittest
 import numpy
 from gewittergefahr.gg_io import radar_io
-from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import radar_statistics as radar_stats
 
 TOLERANCE = 1e-6
+FAKE_STATISTIC_NAME = 'foo'
+FAKE_PERCENTILE_LEVEL = -9999.
 
 # The following constants are used to test _center_points_latlng_to_rowcol.
 NW_GRID_POINT_LAT_DEG = 55.
@@ -31,36 +33,36 @@ NUM_ROWS_IN_SUBGRID = 32
 NUM_COLUMNS_IN_SUBGRID = 64
 
 SUBGRID_DICT_TOP_LEFT = {
-    radar_utils.MIN_ROW_IN_SUBGRID_COLUMN: 0,
-    radar_utils.MAX_ROW_IN_SUBGRID_COLUMN: 26,
-    radar_utils.MIN_COLUMN_IN_SUBGRID_COLUMN: 0,
-    radar_utils.MAX_COLUMN_IN_SUBGRID_COLUMN: 42,
-    radar_utils.NUM_PADDED_ROWS_AT_START_COLUMN: 5,
-    radar_utils.NUM_PADDED_ROWS_AT_END_COLUMN: 0,
-    radar_utils.NUM_PADDED_COLUMNS_AT_START_COLUMN: 21,
-    radar_utils.NUM_PADDED_COLUMNS_AT_END_COLUMN: 0
+    radar_stats.MIN_ROW_IN_SUBGRID_COLUMN: 0,
+    radar_stats.MAX_ROW_IN_SUBGRID_COLUMN: 26,
+    radar_stats.MIN_COLUMN_IN_SUBGRID_COLUMN: 0,
+    radar_stats.MAX_COLUMN_IN_SUBGRID_COLUMN: 42,
+    radar_stats.NUM_PADDED_ROWS_AT_START_COLUMN: 5,
+    radar_stats.NUM_PADDED_ROWS_AT_END_COLUMN: 0,
+    radar_stats.NUM_PADDED_COLUMNS_AT_START_COLUMN: 21,
+    radar_stats.NUM_PADDED_COLUMNS_AT_END_COLUMN: 0
 }
 
 SUBGRID_DICT_MIDDLE = {
-    radar_utils.MIN_ROW_IN_SUBGRID_COLUMN: 985,
-    radar_utils.MAX_ROW_IN_SUBGRID_COLUMN: 1016,
-    radar_utils.MIN_COLUMN_IN_SUBGRID_COLUMN: 969,
-    radar_utils.MAX_COLUMN_IN_SUBGRID_COLUMN: 1032,
-    radar_utils.NUM_PADDED_ROWS_AT_START_COLUMN: 0,
-    radar_utils.NUM_PADDED_ROWS_AT_END_COLUMN: 0,
-    radar_utils.NUM_PADDED_COLUMNS_AT_START_COLUMN: 0,
-    radar_utils.NUM_PADDED_COLUMNS_AT_END_COLUMN: 0
+    radar_stats.MIN_ROW_IN_SUBGRID_COLUMN: 985,
+    radar_stats.MAX_ROW_IN_SUBGRID_COLUMN: 1016,
+    radar_stats.MIN_COLUMN_IN_SUBGRID_COLUMN: 969,
+    radar_stats.MAX_COLUMN_IN_SUBGRID_COLUMN: 1032,
+    radar_stats.NUM_PADDED_ROWS_AT_START_COLUMN: 0,
+    radar_stats.NUM_PADDED_ROWS_AT_END_COLUMN: 0,
+    radar_stats.NUM_PADDED_COLUMNS_AT_START_COLUMN: 0,
+    radar_stats.NUM_PADDED_COLUMNS_AT_END_COLUMN: 0
 }
 
 SUBGRID_DICT_BOTTOM_RIGHT = {
-    radar_utils.MIN_ROW_IN_SUBGRID_COLUMN: 3475,
-    radar_utils.MAX_ROW_IN_SUBGRID_COLUMN: 3500,
-    radar_utils.MIN_COLUMN_IN_SUBGRID_COLUMN: 6959,
-    radar_utils.MAX_COLUMN_IN_SUBGRID_COLUMN: 7000,
-    radar_utils.NUM_PADDED_ROWS_AT_START_COLUMN: 0,
-    radar_utils.NUM_PADDED_ROWS_AT_END_COLUMN: 6,
-    radar_utils.NUM_PADDED_COLUMNS_AT_START_COLUMN: 0,
-    radar_utils.NUM_PADDED_COLUMNS_AT_END_COLUMN: 22
+    radar_stats.MIN_ROW_IN_SUBGRID_COLUMN: 3475,
+    radar_stats.MAX_ROW_IN_SUBGRID_COLUMN: 3500,
+    radar_stats.MIN_COLUMN_IN_SUBGRID_COLUMN: 6959,
+    radar_stats.MAX_COLUMN_IN_SUBGRID_COLUMN: 7000,
+    radar_stats.NUM_PADDED_ROWS_AT_START_COLUMN: 0,
+    radar_stats.NUM_PADDED_ROWS_AT_END_COLUMN: 6,
+    radar_stats.NUM_PADDED_COLUMNS_AT_START_COLUMN: 0,
+    radar_stats.NUM_PADDED_COLUMNS_AT_END_COLUMN: 22
 }
 
 # The following constants are used to test _are_grids_equal.
@@ -99,21 +101,22 @@ RADAR_FIELD_SUBMATRIX = numpy.array([[5., 15., 25., 35.],
 # The following constants are used to test get_spatial_statistics.
 RADAR_FIELD_FOR_STATS = numpy.array([[numpy.nan, 0., 20.],
                                      [20., 50., 60.]])
-STRING_STATS = [radar_utils.MEAN_STRING, radar_utils.STDEV_STRING,
-                radar_utils.SKEWNESS_STRING, radar_utils.KURTOSIS_STRING]
-STRING_STAT_VALUES = numpy.array([30., 24.494897, 0.170103, -1.75])
+STATISTIC_NAMES = [
+    radar_stats.AVERAGE_NAME, radar_stats.STANDARD_DEVIATION_NAME,
+    radar_stats.SKEWNESS_NAME, radar_stats.KURTOSIS_NAME]
+STATISTIC_VALUES = numpy.array([30., 24.494897, 0.170103, -1.75])
 PERCENTILE_LEVELS = numpy.array([0., 5., 25., 50., 75., 95., 100.])
 PERCENTILE_VALUES = numpy.array([0., 4., 20., 20., 50., 58., 60.])
 
 
-class RadarUtilsTests(unittest.TestCase):
-    """Each method is a unit test for radar_utils.py."""
+class RadarStatisticsTests(unittest.TestCase):
+    """Each method is a unit test for radar_statistics.py."""
 
     def test_center_points_latlng_to_rowcol(self):
         """Ensures correct output from _center_points_latlng_to_rowcol."""
 
         these_center_row_indices, these_center_column_indices = (
-            radar_utils._center_points_latlng_to_rowcol(
+            radar_stats._center_points_latlng_to_rowcol(
                 CENTER_LATITUDES_DEG, CENTER_LONGITUDES_DEG,
                 nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
                 nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
@@ -131,7 +134,7 @@ class RadarUtilsTests(unittest.TestCase):
         In this case, center point is near the top left of the full grid.
         """
 
-        this_subgrid_dict = radar_utils._get_rowcol_indices_for_subgrid(
+        this_subgrid_dict = radar_stats._get_rowcol_indices_for_subgrid(
             num_rows_in_full_grid=NUM_GRID_ROWS,
             num_columns_in_full_grid=NUM_GRID_COLUMNS,
             center_row_index=CENTER_ROW_INDEX_TOP_LEFT,
@@ -147,7 +150,7 @@ class RadarUtilsTests(unittest.TestCase):
         In this case, center point is in the middle of the full grid.
         """
 
-        this_subgrid_dict = radar_utils._get_rowcol_indices_for_subgrid(
+        this_subgrid_dict = radar_stats._get_rowcol_indices_for_subgrid(
             num_rows_in_full_grid=NUM_GRID_ROWS,
             num_columns_in_full_grid=NUM_GRID_COLUMNS,
             center_row_index=CENTER_ROW_INDEX_MIDDLE,
@@ -163,7 +166,7 @@ class RadarUtilsTests(unittest.TestCase):
         In this case, center point is near the bottom right of the full grid.
         """
 
-        this_subgrid_dict = radar_utils._get_rowcol_indices_for_subgrid(
+        this_subgrid_dict = radar_stats._get_rowcol_indices_for_subgrid(
             num_rows_in_full_grid=NUM_GRID_ROWS,
             num_columns_in_full_grid=NUM_GRID_COLUMNS,
             center_row_index=CENTER_ROW_INDEX_BOTTOM_RIGHT,
@@ -176,54 +179,53 @@ class RadarUtilsTests(unittest.TestCase):
     def test_are_grids_equal_true(self):
         """Ensures correct output from _are_grids_equal when answer is yes."""
 
-        self.assertTrue(radar_utils._are_grids_equal(
+        self.assertTrue(radar_stats._are_grids_equal(
             GRID_METADATA_DICT_MYRORSS, GRID_METADATA_DICT_MYRORSS))
 
     def test_are_grids_equal_false(self):
         """Ensures correct output from _are_grids_equal when answer is no."""
 
-        self.assertFalse(radar_utils._are_grids_equal(
+        self.assertFalse(radar_stats._are_grids_equal(
             GRID_METADATA_DICT_MYRORSS, GRID_METADATA_DICT_MRMS_SHEAR))
 
-    def test_check_stats_to_compute_all_good(self):
-        """Ensures correct output from _check_stats_to_compute.
+    def test_check_statistic_names_all_good(self):
+        """Ensures correct output from _check_statistic_names.
 
-        In this case, inputs are valid.
+        In this case, all inputs are valid.
         """
 
-        radar_utils._check_stats_to_compute(
-            radar_utils.VALID_STRING_STATS,
-            radar_utils.DEFAULT_PERCENTILE_LEVELS)
+        radar_stats._check_statistic_names(
+            radar_stats.STATISTIC_NAMES, radar_stats.DEFAULT_PERCENTILE_LEVELS)
 
-    def test_check_stats_to_compute_bad_string(self):
-        """Ensures correct output from _check_stats_to_compute.
+    def test_check_statistic_names_bad_string(self):
+        """Ensures correct output from _check_statistic_names.
 
-        In this case, one string statistic is invalid.
+        In this case, one statistic name is invalid.
         """
-
-        these_string_stats = radar_utils.VALID_STRING_STATS + ['foo']
 
         with self.assertRaises(ValueError):
-            radar_utils._check_stats_to_compute(
-                these_string_stats, radar_utils.DEFAULT_PERCENTILE_LEVELS)
+            radar_stats._check_statistic_names(
+                radar_stats.STATISTIC_NAMES + [FAKE_STATISTIC_NAME],
+                radar_stats.DEFAULT_PERCENTILE_LEVELS)
 
-    def test_check_stats_to_compute_bad_pct_level(self):
-        """Ensures correct output from _check_stats_to_compute.
+    def test_check_statistic_names_bad_percentile(self):
+        """Ensures correct output from _check_statistic_names.
 
         In this case, one percentile level is invalid.
         """
 
         these_percentile_levels = numpy.concatenate((
-            radar_utils.DEFAULT_PERCENTILE_LEVELS, numpy.array([-9999.])))
+            radar_stats.DEFAULT_PERCENTILE_LEVELS,
+            numpy.array([FAKE_PERCENTILE_LEVEL])))
 
         with self.assertRaises(ValueError):
-            radar_utils._check_stats_to_compute(
-                radar_utils.VALID_STRING_STATS, these_percentile_levels)
+            radar_stats._check_statistic_names(
+                radar_stats.STATISTIC_NAMES, these_percentile_levels)
 
     def test_extract_points_as_1d_array(self):
         """Ensures correct output from extract_points_as_1d_array."""
 
-        this_field_1d_array = radar_utils.extract_points_as_1d_array(
+        this_field_1d_array = radar_stats.extract_points_as_1d_array(
             RADAR_FIELD_MATRIX, row_indices=ROW_INDICES_FOR_1D_ARRAY,
             column_indices=COLUMN_INDICES_FOR_1D_ARRAY)
 
@@ -234,7 +236,7 @@ class RadarUtilsTests(unittest.TestCase):
     def test_extract_points_as_2d_array(self):
         """Ensures correct output from extract_points_as_2d_array."""
 
-        this_submatrix = radar_utils.extract_points_as_2d_array(
+        this_submatrix = radar_stats.extract_points_as_2d_array(
             RADAR_FIELD_MATRIX, center_row_index=CENTER_ROW_INDEX_TO_EXTRACT,
             center_column_index=CENTER_COLUMN_INDEX_TO_EXTRACT,
             num_rows_in_subgrid=NUM_ROWS_TO_EXTRACT,
@@ -246,13 +248,13 @@ class RadarUtilsTests(unittest.TestCase):
     def test_get_spatial_statistics(self):
         """Ensures correct output from get_spatial_statistics."""
 
-        these_string_stat_values, these_percentile_values = (
-            radar_utils.get_spatial_statistics(
-                RADAR_FIELD_FOR_STATS, string_statistics=STRING_STATS,
+        these_statistic_values, these_percentile_values = (
+            radar_stats.get_spatial_statistics(
+                RADAR_FIELD_FOR_STATS, statistic_names=STATISTIC_NAMES,
                 percentile_levels=PERCENTILE_LEVELS))
 
         self.assertTrue(numpy.allclose(
-            these_string_stat_values, STRING_STAT_VALUES, atol=TOLERANCE))
+            these_statistic_values, STATISTIC_VALUES, atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
             these_percentile_values, PERCENTILE_VALUES, atol=TOLERANCE))
 
