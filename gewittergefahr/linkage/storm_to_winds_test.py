@@ -1,4 +1,4 @@
-"""Unit tests for link_winds_to_storms.py."""
+"""Unit tests for storm_to_winds.py."""
 
 import copy
 import unittest
@@ -6,7 +6,7 @@ import numpy
 import pandas
 from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
-from gewittergefahr.linkage import link_winds_to_storms as link_winds
+from gewittergefahr.linkage import storm_to_winds
 
 TOLERANCE = 1e-6
 
@@ -42,8 +42,9 @@ THESE_END_TIMES_UNIX_SEC = numpy.array([1500, 300, 900,
                                         1500, 1200, 1200, 1500,
                                         1500, 1500])
 
-THIS_ARGUMENT_DICT = {link_winds.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-                      link_winds.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC}
+THIS_ARGUMENT_DICT = {
+    storm_to_winds.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    storm_to_winds.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC}
 STORM_OBJECT_TABLE_WITH_CELL_INFO = STORM_OBJECT_TABLE_NO_CELL_INFO.assign(
     **THIS_ARGUMENT_DICT)
 
@@ -86,28 +87,28 @@ THESE_CENTROIDS_Y_METRES = numpy.array([5000., 6000., 9000.])
 
 THIS_STORM_OBJECT_DICT = {
     tracking_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    link_winds.CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
-    link_winds.CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES}
+    storm_to_winds.CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
+    storm_to_winds.CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES}
 STORM_OBJECT_TABLE_1CELL = pandas.DataFrame.from_dict(THIS_STORM_OBJECT_DICT)
 
 THIS_NESTED_ARRAY = STORM_OBJECT_TABLE_1CELL[[
     tracking_io.TIME_COLUMN, tracking_io.TIME_COLUMN]].values.tolist()
-THIS_ARGUMENT_DICT = {link_winds.VERTICES_X_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.VERTICES_Y_COLUMN: THIS_NESTED_ARRAY}
+THIS_ARGUMENT_DICT = {storm_to_winds.VERTICES_X_COLUMN: THIS_NESTED_ARRAY,
+                      storm_to_winds.VERTICES_Y_COLUMN: THIS_NESTED_ARRAY}
 STORM_OBJECT_TABLE_1CELL = STORM_OBJECT_TABLE_1CELL.assign(**THIS_ARGUMENT_DICT)
 
-STORM_OBJECT_TABLE_1CELL[link_winds.VERTICES_X_COLUMN].values[0] = numpy.array(
-    [0., 10000., 10000., 0., 0.])
-STORM_OBJECT_TABLE_1CELL[link_winds.VERTICES_X_COLUMN].values[1] = numpy.array(
-    [5000., 15000., 15000., 5000., 5000.])
-STORM_OBJECT_TABLE_1CELL[link_winds.VERTICES_X_COLUMN].values[2] = numpy.array(
-    [2000., 22000., 22000., 2000., 2000.])
-STORM_OBJECT_TABLE_1CELL[link_winds.VERTICES_Y_COLUMN].values[0] = numpy.array(
-    [0., 0., 10000., 10000., 0.])
-STORM_OBJECT_TABLE_1CELL[link_winds.VERTICES_Y_COLUMN].values[1] = numpy.array(
-    [-4000., -4000., 16000., 16000., -4000.])
-STORM_OBJECT_TABLE_1CELL[link_winds.VERTICES_Y_COLUMN].values[2] = numpy.array(
-    [4000., 4000., 14000., 14000., 4000.])
+STORM_OBJECT_TABLE_1CELL[storm_to_winds.VERTICES_X_COLUMN].values[
+    0] = numpy.array([0., 10000., 10000., 0., 0.])
+STORM_OBJECT_TABLE_1CELL[storm_to_winds.VERTICES_X_COLUMN].values[
+    1] = numpy.array([5000., 15000., 15000., 5000., 5000.])
+STORM_OBJECT_TABLE_1CELL[storm_to_winds.VERTICES_X_COLUMN].values[
+    2] = numpy.array([2000., 22000., 22000., 2000., 2000.])
+STORM_OBJECT_TABLE_1CELL[storm_to_winds.VERTICES_Y_COLUMN].values[
+    0] = numpy.array([0., 0., 10000., 10000., 0.])
+STORM_OBJECT_TABLE_1CELL[storm_to_winds.VERTICES_Y_COLUMN].values[
+    1] = numpy.array([-4000., -4000., 16000., 16000., -4000.])
+STORM_OBJECT_TABLE_1CELL[storm_to_winds.VERTICES_Y_COLUMN].values[
+    2] = numpy.array([4000., 4000., 14000., 14000., 4000.])
 
 INTERP_TIME_1CELL_UNIX_SEC = 375
 EXTRAP_TIME_1CELL_UNIX_SEC = 750
@@ -115,17 +116,19 @@ EXTRAP_TIME_1CELL_UNIX_SEC = 750
 THESE_VERTICES_X_METRES = numpy.array([5500., 15500., 15500., 5500., 5500.])
 THESE_VERTICES_Y_METRES = numpy.array([-3250., -3250., 16750., 16750., -3250.])
 THIS_STORM_ID_LIST = ['foo'] * 5
-THIS_INTERP_VERTEX_DICT = {tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
-                           link_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
-                           link_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
+THIS_INTERP_VERTEX_DICT = {
+    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    storm_to_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
+    storm_to_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
 VERTEX_TABLE_1OBJECT_INTERP = pandas.DataFrame.from_dict(
     THIS_INTERP_VERTEX_DICT)
 
 THESE_VERTICES_X_METRES = numpy.array([3000., 23000., 23000., 3000., 3000.])
 THESE_VERTICES_Y_METRES = numpy.array([5500., 5500., 15500., 15500., 5500.])
-THIS_INTERP_VERTEX_DICT = {tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
-                           link_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
-                           link_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
+THIS_INTERP_VERTEX_DICT = {
+    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    storm_to_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
+    storm_to_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
 VERTEX_TABLE_1OBJECT_EXTRAP = pandas.DataFrame.from_dict(
     THIS_INTERP_VERTEX_DICT)
 
@@ -157,43 +160,43 @@ THESE_END_TIMES_UNIX_SEC = numpy.array([700, 600,
 THIS_STORM_OBJECT_DICT = {
     tracking_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
-    link_winds.CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
-    link_winds.CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES,
-    link_winds.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    link_winds.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC}
+    storm_to_winds.CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
+    storm_to_winds.CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES,
+    storm_to_winds.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    storm_to_winds.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC}
 STORM_OBJECT_TABLE_2CELLS = pandas.DataFrame.from_dict(THIS_STORM_OBJECT_DICT)
 
 THIS_NESTED_ARRAY = STORM_OBJECT_TABLE_2CELLS[[
     tracking_io.TIME_COLUMN, tracking_io.TIME_COLUMN]].values.tolist()
-THIS_ARGUMENT_DICT = {link_winds.VERTICES_X_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.VERTICES_Y_COLUMN: THIS_NESTED_ARRAY}
+THIS_ARGUMENT_DICT = {storm_to_winds.VERTICES_X_COLUMN: THIS_NESTED_ARRAY,
+                      storm_to_winds.VERTICES_Y_COLUMN: THIS_NESTED_ARRAY}
 STORM_OBJECT_TABLE_2CELLS = STORM_OBJECT_TABLE_2CELLS.assign(
     **THIS_ARGUMENT_DICT)
 
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_X_COLUMN].values[0] = numpy.array(
-    [-55000., -45000., -45000., -55000., -55000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_X_COLUMN].values[1] = numpy.array(
-    [45000., 55000., 55000., 45000., 45000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_X_COLUMN].values[2] = numpy.array(
-    [-53000., -43000., -43000., -53000., -53000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_X_COLUMN].values[3] = numpy.array(
-    [50000., 60000., 60000., 50000., 50000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_X_COLUMN].values[4] = numpy.array(
-    [-56000., -36000., -36000., -56000., -56000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_X_COLUMN].values[5] = numpy.array(
-    [49000., 69000., 69000., 49000., 49000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_Y_COLUMN].values[0] = numpy.array(
-    [-55000., -55000., -45000., -45000., -55000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_Y_COLUMN].values[1] = numpy.array(
-    [45000., 45000., 55000., 55000., 45000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_Y_COLUMN].values[2] = numpy.array(
-    [-59000., -59000., -39000., -39000., -59000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_Y_COLUMN].values[3] = numpy.array(
-    [42000., 42000., 62000., 62000., 42000.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_Y_COLUMN].values[4] = numpy.array(
-    [-53500., -53500., -43500., -43500., -53500.])
-STORM_OBJECT_TABLE_2CELLS[link_winds.VERTICES_Y_COLUMN].values[5] = numpy.array(
-    [50000., 50000., 60000., 60000., 50000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_X_COLUMN].values[
+    0] = numpy.array([-55000., -45000., -45000., -55000., -55000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_X_COLUMN].values[
+    1] = numpy.array([45000., 55000., 55000., 45000., 45000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_X_COLUMN].values[
+    2] = numpy.array([-53000., -43000., -43000., -53000., -53000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_X_COLUMN].values[
+    3] = numpy.array([50000., 60000., 60000., 50000., 50000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_X_COLUMN].values[
+    4] = numpy.array([-56000., -36000., -36000., -56000., -56000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_X_COLUMN].values[
+    5] = numpy.array([49000., 69000., 69000., 49000., 49000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_Y_COLUMN].values[
+    0] = numpy.array([-55000., -55000., -45000., -45000., -55000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_Y_COLUMN].values[
+    1] = numpy.array([45000., 45000., 55000., 55000., 45000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_Y_COLUMN].values[
+    2] = numpy.array([-59000., -59000., -39000., -39000., -59000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_Y_COLUMN].values[
+    3] = numpy.array([42000., 42000., 62000., 62000., 42000.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_Y_COLUMN].values[
+    4] = numpy.array([-53500., -53500., -43500., -43500., -53500.])
+STORM_OBJECT_TABLE_2CELLS[storm_to_winds.VERTICES_Y_COLUMN].values[
+    5] = numpy.array([50000., 50000., 60000., 60000., 50000.])
 
 INTERP_TIME_2CELLS_UNIX_SEC = 600
 MAX_TIME_BEFORE_STORM_START_SEC = 0
@@ -208,9 +211,10 @@ THESE_VERTICES_Y_METRES = numpy.array(
 THIS_STORM_ID_LIST = ['bar', 'bar', 'bar', 'bar', 'bar',
                       'foo', 'foo', 'foo', 'foo', 'foo']
 
-THIS_INTERP_VERTEX_DICT = {tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
-                           link_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
-                           link_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
+THIS_INTERP_VERTEX_DICT = {
+    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    storm_to_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
+    storm_to_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
 INTERP_VERTEX_TABLE_2OBJECTS = pandas.DataFrame.from_dict(
     THIS_INTERP_VERTEX_DICT)
 
@@ -224,8 +228,8 @@ THESE_Y_METRES = numpy.array(
 WIND_X_LIMITS_METRES = numpy.array([-59000., 72000.])
 WIND_Y_LIMITS_METRES = numpy.array([-62000., 65000.])
 
-THIS_DICT = {link_winds.WIND_X_COLUMN: THESE_X_METRES,
-             link_winds.WIND_Y_COLUMN: THESE_Y_METRES}
+THIS_DICT = {storm_to_winds.WIND_X_COLUMN: THESE_X_METRES,
+             storm_to_winds.WIND_Y_COLUMN: THESE_Y_METRES}
 WIND_TABLE_1TIME_FULL_DOMAIN = pandas.DataFrame.from_dict(THIS_DICT)
 
 BAD_ROWS = numpy.array([4, 9], dtype=int)
@@ -258,8 +262,8 @@ WIND_TIMES_UNIX_SEC = numpy.array([600, 600, 600, 600,
                                    700, 700, 700, 700,
                                    700, 700, 700, 700])
 
-THIS_DICT = {link_winds.WIND_X_COLUMN: THESE_X_METRES,
-             link_winds.WIND_Y_COLUMN: THESE_Y_METRES,
+THIS_DICT = {storm_to_winds.WIND_X_COLUMN: THESE_X_METRES,
+             storm_to_winds.WIND_Y_COLUMN: THESE_Y_METRES,
              raw_wind_io.TIME_COLUMN: WIND_TIMES_UNIX_SEC}
 WIND_TABLE_2TIMES = pandas.DataFrame.from_dict(THIS_DICT)
 
@@ -274,8 +278,8 @@ THESE_LINK_DISTANCES_METRES = numpy.array(
      0., 0., 5000., numpy.nan])
 
 THIS_ARGUMENT_DICT = {
-    link_winds.NEAREST_STORM_ID_COLUMN: THESE_STORM_IDS,
-    link_winds.LINKAGE_DISTANCE_COLUMN: THESE_LINK_DISTANCES_METRES}
+    storm_to_winds.NEAREST_STORM_ID_COLUMN: THESE_STORM_IDS,
+    storm_to_winds.LINKAGE_DISTANCE_COLUMN: THESE_LINK_DISTANCES_METRES}
 WIND_TO_STORM_TABLE_SIMPLE = WIND_TABLE_2TIMES.assign(**THIS_ARGUMENT_DICT)
 
 # The following constants are used to test _create_storm_to_winds_table.
@@ -301,13 +305,14 @@ WIND_TO_STORM_TABLE = WIND_TO_STORM_TABLE_SIMPLE.assign(**THIS_ARGUMENT_DICT)
 STORM_TO_WINDS_TABLE = copy.deepcopy(STORM_OBJECT_TABLE_2CELLS)
 THIS_NESTED_ARRAY = STORM_TO_WINDS_TABLE[[
     tracking_io.TIME_COLUMN, tracking_io.TIME_COLUMN]].values.tolist()
-THIS_ARGUMENT_DICT = {link_winds.STATION_IDS_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.WIND_LATITUDES_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.WIND_LONGITUDES_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.U_WINDS_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.V_WINDS_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.LINKAGE_DISTANCES_COLUMN: THIS_NESTED_ARRAY,
-                      link_winds.RELATIVE_TIMES_COLUMN: THIS_NESTED_ARRAY}
+THIS_ARGUMENT_DICT = {
+    storm_to_winds.STATION_IDS_COLUMN: THIS_NESTED_ARRAY,
+    storm_to_winds.WIND_LATITUDES_COLUMN: THIS_NESTED_ARRAY,
+    storm_to_winds.WIND_LONGITUDES_COLUMN: THIS_NESTED_ARRAY,
+    storm_to_winds.U_WINDS_COLUMN: THIS_NESTED_ARRAY,
+    storm_to_winds.V_WINDS_COLUMN: THIS_NESTED_ARRAY,
+    storm_to_winds.LINKAGE_DISTANCES_COLUMN: THIS_NESTED_ARRAY,
+    storm_to_winds.RELATIVE_TIMES_COLUMN: THIS_NESTED_ARRAY}
 STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_ARGUMENT_DICT)
 
 THESE_STATION_IDS = ['e', 'f', 'g', 'e', 'f', 'g']
@@ -319,25 +324,25 @@ THESE_LINK_DISTANCES_METRES = numpy.array([0., 0., 5000., 0., 0., 5000.])
 
 FOO_ROWS = numpy.array([0, 2, 4], dtype=int)
 for this_row in FOO_ROWS:
-    STORM_TO_WINDS_TABLE[link_winds.STATION_IDS_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.STATION_IDS_COLUMN].values[
         this_row] = THESE_STATION_IDS
-    STORM_TO_WINDS_TABLE[link_winds.WIND_LATITUDES_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.WIND_LATITUDES_COLUMN].values[
         this_row] = THESE_WIND_LATITUDES_DEG
-    STORM_TO_WINDS_TABLE[link_winds.WIND_LONGITUDES_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.WIND_LONGITUDES_COLUMN].values[
         this_row] = THESE_WIND_LONGITUDES_DEG
-    STORM_TO_WINDS_TABLE[link_winds.U_WINDS_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.U_WINDS_COLUMN].values[
         this_row] = THESE_U_WINDS_M_S01
-    STORM_TO_WINDS_TABLE[link_winds.V_WINDS_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.V_WINDS_COLUMN].values[
         this_row] = THESE_V_WINDS_M_S01
-    STORM_TO_WINDS_TABLE[link_winds.LINKAGE_DISTANCES_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.LINKAGE_DISTANCES_COLUMN].values[
         this_row] = THESE_LINK_DISTANCES_METRES
 
-STORM_TO_WINDS_TABLE[link_winds.RELATIVE_TIMES_COLUMN].values[0] = numpy.array(
-    [600, 600, 600, 700, 700, 700])
-STORM_TO_WINDS_TABLE[link_winds.RELATIVE_TIMES_COLUMN].values[2] = numpy.array(
-    [300, 300, 300, 400, 400, 400])
-STORM_TO_WINDS_TABLE[link_winds.RELATIVE_TIMES_COLUMN].values[4] = numpy.array(
-    [-100, -100, -100, 0, 0, 0])
+STORM_TO_WINDS_TABLE[storm_to_winds.RELATIVE_TIMES_COLUMN].values[
+    0] = numpy.array([600, 600, 600, 700, 700, 700])
+STORM_TO_WINDS_TABLE[storm_to_winds.RELATIVE_TIMES_COLUMN].values[
+    2] = numpy.array([300, 300, 300, 400, 400, 400])
+STORM_TO_WINDS_TABLE[storm_to_winds.RELATIVE_TIMES_COLUMN].values[
+    4] = numpy.array([-100, -100, -100, 0, 0, 0])
 
 THESE_STATION_IDS = ['a', 'b', 'c']
 THESE_WIND_LATITUDES_DEG = numpy.array([1., 2., 3.])
@@ -348,35 +353,35 @@ THESE_LINK_DISTANCES_METRES = numpy.array([0., 0., 5000.])
 
 CATEGORY6_ROWS = numpy.array([1, 3, 5], dtype=int)
 for this_row in CATEGORY6_ROWS:
-    STORM_TO_WINDS_TABLE[link_winds.STATION_IDS_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.STATION_IDS_COLUMN].values[
         this_row] = THESE_STATION_IDS
-    STORM_TO_WINDS_TABLE[link_winds.WIND_LATITUDES_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.WIND_LATITUDES_COLUMN].values[
         this_row] = THESE_WIND_LATITUDES_DEG
-    STORM_TO_WINDS_TABLE[link_winds.WIND_LONGITUDES_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.WIND_LONGITUDES_COLUMN].values[
         this_row] = THESE_WIND_LONGITUDES_DEG
-    STORM_TO_WINDS_TABLE[link_winds.U_WINDS_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.U_WINDS_COLUMN].values[
         this_row] = THESE_U_WINDS_M_S01
-    STORM_TO_WINDS_TABLE[link_winds.V_WINDS_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.V_WINDS_COLUMN].values[
         this_row] = THESE_V_WINDS_M_S01
-    STORM_TO_WINDS_TABLE[link_winds.LINKAGE_DISTANCES_COLUMN].values[
+    STORM_TO_WINDS_TABLE[storm_to_winds.LINKAGE_DISTANCES_COLUMN].values[
         this_row] = THESE_LINK_DISTANCES_METRES
 
-STORM_TO_WINDS_TABLE[link_winds.RELATIVE_TIMES_COLUMN].values[1] = numpy.array(
-    [600, 600, 600])
-STORM_TO_WINDS_TABLE[link_winds.RELATIVE_TIMES_COLUMN].values[3] = numpy.array(
-    [300, 300, 300])
-STORM_TO_WINDS_TABLE[link_winds.RELATIVE_TIMES_COLUMN].values[5] = numpy.array(
-    [0, 0, 0])
+STORM_TO_WINDS_TABLE[storm_to_winds.RELATIVE_TIMES_COLUMN].values[
+    1] = numpy.array([600, 600, 600])
+STORM_TO_WINDS_TABLE[storm_to_winds.RELATIVE_TIMES_COLUMN].values[
+    3] = numpy.array([300, 300, 300])
+STORM_TO_WINDS_TABLE[storm_to_winds.RELATIVE_TIMES_COLUMN].values[
+    5] = numpy.array([0, 0, 0])
 
 
-class LinkWindsToStormsTests(unittest.TestCase):
-    """Each method is a unit test for link_winds_to_storms.py."""
+class StormToWindsTests(unittest.TestCase):
+    """Each method is a unit test for storm_to_winds.py."""
 
     def test_get_xy_bounding_box_of_storms(self):
         """Ensures correct output from _get_xy_bounding_box_of_storms."""
 
         (these_x_limits_metres,
-         these_y_limits_metres) = link_winds._get_xy_bounding_box_of_storms(
+         these_y_limits_metres) = storm_to_winds._get_xy_bounding_box_of_storms(
              STORM_OBJECT_TABLE_1CELL,
              padding_metres=BOUNDING_BOX_PADDING_METRES)
 
@@ -388,7 +393,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
     def test_filter_winds_by_bounding_box(self):
         """Ensures correct output from _filter_winds_by_bounding_box."""
 
-        this_filtered_wind_table = link_winds._filter_winds_by_bounding_box(
+        this_filtered_wind_table = storm_to_winds._filter_winds_by_bounding_box(
             WIND_TABLE_1TIME_FULL_DOMAIN,
             x_limits_metres=WIND_X_LIMITS_METRES,
             y_limits_metres=WIND_Y_LIMITS_METRES)
@@ -398,7 +403,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
     def test_storm_objects_to_cells(self):
         """Ensures correct output from _storm_objects_to_cells."""
 
-        this_storm_object_table = link_winds._storm_objects_to_cells(
+        this_storm_object_table = storm_to_winds._storm_objects_to_cells(
             STORM_OBJECT_TABLE_NO_CELL_INFO)
         self.assertTrue(this_storm_object_table.equals(
             STORM_OBJECT_TABLE_WITH_CELL_INFO))
@@ -410,7 +415,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         seconds or end before 900 seconds.
         """
 
-        this_storm_object_table = link_winds._filter_storms_by_time(
+        this_storm_object_table = storm_to_winds._filter_storms_by_time(
             STORM_OBJECT_TABLE_WITH_CELL_INFO,
             max_start_time_unix_sec=EARLY_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=EARLY_END_TIME_UNIX_SEC)
@@ -424,7 +429,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         seconds or end before 1200 seconds.
         """
 
-        this_storm_object_table = link_winds._filter_storms_by_time(
+        this_storm_object_table = storm_to_winds._filter_storms_by_time(
             STORM_OBJECT_TABLE_WITH_CELL_INFO,
             max_start_time_unix_sec=EARLY_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=LATE_END_TIME_UNIX_SEC)
@@ -438,7 +443,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         seconds or end before 900 seconds.
         """
 
-        this_storm_object_table = link_winds._filter_storms_by_time(
+        this_storm_object_table = storm_to_winds._filter_storms_by_time(
             STORM_OBJECT_TABLE_WITH_CELL_INFO,
             max_start_time_unix_sec=LATE_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=EARLY_END_TIME_UNIX_SEC)
@@ -452,7 +457,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         seconds or end before 1200 seconds.
         """
 
-        this_storm_object_table = link_winds._filter_storms_by_time(
+        this_storm_object_table = storm_to_winds._filter_storms_by_time(
             STORM_OBJECT_TABLE_WITH_CELL_INFO,
             max_start_time_unix_sec=LATE_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=LATE_END_TIME_UNIX_SEC)
@@ -465,7 +470,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         In this case the method is doing true interpolation, not extrapolation.
         """
 
-        this_vertex_table = link_winds._interp_one_storm_in_time(
+        this_vertex_table = storm_to_winds._interp_one_storm_in_time(
             STORM_OBJECT_TABLE_1CELL, storm_id=STORM_ID_FOR_INTERP,
             query_time_unix_sec=INTERP_TIME_1CELL_UNIX_SEC)
         self.assertTrue(this_vertex_table.equals(
@@ -477,7 +482,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         In this case the method is extrapolating.
         """
 
-        this_vertex_table = link_winds._interp_one_storm_in_time(
+        this_vertex_table = storm_to_winds._interp_one_storm_in_time(
             STORM_OBJECT_TABLE_1CELL, storm_id=STORM_ID_FOR_INTERP,
             query_time_unix_sec=EXTRAP_TIME_1CELL_UNIX_SEC)
         self.assertTrue(this_vertex_table.equals(VERTEX_TABLE_1OBJECT_EXTRAP))
@@ -485,7 +490,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
     def test_interp_storms_in_time(self):
         """Ensures correct output from _interp_storms_in_time."""
 
-        this_vertex_table = link_winds._interp_storms_in_time(
+        this_vertex_table = storm_to_winds._interp_storms_in_time(
             STORM_OBJECT_TABLE_2CELLS,
             query_time_unix_sec=INTERP_TIME_2CELLS_UNIX_SEC,
             max_time_before_start_sec=MAX_TIME_BEFORE_STORM_START_SEC,
@@ -496,7 +501,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
         """Ensures correct output from _find_nearest_storms_at_one_time."""
 
         these_nearest_storm_ids, these_link_distances_metres = (
-            link_winds._find_nearest_storms_at_one_time(
+            storm_to_winds._find_nearest_storms_at_one_time(
                 INTERP_VERTEX_TABLE_2OBJECTS,
                 wind_x_coords_metres=WIND_X_1TIME_METRES,
                 wind_y_coords_metres=WIND_Y_1TIME_METRES,
@@ -510,7 +515,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
     def test_find_nearest_storms(self):
         """Ensures correct output from _find_nearest_storms."""
 
-        this_wind_to_storm_table = link_winds._find_nearest_storms(
+        this_wind_to_storm_table = storm_to_winds._find_nearest_storms(
             storm_object_table=STORM_OBJECT_TABLE_2CELLS,
             wind_table=WIND_TABLE_2TIMES,
             max_time_before_storm_start_sec=MAX_TIME_BEFORE_STORM_START_SEC,
@@ -523,7 +528,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
     def test_create_storm_to_winds_table(self):
         """Ensures correct output from _create_storm_to_winds_table."""
 
-        this_storm_to_winds_table = link_winds._create_storm_to_winds_table(
+        this_storm_to_winds_table = storm_to_winds._create_storm_to_winds_table(
             storm_object_table=STORM_OBJECT_TABLE_2CELLS,
             wind_to_storm_table=WIND_TO_STORM_TABLE)
 
@@ -534,7 +539,7 @@ class LinkWindsToStormsTests(unittest.TestCase):
 
         num_rows = len(this_storm_to_winds_table.index)
         string_columns = [tracking_io.STORM_ID_COLUMN,
-                          link_winds.STATION_IDS_COLUMN]
+                          storm_to_winds.STATION_IDS_COLUMN]
 
         for i in range(num_rows):
             for this_column_name in list(STORM_TO_WINDS_TABLE):
