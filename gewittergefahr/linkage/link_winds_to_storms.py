@@ -10,7 +10,6 @@ one storm object.
 """
 
 import copy
-import glob
 import pickle
 import numpy
 import pandas
@@ -22,17 +21,16 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): turn main method into end-to-end example.
-# TODO(thunderhoser): replace main method with named method.
-# TODO(thunderhoser): add method to ensure that wind files cover the required
-# time period.
+# TODO(thunderhoser): Add high-level method that does everything.
 
-STORM_COLUMNS_TO_KEEP = [
+WIND_DATA_SOURCE = raw_wind_io.MERGED_DATA_SOURCE
+
+STORM_COLUMNS_TO_READ = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
     tracking_io.POLYGON_OBJECT_LATLNG_COLUMN]
 
-WIND_COLUMNS_TO_KEEP = [
+WIND_COLUMNS_TO_READ = [
     raw_wind_io.STATION_ID_COLUMN, raw_wind_io.LATITUDE_COLUMN,
     raw_wind_io.LONGITUDE_COLUMN, raw_wind_io.TIME_COLUMN,
     raw_wind_io.U_WIND_COLUMN, raw_wind_io.V_WIND_COLUMN]
@@ -42,8 +40,6 @@ CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
 VERTICES_X_COLUMN = 'vertices_x_metres'
 VERTICES_Y_COLUMN = 'vertices_y_metres'
-VERTEX_X_COLUMN = 'vertex_x_metres'
-VERTEX_Y_COLUMN = 'vertex_y_metres'
 START_TIME_COLUMN = 'start_time_unix_sec'
 END_TIME_COLUMN = 'end_time_unix_sec'
 
@@ -52,29 +48,28 @@ WIND_Y_COLUMN = 'y_coord_metres'
 NEAREST_STORM_ID_COLUMN = 'nearest_storm_id'
 LINKAGE_DISTANCE_COLUMN = 'linkage_distance_metres'
 
+VERTEX_X_COLUMN = 'vertex_x_metres'
+VERTEX_Y_COLUMN = 'vertex_y_metres'
+
 STATION_IDS_COLUMN = 'wind_station_ids'
-WIND_LATS_COLUMN = 'wind_latitudes_deg'
-WIND_LNGS_COLUMN = 'wind_longitudes_deg'
+WIND_LATITUDES_COLUMN = 'wind_latitudes_deg'
+WIND_LONGITUDES_COLUMN = 'wind_longitudes_deg'
 U_WINDS_COLUMN = 'u_winds_m_s01'
 V_WINDS_COLUMN = 'v_winds_m_s01'
-LINKAGE_DISTANCES_COLUMN = 'linkage_distances_metres'
-RELATIVE_TIMES_COLUMN = 'relative_times_sec'
+LINKAGE_DISTANCES_COLUMN = 'wind_distances_metres'
+RELATIVE_TIMES_COLUMN = 'relative_wind_times_sec'
 
-# The following constants are used only in the main method.
-PROCESSED_SEGMOTION_DIR_NAME = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed/'
-    '20040811/scale_50000000m2')
-
-QUERY_TIME_UNIX_SEC = 1092227880
-MAX_TIME_BEFORE_START_SEC = 1020
-MAX_TIME_AFTER_END_SEC = 1020
-
+COLUMNS_TO_WRITE = STORM_COLUMNS_TO_READ + [
+    STATION_IDS_COLUMN, WIND_LATITUDES_COLUMN, WIND_LONGITUDES_COLUMN,
+    U_WINDS_COLUMN, V_WINDS_COLUMN, LINKAGE_DISTANCES_COLUMN,
+    RELATIVE_TIMES_COLUMN
+]
 
 def _get_xy_bounding_box_of_storms(storm_object_table, padding_metres=None):
     """Returns bounding box of all storm objects.
 
     :param storm_object_table: pandas DataFrame created by
-        _project_storms_to_equidistant.
+        _project_storms_latlng_to_xy.
     :param padding_metres: This padding will be added to the edge of the
         bounding box.
     :return: x_limits_metres: length-2 numpy array with [min, max] x-coordinates
@@ -107,140 +102,50 @@ def _get_xy_bounding_box_of_storms(storm_object_table, padding_metres=None):
     return x_limits_metres, y_limits_metres
 
 
-def _read_storm_objects(processed_segmotion_file_names):
-    """Reads storm objects from processed segmotion files.
+def _init_azimuthal_equidistant_projection(storm_centroid_latitudes_deg,
+                                           storm_centroid_longitudes_deg):
+    """Initializes azimuthal equidistant projection.
 
-    Each file should contain storm statistics and polygons for one time step and
-    one tracking scale.  See `storm_tracking_io.write_processed_file`.
+    This projection will be centered at the "global centroid" (centroid of
+    centroids) of all storm objects.
 
-    N = number of files
-    V = number of vertices in a given storm object
+    N = number of storm objects
 
-    :param processed_segmotion_file_names: length-N list of paths to input
-        files.
-    :return: storm_object_table: pandas DataFrame with the following columns.
-    storm_object_table.storm_id: String ID for storm cell.
-    storm_object_table.unix_time_sec: Time in Unix format.
-    storm_object_table.centroid_lat_deg: Latitude of storm centroid (deg N).
-    storm_object_table.centroid_lng_deg: Longitude of storm centroid (deg E).
-    storm_object_table.vertex_latitudes_deg: length-V numpy array with latitudes
-        of vertices (deg N).
-    storm_object_table.vertex_longitudes_deg: length-V numpy array with
-        longitudes of vertices (deg E).
-    storm_object_table.file_index: Index of file from which storm object was
-        read.  If file_index = j for the [i]th row, this means the [i]th storm
-        object was read from the [j]th file.  This info will be used in writing
-        output files (see write_linkage_to_csv).
-    """
-
-    error_checking.assert_is_string_list(processed_segmotion_file_names)
-
-    list_of_tables = []
-    file_indices = numpy.array([])
-
-    for i in range(len(processed_segmotion_file_names)):
-        this_storm_object_table = tracking_io.read_processed_file(
-            processed_segmotion_file_names[i])
-        this_storm_object_table = this_storm_object_table[STORM_COLUMNS_TO_KEEP]
-
-        this_num_storm_objects = len(this_storm_object_table.index)
-        file_indices = numpy.concatenate((
-            file_indices,
-            numpy.linspace(i, i, num=this_num_storm_objects, dtype=int)))
-
-        if not list_of_tables:
-            list_of_tables.append(this_storm_object_table)
-            continue
-
-        this_storm_object_table, _ = this_storm_object_table.align(
-            list_of_tables[-1], axis=1)
-        list_of_tables.append(this_storm_object_table)
-
-    storm_object_table = pandas.concat(list_of_tables, axis=0,
-                                       ignore_index=True)
-    argument_dict = {FILE_INDEX_COLUMN: file_indices}
-    return storm_object_table.assign(**argument_dict)
-
-
-def _read_wind_observations(processed_wind_file_names,
-                            time_limits_unix_sec=None):
-    """Reads wind observations from processed files.
-
-    Each file should contain wind observations for all datasets (HFMETARs,
-    MADIS, Oklahoma Mesonet, and Storm Events) and some time range.  See
-    `raw_wind_io.write_winds_to_csv`.
-
-    N = number of files
-
-    :param processed_wind_file_names: length-N list of paths to input files.
-    :param time_limits_unix_sec: length-2 numpy array with [min, max] times
-        desired.  Times should be in Unix format.
-    :return: wind_table: pandas DataFrame with the following columns.
-    wind_table.station_id: String ID for station.
-    wind_table.latitude_deg: Latitude (deg N).
-    wind_table.longitude_deg: Longitude (deg E).
-    wind_table.unix_time_sec: Time in Unix format.
-    wind_table.u_wind_m_s01: u-component of wind (metres per second).
-    wind_table.v_wind_m_s01: v-component of wind (metres per second).
-    """
-
-    error_checking.assert_is_string_list(processed_wind_file_names)
-    error_checking.assert_is_integer_numpy_array(time_limits_unix_sec)
-    error_checking.assert_is_numpy_array(time_limits_unix_sec,
-                                         exact_dimensions=numpy.array([2]))
-    error_checking.assert_is_greater(time_limits_unix_sec[1],
-                                     time_limits_unix_sec[0])
-
-    list_of_tables = []
-
-    for this_file_name in processed_wind_file_names:
-        this_wind_table = raw_wind_io.read_processed_file(this_file_name)
-        this_wind_table = this_wind_table[STORM_COLUMNS_TO_KEEP]
-
-        invalid_rows = numpy.logical_or(
-            this_wind_table[raw_wind_io.TIME_COLUMN].values <
-            time_limits_unix_sec[0],
-            this_wind_table[raw_wind_io.TIME_COLUMN].values >
-            time_limits_unix_sec[1])
-        this_wind_table.drop(this_wind_table.index[invalid_rows], axis=0,
-                             inplace=True)
-
-        if not list_of_tables:
-            list_of_tables.append(this_wind_table)
-            continue
-
-        this_wind_table, _ = this_wind_table.align(list_of_tables[-1], axis=1)
-        list_of_tables.append(this_wind_table)
-
-    return pandas.concat(list_of_tables, axis=0, ignore_index=True)
-
-
-def _project_storms_to_equidistant(storm_object_table):
-    """Projects storm locations to azimuthal equidistant coordinate system.
-
-    V = number of vertices in a given storm object
-
-    :param storm_object_table: pandas DataFrame created by _read_storm_objects.
-    :return: storm_object_table: Same as input, but with the following added
-        columns.
-    storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
-    storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
-    storm_object_table.vertices_x_metres: length-V numpy array with x-
-        coordinates of vertices.
-    storm_object_table.vertices_y_metres: length-V numpy array with y-
-        coordinates of vertices.
-    :return: projection_object: Object created by
-        `projections.init_azimuthal_equidistant_projection`.  Can be used in the
-        future to convert between projection (x-y) and lat-long coordinates.
+    :param storm_centroid_latitudes_deg: length-N numpy array with latitudes
+        (deg N) of storm centroids.
+    :param storm_centroid_longitudes_deg: length-N numpy array with longitudes
+        (deg E) of storm centroids.
+    :return: projection_object: Instance of `pyproj.Proj`, which can be used to
+        convert between lat-long and x-y coordinates.
     """
 
     (global_centroid_lat_deg,
      global_centroid_lng_deg) = polygons.get_latlng_centroid(
-         storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
-         storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values)
+         storm_centroid_latitudes_deg, storm_centroid_longitudes_deg)
 
-    projection_object = projections.init_azimuthal_equidistant_projection(
+    return projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)
+
+
+def _project_storms_latlng_to_xy(storm_object_table, projection_object):
+    """Projects storm objects from lat-long to x-y coordinates.
+
+    This method projects both centroids and outlines.
+
+    V = number of vertices in a given storm object
+
+    :param storm_object_table: pandas DataFrame created by _read_storm_objects.
+    :param projection_object: Instance of `pyproj.Proj`, created by
+        _init_azimuthal_equidistant_projection.
+    :return: storm_object_table: Same as input, but with additional columns
+        listed below.
+    storm_object_table.centroid_x_metres: x-coordinate of centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of centroid.
+    storm_object_table.vertices_x_metres: length-V numpy array with x-
+        coordinates of vertices.
+    storm_object_table.vertices_y_metres: length-V numpy array with y-
+        coordinates of vertices.
+    """
 
     (centroids_x_metres, centroids_y_metres) = projections.project_latlng_to_xy(
         storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
@@ -270,15 +175,17 @@ def _project_storms_to_equidistant(storm_object_table):
                  this_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
                  projection_object=projection_object))
 
-    return storm_object_table, projection_object
+    return storm_object_table
 
 
-def _project_winds_to_equidistant(wind_table, projection_object):
-    """Projects wind observations to azimuthal equidistant coordinate system.
+def _project_winds_latlng_to_xy(wind_table, projection_object):
+    """Projects wind observations from lat-long to x-y coordinates.
 
     :param wind_table: pandas DataFrame created by _read_wind_observations.
-    :param projection_object: Object returned by _project_storms_to_equidistant.
-    :return: wind_table: Same as input, but with 2 extra columns.
+    :param projection_object: Instance of `pyproj.Proj`, created by
+        _init_azimuthal_equidistant_projection.
+    :return: wind_table: Same as input, but with additional columns listed
+        below.
     wind_table.x_coord_metres: x-coordinate.
     wind_table.y_coord_metres: y-coordinate.
     """
@@ -297,8 +204,7 @@ def _filter_winds_by_bounding_box(wind_table, x_limits_metres=None,
                                   y_limits_metres=None):
     """Removes wind observations outside of bounding box.
 
-    :param wind_table: pandas DataFrame created by
-        _project_winds_to_equidistant.
+    :param wind_table: pandas DataFrame created by _project_winds_latlng_to_xy.
     :param x_limits_metres: length-2 numpy array with [min, max] x-coordinates
         of bounding box.
     :param y_limits_metres: length-2 numpy array with [min, max] y-coordinates
@@ -338,7 +244,7 @@ def _storm_objects_to_cells(storm_object_table):
     the storm track.
 
     :param storm_object_table: pandas DataFrame created by
-        _project_storms_to_equidistant.
+        _project_storms_latlng_to_xy.
     :return: storm_object_table: Same as input, except with additional columns.
     storm_object_table.start_time_unix_sec: Start time of corresponding storm
         cell (Unix format).
@@ -385,8 +291,8 @@ def _filter_storms_by_time(storm_object_table, max_start_time_unix_sec=None,
 
     :param storm_object_table: pandas DataFrame created by
         _storm_objects_to_cells.
-    :param max_start_time_unix_sec: Max start time (Unix format) of storm cell.
-    :param min_end_time_unix_sec: Minimum end time (Unix format) of storm cell.
+    :param max_start_time_unix_sec: Latest start time of any storm cell.
+    :param min_end_time_unix_sec: Earliest end time of any storm cell.
     :return: filtered_storm_object_table: Same as input, except with fewer rows.
     """
 
@@ -410,22 +316,25 @@ def _interp_one_storm_in_time(storm_object_table_1cell, storm_id=None,
                               query_time_unix_sec=None):
     """Interpolates location of one storm cell in time.
 
+    The storm object nearest to the query time is advected as a whole -- i.e.,
+    all vertices are moved by the same distance and in the same direction -- so
+    that the interpolated storm object has a realistic shape.
+
+    N = number of storm objects (snapshots of storm cell)
     V = number of vertices in a given storm object
 
-    :param storm_object_table_1cell: pandas DataFrame with the following
+    :param storm_object_table_1cell: N-row pandas DataFrame with the following
         columns.
-    storm_object_table_1cell.unix_time_sec: Time in Unix format.
-    storm_object_table_1cell.centroid_x_metres: x-coordinate of storm
-        centroid.
-    storm_object_table_1cell.centroid_y_metres: y-coordinate of storm
-        centroid.
+    storm_object_table_1cell.unix_time_sec: Time of snapshot.
+    storm_object_table_1cell.centroid_x_metres: x-coordinate of centroid.
+    storm_object_table_1cell.centroid_y_metres: y-coordinate of centroid.
     storm_object_table_1cell.vertices_x_metres: length-V numpy array with x-
         coordinates of vertices.
     storm_object_table_1cell.vertices_y_metres: length-V numpy array with y-
         coordinates of vertices.
     :param storm_id: String ID for storm cell.
-    :param query_time_unix_sec: Storm location will be interpolated to this time
-        (Unix format).
+    :param query_time_unix_sec: Storm location will be interpolated to this
+        time.
     :return: interp_vertex_table_1object: pandas DataFrame with the following
         columns (each row is one vertex of the interpolated storm object).
     interp_vertex_table_1object.storm_id: String ID for storm cell.
@@ -473,25 +382,21 @@ def _interp_storms_in_time(storm_object_table, query_time_unix_sec=None,
                            max_time_after_end_sec=None):
     """Interpolates storm locations in time.
 
-    Each storm object is advected as a whole -- i.e., all vertices are moved by
-    the same amount and in the same direction -- so that storm objects retain
-    realistic shapes.
-
     :param storm_object_table: pandas DataFrame created by
         _storm_objects_to_cells.
     :param query_time_unix_sec: Storm locations will be interpolated to this
-        time (Unix format).
+        time.
     :param max_time_before_start_sec: Max time before beginning of storm cell.
-        For each storm cell S, if query time is > max_time_before_start before
-        first time in S, S will not be interpolated.
+        For each storm cell S, if query time is > max_time_before_start_sec
+        before first time in S, this method will not bother interpolating S.
     :param max_time_after_end_sec: Max time after end of storm cell.  For each
-        storm cell S, if query time is > max_time_after_end after last time in
-        S, S will not be interpolated.
+        storm cell S, if query time is > max_time_after_end_sec after last in S,
+        this method will not bother interpolating S.
     :return: interp_vertex_table: pandas DataFrame with the following columns
-        (each row is one vertex of one storm object).
-    interp_vertex_table.storm_id: String ID for storm cell.
-    interp_vertex_table.vertex_x_metres: x-coordinate of vertex.
-    interp_vertex_table.vertex_y_metres: y-coordinate of vertex.
+        (each row is one vertex of an interpolated storm object).
+    interp_vertex_table_1object.storm_id: String ID for storm cell.
+    interp_vertex_table_1object.vertex_x_metres: x-coordinate of vertex.
+    interp_vertex_table_1object.vertex_y_metres: y-coordinate of vertex.
     """
 
     error_checking.assert_is_integer(query_time_unix_sec)
@@ -536,14 +441,13 @@ def _interp_storms_in_time(storm_object_table, query_time_unix_sec=None,
     return pandas.concat(list_of_tables, axis=0, ignore_index=True)
 
 
-def _find_nearest_storms_one_time(interp_vertex_table,
-                                  wind_x_coords_metres=None,
-                                  wind_y_coords_metres=None,
-                                  max_distance_metres=None):
-    """At one valid time, finds nearest storm to each wind observation.
+def _find_nearest_storms_at_one_time(interp_vertex_table,
+                                     wind_x_coords_metres=None,
+                                     wind_y_coords_metres=None,
+                                     max_linkage_dist_metres=None):
+    """Finds nearest storm cell to each wind observation at one time step.
 
     N = number of wind observations
-    t = valid time
 
     :param interp_vertex_table: pandas DataFrame created by
         _interp_storms_in_time.
@@ -551,15 +455,16 @@ def _find_nearest_storms_one_time(interp_vertex_table,
         observations.
     :param wind_y_coords_metres: length-N numpy array with y-coordinates of wind
         observations.
-    :param max_distance_metres: Max linkage distance.  For the [k]th wind
-        observation, if there is no storm within max_distance_metres,
-        nearest_storm_ids[i] will be None.  In other words, the [k]th wind
+    :param max_linkage_dist_metres: Max linkage distance.  For the [i]th wind
+        observation, if the nearest storm cell is > max_linkage_dist_metres
+        away, nearest_storm_ids[i] will be None.  In other words, the [i]th wind
         observation will not be linked to a storm cell.
-    :return: nearest_storm_ids: length-N list with string ID of nearest storm
-        cell to each wind observation.
-    :return: linkage_distances_metres: length-N numpy array with distance from
-        each wind observation to linked storm cell.  If [k]th wind observation
-        is not linked to a storm cell, linkage_distances_metres[k] = NaN.
+    :return: nearest_storm_ids: length-N list of strings.  nearest_storm_ids[i]
+        is the ID of the nearest storm cell to the [i]th wind observation.
+    :return: linkage_distances_metres: length-N numpy array.
+        linkage_distances_metres[i] is the distance between the [i]th wind
+        observation and the nearest storm cell.  If nearest_storm_ids[i] = None,
+        linkage_distances_metres[i] = NaN.
     """
 
     num_wind_observations = len(wind_x_coords_metres)
@@ -575,8 +480,8 @@ def _find_nearest_storms_one_time(interp_vertex_table,
                 VERTEX_Y_COLUMN].values)
 
         these_valid_flags = numpy.logical_and(
-            these_x_diffs_metres <= max_distance_metres,
-            these_y_diffs_metres <= max_distance_metres)
+            these_x_diffs_metres <= max_linkage_dist_metres,
+            these_y_diffs_metres <= max_linkage_dist_metres)
         if not numpy.any(these_valid_flags):
             continue
 
@@ -590,9 +495,11 @@ def _find_nearest_storms_one_time(interp_vertex_table,
         nearest_storm_ids[k] = interp_vertex_table[
             tracking_io.STORM_ID_COLUMN].values[this_min_index]
 
-        this_storm_indices = [
+        this_storm_flags = [
             s == nearest_storm_ids[k] for s in interp_vertex_table[
                 tracking_io.STORM_ID_COLUMN].values]
+        this_storm_indices = numpy.where(this_storm_flags)[0]
+
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             interp_vertex_table[VERTEX_X_COLUMN].values[this_storm_indices],
             interp_vertex_table[VERTEX_Y_COLUMN].values[this_storm_indices])
@@ -611,34 +518,36 @@ def _find_nearest_storms_one_time(interp_vertex_table,
 def _find_nearest_storms(storm_object_table=None, wind_table=None,
                          max_time_before_storm_start_sec=None,
                          max_time_after_storm_end_sec=None,
-                         max_link_dist_metres=None):
-    """Finds nearest storm to each wind observation.
+                         max_linkage_dist_metres=None):
+    """Finds nearest storm cell to each wind observation.
 
     N = number of wind observations
 
     :param storm_object_table: pandas DataFrame created by
         _storm_objects_to_cells.
-    :param wind_table: pandas DataFrame created by
-        _project_winds_to_equidistant.
+    :param wind_table: pandas DataFrame created by _project_winds_latlng_to_xy.
     :param max_time_before_storm_start_sec: Max time before beginning of storm
-        cell.  If wind observation W occurs > `max_time_before_storm_start_sec`
-        before storm cell S begins, it cannot be linked to S.
+        cell.  If wind observation W occurs > max_time_before_storm_start_sec
+        before the first time in storm cell S, W cannot be linked to S.
     :param max_time_after_storm_end_sec: Max time after end of storm cell.  If
-        wind observation W occurs > `max_time_after_storm_end_sec` after storm
-        cell S ends, it cannot be linked to S.
-    :param max_link_dist_metres: Max distance from storm cell.  If wind
-        observation W occurs > `max_link_dist_metres` from the nearest vertex of
-        storm cell S, it cannot be linked to S.
-    :return: wind_table: Same as input, but with the following added columns.
-    wind_table.nearest_storm_id: String ID for nearest storm cell.
-    wind_table.linkage_distance_metres: Distance to nearest storm cell.
+        wind observation W occurs > max_time_after_storm_end_sec after the last
+        time in storm cell S, W cannot be linked to S.
+    :param max_linkage_dist_metres: Max linkage distance.  If wind observation W
+        is > max_linkage_dist_metres from the nearest storm cell, W will not be
+        linked to a storm cell.
+    :return: wind_to_storm_table: Same as input, but with additional columns
+        listed below.
+    wind_to_storm_table.nearest_storm_id: String ID for nearest storm cell.  If
+        the wind observation is not linked to a storm cell, this will be None.
+    wind_to_storm_table.linkage_distance_metres: Distance to nearest storm cell.
+        If the wind observation is not linked to a storm cell, this will be NaN.
     """
 
     error_checking.assert_is_integer(max_time_before_storm_start_sec)
     error_checking.assert_is_geq(max_time_before_storm_start_sec, 0)
     error_checking.assert_is_integer(max_time_after_storm_end_sec)
     error_checking.assert_is_geq(max_time_after_storm_end_sec, 0)
-    error_checking.assert_is_geq(max_link_dist_metres, 0)
+    error_checking.assert_is_geq(max_linkage_dist_metres, 0)
 
     (unique_wind_times_unix_sec,
      wind_times_orig_to_unique) = numpy.unique(
@@ -657,14 +566,14 @@ def _find_nearest_storms(storm_object_table=None, wind_table=None,
             max_time_before_start_sec=max_time_before_storm_start_sec,
             max_time_after_end_sec=max_time_after_storm_end_sec)
 
-        (these_nearest_storm_ids,
-         these_link_distances_metres) = _find_nearest_storms_one_time(
-             this_interp_vertex_table,
-             wind_x_coords_metres=wind_table[WIND_X_COLUMN].values[
-                 these_wind_rows],
-             wind_y_coords_metres=wind_table[WIND_Y_COLUMN].values[
-                 these_wind_rows],
-             max_distance_metres=max_link_dist_metres)
+        these_nearest_storm_ids, these_link_distances_metres = (
+            _find_nearest_storms_at_one_time(
+                this_interp_vertex_table,
+                wind_x_coords_metres=wind_table[WIND_X_COLUMN].values[
+                    these_wind_rows],
+                wind_y_coords_metres=wind_table[WIND_Y_COLUMN].values[
+                    these_wind_rows],
+                max_linkage_dist_metres=max_linkage_dist_metres))
 
         linkage_distances_metres[these_wind_rows] = these_link_distances_metres
         for j in range(len(these_wind_rows)):
@@ -675,34 +584,33 @@ def _find_nearest_storms(storm_object_table=None, wind_table=None,
     return wind_table.assign(**argument_dict)
 
 
-def _link_winds_and_storms(storm_object_table=None, wind_table=None):
-    """Merges wind observations and storm cells.
+def _create_storm_to_winds_table(storm_object_table=None,
+                                 wind_to_storm_table=None):
+    """For each storm cell S, creates list of wind observations linked to S.
 
-    Specifically, for each storm cell S, creates a list of wind observations
-    linked to S.
+    N = number of storm objects
+    K = number of wind observations
+    k = number of wind observations linked to a given storm cell
 
-    K = number of wind observations linked to a given storm cell
-
-    :param storm_object_table: pandas DataFrame created by
+    :param storm_object_table: N-row pandas DataFrame created by
         _storm_objects_to_cells.
-    :param wind_table: pandas DataFrame created by _find_nearest_storms.
-    :return: linkage_table: Same as input storm_object_table, but
-        with the following added columns.
-    linkage_table.storm_id: String ID for storm cell.
-    linkage_table.unix_time_sec: Time in Unix format.
-    linkage_table.wind_station_ids: length-K list with string IDs
-        of wind-reporting stations.
-    linkage_table.wind_latitudes_deg: length-K numpy array with
-        latitudes (deg N) of wind observations linked to storm cell.
-    linkage_table.wind_longitudes_deg: length-K numpy array with
-        longitudes (deg E) of wind observations linked to storm cell.
-    linkage_table.u_winds_m_s01: length-K numpy array with u-
-        velocities (m/s) of wind observations linked to storm cell.
-    linkage_table.v_winds_m_s01: length-K numpy array with v-
-        velocities (m/s) of wind observations linked to storm cell.
-    linkage_table.linkage_distances_metres: length-K numpy array
-        with distances of wind observations from storm object.
-    linkage_table.relative_times_sec: length-K numpy array with
+    :param wind_to_storm_table: K-row pandas DataFrame created by
+        _find_nearest_storms.
+    :return: storm_to_winds_table: Same as input, but with additional columns
+        listed below.
+    storm_to_winds_table.wind_station_ids: length-K list with string IDs of wind
+        stations.
+    storm_to_winds_table.wind_latitudes_deg: length-K numpy array with latitudes
+        (deg N) of wind stations.
+    storm_to_winds_table.wind_longitudes_deg: length-K numpy array with
+        longitudes (deg E) of wind stations.
+    storm_to_winds_table.u_winds_m_s01: length-K numpy array with u-components
+        (metres per second) of wind velocities.
+    storm_to_winds_table.v_winds_m_s01: length-K numpy array with v-components
+        (metres per second) of wind velocities.
+    storm_to_winds_table.wind_distances_metres: length-K numpy array with
+        distances of wind observations from storm object.
+    storm_to_winds_table.relative_wind_times_sec: length-K numpy array with
         relative times of wind observations (wind time minus storm-object time).
     """
 
@@ -710,125 +618,245 @@ def _link_winds_and_storms(storm_object_table=None, wind_table=None):
         tracking_io.STORM_ID_COLUMN,
         tracking_io.STORM_ID_COLUMN]].values.tolist()
     argument_dict = {
-        STATION_IDS_COLUMN: nested_array, WIND_LATS_COLUMN: nested_array,
-        WIND_LNGS_COLUMN: nested_array, U_WINDS_COLUMN: nested_array,
+        STATION_IDS_COLUMN: nested_array, WIND_LATITUDES_COLUMN: nested_array,
+        WIND_LONGITUDES_COLUMN: nested_array, U_WINDS_COLUMN: nested_array,
         V_WINDS_COLUMN: nested_array, LINKAGE_DISTANCES_COLUMN: nested_array,
         RELATIVE_TIMES_COLUMN: nested_array}
 
-    linkage_table = copy.deepcopy(storm_object_table)
-    linkage_table = linkage_table.assign(**argument_dict)
+    storm_to_winds_table = copy.deepcopy(storm_object_table)
+    storm_to_winds_table = storm_to_winds_table.assign(**argument_dict)
+    num_storm_objects = len(storm_to_winds_table.index)
 
-    num_storm_objects = len(storm_object_table.index)
     for i in range(num_storm_objects):
-        linkage_table[STATION_IDS_COLUMN].values[i] = []
-        linkage_table[WIND_LATS_COLUMN].values[i] = []
-        linkage_table[WIND_LNGS_COLUMN].values[i] = []
-        linkage_table[U_WINDS_COLUMN].values[i] = []
-        linkage_table[V_WINDS_COLUMN].values[i] = []
-        linkage_table[LINKAGE_DISTANCES_COLUMN].values[i] = []
-        linkage_table[RELATIVE_TIMES_COLUMN].values[i] = []
+        storm_to_winds_table[STATION_IDS_COLUMN].values[i] = []
+        storm_to_winds_table[WIND_LATITUDES_COLUMN].values[i] = []
+        storm_to_winds_table[WIND_LONGITUDES_COLUMN].values[i] = []
+        storm_to_winds_table[U_WINDS_COLUMN].values[i] = []
+        storm_to_winds_table[V_WINDS_COLUMN].values[i] = []
+        storm_to_winds_table[LINKAGE_DISTANCES_COLUMN].values[i] = []
+        storm_to_winds_table[RELATIVE_TIMES_COLUMN].values[i] = []
 
-    num_wind_observations = len(wind_table.index)
+    num_wind_observations = len(wind_to_storm_table.index)
     for k in range(num_wind_observations):
-        this_storm_id = wind_table[NEAREST_STORM_ID_COLUMN].values[k]
+        this_storm_id = wind_to_storm_table[NEAREST_STORM_ID_COLUMN].values[k]
         if this_storm_id is None:
             continue
 
-        this_storm_flags = [s == this_storm_id for s in storm_object_table[
+        this_storm_flags = [s == this_storm_id for s in storm_to_winds_table[
             tracking_io.STORM_ID_COLUMN].values]
         this_storm_rows = numpy.where(this_storm_flags)[0]
 
         for i in range(len(this_storm_rows)):
             j = this_storm_rows[i]
-            linkage_table[STATION_IDS_COLUMN].values[j].append(
-                wind_table[raw_wind_io.STATION_ID_COLUMN].values[k])
-            linkage_table[WIND_LATS_COLUMN].values[j].append(
-                wind_table[raw_wind_io.LATITUDE_COLUMN].values[k])
-            linkage_table[WIND_LNGS_COLUMN].values[j].append(
-                wind_table[raw_wind_io.LONGITUDE_COLUMN].values[k])
-            linkage_table[U_WINDS_COLUMN].values[j].append(
-                wind_table[raw_wind_io.U_WIND_COLUMN].values[k])
-            linkage_table[V_WINDS_COLUMN].values[j].append(
-                wind_table[raw_wind_io.V_WIND_COLUMN].values[k])
-            linkage_table[LINKAGE_DISTANCES_COLUMN].values[j].append(
-                wind_table[LINKAGE_DISTANCE_COLUMN].values[k])
+            storm_to_winds_table[STATION_IDS_COLUMN].values[j].append(
+                wind_to_storm_table[raw_wind_io.STATION_ID_COLUMN].values[k])
+            storm_to_winds_table[WIND_LATITUDES_COLUMN].values[j].append(
+                wind_to_storm_table[raw_wind_io.LATITUDE_COLUMN].values[k])
+            storm_to_winds_table[WIND_LONGITUDES_COLUMN].values[j].append(
+                wind_to_storm_table[raw_wind_io.LONGITUDE_COLUMN].values[k])
+            storm_to_winds_table[U_WINDS_COLUMN].values[j].append(
+                wind_to_storm_table[raw_wind_io.U_WIND_COLUMN].values[k])
+            storm_to_winds_table[V_WINDS_COLUMN].values[j].append(
+                wind_to_storm_table[raw_wind_io.V_WIND_COLUMN].values[k])
+            storm_to_winds_table[LINKAGE_DISTANCES_COLUMN].values[j].append(
+                wind_to_storm_table[LINKAGE_DISTANCE_COLUMN].values[k])
 
             this_relative_time_sec = (
-                wind_table[raw_wind_io.TIME_COLUMN].values[k] -
-                linkage_table[tracking_io.TIME_COLUMN].values[j])
-            linkage_table[RELATIVE_TIMES_COLUMN].values[j].append(
+                wind_to_storm_table[raw_wind_io.TIME_COLUMN].values[k] -
+                storm_to_winds_table[tracking_io.TIME_COLUMN].values[j])
+            storm_to_winds_table[RELATIVE_TIMES_COLUMN].values[j].append(
                 this_relative_time_sec)
 
     for i in range(num_storm_objects):
-        linkage_table[WIND_LATS_COLUMN].values[i] = numpy.asarray(
-            linkage_table[WIND_LATS_COLUMN].values[i])
-        linkage_table[WIND_LNGS_COLUMN].values[i] = numpy.asarray(
-            linkage_table[WIND_LNGS_COLUMN].values[i])
-        linkage_table[U_WINDS_COLUMN].values[i] = numpy.asarray(
-            linkage_table[U_WINDS_COLUMN].values[i])
-        linkage_table[V_WINDS_COLUMN].values[i] = numpy.asarray(
-            linkage_table[V_WINDS_COLUMN].values[i])
-        linkage_table[LINKAGE_DISTANCES_COLUMN].values[i] = numpy.asarray(
-            linkage_table[LINKAGE_DISTANCES_COLUMN].values[i])
-        linkage_table[RELATIVE_TIMES_COLUMN].values[i] = numpy.asarray(
-            linkage_table[RELATIVE_TIMES_COLUMN].values[i])
+        storm_to_winds_table[WIND_LATITUDES_COLUMN].values[i] = numpy.asarray(
+            storm_to_winds_table[WIND_LATITUDES_COLUMN].values[i])
+        storm_to_winds_table[WIND_LONGITUDES_COLUMN].values[i] = numpy.asarray(
+            storm_to_winds_table[WIND_LONGITUDES_COLUMN].values[i])
+        storm_to_winds_table[U_WINDS_COLUMN].values[i] = numpy.asarray(
+            storm_to_winds_table[U_WINDS_COLUMN].values[i])
+        storm_to_winds_table[V_WINDS_COLUMN].values[i] = numpy.asarray(
+            storm_to_winds_table[V_WINDS_COLUMN].values[i])
+        storm_to_winds_table[LINKAGE_DISTANCES_COLUMN].values[i] = (
+            numpy.asarray(
+                storm_to_winds_table[LINKAGE_DISTANCES_COLUMN].values[i]))
+        storm_to_winds_table[RELATIVE_TIMES_COLUMN].values[i] = numpy.asarray(
+            storm_to_winds_table[RELATIVE_TIMES_COLUMN].values[i])
 
-    return linkage_table
+    return storm_to_winds_table
 
 
-def _write_linkages_to_pickle(linkage_table, out_file_names):
-    """Writes linkages (storm-wind associations) to Pickle files.
+def _read_wind_observations(storm_object_table,
+                            max_time_before_storm_start_sec=None,
+                            max_time_after_storm_end_sec=None,
+                            top_directory_name=None):
+    """Reads wind observations to link with storm objects.
 
-    The number of output files (length of out_file_names) should = the number of
-    input files (see _read_storm_objects).
-
-    N = number of output files
-
-    :param linkage_table: pandas DataFrame created by _link_winds_and_storms.
-    :param out_file_names: length-N list of paths to output files.
+    :param storm_object_table: pandas DataFrame created by _read_storm_objects.
+    :param max_time_before_storm_start_sec: Max wind time before beginning of
+        storm cell.  If wind observation W occurs >
+        max_time_before_storm_start_sec before the first time in storm cell S, W
+        cannot be linked to S.
+    :param max_time_after_storm_end_sec: Max wind time after end of storm cell.
+        If wind observation W occurs > max_time_after_storm_end_sec after the
+        last time in storm cell S, W cannot be linked to S.
+    :param top_directory_name: Name of top-level directory with processed wind
+        files (created by `raw_wind_io.write_processed_file`.
+    :return: wind_table: pandas DataFrame with columns documented in
+        `raw_wind_io.write_processed_file`.
     """
 
-    error_checking.assert_is_list(out_file_names)
+    min_wind_time_unix_sec = numpy.min(
+        storm_object_table[tracking_io.TIME_COLUMN].values
+    ) - max_time_before_storm_start_sec
+    max_wind_time_unix_sec = numpy.max(
+        storm_object_table[tracking_io.TIME_COLUMN].values
+    ) + max_time_after_storm_end_sec
 
-    max_file_index = numpy.max(linkage_table[FILE_INDEX_COLUMN].values)
-    num_linkage_files = len(out_file_names)
-    error_checking.assert_is_greater(num_linkage_files, max_file_index)
+    wind_file_names, _ = raw_wind_io.find_processed_hourly_files(
+        start_time_unix_sec=min_wind_time_unix_sec,
+        end_time_unix_sec=max_wind_time_unix_sec,
+        primary_source=WIND_DATA_SOURCE, top_directory_name=top_directory_name,
+        raise_error_if_missing=True)
 
-    for i in range(num_linkage_files):
+    num_wind_files = len(wind_file_names)
+    list_of_wind_tables = [None] * num_wind_files
+
+    for i in range(num_wind_files):
+        print ('Reading wind file ' + str(i + 1) + '/' + str(num_wind_files) +
+               ': "' + wind_file_names[i] + '"...')
+
+        list_of_wind_tables[i] = raw_wind_io.read_processed_file(
+            wind_file_names[i])[WIND_COLUMNS_TO_READ]
+        if i == 0:
+            continue
+
+        list_of_wind_tables[i], _ = list_of_wind_tables[i].align(
+            list_of_wind_tables[0], axis=1)
+
+    return pandas.concat(list_of_wind_tables, axis=0, ignore_index=True)
+
+
+def _read_storm_objects(processed_file_names):
+    """Reads storm objects to link with wind observations.
+
+    N = number of storm objects
+
+    :param processed_file_names: 1-D list of paths to processed files (created
+        by `storm_tracking_io.write_processed_file`).
+    :return: storm_object_table: N-row pandas DataFrame with the following
+        columns.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
+    storm_object_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
+    storm_object_table.file_index: Index of file from which storm object was
+        read.  If file_index = j at the [i]th row, this means the [i]th storm
+        object was read from the [j]th input file.
+    """
+
+    file_indices = numpy.array([])
+    num_files = len(processed_file_names)
+    list_of_storm_object_tables = [None] * num_files
+
+    for i in range(num_files):
+        print ('Reading storm-object file ' + str(i + 1) + '/' +
+               str(num_files) + ': "' + processed_file_names[i] + '"...')
+
+        list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+            processed_file_names[i])[STORM_COLUMNS_TO_READ]
+
+        this_num_storm_objects = len(list_of_storm_object_tables[i].index)
+        file_indices = numpy.concatenate((
+            file_indices,
+            numpy.linspace(i, i, num=this_num_storm_objects, dtype=int)))
+
+        if i == 0:
+            continue
+
+        list_of_storm_object_tables[i], _ = (
+            list_of_storm_object_tables[i].align(
+                list_of_storm_object_tables[0], axis=1))
+
+    storm_object_table = pandas.concat(list_of_storm_object_tables, axis=0,
+                                       ignore_index=True)
+    argument_dict = {FILE_INDEX_COLUMN: file_indices}
+    return storm_object_table.assign(**argument_dict)
+
+
+def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
+    """Writes linkages (storm-to-wind assocations) to one or more Pickle files.
+
+    N = number of output files (should equal number of input files to
+        _read_storm_objects).
+
+    K = number of wind observations linked to a given storm cell
+
+    :param storm_to_winds_table: pandas DataFrame with the following columns,
+        where each row is one storm object.
+    storm_to_winds_table.storm_id: String ID for storm cell.
+    storm_to_winds_table.unix_time_sec: Valid time.
+    storm_to_winds_table.centroid_lat_deg: Latitude (deg N) of storm-object
+        centroid.
+    storm_to_winds_table.centroid_lng_deg: Longitude (deg E) of storm-object
+        centroid.
+    storm_to_winds_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, with vertices of storm object in lat-long
+        coordinates.
+    storm_to_winds_table.wind_station_ids: length-K list with string IDs of wind
+        stations.
+    storm_to_winds_table.wind_latitudes_deg: length-K numpy array with latitudes
+        (deg N) of wind stations.
+    storm_to_winds_table.wind_longitudes_deg: length-K numpy array with
+        longitudes (deg E) of wind stations.
+    storm_to_winds_table.u_winds_m_s01: length-K numpy array with u-components
+        (metres per second) of wind velocities.
+    storm_to_winds_table.v_winds_m_s01: length-K numpy array with v-components
+        (metres per second) of wind velocities.
+    storm_to_winds_table.wind_distances_metres: length-K numpy array with
+        distances of wind observations from storm object.
+    storm_to_winds_table.relative_wind_times_sec: length-K numpy array with
+        relative times of wind observations (wind time minus storm-object time).
+
+    :param pickle_file_names: length-N list of paths to output files.
+    """
+
+    error_checking.assert_is_string_list(pickle_file_names)
+    error_checking.assert_is_numpy_array(numpy.asarray(pickle_file_names),
+                                         num_dimensions=1)
+
+    max_file_index = numpy.max(storm_to_winds_table[FILE_INDEX_COLUMN].values)
+    num_files = len(pickle_file_names)
+    error_checking.assert_is_greater(num_files, max_file_index)
+
+    for i in range(num_files):
+        print ('Writing storm-to-winds file ' + str(i + 1) + '/' +
+               str(num_files) + ': "' + pickle_file_names[i] + '"...')
+
         file_system_utils.mkdir_recursive_if_necessary(
-            file_name=out_file_names[i])
+            file_name=pickle_file_names[i])
 
-        this_linkage_table = linkage_table.loc[
-            linkage_table[FILE_INDEX_COLUMN] == i]
-        this_file_handle = open(out_file_names[i], 'wb')
-        pickle.dump(this_linkage_table, this_file_handle)
+        this_file_handle = open(pickle_file_names[i], 'wb')
+        pickle.dump(
+            storm_to_winds_table.loc[
+                storm_to_winds_table[FILE_INDEX_COLUMN] == i][COLUMNS_TO_WRITE],
+            this_file_handle)
         this_file_handle.close()
 
 
-def read_linkages_from_pickle(input_file_name):
-    """Writes linkages (storm-wind associations) from single Pickle file.
+def read_storm_to_winds_table(pickle_file_name):
+    """Reads linkages (storm-to-wind assocations) from Pickle file.
 
-    :param input_file_name: Path to input file.
-    :return: linkage_table: pandas DataFrame with columns generated by
-        _link_winds_and_storms.
+    :param pickle_file_name: Path to input file.
+    :return: storm_to_winds_table: pandas DataFrame with columns documented in
+        write_storm_to_winds_table.
     """
 
-    input_file_handle = open(input_file_name, 'rb')
-    linkage_table = pickle.load(input_file_handle)
-    input_file_handle.close()
-    return linkage_table
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_to_winds_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
 
-
-if __name__ == '__main__':
-    PROCESSED_SEGMOTION_FILE_NAMES = glob.glob(
-        PROCESSED_SEGMOTION_DIR_NAME + '/*.p')
-    STORM_OBJECT_TABLE = _read_storm_objects(PROCESSED_SEGMOTION_FILE_NAMES)
-    STORM_OBJECT_TABLE, _ = _project_storms_to_equidistant(STORM_OBJECT_TABLE)
-    STORM_OBJECT_TABLE = _storm_objects_to_cells(STORM_OBJECT_TABLE)
-    print STORM_OBJECT_TABLE
-
-    INTERP_VERTEX_TABLE = _interp_storms_in_time(
-        STORM_OBJECT_TABLE, query_time_unix_sec=QUERY_TIME_UNIX_SEC,
-        max_time_before_start_sec=MAX_TIME_BEFORE_START_SEC,
-        max_time_after_end_sec=MAX_TIME_AFTER_END_SEC)
-    print INTERP_VERTEX_TABLE
+    error_checking.assert_columns_in_dataframe(
+        storm_to_winds_table, COLUMNS_TO_WRITE)
+    return storm_to_winds_table
