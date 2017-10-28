@@ -354,7 +354,7 @@ def read_station_metadata_from_raw_file(text_file_name):
         this_station_id_no_source = (
             this_line[STATION_ID_CHAR_INDICES[0]:STATION_ID_CHAR_INDICES[1]])
         this_station_id = raw_wind_io.append_source_to_station_id(
-            this_station_id_no_source,
+            this_station_id_no_source.strip(),
             primary_source=raw_wind_io.HFMETAR_DATA_SOURCE)
 
         this_station_name = (this_line[STATION_NAME_CHAR_INDICES[0]:
