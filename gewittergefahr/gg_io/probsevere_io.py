@@ -131,6 +131,7 @@ def read_storm_objects_from_raw_file(json_file_name):
     :return: storm_object_table: pandas DataFrame with the following columns.
     storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Time in Unix format.
+    storm_object_table.spc_date_time_sec: SPC date in Unix format.
     storm_object_table.east_velocity_m_s01: Eastward velocity (m/s).
     storm_object_table.north_velocity_m_s01: Northward velocity (m/s).
     storm_object_table.age_sec: Age of storm cell (seconds).
@@ -159,8 +160,13 @@ def read_storm_objects_from_raw_file(json_file_name):
     unix_time_sec = time_conversion.string_to_unix_sec(
         probsevere_dict[TIME_COLUMN_ORIG].encode('ascii', 'ignore'),
         TIME_FORMAT_IN_RAW_FILES)
+    spc_date_string = radar_io.time_unix_sec_to_spc_date(unix_time_sec)
+    spc_date_unix_sec = 18 * 3600 + time_conversion.string_to_unix_sec(
+        spc_date_string, radar_io.TIME_FORMAT_SPC_DATE)
+
     num_storms = len(probsevere_dict[FEATURES_COLUMN_ORIG])
     unix_times_sec = numpy.full(num_storms, unix_time_sec, dtype=int)
+    spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
 
     storm_ids = [None] * num_storms
     east_velocities_m_s01 = numpy.full(num_storms, numpy.nan)
@@ -181,7 +187,8 @@ def read_storm_objects_from_raw_file(json_file_name):
         tracking_io.STORM_ID_COLUMN: storm_ids,
         tracking_io.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
         tracking_io.NORTH_VELOCITY_COLUMN: north_velocities_m_s01,
-        tracking_io.TIME_COLUMN: unix_times_sec}
+        tracking_io.TIME_COLUMN: unix_times_sec,
+        tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec}
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
     storm_object_table = tracking_io.remove_rows_with_nan(storm_object_table)
 
