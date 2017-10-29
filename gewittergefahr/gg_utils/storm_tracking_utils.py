@@ -97,9 +97,6 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
         small-scale objects may have been replaced with a larger-scale object.
     """
 
-    # TODO(thunderhoser): prevent a small-scale storm object from being grown
-    # more than once.
-
     grid_point_table_small_scale = _get_grid_points_in_storms(
         storm_object_table_small_scale, num_grid_rows=num_grid_rows,
         num_grid_columns=num_grid_columns)
@@ -107,7 +104,9 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
     storm_ids_large_scale = storm_object_table_large_scale[
         tracking_io.STORM_ID_COLUMN].values
     num_storms_large_scale = len(storm_ids_large_scale)
+
     storm_object_table_merged = copy.deepcopy(storm_object_table_small_scale)
+    storm_ids_small_scale_grown = []
 
     for i in range(num_storms_large_scale):
         these_row_indices = storm_object_table_large_scale[
@@ -133,6 +132,10 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
             continue
 
         this_storm_id_small_scale = these_storm_ids_small_scale[0]
+        if this_storm_id_small_scale in storm_ids_small_scale_grown:
+            continue  # Prevents small storm from being grown more than once.
+
+        storm_ids_small_scale_grown.append(this_storm_id_small_scale)
         these_storm_flags_small_scale = [
             s == this_storm_id_small_scale for s in
             storm_object_table_small_scale[tracking_io.STORM_ID_COLUMN].values]
