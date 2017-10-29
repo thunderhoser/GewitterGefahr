@@ -17,6 +17,11 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): need to improve terminology.  In some cases I use "field"
+# to mean one radar variable at any height, and in some cases I use it to mean
+# one variable at one height.  I should probably use it consistently for the
+# latter.
+
 NW_GRID_POINT_LAT_COLUMN = 'nw_grid_point_lat_deg'
 NW_GRID_POINT_LNG_COLUMN = 'nw_grid_point_lng_deg'
 LAT_SPACING_COLUMN = 'lat_spacing_deg'
@@ -282,35 +287,6 @@ def _check_reflectivity_heights(heights_m_agl):
         raise ValueError(error_string)
 
 
-def _field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
-                                     data_source=None):
-    """Converts two arrays (radar-field names and reflectivity heights) to dict.
-
-    :param field_names: 1-D list with names of radar fields in new format (as
-        opposed to MYRORSS or MRMS format).
-    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
-        above ground level).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: field_to_heights_dict_m_agl: Dictionary, where each key is the name
-        of a radar field and each value is 1-D numpy array of heights (metres
-        above ground level).
-    """
-
-    field_to_heights_dict_m_agl = {}
-
-    for this_field_name in field_names:
-        if this_field_name == REFL_NAME:
-            _check_reflectivity_heights(refl_heights_m_agl)
-            field_to_heights_dict_m_agl.update(
-                {this_field_name: refl_heights_m_agl})
-        else:
-            field_to_heights_dict_m_agl.update({
-                this_field_name: _get_valid_heights_for_field(
-                    this_field_name, data_source=data_source)})
-
-    return field_to_heights_dict_m_agl
-
-
 def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
     """Generates pathless name for raw file.
 
@@ -374,6 +350,70 @@ def check_field_name(field_name):
             '\n\nValid field names (listed above) do not include "' +
             field_name + '".')
         raise ValueError(error_string)
+
+
+def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
+                                    data_source=None):
+    """Converts two arrays (radar-field names and reflectivity heights) to dict.
+
+    :param field_names: 1-D list with names of radar fields in new format (as
+        opposed to MYRORSS or MRMS format).
+    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
+        above ground level).
+    :param data_source: Data source (either "myrorss" or "mrms").
+    :return: field_to_heights_dict_m_agl: Dictionary, where each key is the name
+        of a radar field and each value is 1-D numpy array of heights (metres
+        above ground level).
+    """
+
+    field_to_heights_dict_m_agl = {}
+
+    for this_field_name in field_names:
+        if this_field_name == REFL_NAME:
+            _check_reflectivity_heights(refl_heights_m_agl)
+            field_to_heights_dict_m_agl.update(
+                {this_field_name: refl_heights_m_agl})
+        else:
+            field_to_heights_dict_m_agl.update({
+                this_field_name: _get_valid_heights_for_field(
+                    this_field_name, data_source=data_source)})
+
+    return field_to_heights_dict_m_agl
+
+
+def unique_fields_and_heights_to_pairs(field_names, refl_heights_m_agl=None,
+                                       data_source=None):
+    """Converts unique arrays to non-unique arrays.
+
+    F = number of unique field names
+    N = number of field-height pairs
+
+    :param field_names: length-F list with names of radar fields in new format
+        (rather than MYRORSS or MRMS format).
+    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
+        above ground level).
+    :param data_source: Data source (either "myrorss" or "mrms").
+    :return: field_name_by_pair: length-N list of field names.
+    :return: height_by_pair_m_agl: length-N numpy array of radar heights (metres
+        above ground level).
+    """
+
+    field_name_by_pair = []
+    height_by_pair_m_agl = numpy.array([])
+
+    for this_field_name in field_names:
+        if this_field_name == REFL_NAME:
+            _check_reflectivity_heights(refl_heights_m_agl)
+            these_heights_m_agl = copy.deepcopy(refl_heights_m_agl)
+        else:
+            these_heights_m_agl = _get_valid_heights_for_field(
+                this_field_name, data_source=data_source)
+
+        field_name_by_pair += [this_field_name] * len(these_heights_m_agl)
+        height_by_pair_m_agl = numpy.concatenate((
+            height_by_pair_m_agl, these_heights_m_agl))
+
+    return field_name_by_pair, height_by_pair_m_agl
 
 
 def get_relative_dir_for_raw_files(field_name=None, height_m_agl=None,

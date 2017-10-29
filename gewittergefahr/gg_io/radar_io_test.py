@@ -25,6 +25,33 @@ FILE_SPC_DATE_UNIX_SEC = 1507234802
 PATHLESS_ZIPPED_FILE_NAME = '20171005-202002.netcdf.gz'
 PATHLESS_UNZIPPED_FILE_NAME = '20171005-202002.netcdf'
 
+UNIQUE_FIELD_NAMES = [
+    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
+    'reflectivity_column_max_dbz']
+UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL = numpy.array(
+    [250, 500, 750, 1000, 5000, 10000, 20000])
+
+FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL = {
+    'echo_top_50dbz_km': numpy.array([250]),
+    'low_level_shear_s01': numpy.array([0]),
+    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+    'reflectivity_column_max_dbz': numpy.array([250])}
+FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL = {
+    'echo_top_50dbz_km': numpy.array([500]),
+    'low_level_shear_s01': numpy.array([0]),
+    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+    'reflectivity_column_max_dbz': numpy.array([500])}
+
+FIELD_NAME_BY_PAIR = [
+    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
+    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
+    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
+    'reflectivity_column_max_dbz']
+HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
+    [250, 0, 250, 500, 750, 1000, 5000, 10000, 20000, 250])
+HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
+    [500, 0, 250, 500, 750, 1000, 5000, 10000, 20000, 500])
+
 THESE_GRID_ROWS = numpy.linspace(0, 10, num=11, dtype=int)
 THESE_GRID_COLUMNS = numpy.linspace(0, 10, num=11, dtype=int)
 THESE_NUM_GRID_CELLS = numpy.linspace(0, 10, num=11, dtype=int)
@@ -302,6 +329,66 @@ class RadarIoTests(unittest.TestCase):
             sentinel_values=SENTINEL_VALUES)
         self.assertTrue(
             this_sparse_grid_table.equals(SPARSE_GRID_TABLE_NO_SENTINELS))
+
+    def test_field_and_height_arrays_to_dict_myrorss(self):
+        """Ensures correct output from field_and_height_arrays_to_dict.
+
+        In this case, data source is MYRORSS.
+        """
+
+        this_field_to_heights_dict_m_agl = (
+            radar_io.field_and_height_arrays_to_dict(
+                UNIQUE_FIELD_NAMES,
+                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                data_source=radar_io.MYRORSS_SOURCE_ID))
+        self.assertTrue(this_field_to_heights_dict_m_agl ==
+                        FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL)
+
+    def test_field_and_height_arrays_to_dict_mrms(self):
+        """Ensures correct output from field_and_height_arrays_to_dict.
+
+        In this case, data source is MRMS.
+        """
+
+        this_field_to_heights_dict_m_agl = (
+            radar_io.field_and_height_arrays_to_dict(
+                UNIQUE_FIELD_NAMES,
+                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                data_source=radar_io.MRMS_SOURCE_ID))
+        self.assertTrue(this_field_to_heights_dict_m_agl ==
+                        FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL)
+
+    def test_unique_fields_and_heights_to_pairs_myrorss(self):
+        """Ensures correct output from unique_fields_and_heights_to_pairs.
+
+        In this case, data source is MYRORSS.
+        """
+
+        this_field_name_by_pair, this_height_by_pair_m_agl = (
+            radar_io.unique_fields_and_heights_to_pairs(
+                UNIQUE_FIELD_NAMES,
+                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                data_source=radar_io.MYRORSS_SOURCE_ID))
+
+        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
+        self.assertTrue(numpy.array_equal(
+            this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MYRORSS_M_AGL))
+
+    def test_unique_fields_and_heights_to_pairs_mrms(self):
+        """Ensures correct output from unique_fields_and_heights_to_pairs.
+
+        In this case, data source is MRMS.
+        """
+
+        this_field_name_by_pair, this_height_by_pair_m_agl = (
+            radar_io.unique_fields_and_heights_to_pairs(
+                UNIQUE_FIELD_NAMES,
+                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                data_source=radar_io.MRMS_SOURCE_ID))
+
+        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
+        self.assertTrue(numpy.array_equal(
+            this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MRMS_M_AGL))
 
     def test_get_relative_dir_for_raw_files_myrorss(self):
         """Ensures correct output from get_relative_dir_for_raw_files.
