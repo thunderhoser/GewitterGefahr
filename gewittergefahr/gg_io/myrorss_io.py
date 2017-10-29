@@ -3,16 +3,11 @@
 --- DEFINITIONS ---
 
 MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
-
-SPC = Storm Prediction Center
-
-SPC date = a 24-hour period running from 1200-1200 UTC.  If time is discretized
-in seconds, the period runs from 120000-115959 UTC.  This is unlike a human
-date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 """
 
 from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import unzipping
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 
@@ -35,7 +30,7 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
     error_checking.assert_is_string(top_target_directory_name)
     target_directory_name = '{0:s}/{1:s}'.format(
         top_target_directory_name,
-        radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec))
+        time_conversion.time_to_spc_date_string(spc_date_unix_sec))
 
     field_names = field_to_heights_dict_m_agl.keys()
     directory_names_to_unzip = []

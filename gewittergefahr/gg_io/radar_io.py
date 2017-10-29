@@ -5,12 +5,6 @@
 MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
 
 MRMS = Multi-radar Multi-sensor
-
-SPC = Storm Prediction Center
-
-SPC date = a 24-hour period running from 1200-1200 UTC.  If time is discretized
-in seconds, the period runs from 120000-115959 UTC.  This is unlike a human
-date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 """
 
 import copy
@@ -125,7 +119,6 @@ HEIGHT_ARRAY_COLUMN = 'heights_m_agl'
 SENTINEL_TOLERANCE = 10.
 
 TIME_FORMAT_SECONDS = '%Y%m%d-%H%M%S'
-TIME_FORMAT_SPC_DATE = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
 METRES_TO_KM = 1e-3
 
@@ -383,23 +376,6 @@ def check_field_name(field_name):
         raise ValueError(error_string)
 
 
-def time_unix_sec_to_spc_date(unix_time_sec):
-    """Converts time to SPC date.
-
-    SPC date = a 24-hour period running from 1200-1200 UTC.  If time is
-    discretized in seconds, the period runs from 120000-115959 UTC.  This is
-    unlike a human date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
-
-    :param unix_time_sec: Time in Unix format.
-    :return: spc_date_string: SPC date (format "yyyymmdd").
-    """
-
-    # TODO(thunderhoser): this method should probably be somewhere else.
-
-    return time_conversion.unix_sec_to_string(
-        unix_time_sec - DAYS_TO_SECONDS / 2, TIME_FORMAT_SPC_DATE)
-
-
 def get_relative_dir_for_raw_files(field_name=None, height_m_agl=None,
                                    data_source=None):
     """Generates relative path for raw files.
@@ -452,14 +428,16 @@ def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-        top_directory_name, time_unix_sec_to_spc_date(spc_date_unix_sec),
+        top_directory_name,
+        time_conversion.time_to_spc_date_string(spc_date_unix_sec),
         relative_directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         pathless_file_name = _get_pathless_raw_file_name(
             unix_time_sec, zipped=False)
         raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-            top_directory_name, time_unix_sec_to_spc_date(spc_date_unix_sec),
+            top_directory_name,
+            time_conversion.time_to_spc_date_string(spc_date_unix_sec),
             relative_directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):

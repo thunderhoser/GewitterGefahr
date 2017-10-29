@@ -6,12 +6,6 @@ segmotion (or w2segmotionll) = storm-tracking algorithm in WDSS-II.
 
 WDSS-II = Warning Decision Support System -- Integrated Information, a software
 package for the visualization and analysis of thunderstorm-related data.
-
-SPC = Storm Prediction Center
-
-SPC date = a 24-hour period running from 1200-1200 UTC.  If time is discretized
-in seconds, the period runs from 120000-115959 UTC.  This is unlike a human
-date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 """
 
 import os
@@ -370,7 +364,7 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
         scales_to_extract_metres2,
         exact_dimensions=numpy.array([num_scales_to_extract]))
 
-    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_names_to_unzip = []
 
     for j in range(num_scales_to_extract):
@@ -418,7 +412,7 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name, _get_relative_stats_dir_physical_scale(
             spc_date_string, tracking_scale_metres2))
@@ -464,7 +458,7 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
             spc_date_string, tracking_scale_metres2))
@@ -535,7 +529,7 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
 
-    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
         stats_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 
@@ -619,7 +613,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         num_storms, metadata_dict[radar_io.UNIX_TIME_COLUMN], dtype=int)
     spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec)
 
-    spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
+    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
         polygon_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 

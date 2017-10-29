@@ -24,12 +24,9 @@ DATAFRAME_WITHOUT_NAN = DATAFRAME_WITH_NAN.drop(
 # _distance_buffers_to_column_names.
 MIN_BUFFER_DISTANCES_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTANCES_METRES = numpy.array([0., 5000., 10000.])
-BUFFER_LAT_COLUMN_NAMES = ['vertex_latitudes_deg_buffer_0m',
-                           'vertex_latitudes_deg_buffer_0_5000m',
-                           'vertex_latitudes_deg_buffer_5000_10000m']
-BUFFER_LNG_COLUMN_NAMES = ['vertex_longitudes_deg_buffer_0m',
-                           'vertex_longitudes_deg_buffer_0_5000m',
-                           'vertex_longitudes_deg_buffer_5000_10000m']
+BUFFER_COLUMN_NAMES = [
+    'polygon_object_buffer_0m', 'polygon_object_buffer_0_5000m',
+    'polygon_object_buffer_5000_10000m']
 
 # The following constants will be used to test
 # _get_pathless_processed_file_name, _get_relative_processed_directory, and
@@ -92,15 +89,11 @@ class StormTrackingIoTests(unittest.TestCase):
     def test_distance_buffers_to_column_names(self):
         """Ensures correct output from _distance_buffers_to_column_names."""
 
-        (these_buffer_lat_column_names,
-         these_buffer_lng_column_names) = (
-             storm_tracking_io._distance_buffers_to_column_names(
+        these_buffer_column_names = (
+            storm_tracking_io._distance_buffers_to_column_names(
                  MIN_BUFFER_DISTANCES_METRES, MAX_BUFFER_DISTANCES_METRES))
 
-        self.assertTrue(
-            these_buffer_lat_column_names == BUFFER_LAT_COLUMN_NAMES)
-        self.assertTrue(
-            these_buffer_lng_column_names == BUFFER_LNG_COLUMN_NAMES)
+        self.assertTrue(these_buffer_column_names == BUFFER_COLUMN_NAMES)
 
     def test_get_pathless_processed_file_name_segmotion(self):
         """Ensures correct output from _get_pathless_processed_file_name.

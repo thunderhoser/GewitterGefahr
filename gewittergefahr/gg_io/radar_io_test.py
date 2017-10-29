@@ -48,11 +48,6 @@ SPARSE_GRID_TABLE_NO_SENTINELS = SPARSE_GRID_TABLE_WITH_SENTINELS.drop(
     SPARSE_GRID_TABLE_WITH_SENTINELS.index[THESE_SENTINEL_INDICES], axis=0,
     inplace=False)
 
-UNIX_TIME_1200UTC_SEC = 1506168000
-UNIX_TIME_0000UTC_SEC = 1506211200
-UNIX_TIME_115959UTC_SEC = 1506254399
-SPC_DATE_STRING = '20170923'
-
 RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.00'
 RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.00'
 
@@ -307,39 +302,6 @@ class RadarIoTests(unittest.TestCase):
             sentinel_values=SENTINEL_VALUES)
         self.assertTrue(
             this_sparse_grid_table.equals(SPARSE_GRID_TABLE_NO_SENTINELS))
-
-    def test_time_unix_sec_to_spc_date_1200utc(self):
-        """Ensures correct output from time_unix_sec_to_spc_date.
-
-        In this case, input time is 1200 UTC 23 Sep 2017 (beginning of SPC date
-        "20170923").
-        """
-
-        this_spc_date_string = radar_io.time_unix_sec_to_spc_date(
-            UNIX_TIME_1200UTC_SEC)
-        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
-
-    def test_time_unix_sec_to_spc_date_0000utc(self):
-        """Ensures correct output from time_unix_sec_to_spc_date.
-
-        In this case, input time is 0000 UTC 24 Sep 2017 (middle of SPC date
-        "20170923").
-        """
-
-        this_spc_date_string = radar_io.time_unix_sec_to_spc_date(
-            UNIX_TIME_0000UTC_SEC)
-        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
-
-    def test_time_unix_sec_to_spc_date_115959utc(self):
-        """Ensures correct output from time_unix_sec_to_spc_date.
-
-        In this case, input time is 115959 UTC 24 Sep 2017 (end of SPC date
-        "20170923").
-        """
-
-        this_spc_date_string = radar_io.time_unix_sec_to_spc_date(
-            UNIX_TIME_115959UTC_SEC)
-        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
 
     def test_get_relative_dir_for_raw_files_myrorss(self):
         """Ensures correct output from get_relative_dir_for_raw_files.
