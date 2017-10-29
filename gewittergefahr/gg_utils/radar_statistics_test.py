@@ -9,6 +9,19 @@ TOLERANCE = 1e-6
 FAKE_STATISTIC_NAME = 'foo'
 FAKE_PERCENTILE_LEVEL = -9999.
 
+# The following constants are used to test
+# _radar_field_and_statistic_to_column_name.
+REFLECTIVITY_FIELD_NAME = 'reflectivity_dbz'
+NON_REFLECTIVITY_FIELD_NAME = 'vil_mm'
+REFLECTIVITY_HEIGHT_M_AGL = 2000
+STATISTIC_NAME = 'kurtosis'
+COLUMN_NAME_FOR_REFLECTIVITY_STAT = 'reflectivity_dbz_2000m_kurtosis'
+COLUMN_NAME_FOR_NON_REFLECTIVITY_STAT = 'vil_mm_kurtosis'
+
+PERCENTILE_LEVEL = 75.12
+COLUMN_NAME_FOR_REFLECTIVITY_PRCTILE = 'reflectivity_dbz_2000m_percentile075.1'
+COLUMN_NAME_FOR_NON_REFLECTIVITY_PRCTILE = 'vil_mm_percentile075.1'
+
 # The following constants are used to test _center_points_latlng_to_rowcol.
 NW_GRID_POINT_LAT_DEG = 55.
 NW_GRID_POINT_LNG_DEG = 230.
@@ -111,6 +124,59 @@ PERCENTILE_VALUES = numpy.array([0., 4., 20., 20., 50., 58., 60.])
 
 class RadarStatisticsTests(unittest.TestCase):
     """Each method is a unit test for radar_statistics.py."""
+
+    def test_radar_field_and_statistic_to_column_name_reflectivity(self):
+        """Ensures correctness of _radar_field_and_statistic_to_column_name.
+
+        In this case, radar field is reflectivity.
+        """
+
+        this_column_name = (
+            radar_stats._radar_field_and_statistic_to_column_name(
+                radar_field_name=REFLECTIVITY_FIELD_NAME,
+                radar_height_m_agl=REFLECTIVITY_HEIGHT_M_AGL,
+                statistic_name=STATISTIC_NAME))
+        self.assertTrue(this_column_name == COLUMN_NAME_FOR_REFLECTIVITY_STAT)
+
+    def test_radar_field_and_statistic_to_column_name_non_reflectivity(self):
+        """Ensures correctness of _radar_field_and_statistic_to_column_name.
+
+        In this case, radar field is not reflectivity.
+        """
+
+        this_column_name = (
+            radar_stats._radar_field_and_statistic_to_column_name(
+                radar_field_name=NON_REFLECTIVITY_FIELD_NAME,
+                statistic_name=STATISTIC_NAME))
+        self.assertTrue(
+            this_column_name == COLUMN_NAME_FOR_NON_REFLECTIVITY_STAT)
+
+    def test_radar_field_and_percentile_to_column_name_reflectivity(self):
+        """Ensures correctness of _radar_field_and_percentile_to_column_name.
+
+        In this case, radar field is reflectivity.
+        """
+
+        this_column_name = (
+            radar_stats._radar_field_and_percentile_to_column_name(
+                radar_field_name=REFLECTIVITY_FIELD_NAME,
+                radar_height_m_agl=REFLECTIVITY_HEIGHT_M_AGL,
+                percentile_level=PERCENTILE_LEVEL))
+        self.assertTrue(
+            this_column_name == COLUMN_NAME_FOR_REFLECTIVITY_PRCTILE)
+
+    def test_radar_field_and_percentile_to_column_name_non_reflectivity(self):
+        """Ensures correctness of _radar_field_and_percentile_to_column_name.
+
+        In this case, radar field is not reflectivity.
+        """
+
+        this_column_name = (
+            radar_stats._radar_field_and_percentile_to_column_name(
+                radar_field_name=NON_REFLECTIVITY_FIELD_NAME,
+                percentile_level=PERCENTILE_LEVEL))
+        self.assertTrue(
+            this_column_name == COLUMN_NAME_FOR_NON_REFLECTIVITY_PRCTILE)
 
     def test_center_points_latlng_to_rowcol(self):
         """Ensures correct output from _center_points_latlng_to_rowcol."""

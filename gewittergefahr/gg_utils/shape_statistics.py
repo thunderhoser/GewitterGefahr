@@ -1,6 +1,7 @@
 """Methods for computing shape statistics."""
 
 import copy
+import pickle
 import numpy
 import skimage.measure
 from area import polygon__area as polygon_area
@@ -9,12 +10,14 @@ from gewittergefahr.gg_utils import shape_utils
 from gewittergefahr.gg_utils import smoothing_via_iterative_averaging as sia
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): may add moments to list of shape statistics.
 
 RADIANS_TO_DEGREES = 180. / numpy.pi
 GRID_SPACING_FOR_BINARY_MATRIX_DEFAULT_METRES = 100.
+STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 NUM_VERTICES_IN_SMOOTHING_HALF_WINDOW_DEFAULT = (
     sia.NUM_VERTICES_IN_HALF_WINDOW_DEFAULT)
@@ -126,7 +129,7 @@ def _project_polygon_latlng_to_xy(polygon_object_latlng,
                                   centroid_latitude_deg=None,
                                   centroid_longitude_deg=None):
     """Projects polygon from lat-long to x-y coordinates.
-    
+
     :param polygon_object_latlng: Instance of `shapely.geometry.Polygon`, where
         x-coordinates are actually longitudes and y-coordinates are actually
         latitudes.
@@ -156,10 +159,10 @@ def _xy_polygon_to_binary_matrix(
         polygon_object_xy,
         grid_spacing_metres=GRID_SPACING_FOR_BINARY_MATRIX_DEFAULT_METRES):
     """Converts x-y polygon to binary image matrix.
-    
+
     M = number of rows in x-y grid
     N = number of columns in x-y grid
-    
+
     :param polygon_object_xy: Instance of `shapely.geometry.Polygon`, where x-
         and y-coordinates are in metres.
     :param grid_spacing_metres: Grid spacing (distance between adjacent grid
@@ -301,8 +304,14 @@ def get_stats_for_storm_objects(
         `smoothing_via_iterative_averaging.sia_for_closed_polygon`.
     :param num_smoothing_iterations: See documentation for
         `smoothing_via_iterative_averaging.sia_for_closed_polygon`.
-    :return: storm_object_table: Same as input, but with K additional columns.
-        Names of additional columns come from `statistic_names`.
+    :return: storm_shape_statistic_table: pandas DataFrame with 2 + K columns,
+        where the last K columns are shape statistics.  Names of these columns
+        come from the input list statistic_names.  The first 2 columns are
+        listed below.
+    storm_shape_statistic_table.storm_id: String ID for storm cell.  Same as
+        input column `storm_object_table.storm_id`.
+    storm_shape_statistic_table.unix_time_sec: Valid time.  Same as input column
+        `storm_object_table.unix_time_sec`.
     """
 
     _check_statistic_names(statistic_names)
@@ -321,7 +330,7 @@ def get_stats_for_storm_objects(
     for i in range(num_storm_objects):
         this_polygon_object_latlng = storm_object_table[
             tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
-        
+
         if AREA_NAME in statistic_names:
             storm_object_table[AREA_NAME].values[i] = (
                 get_area_of_simple_polygon(this_polygon_object_latlng))
@@ -366,4 +375,39 @@ def get_stats_for_storm_objects(
                 storm_object_table[this_name].values[i] = (
                     this_curvature_based_stat_dict[this_name])
 
-    return storm_object_table
+    return storm_object_table[STORM_COLUMNS_TO_KEEP + statistic_names]
+
+
+def write_stats_for_storm_objects(storm_shape_statistic_table,
+                                  pickle_file_name):
+    """Writes shape statistics for storm objects to a Pickle file.
+
+    :param storm_shape_statistic_table: pandas DataFrame created by
+        get_stats_for_storm_objects.
+    :param pickle_file_name: Path to output file.
+    """
+
+    # TODO(thunderhoser): Need to ensure that storm_shape_statistic_table has
+    # the right columns.
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(storm_shape_statistic_table, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_stats_for_storm_objects(pickle_file_name):
+    """Reads shape statistics for storm objects from a Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_shape_statistic_table: pandas DataFrame with columns
+        documented in get_stats_for_storm_objects.
+    """
+
+    # TODO(thunderhoser): Need to ensure that storm_shape_statistic_table has
+    # the right columns.
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_shape_statistic_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+    return storm_shape_statistic_table
