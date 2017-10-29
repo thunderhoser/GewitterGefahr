@@ -331,8 +331,8 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
 
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            time_conversion.unix_sec_to_string(unix_time_sec,
-                                               TIME_FORMAT_SECONDS),
+            time_conversion.unix_sec_to_string(
+                unix_time_sec, TIME_FORMAT_SECONDS),
             UNZIPPED_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
@@ -424,7 +424,7 @@ def get_relative_dir_for_raw_files(field_name=None, height_m_agl=None,
 
 def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
                   height_m_agl=None, data_source=None, top_directory_name=None,
-                  zipped=True, raise_error_if_missing=True):
+                  raise_error_if_missing=True):
     """Finds raw file on local machine.
 
     This file should contain one radar field at one height and one time step.
@@ -436,8 +436,6 @@ def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
     :param height_m_agl: Height (metres above ground level).
     :param data_source: Data source (either "myrorss" or "mrms").
     :param top_directory_name: Top-level directory for raw files.
-    :param zipped: Boolean flag.  If zipped = True, will look for zipped files.
-        If not, will look for unzipped files.
     :param raise_error_if_missing: Boolean flag.  If raise_error_if_missing =
         True and file is missing, will raise error.
     :return: raw_file_name: Path to raw file.  If raise_error_if_missing = False
@@ -446,17 +444,23 @@ def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec,
-                                                     zipped=zipped)
     relative_directory_name = get_relative_dir_for_raw_files(
         field_name=field_name, height_m_agl=height_m_agl,
         data_source=data_source)
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name, time_unix_sec_to_spc_date(spc_date_unix_sec),
         relative_directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        pathless_file_name = _get_pathless_raw_file_name(
+            unix_time_sec, zipped=False)
+        raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+            top_directory_name, time_unix_sec_to_spc_date(spc_date_unix_sec),
+            relative_directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(

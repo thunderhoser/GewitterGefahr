@@ -57,14 +57,11 @@ RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.00'
 RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.00'
 
 TOP_RAW_DIRECTORY_NAME = 'radar'
-ZIPPED_FILE_NAME_MYRORSS = ('radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
-                            '/00.00/20171005-202002.netcdf.gz')
-ZIPPED_FILE_NAME_MRMS = ('radar/20171005/' + LL_SHEAR_NAME_MRMS +
-                         '/00.00/20171005-202002.netcdf.gz')
-UNZIPPED_FILE_NAME_MYRORSS = ('radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
-                              '/00.00/20171005-202002.netcdf')
-UNZIPPED_FILE_NAME_MRMS = ('radar/20171005/' + LL_SHEAR_NAME_MRMS +
-                           '/00.00/20171005-202002.netcdf')
+RAW_FILE_NAME_MYRORSS = (
+    'radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
+    '/00.00/20171005-202002.netcdf.gz')
+RAW_FILE_NAME_MRMS = (
+    'radar/20171005/' + LL_SHEAR_NAME_MRMS + '/00.00/20171005-202002.netcdf.gz')
 
 NW_GRID_POINT_LAT_DEG = 55.
 NW_GRID_POINT_LNG_DEG = 230.
@@ -366,61 +363,29 @@ class RadarIoTests(unittest.TestCase):
             data_source=radar_io.MRMS_SOURCE_ID)
         self.assertTrue(this_relative_dir_name == RELATIVE_DIR_NAME_MRMS)
 
-    def test_find_raw_file_myrorss_zipped(self):
-        """Ensures correct output from find_raw_file.
-
-        In this case, data source is MYRORSS and expected file is zipped."""
+    def test_find_raw_file_myrorss(self):
+        """Ensures correct output from find_raw_file."""
 
         this_raw_file_name = radar_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
             spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
             field_name=LL_SHEAR_NAME_NEW,
             data_source=radar_io.MYRORSS_SOURCE_ID,
-            top_directory_name=TOP_RAW_DIRECTORY_NAME, zipped=True,
+            top_directory_name=TOP_RAW_DIRECTORY_NAME,
             raise_error_if_missing=False)
-        self.assertTrue(this_raw_file_name == ZIPPED_FILE_NAME_MYRORSS)
+        self.assertTrue(this_raw_file_name == RAW_FILE_NAME_MYRORSS)
 
-    def test_find_raw_file_myrorss_unzipped(self):
-        """Ensures correct output from find_raw_file.
-
-        In this case, data source is MYRORSS and expected file is unzipped."""
-
-        this_raw_file_name = radar_io.find_raw_file(
-            unix_time_sec=FILE_TIME_UNIX_SEC,
-            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
-            field_name=LL_SHEAR_NAME_NEW,
-            data_source=radar_io.MYRORSS_SOURCE_ID,
-            top_directory_name=TOP_RAW_DIRECTORY_NAME, zipped=False,
-            raise_error_if_missing=False)
-        self.assertTrue(this_raw_file_name == UNZIPPED_FILE_NAME_MYRORSS)
-
-    def test_find_raw_file_mrms_zipped(self):
-        """Ensures correct output from find_raw_file.
-
-        In this case, data source is MRMS and expected file is zipped."""
+    def test_find_raw_file_mrms(self):
+        """Ensures correct output from find_raw_file."""
 
         this_raw_file_name = radar_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
             spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
             field_name=LL_SHEAR_NAME_NEW,
             data_source=radar_io.MRMS_SOURCE_ID,
-            top_directory_name=TOP_RAW_DIRECTORY_NAME, zipped=True,
+            top_directory_name=TOP_RAW_DIRECTORY_NAME,
             raise_error_if_missing=False)
-        self.assertTrue(this_raw_file_name == ZIPPED_FILE_NAME_MRMS)
-
-    def test_find_raw_file_mrms_unzipped(self):
-        """Ensures correct output from find_raw_file.
-
-        In this case, data source is MRMS and expected file is unzipped."""
-
-        this_raw_file_name = radar_io.find_raw_file(
-            unix_time_sec=FILE_TIME_UNIX_SEC,
-            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
-            field_name=LL_SHEAR_NAME_NEW,
-            data_source=radar_io.MRMS_SOURCE_ID,
-            top_directory_name=TOP_RAW_DIRECTORY_NAME, zipped=False,
-            raise_error_if_missing=False)
-        self.assertTrue(this_raw_file_name == UNZIPPED_FILE_NAME_MRMS)
+        self.assertTrue(this_raw_file_name == RAW_FILE_NAME_MRMS)
 
     def test_rowcol_to_latlng(self):
         """Ensures correct output from rowcol_to_latlng."""

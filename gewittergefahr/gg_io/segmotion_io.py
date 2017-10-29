@@ -15,6 +15,9 @@ date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 """
 
 import os
+import gzip
+import tempfile
+import shutil
 import xml.etree.ElementTree as ElementTree
 import numpy
 import pandas
@@ -29,7 +32,7 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
-ZIPPED_FILE_EXTENSION = '.gz'
+GZIP_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
 STATS_DIR_NAME_PART = 'PolygonTable'
@@ -168,7 +171,7 @@ def _get_pathless_stats_file_name(unix_time_sec, zipped=True):
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
             time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
-            STATS_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
+            STATS_FILE_EXTENSION, GZIP_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
@@ -190,7 +193,7 @@ def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
             time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
-            POLYGON_FILE_EXTENSION, ZIPPED_FILE_EXTENSION)
+            POLYGON_FILE_EXTENSION, GZIP_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
@@ -308,6 +311,30 @@ def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
         os.rename(orig_polygon_dir_name, new_polygon_dir_name)
 
 
+def _open_xml_file(xml_file_name):
+    """Opens an XML file, which may or may not be gzipped.
+
+    :param xml_file_name: Path to input file.
+    :return: xml_tree: Instance of `xml.etree.ElementTree`.
+    """
+
+    gzip_as_input = xml_file_name.endswith(GZIP_FILE_EXTENSION)
+    if gzip_as_input:
+        gzip_file_object = gzip.open(xml_file_name, 'rb')
+        xml_temporary_file_object = tempfile.NamedTemporaryFile(delete=False)
+        shutil.copyfileobj(gzip_file_object, xml_temporary_file_object)
+
+        xml_file_name = xml_temporary_file_object.name
+        gzip_file_object.close()
+        xml_temporary_file_object.close()
+
+    xml_tree = ElementTree.parse(xml_file_name)
+    if gzip_as_input:
+        os.remove(xml_file_name)
+
+    return xml_tree
+
+
 def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
                         top_target_directory_name=None,
                         scales_to_extract_ordinal=None,
@@ -369,7 +396,7 @@ def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
 
 def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
                           top_raw_directory_name=None,
-                          tracking_scale_metres2=None, zipped=True,
+                          tracking_scale_metres2=None,
                           raise_error_if_missing=True):
     """Finds statistics file on local machine.
 
@@ -380,8 +407,6 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     :param spc_date_unix_sec: SPC date in Unix format.
     :param top_raw_directory_name: Top-level directory for raw segmotion files.
     :param tracking_scale_metres2: Tracking scale.
-    :param zipped: Boolean flag.  If True, will look for zipped file.  If False,
-        will look for unzipped file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: stats_file_name: File path.  If raise_error_if_missing = False and
@@ -391,18 +416,22 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
 
     error_checking.assert_is_string(top_raw_directory_name)
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
-    error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_stats_file_name(unix_time_sec,
-                                                       zipped=zipped)
     spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
-
     directory_name = '{0:s}/{1:s}'.format(
-        top_raw_directory_name,
-        _get_relative_stats_dir_physical_scale(spc_date_string,
-                                               tracking_scale_metres2))
+        top_raw_directory_name, _get_relative_stats_dir_physical_scale(
+            spc_date_string, tracking_scale_metres2))
+
+    pathless_file_name = _get_pathless_stats_file_name(
+        unix_time_sec, zipped=True)
     stats_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(stats_file_name):
+        pathless_file_name = _get_pathless_stats_file_name(
+            unix_time_sec, zipped=False)
+        stats_file_name = '{0:s}/{1:s}'.format(
+            directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(stats_file_name):
         raise ValueError(
@@ -414,7 +443,7 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
 
 def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
                             top_raw_directory_name=None,
-                            tracking_scale_metres2=None, zipped=True,
+                            tracking_scale_metres2=None,
                             raise_error_if_missing=True):
     """Finds polygon file on local machine.
 
@@ -425,7 +454,6 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     :param spc_date_unix_sec: See documentation for find_local_stats_file.
     :param top_raw_directory_name: See documentation for find_local_stats_file.
     :param tracking_scale_metres2: See documentation for find_local_stats_file.
-    :param zipped: See documentation for find_local_stats_file.
     :param raise_error_if_missing: See documentation for find_local_stats_file.
     :return: polygon_file_name: File path.  If raise_error_if_missing = False
         and file is missing, this will be the *expected* path.
@@ -434,18 +462,22 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
 
     error_checking.assert_is_string(top_raw_directory_name)
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
-    error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_polygon_file_name(unix_time_sec,
-                                                         zipped=zipped)
     spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
-
     directory_name = '{0:s}/{1:s}'.format(
-        top_raw_directory_name,
-        _get_relative_polygon_dir_physical_scale(spc_date_string,
-                                                 tracking_scale_metres2))
+        top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
+            spc_date_string, tracking_scale_metres2))
+
+    pathless_file_name = _get_pathless_polygon_file_name(
+        unix_time_sec, zipped=True)
     polygon_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(polygon_file_name):
+        pathless_file_name = _get_pathless_polygon_file_name(
+            unix_time_sec, zipped=False)
+        polygon_file_name = '{0:s}/{1:s}'.format(
+            directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(polygon_file_name):
         raise ValueError(
@@ -468,7 +500,7 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
     """
 
     error_checking.assert_file_exists(xml_file_name)
-    xml_tree = ElementTree.parse(xml_file_name)
+    xml_tree = _open_xml_file(xml_file_name)
 
     storm_dict = {}
     this_column_name = None
@@ -532,6 +564,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         following columns.
     polygon_table.storm_id: String ID for storm cell.
     polygon_table.unix_time_sec: Time in Unix format.
+    polygon_table.spc_date_unix_sec: SPC date in Unix format.
     polygon_table.centroid_lat_deg: Latitude at centroid of storm cell (deg N).
     polygon_table.centroid_lng_deg: Longitude at centroid of storm cell (deg E).
     polygon_table.grid_point_latitudes_deg: length-P numpy array with latitudes
@@ -584,6 +617,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     num_storms = len(polygon_table.index)
     unix_times_sec = numpy.full(
         num_storms, metadata_dict[radar_io.UNIX_TIME_COLUMN], dtype=int)
+    spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec)
 
     spc_date_string = radar_io.time_unix_sec_to_spc_date(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
@@ -597,6 +631,7 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
 
     argument_dict = {tracking_io.STORM_ID_COLUMN: storm_ids,
                      tracking_io.TIME_COLUMN: unix_times_sec,
+                     tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec,
                      tracking_io.CENTROID_LAT_COLUMN: simple_array,
                      tracking_io.CENTROID_LNG_COLUMN: simple_array,
                      tracking_io.GRID_POINT_LAT_COLUMN: nested_array,

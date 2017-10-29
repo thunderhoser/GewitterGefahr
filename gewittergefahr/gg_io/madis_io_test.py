@@ -19,20 +19,17 @@ CHAR_MATRIX = numpy.array([['f', 'o', 'o', 'b', 'a', 'r'],
 STRING_LIST = ['foobar', 'foo', 'moo', 'hal', 'p oo p']
 
 UNIX_TIME_SEC = 1506127260  # 0041 UTC 23 Sep 2017
-PATHLESS_ZIPPED_FILE_NAME = '20170923_0000.gz'
-PATHLESS_UNZIPPED_FILE_NAME = '20170923_0000.netcdf'
+PATHLESS_FILE_NAME = '20170923_0000.gz'
 
 SECONDARY_DATA_SOURCE_LDAD = 'crn'
 FTP_FILE_NAME_LDAD = 'archive/2017/09/23/LDAD/crn/netCDF/20170923_0000.gz'
 TOP_LOCAL_DIRECTORY_NAME = 'madis_data'
-ZIPPED_FILE_NAME_LDAD = 'madis_data/crn/201709/20170923_0000.gz'
-UNZIPPED_FILE_NAME_LDAD = 'madis_data/crn/201709/20170923_0000.netcdf'
+LOCAL_FILE_NAME_LDAD = 'madis_data/crn/201709/20170923_0000.gz'
 
 SECONDARY_DATA_SOURCE_NON_LDAD = 'maritime'
 FTP_FILE_NAME_NON_LDAD = (
     'archive/2017/09/23/point/maritime/netcdf/20170923_0000.gz')
-ZIPPED_FILE_NAME_NON_LDAD = 'madis_data/maritime/201709/20170923_0000.gz'
-UNZIPPED_FILE_NAME_NON_LDAD = 'madis_data/maritime/201709/20170923_0000.netcdf'
+LOCAL_FILE_NAME_NON_LDAD = 'madis_data/maritime/201709/20170923_0000.gz'
 
 STATION_IDS_FOR_TABLE = ['CYEG', 'CYYC', 'CYQF', 'CYXH', 'CYQL', 'CYQU', 'CYOD',
                          'CYOJ', 'CYMM']
@@ -227,82 +224,40 @@ class MadisIoTests(unittest.TestCase):
 
         self.assertTrue(this_wind_table.equals(WIND_TABLE_NO_LOW_QUALITY_DATA))
 
-    def test_get_pathless_raw_file_name_zipped(self):
-        """Ensures correct output from _get_pathless_raw_file_name.
-
-        In this case, looking for zipped file.
-        """
+    def test_get_pathless_raw_file_name(self):
+        """Ensures correct output from _get_pathless_raw_file_name."""
 
         this_pathless_file_name = madis_io._get_pathless_raw_file_name(
-            UNIX_TIME_SEC, zipped=True)
-        self.assertTrue(this_pathless_file_name == PATHLESS_ZIPPED_FILE_NAME)
+            UNIX_TIME_SEC)
+        self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME)
 
-    def test_get_pathless_raw_file_name_unzipped(self):
-        """Ensures correct output from _get_pathless_raw_file_name.
-
-        In this case, looking for unzipped file.
-        """
-
-        this_pathless_file_name = madis_io._get_pathless_raw_file_name(
-            UNIX_TIME_SEC, zipped=False)
-        self.assertTrue(this_pathless_file_name == PATHLESS_UNZIPPED_FILE_NAME)
-
-    def test_find_local_raw_file_ldad_zipped(self):
+    def test_find_local_raw_file_ldad(self):
         """Ensures correct output from find_local_raw_file.
 
-        In this case, looking for zipped file from secondary data source CRN,
-        which is part of the LDAD (Local Data Acquisition and Dissemination)
-        system.
+        In this case, looking for file from secondary data source CRN, which is
+        part of the LDAD (Local Data Acquisition and Dissemination) system.
         """
 
         this_file_name = madis_io.find_local_raw_file(
             unix_time_sec=UNIX_TIME_SEC,
             secondary_source=SECONDARY_DATA_SOURCE_LDAD,
-            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=True,
+            top_directory_name=TOP_LOCAL_DIRECTORY_NAME,
             raise_error_if_missing=False)
-        self.assertTrue(this_file_name == ZIPPED_FILE_NAME_LDAD)
+        self.assertTrue(this_file_name == LOCAL_FILE_NAME_LDAD)
 
-    def test_find_local_raw_file_ldad_unzipped(self):
+    def test_find_local_raw_file_non_ldad(self):
         """Ensures correct output from find_local_raw_file.
 
-        In this case, looking for unzipped file from secondary data source CRN,
-        which is part of LDAD.
-        """
-
-        this_file_name = madis_io.find_local_raw_file(
-            unix_time_sec=UNIX_TIME_SEC,
-            secondary_source=SECONDARY_DATA_SOURCE_LDAD,
-            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=False,
-            raise_error_if_missing=False)
-        self.assertTrue(this_file_name == UNZIPPED_FILE_NAME_LDAD)
-
-    def test_find_local_raw_file_non_ldad_zipped(self):
-        """Ensures correct output from find_local_raw_file.
-
-        In this case, looking for zipped file from secondary data source
-        "maritime", which is not part of LDAD.
+        In this case, looking for file from secondary data source "maritime",
+        which is not part of LDAD.
         """
 
         this_file_name = madis_io.find_local_raw_file(
             unix_time_sec=UNIX_TIME_SEC,
             secondary_source=SECONDARY_DATA_SOURCE_NON_LDAD,
-            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=True,
+            top_directory_name=TOP_LOCAL_DIRECTORY_NAME,
             raise_error_if_missing=False)
-        self.assertTrue(this_file_name == ZIPPED_FILE_NAME_NON_LDAD)
-
-    def test_find_local_raw_file_non_ldad_unzipped(self):
-        """Ensures correct output from find_local_raw_file.
-
-        In this case, looking for unzipped file from secondary data source
-        "maritime", which is not part of LDAD.
-        """
-
-        this_file_name = madis_io.find_local_raw_file(
-            unix_time_sec=UNIX_TIME_SEC,
-            secondary_source=SECONDARY_DATA_SOURCE_NON_LDAD,
-            top_directory_name=TOP_LOCAL_DIRECTORY_NAME, zipped=False,
-            raise_error_if_missing=False)
-        self.assertTrue(this_file_name == ZIPPED_FILE_NAME_NON_LDAD)
+        self.assertTrue(this_file_name == LOCAL_FILE_NAME_NON_LDAD)
 
 
 if __name__ == '__main__':

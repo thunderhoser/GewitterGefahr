@@ -38,10 +38,6 @@ STATS_FILE_NAME_ZIPPED = (
     'segmotion/20170910/PolygonTable/scale_50000000m2/20170910-181300.xml.gz')
 POLYGON_FILE_NAME_ZIPPED = (
     'segmotion/20170910/ClusterID/scale_50000000m2/20170910-181300.netcdf.gz')
-STATS_FILE_NAME_UNZIPPED = (
-    'segmotion/20170910/PolygonTable/scale_50000000m2/20170910-181300.xml')
-POLYGON_FILE_NAME_UNZIPPED = (
-    'segmotion/20170910/ClusterID/scale_50000000m2/20170910-181300.netcdf')
 
 STORM_IDS = ['0', '1', '2', '3']
 EAST_VELOCITIES_M_S01 = numpy.array([5., 7.5, 10., 8.])
@@ -230,61 +226,27 @@ class SegmotionIoTests(unittest.TestCase):
         self.assertTrue(
             this_relative_dir_name == RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE)
 
-    def test_find_local_stats_file_zipped(self):
-        """Ensures correct output from find_local_stats_file.
-
-        In this case the expected file is zipped.
-        """
+    def test_find_local_stats_file(self):
+        """Ensures correct output from find_local_stats_file."""
 
         this_stats_file_name = segmotion_io.find_local_stats_file(
             unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
             top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
-            tracking_scale_metres2=TRACKING_SCALE_METRES2, zipped=True,
+            tracking_scale_metres2=TRACKING_SCALE_METRES2,
             raise_error_if_missing=False)
 
         self.assertTrue(this_stats_file_name == STATS_FILE_NAME_ZIPPED)
 
-    def test_find_local_polygon_file_zipped(self):
-        """Ensures correct output from find_local_polygon_file.
-
-        In this case the expected file is zipped.
-        """
+    def test_find_local_polygon_file(self):
+        """Ensures correct output from find_local_polygon_file."""
 
         this_polygon_file_name = segmotion_io.find_local_polygon_file(
             unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
             top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
-            tracking_scale_metres2=TRACKING_SCALE_METRES2, zipped=True,
+            tracking_scale_metres2=TRACKING_SCALE_METRES2,
             raise_error_if_missing=False)
 
         self.assertTrue(this_polygon_file_name == POLYGON_FILE_NAME_ZIPPED)
-
-    def test_find_local_stats_file_unzipped(self):
-        """Ensures correct output from find_local_stats_file.
-
-        In this case the expected file is unzipped.
-        """
-
-        this_stats_file_name = segmotion_io.find_local_stats_file(
-            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
-            top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
-            tracking_scale_metres2=TRACKING_SCALE_METRES2, zipped=False,
-            raise_error_if_missing=False)
-
-        self.assertTrue(this_stats_file_name == STATS_FILE_NAME_UNZIPPED)
-
-    def test_find_local_polygon_file_unzipped(self):
-        """Ensures correct output from find_local_polygon_file.
-
-        In this case the expected file is unzipped.
-        """
-
-        this_polygon_file_name = segmotion_io.find_local_polygon_file(
-            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
-            top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
-            tracking_scale_metres2=TRACKING_SCALE_METRES2, zipped=False,
-            raise_error_if_missing=False)
-
-        self.assertTrue(this_polygon_file_name == POLYGON_FILE_NAME_UNZIPPED)
 
     def test_join_stats_and_polygons(self):
         """Ensures correct output from join_stats_and_polygons."""

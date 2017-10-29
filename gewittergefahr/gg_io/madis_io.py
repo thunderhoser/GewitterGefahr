@@ -25,7 +25,6 @@ import pandas
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import raw_wind_io
-from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -33,8 +32,7 @@ from gewittergefahr.gg_utils import error_checking
 
 FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
 FTP_ROOT_DIRECTORY_NAME = 'archive'
-ZIPPED_FILE_EXTENSION = '.gz'
-UNZIPPED_FILE_EXTENSION = '.netcdf'
+RAW_FILE_EXTENSION = '.gz'
 
 SECONDARY_SOURCES_IN_LDAD = [
     raw_wind_io.MADIS_COOP_DATA_SOURCE, raw_wind_io.MADIS_CRN_DATA_SOURCE,
@@ -139,7 +137,7 @@ def _get_ftp_file_name(unix_time_sec, secondary_source):
     :return: ftp_file_name: Expected path to raw file on FTP server.
     """
 
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
 
     if secondary_source in SECONDARY_SOURCES_IN_LDAD:
         first_subdir_name = 'LDAD'
@@ -221,53 +219,20 @@ def _remove_low_quality_data(wind_table):
                         axis=1)]
 
 
-def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
+def _get_pathless_raw_file_name(unix_time_sec):
     """Generates pathless name for raw MADIS file.
 
     :param unix_time_sec: Time in Unix format.
-    :param zipped: Boolean flag.  If True, will generate name for zipped file.
-        If False, will generate name for unzipped file.
     :return: pathless_raw_file_name: Pathless name for raw MADIS file.
     """
 
-    if zipped:
-        return '{0:s}{1:s}'.format(
-            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_HOUR),
-            ZIPPED_FILE_EXTENSION)
-
     return '{0:s}{1:s}'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_HOUR),
-        UNZIPPED_FILE_EXTENSION)
-
-
-def extract_netcdf_from_gzip(unix_time_sec=None, secondary_source=None,
-                             top_raw_directory_name=None):
-    """Extracts NetCDF file from gzip archive.
-
-    :param unix_time_sec: Valid time.
-    :param secondary_source: String ID for secondary data source.
-    :param top_raw_directory_name: Name of top-level directory with raw MADIS
-        files.
-    :return: netcdf_file_name: Path to output file.
-    """
-
-    gzip_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, secondary_source=secondary_source,
-        top_directory_name=top_raw_directory_name, zipped=True,
-        raise_error_if_missing=True)
-
-    netcdf_file_name = find_local_raw_file(
-        unix_time_sec=unix_time_sec, secondary_source=secondary_source,
-        top_directory_name=top_raw_directory_name, zipped=False,
-        raise_error_if_missing=True)
-
-    unzipping.unzip_gzip(gzip_file_name, netcdf_file_name)
-    return netcdf_file_name
+        RAW_FILE_EXTENSION)
 
 
 def find_local_raw_file(unix_time_sec=None, secondary_source=None,
-                        top_directory_name=None, zipped=True,
-                        raise_error_if_missing=True):
+                        top_directory_name=None, raise_error_if_missing=True):
     """Finds raw file on local machine.
 
     This file should contain all fields for one secondary data source and one
@@ -276,8 +241,6 @@ def find_local_raw_file(unix_time_sec=None, secondary_source=None,
     :param unix_time_sec: Valid time.
     :param secondary_source: String ID for secondary data source.
     :param top_directory_name: Name of top-level directory with raw MADIS files.
-    :param zipped: Boolean flag.  If True, will look for zipped file.  If False,
-        will look for unzipped file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
     :return: raw_file_name: Path to raw file.  If raise_error_if_missing = False
@@ -288,11 +251,9 @@ def find_local_raw_file(unix_time_sec=None, secondary_source=None,
     raw_wind_io.check_data_sources(
         raw_wind_io.MADIS_DATA_SOURCE, secondary_source)
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_raw_file_name(
-        unix_time_sec, zipped=zipped)
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
 
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name, secondary_source,
@@ -331,7 +292,7 @@ def download_gzip_from_ftp(unix_time_sec=None, secondary_source=None,
 
     local_gzip_file_name = find_local_raw_file(
         unix_time_sec=unix_time_sec, secondary_source=secondary_source,
-        top_directory_name=top_local_directory_name, zipped=True,
+        top_directory_name=top_local_directory_name,
         raise_error_if_missing=False)
 
     return downloads.download_file_via_ftp(
