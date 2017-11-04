@@ -9,6 +9,7 @@ package for the visualization and analysis of thunderstorm-related data.
 """
 
 import os
+import glob
 import gzip
 import tempfile
 import shutil
@@ -22,6 +23,7 @@ from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
@@ -33,7 +35,12 @@ STATS_DIR_NAME_PART = 'PolygonTable'
 POLYGON_DIR_NAME_PART = 'ClusterID'
 
 SENTINEL_VALUE = -9999
-TIME_FORMAT_ORIG = '%Y%m%d-%H%M%S'
+TIME_FORMAT_IN_FILES = '%Y%m%d-%H%M%S'
+TIME_FORMAT_IN_FILES_HOUR_ONLY = '%Y%m%d-%H'
+
+SPC_DATE_START_HOUR = 11
+SPC_DATE_END_HOUR = 37
+HOURS_TO_SECONDS = 3600
 
 STORM_ID_COLUMN_ORIG = 'RowName'
 EAST_VELOCITY_COLUMN_ORIG = 'MotionEast'
@@ -54,16 +61,16 @@ MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
 XML_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-124818_'
+    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-130318_'
     'TrackingTable_0050.00.xml')
 
 NETCDF_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
+    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-130318.netcdf')
 
 PICKLE_FILE_NAME = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed/'
-    '20040811/scale_50000000m2/segmotion_2004-08-11-124818.p')
+    '20040811/scale_50000000m2/segmotion_2004-08-11-130318.p')
 
 
 def _xml_column_name_orig_to_new(column_name_orig):
@@ -164,11 +171,12 @@ def _get_pathless_stats_file_name(unix_time_sec, zipped=True):
 
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
+            time_conversion.unix_sec_to_string(
+                unix_time_sec, TIME_FORMAT_IN_FILES),
             STATS_FILE_EXTENSION, GZIP_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_IN_FILES),
         STATS_FILE_EXTENSION)
 
 
@@ -186,11 +194,12 @@ def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
 
     if zipped:
         return '{0:s}{1:s}{2:s}'.format(
-            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
+            time_conversion.unix_sec_to_string(
+                unix_time_sec, TIME_FORMAT_IN_FILES),
             POLYGON_FILE_EXTENSION, GZIP_FILE_EXTENSION)
 
     return '{0:s}{1:s}'.format(
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_ORIG),
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_IN_FILES),
         POLYGON_FILE_EXTENSION)
 
 
@@ -397,14 +406,16 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     This file should contain storm stats (everything except polygons) for one
     time step and one tracking scale.
 
-    :param unix_time_sec: Time in Unix format.
-    :param spc_date_unix_sec: SPC date in Unix format.
-    :param top_raw_directory_name: Top-level directory for raw segmotion files.
+    :param unix_time_sec: Valid time.
+    :param spc_date_unix_sec: SPC date.
+    :param top_raw_directory_name: Name of top-level directory with raw
+        segmotion files.
     :param tracking_scale_metres2: Tracking scale.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
-    :return: stats_file_name: File path.  If raise_error_if_missing = False and
-        file is missing, this will be the *expected* path.
+    :return: stats_file_name: Path to statistics file.  If
+        raise_error_if_missing = False and file is missing, this will be the
+        *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
@@ -444,13 +455,16 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     This file should contain storm outlines (polygons) for one time step and one
     tracking scale.
 
-    :param unix_time_sec: See documentation for find_local_stats_file.
-    :param spc_date_unix_sec: See documentation for find_local_stats_file.
-    :param top_raw_directory_name: See documentation for find_local_stats_file.
-    :param tracking_scale_metres2: See documentation for find_local_stats_file.
-    :param raise_error_if_missing: See documentation for find_local_stats_file.
-    :return: polygon_file_name: File path.  If raise_error_if_missing = False
-        and file is missing, this will be the *expected* path.
+    :param unix_time_sec: Valid time.
+    :param spc_date_unix_sec: SPC date.
+    :param top_raw_directory_name: Name of top-level directory with raw
+        segmotion files.
+    :param tracking_scale_metres2: Tracking scale.
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.
+    :return: polygon_file_name: Path to polygon file.  If
+        raise_error_if_missing = False and file is missing, this will be the
+        *expected* path.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
@@ -479,6 +493,113 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
             polygon_file_name)
 
     return polygon_file_name
+
+
+def find_polygon_files_for_spc_date(spc_date_unix_sec=None,
+                                    top_raw_directory_name=None,
+                                    tracking_scale_metres2=None,
+                                    raise_error_if_missing=True):
+    """Finds all polygon files for one SPC date.
+
+    :param spc_date_unix_sec: SPC date.
+    :param top_raw_directory_name: Name of top-level directory with raw
+        segmotion files.
+    :param tracking_scale_metres2: Tracking scale.
+    :param raise_error_if_missing: If True and no files can be found, this
+        method will raise an error.
+    :return: polygon_file_names: 1-D list of paths to polygon files.
+    """
+
+    error_checking.assert_is_string(top_raw_directory_name)
+
+    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
+    directory_name = '{0:s}/{1:s}'.format(
+        top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
+            spc_date_string, tracking_scale_metres2))
+
+    first_hour_unix_sec = SPC_DATE_START_HOUR * HOURS_TO_SECONDS + (
+        time_conversion.string_to_unix_sec(
+            spc_date_string, time_conversion.SPC_DATE_FORMAT))
+    last_hour_unix_sec = SPC_DATE_END_HOUR * HOURS_TO_SECONDS + (
+        time_conversion.string_to_unix_sec(
+            spc_date_string, time_conversion.SPC_DATE_FORMAT))
+    hours_in_spc_date_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_hour_unix_sec,
+        end_time_unix_sec=last_hour_unix_sec,
+        time_interval_sec=HOURS_TO_SECONDS, include_endpoint=True)
+
+    polygon_file_names = []
+    for this_hour_unix_sec in hours_in_spc_date_unix_sec:
+        this_time_string_seconds = time_conversion.unix_sec_to_string(
+            this_hour_unix_sec, TIME_FORMAT_IN_FILES)
+        this_time_string_hours = time_conversion.unix_sec_to_string(
+            this_hour_unix_sec, TIME_FORMAT_IN_FILES_HOUR_ONLY) + '*'
+
+        this_pathless_file_name_zipped = _get_pathless_polygon_file_name(
+            this_hour_unix_sec, zipped=True)
+        this_pathless_file_pattern_zipped = (
+            this_pathless_file_name_zipped.replace(
+                this_time_string_seconds, this_time_string_hours))
+        this_file_pattern_zipped = '{0:s}/{1:s}'.format(
+            directory_name, this_pathless_file_pattern_zipped)
+
+        these_polygon_file_names_zipped = glob.glob(this_file_pattern_zipped)
+        if these_polygon_file_names_zipped:
+            polygon_file_names += these_polygon_file_names_zipped
+
+        this_pathless_file_name_unzipped = _get_pathless_polygon_file_name(
+            this_hour_unix_sec, zipped=False)
+        this_pathless_file_pattern_unzipped = (
+            this_pathless_file_name_unzipped.replace(
+                this_time_string_seconds, this_time_string_hours))
+        this_file_pattern_unzipped = '{0:s}/{1:s}'.format(
+            directory_name, this_pathless_file_pattern_unzipped)
+
+        these_polygon_file_names_unzipped = glob.glob(
+            this_file_pattern_unzipped)
+        for this_file_name_unzipped in these_polygon_file_names_unzipped:
+            this_file_name_zipped = (
+                this_file_name_unzipped + GZIP_FILE_EXTENSION)
+            if this_file_name_zipped in polygon_file_names:
+                continue
+
+            polygon_file_names.append(this_file_name_unzipped)
+
+    if raise_error_if_missing and not polygon_file_names:
+        raise ValueError(
+            'Cannot find any polygon files in directory: ' + directory_name)
+
+    polygon_file_names.sort()
+    return polygon_file_names
+
+
+def get_start_end_times_for_spc_date(spc_date_unix_sec=None,
+                                     top_raw_directory_name=None,
+                                     tracking_scale_metres2=None):
+    """Returns first and last tracking times for SPC date.
+
+    :param spc_date_unix_sec: SPC date.
+    :param top_raw_directory_name: Name of top-level directory with raw
+        segmotion files.
+    :param tracking_scale_metres2: Tracking scale.
+    :return: start_time_unix_sec: First tracking time for SPC date.
+    :return: end_time_unix_sec: Last tracking time for SPC date.
+    """
+
+    polygon_file_names = find_polygon_files_for_spc_date(
+        spc_date_unix_sec=spc_date_unix_sec,
+        top_raw_directory_name=top_raw_directory_name,
+        tracking_scale_metres2=tracking_scale_metres2)
+
+    first_metadata_dict = radar_io.read_metadata_from_raw_file(
+        polygon_file_names[0], data_source=radar_io.MYRORSS_SOURCE_ID)
+    start_time_unix_sec = first_metadata_dict[radar_io.UNIX_TIME_COLUMN]
+
+    last_metadata_dict = radar_io.read_metadata_from_raw_file(
+        polygon_file_names[-1], data_source=radar_io.MYRORSS_SOURCE_ID)
+    end_time_unix_sec = last_metadata_dict[radar_io.UNIX_TIME_COLUMN]
+
+    return start_time_unix_sec, end_time_unix_sec
 
 
 def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
@@ -537,9 +658,10 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
     return tracking_io.remove_rows_with_nan(stats_table)
 
 
-def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
-                              spc_date_unix_sec=None,
-                              raise_error_if_fails=True):
+def read_polygons_from_netcdf(
+        netcdf_file_name, metadata_dict=None, spc_date_unix_sec=None,
+        tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
+        raise_error_if_fails=True):
     """Reads storm polygons (outlines of storm cells) from NetCDF file.
 
     P = number of grid points in storm cell (different for each storm cell)
@@ -548,17 +670,23 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     If file cannot be opened, returns None.
 
     :param netcdf_file_name: Path to input file.
-    :param metadata_dict: Dictionary with metadata from NetCDF file, in format
-        produced by `radar_io.read_metadata_from_raw_file`.
-    :param spc_date_unix_sec: SPC date in Unix format.
-    :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
-        and file cannot be opened, will raise error.
+    :param metadata_dict: Dictionary with metadata for NetCDF file, created by
+        `radar_io.read_metadata_from_raw_file`.
+    :param spc_date_unix_sec: SPC date;
+    :param tracking_start_time_unix_sec: Start time for tracking period.  This
+        can be found by `get_start_end_times_for_spc_date`.
+    :param tracking_end_time_unix_sec: End time for tracking period.  This can
+        be found by `get_start_end_times_for_spc_date`.
+    :param raise_error_if_fails: Boolean flag.  If True and file cannot be
+        opened, this method will raise an error.
     :return: polygon_table: If file cannot be opened and raise_error_if_fails =
         False, this is None.  Otherwise, it is a pandas DataFrame with the
         following columns.
     polygon_table.storm_id: String ID for storm cell.
     polygon_table.unix_time_sec: Time in Unix format.
     polygon_table.spc_date_unix_sec: SPC date in Unix format.
+    polygon_table.tracking_start_time_unix_sec: Start time for tracking period.
+    polygon_table.tracking_end_time_unix_sec: End time for tracking period.
     polygon_table.centroid_lat_deg: Latitude at centroid of storm cell (deg N).
     polygon_table.centroid_lng_deg: Longitude at centroid of storm cell (deg E).
     polygon_table.grid_point_latitudes_deg: length-P numpy array with latitudes
@@ -576,6 +704,13 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
+    error_checking.assert_is_integer(spc_date_unix_sec)
+    error_checking.assert_is_not_nan(spc_date_unix_sec)
+    error_checking.assert_is_integer(tracking_start_time_unix_sec)
+    error_checking.assert_is_not_nan(tracking_start_time_unix_sec)
+    error_checking.assert_is_integer(tracking_end_time_unix_sec)
+    error_checking.assert_is_not_nan(tracking_end_time_unix_sec)
+
     netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
                                            raise_error_if_fails)
     if netcdf_dataset is None:
@@ -603,15 +738,18 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
                 netcdf_dataset.variables[storm_id_var_name_orig][:]}
 
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
-    (numeric_storm_id_matrix, _, _) = (
+    numeric_storm_id_matrix, _, _ = (
         radar_s2f.sparse_to_full_grid(sparse_grid_table, metadata_dict))
-
     polygon_table = _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix)
 
     num_storms = len(polygon_table.index)
     unix_times_sec = numpy.full(
         num_storms, metadata_dict[radar_io.UNIX_TIME_COLUMN], dtype=int)
-    spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec)
+    spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
+    tracking_start_times_unix_sec = numpy.full(
+        num_storms, tracking_start_time_unix_sec, dtype=int)
+    tracking_end_times_unix_sec = numpy.full(
+        num_storms, tracking_end_time_unix_sec, dtype=int)
 
     spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
@@ -623,15 +761,18 @@ def read_polygons_from_netcdf(netcdf_file_name, metadata_dict=None,
         tracking_io.STORM_ID_COLUMN,
         tracking_io.STORM_ID_COLUMN]].values.tolist()
 
-    argument_dict = {tracking_io.STORM_ID_COLUMN: storm_ids,
-                     tracking_io.TIME_COLUMN: unix_times_sec,
-                     tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec,
-                     tracking_io.CENTROID_LAT_COLUMN: simple_array,
-                     tracking_io.CENTROID_LNG_COLUMN: simple_array,
-                     tracking_io.GRID_POINT_LAT_COLUMN: nested_array,
-                     tracking_io.GRID_POINT_LNG_COLUMN: nested_array,
-                     tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
-                     tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
+    argument_dict = {
+        tracking_io.STORM_ID_COLUMN: storm_ids,
+        tracking_io.TIME_COLUMN: unix_times_sec,
+        tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec,
+        tracking_io.TRACKING_START_TIME_COLUMN: tracking_start_times_unix_sec,
+        tracking_io.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
+        tracking_io.CENTROID_LAT_COLUMN: simple_array,
+        tracking_io.CENTROID_LNG_COLUMN: simple_array,
+        tracking_io.GRID_POINT_LAT_COLUMN: nested_array,
+        tracking_io.GRID_POINT_LNG_COLUMN: nested_array,
+        tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
+        tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
     polygon_table = polygon_table.assign(**argument_dict)
 
     for i in range(num_storms):

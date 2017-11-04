@@ -44,6 +44,10 @@ GRID_LNG_SPACING_DEG = 0.01
 NUM_GRID_ROWS = 3501
 NUM_GRID_COLUMNS = 7001
 
+# Dummy variables (0000 UTC 1 Jan 1970 and 0520 UTC 24 Jan 2065).
+TRACKING_START_TIME_UNIX_SEC = 0
+TRACKING_END_TIME_UNIX_SEC = int(3e9)
+
 # The following constants are used only in the main method.
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
@@ -132,6 +136,10 @@ def read_storm_objects_from_raw_file(json_file_name):
     storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Time in Unix format.
     storm_object_table.spc_date_unix_sec: SPC date in Unix format.
+    storm_object_table.tracking_start_time_unix_sec: Start time for tracking
+        period.
+    storm_object_table.tracking_end_time_unix_sec: End time for tracking
+        period.
     storm_object_table.east_velocity_m_s01: Eastward velocity (m/s).
     storm_object_table.north_velocity_m_s01: Northward velocity (m/s).
     storm_object_table.age_sec: Age of storm cell (seconds).
@@ -165,6 +173,10 @@ def read_storm_objects_from_raw_file(json_file_name):
     num_storms = len(probsevere_dict[FEATURES_COLUMN_ORIG])
     unix_times_sec = numpy.full(num_storms, unix_time_sec, dtype=int)
     spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
+    tracking_start_times_unix_sec = numpy.full(
+        num_storms, TRACKING_START_TIME_UNIX_SEC, dtype=int)
+    tracking_end_times_unix_sec = numpy.full(
+        num_storms, TRACKING_END_TIME_UNIX_SEC, dtype=int)
 
     storm_ids = [None] * num_storms
     east_velocities_m_s01 = numpy.full(num_storms, numpy.nan)
@@ -186,7 +198,9 @@ def read_storm_objects_from_raw_file(json_file_name):
         tracking_io.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
         tracking_io.NORTH_VELOCITY_COLUMN: north_velocities_m_s01,
         tracking_io.TIME_COLUMN: unix_times_sec,
-        tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec}
+        tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec,
+        tracking_io.TRACKING_START_TIME_COLUMN: tracking_start_times_unix_sec,
+        tracking_io.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec}
     storm_object_table = pandas.DataFrame.from_dict(storm_object_dict)
     storm_object_table = tracking_io.remove_rows_with_nan(storm_object_table)
 

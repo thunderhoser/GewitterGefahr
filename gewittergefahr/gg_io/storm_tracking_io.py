@@ -1,10 +1,8 @@
 """IO methods for storm-tracking output (both polygons and track statistics)."""
 
 import os
-import glob
 import pickle
 import numpy
-from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import time_conversion
@@ -36,13 +34,16 @@ GRID_POINT_ROW_COLUMN = 'grid_point_rows'
 GRID_POINT_COLUMN_COLUMN = 'grid_point_columns'
 POLYGON_OBJECT_LATLNG_COLUMN = 'polygon_object_latlng'
 POLYGON_OBJECT_ROWCOL_COLUMN = 'polygon_object_rowcol'
+TRACKING_START_TIME_COLUMN = 'tracking_start_time_unix_sec'
+TRACKING_END_TIME_COLUMN = 'tracking_end_time_unix_sec'
 
 MANDATORY_COLUMNS = [
     STORM_ID_COLUMN, TIME_COLUMN, SPC_DATE_COLUMN, EAST_VELOCITY_COLUMN,
     NORTH_VELOCITY_COLUMN, AGE_COLUMN, CENTROID_LAT_COLUMN, CENTROID_LNG_COLUMN,
     GRID_POINT_LAT_COLUMN, GRID_POINT_LNG_COLUMN, GRID_POINT_ROW_COLUMN,
     GRID_POINT_COLUMN_COLUMN, POLYGON_OBJECT_LATLNG_COLUMN,
-    POLYGON_OBJECT_ROWCOL_COLUMN]
+    POLYGON_OBJECT_ROWCOL_COLUMN, TRACKING_START_TIME_COLUMN,
+    TRACKING_END_TIME_COLUMN]
 
 BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_buffer'
 
@@ -301,58 +302,6 @@ def find_processed_file(unix_time_sec=None, data_source=None,
     return processed_file_name
 
 
-def find_processed_segmotion_files_from_dates(spc_dates_unix_sec,
-                                              top_processed_dir_name=None,
-                                              tracking_scale_metres2=None,
-                                              raise_error_if_date_missing=True):
-    """Finds processed segmotion files from one or more SPC dates.
-
-    N = number of SPC dates
-
-    :param spc_dates_unix_sec: length-N numpy array of SPC dates (Unix format).
-    :param top_processed_dir_name: Top-level directory for processed segmotion
-        files.
-    :param tracking_scale_metres2: Tracking scale.
-    :param raise_error_if_date_missing: Boolean flag.  If
-        raise_error_if_date_missing = True and there is any SPC date with no
-        files, will raise an error.
-    :return: processed_file_names: 1-D list of paths to processed files.
-    :raises: ValueError: if raise_error_if_date_missing = True and there is any
-        SPC date with no files.
-    """
-
-    error_checking.assert_is_numpy_array(spc_dates_unix_sec, num_dimensions=1)
-    error_checking.assert_is_string(top_processed_dir_name)
-    error_checking.assert_is_boolean(raise_error_if_date_missing)
-
-    processed_file_names = []
-    num_spc_dates = len(spc_dates_unix_sec)
-
-    for i in range(num_spc_dates):
-        this_relative_dir_name = _get_relative_processed_directory(
-            data_source=SEGMOTION_SOURCE_ID,
-            spc_date_unix_sec=spc_dates_unix_sec[i],
-            tracking_scale_metres2=tracking_scale_metres2)
-        this_directory_name = '{0:s}/{1:s}'.format(top_processed_dir_name,
-                                                   this_relative_dir_name)
-        this_file_pattern = '{0:s}/{1:s}_{2:s}*{3:s}'.format(
-            this_directory_name, PROCESSED_FILE_PREFIX, SEGMOTION_SOURCE_ID,
-            PROCESSED_FILE_EXTENSION)
-
-        these_processed_file_names = glob.glob(this_file_pattern)
-        if not these_processed_file_names:
-            if not raise_error_if_date_missing:
-                continue
-
-            error_string = ('Cannot find any processed files in directory: ' +
-                            this_directory_name)
-            raise ValueError(error_string)
-
-        processed_file_names += these_processed_file_names
-
-    return processed_file_names
-
-
 def write_processed_file(storm_object_table, pickle_file_name):
     """Writes tracking data to file.
 
@@ -364,7 +313,11 @@ def write_processed_file(storm_object_table, pickle_file_name):
     :param storm_object_table: pandas DataFrame with at least the following
         columns.
     storm_object_table.storm_id: String ID for storm cell.
-    storm_object_table.unix_time_sec: Time in Unix format.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.spc_date_unix_sec: SPC date.
+    storm_object_table.tracking_start_time_unix_sec: Start time for tracking
+        period.
+    storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
     storm_object_table.east_velocity_m_s01: Eastward velocity (m/s).
     storm_object_table.north_velocity_m_s01: Northward velocity (m/s).
     storm_object_table.age_sec: Age of storm cell (seconds).
