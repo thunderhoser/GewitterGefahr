@@ -13,18 +13,22 @@ LL_SHEAR_NAME_MRMS = radar_io.LOW_LEVEL_SHEAR_NAME_MRMS
 LL_SHEAR_NAME_NEW = radar_io.LOW_LEVEL_SHEAR_NAME
 LL_SHEAR_NAME_NEW_FAKE = 'poop'
 
+# The following constants are used to test _get_valid_heights_for_field.
 SHEAR_HEIGHTS_M_AGL = numpy.array([0])
 NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array([250])
 NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([500])
 
+# The following constants are used to test _check_reflectivity_heights.
 REFL_HEIGHTS_M_AGL = numpy.array([500, 1000, 2000, 3000, 5000, 10000])
 REFL_HEIGHTS_ONE_BAD_M_AGL = numpy.array([500, 1000, 2000, 3456, 5000, 10000])
 
+# The following constants are used to test _get_pathless_raw_file_name.
 FILE_TIME_UNIX_SEC = 1507234802  # 202002 UTC 5 Oct 2017
 FILE_SPC_DATE_UNIX_SEC = 1507234802
 PATHLESS_ZIPPED_FILE_NAME = '20171005-202002.netcdf.gz'
 PATHLESS_UNZIPPED_FILE_NAME = '20171005-202002.netcdf'
 
+# The following constants are used to test field_and_height_arrays_to_dict.
 UNIQUE_FIELD_NAMES = [
     'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
     'reflectivity_column_max_dbz']
@@ -42,6 +46,7 @@ FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL = {
     'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
     'reflectivity_column_max_dbz': numpy.array([500])}
 
+# The following constants are used to test unique_fields_and_heights_to_pairs.
 FIELD_NAME_BY_PAIR = [
     'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
     'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
@@ -52,6 +57,7 @@ HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
 HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
     [500, 0, 250, 500, 750, 1000, 5000, 10000, 20000, 500])
 
+# The following constants are used to test _remove_sentinels_from_sparse_grid.
 THESE_GRID_ROWS = numpy.linspace(0, 10, num=11, dtype=int)
 THESE_GRID_COLUMNS = numpy.linspace(0, 10, num=11, dtype=int)
 THESE_NUM_GRID_CELLS = numpy.linspace(0, 10, num=11, dtype=int)
@@ -75,9 +81,25 @@ SPARSE_GRID_TABLE_NO_SENTINELS = SPARSE_GRID_TABLE_WITH_SENTINELS.drop(
     SPARSE_GRID_TABLE_WITH_SENTINELS.index[THESE_SENTINEL_INDICES], axis=0,
     inplace=False)
 
+# The following constants are used to test _remove_sentinels_from_full_grid.
+FIELD_MATRIX_WITH_SENTINELS = numpy.array([
+    [0, 1, 2],
+    [3, SENTINEL_VALUES[0], 5],
+    [SENTINEL_VALUES[1], 7, 8],
+    [9, 10, SENTINEL_VALUES[1]],
+    [12, 13, SENTINEL_VALUES[0]]])
+FIELD_MATRIX_NO_SENTINELS = numpy.array([
+    [0, 1, 2],
+    [3, numpy.nan, 5],
+    [numpy.nan, 7, 8],
+    [9, 10, numpy.nan],
+    [12, 13, numpy.nan]])
+
+# The following constants are used to test get_relative_dir_for_raw_files.
 RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.00'
 RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.00'
 
+# The following constants are used to test find_raw_file.
 TOP_RAW_DIRECTORY_NAME = 'radar'
 RAW_FILE_NAME_MYRORSS = (
     'radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
@@ -85,6 +107,8 @@ RAW_FILE_NAME_MYRORSS = (
 RAW_FILE_NAME_MRMS = (
     'radar/20171005/' + LL_SHEAR_NAME_MRMS + '/00.00/20171005-202002.netcdf.gz')
 
+# The following constants are used to test rowcol_to_latlng and
+# latlng_to_rowcol.
 NW_GRID_POINT_LAT_DEG = 55.
 NW_GRID_POINT_LNG_DEG = 230.
 LAT_SPACING_DEG = 0.01
@@ -98,6 +122,7 @@ GRID_POINT_LONGITUDES_DEG = numpy.array(
     [230., 230.01, 230.02, 230.03, 230.04, 230.05, 230.06, 230.07, 230.08,
      230.09, 230.1])
 
+# The following constants are used to test get_center_of_grid.
 NUM_GRID_ROWS = 3501
 NUM_GRID_COLUMNS = 7001
 GRID_CENTER_LATITUDE_DEG = 37.5
@@ -320,15 +345,24 @@ class RadarIoTests(unittest.TestCase):
             FILE_TIME_UNIX_SEC, zipped=False)
         self.assertTrue(this_pathless_file_name == PATHLESS_UNZIPPED_FILE_NAME)
 
-    def test_remove_sentinels(self):
-        """Ensures correct output from _remove_sentinels."""
+    def test_remove_sentinels_from_sparse_grid(self):
+        """Ensures correct output from _remove_sentinels_from_sparse_grid."""
 
-        this_sparse_grid_table = radar_io._remove_sentinels(
+        this_sparse_grid_table = radar_io._remove_sentinels_from_sparse_grid(
             SPARSE_GRID_TABLE_WITH_SENTINELS,
             field_name=RADAR_FIELD_WITH_SENTINELS,
             sentinel_values=SENTINEL_VALUES)
         self.assertTrue(
             this_sparse_grid_table.equals(SPARSE_GRID_TABLE_NO_SENTINELS))
+
+    def test_remove_sentinels_from_full_grid(self):
+        """Ensures correct output from _remove_sentinels_from_full_grid."""
+
+        this_field_matrix = radar_io._remove_sentinels_from_full_grid(
+            FIELD_MATRIX_WITH_SENTINELS, SENTINEL_VALUES)
+        self.assertTrue(numpy.allclose(
+            this_field_matrix, FIELD_MATRIX_NO_SENTINELS, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_field_and_height_arrays_to_dict_myrorss(self):
         """Ensures correct output from field_and_height_arrays_to_dict.

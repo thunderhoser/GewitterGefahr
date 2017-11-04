@@ -556,7 +556,7 @@ def get_stats_for_storm_objects(
                         metadata_dict_for_this_field))
 
             sparse_grid_table_this_field = (
-                radar_io.read_sparse_grid_from_raw_file(
+                radar_io.read_data_from_sparse_grid_file(
                     radar_file_name_matrix[i, j],
                     field_name_orig=metadata_dict_for_this_field[
                         radar_io.FIELD_NAME_COLUMN_ORIG],

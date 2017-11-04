@@ -24,7 +24,7 @@ def _convert(sparse_grid_table, field_name=None, num_grid_rows=None,
     N = number of columns (unique grid-point longitudes)
 
     :param sparse_grid_table: pandas DataFrame created by
-        `radar_io.read_sparse_grid_from_raw_file`.
+        `radar_io.read_data_from_sparse_grid_file`.
     :param field_name: Name of radar field (also column name in
         sparse_grid_table).
     :param num_grid_rows: Number of unique grid-point latitudes.
@@ -73,7 +73,7 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict):
     N = number of columns (unique grid-point longitudes)
 
     :param sparse_grid_table: pandas DataFrame created by
-        `radar_io.read_sparse_grid_from_raw_file`.
+        `radar_io.read_data_from_sparse_grid_file`.
     :param metadata_dict: Dictionary created by
         `radar_io.read_metadata_from_raw_file`.
     :return: full_matrix: M-by-N numpy array of radar values.
