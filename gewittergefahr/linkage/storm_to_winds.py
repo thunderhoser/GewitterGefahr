@@ -34,8 +34,9 @@ MAX_LINKAGE_DIST_DEFAULT_METRES = 30000.
 
 STORM_COLUMNS_TO_READ = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
-    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN]
+    tracking_io.TRACKING_START_TIME_COLUMN,
+    tracking_io.TRACKING_END_TIME_COLUMN, tracking_io.CENTROID_LAT_COLUMN,
+    tracking_io.CENTROID_LNG_COLUMN, tracking_io.POLYGON_OBJECT_LATLNG_COLUMN]
 
 WIND_COLUMNS_TO_READ = [
     raw_wind_io.STATION_ID_COLUMN, raw_wind_io.LATITUDE_COLUMN,
@@ -743,6 +744,9 @@ def _read_storm_objects(processed_file_names):
         columns.
     storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.tracking_start_time_unix_sec: Start time for tracking
+        period.
+    storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
     storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
     storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
     storm_object_table.polygon_object_latlng: Instance of
@@ -878,6 +882,10 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
         where each row is one storm object.
     storm_to_winds_table.storm_id: String ID for storm cell.
     storm_to_winds_table.unix_time_sec: Valid time.
+    storm_to_winds_table.tracking_start_time_unix_sec: Start time for tracking
+        period.
+    storm_to_winds_table.tracking_end_time_unix_sec: End time for tracking
+        period.
     storm_to_winds_table.centroid_lat_deg: Latitude (deg N) of storm-object
         centroid.
     storm_to_winds_table.centroid_lng_deg: Longitude (deg E) of storm-object

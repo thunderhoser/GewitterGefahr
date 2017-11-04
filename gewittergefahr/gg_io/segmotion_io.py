@@ -56,21 +56,23 @@ XML_COLUMN_NAMES_ORIG = [
 
 # The following constants are used only in the main method.
 SPC_DATE_UNIX_SEC = 1092228498
+TRACKING_START_TIME_UNIX_SEC = 1092224296  # 113816 UTC 11 Aug 2004
+TRACKING_END_TIME_UNIX_SEC = 1092312485  # 120805 UTC 12 Aug 2004
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
 XML_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-130318_'
+    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-125818_'
     'TrackingTable_0050.00.xml')
 
 NETCDF_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-130318.netcdf')
+    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-125818.netcdf')
 
 PICKLE_FILE_NAME = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed/'
-    '20040811/scale_50000000m2/segmotion_2004-08-11-130318.p')
+    '20040811/scale_50000000m2/segmotion_2004-08-11-125818.p')
 
 
 def _xml_column_name_orig_to_new(column_name_orig):
@@ -845,7 +847,9 @@ if __name__ == '__main__':
         NETCDF_FILE_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
-        spc_date_unix_sec=SPC_DATE_UNIX_SEC)
+        spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+        tracking_start_time_unix_sec=TRACKING_START_TIME_UNIX_SEC,
+        tracking_end_time_unix_sec=TRACKING_END_TIME_UNIX_SEC)
     print POLYGON_TABLE
 
     (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (

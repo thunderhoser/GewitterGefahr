@@ -835,4 +835,5 @@ def read_data_from_full_grid_file(netcdf_file_name, metadata_dict,
 
     field_matrix = _remove_sentinels_from_full_grid(
         field_matrix, metadata_dict[SENTINEL_VALUE_COLUMN])
-    return field_matrix, unique_grid_point_lat_deg, unique_grid_point_lng_deg
+    return (numpy.flipud(field_matrix), unique_grid_point_lat_deg[::-1],
+            unique_grid_point_lng_deg)
