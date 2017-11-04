@@ -19,6 +19,11 @@ TOLERANCE = 1e-6
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
+RADAR_FIELD_NAME_KEY = 'radar_field_name'
+RADAR_HEIGHT_KEY = 'radar_height_m_agl'
+STATISTIC_NAME_KEY = 'statistic_name'
+PERCENTILE_LEVEL_KEY = 'percentile_level'
+
 MIN_ROW_IN_SUBGRID_COLUMN = 'min_row_in_subgrid'
 MAX_ROW_IN_SUBGRID_COLUMN = 'max_row_in_subgrid'
 MIN_COLUMN_IN_SUBGRID_COLUMN = 'min_column_in_subgrid'
@@ -91,6 +96,75 @@ def _radar_field_and_percentile_to_column_name(
 
     return '{0:s}_percentile{1:05.1f}'.format(
         radar_field_name, percentile_level)
+
+
+def _column_name_to_statistic_params(column_name):
+    """Determines parameters of statistic from column name.
+
+    If column name does not correspond to a statistic, this method will return
+    None.
+
+    :param column_name: Name of column.
+    :return: parameter_dict: Dictionary with the following keys.
+    parameter_dict['radar_field_name']: Name of radar field on which statistic
+        is based.
+    parameter_dict['radar_height_m_agl']: Radar height (metres above ground
+        level).  If radar field is not single-elevation reflectivity, this will
+        be None.
+    parameter_dict['statistic_name']: Name of statistic.  If statistic is a
+        percentile, this will be None.
+    parameter_dict['percentile_level']: Percentile level.  If statistic is non-
+        percentile, this will be None.
+    """
+
+    column_name_parts = column_name.split('_')
+    if len(column_name_parts) < 2:
+        return None
+
+    # Determine statistic name or percentile level.
+    if column_name_parts[-1] in STATISTIC_NAMES:
+        statistic_name = column_name_parts[-1]
+        percentile_level = None
+    else:
+        statistic_name = None
+        if not column_name_parts[-1].startswith('percentile'):
+            return None
+
+        try:
+            percentile_level = float(column_name_parts[-1][len('percentile'):])
+        except ValueError:
+            return None
+
+    # Determine radar field.
+    radar_field_name = '_'.join(column_name_parts[:-1])
+    radar_height_part = None
+    try:
+        radar_io.check_field_name(radar_field_name)
+    except ValueError:
+        radar_field_name = '_'.join(column_name_parts[:-2])
+        radar_height_part = column_name_parts[-2]
+
+    try:
+        radar_io.check_field_name(radar_field_name)
+    except ValueError:
+        return None
+
+    # Determine radar height.
+    if radar_height_part is None:
+        radar_height_m_agl = None
+    else:
+        if not radar_height_part.endswith('m'):
+            return None
+
+        try:
+            radar_height_m_agl = int(radar_height_part[:-1])
+        except ValueError:
+            return None
+
+    return {RADAR_FIELD_NAME_KEY: radar_field_name,
+            RADAR_HEIGHT_KEY: radar_height_m_agl,
+            STATISTIC_NAME_KEY: statistic_name,
+            PERCENTILE_LEVEL_KEY: percentile_level}
 
 
 def _center_points_latlng_to_rowcol(center_latitudes_deg, center_longitudes_deg,
@@ -255,6 +329,31 @@ def _check_statistic_names(statistic_names, percentile_levels):
 
     return numpy.unique(
         rounder.round_to_nearest(percentile_levels, PERCENTILE_LEVEL_PRECISION))
+
+
+def get_statistic_columns(statistic_table):
+    """Returns names of columns with radar statistics.
+
+    :param statistic_table: pandas DataFrame.
+    :return: statistic_column_names: 1-D list containing names of columns with
+        radar statistics.  If there are no columns with radar stats, this is
+        None.
+    """
+
+    column_names = list(statistic_table)
+    statistic_column_names = None
+
+    for this_column_name in column_names:
+        this_parameter_dict = _column_name_to_statistic_params(this_column_name)
+        if this_parameter_dict is None:
+            continue
+
+        if statistic_column_names is None:
+            statistic_column_names = [this_column_name]
+        else:
+            statistic_column_names.append(this_column_name)
+
+    return statistic_column_names
 
 
 def extract_points_as_1d_array(field_matrix, row_indices=None,
@@ -626,14 +725,22 @@ def write_stats_for_storm_objects(storm_radar_statistic_table,
     :param storm_radar_statistic_table: pandas DataFrame created by
         get_stats_for_storm_objects.
     :param pickle_file_name: Path to output file.
+    :raises: ValueError: if storm_radar_statistic_table does not contain any
+        column with radar statistics.
     """
 
-    # TODO(thunderhoser): Need to ensure that storm_radar_statistic_table has
-    # the right columns.
+    statistic_column_names = get_statistic_columns(storm_radar_statistic_table)
+    if statistic_column_names is None:
+        raise ValueError(
+            'storm_radar_statistic_table does not contain any column with '
+            'radar statistics.')
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
+
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_radar_statistic_table, pickle_file_handle)
+    pickle.dump(storm_radar_statistic_table[columns_to_write],
+                pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -645,10 +752,17 @@ def read_stats_for_storm_objects(pickle_file_name):
         documented in get_stats_for_storm_objects.
     """
 
-    # TODO(thunderhoser): Need to ensure that storm_radar_statistic_table has
-    # the right columns.
-
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_radar_statistic_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(
+        storm_radar_statistic_table, STORM_COLUMNS_TO_KEEP)
+
+    statistic_column_names = get_statistic_columns(storm_radar_statistic_table)
+    if statistic_column_names is None:
+        raise ValueError(
+            'storm_radar_statistic_table does not contain any column with '
+            'radar statistics.')
+
     return storm_radar_statistic_table
