@@ -7,10 +7,12 @@ This is the variable that machine learning is trying to predict.  An example is
 the max wind speed associated with the storm object.
 """
 
+import pickle
 import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.linkage import storm_to_winds
 from gewittergefahr.gg_utils import number_rounding as rounder
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
@@ -141,6 +143,112 @@ def _check_class_cutoffs(class_cutoffs_kt):
     }
 
 
+def _column_name_to_label_params(column_name):
+    """Determines parameters of label from column name.
+
+    Label may be for either regression or classification.  If column name does
+    not correspond to a label, this method will return None.
+
+    :param column_name: Name of column.
+    :return: parameter_dict: Dictionary with the following keys.
+    parameter_dict['min_lead_time_sec']: See doc for _check_regression_params.
+    parameter_dict['max_lead_time_sec']: See doc for _check_regression_params.
+    parameter_dict['min_distance_metres']: See doc for _check_regression_params.
+    parameter_dict['max_distance_metres']: See doc for _check_regression_params.
+    parameter_dict['percentile_level']: See doc for _check_regression_params.
+    parameter_dict['class_cutoffs_kt']: If learning goal is classification, this
+        will be a numpy array (see documentation for _check_class_cutoffs).  If
+        learning goal is regression, this will be None.
+    """
+
+    if column_name.startswith(PREFIX_FOR_REGRESSION_LABEL):
+        is_goal_regression = True
+        column_name = column_name[(len(PREFIX_FOR_REGRESSION_LABEL) + 1):]
+    elif column_name.startswith(PREFIX_FOR_CLASSIFICATION_LABEL):
+        is_goal_regression = False
+        column_name = column_name[(len(PREFIX_FOR_CLASSIFICATION_LABEL) + 1):]
+    else:
+        return None
+
+    column_name_parts = column_name.split('_')
+    if is_goal_regression and len(column_name_parts) != 3:
+        return None
+    if not is_goal_regression and len(column_name_parts) != 4:
+        return None
+
+    percentile_part = column_name_parts[0]
+    if not percentile_part.startswith('percentile='):
+        return None
+
+    percentile_part = percentile_part.replace('percentile=', '')
+    try:
+        percentile_level = float(percentile_part)
+    except ValueError:
+        return None
+
+    lead_time_part = column_name_parts[1]
+    if not lead_time_part.startswith('lead-time='):
+        return None
+    if not lead_time_part.endswith('sec'):
+        return None
+
+    lead_time_part = lead_time_part.replace('lead-time=', '').replace('sec', '')
+    lead_time_parts = lead_time_part.split('-')
+    if len(lead_time_parts) != 2:
+        return None
+
+    try:
+        min_lead_time_sec = int(lead_time_parts[0])
+        max_lead_time_sec = int(lead_time_parts[1])
+    except ValueError:
+        return None
+
+    distance_part = column_name_parts[2]
+    if not distance_part.startswith('distance='):
+        return None
+    if not distance_part.endswith('m'):
+        return None
+
+    distance_part = distance_part.replace('distance=', '').replace('m', '')
+    distance_parts = distance_part.split('-')
+    if len(distance_parts) != 2:
+        return None
+
+    try:
+        min_distance_metres = float(int(distance_parts[0]))
+        max_distance_metres = float(int(distance_parts[1]))
+    except ValueError:
+        return None
+
+    if is_goal_regression:
+        class_cutoffs_kt = None
+    else:
+        class_cutoff_part = column_name_parts[3]
+        if not class_cutoff_part.startswith('cutoffs='):
+            return None
+        if not class_cutoff_part.endswith('kt'):
+            return None
+
+        class_cutoff_part = class_cutoff_part.replace('cutoffs=', '').replace(
+            'kt', '')
+        class_cutoff_parts = class_cutoff_part.split('-')
+
+        try:
+            class_cutoffs_kt = numpy.array(
+                [int(c) for c in class_cutoff_parts]).astype(float)
+        except ValueError:
+            return None
+
+    return {
+        MIN_LEAD_TIME_NAME: min_lead_time_sec,
+        MAX_LEAD_TIME_NAME: max_lead_time_sec,
+        MIN_DISTANCE_NAME: min_distance_metres,
+        MAX_DISTANCE_NAME: max_distance_metres,
+        PERCENTILE_LEVEL_NAME: percentile_level,
+        CLASS_CUTOFFS_NAME: class_cutoffs_kt
+    }
+
+
 def _classify_wind_speeds(wind_speeds_m_s01, class_minima_m_s01=None,
                           class_maxima_m_s01=None):
     """Determines class for each wind speed.
@@ -246,6 +354,86 @@ def get_column_name_for_classification_label(
             column_name += '-{0:02d}'.format(int(class_cutoffs_kt[k]))
 
     return column_name + 'kt'
+
+
+def get_regression_label_columns(storm_to_winds_table):
+    """Returns names of columns with regression labels.
+
+    :param storm_to_winds_table: pandas DataFrame.
+    :return: regression_label_column_names: 1-D list containing names of columns
+        with regression labels.  If there are no columns with regression labels,
+        this is None.
+    """
+
+    column_names = list(storm_to_winds_table)
+    regression_label_column_names = None
+
+    for this_column_name in column_names:
+        this_parameter_dict = _column_name_to_label_params(this_column_name)
+        if this_parameter_dict is None:
+            continue
+        if this_parameter_dict[CLASS_CUTOFFS_NAME] is not None:
+            continue
+
+        if regression_label_column_names is None:
+            regression_label_column_names = [this_column_name]
+        else:
+            regression_label_column_names.append(this_column_name)
+
+    return regression_label_column_names
+
+
+def get_classification_label_columns(storm_to_winds_table):
+    """Returns names of columns with classification labels.
+
+    :param storm_to_winds_table: pandas DataFrame.
+    :return: classification_label_column_names: 1-D list containing names of
+        columns with classification labels.  If there are no columns with
+        classification labels, this is None.
+    """
+
+    column_names = list(storm_to_winds_table)
+    classification_label_column_names = None
+
+    for this_column_name in column_names:
+        this_parameter_dict = _column_name_to_label_params(this_column_name)
+        if this_parameter_dict is None:
+            continue
+        if this_parameter_dict[CLASS_CUTOFFS_NAME] is None:
+            continue
+
+        if classification_label_column_names is None:
+            classification_label_column_names = [this_column_name]
+        else:
+            classification_label_column_names.append(this_column_name)
+
+    return classification_label_column_names
+
+
+def get_label_columns(storm_to_winds_table):
+    """Returns names of columns with regression or classification labels.
+
+    :param storm_to_winds_table: pandas DataFrame.
+    :return: label_column_names: 1-D list containing names of columns with
+        regression or classification labels.  If there are no columns with
+        labels, this is None.
+    """
+
+    label_column_names = []
+
+    regression_label_column_names = get_regression_label_columns(
+        storm_to_winds_table)
+    if regression_label_column_names is not None:
+        label_column_names += regression_label_column_names
+
+    classification_label_column_names = get_classification_label_columns(
+        storm_to_winds_table)
+    if classification_label_column_names is not None:
+        label_column_names += classification_label_column_names
+
+    if not label_column_names:
+        return None
+    return label_column_names
 
 
 def label_wind_for_regression(
@@ -362,7 +550,8 @@ def label_wind_for_classification(
         class_cutoffs_kt=DEFAULT_CLASS_CUTOFFS_KT):
     """Labels each storm object for classification.
 
-    :param storm_to_winds_table: See documentation for label_wind_for_regression.
+    :param storm_to_winds_table: See documentation for
+        label_wind_for_regression.
     :param min_lead_time_sec: See documentation for label_wind_for_regression.
     :param max_lead_time_sec: See documentation for label_wind_for_regression.
     :param min_distance_metres: See documentation for label_wind_for_regression.
@@ -413,3 +602,51 @@ def label_wind_for_classification(
         percentile_level=percentile_level, class_cutoffs_kt=class_cutoffs_kt)
 
     return storm_to_winds_table.assign(**{label_column_name: storm_classes})
+
+
+def write_labels(storm_to_winds_table, pickle_file_name):
+    """Writes labels for storm objects to a Pickle file.
+
+    :param storm_to_winds_table: pandas DataFrame created by
+        label_wind_for_regression or label_wind_for_classification.
+    :param pickle_file_name: Path to output file.
+    :raises: ValueError: if storm_to_winds_table does not contain any columns
+        with a regression or classification label.
+    """
+
+    label_column_names = get_label_columns(storm_to_winds_table)
+    if label_column_names is None:
+        raise ValueError(
+            'storm_to_winds_table does not contain any columns with a '
+            'regression or classification label.')
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    columns_to_write = storm_to_winds.COLUMNS_TO_WRITE + label_column_names
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(storm_to_winds_table[columns_to_write], pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_labels(pickle_file_name):
+    """Reads labels for storm objects from a Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_to_winds_table: pandas DataFrame with columns documented in
+        label_wind_for_regression or label_wind_for_classification.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_to_winds_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(
+        storm_to_winds_table, storm_to_winds.COLUMNS_TO_WRITE)
+
+    label_column_names = get_label_columns(storm_to_winds_table)
+    if label_column_names is None:
+        raise ValueError(
+            'storm_to_winds_table does not contain any columns with a '
+            'regression or classification label.')
+
+    return storm_to_winds_table

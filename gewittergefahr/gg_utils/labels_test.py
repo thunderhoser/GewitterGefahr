@@ -51,6 +51,7 @@ COLUMN_NAME_FOR_REGRESSION = (
 COLUMN_NAME_FOR_CLASSIFICATION = (
     'wind_speed_percentile=100.0_lead-time=0000-0900sec_' +
     'distance=00001-05000m_cutoffs=10-20-30-40-50kt')
+FAKE_LABEL_COLUMN_NAME = 'poop'
 
 
 class LabelsTests(unittest.TestCase):
@@ -80,6 +81,59 @@ class LabelsTests(unittest.TestCase):
             self.assertTrue(numpy.allclose(
                 this_parameter_dict[this_key],
                 CLASSIFICATION_PARAM_DICT[this_key], atol=TOLERANCE))
+
+    def test_column_name_to_label_params_regression(self):
+        """Ensures correct output from _column_name_to_label_params.
+
+        In this case, column is a regression label.
+        """
+
+        this_parameter_dict = labels._column_name_to_label_params(
+            COLUMN_NAME_FOR_REGRESSION)
+
+        self.assertTrue(
+            this_parameter_dict[labels.MIN_LEAD_TIME_NAME] == MIN_LEAD_TIME_SEC)
+        self.assertTrue(
+            this_parameter_dict[labels.MAX_LEAD_TIME_NAME] == MAX_LEAD_TIME_SEC)
+        self.assertTrue(this_parameter_dict[labels.MIN_DISTANCE_NAME] ==
+                        MIN_DISTANCE_METRES)
+        self.assertTrue(this_parameter_dict[labels.MAX_DISTANCE_NAME] ==
+                        MAX_DISTANCE_METRES)
+        self.assertTrue(this_parameter_dict[labels.PERCENTILE_LEVEL_NAME] ==
+                        PERCENTILE_LEVEL)
+        self.assertTrue(this_parameter_dict[labels.CLASS_CUTOFFS_NAME] is None)
+
+    def test_column_name_to_label_params_classification(self):
+        """Ensures correct output from _column_name_to_label_params.
+
+        In this case, column is a classification label.
+        """
+
+        this_parameter_dict = labels._column_name_to_label_params(
+            COLUMN_NAME_FOR_CLASSIFICATION)
+
+        self.assertTrue(
+            this_parameter_dict[labels.MIN_LEAD_TIME_NAME] == MIN_LEAD_TIME_SEC)
+        self.assertTrue(
+            this_parameter_dict[labels.MAX_LEAD_TIME_NAME] == MAX_LEAD_TIME_SEC)
+        self.assertTrue(this_parameter_dict[labels.MIN_DISTANCE_NAME] ==
+                        MIN_DISTANCE_METRES)
+        self.assertTrue(this_parameter_dict[labels.MAX_DISTANCE_NAME] ==
+                        MAX_DISTANCE_METRES)
+        self.assertTrue(this_parameter_dict[labels.PERCENTILE_LEVEL_NAME] ==
+                        PERCENTILE_LEVEL)
+        self.assertTrue(numpy.array_equal(
+            this_parameter_dict[labels.CLASS_CUTOFFS_NAME], CLASS_CUTOFFS_KT))
+
+    def test_column_name_to_label_params_fake(self):
+        """Ensures correct output from _column_name_to_label_params.
+
+        In this case, column is a fake label.
+        """
+
+        this_parameter_dict = labels._column_name_to_label_params(
+            FAKE_LABEL_COLUMN_NAME)
+        self.assertTrue(this_parameter_dict is None)
 
     def test_classify_wind_speeds(self):
         """Ensures correct output from _classify_wind_speeds."""

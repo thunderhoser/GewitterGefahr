@@ -121,8 +121,9 @@ def _column_name_to_statistic_params(column_name):
         if not column_name_parts[-1].startswith('percentile'):
             return None
 
+        percentile_part = column_name_parts[-1].replace('percentile', '')
         try:
-            percentile_level = float(column_name_parts[-1][len('percentile'):])
+            percentile_level = float(percentile_part)
         except ValueError:
             return None
 
@@ -147,8 +148,9 @@ def _column_name_to_statistic_params(column_name):
         if not radar_height_part.endswith('m'):
             return None
 
+        radar_height_part = radar_height_part.replace('m', '')
         try:
-            radar_height_m_agl = int(radar_height_part[:-1])
+            radar_height_m_agl = int(radar_height_part)
         except ValueError:
             return None
 
