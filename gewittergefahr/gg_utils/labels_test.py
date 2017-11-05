@@ -83,12 +83,12 @@ class LabelsTests(unittest.TestCase):
                 CLASSIFICATION_PARAM_DICT[this_key], atol=TOLERANCE))
 
     def test_column_name_to_label_params_regression(self):
-        """Ensures correct output from _column_name_to_label_params.
+        """Ensures correct output from column_name_to_label_params.
 
         In this case, column is a regression label.
         """
 
-        this_parameter_dict = labels._column_name_to_label_params(
+        this_parameter_dict = labels.column_name_to_label_params(
             COLUMN_NAME_FOR_REGRESSION)
 
         self.assertTrue(
@@ -104,12 +104,12 @@ class LabelsTests(unittest.TestCase):
         self.assertTrue(this_parameter_dict[labels.CLASS_CUTOFFS_NAME] is None)
 
     def test_column_name_to_label_params_classification(self):
-        """Ensures correct output from _column_name_to_label_params.
+        """Ensures correct output from column_name_to_label_params.
 
         In this case, column is a classification label.
         """
 
-        this_parameter_dict = labels._column_name_to_label_params(
+        this_parameter_dict = labels.column_name_to_label_params(
             COLUMN_NAME_FOR_CLASSIFICATION)
 
         self.assertTrue(
@@ -126,12 +126,12 @@ class LabelsTests(unittest.TestCase):
             this_parameter_dict[labels.CLASS_CUTOFFS_NAME], CLASS_CUTOFFS_KT))
 
     def test_column_name_to_label_params_fake(self):
-        """Ensures correct output from _column_name_to_label_params.
+        """Ensures correct output from column_name_to_label_params.
 
         In this case, column is a fake label.
         """
 
-        this_parameter_dict = labels._column_name_to_label_params(
+        this_parameter_dict = labels.column_name_to_label_params(
             FAKE_LABEL_COLUMN_NAME)
         self.assertTrue(this_parameter_dict is None)
 

@@ -235,6 +235,32 @@ def get_statistic_columns(statistic_table):
     return statistic_column_names
 
 
+def check_statistic_table(statistic_table, require_storm_objects=True):
+    """Ensures that pandas DataFrame contains radar statistics.
+
+    :param statistic_table: pandas DataFrame.
+    :param require_storm_objects: Boolean flag.  If True, statistic_table must
+        contain columns "storm_id" and "unix_time_sec".  If False,
+        statistic_table does not need these columns.
+    :return: statistic_column_names: 1-D list containing names of columns with
+        radar statistics.
+    :raises: ValueError: if statistic_table does not contain any columns with
+        radar statistics.
+    """
+
+    statistic_column_names = get_statistic_columns(statistic_table)
+    if statistic_column_names is None:
+        raise ValueError(
+            'statistic_table does not contain any column with radar '
+            'statistics.')
+
+    if require_storm_objects:
+        error_checking.assert_columns_in_dataframe(
+            statistic_table, STORM_COLUMNS_TO_KEEP)
+
+    return statistic_column_names
+
+
 def extract_radar_grid_points(field_matrix, row_indices=None,
                               column_indices=None):
     """Extracts grid points from radar field.
@@ -533,19 +559,13 @@ def write_stats_for_storm_objects(storm_radar_statistic_table,
     :param storm_radar_statistic_table: pandas DataFrame created by
         get_stats_for_storm_objects.
     :param pickle_file_name: Path to output file.
-    :raises: ValueError: if storm_radar_statistic_table does not contain any
-        column with radar statistics.
     """
 
-    statistic_column_names = get_statistic_columns(storm_radar_statistic_table)
-    if statistic_column_names is None:
-        raise ValueError(
-            'storm_radar_statistic_table does not contain any column with '
-            'radar statistics.')
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    statistic_column_names = check_statistic_table(
+        storm_radar_statistic_table, require_storm_objects=True)
     columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_radar_statistic_table[columns_to_write],
                 pickle_file_handle)
@@ -564,13 +584,6 @@ def read_stats_for_storm_objects(pickle_file_name):
     storm_radar_statistic_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    error_checking.assert_columns_in_dataframe(
-        storm_radar_statistic_table, STORM_COLUMNS_TO_KEEP)
-
-    statistic_column_names = get_statistic_columns(storm_radar_statistic_table)
-    if statistic_column_names is None:
-        raise ValueError(
-            'storm_radar_statistic_table does not contain any column with '
-            'radar statistics.')
-
+    check_statistic_table(
+        storm_radar_statistic_table, require_storm_objects=True)
     return storm_radar_statistic_table

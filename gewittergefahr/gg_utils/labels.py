@@ -17,6 +17,11 @@ from gewittergefahr.gg_utils import error_checking
 
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
+NUM_OBSERVATIONS_FOR_LABEL_COLUMN = 'num_observations_for_label'
+MANDATORY_COLUMNS = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    tracking_io.TRACKING_END_TIME_COLUMN, NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
+
 DEFAULT_MIN_LEAD_TIME_SEC = 0
 DEFAULT_MAX_LEAD_TIME_SEC = 86400  # Greater than will ever occur.
 DEFAULT_MIN_DISTANCE_METRES = 0.
@@ -143,7 +148,40 @@ def _check_class_cutoffs(class_cutoffs_kt):
     }
 
 
-def _column_name_to_label_params(column_name):
+def _classify_wind_speeds(wind_speeds_m_s01, class_minima_m_s01=None,
+                          class_maxima_m_s01=None):
+    """Determines class for each wind speed.
+
+    N = number of wind speeds
+    C = number of classes
+
+    :param wind_speeds_m_s01: length-N numpy array of wind speeds (metres per
+        second).
+    :param class_minima_m_s01: length-C numpy array of class minima (metres per
+        second).
+    :param class_maxima_m_s01: length-C numpy array of class maxima (metres per
+        second).
+    :return: wind_classes: length-N numpy array of ordinal class numbers.  For
+        example, if wind_classes[i] = k, this means the [i]th wind speed belongs
+        to the [k]th class.  Ordinal numbers are zero-based, so all values in
+        wind_classes are from 0...(C - 1).
+    """
+
+    num_observations = len(wind_speeds_m_s01)
+    wind_classes = numpy.full(num_observations, -1, dtype=int)
+    num_classes = len(class_minima_m_s01)
+
+    for k in range(num_classes):
+        these_flags = numpy.logical_and(
+            wind_speeds_m_s01 >= class_minima_m_s01[k],
+            wind_speeds_m_s01 < class_maxima_m_s01[k])
+        these_indices = numpy.where(these_flags)[0]
+        wind_classes[these_indices] = k
+
+    return wind_classes
+
+
+def column_name_to_label_params(column_name):
     """Determines parameters of label from column name.
 
     Label may be for either regression or classification.  If column name does
@@ -249,39 +287,6 @@ def _column_name_to_label_params(column_name):
     }
 
 
-def _classify_wind_speeds(wind_speeds_m_s01, class_minima_m_s01=None,
-                          class_maxima_m_s01=None):
-    """Determines class for each wind speed.
-
-    N = number of wind speeds
-    C = number of classes
-
-    :param wind_speeds_m_s01: length-N numpy array of wind speeds (metres per
-        second).
-    :param class_minima_m_s01: length-C numpy array of class minima (metres per
-        second).
-    :param class_maxima_m_s01: length-C numpy array of class maxima (metres per
-        second).
-    :return: wind_classes: length-N numpy array of ordinal class numbers.  For
-        example, if wind_classes[i] = k, this means the [i]th wind speed belongs
-        to the [k]th class.  Ordinal numbers are zero-based, so all values in
-        wind_classes are from 0...(C - 1).
-    """
-
-    num_observations = len(wind_speeds_m_s01)
-    wind_classes = numpy.full(num_observations, -1, dtype=int)
-    num_classes = len(class_minima_m_s01)
-
-    for k in range(num_classes):
-        these_flags = numpy.logical_and(
-            wind_speeds_m_s01 >= class_minima_m_s01[k],
-            wind_speeds_m_s01 < class_maxima_m_s01[k])
-        these_indices = numpy.where(these_flags)[0]
-        wind_classes[these_indices] = k
-
-    return wind_classes
-
-
 def get_column_name_for_regression_label(
         min_lead_time_sec=None, max_lead_time_sec=None,
         min_distance_metres=None, max_distance_metres=None,
@@ -369,7 +374,7 @@ def get_regression_label_columns(storm_to_winds_table):
     regression_label_column_names = None
 
     for this_column_name in column_names:
-        this_parameter_dict = _column_name_to_label_params(this_column_name)
+        this_parameter_dict = column_name_to_label_params(this_column_name)
         if this_parameter_dict is None:
             continue
         if this_parameter_dict[CLASS_CUTOFFS_NAME] is not None:
@@ -396,7 +401,7 @@ def get_classification_label_columns(storm_to_winds_table):
     classification_label_column_names = None
 
     for this_column_name in column_names:
-        this_parameter_dict = _column_name_to_label_params(this_column_name)
+        this_parameter_dict = column_name_to_label_params(this_column_name)
         if this_parameter_dict is None:
             continue
         if this_parameter_dict[CLASS_CUTOFFS_NAME] is None:
@@ -436,6 +441,32 @@ def get_label_columns(storm_to_winds_table):
     return label_column_names
 
 
+def check_label_table(label_table, require_storm_objects=True):
+    """Ensures that pandas DataFrame contains labels.
+
+    :param label_table: pandas DataFrame.
+    :param require_storm_objects: Boolean flag.  If True, label_table must
+        contain columns "storm_id" and "unix_time_sec".  If False, label_table
+        does not need these columns.
+    :return: label_column_names: 1-D list containing names of columns with
+        regression or classification labels.
+    :raises: ValueError: if label_table does not contain any columns with
+        regression or classification labels.
+    """
+
+    label_column_names = get_label_columns(label_table)
+    if label_column_names is None:
+        raise ValueError(
+            'label_table does not contain any column with regression or '
+            'classification labels.')
+
+    if require_storm_objects:
+        error_checking.assert_columns_in_dataframe(
+            label_table, MANDATORY_COLUMNS)
+
+    return label_column_names
+
+
 def label_wind_for_regression(
         storm_to_winds_table, min_lead_time_sec=DEFAULT_MIN_LEAD_TIME_SEC,
         max_lead_time_sec=DEFAULT_MAX_LEAD_TIME_SEC,
@@ -467,14 +498,13 @@ def label_wind_for_regression(
     :param percentile_level: The label for each storm object will be the [q]th-
         percentile speed of wind observations in the given time and distance
         ranges, where q = percentile_level.
-    :return: storm_to_winds_table: Same as input, with two exceptions.
+    :return: storm_to_winds_table: Same as input, except for the following.
         [1] May have fewer rows (storm objects occurring too close to end of
             tracking period are removed).
         [2] Contains additional column with regression labels.  The name of this
             column is determined by get_column_name_for_regression_label.
-    :return: labels_m_s01: 1-D numpy array of regression labels (metres per
-        second).  This is the same as the additional column in
-        storm_to_winds_table.
+        [3] Contains additional column "num_observations_for_label", with number
+            of observations used to create each regression label.
     """
 
     parameter_dict = _check_regression_params(
@@ -537,8 +567,7 @@ def label_wind_for_regression(
         max_distance_metres=max_distance_metres,
         percentile_level=percentile_level)
 
-    return (storm_to_winds_table.assign(**{label_column_name: labels_m_s01}),
-            labels_m_s01)
+    return storm_to_winds_table.assign(**{label_column_name: labels_m_s01})
 
 
 def label_wind_for_classification(
@@ -558,9 +587,12 @@ def label_wind_for_classification(
     :param max_distance_metres: See documentation for label_wind_for_regression.
     :param percentile_level: See documentation for label_wind_for_regression.
     :param class_cutoffs_kt: See documentation for _check_class_cutoffs.
-    :return: storm_to_winds_table: Same as input, but with one additional column
-        containing classification labels.  The name of this column is given by
-        get_column_name_for_classification_label.
+    :return: storm_to_winds_table: Same as input, but with 3 additional columns
+        (one containing classification labels, one containing corresponding
+        regression labels).  The names of these columns are given by
+        get_column_name_for_classification_label.  The other is listed below.
+    storm_to_winds_table.num_observations_for_label: Number of wind observations
+        used to create label.
     """
 
     parameter_dict = _check_regression_params(
@@ -583,25 +615,35 @@ def label_wind_for_classification(
     class_maxima_m_s01 = KT_TO_METRES_PER_SECOND * parameter_dict[
         CLASS_MAXIMA_NAME]
 
-    storm_to_winds_table, regression_labels_m_s01 = label_wind_for_regression(
+    storm_to_winds_table = label_wind_for_regression(
         storm_to_winds_table, min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_distance_metres=min_distance_metres,
         max_distance_metres=max_distance_metres,
         percentile_level=percentile_level)
 
+    regression_label_column_name = get_column_name_for_classification_label(
+        min_lead_time_sec=min_lead_time_sec,
+        max_lead_time_sec=max_lead_time_sec,
+        min_distance_metres=min_distance_metres,
+        max_distance_metres=max_distance_metres,
+        percentile_level=percentile_level)
+    regression_labels_m_s01 = storm_to_winds_table[
+        regression_label_column_name].values
+
     storm_classes = _classify_wind_speeds(
         regression_labels_m_s01, class_minima_m_s01=class_minima_m_s01,
         class_maxima_m_s01=class_maxima_m_s01)
 
-    label_column_name = get_column_name_for_classification_label(
+    classification_label_column_name = get_column_name_for_classification_label(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_distance_metres=min_distance_metres,
         max_distance_metres=max_distance_metres,
         percentile_level=percentile_level, class_cutoffs_kt=class_cutoffs_kt)
 
-    return storm_to_winds_table.assign(**{label_column_name: storm_classes})
+    return storm_to_winds_table.assign(
+        **{classification_label_column_name: storm_classes})
 
 
 def write_labels(storm_to_winds_table, pickle_file_name):
@@ -614,15 +656,11 @@ def write_labels(storm_to_winds_table, pickle_file_name):
         with a regression or classification label.
     """
 
-    label_column_names = get_label_columns(storm_to_winds_table)
-    if label_column_names is None:
-        raise ValueError(
-            'storm_to_winds_table does not contain any columns with a '
-            'regression or classification label.')
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    label_column_names = check_label_table(
+        storm_to_winds_table, require_storm_objects=True)
     columns_to_write = storm_to_winds.COLUMNS_TO_WRITE + label_column_names
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_to_winds_table[columns_to_write], pickle_file_handle)
     pickle_file_handle.close()
@@ -640,13 +678,5 @@ def read_labels(pickle_file_name):
     storm_to_winds_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    error_checking.assert_columns_in_dataframe(
-        storm_to_winds_table, storm_to_winds.COLUMNS_TO_WRITE)
-
-    label_column_names = get_label_columns(storm_to_winds_table)
-    if label_column_names is None:
-        raise ValueError(
-            'storm_to_winds_table does not contain any columns with a '
-            'regression or classification label.')
-
+    check_label_table(storm_to_winds_table, require_storm_objects=True)
     return storm_to_winds_table

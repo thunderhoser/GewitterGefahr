@@ -748,6 +748,34 @@ def get_sounding_index_columns(sounding_index_table):
     return sounding_index_column_names
 
 
+def check_sounding_index_table(sounding_index_table,
+                               require_storm_objects=True):
+    """Ensures that pandas DataFrame contains sounding indices.
+
+    :param sounding_index_table: pandas DataFrame.
+    :param require_storm_objects: Boolean flag.  If True, statistic_table must
+        contain columns "storm_id" and "unix_time_sec".  If False,
+        sounding_index_table does not need these columns.
+    :return: sounding_index_column_names: 1-D list containing names of columns
+        with sounding indices.
+    :raises: ValueError: if sounding_index_table does not contain any columns
+        with sounding indices.
+    """
+
+    sounding_index_column_names = get_sounding_index_columns(
+        sounding_index_table)
+    if sounding_index_column_names is None:
+        raise ValueError(
+            'sounding_index_table does not contain any column with sounding '
+            'indices.')
+
+    if require_storm_objects:
+        error_checking.assert_columns_in_dataframe(
+            sounding_index_table, STORM_COLUMNS_TO_KEEP)
+
+    return sounding_index_column_names
+
+
 def read_metadata_for_sounding_indices():
     """Reads metadata for sounding indices.
 
@@ -1106,16 +1134,11 @@ def write_sounding_indices_for_storm_objects(storm_sounding_index_table,
     :param pickle_file_name: Path to output file.
     """
 
-    sounding_index_column_names = get_sounding_index_columns(
-        storm_sounding_index_table)
-    if sounding_index_column_names is None:
-        raise ValueError(
-            'storm_sounding_index_table does not contain any column with '
-            'sounding indices.')
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    sounding_index_column_names = check_sounding_index_table(
+        storm_sounding_index_table, require_storm_objects=True)
     columns_to_write = STORM_COLUMNS_TO_KEEP + sounding_index_column_names
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_sounding_index_table[columns_to_write],
                 pickle_file_handle)
@@ -1134,14 +1157,6 @@ def read_sounding_indices_for_storm_objects(pickle_file_name):
     storm_sounding_index_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    error_checking.assert_columns_in_dataframe(
-        storm_sounding_index_table, STORM_COLUMNS_TO_KEEP)
-
-    sounding_index_column_names = get_sounding_index_columns(
-        storm_sounding_index_table)
-    if sounding_index_column_names is None:
-        raise ValueError(
-            'storm_sounding_index_table does not contain any column with '
-            'sounding indices.')
-
+    check_sounding_index_table(
+        storm_sounding_index_table, require_storm_objects=True)
     return storm_sounding_index_table
