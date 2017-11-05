@@ -11,6 +11,15 @@ from gewittergefahr.gg_utils import nwp_model_utils
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test _column_name_to_sounding_index.
+STORM_VELOCITY_X_NAME = 'storm_velocity_m_s01_x'
+STORM_VELOCITY_Y_NAME = 'storm_velocity_m_s01_y'
+STORM_VELOCITY_COS_NAME = 'storm_velocity_m_s01_cos'
+STORM_VELOCITY_SIN_NAME = 'storm_velocity_m_s01_sin'
+STORM_VELOCITY_MAGNITUDE_NAME = 'storm_velocity_m_s01_magnitude'
+STORM_VELOCITY_NAME = 'storm_velocity_m_s01'
+FAKE_SOUNDING_INDEX_NAME = 'poop'
+
 # The following constants are used to test _get_nwp_fields_in_sounding.
 MINIMUM_PRESSURE_MB = 950.
 
@@ -149,13 +158,13 @@ THESE_SURFACE_FLAGS = numpy.array(
     [False, False, True, False, False, False, False], dtype=bool)
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
-    soundings.HEIGHT_COLUMN_FOR_SHARPPY: THESE_HEIGHTS_M_ASL,
-    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY: THESE_TEMPERATURES_DEG_C,
-    soundings.DEWPOINT_COLUMN_FOR_SHARPPY: THESE_DEWPOINTS_DEG_C,
-    soundings.U_WIND_COLUMN_FOR_SHARPPY: THESE_U_WINDS_KT,
-    soundings.V_WIND_COLUMN_FOR_SHARPPY: THESE_V_WINDS_KT,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
+    soundings.HEIGHT_COLUMN_FOR_SHARPPY_INPUT: THESE_HEIGHTS_M_ASL,
+    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: THESE_TEMPERATURES_DEG_C,
+    soundings.DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: THESE_DEWPOINTS_DEG_C,
+    soundings.U_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_U_WINDS_KT,
+    soundings.V_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_V_WINDS_KT,
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_SHARPPY_ORIG = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
@@ -177,26 +186,26 @@ THESE_U_WINDS_M_S01 = KT_TO_METRES_PER_SECOND * THESE_U_WINDS_KT
 THESE_V_WINDS_M_S01 = KT_TO_METRES_PER_SECOND * THESE_V_WINDS_KT
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
     nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES: THESE_HEIGHTS_M_ASL,
     nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
         THESE_TEMPERATURES_KELVINS,
     nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES: THESE_SPECIFIC_HUMIDITIES,
     nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES: THESE_U_WINDS_M_S01,
     nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES: THESE_V_WINDS_M_S01,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_RAP_UNITS = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
     nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES: THESE_HEIGHTS_M_ASL,
     nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
         THESE_TEMPERATURES_KELVINS,
     nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES: THESE_RH_PERCENT,
     nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES: THESE_U_WINDS_M_S01,
     nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES: THESE_V_WINDS_M_S01,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_NARR_UNITS = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
@@ -207,13 +216,13 @@ THESE_U_WINDS_KT[0:2] = SENTINEL_VALUE
 THESE_V_WINDS_KT[0:2] = SENTINEL_VALUE
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
-    soundings.HEIGHT_COLUMN_FOR_SHARPPY: THESE_HEIGHTS_M_ASL,
-    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY: THESE_TEMPERATURES_DEG_C,
-    soundings.DEWPOINT_COLUMN_FOR_SHARPPY: THESE_DEWPOINTS_DEG_C,
-    soundings.U_WIND_COLUMN_FOR_SHARPPY: THESE_U_WINDS_KT,
-    soundings.V_WIND_COLUMN_FOR_SHARPPY: THESE_V_WINDS_KT,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
+    soundings.HEIGHT_COLUMN_FOR_SHARPPY_INPUT: THESE_HEIGHTS_M_ASL,
+    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: THESE_TEMPERATURES_DEG_C,
+    soundings.DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: THESE_DEWPOINTS_DEG_C,
+    soundings.U_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_U_WINDS_KT,
+    soundings.V_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_V_WINDS_KT,
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_WITH_SENTINELS = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
@@ -232,13 +241,13 @@ THESE_V_WINDS_KT = numpy.array(
     [SENTINEL_VALUE, SENTINEL_VALUE, 22.208, 22.208, 26.798, 27.819, 27.226])
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
-    soundings.HEIGHT_COLUMN_FOR_SHARPPY: THESE_HEIGHTS_M_ASL,
-    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY: THESE_TEMPERATURES_DEG_C,
-    soundings.DEWPOINT_COLUMN_FOR_SHARPPY: THESE_DEWPOINTS_DEG_C,
-    soundings.U_WIND_COLUMN_FOR_SHARPPY: THESE_U_WINDS_KT,
-    soundings.V_WIND_COLUMN_FOR_SHARPPY: THESE_V_WINDS_KT,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
+    soundings.HEIGHT_COLUMN_FOR_SHARPPY_INPUT: THESE_HEIGHTS_M_ASL,
+    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: THESE_TEMPERATURES_DEG_C,
+    soundings.DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: THESE_DEWPOINTS_DEG_C,
+    soundings.U_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_U_WINDS_KT,
+    soundings.V_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_V_WINDS_KT,
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_WITH_SENTINELS_SORTED = pandas.DataFrame.from_dict(
     THIS_SOUNDING_DICT)
@@ -250,13 +259,13 @@ THESE_U_WINDS_KT[2] = SENTINEL_VALUE
 THESE_V_WINDS_KT[2] = SENTINEL_VALUE
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
-    soundings.HEIGHT_COLUMN_FOR_SHARPPY: THESE_HEIGHTS_M_ASL,
-    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY: THESE_TEMPERATURES_DEG_C,
-    soundings.DEWPOINT_COLUMN_FOR_SHARPPY: THESE_DEWPOINTS_DEG_C,
-    soundings.U_WIND_COLUMN_FOR_SHARPPY: THESE_U_WINDS_KT,
-    soundings.V_WIND_COLUMN_FOR_SHARPPY: THESE_V_WINDS_KT,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
+    soundings.HEIGHT_COLUMN_FOR_SHARPPY_INPUT: THESE_HEIGHTS_M_ASL,
+    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: THESE_TEMPERATURES_DEG_C,
+    soundings.DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: THESE_DEWPOINTS_DEG_C,
+    soundings.U_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_U_WINDS_KT,
+    soundings.V_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_V_WINDS_KT,
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_NO_REDUNDANT = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
@@ -270,13 +279,13 @@ THESE_V_WINDS_KT = THESE_V_WINDS_KT[1:]
 THESE_SURFACE_FLAGS = THESE_SURFACE_FLAGS[1:]
 
 THIS_SOUNDING_DICT = {
-    soundings.PRESSURE_COLUMN_FOR_SHARPPY: THESE_PRESSURES_MB,
-    soundings.HEIGHT_COLUMN_FOR_SHARPPY: THESE_HEIGHTS_M_ASL,
-    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY: THESE_TEMPERATURES_DEG_C,
-    soundings.DEWPOINT_COLUMN_FOR_SHARPPY: THESE_DEWPOINTS_DEG_C,
-    soundings.U_WIND_COLUMN_FOR_SHARPPY: THESE_U_WINDS_KT,
-    soundings.V_WIND_COLUMN_FOR_SHARPPY: THESE_V_WINDS_KT,
-    soundings.IS_SURFACE_COLUMN: THESE_SURFACE_FLAGS
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
+    soundings.HEIGHT_COLUMN_FOR_SHARPPY_INPUT: THESE_HEIGHTS_M_ASL,
+    soundings.TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: THESE_TEMPERATURES_DEG_C,
+    soundings.DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: THESE_DEWPOINTS_DEG_C,
+    soundings.U_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_U_WINDS_KT,
+    soundings.V_WIND_COLUMN_FOR_SHARPPY_INPUT: THESE_V_WINDS_KT,
+    soundings.IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: THESE_SURFACE_FLAGS
 }
 SOUNDING_TABLE_NO_SUBSURFACE = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
@@ -339,11 +348,13 @@ SURFACE_RH_NAME = 'relative_humidity_surface'
 DERECHO_COMPOSITE_NAME = 'derecho_composite_param'
 
 SOUNDING_INDEX_METADATA_TABLE = soundings.read_metadata_for_sounding_indices()
+VALID_SOUNDING_INDEX_NAMES = SOUNDING_INDEX_METADATA_TABLE[
+    soundings.SOUNDING_INDEX_NAME_COLUMN_FOR_METADATA].values
 
 SOUNDING_INDEX_NAMES = list(SOUNDING_INDEX_METADATA_TABLE[
-    soundings.SI_NAME_COLUMN].values)
+    soundings.SOUNDING_INDEX_NAME_COLUMN_FOR_METADATA].values)
 SOUNDING_INDEX_NAMES_SHARPPY = list(SOUNDING_INDEX_METADATA_TABLE[
-    soundings.SI_NAME_COLUMN_SHARPPY].values)
+    soundings.SHARPPY_INDEX_NAME_COLUMN_FOR_METADATA].values)
 
 CONVECTIVE_TEMPERATURE_NAME_SHARPPY = SOUNDING_INDEX_NAMES_SHARPPY[
     SOUNDING_INDEX_NAMES.index(CONVECTIVE_TEMPERATURE_NAME)]
@@ -412,6 +423,76 @@ SOUNDING_INDEX_TABLE = pandas.DataFrame.from_dict(SOUNDING_INDEX_DICT)
 
 class SoundingsTests(unittest.TestCase):
     """Each method is a unit test for soundings.py."""
+
+    def test_column_name_to_sounding_index_x_component(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is the x-component of a vector.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            STORM_VELOCITY_X_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+
+    def test_column_name_to_sounding_index_y_component(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is the y-component of a vector.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            STORM_VELOCITY_Y_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+
+    def test_column_name_to_sounding_index_magnitude(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is the magnitude of a vector.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            STORM_VELOCITY_MAGNITUDE_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+
+    def test_column_name_to_sounding_index_cos(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is the cosine of a vector.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            STORM_VELOCITY_COS_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+
+    def test_column_name_to_sounding_index_sin(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is the sine of a vector.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            STORM_VELOCITY_SIN_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+
+    def test_column_name_to_sounding_index_scalar(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is a scalar.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            STORM_VELOCITY_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+
+    def test_column_name_to_sounding_index_fake(self):
+        """Ensures correct output from _column_name_to_sounding_index.
+
+        In this case, column is a fake sounding index.
+        """
+
+        this_sounding_index_name = soundings._column_name_to_sounding_index(
+            FAKE_SOUNDING_INDEX_NAME, VALID_SOUNDING_INDEX_NAMES)
+        self.assertTrue(this_sounding_index_name is None)
 
     def test_get_nwp_fields_in_sounding_rap_no_dict(self):
         """Ensures correct output from _get_nwp_fields_in_sounding.

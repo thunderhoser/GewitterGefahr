@@ -197,6 +197,21 @@ def _xy_polygon_to_binary_matrix(
         (num_grid_rows, num_grid_columns), vertex_array_xy_metres)
 
 
+def get_statistic_columns(statistic_table):
+    """Returns names of columns with shape statistics.
+
+    :param statistic_table: pandas DataFrame.
+    :return: statistic_column_names: 1-D list containing names of columns with
+        shape statistics.  If there are no columns with shape stats, this is
+        None.
+    """
+
+    column_names = list(statistic_table)
+    stat_column_flags = [c in STATISTIC_NAMES for c in column_names]
+    stat_column_indices = numpy.where(numpy.array(stat_column_flags))[0]
+    return numpy.array(column_names)[stat_column_indices].tolist()
+
+
 def get_area_of_simple_polygon(polygon_object_latlng):
     """Computes area of simple polygon.
 
@@ -387,12 +402,18 @@ def write_stats_for_storm_objects(storm_shape_statistic_table,
     :param pickle_file_name: Path to output file.
     """
 
-    # TODO(thunderhoser): Need to ensure that storm_shape_statistic_table has
-    # the right columns.
+    statistic_column_names = get_statistic_columns(storm_shape_statistic_table)
+    if statistic_column_names is None:
+        raise ValueError(
+            'storm_shape_statistic_table does not contain any column with '
+            'radar statistics.')
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
+
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_shape_statistic_table, pickle_file_handle)
+    pickle.dump(storm_shape_statistic_table[columns_to_write],
+                pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -404,10 +425,17 @@ def read_stats_for_storm_objects(pickle_file_name):
         documented in get_stats_for_storm_objects.
     """
 
-    # TODO(thunderhoser): Need to ensure that storm_shape_statistic_table has
-    # the right columns.
-
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_shape_statistic_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(
+        storm_shape_statistic_table, STORM_COLUMNS_TO_KEEP)
+
+    statistic_column_names = get_statistic_columns(storm_shape_statistic_table)
+    if statistic_column_names is None:
+        raise ValueError(
+            'storm_shape_statistic_table does not contain any column with '
+            'radar statistics.')
+
     return storm_shape_statistic_table

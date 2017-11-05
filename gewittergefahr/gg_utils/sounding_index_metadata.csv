@@ -68,6 +68,7 @@ conversion_factor,in_mupcl_object,sounding_index_name,sounding_index_name_sharpp
 0.514444444444,False,srw_effective_bulk_layer_m_s01,srw_ebw,True
 0.514444444444,False,srw_effective_layer_m_s01,srw_eff,True
 0.514444444444,False,srw_lcl_to_el_m_s01,srw_lcl_el,True
+1.0,False,storm_velocity_m_s01,storm_velocity_m_s01,True
 1.0,False,stp_effective_layer,stp_cin,False
 1.0,False,stp_fixed_layer,stp_fixed,False
 1.0,False,supercell_composite_param_left_mover,left_scp,False
