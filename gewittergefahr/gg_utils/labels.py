@@ -12,6 +12,7 @@ import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.linkage import storm_to_winds
 from gewittergefahr.gg_utils import number_rounding as rounder
+from gewittergefahr.gg_utils import classification_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -106,79 +107,19 @@ def _check_class_cutoffs(class_cutoffs_kt):
 
     C = number of classes
     c = C - 1 = number of class cutoffs
-    q = percentile level
-    U_q = [q]th-percentile wind speed linked to storm object
 
     :param class_cutoffs_kt: length-c numpy array of class cutoffs in knots
-        (nautical miles per hour).  Storm objects with
-        U_q in [0, class_cutoffs_kt[0]) will be in class 0; storm objects with
-        U_q in [class_cutoffs_kt[k - 1], class_cutoffs_kt[k]) will be in class
-        k; and storm objects with U_q >= class_cutoffs_kt[-1] will be in the
-        highest class, C - 1.
-    :return: parameter_dict: Dictionary with the following keys.
-    parameter_dict['class_cutoffs_kt']: Same as input, but maybe rounded.
-    parameter_dict['class_minima_kt']: length-C numpy array of class minima.
-    parameter_dict['class_maxima_kt']: length-C numpy array of class maxima.
+        (nautical miles per hour).
+    :return: class_cutoffs_kt: Same as input, except with only unique rounded
+        values.
     """
-
-    error_checking.assert_is_greater_numpy_array(class_cutoffs_kt, 0.)
-    error_checking.assert_is_numpy_array(class_cutoffs_kt, num_dimensions=1)
 
     class_cutoffs_kt = numpy.sort(numpy.unique(rounder.round_to_nearest(
         class_cutoffs_kt, CLASS_CUTOFF_PRECISION_KT)))
+    _, _ = classification_utils.classification_cutoffs_to_ranges(
+        class_cutoffs_kt, non_negative_only=True)
 
-    num_classes = len(class_cutoffs_kt) + 1
-    class_minima_kt = numpy.full(num_classes, numpy.nan)
-    class_maxima_kt = numpy.full(num_classes, numpy.nan)
-
-    for k in range(num_classes):
-        if k == 0:
-            class_minima_kt[k] = 0.
-            class_maxima_kt[k] = class_cutoffs_kt[k]
-        elif k == num_classes - 1:
-            class_minima_kt[k] = class_cutoffs_kt[k - 1]
-            class_maxima_kt[k] = numpy.inf
-        else:
-            class_minima_kt[k] = class_cutoffs_kt[k - 1]
-            class_maxima_kt[k] = class_cutoffs_kt[k]
-
-    return {
-        CLASS_CUTOFFS_NAME: class_cutoffs_kt,
-        CLASS_MINIMA_NAME: class_minima_kt, CLASS_MAXIMA_NAME: class_maxima_kt
-    }
-
-
-def _classify_wind_speeds(wind_speeds_m_s01, class_minima_m_s01=None,
-                          class_maxima_m_s01=None):
-    """Determines class for each wind speed.
-
-    N = number of wind speeds
-    C = number of classes
-
-    :param wind_speeds_m_s01: length-N numpy array of wind speeds (metres per
-        second).
-    :param class_minima_m_s01: length-C numpy array of class minima (metres per
-        second).
-    :param class_maxima_m_s01: length-C numpy array of class maxima (metres per
-        second).
-    :return: wind_classes: length-N numpy array of ordinal class numbers.  For
-        example, if wind_classes[i] = k, this means the [i]th wind speed belongs
-        to the [k]th class.  Ordinal numbers are zero-based, so all values in
-        wind_classes are from 0...(C - 1).
-    """
-
-    num_observations = len(wind_speeds_m_s01)
-    wind_classes = numpy.full(num_observations, -1, dtype=int)
-    num_classes = len(class_minima_m_s01)
-
-    for k in range(num_classes):
-        these_flags = numpy.logical_and(
-            wind_speeds_m_s01 >= class_minima_m_s01[k],
-            wind_speeds_m_s01 < class_maxima_m_s01[k])
-        these_indices = numpy.where(these_flags)[0]
-        wind_classes[these_indices] = k
-
-    return wind_classes
+    return class_cutoffs_kt
 
 
 def column_name_to_label_params(column_name):
@@ -344,8 +285,7 @@ def get_column_name_for_classification_label(
         max_distance_metres=max_distance_metres,
         percentile_level=percentile_level)
 
-    parameter_dict = _check_class_cutoffs(class_cutoffs_kt)
-    class_cutoffs_kt = parameter_dict[CLASS_CUTOFFS_NAME]
+    class_cutoffs_kt = _check_class_cutoffs(class_cutoffs_kt)
     num_cutoffs = len(class_cutoffs_kt)
 
     column_name = column_name.replace(
@@ -608,12 +548,8 @@ def label_wind_for_classification(
     max_distance_metres = parameter_dict[MAX_DISTANCE_NAME]
     percentile_level = parameter_dict[PERCENTILE_LEVEL_NAME]
 
-    parameter_dict = _check_class_cutoffs(class_cutoffs_kt)
-    class_cutoffs_kt = parameter_dict[CLASS_CUTOFFS_NAME]
-    class_minima_m_s01 = KT_TO_METRES_PER_SECOND * parameter_dict[
-        CLASS_MINIMA_NAME]
-    class_maxima_m_s01 = KT_TO_METRES_PER_SECOND * parameter_dict[
-        CLASS_MAXIMA_NAME]
+    class_cutoffs_m_s01 = KT_TO_METRES_PER_SECOND * _check_class_cutoffs(
+        class_cutoffs_kt)
 
     storm_to_winds_table = label_wind_for_regression(
         storm_to_winds_table, min_lead_time_sec=min_lead_time_sec,
@@ -631,9 +567,9 @@ def label_wind_for_classification(
     regression_labels_m_s01 = storm_to_winds_table[
         regression_label_column_name].values
 
-    storm_classes = _classify_wind_speeds(
-        regression_labels_m_s01, class_minima_m_s01=class_minima_m_s01,
-        class_maxima_m_s01=class_maxima_m_s01)
+    storm_classes = classification_utils.classify_values(
+        regression_labels_m_s01, class_cutoffs=class_cutoffs_m_s01,
+        non_negative_only=True)
 
     classification_label_column_name = get_column_name_for_classification_label(
         min_lead_time_sec=min_lead_time_sec,

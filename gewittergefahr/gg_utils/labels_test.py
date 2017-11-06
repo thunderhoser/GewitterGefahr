@@ -1,4 +1,4 @@
-"""Unit tests for labels_test.py."""
+"""Unit tests for labels.py."""
 
 import unittest
 import numpy
@@ -27,21 +27,6 @@ REGRESSION_PARAM_DICT = {
 # The following constants are used to test _check_class_cutoffs.
 CLASS_CUTOFFS_ORIG_KT = numpy.array([10.1, 20.2, 30.3, 40.4, 50.5])
 CLASS_CUTOFFS_KT = numpy.array([10., 20., 30., 40., 50.])
-CLASS_MINIMA_KT = numpy.array([0., 10., 20., 30., 40., 50.])
-CLASS_MAXIMA_KT = numpy.array([10., 20., 30., 40., 50., numpy.inf])
-
-CLASSIFICATION_PARAM_DICT = {
-    labels.CLASS_CUTOFFS_NAME: CLASS_CUTOFFS_KT,
-    labels.CLASS_MINIMA_NAME: CLASS_MINIMA_KT,
-    labels.CLASS_MAXIMA_NAME: CLASS_MAXIMA_KT
-}
-
-# The following constants are used to test _classify_wind_speeds.
-WIND_SPEEDS_M_S01 = numpy.array(
-    [0., 5., 10., 15., 20., 25., 30., 35., 40., 45., 50., 60.])
-CLASS_MINIMA_M_S01 = numpy.array([0., 10., 20., 30., 40., 50.])
-CLASS_MAXIMA_M_S01 = numpy.array([10., 20., 30., 40., 50., numpy.inf])
-WIND_CLASSES = numpy.array([0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 5, 5], dtype=int)
 
 # The following constants are used to test get_column_name_for_regression_label
 # and get_column_name_for_classification_label.
@@ -55,7 +40,7 @@ FAKE_LABEL_COLUMN_NAME = 'poop'
 
 
 class LabelsTests(unittest.TestCase):
-    """Each method is a unit test for labels_test.py."""
+    """Each method is a unit test for labels.py."""
 
     def test_check_regression_params(self):
         """Ensures correct output from _check_regression_params."""
@@ -72,15 +57,10 @@ class LabelsTests(unittest.TestCase):
     def test_check_class_cutoffs(self):
         """Ensures correct output from _check_class_cutoffs."""
 
-        this_parameter_dict = labels._check_class_cutoffs(CLASS_CUTOFFS_ORIG_KT)
-
-        self.assertTrue(set(this_parameter_dict.keys()) ==
-                        set(CLASSIFICATION_PARAM_DICT.keys()))
-
-        for this_key in this_parameter_dict.keys():
-            self.assertTrue(numpy.allclose(
-                this_parameter_dict[this_key],
-                CLASSIFICATION_PARAM_DICT[this_key], atol=TOLERANCE))
+        these_class_cutoffs_kt = labels._check_class_cutoffs(
+            CLASS_CUTOFFS_ORIG_KT)
+        self.assertTrue(numpy.allclose(
+            these_class_cutoffs_kt, CLASS_CUTOFFS_KT, atol=TOLERANCE))
 
     def test_column_name_to_label_params_regression(self):
         """Ensures correct output from column_name_to_label_params.
@@ -134,15 +114,6 @@ class LabelsTests(unittest.TestCase):
         this_parameter_dict = labels.column_name_to_label_params(
             FAKE_LABEL_COLUMN_NAME)
         self.assertTrue(this_parameter_dict is None)
-
-    def test_classify_wind_speeds(self):
-        """Ensures correct output from _classify_wind_speeds."""
-
-        these_wind_classes = labels._classify_wind_speeds(
-            WIND_SPEEDS_M_S01, class_minima_m_s01=CLASS_MINIMA_M_S01,
-            class_maxima_m_s01=CLASS_MAXIMA_M_S01)
-
-        self.assertTrue(numpy.array_equal(these_wind_classes, WIND_CLASSES))
 
     def test_get_column_name_for_regression_label(self):
         """Ensures correct output from get_column_name_for_regression_label."""
