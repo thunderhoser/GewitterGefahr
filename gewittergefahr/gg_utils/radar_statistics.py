@@ -35,8 +35,10 @@ STORM_OBJECT_TO_GRID_PTS_COLUMNS = [
 GRID_POINT_LATLNG_COLUMNS = [tracking_io.GRID_POINT_LAT_COLUMN,
                              tracking_io.GRID_POINT_LNG_COLUMN]
 
+# TODO(thunderhoser): Currently statistic names cannot have underscores (this
+# will ruin _column_name_to_statistic_params).  I should change that.
 AVERAGE_NAME = 'mean'
-STANDARD_DEVIATION_NAME = 'standard_deviation'
+STANDARD_DEVIATION_NAME = 'stdev'
 SKEWNESS_NAME = 'skewness'
 KURTOSIS_NAME = 'kurtosis'
 STATISTIC_NAMES = [

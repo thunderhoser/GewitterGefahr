@@ -12,7 +12,7 @@ import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.linkage import storm_to_winds
 from gewittergefahr.gg_utils import number_rounding as rounder
-from gewittergefahr.gg_utils import classification_utils
+from gewittergefahr.gg_utils import classification_utils as classifn_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -41,8 +41,6 @@ MIN_DISTANCE_NAME = 'min_distance_metres'
 MAX_DISTANCE_NAME = 'max_distance_metres'
 PERCENTILE_LEVEL_NAME = 'percentile_level'
 CLASS_CUTOFFS_NAME = 'class_cutoffs_kt'
-CLASS_MINIMA_NAME = 'class_minima_kt'
-CLASS_MAXIMA_NAME = 'class_maxima_kt'
 
 PREFIX_FOR_REGRESSION_LABEL = 'wind_speed_m_s01'
 PREFIX_FOR_CLASSIFICATION_LABEL = 'wind_speed'
@@ -114,9 +112,9 @@ def _check_class_cutoffs(class_cutoffs_kt):
         values.
     """
 
-    class_cutoffs_kt = numpy.sort(numpy.unique(rounder.round_to_nearest(
-        class_cutoffs_kt, CLASS_CUTOFF_PRECISION_KT)))
-    _, _ = classification_utils.classification_cutoffs_to_ranges(
+    class_cutoffs_kt = rounder.round_to_nearest(
+        class_cutoffs_kt, CLASS_CUTOFF_PRECISION_KT)
+    class_cutoffs_kt, _, _ = classifn_utils.classification_cutoffs_to_ranges(
         class_cutoffs_kt, non_negative_only=True)
 
     return class_cutoffs_kt
@@ -567,7 +565,7 @@ def label_wind_for_classification(
     regression_labels_m_s01 = storm_to_winds_table[
         regression_label_column_name].values
 
-    storm_classes = classification_utils.classify_values(
+    storm_classes = classifn_utils.classify_values(
         regression_labels_m_s01, class_cutoffs=class_cutoffs_m_s01,
         non_negative_only=True)
 

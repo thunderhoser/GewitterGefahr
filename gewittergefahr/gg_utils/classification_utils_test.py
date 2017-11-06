@@ -7,7 +7,7 @@ from gewittergefahr.gg_utils import classification_utils as classifn_utils
 TOLERANCE = 1e-6
 
 # The following constants are used to test classification_cutoffs_to_ranges.
-CLASS_CUTOFFS = numpy.array([10., 20., 30., 40., 50.])
+CLASS_CUTOFFS = numpy.array([50., 10., 40., 20., 30.])
 CLASS_MINIMA_NEGATIVE_ALLOWED = numpy.array(
     [-numpy.inf, 10., 20., 30., 40., 50.])
 CLASS_MINIMA_NEGATIVE_FORBIDDEN = numpy.array([0., 10., 20., 30., 40., 50.])
@@ -31,7 +31,7 @@ class ClassificationUtilsTests(unittest.TestCase):
         In this case, negative values are allowed.
         """
 
-        these_class_minima, these_class_maxima = (
+        _, these_class_minima, these_class_maxima = (
             classifn_utils.classification_cutoffs_to_ranges(
                 CLASS_CUTOFFS, non_negative_only=False))
         self.assertTrue(numpy.allclose(
@@ -45,7 +45,7 @@ class ClassificationUtilsTests(unittest.TestCase):
         In this case, negative values are forbidden.
         """
 
-        these_class_minima, these_class_maxima = (
+        _, these_class_minima, these_class_maxima = (
             classifn_utils.classification_cutoffs_to_ranges(
                 CLASS_CUTOFFS, non_negative_only=True))
         self.assertTrue(numpy.allclose(

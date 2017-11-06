@@ -14,8 +14,8 @@ Feature vector = list of features for one example (storm object).
 
 Definitions for the following discussion:
 
-q = percentile level used to create the labels.  If you're still confused about
-    the role of q, see `labels.label_wind_for_regression` and
+q = percentile level used to create both regression and classification labels.
+    For more on the role of q, see `labels.label_wind_for_regression` and
     `labels.label_wind_for_classification`.
 
 U_q = [q]th percentile of all wind speeds linked to storm object.
@@ -39,27 +39,38 @@ from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import classification_utils as classifn_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.linkage import storm_to_winds
+
+# TODO(thunderhoser): This file needs better documentation, especially the
+# definitions of a "dead storm" and the sampling methods.
 
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
 FEATURE_FILE_PREFIX = 'features'
 FEATURE_FILE_EXTENSION = '.p'
-TIME_FORMAT_IN_FILE_NAMES = '%y-%m-%d-%H%M%S'
-STORM_COLUMNS = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
+
+STORM_TO_WIND_COLUMNS_TO_KEEP = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    storm_to_winds.END_TIME_COLUMN, labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
+COLUMNS_TO_MERGE_ON = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 LIVE_SELECTED_INDICES_KEY = 'live_selected_indices'
 NUM_LIVE_STORMS_KEY = 'num_live_storm_objects'
 NUM_DEAD_STORMS_KEY = 'num_dead_storm_objects'
+SPEED_CATEGORY_KEY_FOR_UNIFORM_SAMPLING = 'speed_category_by_storm_object'
+NUM_OBSERVATIONS_KEY = 'num_observations_by_storm_object'
 
 UNIFORM_SAMPLING_METHOD = 'uniform_wind_speed'
 MIN_OBS_SAMPLING_METHOD = 'min_observations'
 MIN_OBS_PLUS_SAMPLING_METHOD = 'min_observations_plus'
 
-DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_KT = numpy.array([10., 20., 30., 40., 50.])
 DEFAULT_MIN_OBSERVATIONS_FOR_SAMPLING = 25
-DEFAULT_MIN_REGRESSION_LABEL_M_S01 = 50. * KT_TO_METRES_PER_SECOND
+DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01 = (
+    KT_TO_METRES_PER_SECOND * numpy.array([10., 20., 30., 40., 50.]))
 
 
 def _find_live_and_dead_storms(feature_table):
@@ -89,7 +100,7 @@ def _find_live_and_dead_storms(feature_table):
     min_lead_time_sec = label_parameter_dict[labels.MIN_LEAD_TIME_NAME]
 
     remaining_storm_lifetimes_sec = (
-        feature_table[tracking_io.TRACKING_END_TIME_COLUMN].values -
+        feature_table[storm_to_winds.END_TIME_COLUMN].values -
         feature_table[tracking_io.TIME_COLUMN].values)
     live_flags = remaining_storm_lifetimes_sec >= min_lead_time_sec
 
@@ -127,7 +138,56 @@ def _select_dead_storms(live_indices=None, dead_indices=None,
 
     dead_selected_indices = numpy.random.choice(
         dead_indices, size=num_dead_storms_to_select, replace=False)
-    return numpy.concatenate((live_selected_indices, dead_selected_indices))
+    return numpy.sort(numpy.concatenate((
+        live_selected_indices, dead_selected_indices)))
+
+
+def _select_storms_uniformly_by_category(category_by_storm_object,
+                                         num_observations_by_storm_object):
+    """Selects an equal number of storm objects from each category.
+
+    Within each category, this method selects the storm objects with the
+    greatest numbers of attached observations.  In other words, the best-
+    observed storm objects are selected in each category.
+
+    N = number of storm objects
+
+    :param category_by_storm_object: length-N numpy array with integer category
+        for each storm object.
+    :param num_observations_by_storm_object: length-N numpy array with number of
+        observations attached to each storm object.
+    :return: selected_indices: 1-D numpy array with indices of all selected
+        storm objects.
+    """
+
+    unique_categories, orig_to_unique_category_indices = numpy.unique(
+        category_by_storm_object, return_inverse=True)
+
+    num_unique_categories = len(unique_categories)
+    num_storm_objects_by_category = numpy.full(
+        num_unique_categories, 0, dtype=int)
+
+    for k in range(num_unique_categories):
+        these_storm_indices = numpy.where(
+            orig_to_unique_category_indices == k)[0]
+        num_storm_objects_by_category[k] = len(these_storm_indices)
+
+    min_storm_objects_in_category = numpy.min(num_storm_objects_by_category)
+    selected_indices = numpy.array([])
+
+    for k in range(num_unique_categories):
+        these_storm_indices = numpy.where(
+            orig_to_unique_category_indices == k)[0]
+        these_sort_indices = numpy.argsort(
+            -num_observations_by_storm_object[these_storm_indices])
+
+        these_selected_indices = (
+            these_sort_indices[:min_storm_objects_in_category])
+        these_selected_indices = these_storm_indices[these_selected_indices]
+        selected_indices = numpy.concatenate((
+            selected_indices, these_selected_indices))
+
+    return numpy.sort(selected_indices)
 
 
 def check_feature_table(feature_table, require_storm_objects=True):
@@ -157,17 +217,19 @@ def check_feature_table(feature_table, require_storm_objects=True):
     feature_column_names = radar_stats.get_statistic_columns(feature_table)
 
     shape_stat_column_names = shape_stats.get_statistic_columns(feature_table)
-    if feature_column_names is None:
-        feature_column_names = shape_stat_column_names
-    else:
-        feature_column_names += shape_stat_column_names
+    if shape_stat_column_names:
+        if feature_column_names:
+            feature_column_names += shape_stat_column_names
+        else:
+            feature_column_names = shape_stat_column_names
 
     sounding_index_column_names = soundings.get_sounding_index_columns(
         feature_table)
-    if feature_column_names is None:
-        feature_column_names = sounding_index_column_names
-    else:
-        feature_column_names += sounding_index_column_names
+    if sounding_index_column_names:
+        if feature_column_names:
+            feature_column_names += sounding_index_column_names
+        else:
+            feature_column_names = sounding_index_column_names
 
     if feature_column_names is None:
         raise ValueError(
@@ -222,7 +284,8 @@ def check_feature_table(feature_table, require_storm_objects=True):
         raise ValueError(error_string)
 
     if require_storm_objects:
-        error_checking.assert_columns_in_dataframe(feature_table, STORM_COLUMNS)
+        error_checking.assert_columns_in_dataframe(
+            feature_table, STORM_TO_WIND_COLUMNS_TO_KEEP)
 
     return (feature_column_names, regression_label_column_name,
             classification_label_column_name)
@@ -261,37 +324,39 @@ def join_features_and_label_for_storm_objects(
     feature_table.unix_time_sec: Valid time of storm object.
     """
 
+    # TODO(thunderhoser): fix documentation and add num wind obs.
+
     feature_table = None
 
     if radar_statistic_table is not None:
         radar_stat_column_names = radar_stats.check_statistic_table(
             radar_statistic_table, require_storm_objects=True)
         feature_table = radar_statistic_table[
-            STORM_COLUMNS + radar_stat_column_names]
+            COLUMNS_TO_MERGE_ON + radar_stat_column_names]
 
     if shape_statistic_table is not None:
         shape_stat_column_names = shape_stats.check_statistic_table(
             shape_statistic_table, require_storm_objects=True)
         shape_statistic_table = shape_statistic_table[
-            STORM_COLUMNS + shape_stat_column_names]
+            COLUMNS_TO_MERGE_ON + shape_stat_column_names]
 
         if feature_table is None:
             feature_table = shape_statistic_table
         else:
             feature_table = feature_table.merge(
-                shape_statistic_table, on=STORM_COLUMNS, how='inner')
+                shape_statistic_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
     if sounding_index_table is not None:
         sounding_index_column_names = soundings.check_sounding_index_table(
             sounding_index_table, require_storm_objects=True)
         sounding_index_table = sounding_index_table[
-            STORM_COLUMNS + sounding_index_column_names]
+            COLUMNS_TO_MERGE_ON + sounding_index_column_names]
 
         if feature_table is None:
             feature_table = sounding_index_table
         else:
             feature_table = feature_table.merge(
-                sounding_index_table, on=STORM_COLUMNS, how='inner')
+                sounding_index_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
     label_parameter_dict = labels.column_name_to_label_params(label_column_name)
     if label_parameter_dict[labels.CLASS_CUTOFFS_NAME] is None:
@@ -313,12 +378,12 @@ def join_features_and_label_for_storm_objects(
         label_column_names = [label_column_name, regression_label_column_name]
 
     storm_to_winds_table = storm_to_winds_table[
-        STORM_COLUMNS + label_column_names]
+        STORM_TO_WIND_COLUMNS_TO_KEEP + label_column_names]
     return feature_table.merge(
-        storm_to_winds_table, on=STORM_COLUMNS, how='inner')
+        storm_to_winds_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
 
-def sample_via_min_observations(
+def sample_by_min_observations(
         feature_table, min_observations=DEFAULT_MIN_OBSERVATIONS_FOR_SAMPLING,
         return_table=False):
     """Samples feature vectors, using the "min_observations" method.
@@ -367,13 +432,10 @@ def sample_via_min_observations(
     return feature_table.iloc[selected_indices], None
 
 
-def sample_via_min_observations_plus(
+def sample_by_min_observations_plus(
         feature_table, min_observations=DEFAULT_MIN_OBSERVATIONS_FOR_SAMPLING,
-        min_regression_label_m_s01=DEFAULT_MIN_REGRESSION_LABEL_M_S01,
         return_table=False):
     """Samples feature vectors, using the "min_observations_plus" method.
-
-    T = lead-time range used to create labels
 
     :param feature_table: pandas DataFrame created by
         join_features_and_label_for_storm_objects.
@@ -385,17 +447,19 @@ def sample_via_min_observations_plus(
 
     error_checking.assert_is_integer(min_observations)
     error_checking.assert_is_greater(min_observations, 0)
-    error_checking.assert_is_greater(min_regression_label_m_s01, 0.)
     error_checking.assert_is_boolean(return_table)
 
-    _, regression_label_column_name, _ = check_feature_table(
+    _, _, classification_label_column_name = check_feature_table(
         feature_table, require_storm_objects=True)
+    label_parameter_dict = labels.column_name_to_label_params(
+        classification_label_column_name)
+    num_classes = 1 + len(label_parameter_dict[labels.CLASS_CUTOFFS_NAME])
 
     selected_flags = numpy.logical_or(
         feature_table[labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN].values >=
         min_observations,
-        feature_table[regression_label_column_name].values >=
-        min_regression_label_m_s01)
+        feature_table[classification_label_column_name].values ==
+        num_classes - 1)
 
     live_selected_indices = numpy.array(numpy.where(selected_flags)[0])
     live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
@@ -412,6 +476,64 @@ def sample_via_min_observations_plus(
     return feature_table.iloc[selected_indices], None
 
 
+def sample_by_uniform_wind_speed(
+        feature_table, cutoffs_m_s01=DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01,
+        return_table=False):
+    """Samples feature vectors, using the "uniform_wind_speed" method.
+
+    q = percentile level used to create both regression and classification
+        labels.  For more on the role of q, see
+        `labels.label_wind_for_regression` and
+        `labels.label_wind_for_classification`.
+
+    U_q = [q]th percentile of all wind speeds linked to storm object.
+
+    N = number of storm objects
+    T = lead-time range used to create labels
+
+    :param feature_table: N-row pandas DataFrame created by
+        join_features_and_label_for_storm_objects.
+    :param cutoffs_m_s01: 1-D numpy array of cutoffs (metres per second), which
+        will be used to create categories for U_q.  An equal number of storm
+        objects in each U_q category will be selected.
+    :param return_table: Boolean flag.  If True, will return sampled feature
+        vectors.  If False, will return metadata, which can be used to sample
+        from a large number of feature tables in the future.
+    :return: feature_table: If return_table = False, this is None.  If
+        return_table = True, this is the input table with fewer rows.
+    :return: metadata_dict: If return_table = True, this is None.  If
+        return_table = False, dictionary with the following keys.
+    metadata_dict['speed_category_by_storm_object']: length-N numpy array of
+        wind-speed categories.  Category -1 means that the storm no longer
+        exists during T.  Category k means that U_q is >=
+        wind_speed_minima_m_s01 and < wind_speed_maxima_m_s01.
+    metadata_dict['num_observations_by_storm_object']: length-N numpy array,
+        where the [i]th element is number of wind observations used to label the
+        [i]th storm object.
+    """
+
+    _, regression_label_column_name, _ = check_feature_table(
+        feature_table, require_storm_objects=True)
+    speed_category_by_storm_object = classifn_utils.classify_values(
+        feature_table[regression_label_column_name].values, cutoffs_m_s01,
+        non_negative_only=True)
+
+    _, dead_indices = _find_live_and_dead_storms(feature_table)
+    speed_category_by_storm_object[dead_indices] = -1
+    num_observations_by_storm_object = feature_table[
+        labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN].values
+
+    if not return_table:
+        metadata_dict = {SPEED_CATEGORY_KEY_FOR_UNIFORM_SAMPLING:
+                             speed_category_by_storm_object,
+                         NUM_OBSERVATIONS_KEY: num_observations_by_storm_object}
+        return None, metadata_dict
+
+    selected_indices = _select_storms_uniformly_by_category(
+        speed_category_by_storm_object, num_observations_by_storm_object)
+    return feature_table.iloc[selected_indices], None
+
+
 def write_features_for_storm_objects(feature_table, pickle_file_name):
     """Writes features for storm objects to a Pickle file.
 
@@ -425,7 +547,7 @@ def write_features_for_storm_objects(feature_table, pickle_file_name):
      classification_label_column_name) = check_feature_table(
          feature_table, require_storm_objects=True)
 
-    columns_to_write = STORM_COLUMNS + feature_column_names
+    columns_to_write = STORM_TO_WIND_COLUMNS_TO_KEEP + feature_column_names
     if regression_label_column_name is not None:
         columns_to_write += [regression_label_column_name]
     if classification_label_column_name is not None:
@@ -479,7 +601,7 @@ def find_unsampled_file_one_time(
 
     unsampled_file_name = '{0:s}/{1:s}/{2:s}'.format(
         top_directory_name,
-        time_conversion.time_to_spc_date_unix_sec(spc_date_unix_sec),
+        time_conversion.time_to_spc_date_string(spc_date_unix_sec),
         pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(unsampled_file_name):

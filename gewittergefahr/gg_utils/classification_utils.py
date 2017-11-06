@@ -13,7 +13,12 @@ def classification_cutoffs_to_ranges(class_cutoffs, non_negative_only=True):
     :param class_cutoffs: length-c numpy array of class cutoffs.
     :param non_negative_only: Boolean flag.  If True, class cutoffs/minima/
         maxima must be non-negative.
-    :return: class_minima: length-C numpy array of class minima.
+    :return: class_cutoffs: Same as input, but containing only unique values and
+        sorted in ascending order.
+    :return: class_minima: length-C numpy array of class minima, sorted in
+        ascending order.
+    :return: class_maxima: length-C numpy array of class maxima, sorted in
+        ascending order.
     """
 
     error_checking.assert_is_boolean(non_negative_only)
@@ -23,6 +28,7 @@ def classification_cutoffs_to_ranges(class_cutoffs, non_negative_only=True):
     else:
         error_checking.assert_is_numpy_array_without_nan(class_cutoffs)
 
+    class_cutoffs = numpy.sort(numpy.unique(class_cutoffs))
     num_classes = len(class_cutoffs) + 1
     class_minima = numpy.full(num_classes, numpy.nan)
     class_maxima = numpy.full(num_classes, numpy.nan)
@@ -42,7 +48,7 @@ def classification_cutoffs_to_ranges(class_cutoffs, non_negative_only=True):
             class_minima[k] = class_cutoffs[k - 1]
             class_maxima[k] = class_cutoffs[k]
 
-    return class_minima, class_maxima
+    return class_cutoffs, class_minima, class_maxima
 
 
 def classify_values(input_values, class_cutoffs, non_negative_only=True):
@@ -59,7 +65,7 @@ def classify_values(input_values, class_cutoffs, non_negative_only=True):
     :return: class_labels: length-N numpy array of integer class labels.
     """
 
-    class_minima, class_maxima = classification_cutoffs_to_ranges(
+    _, class_minima, class_maxima = classification_cutoffs_to_ranges(
         class_cutoffs, non_negative_only=non_negative_only)
 
     error_checking.assert_is_numpy_array_without_nan(input_values)
