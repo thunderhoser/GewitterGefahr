@@ -322,9 +322,10 @@ def join_features_and_label_for_storm_objects(
         below.
     feature_table.storm_id: String ID for storm cell.
     feature_table.unix_time_sec: Valid time of storm object.
+    feature_table.end_time_unix_sec: End time of corresponding storm cell.
+    feature_table.num_observations_for_label: Number of observations used to
+        create label.
     """
-
-    # TODO(thunderhoser): fix documentation and add num wind obs.
 
     feature_table = None
 
@@ -532,6 +533,42 @@ def sample_by_uniform_wind_speed(
     selected_indices = _select_storms_uniformly_by_category(
         speed_category_by_storm_object, num_observations_by_storm_object)
     return feature_table.iloc[selected_indices], None
+
+
+def split_examples_2sets(unix_times_sec, training_fraction=None, time_separation_sec=DEFAULT_TIME_SEPARATION_SEC):
+    """Splits examples into two sets.
+
+    The two sets are either {training, validation} or {training, testing}.
+
+    N = number of examples (usually storm objects)
+
+    :param unix_times_sec: length-N numpy array with valid times of examples.
+    :param training_fraction: Fraction of examples to use for training.
+    :param time_separation_sec: Time separation between sets.  No training
+        example will occur within `time_separation_sec` of a non-training
+        example, and vice-versa.
+    :return: training_indices: 1-D numpy array of training indices.
+    :return: non_training_set_indices: 1-D numpy array of indices for non-
+        training set.
+    """
+
+    # TODO(thunderhoser): move this method to another file.
+
+    error_checking.assert_is_integer_numpy_array(unix_times_sec)
+    error_checking.assert_is_numpy_array_without_nan(unix_times_sec)
+    error_checking.assert_is_numpy_array(unix_times_sec, num_dimensions=1)
+
+    error_checking.assert_is_greater(training_fraction, 0.)
+    error_checking.assert_is_less_than(training_fraction, 1.)
+    error_checking.assert_is_integer(time_separation_sec)
+    error_checking.assert_is_greater(time_separation_sec, 0)
+
+    sort_indices = numpy.argsort(unix_times_sec)
+    unix_times_sec = numpy.sort(unix_times_sec)
+
+    num_examples = len(unix_times_sec)
+
+
 
 
 def write_features_for_storm_objects(feature_table, pickle_file_name):
