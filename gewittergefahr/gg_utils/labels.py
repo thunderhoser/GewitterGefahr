@@ -592,7 +592,8 @@ def write_labels(storm_to_winds_table, pickle_file_name):
 
     label_column_names = check_label_table(
         storm_to_winds_table, require_storm_objects=True)
-    columns_to_write = storm_to_winds.COLUMNS_TO_WRITE + label_column_names
+    columns_to_write = label_column_names + storm_to_winds.get_columns_to_write(
+        storm_to_winds_table)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')

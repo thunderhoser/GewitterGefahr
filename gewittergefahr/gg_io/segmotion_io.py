@@ -852,22 +852,9 @@ if __name__ == '__main__':
         tracking_end_time_unix_sec=TRACKING_END_TIME_UNIX_SEC)
     print POLYGON_TABLE
 
-    (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (
-        radar_io.get_center_of_grid(
-            nw_grid_point_lat_deg=
-            METADATA_DICT[radar_io.NW_GRID_POINT_LAT_COLUMN],
-            nw_grid_point_lng_deg=
-            METADATA_DICT[radar_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=METADATA_DICT[radar_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=METADATA_DICT[radar_io.LNG_SPACING_COLUMN],
-            num_grid_rows=METADATA_DICT[radar_io.NUM_LAT_COLUMN],
-            num_grid_columns=METADATA_DICT[radar_io.NUM_LNG_COLUMN]))
-
     POLYGON_TABLE = tracking_io.make_buffers_around_polygons(
         POLYGON_TABLE, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,
-        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES,
-        central_latitude_deg=CENTRAL_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_LONGITUDE_DEG)
+        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES)
     print POLYGON_TABLE
 
     STORM_TABLE = join_stats_and_polygons(STATS_TABLE, POLYGON_TABLE)

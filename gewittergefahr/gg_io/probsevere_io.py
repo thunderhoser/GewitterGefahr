@@ -286,19 +286,9 @@ if __name__ == '__main__':
     STORM_OBJECT_TABLE = read_storm_objects_from_raw_file(RAW_FILE_NAME)
     print STORM_OBJECT_TABLE
 
-    (CENTRAL_LATITUDE_DEG, CENTRAL_LONGITUDE_DEG) = (
-        radar_io.get_center_of_grid(
-            nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
-            nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
-            lat_spacing_deg=GRID_LAT_SPACING_DEG,
-            lng_spacing_deg=GRID_LNG_SPACING_DEG, num_grid_rows=NUM_GRID_ROWS,
-            num_grid_columns=NUM_GRID_COLUMNS))
-
     STORM_OBJECT_TABLE = tracking_io.make_buffers_around_polygons(
         STORM_OBJECT_TABLE, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,
-        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES,
-        central_latitude_deg=CENTRAL_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_LONGITUDE_DEG)
+        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES)
     print STORM_OBJECT_TABLE
 
     PROCESSED_FILE_NAME = tracking_io.find_processed_file(

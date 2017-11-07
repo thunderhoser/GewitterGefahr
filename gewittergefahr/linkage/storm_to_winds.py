@@ -32,13 +32,13 @@ PADDING_FOR_STORM_BOUNDING_BOX_DEFAULT_METRES = 10000.
 INTERP_TIME_SPACING_DEFAULT_SEC = 10
 MAX_LINKAGE_DIST_DEFAULT_METRES = 30000.
 
-STORM_COLUMNS_TO_READ = [
+REQUIRED_STORM_COLUMNS = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.TRACKING_START_TIME_COLUMN,
     tracking_io.TRACKING_END_TIME_COLUMN, tracking_io.CENTROID_LAT_COLUMN,
     tracking_io.CENTROID_LNG_COLUMN, tracking_io.POLYGON_OBJECT_LATLNG_COLUMN]
 
-WIND_COLUMNS_TO_READ = [
+REQUIRED_WIND_COLUMNS = [
     raw_wind_io.STATION_ID_COLUMN, raw_wind_io.LATITUDE_COLUMN,
     raw_wind_io.LONGITUDE_COLUMN, raw_wind_io.TIME_COLUMN,
     raw_wind_io.U_WIND_COLUMN, raw_wind_io.V_WIND_COLUMN]
@@ -67,7 +67,7 @@ V_WINDS_COLUMN = 'v_winds_m_s01'
 LINKAGE_DISTANCES_COLUMN = 'wind_distances_metres'
 RELATIVE_TIMES_COLUMN = 'relative_wind_times_sec'
 
-COLUMNS_TO_WRITE = STORM_COLUMNS_TO_READ + [
+REQUIRED_COLUMNS_TO_WRITE = REQUIRED_STORM_COLUMNS + [
     START_TIME_COLUMN, END_TIME_COLUMN, STATION_IDS_COLUMN,
     WIND_LATITUDES_COLUMN, WIND_LONGITUDES_COLUMN, U_WINDS_COLUMN,
     V_WINDS_COLUMN, LINKAGE_DISTANCES_COLUMN, RELATIVE_TIMES_COLUMN
@@ -722,7 +722,7 @@ def _read_wind_observations(storm_object_table,
                ': "' + wind_file_names[i] + '"...')
 
         list_of_wind_tables[i] = raw_wind_io.read_processed_file(
-            wind_file_names[i])[WIND_COLUMNS_TO_READ]
+            wind_file_names[i])[REQUIRED_WIND_COLUMNS]
         if i == 0:
             continue
 
@@ -764,8 +764,20 @@ def _read_storm_objects(processed_file_names):
         print ('Reading storm-object file ' + str(i + 1) + '/' +
                str(num_files) + ': "' + processed_file_names[i] + '"...')
 
-        list_of_storm_object_tables[i] = tracking_io.read_processed_file(
-            processed_file_names[i])[STORM_COLUMNS_TO_READ]
+        if i == 0:
+            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+                processed_file_names[i])
+
+            distance_buffer_column_names = (
+                tracking_io.get_distance_buffer_columns(
+                    list_of_storm_object_tables[i]))
+            columns_to_read = (
+                REQUIRED_STORM_COLUMNS + distance_buffer_column_names)
+            list_of_storm_object_tables[i] = list_of_storm_object_tables[i][
+                columns_to_read]
+        else:
+            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+                processed_file_names[i])[columns_to_read]
 
         this_num_storm_objects = len(list_of_storm_object_tables[i].index)
         file_indices = numpy.concatenate((
@@ -784,6 +796,21 @@ def _read_storm_objects(processed_file_names):
                                        ignore_index=True)
     argument_dict = {FILE_INDEX_COLUMN: file_indices}
     return storm_object_table.assign(**argument_dict)
+
+
+def get_columns_to_write(storm_to_winds_table):
+    """Returns list of columns to write to output file.
+
+    :param storm_to_winds_table: pandas DataFrame created by
+        _create_storm_to_winds_table.
+    :return: columns_to_write: 1-D list with names of columns to write.
+    """
+
+    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+        storm_to_winds_table)
+    if distance_buffer_column_names is None:
+        distance_buffer_column_names = []
+    return REQUIRED_COLUMNS_TO_WRITE + distance_buffer_column_names
 
 
 def link_each_storm_to_winds(
@@ -878,21 +905,22 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
 
     K = number of wind observations linked to a given storm cell
 
-    :param storm_to_winds_table: pandas DataFrame with the following columns,
-        where each row is one storm object.
+    :param storm_to_winds_table: pandas DataFrame with the following mandatory
+        columns.  May also contain distance buffers created by
+        `storm_tracking_io.make_buffers_around_polygons`.  Each row is one storm
+        object.
     storm_to_winds_table.storm_id: String ID for storm cell.
     storm_to_winds_table.unix_time_sec: Valid time.
     storm_to_winds_table.tracking_start_time_unix_sec: Start time for tracking
         period.
     storm_to_winds_table.tracking_end_time_unix_sec: End time for tracking
         period.
-    storm_to_winds_table.centroid_lat_deg: Latitude (deg N) of storm-object
-        centroid.
-    storm_to_winds_table.centroid_lng_deg: Longitude (deg E) of storm-object
-        centroid.
+    storm_to_winds_table.centroid_lat_deg: Latitude at centroid of storm object
+        (deg N).
+    storm_to_winds_table.centroid_lng_deg: Longitude at centroid of storm object
+        (deg E).
     storm_to_winds_table.polygon_object_latlng: Instance of
-        `shapely.geometry.Polygon`, with vertices of storm object in lat-long
-        coordinates.
+        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
     storm_to_winds_table.wind_station_ids: length-K list with string IDs of wind
         stations.
     storm_to_winds_table.wind_latitudes_deg: length-K numpy array with latitudes
@@ -912,12 +940,14 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
     """
 
     error_checking.assert_is_string_list(pickle_file_names)
-    error_checking.assert_is_numpy_array(numpy.asarray(pickle_file_names),
-                                         num_dimensions=1)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(pickle_file_names), num_dimensions=1)
 
     max_file_index = numpy.max(storm_to_winds_table[FILE_INDEX_COLUMN].values)
     num_files = len(pickle_file_names)
     error_checking.assert_is_greater(num_files, max_file_index)
+
+    columns_to_write = get_columns_to_write(storm_to_winds_table)
 
     for i in range(num_files):
         print ('Writing storm-to-winds file ' + str(i + 1) + '/' +
@@ -927,10 +957,9 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
             file_name=pickle_file_names[i])
 
         this_file_handle = open(pickle_file_names[i], 'wb')
-        pickle.dump(
-            storm_to_winds_table.loc[
-                storm_to_winds_table[FILE_INDEX_COLUMN] == i][COLUMNS_TO_WRITE],
-            this_file_handle)
+        this_table = storm_to_winds_table.loc[
+            storm_to_winds_table[FILE_INDEX_COLUMN] == i][columns_to_write]
+        pickle.dump(this_table, this_file_handle)
         this_file_handle.close()
 
 
@@ -947,5 +976,5 @@ def read_storm_to_winds_table(pickle_file_name):
     pickle_file_handle.close()
 
     error_checking.assert_columns_in_dataframe(
-        storm_to_winds_table, COLUMNS_TO_WRITE)
+        storm_to_winds_table, REQUIRED_COLUMNS_TO_WRITE)
     return storm_to_winds_table

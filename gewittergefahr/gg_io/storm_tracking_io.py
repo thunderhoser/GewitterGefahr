@@ -45,7 +45,7 @@ MANDATORY_COLUMNS = [
     POLYGON_OBJECT_ROWCOL_COLUMN, TRACKING_START_TIME_COLUMN,
     TRACKING_END_TIME_COLUMN]
 
-BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_buffer'
+BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_latlng_buffer'
 
 
 def _check_data_source(data_source):
@@ -64,33 +64,51 @@ def _check_data_source(data_source):
         raise ValueError(error_string)
 
 
-def _distance_buffers_to_column_names(min_buffer_dists_metres,
-                                      max_buffer_dists_metres):
-    """Generates column name for each distance buffer.
+def _column_name_to_distance_buffer(column_name):
+    """Parses distance buffer from column name.
 
-    N = number of buffers
+    If column name does not correspond to a distance buffer, this method will
+    return None for all output variables.
 
-    :param min_buffer_dists_metres: length-N numpy array of minimum distances.
-    :param max_buffer_dists_metres: length-N numpy array of maximum distances.
-    :return: buffer_column_names: length-N list of column names for buffer
-        polygons.
+    :param column_name: Name of column.
+    :return: min_buffer_dist_metres: Minimum buffer distance.
+    :return: max_buffer_dist_metres: Maximum buffer distance.
     """
 
-    num_buffers = len(min_buffer_dists_metres)
-    buffer_column_names = [''] * num_buffers
+    if not column_name.startswith(BUFFER_POLYGON_COLUMN_PREFIX):
+        return None, None
 
-    for j in range(num_buffers):
-        if numpy.isnan(min_buffer_dists_metres[j]):
-            buffer_column_names[j] = '{0:s}_{1:d}m'.format(
-                BUFFER_POLYGON_COLUMN_PREFIX,
-                int(max_buffer_dists_metres[j]))
-        else:
-            buffer_column_names[j] = '{0:s}_{1:d}_{2:d}m'.format(
-                BUFFER_POLYGON_COLUMN_PREFIX,
-                int(min_buffer_dists_metres[j]),
-                int(max_buffer_dists_metres[j]))
+    column_name = column_name.replace(BUFFER_POLYGON_COLUMN_PREFIX + '_', '')
+    column_name_parts = column_name.split('_')
+    if len(column_name_parts) == 1:
+        min_buffer_dist_metres = numpy.nan
+    elif len(column_name_parts) == 2:
+        min_buffer_dist_metres = -1
+    else:
+        return None, None
 
-    return buffer_column_names
+    max_distance_part = column_name_parts[-1]
+    if not max_distance_part.endswith('m'):
+        return None, None
+    max_distance_part = max_distance_part.replace('m', '')
+    try:
+        max_buffer_dist_metres = float(int(max_distance_part))
+    except ValueError:
+        return None, None
+
+    if numpy.isnan(min_buffer_dist_metres):
+        return min_buffer_dist_metres, max_buffer_dist_metres
+
+    min_distance_part = column_name_parts[-2]
+    if not min_distance_part.endswith('m'):
+        return None, None
+    min_distance_part = min_distance_part.replace('m', '')
+    try:
+        min_buffer_dist_metres = float(int(min_distance_part))
+    except ValueError:
+        return None, None
+
+    return min_buffer_dist_metres, max_buffer_dist_metres
 
 
 def _get_pathless_processed_file_name(unix_time_sec, data_source):
@@ -143,14 +161,64 @@ def remove_rows_with_nan(input_table):
         gone.
     """
 
+    # TODO(thunderhoser): This method could be used in many contexts.  It
+    # should go somewhere else.
+
     return input_table.loc[input_table.notnull().all(axis=1)]
+
+
+def distance_buffer_to_column_name(min_buffer_distance_metres, max_buffer_distance_metres):
+    """Generates column name for distance buffer.
+
+    :param min_buffer_distance_metres: Minimum distance around original polygon.
+        If there is no minimum distance (i.e., the original polygon is included
+        in the buffer), this should be NaN.
+    :param max_buffer_distance_metres: Maximum distance around original polygon.
+    :return: column_name: Name of column.
+    """
+
+    error_checking.assert_is_geq(max_buffer_distance_metres, 0.)
+    if numpy.isnan(min_buffer_distance_metres):
+        return '{0:s}_{1:d}m'.format(
+            BUFFER_POLYGON_COLUMN_PREFIX, int(max_buffer_distance_metres))
+
+    error_checking.assert_is_geq(min_buffer_distance_metres, 0.)
+    error_checking.assert_is_greater(
+        max_buffer_distance_metres, min_buffer_distance_metres)
+
+    return '{0:s}_{1:d}m_{2:d}m'.format(
+        BUFFER_POLYGON_COLUMN_PREFIX, int(min_buffer_distance_metres),
+        int(max_buffer_distance_metres))
+
+
+def get_distance_buffer_columns(storm_object_table):
+    """Returns names of columns with buffered polygons.
+
+    :param storm_object_table: pandas DataFrame.
+    :return: distance_buffer_column_names: 1-D list containing names of columns
+        with buffered polygons.  If there are no such columns, this is None.
+    """
+
+    column_names = list(storm_object_table)
+    distance_buffer_column_names = None
+
+    for this_column_name in column_names:
+        _, this_max_distance_metres = _column_name_to_distance_buffer(
+            this_column_name)
+        if this_max_distance_metres is None:
+            continue
+
+        if distance_buffer_column_names is None:
+            distance_buffer_column_names = [this_column_name]
+        else:
+            distance_buffer_column_names.append(this_column_name)
+
+    return distance_buffer_column_names
 
 
 def make_buffers_around_polygons(storm_object_table,
                                  min_buffer_dists_metres=None,
-                                 max_buffer_dists_metres=None,
-                                 central_latitude_deg=None,
-                                 central_longitude_deg=None):
+                                 max_buffer_dists_metres=None):
     """Creates one or more buffers around each storm polygon.
 
     N = number of buffers
@@ -167,14 +235,10 @@ def make_buffers_around_polygons(storm_object_table,
         original polygon.
     :param max_buffer_dists_metres: length-N numpy array of maximum buffer
         distances.  Must be all real numbers (no NaN).
-    :param central_latitude_deg: Central latitude (deg N) for azimuthal
-        equidistant projection.
-    :param central_longitude_deg: Central longitude (deg E) for azimuthal
-        equidistant projection.
     :return: storm_object_table: Same as input, but with N extra columns.
-    storm_object_table.polygon_object_buffer_<D>m: Instance of
+    storm_object_table.polygon_object_latlng_buffer_<D>m: Instance of
         `shapely.geometry.Polygon` for D-metre buffer around storm.
-    storm_object_table.polygon_object_buffer_<d>_<D>m: Instance of
+    storm_object_table.polygon_object_latlng_buffer_<d>_<D>m: Instance of
         `shapely.geometry.Polygon` for d-to-D-metre buffer around storm.
     """
 
@@ -196,21 +260,33 @@ def make_buffers_around_polygons(storm_object_table,
             max_buffer_dists_metres[j], min_buffer_dists_metres[j],
             allow_nan=False)
 
+    num_storm_objects = len(storm_object_table.index)
+    centroid_latitudes_deg = numpy.full(num_storm_objects, numpy.nan)
+    centroid_longitudes_deg = numpy.full(num_storm_objects, numpy.nan)
+
+    for i in range(num_storm_objects):
+        this_centroid_object = storm_object_table[
+            POLYGON_OBJECT_LATLNG_COLUMN].values[0].centroid
+        centroid_latitudes_deg[i] = this_centroid_object.y
+        centroid_longitudes_deg[i] = this_centroid_object.x
+
+    global_centroid_lat_deg, global_centroid_lng_deg = (
+        polygons.get_latlng_centroid(
+            centroid_latitudes_deg, centroid_longitudes_deg))
     projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg, central_longitude_deg)
+        global_centroid_lat_deg, global_centroid_lng_deg)
 
-    buffer_column_names = _distance_buffers_to_column_names(
-        min_buffer_dists_metres, max_buffer_dists_metres)
-
-    num_storms = len(storm_object_table.index)
-    object_array = numpy.full(num_storms, numpy.nan, dtype=object)
-
+    object_array = numpy.full(num_storm_objects, numpy.nan, dtype=object)
     argument_dict = {}
+    buffer_column_names = [''] * num_buffers
+
     for j in range(num_buffers):
+        buffer_column_names[j] = distance_buffer_to_column_name(
+            min_buffer_dists_metres[j], max_buffer_dists_metres[j])
         argument_dict.update({buffer_column_names[j]: object_array})
     storm_object_table = storm_object_table.assign(**argument_dict)
 
-    for i in range(num_storms):
+    for i in range(num_storm_objects):
         orig_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
             storm_object_table[POLYGON_OBJECT_LATLNG_COLUMN].values[i])
 
@@ -310,17 +386,20 @@ def write_processed_file(storm_object_table, pickle_file_name):
 
     P = number of grid points in a given storm object
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.
+    :param storm_object_table: pandas DataFrame with the following mandatory
+        columns.  May also contain distance buffers created by
+        make_buffers_around_polygons.  Each row is one storm object.
     storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.spc_date_unix_sec: SPC date.
     storm_object_table.tracking_start_time_unix_sec: Start time for tracking
         period.
     storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
-    storm_object_table.east_velocity_m_s01: Eastward velocity (m/s).
-    storm_object_table.north_velocity_m_s01: Northward velocity (m/s).
     storm_object_table.age_sec: Age of storm cell (seconds).
+    storm_object_table.east_velocity_m_s01: Eastward velocity of storm cell
+        (metres per second).
+    storm_object_table.north_velocity_m_s01: Northward velocity of storm cell
+        (metres per second).
     storm_object_table.centroid_lat_deg: Latitude at centroid of storm object
         (deg N).
     storm_object_table.centroid_lng_deg: Longitude at centroid of storm object
@@ -340,12 +419,15 @@ def write_processed_file(storm_object_table, pickle_file_name):
     :param pickle_file_name: Path to output file.
     """
 
-    error_checking.assert_columns_in_dataframe(storm_object_table,
-                                               MANDATORY_COLUMNS)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    distance_buffer_column_names = get_distance_buffer_columns(
+        storm_object_table)
+    if distance_buffer_column_names is None:
+        distance_buffer_column_names = []
+    columns_to_write = MANDATORY_COLUMNS + distance_buffer_column_names
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_object_table, pickle_file_handle)
+    pickle.dump(storm_object_table[columns_to_write], pickle_file_handle)
     pickle_file_handle.close()
 
 

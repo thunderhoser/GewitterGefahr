@@ -47,6 +47,7 @@ from gewittergefahr.linkage import storm_to_winds
 # TODO(thunderhoser): This file needs better documentation, especially the
 # definitions of a "dead storm" and the sampling methods.
 
+TOLERANCE = 1e-6
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
 FEATURE_FILE_PREFIX = 'features'
@@ -55,8 +56,11 @@ TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
 STORM_TO_WIND_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    storm_to_winds.END_TIME_COLUMN, labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
+    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, storm_to_winds.END_TIME_COLUMN,
+    labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
 COLUMNS_TO_MERGE_ON = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+INPUT_COLUMNS_TO_MAKE_BUFFERS = (
+    COLUMNS_TO_MERGE_ON + tracking_io.POLYGON_OBJECT_LATLNG_COLUMN)
 
 LIVE_SELECTED_INDICES_KEY = 'live_selected_indices'
 NUM_LIVE_STORMS_KEY = 'num_live_storm_objects'
@@ -69,6 +73,7 @@ MIN_OBS_SAMPLING_METHOD = 'min_observations'
 MIN_OBS_PLUS_SAMPLING_METHOD = 'min_observations_plus'
 
 DEFAULT_MIN_OBSERVATIONS_FOR_SAMPLING = 25
+DEFAULT_MIN_OBS_DENSITY_FOR_SAMPLING_M02 = 1e-7
 DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01 = (
     KT_TO_METRES_PER_SECOND * numpy.array([10., 20., 30., 40., 50.]))
 
@@ -188,6 +193,57 @@ def _select_storms_uniformly_by_category(category_by_storm_object,
             selected_indices, these_selected_indices))
 
     return numpy.sort(selected_indices)
+
+
+def _get_observation_densities(feature_table):
+    """Finds wind-observation density in buffer around each storm object.
+
+    Specifically, for each storm object, finds observation density in buffer
+    used to create regression or classification labels.
+
+    N = number of storm objects
+
+    :param feature_table: N-row pandas DataFrame created by
+        join_features_and_label_for_storm_objects.
+    :return: feature_table: Same as input, except that columns may have been
+        added by `storm_tracking_io.make_buffers_around_polygons`.
+    :return: observation_densities_m02: length-N numpy array of observation
+        densities (number per m^2).
+    """
+
+    # TODO(thunderhoser): need unit test.
+
+    _, regression_label_column_name, _, = check_feature_table(
+        feature_table, require_storm_objects=True)
+    label_parameter_dict = labels.column_name_to_label_params(
+        regression_label_column_name)
+
+    min_buffer_distance_metres = label_parameter_dict[labels.MIN_DISTANCE_NAME]
+    max_buffer_distance_metres = label_parameter_dict[labels.MAX_DISTANCE_NAME]
+    if min_buffer_distance_metres < TOLERANCE:
+        min_buffer_distance_metres = numpy.nan
+
+    buffer_column_name = tracking_io.distance_buffer_to_column_name(
+        min_buffer_distance_metres, max_buffer_distance_metres)
+    if buffer_column_name not in feature_table:
+        buffer_table = feature_table[INPUT_COLUMNS_TO_MAKE_BUFFERS]
+        buffer_table = tracking_io.make_buffers_around_polygons(
+            buffer_table,
+            min_buffer_dists_metres=numpy.array([min_buffer_distance_metres]),
+            max_buffer_dists_metres=numpy.array([max_buffer_distance_metres]))
+
+        feature_table = feature_table.merge(
+            buffer_table, on=COLUMNS_TO_MERGE_ON, how='inner')
+
+    num_storm_objects = len(feature_table.index)
+    buffer_areas_m2 = numpy.full(num_storm_objects, numpy.nan)
+    for i in range(num_storm_objects):
+        buffer_areas_m2[i] = feature_table[buffer_column_name].values[i].area
+
+    observation_densities_m02 = (
+        feature_table[labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN].values /
+        buffer_areas_m2)
+    return feature_table, observation_densities_m02
 
 
 def check_feature_table(feature_table, require_storm_objects=True):
@@ -327,6 +383,8 @@ def join_features_and_label_for_storm_objects(
         create label.
     """
 
+    # TODO(thunderhoser): Discuss distance buffers in documentation.
+
     feature_table = None
 
     if radar_statistic_table is not None:
@@ -378,8 +436,14 @@ def join_features_and_label_for_storm_objects(
 
         label_column_names = [label_column_name, regression_label_column_name]
 
+    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+        storm_to_winds_table)
+    if distance_buffer_column_names is None:
+        distance_buffer_column_names = []
+
     storm_to_winds_table = storm_to_winds_table[
-        STORM_TO_WIND_COLUMNS_TO_KEEP + label_column_names]
+        STORM_TO_WIND_COLUMNS_TO_KEEP + label_column_names +
+        distance_buffer_column_names]
     return feature_table.merge(
         storm_to_winds_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
@@ -394,8 +458,7 @@ def sample_by_min_observations(
     :param feature_table: pandas DataFrame created by
         join_features_and_label_for_storm_objects.
     :param min_observations: Minimum number of wind observations.  All storm
-        observations with >= `min_observations` wind observations will be
-        selected.
+        objects with >= `min_observations` wind observations will be selected.
     :param return_table: Boolean flag.  If True, will return sampled feature
         vectors.  If False, will return metadata, which can be used to sample
         from a large number of feature tables in the future.
@@ -477,6 +540,92 @@ def sample_by_min_observations_plus(
     return feature_table.iloc[selected_indices], None
 
 
+def sample_by_min_obs_density(
+        feature_table,
+        min_observation_density_m02=DEFAULT_MIN_OBS_DENSITY_FOR_SAMPLING_M02,
+        return_table=False):
+    """Samples feature vectors, using the "min_obs_density" method.
+
+    :param feature_table: pandas DataFrame created by
+        join_features_and_label_for_storm_objects.
+    :param min_observation_density_m02: Minimum density of wind observations
+        (number per m^2).  All storm objects with density >=
+        `min_observation_density_m02` will be selected.
+    :param return_table: See documentation for sample_by_min_observations.
+    :return: feature_table: See documentation for sample_by_min_observations.
+    :return: metadata_dict: See documentation for sample_by_min_observations.
+    """
+
+    # TODO(thunderhoser): need unit test.
+
+    error_checking.assert_is_greater(min_observation_density_m02, 0.)
+    error_checking.assert_is_boolean(return_table)
+
+    observation_densities_m02 = _get_observation_densities(feature_table)
+    selected_flags = observation_densities_m02 >= min_observation_density_m02
+    live_selected_indices = numpy.array(numpy.where(selected_flags)[0])
+    live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
+
+    if not return_table:
+        metadata_dict = {LIVE_SELECTED_INDICES_KEY: live_selected_indices,
+                         NUM_LIVE_STORMS_KEY: len(live_indices),
+                         NUM_DEAD_STORMS_KEY: len(dead_indices)}
+        return None, metadata_dict
+
+    selected_indices = _select_dead_storms(
+        live_indices=live_indices, dead_indices=dead_indices,
+        live_selected_indices=live_selected_indices)
+    return feature_table.iloc[selected_indices], None
+
+
+def sample_by_min_obs_density_plus(
+        feature_table,
+        min_observation_density_m02=DEFAULT_MIN_OBS_DENSITY_FOR_SAMPLING_M02,
+        return_table=False):
+    """Samples feature vectors, using the "min_obs_density_plus" method.
+
+    :param feature_table: pandas DataFrame created by
+        join_features_and_label_for_storm_objects.
+    :param min_observation_density_m02: See documentation for
+        sample_by_min_obs_density.
+    :param return_table: See documentation for sample_by_min_observations.
+    :return: feature_table: See documentation for sample_by_min_observations.
+    :return: metadata_dict: See documentation for sample_by_min_observations.
+    """
+
+    # TODO(thunderhoser): need unit test.
+
+    error_checking.assert_is_greater(min_observation_density_m02, 0.)
+    error_checking.assert_is_boolean(return_table)
+
+    observation_densities_m02 = _get_observation_densities(feature_table)
+
+    _, _, classification_label_column_name = check_feature_table(
+        feature_table, require_storm_objects=True)
+    label_parameter_dict = labels.column_name_to_label_params(
+        classification_label_column_name)
+    num_classes = 1 + len(label_parameter_dict[labels.CLASS_CUTOFFS_NAME])
+
+    selected_flags = numpy.logical_or(
+        observation_densities_m02 >= min_observation_density_m02,
+        feature_table[classification_label_column_name].values ==
+        num_classes - 1)
+
+    live_selected_indices = numpy.array(numpy.where(selected_flags)[0])
+    live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
+
+    if not return_table:
+        metadata_dict = {LIVE_SELECTED_INDICES_KEY: live_selected_indices,
+                         NUM_LIVE_STORMS_KEY: len(live_indices),
+                         NUM_DEAD_STORMS_KEY: len(dead_indices)}
+        return None, metadata_dict
+
+    selected_indices = _select_dead_storms(
+        live_indices=live_indices, dead_indices=dead_indices,
+        live_selected_indices=live_selected_indices)
+    return feature_table.iloc[selected_indices], None
+
+
 def sample_by_uniform_wind_speed(
         feature_table, cutoffs_m_s01=DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01,
         return_table=False):
@@ -535,42 +684,6 @@ def sample_by_uniform_wind_speed(
     return feature_table.iloc[selected_indices], None
 
 
-def split_examples_2sets(unix_times_sec, training_fraction=None, time_separation_sec=DEFAULT_TIME_SEPARATION_SEC):
-    """Splits examples into two sets.
-
-    The two sets are either {training, validation} or {training, testing}.
-
-    N = number of examples (usually storm objects)
-
-    :param unix_times_sec: length-N numpy array with valid times of examples.
-    :param training_fraction: Fraction of examples to use for training.
-    :param time_separation_sec: Time separation between sets.  No training
-        example will occur within `time_separation_sec` of a non-training
-        example, and vice-versa.
-    :return: training_indices: 1-D numpy array of training indices.
-    :return: non_training_set_indices: 1-D numpy array of indices for non-
-        training set.
-    """
-
-    # TODO(thunderhoser): move this method to another file.
-
-    error_checking.assert_is_integer_numpy_array(unix_times_sec)
-    error_checking.assert_is_numpy_array_without_nan(unix_times_sec)
-    error_checking.assert_is_numpy_array(unix_times_sec, num_dimensions=1)
-
-    error_checking.assert_is_greater(training_fraction, 0.)
-    error_checking.assert_is_less_than(training_fraction, 1.)
-    error_checking.assert_is_integer(time_separation_sec)
-    error_checking.assert_is_greater(time_separation_sec, 0)
-
-    sort_indices = numpy.argsort(unix_times_sec)
-    unix_times_sec = numpy.sort(unix_times_sec)
-
-    num_examples = len(unix_times_sec)
-
-
-
-
 def write_features_for_storm_objects(feature_table, pickle_file_name):
     """Writes features for storm objects to a Pickle file.
 
@@ -583,8 +696,12 @@ def write_features_for_storm_objects(feature_table, pickle_file_name):
      regression_label_column_name,
      classification_label_column_name) = check_feature_table(
          feature_table, require_storm_objects=True)
+    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+        feature_table)
+    columns_to_write = (
+        STORM_TO_WIND_COLUMNS_TO_KEEP + feature_column_names +
+        distance_buffer_column_names)
 
-    columns_to_write = STORM_TO_WIND_COLUMNS_TO_KEEP + feature_column_names
     if regression_label_column_name is not None:
         columns_to_write += [regression_label_column_name]
     if classification_label_column_name is not None:
