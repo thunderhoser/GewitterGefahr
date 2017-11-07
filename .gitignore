@@ -1,0 +1,13 @@
+# Byte-compiled, optimized, and DLL files.
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution and packaging.
+build/
+dist/
+*.egg-info/
+
+# IntelliJ things.
+.idea/
+*.iml
