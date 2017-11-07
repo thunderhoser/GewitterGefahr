@@ -1,6 +1,7 @@
 """Unit tests for feature_vectors_test.py."""
 
 import unittest
+import copy
 import numpy
 import pandas
 from gewittergefahr.gg_io import radar_io
@@ -9,6 +10,7 @@ from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import feature_vectors
 from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.linkage import storm_to_winds
 
 TOLERANCE = 1e-6
@@ -109,8 +111,24 @@ STORM_TO_WINDS_DICT = {
 }
 STORM_TO_WINDS_TABLE = pandas.DataFrame.from_dict(STORM_TO_WINDS_DICT)
 
+# Add polygons (storm outlines) to table.
+VERTEX_LATITUDES_DEG = numpy.array([53.4, 53.4, 53.6, 53.6, 53.5, 53.5, 53.4])
+VERTEX_LONGITUDES_DEG = numpy.array(
+    [246.4, 246.6, 246.6, 246.5, 246.5, 246.4, 246.4])
+
+POLYGON_OBJECT_LATLNG = polygons.vertex_arrays_to_polygon_object(
+    VERTEX_LONGITUDES_DEG, VERTEX_LATITUDES_DEG)
+POLYGON_OBJECT_ARRAY_LATLNG = numpy.full(
+    NUM_STORM_OBJECTS, POLYGON_OBJECT_LATLNG, dtype=object)
+
+THIS_ARGUMENT_DICT = {
+    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG}
+STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_ARGUMENT_DICT)
+
 # The following constants are used to test _select_storms_uniformly_by_category
 # and sample_by_uniform_wind_speed.
+CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01 = (
+    KT_TO_METRES_PER_SECOND * numpy.array([10., 20., 30., 40., 50.]))
 CATEGORIES_FOR_UNIFORM_SAMPLING = numpy.array([-1, -1, -1, -1, -1,
                                                0, 0, 0,
                                                1, 1, 1, 1, 1,
@@ -120,11 +138,44 @@ CATEGORIES_FOR_UNIFORM_SAMPLING = numpy.array([-1, -1, -1, -1, -1,
                                                5, 5], dtype=int)
 LIVE_SELECTED_INDICES_FOR_UNIF_SAMPLING = numpy.array(
     [0, 1, 5, 6, 9, 12, 13, 14, 18, 19, 20, 21, 23, 24])
+
+MIN_OBSERVATIONS_FOR_SAMPLING = 25
+NUM_DEAD_STORM_OBJECTS_TO_SELECT = 3
+
 LIVE_SELECTED_INDICES_FOR_MIN_OBS_SAMPLING = numpy.array(
     [5, 6, 9, 10, 12, 13, 14, 15, 18, 20, 21])
 LIVE_SELECTED_INDICES_FOR_MIN_OBS_PLUS_SAMPLING = numpy.array(
     [5, 6, 9, 10, 12, 13, 14, 15, 18, 20, 21, 23, 24])
-NUM_DEAD_STORM_OBJECTS_TO_SELECT = 3
+LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_SAMPLING = copy.deepcopy(
+    LIVE_SELECTED_INDICES_FOR_MIN_OBS_SAMPLING)
+LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_PLUS_SAMPLING = copy.deepcopy(
+    LIVE_SELECTED_INDICES_FOR_MIN_OBS_PLUS_SAMPLING)
+
+# The following constants are used to test _get_observation_densities.
+POLYGON_OBJECT_XY, THIS_PROJECTION_OBJECT = polygons.project_latlng_to_xy(
+    POLYGON_OBJECT_LATLNG)
+VERTEX_DICT_XY = polygons.polygon_object_to_vertex_arrays(POLYGON_OBJECT_XY)
+BUFFERED_POLYGON_OBJECT_XY = polygons.buffer_simple_polygon(
+    VERTEX_DICT_XY[polygons.EXTERIOR_X_COLUMN],
+    VERTEX_DICT_XY[polygons.EXTERIOR_Y_COLUMN],
+    min_buffer_dist_metres=MIN_DISTANCE_METRES,
+    max_buffer_dist_metres=MAX_DISTANCE_METRES)
+
+BUFFER_AREA_METRES2 = BUFFERED_POLYGON_OBJECT_XY.area
+OBSERVATION_DENSITY_BY_STORM_OBJECT_M02 = (
+    NUM_OBSERVATIONS_BY_STORM_OBJECT / BUFFER_AREA_METRES2)
+MIN_OBS_DENSITY_FOR_SAMPLING_M02 = (
+    MIN_OBSERVATIONS_FOR_SAMPLING / BUFFER_AREA_METRES2)
+
+BUFFERED_POLYGON_OBJECT_LATLNG = polygons.project_xy_to_latlng(
+    BUFFERED_POLYGON_OBJECT_XY, THIS_PROJECTION_OBJECT)
+BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG = numpy.full(
+    NUM_STORM_OBJECTS, BUFFERED_POLYGON_OBJECT_LATLNG, dtype=object)
+
+BUFFER_COLUMN_NAME = tracking_io.distance_buffer_to_column_name(
+    MIN_DISTANCE_METRES, MAX_DISTANCE_METRES)
+THIS_ARGUMENT_DICT = {BUFFER_COLUMN_NAME: BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG}
+STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_ARGUMENT_DICT)
 
 # The following constants are used to test check_feature_table.
 FEATURE_COLUMN_NAMES = [
@@ -137,6 +188,8 @@ FEATURE_DICT = {
     tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
     storm_to_winds.END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN: NUM_OBSERVATIONS_BY_STORM_OBJECT,
+    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG,
+    BUFFER_COLUMN_NAME: BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG,
     REGRESSION_LABEL_COLUMN_NAME: REGRESSION_LABELS_M_S01,
     CLASSIFICATION_LABEL_COLUMN_NAME: CLASSIFICATION_LABELS,
     RADAR_STATISTIC_NAME: RADAR_STATISTIC_VALUES,
@@ -148,6 +201,7 @@ FEATURE_TABLE = pandas.DataFrame.from_dict(FEATURE_DICT)
 INTEGER_AND_STRING_COLUMNS = [
     storm_to_winds.END_TIME_COLUMN, tracking_io.STORM_ID_COLUMN,
     tracking_io.TIME_COLUMN, CLASSIFICATION_LABEL_COLUMN_NAME]
+POLYGON_COLUMNS = [tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, BUFFER_COLUMN_NAME]
 
 # The following constants are used to test find_unsampled_file_one_time.
 FILE_TIME_UNIX_SEC = 1509936790  # 025310 6 Nov 2017
@@ -161,6 +215,39 @@ FILE_START_TIME_UNIX_SEC = 1509883200  # 1200 UTC 5 Nov 2017
 FILE_END_TIME_UNIX_SEC = 1509969599  # 115959 UTC 6 Nov 2017
 FEATURE_FILE_NAME_TIME_PERIOD = (
     'feature_vectors/features_2017-11-05-120000_2017-11-06-115959.p')
+
+
+def are_feature_tables_equal(feature_table1, feature_table2):
+    """Determines whether or not two feature tables are equal.
+
+    :param feature_table1: pandas DataFrame.
+    :param feature_table2: pandas DataFrame.
+    :return: are_tables_equal_flag: Boolean flag.  True if tables are equal,
+        False if not.
+    """
+
+    num_rows = len(feature_table1.index)
+    if set(list(feature_table1)) != set(list(feature_table2)):
+        return False
+
+    for this_column_name in list(feature_table1):
+        if this_column_name in INTEGER_AND_STRING_COLUMNS:
+            if not numpy.array_equal(feature_table1[this_column_name].values,
+                                     feature_table2[this_column_name].values):
+                return False
+
+        elif this_column_name in POLYGON_COLUMNS:
+            for i in range(num_rows):
+                if not feature_table1[this_column_name].values[i].equals(
+                        feature_table2[this_column_name].values[i]):
+                    return False
+        else:
+            if not numpy.allclose(feature_table1[this_column_name].values,
+                                  feature_table2[this_column_name].values,
+                                  atol=TOLERANCE):
+                return False
+
+    return True
 
 
 class FeatureVectorsTests(unittest.TestCase):
@@ -210,14 +297,43 @@ class FeatureVectorsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_selected_indices, LIVE_SELECTED_INDICES_FOR_UNIF_SAMPLING))
 
+    def test_get_observation_densities_buffers_not_in_table(self):
+        """Ensures correct output from _get_observation_densities.
+
+        In this case, buffered polygons are not in FEATURE_TABLE, so they must
+        be created on the fly.
+        """
+
+        this_feature_table = FEATURE_TABLE.drop(
+            BUFFER_COLUMN_NAME, axis=1, inplace=False)
+        _, these_observation_densities_m02 = (
+            feature_vectors._get_observation_densities(this_feature_table))
+
+        self.assertTrue(numpy.allclose(
+            these_observation_densities_m02,
+            OBSERVATION_DENSITY_BY_STORM_OBJECT_M02, rtol=TOLERANCE))
+
+    def test_get_observation_densities_buffers_in_table(self):
+        """Ensures correct output from _get_observation_densities.
+
+        In this case, buffered polygons are already in FEATURE_TABLE, so they
+        need not be created on the fly.
+        """
+
+        _, these_observation_densities_m02 = (
+            feature_vectors._get_observation_densities(FEATURE_TABLE))
+        self.assertTrue(numpy.allclose(
+            these_observation_densities_m02,
+            OBSERVATION_DENSITY_BY_STORM_OBJECT_M02, rtol=TOLERANCE))
+
     def test_check_feature_table(self):
         """Ensures correct output from check_feature_table."""
 
         (these_feature_column_names,
          this_regression_label_column_name,
          this_classification_label_column_name) = (
-            feature_vectors.check_feature_table(
-                FEATURE_TABLE, require_storm_objects=True))
+             feature_vectors.check_feature_table(
+                 FEATURE_TABLE, require_storm_objects=True))
 
         self.assertTrue(set(these_feature_column_names) ==
                         set(FEATURE_COLUMN_NAMES))
@@ -237,18 +353,8 @@ class FeatureVectorsTests(unittest.TestCase):
                 storm_to_winds_table=STORM_TO_WINDS_TABLE,
                 label_column_name=CLASSIFICATION_LABEL_COLUMN_NAME))
 
-        self.assertTrue(set(list(this_feature_table)) ==
-                        set(list(FEATURE_TABLE)))
-
-        for this_column_name in list(this_feature_table):
-            if this_column_name in INTEGER_AND_STRING_COLUMNS:
-                self.assertTrue(numpy.array_equal(
-                    this_feature_table[this_column_name].values,
-                    FEATURE_TABLE[this_column_name].values))
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_feature_table[this_column_name].values,
-                    FEATURE_TABLE[this_column_name].values, atol=TOLERANCE))
+        self.assertTrue(are_feature_tables_equal(
+            this_feature_table, FEATURE_TABLE))
 
     def test_sample_by_min_observations_return_table(self):
         """Ensures correct output from sample_by_min_observations.
@@ -257,25 +363,15 @@ class FeatureVectorsTests(unittest.TestCase):
         """
 
         this_feature_table, _ = feature_vectors.sample_by_min_observations(
-            FEATURE_TABLE, return_table=True)
-        this_feature_table = this_feature_table.iloc[
-                             NUM_DEAD_STORM_OBJECTS_TO_SELECT:]
+            FEATURE_TABLE, min_observations=MIN_OBSERVATIONS_FOR_SAMPLING,
+            return_table=True)
+        this_feature_table = (
+            this_feature_table.iloc[NUM_DEAD_STORM_OBJECTS_TO_SELECT:])
+
         this_expected_feature_table = FEATURE_TABLE.iloc[
             LIVE_SELECTED_INDICES_FOR_MIN_OBS_SAMPLING]
-
-        self.assertTrue(set(list(this_feature_table)) ==
-                        set(list(this_expected_feature_table)))
-
-        for this_column_name in list(this_feature_table):
-            if this_column_name in INTEGER_AND_STRING_COLUMNS:
-                self.assertTrue(numpy.array_equal(
-                    this_feature_table[this_column_name].values,
-                    this_expected_feature_table[this_column_name].values))
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_feature_table[this_column_name].values,
-                    this_expected_feature_table[this_column_name].values,
-                    atol=TOLERANCE))
+        self.assertTrue(are_feature_tables_equal(
+            this_feature_table, this_expected_feature_table))
 
     def test_sample_by_min_observations_return_dict(self):
         """Ensures correct output from sample_by_min_observations.
@@ -284,7 +380,8 @@ class FeatureVectorsTests(unittest.TestCase):
         """
 
         _, this_metadata_dict = feature_vectors.sample_by_min_observations(
-            FEATURE_TABLE, return_table=False)
+            FEATURE_TABLE, min_observations=MIN_OBSERVATIONS_FOR_SAMPLING,
+            return_table=False)
 
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
@@ -303,25 +400,15 @@ class FeatureVectorsTests(unittest.TestCase):
         """
 
         this_feature_table, _ = feature_vectors.sample_by_min_observations_plus(
-            FEATURE_TABLE, return_table=True)
-        this_feature_table = this_feature_table.iloc[
-                             NUM_DEAD_STORM_OBJECTS_TO_SELECT:]
+            FEATURE_TABLE, min_observations=MIN_OBSERVATIONS_FOR_SAMPLING,
+            return_table=True)
+        this_feature_table = (
+            this_feature_table.iloc[NUM_DEAD_STORM_OBJECTS_TO_SELECT:])
+
         this_expected_feature_table = FEATURE_TABLE.iloc[
             LIVE_SELECTED_INDICES_FOR_MIN_OBS_PLUS_SAMPLING]
-
-        self.assertTrue(set(list(this_feature_table)) ==
-                        set(list(this_expected_feature_table)))
-
-        for this_column_name in list(this_feature_table):
-            if this_column_name in INTEGER_AND_STRING_COLUMNS:
-                self.assertTrue(numpy.array_equal(
-                    this_feature_table[this_column_name].values,
-                    this_expected_feature_table[this_column_name].values))
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_feature_table[this_column_name].values,
-                    this_expected_feature_table[this_column_name].values,
-                    atol=TOLERANCE))
+        self.assertTrue(are_feature_tables_equal(
+            this_feature_table, this_expected_feature_table))
 
     def test_sample_by_min_observations_plus_return_dict(self):
         """Ensures correct output from sample_by_min_observations_plus.
@@ -330,11 +417,89 @@ class FeatureVectorsTests(unittest.TestCase):
         """
 
         _, this_metadata_dict = feature_vectors.sample_by_min_observations_plus(
-            FEATURE_TABLE, return_table=False)
+            FEATURE_TABLE, min_observations=MIN_OBSERVATIONS_FOR_SAMPLING,
+            return_table=False)
 
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
             LIVE_SELECTED_INDICES_FOR_MIN_OBS_PLUS_SAMPLING))
+        self.assertTrue(
+            this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
+            len(LIVE_STORM_OBJECT_INDICES))
+        self.assertTrue(
+            this_metadata_dict[feature_vectors.NUM_DEAD_STORMS_KEY] ==
+            len(DEAD_STORM_OBJECT_INDICES))
+
+    def test_sample_by_min_obs_density_return_table(self):
+        """Ensures correct output from sample_by_min_obs_density.
+
+        In this case, return_table = True.
+        """
+
+        this_feature_table, _ = feature_vectors.sample_by_min_obs_density(
+            FEATURE_TABLE,
+            min_observation_density_m02=MIN_OBS_DENSITY_FOR_SAMPLING_M02,
+            return_table=True)
+        this_feature_table = (
+            this_feature_table.iloc[NUM_DEAD_STORM_OBJECTS_TO_SELECT:])
+
+        this_expected_feature_table = FEATURE_TABLE.iloc[
+            LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_SAMPLING]
+        self.assertTrue(are_feature_tables_equal(
+            this_feature_table, this_expected_feature_table))
+
+    def test_sample_by_min_obs_density_return_dict(self):
+        """Ensures correct output from sample_by_min_obs_density.
+
+        In this case, return_table = False.
+        """
+
+        _, this_metadata_dict = feature_vectors.sample_by_min_obs_density(
+            FEATURE_TABLE,
+            min_observation_density_m02=MIN_OBS_DENSITY_FOR_SAMPLING_M02,
+            return_table=False)
+
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
+            LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_SAMPLING))
+        self.assertTrue(
+            this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
+            len(LIVE_STORM_OBJECT_INDICES))
+        self.assertTrue(
+            this_metadata_dict[feature_vectors.NUM_DEAD_STORMS_KEY] ==
+            len(DEAD_STORM_OBJECT_INDICES))
+
+    def test_sample_by_min_obs_density_plus_return_table(self):
+        """Ensures correct output from sample_by_min_obs_density_plus.
+
+        In this case, return_table = True.
+        """
+
+        this_feature_table, _ = feature_vectors.sample_by_min_obs_density_plus(
+            FEATURE_TABLE,
+            min_observation_density_m02=MIN_OBS_DENSITY_FOR_SAMPLING_M02,
+            return_table=True)
+        this_feature_table = (
+            this_feature_table.iloc[NUM_DEAD_STORM_OBJECTS_TO_SELECT:])
+
+        this_expected_feature_table = FEATURE_TABLE.iloc[
+            LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_PLUS_SAMPLING]
+        self.assertTrue(are_feature_tables_equal(
+            this_feature_table, this_expected_feature_table))
+
+    def test_sample_by_min_obs_density_plus_return_dict(self):
+        """Ensures correct output from sample_by_min_obs_density_plus.
+
+        In this case, return_table = False.
+        """
+
+        _, this_metadata_dict = feature_vectors.sample_by_min_observations_plus(
+            FEATURE_TABLE, min_observations=MIN_OBSERVATIONS_FOR_SAMPLING,
+            return_table=False)
+
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
+            LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_PLUS_SAMPLING))
         self.assertTrue(
             this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
             len(LIVE_STORM_OBJECT_INDICES))
@@ -349,23 +514,13 @@ class FeatureVectorsTests(unittest.TestCase):
         """
 
         this_feature_table, _ = feature_vectors.sample_by_uniform_wind_speed(
-            FEATURE_TABLE, return_table=True)
+            FEATURE_TABLE, cutoffs_m_s01=CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01,
+            return_table=True)
+
         this_expected_feature_table = FEATURE_TABLE.iloc[
             LIVE_SELECTED_INDICES_FOR_UNIF_SAMPLING]
-
-        self.assertTrue(set(list(this_feature_table)) ==
-                        set(list(this_expected_feature_table)))
-
-        for this_column_name in list(this_feature_table):
-            if this_column_name in INTEGER_AND_STRING_COLUMNS:
-                self.assertTrue(numpy.array_equal(
-                    this_feature_table[this_column_name].values,
-                    this_expected_feature_table[this_column_name].values))
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_feature_table[this_column_name].values,
-                    this_expected_feature_table[this_column_name].values,
-                    atol=TOLERANCE))
+        self.assertTrue(are_feature_tables_equal(
+            this_feature_table, this_expected_feature_table))
 
     def test_sample_by_uniform_wind_speed_return_dict(self):
         """Ensures correct output from sample_by_uniform_wind_speed.
@@ -374,7 +529,8 @@ class FeatureVectorsTests(unittest.TestCase):
         """
 
         _, this_metadata_dict = feature_vectors.sample_by_uniform_wind_speed(
-            FEATURE_TABLE, return_table=False)
+            FEATURE_TABLE, cutoffs_m_s01=CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01,
+            return_table=False)
 
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[

@@ -38,6 +38,7 @@ from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import classification_utils as classifn_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -60,7 +61,7 @@ STORM_TO_WIND_COLUMNS_TO_KEEP = [
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
 COLUMNS_TO_MERGE_ON = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 INPUT_COLUMNS_TO_MAKE_BUFFERS = (
-    COLUMNS_TO_MERGE_ON + tracking_io.POLYGON_OBJECT_LATLNG_COLUMN)
+    COLUMNS_TO_MERGE_ON + [tracking_io.POLYGON_OBJECT_LATLNG_COLUMN])
 
 LIVE_SELECTED_INDICES_KEY = 'live_selected_indices'
 NUM_LIVE_STORMS_KEY = 'num_live_storm_objects'
@@ -211,8 +212,6 @@ def _get_observation_densities(feature_table):
         densities (number per m^2).
     """
 
-    # TODO(thunderhoser): need unit test.
-
     _, regression_label_column_name, _, = check_feature_table(
         feature_table, require_storm_objects=True)
     label_parameter_dict = labels.column_name_to_label_params(
@@ -238,7 +237,9 @@ def _get_observation_densities(feature_table):
     num_storm_objects = len(feature_table.index)
     buffer_areas_m2 = numpy.full(num_storm_objects, numpy.nan)
     for i in range(num_storm_objects):
-        buffer_areas_m2[i] = feature_table[buffer_column_name].values[i].area
+        this_polygon_object_xy, _ = polygons.project_latlng_to_xy(
+            feature_table[buffer_column_name].values[i])
+        buffer_areas_m2[i] = this_polygon_object_xy.area
 
     observation_densities_m02 = (
         feature_table[labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN].values /
@@ -556,12 +557,11 @@ def sample_by_min_obs_density(
     :return: metadata_dict: See documentation for sample_by_min_observations.
     """
 
-    # TODO(thunderhoser): need unit test.
-
     error_checking.assert_is_greater(min_observation_density_m02, 0.)
     error_checking.assert_is_boolean(return_table)
 
-    observation_densities_m02 = _get_observation_densities(feature_table)
+    feature_table, observation_densities_m02 = _get_observation_densities(
+        feature_table)
     selected_flags = observation_densities_m02 >= min_observation_density_m02
     live_selected_indices = numpy.array(numpy.where(selected_flags)[0])
     live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
@@ -593,12 +593,11 @@ def sample_by_min_obs_density_plus(
     :return: metadata_dict: See documentation for sample_by_min_observations.
     """
 
-    # TODO(thunderhoser): need unit test.
-
     error_checking.assert_is_greater(min_observation_density_m02, 0.)
     error_checking.assert_is_boolean(return_table)
 
-    observation_densities_m02 = _get_observation_densities(feature_table)
+    feature_table, observation_densities_m02 = _get_observation_densities(
+        feature_table)
 
     _, _, classification_label_column_name = check_feature_table(
         feature_table, require_storm_objects=True)

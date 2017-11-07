@@ -17,6 +17,7 @@ import numpy
 import cv2
 import shapely.geometry
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
@@ -630,6 +631,105 @@ def merge_exterior_and_holes(exterior_x_coords, exterior_y_coords,
     return vertex_x_coords, vertex_y_coords
 
 
+def project_latlng_to_xy(polygon_object_latlng, projection_object=None,
+                         false_easting_metres=0, false_northing_metres=0.):
+    """Converts polygon from lat-long to x-y coordinates.
+
+    :param polygon_object_latlng: Instance of `shapely.geometry.Polygon`, with
+        vertices in lat-long coordinates.
+    :param projection_object: Projection object created by `pyproj.Proj`.  If
+        projection_object = None, will use azimuthal equidistant projection
+        centered at polygon centroid.
+    :param false_easting_metres: False easting.  Will be added to all x-
+        coordinates.
+    :param false_northing_metres: False northing.  Will be added to all y-
+        coordinates.
+    :return: polygon_object_xy: Instance of `shapely.geometry.Polygon`, with
+        vertices in x-y coordinates.
+    :return: projection_object: Object (created by `pyproj.Proj`) used to
+        convert coordinates.
+    """
+
+    if projection_object is None:
+        centroid_object_latlng = polygon_object_latlng.centroid
+        projection_object = projections.init_azimuthal_equidistant_projection(
+            centroid_object_latlng.y, centroid_object_latlng.x)
+        false_easting_metres = 0.
+        false_northing_metres = 0.
+
+    vertex_dict = polygon_object_to_vertex_arrays(polygon_object_latlng)
+    vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN] = (
+        projections.project_latlng_to_xy(
+            vertex_dict[EXTERIOR_Y_COLUMN], vertex_dict[EXTERIOR_X_COLUMN],
+            projection_object=projection_object,
+            false_easting_metres=false_easting_metres,
+            false_northing_metres=false_northing_metres))
+
+    num_holes = len(vertex_dict[HOLE_X_COLUMN])
+    for i in range(num_holes):
+        vertex_dict[HOLE_X_COLUMN][i], vertex_dict[HOLE_Y_COLUMN][i] = (
+            projections.project_latlng_to_xy(
+                vertex_dict[HOLE_Y_COLUMN][i], vertex_dict[HOLE_X_COLUMN][i],
+                projection_object=projection_object,
+                false_easting_metres=false_easting_metres,
+                false_northing_metres=false_northing_metres))
+
+    if num_holes == 0:
+        polygon_object_xy = vertex_arrays_to_polygon_object(
+            vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN])
+    else:
+        polygon_object_xy = vertex_arrays_to_polygon_object(
+            vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN],
+            hole_x_coords_list=vertex_dict[HOLE_X_COLUMN],
+            hole_y_coords_list=vertex_dict[HOLE_Y_COLUMN])
+
+    return polygon_object_xy, projection_object
+
+
+def project_xy_to_latlng(polygon_object_xy, projection_object,
+                         false_easting_metres=0, false_northing_metres=0.):
+    """Converts polygon from x-y to lat-long coordinates.
+
+    :param polygon_object_xy: Instance of `shapely.geometry.Polygon`, with
+        vertices in x-y coordinates.
+    :param projection_object: Projection object created by `pyproj.Proj`.
+    :param false_easting_metres: False easting.  Will be subtracted from all x-
+        coordinates before conversion.
+    :param false_northing_metres: False northing.  Will be subtracted from all
+        y-coordinates before conversion.
+    :return: polygon_object_latlng: Instance of `shapely.geometry.Polygon`, with
+        vertices in lat-long coordinates.
+    """
+
+    vertex_dict = polygon_object_to_vertex_arrays(polygon_object_xy)
+    vertex_dict[EXTERIOR_Y_COLUMN], vertex_dict[EXTERIOR_X_COLUMN] = (
+        projections.project_xy_to_latlng(
+            vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN],
+            projection_object=projection_object,
+            false_easting_metres=false_easting_metres,
+            false_northing_metres=false_northing_metres))
+
+    num_holes = len(vertex_dict[HOLE_X_COLUMN])
+    for i in range(num_holes):
+        vertex_dict[HOLE_Y_COLUMN][i], vertex_dict[HOLE_X_COLUMN][i] = (
+            projections.project_xy_to_latlng(
+                vertex_dict[HOLE_X_COLUMN][i], vertex_dict[HOLE_Y_COLUMN][i],
+                projection_object=projection_object,
+                false_easting_metres=false_easting_metres,
+                false_northing_metres=false_northing_metres))
+
+    if num_holes == 0:
+        polygon_object_latlng = vertex_arrays_to_polygon_object(
+            vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN])
+    else:
+        polygon_object_latlng = vertex_arrays_to_polygon_object(
+            vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN],
+            hole_x_coords_list=vertex_dict[HOLE_X_COLUMN],
+            hole_y_coords_list=vertex_dict[HOLE_Y_COLUMN])
+
+    return polygon_object_latlng
+
+
 def grid_points_in_poly_to_binary_matrix(row_indices, column_indices):
     """Converts list of grid points in polygon to binary image matrix.
 
@@ -727,6 +827,9 @@ def get_latlng_centroid(latitudes_deg, longitudes_deg):
     :return: centroid_lat_deg: Latitude of centroid (deg N).
     :return: centroid_lng_deg: Longitude of centroid (deg E).
     """
+
+    # TODO(thunderhoser): This method belongs somewhere else, since it can be
+    # used for any collection of points (not just polygon vertices).
 
     return (numpy.mean(latitudes_deg[numpy.invert(numpy.isnan(latitudes_deg))]),
             numpy.mean(

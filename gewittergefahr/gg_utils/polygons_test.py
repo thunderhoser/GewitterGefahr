@@ -4,20 +4,27 @@ import unittest
 import numpy
 import shapely.geometry
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import projections
 
 TOLERANCE = 1e-6
+TOLERANCE_DECIMAL_PLACE = 6
 
+# The following constants are used to test _get_longest_inner_list.
 SHORT_LIST = []
 MEDIUM_LIST = [0, 1, 2, 3]
 LONG_LIST = [[0, 0], [1, 1], [2, 2], [3, 3], [4, 4], [5, 5]]
 LIST_OF_LISTS = [SHORT_LIST, MEDIUM_LIST, LONG_LIST]
 
+# The following constants are used to test _vertex_arrays_to_list,
+# _vertex_list_to_arrays, and sort_vertices_counterclockwise.
 VERTEX_X_METRES_LONG = numpy.array([0., 2., 2., 4., 4., 1., 1., 0., 0.])
 VERTEX_Y_METRES_LONG = numpy.array([0., 0., -1., -1., 4., 4., 2., 2., 0.])
 VERTEX_METRES_LONG_LIST = [
     (0., 0.), (2., 0.), (2., -1.), (4., -1.), (4., 4.), (1., 4.), (1., 2.),
     (0., 2.), (0., 0.)]
 
+# The following constants are used to test
+# _get_longest_vertex_arrays_without_nan.
 VERTEX_X_METRES_MEDIUM = numpy.array([0., 2., 4., 4., 2., 0., 0.])
 VERTEX_Y_METRES_MEDIUM = numpy.array([0., -1., 0., 2., 3., 2., 0.])
 VERTEX_X_METRES_SHORT = numpy.array([0., 4., 2., 0.])
@@ -31,6 +38,9 @@ VERTEX_Y_METRES_COMPLEX = numpy.concatenate((
     VERTEX_Y_METRES_LONG, NAN_ARRAY, VERTEX_Y_METRES_MEDIUM, NAN_ARRAY,
     VERTEX_Y_METRES_SHORT))
 
+# The following constants are used to merge_exterior_and_holes,
+# separate_exterior_and_holes, vertex_arrays_to_polygon_object, and
+# polygon_object_to_vertex_arrays.
 EXTERIOR_VERTEX_X_METRES = numpy.array([0., 0., 10., 10., 0.])
 EXTERIOR_VERTEX_Y_METRES = numpy.array([0., 10., 10., 0., 0.])
 EXTERIOR_VERTEX_METRES_LIST = [
@@ -52,10 +62,29 @@ MERGED_VERTEX_Y_METRES = numpy.array([0., 10., 10., 0., 0., numpy.nan,
                                       2., 4., 4., 2., 2., numpy.nan,
                                       6., 8., 8., 6., 6.])
 
-POLYGON_OBJECT = shapely.geometry.Polygon(shell=EXTERIOR_VERTEX_METRES_LIST,
-                                          holes=(HOLE1_VERTEX_METRES_LIST,
-                                                 HOLE2_VERTEX_METRES_LIST))
+# The following constant is used to test polygon_object_to_vertex_arrays.
+POLYGON_OBJECT_XY = shapely.geometry.Polygon(
+    shell=EXTERIOR_VERTEX_METRES_LIST, holes=(HOLE1_VERTEX_METRES_LIST,
+                                              HOLE2_VERTEX_METRES_LIST))
 
+# The following constants are used to test project_xy_to_latlng and
+# project_latlng_to_xy.
+EXTERIOR_VERTEX_LATITUDES_DEG = numpy.array([49., 49., 60., 60., 53.8, 49.])
+EXTERIOR_VERTEX_LONGITUDES_DEG = numpy.array(
+    [246., 250., 250., 240., 240., 246.])
+HOLE1_VERTEX_LATITUDES_DEG = numpy.array(
+    [51.1, 52.2, 52.2, 53.3, 53.3, 51.1, 51.1])
+HOLE1_VERTEX_LONGITUDES_DEG = numpy.array(
+    [246., 246., 246.1, 246.1, 246.4, 246.4, 246.])
+
+POLYGON_OBJECT_LATLNG = polygons.vertex_arrays_to_polygon_object(
+    EXTERIOR_VERTEX_LONGITUDES_DEG, EXTERIOR_VERTEX_LATITUDES_DEG,
+    hole_x_coords_list=[HOLE1_VERTEX_LONGITUDES_DEG],
+    hole_y_coords_list=[HOLE1_VERTEX_LATITUDES_DEG])
+PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(
+    central_latitude_deg=55., central_longitude_deg=245.)
+
+# The following constants are used to test simple_polygon_to_grid_points.
 VERTEX_ROWS_SIMPLE = numpy.array(
     [3.5, 3.5, 4.5, 4.5, -0.5, -0.5, 1.5, 1.5, 3.5])
 VERTEX_COLUMNS_SIMPLE = numpy.array(
@@ -65,6 +94,8 @@ GRID_POINT_ROWS_IN_SIMPLE_POLY = numpy.array(
 GRID_POINT_COLUMNS_IN_SIMPLE_POLY = numpy.array(
     [1, 2, 3, 1, 2, 3, 0, 1, 2, 3, 0, 1, 2, 3, 2, 3])
 
+# The following constants are used to test is_point_in_or_on_polygon and
+# buffer_simple_polygon.
 SMALL_BUFFER_DIST_METRES = 2.5
 LARGE_BUFFER_DIST_METRES = 5.
 
@@ -83,7 +114,7 @@ EXTERIOR_X_METRES_NESTED_BUFFER = numpy.array([-5., -5., 15., 15., -5.])
 EXTERIOR_Y_METRES_NESTED_BUFFER = numpy.array([-5., 15., 15., -5., -5.])
 HOLE_X_METRES_NESTED_BUFFER = numpy.array([-2.5, -2.5, 12.5, 12.5, -2.5])
 HOLE_Y_METRES_NESTED_BUFFER = numpy.array([-2.5, 12.5, 12.5, -2.5, -2.5])
-POLYGON_OBJECT_NESTED_BUFFER = polygons.vertex_arrays_to_polygon_object(
+POLYGON_OBJECT_NESTED_BUFFER_XY = polygons.vertex_arrays_to_polygon_object(
     EXTERIOR_X_METRES_NESTED_BUFFER, EXTERIOR_Y_METRES_NESTED_BUFFER,
     hole_x_coords_list=[HOLE_X_METRES_NESTED_BUFFER],
     hole_y_coords_list=[HOLE_Y_METRES_NESTED_BUFFER])
@@ -95,11 +126,13 @@ Y_IN_NESTED_BUFFER = 5.
 Y_ON_NESTED_BUFFER = 5.
 Y_OUTSIDE_NESTED_BUFFER = 5.
 
+# The following constants are used to test _get_latlng_centroid.
 LATITUDE_POINTS_DEG = numpy.array([50., 51., 52., 53., 55.])
 LONGITUDE_POINTS_DEG = numpy.array([263., 246., 253., 247., 241.])
 CENTROID_LAT_DEG = 52.2
 CENTROID_LNG_DEG = 250.
 
+# The following constants are used to test _get_direction_of_vertex_pair.
 FIRST_VERTEX_ROW = 5
 FIRST_VERTEX_COLUMN = 5
 SECOND_VERTEX_ROW_UP = 4
@@ -119,6 +152,9 @@ SECOND_VERTEX_COLUMN_DOWN_RIGHT = 6
 SECOND_VERTEX_ROW_DOWN_LEFT = 6
 SECOND_VERTEX_COLUMN_DOWN_LEFT = 4
 
+# The following constants are used to test grid_points_in_poly_to_binary_matrix,
+# binary_matrix_to_grid_points_in_poly, grid_points_in_poly_to_vertices, and
+# simple_polygon_to_grid_points.
 ROW_INDICES_IN_POLYGON = numpy.array(
     [101, 101, 102, 102, 102, 102, 103, 103, 103, 104])
 COLUMN_INDICES_IN_POLYGON = numpy.array(
@@ -133,6 +169,8 @@ POINT_IN_OR_ON_POLYGON_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0],
 FIRST_ROW_INDEX = 100
 FIRST_COLUMN_INDEX = 500
 
+# The following constants are used to test _vertices_from_grid_points_to_edges
+# and fix_probsevere_vertices.
 VERTEX_ROWS_GRID_POINTS = numpy.array(
     [101, 102, 103, 103, 104, 102, 102, 101, 101])
 VERTEX_ROWS_GRID_POINTS_COMPLEX = numpy.array(
@@ -142,6 +180,7 @@ VERTEX_COLUMNS_GRID_POINTS = numpy.array(
 VERTEX_COLUMNS_GRID_POINTS_COMPLEX = numpy.array(
     [501, 501, 502, 503, 504, 504, 503, 502, 501, numpy.nan, 0, 0, 1, 1, 0])
 
+# The following constants are used to test _remove_redundant_vertices.
 VERTEX_ROWS_GRID_CELL_EDGES_REDUNDANT = numpy.array(
     [100.5, 102.5, 102.5, 103.5, 103.5, 103.5, 103.5, 103.5, 104.5, 104.5,
      102.5, 103.5, 104.5, 101.5, 101.5, 100.5, 100.5])
@@ -155,6 +194,8 @@ VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT = numpy.array(
     [500.5, 500.5, 501.5, 501.5, 503.5, 503.5, 504.5, 504.5, 502.5, 502.5,
      500.5])
 
+# The following constants are used to test
+# _patch_diag_connections_in_binary_matrix.
 BINARY_MATRIX_2DIAG_CONNECTIONS = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
                                                [0, 0, 1, 1, 0, 0, 0, 0],
                                                [0, 1, 1, 1, 0, 0, 0, 0],
@@ -474,6 +515,34 @@ class PolygonsTests(unittest.TestCase):
             this_vertex_y_metres, MERGED_VERTEX_Y_METRES, atol=TOLERANCE,
             equal_nan=True))
 
+    def test_project_latlng_to_xy(self):
+        """Ensures correct output from project_latlng_to_xy.
+
+        This is an integration test, not a unit test, because it calls both
+        project_latlng_to_xy and project_xy_to_latlng.
+        """
+
+        this_polygon_object_xy, this_projection_object = (
+            polygons.project_latlng_to_xy(POLYGON_OBJECT_LATLNG))
+        this_polygon_object_latlng = polygons.project_xy_to_latlng(
+            this_polygon_object_xy, this_projection_object)
+        self.assertTrue(this_polygon_object_latlng.almost_equals(
+            POLYGON_OBJECT_LATLNG, decimal=TOLERANCE_DECIMAL_PLACE))
+
+    def test_project_xy_to_latlng(self):
+        """Ensures correct output from project_xy_to_latlng.
+
+        This is an integration test, not a unit test, because it calls both
+        project_xy_to_latlng and project_latlng_to_xy.
+        """
+
+        this_polygon_object_latlng = polygons.project_xy_to_latlng(
+            POLYGON_OBJECT_XY, PROJECTION_OBJECT)
+        this_polygon_object_xy, _ = polygons.project_latlng_to_xy(
+            this_polygon_object_latlng, PROJECTION_OBJECT)
+        self.assertTrue(this_polygon_object_xy.almost_equals(
+            POLYGON_OBJECT_XY, decimal=TOLERANCE_DECIMAL_PLACE))
+
     def test_sort_vertices_counterclockwise_already_ccw(self):
         """Ensures correct output from sort_vertices_counterclockwise.
 
@@ -562,7 +631,7 @@ class PolygonsTests(unittest.TestCase):
         """Ensures correct output from polygon_object_to_vertex_arrays."""
 
         this_vertex_dict = polygons.polygon_object_to_vertex_arrays(
-            POLYGON_OBJECT)
+            POLYGON_OBJECT_XY)
 
         self.assertTrue(numpy.allclose(
             this_vertex_dict[polygons.EXTERIOR_X_COLUMN],
@@ -653,7 +722,7 @@ class PolygonsTests(unittest.TestCase):
         """
 
         this_flag = polygons.is_point_in_or_on_polygon(
-            POLYGON_OBJECT_NESTED_BUFFER,
+            POLYGON_OBJECT_NESTED_BUFFER_XY,
             query_x_coordinate=X_OUTSIDE_NESTED_BUFFER,
             query_y_coordinate=Y_OUTSIDE_NESTED_BUFFER)
         self.assertFalse(this_flag)
@@ -665,7 +734,8 @@ class PolygonsTests(unittest.TestCase):
         """
 
         this_flag = polygons.is_point_in_or_on_polygon(
-            POLYGON_OBJECT_NESTED_BUFFER, query_x_coordinate=X_ON_NESTED_BUFFER,
+            POLYGON_OBJECT_NESTED_BUFFER_XY,
+            query_x_coordinate=X_ON_NESTED_BUFFER,
             query_y_coordinate=Y_ON_NESTED_BUFFER)
         self.assertTrue(this_flag)
 
@@ -676,7 +746,8 @@ class PolygonsTests(unittest.TestCase):
         """
 
         this_flag = polygons.is_point_in_or_on_polygon(
-            POLYGON_OBJECT_NESTED_BUFFER, query_x_coordinate=X_IN_NESTED_BUFFER,
+            POLYGON_OBJECT_NESTED_BUFFER_XY,
+            query_x_coordinate=X_IN_NESTED_BUFFER,
             query_y_coordinate=Y_IN_NESTED_BUFFER)
         self.assertTrue(this_flag)
 
