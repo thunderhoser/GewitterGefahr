@@ -177,6 +177,22 @@ BUFFER_COLUMN_NAME = tracking_io.distance_buffer_to_column_name(
 THIS_ARGUMENT_DICT = {BUFFER_COLUMN_NAME: BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG}
 STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_ARGUMENT_DICT)
 
+# The following constants are used to test
+# _indices_from_file_specific_to_overall and
+# _indices_from_overall_to_file_specific.
+NUM_OBJECTS_BY_FILE = numpy.array([50, 100, 0, 3, 75, 9], dtype=int)
+INDICES_BY_FILE = [None] * len(NUM_OBJECTS_BY_FILE)
+INDICES_BY_FILE[0] = numpy.array([0, 24, 25, 49], dtype=int)
+INDICES_BY_FILE[1] = numpy.array([0, 49, 50, 99], dtype=int)
+INDICES_BY_FILE[2] = numpy.array([], dtype=int)
+INDICES_BY_FILE[3] = numpy.array([0, 1, 2], dtype=int)
+INDICES_BY_FILE[4] = numpy.array([0, 37, 74], dtype=int)
+INDICES_BY_FILE[5] = numpy.array([0, 4, 8], dtype=int)
+
+OVERALL_INDICES = numpy.array(
+    [0, 24, 25, 49, 50, 99, 100, 149, 150, 151, 152, 153, 190, 227, 228, 232,
+     236], dtype=int)
+
 # The following constants are used to test check_feature_table.
 FEATURE_COLUMN_NAMES = [
     RADAR_STATISTIC_NAME, SHAPE_STATISTIC_NAME, SOUNDING_INDEX_NAME]
@@ -326,6 +342,29 @@ class FeatureVectorsTests(unittest.TestCase):
             these_observation_densities_m02,
             OBSERVATION_DENSITY_BY_STORM_OBJECT_M02, rtol=TOLERANCE))
 
+    def test_indices_from_file_specific_to_overall(self):
+        """Ensures correctness of _indices_from_file_specific_to_overall."""
+
+        these_overall_indices = (
+            feature_vectors._indices_from_file_specific_to_overall(
+                INDICES_BY_FILE, NUM_OBJECTS_BY_FILE))
+        self.assertTrue(numpy.array_equal(
+            these_overall_indices, OVERALL_INDICES))
+
+    def test_indices_from_overall_to_file_specific(self):
+        """Ensures correctness of _indices_from_overall_to_file_specific."""
+
+        these_indices_by_file = (
+            feature_vectors._indices_from_overall_to_file_specific(
+                OVERALL_INDICES, NUM_OBJECTS_BY_FILE))
+
+        self.assertTrue(len(these_indices_by_file) == len(INDICES_BY_FILE))
+
+        num_files = len(INDICES_BY_FILE)
+        for i in range(num_files):
+            self.assertTrue(numpy.array_equal(
+                these_indices_by_file[i], INDICES_BY_FILE[i]))
+
     def test_check_feature_table(self):
         """Ensures correct output from check_feature_table."""
 
@@ -386,12 +425,12 @@ class FeatureVectorsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
             LIVE_SELECTED_INDICES_FOR_MIN_OBS_SAMPLING))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
-            len(LIVE_STORM_OBJECT_INDICES))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_DEAD_STORMS_KEY] ==
-            len(DEAD_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.LIVE_INDICES_KEY],
+            LIVE_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.DEAD_INDICES_KEY],
+            DEAD_STORM_OBJECT_INDICES))
 
     def test_sample_by_min_observations_plus_return_table(self):
         """Ensures correct output from sample_by_min_observations_plus.
@@ -423,12 +462,12 @@ class FeatureVectorsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
             LIVE_SELECTED_INDICES_FOR_MIN_OBS_PLUS_SAMPLING))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
-            len(LIVE_STORM_OBJECT_INDICES))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_DEAD_STORMS_KEY] ==
-            len(DEAD_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.LIVE_INDICES_KEY],
+            LIVE_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.DEAD_INDICES_KEY],
+            DEAD_STORM_OBJECT_INDICES))
 
     def test_sample_by_min_obs_density_return_table(self):
         """Ensures correct output from sample_by_min_obs_density.
@@ -462,12 +501,12 @@ class FeatureVectorsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
             LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_SAMPLING))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
-            len(LIVE_STORM_OBJECT_INDICES))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_DEAD_STORMS_KEY] ==
-            len(DEAD_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.LIVE_INDICES_KEY],
+            LIVE_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.DEAD_INDICES_KEY],
+            DEAD_STORM_OBJECT_INDICES))
 
     def test_sample_by_min_obs_density_plus_return_table(self):
         """Ensures correct output from sample_by_min_obs_density_plus.
@@ -500,12 +539,12 @@ class FeatureVectorsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_metadata_dict[feature_vectors.LIVE_SELECTED_INDICES_KEY],
             LIVE_SELECTED_INDICES_FOR_MIN_DENSITY_PLUS_SAMPLING))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_LIVE_STORMS_KEY] ==
-            len(LIVE_STORM_OBJECT_INDICES))
-        self.assertTrue(
-            this_metadata_dict[feature_vectors.NUM_DEAD_STORMS_KEY] ==
-            len(DEAD_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.LIVE_INDICES_KEY],
+            LIVE_STORM_OBJECT_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_metadata_dict[feature_vectors.DEAD_INDICES_KEY],
+            DEAD_STORM_OBJECT_INDICES))
 
     def test_sample_by_uniform_wind_speed_return_table(self):
         """Ensures correct output from sample_by_uniform_wind_speed.

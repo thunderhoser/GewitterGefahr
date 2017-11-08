@@ -1,33 +1,55 @@
-"""Processing methods for feature vectors.
+"""Methods for handling feature vectors.
 
---- DEFINITIONS ---
+--- GENERAL DEFINITIONS ---
 
 Feature (or "attribute" or "predictor variable" or "independent variable") =
-variable used to predict the label.
+variable used to predict the label
 
 Label (or "outcome" or "dependent variable" or "target variable" or
 "predictand") = variable to be predicted.
 
-Feature vector = list of features for one example (storm object).
+Feature vector = list of all features for one example (storm object).
 
---- SAMPLING METHODS ---
-
-Definitions for the following discussion:
+--- DEFINITIONS FOR SAMPLING METHODS ---
 
 q = percentile level used to create both regression and classification labels.
     For more on the role of q, see `labels.label_wind_for_regression` and
     `labels.label_wind_for_classification`.
 
-U_q = [q]th percentile of all wind speeds linked to storm object.
+U_q = [q]th percentile of all wind speeds linked to a given storm object.
 
-N_obs = number of wind observations linked to storm object.
+N_obs = number of wind observations linked to a given storm object.
+
+T = range of lead times used to create label.
+
+Live storm object = storm object for which the corresponding cell exists at some
+                    point during T.
+
+Dead storm object = storm object for which the corresponding cell no longer
+                    exists during T.
+
+--- SAMPLING METHODS ---
 
 [1] "uniform_wind_speed": Storm objects are sampled uniformly with respect to
     U_q.
-[2] "min_observations": Only storm objects with N_obs >= threshold are used.
-    The others are thrown out.
-[3] "min_observations_plus" Only storm objects with N_obs >= threshold, or
-    U_q >= threshold, are used.  The others are thrown out.
+[2] "min_observations": All storm objects with N_obs >= threshold are used.
+    Also, dead storm objects are sampled randomly to preserve the ratio of live
+    to dead storm objects.  This helps to eliminate survivor bias, where only
+    storms with a minimum remaining lifetime (which are more likely to produce
+    severe wind) are used.
+[3] "min_observations_plus": Same as "min_observations", except that all storm
+    objects in the highest class (i.e., with the highest possible classification
+    label) are used.
+[4] "min_obs_density": All storm objects with observation density >= threshold
+    are used.  Also, dead storm objects are sampled randomly to preserve the
+    ratio of live to dead storm objects.  Observation density is a spatial
+    density (number per m^2), where the denominator is the area of the storm-
+    centered buffer used to create the label.  For example, if the label is
+    based on wind observations from 5-10 km outside the storm, the denominator
+    is the area of the 5--10-km buffer around the storm.
+[5] "min_obs_density_plus": Same as "min_obs_density", except that all storm
+    objects in the highest class (i.e., with the highest possible classification
+    label) are used.
 """
 
 import os.path
@@ -45,9 +67,6 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.linkage import storm_to_winds
 
-# TODO(thunderhoser): This file needs better documentation, especially the
-# definitions of a "dead storm" and the sampling methods.
-
 TOLERANCE = 1e-6
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
@@ -64,14 +83,24 @@ INPUT_COLUMNS_TO_MAKE_BUFFERS = (
     COLUMNS_TO_MERGE_ON + [tracking_io.POLYGON_OBJECT_LATLNG_COLUMN])
 
 LIVE_SELECTED_INDICES_KEY = 'live_selected_indices'
-NUM_LIVE_STORMS_KEY = 'num_live_storm_objects'
-NUM_DEAD_STORMS_KEY = 'num_dead_storm_objects'
+LIVE_INDICES_KEY = 'live_indices'
+DEAD_INDICES_KEY = 'dead_indices'
 SPEED_CATEGORY_KEY_FOR_UNIFORM_SAMPLING = 'speed_category_by_storm_object'
 NUM_OBSERVATIONS_KEY = 'num_observations_by_storm_object'
 
 UNIFORM_SAMPLING_METHOD = 'uniform_wind_speed'
 MIN_OBS_SAMPLING_METHOD = 'min_observations'
 MIN_OBS_PLUS_SAMPLING_METHOD = 'min_observations_plus'
+MIN_DENSITY_SAMPLING_METHOD = 'min_obs_density'
+MIN_DENSITY_PLUS_SAMPLING_METHOD = 'min_obs_density_plus'
+
+SAMPLING_METHODS = [
+    UNIFORM_SAMPLING_METHOD, MIN_OBS_SAMPLING_METHOD,
+    MIN_OBS_PLUS_SAMPLING_METHOD, MIN_DENSITY_SAMPLING_METHOD,
+    MIN_DENSITY_PLUS_SAMPLING_METHOD]
+NON_UNIFORM_SAMPLING_METHODS = [
+    MIN_OBS_SAMPLING_METHOD, MIN_OBS_PLUS_SAMPLING_METHOD,
+    MIN_DENSITY_SAMPLING_METHOD, MIN_DENSITY_PLUS_SAMPLING_METHOD]
 
 DEFAULT_MIN_OBSERVATIONS_FOR_SAMPLING = 25
 DEFAULT_MIN_OBS_DENSITY_FOR_SAMPLING_M02 = 1e-7
@@ -81,14 +110,6 @@ DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01 = (
 
 def _find_live_and_dead_storms(feature_table):
     """Finds live and dead storm objects.
-
-    T = lead-time range used to create labels
-
-    A "live storm object" is one for which the corresponding cell still exists
-    at some point during T.
-
-    A "dead storm object" is one for which the corresponding cell no longer
-    exists during T.
 
     :param feature_table: pandas DataFrame created by
         join_features_and_label_for_storm_objects.  Each row is one storm
@@ -118,13 +139,10 @@ def _select_dead_storms(live_indices=None, dead_indices=None,
                         live_selected_indices=None):
     """Selects dead storm objects.
 
-    For the definition of a "dead storm object," see documentation for
-    _find_live_and_dead_storms.
+    f_dead = fraction of dead storm objects
 
-    This method selects dead storm objects so that the fraction of dead storm
-    objects in the selected set ~= the fraction of dead storm objects in the
-    full set.  This prevents "survivor bias," where only storms with a minimum
-    remaining lifetime are selected.
+    This method randomly selects dead storm objects, so that the f_dead in the
+    selected set = f_dead in the full set.
 
     :param live_indices: 1-D numpy array with indices of live storm objects.
     :param dead_indices: 1-D numpy array with indices of dead storm objects.
@@ -245,6 +263,89 @@ def _get_observation_densities(feature_table):
         feature_table[labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN].values /
         buffer_areas_m2)
     return feature_table, observation_densities_m02
+
+
+def _indices_from_file_specific_to_overall(indices_by_file,
+                                           num_objects_by_file):
+    """Converts indices from file-specific to overall.
+
+    For example, in a one-based indexing system: if file 1 contains 50 objects
+    and file 2 contains 100 objects, object 3 in file 3 will be object 153
+    overall (50 + 100 + 3).
+
+    In a zero-based indexing system: if file 1 contains 50 objects
+    and file 2 contains 100 objects, object 3 in file 3 will also be object 153
+    overall (50 + 100 + [3 + 1] - 1).
+
+    N = number of files
+
+    :param indices_by_file: length-N list, where each element is a 1-D numpy
+        array of object indices.
+    :param num_objects_by_file: 1-D numpy array with number of objects in each
+        file.
+    :return: overall_indices: 1-D numpy array of overall object indices.
+    """
+
+    # TODO(thunderhoser): This method is more general than selecting feature
+    # vectors.  Should go in a different file.
+
+    overall_indices = numpy.array([])
+    num_files = len(indices_by_file)
+
+    for i in range(num_files):
+        if i == 0:
+            these_overall_indices = indices_by_file[i]
+        else:
+            these_overall_indices = (
+                indices_by_file[i] + numpy.sum(num_objects_by_file[:i]))
+
+        overall_indices = numpy.concatenate((
+            overall_indices, these_overall_indices))
+
+    return overall_indices
+
+
+def _indices_from_overall_to_file_specific(overall_indices,
+                                           num_objects_by_file):
+    """Converts indices from overall to file-specific.
+
+    This method is the inverse of _indices_from_file_specific_to_overall.
+
+    N = number of files
+
+    :param overall_indices: 1-D numpy array of overall indices.
+    :param num_objects_by_file: 1-D numpy array with number of objects in each
+        file.
+    :return: indices_by_file: length-N list, where each element is a 1-D numpy
+        array of object indices.
+    """
+
+    # TODO(thunderhoser): This method is more general than selecting feature
+    # vectors.  Should go in a different file.
+
+    num_files = len(num_objects_by_file)
+    indices_by_file = [None] * num_files
+
+    for i in range(num_files):
+        if num_objects_by_file[i] == 0:
+            indices_by_file[i] = numpy.array([], dtype=int)
+            continue
+
+        if i == 0:
+            this_min_overall_index = 0
+        else:
+            this_min_overall_index = numpy.sum(num_objects_by_file[:i])
+
+        this_max_overall_index = (
+            this_min_overall_index + num_objects_by_file[i] - 1)
+        this_file_flags = numpy.logical_and(
+            overall_indices >= this_min_overall_index,
+            overall_indices <= this_max_overall_index)
+        this_file_indices = numpy.where(this_file_flags)[0]
+        indices_by_file[i] = overall_indices[this_file_indices] - numpy.sum(
+            num_objects_by_file[:i])
+
+    return indices_by_file
 
 
 def check_feature_table(feature_table, require_storm_objects=True):
@@ -373,18 +474,21 @@ def join_features_and_label_for_storm_objects(
         joined with the other tables.
     :return: feature_table: pandas DataFrame containing all columns with radar
         statistics, shape statistics, sounding indices, and the desired label
-        (`label_column_name`).  If `label_column_name` is a classification
-        label, feature_table will also contain the corresponding regression
-        label.  Each row is one storm object.  Additional columns are listed
-        below.
+        (see input argument `label_column_name`).  If `label_column_name` is a
+        classification label, feature_table will also contain the corresponding
+        regression label.  If storm_to_winds_table contains distance buffers
+        (with column names given by
+        `storm_tracking_io.distance_buffer_to_column_name`), these will also be
+        in feature_table.  Each row is one storm object.  Mandatory columns are
+        listed below.
     feature_table.storm_id: String ID for storm cell.
     feature_table.unix_time_sec: Valid time of storm object.
     feature_table.end_time_unix_sec: End time of corresponding storm cell.
     feature_table.num_observations_for_label: Number of observations used to
-        create label.
+        create regression and/or classification label for this storm object.
+    feature_table.polygon_object_latlng: Instance of `shapely.geometry.Polygon`,
+        defining the outline of the storm object.
     """
-
-    # TODO(thunderhoser): Discuss distance buffers in documentation.
 
     feature_table = None
 
@@ -454,8 +558,6 @@ def sample_by_min_observations(
         return_table=False):
     """Samples feature vectors, using the "min_observations" method.
 
-    T = lead-time range used to create labels
-
     :param feature_table: pandas DataFrame created by
         join_features_and_label_for_storm_objects.
     :param min_observations: Minimum number of wind observations.  All storm
@@ -469,10 +571,10 @@ def sample_by_min_observations(
         return_table = False, dictionary with the following keys.
     metadata_dict['live_selected_indices']: 1-D numpy array with indices (rows)
         of selected feature vectors belonging to live storm objects.
-    metadata_dict['num_live_storm_objects']: Number of storm objects for which
-        the corresponding cell still exists at some point during T.
-    metadata_dict['num_dead_storm_objects']: Number of storm objects for which
-        the corresponding cell does not exist during T.
+    metadata_dict['live_indices']: 1-D numpy array with indices (rows) of all
+        live storm objects.
+    metadata_dict['dead_indices']: 1-D numpy array with indices (rows) of all
+        dead storm objects.
     """
 
     error_checking.assert_is_integer(min_observations)
@@ -486,9 +588,9 @@ def sample_by_min_observations(
     live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
 
     if not return_table:
-        metadata_dict = {LIVE_SELECTED_INDICES_KEY: live_selected_indices,
-                         NUM_LIVE_STORMS_KEY: len(live_indices),
-                         NUM_DEAD_STORMS_KEY: len(dead_indices)}
+        metadata_dict = {
+            LIVE_SELECTED_INDICES_KEY: live_selected_indices,
+            LIVE_INDICES_KEY: live_indices, DEAD_INDICES_KEY: dead_indices}
         return None, metadata_dict
 
     selected_indices = _select_dead_storms(
@@ -530,9 +632,9 @@ def sample_by_min_observations_plus(
     live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
 
     if not return_table:
-        metadata_dict = {LIVE_SELECTED_INDICES_KEY: live_selected_indices,
-                         NUM_LIVE_STORMS_KEY: len(live_indices),
-                         NUM_DEAD_STORMS_KEY: len(dead_indices)}
+        metadata_dict = {
+            LIVE_SELECTED_INDICES_KEY: live_selected_indices,
+            LIVE_INDICES_KEY: live_indices, DEAD_INDICES_KEY: dead_indices}
         return None, metadata_dict
 
     selected_indices = _select_dead_storms(
@@ -567,9 +669,9 @@ def sample_by_min_obs_density(
     live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
 
     if not return_table:
-        metadata_dict = {LIVE_SELECTED_INDICES_KEY: live_selected_indices,
-                         NUM_LIVE_STORMS_KEY: len(live_indices),
-                         NUM_DEAD_STORMS_KEY: len(dead_indices)}
+        metadata_dict = {
+            LIVE_SELECTED_INDICES_KEY: live_selected_indices,
+            LIVE_INDICES_KEY: live_indices, DEAD_INDICES_KEY: dead_indices}
         return None, metadata_dict
 
     selected_indices = _select_dead_storms(
@@ -614,9 +716,9 @@ def sample_by_min_obs_density_plus(
     live_indices, dead_indices = _find_live_and_dead_storms(feature_table)
 
     if not return_table:
-        metadata_dict = {LIVE_SELECTED_INDICES_KEY: live_selected_indices,
-                         NUM_LIVE_STORMS_KEY: len(live_indices),
-                         NUM_DEAD_STORMS_KEY: len(dead_indices)}
+        metadata_dict = {
+            LIVE_SELECTED_INDICES_KEY: live_selected_indices,
+            LIVE_INDICES_KEY: live_indices, DEAD_INDICES_KEY: dead_indices}
         return None, metadata_dict
 
     selected_indices = _select_dead_storms(
@@ -630,15 +732,10 @@ def sample_by_uniform_wind_speed(
         return_table=False):
     """Samples feature vectors, using the "uniform_wind_speed" method.
 
-    q = percentile level used to create both regression and classification
-        labels.  For more on the role of q, see
-        `labels.label_wind_for_regression` and
-        `labels.label_wind_for_classification`.
-
-    U_q = [q]th percentile of all wind speeds linked to storm object.
+    U_q = [q]th percentile of wind speeds linked to a given storm object.  For a
+    more thorough definition, see the docstring at the top.
 
     N = number of storm objects
-    T = lead-time range used to create labels
 
     :param feature_table: N-row pandas DataFrame created by
         join_features_and_label_for_storm_objects.
@@ -653,9 +750,7 @@ def sample_by_uniform_wind_speed(
     :return: metadata_dict: If return_table = True, this is None.  If
         return_table = False, dictionary with the following keys.
     metadata_dict['speed_category_by_storm_object']: length-N numpy array of
-        wind-speed categories.  Category -1 means that the storm no longer
-        exists during T.  Category k means that U_q is >=
-        wind_speed_minima_m_s01 and < wind_speed_maxima_m_s01.
+        wind-speed categories.  Category -1 means a dead storm object.
     metadata_dict['num_observations_by_storm_object']: length-N numpy array,
         where the [i]th element is number of wind observations used to label the
         [i]th storm object.
@@ -681,6 +776,218 @@ def sample_by_uniform_wind_speed(
     selected_indices = _select_storms_uniformly_by_category(
         speed_category_by_storm_object, num_observations_by_storm_object)
     return feature_table.iloc[selected_indices], None
+
+
+def sample_many_files_by_min_obs_or_density(
+        input_feature_file_names, output_feature_file_names,
+        sampling_method=None,
+        min_observations=DEFAULT_MIN_OBSERVATIONS_FOR_SAMPLING,
+        min_observation_density_m02=DEFAULT_MIN_OBS_DENSITY_FOR_SAMPLING_M02):
+    """Samples feature vectors from many files.
+
+    For any sampling method other than "uniform_wind_speed".  To sample from
+    many files with the "uniform_wind_speed" method, see
+    sample_many_files_by_uniform_wind_speed.
+
+    N = number of input files
+
+    :param input_feature_file_names: length-N list with paths to files
+        containing unsampled feature vectors.
+    :param output_feature_file_names: length-N list with paths to files
+        containing sampled feature vectors.
+    :param sampling_method: Sampling method.  Must be "min_observations",
+        "min_observations_plus", "min_obs_density", or "min_obs_density_plus".
+    :param min_observations: See documentation for sample_by_min_observations.
+    :param min_observation_density_m02: See documentation for
+        sample_by_min_obs_density.
+    :raises: ValueError: All input files must have the same label columns.  In
+        other words, labels must have been created with the same params for each
+        file.
+    :raises: ValueError: if sampling method is invalid.
+    """
+
+    error_checking.assert_is_string_list(input_feature_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(input_feature_file_names), num_dimensions=1)
+    for this_file_name in input_feature_file_names:
+        error_checking.assert_file_exists(this_file_name)
+    num_files = len(input_feature_file_names)
+
+    error_checking.assert_is_string_list(output_feature_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(output_feature_file_names),
+        exact_dimensions=numpy.array([num_files]))
+
+    error_checking.assert_is_string(sampling_method)
+    if sampling_method not in NON_UNIFORM_SAMPLING_METHODS:
+        error_string = (
+            '\n\n' + str(NON_UNIFORM_SAMPLING_METHODS) + '\n\nValid sampling ' +
+            'methods (other than "' + UNIFORM_SAMPLING_METHOD +
+            '"; listed above) do not include "' + sampling_method + '".')
+        raise ValueError(error_string)
+
+    live_selected_indices_by_file = [None] * num_files
+    live_indices_by_file = [None] * num_files
+    dead_indices_by_file = [None] * num_files
+    num_storm_objects_by_file = numpy.full(num_files, 0, dtype=int)
+
+    for i in range(num_files):
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=output_feature_file_names[i])
+
+        print ('Sampling data from file ' + str(i + 1) + '/' + str(num_files) +
+               ': ' + input_feature_file_names[i] + '...')
+
+        this_feature_table = read_features_for_storm_objects(
+            input_feature_file_names[i])
+
+        if i == 0:
+            _, regression_label_column_name, _ = check_feature_table(
+                this_feature_table, require_storm_objects=True)
+        else:
+            _, this_regression_label_column_name, _ = check_feature_table(
+                this_feature_table, require_storm_objects=True)
+            if (this_regression_label_column_name !=
+                    regression_label_column_name):
+                error_string = (
+                    'Files ' + str(i + 1) + ' and 1 have different regression-'
+                    + 'label columns ("' + this_regression_label_column_name +
+                    '" and "' + regression_label_column_name +
+                    '", respectively).')
+                raise ValueError(error_string)
+
+        if sampling_method == MIN_OBS_SAMPLING_METHOD:
+            _, this_metadata_dict = sample_by_min_observations(
+                this_feature_table, min_observations=min_observations,
+                return_table=False)
+        elif sampling_method == MIN_OBS_PLUS_SAMPLING_METHOD:
+            _, this_metadata_dict = sample_by_min_observations_plus(
+                this_feature_table, min_observations=min_observations,
+                return_table=False)
+        elif sampling_method == MIN_DENSITY_SAMPLING_METHOD:
+            _, this_metadata_dict = sample_by_min_obs_density(
+                this_feature_table,
+                min_observation_density_m02=min_observation_density_m02,
+                return_table=False)
+        elif sampling_method == MIN_DENSITY_PLUS_SAMPLING_METHOD:
+            _, this_metadata_dict = sample_by_min_obs_density_plus(
+                this_feature_table,
+                min_observation_density_m02=min_observation_density_m02,
+                return_table=False)
+
+        live_selected_indices_by_file[i] = this_metadata_dict[
+            LIVE_SELECTED_INDICES_KEY]
+        live_indices_by_file[i] = this_metadata_dict[LIVE_INDICES_KEY]
+        dead_indices_by_file[i] = this_metadata_dict[DEAD_INDICES_KEY]
+        num_storm_objects_by_file[i] = len(this_feature_table.index)
+
+    live_selected_indices = _indices_from_file_specific_to_overall(
+        live_selected_indices_by_file, num_storm_objects_by_file)
+    live_indices = _indices_from_file_specific_to_overall(
+        live_indices_by_file, num_storm_objects_by_file)
+    dead_indices = _indices_from_file_specific_to_overall(
+        dead_indices_by_file, num_storm_objects_by_file)
+
+    selected_indices = _select_dead_storms(
+        live_indices=live_indices, dead_indices=dead_indices,
+        live_selected_indices=live_selected_indices)
+    selected_indices_by_file = _indices_from_overall_to_file_specific(
+        selected_indices, num_storm_objects_by_file)
+
+    for i in range(num_files):
+        print ('Writing sampled data to file ' + str(i - 1) + '/' +
+               str(num_files) + ': ' + output_feature_file_names[i] + '...')
+
+        this_feature_table = read_features_for_storm_objects(
+            input_feature_file_names[i])
+        write_features_for_storm_objects(
+            this_feature_table.iloc[selected_indices_by_file[i]],
+            output_feature_file_names[i])
+
+
+def sample_many_files_by_uniform_wind_speed(
+        input_feature_file_names, output_feature_file_names,
+        cutoffs_m_s01=DEFAULT_CUTOFFS_FOR_UNIFORM_SAMPLING_M_S01):
+    """Samples feature vectors from many files by "uniform_wind_speed" method.
+
+    N = number of input files
+
+    :param input_feature_file_names: length-N list with paths to files
+        containing unsampled feature vectors.
+    :param output_feature_file_names: length-N list with paths to files
+        containing sampled feature vectors.
+    :param cutoffs_m_s01: See documentation for sample_by_uniform_wind_speed.
+    :raises: ValueError: All input files must have the same label columns.  In
+        other words, labels must have been created with the same params for each
+        file.
+    """
+
+    error_checking.assert_is_string_list(input_feature_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(input_feature_file_names), num_dimensions=1)
+    for this_file_name in input_feature_file_names:
+        error_checking.assert_file_exists(this_file_name)
+    num_files = len(input_feature_file_names)
+
+    error_checking.assert_is_string_list(output_feature_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(output_feature_file_names),
+        exact_dimensions=numpy.array([num_files]))
+
+    speed_category_by_storm_object = numpy.array([], dtype=int)
+    num_observations_by_storm_object = numpy.array([], dtype=int)
+    num_storm_objects_by_file = numpy.full(num_files, 0, dtype=int)
+
+    for i in range(num_files):
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=output_feature_file_names[i])
+
+        print ('Sampling data from file ' + str(i - 1) + '/' + str(num_files) +
+               ': ' + input_feature_file_names[i] + '...')
+
+        this_feature_table = read_features_for_storm_objects(
+            input_feature_file_names[i])
+
+        if i == 0:
+            _, regression_label_column_name, _ = check_feature_table(
+                this_feature_table, require_storm_objects=True)
+        else:
+            _, this_regression_label_column_name, _ = check_feature_table(
+                this_feature_table, require_storm_objects=True)
+            if (this_regression_label_column_name !=
+                    regression_label_column_name):
+                error_string = (
+                    'Files ' + str(i + 1) + ' and 1 have different regression-'
+                    + 'label columns ("' + this_regression_label_column_name +
+                    '" and "' + regression_label_column_name +
+                    '", respectively).')
+                raise ValueError(error_string)
+
+        _, this_metadata_dict = sample_by_uniform_wind_speed(
+            this_feature_table, cutoffs_m_s01=cutoffs_m_s01, return_table=False)
+
+        speed_category_by_storm_object = numpy.concatenate((
+            speed_category_by_storm_object,
+            this_metadata_dict[SPEED_CATEGORY_KEY_FOR_UNIFORM_SAMPLING]))
+        num_observations_by_storm_object = numpy.concatenate((
+            num_observations_by_storm_object,
+            this_metadata_dict[NUM_OBSERVATIONS_KEY]))
+        num_storm_objects_by_file[i] = len(this_feature_table.index)
+
+    selected_indices = _select_storms_uniformly_by_category(
+        speed_category_by_storm_object, num_observations_by_storm_object)
+    selected_indices_by_file = _indices_from_overall_to_file_specific(
+        selected_indices, num_storm_objects_by_file)
+
+    for i in range(num_files):
+        print ('Writing sampled data to file ' + str(i - 1) + '/' +
+               str(num_files) + ': ' + output_feature_file_names[i] + '...')
+
+        this_feature_table = read_features_for_storm_objects(
+            input_feature_file_names[i])
+        write_features_for_storm_objects(
+            this_feature_table.iloc[selected_indices_by_file[i]],
+            output_feature_file_names[i])
 
 
 def write_features_for_storm_objects(feature_table, pickle_file_name):
