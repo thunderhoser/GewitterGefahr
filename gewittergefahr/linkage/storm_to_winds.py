@@ -23,8 +23,6 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): Add high-level method that does everything.
-
 WIND_DATA_SOURCE = raw_wind_io.MERGED_DATA_SOURCE
 MAX_TIME_BEFORE_STORM_START_DEFAULT_SEC = 300
 MAX_TIME_AFTER_STORM_END_DEFAULT_SEC = 300
