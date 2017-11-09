@@ -14,10 +14,13 @@ Lakshmanan, V., B. Herzog, and D. Kingfield, 2015: "A method for extracting
     54 (2), 451-462.
 """
 
+import copy
 import numpy
 import pandas
 from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+
+EMPTY_STORM_ID = 'no_storm'
 
 DEFAULT_MAX_EXTRAP_TIME_SEC = 610
 DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
@@ -33,6 +36,7 @@ TRACK_START_TIME_COLUMN = 'start_time_unix_sec'
 TRACK_END_TIME_COLUMN = 'end_time_unix_sec'
 TRACK_X_COORDS_COLUMN = 'x_coords_metres'
 TRACK_Y_COORDS_COLUMN = 'y_coords_metres'
+OBJECT_INDICES_COLUMN_FOR_TRACK = 'object_indices'
 
 THEIL_SEN_MODEL_X_COLUMN = 'theil_sen_model_for_x'
 THEIL_SEN_MODEL_Y_COLUMN = 'theil_sen_model_for_y'
@@ -41,6 +45,7 @@ THEIL_SEN_MODEL_COLUMNS = [THEIL_SEN_MODEL_X_COLUMN, THEIL_SEN_MODEL_Y_COLUMN]
 REPORT_PERIOD_FOR_THEIL_SEN = 100  # Print message after every 100 fits.
 REPORT_PERIOD_FOR_BREAKUP = 100
 REPORT_PERIOD_FOR_MERGER = 10
+REPORT_PERIOD_FOR_TIE_BREAKER = 500
 
 
 def _theil_sen_fit(unix_times_sec=None, x_coords_metres=None,
@@ -254,6 +259,84 @@ def _get_mean_prediction_error_for_two_tracks(
         (y_predicted_metres - y_coords_late_metres) ** 2))
 
 
+def _break_ties_one_storm_track(
+        object_x_coords_metres=None, object_y_coords_metres=None,
+        object_times_unix_sec=None, theil_sen_model_for_x=None,
+        theil_sen_model_for_y=None):
+    """Breaks all ties for one storm track.
+
+    For the definition of a "tie" among storm objects, see documentation for
+    _break_ties_among_storm_objects.
+
+    T = number of times in track
+
+    :param object_x_coords_metres: length-T numpy array with x-coordinates of
+        track.
+    :param object_y_coords_metres: length-T numpy array with y-coordinates of
+        track.
+    :param object_times_unix_sec: length-T numpy array with times of track.
+    :param theil_sen_model_for_x: Instance of
+        `sklearn.linear_model.TheilSenRegressor` for the track, where the
+        predictor is time and predictand is x-coordinate.
+    :param theil_sen_model_for_y: Same as above, except for y-coordinates.
+    :return: indices_to_remove: 1-D numpy array with indices of storm objects to
+        remove from the track.
+    """
+
+    num_storm_objects = len(object_times_unix_sec)
+    object_indices_to_keep = numpy.linspace(
+        0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
+
+    unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
+        object_times_unix_sec, return_inverse=True)
+    num_unique_times = len(unique_times_unix_sec)
+
+    while num_unique_times < len(object_times_unix_sec):
+        for i in range(num_unique_times):
+            these_object_indices = numpy.where(
+                orig_to_unique_time_indices == i)[0]
+            if len(these_object_indices) == 1:
+                continue
+
+            this_x_predicted_metres, this_y_predicted_metres = (
+                _theil_sen_predict(
+                    theil_sen_model_for_x=theil_sen_model_for_x,
+                    theil_sen_model_for_y=theil_sen_model_for_y,
+                    query_time_unix_sec=unique_times_unix_sec[i]))
+
+            these_prediction_errors_metres = numpy.sqrt(
+                (object_x_coords_metres[these_object_indices] -
+                 this_x_predicted_metres) ** 2 +
+                (object_y_coords_metres[these_object_indices] -
+                 this_y_predicted_metres) ** 2)
+            this_min_index = these_object_indices[
+                numpy.argmin(these_prediction_errors_metres)]
+
+            for k in these_object_indices:
+                if k == this_min_index:
+                    continue
+
+                object_x_coords_metres = numpy.delete(object_x_coords_metres, k)
+                object_y_coords_metres = numpy.delete(object_y_coords_metres, k)
+                object_times_unix_sec = numpy.delete(object_times_unix_sec, k)
+                object_indices_to_keep = numpy.delete(object_indices_to_keep, k)
+
+            theil_sen_model_for_x, theil_sen_model_for_y = _theil_sen_fit(
+                unix_times_sec=object_times_unix_sec,
+                x_coords_metres=object_x_coords_metres,
+                y_coords_metres=object_y_coords_metres)
+
+            break
+
+        unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
+            object_times_unix_sec, return_inverse=True)
+        num_unique_times = len(unique_times_unix_sec)
+
+    remove_object_flags = numpy.full(num_storm_objects, True, dtype=bool)
+    remove_object_flags[object_indices_to_keep] = False
+    return numpy.where(remove_object_flags)[0]
+
+
 def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     """Adds tracking info to storm objects.
 
@@ -276,6 +359,8 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     storm_track_table.unix_times_sec: length-T numpy array of times.
     storm_track_table.start_time_unix_sec: First time in `unix_times_sec`.
     storm_track_table.end_time_unix_sec: Last time in `unix_times_sec`.
+    storm_track_table.object_indices: length-T numpy array of indices (rows in
+        storm_object_table).
     storm_track_table.x_coords_metres: length-T numpy array of x-coordinates.
     storm_track_table.y_coords_metres: length-T numpy array of y-coordinates.
     """
@@ -287,6 +372,12 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
 
     if storm_ids_to_use is None:
         storm_ids_to_use = unique_storm_ids.tolist()
+
+    storm_ids_to_use = set(storm_ids_to_use)
+    if EMPTY_STORM_ID in storm_ids_to_use:
+        storm_ids_to_use.remove(EMPTY_STORM_ID)
+    storm_ids_to_use = list(storm_ids_to_use)
+
     storm_track_dict = {tracking_io.STORM_ID_COLUMN: storm_ids_to_use}
     storm_track_table = pandas.DataFrame.from_dict(storm_track_dict)
 
@@ -299,6 +390,7 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     argument_dict = {TRACK_TIMES_COLUMN: nested_array,
                      TRACK_X_COORDS_COLUMN: nested_array,
                      TRACK_Y_COORDS_COLUMN: nested_array,
+                     OBJECT_INDICES_COLUMN_FOR_TRACK: nested_array,
                      TRACK_START_TIME_COLUMN: simple_array,
                      TRACK_END_TIME_COLUMN: simple_array}
     storm_track_table = storm_track_table.assign(**argument_dict)
@@ -326,6 +418,8 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
         storm_track_table[TRACK_Y_COORDS_COLUMN].values[this_table_index] = (
             storm_object_table[CENTROID_Y_COLUMN].values[
                 these_storm_object_indices])
+        storm_track_table[OBJECT_INDICES_COLUMN_FOR_TRACK].values[
+            this_table_index] = these_storm_object_indices
 
         storm_track_table[TRACK_START_TIME_COLUMN].values[this_table_index] = (
             storm_track_table[TRACK_TIMES_COLUMN].values[this_table_index][0])
@@ -505,11 +599,12 @@ def _break_storm_tracks(
     print ('Have performed break-up step for all ' + str(num_storm_objects) +
            ' storm objects!')
 
-    orig_storm_track_table = storm_track_table[
-        THEIL_SEN_MODEL_COLUMNS + [tracking_io.STORM_ID_COLUMN]]
+    orig_storm_track_table = copy.deepcopy(storm_track_table)
     storm_track_table = _storm_objects_to_tracks(storm_object_table)
     storm_track_table = storm_track_table.merge(
-        orig_storm_track_table, on=tracking_io.STORM_ID_COLUMN, how='left')
+        orig_storm_track_table[
+            THEIL_SEN_MODEL_COLUMNS + [tracking_io.STORM_ID_COLUMN]],
+        on=tracking_io.STORM_ID_COLUMN, how='left')
 
     track_changed_indices = _find_changed_tracks(
         storm_track_table, orig_storm_track_table)
@@ -531,6 +626,7 @@ def _merge_storm_tracks(
 
     This is the "merger" step in w2besttrack.
 
+    :param storm_object_table: See documentation for _break_storm_tracks.
     :param storm_track_table: pandas DataFrame with columns documented in
         _storm_objects_to_tracks.
     :param max_join_time_sec: Maximum time between tracks (specifically, between
@@ -538,6 +634,9 @@ def _merge_storm_tracks(
     :param max_join_distance_metres: Maximum distance between tracks
         (specifically, between last position of early track and first position
         of late track).
+    :param max_mean_prediction_error_metres: Maximum mean error for early track
+        predicting positions in late track.  For more explanation, see
+        _get_mean_prediction_error_for_two_tracks.
     :param max_velocity_diff_m_s01: Maximum difference (metres per second)
         between Theil-Sen velocities of the two tracks.  If None, this
         constraint will not be enforced.
@@ -547,6 +646,11 @@ def _merge_storm_tracks(
         changed for several tracks.
     """
 
+    # TODO(thunderhoser): Does storm_track_table need to be cleaned up at the
+    # end?  I don't think so, but maybe _storm_objects_to_tracks would say
+    # something different...
+
+    num_mergers = 0
     num_storm_tracks = len(storm_track_table)
     remove_storm_track_flags = numpy.full(num_storm_tracks, False, dtype=bool)
 
@@ -560,11 +664,11 @@ def _merge_storm_tracks(
             continue
 
         for k in range(j):
+            if remove_storm_track_flags[k]:
+                continue
             this_num_objects = len(
                 storm_track_table[TRACK_TIMES_COLUMN].values[k])
             if this_num_objects < 2:
-                continue
-            if remove_storm_track_flags[k]:
                 continue
 
             these_track_indices = numpy.array([j, k])
@@ -621,6 +725,8 @@ def _merge_storm_tracks(
                 continue
 
             remove_storm_track_flags[k] = True
+            num_mergers += 1
+
             storm_id_j = storm_track_table[
                 tracking_io.STORM_ID_COLUMN].values[j]
             storm_id_k = storm_track_table[
@@ -639,5 +745,75 @@ def _merge_storm_tracks(
             storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
 
     print ('Have performed merger step for all ' + str(num_storm_tracks) +
-           ' storm tracks!\n\n')
+           ' storm tracks!')
+    print ('Merged ' + str(num_mergers) +
+           ' pairs of storm tracks during this procedure.\n\n')
+
+    remove_storm_track_rows = numpy.where(remove_storm_track_flags)[0]
+    return storm_object_table, storm_track_table.drop(
+        remove_storm_track_rows, axis=1, inplace=False)
+
+
+def _break_ties_among_storm_objects(storm_object_table, storm_track_table):
+    """Breaks ties among storm objects.
+
+    This is the "tie-breaker" step in w2besttrack.
+
+    A "tie" occurs when several storm objects at the same time are assigned to
+    the same track S.  This method keeps the storm object for which S has the
+    smallest Theil-Sen prediction error.  All other storm objects are unassigned
+    from S (and left with no track).
+
+    :param storm_object_table: See documentation for _break_storm_tracks.
+    :param storm_track_table: pandas DataFrame with columns documented in
+        _storm_objects_to_tracks.
+    :return: storm_object_table: Same as input, except that "storm_id" column
+        may have changed for several objects.
+    :return: storm_track_table: Same as input, except that values may have
+        changed for several tracks.
+    """
+
+    num_storm_tracks = len(storm_track_table)
+    num_ties_broken = 0
+
+    for j in range(num_storm_tracks):
+        if numpy.mod(j, REPORT_PERIOD_FOR_TIE_BREAKER) == 0:
+            print ('Have performed tie-breaker step for ' + str(j) + '/' +
+                   str(num_storm_tracks) + ' storm tracks...')
+
+        these_object_indices_to_remove = _break_ties_one_storm_track(
+            object_x_coords_metres=
+            storm_track_table[TRACK_X_COORDS_COLUMN].values[j],
+            object_y_coords_metres=
+            storm_track_table[TRACK_Y_COORDS_COLUMN].values[j],
+            object_times_unix_sec=
+            storm_track_table[TRACK_TIMES_COLUMN].values[j],
+            theil_sen_model_for_x=
+            storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[j],
+            theil_sen_model_for_y=
+            storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values[j])
+
+        these_object_indices_to_remove = storm_track_table[
+            OBJECT_INDICES_COLUMN_FOR_TRACK].values[j][
+                these_object_indices_to_remove]
+        if not these_object_indices_to_remove:
+            continue
+
+        num_ties_broken += len(these_object_indices_to_remove)
+        for i in these_object_indices_to_remove:
+            storm_object_table[tracking_io.STORM_ID_COLUMN].values[
+                i] = EMPTY_STORM_ID
+
+        storm_id_j = storm_track_table[
+            tracking_io.STORM_ID_COLUMN].values[j]
+        storm_track_table_j_only = _storm_objects_to_tracks(
+            storm_object_table, [storm_id_j])
+        storm_track_table_j_only = _theil_sen_fit_for_each_track(
+            storm_track_table_j_only)
+        storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
+
+    print ('Have performed tie-breaker step for all ' + str(num_storm_tracks) +
+           ' storm tracks!')
+    print 'Broke ' + str(num_ties_broken) + ' ties during this procedure.\n\n'
+
     return storm_object_table, storm_track_table
