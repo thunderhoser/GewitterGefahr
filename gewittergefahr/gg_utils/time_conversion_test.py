@@ -187,6 +187,13 @@ class TimeConversionTests(unittest.TestCase):
             TIME_115959UTC_UNIX_SEC)
         self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
 
+    def test_spc_date_string_to_unix_sec(self):
+        """Ensures correct output from spc_date_string_to_unix_sec."""
+
+        this_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+            SPC_DATE_STRING)
+        self.assertTrue(this_spc_date_unix_sec == SPC_DATE_UNIX_SEC)
+
 
 if __name__ == '__main__':
     unittest.main()

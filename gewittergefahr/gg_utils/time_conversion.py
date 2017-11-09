@@ -11,7 +11,6 @@ date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 
 import time
 import calendar
-import numpy
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
@@ -80,3 +79,17 @@ def time_to_spc_date_string(unix_time_sec):
     error_checking.assert_is_integer(unix_time_sec)
     return unix_sec_to_string(
         unix_time_sec - DAYS_TO_SECONDS / 2, SPC_DATE_FORMAT)
+
+
+def spc_date_string_to_unix_sec(spc_date_string):
+    """Converts SPC date from string to Unix format.
+
+    :param spc_date_string: SPC date in format "yyyymmdd".
+    :return: spc_date_unix_sec: SPC date in Unix format.  If the SPC date is
+        "Oct 28 2017" (120000 UTC 28 Oct - 115959 UTC 29 Oct 2017),
+        spc_date_unix_sec will be 180000 UTC 28 Oct 2017.  In general,
+        spc_date_unix_sec will be 6 hours into the SPC date.
+    """
+
+    return SECONDS_INTO_SPC_DATE_DEFAULT + string_to_unix_sec(
+        spc_date_string, SPC_DATE_FORMAT)
