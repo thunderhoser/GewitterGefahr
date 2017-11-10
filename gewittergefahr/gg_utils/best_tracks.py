@@ -19,6 +19,10 @@ import numpy
 import pandas
 from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import file_system_utils
+from gewittergefahr.gg_utils import error_checking
 
 EMPTY_STORM_ID = 'no_storm'
 
@@ -27,6 +31,10 @@ DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
 DEFAULT_MAX_JOIN_TIME_SEC = 915
 DEFAULT_MAX_JOIN_DISTANCE_METRES = 30000.
 DEFAULT_MAX_MEAN_JOIN_ERROR_METRES = 10000.
+
+DEFAULT_NUM_MAIN_ITERS = 3
+DEFAULT_NUM_BREAKUP_ITERS = 5
+DEFAULT_MIN_OBJECTS_IN_TRACK = 3
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -47,9 +55,24 @@ REPORT_PERIOD_FOR_BREAKUP = 100
 REPORT_PERIOD_FOR_MERGER = 10
 REPORT_PERIOD_FOR_TIE_BREAKER = 500
 
+FILE_INDEX_COLUMN = 'file_index'
+ORIG_STORM_ID_COLUMN = 'original_storm_id'
+TEMPORARY_STORM_OBJECT_COLUMNS = [FILE_INDEX_COLUMN, ORIG_STORM_ID_COLUMN]
 
-def _theil_sen_fit(unix_times_sec=None, x_coords_metres=None,
-                   y_coords_metres=None):
+INPUT_COLUMNS_TO_KEEP = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN]
+COLUMNS_TO_MERGE_ON = [ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+
+EMPTY_TRACK_AGE_SEC = -1
+OUTPUT_COLUMNS_TO_KEEP = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
+    tracking_io.TRACKING_END_TIME_COLUMN]
+
+
+def _theil_sen_fit(
+        unix_times_sec=None, x_coords_metres=None, y_coords_metres=None):
     """Fits Theil-Sen trajectory to storm track.
 
     N = number of storm objects in track
@@ -110,7 +133,7 @@ def _get_prediction_errors_for_one_object(
     :param x_coord_metres: Actual x-coordinate of storm object.
     :param y_coord_metres: Actual y-coordinate of storm object.
     :param unix_time_sec: Valid time of storm object.
-    :param storm_track_table: pandas DataFrame created by
+    :param storm_track_table: pandas DataFrame with columns documented in
         _theil_sen_fit_for_each_track.
     :return: prediction_errors_metres: length-N numpy array of prediction errors
         (distances between actual location and Theil-Sen prediction).
@@ -432,10 +455,10 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
 def _find_changed_tracks(storm_track_table, orig_storm_track_table):
     """Finds tracks that chgd from orig_storm_track_table to storm_track_table.
 
-    :param storm_track_table: pandas DataFrame created by
-        _storm_objects_to_tracks.
-    :param orig_storm_track_table: pandas DataFrame created by
-        _storm_objects_to_tracks.
+    :param storm_track_table: pandas DataFrame with columns documented in
+        _theil_sen_fit_for_each_track.
+    :param orig_storm_track_table: pandas DataFrame with columns documented in
+        _theil_sen_fit_for_each_track.
     :return: track_changed_indices: 1-D numpy array of rows (indices into
         storm_track_table) for which track changed.
     """
@@ -546,7 +569,7 @@ def _break_storm_tracks(
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
 
     :param storm_track_table: pandas DataFrame with columns documented in
-        _storm_objects_to_tracks.
+        _theil_sen_fit_for_each_track.
     :param max_extrapolation_time_sec: Maximum extrapolation time.  No storm
         track will be extrapolated > `max_extrapolation_time_sec` before the
         time of its first storm object or after the time of its last storm
@@ -628,7 +651,7 @@ def _merge_storm_tracks(
 
     :param storm_object_table: See documentation for _break_storm_tracks.
     :param storm_track_table: pandas DataFrame with columns documented in
-        _storm_objects_to_tracks.
+        _theil_sen_fit_for_each_track.
     :param max_join_time_sec: Maximum time between tracks (specifically, between
         end time of early track and start time of late track).
     :param max_join_distance_metres: Maximum distance between tracks
@@ -750,8 +773,10 @@ def _merge_storm_tracks(
            ' pairs of storm tracks during this procedure.\n\n')
 
     remove_storm_track_rows = numpy.where(remove_storm_track_flags)[0]
-    return storm_object_table, storm_track_table.drop(
-        remove_storm_track_rows, axis=1, inplace=False)
+    storm_track_table.drop(
+        storm_track_table.index[remove_storm_track_rows], axis=0, inplace=True)
+
+    return storm_object_table, storm_track_table
 
 
 def _break_ties_among_storm_objects(storm_object_table, storm_track_table):
@@ -766,7 +791,7 @@ def _break_ties_among_storm_objects(storm_object_table, storm_track_table):
 
     :param storm_object_table: See documentation for _break_storm_tracks.
     :param storm_track_table: pandas DataFrame with columns documented in
-        _storm_objects_to_tracks.
+        _theil_sen_fit_for_each_track.
     :return: storm_object_table: Same as input, except that "storm_id" column
         may have changed for several objects.
     :return: storm_track_table: Same as input, except that values may have
@@ -817,3 +842,331 @@ def _break_ties_among_storm_objects(storm_object_table, storm_track_table):
     print 'Broke ' + str(num_ties_broken) + ' ties during this procedure.\n\n'
 
     return storm_object_table, storm_track_table
+
+
+def _remove_short_tracks(
+        storm_object_table, min_objects_in_track=DEFAULT_MIN_OBJECTS_IN_TRACK):
+    """Removes storm tracks without enough storm objects.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_object_table.storm_id: String ID.
+    storm_object_table.unix_time_sec: Valid time.
+
+    :param min_objects_in_track: Minimum number of storm objects in a track.
+    :return: storm_object_table: Same as input, except that all objects
+        belonging to a track with < `min_objects_in_track` objects have been
+        removed.
+    """
+
+    storm_id_by_object = numpy.asarray(
+        storm_object_table[tracking_io.STORM_ID_COLUMN].values)
+    unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
+        storm_id_by_object, return_inverse=True)
+    remove_storm_object_rows = numpy.array([], dtype=int)
+
+    for i in range(len(unique_storm_ids)):
+        these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
+        if (len(these_object_indices) >= min_objects_in_track and
+                unique_storm_ids[i] != EMPTY_STORM_ID):
+            continue
+
+        remove_storm_object_rows = numpy.concatenate((
+            remove_storm_object_rows, these_object_indices))
+
+    return storm_object_table.drop(
+        storm_object_table.index[remove_storm_object_rows], axis=0,
+        inplace=False)
+
+
+def _recompute_attributes(storm_object_table):
+    """Recomputes the following storm attributes, using new tracks.
+
+    - age of storm track
+    - start time of tracking period
+    - end time of tracking period
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_object_table.storm_id: String ID.
+    storm_object_table.unix_time_sec: Valid time.
+
+    :param storm_track_table: pandas DataFrame with columns documented in
+        _theil_sen_fit_for_each_track.
+    :return: storm_object_table: Same as input, but with additional columns
+        listed below.
+    storm_object_table.age_sec: Age of storm track.
+    storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
+    storm_object_table.tracking_end_time_unix_sec: End of tracking period.
+    """
+
+    tracking_start_time_unix_sec = numpy.min(
+        storm_object_table[tracking_io.TIME_COLUMN].values)
+    tracking_end_time_unix_sec = numpy.max(
+        storm_object_table[tracking_io.TIME_COLUMN].values)
+
+    num_storm_objects = len(storm_object_table.index)
+    tracking_start_times_unix_sec = numpy.full(
+        num_storm_objects, tracking_start_time_unix_sec, dtype=int)
+    tracking_end_times_unix_sec = numpy.full(
+        num_storm_objects, tracking_end_time_unix_sec, dtype=int)
+    track_ages_sec = numpy.full(
+        num_storm_objects, EMPTY_TRACK_AGE_SEC, dtype=int)
+
+    storm_id_by_object = numpy.asarray(
+        storm_object_table[tracking_io.STORM_ID_COLUMN].values)
+    unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
+        storm_id_by_object, return_inverse=True)
+
+    for i in range(len(unique_storm_ids)):
+        these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
+        this_start_time_unix_sec = numpy.min(
+            storm_object_table[tracking_io.TIME_COLUMN].values[
+                these_object_indices])
+        if this_start_time_unix_sec == tracking_start_time_unix_sec:
+            continue
+
+        track_ages_sec[these_object_indices] = (
+            storm_object_table[tracking_io.TIME_COLUMN].values[
+                these_object_indices] - this_start_time_unix_sec)
+
+    argument_dict = {
+        tracking_io.TRACKING_START_TIME_COLUMN: tracking_start_times_unix_sec,
+        tracking_io.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
+        tracking_io.AGE_COLUMN: track_ages_sec
+    }
+    return storm_object_table.assign(**argument_dict)
+
+
+def run_best_track(
+        storm_object_table=None,
+        max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
+        max_prediction_error_for_breakup_metres=
+        DEFAULT_MAX_PREDICTION_ERROR_METRES,
+        max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
+        max_join_distance_metres=DEFAULT_MAX_JOIN_DISTANCE_METRES,
+        max_mean_join_error_metres=DEFAULT_MAX_MEAN_JOIN_ERROR_METRES,
+        max_velocity_diff_for_join_m_s01=None,
+        num_main_iters=DEFAULT_NUM_MAIN_ITERS,
+        num_breakup_iters=DEFAULT_NUM_BREAKUP_ITERS,
+        min_objects_in_track=DEFAULT_MIN_OBJECTS_IN_TRACK):
+    """Runs the full w2besttrack algorithm.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm track.
+    storm_object_table.unix_time_sec: Valid time for storm object.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm-object
+        centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm-object
+        centroid.
+
+    :param max_extrap_time_for_breakup_sec: See doc for _break_storm_tracks.
+    :param max_prediction_error_for_breakup_metres: See doc for _break_storm_tracks.
+    :param max_join_time_sec: See documentation for _merge_storm_tracks.
+    :param max_join_distance_metres: See documentation for _merge_storm_tracks.
+    :param max_mean_join_error_metres: See doc for _merge_storm_tracks.
+    :param max_velocity_diff_for_join_m_s01: See doc for _merge_storm_tracks.
+    :param num_main_iters: Number of main iterations (outer loops).  Each main
+        iteration consists of `num_breakup_iters` break-up iterations, one
+        merger iteration, and one tie-breaking iteration.
+    :param num_breakup_iters: Number of break-up iterations (inner loops).
+    :param min_objects_in_track: Minimum number of storm objects in a track.
+        After all the main iterations, any track with < `min_objects_in_track`
+        storm objects will be removed.
+    :return: storm_object_table: Same as input, except that "storm_id" may have
+        changed for several storm objects.  Also, this will be without the
+        columns "centroid_lat_deg" and "centroid_lng_deg".
+    """
+
+    error_checking.assert_is_integer(max_extrap_time_for_breakup_sec)
+    error_checking.assert_is_greater(max_extrap_time_for_breakup_sec, 0)
+    error_checking.assert_is_greater(
+        max_prediction_error_for_breakup_metres, 0.)
+    error_checking.assert_is_integer(max_join_time_sec)
+    error_checking.assert_is_greater(max_join_time_sec, 0)
+    error_checking.assert_is_greater(max_join_distance_metres, 0.)
+    error_checking.assert_is_greater(max_mean_join_error_metres, 0.)
+
+    if max_velocity_diff_for_join_m_s01 is not None:
+        error_checking.assert_is_greater(max_velocity_diff_for_join_m_s01, 0.)
+
+    error_checking.assert_is_integer(num_main_iters)
+    error_checking.assert_is_greater(num_main_iters, 0)
+    error_checking.assert_is_integer(num_breakup_iters)
+    error_checking.assert_is_greater(num_breakup_iters, 0)
+    error_checking.assert_is_integer(min_objects_in_track)
+    error_checking.assert_is_geq(min_objects_in_track, 1)
+
+    global_centroid_lat_deg, global_centroid_lng_deg = (
+        polygons.get_latlng_centroid(
+            storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+            storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values))
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        global_centroid_lat_deg, global_centroid_lng_deg)
+    x_centroids_metres, y_centroids_metres = projections.project_latlng_to_xy(
+        storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+        storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    argument_dict = {CENTROID_X_COLUMN: x_centroids_metres,
+                     CENTROID_Y_COLUMN: y_centroids_metres}
+    storm_object_table = storm_object_table.assign(**argument_dict)
+    storm_object_table.drop(
+        [tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN],
+        axis=1, inplace=True)
+
+    storm_track_table = _storm_objects_to_tracks(storm_object_table)
+
+    for i in range(num_main_iters):
+        print ('Starting main iteration ' + str(i + 1) + '/' +
+               str(num_main_iters) + '...\n\n')
+
+        for j in range(num_breakup_iters):
+            print ('Starting break-up iteration ' + str(j + 1) + '/' +
+                   str(num_breakup_iters) + '...\n\n')
+
+            storm_object_table, storm_track_table = _break_storm_tracks(
+                storm_object_table=storm_object_table,
+                storm_track_table=storm_track_table,
+                max_extrapolation_time_sec=max_extrap_time_for_breakup_sec,
+                max_prediction_error_metres=
+                max_prediction_error_for_breakup_metres)
+
+        storm_object_table, storm_track_table = _merge_storm_tracks(
+            storm_object_table=storm_object_table,
+            storm_track_table=storm_track_table,
+            max_join_time_sec=max_join_time_sec,
+            max_join_distance_metres=max_join_distance_metres,
+            max_mean_prediction_error_metres=max_mean_join_error_metres,
+            max_velocity_diff_m_s01=max_velocity_diff_for_join_m_s01)
+
+        storm_object_table, storm_track_table = _break_ties_among_storm_objects(
+            storm_object_table, storm_track_table)
+
+    print ('Removing storm tracks with < ' + str(min_objects_in_track) +
+           ' objects...')
+
+    storm_object_table = _remove_short_tracks(
+        storm_object_table, min_objects_in_track=min_objects_in_track)
+
+    print 'Recomputing storm attributes...'
+    return _recompute_attributes(storm_object_table)
+
+
+def read_input_storm_objects(input_file_names):
+    """Reads input storm objects from one or more files.
+
+    Input files should be in the format produced by
+    `storm_tracking_io.write_processed_file`.
+
+    :param input_file_names: 1-D list of paths to input files.
+    :return: storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm track.
+    storm_object_table.original_storm_id: Original string ID for storm track.
+    storm_object_table.unix_time_sec: Valid time of storm object.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm-object
+        centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm-object
+        centroid.
+    storm_object_table.file_index: Index of file from which storm object was
+        read.  This is an index into `storm_object_file_names`.
+    """
+
+    error_checking.assert_is_string_list(input_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(input_file_names), num_dimensions=1)
+
+    file_indices = numpy.array([])
+    num_files = len(input_file_names)
+    list_of_storm_object_tables = [None] * num_files
+
+    for i in range(num_files):
+        print ('Reading storm-object file ' + str(i + 1) + ' of ' +
+               str(num_files) + ': ' + input_file_names[i] + '...')
+
+        list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+            input_file_names[i])[INPUT_COLUMNS_TO_KEEP]
+
+        this_num_storm_objects = len(list_of_storm_object_tables[i].index)
+        file_indices = numpy.concatenate((
+            file_indices,
+            numpy.linspace(i, i, num=this_num_storm_objects, dtype=int)))
+
+        if i == 0:
+            continue
+
+        list_of_storm_object_tables[i], _ = (
+            list_of_storm_object_tables[i].align(
+                list_of_storm_object_tables[0], axis=1))
+
+    print '\n'
+    storm_object_table = pandas.concat(
+        list_of_storm_object_tables, axis=0, ignore_index=True)
+
+    argument_dict = {
+        FILE_INDEX_COLUMN: file_indices,
+        ORIG_STORM_ID_COLUMN:
+            storm_object_table[tracking_io.STORM_ID_COLUMN].values}
+    return storm_object_table.assign(**argument_dict)
+
+
+def write_output_storm_objects(
+        storm_object_table, input_file_names=None, output_file_names=None):
+    """Writes output storm objects (after best-track) to one or more files.
+
+    N = number of input files = number of output files
+
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm track.
+    storm_object_table.original_storm_id: Original string ID for storm track.
+    storm_object_table.unix_time_sec: Valid time of storm object.
+    storm_object_table.file_index: Index of file from which storm object was
+        read.  This is an index into `storm_object_file_names`.
+    storm_object_table.age_sec: Age of storm track.
+    storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
+    storm_object_table.tracking_end_time_unix_sec: End of tracking period.
+
+    :param input_file_names: length-N list of paths to input files (used by
+        read_input_storm_objects).
+    :param output_file_names: length-N list of paths to output files.
+    """
+
+    error_checking.assert_is_string_list(input_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(input_file_names), num_dimensions=1)
+    num_files = len(input_file_names)
+
+    error_checking.assert_is_string_list(output_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(output_file_names),
+        exact_dimensions=numpy.array([num_files]))
+
+    max_file_index = numpy.max(storm_object_table[FILE_INDEX_COLUMN].values)
+    error_checking.assert_is_less_than(max_file_index, num_files)
+
+    for i in range(num_files):
+        print ('Writing storm-object file ' + str(i + 1) + ' of ' +
+               str(num_files) + ': ' + output_file_names[i] + '...')
+
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=output_file_names[i])
+
+        this_input_table = tracking_io.read_processed_file(input_file_names[i])
+        column_dict_old_to_new = {
+            tracking_io.STORM_ID_COLUMN: ORIG_STORM_ID_COLUMN}
+        this_input_table.rename(columns=column_dict_old_to_new, inplace=True)
+
+        this_output_table = storm_object_table.loc[
+            storm_object_table[FILE_INDEX_COLUMN] == i]
+        this_output_table = this_output_table.merge(
+            this_input_table, on=COLUMNS_TO_MERGE_ON, how='left')
+        this_output_table = this_output_table[OUTPUT_COLUMNS_TO_KEEP]
+
+        tracking_io.write_processed_file(
+            this_output_table, output_file_names[i])
+
+    print '\n'

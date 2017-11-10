@@ -33,6 +33,8 @@ STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
 STATS_DIR_NAME_PART = 'PolygonTable'
 POLYGON_DIR_NAME_PART = 'ClusterID'
+# STATS_DIR_NAME_PART = 'segmotion/PolygonTable'
+# POLYGON_DIR_NAME_PART = 'segmotion/ClusterID'
 
 SENTINEL_VALUE = -9999
 TIME_FORMAT_IN_FILES = '%Y%m%d-%H%M%S'

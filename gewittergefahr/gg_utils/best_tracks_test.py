@@ -7,6 +7,9 @@ import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import best_tracks
 
+# TODO(thunderhoser): add smart file IO, so that this can be run on a long time
+# period at once, just like the MATLAB function.
+
 TOLERANCE = 1e-6
 KM_TO_METRES = 1000.
 
@@ -113,6 +116,15 @@ ARRAY_COLUMNS_IN_STORM_TRACK_TABLE = [
     best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK]
 STRING_COLUMNS_IN_STORM_TRACK_TABLE = [tracking_io.STORM_ID_COLUMN]
 
+# The following constants are used to test _recompute_attributes.
+TRACKING_START_TIME_BY_OBJECT_UNIX_SEC = numpy.full(10, 0, dtype=int)
+TRACKING_END_TIME_BY_OBJECT_UNIX_SEC = numpy.full(10, 600, dtype=int)
+EMPTY_TRACK_AGE_SEC = best_tracks.EMPTY_TRACK_AGE_SEC
+TRACK_AGE_BY_OBJECT_SEC = numpy.array(
+    [EMPTY_TRACK_AGE_SEC, EMPTY_TRACK_AGE_SEC, EMPTY_TRACK_AGE_SEC,
+     EMPTY_TRACK_AGE_SEC, EMPTY_TRACK_AGE_SEC, 0, 0, EMPTY_TRACK_AGE_SEC,
+     300, 300])
+
 # The following constants are used to test _find_changed_tracks.
 STORM_TRACK_TABLE_CHANGED = copy.deepcopy(STORM_TRACK_TABLE)
 STORM_TRACK_TABLE_CHANGED[best_tracks.TRACK_X_COORDS_COLUMN].values[
@@ -217,6 +229,22 @@ Y_COORDS_IN_TIE_METRES = numpy.array(
     [0., 10., -7.77, 20., 18.88, 30., 511.11, 40., 39.99])
 TIMES_IN_TIE_UNIX_SEC = numpy.array([0, 1, 1, 2, 2, 3, 3, 4, 4], dtype=int)
 INDICES_TO_REMOVE_FROM_TIE = numpy.array([2, 4, 6, 8], dtype=int)
+
+# The following constants are used to test _remove_short_tracks.
+ROWS_WITH_TRACK_LENGTH_LESS_THAN1 = numpy.array([6, 9], dtype=int)
+ROWS_WITH_TRACK_LENGTH_LESS_THAN2 = numpy.array([2, 6, 9], dtype=int)
+ROWS_WITH_TRACK_LENGTH_LESS_THAN3 = numpy.array(
+    [1, 2, 4, 5, 6, 8, 9], dtype=int)
+
+STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ1 = STORM_OBJECT_TABLE.drop(
+    STORM_OBJECT_TABLE.index[ROWS_WITH_TRACK_LENGTH_LESS_THAN1], axis=0,
+    inplace=False)
+STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ2 = STORM_OBJECT_TABLE.drop(
+    STORM_OBJECT_TABLE.index[ROWS_WITH_TRACK_LENGTH_LESS_THAN2], axis=0,
+    inplace=False)
+STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3 = STORM_OBJECT_TABLE.drop(
+    STORM_OBJECT_TABLE.index[ROWS_WITH_TRACK_LENGTH_LESS_THAN3], axis=0,
+    inplace=False)
 
 
 class BestTracksTests(unittest.TestCase):
@@ -468,6 +496,78 @@ class BestTracksTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_indices_to_remove, INDICES_TO_REMOVE_FROM_TIE))
+
+    def test_remove_short_tracks_min_length1(self):
+        """Ensures correct output from _remove_short_tracks.
+
+        In this case, minimum track length is one storm object.
+        """
+
+        this_storm_object_table = best_tracks._remove_short_tracks(
+            STORM_OBJECT_TABLE, min_objects_in_track=1)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.STORM_ID_COLUMN].values,
+            STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ1[
+                tracking_io.STORM_ID_COLUMN].values))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.TIME_COLUMN].values,
+            STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ1[
+                tracking_io.TIME_COLUMN].values))
+
+    def test_remove_short_tracks_min_length2(self):
+        """Ensures correct output from _remove_short_tracks.
+
+        In this case, minimum track length is 2 storm objects.
+        """
+
+        this_storm_object_table = best_tracks._remove_short_tracks(
+            STORM_OBJECT_TABLE, min_objects_in_track=2)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.STORM_ID_COLUMN].values,
+            STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ2[
+                tracking_io.STORM_ID_COLUMN].values))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.TIME_COLUMN].values,
+            STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ2[
+                tracking_io.TIME_COLUMN].values))
+
+    def test_remove_short_tracks_min_length3(self):
+        """Ensures correct output from _remove_short_tracks.
+
+        In this case, minimum track length is 3 storm objects.
+        """
+
+        this_storm_object_table = best_tracks._remove_short_tracks(
+            STORM_OBJECT_TABLE, min_objects_in_track=3)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.STORM_ID_COLUMN].values,
+            STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3[
+                tracking_io.STORM_ID_COLUMN].values))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.TIME_COLUMN].values,
+            STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3[
+                tracking_io.TIME_COLUMN].values))
+
+    def test_recompute_attributes(self):
+        """Ensures correct output from _recompute_attributes."""
+
+        this_storm_object_table = best_tracks._recompute_attributes(
+            STORM_OBJECT_TABLE)
+
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_io.TRACKING_START_TIME_COLUMN].values,
+            TRACKING_START_TIME_BY_OBJECT_UNIX_SEC))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_io.TRACKING_END_TIME_COLUMN].values,
+            TRACKING_END_TIME_BY_OBJECT_UNIX_SEC))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_io.AGE_COLUMN].values,
+            TRACK_AGE_BY_OBJECT_SEC))
 
 
 if __name__ == '__main__':

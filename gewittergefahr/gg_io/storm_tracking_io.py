@@ -47,6 +47,14 @@ MANDATORY_COLUMNS = [
 
 BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_latlng_buffer'
 
+EAST_VELOCITY_THEIL_SEN_COLUMN = 'east_velocity_theil_sen_m_s01'
+NORTH_VELOCITY_THEIL_SEN_COLUMN = 'north_velocity_theil_sen_m_s01'
+EAST_VELOCITY_BEST_TRACK_COLUMN = 'east_velocity_best_track_m_s01'
+NORTH_VELOCITY_BEST_TRACK_COLUMN = 'north_velocity_best_track_m_s01'
+BEST_TRACK_COLUMNS = [
+    EAST_VELOCITY_THEIL_SEN_COLUMN, NORTH_VELOCITY_THEIL_SEN_COLUMN,
+    EAST_VELOCITY_BEST_TRACK_COLUMN, NORTH_VELOCITY_BEST_TRACK_COLUMN]
+
 
 def _check_data_source(data_source):
     """Ensures that data source is either "segmotion" or "probSevere".
@@ -423,7 +431,12 @@ def write_processed_file(storm_object_table, pickle_file_name):
         storm_object_table)
     if distance_buffer_column_names is None:
         distance_buffer_column_names = []
+
     columns_to_write = MANDATORY_COLUMNS + distance_buffer_column_names
+    best_track_column_present_flags = numpy.array(
+        [c in list(storm_object_table) for c in BEST_TRACK_COLUMNS])
+    if numpy.all(best_track_column_present_flags):
+        columns_to_write += BEST_TRACK_COLUMNS
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
