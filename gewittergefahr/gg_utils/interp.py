@@ -195,14 +195,11 @@ def _get_wind_rotation_metadata(field_names_grib1, model_name):
     return pandas.DataFrame.from_dict(wind_rotation_metadata_dict)
 
 
-def _read_nwp_fields_for_interp(init_times_unix_sec=None,
-                                query_to_model_times_row=None,
-                                field_name_grib1=None,
-                                field_name_other_wind_component_grib1=None,
-                                list_of_model_grids=None,
-                                list_of_model_grids_other_component=None,
-                                model_name=None, grid_id=None, grib_type=None,
-                                top_grib_directory_name=None):
+def _read_nwp_fields_for_interp(
+        init_times_unix_sec=None, query_to_model_times_row=None,
+        field_name_grib1=None, field_name_other_wind_component_grib1=None,
+        list_of_model_grids=None, list_of_model_grids_other_component=None,
+        model_name=None, grid_id=None, top_grib_directory_name=None):
     """Reads NWP fields needed for interpolation to range of query times.
 
     T = number of model-initialization times
@@ -220,7 +217,6 @@ def _read_nwp_fields_for_interp(init_times_unix_sec=None,
         wind component.
     :param model_name: Name of model.
     :param grid_id: String ID for grid.
-    :param grib_type: Type of grib files ("grib1" or "grib2") used by model.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the given model.
     :return: list_of_model_grids: Same as input, except that the [i]th element
@@ -482,7 +478,6 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
         numpy.asarray(field_names_grib1),
         exact_dimensions=numpy.array([num_fields]))
 
-    grib_type = nwp_model_utils.get_grib_type(model_name)
     _, init_time_step_hours = nwp_model_utils.get_time_steps(model_name)
     grid_point_x_metres, grid_point_y_metres = (
         nwp_model_utils.get_xy_grid_points(model_name, grid_id))
@@ -567,7 +562,7 @@ def interp_nwp_fields_from_xy_grid(query_point_table, model_name=None,
                     list_of_model_grids=list_of_2d_model_grids,
                     list_of_model_grids_other_component=
                     list_of_2d_grids_other_wind_component,
-                    model_name=model_name, grid_id=grid_id, grib_type=grib_type,
+                    model_name=model_name, grid_id=grid_id,
                     top_grib_directory_name=top_grib_directory_name))
 
             init_time_needed_flags = query_to_model_times_table[
