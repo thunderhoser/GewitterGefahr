@@ -57,11 +57,17 @@ XML_COLUMN_NAMES_ORIG = [
     AGE_COLUMN_ORIG]
 
 # The following constants are used only in the main method.
-SPC_DATE_UNIX_SEC = 1092228498
+SPC_DATE_STRING = '20040811'
 TRACKING_START_TIME_UNIX_SEC = 1092224296  # 113816 UTC 11 Aug 2004
 TRACKING_END_TIME_UNIX_SEC = 1092312485  # 120805 UTC 12 Aug 2004
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
+
+VALID_TIME_STRING = '2004-08-11-125818'
+VALID_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+TOP_PROCESSED_DIR_NAME = (
+    '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed')
+TRACKING_SCALE_METRES2 = 50000000
 
 XML_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
@@ -71,10 +77,6 @@ XML_FILE_NAME = (
 NETCDF_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
     'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-125818.netcdf')
-
-PICKLE_FILE_NAME = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed/'
-    '20040811/scale_50000000m2/segmotion_2004-08-11-125818.p')
 
 
 def _xml_column_name_orig_to_new(column_name_orig):
@@ -841,6 +843,9 @@ def join_stats_and_polygons(stats_table, polygon_table):
 
 
 if __name__ == '__main__':
+    SPC_DATE_UNIX_SEC = time_conversion.spc_date_string_to_unix_sec(
+        SPC_DATE_STRING)
+
     STATS_TABLE = read_stats_from_xml(
         XML_FILE_NAME, spc_date_unix_sec=SPC_DATE_UNIX_SEC)
     print STATS_TABLE
@@ -862,4 +867,15 @@ if __name__ == '__main__':
     STORM_TABLE = join_stats_and_polygons(STATS_TABLE, POLYGON_TABLE)
     print STORM_TABLE
 
-    tracking_io.write_processed_file(STORM_TABLE, PICKLE_FILE_NAME)
+    VALID_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
+        VALID_TIME_STRING, VALID_TIME_FORMAT)
+
+    OUTPUT_FILE_NAME = tracking_io.find_processed_file(
+        unix_time_sec=VALID_TIME_UNIX_SEC,
+        data_source=tracking_io.SEGMOTION_SOURCE_ID,
+        spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+        top_processed_dir_name=TOP_PROCESSED_DIR_NAME,
+        tracking_scale_metres2=TRACKING_SCALE_METRES2,
+        raise_error_if_missing=False)
+
+    tracking_io.write_processed_file(STORM_TABLE, OUTPUT_FILE_NAME)
