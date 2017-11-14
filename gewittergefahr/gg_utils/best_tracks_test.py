@@ -7,9 +7,6 @@ import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import best_tracks
 
-# TODO(thunderhoser): add smart file IO, so that this can be run on a long time
-# period at once, just like the MATLAB function.
-
 TOLERANCE = 1e-6
 KM_TO_METRES = 1000.
 

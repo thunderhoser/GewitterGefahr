@@ -30,11 +30,14 @@ UNIX_TIME_HOUR_SEC = 1506402000
 UNIX_TIME_MINUTE_SEC = 1506403200
 UNIX_TIME_SEC = 1506403233
 
-TIME_1200UTC_UNIX_SEC = 1506340800
-TIME_0000UTC_UNIX_SEC = 1506384000
-TIME_115959UTC_UNIX_SEC = 1506427199
+TIME_1200UTC_SPC_DATE_UNIX_SEC = 1506340800
+TIME_0000UTC_SPC_DATE_UNIX_SEC = 1506384000
+TIME_115959UTC_SPC_DATE_UNIX_SEC = 1506427199
 SPC_DATE_UNIX_SEC = 1506362400
 SPC_DATE_STRING = '20170925'
+
+TIME_115959UTC_BEFORE_DATE_UNIX_SEC = 1506340799
+TIME_1200UTC_AFTER_DATE_UNIX_SEC = 1506427200
 
 
 class TimeConversionTests(unittest.TestCase):
@@ -149,42 +152,42 @@ class TimeConversionTests(unittest.TestCase):
         """Ensures correctness of time_to_spc_date_unix_sec; time = 1200 UTC."""
 
         this_spc_date_unix_sec = time_conversion.time_to_spc_date_unix_sec(
-            TIME_1200UTC_UNIX_SEC)
+            TIME_1200UTC_SPC_DATE_UNIX_SEC)
         self.assertTrue(this_spc_date_unix_sec == SPC_DATE_UNIX_SEC)
 
     def test_time_to_spc_date_unix_sec_0000utc(self):
         """Ensures correctness of time_to_spc_date_unix_sec; time = 0000 UTC."""
 
         this_spc_date_unix_sec = time_conversion.time_to_spc_date_unix_sec(
-            TIME_0000UTC_UNIX_SEC)
+            TIME_0000UTC_SPC_DATE_UNIX_SEC)
         self.assertTrue(this_spc_date_unix_sec == SPC_DATE_UNIX_SEC)
 
     def test_time_to_spc_date_unix_sec_115959utc(self):
         """Ensures crrctness of time_to_spc_date_unix_sec; time = 115959 UTC."""
 
         this_spc_date_unix_sec = time_conversion.time_to_spc_date_unix_sec(
-            TIME_115959UTC_UNIX_SEC)
+            TIME_115959UTC_SPC_DATE_UNIX_SEC)
         self.assertTrue(this_spc_date_unix_sec == SPC_DATE_UNIX_SEC)
 
     def test_time_to_spc_date_string_1200utc(self):
         """Ensures correctness of time_to_spc_date_string; time = 1200 UTC."""
 
         this_spc_date_string = time_conversion.time_to_spc_date_string(
-            TIME_1200UTC_UNIX_SEC)
+            TIME_1200UTC_SPC_DATE_UNIX_SEC)
         self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
 
     def test_time_to_spc_date_string_0000utc(self):
         """Ensures correctness of time_to_spc_date_string; time = 0000 UTC."""
 
         this_spc_date_string = time_conversion.time_to_spc_date_string(
-            TIME_0000UTC_UNIX_SEC)
+            TIME_0000UTC_SPC_DATE_UNIX_SEC)
         self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
 
     def test_time_to_spc_date_string_115959utc(self):
         """Ensures correctness of time_to_spc_date_string; time = 115959 UTC."""
 
         this_spc_date_string = time_conversion.time_to_spc_date_string(
-            TIME_115959UTC_UNIX_SEC)
+            TIME_115959UTC_SPC_DATE_UNIX_SEC)
         self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
 
     def test_spc_date_string_to_unix_sec(self):
@@ -193,6 +196,51 @@ class TimeConversionTests(unittest.TestCase):
         this_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
             SPC_DATE_STRING)
         self.assertTrue(this_spc_date_unix_sec == SPC_DATE_UNIX_SEC)
+
+    def test_is_time_in_spc_date_beginning(self):
+        """Ensures correct output from is_time_in_spc_date.
+
+        In this case, time is at beginning of SPC date.
+        """
+
+        self.assertTrue(time_conversion.is_time_in_spc_date(
+            TIME_1200UTC_SPC_DATE_UNIX_SEC, SPC_DATE_STRING))
+
+    def test_is_time_in_spc_date_middle(self):
+        """Ensures correct output from is_time_in_spc_date.
+
+        In this case, time is in middle of SPC date.
+        """
+
+        self.assertTrue(time_conversion.is_time_in_spc_date(
+            TIME_0000UTC_SPC_DATE_UNIX_SEC, SPC_DATE_STRING))
+
+    def test_is_time_in_spc_date_end(self):
+        """Ensures correct output from is_time_in_spc_date.
+
+        In this case, time is at end of SPC date.
+        """
+
+        self.assertTrue(time_conversion.is_time_in_spc_date(
+            TIME_115959UTC_SPC_DATE_UNIX_SEC, SPC_DATE_STRING))
+
+    def test_is_time_in_spc_date_before(self):
+        """Ensures correct output from is_time_in_spc_date.
+
+        In this case, time is before SPC date.
+        """
+
+        self.assertFalse(time_conversion.is_time_in_spc_date(
+            TIME_115959UTC_BEFORE_DATE_UNIX_SEC, SPC_DATE_STRING))
+
+    def test_is_time_in_spc_date_after(self):
+        """Ensures correct output from is_time_in_spc_date.
+
+        In this case, time is after SPC date.
+        """
+
+        self.assertFalse(time_conversion.is_time_in_spc_date(
+            TIME_1200UTC_AFTER_DATE_UNIX_SEC, SPC_DATE_STRING))
 
 
 if __name__ == '__main__':

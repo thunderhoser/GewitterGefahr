@@ -11,6 +11,7 @@ date, which runs from 0000-0000 UTC (or 000000-235959 UTC).
 
 import time
 import calendar
+import numpy
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
@@ -18,6 +19,9 @@ SPC_DATE_FORMAT = '%Y%m%d'
 HOURS_TO_SECONDS = 3600
 DAYS_TO_SECONDS = 86400
 SECONDS_INTO_SPC_DATE_DEFAULT = 18 * HOURS_TO_SECONDS
+
+MIN_SECONDS_INTO_SPC_DATE = 12 * HOURS_TO_SECONDS
+MAX_SECONDS_INTO_SPC_DATE = (36 * HOURS_TO_SECONDS) - 1
 
 
 def string_to_unix_sec(time_string, time_directive):
@@ -93,3 +97,23 @@ def spc_date_string_to_unix_sec(spc_date_string):
 
     return SECONDS_INTO_SPC_DATE_DEFAULT + string_to_unix_sec(
         spc_date_string, SPC_DATE_FORMAT)
+
+
+def is_time_in_spc_date(unix_time_sec, spc_date_string):
+    """Determines whether or not time is in SPC date.
+
+    :param unix_time_sec: Time in Unix format.
+    :param spc_date_string: SPC date in format "yyyymmdd".
+    :return: time_in_spc_date_flag: Boolean flag.
+    """
+
+    min_time_unix_sec = MIN_SECONDS_INTO_SPC_DATE + string_to_unix_sec(
+        spc_date_string, SPC_DATE_FORMAT)
+    max_time_unix_sec = MAX_SECONDS_INTO_SPC_DATE + string_to_unix_sec(
+        spc_date_string, SPC_DATE_FORMAT)
+
+    error_checking.assert_is_integer(unix_time_sec)
+    error_checking.assert_is_not_nan(unix_time_sec)
+
+    return numpy.logical_and(unix_time_sec >= min_time_unix_sec,
+                             unix_time_sec <= max_time_unix_sec)

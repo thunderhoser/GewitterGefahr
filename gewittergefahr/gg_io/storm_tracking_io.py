@@ -1,6 +1,7 @@
 """IO methods for storm-tracking output (both polygons and track statistics)."""
 
 import os
+import glob
 import pickle
 import numpy
 from gewittergefahr.gg_utils import polygons
@@ -9,8 +10,10 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 DATE_FORMAT = '%Y%m%d'
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+REGEX_FOR_TIME_FORMAT = (
+    '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]')
 
 SEGMOTION_SOURCE_ID = 'segmotion'
 PROBSEVERE_SOURCE_ID = 'probSevere'
@@ -384,6 +387,69 @@ def find_processed_file(unix_time_sec=None, data_source=None,
                          processed_file_name)
 
     return processed_file_name
+
+
+def find_processed_files_one_spc_date(
+        spc_date_unix_sec, data_source=None, top_processed_dir_name=None,
+        tracking_scale_metres2=None, raise_error_if_missing=True):
+    """Finds all processed files for one SPC date.
+
+    :param spc_date_unix_sec: SPC date.
+    :param data_source: Data source (either "segmotion" or "probSevere").
+    :param top_processed_dir_name: Name of top-level directory with processed
+        files for given data source.
+    :param tracking_scale_metres2: Tracking scale.
+    :param raise_error_if_missing: Boolean flag.  If True and no files are
+        found, this method will raise an error.
+    :return: processed_file_names: 1-D list of paths to processed files.
+    :raises: ValueError: if raise_error_if_missing = True and no files are
+        found.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    example_time_unix_sec = time_conversion.time_to_spc_date_unix_sec(
+        spc_date_unix_sec)
+    example_file_name = find_processed_file(
+        unix_time_sec=example_time_unix_sec, data_source=data_source,
+        spc_date_unix_sec=spc_date_unix_sec,
+        top_processed_dir_name=top_processed_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2,
+        raise_error_if_missing=False)
+
+    example_directory_name, example_pathless_file_name = os.path.split(
+        example_file_name)
+    example_time_string = time_conversion.unix_sec_to_string(
+        example_time_unix_sec, TIME_FORMAT)
+    example_pathless_file_name = example_pathless_file_name.replace(
+        example_time_string, REGEX_FOR_TIME_FORMAT)
+
+    processed_file_pattern = '{0:s}/{1:s}'.format(
+        example_directory_name, example_pathless_file_name)
+    processed_file_names = glob.glob(processed_file_pattern)
+
+    if raise_error_if_missing and not processed_file_names:
+        error_string = (
+            'Could not find any processed files with the following pattern: ' +
+            processed_file_pattern)
+        raise ValueError(error_string)
+
+    return processed_file_names
+
+
+def processed_file_name_to_time(processed_file_name):
+    """Parses time from name of processed file.
+
+    :param processed_file_name: Name of processed file.
+    :return: unix_time_sec: Valid time.
+    """
+
+    error_checking.assert_is_string(processed_file_name)
+    _, pathless_file_name = os.path.split(processed_file_name)
+
+    pathless_file_name_parts = pathless_file_name.split('_')
+    return time_conversion.string_to_unix_sec(
+        pathless_file_name_parts[-1], TIME_FORMAT)
 
 
 def write_processed_file(storm_object_table, pickle_file_name):
