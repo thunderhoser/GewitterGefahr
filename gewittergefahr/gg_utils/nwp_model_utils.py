@@ -14,12 +14,15 @@ DEGREES_TO_RADIANS = numpy.pi / 180.
 TIME_FORMAT = '%Y%m%d-%H%M%S'
 
 RAP_MODEL_NAME = 'rap'
+RUC_MODEL_NAME = 'ruc'
 NARR_MODEL_NAME = 'narr'
-MODEL_NAMES = [RAP_MODEL_NAME, NARR_MODEL_NAME]
+MODEL_NAMES = [RAP_MODEL_NAME, RUC_MODEL_NAME, NARR_MODEL_NAME]
 
 ID_FOR_130GRID = '130'
 ID_FOR_252GRID = '252'
+ID_FOR_236GRID = '236'
 RAP_GRID_IDS = [ID_FOR_130GRID, ID_FOR_252GRID]
+RUC_GRID_IDS = [ID_FOR_130GRID, ID_FOR_252GRID, ID_FOR_236GRID]
 
 GRIB1_FILE_TYPE = 'grib1'
 GRIB2_FILE_TYPE = 'grib2'
@@ -72,19 +75,25 @@ def check_grid_id(model_name, grid_id=None):
     """Ensures that grid ID is valid for the given model.
 
     :param model_name: Name of model.
-    :param grid_id: String ID for grid.  If model_name = "narr", this should be
-        None.  If model_name = "rap", this should be either "130" or "252" --
-        for the NCEP 130 and 252 grids, respectively.
+    :param grid_id: String ID for grid.  If model_name = "narr", this will not
+        be used (so you can leave it as None).
     :raises: ValueError: if grid ID is not recognized for the given model.
     """
 
     check_model_name(model_name)
-    if model_name == RAP_MODEL_NAME and grid_id not in RAP_GRID_IDS:
+    if model_name == NARR_MODEL_NAME:
+        return
+
+    if model_name == RAP_MODEL_NAME:
+        valid_grid_ids = copy.deepcopy(RAP_GRID_IDS)
+    else:
+        valid_grid_ids = copy.deepcopy(RUC_GRID_IDS)
+
+    if grid_id not in valid_grid_ids:
         error_string = (
-            '\n\n' + str(RAP_GRID_IDS) + '\n\nValid grid IDs for ' +
-            model_name.upper() +
-            ' model (listed above) do not include the following: "' + grid_id +
-            '"')
+            '\n\n' + str(valid_grid_ids) + '\n\nValid grid IDs for ' +
+            model_name.upper() + ' model (listed above) do not include the ' +
+            'following: "' + grid_id + '"')
         raise ValueError(error_string)
 
 
@@ -105,8 +114,10 @@ def get_xy_grid_spacing(model_name, grid_id=None):
 
     if grid_id == ID_FOR_130GRID:
         return 13545., 13545.
+    if grid_id == ID_FOR_252GRID:
+        return 20317.625, 20317.625
 
-    return 20317.625, 20317.625
+    return 40635., 40635.
 
 
 def get_grid_dimensions(model_name, grid_id=None):
@@ -128,8 +139,10 @@ def get_grid_dimensions(model_name, grid_id=None):
 
     if grid_id == ID_FOR_130GRID:
         return 337, 451
+    if grid_id == ID_FOR_252GRID:
+        return 225, 301
 
-    return 225, 301
+    return 113, 151
 
 
 def get_time_steps(model_name):
@@ -166,57 +179,70 @@ def get_false_easting_and_northing(model_name, grid_id=None):
 
     if grid_id == ID_FOR_130GRID:
         return 3332090.43552, -2279020.17888
+    if grid_id == ID_FOR_252GRID:
+        return 3332109.11198, -2279005.97252
 
-    return 3332109.11198, -2279005.97252
+    return 3332091.40408, -2279020.92053
 
 
-def get_grib_type(model_name):
-    """Returns type of grib file used by model (either "grib1" or "grib2").
+def get_grib_types(model_name):
+    """Returns types of grib files used by model ("grib1" and/or "grib2").
 
     :param model_name: Name of model.
-    :return: grib_type: Type of grib file used by model (either "grib1" or
-        "grib2").
+    :return: grib_types: 1-D list with types of grib files used by model.
     """
 
     check_model_name(model_name)
     if model_name == NARR_MODEL_NAME:
-        return GRIB1_FILE_TYPE
+        return [GRIB1_FILE_TYPE]
+    if model_name == RAP_MODEL_NAME:
+        return [GRIB2_FILE_TYPE]
 
-    return GRIB2_FILE_TYPE
+    return [GRIB1_FILE_TYPE, GRIB2_FILE_TYPE]
 
 
-def get_top_online_directory(model_name, grid_id=None):
-    """Returns top-level online directory with grib files for model/grib combo.
+def get_top_online_directories(model_name, grid_id=None):
+    """Returns top-level online directories for given model/grid.
 
     :param model_name: Name of model.
-    :param grid_id: ID for model grid.
-    :return: top_online_directory_name: Name of top-level online directory with
-        grib files for the given model/grid.
+    :param grid_id: String ID for grid.
+    :return: top_online_dir_names: 1-D list with names (URLs) of top-level
+        online directories.
     """
 
-    check_model_name(model_name)
+    check_grid_id(model_name, grid_id)
     if model_name == NARR_MODEL_NAME:
-        return 'https://nomads.ncdc.noaa.gov/data/narr'
+        return ['https://nomads.ncdc.noaa.gov/data/narr']
 
-    if grid_id == ID_FOR_130GRID:
-        return 'https://nomads.ncdc.noaa.gov/data/rap130'
+    if model_name == RAP_MODEL_NAME:
+        if grid_id == ID_FOR_130GRID:
+            return ['https://nomads.ncdc.noaa.gov/data/rap130']
+        return ['https://nomads.ncdc.noaa.gov/data/rap252']
 
-    return 'https://nomads.ncdc.noaa.gov/data/rap252'
+    return ['https://nomads.ncdc.noaa.gov/data/ruc',
+            'https://nomads.ncdc.noaa.gov/data/rucanl']
 
 
-def get_pressure_levels(model_name):
+def get_pressure_levels(model_name, grid_id=None):
     """Returns pressure levels used by model.
 
     :param model_name: Name of model.
+    :param grid_id: String ID for grid.
     :return: pressure_levels_mb: 1-D numpy array of pressure levels (millibars).
     """
 
-    check_model_name(model_name)
+    check_grid_id(model_name, grid_id)
     if model_name == NARR_MODEL_NAME:
         return numpy.concatenate((
             numpy.linspace(100, 300, num=9, dtype=int),
             numpy.linspace(350, 700, num=8, dtype=int),
             numpy.linspace(725, 1000, num=12, dtype=int)))
+
+    if model_name == RAP_MODEL_NAME:
+        return numpy.linspace(100, 1000, num=37, dtype=int)
+
+    if grid_id == ID_FOR_236GRID:
+        return numpy.linspace(100, 1000, num=19, dtype=int)
 
     return numpy.linspace(100, 1000, num=37, dtype=int)
 
@@ -351,19 +377,23 @@ def get_lowest_humidity_name(model_name):
     return 'relative_humidity_2m_agl', 'RH:2 m above gnd'
 
 
-def get_lowest_height_name(model_name):
+def get_lowest_height_name(model_name, grid_id=None):
     """Returns name of lowest (nearest to surface) geopotential-height field.
 
     :param model_name: Name of model.
+    :param grid_id: String ID for grid.
     :return: lowest_height_name: Name of lowest geopotential-height field in
         GewitterGefahr format (lower-case with underscores and units).
     :return: lowest_height_name_grib1: Name of lowest geopotential-height field
         in grib1 format.
     """
 
-    check_model_name(model_name)
+    check_grid_id(model_name, grid_id)
     if model_name == NARR_MODEL_NAME:
         return 'geopotential_height_metres_hybrid_level1', 'HGT:hybrid lev 1'
+
+    if grid_id == ID_FOR_236GRID:
+        return 'geopotential_height_metres_1000mb', 'HGT:1000 mb'
 
     return 'geopotential_height_metres_surface', 'HGT:sfc'
 
