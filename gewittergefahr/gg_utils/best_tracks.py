@@ -14,18 +14,13 @@ Lakshmanan, V., B. Herzog, and D. Kingfield, 2015: "A method for extracting
     54 (2), 451-462.
 """
 
-import os
 import copy
-import pickle
-import tempfile
 import numpy
 import pandas
 from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
-from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -33,13 +28,6 @@ from gewittergefahr.gg_utils import error_checking
 # `TheilSenRegressor` params to speed up the Theil-Sen fits.
 
 EMPTY_STORM_ID = 'no_storm'
-DAYS_TO_SECONDS = 86400
-TIME_FORMAT_FOR_MESSAGES = '%Y-%m-%d-%H%M%S'
-
-DEFAULT_GLOBAL_CENTROID_LAT_DEG = 35.
-DEFAULT_GLOBAL_CENTROID_LNG_DEG = 265.
-DEFAULT_PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(
-    DEFAULT_GLOBAL_CENTROID_LAT_DEG, DEFAULT_GLOBAL_CENTROID_LNG_DEG)
 
 DEFAULT_MAX_EXTRAP_TIME_SEC = 610
 DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
@@ -50,11 +38,6 @@ DEFAULT_MAX_MEAN_JOIN_ERROR_METRES = 10000.
 DEFAULT_NUM_MAIN_ITERS = 3
 DEFAULT_NUM_BREAKUP_ITERS = 5
 DEFAULT_MIN_OBJECTS_IN_TRACK = 3
-
-SPC_DATES_KEY = 'spc_dates_unix_sec'
-TEMP_FILE_NAMES_KEY = 'temp_file_names_key'
-INPUT_FILE_NAMES_KEY = 'input_file_names_by_spc_date'
-OUTPUT_FILE_NAMES_KEY = 'output_file_names_by_spc_date'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -77,7 +60,6 @@ REPORT_PERIOD_FOR_TIE_BREAKER = 500
 
 FILE_INDEX_COLUMN = 'file_index'
 ORIG_STORM_ID_COLUMN = 'original_storm_id'
-TEMPORARY_STORM_OBJECT_COLUMNS = [FILE_INDEX_COLUMN, ORIG_STORM_ID_COLUMN]
 
 INPUT_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
@@ -89,11 +71,6 @@ OUTPUT_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
     tracking_io.TRACKING_END_TIME_COLUMN]
-
-INTERMEDIATE_COLUMNS_TO_READ_AND_WRITE = [
-    tracking_io.STORM_ID_COLUMN, ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    CENTROID_X_COLUMN, CENTROID_Y_COLUMN, FILE_INDEX_COLUMN,
-    tracking_io.SPC_DATE_COLUMN]
 
 
 def _theil_sen_fit(
@@ -314,7 +291,7 @@ def _break_ties_one_storm_track(
     """Breaks all ties for one storm track.
 
     For the definition of a "tie" among storm objects, see documentation for
-    _break_ties_among_storm_objects.
+    break_ties_among_storm_objects.
 
     T = number of times in track
 
@@ -385,7 +362,98 @@ def _break_ties_one_storm_track(
     return numpy.where(remove_object_flags)[0]
 
 
-def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
+def _find_changed_tracks(storm_track_table, orig_storm_track_table):
+    """Finds tracks that chgd from orig_storm_track_table to storm_track_table.
+
+    :param storm_track_table: pandas DataFrame with columns documented in
+        _theil_sen_fit_for_each_track.
+    :param orig_storm_track_table: pandas DataFrame with columns documented in
+        _theil_sen_fit_for_each_track.
+    :return: track_changed_indices: 1-D numpy array of rows (indices into
+        storm_track_table) for which track changed.
+    """
+
+    num_storm_tracks = len(storm_track_table.index)
+    orig_storm_ids = numpy.asarray(
+        orig_storm_track_table[tracking_io.STORM_ID_COLUMN].values)
+    track_changed_flags = numpy.full(num_storm_tracks, False, dtype=bool)
+
+    for j in range(num_storm_tracks):
+        this_storm_in_orig_flags = (
+            orig_storm_ids == storm_track_table[
+                tracking_io.STORM_ID_COLUMN].values[j])
+        this_orig_index = numpy.where(this_storm_in_orig_flags)[0][0]
+
+        if not numpy.array_equal(
+                storm_track_table[TRACK_TIMES_COLUMN].values[j],
+                orig_storm_track_table[TRACK_TIMES_COLUMN].values[
+                    this_orig_index]):
+            track_changed_flags[j] = True
+            continue
+
+        if not numpy.array_equal(
+                storm_track_table[TRACK_X_COORDS_COLUMN].values[j],
+                orig_storm_track_table[TRACK_X_COORDS_COLUMN].values[
+                    this_orig_index]):
+            track_changed_flags[j] = True
+            continue
+
+        if not numpy.array_equal(
+                storm_track_table[TRACK_Y_COORDS_COLUMN].values[j],
+                orig_storm_track_table[TRACK_Y_COORDS_COLUMN].values[
+                    this_orig_index]):
+            track_changed_flags[j] = True
+            continue
+
+    return numpy.where(track_changed_flags)[0]
+
+
+def check_best_track_params(
+        max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
+        max_prediction_error_for_breakup_metres=
+        DEFAULT_MAX_PREDICTION_ERROR_METRES,
+        max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
+        max_join_distance_metres=DEFAULT_MAX_JOIN_DISTANCE_METRES,
+        max_mean_join_error_metres=DEFAULT_MAX_MEAN_JOIN_ERROR_METRES,
+        max_velocity_diff_for_join_m_s01=None,
+        num_main_iters=DEFAULT_NUM_MAIN_ITERS,
+        num_breakup_iters=DEFAULT_NUM_BREAKUP_ITERS,
+        min_objects_in_track=DEFAULT_MIN_OBJECTS_IN_TRACK):
+    """Checks best-track parameters for errors.
+
+    :param max_extrap_time_for_breakup_sec: See documentation for
+        run_best_track.
+    :param max_prediction_error_for_breakup_metres: See doc for run_best_track.
+    :param max_join_time_sec: See doc for run_best_track.
+    :param max_join_distance_metres: See doc for run_best_track.
+    :param max_mean_join_error_metres: See doc for run_best_track.
+    :param max_velocity_diff_for_join_m_s01: See doc for run_best_track.
+    :param num_main_iters: See doc for run_best_track.
+    :param num_breakup_iters: See doc for run_best_track.
+    :param min_objects_in_track: See doc for run_best_track.
+    """
+
+    error_checking.assert_is_integer(max_extrap_time_for_breakup_sec)
+    error_checking.assert_is_greater(max_extrap_time_for_breakup_sec, 0)
+    error_checking.assert_is_greater(
+        max_prediction_error_for_breakup_metres, 0.)
+    error_checking.assert_is_integer(max_join_time_sec)
+    error_checking.assert_is_greater(max_join_time_sec, 0)
+    error_checking.assert_is_greater(max_join_distance_metres, 0.)
+    error_checking.assert_is_greater(max_mean_join_error_metres, 0.)
+
+    if max_velocity_diff_for_join_m_s01 is not None:
+        error_checking.assert_is_greater(max_velocity_diff_for_join_m_s01, 0.)
+
+    error_checking.assert_is_integer(num_main_iters)
+    error_checking.assert_is_greater(num_main_iters, 0)
+    error_checking.assert_is_integer(num_breakup_iters)
+    error_checking.assert_is_greater(num_breakup_iters, 0)
+    error_checking.assert_is_integer(min_objects_in_track)
+    error_checking.assert_is_geq(min_objects_in_track, 1)
+
+
+def storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     """Adds tracking info to storm objects.
 
     T = number of times (storm objects) in a given track
@@ -420,6 +488,10 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
 
     if storm_ids_to_use is None:
         storm_ids_to_use = unique_storm_ids.tolist()
+
+    error_checking.assert_is_string_list(storm_ids_to_use)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(storm_ids_to_use), num_dimensions=1)
 
     storm_ids_to_use = set(storm_ids_to_use)
     if EMPTY_STORM_ID in storm_ids_to_use:
@@ -477,58 +549,12 @@ def _storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     return storm_track_table
 
 
-def _find_changed_tracks(storm_track_table, orig_storm_track_table):
-    """Finds tracks that chgd from orig_storm_track_table to storm_track_table.
-
-    :param storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
-    :param orig_storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
-    :return: track_changed_indices: 1-D numpy array of rows (indices into
-        storm_track_table) for which track changed.
-    """
-
-    num_storm_tracks = len(storm_track_table.index)
-    orig_storm_ids = numpy.asarray(
-        orig_storm_track_table[tracking_io.STORM_ID_COLUMN].values)
-    track_changed_flags = numpy.full(num_storm_tracks, False, dtype=bool)
-
-    for j in range(num_storm_tracks):
-        this_storm_in_orig_flags = (
-            orig_storm_ids == storm_track_table[
-                tracking_io.STORM_ID_COLUMN].values[j])
-        this_orig_index = numpy.where(this_storm_in_orig_flags)[0][0]
-
-        if not numpy.array_equal(
-                storm_track_table[TRACK_TIMES_COLUMN].values[j],
-                orig_storm_track_table[TRACK_TIMES_COLUMN].values[
-                    this_orig_index]):
-            track_changed_flags[j] = True
-            continue
-
-        if not numpy.array_equal(
-                storm_track_table[TRACK_X_COORDS_COLUMN].values[j],
-                orig_storm_track_table[TRACK_X_COORDS_COLUMN].values[
-                    this_orig_index]):
-            track_changed_flags[j] = True
-            continue
-
-        if not numpy.array_equal(
-                storm_track_table[TRACK_Y_COORDS_COLUMN].values[j],
-                orig_storm_track_table[TRACK_Y_COORDS_COLUMN].values[
-                    this_orig_index]):
-            track_changed_flags[j] = True
-            continue
-
-    return numpy.where(track_changed_flags)[0]
-
-
-def _theil_sen_fit_for_each_track(
+def theil_sen_fit_for_each_track(
         storm_track_table, fit_indices=None, verbose=True):
     """Fits Theil-Sen model for each storm track.
 
     :param storm_track_table: pandas DataFrame created by
-        _storm_objects_to_tracks.
+        storm_objects_to_tracks.
     :param fit_indices: 1-D numpy array of indices (rows in storm_track_table).
         Theil-Sen fits will be computed only for these storm tracks.  If
         fit_indices = None, Theil-Sen fits will be computed for all storm
@@ -546,6 +572,15 @@ def _theil_sen_fit_for_each_track(
     """
 
     num_storm_tracks = len(storm_track_table.index)
+    if fit_indices is None:
+        fit_indices = numpy.linspace(
+            0, num_storm_tracks - 1, num=num_storm_tracks, dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(fit_indices)
+    error_checking.assert_is_numpy_array(fit_indices, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(fit_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        fit_indices, num_storm_tracks)
 
     if not (THEIL_SEN_MODEL_X_COLUMN in list(storm_track_table) and
             THEIL_SEN_MODEL_Y_COLUMN in list(storm_track_table)):
@@ -553,10 +588,6 @@ def _theil_sen_fit_for_each_track(
         argument_dict = {THEIL_SEN_MODEL_X_COLUMN: object_array,
                          THEIL_SEN_MODEL_Y_COLUMN: object_array}
         storm_track_table = storm_track_table.assign(**argument_dict)
-
-    if fit_indices is None:
-        fit_indices = numpy.linspace(
-            0, num_storm_tracks - 1, num=num_storm_tracks, dtype=int)
 
     num_fits_computed = 0
     for i in fit_indices:
@@ -583,7 +614,7 @@ def _theil_sen_fit_for_each_track(
     return storm_track_table
 
 
-def _break_storm_tracks(
+def break_storm_tracks(
         storm_object_table=None, storm_track_table=None,
         working_object_indices=None,
         max_extrapolation_time_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
@@ -600,7 +631,7 @@ def _break_storm_tracks(
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
 
     :param storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
+        theil_sen_fit_for_each_track.
     :param max_extrapolation_time_sec: Maximum extrapolation time.  No storm
         track will be extrapolated > `max_extrapolation_time_sec` before the
         time of its first storm object or after the time of its last storm
@@ -618,10 +649,21 @@ def _break_storm_tracks(
         changed for several tracks.
     """
 
+    check_best_track_params(
+        max_extrap_time_for_breakup_sec=max_extrapolation_time_sec,
+        max_prediction_error_for_breakup_metres=max_prediction_error_metres)
+
     num_storm_objects = len(storm_object_table.index)
     if working_object_indices is None:
         working_object_indices = numpy.linspace(
             0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(working_object_indices)
+    error_checking.assert_is_numpy_array(
+        working_object_indices, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(working_object_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        working_object_indices, num_storm_objects)
 
     num_working_objects = len(working_object_indices)
     num_objects_done = 0
@@ -676,7 +718,7 @@ def _break_storm_tracks(
            ' storm objects to a new track during this procedure.\n\n')
 
     orig_storm_track_table = copy.deepcopy(storm_track_table)
-    storm_track_table = _storm_objects_to_tracks(storm_object_table)
+    storm_track_table = storm_objects_to_tracks(storm_object_table)
     storm_track_table = storm_track_table.merge(
         orig_storm_track_table[
             THEIL_SEN_MODEL_COLUMNS + [tracking_io.STORM_ID_COLUMN]],
@@ -684,12 +726,12 @@ def _break_storm_tracks(
 
     track_changed_indices = _find_changed_tracks(
         storm_track_table, orig_storm_track_table)
-    storm_track_table = _theil_sen_fit_for_each_track(
+    storm_track_table = theil_sen_fit_for_each_track(
         storm_track_table, fit_indices=track_changed_indices, verbose=False)
     return storm_object_table, storm_track_table
 
 
-def _merge_storm_tracks(
+def merge_storm_tracks(
         storm_object_table=None, storm_track_table=None,
         working_track_indices=None, max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_distance_metres=DEFAULT_MAX_JOIN_DISTANCE_METRES,
@@ -699,9 +741,9 @@ def _merge_storm_tracks(
 
     This is the "merger" step in w2besttrack.
 
-    :param storm_object_table: See documentation for _break_storm_tracks.
+    :param storm_object_table: See documentation for break_storm_tracks.
     :param storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
+        theil_sen_fit_for_each_track.
     :param working_track_indices: 1-D numpy array with indices of storm tracks
         to work on (consider for merging).  If working_track_indices = None,
         this method will work on all storm tracks.
@@ -722,10 +764,23 @@ def _merge_storm_tracks(
         changed for several tracks.
     """
 
+    check_best_track_params(
+        max_join_time_sec=max_join_time_sec,
+        max_join_distance_metres=max_join_distance_metres,
+        max_mean_join_error_metres=max_mean_prediction_error_metres,
+        max_velocity_diff_for_join_m_s01=max_velocity_diff_m_s01)
+
     num_storm_tracks = len(storm_track_table)
     if working_track_indices is None:
         working_track_indices = numpy.linspace(
             0, num_storm_tracks - 1, num=num_storm_tracks, dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(working_track_indices)
+    error_checking.assert_is_numpy_array(
+        working_track_indices, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(working_track_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        working_track_indices, num_storm_tracks)
 
     num_working_tracks = len(working_track_indices)
     num_pairs_merged = 0
@@ -817,9 +872,9 @@ def _merge_storm_tracks(
                     storm_object_table[
                         tracking_io.STORM_ID_COLUMN].values[i] = storm_id_j
 
-            storm_track_table_j_only = _storm_objects_to_tracks(
+            storm_track_table_j_only = storm_objects_to_tracks(
                 storm_object_table, [storm_id_j])
-            storm_track_table_j_only = _theil_sen_fit_for_each_track(
+            storm_track_table_j_only = theil_sen_fit_for_each_track(
                 storm_track_table_j_only, verbose=False)
             storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
 
@@ -835,7 +890,7 @@ def _merge_storm_tracks(
     return storm_object_table, storm_track_table
 
 
-def _break_ties_among_storm_objects(
+def break_ties_among_storm_objects(
         storm_object_table=None, storm_track_table=None,
         working_track_indices=None):
     """Breaks ties among storm objects.
@@ -847,9 +902,9 @@ def _break_ties_among_storm_objects(
     smallest Theil-Sen prediction error.  All other storm objects are unassigned
     from S (and left with no track).
 
-    :param storm_object_table: See documentation for _break_storm_tracks.
+    :param storm_object_table: See documentation for break_storm_tracks.
     :param storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
+        theil_sen_fit_for_each_track.
     :param working_track_indices: 1-D numpy array with indices of storm tracks
         to work on (consider for tie-breaking).  If working_track_indices =
         None, this method will work on all storm tracks.
@@ -863,6 +918,13 @@ def _break_ties_among_storm_objects(
     if working_track_indices is None:
         working_track_indices = numpy.linspace(
             0, num_storm_tracks - 1, num=num_storm_tracks, dtype=int)
+
+    error_checking.assert_is_integer_numpy_array(working_track_indices)
+    error_checking.assert_is_numpy_array(
+        working_track_indices, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(working_track_indices, 0)
+    error_checking.assert_is_less_than_numpy_array(
+        working_track_indices, num_storm_tracks)
 
     num_working_tracks = len(working_track_indices)
     num_ties_broken = 0
@@ -903,9 +965,9 @@ def _break_ties_among_storm_objects(
 
         storm_id_j = storm_track_table[
             tracking_io.STORM_ID_COLUMN].values[j]
-        storm_track_table_j_only = _storm_objects_to_tracks(
+        storm_track_table_j_only = storm_objects_to_tracks(
             storm_object_table, [storm_id_j])
-        storm_track_table_j_only = _theil_sen_fit_for_each_track(
+        storm_track_table_j_only = theil_sen_fit_for_each_track(
             storm_track_table_j_only, verbose=False)
         storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
 
@@ -918,7 +980,7 @@ def _break_ties_among_storm_objects(
     return storm_object_table, storm_track_table
 
 
-def _remove_short_tracks(
+def remove_short_tracks(
         storm_object_table, min_objects_in_track=DEFAULT_MIN_OBJECTS_IN_TRACK):
     """Removes storm tracks without enough storm objects.
 
@@ -932,6 +994,8 @@ def _remove_short_tracks(
         belonging to a track with < `min_objects_in_track` objects have been
         removed.
     """
+
+    check_best_track_params(min_objects_in_track=min_objects_in_track)
 
     storm_id_by_object = numpy.asarray(
         storm_object_table[tracking_io.STORM_ID_COLUMN].values)
@@ -953,7 +1017,7 @@ def _remove_short_tracks(
         inplace=False)
 
 
-def _recompute_attributes(
+def recompute_attributes(
         storm_object_table, best_track_start_time_unix_sec=None,
         best_track_end_time_unix_sec=None):
     """Recomputes the following storm attributes, using new tracks.
@@ -975,6 +1039,11 @@ def _recompute_attributes(
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
     """
+
+    error_checking.assert_is_integer(best_track_start_time_unix_sec)
+    error_checking.assert_is_integer(best_track_end_time_unix_sec)
+    error_checking.assert_is_greater(
+        best_track_end_time_unix_sec, best_track_start_time_unix_sec)
 
     num_storm_objects = len(storm_object_table.index)
     tracking_start_times_unix_sec = numpy.full(
@@ -1009,364 +1078,7 @@ def _recompute_attributes(
     return storm_object_table.assign(**argument_dict)
 
 
-def _read_intermediate_results(temp_file_name):
-    """Reads intermediate best-track results for a subset of storm objects.
-
-    :param temp_file_name: Path to intermediate file.
-    :return: storm_object_table: See documentation for
-        _write_intermediate_results.
-    """
-
-    pickle_file_handle = open(temp_file_name, 'rb')
-    storm_object_table = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
-
-    error_checking.assert_columns_in_dataframe(
-        storm_object_table, INTERMEDIATE_COLUMNS_TO_READ_AND_WRITE)
-    return storm_object_table
-
-
-def _write_intermediate_results(storm_object_table, temp_file_name):
-    """Writes intermediate best-track results for a subset of storm objects.
-
-    :param: storm_object_table: pandas DataFrame with the following columns.
-        Each row is one storm object.
-    storm_object_table.storm_id: String ID for storm track.
-    storm_object_table.original_storm_id: Original string ID for storm track.
-    storm_object_table.unix_time_sec: Valid time of storm object.
-    storm_object_table.centroid_x_metres: x-coordinate of storm-object centroid.
-    storm_object_table.centroid_y_metres: y-coordinate of storm-object centroid.
-    storm_object_table.spc_date_unix_sec: Valid SPC date for storm object.
-    storm_object_table.file_index: Index of file from which storm object was
-        read.  This is an index into the file-name array for the given SPC date.
-
-    :param temp_file_name: Path to intermediate file.
-    """
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=temp_file_name)
-
-    pickle_file_handle = open(temp_file_name, 'wb')
-    pickle.dump(storm_object_table[INTERMEDIATE_COLUMNS_TO_READ_AND_WRITE],
-                pickle_file_handle)
-    pickle_file_handle.close()
-
-
-def _shuffle_data_for_staggered_io(
-        storm_object_table=None, file_dict=None, working_spc_date_unix_sec=None,
-        read_from_intermediate=None, write_to_intermediate=None):
-    """Shuffles data for staggered IO.
-
-    Specifically, this method ensures that dates (k - 1)...(k + 1) are in
-    storm_object_table, where k = `working_spc_date_unix_sec`.  This method
-    writes all other data in storm_object_table to intermediate files.
-
-    :param storm_object_table: pandas DataFrame with columns documented in
-        _write_intermediate_results.
-    :param file_dict: See documentation for find_files_for_staggered_io.
-    :param working_spc_date_unix_sec: Next SPC date to work on.
-    :param read_from_intermediate: Boolean flag.  If True, will read from
-        intermediate files.  If False, will read from input files.
-    :param write_to_intermediate: Boolean flag.  If True, will read to
-        intermediate files.  If False, will write to final output files.
-    :return: storm_object_table: pandas DataFrame with columns documented in
-        _write_intermediate_results.
-    """
-
-    working_spc_date_index = numpy.where(
-        file_dict[SPC_DATES_KEY] == working_spc_date_unix_sec)[0][0]
-    num_spc_dates = len(file_dict[SPC_DATES_KEY])
-
-    if working_spc_date_index == 0:
-        if write_to_intermediate:
-            read_spc_date_indices = numpy.array([0, 1], dtype=int)
-        else:
-            read_spc_date_indices = numpy.array([], dtype=int)
-
-        write_spc_date_indices = numpy.array(
-            [num_spc_dates - 2, num_spc_dates - 1], dtype=int)
-        clear_table = True
-
-    elif working_spc_date_index == num_spc_dates - 1:
-        read_spc_date_indices = numpy.array([], dtype=int)
-        write_spc_date_indices = numpy.array([num_spc_dates - 3], dtype=int)
-        clear_table = False
-
-    else:
-        read_spc_date_indices = numpy.array(
-            [working_spc_date_index + 1], dtype=int)
-        write_spc_date_indices = numpy.array(
-            [working_spc_date_index - 2], dtype=int)
-        clear_table = False
-
-    if storm_object_table is not None:
-        for this_index in write_spc_date_indices:
-            this_spc_date_unix_sec = file_dict[SPC_DATES_KEY][this_index]
-            this_spc_date_string = time_conversion.time_to_spc_date_string(
-                this_spc_date_unix_sec)
-
-            this_spc_date_indices = numpy.where(
-                storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
-                this_spc_date_unix_sec)[0]
-
-            if write_to_intermediate:
-                this_temp_file_name = file_dict[TEMP_FILE_NAMES_KEY][this_index]
-                print ('Writing intermediate data for ' + this_spc_date_string +
-                       ': ' + this_temp_file_name + '...')
-
-                _write_intermediate_results(
-                    storm_object_table.iloc[this_spc_date_indices],
-                    this_temp_file_name)
-
-            else:
-                write_output_storm_objects(
-                    storm_object_table.iloc[this_spc_date_indices],
-                    input_file_names=
-                    file_dict[INPUT_FILE_NAMES_KEY][this_index],
-                    output_file_names=
-                    file_dict[OUTPUT_FILE_NAMES_KEY][this_index])
-
-            storm_object_table.drop(
-                storm_object_table.index[this_spc_date_indices], axis=0,
-                inplace=True)
-
-    if clear_table:
-        storm_object_table = None
-
-    for this_index in read_spc_date_indices:
-        this_spc_date_unix_sec = file_dict[SPC_DATES_KEY][this_index]
-        this_spc_date_string = time_conversion.time_to_spc_date_string(
-            this_spc_date_unix_sec)
-
-        if read_from_intermediate:
-            this_temp_file_name = file_dict[TEMP_FILE_NAMES_KEY][this_index]
-            print ('Reading intermediate data for ' + this_spc_date_string +
-                   ': ' + this_temp_file_name + '...')
-
-            this_storm_object_table = _read_intermediate_results(
-                this_temp_file_name)
-
-        else:
-            this_storm_object_table = read_input_storm_objects(
-                file_dict[INPUT_FILE_NAMES_KEY][this_index], keep_spc_date=True)
-
-            these_centroid_x_metres, these_centroid_y_metres = (
-                projections.project_latlng_to_xy(
-                    storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
-                    storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
-                    projection_object=DEFAULT_PROJECTION_OBJECT,
-                    false_easting_metres=0., false_northing_metres=0.))
-
-            argument_dict = {CENTROID_X_COLUMN: these_centroid_x_metres,
-                             CENTROID_Y_COLUMN: these_centroid_y_metres}
-            this_storm_object_table = this_storm_object_table.assign(
-                **argument_dict)
-            this_storm_object_table.drop(
-                [tracking_io.CENTROID_LAT_COLUMN,
-                 tracking_io.CENTROID_LNG_COLUMN], axis=1, inplace=True)
-
-        if storm_object_table is None:
-            storm_object_table = copy.deepcopy(this_storm_object_table)
-        else:
-            this_storm_object_table, _ = this_storm_object_table.align(
-                storm_object_table, axis=1)
-            storm_object_table = pandas.concat(
-                [storm_object_table, this_storm_object_table], axis=0,
-                ignore_index=True)
-
-    return storm_object_table
-
-
-def _find_tracks_with_spc_date(storm_object_table, storm_track_table,
-                               spc_date_unix_sec=None):
-    """Finds tracks with at least one storm object in given SPC date.
-
-    :param storm_object_table: pandas DataFrame with at least the column
-        "spc_date_unix_sec".
-    :param storm_track_table: pandas DataFrame with columns documented in
-        _storm_objects_to_tracks.
-    :param spc_date_unix_sec: SPC date.
-    :return: rows_with_spc_date: 1-D numpy array of relevant rows in
-        storm_track_table.
-    """
-
-    rows_with_spc_date = []
-    num_storm_tracks = len(storm_track_table)
-
-    for i in range(num_storm_tracks):
-        these_object_indices = numpy.array(
-            storm_track_table[OBJECT_INDICES_COLUMN_FOR_TRACK].values[i])
-        these_spc_dates_unix_sec = numpy.array(
-            storm_object_table[tracking_io.SPC_DATE_COLUMN].values[
-                these_object_indices])
-        if not numpy.any(these_spc_dates_unix_sec == spc_date_unix_sec):
-            continue
-
-        rows_with_spc_date.append(i)
-
-    return numpy.array(rows_with_spc_date)
-
-
-def _check_best_track_params(
-        max_extrap_time_for_breakup_sec=None,
-        max_prediction_error_for_breakup_metres=None, max_join_time_sec=None,
-        max_join_distance_metres=None, max_mean_join_error_metres=None,
-        max_velocity_diff_for_join_m_s01=None, num_main_iters=None,
-        num_breakup_iters=None, min_objects_in_track=None):
-    """Checks best-track parameters for errors.
-
-    :param max_extrap_time_for_breakup_sec: See documentation for
-        run_best_track_without_io.
-    :param max_prediction_error_for_breakup_metres: See doc for
-        run_best_track_without_io.
-    :param max_join_time_sec: See doc for run_best_track_without_io.
-    :param max_join_distance_metres: See doc for run_best_track_without_io.
-    :param max_mean_join_error_metres: See doc for run_best_track_without_io.
-    :param max_velocity_diff_for_join_m_s01: See doc for
-        run_best_track_without_io.
-    :param num_main_iters: See doc for run_best_track_without_io.
-    :param num_breakup_iters: See doc for run_best_track_without_io.
-    :param min_objects_in_track: See doc for run_best_track_without_io.
-    """
-
-    error_checking.assert_is_integer(max_extrap_time_for_breakup_sec)
-    error_checking.assert_is_greater(max_extrap_time_for_breakup_sec, 0)
-    error_checking.assert_is_greater(
-        max_prediction_error_for_breakup_metres, 0.)
-    error_checking.assert_is_integer(max_join_time_sec)
-    error_checking.assert_is_greater(max_join_time_sec, 0)
-    error_checking.assert_is_greater(max_join_distance_metres, 0.)
-    error_checking.assert_is_greater(max_mean_join_error_metres, 0.)
-
-    if max_velocity_diff_for_join_m_s01 is not None:
-        error_checking.assert_is_greater(max_velocity_diff_for_join_m_s01, 0.)
-
-    error_checking.assert_is_integer(num_main_iters)
-    error_checking.assert_is_greater(num_main_iters, 0)
-    error_checking.assert_is_integer(num_breakup_iters)
-    error_checking.assert_is_greater(num_breakup_iters, 0)
-    error_checking.assert_is_integer(min_objects_in_track)
-    error_checking.assert_is_geq(min_objects_in_track, 1)
-
-
-def find_files_for_staggered_io(
-        start_time_unix_sec=None, start_spc_date_string=None,
-        end_time_unix_sec=None, end_spc_date_string=None, data_source=None,
-        tracking_scale_metres2=None, top_input_dir_name=None,
-        top_output_dir_name=None):
-    """Finds input and output files for staggered IO.
-
-    N = number of SPC dates in period
-    T_i = number of time steps in the [i]th SPC date
-
-    :param start_time_unix_sec: Beginning of time period.
-    :param start_spc_date_string: SPC date at beginning of time period (format
-        "yyyymmdd").
-    :param end_time_unix_sec: End of time period.
-    :param end_spc_date_string: SPC date at end of time period (format
-        "yyyymmdd").
-    :param data_source: Source for input data (examples: "segmotion",
-        "probSevere").
-    :param tracking_scale_metres2: Tracking scale.
-    :param top_input_dir_name: Name of top-level directory for input files.
-    :param top_output_dir_name: Name of top-level directory for output files.
-    :return: file_dict: Dictionary with the following keys.
-    file_dict.spc_dates_unix_sec: length-N numpy array of SPC dates.
-    file_dict.temp_file_names: 1-D list of paths to temp files (will be used for
-        intermediate IO).
-    file_dict.input_file_names_by_spc_date: length-N list, where the [i]th
-        element is a 1-D list (length T_i) of paths to input files.
-    file_dict.output_file_names_by_spc_date: Same but for output files.
-
-    :raises: ValueError: if start_time_unix_sec is not part of the first SPC
-        date (determined by start_spc_date_unix_sec).
-    :raises: ValueError: if end_time_unix_sec is not part of the last SPC date
-        (determined by end_spc_date_unix_sec).
-    """
-
-    if not time_conversion.is_time_in_spc_date(
-            start_time_unix_sec, start_spc_date_string):
-        start_time_string = time_conversion.unix_sec_to_string(
-            start_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
-        raise ValueError(
-            'Start time (' + start_time_string + ') is not in first SPC date ('
-            + start_spc_date_string + ').')
-
-    if not time_conversion.is_time_in_spc_date(
-            end_time_unix_sec, end_spc_date_string):
-        end_time_string = time_conversion.unix_sec_to_string(
-            end_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
-        raise ValueError(
-            'End time (' + end_time_string + ') is not in last SPC date (' +
-            end_spc_date_string + ').')
-
-    error_checking.assert_is_greater(
-        end_time_unix_sec, start_time_unix_sec)
-
-    start_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        start_spc_date_string)
-    end_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        end_spc_date_string)
-    spc_dates_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=start_spc_date_unix_sec,
-        end_time_unix_sec=end_spc_date_unix_sec,
-        time_interval_sec=DAYS_TO_SECONDS, include_endpoint=True)
-
-    num_spc_dates = len(spc_dates_unix_sec)
-    temp_file_names = [''] * num_spc_dates
-    input_file_names_by_spc_date = [['']] * num_spc_dates
-    output_file_names_by_spc_date = [['']] * num_spc_dates
-
-    for i in range(num_spc_dates):
-        spc_dates_unix_sec[i] = time_conversion.time_to_spc_date_unix_sec(
-            spc_dates_unix_sec[i])
-        temp_file_names[i] = tempfile.NamedTemporaryFile(delete=False)
-
-        input_file_names_by_spc_date[i] = (
-            tracking_io.find_processed_files_one_spc_date(
-                spc_dates_unix_sec[i], data_source=data_source,
-                top_processed_dir_name=top_input_dir_name,
-                tracking_scale_metres2=tracking_scale_metres2,
-                raise_error_if_missing=True))
-
-        this_num_files = len(input_file_names_by_spc_date[i])
-        these_times_unix_sec = numpy.full(this_num_files, -1, dtype=int)
-        output_file_names_by_spc_date[i] = [''] * this_num_files
-
-        for j in range(this_num_files):
-            these_times_unix_sec[j] = tracking_io.processed_file_name_to_time(
-                input_file_names_by_spc_date[i][j])
-            output_file_names_by_spc_date[i][j] = (
-                tracking_io.find_processed_file(
-                    unix_time_sec=these_times_unix_sec[j],
-                    data_source=data_source,
-                    spc_date_unix_sec=spc_dates_unix_sec[i],
-                    top_processed_dir_name=top_output_dir_name,
-                    tracking_scale_metres2=tracking_scale_metres2,
-                    raise_error_if_missing=False))
-
-        if i == 0:
-            keep_time_indices = numpy.where(
-                these_times_unix_sec >= start_time_unix_sec)[0]
-            input_file_names_by_spc_date[i] = input_file_names_by_spc_date[
-                i][keep_time_indices]
-            output_file_names_by_spc_date[i] = output_file_names_by_spc_date[
-                i][keep_time_indices]
-
-        if i == num_spc_dates - 1:
-            keep_time_indices = numpy.where(
-                these_times_unix_sec <= end_time_unix_sec)[0]
-            input_file_names_by_spc_date[i] = input_file_names_by_spc_date[
-                i][keep_time_indices]
-            output_file_names_by_spc_date[i] = output_file_names_by_spc_date[
-                i][keep_time_indices]
-
-    return {SPC_DATES_KEY: spc_dates_unix_sec,
-            TEMP_FILE_NAMES_KEY: temp_file_names,
-            INPUT_FILE_NAMES_KEY: input_file_names_by_spc_date,
-            OUTPUT_FILE_NAMES_KEY: output_file_names_by_spc_date}
-
-
-def run_best_track_without_io(
+def run_best_track(
         storm_object_table=None,
         max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
         max_prediction_error_for_breakup_metres=
@@ -1392,12 +1104,13 @@ def run_best_track_without_io(
     storm_object_table.centroid_lng_deg: Longitude (deg E) of storm-object
         centroid.
 
-    :param max_extrap_time_for_breakup_sec: See doc for _break_storm_tracks.
-    :param max_prediction_error_for_breakup_metres: See doc for _break_storm_tracks.
-    :param max_join_time_sec: See documentation for _merge_storm_tracks.
-    :param max_join_distance_metres: See documentation for _merge_storm_tracks.
-    :param max_mean_join_error_metres: See doc for _merge_storm_tracks.
-    :param max_velocity_diff_for_join_m_s01: See doc for _merge_storm_tracks.
+    :param max_extrap_time_for_breakup_sec: See doc for break_storm_tracks.
+    :param max_prediction_error_for_breakup_metres: See doc for
+        break_storm_tracks.
+    :param max_join_time_sec: See documentation for merge_storm_tracks.
+    :param max_join_distance_metres: See documentation for merge_storm_tracks.
+    :param max_mean_join_error_metres: See doc for merge_storm_tracks.
+    :param max_velocity_diff_for_join_m_s01: See doc for merge_storm_tracks.
     :param num_main_iters: Number of main iterations (outer loops).  Each main
         iteration consists of `num_breakup_iters` break-up iterations, one
         merger iteration, and one tie-breaking iteration.
@@ -1410,7 +1123,7 @@ def run_best_track_without_io(
         columns "centroid_lat_deg" and "centroid_lng_deg".
     """
 
-    _check_best_track_params(
+    check_best_track_params(
         max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
         max_prediction_error_for_breakup_metres=
         max_prediction_error_for_breakup_metres,
@@ -1440,8 +1153,8 @@ def run_best_track_without_io(
         [tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN],
         axis=1, inplace=True)
 
-    storm_track_table = _storm_objects_to_tracks(storm_object_table)
-    storm_track_table = _theil_sen_fit_for_each_track(storm_track_table)
+    storm_track_table = storm_objects_to_tracks(storm_object_table)
+    storm_track_table = theil_sen_fit_for_each_track(storm_track_table)
 
     for i in range(num_main_iters):
         print ('Starting main iteration ' + str(i + 1) + '/' +
@@ -1451,14 +1164,14 @@ def run_best_track_without_io(
             print ('Starting break-up iteration ' + str(j + 1) + '/' +
                    str(num_breakup_iters) + '...\n\n')
 
-            storm_object_table, storm_track_table = _break_storm_tracks(
+            storm_object_table, storm_track_table = break_storm_tracks(
                 storm_object_table=storm_object_table,
                 storm_track_table=storm_track_table,
                 max_extrapolation_time_sec=max_extrap_time_for_breakup_sec,
                 max_prediction_error_metres=
                 max_prediction_error_for_breakup_metres)
 
-        storm_object_table, storm_track_table = _merge_storm_tracks(
+        storm_object_table, storm_track_table = merge_storm_tracks(
             storm_object_table=storm_object_table,
             storm_track_table=storm_track_table,
             max_join_time_sec=max_join_time_sec,
@@ -1466,7 +1179,7 @@ def run_best_track_without_io(
             max_mean_prediction_error_metres=max_mean_join_error_metres,
             max_velocity_diff_m_s01=max_velocity_diff_for_join_m_s01)
 
-        storm_object_table, storm_track_table = _break_ties_among_storm_objects(
+        storm_object_table, storm_track_table = break_ties_among_storm_objects(
             storm_object_table, storm_track_table)
 
     best_track_start_time_unix_sec = numpy.min(
@@ -1476,173 +1189,14 @@ def run_best_track_without_io(
 
     print ('Removing storm tracks with < ' + str(min_objects_in_track) +
            ' objects...')
-    storm_object_table = _remove_short_tracks(
+    storm_object_table = remove_short_tracks(
         storm_object_table, min_objects_in_track=min_objects_in_track)
 
     print 'Recomputing storm attributes...'
-    return _recompute_attributes(
+    return recompute_attributes(
         storm_object_table,
         best_track_start_time_unix_sec=best_track_start_time_unix_sec,
         best_track_end_time_unix_sec=best_track_end_time_unix_sec)
-
-
-def run_best_track_staggered_io(
-        staggered_file_dict=None,
-        max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
-        max_prediction_error_for_breakup_metres=
-        DEFAULT_MAX_PREDICTION_ERROR_METRES,
-        max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
-        max_join_distance_metres=DEFAULT_MAX_JOIN_DISTANCE_METRES,
-        max_mean_join_error_metres=DEFAULT_MAX_MEAN_JOIN_ERROR_METRES,
-        max_velocity_diff_for_join_m_s01=None,
-        num_main_iters=DEFAULT_NUM_MAIN_ITERS,
-        num_breakup_iters=DEFAULT_NUM_BREAKUP_ITERS,
-        min_objects_in_track=DEFAULT_MIN_OBJECTS_IN_TRACK):
-    """Runs the full w2besttrack algorithm with staggered IO.
-
-    Specifically, this method works on one SPC date at a time, while keeping
-    adjacent dates in memory.  In other words, while working on SPC date k, this
-    method keeps dates (k - 1)...(k + 1) in memory, with all other dates saved
-    in intermediate files.
-
-    :param staggered_file_dict: Dictionary created by
-        find_files_for_staggered_io.
-    :param max_extrap_time_for_breakup_sec: See documentation for
-        run_best_track_without_io.
-    :param max_prediction_error_for_breakup_metres: See doc for
-        run_best_track_without_io.
-    :param max_join_time_sec: See doc for run_best_track_without_io.
-    :param max_join_distance_metres: See doc for run_best_track_without_io.
-    :param max_mean_join_error_metres: See doc for run_best_track_without_io.
-    :param max_velocity_diff_for_join_m_s01: See doc for
-        run_best_track_without_io.
-    :param num_main_iters: See doc for run_best_track_without_io.
-    :param num_breakup_iters: See doc for run_best_track_without_io.
-    :param min_objects_in_track: See doc for run_best_track_without_io.
-    """
-
-    _check_best_track_params(
-        max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
-        max_prediction_error_for_breakup_metres=
-        max_prediction_error_for_breakup_metres,
-        max_join_time_sec=max_join_time_sec,
-        max_join_distance_metres=max_join_distance_metres,
-        max_mean_join_error_metres=max_mean_join_error_metres,
-        max_velocity_diff_for_join_m_s01=max_velocity_diff_for_join_m_s01,
-        num_main_iters=num_main_iters, num_breakup_iters=num_breakup_iters,
-        min_objects_in_track=min_objects_in_track)
-
-    spc_dates_unix_sec = staggered_file_dict[SPC_DATES_KEY]
-    num_spc_dates = len(spc_dates_unix_sec)
-    storm_object_table = None
-
-    for i in range(num_main_iters):
-        print ('Starting main iteration ' + str(i + 1) + '/' +
-               str(num_main_iters) + '...\n\n')
-
-        for j in range(num_breakup_iters):
-            print ('Starting break-up iteration ' + str(j + 1) + '/' +
-                   str(num_breakup_iters) + '...\n\n')
-
-            for k in range(num_spc_dates):
-                storm_object_table = _shuffle_data_for_staggered_io(
-                    storm_object_table=storm_object_table,
-                    file_dict=staggered_file_dict,
-                    working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                    read_from_intermediate=i > 0 or j > 0,
-                    write_to_intermediate=True)
-
-                if k == 0:
-                    best_track_start_time_unix_sec = numpy.min(
-                        storm_object_table[tracking_io.TIME_COLUMN].values)
-                if k == num_spc_dates - 1:
-                    best_track_end_time_unix_sec = numpy.max(
-                        storm_object_table[tracking_io.TIME_COLUMN].values)
-
-                storm_track_table = _storm_objects_to_tracks(storm_object_table)
-                storm_track_table = _theil_sen_fit_for_each_track(
-                    storm_track_table)
-                these_working_indices = numpy.where(
-                    storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
-                    spc_dates_unix_sec[k])[0]
-
-                storm_object_table, storm_track_table = _break_storm_tracks(
-                    storm_object_table=storm_object_table,
-                    storm_track_table=storm_track_table,
-                    working_object_indices=these_working_indices,
-                    max_extrapolation_time_sec=max_extrap_time_for_breakup_sec,
-                    max_prediction_error_metres=
-                    max_prediction_error_for_breakup_metres)
-
-        for k in range(num_spc_dates):
-            storm_object_table = _shuffle_data_for_staggered_io(
-                storm_object_table=storm_object_table,
-                file_dict=staggered_file_dict,
-                working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                read_from_intermediate=True, write_to_intermediate=True)
-
-            storm_track_table = _storm_objects_to_tracks(storm_object_table)
-            storm_track_table = _theil_sen_fit_for_each_track(
-                storm_track_table)
-            these_working_indices = _find_tracks_with_spc_date(
-                storm_object_table, storm_track_table,
-                spc_date_unix_sec=spc_dates_unix_sec[k])
-
-            storm_object_table, storm_track_table = _merge_storm_tracks(
-                storm_object_table=storm_object_table,
-                storm_track_table=storm_track_table,
-                working_track_indices=these_working_indices,
-                max_join_time_sec=max_join_time_sec,
-                max_join_distance_metres=max_join_distance_metres,
-                max_mean_prediction_error_metres=max_mean_join_error_metres,
-                max_velocity_diff_m_s01=max_velocity_diff_for_join_m_s01)
-
-        for k in range(num_spc_dates):
-            storm_object_table = _shuffle_data_for_staggered_io(
-                storm_object_table=storm_object_table,
-                file_dict=staggered_file_dict,
-                working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                read_from_intermediate=True, write_to_intermediate=True)
-
-            storm_track_table = _storm_objects_to_tracks(storm_object_table)
-            storm_track_table = _theil_sen_fit_for_each_track(
-                storm_track_table)
-            these_working_indices = _find_tracks_with_spc_date(
-                storm_object_table, storm_track_table,
-                spc_date_unix_sec=spc_dates_unix_sec[k])
-
-            storm_object_table, storm_track_table = (
-                _break_ties_among_storm_objects(
-                    storm_object_table, storm_track_table,
-                    working_track_indices=these_working_indices))
-
-        for k in range(num_spc_dates):
-            storm_object_table = _shuffle_data_for_staggered_io(
-                storm_object_table=storm_object_table,
-                file_dict=staggered_file_dict,
-                working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                read_from_intermediate=True, write_to_intermediate=k == 0)
-
-            print ('Removing storm tracks with < ' + str(min_objects_in_track) +
-                   ' objects...')
-            storm_object_table = _remove_short_tracks(
-                storm_object_table, min_objects_in_track=min_objects_in_track)
-
-            print 'Recomputing storm attributes...'
-            storm_object_table = _recompute_attributes(
-                storm_object_table,
-                best_track_start_time_unix_sec=best_track_start_time_unix_sec,
-                best_track_end_time_unix_sec=best_track_end_time_unix_sec)
-
-        _shuffle_data_for_staggered_io(
-            storm_object_table=storm_object_table,
-            file_dict=staggered_file_dict,
-            working_spc_date_unix_sec=spc_dates_unix_sec[-1],
-            read_from_intermediate=True, write_to_intermediate=False)
-
-        for k in range(num_spc_dates):
-            print 'Deleting temp files...'
-            os.remove(staggered_file_dict[TEMP_FILE_NAMES_KEY][k])
 
 
 def read_input_storm_objects(input_file_names, keep_spc_date=False):
