@@ -155,6 +155,43 @@ def find_grib_file(init_time_unix_sec, lead_time_hours=None, model_name=None,
     return grib_file_name
 
 
+def find_ruc_grib_file(
+        init_time_unix_sec, lead_time_hours=None, top_directory_name=None,
+        raise_error_if_missing=True):
+    """Finds grib file with RUC data on local machine.
+
+    Unlike find_grib_file, this method tries all 3 grids on which the RUC is
+    available (NCEP 130, 252, and 236).
+
+    :param init_time_unix_sec: Initialization time.
+    :param lead_time_hours: Lead time (valid time minus init time).
+    :param top_directory_name: Name of top-level directory with RUC grib files.
+    :param raise_error_if_missing: Boolean flag.  If True and no file can be
+        found (on any of the 3 grids), this method will raise an error.
+    :return: grib_file_name: Path to grib file.  If no file could be found but
+        raise_error_if_missing = False, this is None.
+    :raises: ValueError: if raise_error_if_missing = True and no file can be
+        found.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_missing)
+    ruc_grid_ids = nwp_model_utils.RUC_GRID_IDS
+
+    for i in range(len(ruc_grid_ids)):
+        this_raise_error_flag = (
+            raise_error_if_missing and i == len(ruc_grid_ids) - 1)
+
+        grib_file_name = find_grib_file(
+            init_time_unix_sec, lead_time_hours=lead_time_hours,
+            model_name=nwp_model_utils.RUC_MODEL_NAME, grid_id=ruc_grid_ids[i],
+            top_directory_name=top_directory_name,
+            raise_error_if_missing=this_raise_error_flag)
+        if os.path.isfile(grib_file_name):
+            return grib_file_name
+
+    return None
+
+
 def find_single_field_file(init_time_unix_sec, lead_time_hours=None,
                            model_name=None, grid_id=None, grib1_field_name=None,
                            top_directory_name=None,

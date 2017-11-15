@@ -10,6 +10,10 @@ from gewittergefahr.gg_utils import error_checking
 
 NUM_BYTES_PER_DOWNLOAD_CHUNK = 16384
 URL_NOT_FOUND_ERROR_CODE = 404
+SERVICE_TEMP_UNAVAILABLE_ERROR_CODE = 503
+ACCEPTABLE_HTTP_ERROR_CODES = [
+    URL_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
+
 FTP_NOT_FOUND_ERROR_CODE = 550
 SSH_ARG_STRING = (
     'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5')
@@ -54,7 +58,8 @@ def download_file_via_passwordless_ssh(host_name=None, user_name=None,
     unix_command_string = (
         'LD_LIBRARY_PATH= rsync -rv -e "{0:s}"'
         ' {1:s}@{2:s}:"{3:s}" "{4:s}"').format(
-        SSH_ARG_STRING, user_name, host_name, remote_file_name, local_file_name)
+            SSH_ARG_STRING, user_name, host_name, remote_file_name,
+            local_file_name)
 
     devnull_handle = open(os.devnull, 'w')
     subprocess.call(unix_command_string, shell=True, stdout=devnull_handle,
@@ -97,7 +102,8 @@ def download_file_via_http(file_url, local_file_name,
     try:
         response_object = urllib2.urlopen(file_url)
     except urllib2.HTTPError as this_error:
-        if raise_error_if_fails or this_error.code != URL_NOT_FOUND_ERROR_CODE:
+        if (raise_error_if_fails or
+                this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
             raise
 
         warnings.warn('Cannot find URL.  Expected at: ' + file_url)
