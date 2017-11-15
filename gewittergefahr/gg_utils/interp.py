@@ -860,7 +860,7 @@ def interp_nwp_from_xy_grid(
     return interp_table
 
 
-def interp_ruc(
+def interp_ruc_all_grids(
         query_point_table, field_names=None, field_names_grib1=None,
         top_grib_directory_name=None,
         temporal_interp_method=PREVIOUS_INTERP_METHOD,

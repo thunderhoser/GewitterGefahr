@@ -18,6 +18,10 @@ from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): simplify terminology used in this module.  Specifically, I
+# might want to change "sounding index" to "sounding statistic".  "Index" has a
+# special meaning, and I often use both meanings in the same method.
+
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
@@ -31,7 +35,6 @@ PASCALS_TO_MB = 0.01
 MB_TO_PASCALS = 100
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
-RADIANS_TO_DEGREES = 180. / numpy.pi
 
 PRESSURE_COLUMN_FOR_SHARPPY_INPUT = 'pressure_mb'
 HEIGHT_COLUMN_FOR_SHARPPY_INPUT = 'geopotential_height_metres'
@@ -76,6 +79,68 @@ COLUMN_TYPE_DICT_FOR_METADATA = {
     CONVERSION_FACTOR_COLUMN_FOR_METADATA: numpy.float64,
     IS_VECTOR_COLUMN_FOR_METADATA: bool,
     IN_MUPCL_OBJECT_COLUMN_FOR_METADATA: bool}
+
+
+def _remove_rows_with_any_nan(input_table):
+    """Removes all rows with a NaN entry from pandas DataFrame.
+
+    :param input_table: pandas DataFrame (may contain NaN's).
+    :return: table_without_nan: pandas DataFrame without NaN's.  If there are no
+        rows left, this method returns None.
+    """
+
+    table_without_nan = input_table.loc[input_table.notnull().all(axis=1)]
+    if table_without_nan.empty:
+        return None
+    return table_without_nan
+
+
+def _get_empty_sharppy_index_table(eastward_motion_m_s01,
+                                   northward_motion_m_s01):
+    """Creates pandas DataFrame where all SHARPpy indices are NaN.
+
+    :param eastward_motion_m_s01: u-component of storm motion (metres per
+        second).
+    :param northward_motion_m_s01: v-component of storm motion (metres per
+        second).
+    :return: empty_sharppy_index_table: pandas DataFrame, where column names are
+        SHARPpy names for sounding indices and all values are NaN.
+    """
+
+    sounding_index_metadata_table = read_metadata_for_sounding_indices()
+    vector_si_flags = numpy.array(
+        sounding_index_metadata_table[IS_VECTOR_COLUMN_FOR_METADATA].values)
+    vector_si_indices = numpy.where(vector_si_flags)[0]
+    scalar_si_indices = numpy.where(numpy.invert(vector_si_flags))[0]
+
+    empty_sharppy_index_dict = {}
+    for this_index in scalar_si_indices:
+        this_sharppy_si_name = sounding_index_metadata_table[
+            SHARPPY_INDEX_NAME_COLUMN_FOR_METADATA].values[this_index]
+        empty_sharppy_index_dict.update(
+            {this_sharppy_si_name: numpy.full(1, numpy.nan)})
+
+    empty_sharppy_index_table = pandas.DataFrame.from_dict(
+        empty_sharppy_index_dict)
+
+    this_sharppy_si_name = list(empty_sharppy_index_table)[0]
+    nested_array = empty_sharppy_index_table[[
+        this_sharppy_si_name, this_sharppy_si_name]].values.tolist()
+
+    for this_index in vector_si_indices:
+        this_sharppy_si_name = sounding_index_metadata_table[
+            SHARPPY_INDEX_NAME_COLUMN_FOR_METADATA].values[this_index]
+        empty_sharppy_index_table = empty_sharppy_index_table.assign(
+            **{this_sharppy_si_name: nested_array})
+
+        if this_sharppy_si_name == STORM_VELOCITY_NAME_SHARPPY:
+            empty_sharppy_index_table[this_sharppy_si_name].values[0] = (
+                numpy.array([eastward_motion_m_s01, northward_motion_m_s01]))
+        else:
+            empty_sharppy_index_table[this_sharppy_si_name].values[
+                0] = numpy.full(2, numpy.nan)
+
+    return empty_sharppy_index_table
 
 
 def _column_name_to_sounding_index(column_name, valid_sounding_index_names):
@@ -150,7 +215,8 @@ def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
     error_checking.assert_is_geq(minimum_pressure_mb, 0)
     error_checking.assert_is_boolean(return_dict)
 
-    pressure_levels_mb = nwp_model_utils.get_pressure_levels(model_name)
+    pressure_levels_mb = nwp_model_utils.get_pressure_levels(
+        model_name, grid_id=nwp_model_utils.ID_FOR_130GRID)
     pressure_levels_mb = pressure_levels_mb[
         pressure_levels_mb >= minimum_pressure_mb]
     num_pressure_levels = len(pressure_levels_mb)
@@ -803,18 +869,21 @@ def read_metadata_for_sounding_indices():
         dtype=COLUMN_TYPE_DICT_FOR_METADATA)
 
 
-def interp_soundings_from_nwp(query_point_table, model_name=None, grid_id=None,
-                              top_grib_directory_name=None):
+def interp_soundings_from_nwp(
+        query_point_table, model_name=None, grid_id=None,
+        top_grib_directory_name=None, raise_error_if_missing=False):
     """Interpolates soundings from NWP model to query points.
 
     Each query point consists of (latitude, longitude, time).
 
     :param query_point_table: pandas DataFrame in format specified by
-        `interp.interp_nwp_fields_from_xy_grid`.
+        `interp.interp_nwp_from_xy_grid`.
     :param model_name: Name of model.
     :param grid_id: String ID for model grid.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for given model.
+    :param raise_error_if_missing: See documentation for
+        `interp.interp_nwp_from_xy_grid`.
     :return: interp_table: pandas DataFrame, where each column is one field and
         each row is one query point.  Column names are given by the list
         sounding_field_names produced by `_get_nwp_fields_in_sounding`.
@@ -823,13 +892,38 @@ def interp_soundings_from_nwp(query_point_table, model_name=None, grid_id=None,
     sounding_field_names, sounding_field_names_grib1 = (
         _get_nwp_fields_in_sounding(model_name, return_dict=False))
 
-    return interp.interp_nwp_fields_from_xy_grid(
+    return interp.interp_nwp_from_xy_grid(
         query_point_table, model_name=model_name, grid_id=grid_id,
         field_names=sounding_field_names,
         field_names_grib1=sounding_field_names_grib1,
         top_grib_directory_name=top_grib_directory_name,
         temporal_interp_method=TEMPORAL_INTERP_METHOD,
-        spatial_interp_method=SPATIAL_INTERP_METHOD)
+        spatial_interp_method=SPATIAL_INTERP_METHOD,
+        raise_error_if_missing=raise_error_if_missing)
+
+
+def interp_soundings_from_ruc_all_grids(
+        query_point_table, top_grib_directory_name=None,
+        raise_error_if_missing=False):
+    """Interpolates RUC soundings from one or more grids to query points.
+
+    :param query_point_table: See documentation for interp_soundings_from_nwp.
+    :param top_grib_directory_name: See doc for interp_soundings_from_nwp.
+    :param raise_error_if_missing: See doc for interp_soundings_from_nwp.
+    :return: interp_table: See doc for interp_soundings_from_nwp.
+    """
+
+    sounding_field_names, sounding_field_names_grib1 = (
+        _get_nwp_fields_in_sounding(
+            nwp_model_utils.RUC_MODEL_NAME, return_dict=False))
+
+    return interp.interp_ruc_all_grids(
+        query_point_table, field_names=sounding_field_names,
+        field_names_grib1=sounding_field_names_grib1,
+        top_grib_directory_name=top_grib_directory_name,
+        temporal_interp_method=TEMPORAL_INTERP_METHOD,
+        spatial_interp_method=SPATIAL_INTERP_METHOD,
+        raise_error_if_missing=raise_error_if_missing)
 
 
 def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
@@ -839,7 +933,7 @@ def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
     P = number of pressure levels in each sounding
 
     :param interp_table: N-row pandas DataFrame created by
-        `interp.interp_nwp_fields_from_xy_grid`, where each column is one model
+        `interp.interp_nwp_from_xy_grid`, where each column is one model
         field (e.g., 500-mb height or 600-mb temperature).
     :param model_name: Name of NWP model used to create interp_table.
     :return: list_of_sounding_tables: length-N list of sounding tables.  Each
@@ -884,15 +978,20 @@ def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
 
         list_of_sounding_tables[i][PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
             -1] = PASCALS_TO_MB * interp_table[lowest_pressure_name].values[i]
+        list_of_sounding_tables[i] = _remove_rows_with_any_nan(
+            list_of_sounding_tables[i])
+        if list_of_sounding_tables[i] is None:
+            continue
+
         list_of_sounding_tables[i] = _convert_sounding_to_sharppy_units(
             list_of_sounding_tables[i])
 
     return list_of_sounding_tables
 
 
-def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
-                                      northward_motion_kt=None,
-                                      sounding_index_metadata_table=None):
+def get_sounding_indices_from_sharppy(
+        sounding_table, eastward_motion_m_s01=None, northward_motion_m_s01=None,
+        sounding_index_metadata_table=None):
     """Computes sounding indices (CAPE, CIN, shears, layer-mean winds, etc.).
 
     This method works on a single sounding.
@@ -907,16 +1006,18 @@ def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
     sounding_table.is_surface: Boolean flag, indicating which row is the surface
         level.
 
-    :param eastward_motion_kt: u-component of storm motion (knots).
-    :param northward_motion_kt: v-component of storm motion (knots).
+    :param eastward_motion_m_s01: u-component of storm motion (metres per
+        second).
+    :param northward_motion_m_s01: v-component of storm motion (metres per
+        second).
     :param sounding_index_metadata_table: pandas DataFrame created by
         read_metadata_for_sounding_indices.
     :return: sounding_index_table_sharppy: pandas DataFrame, where column names
         are SHARPpy names for sounding indices and values are in SHARPpy units.
     """
 
-    error_checking.assert_is_not_nan(eastward_motion_kt)
-    error_checking.assert_is_not_nan(northward_motion_kt)
+    error_checking.assert_is_not_nan(eastward_motion_m_s01)
+    error_checking.assert_is_not_nan(northward_motion_m_s01)
 
     sounding_table = _remove_subsurface_sounding_data(
         sounding_table, delete_rows=False)
@@ -946,8 +1047,8 @@ def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
             u=sounding_table[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
             v=sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
 
-    setattr(profile_object, STORM_VELOCITY_NAME_SHARPPY, numpy.array(
-        [eastward_motion_kt, northward_motion_kt]))
+    setattr(profile_object, STORM_VELOCITY_NAME_SHARPPY,
+            numpy.array([eastward_motion_m_s01, northward_motion_m_s01]))
 
     profile_object.right_esrh = sharppy_winds.helicity(
         profile_object, profile_object.ebotm, profile_object.etopm,
@@ -984,8 +1085,9 @@ def get_sounding_indices_from_sharppy(sounding_table, eastward_motion_kt=None,
     profile_object.edepthm = profile_object.etopm - profile_object.ebotm
 
     profile_object = _adjust_sounding_indices_for_storm_motion(
-        profile_object, eastward_motion_kt=eastward_motion_kt,
-        northward_motion_kt=northward_motion_kt)
+        profile_object,
+        eastward_motion_kt=METRES_PER_SECOND_TO_KT * eastward_motion_m_s01,
+        northward_motion_kt=METRES_PER_SECOND_TO_KT * northward_motion_m_s01)
     profile_object = _fix_sharppy_wind_vectors(profile_object)
     return _sharppy_profile_to_table(profile_object,
                                      sounding_index_metadata_table)
@@ -1046,8 +1148,9 @@ def convert_sounding_indices_from_sharppy(sounding_index_table_sharppy,
 
 
 def get_sounding_indices_for_storm_objects(
-        storm_object_table, lead_time_seconds=0, model_name=None, grid_id=None,
-        top_grib_directory_name=None):
+        storm_object_table, lead_time_seconds=0, all_ruc_grids=False,
+        model_name=None, grid_id=None, top_grib_directory_name=None,
+        raise_error_if_missing=False):
     """Computes sounding indices for each storm object.
 
     K = number of sounding indices, after decomposition of vectors into scalars
@@ -1057,11 +1160,17 @@ def get_sounding_indices_for_storm_objects(
         columns.
     :param lead_time_seconds: Each storm object will be extrapolated this far
         into the future, given its motion estimate at the valid time.
-    :param model_name: Name of NWP model from which soundings will be
-        interpolated.
-    :param grid_id: String ID for model grid.
+    :param all_ruc_grids: Boolean flag.  If True, this method will interpolate
+        soundings to storm objects with interp_soundings_from_ruc_all_grids.
+        If False, will use interp_soundings_from_nwp.
+    :param model_name: Soundings will be interpolated from this NWP model.
+        If all_ruc_grids = True, you can leave this as None.
+    :param grid_id: String ID for model grid.  If all_ruc_grids = True, you can
+        leave this as None.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the given model.
+    :param raise_error_if_missing: See documentation for
+        interp_soundings_from_nwp.
     :return: storm_sounding_index_table: pandas DataFrame with 2 + K columns,
         where the last K columns are sounding indices.  Names of these columns
         come from the column "sounding_index_name" of the table generated by
@@ -1075,6 +1184,8 @@ def get_sounding_indices_for_storm_objects(
 
     error_checking.assert_is_integer(lead_time_seconds)
     error_checking.assert_is_geq(lead_time_seconds, 0)
+    error_checking.assert_is_boolean(all_ruc_grids)
+
     query_point_table = _create_query_point_table(
         storm_object_table, lead_time_seconds)
 
@@ -1084,9 +1195,15 @@ def get_sounding_indices_for_storm_objects(
         tracking_io.TIME_COLUMN: interp.QUERY_TIME_COLUMN}
     query_point_table.rename(columns=column_dict_old_to_new, inplace=True)
 
-    interp_table = interp_soundings_from_nwp(
-        query_point_table, model_name=model_name, grid_id=grid_id,
-        top_grib_directory_name=top_grib_directory_name)
+    if all_ruc_grids:
+        interp_table = interp_soundings_from_ruc_all_grids(
+            query_point_table, top_grib_directory_name=top_grib_directory_name,
+            raise_error_if_missing=raise_error_if_missing)
+    else:
+        interp_table = interp_soundings_from_nwp(
+            query_point_table, model_name=model_name, grid_id=grid_id,
+            top_grib_directory_name=top_grib_directory_name,
+            raise_error_if_missing=raise_error_if_missing)
 
     list_of_sounding_tables = interp_table_to_sharppy_sounding_tables(
         interp_table, model_name)
@@ -1099,13 +1216,18 @@ def get_sounding_indices_for_storm_objects(
         print ('Computing sounding indices for storm object ' + str(i + 1) +
                '/' + str(num_storm_objects) + '...')
 
-        list_of_sharppy_index_tables[i] = get_sounding_indices_from_sharppy(
-            list_of_sounding_tables[i],
-            eastward_motion_kt=
-            storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
-            northward_motion_kt=
-            storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
-            sounding_index_metadata_table=sounding_index_metadata_table)
+        if list_of_sounding_tables[i] is None:
+            list_of_sharppy_index_tables[i] = _get_empty_sharppy_index_table(
+                storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
+        else:
+            list_of_sharppy_index_tables[i] = get_sounding_indices_from_sharppy(
+                list_of_sounding_tables[i],
+                eastward_motion_m_s01=
+                storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                northward_motion_m_s01=
+                storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
+                sounding_index_metadata_table=sounding_index_metadata_table)
 
         if i == 0:
             continue

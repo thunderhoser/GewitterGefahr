@@ -405,23 +405,19 @@ def get_lowest_humidity_name(model_name):
     return 'relative_humidity_2m_agl', 'RH:2 m above gnd'
 
 
-def get_lowest_height_name(model_name, grid_id=None):
+def get_lowest_height_name(model_name):
     """Returns name of lowest (nearest to surface) geopotential-height field.
 
     :param model_name: Name of model.
-    :param grid_id: String ID for grid.
     :return: lowest_height_name: Name of lowest geopotential-height field in
         GewitterGefahr format (lower-case with underscores and units).
     :return: lowest_height_name_grib1: Name of lowest geopotential-height field
         in grib1 format.
     """
 
-    check_grid_id(model_name, grid_id)
+    check_model_name(model_name)
     if model_name == NARR_MODEL_NAME:
         return 'geopotential_height_metres_hybrid_level1', 'HGT:hybrid lev 1'
-
-    if grid_id == ID_FOR_236GRID:
-        return 'geopotential_height_metres_1000mb', 'HGT:1000 mb'
 
     return 'geopotential_height_metres_surface', 'HGT:sfc'
 
