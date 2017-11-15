@@ -63,7 +63,7 @@ TRACKING_END_TIME_UNIX_SEC = 1092312485  # 120805 UTC 12 Aug 2004
 MIN_BUFFER_DISTS_METRES = numpy.array([numpy.nan, 0., 5000.])
 MAX_BUFFER_DISTS_METRES = numpy.array([0., 5000., 10000.])
 
-VALID_TIME_STRING = '2004-08-11-125818'
+VALID_TIME_STRING = '2004-08-11-124818'
 VALID_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 TOP_PROCESSED_DIR_NAME = (
     '/localdata/ryan.lagerquist/gewittergefahr_junk/segmotion/processed')
@@ -71,12 +71,12 @@ TRACKING_SCALE_METRES2 = 50000000
 
 XML_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-125818_'
+    'smooth02_30dBZ/20040811/TrackingTable/0050.00/2004-08-11-124818_'
     'TrackingTable_0050.00.xml')
 
 NETCDF_FILE_NAME = (
     '/localdata/ryan.lagerquist/software/matlab/wdssii/raw_files/segmotion/'
-    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-125818.netcdf')
+    'smooth02_30dBZ/20040811/ClusterID/0050.00/20040811-124818.netcdf')
 
 
 def _xml_column_name_orig_to_new(column_name_orig):

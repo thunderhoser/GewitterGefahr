@@ -7,6 +7,13 @@ from gewittergefahr.gg_utils import interp
 
 TOLERANCE = 1e-6
 
+LIST_OF_1D_ARRAYS = [numpy.array([1., 2., 3]),
+                     numpy.array([0., 5., 10.]),
+                     numpy.array([6., 6., 6.])]
+MATRIX_FIRST_ARRAY = numpy.reshape(LIST_OF_1D_ARRAYS[0], (1, 3))
+MATRIX_FIRST_2ARRAYS = numpy.array([[1., 2., 3.], [0., 5., 10.]])
+MATRIX_FIRST_3ARRAYS = numpy.array([[1., 2., 3.], [0., 5., 10.], [6., 6., 6.]])
+
 # The following constants are used to test interp_in_time.
 INPUT_MATRIX_TIME0 = numpy.array([[0., 2., 5., 10.],
                                   [-2., 1., 3., 6.],
@@ -82,6 +89,45 @@ EXPECTED_QUERY_VALUES_FOR_NEAREST_NEIGH = numpy.array(
 
 class InterpTests(unittest.TestCase):
     """Each method is a unit test for interp.py."""
+
+    def test_stack_1d_arrays_vertically_1array(self):
+        """Ensures correct output from _stack_1d_arrays_vertically.
+
+        In this case there is one input array.
+        """
+
+        these_indices = numpy.array([0], dtype=int)
+        this_matrix = interp._stack_1d_arrays_vertically(
+            [LIST_OF_1D_ARRAYS[i] for i in these_indices])
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, MATRIX_FIRST_ARRAY, atol=TOLERANCE))
+
+    def test_stack_1d_arrays_vertically_2arrays(self):
+        """Ensures correct output from _stack_1d_arrays_vertically.
+
+        In this case there are 2 input arrays.
+        """
+
+        these_indices = numpy.array([0, 1], dtype=int)
+        this_matrix = interp._stack_1d_arrays_vertically(
+            [LIST_OF_1D_ARRAYS[i] for i in these_indices])
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, MATRIX_FIRST_2ARRAYS, atol=TOLERANCE))
+
+    def test_stack_1d_arrays_vertically_3arrays(self):
+        """Ensures correct output from _stack_1d_arrays_vertically.
+
+        In this case there are 3 input arrays.
+        """
+
+        these_indices = numpy.array([0, 1, 2], dtype=int)
+        this_matrix = interp._stack_1d_arrays_vertically(
+            [LIST_OF_1D_ARRAYS[i] for i in these_indices])
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, MATRIX_FIRST_3ARRAYS, atol=TOLERANCE))
 
     def test_check_temporal_interp_method_good(self):
         """Ensures correct output from check_temporal_interp_method.

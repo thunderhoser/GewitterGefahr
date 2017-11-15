@@ -9,7 +9,7 @@ from gewittergefahr.gg_utils import interp
 TOLERANCE = 1e-6
 
 FAKE_MODEL_NAME = 'foo'
-FAKE_GRID_ID = '9999'
+FAKE_GRID_DIMENSIONS = numpy.array([1, 2])
 
 MAX_MEAN_DISTANCE_ERROR_RAP_METRES = 100.
 MAX_MAX_DISTANCE_ERROR_RAP_METRES = 500.
@@ -228,6 +228,48 @@ class NwpModelUtilsTests(unittest.TestCase):
 
         nwp_model_utils.check_grid_id(nwp_model_utils.RUC_MODEL_NAME,
                                       nwp_model_utils.ID_FOR_236GRID)
+
+    def test_dimensions_to_grid_id_221(self):
+        """Ensures correct output from dimensions_to_grid_id for 221 grid."""
+
+        these_dimensions = numpy.array(nwp_model_utils.get_grid_dimensions(
+            nwp_model_utils.NARR_MODEL_NAME))
+
+        this_grid_id = nwp_model_utils.dimensions_to_grid_id(these_dimensions)
+        self.assertTrue(this_grid_id == nwp_model_utils.ID_FOR_221GRID)
+
+    def test_dimensions_to_grid_id_130(self):
+        """Ensures correct output from dimensions_to_grid_id for 130 grid."""
+
+        these_dimensions = numpy.array(nwp_model_utils.get_grid_dimensions(
+            nwp_model_utils.RUC_MODEL_NAME, nwp_model_utils.ID_FOR_130GRID))
+
+        this_grid_id = nwp_model_utils.dimensions_to_grid_id(these_dimensions)
+        self.assertTrue(this_grid_id == nwp_model_utils.ID_FOR_130GRID)
+
+    def test_dimensions_to_grid_id_252(self):
+        """Ensures correct output from dimensions_to_grid_id for 252 grid."""
+
+        these_dimensions = numpy.array(nwp_model_utils.get_grid_dimensions(
+            nwp_model_utils.RUC_MODEL_NAME, nwp_model_utils.ID_FOR_252GRID))
+
+        this_grid_id = nwp_model_utils.dimensions_to_grid_id(these_dimensions)
+        self.assertTrue(this_grid_id == nwp_model_utils.ID_FOR_252GRID)
+
+    def test_dimensions_to_grid_id_236(self):
+        """Ensures correct output from dimensions_to_grid_id for 236 grid."""
+
+        these_dimensions = numpy.array(nwp_model_utils.get_grid_dimensions(
+            nwp_model_utils.RUC_MODEL_NAME, nwp_model_utils.ID_FOR_236GRID))
+
+        this_grid_id = nwp_model_utils.dimensions_to_grid_id(these_dimensions)
+        self.assertTrue(this_grid_id == nwp_model_utils.ID_FOR_236GRID)
+
+    def test_dimensions_to_grid_id_fake(self):
+        """Ensures correct output from dimensions_to_grid_id for fake grid."""
+
+        with self.assertRaises(ValueError):
+            nwp_model_utils.dimensions_to_grid_id(FAKE_GRID_DIMENSIONS)
 
     def test_get_times_needed_for_interp_previous(self):
         """Ensures correct output from get_times_needed_for_interp.

@@ -18,6 +18,7 @@ RUC_MODEL_NAME = 'ruc'
 NARR_MODEL_NAME = 'narr'
 MODEL_NAMES = [RAP_MODEL_NAME, RUC_MODEL_NAME, NARR_MODEL_NAME]
 
+ID_FOR_221GRID = '221'
 ID_FOR_130GRID = '130'
 ID_FOR_252GRID = '252'
 ID_FOR_236GRID = '236'
@@ -143,6 +144,33 @@ def get_grid_dimensions(model_name, grid_id=None):
         return 225, 301
 
     return 113, 151
+
+
+def dimensions_to_grid_id(grid_dimensions):
+    """Determines grid from dimensions.
+
+    :param grid_dimensions: 1-D numpy array with [num_rows, num_columns].
+    :return: grid_id: String ID for grid.
+    :raises: ValueError: if dimensions do not match a known grid.
+    """
+
+    error_checking.assert_is_numpy_array(
+        grid_dimensions, exact_dimensions=numpy.array([2]))
+    error_checking.assert_is_integer_numpy_array(grid_dimensions)
+    error_checking.assert_is_greater_numpy_array(grid_dimensions, 1)
+
+    these_dimensions = get_grid_dimensions(NARR_MODEL_NAME)
+    if numpy.array_equal(these_dimensions, grid_dimensions):
+        return ID_FOR_221GRID
+
+    for this_grid_id in RUC_GRID_IDS:
+        these_dimensions = get_grid_dimensions(RUC_MODEL_NAME, this_grid_id)
+        if numpy.array_equal(these_dimensions, grid_dimensions):
+            return this_grid_id
+
+    raise ValueError(
+        'Dimensions (' + str(grid_dimensions[0]) + ' rows x ' +
+        str(grid_dimensions[1]) + ' columns) do not match a known grid.')
 
 
 def get_time_steps(model_name):
