@@ -211,45 +211,6 @@ def _binarize_forecast_probs(forecast_probabilities, binarization_threshold):
     return forecast_labels.astype(int)
 
 
-def _get_sr_pod_grid(
-        success_ratio_spacing=DEFAULT_SUCCESS_RATIO_SPACING,
-        pod_spacing=DEFAULT_POD_SPACING):
-    """Creates grid in SR-POD space
-
-    SR = success ratio
-    POD = probability of detection
-    SR-POD space is the same as performance-diagram.
-
-    M = number of rows (unique POD values) in grid
-    N = number of columns (unique success ratios) in grid
-
-    :param success_ratio_spacing: Spacing between adjacent success ratios
-        (x-values) in grid.
-    :param pod_spacing: Spacing between adjacent POD values (y-values) in grid.
-    :return: success_ratio_matrix: M-by-N numpy array of success ratios.
-        Success ratio increases while traveling right along a row.
-    :return: pod_matrix: M-by-N numpy array of POD values.  POD increases while
-        traveling up a column.
-    """
-
-    error_checking.assert_is_greater(success_ratio_spacing, 0.)
-    error_checking.assert_is_less_than(success_ratio_spacing, 1.)
-    error_checking.assert_is_greater(pod_spacing, 0.)
-    error_checking.assert_is_less_than(pod_spacing, 1.)
-
-    num_success_ratios = int(numpy.ceil(1. / success_ratio_spacing))
-    num_pod_values = int(numpy.ceil(1. / pod_spacing))
-    success_ratio_spacing = 1. / num_success_ratios
-    pod_spacing = 1. / num_pod_values
-
-    unique_success_ratios, unique_pod_values = grids.get_xy_grid_points(
-        x_min_metres=success_ratio_spacing / 2, y_min_metres=pod_spacing / 2,
-        x_spacing_metres=success_ratio_spacing, y_spacing_metres=pod_spacing,
-        num_rows=num_pod_values, num_columns=num_success_ratios)
-    return grids.xy_vectors_to_matrices(
-        unique_success_ratios, unique_pod_values[::-1])
-
-
 def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
     """Splits forecast probabilities into bins.
 
@@ -564,6 +525,44 @@ def get_points_in_performance_diagram(
     return success_ratio_by_threshold, pod_by_threshold
 
 
+def get_sr_pod_grid(success_ratio_spacing=DEFAULT_SUCCESS_RATIO_SPACING,
+                    pod_spacing=DEFAULT_POD_SPACING):
+    """Creates grid in SR-POD space
+
+    SR = success ratio
+    POD = probability of detection
+    SR-POD space is the same as performance-diagram.
+
+    M = number of rows (unique POD values) in grid
+    N = number of columns (unique success ratios) in grid
+
+    :param success_ratio_spacing: Spacing between adjacent success ratios
+        (x-values) in grid.
+    :param pod_spacing: Spacing between adjacent POD values (y-values) in grid.
+    :return: success_ratio_matrix: M-by-N numpy array of success ratios.
+        Success ratio increases while traveling right along a row.
+    :return: pod_matrix: M-by-N numpy array of POD values.  POD increases while
+        traveling up a column.
+    """
+
+    error_checking.assert_is_greater(success_ratio_spacing, 0.)
+    error_checking.assert_is_less_than(success_ratio_spacing, 1.)
+    error_checking.assert_is_greater(pod_spacing, 0.)
+    error_checking.assert_is_less_than(pod_spacing, 1.)
+
+    num_success_ratios = int(numpy.ceil(1. / success_ratio_spacing))
+    num_pod_values = int(numpy.ceil(1. / pod_spacing))
+    success_ratio_spacing = 1. / num_success_ratios
+    pod_spacing = 1. / num_pod_values
+
+    unique_success_ratios, unique_pod_values = grids.get_xy_grid_points(
+        x_min_metres=success_ratio_spacing / 2, y_min_metres=pod_spacing / 2,
+        x_spacing_metres=success_ratio_spacing, y_spacing_metres=pod_spacing,
+        num_rows=num_pod_values, num_columns=num_success_ratios)
+    return grids.xy_vectors_to_matrices(
+        unique_success_ratios, unique_pod_values[::-1])
+
+
 def frequency_bias_from_sr_and_pod(success_ratio_array, pod_array):
     """Computes frequency bias from success ratio and POD.
 
@@ -686,26 +685,29 @@ def get_skill_areas_in_reliability_curve(mean_observed_label):
 
     :param mean_observed_label: Mean observed label (event frequency) for the
         full dataset (not just for one forecast bin).
-    :return: list_of_x_vertex_arrays: length-2 list, where each element is a
-        length-5 numpy array with x-coordinates of polygon vertices.
-    :return: list_of_y_vertex_arrays: Same but for y-coordinates.
+    :return: x_vertices_for_left_skill_area: length-5 numpy array with x-
+        coordinates of vertices in left-skill area (where x <=
+        mean_observed_label).
+    :return: y_vertices_for_left_skill_area: Same but for y-coordinates.
+    :return: x_vertices_for_right_skill_area: length-5 numpy array with x-
+        coordinates of vertices in right-skill area (where x >=
+        mean_observed_label).
+    :return: y_vertices_for_right_skill_area: Same but for y-coordinates.
     """
 
-    list_of_x_vertex_arrays = [[]] * 2
-    list_of_y_vertex_arrays = [[]] * 2
-
-    list_of_x_vertex_arrays[0] = numpy.array(
+    x_vertices_for_left_skill_area = numpy.array(
         [0., mean_observed_label, mean_observed_label, 0., 0.])
-    list_of_y_vertex_arrays[0] = numpy.array(
+    y_vertices_for_left_skill_area = numpy.array(
         [0., 0., mean_observed_label, mean_observed_label / 2, 0.])
 
-    list_of_x_vertex_arrays[1] = numpy.array(
+    x_vertices_for_right_skill_area = numpy.array(
         [mean_observed_label, 1., 1., mean_observed_label, mean_observed_label])
-    list_of_y_vertex_arrays[1] = numpy.array(
+    y_vertices_for_right_skill_area = numpy.array(
         [mean_observed_label, (1 + mean_observed_label) / 2,
          1., 1., mean_observed_label])
 
-    return list_of_x_vertex_arrays, list_of_y_vertex_arrays
+    return (x_vertices_for_left_skill_area, y_vertices_for_left_skill_area,
+            x_vertices_for_right_skill_area, y_vertices_for_right_skill_area)
 
 
 def get_climatology_line_for_reliability_curve(mean_observed_label):

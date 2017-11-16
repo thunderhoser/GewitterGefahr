@@ -87,7 +87,7 @@ POFD_BY_THRESHOLD = numpy.array(
 SUCCESS_RATIO_BY_THRESHOLD = numpy.array(
     [0.5, 0.5, 5. / 9, 0.625, 5. / 7, 0.833333, 1., 1., 1., 1., numpy.nan])
 
-# The following constants are used to test _get_sr_pod_grid.
+# The following constants are used to test get_sr_pod_grid.
 SUCCESS_RATIO_SPACING_FOR_GRID = 0.5
 POD_SPACING_FOR_GRID = 0.5
 SUCCESS_RATIO_MATRIX = numpy.array([[0.25, 0.75], [0.25, 0.75]])
@@ -453,10 +453,10 @@ class ModelEvaluationTests(unittest.TestCase):
             these_pod_by_threshold, POD_BY_THRESHOLD, atol=TOLERANCE))
 
     def test_get_sr_pod_grid(self):
-        """Ensures correct output from _get_sr_pod_grid."""
+        """Ensures correct output from get_sr_pod_grid."""
 
         this_success_ratio_matrix, this_pod_matrix = (
-            model_eval._get_sr_pod_grid(
+            model_eval.get_sr_pod_grid(
                 SUCCESS_RATIO_SPACING_FOR_GRID, POD_SPACING_FOR_GRID))
 
         self.assertTrue(numpy.allclose(
@@ -516,22 +516,25 @@ class ModelEvaluationTests(unittest.TestCase):
     def test_get_skill_areas_in_reliability_curve(self):
         """Ensures correct output from get_skill_areas_in_reliability_curve."""
 
-        list_of_x_vertex_arrays, list_of_y_vertex_arrays = (
+        (these_x_vertices_left,
+         these_y_vertices_left,
+         these_x_vertices_right,
+         these_y_vertices_right) = (
             model_eval.get_skill_areas_in_reliability_curve(
                 MEAN_OBSERVED_LABEL))
 
         self.assertTrue(numpy.allclose(
-            list_of_x_vertex_arrays[0], X_VERTICES_FOR_LEFT_SKILL_AREA,
+            these_x_vertices_left, X_VERTICES_FOR_LEFT_SKILL_AREA,
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
-            list_of_y_vertex_arrays[0], Y_VERTICES_FOR_LEFT_SKILL_AREA,
+            these_y_vertices_left, Y_VERTICES_FOR_LEFT_SKILL_AREA,
             atol=TOLERANCE))
 
         self.assertTrue(numpy.allclose(
-            list_of_x_vertex_arrays[1], X_VERTICES_FOR_RIGHT_SKILL_AREA,
+            these_x_vertices_right, X_VERTICES_FOR_RIGHT_SKILL_AREA,
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
-            list_of_y_vertex_arrays[1], Y_VERTICES_FOR_RIGHT_SKILL_AREA,
+            these_y_vertices_right, Y_VERTICES_FOR_RIGHT_SKILL_AREA,
             atol=TOLERANCE))
 
     def test_get_climatology_line_for_reliability_curve(self):

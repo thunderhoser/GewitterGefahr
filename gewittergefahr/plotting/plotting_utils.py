@@ -397,6 +397,8 @@ def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
         bottom end of colour bar.  Otherwise, bottom of colour bar will be
         rectangular.
     :param extend_max: Same as extend_min, but for upper end of colour bar.
+    :return: colour_bar_object: Instance of `matplotlib.pyplot.colorbar` created
+        by this method.
     """
 
     error_checking.assert_is_real_numpy_array(values_to_colour)
@@ -424,6 +426,6 @@ def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
     else:
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
 
-    pyplot.colorbar(
+    return pyplot.colorbar(
         ax=axes_object, mappable=scalar_mappable_object,
         orientation=orientation, pad=this_padding, extend=extend_argument)
