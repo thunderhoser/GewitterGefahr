@@ -29,6 +29,7 @@ STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 SENTINEL_VALUE_FOR_SHARPPY = -9999.
 REDUNDANT_PRESSURE_TOLERANCE_MB = 1e-3
 REDUNDANT_HEIGHT_TOLERANCE_METRES = 1e-3
+MIN_PRESSURE_LEVELS_IN_SOUNDING = 15
 
 PERCENT_TO_UNITLESS = 0.01
 PASCALS_TO_MB = 0.01
@@ -90,7 +91,7 @@ def _remove_rows_with_any_nan(input_table):
     """
 
     table_without_nan = input_table.loc[input_table.notnull().all(axis=1)]
-    if table_without_nan.empty:
+    if len(table_without_nan.index) < MIN_PRESSURE_LEVELS_IN_SOUNDING:
         return None
     return table_without_nan
 
@@ -1181,6 +1182,8 @@ def get_sounding_indices_for_storm_objects(
     storm_sounding_index_table.unix_time_sec: Valid time.  Same as input column
         `storm_object_table.unix_time_sec`.
     """
+
+    # TODO(thunderhoser): allow this method to handle multiple lead times.
 
     error_checking.assert_is_integer(lead_time_seconds)
     error_checking.assert_is_geq(lead_time_seconds, 0)
