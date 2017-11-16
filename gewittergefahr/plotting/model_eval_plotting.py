@@ -22,6 +22,8 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
 # TODO(thunderhoser): Make this module deal with NaN's.
+# TODO(thunderhoser): Add confidence intervals (from bootstrapping or
+# otherwise).
 
 DEFAULT_ROC_LINE_COLOUR = numpy.array([228., 26., 28.]) / 255
 DEFAULT_ROC_LINE_WIDTH = 3.
