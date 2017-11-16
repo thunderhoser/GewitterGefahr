@@ -5,6 +5,7 @@ import numpy
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 
 TOLERANCE = 1e-6
+FAKE_THRESHOLD_ARG = 'foo'
 
 UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS = 0.01
 FORECAST_PROBABILITIES = numpy.array(
@@ -12,18 +13,36 @@ FORECAST_PROBABILITIES = numpy.array(
 OBSERVED_LABELS = numpy.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=int)
 
 # The following constants are used to test _get_binarization_thresholds.
-FAKE_THRESHOLD_ARG = 'foo'
-THRESHOLDS_FROM_DIRECT_INPUT = numpy.array(
+THRESHOLDS_FOR_DIRECT_INPUT = numpy.array(
     [0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.])
+THRESHOLDS_FROM_DIRECT_INPUT = numpy.array(
+    [0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.,
+     model_eval.MAX_BINARIZATION_THRESHOLD])
 
 NUM_THRESHOLDS_FOR_INPUT = 11
 THRESHOLDS_FROM_NUMBER = numpy.array(
-    [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.])
+    [0., 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.,
+     model_eval.MAX_BINARIZATION_THRESHOLD])
 
 FORECAST_PROBS_FOR_THRESHOLDS = numpy.array(
     [0.22, 0.39, 0.86, 1., 0., 0.221, 0.10, 0.393, 0.02, 0.018])
 THRESHOLDS_FROM_UNIQUE_FORECASTS = numpy.array(
-    [0., 0.02, 0.10, 0.22, 0.39, 0.86, 1.])
+    [0., 0.02, 0.10, 0.22, 0.39, 0.86, 1.,
+     model_eval.MAX_BINARIZATION_THRESHOLD])
+
+# The following constants are used to test _pad_binarization_thresholds.
+THRESHOLDS_WITH_NO_PADDING = numpy.array(
+    [0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99])
+THRESHOLDS_WITH_MIN_PADDING = numpy.array(
+    [model_eval.MIN_BINARIZATION_THRESHOLD,
+     0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99])
+THRESHOLDS_WITH_MAX_PADDING = numpy.array(
+    [0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
+     model_eval.MAX_BINARIZATION_THRESHOLD])
+THRESHOLDS_WITH_MINMAX_PADDING = numpy.array(
+    [model_eval.MIN_BINARIZATION_THRESHOLD,
+     0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
+     model_eval.MAX_BINARIZATION_THRESHOLD])
 
 # The following constants are used to test _binarize_forecast_probs.
 BINARIZATION_THRESHOLD_HALF = 0.5
@@ -51,15 +70,22 @@ ACCURACY_THRESHOLD_HALF = 0.8
 CSI_THRESHOLD_HALF = 0.6
 FREQUENCY_BIAS_THRESHOLD_HALF = 0.6
 
+CONTINGENCY_TABLE_ALL_ZEROS = {model_eval.NUM_TRUE_POSITIVES_KEY: 0,
+                               model_eval.NUM_FALSE_POSITIVES_KEY: 0,
+                               model_eval.NUM_FALSE_NEGATIVES_KEY: 0,
+                               model_eval.NUM_TRUE_NEGATIVES_KEY: 0}
+
 # The following constants are used to test get_points_in_roc_curve.
-UNIQUE_FORECAST_PROBS = numpy.array(
-    [0.04, 0.05, 0.08, 0.11, 0.18, 0.27, 0.29, 0.8, 0.95])
-POD_BY_UNIQUE_THRESHOLD = numpy.array([1., 1., 1., 1., 1., 1., 0.8, 0.6, 0.4])
-POFD_BY_UNIQUE_THRESHOLD = numpy.array([1., 0.8, 0.6, 0.4, 0.2, 0., 0., 0., 0.])
+ROC_AND_PERFORMANCE_THRESHOLDS = numpy.array(
+    [0., 0.04, 0.05, 0.08, 0.11, 0.18, 0.27, 0.29, 0.8, 0.95,
+     model_eval.MAX_BINARIZATION_THRESHOLD])
+POD_BY_THRESHOLD = numpy.array([1., 1., 1., 1., 1., 1., 1., 0.8, 0.6, 0.4, 0.])
+POFD_BY_THRESHOLD = numpy.array(
+    [1., 1., 0.8, 0.6, 0.4, 0.2, 0., 0., 0., 0., 0.])
 
 # The following constants are used to test get_points_in_performance_diagram.
-SUCCESS_RATIO_BY_UNIQUE_THRESHOLD = numpy.array(
-    [0.5, 5. / 9, 0.625, 5. / 7, 0.833333, 1., 1., 1., 1.])
+SUCCESS_RATIO_BY_THRESHOLD = numpy.array(
+    [0.5, 0.5, 5. / 9, 0.625, 5. / 7, 0.833333, 1., 1., 1., 1., numpy.nan])
 
 # The following constants are used to test _get_sr_pod_grid.
 SUCCESS_RATIO_SPACING_FOR_GRID = 0.5
@@ -71,6 +97,25 @@ POD_MATRIX = numpy.array([[0.75, 0.75], [0.25, 0.25]])
 # csi_from_sr_and_pod.
 FREQUENCY_BIAS_MATRIX = numpy.array([[3., 1.], [1., 0.333333]])
 CSI_MATRIX = 3. / numpy.array([[13., 5.], [21., 13.]])
+
+# The following constants are used to test _split_forecasts_into_bins and
+# get_points_in_reliability_curve.
+NUM_FORECAST_BINS = 10
+BIN_INDEX_BY_FORECAST = numpy.array([0, 0, 1, 1, 0, 8, 2, 2, 9, 9], dtype=int)
+
+MEAN_FORECAST_PROB_BIN0 = numpy.mean(
+    numpy.array([0.0801, 0.0503, 0.042]))
+MEAN_FORECAST_PROB_BIN1 = numpy.mean(numpy.array([0.1805, 0.111]))
+MEAN_FORECAST_PROB_BIN2 = numpy.mean(numpy.array([0.294, 0.273]))
+MEAN_FORECAST_PROB_BIN9 = numpy.mean(numpy.array([0.952, 0.951]))
+
+MEAN_FORECAST_PROB_BY_BIN = numpy.array(
+    [MEAN_FORECAST_PROB_BIN0, MEAN_FORECAST_PROB_BIN1, MEAN_FORECAST_PROB_BIN2,
+     numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 0.803,
+     MEAN_FORECAST_PROB_BIN9])
+
+MEAN_OBSERVED_LABEL_BY_BIN = numpy.array(
+    [0., 0., 1., numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 1., 1.])
 
 # The following constants are used to test get_no_skill_reliability_curve,
 # get_skill_areas_in_reliability_curve,
@@ -142,6 +187,50 @@ class ModelEvaluationTests(unittest.TestCase):
             these_thresholds = model_eval._get_binarization_thresholds(
                 threshold_arg=FAKE_THRESHOLD_ARG)
 
+    def test_pad_binarization_thresholds_input_no_padding(self):
+        """Ensures correct output from _pad_binarization_thresholds.
+
+        In this case, input array needs padding at both ends.
+        """
+
+        these_thresholds = model_eval._pad_binarization_thresholds(
+            THRESHOLDS_WITH_NO_PADDING)
+        self.assertTrue(numpy.allclose(
+            these_thresholds, THRESHOLDS_WITH_MINMAX_PADDING, atol=TOLERANCE))
+
+    def test_pad_binarization_thresholds_input_min_padding(self):
+        """Ensures correct output from _pad_binarization_thresholds.
+
+        In this case, input array needs padding at upper end only.
+        """
+
+        these_thresholds = model_eval._pad_binarization_thresholds(
+            THRESHOLDS_WITH_MIN_PADDING)
+        self.assertTrue(numpy.allclose(
+            these_thresholds, THRESHOLDS_WITH_MINMAX_PADDING, atol=TOLERANCE))
+
+    def test_pad_binarization_thresholds_input_max_padding(self):
+        """Ensures correct output from _pad_binarization_thresholds.
+
+        In this case, input array needs padding at lower end only.
+        """
+
+        these_thresholds = model_eval._pad_binarization_thresholds(
+            THRESHOLDS_WITH_MAX_PADDING)
+        self.assertTrue(numpy.allclose(
+            these_thresholds, THRESHOLDS_WITH_MINMAX_PADDING, atol=TOLERANCE))
+
+    def test_pad_binarization_thresholds_input_minmax_padding(self):
+        """Ensures correct output from _pad_binarization_thresholds.
+
+        In this case, input array does not need padding.
+        """
+
+        these_thresholds = model_eval._pad_binarization_thresholds(
+            THRESHOLDS_WITH_MINMAX_PADDING)
+        self.assertTrue(numpy.allclose(
+            these_thresholds, THRESHOLDS_WITH_MINMAX_PADDING, atol=TOLERANCE))
+
     def test_binarize_forecast_probs(self):
         """Ensures correct output from _binarize_forecast_probs."""
 
@@ -159,23 +248,37 @@ class ModelEvaluationTests(unittest.TestCase):
             this_contingency_table == CONTINGENCY_TABLE_THRESHOLD_HALF)
 
     def test_get_pod(self):
-        """Ensures correct output from get_pod."""
+        """Ensures correct output from get_pod; input values are non-zero."""
 
         this_probability_of_detection = model_eval.get_pod(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_probability_of_detection, POD_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_pod_all_zeros(self):
+        """Ensures correct output from get_pod; input values are all zero."""
+
+        this_probability_of_detection = model_eval.get_pod(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_probability_of_detection))
+
     def test_get_fom(self):
-        """Ensures correct output from get_fom."""
+        """Ensures correct output from get_fom; input values are non-zero."""
 
         this_frequency_of_misses = model_eval.get_fom(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_frequency_of_misses, FOM_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_fom_all_zeros(self):
+        """Ensures correct output from get_fom; input values are all zero."""
+
+        this_frequency_of_misses = model_eval.get_fom(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_frequency_of_misses))
+
     def test_get_pofd(self):
-        """Ensures correct output from get_pofd."""
+        """Ensures correct output from get_pofd; input values are non-zero."""
 
         this_probability_of_false_detection = model_eval.get_pofd(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
@@ -183,40 +286,81 @@ class ModelEvaluationTests(unittest.TestCase):
             this_probability_of_false_detection, POFD_THRESHOLD_HALF,
             atol=TOLERANCE))
 
+    def test_get_pofd_all_zeros(self):
+        """Ensures correct output from get_pofd; input values are all zero."""
+
+        this_probability_of_false_detection = model_eval.get_pofd(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_probability_of_false_detection))
+
     def test_get_npv(self):
-        """Ensures correct output from get_npv."""
+        """Ensures correct output from get_npv; input values are non-zero."""
 
         this_negative_predictive_value = model_eval.get_npv(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_negative_predictive_value, NPV_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_npv_all_zeros(self):
+        """Ensures correct output from get_npv; input values are all zero."""
+
+        this_negative_predictive_value = model_eval.get_npv(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_negative_predictive_value))
+
     def test_get_success_ratio(self):
-        """Ensures correct output from get_success_ratio."""
+        """Ensures correct output from get_success_ratio.
+
+        In this case, input values are non-zero.
+        """
 
         this_success_ratio = model_eval.get_success_ratio(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_success_ratio, SUCCESS_RATIO_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_success_ratio_all_zeros(self):
+        """Ensures correct output from get_success_ratio.
+
+        In this case, input values are all zero.
+        """
+
+        this_success_ratio = model_eval.get_success_ratio(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_success_ratio))
+
     def test_get_far(self):
-        """Ensures correct output from get_far."""
+        """Ensures correct output from get_far; input values are non-zero."""
 
         this_false_alarm_rate = model_eval.get_far(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_false_alarm_rate, FAR_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_far_all_zeros(self):
+        """Ensures correct output from get_far; input values are all zero."""
+
+        this_false_alarm_rate = model_eval.get_far(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_false_alarm_rate))
+
     def test_get_dfr(self):
-        """Ensures correct output from get_dfr."""
+        """Ensures correct output from get_dfr; input values are non-zero."""
 
         this_detection_failure_ratio = model_eval.get_dfr(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_detection_failure_ratio, DFR_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_dfr_all_zeros(self):
+        """Ensures correct output from get_dfr; input values are all zero."""
+
+        this_detection_failure_ratio = model_eval.get_dfr(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_detection_failure_ratio))
+
     def test_get_focn(self):
-        """Ensures correct output from get_focn."""
+        """Ensures correct output from get_focn; input values are non-zero."""
 
         this_frequency_of_correct_nulls = model_eval.get_focn(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
@@ -224,29 +368,56 @@ class ModelEvaluationTests(unittest.TestCase):
             this_frequency_of_correct_nulls, FOCN_THRESHOLD_HALF,
             atol=TOLERANCE))
 
+    def test_get_focn_all_zeros(self):
+        """Ensures correct output from get_focn; input values are all zero."""
+
+        this_frequency_of_correct_nulls = model_eval.get_focn(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_frequency_of_correct_nulls))
+
     def test_get_accuracy(self):
-        """Ensures correct output from get_accuracy."""
+        """Ensures correctness of get_accuracy; input values are non-zero."""
 
         this_accuracy = model_eval.get_accuracy(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_accuracy, ACCURACY_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_accuracy_all_zeros(self):
+        """Ensures correctness of get_accuracy; input values are all zero."""
+
+        this_accuracy = model_eval.get_accuracy(CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_accuracy))
+
     def test_get_csi(self):
-        """Ensures correct output from get_csi."""
+        """Ensures correct output from get_csi; input values are non-zero."""
 
         this_critical_success_index = model_eval.get_csi(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_critical_success_index, CSI_THRESHOLD_HALF, atol=TOLERANCE))
 
+    def test_get_csi_all_zeros(self):
+        """Ensures correct output from get_csi; input values are all zero."""
+
+        this_critical_success_index = model_eval.get_csi(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_critical_success_index))
+
     def test_get_frequency_bias(self):
-        """Ensures correct output from get_frequency_bias."""
+        """Ensures crctness of get_frequency_bias; input values are non-zero."""
 
         this_frequency_bias = model_eval.get_frequency_bias(
             CONTINGENCY_TABLE_THRESHOLD_HALF)
         self.assertTrue(numpy.isclose(
             this_frequency_bias, FREQUENCY_BIAS_THRESHOLD_HALF, atol=TOLERANCE))
+
+    def test_get_frequency_bias_all_zeros(self):
+        """Ensures crctness of get_frequency_bias; input values are all zero."""
+
+        this_frequency_bias = model_eval.get_frequency_bias(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_frequency_bias))
 
     def test_get_points_in_roc_curve(self):
         """Ensures correct output from get_points_in_roc_curve."""
@@ -260,9 +431,9 @@ class ModelEvaluationTests(unittest.TestCase):
                 UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS))
 
         self.assertTrue(numpy.allclose(
-            these_pofd_by_threshold, POFD_BY_UNIQUE_THRESHOLD, atol=TOLERANCE))
+            these_pofd_by_threshold, POFD_BY_THRESHOLD, atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
-            these_pod_by_threshold, POD_BY_UNIQUE_THRESHOLD, atol=TOLERANCE))
+            these_pod_by_threshold, POD_BY_THRESHOLD, atol=TOLERANCE))
 
     def test_get_points_in_performance_diagram(self):
         """Ensures correct output from get_points_in_performance_diagram."""
@@ -276,10 +447,10 @@ class ModelEvaluationTests(unittest.TestCase):
                 UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS))
 
         self.assertTrue(numpy.allclose(
-            these_success_ratio_by_threshold, SUCCESS_RATIO_BY_UNIQUE_THRESHOLD,
-            atol=TOLERANCE))
+            these_success_ratio_by_threshold, SUCCESS_RATIO_BY_THRESHOLD,
+            atol=TOLERANCE, equal_nan=True))
         self.assertTrue(numpy.allclose(
-            these_pod_by_threshold, POD_BY_UNIQUE_THRESHOLD, atol=TOLERANCE))
+            these_pod_by_threshold, POD_BY_THRESHOLD, atol=TOLERANCE))
 
     def test_get_sr_pod_grid(self):
         """Ensures correct output from _get_sr_pod_grid."""
@@ -308,6 +479,29 @@ class ModelEvaluationTests(unittest.TestCase):
             SUCCESS_RATIO_MATRIX, POD_MATRIX)
         self.assertTrue(numpy.allclose(
             this_csi_matrix, CSI_MATRIX, atol=TOLERANCE))
+
+    def test_split_forecast_probs_into_bins(self):
+        """Ensures correct output from _split_forecast_probs_into_bins."""
+
+        these_bin_indices = model_eval._split_forecast_probs_into_bins(
+            FORECAST_PROBABILITIES, NUM_FORECAST_BINS)
+        self.assertTrue(numpy.array_equal(
+            these_bin_indices, BIN_INDEX_BY_FORECAST))
+
+    def test_get_points_in_reliability_curve(self):
+        """Ensures correct output from get_points_in_reliability_curve."""
+
+        these_mean_forecast_probs, these_mean_observed_labels = (
+            model_eval.get_points_in_reliability_curve(
+                FORECAST_PROBABILITIES, OBSERVED_LABELS,
+                num_forecast_bins=NUM_FORECAST_BINS))
+
+        self.assertTrue(numpy.allclose(
+            these_mean_forecast_probs, MEAN_FORECAST_PROB_BY_BIN,
+            atol=TOLERANCE, equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            these_mean_observed_labels, MEAN_OBSERVED_LABEL_BY_BIN,
+            atol=TOLERANCE, equal_nan=True))
 
     def test_get_no_skill_reliability_curve(self):
         """Ensures correct output from get_no_skill_reliability_curve."""

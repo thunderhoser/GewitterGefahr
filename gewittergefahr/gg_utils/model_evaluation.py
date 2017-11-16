@@ -22,11 +22,7 @@ from gewittergefahr.gg_utils import error_checking
 # create different modules for binary classification, multi-class
 # classification, and regression.
 
-# TODO(thunderhoser): When creating thresholds, need to ensure that ROC curve
-# and performance diagram will have corner points.
-
-# TODO(thunderhoser): Add plotting methods.  This will be done in the
-# `gewittergefahr.plotting` package.
+# TODO(thunderhoser): Add AUC, Brier skill score, and bootstrapping.
 
 TOLERANCE = 1e-6
 
@@ -34,6 +30,9 @@ NUM_TRUE_POSITIVES_KEY = 'num_true_positives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 NUM_TRUE_NEGATIVES_KEY = 'num_true_negatives'
+
+MIN_BINARIZATION_THRESHOLD = 0.
+MAX_BINARIZATION_THRESHOLD = 1. + TOLERANCE
 
 DEFAULT_NUM_BINS_FOR_RELIABILITY_CURVE = 10
 DEFAULT_PRECISION_FOR_THRESHOLDS = 1e-4
@@ -129,24 +128,55 @@ def _get_binarization_thresholds(
         error_checking.assert_is_geq(unique_forecast_precision, 0.)
         error_checking.assert_is_leq(unique_forecast_precision, 1.)
 
-        return numpy.unique(rounder.round_to_nearest(
+        binarization_thresholds = numpy.unique(rounder.round_to_nearest(
             copy.deepcopy(forecast_probabilities), unique_forecast_precision))
 
-    if isinstance(threshold_arg, numpy.ndarray):
+    elif isinstance(threshold_arg, numpy.ndarray):
         binarization_thresholds = copy.deepcopy(threshold_arg)
 
         error_checking.assert_is_numpy_array(
             binarization_thresholds, num_dimensions=1)
-        error_checking.assert_is_geq_numpy_array(binarization_thresholds, 0.)
-        error_checking.assert_is_leq_numpy_array(binarization_thresholds, 1.)
+        error_checking.assert_is_geq_numpy_array(
+            binarization_thresholds, MIN_BINARIZATION_THRESHOLD)
+        error_checking.assert_is_leq_numpy_array(
+            binarization_thresholds, MAX_BINARIZATION_THRESHOLD)
 
-        return binarization_thresholds
+    else:
+        num_thresholds = copy.deepcopy(threshold_arg)
+        error_checking.assert_is_integer(num_thresholds)
+        error_checking.assert_is_geq(num_thresholds, 2)
 
-    num_thresholds = copy.deepcopy(threshold_arg)
-    error_checking.assert_is_integer(num_thresholds)
-    error_checking.assert_is_geq(num_thresholds, 2)
+        binarization_thresholds = numpy.linspace(0., 1., num=num_thresholds)
 
-    return numpy.linspace(0., 1., num=num_thresholds)
+    return _pad_binarization_thresholds(binarization_thresholds)
+
+
+def _pad_binarization_thresholds(thresholds):
+    """Pads an array of binarization thresholds.
+
+    Specifically, this method ensures that the array contains 0 and a number
+        slightly greater than 1.  This ensures that:
+
+    [1] For the lowest threshold, POD = POFD = 1, which is the top-right corner
+        of the ROC curve.
+    [2] For the highest threshold, POD = POFD = 0, which is the bottom-left
+        corner of the ROC curve.
+
+    :param thresholds: 1-D numpy array of binarization thresholds.
+    :return: thresholds: 1-D numpy array of binarization thresholds (possibly
+        with new elements).
+    """
+
+    thresholds = numpy.sort(thresholds)
+    if thresholds[0] > MIN_BINARIZATION_THRESHOLD:
+        thresholds = numpy.concatenate((
+            numpy.array([MIN_BINARIZATION_THRESHOLD]), thresholds))
+
+    if thresholds[-1] < MAX_BINARIZATION_THRESHOLD:
+        thresholds = numpy.concatenate((
+            thresholds, numpy.array([MAX_BINARIZATION_THRESHOLD])))
+
+    return thresholds
 
 
 def _binarize_forecast_probs(forecast_probabilities, binarization_threshold):
@@ -168,8 +198,10 @@ def _binarize_forecast_probs(forecast_probabilities, binarization_threshold):
     error_checking.assert_is_geq_numpy_array(forecast_probabilities, 0.)
     error_checking.assert_is_leq_numpy_array(forecast_probabilities, 1.)
 
-    error_checking.assert_is_geq(binarization_threshold, 0.)
-    error_checking.assert_is_leq(binarization_threshold, 1.)
+    error_checking.assert_is_geq(
+        binarization_threshold, MIN_BINARIZATION_THRESHOLD)
+    error_checking.assert_is_leq(
+        binarization_threshold, MAX_BINARIZATION_THRESHOLD)
 
     forecast_labels = numpy.full(len(forecast_probabilities), False, dtype=bool)
     positive_label_indices = numpy.where(
@@ -218,6 +250,27 @@ def _get_sr_pod_grid(
         unique_success_ratios, unique_pod_values[::-1])
 
 
+def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
+    """Splits forecast probabilities into bins.
+
+    N = number of forecasts
+
+    :param forecast_probabilities: length-N numpy array of forecast
+        probabilities.
+    :param num_bins: Number of bins into which forecasts will be discretized.
+    :return: bin_index_by_forecast: length-N numpy array of indices.  If
+        bin_index_by_forecast[i] = j, the [i]th forecast belongs in the [j]th
+        bin.
+    """
+
+    error_checking.assert_is_integer(num_bins)
+    error_checking.assert_is_geq(num_bins, 2)
+
+    bin_cutoffs = numpy.linspace(0., 1., num=num_bins + 1)
+    bin_cutoffs[-1] = bin_cutoffs[-1] + TOLERANCE
+    return numpy.digitize(forecast_probabilities, bin_cutoffs, right=False) - 1
+
+
 def get_contingency_table(forecast_labels, observed_labels):
     """Computes contingency table.
 
@@ -260,9 +313,12 @@ def get_pod(contingency_table_as_dict):
     :return: probability_of_detection: POD.
     """
 
-    return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
-        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
+            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_fom(contingency_table_as_dict):
@@ -284,9 +340,12 @@ def get_pofd(contingency_table_as_dict):
     :return: probability_of_false_detection: POFD.
     """
 
-    return float(contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / (
-        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
-        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / (
+            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_npv(contingency_table_as_dict):
@@ -308,9 +367,12 @@ def get_success_ratio(contingency_table_as_dict):
     :return: success_ratio: Success ratio.
     """
 
-    return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
-        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
+            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_far(contingency_table_as_dict):
@@ -332,9 +394,12 @@ def get_dfr(contingency_table_as_dict):
     :return: detection_failure_ratio: DFR.
     """
 
-    return float(contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]) / (
-        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
-        contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY]) / (
+            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
+            contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_focn(contingency_table_as_dict):
@@ -356,12 +421,15 @@ def get_accuracy(contingency_table_as_dict):
     :return: accuracy: Accuracy.
     """
 
-    return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                 contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]) / (
-                     contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                     contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
-                     contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
-                     contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+                     contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY]) / (
+                         contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+                         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
+                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY] +
+                         contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_csi(contingency_table_as_dict):
@@ -372,10 +440,13 @@ def get_csi(contingency_table_as_dict):
     :return: critical_success_index: CSI.
     """
 
-    return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
-        contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-        contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
-        contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY]) / (
+            contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] +
+            contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_frequency_bias(contingency_table_as_dict):
@@ -386,10 +457,13 @@ def get_frequency_bias(contingency_table_as_dict):
     :return: frequency_bias: Frequency bias.
     """
 
-    return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                 contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / (
-                     contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
-                     contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    try:
+        return float(contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+                     contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY]) / (
+                         contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+    except ZeroDivisionError:
+        return numpy.nan
 
 
 def get_points_in_roc_curve(
@@ -555,18 +629,11 @@ def get_points_in_reliability_curve(
         labels (conditional event frequencies).
     """
 
-    # TODO(thunderhoser): split into 2 methods and add unit tests.
-
     _check_forecast_probs_and_observed_labels(
         forecast_probabilities, observed_labels)
 
-    error_checking.assert_is_integer(num_forecast_bins)
-    error_checking.assert_is_geq(num_forecast_bins, 2)
-
-    forecast_bin_cutoffs = numpy.linspace(0., 1., num=num_forecast_bins + 1)
-    forecast_bin_cutoffs[-1] = forecast_bin_cutoffs[-1] + TOLERANCE
-    bin_index_by_example = numpy.digitize(
-        forecast_probabilities, forecast_bin_cutoffs, right=False)
+    bin_index_by_example = _split_forecast_probs_into_bins(
+        forecast_probabilities, num_forecast_bins)
 
     mean_forecast_prob_by_bin = numpy.full(num_forecast_bins, numpy.nan)
     mean_observed_label_by_bin = numpy.full(num_forecast_bins, numpy.nan)
@@ -575,7 +642,7 @@ def get_points_in_reliability_curve(
         these_example_indices = numpy.where(bin_index_by_example == i)[0]
         mean_forecast_prob_by_bin[i] = numpy.mean(
             forecast_probabilities[these_example_indices])
-        mean_observed_label_by_bin = numpy.mean(
+        mean_observed_label_by_bin[i] = numpy.mean(
             observed_labels[these_example_indices].astype(float))
 
     return mean_forecast_prob_by_bin, mean_observed_label_by_bin
