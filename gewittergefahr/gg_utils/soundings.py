@@ -1199,6 +1199,7 @@ def get_sounding_indices_for_storm_objects(
     query_point_table.rename(columns=column_dict_old_to_new, inplace=True)
 
     if all_ruc_grids:
+        model_name = nwp_model_utils.RUC_MODEL_NAME
         interp_table = interp_soundings_from_ruc_all_grids(
             query_point_table, top_grib_directory_name=top_grib_directory_name,
             raise_error_if_missing=raise_error_if_missing)

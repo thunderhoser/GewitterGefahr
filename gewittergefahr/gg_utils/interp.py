@@ -179,7 +179,7 @@ def _get_wind_rotation_metadata(field_names_grib1, model_name):
     field_names_other_wind_component_grib1 = [None] * num_fields
     other_wind_component_index_by_field = numpy.full(num_fields, -1, dtype=int)
 
-    if model_name == nwp_model_utils.RAP_MODEL_NAME:
+    if model_name != nwp_model_utils.NARR_MODEL_NAME:
         for j in range(num_fields):
             rotate_wind_flags[j] = grib_io.is_wind_field(field_names_grib1[j])
             if not rotate_wind_flags[j]:
@@ -990,10 +990,12 @@ def interp_ruc_all_grids(
                         unique_x_by_grid_metres[this_grid_index],
                         sorted_grid_point_y_metres=
                         unique_y_by_grid_metres[this_grid_index],
-                        query_x_metres=query_point_table[QUERY_X_COLUMN].values[
-                            in_range_indices],
-                        query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
-                            in_range_indices],
+                        query_x_metres=
+                        query_point_table_by_grid[this_grid_index][
+                            QUERY_X_COLUMN].values[in_range_indices],
+                        query_y_metres=
+                        query_point_table_by_grid[this_grid_index][
+                            QUERY_Y_COLUMN].values[in_range_indices],
                         method_string=spatial_interp_method,
                         spline_degree=spline_degree))
 
@@ -1005,34 +1007,42 @@ def interp_ruc_all_grids(
                             unique_x_by_grid_metres[this_grid_index],
                             sorted_grid_point_y_metres=
                             unique_y_by_grid_metres[this_grid_index],
-                            query_x_metres=query_point_table[
+                            query_x_metres=
+                            query_point_table_by_grid[this_grid_index][
                                 QUERY_X_COLUMN].values[in_range_indices],
-                            query_y_metres=query_point_table[
+                            query_y_metres=
+                            query_point_table_by_grid[this_grid_index][
                                 QUERY_Y_COLUMN].values[in_range_indices],
                             method_string=spatial_interp_method,
                             spline_degree=spline_degree))
 
                     if grib_io.is_u_wind_field(field_names_grib1[j]):
+                        print 'Rotating wind vectors...'
                         (list_of_spatial_interp_arrays[t],
                          list_of_sinterp_arrays_other_wind_component[t]) = (
                              nwp_model_utils.rotate_winds(
                                  list_of_spatial_interp_arrays[t],
                                  list_of_sinterp_arrays_other_wind_component[t],
                                  rotation_angle_cosines=
-                                 rotation_cosine_by_query_point,
+                                 rotation_cosine_by_query_point[
+                                     in_range_indices],
                                  rotation_angle_sines=
-                                 rotation_sine_by_query_point))
+                                 rotation_sine_by_query_point[
+                                     in_range_indices]))
 
                     if grib_io.is_v_wind_field(field_names_grib1[j]):
+                        print 'Rotating wind vectors...'
                         (list_of_sinterp_arrays_other_wind_component[t],
                          list_of_spatial_interp_arrays[t]) = (
                              nwp_model_utils.rotate_winds(
                                  list_of_sinterp_arrays_other_wind_component[t],
                                  list_of_spatial_interp_arrays[t],
                                  rotation_angle_cosines=
-                                 rotation_cosine_by_query_point,
+                                 rotation_cosine_by_query_point[
+                                     in_range_indices],
                                  rotation_angle_sines=
-                                 rotation_sine_by_query_point))
+                                 rotation_sine_by_query_point[
+                                     in_range_indices]))
 
             spatial_interp_matrix_2d = _stack_1d_arrays_vertically(
                 [list_of_spatial_interp_arrays[t] for
