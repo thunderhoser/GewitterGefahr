@@ -9,6 +9,7 @@ from sharppy.sharptab import winds as sharppy_winds
 from sharppy.sharptab import interp as sharppy_interp
 from sharppy.sharptab import profile as sharppy_profile
 from sharppy.sharptab import utils as sharppy_utils
+from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
@@ -872,7 +873,10 @@ def read_metadata_for_sounding_indices():
 
 def interp_soundings_from_nwp(
         query_point_table, model_name=None, grid_id=None,
-        top_grib_directory_name=None, raise_error_if_missing=False):
+        top_grib_directory_name=None,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
     """Interpolates soundings from NWP model to query points.
 
     Each query point consists of (latitude, longitude, time).
@@ -883,6 +887,8 @@ def interp_soundings_from_nwp(
     :param grid_id: String ID for model grid.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for given model.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: See documentation for
         `interp.interp_nwp_from_xy_grid`.
     :return: interp_table: pandas DataFrame, where each column is one field and
@@ -900,16 +906,21 @@ def interp_soundings_from_nwp(
         top_grib_directory_name=top_grib_directory_name,
         temporal_interp_method=TEMPORAL_INTERP_METHOD,
         spatial_interp_method=SPATIAL_INTERP_METHOD,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
 
 
 def interp_soundings_from_ruc_all_grids(
         query_point_table, top_grib_directory_name=None,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
     """Interpolates RUC soundings from one or more grids to query points.
 
     :param query_point_table: See documentation for interp_soundings_from_nwp.
     :param top_grib_directory_name: See doc for interp_soundings_from_nwp.
+    :param wgrib_exe_name: See doc for interp_soundings_from_nwp.
+    :param wgrib2_exe_name: See doc for interp_soundings_from_nwp.
     :param raise_error_if_missing: See doc for interp_soundings_from_nwp.
     :return: interp_table: See doc for interp_soundings_from_nwp.
     """
@@ -924,6 +935,7 @@ def interp_soundings_from_ruc_all_grids(
         top_grib_directory_name=top_grib_directory_name,
         temporal_interp_method=TEMPORAL_INTERP_METHOD,
         spatial_interp_method=SPATIAL_INTERP_METHOD,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
 
 
@@ -1151,6 +1163,8 @@ def convert_sounding_indices_from_sharppy(sounding_index_table_sharppy,
 def get_sounding_indices_for_storm_objects(
         storm_object_table, lead_time_seconds=0, all_ruc_grids=False,
         model_name=None, grid_id=None, top_grib_directory_name=None,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
     """Computes sounding indices for each storm object.
 
@@ -1170,6 +1184,8 @@ def get_sounding_indices_for_storm_objects(
         leave this as None.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the given model.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: See documentation for
         interp_soundings_from_nwp.
     :return: storm_sounding_index_table: pandas DataFrame with 2 + K columns,
@@ -1202,11 +1218,13 @@ def get_sounding_indices_for_storm_objects(
         model_name = nwp_model_utils.RUC_MODEL_NAME
         interp_table = interp_soundings_from_ruc_all_grids(
             query_point_table, top_grib_directory_name=top_grib_directory_name,
+            wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
             raise_error_if_missing=raise_error_if_missing)
     else:
         interp_table = interp_soundings_from_nwp(
             query_point_table, model_name=model_name, grid_id=grid_id,
             top_grib_directory_name=top_grib_directory_name,
+            wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
             raise_error_if_missing=raise_error_if_missing)
 
     list_of_sounding_tables = interp_table_to_sharppy_sounding_tables(

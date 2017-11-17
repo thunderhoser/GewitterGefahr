@@ -209,6 +209,8 @@ def _read_nwp_for_interp(
         field_name_grib1=None, field_name_other_wind_component_grib1=None,
         list_of_model_grids=None, list_of_grids_other_wind_component=None,
         model_name=None, grid_id=None, top_grib_directory_name=None,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
     """Reads NWP data needed for interpolation to a range of query times.
 
@@ -229,6 +231,8 @@ def _read_nwp_for_interp(
     :param grid_id: String ID for model grid.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the given model.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: Boolean flag.  If True and any grib file is
         missing, this method will raise an error.
     :return: list_of_model_grids: Same as input, except that the [i]th element
@@ -283,7 +287,8 @@ def _read_nwp_for_interp(
                 lead_time_hours=0, model_name=model_name, grid_id=grid_id,
                 top_single_field_dir_name=top_grib_directory_name,
                 grib1_field_name=field_name_grib1,
-                delete_single_field_file=True,
+                delete_single_field_file=True, wgrib_exe_name=wgrib_exe_name,
+                wgrib2_exe_name=wgrib2_exe_name,
                 raise_error_if_fails=raise_error_if_missing))
 
         if list_of_model_grids[this_index] is None:
@@ -299,6 +304,8 @@ def _read_nwp_for_interp(
                     top_single_field_dir_name=top_grib_directory_name,
                     grib1_field_name=field_name_other_wind_component_grib1,
                     delete_single_field_file=True,
+                    wgrib_exe_name=wgrib_exe_name,
+                    wgrib2_exe_name=wgrib2_exe_name,
                     raise_error_if_fails=raise_error_if_missing))
 
             if list_of_grids_other_wind_component[this_index] is None:
@@ -317,7 +324,10 @@ def _read_ruc_for_interp(
         init_times_unix_sec=None, query_to_model_times_row=None,
         field_name_grib1=None, field_name_other_wind_component_grib1=None,
         list_of_model_grids=None, list_of_grids_other_wind_component=None,
-        top_grib_directory_name=None, raise_error_if_missing=False):
+        top_grib_directory_name=None,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
     """Reads RUC data needed for interpolation to a range of query times.
 
     T = number of model-initialization times
@@ -330,6 +340,8 @@ def _read_ruc_for_interp(
     :param list_of_model_grids: See doc for _read_nwp_for_interp.
     :param list_of_grids_other_wind_component: See doc for _read_nwp_for_interp.
     :param top_grib_directory_name: See doc for _read_nwp_for_interp.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: See doc for _read_nwp_for_interp.
     :return: list_of_model_grids: See doc for _read_nwp_for_interp.
     :return: list_of_grids_other_wind_component: See doc for
@@ -356,6 +368,7 @@ def _read_ruc_for_interp(
              list_of_grids_other_wind_component,
              model_name=nwp_model_utils.RUC_MODEL_NAME, grid_id=ruc_grid_ids[i],
              top_grib_directory_name=top_grib_directory_name,
+             wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
              raise_error_if_missing=this_raise_error_flag)
 
         if missing_data_flag:
@@ -650,7 +663,10 @@ def interp_nwp_from_xy_grid(
         field_names_grib1=None, top_grib_directory_name=None,
         temporal_interp_method=PREVIOUS_INTERP_METHOD,
         spatial_interp_method=NEAREST_INTERP_METHOD,
-        spline_degree=DEFAULT_SPLINE_DEGREE, raise_error_if_missing=False):
+        spline_degree=DEFAULT_SPLINE_DEGREE,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
     """Interpolates NWP data from x-y grid in both space and time.
 
     Each query point consists of (latitude, longitude, time).  Before
@@ -674,6 +690,8 @@ def interp_nwp_from_xy_grid(
     :param spatial_interp_method: See documentation for
         interp_from_xy_grid_to_points.
     :param spline_degree: See documentation for interp_from_xy_grid_to_points.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: Boolean flag.  If True, will raise error if
         any data needed for interp are missing.  If False and data needed for
         interp are missing, will skip affected entries in interp_table and leave
@@ -749,6 +767,7 @@ def interp_nwp_from_xy_grid(
                  list_of_2d_grids_other_wind_component,
                  model_name=model_name, grid_id=grid_id,
                  top_grib_directory_name=top_grib_directory_name,
+                 wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
                  raise_error_if_missing=raise_error_if_missing)
 
             if missing_data_flag:
@@ -865,7 +884,10 @@ def interp_ruc_all_grids(
         top_grib_directory_name=None,
         temporal_interp_method=PREVIOUS_INTERP_METHOD,
         spatial_interp_method=NEAREST_INTERP_METHOD,
-        spline_degree=DEFAULT_SPLINE_DEGREE, raise_error_if_missing=False):
+        spline_degree=DEFAULT_SPLINE_DEGREE,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
     """Interpolates RUC data from one or more grids in both space and time.
 
     :param query_point_table: See documentation for interp_nwp_from_xy_grid.
@@ -875,6 +897,8 @@ def interp_ruc_all_grids(
     :param temporal_interp_method: See doc for interp_nwp_from_xy_grid.
     :param spatial_interp_method: See doc for interp_nwp_from_xy_grid.
     :param spline_degree: See doc for interp_nwp_from_xy_grid.
+    :param wgrib_exe_name: See doc for interp_nwp_from_xy_grid.
+    :param wgrib2_exe_name: See doc for interp_nwp_from_xy_grid.
     :param raise_error_if_missing: See doc for interp_nwp_from_xy_grid.
     :return: interp_table: See doc for interp_nwp_from_xy_grid.
     """
@@ -965,6 +989,7 @@ def interp_ruc_all_grids(
                  list_of_grids_other_wind_component=
                  list_of_2d_grids_other_wind_component,
                  top_grib_directory_name=top_grib_directory_name,
+                 wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
                  raise_error_if_missing=raise_error_if_missing)
 
             if missing_data_flag:
