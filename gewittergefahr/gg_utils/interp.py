@@ -800,7 +800,7 @@ def interp_nwp_from_xy_grid(
                         query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
                             in_range_indices],
                         method_string=spatial_interp_method,
-                        spline_degree=spline_degree))
+                        spline_degree=spline_degree, allow_extrap=True))
 
                 if rotate_wind_flags[j]:
                     list_of_sinterp_arrays_other_wind_component[t] = (
@@ -813,7 +813,7 @@ def interp_nwp_from_xy_grid(
                             query_y_metres=query_point_table[
                                 QUERY_Y_COLUMN].values[in_range_indices],
                             method_string=spatial_interp_method,
-                            spline_degree=spline_degree))
+                            spline_degree=spline_degree, allow_extrap=True))
 
                     if grib_io.is_u_wind_field(field_names_grib1[j]):
                         (list_of_spatial_interp_arrays[t],
@@ -1030,7 +1030,7 @@ def interp_ruc_all_grids(
                         query_point_table_by_grid[this_grid_index][
                             QUERY_Y_COLUMN].values[in_range_indices],
                         method_string=spatial_interp_method,
-                        spline_degree=spline_degree))
+                        spline_degree=spline_degree, allow_extrap=True))
 
                 if rotate_wind_flags[j]:
                     list_of_sinterp_arrays_other_wind_component[t] = (
@@ -1047,7 +1047,7 @@ def interp_ruc_all_grids(
                             query_point_table_by_grid[this_grid_index][
                                 QUERY_Y_COLUMN].values[in_range_indices],
                             method_string=spatial_interp_method,
-                            spline_degree=spline_degree))
+                            spline_degree=spline_degree, allow_extrap=True))
 
                     if grib_io.is_u_wind_field(field_names_grib1[j]):
                         print 'Rotating wind vectors...'
