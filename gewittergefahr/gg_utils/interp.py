@@ -125,15 +125,6 @@ def _nn_interp_from_xy_grid_to_points(input_matrix,
     :return: interp_values: See documentation for interp_from_xy_grid_to_points.
     """
 
-    error_checking.assert_is_geq_numpy_array(
-        query_x_metres, numpy.min(sorted_grid_point_x_metres))
-    error_checking.assert_is_leq_numpy_array(
-        query_x_metres, numpy.max(sorted_grid_point_x_metres))
-    error_checking.assert_is_geq_numpy_array(
-        query_y_metres, numpy.min(sorted_grid_point_y_metres))
-    error_checking.assert_is_leq_numpy_array(
-        query_y_metres, numpy.max(sorted_grid_point_y_metres))
-
     num_query_points = len(query_x_metres)
     interp_values = numpy.full(num_query_points, numpy.nan)
 
@@ -486,11 +477,11 @@ def interp_in_time(input_matrix, sorted_input_times_unix_sec=None,
     return interp_object(query_times_unix_sec)
 
 
-def interp_from_xy_grid_to_points(input_matrix, sorted_grid_point_x_metres=None,
-                                  sorted_grid_point_y_metres=None,
-                                  query_x_metres=None, query_y_metres=None,
-                                  method_string=NEAREST_INTERP_METHOD,
-                                  spline_degree=DEFAULT_SPLINE_DEGREE):
+def interp_from_xy_grid_to_points(
+        input_matrix, sorted_grid_point_x_metres=None,
+        sorted_grid_point_y_metres=None, query_x_metres=None,
+        query_y_metres=None, method_string=NEAREST_INTERP_METHOD,
+        spline_degree=DEFAULT_SPLINE_DEGREE, allow_extrap=False):
     """Interpolates data from x-y grid to scattered points.
 
     M = number of rows (unique y-coordinates of grid points)
@@ -507,6 +498,12 @@ def interp_from_xy_grid_to_points(input_matrix, sorted_grid_point_x_metres=None,
     :param method_string: Interp method (either "nearest" or "spline").
     :param spline_degree: Polynomial degree for spline interpolation (1 for
         linear, 2 for quadratic, 3 for cubic).
+    :param allow_extrap: Boolean flag.  If True, this method may extrapolate
+        outside the domain of the original data.  If False, this method may
+        *not* extrapolate.  If False and (query_x_metres includes a point
+        outside the range of sorted_grid_point_x_metres OR query_y_metres
+        includes a point outside the range of sorted_grid_point_y_metres), this
+        method will raise an error.
     :return: interp_values: length-Q numpy array of interpolated values from
         input_matrix.
     :raises: ValueError: if method_string is neither "nearest" nor "spline".
@@ -534,6 +531,17 @@ def interp_from_xy_grid_to_points(input_matrix, sorted_grid_point_x_metres=None,
     error_checking.assert_is_numpy_array_without_nan(query_y_metres)
     error_checking.assert_is_numpy_array(
         query_y_metres, exact_dimensions=numpy.array([num_query_points]))
+
+    error_checking.assert_is_boolean(allow_extrap)
+    if not allow_extrap:
+        error_checking.assert_is_geq_numpy_array(
+            query_x_metres, numpy.min(sorted_grid_point_x_metres))
+        error_checking.assert_is_leq_numpy_array(
+            query_x_metres, numpy.max(sorted_grid_point_x_metres))
+        error_checking.assert_is_geq_numpy_array(
+            query_y_metres, numpy.min(sorted_grid_point_y_metres))
+        error_checking.assert_is_leq_numpy_array(
+            query_y_metres, numpy.max(sorted_grid_point_y_metres))
 
     check_spatial_interp_method(method_string)
     if method_string == NEAREST_INTERP_METHOD:

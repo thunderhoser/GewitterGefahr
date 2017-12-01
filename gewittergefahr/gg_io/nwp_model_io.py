@@ -1,6 +1,7 @@
 """IO methods for NWP (numerical weather prediction) data."""
 
 import os
+import tempfile
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -391,12 +392,17 @@ def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
         field).  If delete_single_field_file = True, this will be None.
     """
 
-    single_field_file_name = find_single_field_file(
-        init_time_unix_sec, lead_time_hours=lead_time_hours,
-        model_name=model_name, grid_id=grid_id,
-        grib1_field_name=grib1_field_name,
-        top_directory_name=top_single_field_dir_name,
-        raise_error_if_missing=False)
+    error_checking.assert_is_boolean(delete_single_field_file)
+    if delete_single_field_file:
+        single_field_file_object = tempfile.NamedTemporaryFile(delete=False)
+        single_field_file_name = single_field_file_object.name
+    else:
+        single_field_file_name = find_single_field_file(
+            init_time_unix_sec, lead_time_hours=lead_time_hours,
+            model_name=model_name, grid_id=grid_id,
+            grib1_field_name=grib1_field_name,
+            top_directory_name=top_single_field_dir_name,
+            raise_error_if_missing=False)
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
         model_name, grid_id)

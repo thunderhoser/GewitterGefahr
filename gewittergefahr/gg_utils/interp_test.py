@@ -74,9 +74,9 @@ INPUT_MATRIX_FOR_SPATIAL_INTERP = numpy.array([[17., 24., 1., 8.],
 SPLINE_DEGREE = 1  # linear
 GRID_POINT_X_METRES = numpy.array([0., 1., 2., 3.])
 GRID_POINT_Y_METRES = numpy.array([0., 2., 4., 6., 8.])
-QUERY_X_FOR_SPLINE_METRES = numpy.array([0., 0.5, 1., 1.5, 2., 2.5, 3.])
-QUERY_Y_FOR_SPLINE_METRES = numpy.array([0., 2., 2.5, 3., 5., 6., 7.5])
-EXPECTED_QUERY_VALUES_FOR_SPLINE = numpy.array(
+QUERY_X_FOR_SPLINE_INTERP_METRES = numpy.array([0., 0.5, 1., 1.5, 2., 2.5, 3.])
+QUERY_Y_FOR_SPLINE_INTERP_METRES = numpy.array([0., 2., 2.5, 3., 5., 6., 7.5])
+QUERY_VALUES_FOR_SPLINE_INTERP = numpy.array(
     [17., 14., 5.25, 7.75, 16., 20., 6.75])
 
 QUERY_X_FOR_NEAREST_NEIGH_METRES = numpy.array(
@@ -85,6 +85,10 @@ QUERY_Y_FOR_NEAREST_NEIGH_METRES = numpy.array(
     [0.5, 1.5, 2.5, 4., 5.5, 6.5, 7.7])
 EXPECTED_QUERY_VALUES_FOR_NEAREST_NEIGH = numpy.array(
     [17., 23., 5., 6., 19., 19., 2])
+
+QUERY_X_FOR_EXTRAP_METRES = numpy.array([-1., 4.])
+QUERY_Y_FOR_EXTRAP_METRES = numpy.array([-2., 10.])
+QUERY_VALUES_FOR_EXTRAP = numpy.array([17., 2.])
 
 
 class InterpTests(unittest.TestCase):
@@ -222,29 +226,47 @@ class InterpTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_query_matrix, EXPECTED_MATRIX_FOR_NEXT_INTERP, atol=TOLERANCE))
 
-    def test_interp_from_xy_grid_to_points_spline(self):
+    def test_interp_from_xy_grid_to_points_spline_interp(self):
         """Ensures correct output from interp_from_xy_grid_to_points.
 
-        In this case the interp method is linear spline.
+        In this case, doing interpolation with linear spline.
         """
 
         these_query_values = interp.interp_from_xy_grid_to_points(
             INPUT_MATRIX_FOR_SPATIAL_INTERP,
             sorted_grid_point_x_metres=GRID_POINT_X_METRES,
             sorted_grid_point_y_metres=GRID_POINT_Y_METRES,
-            query_x_metres=QUERY_X_FOR_SPLINE_METRES,
-            query_y_metres=QUERY_Y_FOR_SPLINE_METRES,
+            query_x_metres=QUERY_X_FOR_SPLINE_INTERP_METRES,
+            query_y_metres=QUERY_Y_FOR_SPLINE_INTERP_METRES,
             method_string=interp.SPLINE_INTERP_METHOD,
             spline_degree=SPLINE_DEGREE)
 
         self.assertTrue(numpy.allclose(
-            these_query_values, EXPECTED_QUERY_VALUES_FOR_SPLINE,
+            these_query_values, QUERY_VALUES_FOR_SPLINE_INTERP,
             atol=TOLERANCE))
+
+    def test_interp_from_xy_grid_to_points_spline_extrap(self):
+        """Ensures correct output from interp_from_xy_grid_to_points.
+
+        In this case, doing extrapolation with linear spline.
+        """
+
+        these_query_values = interp.interp_from_xy_grid_to_points(
+            INPUT_MATRIX_FOR_SPATIAL_INTERP,
+            sorted_grid_point_x_metres=GRID_POINT_X_METRES,
+            sorted_grid_point_y_metres=GRID_POINT_Y_METRES,
+            query_x_metres=QUERY_X_FOR_EXTRAP_METRES,
+            query_y_metres=QUERY_Y_FOR_EXTRAP_METRES,
+            method_string=interp.SPLINE_INTERP_METHOD,
+            spline_degree=SPLINE_DEGREE, allow_extrap=True)
+
+        self.assertTrue(numpy.allclose(
+            these_query_values, QUERY_VALUES_FOR_EXTRAP, atol=TOLERANCE))
 
     def test_interp_from_xy_grid_to_points_nearest(self):
         """Ensures correct output from interp_from_xy_grid_to_points.
 
-        In this case the interp method is nearest-neighbour.
+        In this case, doing interpolation with nearest-neighbour method.
         """
 
         these_query_values = interp.interp_from_xy_grid_to_points(
@@ -258,6 +280,23 @@ class InterpTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             these_query_values, EXPECTED_QUERY_VALUES_FOR_NEAREST_NEIGH,
             atol=TOLERANCE))
+
+    def test_interp_from_xy_grid_to_points_nn_extrap(self):
+        """Ensures correct output from interp_from_xy_grid_to_points.
+
+        In this case, doing extrapolation with nearest-neighbour method.
+        """
+
+        these_query_values = interp.interp_from_xy_grid_to_points(
+            INPUT_MATRIX_FOR_SPATIAL_INTERP,
+            sorted_grid_point_x_metres=GRID_POINT_X_METRES,
+            sorted_grid_point_y_metres=GRID_POINT_Y_METRES,
+            query_x_metres=QUERY_X_FOR_EXTRAP_METRES,
+            query_y_metres=QUERY_Y_FOR_EXTRAP_METRES,
+            method_string=interp.NEAREST_INTERP_METHOD, allow_extrap=True)
+
+        self.assertTrue(numpy.allclose(
+            these_query_values, QUERY_VALUES_FOR_EXTRAP, atol=TOLERANCE))
 
 
 if __name__ == '__main__':
