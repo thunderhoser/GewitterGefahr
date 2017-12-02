@@ -47,6 +47,9 @@ RADAR_FIELD_NAMES_ORIG = [
 
 ZERO_TIME_UNIX_SEC = 978307200  # 0000 UTC 1 Jan 2001
 
+# TODO(thunderhoser): merge this file with radar_io.py (which reads MYRORSS and
+# MRMS data).
+
 
 def _check_field_name(field_name):
     """Ensures that name of radar field is valid.
