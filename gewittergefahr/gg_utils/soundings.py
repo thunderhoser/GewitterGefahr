@@ -1032,8 +1032,13 @@ def get_sounding_indices_from_sharppy(
     error_checking.assert_is_not_nan(eastward_motion_m_s01)
     error_checking.assert_is_not_nan(northward_motion_m_s01)
 
-    sounding_table = _remove_subsurface_sounding_data(
-        sounding_table, delete_rows=False)
+    try:
+        sounding_table = _remove_subsurface_sounding_data(
+            sounding_table, delete_rows=False)
+    except:
+        print sounding_table
+        raise
+
     sounding_table = _sort_sounding_by_height(sounding_table)
     sounding_table = _remove_redundant_sounding_data(sounding_table)
 
@@ -1048,8 +1053,17 @@ def get_sounding_indices_from_sharppy(
             v=sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
 
     except:
+
+        # TODO(thunderhoser): get rid of these log messages.
+        print '\n\n'
+        print sounding_table
+        print '\n\n'
         sounding_table = _remove_subsurface_sounding_data(
             sounding_table, delete_rows=True)
+
+        print '\n\n'
+        print sounding_table
+        print '\n\n'
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
