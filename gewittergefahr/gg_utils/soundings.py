@@ -309,11 +309,14 @@ def _remove_subsurface_sounding_data(sounding_table, delete_rows=None):
             sentinel value.
     """
 
-    surface_row = numpy.where(
-        sounding_table[IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values)[0][0]
+    surface_flags = sounding_table[IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
+    if not numpy.any(surface_flags):
+        return sounding_table
 
+    surface_row = numpy.where(surface_flags)[0][0]
     surface_height_m_asl = sounding_table[
         HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[surface_row]
+
     subsurface_flags = (sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
                         surface_height_m_asl)
     subsurface_rows = numpy.where(subsurface_flags)[0]
@@ -359,42 +362,60 @@ def _sort_sounding_by_height(sounding_table):
 
 
 def _remove_redundant_sounding_data(sorted_sounding_table):
-    """If surface is very close to first level above, removes surface data.
+    """If surface is very close to an adjacent level, removes adjacent level.
 
     :param sorted_sounding_table: See documentation for
         _sort_sounding_by_height.
-    :return: sorted_sounding_table: Same as input, except that, if redundant,
-        surface temperature/dewpoint/u-wind/v-wind have been changed to sentinel
-        value.
+    :return: sorted_sounding_table: Same as input, except maybe with fewer rows.
     """
 
-    surface_row = numpy.where(
-        sorted_sounding_table[IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values)[0][0]
-
-    height_diff_metres = (
-        sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
-            surface_row + 1] -
-        sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
-            surface_row])
-    pressure_diff_mb = numpy.absolute(
-        sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-            surface_row + 1] -
-        sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-            surface_row])
-
-    if (height_diff_metres >= REDUNDANT_HEIGHT_TOLERANCE_METRES and
-            pressure_diff_mb >= REDUNDANT_PRESSURE_TOLERANCE_MB):
+    surface_flags = sorted_sounding_table[
+        IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
+    if not numpy.any(surface_flags):
         return sorted_sounding_table
 
-    sorted_sounding_table[TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values[
-        surface_row] = SENTINEL_VALUE_FOR_SHARPPY
-    sorted_sounding_table[DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values[
-        surface_row] = SENTINEL_VALUE_FOR_SHARPPY
-    sorted_sounding_table[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
-        surface_row] = SENTINEL_VALUE_FOR_SHARPPY
-    sorted_sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
-        surface_row] = SENTINEL_VALUE_FOR_SHARPPY
-    return sorted_sounding_table
+    surface_row = numpy.where(surface_flags)[0][0]
+    bad_rows = []
+
+    if surface_row != len(surface_flags) - 1:
+        height_diff_metres = numpy.absolute(
+            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row + 1] -
+            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row])
+        pressure_diff_mb = numpy.absolute(
+            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row + 1] -
+            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row])
+
+        if (height_diff_metres < REDUNDANT_HEIGHT_TOLERANCE_METRES or
+                pressure_diff_mb < REDUNDANT_PRESSURE_TOLERANCE_MB):
+            bad_rows.append(surface_row + 1)
+
+    if surface_row != 0:
+        height_diff_metres = numpy.absolute(
+            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row - 1] -
+            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row])
+        pressure_diff_mb = numpy.absolute(
+            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row - 1] -
+            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                surface_row])
+
+        if (height_diff_metres < REDUNDANT_HEIGHT_TOLERANCE_METRES or
+                pressure_diff_mb < REDUNDANT_PRESSURE_TOLERANCE_MB):
+            bad_rows.append(surface_row - 1)
+
+    if not bad_rows:
+        return sorted_sounding_table
+
+    bad_rows = numpy.array(bad_rows, dtype=int)
+    return sorted_sounding_table.drop(
+        sorted_sounding_table.index[bad_rows], axis=0,
+        inplace=False).reset_index(drop=True)
 
 
 def _adjust_srw_for_storm_motion(profile_object, eastward_motion_kt=None,
@@ -1032,13 +1053,8 @@ def get_sounding_indices_from_sharppy(
     error_checking.assert_is_not_nan(eastward_motion_m_s01)
     error_checking.assert_is_not_nan(northward_motion_m_s01)
 
-    try:
-        sounding_table = _remove_subsurface_sounding_data(
-            sounding_table, delete_rows=False)
-    except:
-        print sounding_table
-        raise
-
+    sounding_table = _remove_subsurface_sounding_data(
+        sounding_table, delete_rows=False)
     sounding_table = _sort_sounding_by_height(sounding_table)
     sounding_table = _remove_redundant_sounding_data(sounding_table)
 
@@ -1053,17 +1069,8 @@ def get_sounding_indices_from_sharppy(
             v=sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
 
     except:
-
-        # TODO(thunderhoser): get rid of these log messages.
-        print '\n\n'
-        print sounding_table
-        print '\n\n'
         sounding_table = _remove_subsurface_sounding_data(
             sounding_table, delete_rows=True)
-
-        print '\n\n'
-        print sounding_table
-        print '\n\n'
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
