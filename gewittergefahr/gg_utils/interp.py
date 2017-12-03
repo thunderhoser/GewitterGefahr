@@ -369,16 +369,17 @@ def _read_ruc_for_interp(
             missing_data_flag)
 
 
-def _stack_1d_arrays_vertically(list_of_1d_arrays):
-    """Stacks 1-D numpy arrays vertically.
+def _stack_1d_arrays_horizontally(list_of_1d_arrays):
+    """Stacks 1-D numpy arrays horizontally.
 
-    The result is a 2-D matrix, where each row is one of the initial 1-D arrays.
+    The result is a 2-D matrix, where each column is one of the initial 1-D
+    arrays.
 
     :param list_of_1d_arrays: 1-D list of 1-D numpy arrays.
     :return: matrix_2d: Resulting matrix.
     """
 
-    return numpy.vstack(tuple(list_of_1d_arrays))
+    return numpy.stack(tuple(list_of_1d_arrays), axis=-1)
 
 
 def check_temporal_interp_method(temporal_interp_method):
@@ -837,13 +838,13 @@ def interp_nwp_from_xy_grid(
                                  rotation_angle_sines=
                                  rotation_sine_by_query_point))
 
-            spatial_interp_matrix_2d = _stack_1d_arrays_vertically(
+            spatial_interp_matrix_2d = _stack_1d_arrays_horizontally(
                 [list_of_spatial_interp_arrays[t] for
                  t in init_time_needed_indices])
 
             if rotate_wind_flags[j]:
                 sinterp_matrix_2d_other_wind_component = (
-                    _stack_1d_arrays_vertically(
+                    _stack_1d_arrays_horizontally(
                         [list_of_sinterp_arrays_other_wind_component[t] for
                          t in init_time_needed_indices]))
 
@@ -859,7 +860,7 @@ def interp_nwp_from_xy_grid(
                     these_query_indices_in_range]
 
                 these_interp_values = interp_in_time(
-                    spatial_interp_matrix_2d[:, these_query_indices_in_range],
+                    spatial_interp_matrix_2d[these_query_indices_in_range, :],
                     sorted_input_times_unix_sec=
                     init_times_unix_sec[init_time_needed_indices],
                     query_times_unix_sec=these_unique_query_times_unix_sec[[k]],
@@ -870,7 +871,7 @@ def interp_nwp_from_xy_grid(
                 if other_wind_component_index_by_field[j] != -1:
                     these_interp_values_other_wind_component = interp_in_time(
                         sinterp_matrix_2d_other_wind_component[
-                            :, these_query_indices_in_range],
+                            these_query_indices_in_range, :],
                         sorted_input_times_unix_sec=
                         init_times_unix_sec[init_time_needed_indices],
                         query_times_unix_sec=
@@ -883,6 +884,10 @@ def interp_nwp_from_xy_grid(
                     interp_table[this_field_name].values[
                         these_query_indices_overall] = (
                             these_interp_values_other_wind_component[:, 0])
+
+        interp_done_by_field[j] = True
+        if other_wind_component_index_by_field[j] != -1:
+            interp_done_by_field[other_wind_component_index_by_field[j]] = True
 
     return interp_table
 
@@ -1077,13 +1082,13 @@ def interp_ruc_all_grids(
                                  rotation_sine_by_query_point[
                                      in_range_indices]))
 
-            spatial_interp_matrix_2d = _stack_1d_arrays_vertically(
+            spatial_interp_matrix_2d = _stack_1d_arrays_horizontally(
                 [list_of_spatial_interp_arrays[t] for
                  t in init_time_needed_indices])
 
             if rotate_wind_flags[j]:
                 sinterp_matrix_2d_other_wind_component = (
-                    _stack_1d_arrays_vertically(
+                    _stack_1d_arrays_horizontally(
                         [list_of_sinterp_arrays_other_wind_component[t] for
                          t in init_time_needed_indices]))
 
@@ -1099,7 +1104,7 @@ def interp_ruc_all_grids(
                     these_query_indices_in_range]
 
                 these_interp_values = interp_in_time(
-                    spatial_interp_matrix_2d[:, these_query_indices_in_range],
+                    spatial_interp_matrix_2d[these_query_indices_in_range, :],
                     sorted_input_times_unix_sec=
                     init_times_unix_sec[init_time_needed_indices],
                     query_times_unix_sec=these_unique_query_times_unix_sec[[k]],
@@ -1110,7 +1115,7 @@ def interp_ruc_all_grids(
                 if other_wind_component_index_by_field[j] != -1:
                     these_interp_values_other_wind_component = interp_in_time(
                         sinterp_matrix_2d_other_wind_component[
-                            :, these_query_indices_in_range],
+                            these_query_indices_in_range, :],
                         sorted_input_times_unix_sec=
                         init_times_unix_sec[init_time_needed_indices],
                         query_times_unix_sec=
@@ -1123,5 +1128,9 @@ def interp_ruc_all_grids(
                     interp_table[this_field_name].values[
                         these_query_indices_overall] = (
                             these_interp_values_other_wind_component[:, 0])
+
+        interp_done_by_field[j] = True
+        if other_wind_component_index_by_field[j] != -1:
+            interp_done_by_field[other_wind_component_index_by_field[j]] = True
 
     return interp_table
