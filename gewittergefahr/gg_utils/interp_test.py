@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import interp
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test _stack_1d_arrays_horizontally.
 LIST_OF_1D_ARRAYS = [numpy.array([1., 2., 3]),
                      numpy.array([0., 5., 10.]),
                      numpy.array([6., 6., 6.])]
@@ -15,6 +16,19 @@ MATRIX_FIRST_2ARRAYS = numpy.transpose(
     numpy.array([[1., 2., 3.], [0., 5., 10.]]))
 MATRIX_FIRST_3ARRAYS = numpy.transpose(
     numpy.array([[1., 2., 3.], [0., 5., 10.], [6., 6., 6.]]))
+
+# The following constants are used to test _find_heights_with_temperature.
+TARGET_TEMPERATURE_KELVINS = 10.
+WARM_TEMPERATURES_KELVINS = numpy.array(
+    [10., 10., 10., 11., 11., 11., 12., 12., 12., numpy.nan, numpy.nan, 12.])
+COLD_TEMPERATURES_KELVINS = numpy.array(
+    [8., 9., 10., 8., 9., 10., 8., 9., 10., numpy.nan, 8., numpy.nan])
+WARM_HEIGHTS_M_ASL = numpy.full(9, 2000.)
+COLD_HEIGHTS_M_ASL = numpy.full(9, 2500.)
+
+TARGET_HEIGHTS_M_ASL = numpy.array(
+    [2000., 2000., numpy.nan, 2166.666667, 2250., 2500., 2250., 2333.333333,
+     2500., numpy.nan, numpy.nan, numpy.nan])
 
 # The following constants are used to test interp_in_time.
 INPUT_MATRIX_TIME0 = numpy.array([[0., 2., 5., 10.],
@@ -134,6 +148,20 @@ class InterpTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_matrix, MATRIX_FIRST_3ARRAYS, atol=TOLERANCE))
+
+    def test_find_heights_with_temperature(self):
+        """Ensures correct output from _find_heights_with_temperature."""
+
+        these_heights_m_asl = interp._find_heights_with_temperature(
+            warm_temperatures_kelvins=WARM_TEMPERATURES_KELVINS,
+            cold_temperatures_kelvins=COLD_TEMPERATURES_KELVINS,
+            warm_heights_m_asl=WARM_HEIGHTS_M_ASL,
+            cold_heights_m_asl=COLD_HEIGHTS_M_ASL,
+            target_temperature_kelvins=TARGET_TEMPERATURE_KELVINS)
+
+        self.assertTrue(numpy.allclose(
+            these_heights_m_asl, TARGET_HEIGHTS_M_ASL, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_check_temporal_interp_method_good(self):
         """Ensures correct output from check_temporal_interp_method.

@@ -14,6 +14,11 @@ from gewittergefahr.gg_utils import error_checking
 
 VERY_LARGE_INTEGER = int(1e10)
 
+HEIGHT_NAME = 'geopotential_height_metres'
+HEIGHT_NAME_GRIB1 = 'HGT'
+TEMPERATURE_NAME = 'temperature_kelvins'
+TEMPERATURE_NAME_GRIB1 = 'TMP'
+
 NEAREST_INTERP_METHOD = 'nearest'
 SPLINE_INTERP_METHOD = 'spline'
 SPATIAL_INTERP_METHODS = [NEAREST_INTERP_METHOD, SPLINE_INTERP_METHOD]
@@ -667,6 +672,55 @@ def _prep_to_interp_nwp_from_xy_grid(
     return query_point_table, interp_table, metadata_dict
 
 
+def _find_heights_with_temperature(
+        warm_temperatures_kelvins=None, cold_temperatures_kelvins=None,
+        warm_heights_m_asl=None, cold_heights_m_asl=None,
+        target_temperature_kelvins=None):
+    """At each horizontal point, finds height with a given temperature.
+
+    N = number of horizontal points
+
+    :param warm_temperatures_kelvins: length-N numpy array of temperatures on
+        warm side.
+    :param cold_temperatures_kelvins: length-N numpy array of temperatures on
+        cold side.
+    :param warm_heights_m_asl: length-N numpy array of heights (metres above sea
+        level) on warm side.
+    :param cold_heights_m_asl: length-N numpy array of heights (metres above sea
+        level) on cold side.
+    :param target_temperature_kelvins: Target temperature (will find
+        corresponding heights).
+    :return: target_heights_m_asl: length-N numpy array of heights (metres above
+        sea level) with target temperature.
+    """
+
+    bad_point_flags = numpy.logical_or(
+        numpy.isnan(warm_temperatures_kelvins),
+        numpy.isnan(cold_temperatures_kelvins))
+
+    num_points = len(warm_temperatures_kelvins)
+    target_heights_m_asl = numpy.full(num_points, numpy.nan)
+
+    if not numpy.all(bad_point_flags):
+        good_point_indices = numpy.where(numpy.invert(bad_point_flags))[0]
+
+        warm_minus_cold_kelvins = (
+            warm_temperatures_kelvins[good_point_indices] -
+            cold_temperatures_kelvins[good_point_indices])
+        target_minus_cold_kelvins = (
+            target_temperature_kelvins -
+            cold_temperatures_kelvins[good_point_indices])
+
+        warm_minus_cold_metres = (warm_heights_m_asl[good_point_indices] -
+                                  cold_heights_m_asl[good_point_indices])
+        target_minus_cold_metres = warm_minus_cold_metres * (
+            target_minus_cold_kelvins / warm_minus_cold_kelvins)
+        target_heights_m_asl[good_point_indices] = (
+            cold_heights_m_asl[good_point_indices] + target_minus_cold_metres)
+
+    return target_heights_m_asl
+
+
 def interp_nwp_from_xy_grid(
         query_point_table, model_name=None, grid_id=None, field_names=None,
         field_names_grib1=None, top_grib_directory_name=None,
@@ -1134,3 +1188,408 @@ def interp_ruc_all_grids(
             interp_done_by_field[other_wind_component_index_by_field[j]] = True
 
     return interp_table
+
+
+def temperature_isosurface_from_nwp(
+        query_point_table, unix_time_sec=None, temperature_kelvins=None,
+        model_name=None, grid_id=None, top_grib_directory_name=None,
+        temporal_interp_method=PREVIOUS_INTERP_METHOD,
+        spatial_interp_method=NEAREST_INTERP_METHOD,
+        spline_degree=DEFAULT_SPLINE_DEGREE,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
+    """Creates temperature isosurface from NWP data.
+
+    Q = number of query points
+
+    :param query_point_table: pandas DataFrame with Q rows and the following
+        columns.
+    query_point_table.latitude_deg: Latitude (deg N).
+    query_point_table.longitude_deg: Longitude (deg E).
+
+    :param unix_time_sec: Target time.
+    :param temperature_kelvins: Target temperature.
+    :param model_name: Name of model.
+    :param grid_id: String ID for model grid.
+    :param top_grib_directory_name: Name of top-level directory with grib files
+        for the given model.
+    :param temporal_interp_method: See documentation for interp_in_time.
+    :param spatial_interp_method: See documentation for
+        interp_from_xy_grid_to_points.
+    :param spline_degree: See documentation for interp_from_xy_grid_to_points.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
+    :param raise_error_if_missing: Boolean flag.  If True, will raise error if
+        any data needed for interp are missing.  If False and data needed for
+        interp are missing, will skip affected entries in
+        warm_temp_by_query_point_kelvins, cold_temp_by_query_point_kelvins,
+        warm_height_by_query_point_m_asl, and cold_height_by_query_point_m_asl
+        -- and leave these entries as NaN.
+    :return: isosurface_heights_m_asl: length-Q numpy array with heights of
+        temperature isosurface (metres above sea level).
+    """
+
+    error_checking.assert_is_integer(unix_time_sec)
+    error_checking.assert_is_geq(temperature_kelvins, 0.)
+
+    pressure_levels_mb = nwp_model_utils.get_pressure_levels(
+        model_name, grid_id)
+    pressure_levels_mb = numpy.sort(pressure_levels_mb)[::-1]
+
+    height_field_names = []
+    height_field_names_grib1 = []
+    temperature_field_names = []
+    temperature_field_names_grib1 = []
+
+    for this_pressure_mb in pressure_levels_mb:
+        height_field_names.append('{0:s}_{1:d}'.format(
+            HEIGHT_NAME, int(this_pressure_mb)))
+        height_field_names_grib1.append('{0:s}:{1:d} mb'.format(
+            HEIGHT_NAME_GRIB1, int(this_pressure_mb)))
+
+        temperature_field_names.append('{0:s}_{1:d}'.format(
+            TEMPERATURE_NAME, int(this_pressure_mb)))
+        temperature_field_names_grib1.append('{0:s}:{1:d} mb'.format(
+            TEMPERATURE_NAME_GRIB1, int(this_pressure_mb)))
+
+    grid_point_x_metres, grid_point_y_metres = (
+        nwp_model_utils.get_xy_grid_points(model_name, grid_id))
+
+    query_x_metres, query_y_metres = nwp_model_utils.project_latlng_to_xy(
+        query_point_table[QUERY_LAT_COLUMN].values,
+        query_point_table[QUERY_LNG_COLUMN].values, model_name=model_name,
+        grid_id=grid_id)
+    argument_dict = {
+        QUERY_X_COLUMN: query_x_metres, QUERY_Y_COLUMN: query_y_metres}
+    query_point_table = query_point_table.assign(**argument_dict)
+
+    _, init_time_step_hours = nwp_model_utils.get_time_steps(model_name)
+    init_times_unix_sec, query_to_model_times_table = (
+        nwp_model_utils.get_times_needed_for_interp(
+            query_times_unix_sec=numpy.array([unix_time_sec]),
+            model_time_step_hours=init_time_step_hours,
+            method_string=temporal_interp_method))
+
+    num_init_times = len(init_times_unix_sec)
+    num_pressure_levels = len(pressure_levels_mb)
+    num_query_points = len(query_point_table.index)
+
+    warm_temp_by_query_point_kelvins = numpy.full(num_query_points, numpy.nan)
+    warm_height_by_query_point_m_asl = numpy.full(num_query_points, numpy.nan)
+    cold_temp_by_query_point_kelvins = numpy.full(num_query_points, numpy.nan)
+    cold_height_by_query_point_m_asl = numpy.full(num_query_points, numpy.nan)
+
+    for k in range(num_pressure_levels):
+        query_point_needed_flags = numpy.isnan(cold_height_by_query_point_m_asl)
+        if not numpy.any(query_point_needed_flags):
+            continue
+
+        query_point_needed_indices = numpy.where(query_point_needed_flags)[0]
+
+        list_of_2d_height_grids, _, missing_data_flag = _read_nwp_for_interp(
+            init_times_unix_sec=init_times_unix_sec,
+            query_to_model_times_row=query_to_model_times_table,
+            field_name_grib1=height_field_names_grib1[k],
+            list_of_model_grids=[None] * num_init_times, model_name=model_name,
+            grid_id=grid_id, top_grib_directory_name=top_grib_directory_name,
+            wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+            raise_error_if_missing=raise_error_if_missing)
+
+        if missing_data_flag:
+            continue
+
+        list_of_2d_temperature_grids, _, missing_data_flag = (
+            _read_nwp_for_interp(
+                init_times_unix_sec=init_times_unix_sec,
+                query_to_model_times_row=query_to_model_times_table,
+                field_name_grib1=temperature_field_names_grib1[k],
+                list_of_model_grids=[None] * num_init_times,
+                model_name=model_name, grid_id=grid_id,
+                top_grib_directory_name=top_grib_directory_name,
+                wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+                raise_error_if_missing=raise_error_if_missing))
+
+        if missing_data_flag:
+            continue
+
+        list_of_spatial_interp_temp_arrays = [[] for _ in init_times_unix_sec]
+        for i in range(num_init_times):
+            list_of_spatial_interp_temp_arrays[i] = (
+                interp_from_xy_grid_to_points(
+                    list_of_2d_temperature_grids[i],
+                    sorted_grid_point_x_metres=grid_point_x_metres,
+                    sorted_grid_point_y_metres=grid_point_y_metres,
+                    query_x_metres=query_point_table[QUERY_X_COLUMN].values[
+                        query_point_needed_indices],
+                    query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
+                        query_point_needed_indices],
+                    method_string=spatial_interp_method,
+                    spline_degree=spline_degree, allow_extrap=True))
+
+        spatial_interp_temp_matrix_2d = _stack_1d_arrays_horizontally(
+            [list_of_spatial_interp_temp_arrays[i]
+             for i in range(num_init_times)])
+        these_interp_values = interp_in_time(
+            spatial_interp_temp_matrix_2d,
+            sorted_input_times_unix_sec=init_times_unix_sec,
+            query_times_unix_sec=numpy.array([unix_time_sec]),
+            method_string=temporal_interp_method, allow_extrap=False)
+
+        these_cold_interp_indices = numpy.where(
+            these_interp_values < temperature_kelvins)[0]
+        these_warm_interp_indices = numpy.where(
+            these_interp_values >= temperature_kelvins)[0]
+        these_cold_query_point_indices = query_point_needed_indices[
+            these_cold_interp_indices]
+        these_warm_query_point_indices = query_point_needed_indices[
+            these_warm_interp_indices]
+        warm_temp_by_query_point_kelvins[these_warm_query_point_indices] = (
+            these_interp_values[these_warm_interp_indices])
+        cold_temp_by_query_point_kelvins[these_cold_query_point_indices] = (
+            these_interp_values[these_cold_interp_indices])
+
+        list_of_spatial_interp_height_arrays = [[] for _ in init_times_unix_sec]
+        for i in range(num_init_times):
+            list_of_spatial_interp_height_arrays[i] = (
+                interp_from_xy_grid_to_points(
+                    list_of_2d_height_grids[i],
+                    sorted_grid_point_x_metres=grid_point_x_metres,
+                    sorted_grid_point_y_metres=grid_point_y_metres,
+                    query_x_metres=query_point_table[QUERY_X_COLUMN].values[
+                        query_point_needed_indices],
+                    query_y_metres=query_point_table[QUERY_Y_COLUMN].values[
+                        query_point_needed_indices],
+                    method_string=spatial_interp_method,
+                    spline_degree=spline_degree, allow_extrap=True))
+
+        spatial_interp_height_matrix_2d = _stack_1d_arrays_horizontally(
+            [list_of_spatial_interp_height_arrays[i]
+             for i in range(num_init_times)])
+        these_interp_values = interp_in_time(
+            spatial_interp_height_matrix_2d,
+            sorted_input_times_unix_sec=init_times_unix_sec,
+            query_times_unix_sec=numpy.array([unix_time_sec]),
+            method_string=temporal_interp_method, allow_extrap=False)
+
+        warm_height_by_query_point_m_asl[these_warm_query_point_indices] = (
+            these_interp_values[these_warm_interp_indices])
+        cold_height_by_query_point_m_asl[these_cold_query_point_indices] = (
+            these_interp_values[these_cold_interp_indices])
+
+    return _find_heights_with_temperature(
+        warm_temperatures_kelvins=warm_temp_by_query_point_kelvins,
+        cold_temperatures_kelvins=cold_temp_by_query_point_kelvins,
+        warm_heights_m_asl=warm_height_by_query_point_m_asl,
+        cold_heights_m_asl=cold_height_by_query_point_m_asl,
+        target_temperature_kelvins=temperature_kelvins)
+
+
+def temperature_isosurface_from_ruc_all_grids(
+        query_point_table, unix_time_sec=None, temperature_kelvins=None,
+        top_grib_directory_name=None,
+        temporal_interp_method=PREVIOUS_INTERP_METHOD,
+        spatial_interp_method=NEAREST_INTERP_METHOD,
+        spline_degree=DEFAULT_SPLINE_DEGREE,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
+    """Creates temperature isosurface from RUC data.
+
+    This method is the same as temperature_isosurface_from_nwp, except that it
+    combines RUC data from different grids.
+
+    :param query_point_table: See documentation for
+        temperature_isosurface_from_nwp.
+    :param unix_time_sec: Target time.
+    :param temperature_kelvins: Target temperature.
+    ame of top-level directory with grib files
+        for the given model.
+    :param temporal_interp_method: See documentation for interp_in_time.
+    :param spatial_interp_method: See documentation for
+        interp_from_xy_grid_to_points.
+    :param spline_degree: See documentation for interp_from_xy_grid_to_points.
+    :param wgrib_exe_name: Path to wgrib executable.
+    :param wgrib2_exe_name: Path to wgrib2 executable.
+    :param raise_error_if_missing: See documentation for
+        temperature_isosurface_from_nwp.
+    :return: isosurface_heights_m_asl: length-Q numpy array with heights of
+        temperature isosurface (metres above sea level).
+    """
+
+    error_checking.assert_is_integer(unix_time_sec)
+    error_checking.assert_is_geq(temperature_kelvins, 0.)
+
+    pressure_levels_mb = nwp_model_utils.get_pressure_levels(
+        nwp_model_utils.RUC_MODEL_NAME, nwp_model_utils.ID_FOR_130GRID)
+    pressure_levels_mb = numpy.sort(pressure_levels_mb)[::-1]
+
+    height_field_names = []
+    height_field_names_grib1 = []
+    temperature_field_names = []
+    temperature_field_names_grib1 = []
+
+    for this_pressure_mb in pressure_levels_mb:
+        height_field_names.append('{0:s}_{1:d}'.format(
+            HEIGHT_NAME, int(this_pressure_mb)))
+        height_field_names_grib1.append('{0:s}:{1:d} mb'.format(
+            HEIGHT_NAME_GRIB1, int(this_pressure_mb)))
+
+        temperature_field_names.append('{0:s}_{1:d}'.format(
+            TEMPERATURE_NAME, int(this_pressure_mb)))
+        temperature_field_names_grib1.append('{0:s}:{1:d} mb'.format(
+            TEMPERATURE_NAME_GRIB1, int(this_pressure_mb)))
+
+    ruc_grid_ids = nwp_model_utils.RUC_GRID_IDS
+    num_grids = len(ruc_grid_ids)
+    unique_x_by_grid_metres = [[]] * num_grids
+    unique_y_by_grid_metres = [[]] * num_grids
+    query_point_table_by_grid = [[]] * num_grids
+
+    for j in range(num_grids):
+        unique_x_by_grid_metres[j], unique_y_by_grid_metres[j] = (
+            nwp_model_utils.get_xy_grid_points(
+                nwp_model_utils.RUC_MODEL_NAME, ruc_grid_ids[j]))
+
+        these_query_x_metres, these_query_y_metres = (
+            nwp_model_utils.project_latlng_to_xy(
+                query_point_table[QUERY_LAT_COLUMN].values,
+                query_point_table[QUERY_LNG_COLUMN].values,
+                model_name=nwp_model_utils.RUC_MODEL_NAME,
+                grid_id=ruc_grid_ids[j]))
+        argument_dict = {
+            QUERY_X_COLUMN: these_query_x_metres,
+            QUERY_Y_COLUMN: these_query_y_metres}
+        query_point_table_by_grid[j] = query_point_table.assign(**argument_dict)
+
+    _, init_time_step_hours = nwp_model_utils.get_time_steps(
+        nwp_model_utils.RUC_MODEL_NAME)
+    init_times_unix_sec, query_to_model_times_table = (
+        nwp_model_utils.get_times_needed_for_interp(
+            query_times_unix_sec=numpy.array([unix_time_sec]),
+            model_time_step_hours=init_time_step_hours,
+            method_string=temporal_interp_method))
+
+    num_init_times = len(init_times_unix_sec)
+    num_pressure_levels = len(pressure_levels_mb)
+    num_query_points = len(query_point_table.index)
+
+    warm_temp_by_query_point_kelvins = numpy.full(num_query_points, numpy.nan)
+    warm_height_by_query_point_m_asl = numpy.full(num_query_points, numpy.nan)
+    cold_temp_by_query_point_kelvins = numpy.full(num_query_points, numpy.nan)
+    cold_height_by_query_point_m_asl = numpy.full(num_query_points, numpy.nan)
+
+    for k in range(num_pressure_levels):
+        query_point_needed_flags = numpy.isnan(cold_height_by_query_point_m_asl)
+        if not numpy.any(query_point_needed_flags):
+            continue
+
+        query_point_needed_indices = numpy.where(query_point_needed_flags)[0]
+
+        list_of_2d_height_grids, _, missing_data_flag = _read_ruc_for_interp(
+            init_times_unix_sec=init_times_unix_sec,
+            query_to_model_times_row=query_to_model_times_table,
+            field_name_grib1=height_field_names_grib1[k],
+            list_of_model_grids=[None] * num_init_times,
+            top_grib_directory_name=top_grib_directory_name,
+            wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+            raise_error_if_missing=raise_error_if_missing)
+
+        if missing_data_flag:
+            continue
+
+        list_of_2d_temperature_grids, _, missing_data_flag = (
+            _read_ruc_for_interp(
+                init_times_unix_sec=init_times_unix_sec,
+                query_to_model_times_row=query_to_model_times_table,
+                field_name_grib1=temperature_field_names_grib1[k],
+                list_of_model_grids=[None] * num_init_times,
+                top_grib_directory_name=top_grib_directory_name,
+                wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+                raise_error_if_missing=raise_error_if_missing))
+
+        if missing_data_flag:
+            continue
+
+        list_of_spatial_interp_temp_arrays = [[] for _ in init_times_unix_sec]
+        for i in range(num_init_times):
+            this_grid_id = nwp_model_utils.dimensions_to_grid_id(
+                numpy.array(list_of_2d_temperature_grids[i].shape))
+            this_grid_index = ruc_grid_ids.index(this_grid_id)
+
+            list_of_spatial_interp_temp_arrays[i] = (
+                interp_from_xy_grid_to_points(
+                    list_of_2d_temperature_grids[i],
+                    sorted_grid_point_x_metres=unique_x_by_grid_metres[
+                        this_grid_index],
+                    sorted_grid_point_y_metres=unique_y_by_grid_metres[
+                        this_grid_index],
+                    query_x_metres=query_point_table_by_grid[this_grid_index][
+                        QUERY_X_COLUMN].values[query_point_needed_indices],
+                    query_y_metres=query_point_table_by_grid[this_grid_index][
+                        QUERY_Y_COLUMN].values[query_point_needed_indices],
+                    method_string=spatial_interp_method,
+                    spline_degree=spline_degree, allow_extrap=True))
+
+        spatial_interp_temp_matrix_2d = _stack_1d_arrays_horizontally(
+            [list_of_spatial_interp_temp_arrays[i]
+             for i in range(num_init_times)])
+        these_interp_values = interp_in_time(
+            spatial_interp_temp_matrix_2d,
+            sorted_input_times_unix_sec=init_times_unix_sec,
+            query_times_unix_sec=numpy.array([unix_time_sec]),
+            method_string=temporal_interp_method, allow_extrap=False)
+
+        these_cold_interp_indices = numpy.where(
+            these_interp_values < temperature_kelvins)[0]
+        these_warm_interp_indices = numpy.where(
+            these_interp_values >= temperature_kelvins)[0]
+        these_cold_query_point_indices = query_point_needed_indices[
+            these_cold_interp_indices]
+        these_warm_query_point_indices = query_point_needed_indices[
+            these_warm_interp_indices]
+        warm_temp_by_query_point_kelvins[these_warm_query_point_indices] = (
+            these_interp_values[these_warm_interp_indices])
+        cold_temp_by_query_point_kelvins[these_cold_query_point_indices] = (
+            these_interp_values[these_cold_interp_indices])
+
+        list_of_spatial_interp_height_arrays = [[] for _ in init_times_unix_sec]
+        for i in range(num_init_times):
+            this_grid_id = nwp_model_utils.dimensions_to_grid_id(
+                numpy.array(list_of_2d_temperature_grids[i].shape))
+            this_grid_index = ruc_grid_ids.index(this_grid_id)
+
+            list_of_spatial_interp_height_arrays[i] = (
+                interp_from_xy_grid_to_points(
+                    list_of_2d_height_grids[i],
+                    sorted_grid_point_x_metres=unique_x_by_grid_metres[
+                        this_grid_index],
+                    sorted_grid_point_y_metres=unique_y_by_grid_metres[
+                        this_grid_index],
+                    query_x_metres=query_point_table_by_grid[this_grid_index][
+                        QUERY_X_COLUMN].values[query_point_needed_indices],
+                    query_y_metres=query_point_table_by_grid[this_grid_index][
+                        QUERY_Y_COLUMN].values[query_point_needed_indices],
+                    method_string=spatial_interp_method,
+                    spline_degree=spline_degree, allow_extrap=True))
+
+        spatial_interp_height_matrix_2d = _stack_1d_arrays_horizontally(
+            [list_of_spatial_interp_height_arrays[i]
+             for i in range(num_init_times)])
+        these_interp_values = interp_in_time(
+            spatial_interp_height_matrix_2d,
+            sorted_input_times_unix_sec=init_times_unix_sec,
+            query_times_unix_sec=numpy.array([unix_time_sec]),
+            method_string=temporal_interp_method, allow_extrap=False)
+
+        warm_height_by_query_point_m_asl[these_warm_query_point_indices] = (
+            these_interp_values[these_warm_interp_indices])
+        cold_height_by_query_point_m_asl[these_cold_query_point_indices] = (
+            these_interp_values[these_cold_interp_indices])
+
+    return _find_heights_with_temperature(
+        warm_temperatures_kelvins=warm_temp_by_query_point_kelvins,
+        cold_temperatures_kelvins=cold_temp_by_query_point_kelvins,
+        warm_heights_m_asl=warm_height_by_query_point_m_asl,
+        cold_heights_m_asl=cold_height_by_query_point_m_asl,
+        target_temperature_kelvins=temperature_kelvins)

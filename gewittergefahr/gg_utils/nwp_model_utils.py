@@ -700,6 +700,8 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
         float(numpy.min(query_times_unix_sec)), model_time_step_sec)
     max_max_query_time_unix_sec = rounder.ceiling_to_nearest(
         float(numpy.max(query_times_unix_sec)), model_time_step_sec)
+    if max_max_query_time_unix_sec == min_min_query_time_unix_sec:
+        max_max_query_time_unix_sec += model_time_step_sec
 
     num_ranges = int((max_max_query_time_unix_sec -
                       min_min_query_time_unix_sec) / model_time_step_sec)
