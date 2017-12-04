@@ -56,8 +56,8 @@ CONTINGENCY_TABLE_THRESHOLD_HALF = {model_eval.NUM_TRUE_POSITIVES_KEY: 3,
                                     model_eval.NUM_TRUE_NEGATIVES_KEY: 5}
 
 # The following constants are used to test get_pod, get_fom, get_pofd, get_npv,
-# get_success_ratio, get_far, get_dfr, get_focn, get_accuracy, get_csi, and
-# get_frequency_bias.
+# get_success_ratio, get_far, get_dfr, get_focn, get_accuracy, get_csi,
+# get_frequency_bias, get_peirce_score, and get_heidke_score.
 POD_THRESHOLD_HALF = 0.6
 FOM_THRESHOLD_HALF = 0.4
 POFD_THRESHOLD_HALF = 0.
@@ -69,11 +69,26 @@ FOCN_THRESHOLD_HALF = 5. / 7
 ACCURACY_THRESHOLD_HALF = 0.8
 CSI_THRESHOLD_HALF = 0.6
 FREQUENCY_BIAS_THRESHOLD_HALF = 0.6
+PEIRCE_SCORE_THRESHOLD_HALF = 0.6
+HEIDKE_SCORE_THRESHOLD_HALF = 0.6
 
 CONTINGENCY_TABLE_ALL_ZEROS = {model_eval.NUM_TRUE_POSITIVES_KEY: 0,
                                model_eval.NUM_FALSE_POSITIVES_KEY: 0,
                                model_eval.NUM_FALSE_NEGATIVES_KEY: 0,
                                model_eval.NUM_TRUE_NEGATIVES_KEY: 0}
+
+# The following constants are used to test get_brier_score.
+FORECAST_PROBS_FOR_BS_AND_XENTROPY = numpy.array(
+    [0.2, 0.8, 0.5, 0., 0.3, 0.7, 0.25, 1., 0.9, 0.8])
+BRIER_SCORE = 0.17225
+
+# The following constants are used to test get_cross_entropy.
+MODIFIED_FORECAST_PROBS_FOR_XENTROPY = numpy.array(
+    [0.2, 0.8, 0.5, model_eval.MIN_FORECAST_PROB_FOR_XENTROPY, 0.3, 0.7, 0.25,
+     model_eval.MAX_FORECAST_PROB_FOR_XENTROPY, 0.9, 0.8])
+CROSS_ENTROPY = -0.1 * numpy.sum(
+    numpy.log2(MODIFIED_FORECAST_PROBS_FOR_XENTROPY[-5:]) +
+    numpy.log2(1 - MODIFIED_FORECAST_PROBS_FOR_XENTROPY[:5]))
 
 # The following constants are used to test get_points_in_roc_curve.
 ROC_AND_PERFORMANCE_THRESHOLDS = numpy.array(
@@ -116,6 +131,32 @@ MEAN_FORECAST_PROB_BY_BIN = numpy.array(
 
 MEAN_OBSERVED_LABEL_BY_BIN = numpy.array(
     [0., 0., 1., numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, 1., 1.])
+NUM_EXAMPLES_BY_BIN = numpy.array([3, 2, 2, 0, 0, 0, 0, 0, 1, 2])
+
+# The following constants are used to test get_brier_skill_score.
+CLIMATOLOGY_FOR_BSS = 0.2
+THIS_UNCERTAINTY = 0.16
+THIS_RESOLUTION = 0.34
+
+THESE_INDICES = numpy.array([0, 1], dtype=int)
+THIS_RELIABILITY_LABEL0 = 0.1 * numpy.sum(
+    NUM_EXAMPLES_BY_BIN[THESE_INDICES] *
+    MEAN_FORECAST_PROB_BY_BIN[THESE_INDICES] ** 2)
+
+THESE_INDICES = numpy.array([2, 8, 9], dtype=int)
+THIS_RELIABILITY_LABEL1 = 0.1 * numpy.sum(
+    NUM_EXAMPLES_BY_BIN[THESE_INDICES] *
+    (1. - MEAN_FORECAST_PROB_BY_BIN[THESE_INDICES]) ** 2)
+
+THIS_RELIABILITY = THIS_RELIABILITY_LABEL0 + THIS_RELIABILITY_LABEL1
+THIS_BRIER_SCORE = THIS_UNCERTAINTY + THIS_RELIABILITY - THIS_RESOLUTION
+THIS_BSS = (THIS_RESOLUTION - THIS_RELIABILITY) / THIS_UNCERTAINTY
+
+BSS_DICTIONARY = {model_eval.BRIER_SKILL_SCORE_KEY: THIS_BSS,
+                  model_eval.BRIER_SCORE_KEY: THIS_BRIER_SCORE,
+                  model_eval.RELIABILITY_KEY: THIS_RELIABILITY,
+                  model_eval.RESOLUTION_KEY: THIS_RESOLUTION,
+                  model_eval.UNCERTAINTY_KEY: THIS_UNCERTAINTY}
 
 # The following constants are used to test get_no_skill_reliability_curve,
 # get_skill_areas_in_reliability_curve,
@@ -419,10 +460,58 @@ class ModelEvaluationTests(unittest.TestCase):
             CONTINGENCY_TABLE_ALL_ZEROS)
         self.assertTrue(numpy.isnan(this_frequency_bias))
 
+    def test_get_peirce_score(self):
+        """Ensures crctness of get_peirce_score; input values are non-zero."""
+
+        this_peirce_score = model_eval.get_peirce_score(
+            CONTINGENCY_TABLE_THRESHOLD_HALF)
+        self.assertTrue(numpy.isclose(
+            this_peirce_score, PEIRCE_SCORE_THRESHOLD_HALF, atol=TOLERANCE))
+
+    def test_get_peirce_score_all_zeros(self):
+        """Ensures crctness of get_peirce_score; input values are all zero."""
+
+        this_peirce_score = model_eval.get_peirce_score(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_peirce_score))
+
+    def test_get_heidke_score(self):
+        """Ensures crctness of get_heidke_score; input values are non-zero."""
+
+        this_heidke_score = model_eval.get_heidke_score(
+            CONTINGENCY_TABLE_THRESHOLD_HALF)
+        self.assertTrue(numpy.isclose(
+            this_heidke_score, HEIDKE_SCORE_THRESHOLD_HALF, atol=TOLERANCE))
+
+    def test_get_heidke_score_all_zeros(self):
+        """Ensures crctness of get_heidke_score; input values are all zero."""
+
+        this_heidke_score = model_eval.get_heidke_score(
+            CONTINGENCY_TABLE_ALL_ZEROS)
+        self.assertTrue(numpy.isnan(this_heidke_score))
+
+    def test_get_brier_score(self):
+        """Ensures correct output from get_brier_score."""
+
+        this_brier_score = model_eval.get_brier_score(
+            forecast_probabilities=FORECAST_PROBS_FOR_BS_AND_XENTROPY,
+            observed_labels=OBSERVED_LABELS)
+        self.assertTrue(numpy.isclose(
+            this_brier_score, BRIER_SCORE, atol=TOLERANCE))
+
+    def test_get_cross_entropy(self):
+        """Ensures correct output from get_cross_entropy."""
+
+        this_cross_entropy = model_eval.get_cross_entropy(
+            forecast_probabilities=FORECAST_PROBS_FOR_BS_AND_XENTROPY,
+            observed_labels=OBSERVED_LABELS)
+        self.assertTrue(numpy.isclose(
+            this_cross_entropy, CROSS_ENTROPY, atol=TOLERANCE))
+
     def test_get_points_in_roc_curve(self):
         """Ensures correct output from get_points_in_roc_curve."""
 
-        these_pofd_by_threshold, these_pod_by_threshold = (
+        these_pofd_by_threshold, these_pod_by_threshold, _ = (
             model_eval.get_points_in_roc_curve(
                 forecast_probabilities=FORECAST_PROBABILITIES,
                 observed_labels=OBSERVED_LABELS,
@@ -491,10 +580,12 @@ class ModelEvaluationTests(unittest.TestCase):
     def test_get_points_in_reliability_curve(self):
         """Ensures correct output from get_points_in_reliability_curve."""
 
-        these_mean_forecast_probs, these_mean_observed_labels = (
-            model_eval.get_points_in_reliability_curve(
-                FORECAST_PROBABILITIES, OBSERVED_LABELS,
-                num_forecast_bins=NUM_FORECAST_BINS))
+        (these_mean_forecast_probs,
+         these_mean_observed_labels,
+         these_num_examples_by_bin) = (
+             model_eval.get_points_in_reliability_curve(
+                 FORECAST_PROBABILITIES, OBSERVED_LABELS,
+                 num_forecast_bins=NUM_FORECAST_BINS))
 
         self.assertTrue(numpy.allclose(
             these_mean_forecast_probs, MEAN_FORECAST_PROB_BY_BIN,
@@ -502,6 +593,24 @@ class ModelEvaluationTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             these_mean_observed_labels, MEAN_OBSERVED_LABEL_BY_BIN,
             atol=TOLERANCE, equal_nan=True))
+        self.assertTrue(numpy.array_equal(
+            these_num_examples_by_bin, NUM_EXAMPLES_BY_BIN))
+
+    def test_get_brier_skill_score(self):
+        """Ensures correct output from get_brier_skill_score."""
+
+        this_bss_dict = model_eval.get_brier_skill_score(
+            mean_forecast_prob_by_bin=MEAN_FORECAST_PROB_BY_BIN,
+            mean_observed_label_by_bin=MEAN_OBSERVED_LABEL_BY_BIN,
+            num_examples_by_bin=NUM_EXAMPLES_BY_BIN,
+            climatology=CLIMATOLOGY_FOR_BSS)
+
+        self.assertTrue(set(this_bss_dict.keys()) == set(BSS_DICTIONARY.keys()))
+
+        for this_key in BSS_DICTIONARY.keys():
+            self.assertTrue(numpy.isclose(
+                this_bss_dict[this_key], BSS_DICTIONARY[this_key],
+                atol=TOLERANCE))
 
     def test_get_no_skill_reliability_curve(self):
         """Ensures correct output from get_no_skill_reliability_curve."""
@@ -520,8 +629,8 @@ class ModelEvaluationTests(unittest.TestCase):
          these_y_vertices_left,
          these_x_vertices_right,
          these_y_vertices_right) = (
-            model_eval.get_skill_areas_in_reliability_curve(
-                MEAN_OBSERVED_LABEL))
+             model_eval.get_skill_areas_in_reliability_curve(
+                 MEAN_OBSERVED_LABEL))
 
         self.assertTrue(numpy.allclose(
             these_x_vertices_left, X_VERTICES_FOR_LEFT_SKILL_AREA,

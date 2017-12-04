@@ -8,28 +8,39 @@ of where the forecasts come from.
 
 Roebber, P., 2009: Visualizing multiple measures of forecast quality. Weather
     and Forecasting, 24 (2), 601-608.
+
+Lagerquist, R., McGovern, A., and Smith, T., 2017: Machine learning for real-
+    time prediction of damaging straight-line convective wind. Weather and
+    Forecasting, 2017, in press.
 """
 
 import copy
 import numpy
+import sklearn.metrics
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): This will probably be split into different modules.  I'm
-# thinking of putting all ROC-curve things in one module, all performance-
-# diagram things in one, and all reliability-curve things in one.  May also
-# create different modules for binary classification, multi-class
-# classification, and regression.
+# TODO(thunderhoser): All classification metrics are currently for binary
+# classification only.  Need to allow multiclass.
 
-# TODO(thunderhoser): Add AUC, Brier skill score, and bootstrapping.
+# TODO(thunderhoser): May create different modules for binary classification,
+# multiclass classification, and regression.
 
 TOLERANCE = 1e-6
+MIN_FORECAST_PROB_FOR_XENTROPY = numpy.finfo(float).eps
+MAX_FORECAST_PROB_FOR_XENTROPY = 1. - numpy.finfo(float).eps
 
 NUM_TRUE_POSITIVES_KEY = 'num_true_positives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
 NUM_FALSE_NEGATIVES_KEY = 'num_false_negatives'
 NUM_TRUE_NEGATIVES_KEY = 'num_true_negatives'
+
+BRIER_SKILL_SCORE_KEY = 'brier_skill_score'
+BRIER_SCORE_KEY = 'brier_score'
+RESOLUTION_KEY = 'resolution'
+RELIABILITY_KEY = 'reliability'
+UNCERTAINTY_KEY = 'uncertainty'
 
 MIN_BINARIZATION_THRESHOLD = 0.
 MAX_BINARIZATION_THRESHOLD = 1. + TOLERANCE
@@ -427,6 +438,93 @@ def get_frequency_bias(contingency_table_as_dict):
         return numpy.nan
 
 
+def get_peirce_score(contingency_table_as_dict):
+    """Computes Peirce score.
+
+    :param contingency_table_as_dict: Dictionary created by
+        get_contingency_table.
+    :return: peirce_score: Peirce score.
+    """
+
+    return (get_pod(contingency_table_as_dict) -
+            get_pofd(contingency_table_as_dict))
+
+
+def get_heidke_score(contingency_table_as_dict):
+    """Computes Heidke score.
+
+    :param contingency_table_as_dict: Dictionary created by
+        get_contingency_table.
+    :return: heidke_score: Heidke score.
+    """
+
+    try:
+        numerator = 2 * (contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] *
+                         contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] -
+                         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY] *
+                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+
+        num_positives = (contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+                         contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
+        num_negatives = (contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
+                         contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+        num_events = (contingency_table_as_dict[NUM_TRUE_POSITIVES_KEY] +
+                      contingency_table_as_dict[NUM_FALSE_NEGATIVES_KEY])
+        num_non_events = (contingency_table_as_dict[NUM_TRUE_NEGATIVES_KEY] +
+                          contingency_table_as_dict[NUM_FALSE_POSITIVES_KEY])
+
+        return float(numerator) / (
+            num_positives * num_non_events + num_negatives * num_events)
+    except ZeroDivisionError:
+        return numpy.nan
+
+
+def get_brier_score(forecast_probabilities=None, observed_labels=None):
+    """Computes Brier score.
+
+    N = number of forecasts
+
+    :param forecast_probabilities: See documentation for
+        _check_forecast_probs_and_observed_labels.
+    :param observed_labels: See doc for
+        _check_forecast_probs_and_observed_labels.
+    :return: brier_score: Brier score.
+    """
+
+    _check_forecast_probs_and_observed_labels(
+        forecast_probabilities, observed_labels)
+
+    return numpy.mean((forecast_probabilities - observed_labels) ** 2)
+
+
+def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
+    """Computes cross-entropy.
+
+    N = number of forecasts
+
+    :param forecast_probabilities: See documentation for
+        _check_forecast_probs_and_observed_labels.
+    :param observed_labels: See doc for
+        _check_forecast_probs_and_observed_labels.
+    :return: cross_entropy: Cross-entropy.
+    """
+
+    _check_forecast_probs_and_observed_labels(
+        forecast_probabilities, observed_labels)
+
+    forecast_probabilities[
+        forecast_probabilities <
+        MIN_FORECAST_PROB_FOR_XENTROPY] = MIN_FORECAST_PROB_FOR_XENTROPY
+    forecast_probabilities[
+        forecast_probabilities >
+        MAX_FORECAST_PROB_FOR_XENTROPY] = MAX_FORECAST_PROB_FOR_XENTROPY
+    observed_labels = observed_labels.astype(numpy.float)
+
+    return -numpy.mean(
+        observed_labels * numpy.log2(forecast_probabilities) +
+        (1 - observed_labels) * numpy.log2(1 - forecast_probabilities))
+
+
 def get_points_in_roc_curve(
         forecast_probabilities=None, observed_labels=None, threshold_arg=None,
         unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
@@ -445,6 +543,7 @@ def get_points_in_roc_curve(
         plotted on the x-axis.
     :return: pod_by_threshold: length-T numpy array of POD values, to be plotted
         on the y-axis.
+    :return: area_under_curve: Area under the ROC curve.
     """
 
     _check_forecast_probs_and_observed_labels(
@@ -468,7 +567,8 @@ def get_points_in_roc_curve(
         pofd_by_threshold[i] = get_pofd(this_contingency_table_as_dict)
         pod_by_threshold[i] = get_pod(this_contingency_table_as_dict)
 
-    return pofd_by_threshold, pod_by_threshold
+    return pofd_by_threshold, pod_by_threshold, sklearn.metrics.auc(
+        pofd_by_threshold, pod_by_threshold)
 
 
 def get_random_roc_curve():
@@ -626,6 +726,8 @@ def get_points_in_reliability_curve(
         probabilities.
     :return: mean_observed_label_by_bin: length-B numpy array of mean observed
         labels (conditional event frequencies).
+    :return: num_examples_by_bin: length-B numpy array with number of examples
+        in each bin.
     """
 
     _check_forecast_probs_and_observed_labels(
@@ -636,15 +738,87 @@ def get_points_in_reliability_curve(
 
     mean_forecast_prob_by_bin = numpy.full(num_forecast_bins, numpy.nan)
     mean_observed_label_by_bin = numpy.full(num_forecast_bins, numpy.nan)
+    num_examples_by_bin = numpy.full(num_forecast_bins, -1, dtype=int)
 
     for i in range(num_forecast_bins):
         these_example_indices = numpy.where(bin_index_by_example == i)[0]
+
+        num_examples_by_bin[i] = len(these_example_indices)
         mean_forecast_prob_by_bin[i] = numpy.mean(
             forecast_probabilities[these_example_indices])
         mean_observed_label_by_bin[i] = numpy.mean(
             observed_labels[these_example_indices].astype(float))
 
-    return mean_forecast_prob_by_bin, mean_observed_label_by_bin
+    return (mean_forecast_prob_by_bin, mean_observed_label_by_bin,
+            num_examples_by_bin)
+
+
+def get_brier_skill_score(
+        mean_forecast_prob_by_bin=None, mean_observed_label_by_bin=None,
+        num_examples_by_bin=None, climatology=None):
+    """Computes Brier skill score.
+
+    B = number of forecast bins
+
+    All output variables are defined in Lagerquist et al. (2017).
+
+    :param mean_forecast_prob_by_bin: length-B numpy array of mean forecast
+        probabilities.
+    :param mean_observed_label_by_bin: length-B numpy array of mean observed
+        labels (conditional event frequencies).
+    :param num_examples_by_bin: length-B numpy array with number of examples
+        in each bin.
+    :param climatology: Climatology, or overall frequency of event (label = 1).
+    :return: bss_dict: Dictionary with the following keys.
+    bss_dict['brier_skill_score']: Brier skill score.
+    bss_dict['brier_score']: Brier score.
+    bss_dict['reliability']: Reliability.
+    bss_dict['resolution']: Resolution.
+    bss_dict['uncertainty']: Uncertainty.
+    """
+
+    error_checking.assert_is_numpy_array(
+        mean_forecast_prob_by_bin, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(
+        mean_forecast_prob_by_bin, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        mean_forecast_prob_by_bin, 1., allow_nan=True)
+
+    num_forecast_bins = len(mean_forecast_prob_by_bin)
+    error_checking.assert_is_numpy_array(
+        mean_observed_label_by_bin,
+        exact_dimensions=numpy.array([num_forecast_bins]))
+    error_checking.assert_is_geq_numpy_array(
+        mean_observed_label_by_bin, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        mean_observed_label_by_bin, 1., allow_nan=True)
+
+    error_checking.assert_is_numpy_array(
+        num_examples_by_bin, exact_dimensions=numpy.array([num_forecast_bins]))
+    error_checking.assert_is_integer_numpy_array(num_examples_by_bin)
+    error_checking.assert_is_geq_numpy_array(num_examples_by_bin, 0)
+
+    error_checking.assert_is_geq(climatology, 0.)
+    error_checking.assert_is_leq(climatology, 1.)
+
+    uncertainty = climatology * (1. - climatology)
+    reliability = (numpy.nansum(num_examples_by_bin * (
+        mean_forecast_prob_by_bin - mean_observed_label_by_bin) ** 2) /
+                   numpy.sum(num_examples_by_bin))
+    resolution = (numpy.nansum(num_examples_by_bin * (
+        mean_observed_label_by_bin - climatology) ** 2) /
+                  numpy.sum(num_examples_by_bin))
+    brier_score = uncertainty + reliability - resolution
+
+    try:
+        brier_skill_score = (resolution - reliability) / uncertainty
+    except ZeroDivisionError:
+        brier_skill_score = numpy.nan
+
+    return {BRIER_SKILL_SCORE_KEY: brier_skill_score,
+            BRIER_SCORE_KEY: brier_score,
+            RELIABILITY_KEY: reliability, RESOLUTION_KEY: resolution,
+            UNCERTAINTY_KEY: uncertainty}
 
 
 def get_perfect_reliability_curve():
