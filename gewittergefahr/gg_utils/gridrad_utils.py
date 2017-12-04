@@ -158,6 +158,25 @@ def interp_reflectivity_to_heights(
     return interp_refl_matrix_dbz
 
 
+def get_column_max_reflectivity(reflectivity_matrix_dbz):
+    """Finds column-max reflectivity at each horizontal location.
+
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+    H = number of height levels (unique grid-point heights)
+
+    :param reflectivity_matrix_dbz: H-by-M-by-N matrix of reflectivities.
+    :return: column_max_refl_matrix_dbz: M-by-N matrix of column-max
+        reflectivities.
+    """
+
+    error_checking.assert_is_numpy_array(
+        reflectivity_matrix_dbz, num_dimensions=3)
+    error_checking.assert_is_real_numpy_array(reflectivity_matrix_dbz)
+
+    return numpy.nanmax(reflectivity_matrix_dbz, axis=0)
+
+
 def write_field_to_wdssii_file(
         field_matrix=None, netcdf_file_name=None, field_name=None,
         radar_height_m_asl=None, metadata_dict=None):
