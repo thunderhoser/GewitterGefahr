@@ -743,6 +743,7 @@ def read_polygons_from_netcdf(
             storm_id_var_name:
                 netcdf_dataset.variables[storm_id_var_name_orig][:]}
 
+    netcdf_dataset.close()
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     numeric_storm_id_matrix, _, _ = (
         radar_s2f.sparse_to_full_grid(sparse_grid_table, metadata_dict))

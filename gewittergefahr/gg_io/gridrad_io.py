@@ -12,6 +12,8 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
+KM_TO_METRES = 1000
+
 MIN_GRID_POINT_HEIGHT_COLUMN = 'lowest_grid_point_height_m_asl'
 HEIGHT_SPACING_COLUMN = 'height_spacing_metres'
 NUM_HEIGHTS_COLUMN = 'num_heights_in_grid'
@@ -46,6 +48,7 @@ RADAR_FIELD_NAMES_ORIG = [
     DIVERGENCE_NAME_ORIG]
 
 ZERO_TIME_UNIX_SEC = 978307200  # 0000 UTC 1 Jan 2001
+
 
 # TODO(thunderhoser): merge this file with radar_io.py (which reads MYRORSS and
 # MRMS data).
@@ -131,9 +134,10 @@ def read_metadata_from_full_grid_file(netcdf_file_name,
 
     grid_point_latitudes_deg = netcdf_dataset.variables[LATITUDE_NAME_ORIG]
     grid_point_longitudes_deg = netcdf_dataset.variables[LONGITUDE_NAME_ORIG]
-    grid_point_heights_m_asl = netcdf_dataset.variables[HEIGHT_NAME_ORIG]
+    grid_point_heights_m_asl = KM_TO_METRES * numpy.array(
+        netcdf_dataset.variables[HEIGHT_NAME_ORIG])
 
-    return {
+    metadata_dict = {
         radar_io.NW_GRID_POINT_LAT_COLUMN: numpy.max(grid_point_latitudes_deg),
         radar_io.NW_GRID_POINT_LNG_COLUMN:
             lng_conversion.convert_lng_positive_in_west(
@@ -151,6 +155,9 @@ def read_metadata_from_full_grid_file(netcdf_file_name,
         radar_io.UNIX_TIME_COLUMN: _time_from_gridrad_to_unix(
             netcdf_dataset.variables[TIME_NAME_ORIG][0])
     }
+
+    netcdf_dataset.close()
+    return metadata_dict
 
 
 def read_field_from_full_grid_file(
@@ -172,7 +179,7 @@ def read_field_from_full_grid_file(
         opened, this method will raise an error.  If False and file cannot be
         opened, will return None for all output variables.
     :return: field_matrix: H-by-M-by-N numpy array with values of radar field.
-    :return: unique_grid_point_heights_m_asl: length-N numpy array of grid-point
+    :return: unique_grid_point_heights_m_asl: length-H numpy array of grid-point
         heights (metres above sea level).  If array is increasing
         (decreasing), height increases (decreases) with the first index of
         field_matrix.
@@ -216,5 +223,6 @@ def read_field_from_full_grid_file(
     for i in range(metadata_dict[NUM_HEIGHTS_COLUMN]):
         field_matrix[i, :, :] = numpy.flipud(field_matrix[i, :, :])
 
+    netcdf_dataset.close()
     return (field_matrix, unique_grid_point_heights_m_asl,
             unique_grid_point_lat_deg[::-1], unique_grid_point_lng_deg)

@@ -233,22 +233,22 @@ class RadarIoTests(unittest.TestCase):
         self.assertTrue(this_field_name == LL_SHEAR_NAME_NEW)
 
     def test_field_name_new_to_orig_myrorss(self):
-        """Ensures correct output from _field_name_new_to_orig.
+        """Ensures correct output from field_name_new_to_orig.
 
         In this case, original field name is from MYRORSS.
         """
 
-        this_field_name_myrorss = radar_io._field_name_new_to_orig(
+        this_field_name_myrorss = radar_io.field_name_new_to_orig(
             LL_SHEAR_NAME_NEW, data_source=radar_io.MYRORSS_SOURCE_ID)
         self.assertTrue(this_field_name_myrorss == LL_SHEAR_NAME_MYRORSS)
 
     def test_field_name_new_to_orig_mrms(self):
-        """Ensures correct output from _field_name_new_to_orig.
+        """Ensures correct output from field_name_new_to_orig.
 
         In this case, original field name is from MRMS.
         """
 
-        this_field_name_mrms = radar_io._field_name_new_to_orig(
+        this_field_name_mrms = radar_io.field_name_new_to_orig(
             LL_SHEAR_NAME_NEW, data_source=radar_io.MRMS_SOURCE_ID)
         self.assertTrue(this_field_name_mrms == LL_SHEAR_NAME_MRMS)
 

@@ -23,6 +23,10 @@ from gewittergefahr.gg_utils import error_checking
 # one variable at one height.  I should probably use it consistently for the
 # latter.
 
+# TODO(thunderhoser): Radar heights are in metres above sea level (m ASL), not
+# m AGL.  I don't know why I thought the latter.  Need to change terminology to
+# reflect this.
+
 NW_GRID_POINT_LAT_COLUMN = 'nw_grid_point_lat_deg'
 NW_GRID_POINT_LNG_COLUMN = 'nw_grid_point_lng_deg'
 LAT_SPACING_COLUMN = 'lat_spacing_deg'
@@ -76,10 +80,6 @@ SHEAR_NAMES = [LOW_LEVEL_SHEAR_NAME, MID_LEVEL_SHEAR_NAME]
 REFLECTIVITY_NAMES = [
     REFL_NAME, REFL_COLUMN_MAX_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
     REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME]
-
-# TODO(thunderhoser): Field names below are for sparse-grid NetCDF files.  Field
-# names are different in full-grid NetCDF files.  Need to find out what they
-# are.
 
 ECHO_TOP_18DBZ_NAME_ORIG = 'EchoTop_18'
 ECHO_TOP_50DBZ_NAME_ORIG = 'EchoTop_50'
@@ -194,23 +194,6 @@ def _field_name_orig_to_new(field_name_orig, data_source=None):
 
     found_flags = [s == field_name_orig for s in all_orig_field_names]
     return RADAR_FIELD_NAMES[numpy.where(found_flags)[0][0]]
-
-
-def _field_name_new_to_orig(field_name, data_source=None):
-    """Converts field name from new to original (either MYRORSS or MRMS) format.
-
-    :param field_name: Name of radar field in new format.
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: field_name: Field name in original format.
-    """
-
-    if data_source == MYRORSS_SOURCE_ID:
-        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MYRORSS)
-    else:
-        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MRMS)
-
-    found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
-    return all_orig_field_names[numpy.where(found_flags)[0][0]]
 
 
 def _get_valid_heights_for_field(field_name, data_source=None):
@@ -387,6 +370,27 @@ def check_field_name(field_name):
         raise ValueError(error_string)
 
 
+def field_name_new_to_orig(field_name, data_source=None):
+    """Converts field name from new to original format.
+
+    New format = GewitterGefahr
+    Original format = either MYRORSS or MRMS
+
+    :param field_name: Name of radar field in new format.
+    :param data_source: Data source (either "myrorss" or "mrms").
+    :return: field_name_orig: Field name in original format.
+    """
+
+    _check_data_source(data_source)
+    if data_source == MYRORSS_SOURCE_ID:
+        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MYRORSS)
+    else:
+        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MRMS)
+
+    found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
+    return all_orig_field_names[numpy.where(found_flags)[0][0]]
+
+
 def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
                                     data_source=None):
     """Converts two arrays (radar-field names and reflectivity heights) to dict.
@@ -469,7 +473,7 @@ def get_relative_dir_for_raw_files(field_name=None, height_m_agl=None,
             field_name, data_source=data_source)[0]
 
     return '{0:s}/{1:05.2f}'.format(
-        _field_name_new_to_orig(field_name, data_source=data_source),
+        field_name_new_to_orig(field_name, data_source=data_source),
         float(height_m_agl) * METRES_TO_KM)
 
 
@@ -725,6 +729,7 @@ def read_metadata_from_raw_file(netcdf_file_name, data_source=None,
                                      SENTINEL_VALUE_COLUMNS_ORIG[i])
 
     metadata_dict.update({SENTINEL_VALUE_COLUMN: sentinel_values})
+    netcdf_dataset.close()
     return metadata_dict
 
 
@@ -782,6 +787,7 @@ def read_data_from_sparse_grid_file(netcdf_file_name, field_name_orig=None,
                 netcdf_dataset.variables[NUM_GRID_CELL_COLUMN_ORIG][:],
             field_name: netcdf_dataset.variables[field_name_orig][:]}
 
+    netcdf_dataset.close()
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     return _remove_sentinels_from_sparse_grid(
         sparse_grid_table, field_name, sentinel_values)
@@ -821,6 +827,7 @@ def read_data_from_full_grid_file(netcdf_file_name, metadata_dict,
 
     field_matrix = netcdf_dataset.variables[
         metadata_dict[FIELD_NAME_COLUMN_ORIG]]
+    netcdf_dataset.close()
 
     min_latitude_deg = metadata_dict[NW_GRID_POINT_LAT_COLUMN] - (
         metadata_dict[LAT_SPACING_COLUMN] * (metadata_dict[NUM_LAT_COLUMN] - 1))

@@ -1190,7 +1190,7 @@ def interp_ruc_all_grids(
     return interp_table
 
 
-def temperature_isosurface_from_nwp(
+def interp_temperature_sfc_from_nwp(
         query_point_table, unix_time_sec=None, temperature_kelvins=None,
         model_name=None, grid_id=None, top_grib_directory_name=None,
         temporal_interp_method=PREVIOUS_INTERP_METHOD,
@@ -1385,7 +1385,7 @@ def temperature_isosurface_from_nwp(
         target_temperature_kelvins=temperature_kelvins)
 
 
-def temperature_isosurface_from_ruc_all_grids(
+def interp_temperature_sfc_from_ruc_all_grids(
         query_point_table, unix_time_sec=None, temperature_kelvins=None,
         top_grib_directory_name=None,
         temporal_interp_method=PREVIOUS_INTERP_METHOD,
@@ -1396,7 +1396,7 @@ def temperature_isosurface_from_ruc_all_grids(
         raise_error_if_missing=False):
     """Creates temperature isosurface from RUC data.
 
-    This method is the same as temperature_isosurface_from_nwp, except that it
+    This method is the same as interp_temperature_sfc_from_nwp, except that it
     combines RUC data from different grids.
 
     :param query_point_table: See documentation for

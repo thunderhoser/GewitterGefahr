@@ -409,6 +409,7 @@ def read_winds_from_raw_file(netcdf_file_name, secondary_source=None,
                  WIND_GUST_SPEED_FLAG_COLUMN: wind_gust_speed_quality_flags,
                  WIND_GUST_DIR_FLAG_COLUMN: wind_gust_dir_quality_flags}
 
+    netcdf_dataset.close()
     wind_table = pandas.DataFrame.from_dict(wind_dict)
     wind_table = _remove_invalid_wind_rows(wind_table)
     return _remove_low_quality_data(wind_table)
