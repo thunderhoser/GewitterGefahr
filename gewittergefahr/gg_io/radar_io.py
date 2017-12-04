@@ -703,8 +703,8 @@ def read_metadata_from_raw_file(netcdf_file_name, data_source=None,
             allow_nan=False),
         LAT_SPACING_COLUMN: getattr(netcdf_dataset, LAT_SPACING_COLUMN_ORIG),
         LNG_SPACING_COLUMN: getattr(netcdf_dataset, LNG_SPACING_COLUMN_ORIG),
-        NUM_LAT_COLUMN: netcdf_dataset.dimensions[NUM_LAT_COLUMN_ORIG].size,
-        NUM_LNG_COLUMN: netcdf_dataset.dimensions[NUM_LNG_COLUMN_ORIG].size,
+        NUM_LAT_COLUMN: netcdf_dataset.dimensions[NUM_LAT_COLUMN_ORIG].size + 1,
+        NUM_LNG_COLUMN: netcdf_dataset.dimensions[NUM_LNG_COLUMN_ORIG].size + 1,
         HEIGHT_COLUMN: getattr(netcdf_dataset, HEIGHT_COLUMN_ORIG),
         UNIX_TIME_COLUMN: getattr(netcdf_dataset, UNIX_TIME_COLUMN_ORIG),
         FIELD_NAME_COLUMN_ORIG: field_name_orig,
@@ -717,11 +717,6 @@ def read_metadata_from_raw_file(netcdf_file_name, data_source=None,
     metadata_dict[NW_GRID_POINT_LNG_COLUMN] = rounder.ceiling_to_nearest(
         metadata_dict[NW_GRID_POINT_LNG_COLUMN],
         metadata_dict[LNG_SPACING_COLUMN])
-
-    metadata_dict[NUM_LAT_COLUMN] = int(rounder.round_to_nearest(
-        metadata_dict[NUM_LAT_COLUMN], 100)) + 1
-    metadata_dict[NUM_LNG_COLUMN] = int(rounder.round_to_nearest(
-        metadata_dict[NUM_LNG_COLUMN], 100)) + 1
 
     sentinel_values = numpy.full(len(SENTINEL_VALUE_COLUMNS_ORIG), numpy.nan)
     for i in range(len(SENTINEL_VALUE_COLUMNS_ORIG)):

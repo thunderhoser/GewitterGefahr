@@ -25,9 +25,11 @@ from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 GRID_SPACING_MULTIPLE_DEG = 0.01
+METRES_TO_KM = 0.001
 
 
 def interp_temperature_sfc_from_nwp(
@@ -142,6 +144,8 @@ def interp_reflectivity_to_heights(
             these_reflectivities_dbz = reflectivity_matrix_dbz[:, i, j]
             these_real_indices = numpy.where(
                 numpy.invert(numpy.isnan(these_reflectivities_dbz)))[0]
+            if len(these_real_indices) < 2:
+                continue
 
             interp_object = scipy.interpolate.interp1d(
                 unique_grid_point_heights_m_asl[these_real_indices],
@@ -185,6 +189,7 @@ def write_field_to_wdssii_file(
     field_name = field_to_heights_dict_m_asl.keys()[0]
     radar_height_m_asl = field_to_heights_dict_m_asl[field_name][0]
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
@@ -201,7 +206,8 @@ def write_field_to_wdssii_file(
         lng_conversion.convert_lng_negative_in_west(
             metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN]))
     netcdf_dataset.setncattr(
-        radar_io.HEIGHT_COLUMN_ORIG, numpy.float(radar_height_m_asl))
+        radar_io.HEIGHT_COLUMN_ORIG,
+        METRES_TO_KM * numpy.float(radar_height_m_asl))
     netcdf_dataset.setncattr(
         radar_io.UNIX_TIME_COLUMN_ORIG,
         numpy.int32(metadata_dict[radar_io.UNIX_TIME_COLUMN]))
