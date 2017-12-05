@@ -21,10 +21,6 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
-# TODO(thunderhoser): Make this module deal with NaN's.
-# TODO(thunderhoser): Add confidence intervals (from bootstrapping or
-# otherwise).
-
 DEFAULT_ROC_LINE_COLOUR = numpy.array([228., 26., 28.]) / 255
 DEFAULT_ROC_LINE_WIDTH = 3.
 DEFAULT_ROC_RANDOM_LINE_COLOUR = numpy.array([152., 152., 152.]) / 255
@@ -65,6 +61,8 @@ INSET_HISTOGRAM_HEIGHT = 0.3
 INSET_HISTOGRAM_X_TICKS = numpy.linspace(0., 1., num=6)
 INSET_HISTOGRAM_Y_TICK_SPACING = 0.1
 
+TRANSPARENCY_FOR_CONFIDENCE_INTERVAL = 0.5
+
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
@@ -73,6 +71,65 @@ pyplot.rc('xtick', labelsize=FONT_SIZE)
 pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
+
+
+def _confidence_interval_to_polygon(
+        x_coords_bottom=None, y_coords_bottom=None, x_coords_top=None,
+        y_coords_top=None, for_performance_diagram=False):
+    """Generates polygon for confidence interval.
+
+    P = number of points in bottom curve = number of points in top curve
+
+    :param x_coords_bottom: length-P numpy with x-coordinates of bottom curve
+        (lower end of confidence interval).
+    :param y_coords_bottom: Same but for y-coordinates.
+    :param x_coords_top: length-P numpy with x-coordinates of top curve (upper
+        end of confidence interval).
+    :param y_coords_top: Same but for y-coordinates.
+    :param for_performance_diagram: Boolean flag.  If True, confidence interval
+        is for a performance diagram, which means that coordinates will be
+        sorted in a slightly different way.
+    :return: polygon_object: Instance of `shapely.geometry.Polygon`.
+    """
+
+    nan_flags_top = numpy.logical_or(
+        numpy.isnan(x_coords_top), numpy.isnan(y_coords_top))
+    real_indices_top = numpy.where(numpy.invert(nan_flags_top))[0]
+
+    nan_flags_bottom = numpy.logical_or(
+        numpy.isnan(x_coords_bottom), numpy.isnan(y_coords_bottom))
+    real_indices_bottom = numpy.where(numpy.invert(nan_flags_bottom))[0]
+
+    if for_performance_diagram:
+        y_coords_top = y_coords_top[real_indices_top]
+        sort_indices_top = numpy.argsort(y_coords_top)
+        y_coords_top = y_coords_top[sort_indices_top]
+        x_coords_top = x_coords_top[real_indices_top][sort_indices_top]
+
+        y_coords_bottom = y_coords_bottom[real_indices_bottom]
+        sort_indices_bottom = numpy.argsort(-y_coords_bottom)
+        y_coords_bottom = y_coords_bottom[sort_indices_bottom]
+        x_coords_bottom = x_coords_bottom[real_indices_bottom][
+            sort_indices_bottom]
+    else:
+        x_coords_top = x_coords_top[real_indices_top]
+        sort_indices_top = numpy.argsort(-x_coords_top)
+        x_coords_top = x_coords_top[sort_indices_top]
+        y_coords_top = y_coords_top[real_indices_top][sort_indices_top]
+
+        x_coords_bottom = x_coords_bottom[real_indices_bottom]
+        sort_indices_bottom = numpy.argsort(x_coords_bottom)
+        x_coords_bottom = x_coords_bottom[sort_indices_bottom]
+        y_coords_bottom = y_coords_bottom[real_indices_bottom][
+            sort_indices_bottom]
+
+    polygon_x_coords = numpy.concatenate((
+        x_coords_top, x_coords_bottom, numpy.array([x_coords_top[0]])))
+    polygon_y_coords = numpy.concatenate((
+        y_coords_top, y_coords_bottom, numpy.array([y_coords_top[0]])))
+
+    return polygons.vertex_arrays_to_polygon_object(
+        polygon_x_coords, polygon_y_coords)
 
 
 def _plot_background_of_attributes_diagram(
@@ -222,28 +279,81 @@ def plot_roc_curve(
     """
 
     error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(pod_by_threshold, 0.)
-    error_checking.assert_is_leq_numpy_array(pod_by_threshold, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        pod_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        pod_by_threshold, 1., allow_nan=True)
     num_thresholds = len(pod_by_threshold)
 
     error_checking.assert_is_numpy_array(
         pofd_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
-    error_checking.assert_is_geq_numpy_array(pofd_by_threshold, 0.)
-    error_checking.assert_is_leq_numpy_array(pofd_by_threshold, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        pofd_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        pofd_by_threshold, 1., allow_nan=True)
 
     random_x_coords, random_y_coords = model_eval.get_random_roc_curve()
     axes_object.plot(
         random_x_coords, random_y_coords, color=random_line_colour,
         linestyle='dashed', linewidth=random_line_width)
 
-    axes_object.plot(
-        pofd_by_threshold, pod_by_threshold, color=line_colour,
-        linestyle='solid', linewidth=line_width)
+    nan_flags = numpy.logical_or(
+        numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold))
+    if not numpy.all(nan_flags):
+        real_indices = numpy.where(numpy.invert(nan_flags))[0]
+        axes_object.plot(
+            pofd_by_threshold[real_indices], pod_by_threshold[real_indices],
+            color=line_colour, linestyle='solid', linewidth=line_width)
 
     axes_object.set_xlabel('POFD (probability of false detection)')
     axes_object.set_ylabel('POD (probability of detection)')
     axes_object.set_xlim(0., 1.)
     axes_object.set_ylim(0., 1.)
+
+
+def plot_bootstrapped_roc_curve(
+        axes_object=None, roc_dictionary_bottom=None, roc_dictionary_mean=None,
+        roc_dictionary_top=None, line_colour=DEFAULT_ROC_LINE_COLOUR,
+        line_width=DEFAULT_ROC_LINE_WIDTH,
+        random_line_colour=DEFAULT_ROC_RANDOM_LINE_COLOUR,
+        random_line_width=DEFAULT_ROC_RANDOM_LINE_WIDTH):
+    """Bootstrapped version of plot_roc_curve.
+
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param roc_dictionary_bottom: See documentation for
+        `model_evaluation.bootstrap_roc_curve`.
+    :param roc_dictionary_mean: See documentation for
+        `model_evaluation.bootstrap_roc_curve`.
+    :param roc_dictionary_top: See documentation for
+        `model_evaluation.bootstrap_roc_curve`.
+    :param line_colour: Colour of mean ROC curve (middle of confidence interval)
+        (in any format accepted by `matplotlib.colors`).  The rest of the
+        confidence interval will be shaded with the same colour but 50% opacity.
+    :param line_width: Width of mean ROC curve (middle of confidence interval).
+    :param random_line_colour: Colour of reference line (ROC curve for a random
+        predictor).
+    :param random_line_width: Width of reference line.
+    """
+
+    plot_roc_curve(
+        axes_object=axes_object,
+        pod_by_threshold=roc_dictionary_mean[model_eval.POD_BY_THRESHOLD_KEY],
+        pofd_by_threshold=roc_dictionary_mean[model_eval.POFD_BY_THRESHOLD_KEY],
+        line_colour=line_colour, line_width=line_width,
+        random_line_colour=random_line_colour,
+        random_line_width=random_line_width)
+
+    polygon_object = _confidence_interval_to_polygon(
+        x_coords_bottom=roc_dictionary_bottom[model_eval.POFD_BY_THRESHOLD_KEY],
+        y_coords_bottom=roc_dictionary_bottom[model_eval.POD_BY_THRESHOLD_KEY],
+        x_coords_top=roc_dictionary_top[model_eval.POFD_BY_THRESHOLD_KEY],
+        y_coords_top=roc_dictionary_top[model_eval.POD_BY_THRESHOLD_KEY])
+
+    polygon_colour = matplotlib.colors.to_rgba(
+        line_colour, TRANSPARENCY_FOR_CONFIDENCE_INTERVAL)
+    polygon_patch = PolygonPatch(
+        polygon_object, lw=0, ec=polygon_colour, fc=polygon_colour)
+    axes_object.add_patch(polygon_patch)
 
 
 def plot_performance_diagram(
@@ -275,17 +385,21 @@ def plot_performance_diagram(
     """
 
     error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(pod_by_threshold, 0.)
-    error_checking.assert_is_leq_numpy_array(pod_by_threshold, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        pod_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        pod_by_threshold, 1., allow_nan=True)
     num_thresholds = len(pod_by_threshold)
 
     error_checking.assert_is_numpy_array(
         success_ratio_by_threshold,
         exact_dimensions=numpy.array([num_thresholds]))
-    error_checking.assert_is_geq_numpy_array(success_ratio_by_threshold, 0.)
-    error_checking.assert_is_leq_numpy_array(success_ratio_by_threshold, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        success_ratio_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        success_ratio_by_threshold, 1., allow_nan=True)
 
-    success_ratio_matrix, pod_matrix = model_eval._get_sr_pod_grid()
+    success_ratio_matrix, pod_matrix = model_eval.get_sr_pod_grid()
     csi_matrix = model_eval.csi_from_sr_and_pod(
         success_ratio_matrix, pod_matrix)
     frequency_bias_matrix = model_eval.frequency_bias_from_sr_and_pod(
@@ -313,14 +427,75 @@ def plot_performance_diagram(
         inline_spacing=PIXEL_PADDING_FOR_FREQ_BIAS_LABELS,
         fmt=STRING_FORMAT_FOR_FREQ_BIAS_LABELS, fontsize=FONT_SIZE)
 
-    axes_object.plot(
-        success_ratio_by_threshold, pod_by_threshold, color=line_colour,
-        linestyle='solid', linewidth=line_width)
+    nan_flags = numpy.logical_or(
+        numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold))
+    if not numpy.all(nan_flags):
+        real_indices = numpy.where(numpy.invert(nan_flags))[0]
+        axes_object.plot(
+            success_ratio_by_threshold[real_indices],
+            pod_by_threshold[real_indices], color=line_colour,
+            linestyle='solid', linewidth=line_width)
 
     axes_object.set_xlabel('Success ratio (1 - FAR)')
     axes_object.set_ylabel('POD (probability of detection)')
     axes_object.set_xlim(0., 1.)
     axes_object.set_ylim(0., 1.)
+
+
+def plot_bootstrapped_performance_diagram(
+        axes_object=None, performance_diagram_dict_bottom=None,
+        performance_diagram_dict_mean=None, performance_diagram_dict_top=None,
+        line_colour=DEFAULT_PERF_DIAG_LINE_COLOUR,
+        line_width=DEFAULT_PERF_DIAG_LINE_WIDTH,
+        bias_line_colour=DEFAULT_FREQ_BIAS_LINE_COLOUR,
+        bias_line_width=DEFAULT_FREQ_BIAS_LINE_WIDTH,
+        csi_colour_map=DEFAULT_CSI_COLOUR_MAP):
+    """Bootstrapped version of plot_performance_diagram.
+
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param performance_diagram_dict_bottom: See documentation for
+        `model_evaluation.bootstrap_performance_diagram`.
+    :param performance_diagram_dict_mean: See documentation for
+        `model_evaluation.bootstrap_performance_diagram`.
+    :param performance_diagram_dict_top: See documentation for
+        `model_evaluation.bootstrap_performance_diagram`.
+    :param line_colour: Colour of mean performance diagram (middle of confidence
+        interval) (in any format accepted by `matplotlib.colors`).  The rest of
+        the confidence interval will be shaded with the same colour but 50%
+        opacity.
+    :param line_width: Width of mean performance diagram (middle of confidence
+        interval).
+    :param bias_line_colour: Colour of contour lines for frequency bias.
+    :param bias_line_width: Width of contour lines for frequency bias.
+    :param csi_colour_map: Colour map (instance of `matplotlib.pyplot.cm`) for
+        CSI (critical success index) contours.
+    """
+
+    plot_performance_diagram(
+        axes_object=axes_object,
+        pod_by_threshold=performance_diagram_dict_mean[
+            model_eval.POD_BY_THRESHOLD_KEY],
+        success_ratio_by_threshold=performance_diagram_dict_mean[
+            model_eval.SUCCESS_RATIO_BY_THRESHOLD_KEY],
+        line_colour=line_colour, line_width=line_width,
+        bias_line_colour=bias_line_colour, bias_line_width=bias_line_width,
+        csi_colour_map=csi_colour_map)
+
+    polygon_object = _confidence_interval_to_polygon(
+        x_coords_bottom=performance_diagram_dict_bottom[
+            model_eval.SUCCESS_RATIO_BY_THRESHOLD_KEY],
+        y_coords_bottom=performance_diagram_dict_bottom[
+            model_eval.POD_BY_THRESHOLD_KEY],
+        x_coords_top=performance_diagram_dict_top[
+            model_eval.SUCCESS_RATIO_BY_THRESHOLD_KEY],
+        y_coords_top=performance_diagram_dict_top[
+            model_eval.POD_BY_THRESHOLD_KEY], for_performance_diagram=True)
+
+    polygon_colour = matplotlib.colors.to_rgba(
+        line_colour, TRANSPARENCY_FOR_CONFIDENCE_INTERVAL)
+    polygon_patch = PolygonPatch(
+        polygon_object, lw=0, ec=polygon_colour, fc=polygon_colour)
+    axes_object.add_patch(polygon_patch)
 
 
 def plot_reliability_curve(
@@ -352,14 +527,18 @@ def plot_reliability_curve(
 
     error_checking.assert_is_numpy_array(
         mean_forecast_prob_by_bin, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(mean_forecast_prob_by_bin, 0.)
-    error_checking.assert_is_leq_numpy_array(mean_forecast_prob_by_bin, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        mean_forecast_prob_by_bin, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        mean_forecast_prob_by_bin, 1., allow_nan=True)
     num_bins = len(mean_forecast_prob_by_bin)
 
     error_checking.assert_is_numpy_array(
         mean_observed_label_by_bin, exact_dimensions=numpy.array([num_bins]))
-    error_checking.assert_is_geq_numpy_array(mean_observed_label_by_bin, 0.)
-    error_checking.assert_is_leq_numpy_array(mean_observed_label_by_bin, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        mean_observed_label_by_bin, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        mean_observed_label_by_bin, 1., allow_nan=True)
 
     perfect_x_coords, perfect_y_coords = (
         model_eval.get_perfect_reliability_curve())
@@ -367,14 +546,74 @@ def plot_reliability_curve(
         perfect_x_coords, perfect_y_coords, color=perfect_line_colour,
         linestyle='dashed', linewidth=perfect_line_width)
 
-    axes_object.plot(
-        mean_forecast_prob_by_bin, mean_observed_label_by_bin,
-        color=line_colour, linestyle='solid', linewidth=line_width)
+    nan_flags = numpy.logical_or(
+        numpy.isnan(mean_forecast_prob_by_bin),
+        numpy.isnan(mean_observed_label_by_bin))
+    if not numpy.all(nan_flags):
+        real_indices = numpy.where(numpy.invert(nan_flags))[0]
+        axes_object.plot(
+            mean_forecast_prob_by_bin[real_indices],
+            mean_observed_label_by_bin[real_indices], color=line_colour,
+            linestyle='solid', linewidth=line_width)
 
     axes_object.set_xlabel('Forecast probability')
     axes_object.set_ylabel('Conditional event frequency')
     axes_object.set_xlim(0., 1.)
     axes_object.set_ylim(0., 1.)
+
+
+def plot_bootstrapped_reliability_curve(
+        axes_object=None, reliability_dict_bottom=None,
+        reliability_dict_mean=None, reliability_dict_top=None,
+        line_colour=DEFAULT_RELIA_LINE_COLOUR,
+        line_width=DEFAULT_RELIA_LINE_WIDTH,
+        perfect_line_colour=DEFAULT_PERFECT_RELIA_LINE_COLOUR,
+        perfect_line_width=DEFAULT_PERFECT_RELIA_LINE_WIDTH):
+    """Bootstrapped version of plot_reliability_curve.
+
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param reliability_dict_bottom: See documentation for
+        `model_evaluation.bootstrap_reliability_curve`.
+    :param reliability_dict_mean: See documentation for
+        `model_evaluation.bootstrap_reliability_curve`.
+    :param reliability_dict_top: See documentation for
+        `model_evaluation.bootstrap_reliability_curve`.
+    :param line_colour: Colour of mean reliability curve (middle of confidence
+        interval) (in any format accepted by `matplotlib.colors`).  The rest of
+        the confidence interval will be shaded with the same colour but 50%
+        opacity.
+    :param line_width: Width of mean reliability curve (middle of confidence
+        interval).
+    :param perfect_line_colour: Colour of reference line (reliability curve with
+        reliability = 0).
+    :param perfect_line_width: Width of reference line.
+    """
+
+    plot_reliability_curve(
+        axes_object=axes_object,
+        mean_forecast_prob_by_bin=reliability_dict_mean[
+            model_eval.MEAN_FORECAST_PROB_BY_BIN_KEY],
+        mean_observed_label_by_bin=reliability_dict_mean[
+            model_eval.MEAN_OBSERVED_LABEL_BY_BIN_KEY],
+        line_colour=line_colour, line_width=line_width,
+        perfect_line_colour=perfect_line_colour,
+        perfect_line_width=perfect_line_width)
+
+    polygon_object = _confidence_interval_to_polygon(
+        x_coords_bottom=reliability_dict_bottom[
+            model_eval.MEAN_FORECAST_PROB_BY_BIN_KEY],
+        y_coords_bottom=reliability_dict_bottom[
+            model_eval.MEAN_OBSERVED_LABEL_BY_BIN_KEY],
+        x_coords_top=reliability_dict_top[
+            model_eval.MEAN_FORECAST_PROB_BY_BIN_KEY],
+        y_coords_top=reliability_dict_top[
+            model_eval.MEAN_OBSERVED_LABEL_BY_BIN_KEY])
+
+    polygon_colour = matplotlib.colors.to_rgba(
+        line_colour, TRANSPARENCY_FOR_CONFIDENCE_INTERVAL)
+    polygon_patch = PolygonPatch(
+        polygon_object, lw=0, ec=polygon_colour, fc=polygon_colour)
+    axes_object.add_patch(polygon_patch)
 
 
 def plot_attributes_diagram(
@@ -421,8 +660,10 @@ def plot_attributes_diagram(
 
     error_checking.assert_is_numpy_array(
         mean_observed_label_by_bin, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(mean_observed_label_by_bin, 0.)
-    error_checking.assert_is_leq_numpy_array(mean_observed_label_by_bin, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        mean_observed_label_by_bin, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        mean_observed_label_by_bin, 1., allow_nan=True)
     num_bins = len(mean_observed_label_by_bin)
 
     error_checking.assert_is_integer_numpy_array(num_examples_by_bin)
@@ -430,8 +671,13 @@ def plot_attributes_diagram(
         num_examples_by_bin, exact_dimensions=numpy.array([num_bins]))
     error_checking.assert_is_geq_numpy_array(num_examples_by_bin, 0)
 
+    non_empty_bin_indices = numpy.where(num_examples_by_bin > 0)[0]
+    error_checking.assert_is_numpy_array_without_nan(
+        mean_observed_label_by_bin[non_empty_bin_indices])
+
     mean_observed_label = numpy.average(
-        mean_observed_label_by_bin, weights=num_examples_by_bin)
+        mean_observed_label_by_bin[non_empty_bin_indices],
+        weights=num_examples_by_bin[non_empty_bin_indices])
 
     _plot_background_of_attributes_diagram(
         axes_object=axes_object, mean_observed_label=mean_observed_label,
@@ -452,3 +698,84 @@ def plot_attributes_diagram(
         line_colour=reliability_line_colour, line_width=reliability_line_width,
         perfect_line_colour=perfect_relia_line_colour,
         perfect_line_width=perfect_relia_line_width)
+
+
+def plot_bootstrapped_attributes_diagram(
+        figure_object=None, axes_object=None, reliability_dict_bottom=None,
+        reliability_dict_mean=None, reliability_dict_top=None,
+        num_examples_by_bin=None,
+        reliability_line_colour=DEFAULT_RELIA_LINE_COLOUR,
+        reliability_line_width=DEFAULT_RELIA_LINE_WIDTH,
+        perfect_relia_line_colour=DEFAULT_PERFECT_RELIA_LINE_COLOUR,
+        perfect_relia_line_width=DEFAULT_PERFECT_RELIA_LINE_WIDTH,
+        no_skill_line_colour=DEFAULT_NO_SKILL_RELIA_LINE_COLOUR,
+        no_skill_line_width=DEFAULT_NO_SKILL_RELIA_LINE_WIDTH,
+        other_line_colour=DEFAULT_CLIMATOLOGY_LINE_COLOUR,
+        other_line_width=DEFAULT_CLIMATOLOGY_LINE_WIDTH,
+        histogram_bar_face_colour=DEFAULT_HISTOGRAM_FACE_COLOUR,
+        histogram_bar_edge_colour=DEFAULT_HISTOGRAM_EDGE_COLOUR,
+        histogram_bar_edge_width=DEFAULT_HISTOGRAM_EDGE_WIDTH):
+    """Bootstrapped version of plot_attributes_diagram.
+
+    :param figure_object: Instance of `matplotlib.figure.Figure`.
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param reliability_dict_bottom: See documentation for
+        `model_evaluation.bootstrap_reliability_curve`.
+    :param reliability_dict_mean: See documentation for
+        `model_evaluation.bootstrap_reliability_curve`.
+    :param reliability_dict_top: See documentation for
+        `model_evaluation.bootstrap_reliability_curve`.
+    :param num_examples_by_bin: See doc for
+        _plot_inset_histogram_for_attributes_diagram.
+    :param reliability_line_colour: See doc for plot_reliability_curve.
+    :param reliability_line_width: See doc for plot_reliability_curve.
+    :param perfect_relia_line_colour: See doc for plot_reliability_curve.
+    :param perfect_relia_line_width: See doc for plot_reliability_curve.
+    :param no_skill_line_colour: See doc for
+        _plot_background_of_attributes_diagram.
+    :param no_skill_line_width: See doc for
+        _plot_background_of_attributes_diagram.
+    :param other_line_colour: See doc for
+        _plot_background_of_attributes_diagram.
+    :param other_line_width: See doc for _plot_background_of_attributes_diagram.
+    :param histogram_bar_face_colour: See doc for
+        _plot_inset_histogram_for_attributes_diagram.
+    :param histogram_bar_edge_colour: See doc for
+        _plot_inset_histogram_for_attributes_diagram.
+    :param histogram_bar_edge_width: See doc for
+        _plot_inset_histogram_for_attributes_diagram.
+    """
+
+    plot_attributes_diagram(
+        figure_object=figure_object, axes_object=axes_object,
+        mean_forecast_prob_by_bin=reliability_dict_mean[
+            model_eval.MEAN_FORECAST_PROB_BY_BIN_KEY],
+        mean_observed_label_by_bin=reliability_dict_mean[
+            model_eval.MEAN_OBSERVED_LABEL_BY_BIN_KEY],
+        num_examples_by_bin=num_examples_by_bin,
+        reliability_line_colour=reliability_line_colour,
+        reliability_line_width=reliability_line_width,
+        perfect_relia_line_colour=perfect_relia_line_colour,
+        perfect_relia_line_width=perfect_relia_line_width,
+        no_skill_line_colour=no_skill_line_colour,
+        no_skill_line_width=no_skill_line_width,
+        other_line_colour=other_line_colour, other_line_width=other_line_width,
+        histogram_bar_face_colour=histogram_bar_face_colour,
+        histogram_bar_edge_colour=histogram_bar_edge_colour,
+        histogram_bar_edge_width=histogram_bar_edge_width)
+
+    polygon_object = _confidence_interval_to_polygon(
+        x_coords_bottom=reliability_dict_bottom[
+            model_eval.MEAN_FORECAST_PROB_BY_BIN_KEY],
+        y_coords_bottom=reliability_dict_bottom[
+            model_eval.MEAN_OBSERVED_LABEL_BY_BIN_KEY],
+        x_coords_top=reliability_dict_top[
+            model_eval.MEAN_FORECAST_PROB_BY_BIN_KEY],
+        y_coords_top=reliability_dict_top[
+            model_eval.MEAN_OBSERVED_LABEL_BY_BIN_KEY])
+
+    polygon_colour = matplotlib.colors.to_rgba(
+        reliability_line_colour, TRANSPARENCY_FOR_CONFIDENCE_INTERVAL)
+    polygon_patch = PolygonPatch(
+        polygon_object, lw=0, ec=polygon_colour, fc=polygon_colour)
+    axes_object.add_patch(polygon_patch)

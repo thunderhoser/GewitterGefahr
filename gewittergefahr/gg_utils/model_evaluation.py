@@ -813,6 +813,7 @@ def bootstrap_performance_diagram(
                                       numpy.nan)
 
     for j in range(num_bootstrap_iters):
+        print j
         _, these_sample_indices = bootstrapping.draw_sample(
             forecast_probabilities)
 
