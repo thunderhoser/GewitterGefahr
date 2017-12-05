@@ -32,6 +32,88 @@ GRID_SPACING_MULTIPLE_DEG = 0.01
 METRES_TO_KM = 0.001
 
 
+def _get_field_name_for_echo_tops(critical_reflectivity_dbz,
+                                  myrorss_format=False):
+    """Creates field name for echo tops.
+
+    :param critical_reflectivity_dbz: Critical reflectivity for echo tops.
+    :param myrorss_format: Boolean flag.  If True, field name will be in MYRORSS
+        format.  If False, will be in GewitterGefahr format.
+    :return: field_name: Field name for echo tops.
+    """
+
+    if myrorss_format:
+        field_name_for_18dbz_tops = radar_io.ECHO_TOP_18DBZ_NAME_ORIG
+    else:
+        field_name_for_18dbz_tops = radar_io.ECHO_TOP_18DBZ_NAME
+
+    return field_name_for_18dbz_tops.replace(
+        '18', '{0:.1f}'.format(critical_reflectivity_dbz))
+
+
+def _get_echo_top_single_column(
+        reflectivities_dbz=None, heights_m_asl=None,
+        critical_reflectivity_dbz=None):
+    """Finds echo top for a single column (horizontal location).
+
+    "Echo top" = maximum height with reflectivity >= critical value.
+
+    H = number of heights
+
+    :param reflectivities_dbz: length-H numpy array of reflectivities.
+    :param heights_m_asl: length-H numpy array of heights (metres above sea
+        level).  This method assumes that heights are sorted in ascending order.
+    :param critical_reflectivity_dbz: Critical reflectivity.
+    :return: echo_top_m_asl: Echo top.
+    """
+
+    critical_flags = reflectivities_dbz >= critical_reflectivity_dbz
+    if not numpy.any(critical_flags):
+        return numpy.nan
+
+    critical_indices = numpy.where(critical_flags)[0]
+    highest_critical_index = critical_indices[-1]
+
+    subcritical_indices = numpy.where(
+        reflectivities_dbz < critical_reflectivity_dbz)[0]
+    subcritical_indices = subcritical_indices[
+        subcritical_indices > highest_critical_index]
+
+    if not subcritical_indices:
+        try:
+            height_spacing_metres = (
+                heights_m_asl[highest_critical_index + 1] -
+                heights_m_asl[highest_critical_index])
+        except IndexError:
+            height_spacing_metres = (
+                heights_m_asl[highest_critical_index] -
+                heights_m_asl[highest_critical_index - 1])
+
+        extrap_height_metres = height_spacing_metres * (
+            1. - critical_reflectivity_dbz /
+            reflectivities_dbz[highest_critical_index])
+        return heights_m_asl[highest_critical_index] + extrap_height_metres
+
+    adjacent_subcritical_index = subcritical_indices[0]
+    indices_for_interp = numpy.array(
+        [highest_critical_index, adjacent_subcritical_index], dtype=int)
+
+    # if len(critical_indices) > 1:
+    #     adjacent_critical_index = critical_indices[-2]
+    #     indices_for_interp = numpy.array(
+    #         [adjacent_critical_index, highest_critical_index,
+    #          adjacent_subcritical_index], dtype=int)
+    # else:
+    #     indices_for_interp = numpy.array(
+    #         [highest_critical_index, adjacent_subcritical_index], dtype=int)
+
+    interp_object = scipy.interpolate.interp1d(
+        reflectivities_dbz[indices_for_interp],
+        heights_m_asl[indices_for_interp], kind='linear', bounds_error=False,
+        fill_value='extrapolate', assume_sorted=False)
+    return interp_object(critical_reflectivity_dbz)
+
+
 def interp_temperature_sfc_from_nwp(
         radar_grid_point_lats_deg=None, radar_grid_point_lngs_deg=None,
         unix_time_sec=None, temperature_kelvins=None, model_name=None,
@@ -177,10 +259,66 @@ def get_column_max_reflectivity(reflectivity_matrix_dbz):
     return numpy.nanmax(reflectivity_matrix_dbz, axis=0)
 
 
-def write_field_to_wdssii_file(
+def get_echo_tops(
+        reflectivity_matrix_dbz=None, unique_grid_point_heights_m_asl=None,
+        critical_reflectivity_dbz=None):
+    """Finds echo top at each horizontal location.
+
+    "Echo top" = maximum height with >= critical reflectivity.
+
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+    H = number of height levels (unique grid-point heights)
+
+    :param reflectivity_matrix_dbz: H-by-M-by-N matrix of reflectivities.
+    :param unique_grid_point_heights_m_asl: length-H numpy array of grid-point
+        heights (metres above sea level).  Must be sorted in ascending order,
+        which means that height must increase with the first index of
+        reflectivity_matrix_dbz.
+    :param critical_reflectivity_dbz: Critical reflectivity.
+    :return: echo_top_matrix_m_asl: M-by-N matrix of echo tops (metres above sea
+        level).
+    :raises: ValueError: unique_grid_point_heights_m_asl not sorted in ascending
+        order.
+    """
+
+    error_checking.assert_is_numpy_array(
+        reflectivity_matrix_dbz, num_dimensions=3)
+    error_checking.assert_is_real_numpy_array(reflectivity_matrix_dbz)
+    error_checking.assert_is_greater(critical_reflectivity_dbz, 0.)
+
+    num_grid_heights = reflectivity_matrix_dbz.shape[0]
+    num_grid_rows = reflectivity_matrix_dbz.shape[1]
+    num_grid_columns = reflectivity_matrix_dbz.shape[2]
+
+    error_checking.assert_is_numpy_array(
+        unique_grid_point_heights_m_asl,
+        exact_dimensions=numpy.array([num_grid_heights]))
+    error_checking.assert_is_geq_numpy_array(
+        unique_grid_point_heights_m_asl, 0.)
+
+    sorted_heights_m_asl = numpy.sort(unique_grid_point_heights_m_asl)
+    if not numpy.array_equal(sorted_heights_m_asl,
+                             unique_grid_point_heights_m_asl):
+        raise ValueError('unique_grid_point_heights_m_asl are not sorted in '
+                         'ascending order.')
+
+    echo_top_matrix_m_asl = numpy.full(
+        (num_grid_rows, num_grid_columns), numpy.nan)
+    for i in range(num_grid_rows):
+        for j in range(num_grid_columns):
+            echo_top_matrix_m_asl[i, j] = _get_echo_top_single_column(
+                reflectivities_dbz=reflectivity_matrix_dbz[:, i, j],
+                heights_m_asl=unique_grid_point_heights_m_asl,
+                critical_reflectivity_dbz=critical_reflectivity_dbz)
+
+    return echo_top_matrix_m_asl
+
+
+def write_field_to_myrorss_file(
         field_matrix=None, netcdf_file_name=None, field_name=None,
-        radar_height_m_asl=None, metadata_dict=None):
-    """Writes field to file that can be read by WDSS-II.
+        radar_height_m_asl=None, echo_top_level_dbz=None, metadata_dict=None):
+    """Writes field to file in MYRORSS format.
 
     M = number of rows (unique grid-point latitudes)
     N = number of columns (unique grid-point longitudes)
@@ -192,9 +330,15 @@ def write_field_to_wdssii_file(
     :param netcdf_file_name: Path to output file.
     :param field_name: Name of radar field in GewitterGefahr format.
     :param radar_height_m_asl: Height of radar field (metres above sea level).
+    :param echo_top_level_dbz: Critical reflectivity for echo tops.  Valid only
+        if `field_name in radar_io.ECHO_TOP_NAMES`.
     :param metadata_dict: See documentation for
         `gridrad_io.read_metadata_from_full_grid_file`.
     """
+
+    # TODO(thunderhoser): Current method for dealing with echo tops at non-
+    # standard levels (other than 18 and 50 dBZ) is hacky.  I should eventually
+    # change radar_io.py to handle echo tops at any level.
 
     if field_name == radar_io.REFL_NAME:
         field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
@@ -208,13 +352,23 @@ def write_field_to_wdssii_file(
     field_name = field_to_heights_dict_m_asl.keys()[0]
     radar_height_m_asl = field_to_heights_dict_m_asl[field_name][0]
 
+    if field_name in radar_io.ECHO_TOP_NAMES:
+        field_matrix = METRES_TO_KM * field_matrix
+
+        error_checking.assert_is_greater(echo_top_level_dbz, 0.)
+        field_name = _get_field_name_for_echo_tops(echo_top_level_dbz, False)
+        field_name_myrorss = _get_field_name_for_echo_tops(
+            echo_top_level_dbz, True)
+    else:
+        field_name_myrorss = radar_io.field_name_new_to_orig(
+            field_name, radar_io.MYRORSS_SOURCE_ID)
+
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
-    field_name_wdssii = radar_io.field_name_new_to_orig(
-        field_name, radar_io.MYRORSS_SOURCE_ID)
-    netcdf_dataset.setncattr(radar_io.FIELD_NAME_COLUMN_ORIG, field_name_wdssii)
+    netcdf_dataset.setncattr(radar_io.FIELD_NAME_COLUMN_ORIG,
+                             field_name_myrorss)
     netcdf_dataset.setncattr('DataType', 'SparseLatLonGrid')
 
     netcdf_dataset.setncattr(
@@ -293,7 +447,7 @@ def write_field_to_wdssii_file(
         lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN])
 
     netcdf_dataset.createVariable(
-        field_name_wdssii, numpy.single, (radar_io.NUM_PIXELS_COLUMN_ORIG, ))
+        field_name_myrorss, numpy.single, (radar_io.NUM_PIXELS_COLUMN_ORIG, ))
     netcdf_dataset.createVariable(
         radar_io.GRID_ROW_COLUMN_ORIG, numpy.int16,
         (radar_io.NUM_PIXELS_COLUMN_ORIG, ))
@@ -304,14 +458,14 @@ def write_field_to_wdssii_file(
         radar_io.NUM_GRID_CELL_COLUMN_ORIG, numpy.int32,
         (radar_io.NUM_PIXELS_COLUMN_ORIG, ))
 
-    netcdf_dataset.variables[field_name_wdssii].setncattr(
+    netcdf_dataset.variables[field_name_myrorss].setncattr(
         'BackgroundValue', numpy.int32(-99900))
-    netcdf_dataset.variables[field_name_wdssii].setncattr(
+    netcdf_dataset.variables[field_name_myrorss].setncattr(
         'units', 'dimensionless')
-    netcdf_dataset.variables[field_name_wdssii].setncattr(
+    netcdf_dataset.variables[field_name_myrorss].setncattr(
         'NumValidRuns', numpy.int32(len(real_value_indices)))
 
-    netcdf_dataset.variables[field_name_wdssii][:] = field_vector[
+    netcdf_dataset.variables[field_name_myrorss][:] = field_vector[
         real_value_indices]
     netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG][:] = (
         row_index_vector[real_value_indices])
