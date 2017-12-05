@@ -67,19 +67,18 @@ def _get_echo_top_single_column(
     :return: echo_top_m_asl: Echo top.
     """
 
-    critical_flags = reflectivities_dbz >= critical_reflectivity_dbz
-    if not numpy.any(critical_flags):
+    critical_indices = numpy.where(
+        reflectivities_dbz >= critical_reflectivity_dbz)[0]
+    if len(critical_indices) == 0:
         return numpy.nan
 
-    critical_indices = numpy.where(critical_flags)[0]
     highest_critical_index = critical_indices[-1]
-
     subcritical_indices = numpy.where(
         reflectivities_dbz < critical_reflectivity_dbz)[0]
     subcritical_indices = subcritical_indices[
         subcritical_indices > highest_critical_index]
 
-    if not subcritical_indices:
+    if len(subcritical_indices) == 0:
         try:
             height_spacing_metres = (
                 heights_m_asl[highest_critical_index + 1] -
@@ -356,7 +355,6 @@ def write_field_to_myrorss_file(
         field_matrix = METRES_TO_KM * field_matrix
 
         error_checking.assert_is_greater(echo_top_level_dbz, 0.)
-        field_name = _get_field_name_for_echo_tops(echo_top_level_dbz, False)
         field_name_myrorss = _get_field_name_for_echo_tops(
             echo_top_level_dbz, True)
     else:
