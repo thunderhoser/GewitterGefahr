@@ -1,5 +1,6 @@
 """Unit tests for model_evaluation.py."""
 
+import copy
 import unittest
 import numpy
 from gewittergefahr.gg_utils import model_evaluation as model_eval
@@ -508,10 +509,51 @@ class ModelEvaluationTests(unittest.TestCase):
         self.assertTrue(numpy.isclose(
             this_cross_entropy, CROSS_ENTROPY, atol=TOLERANCE))
 
+    def test_get_area_under_roc_curve_no_nan(self):
+        """Ensures correct output from get_area_under_roc_curve.
+
+        In this case, input arrays do not contain NaN.
+        """
+
+        this_auc = model_eval.get_area_under_roc_curve(
+            POFD_BY_THRESHOLD, POD_BY_THRESHOLD)
+        self.assertFalse(numpy.isnan(this_auc))
+
+    def test_get_area_under_roc_curve_some_nan(self):
+        """Ensures correct output from get_area_under_roc_curve.
+
+        In this case, input arrays contain some NaN's.
+        """
+
+        these_pofd_by_threshold = copy.deepcopy(POFD_BY_THRESHOLD)
+        these_pod_by_threshold = copy.deepcopy(POD_BY_THRESHOLD)
+
+        nan_indices = numpy.array(
+            [0, len(these_pod_by_threshold) - 1], dtype=int)
+        these_pofd_by_threshold[nan_indices] = numpy.nan
+        these_pod_by_threshold[nan_indices] = numpy.nan
+
+        this_auc = model_eval.get_area_under_roc_curve(
+            these_pofd_by_threshold, these_pod_by_threshold)
+        self.assertFalse(numpy.isnan(this_auc))
+
+    def test_get_area_under_roc_curve_all_nan(self):
+        """Ensures correct output from get_area_under_roc_curve.
+
+        In this case, input arrays are all NaN's.
+        """
+
+        these_pofd_by_threshold = numpy.full(len(POFD_BY_THRESHOLD), numpy.nan)
+        these_pod_by_threshold = copy.deepcopy(these_pofd_by_threshold)
+
+        this_auc = model_eval.get_area_under_roc_curve(
+            these_pofd_by_threshold, these_pod_by_threshold)
+        self.assertTrue(numpy.isnan(this_auc))
+
     def test_get_points_in_roc_curve(self):
         """Ensures correct output from get_points_in_roc_curve."""
 
-        these_pofd_by_threshold, these_pod_by_threshold, _ = (
+        these_pofd_by_threshold, these_pod_by_threshold = (
             model_eval.get_points_in_roc_curve(
                 forecast_probabilities=FORECAST_PROBABILITIES,
                 observed_labels=OBSERVED_LABELS,

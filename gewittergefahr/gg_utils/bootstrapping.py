@@ -14,7 +14,7 @@ from gewittergefahr.gg_utils import error_checking
 DEFAULT_CONFIDENCE_LEVEL = 0.95
 
 
-def draw_sample(input_vector, num_examples_to_draw):
+def draw_sample(input_vector, num_examples_to_draw=None):
     """Draws sample for bootstrapping.
 
     N = number of original examples
@@ -24,7 +24,7 @@ def draw_sample(input_vector, num_examples_to_draw):
     of examples drawn may range from 1...N.
 
     :param input_vector: length-N numpy array.
-    :param num_examples_to_draw: Number of examples to draw.
+    :param num_examples_to_draw: Number of examples to draw.  Default is N.
     :return: sample_vector: length-M numpy array, where each element is drawn
         from input_vector.
     :return: sample_indices: length-M numpy array of indices taken from
@@ -34,6 +34,9 @@ def draw_sample(input_vector, num_examples_to_draw):
 
     error_checking.assert_is_numpy_array(input_vector, num_dimensions=1)
     num_examples = len(input_vector)
+
+    if num_examples_to_draw is None:
+        num_examples_to_draw = num_examples
 
     error_checking.assert_is_integer(num_examples_to_draw)
     error_checking.assert_is_greater(num_examples_to_draw, 0)
