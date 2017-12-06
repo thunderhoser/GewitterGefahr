@@ -380,19 +380,18 @@ def plot_meridians(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
 
 
-def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
-                          colour_min=None, colour_max=None,
-                          orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
-                          extend_min=True, extend_max=True):
-    """Adds linear colour bar to existing plot.
+def add_colour_bar(
+        axes_object, values_to_colour=None, colour_map=None,
+        colour_norm_object=None, orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
+        extend_min=True, extend_max=True):
+    """Adds colour bar to existing plot.
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param values_to_colour: numpy array of values to which the colour map will
         be applied.
     :param colour_map: Instance of `matplotlib.pyplot.cm`.
-    :param colour_min: Minimum value for colour map.
+    :param colour_norm_object: Instance of `matplotlib.colors.Normalize`.
     :param orientation: Orientation (either "horizontal" or "vertical").
-    :param colour_max: Maximum value for colour map.
     :param extend_min: Boolean flag.  If extend_min = True, will add arrow to
         bottom end of colour bar.  Otherwise, bottom of colour bar will be
         rectangular.
@@ -402,12 +401,9 @@ def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
     """
 
     error_checking.assert_is_real_numpy_array(values_to_colour)
-    error_checking.assert_is_greater(colour_max, colour_min)
     error_checking.assert_is_boolean(extend_min)
     error_checking.assert_is_boolean(extend_max)
 
-    colour_norm_object = matplotlib.colors.Normalize(
-        vmin=colour_min, vmax=colour_max, clip=False)
     scalar_mappable_object = pyplot.cm.ScalarMappable(
         cmap=colour_map, norm=colour_norm_object)
     scalar_mappable_object.set_array(values_to_colour)
@@ -429,3 +425,32 @@ def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
     return pyplot.colorbar(
         ax=axes_object, mappable=scalar_mappable_object,
         orientation=orientation, pad=this_padding, extend=extend_argument)
+
+
+def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
+                          colour_min=None, colour_max=None,
+                          orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
+                          extend_min=True, extend_max=True):
+    """Adds linear colour bar to existing plot.
+
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param values_to_colour: numpy array of values to which the colour map will
+        be applied.
+    :param colour_map: Instance of `matplotlib.pyplot.cm`.
+    :param colour_min: Minimum value for colour map.
+    :param colour_max: Maximum value for colour map.
+    :param orientation: Orientation (either "horizontal" or "vertical").
+    :param extend_min: See documentation for add_colour_bar.
+    :param extend_max: See documentation for add_colour_bar.
+    :return: colour_bar_object: Instance of `matplotlib.pyplot.colorbar` created
+        by this method.
+    """
+
+    error_checking.assert_is_greater(colour_max, colour_min)
+    colour_norm_object = matplotlib.colors.Normalize(
+        vmin=colour_min, vmax=colour_max, clip=False)
+
+    return add_colour_bar(
+        axes_object, values_to_colour=values_to_colour, colour_map=colour_map,
+        colour_norm_object=colour_norm_object, orientation=orientation,
+        extend_min=extend_min, extend_max=extend_max)
