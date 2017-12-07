@@ -48,7 +48,9 @@ UNCERTAINTY_KEY = 'uncertainty'
 
 POD_BY_THRESHOLD_KEY = 'pod_by_threshold'
 POFD_BY_THRESHOLD_KEY = 'pofd_by_threshold'
+AREA_UNDER_ROC_CURVE_KEY = 'area_under_curve'
 SUCCESS_RATIO_BY_THRESHOLD_KEY = 'success_ratio_by_threshold'
+MAX_CSI_KEY = 'max_csi_over_thresholds'
 MEAN_FORECAST_PROB_BY_BIN_KEY = 'mean_forecast_prob_by_bin'
 MEAN_OBSERVED_LABEL_BY_BIN_KEY = 'mean_observed_label_by_bin'
 
@@ -645,6 +647,7 @@ def bootstrap_roc_curve(
     roc_dictionary_bottom['pofd_by_threshold']: length-T numpy array of POFD
         values for bottom of envelope (confidence interval).
     roc_dictionary_bottom['pod_by_threshold']: Same but for POD.
+    roc_dictionary_bottom['area_under_curve']: Area under ROC curve.
 
     :return: roc_dictionary_mean: Same as roc_dictionary_bottom, but for middle
         of envelope (confidence interval).
@@ -666,6 +669,7 @@ def bootstrap_roc_curve(
     num_thresholds = len(binarization_thresholds)
     pod_matrix = numpy.full((num_thresholds, num_bootstrap_iters), numpy.nan)
     pofd_matrix = numpy.full((num_thresholds, num_bootstrap_iters), numpy.nan)
+    auc_values = numpy.full(num_bootstrap_iters, numpy.nan)
 
     for j in range(num_bootstrap_iters):
         _, these_sample_indices = bootstrapping.draw_sample(
@@ -681,9 +685,13 @@ def bootstrap_roc_curve(
             pofd_matrix[i, j] = get_pofd(this_contingency_table_as_dict)
             pod_matrix[i, j] = get_pod(this_contingency_table_as_dict)
 
+        auc_values[j] = get_area_under_roc_curve(
+            pofd_matrix[:, j], pod_matrix[:, j])
+
     roc_dictionary_bottom = {
         POD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan),
-        POFD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan)
+        POFD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan),
+        AREA_UNDER_ROC_CURVE_KEY: numpy.nan
     }
     roc_dictionary_top = copy.deepcopy(roc_dictionary_bottom)
     roc_dictionary_mean = copy.deepcopy(roc_dictionary_bottom)
@@ -703,6 +711,11 @@ def bootstrap_roc_curve(
         pofd_matrix, axis=1)
     roc_dictionary_mean[POD_BY_THRESHOLD_KEY] = numpy.nanmean(
         pod_matrix, axis=1)
+
+    (roc_dictionary_bottom[AREA_UNDER_ROC_CURVE_KEY],
+     roc_dictionary_top[AREA_UNDER_ROC_CURVE_KEY]) = (
+         bootstrapping.get_confidence_interval(auc_values, confidence_level))
+    roc_dictionary_mean[AREA_UNDER_ROC_CURVE_KEY] = numpy.nanmean(auc_values)
 
     return roc_dictionary_bottom, roc_dictionary_mean, roc_dictionary_top
 
@@ -787,6 +800,8 @@ def bootstrap_performance_diagram(
         numpy array of success ratios for bottom of envelope (confidence
         interval).
     performance_diagram_dict_bottom['pod_by_threshold']: Same but for POD.
+    performance_diagram_dict_bottom['max_csi_over_thresholds']: Maximum CSI
+        (critical success index) over all thresholds.
 
     :return: performance_diagram_dict_mean: Same as
         performance_diagram_dict_bottom, but for middle of envelope (confidence
@@ -811,11 +826,12 @@ def bootstrap_performance_diagram(
     pod_matrix = numpy.full((num_thresholds, num_bootstrap_iters), numpy.nan)
     success_ratio_matrix = numpy.full((num_thresholds, num_bootstrap_iters),
                                       numpy.nan)
+    max_csi_values = numpy.full(num_bootstrap_iters, numpy.nan)
 
     for j in range(num_bootstrap_iters):
-        print j
         _, these_sample_indices = bootstrapping.draw_sample(
             forecast_probabilities)
+        these_csi_values = numpy.full(num_thresholds, numpy.nan)
 
         for i in range(num_thresholds):
             these_forecast_labels = _binarize_forecast_probs(
@@ -827,6 +843,11 @@ def bootstrap_performance_diagram(
             pod_matrix[i, j] = get_pod(this_contingency_table_as_dict)
             success_ratio_matrix[i, j] = get_success_ratio(
                 this_contingency_table_as_dict)
+            these_csi_values[i] = csi_from_sr_and_pod(
+                numpy.array([success_ratio_matrix[i, j]]),
+                numpy.array([pod_matrix[i, j]]))[0]
+
+        max_csi_values[j] = numpy.nanmax(these_csi_values)
 
     performance_diagram_dict_bottom = {
         POD_BY_THRESHOLD_KEY: numpy.full(num_thresholds, numpy.nan),
@@ -852,6 +873,12 @@ def bootstrap_performance_diagram(
         pod_matrix, axis=1)
     performance_diagram_dict_mean[SUCCESS_RATIO_BY_THRESHOLD_KEY] = (
         numpy.nanmean(success_ratio_matrix, axis=1))
+
+    (performance_diagram_dict_bottom[MAX_CSI_KEY],
+     performance_diagram_dict_top[MAX_CSI_KEY]) = (
+         bootstrapping.get_confidence_interval(
+             max_csi_values, confidence_level))
+    performance_diagram_dict_mean[MAX_CSI_KEY] = numpy.nanmean(max_csi_values)
 
     return (performance_diagram_dict_bottom,
             performance_diagram_dict_mean,
@@ -930,14 +957,16 @@ def csi_from_sr_and_pod(success_ratio_array, pod_array):
     """
 
     error_checking.assert_is_numpy_array(success_ratio_array)
-    error_checking.assert_is_geq_numpy_array(success_ratio_array, 0.)
-    error_checking.assert_is_leq_numpy_array(success_ratio_array, 1.)
+    error_checking.assert_is_geq_numpy_array(
+        success_ratio_array, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        success_ratio_array, 1., allow_nan=True)
 
     success_ratio_dimensions = numpy.asarray(success_ratio_array.shape)
     error_checking.assert_is_numpy_array(
         pod_array, exact_dimensions=success_ratio_dimensions)
-    error_checking.assert_is_geq_numpy_array(pod_array, 0.)
-    error_checking.assert_is_leq_numpy_array(pod_array, 1.)
+    error_checking.assert_is_geq_numpy_array(pod_array, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(pod_array, 1., allow_nan=True)
 
     return (success_ratio_array ** -1 + pod_array ** -1 - 1.) ** -1
 
@@ -1012,6 +1041,10 @@ def bootstrap_reliability_curve(
         interval).
     reliability_dict_bottom['mean_observed_label_by_bin']: Same but for observed
         labels (conditional event frequencies).
+    reliability_dict_bottom['brier_skill_score']: Brier skill score.
+    reliability_dict_bottom['brier_score']: Brier score.
+    reliability_dict_bottom['reliability']: Reliability.
+    reliability_dict_bottom['resolution']: Resolution.
 
     :return: reliability_dict_mean: Same as reliability_dict_bottom, but for
         middle of envelope (confidence interval).
@@ -1034,10 +1067,15 @@ def bootstrap_reliability_curve(
         (num_forecast_bins, num_bootstrap_iters), numpy.nan)
     mean_observed_label_matrix = numpy.full(
         (num_forecast_bins, num_bootstrap_iters), numpy.nan)
+    brier_skill_scores = numpy.full(num_bootstrap_iters, numpy.nan)
+    brier_scores = numpy.full(num_bootstrap_iters, numpy.nan)
+    reliabilities = numpy.full(num_bootstrap_iters, numpy.nan)
+    resolutions = numpy.full(num_bootstrap_iters, numpy.nan)
 
     for j in range(num_bootstrap_iters):
         _, these_sample_indices = bootstrapping.draw_sample(
             forecast_probabilities)
+        these_num_examples_by_bin = numpy.full(num_forecast_bins, -1, dtype=int)
 
         for i in range(num_forecast_bins):
             these_example_indices = numpy.where(
@@ -1048,6 +1086,19 @@ def bootstrap_reliability_curve(
                 forecast_probabilities[these_example_indices])
             mean_observed_label_matrix[i, j] = numpy.mean(
                 observed_labels[these_example_indices].astype(float))
+            these_num_examples_by_bin[i] = len(these_example_indices)
+
+        this_bss_dictionary = get_brier_skill_score(
+            mean_forecast_prob_by_bin=mean_forecast_prob_matrix[:, j],
+            mean_observed_label_by_bin=mean_observed_label_matrix[:, j],
+            num_examples_by_bin=these_num_examples_by_bin,
+            climatology=numpy.mean(
+                observed_labels[these_sample_indices].astype(float)))
+
+        brier_skill_scores[j] = this_bss_dictionary[BRIER_SKILL_SCORE_KEY]
+        brier_scores[j] = this_bss_dictionary[BRIER_SCORE_KEY]
+        reliabilities[j] = this_bss_dictionary[RELIABILITY_KEY]
+        resolutions[j] = this_bss_dictionary[RESOLUTION_KEY]
 
     reliability_dict_bottom = {
         MEAN_FORECAST_PROB_BY_BIN_KEY: numpy.full(num_forecast_bins, numpy.nan),
@@ -1071,6 +1122,26 @@ def bootstrap_reliability_curve(
         mean_forecast_prob_matrix, axis=1)
     reliability_dict_mean[MEAN_OBSERVED_LABEL_BY_BIN_KEY] = numpy.nanmean(
         mean_observed_label_matrix, axis=1)
+
+    (reliability_dict_bottom[BRIER_SKILL_SCORE_KEY],
+     reliability_dict_top[BRIER_SKILL_SCORE_KEY]) = (
+         bootstrapping.get_confidence_interval(
+             brier_skill_scores, confidence_level))
+    (reliability_dict_bottom[BRIER_SCORE_KEY],
+     reliability_dict_top[BRIER_SCORE_KEY]) = (
+         bootstrapping.get_confidence_interval(brier_scores, confidence_level))
+    (reliability_dict_bottom[RELIABILITY_KEY],
+     reliability_dict_top[RELIABILITY_KEY]) = (
+         bootstrapping.get_confidence_interval(reliabilities, confidence_level))
+    (reliability_dict_bottom[RESOLUTION_KEY],
+     reliability_dict_top[RESOLUTION_KEY]) = (
+         bootstrapping.get_confidence_interval(resolutions, confidence_level))
+
+    reliability_dict_mean[BRIER_SKILL_SCORE_KEY] = numpy.nanmean(
+        brier_skill_scores)
+    reliability_dict_mean[BRIER_SCORE_KEY] = numpy.nanmean(brier_scores)
+    reliability_dict_mean[RELIABILITY_KEY] = numpy.nanmean(reliabilities)
+    reliability_dict_mean[RESOLUTION_KEY] = numpy.nanmean(resolutions)
 
     return (reliability_dict_bottom,
             reliability_dict_mean,
