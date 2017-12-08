@@ -777,7 +777,7 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
 
     num_storm_objects = len(storm_object_table.index)
     num_lead_times = len(lead_times_seconds)
-    list_of_query_point_tables = [] * num_lead_times
+    list_of_query_point_tables = [None] * num_lead_times
 
     for i in range(num_lead_times):
         if lead_times_seconds[i] == 0:
