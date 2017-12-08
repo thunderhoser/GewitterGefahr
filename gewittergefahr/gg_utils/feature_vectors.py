@@ -381,13 +381,13 @@ def check_feature_table(feature_table, require_storm_objects=True):
         else:
             feature_column_names = shape_stat_column_names
 
-    sounding_index_column_names = soundings.get_sounding_index_columns(
+    sounding_stat_column_names = soundings.get_sounding_stat_columns(
         feature_table)
-    if sounding_index_column_names:
+    if sounding_stat_column_names:
         if feature_column_names:
-            feature_column_names += sounding_index_column_names
+            feature_column_names += sounding_stat_column_names
         else:
-            feature_column_names = sounding_index_column_names
+            feature_column_names = sounding_stat_column_names
 
     if feature_column_names is None:
         raise ValueError(
@@ -451,7 +451,7 @@ def check_feature_table(feature_table, require_storm_objects=True):
 
 def join_features_and_label_for_storm_objects(
         radar_statistic_table=None, shape_statistic_table=None,
-        sounding_index_table=None, storm_to_winds_table=None,
+        sounding_stat_table=None, storm_to_winds_table=None,
         label_column_name=None):
     """Joins tables with features and label.
 
@@ -465,15 +465,15 @@ def join_features_and_label_for_storm_objects(
     :param shape_statistic_table: pandas DataFrame with shape statistics.
         Columns are documented in
         `shape_statistics.write_stats_for_storm_objects`.
-    :param sounding_index_table: pandas DataFrame with sounding indices.
+    :param sounding_stat_table: pandas DataFrame with sounding statistics.
         Columns are documented in
-        `soundings.write_sounding_indices_for_storm_objects`.
+        `soundings.write_sounding_stats_for_storm_objects`.
     :param storm_to_winds_table: pandas DataFrame with labels.  Columns are
         documented in `storm_to_winds.write_storm_to_winds_table`.
     :param label_column_name: Name of label (in storm_to_winds_table) to be
         joined with the other tables.
     :return: feature_table: pandas DataFrame containing all columns with radar
-        statistics, shape statistics, sounding indices, and the desired label
+        statistics, shape statistics, sounding stats, and the desired label
         (see input argument `label_column_name`).  If `label_column_name` is a
         classification label, feature_table will also contain the corresponding
         regression label.  If storm_to_winds_table contains distance buffers
@@ -510,17 +510,17 @@ def join_features_and_label_for_storm_objects(
             feature_table = feature_table.merge(
                 shape_statistic_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
-    if sounding_index_table is not None:
-        sounding_index_column_names = soundings.check_sounding_index_table(
-            sounding_index_table, require_storm_objects=True)
-        sounding_index_table = sounding_index_table[
-            COLUMNS_TO_MERGE_ON + sounding_index_column_names]
+    if sounding_stat_table is not None:
+        sounding_stat_column_names = soundings.check_sounding_stat_table(
+            sounding_stat_table, require_storm_objects=True)
+        sounding_stat_table = sounding_stat_table[
+            COLUMNS_TO_MERGE_ON + sounding_stat_column_names]
 
         if feature_table is None:
-            feature_table = sounding_index_table
+            feature_table = sounding_stat_table
         else:
             feature_table = feature_table.merge(
-                sounding_index_table, on=COLUMNS_TO_MERGE_ON, how='inner')
+                sounding_stat_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
     label_parameter_dict = labels.column_name_to_label_params(label_column_name)
     if label_parameter_dict[labels.CLASS_CUTOFFS_NAME] is None:

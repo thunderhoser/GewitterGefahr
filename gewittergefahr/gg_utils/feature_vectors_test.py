@@ -44,15 +44,15 @@ SHAPE_STATISTIC_DICT = {
 }
 SHAPE_STATISTIC_TABLE = pandas.DataFrame.from_dict(SHAPE_STATISTIC_DICT)
 
-# Create table with sounding index (storm speed) for each storm object.
-SOUNDING_INDEX_NAME = 'storm_velocity_m_s01_magnitude'
-SOUNDING_INDEX_VALUES = numpy.full(NUM_STORM_OBJECTS, 10.)
-SOUNDING_INDEX_DICT = {
+# Create table with sounding statistic (storm speed) for each storm object.
+SOUNDING_STAT_NAME = 'storm_velocity_m_s01_magnitude'
+SOUNDING_STAT_VALUES = numpy.full(NUM_STORM_OBJECTS, 10.)
+SOUNDING_STAT_DICT = {
     tracking_io.STORM_ID_COLUMN: STORM_IDS,
     tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
-    SOUNDING_INDEX_NAME: SOUNDING_INDEX_VALUES
+    SOUNDING_STAT_NAME: SOUNDING_STAT_VALUES
 }
-SOUNDING_INDEX_TABLE = pandas.DataFrame.from_dict(SOUNDING_INDEX_DICT)
+SOUNDING_STAT_TABLE = pandas.DataFrame.from_dict(SOUNDING_STAT_DICT)
 
 # Create table with regression and classification label for each storm object.
 MIN_LEAD_TIME_SEC = 2700
@@ -195,7 +195,7 @@ OVERALL_INDICES = numpy.array(
 
 # The following constants are used to test check_feature_table.
 FEATURE_COLUMN_NAMES = [
-    RADAR_STATISTIC_NAME, SHAPE_STATISTIC_NAME, SOUNDING_INDEX_NAME]
+    RADAR_STATISTIC_NAME, SHAPE_STATISTIC_NAME, SOUNDING_STAT_NAME]
 
 # The following constants are used to test
 # join_features_and_label_for_storm_objects.
@@ -210,7 +210,7 @@ FEATURE_DICT = {
     CLASSIFICATION_LABEL_COLUMN_NAME: CLASSIFICATION_LABELS,
     RADAR_STATISTIC_NAME: RADAR_STATISTIC_VALUES,
     SHAPE_STATISTIC_NAME: SHAPE_STATISTIC_VALUES,
-    SOUNDING_INDEX_NAME: SOUNDING_INDEX_VALUES
+    SOUNDING_STAT_NAME: SOUNDING_STAT_VALUES
 }
 
 FEATURE_TABLE = pandas.DataFrame.from_dict(FEATURE_DICT)
@@ -388,7 +388,7 @@ class FeatureVectorsTests(unittest.TestCase):
             feature_vectors.join_features_and_label_for_storm_objects(
                 radar_statistic_table=RADAR_STATISTIC_TABLE,
                 shape_statistic_table=SHAPE_STATISTIC_TABLE,
-                sounding_index_table=SOUNDING_INDEX_TABLE,
+                sounding_stat_table=SOUNDING_STAT_TABLE,
                 storm_to_winds_table=STORM_TO_WINDS_TABLE,
                 label_column_name=CLASSIFICATION_LABEL_COLUMN_NAME))
 

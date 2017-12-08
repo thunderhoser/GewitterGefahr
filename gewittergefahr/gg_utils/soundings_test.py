@@ -11,14 +11,14 @@ from gewittergefahr.gg_utils import nwp_model_utils
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _column_name_to_sounding_index.
+# The following constants are used to test _column_name_to_sounding_stat.
 STORM_VELOCITY_X_NAME = 'storm_velocity_m_s01_x'
 STORM_VELOCITY_Y_NAME = 'storm_velocity_m_s01_y'
 STORM_VELOCITY_COS_NAME = 'storm_velocity_m_s01_cos'
 STORM_VELOCITY_SIN_NAME = 'storm_velocity_m_s01_sin'
 STORM_VELOCITY_MAGNITUDE_NAME = 'storm_velocity_m_s01_magnitude'
 STORM_VELOCITY_NAME = 'storm_velocity_m_s01'
-FAKE_SOUNDING_INDEX_NAME = 'poop'
+FAKE_SOUNDING_STAT_NAME = 'poop'
 
 # The following constants are used to test _get_nwp_fields_in_sounding.
 MINIMUM_PRESSURE_MB = 950.
@@ -168,7 +168,7 @@ THIS_SOUNDING_DICT = {
 }
 SOUNDING_TABLE_SHARPPY_ORIG = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT)
 
-# The following constants are used to test _convert_sounding_to_sharppy_units.
+# The following constants are used to test _sounding_to_sharppy_units.
 MB_TO_PASCALS = 100
 UNITLESS_TO_PERCENT = 100
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
@@ -313,30 +313,29 @@ THIS_VECTOR_COMPONENT_DICT = {
 VECTOR_COMPONENT_TABLE_CONV_FACTOR10 = pandas.DataFrame.from_dict(
     THIS_VECTOR_COMPONENT_DICT)
 
-# The following constants are used to test
-# convert_sounding_indices_from_sharppy.
+# The following constants are used to test convert_sounding_stats_from_sharppy.
 CONVECTIVE_TEMPERATURE_NAME = 'convective_temperature_kelvins'
 MEAN_WIND_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01'
 SURFACE_RH_NAME = 'relative_humidity_surface'
 DERECHO_COMPOSITE_NAME = 'derecho_composite_param'
 
-SOUNDING_INDEX_METADATA_TABLE = soundings.read_metadata_for_sounding_indices()
-VALID_SOUNDING_INDEX_NAMES = SOUNDING_INDEX_METADATA_TABLE[
-    soundings.SOUNDING_INDEX_NAME_COLUMN_FOR_METADATA].values
+METADATA_TABLE = soundings.read_metadata_for_sounding_stats()
+VALID_SOUNDING_STAT_NAMES = METADATA_TABLE[
+    soundings.STAT_NAME_COLUMN_FOR_METADATA].values
 
-SOUNDING_INDEX_NAMES = list(SOUNDING_INDEX_METADATA_TABLE[
-    soundings.SOUNDING_INDEX_NAME_COLUMN_FOR_METADATA].values)
-SOUNDING_INDEX_NAMES_SHARPPY = list(SOUNDING_INDEX_METADATA_TABLE[
-    soundings.SHARPPY_INDEX_NAME_COLUMN_FOR_METADATA].values)
+SOUNDING_STAT_NAMES = list(
+    METADATA_TABLE[soundings.STAT_NAME_COLUMN_FOR_METADATA].values)
+SOUNDING_STAT_NAMES_SHARPPY = list(
+    METADATA_TABLE[soundings.SHARPPY_NAME_COLUMN_FOR_METADATA].values)
 
-CONVECTIVE_TEMPERATURE_NAME_SHARPPY = SOUNDING_INDEX_NAMES_SHARPPY[
-    SOUNDING_INDEX_NAMES.index(CONVECTIVE_TEMPERATURE_NAME)]
-MEAN_WIND_0TO1KM_NAME_SHARPPY = SOUNDING_INDEX_NAMES_SHARPPY[
-    SOUNDING_INDEX_NAMES.index(MEAN_WIND_0TO1KM_NAME)]
-SURFACE_RH_NAME_SHARPPY = SOUNDING_INDEX_NAMES_SHARPPY[
-    SOUNDING_INDEX_NAMES.index(SURFACE_RH_NAME)]
-DERECHO_COMPOSITE_NAME_SHARPPY = SOUNDING_INDEX_NAMES_SHARPPY[
-    SOUNDING_INDEX_NAMES.index(DERECHO_COMPOSITE_NAME)]
+CONVECTIVE_TEMPERATURE_NAME_SHARPPY = SOUNDING_STAT_NAMES_SHARPPY[
+    SOUNDING_STAT_NAMES.index(CONVECTIVE_TEMPERATURE_NAME)]
+MEAN_WIND_0TO1KM_NAME_SHARPPY = SOUNDING_STAT_NAMES_SHARPPY[
+    SOUNDING_STAT_NAMES.index(MEAN_WIND_0TO1KM_NAME)]
+SURFACE_RH_NAME_SHARPPY = SOUNDING_STAT_NAMES_SHARPPY[
+    SOUNDING_STAT_NAMES.index(SURFACE_RH_NAME)]
+DERECHO_COMPOSITE_NAME_SHARPPY = SOUNDING_STAT_NAMES_SHARPPY[
+    SOUNDING_STAT_NAMES.index(DERECHO_COMPOSITE_NAME)]
 
 CONVECTIVE_TEMPS_DEG_F = numpy.array([-130., -76., -40., -4., 32., 50., 68.])
 U_WINDS_0TO1KM_AGL_KT = numpy.array([10., 10., 0., -10., -10., -10., 0.])
@@ -344,20 +343,20 @@ V_WINDS_0TO1KM_AGL_KT = numpy.array([0., 10., 10., 10., 0., -10., -10.])
 SURFACE_RH_PERCENTAGES = numpy.array([40., 50., 60., 70., 80., 90., 100.])
 DERECHO_COMPOSITE_PARAMS = numpy.array([0., 5., 10., 15., 20., 25., 30.])
 
-SOUNDING_INDEX_DICT_SHARPPY = {
+SOUNDING_STAT_DICT_SHARPPY = {
     CONVECTIVE_TEMPERATURE_NAME_SHARPPY: CONVECTIVE_TEMPS_DEG_F,
     SURFACE_RH_NAME_SHARPPY: SURFACE_RH_PERCENTAGES,
     DERECHO_COMPOSITE_NAME_SHARPPY: DERECHO_COMPOSITE_PARAMS}
-SOUNDING_INDEX_TABLE_SHARPPY = pandas.DataFrame.from_dict(
-    SOUNDING_INDEX_DICT_SHARPPY)
+SOUNDING_STAT_TABLE_SHARPPY = pandas.DataFrame.from_dict(
+    SOUNDING_STAT_DICT_SHARPPY)
 
-THIS_NESTED_ARRAY = SOUNDING_INDEX_TABLE_SHARPPY[[
+THIS_NESTED_ARRAY = SOUNDING_STAT_TABLE_SHARPPY[[
     SURFACE_RH_NAME_SHARPPY, SURFACE_RH_NAME_SHARPPY]].values.tolist()
-SOUNDING_INDEX_TABLE_SHARPPY = SOUNDING_INDEX_TABLE_SHARPPY.assign(
+SOUNDING_STAT_TABLE_SHARPPY = SOUNDING_STAT_TABLE_SHARPPY.assign(
     **{MEAN_WIND_0TO1KM_NAME_SHARPPY: THIS_NESTED_ARRAY})
 
 for k in range(len(U_WINDS_0TO1KM_AGL_KT)):
-    SOUNDING_INDEX_TABLE_SHARPPY[MEAN_WIND_0TO1KM_NAME_SHARPPY].values[k] = (
+    SOUNDING_STAT_TABLE_SHARPPY[MEAN_WIND_0TO1KM_NAME_SHARPPY].values[k] = (
         numpy.array([U_WINDS_0TO1KM_AGL_KT[k], V_WINDS_0TO1KM_AGL_KT[k]]))
 
 TEN_KT_IN_MPS = 5.144444
@@ -384,88 +383,88 @@ WIND_COSINES = numpy.array(
 WIND_SINES = numpy.array([0., HALF_ROOT2, 1., HALF_ROOT2, 0., -HALF_ROOT2, -1.])
 SURFACE_RH_UNITLESS = numpy.array([0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.])
 
-SOUNDING_INDEX_DICT = {
+SOUNDING_STAT_DICT = {
     CONVECTIVE_TEMPERATURE_NAME: CONVECTIVE_TEMPS_KELVINS,
     U_WIND_0TO1KM_NAME: U_WINDS_M_S01, V_WIND_0TO1KM_NAME: V_WINDS_M_S01,
     WIND_SPEED_0TO1KM_NAME: WIND_SPEEDS_M_S01,
     WIND_COS_0TO1KM_NAME: WIND_COSINES, WIND_SIN_0TO1KM_NAME: WIND_SINES,
     SURFACE_RH_NAME: SURFACE_RH_UNITLESS,
     DERECHO_COMPOSITE_NAME: DERECHO_COMPOSITE_PARAMS}
-SOUNDING_INDEX_TABLE = pandas.DataFrame.from_dict(SOUNDING_INDEX_DICT)
+SOUNDING_STAT_TABLE = pandas.DataFrame.from_dict(SOUNDING_STAT_DICT)
 
 
 class SoundingsTests(unittest.TestCase):
     """Each method is a unit test for soundings.py."""
 
-    def test_column_name_to_sounding_index_x_component(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_x_component(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
         In this case, column is the x-component of a vector.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            STORM_VELOCITY_X_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            STORM_VELOCITY_X_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
 
-    def test_column_name_to_sounding_index_y_component(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_y_component(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
         In this case, column is the y-component of a vector.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            STORM_VELOCITY_Y_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            STORM_VELOCITY_Y_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
 
-    def test_column_name_to_sounding_index_magnitude(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_magnitude(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
         In this case, column is the magnitude of a vector.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            STORM_VELOCITY_MAGNITUDE_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            STORM_VELOCITY_MAGNITUDE_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
 
-    def test_column_name_to_sounding_index_cos(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_cos(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
         In this case, column is the cosine of a vector.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            STORM_VELOCITY_COS_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            STORM_VELOCITY_COS_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
 
-    def test_column_name_to_sounding_index_sin(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_sin(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
         In this case, column is the sine of a vector.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            STORM_VELOCITY_SIN_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            STORM_VELOCITY_SIN_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
 
-    def test_column_name_to_sounding_index_scalar(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_scalar(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
         In this case, column is a scalar.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            STORM_VELOCITY_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name == STORM_VELOCITY_NAME)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            STORM_VELOCITY_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
 
-    def test_column_name_to_sounding_index_fake(self):
-        """Ensures correct output from _column_name_to_sounding_index.
+    def test_column_name_to_sounding_stat_fake(self):
+        """Ensures correct output from _column_name_to_sounding_stat.
 
-        In this case, column is a fake sounding index.
+        In this case, column is a fake sounding statistic.
         """
 
-        this_sounding_index_name = soundings._column_name_to_sounding_index(
-            FAKE_SOUNDING_INDEX_NAME, VALID_SOUNDING_INDEX_NAMES)
-        self.assertTrue(this_sounding_index_name is None)
+        this_sounding_stat_name = soundings._column_name_to_sounding_stat(
+            FAKE_SOUNDING_STAT_NAME, VALID_SOUNDING_STAT_NAMES)
+        self.assertTrue(this_sounding_stat_name is None)
 
     def test_get_nwp_fields_in_sounding_rap_no_dict(self):
         """Ensures correct output from _get_nwp_fields_in_sounding.
@@ -533,8 +532,9 @@ class SoundingsTests(unittest.TestCase):
         In this case, delete_rows = False.
         """
 
+        this_sounding_table = copy.deepcopy(SOUNDING_TABLE_SHARPPY_ORIG)
         this_sounding_table = soundings._remove_subsurface_sounding_data(
-            SOUNDING_TABLE_SHARPPY_ORIG, delete_rows=False)
+            this_sounding_table, delete_rows=False)
         self.assertTrue(
             this_sounding_table.equals(SOUNDING_TABLE_WITH_SENTINELS))
 
@@ -610,13 +610,13 @@ class SoundingsTests(unittest.TestCase):
                 VECTOR_COMPONENT_TABLE_CONV_FACTOR10[this_column].values,
                 atol=TOLERANCE))
 
-    def test_convert_sounding_to_sharppy_units_rap(self):
-        """Ensures correct output from _convert_sounding_to_sharppy_units.
+    def test_sounding_to_sharppy_units_rap(self):
+        """Ensures correct output from _sounding_to_sharppy_units.
 
         In this case, converting from RAP units to SHARPpy units.
         """
 
-        this_sounding_table = soundings._convert_sounding_to_sharppy_units(
+        this_sounding_table = soundings._sounding_to_sharppy_units(
             SOUNDING_TABLE_RAP_UNITS)
 
         self.assertTrue(set(list(this_sounding_table)) ==
@@ -628,13 +628,13 @@ class SoundingsTests(unittest.TestCase):
                 SOUNDING_TABLE_SHARPPY_ORIG[this_column].values,
                 atol=TOLERANCE))
 
-    def test_convert_sounding_to_sharppy_units_narr(self):
-        """Ensures correct output from _convert_sounding_to_sharppy_units.
+    def test_sounding_to_sharppy_units_narr(self):
+        """Ensures correct output from _sounding_to_sharppy_units.
 
         In this case, converting from NARR units to SHARPpy units.
         """
 
-        this_sounding_table = soundings._convert_sounding_to_sharppy_units(
+        this_sounding_table = soundings._sounding_to_sharppy_units(
             SOUNDING_TABLE_NARR_UNITS)
 
         self.assertTrue(set(list(this_sounding_table)) ==
@@ -646,20 +646,20 @@ class SoundingsTests(unittest.TestCase):
                 SOUNDING_TABLE_SHARPPY_ORIG[this_column].values,
                 atol=TOLERANCE))
 
-    def test_convert_sounding_indices_from_sharppy(self):
-        """Ensures correct output from convert_sounding_indices_from_sharppy."""
+    def test_convert_sounding_stats_from_sharppy(self):
+        """Ensures correct output from convert_sounding_stats_from_sharppy."""
 
-        this_sounding_index_table = (
-            soundings.convert_sounding_indices_from_sharppy(
-                SOUNDING_INDEX_TABLE_SHARPPY, SOUNDING_INDEX_METADATA_TABLE))
+        this_sounding_stat_table = (
+            soundings.convert_sounding_stats_from_sharppy(
+                SOUNDING_STAT_TABLE_SHARPPY, METADATA_TABLE))
 
-        self.assertTrue(set(list(this_sounding_index_table)) ==
-                        set(list(SOUNDING_INDEX_TABLE)))
+        self.assertTrue(set(list(this_sounding_stat_table)) ==
+                        set(list(SOUNDING_STAT_TABLE)))
 
-        for this_column in list(this_sounding_index_table):
+        for this_column in list(this_sounding_stat_table):
             self.assertTrue(numpy.allclose(
-                this_sounding_index_table[this_column].values,
-                SOUNDING_INDEX_TABLE[this_column].values, atol=TOLERANCE,
+                this_sounding_stat_table[this_column].values,
+                SOUNDING_STAT_TABLE[this_column].values, atol=TOLERANCE,
                 equal_nan=True))
 
 

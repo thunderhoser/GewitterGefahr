@@ -1,4 +1,4 @@
-conversion_factor,in_mupcl_object,sounding_index_name,sounding_index_name_sharppy,is_vector
+conversion_factor,in_mupcl_object,statistic_name,statistic_name_sharppy,is_vector
 1.0,True,bulk_richardson_number,brn,False
 1.0,True,bulk_richardson_num_denominator_m2_s02,brndenom,False
 0.514444444444,True,bulk_richardson_num_shear_m_s01,brnshear,True
