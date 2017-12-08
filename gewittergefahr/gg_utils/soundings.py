@@ -19,6 +19,8 @@ from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+LEAD_TIME_COLUMN = 'lead_time_seconds'
+
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
@@ -743,16 +745,19 @@ def _sounding_to_sharppy_units(sounding_table):
     return sounding_table.drop(columns_to_drop, axis=1)
 
 
-def _create_query_point_table(storm_object_table, lead_time_seconds):
+def _create_query_point_table(storm_object_table, lead_times_seconds):
     """Creates table of query points for interpolation.
 
     Each query point consists of (latitude, longitude, time).
 
+    T = number of lead times
+
     :param storm_object_table: pandas DataFrame with columns documented in
         `storm_tracking_io.write_processed_file`.  May contain additional
         columns.
-    :param lead_time_seconds: Each storm object will be extrapolated this far
-        into the future, given its motion estimate at the valid time.
+    :param lead_times_seconds: length-T numpy array of lead times.  For each
+        lead time t, each storm object will be extrapolated t seconds into the
+        future, given its motion estimate at the valid time.
     :return: query_point_table: pandas DataFrame with the following columns,
         where each row is an extrapolated storm object.
     query_point_table.centroid_lat_deg: Latitude (deg N) of extrapolated
@@ -761,35 +766,98 @@ def _create_query_point_table(storm_object_table, lead_time_seconds):
         centroid.
     query_point_table.unix_time_sec: Time to which position has been
         extrapolated.
+    query_point_table.lead_time_seconds: Lead time.
     """
 
-    if lead_time_seconds == 0:
-        return storm_object_table[[
-            tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
-            tracking_io.TIME_COLUMN]]
+    if numpy.any(lead_times_seconds > 0):
+        storm_speeds_m_s01, geodetic_bearings_deg = (
+            geodetic_utils.xy_components_to_displacements_and_bearings(
+                storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values,
+                storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
 
-    storm_speeds_m_s01, geodetic_bearings_deg = (
-        geodetic_utils.xy_components_to_displacements_and_bearings(
-            storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values,
-            storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
+    num_storm_objects = len(storm_object_table.index)
+    num_lead_times = len(lead_times_seconds)
+    list_of_query_point_tables = [] * num_lead_times
 
-    extrap_latitudes_deg, extrap_longitudes_deg = (
-        geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
-            start_latitudes_deg=
-            storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
-            start_longitudes_deg=
-            storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
-            displacements_metres=storm_speeds_m_s01 * lead_time_seconds,
-            geodetic_bearings_deg=geodetic_bearings_deg))
+    for i in range(num_lead_times):
+        if lead_times_seconds[i] == 0:
+            list_of_query_point_tables[i] = storm_object_table[[
+                tracking_io.CENTROID_LAT_COLUMN,
+                tracking_io.CENTROID_LNG_COLUMN, tracking_io.TIME_COLUMN]]
 
-    query_point_dict = {
-        tracking_io.CENTROID_LAT_COLUMN: extrap_latitudes_deg,
-        tracking_io.CENTROID_LNG_COLUMN: extrap_longitudes_deg,
-        tracking_io.TIME_COLUMN:
-            storm_object_table[tracking_io.TIME_COLUMN].values +
-            lead_time_seconds}
+            argument_dict = {
+                LEAD_TIME_COLUMN: numpy.full(num_storm_objects, 0, dtype=int)}
+            list_of_query_point_tables[i] = list_of_query_point_tables[i](
+                **argument_dict)
 
-    return pandas.DataFrame.from_dict(query_point_dict)
+        else:
+            these_extrap_lats_deg, these_extrap_lngs_deg = (
+                geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
+                    start_latitudes_deg=
+                    storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+                    start_longitudes_deg=
+                    storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
+                    displacements_metres=
+                    storm_speeds_m_s01 * lead_times_seconds[i],
+                    geodetic_bearings_deg=geodetic_bearings_deg))
+
+            this_dict = {
+                tracking_io.CENTROID_LAT_COLUMN: these_extrap_lats_deg,
+                tracking_io.CENTROID_LNG_COLUMN: these_extrap_lngs_deg,
+                tracking_io.TIME_COLUMN:
+                    (storm_object_table[tracking_io.TIME_COLUMN].values +
+                     lead_times_seconds[i]),
+                LEAD_TIME_COLUMN: numpy.full(
+                    num_storm_objects, lead_times_seconds[i], dtype=int)
+            }
+            list_of_query_point_tables[i] = pandas.DataFrame.from_dict(
+                this_dict)
+
+        if i == 0:
+            continue
+
+        list_of_query_point_tables[i], _ = list_of_query_point_tables[i].align(
+            list_of_query_point_tables[0], axis=1)
+
+    return pandas.concat(list_of_query_point_tables, axis=0, ignore_index=True)
+
+
+def _get_unique_storm_soundings(
+        list_of_sounding_tables, eastward_motions_m_s01=None,
+        northward_motions_m_s01=None):
+    """Finds unique storm soundings (pairs of sounding and motion vector).
+
+    N = number of storm soundings
+    U = number of unique storm soundings
+
+    :param list_of_sounding_tables: length-N list of pandas DataFrames.  Some
+        entries may be None.
+    :param eastward_motions_m_s01: length-N numpy array with eastward components
+        of storm motion.
+    :param northward_motions_m_s01: length-N numpy array with northward
+        components of storm motion.
+    :return: unique_indices: length-U numpy array with array indices of unique
+        storm soundings.  If unique_indices[i] = j, the [i]th unique storm
+        sounding is the [j]th original storm sounding.
+    :return: orig_to_unique_indices: length-N numpy array.  If
+        orig_to_unique_indices[j] = i, the [j]th original storm sounding is an
+        instance of the [i]th unique storm sounding.
+    """
+
+    num_soundings = len(list_of_sounding_tables)
+    sounding_strings = [''] * num_soundings
+
+    for i in range(num_soundings):
+        if list_of_sounding_tables[i] is None:
+            sounding_strings[i] = 'None'
+        else:
+            sounding_strings[i] = '{0:s}_{1:.4f}_{2:.4f}'.format(
+                list_of_sounding_tables[i].to_string, eastward_motions_m_s01[i],
+                northward_motions_m_s01[i])
+
+    _, unique_indices, orig_to_unique_indices = numpy.unique(
+        numpy.asarray(sounding_strings), return_index=True, return_inverse=True)
+    return unique_indices, orig_to_unique_indices
 
 
 def get_sounding_stat_columns(sounding_stat_table):
@@ -1159,20 +1227,23 @@ def convert_sounding_stats_from_sharppy(sounding_stat_table_sharppy,
 
 
 def get_sounding_stats_for_storm_objects(
-        storm_object_table, lead_time_seconds=0, all_ruc_grids=False,
-        model_name=None, grid_id=None, top_grib_directory_name=None,
+        storm_object_table, lead_times_seconds=numpy.array([0]),
+        all_ruc_grids=False, model_name=None, grid_id=None,
+        top_grib_directory_name=None,
         wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
     """Computes sounding statistics for each storm object.
 
-    K = number of sounding indices, after decomposing vectors into scalars.
     N = number of storm objects
+    T = number of lead times
+    K = number of sounding indices, after decomposing vectors into scalars.
 
     :param storm_object_table: pandas DataFrame with columns documented in
         `storm_tracking_io.write_processed_file`.
-    :param lead_time_seconds: Each storm object will be extrapolated this far
-        into the future, given its motion estimate at the valid time.
+    :param lead_times_seconds: length-T numpy array of lead times.  For each
+        lead time t, each storm object will be extrapolated t seconds into the
+        future, given its motion estimate at the valid time.
     :param all_ruc_grids: Boolean flag.  If True, this method will use
         `interp_soundings_from_ruc_all_grids` to interpolate soundings to storm
         objects.  If False, will use `interp_soundings_from_nwp`.
@@ -1186,8 +1257,8 @@ def get_sounding_stats_for_storm_objects(
     :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: See documentation for
         interp_soundings_from_nwp.
-    :return: sounding_stat_table_for_storms: pandas DataFrame with N rows and
-        2 + K columns.  The first 2 columns are listed below.  The last K
+    :return: sounding_stat_table_for_storms: pandas DataFrame with N*T rows and
+        3 + K columns.  The first 3 columns are listed below.  The last K
         columns are sounding statistics.  Names of the last K columns are from
         the column "statistic_name" of the table returned by
         read_metadata_for_sounding_stats.
@@ -1195,16 +1266,16 @@ def get_sounding_stats_for_storm_objects(
         input column `storm_object_table.storm_id`.
     sounding_stat_table_for_storms.unix_time_sec: Valid time.  Same as input
         column `storm_object_table.unix_time_sec`.
+    sounding_stat_table_for_storms.lead_time_seconds: Lead time.
     """
 
-    # TODO(thunderhoser): allow this method to handle multiple lead times.
-
-    error_checking.assert_is_integer(lead_time_seconds)
-    error_checking.assert_is_geq(lead_time_seconds, 0)
+    error_checking.assert_is_integer_numpy_array(lead_times_seconds)
+    error_checking.assert_is_numpy_array(lead_times_seconds, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(lead_times_seconds, 0)
     error_checking.assert_is_boolean(all_ruc_grids)
 
     query_point_table = _create_query_point_table(
-        storm_object_table, lead_time_seconds)
+        storm_object_table, lead_times_seconds)
 
     column_dict_old_to_new = {
         tracking_io.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
@@ -1227,21 +1298,33 @@ def get_sounding_stats_for_storm_objects(
 
     list_of_sounding_tables = interp_table_to_sharppy_sounding_tables(
         interp_table, model_name)
+    num_soundings = len(list_of_sounding_tables)
 
-    num_storm_objects = len(list_of_sounding_tables)
-    list_of_sharppy_stat_tables = [None] * num_storm_objects
+    list_of_sounding_tables, orig_to_unique_sounding_indices = (
+        _get_unique_storm_soundings(
+            list_of_sounding_tables,
+            eastward_motions_m_s01=
+            storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values,
+            northward_motions_m_s01=
+            storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
+
+    num_unique_soundings = len(list_of_sounding_tables)
+    list_of_sharppy_stat_tables = [None] * num_soundings
     metadata_table = read_metadata_for_sounding_stats()
 
-    for i in range(num_storm_objects):
-        print ('Computing sounding stats for storm object ' + str(i + 1) + '/' +
-               str(num_storm_objects) + '...')
+    print 'Number of total soundings, unique soundings = {0:d}, {1:d}'.format(
+        num_soundings, num_unique_soundings)
+
+    for i in range(num_unique_soundings):
+        print 'Computing stats for unique sounding {0:d}/{1:d}...'.format(
+            i + 1, num_unique_soundings)
 
         if list_of_sounding_tables[i] is None:
-            list_of_sharppy_stat_tables[i] = _get_empty_sharppy_stat_table(
+            this_statistic_table = _get_empty_sharppy_stat_table(
                 storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
                 storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
         else:
-            list_of_sharppy_stat_tables[i] = get_sounding_stats_from_sharppy(
+            this_statistic_table = get_sounding_stats_from_sharppy(
                 list_of_sounding_tables[i],
                 eastward_motion_m_s01=
                 storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
@@ -1249,9 +1332,12 @@ def get_sounding_stats_for_storm_objects(
                 storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
                 metadata_table=metadata_table)
 
-        if i == 0:
-            continue
+        these_orig_indices = numpy.where(
+            orig_to_unique_sounding_indices == i)[0]
+        for this_index in these_orig_indices:
+            list_of_sharppy_stat_tables[this_index] = this_statistic_table
 
+    for i in range(1, num_soundings):
         list_of_sharppy_stat_tables[i], _ = (
             list_of_sharppy_stat_tables[i].align(
                 list_of_sharppy_stat_tables[0], axis=1))
@@ -1260,30 +1346,57 @@ def get_sounding_stats_for_storm_objects(
         list_of_sharppy_stat_tables, axis=0, ignore_index=True)
     sounding_stat_table_for_storms = convert_sounding_stats_from_sharppy(
         sounding_stat_table_sharppy, metadata_table)
-    return pandas.concat(
+    sounding_stat_table_for_storms = pandas.concat(
         [storm_object_table[STORM_COLUMNS_TO_KEEP],
          sounding_stat_table_for_storms], axis=1)
 
+    argument_dict = {
+        LEAD_TIME_COLUMN: query_point_table[LEAD_TIME_COLUMN].values}
+    return sounding_stat_table_for_storms.assign(**argument_dict)
 
-def write_sounding_stats_for_storm_objects(sounding_stat_table_for_storms,
-                                           pickle_file_name):
-    """Writes sounding statistics for storm objects to a Pickle file.
+
+def write_sounding_stats_for_storm_objects(
+        sounding_stat_table_for_storms, lead_times_seconds=None,
+        pickle_file_names=None):
+    """Writes sounding stats for storm objects to Pickle files.
+
+    T = number of lead times
 
     :param sounding_stat_table_for_storms: pandas DataFrame created by
         get_sounding_stats_for_storm_objects.  This method will write columns
         "storm_id", "unix_time_sec", and sounding statistics.
-    :param pickle_file_name: Path to output file.
+    :param lead_times_seconds: length-T numpy array of lead times.
+    :param pickle_file_names: length-T list of paths to output files (one per
+        lead time).
     """
 
     statistic_column_names = check_sounding_stat_table(
         sounding_stat_table_for_storms, require_storm_objects=True)
-    columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
+    error_checking.assert_columns_in_dataframe(
+        sounding_stat_table_for_storms, [LEAD_TIME_COLUMN])
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(sounding_stat_table_for_storms[columns_to_write],
-                pickle_file_handle)
-    pickle_file_handle.close()
+    error_checking.assert_is_integer_numpy_array(lead_times_seconds)
+    error_checking.assert_is_numpy_array(lead_times_seconds, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(lead_times_seconds, 0)
+    num_lead_times = len(lead_times_seconds)
+
+    error_checking.assert_is_string_list(pickle_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(pickle_file_names),
+        exact_dimensions=numpy.array([num_lead_times]))
+
+    columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
+    for i in range(num_lead_times):
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=pickle_file_names[i])
+
+        this_file_handle = open(pickle_file_names[i], 'wb')
+        pickle.dump(
+            sounding_stat_table_for_storms.loc[
+                sounding_stat_table_for_storms[LEAD_TIME_COLUMN] ==
+                lead_times_seconds[i]][columns_to_write],
+            this_file_handle)
+        this_file_handle.close()
 
 
 def read_sounding_stats_for_storm_objects(pickle_file_name):

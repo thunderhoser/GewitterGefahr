@@ -313,6 +313,30 @@ THIS_VECTOR_COMPONENT_DICT = {
 VECTOR_COMPONENT_TABLE_CONV_FACTOR10 = pandas.DataFrame.from_dict(
     THIS_VECTOR_COMPONENT_DICT)
 
+# The following constants are used to test _get_unique_storm_soundings.
+THIS_SOUNDING_DICT1 = {'foo': numpy.array([1., 2., 3.]),
+                       'bar': numpy.array([4., 5., 6.])}
+THIS_SOUNDING_TABLE1 = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT1)
+THIS_SOUNDING_DICT2 = {'foo': numpy.array([3., 2., 1.]),
+                       'bar': numpy.array([4., 5., 6.])}
+THIS_SOUNDING_TABLE2 = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT2)
+THIS_SOUNDING_DICT3 = {'foo': numpy.array([3., 2., 1.]),
+                       'bar': numpy.array([6., 5., 4.])}
+THIS_SOUNDING_TABLE3 = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT3)
+
+LIST_OF_SOUNDING_TABLES = [
+    None, THIS_SOUNDING_TABLE1, None, THIS_SOUNDING_TABLE2, None,
+    THIS_SOUNDING_TABLE3, None, THIS_SOUNDING_TABLE3, None,
+    THIS_SOUNDING_TABLE2, None, THIS_SOUNDING_TABLE1]
+
+EAST_VELOCITIES_M_S01 = numpy.array(
+    [0., 5., 10., 15., 20., 25., 30., 27.5, 20., 15., 10., 5.])
+NORTH_VELOCITIES_M_S01 = numpy.full(len(EAST_VELOCITIES_M_S01), 0.)
+
+UNIQUE_SOUNDING_INDICES = numpy.array([1, 3, 5, 7, 0], dtype=int)
+SOUNDING_INDICES_ORIG_TO_UNIQUE = numpy.array(
+    [4, 0, 4, 1, 4, 2, 4, 3, 4, 1, 4, 0], dtype=int)
+
 # The following constants are used to test convert_sounding_stats_from_sharppy.
 CONVECTIVE_TEMPERATURE_NAME = 'convective_temperature_kelvins'
 MEAN_WIND_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01'
@@ -645,6 +669,20 @@ class SoundingsTests(unittest.TestCase):
                 this_sounding_table[this_column].values,
                 SOUNDING_TABLE_SHARPPY_ORIG[this_column].values,
                 atol=TOLERANCE))
+
+    def test_get_unique_storm_soundings(self):
+        """Ensures correct output from _get_unique_storm_soundings."""
+
+        these_unique_indices, these_indices_orig_to_unique = (
+            soundings._get_unique_storm_soundings(
+                LIST_OF_SOUNDING_TABLES,
+                eastward_motions_m_s01=EAST_VELOCITIES_M_S01,
+                northward_motions_m_s01=NORTH_VELOCITIES_M_S01))
+
+        self.assertTrue(numpy.array_equal(
+            these_unique_indices, UNIQUE_SOUNDING_INDICES))
+        self.assertTrue(numpy.array_equal(
+            these_indices_orig_to_unique, SOUNDING_INDICES_ORIG_TO_UNIQUE))
 
     def test_convert_sounding_stats_from_sharppy(self):
         """Ensures correct output from convert_sounding_stats_from_sharppy."""
