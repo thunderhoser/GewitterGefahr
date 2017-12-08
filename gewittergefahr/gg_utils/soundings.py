@@ -787,8 +787,9 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
 
             argument_dict = {
                 LEAD_TIME_COLUMN: numpy.full(num_storm_objects, 0, dtype=int)}
-            list_of_query_point_tables[i] = list_of_query_point_tables[i](
-                **argument_dict)
+            list_of_query_point_tables[i] = (
+                list_of_query_point_tables[i].assign(
+                    **argument_dict))
 
         else:
             these_extrap_lats_deg, these_extrap_lngs_deg = (
