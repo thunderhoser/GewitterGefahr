@@ -81,6 +81,14 @@ class ShapeStatisticsTests(unittest.TestCase):
         self.assertTrue(
             this_statistic_name_orig == shape_stats.SOLIDITY_NAME_ORIG)
 
+    def test_get_basic_statistic_names(self):
+        """Ensures correct output from _get_basic_statistic_names."""
+
+        these_basic_stat_names = shape_stats._get_basic_statistic_names(
+            shape_stats.STATISTIC_NAMES)
+        self.assertTrue(set(these_basic_stat_names) ==
+                        set(shape_stats.BASIC_STAT_NAMES))
+
     def test_get_region_property_names(self):
         """Ensures correct output from _get_region_property_names."""
 

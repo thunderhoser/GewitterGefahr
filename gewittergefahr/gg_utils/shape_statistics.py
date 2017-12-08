@@ -24,6 +24,7 @@ NUM_VERTICES_IN_SMOOTHING_HALF_WINDOW_DEFAULT = (
 NUM_SMOOTHING_ITERS_DEFAULT = sia.NUM_ITERATIONS_DEFAULT
 
 AREA_NAME = 'area_metres2'
+PERIMETER_NAME = 'perimeter_metres'
 ECCENTRICITY_NAME = 'eccentricity'
 EXTENT_NAME = 'extent'
 SOLIDITY_NAME = 'solidity'
@@ -33,6 +34,7 @@ BENDING_ENERGY_NAME = 'bending_energy_metres03'
 COMPACTNESS_NAME = 'compactness'
 
 AREA_NAME_ORIG = 'area'
+PERIMETER_NAME_ORIG = 'perimeter'
 ECCENTRICITY_NAME_ORIG = 'eccentricity'
 EXTENT_NAME_ORIG = 'extent'
 SOLIDITY_NAME_ORIG = 'solidity'
@@ -40,6 +42,12 @@ ORIENTATION_NAME_ORIG = 'orientation'
 MEAN_ABS_CURVATURE_NAME_ORIG = 'mean_abs_curvature_metres01'
 BENDING_ENERGY_NAME_ORIG = 'bending_energy_metres03'
 COMPACTNESS_NAME_ORIG = 'compactness'
+
+# "Basic" statistics are stored as attributes of the `skimage.geometry.Polygon`
+# object.
+BASIC_STAT_NAMES = [AREA_NAME, PERIMETER_NAME]
+BASIC_STAT_NAMES_ORIG = [AREA_NAME_ORIG, PERIMETER_NAME_ORIG]
+DEFAULT_BASIC_STAT_NAMES = copy.deepcopy(BASIC_STAT_NAMES)
 
 REGION_PROPERTY_NAMES = [
     ECCENTRICITY_NAME, EXTENT_NAME, SOLIDITY_NAME, ORIENTATION_NAME]
@@ -56,9 +64,10 @@ CURVATURE_BASED_STAT_NAMES_ORIG = [
 DEFAULT_CURVATURE_BASED_STAT_NAMES = copy.deepcopy(CURVATURE_BASED_STAT_NAMES)
 
 STATISTIC_NAMES = (
-    REGION_PROPERTY_NAMES + CURVATURE_BASED_STAT_NAMES + [AREA_NAME])
+    REGION_PROPERTY_NAMES + CURVATURE_BASED_STAT_NAMES + BASIC_STAT_NAMES)
 STATISTIC_NAMES_ORIG = (
-    REGION_PROP_NAMES_ORIG + CURVATURE_BASED_STAT_NAMES_ORIG + [AREA_NAME_ORIG])
+    REGION_PROP_NAMES_ORIG + CURVATURE_BASED_STAT_NAMES_ORIG +
+    BASIC_STAT_NAMES_ORIG)
 DEFAULT_STATISTIC_NAMES = copy.deepcopy(STATISTIC_NAMES)
 
 
@@ -96,6 +105,19 @@ def _stat_name_new_to_orig(statistic_name):
 
     found_flags = [s == statistic_name for s in STATISTIC_NAMES]
     return STATISTIC_NAMES_ORIG[numpy.where(found_flags)[0][0]]
+
+
+def _get_basic_statistic_names(statistic_names):
+    """Finds basic stats in list of statistic names.
+
+    :param statistic_names: 1-D list of statistic names.
+    :return: basic_statistic_names: 1-D list with names of basic stats.
+    """
+
+    basic_stat_flags = numpy.array(
+        [s in BASIC_STAT_NAMES for s in statistic_names])
+    basic_stat_indices = numpy.where(basic_stat_flags)[0]
+    return numpy.array(statistic_names)[basic_stat_indices].tolist()
 
 
 def _get_region_property_names(statistic_names):
@@ -251,6 +273,31 @@ def get_area_of_simple_polygon(polygon_object_latlng):
     return polygon_area([list(polygon_object_latlng.exterior.coords)])
 
 
+def get_basic_statistics(polygon_object_xy,
+                         statistic_names=DEFAULT_BASIC_STAT_NAMES):
+    """Computes basic statistics for simple polygon.
+
+    A "basic statistic" is one stored in the `shapely.geometry.Polygon` object.
+
+    :param polygon_object_xy: Instance of `shapely.geometry.Polygon`.
+    :param statistic_names: 1-D list of basic stats to compute.
+    :return: basic_stat_dict: Dictionary, where each key is a string from
+        `statistic_names` and each item is the corresponding value.
+    """
+
+    error_checking.assert_is_string_list(statistic_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(statistic_names), num_dimensions=1)
+
+    basic_stat_dict = {}
+    if AREA_NAME in statistic_names:
+        basic_stat_dict.update({AREA_NAME: polygon_object_xy.area})
+    if PERIMETER_NAME in statistic_names:
+        basic_stat_dict.update({PERIMETER_NAME: polygon_object_xy.length})
+
+    return basic_stat_dict
+
+
 def get_region_properties(binary_image_matrix,
                           property_names=DEFAULT_REGION_PROP_NAMES):
     """Computes region properties for one shape (polygon).
@@ -301,6 +348,10 @@ def get_curvature_based_stats(
     :return: statistic_dict: Dictionary, where each key is a string from
         `statistic_names` and each item is the corresponding value.
     """
+
+    error_checking.assert_is_string_list(statistic_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(statistic_names), num_dimensions=1)
 
     vertex_curvatures_metres01 = shape_utils.get_curvature_for_closed_polygon(
         polygon_object_xy)
@@ -356,6 +407,7 @@ def get_stats_for_storm_objects(
     """
 
     _check_statistic_names(statistic_names)
+    basic_stat_names = _get_basic_statistic_names(statistic_names)
     region_property_names = _get_region_property_names(statistic_names)
     curvature_based_stat_names = _get_curvature_based_stat_names(
         statistic_names)
@@ -369,20 +421,21 @@ def get_stats_for_storm_objects(
     storm_object_table = storm_object_table.assign(**argument_dict)
 
     for i in range(num_storm_objects):
-        this_polygon_object_latlng = storm_object_table[
-            tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
+        this_polygon_object_xy = _project_polygon_latlng_to_xy(
+            storm_object_table[
+                tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i],
+            centroid_latitude_deg=
+            storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
+            centroid_longitude_deg=
+            storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values[i])
 
-        if AREA_NAME in statistic_names:
-            storm_object_table[AREA_NAME].values[i] = (
-                get_area_of_simple_polygon(this_polygon_object_latlng))
+        if basic_stat_names:
+            this_basic_stat_dict = get_basic_statistics(
+                this_polygon_object_xy, basic_stat_names)
 
-        if region_property_names or curvature_based_stat_names:
-            this_polygon_object_xy = _project_polygon_latlng_to_xy(
-                this_polygon_object_latlng,
-                centroid_latitude_deg=
-                storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
-                centroid_longitude_deg=
-                storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values[i])
+            for this_name in basic_stat_names:
+                storm_object_table[this_name].values[i] = this_basic_stat_dict[
+                    this_name]
 
         if region_property_names:
             this_binary_image_matrix = _xy_polygon_to_binary_matrix(
