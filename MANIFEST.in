@@ -1,2 +1,4 @@
 include gewittergefahr/gg_utils/*.data
 include gewittergefahr/gg_utils/*.csv
+include gewittergefahr/feature_selection_example/*.csv
+include gewittergefahr/feature_selection_example/*.pdf

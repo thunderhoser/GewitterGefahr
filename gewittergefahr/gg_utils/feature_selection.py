@@ -422,9 +422,9 @@ def sfs_with_backward_steps(
 
     # Initialize feature sets; initialize min cross-entropy to ridiculously high
     # number.
+    major_step_num = 0
     selected_feature_names = []
     remaining_feature_names = copy.deepcopy(feature_names)
-    major_step_num = 0
 
     min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
     min_cross_entropy_by_num_selected[0] = 1e10
@@ -584,9 +584,9 @@ def floating_sfs(
 
     # Initialize feature sets; initialize min cross-entropy to ridiculously high
     # number.
+    major_step_num = 0
     selected_feature_names = []
     remaining_feature_names = copy.deepcopy(feature_names)
-    major_step_num = 0
 
     num_features = len(feature_names)
     min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
@@ -889,9 +889,9 @@ def sbs_with_forward_steps(
 
     # Initialize feature sets; initialize min cross-entropy to ridiculously high
     # number.
+    major_step_num = 0
     removed_feature_names = []
     selected_feature_names = copy.deepcopy(feature_names)
-    major_step_num = 0
 
     min_cross_entropy_by_num_removed = numpy.full(num_features, numpy.nan)
     min_cross_entropy_by_num_removed[0] = 1e10
@@ -1057,9 +1057,9 @@ def floating_sbs(
 
     # Initialize feature sets; initialize min cross-entropy to ridiculously high
     # number.
+    major_step_num = 0
     removed_feature_names = []
     selected_feature_names = copy.deepcopy(feature_names)
-    major_step_num = 0
 
     num_features = len(feature_names)
     min_cross_entropy_by_num_removed = numpy.full(num_features, numpy.nan)
