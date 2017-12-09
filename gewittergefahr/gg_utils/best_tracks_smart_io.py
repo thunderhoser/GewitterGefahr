@@ -339,18 +339,18 @@ def find_files_for_smart_io(
         if i == 0:
             keep_time_indices = numpy.where(
                 these_times_unix_sec >= start_time_unix_sec)[0]
-            input_file_names_by_spc_date[i] = input_file_names_by_spc_date[
-                i][keep_time_indices]
-            output_file_names_by_spc_date[i] = output_file_names_by_spc_date[
-                i][keep_time_indices]
+            input_file_names_by_spc_date[i] = [
+                input_file_names_by_spc_date[i][j] for j in keep_time_indices]
+            output_file_names_by_spc_date[i] = [
+                output_file_names_by_spc_date[i][j] for j in keep_time_indices]
 
         if i == num_spc_dates - 1:
             keep_time_indices = numpy.where(
                 these_times_unix_sec <= end_time_unix_sec)[0]
-            input_file_names_by_spc_date[i] = input_file_names_by_spc_date[
-                i][keep_time_indices]
-            output_file_names_by_spc_date[i] = output_file_names_by_spc_date[
-                i][keep_time_indices]
+            input_file_names_by_spc_date[i] = [
+                input_file_names_by_spc_date[i][j] for j in keep_time_indices]
+            output_file_names_by_spc_date[i] = [
+                output_file_names_by_spc_date[i][j] for j in keep_time_indices]
 
     return {SPC_DATES_KEY: spc_dates_unix_sec,
             TEMP_FILE_NAMES_KEY: temp_file_names,

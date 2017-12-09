@@ -1319,8 +1319,16 @@ def get_sounding_stats_for_storm_objects(
             northward_motions_m_s01=
             query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
 
-    list_of_sounding_tables = list_of_sounding_tables[unique_sounding_indices]
-    num_unique_soundings = len(list_of_sounding_tables)
+    unique_sounding_tables = [
+        list_of_sounding_tables[i] for i in unique_sounding_indices]
+    del list_of_sounding_tables
+
+    unique_east_velocities_m_s01 = query_point_table[
+        tracking_io.EAST_VELOCITY_COLUMN].values[unique_sounding_indices]
+    unique_north_velocities_m_s01 = query_point_table[
+        tracking_io.NORTH_VELOCITY_COLUMN].values[unique_sounding_indices]
+
+    num_unique_soundings = len(unique_sounding_tables)
     list_of_sharppy_stat_tables = [None] * num_soundings
     metadata_table = read_metadata_for_sounding_stats()
 
@@ -1331,17 +1339,15 @@ def get_sounding_stats_for_storm_objects(
         print 'Computing stats for unique sounding {0:d}/{1:d}...'.format(
             i + 1, num_unique_soundings)
 
-        if list_of_sounding_tables[i] is None:
+        if unique_sounding_tables[i] is None:
             this_statistic_table = _get_empty_sharppy_stat_table(
-                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
-                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
+                unique_east_velocities_m_s01[i],
+                unique_north_velocities_m_s01[i])
         else:
             this_statistic_table = get_sounding_stats_from_sharppy(
-                list_of_sounding_tables[i],
-                eastward_motion_m_s01=
-                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
-                northward_motion_m_s01=
-                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
+                unique_sounding_tables[i],
+                eastward_motion_m_s01=unique_east_velocities_m_s01[i],
+                northward_motion_m_s01=unique_north_velocities_m_s01[i],
                 metadata_table=metadata_table)
 
         these_orig_indices = numpy.where(
