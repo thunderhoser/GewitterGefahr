@@ -311,7 +311,7 @@ def find_files_for_smart_io(
     for i in range(num_spc_dates):
         spc_dates_unix_sec[i] = time_conversion.time_to_spc_date_unix_sec(
             spc_dates_unix_sec[i])
-        temp_file_names[i] = tempfile.NamedTemporaryFile(delete=False)
+        temp_file_names[i] = tempfile.NamedTemporaryFile(delete=False).name
 
         input_file_names_by_spc_date[i] = (
             tracking_io.find_processed_files_one_spc_date(
