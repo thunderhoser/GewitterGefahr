@@ -1321,8 +1321,6 @@ def get_sounding_stats_for_storm_objects(
 
     unique_sounding_tables = [
         list_of_sounding_tables[i] for i in unique_sounding_indices]
-    del list_of_sounding_tables
-
     unique_east_velocities_m_s01 = query_point_table[
         tracking_io.EAST_VELOCITY_COLUMN].values[unique_sounding_indices]
     unique_north_velocities_m_s01 = query_point_table[
