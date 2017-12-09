@@ -1310,52 +1310,30 @@ def get_sounding_stats_for_storm_objects(
     list_of_sounding_tables = interp_table_to_sharppy_sounding_tables(
         interp_table, model_name)
     num_soundings = len(list_of_sounding_tables)
-
-    unique_sounding_indices, orig_to_unique_sounding_indices = (
-        _get_unique_storm_soundings(
-            list_of_sounding_tables,
-            eastward_motions_m_s01=
-            query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values,
-            northward_motions_m_s01=
-            query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
-
-    unique_sounding_tables = [
-        list_of_sounding_tables[i] for i in unique_sounding_indices]
-    unique_east_velocities_m_s01 = query_point_table[
-        tracking_io.EAST_VELOCITY_COLUMN].values[unique_sounding_indices]
-    unique_north_velocities_m_s01 = query_point_table[
-        tracking_io.NORTH_VELOCITY_COLUMN].values[unique_sounding_indices]
-
-    num_unique_soundings = len(unique_sounding_tables)
     list_of_sharppy_stat_tables = [None] * num_soundings
     metadata_table = read_metadata_for_sounding_stats()
 
-    print 'Number of total soundings, unique soundings = {0:d}, {1:d}'.format(
-        num_soundings, num_unique_soundings)
+    for i in range(num_soundings):
+        print 'Computing stats for sounding {0:d}/{1:d}...'.format(
+            i + 1, num_soundings)
+        print list_of_sounding_tables[i]
 
-    for i in range(num_unique_soundings):
-        print 'Computing stats for unique sounding {0:d}/{1:d}...'.format(
-            i + 1, num_unique_soundings)
-
-        print unique_sounding_tables[i]
-
-        if unique_sounding_tables[i] is None:
-            this_statistic_table = _get_empty_sharppy_stat_table(
-                unique_east_velocities_m_s01[i],
-                unique_north_velocities_m_s01[i])
+        if list_of_sounding_tables[i] is None:
+            list_of_sharppy_stat_tables[i] = _get_empty_sharppy_stat_table(
+                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
         else:
-            this_statistic_table = get_sounding_stats_from_sharppy(
-                unique_sounding_tables[i],
-                eastward_motion_m_s01=unique_east_velocities_m_s01[i],
-                northward_motion_m_s01=unique_north_velocities_m_s01[i],
+            list_of_sharppy_stat_tables[i] = get_sounding_stats_from_sharppy(
+                list_of_sounding_tables[i],
+                eastward_motion_m_s01=
+                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                northward_motion_m_s01=
+                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
                 metadata_table=metadata_table)
 
-        these_orig_indices = numpy.where(
-            orig_to_unique_sounding_indices == i)[0]
-        for this_index in these_orig_indices:
-            list_of_sharppy_stat_tables[this_index] = this_statistic_table
+        if i == 0:
+            continue
 
-    for i in range(1, num_soundings):
         list_of_sharppy_stat_tables[i], _ = (
             list_of_sharppy_stat_tables[i].align(
                 list_of_sharppy_stat_tables[0], axis=1))
