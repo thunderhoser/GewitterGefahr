@@ -88,6 +88,8 @@ def _remove_sounding_rows_with_nan(sounding_table):
         removed.  If there are no rows without NaN, returns None.
     """
 
+    print sounding_table
+
     sounding_table = sounding_table.loc[sounding_table.notnull().all(axis=1)]
     if len(sounding_table.index) < MIN_PRESSURE_LEVELS_IN_SOUNDING:
         return None
