@@ -1339,6 +1339,8 @@ def get_sounding_stats_for_storm_objects(
         print 'Computing stats for unique sounding {0:d}/{1:d}...'.format(
             i + 1, num_unique_soundings)
 
+        print unique_sounding_tables[i]
+
         if unique_sounding_tables[i] is None:
             this_statistic_table = _get_empty_sharppy_stat_table(
                 unique_east_velocities_m_s01[i],
