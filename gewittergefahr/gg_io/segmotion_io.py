@@ -33,10 +33,10 @@ FILE_EXISTS_ERROR_CODE = 17
 GZIP_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
-STATS_DIR_NAME_PART = 'PolygonTable'
-POLYGON_DIR_NAME_PART = 'ClusterID'
-# STATS_DIR_NAME_PART = 'segmotion/PolygonTable'
-# POLYGON_DIR_NAME_PART = 'segmotion/ClusterID'
+# STATS_DIR_NAME_PART = 'PolygonTable'
+# POLYGON_DIR_NAME_PART = 'ClusterID'
+STATS_DIR_NAME_PART = 'segmotion/PolygonTable'
+POLYGON_DIR_NAME_PART = 'segmotion/ClusterID'
 
 SENTINEL_VALUE = -9999
 TIME_FORMAT_IN_FILES = '%Y%m%d-%H%M%S'
@@ -301,6 +301,9 @@ def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
     :param tracking_scales_metres2: length-N numpy array of tracking scales
         (m^2).
     """
+
+    # TODO(thunderhoser): Write rename method in file_system_utils.py that
+    # handles case where target already exists.
 
     num_scales = len(tracking_scales_ordinal)
 
