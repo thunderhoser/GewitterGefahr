@@ -446,10 +446,11 @@ def processed_file_name_to_time(processed_file_name):
 
     error_checking.assert_is_string(processed_file_name)
     _, pathless_file_name = os.path.split(processed_file_name)
+    extensionless_file_name, _ = os.path.splitext(pathless_file_name)
 
-    pathless_file_name_parts = pathless_file_name.split('_')
+    extensionless_file_name_parts = extensionless_file_name.split('_')
     return time_conversion.string_to_unix_sec(
-        pathless_file_name_parts[-1], TIME_FORMAT)
+        extensionless_file_name_parts[-1], TIME_FORMAT)
 
 
 def write_processed_file(storm_object_table, pickle_file_name):
