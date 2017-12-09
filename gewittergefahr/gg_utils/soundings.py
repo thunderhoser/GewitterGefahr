@@ -88,8 +88,6 @@ def _remove_sounding_rows_with_nan(sounding_table):
         removed.  If there are no rows without NaN, returns None.
     """
 
-    print sounding_table
-
     sounding_table = sounding_table.loc[sounding_table.notnull().all(axis=1)]
     if len(sounding_table.index) < MIN_PRESSURE_LEVELS_IN_SOUNDING:
         return None
@@ -1318,7 +1316,6 @@ def get_sounding_stats_for_storm_objects(
     for i in range(num_soundings):
         print 'Computing stats for sounding {0:d}/{1:d}...'.format(
             i + 1, num_soundings)
-        print list_of_sounding_tables[i]
 
         if list_of_sounding_tables[i] is None:
             list_of_sharppy_stat_tables[i] = _get_empty_sharppy_stat_table(
