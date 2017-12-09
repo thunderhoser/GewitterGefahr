@@ -28,6 +28,8 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
+FILE_EXISTS_ERROR_CODE = 17
+
 GZIP_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
@@ -309,7 +311,15 @@ def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
         new_stats_dir_name = '{0:s}/{1:s}'.format(
             top_raw_directory_name, _get_relative_stats_dir_physical_scale(
                 spc_date_string, tracking_scales_metres2[j]))
-        os.rename(orig_stats_dir_name, new_stats_dir_name)
+
+        try:
+            os.rename(orig_stats_dir_name, new_stats_dir_name)
+        except OSError as this_error:
+            if this_error.errno == FILE_EXISTS_ERROR_CODE:
+                shutil.rmtree(new_stats_dir_name)
+                os.rename(orig_stats_dir_name, new_stats_dir_name)
+            else:
+                raise
 
         orig_polygon_dir_name = '{0:s}/{1:s}'.format(
             top_raw_directory_name, _get_relative_polygon_dir_ordinal_scale(
@@ -317,7 +327,15 @@ def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
         new_polygon_dir_name = '{0:s}/{1:s}'.format(
             top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
                 spc_date_string, tracking_scales_metres2[j]))
-        os.rename(orig_polygon_dir_name, new_polygon_dir_name)
+
+        try:
+            os.rename(orig_polygon_dir_name, new_polygon_dir_name)
+        except OSError as this_error:
+            if this_error.errno == FILE_EXISTS_ERROR_CODE:
+                shutil.rmtree(new_polygon_dir_name)
+                os.rename(orig_polygon_dir_name, new_polygon_dir_name)
+            else:
+                raise
 
 
 def _open_xml_file(xml_file_name):
