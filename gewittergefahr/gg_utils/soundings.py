@@ -1311,7 +1311,7 @@ def get_sounding_stats_for_storm_objects(
         interp_table, model_name)
     num_soundings = len(list_of_sounding_tables)
 
-    list_of_sounding_tables, orig_to_unique_sounding_indices = (
+    unique_sounding_indices, orig_to_unique_sounding_indices = (
         _get_unique_storm_soundings(
             list_of_sounding_tables,
             eastward_motions_m_s01=
@@ -1319,6 +1319,7 @@ def get_sounding_stats_for_storm_objects(
             northward_motions_m_s01=
             query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
 
+    list_of_sounding_tables = list_of_sounding_tables[unique_sounding_indices]
     num_unique_soundings = len(list_of_sounding_tables)
     list_of_sharppy_stat_tables = [None] * num_soundings
     metadata_table = read_metadata_for_sounding_stats()
