@@ -71,6 +71,9 @@ OUTPUT_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
     tracking_io.TRACKING_END_TIME_COLUMN]
+ATTRIBUTES_TO_RECOMPUTE = [
+    tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
+    tracking_io.TRACKING_END_TIME_COLUMN]
 
 
 def _theil_sen_fit(
@@ -1307,22 +1310,20 @@ def write_output_storm_objects(
         file_system_utils.mkdir_recursive_if_necessary(
             file_name=output_file_names[i])
 
-        print input_file_names[i]
-        print output_file_names[i]
-
         this_input_table = tracking_io.read_processed_file(input_file_names[i])
         column_dict_old_to_new = {
             tracking_io.STORM_ID_COLUMN: ORIG_STORM_ID_COLUMN}
         this_input_table.rename(columns=column_dict_old_to_new, inplace=True)
-        print this_input_table
+
+        input_columns_to_drop = set(list(storm_object_table))
+        for this_column in COLUMNS_TO_MERGE_ON:
+            input_columns_to_drop.remove(this_column)
+        this_input_table.drop(input_columns_to_drop, axis=1, inplace=True)
 
         this_output_table = storm_object_table.loc[
             storm_object_table[FILE_INDEX_COLUMN] == i]
-        print this_output_table
         this_output_table = this_output_table.merge(
             this_input_table, on=COLUMNS_TO_MERGE_ON, how='left')
-        print this_output_table
-        print '\n\n'
         this_output_table = this_output_table[OUTPUT_COLUMNS_TO_KEEP]
 
         tracking_io.write_processed_file(
