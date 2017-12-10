@@ -298,10 +298,12 @@ def find_files_for_smart_io(
         start_spc_date_string)
     end_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
         end_spc_date_string)
-    spc_dates_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=start_spc_date_unix_sec,
-        end_time_unix_sec=end_spc_date_unix_sec,
-        time_interval_sec=DAYS_TO_SECONDS, include_endpoint=True)
+
+    num_spc_dates = int(
+        1 + (end_spc_date_unix_sec - start_spc_date_unix_sec) / DAYS_TO_SECONDS)
+    spc_dates_unix_sec = numpy.linspace(
+        start_spc_date_unix_sec, end_spc_date_unix_sec, num=num_spc_dates,
+        dtype=int)
 
     num_spc_dates = len(spc_dates_unix_sec)
     temp_file_names = [''] * num_spc_dates
