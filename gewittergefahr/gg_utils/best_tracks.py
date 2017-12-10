@@ -954,7 +954,7 @@ def break_ties_among_storm_objects(
         these_object_indices_to_remove = storm_track_table[
             OBJECT_INDICES_COLUMN_FOR_TRACK].values[j][
                 these_object_indices_to_remove]
-        if not these_object_indices_to_remove:
+        if not len(these_object_indices_to_remove):
             continue
 
         num_ties_broken += len(these_object_indices_to_remove)
