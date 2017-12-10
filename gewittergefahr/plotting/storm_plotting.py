@@ -143,7 +143,8 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
                         vertex_latitudes_deg=None, vertex_longitudes_deg=None,
                         line_colour=DEFAULT_POLY_LINE_COLOUR,
                         line_width=DEFAULT_POLY_LINE_WIDTH,
-                        fill_colour=DEFAULT_POLY_FILL_COLOUR):
+                        fill_colour=DEFAULT_POLY_FILL_COLOUR,
+                        alpha=1.0):
     """Plots filled polygon (either storm object or buffer around storm object).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -154,6 +155,7 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
         `matplotlib.colors`).
     :param line_width: Width of polygon edge.
     :param fill_colour: Colour of polygon interior.
+    :param alpha: alpha level of the fill
     """
 
     # TODO(thunderhoser): input should be a `shapely.geometry.Polygon` object.
@@ -179,5 +181,5 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
         hole_y_coords_list=hole_list_y_metres)
 
     polygon_patch = PolygonPatch(
-        polygon_object, lw=line_width, ec=line_colour, fc=fill_colour)
+        polygon_object, lw=line_width, ec=line_colour, fc=fill_colour, alpha=alpha)
     axes_object.add_patch(polygon_patch)
