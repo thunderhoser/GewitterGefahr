@@ -33,10 +33,8 @@ FILE_EXISTS_ERROR_CODE = 17
 GZIP_FILE_EXTENSION = '.gz'
 STATS_FILE_EXTENSION = '.xml'
 POLYGON_FILE_EXTENSION = '.netcdf'
-# STATS_DIR_NAME_PART = 'PolygonTable'
-# POLYGON_DIR_NAME_PART = 'ClusterID'
-STATS_DIR_NAME_PART = 'segmotion/PolygonTable'
-POLYGON_DIR_NAME_PART = 'segmotion/ClusterID'
+STATS_DIR_NAME_PART = 'PolygonTable'
+POLYGON_DIR_NAME_PART = 'ClusterID'
 
 SENTINEL_VALUE = -9999
 TIME_FORMAT_IN_FILES = '%Y%m%d-%H%M%S'
@@ -365,62 +363,48 @@ def _open_xml_file(xml_file_name):
     return xml_tree
 
 
-def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
-                        top_target_directory_name=None,
-                        scales_to_extract_ordinal=None,
-                        scales_to_extract_metres2=None):
-    """Unzips tar file with all segmotion output for one SPC date.
-
-    N = number of tracking scales in tar file
-    n = number of scales to extract
+def unzip_1day_tar_file(
+        tar_file_name, spc_date_unix_sec=None, top_target_directory_name=None,
+        scales_to_extract_metres2=None):
+    """Unzips tar file with segmotion output for one SPC date.
 
     :param tar_file_name: Path to input file.
-    :param spc_date_unix_sec: SPC date in Unix format.
-    :param top_target_directory_name: Top-level output directory.  This method
-        will create a subdirectory for the SPC date.
-    :param scales_to_extract_ordinal: length-n numpy array of tracking scales to
-        extract.  Each array element must be an ordinal number in [0, N - 1].
-    :param scales_to_extract_metres2: length-n numpy array of tracking scales to
-        extract (m^2).
+    :param spc_date_unix_sec: SPC date.
+    :param top_target_directory_name: Name of top-level output directory.
+    :param scales_to_extract_metres2: 1-D numpy array of tracking scales to
+        extract.
     :return: target_directory_name: Path to output directory.  This will be
         "<top_target_directory_name>/<yyyymmdd>", where <yyyymmdd> is the SPC
         date.
     """
 
     error_checking.assert_file_exists(tar_file_name)
-
-    error_checking.assert_is_geq_numpy_array(scales_to_extract_ordinal, 0)
-    error_checking.assert_is_integer_numpy_array(scales_to_extract_ordinal)
-    error_checking.assert_is_numpy_array(scales_to_extract_ordinal,
-                                         num_dimensions=1)
-
-    num_scales_to_extract = len(scales_to_extract_ordinal)
-    error_checking.assert_is_greater_numpy_array(scales_to_extract_metres2, 0.)
+    error_checking.assert_is_greater_numpy_array(scales_to_extract_metres2, 0)
+    error_checking.assert_is_integer_numpy_array(scales_to_extract_metres2)
     error_checking.assert_is_numpy_array(
-        scales_to_extract_metres2,
-        exact_dimensions=numpy.array([num_scales_to_extract]))
+        scales_to_extract_metres2, num_dimensions=1)
 
+    num_scales_to_extract = len(scales_to_extract_metres2)
     spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_names_to_unzip = []
 
     for j in range(num_scales_to_extract):
-        directory_names_to_unzip.append(_get_relative_stats_dir_ordinal_scale(
-            spc_date_string, scales_to_extract_ordinal[j]))
-        directory_names_to_unzip.append(_get_relative_polygon_dir_ordinal_scale(
-            spc_date_string, scales_to_extract_ordinal[j]))
+        this_relative_stats_dir_name = _get_relative_stats_dir_physical_scale(
+            spc_date_string, scales_to_extract_metres2[j])
+        this_relative_polygon_dir_name = (
+            _get_relative_polygon_dir_physical_scale(
+                spc_date_string, scales_to_extract_metres2[j]))
 
-    unzipping.unzip_tar(tar_file_name,
-                        target_directory_name=top_target_directory_name,
-                        file_and_dir_names_to_unzip=directory_names_to_unzip)
+        directory_names_to_unzip.append(
+            this_relative_stats_dir_name.replace(spc_date_string + '/', ''))
+        directory_names_to_unzip.append(
+            this_relative_polygon_dir_name.replace(spc_date_string + '/', ''))
 
-    target_directory_name = '{0:s}/{1:s}'.format(top_target_directory_name,
-                                                 spc_date_string)
-
-    _rename_raw_dirs_ordinal_to_physical(
-        top_raw_directory_name=top_target_directory_name,
-        spc_date_string=spc_date_string,
-        tracking_scales_ordinal=scales_to_extract_ordinal,
-        tracking_scales_metres2=scales_to_extract_metres2)
+    target_directory_name = '{0:s}/{1:s}'.format(
+        top_target_directory_name, spc_date_string)
+    unzipping.unzip_tar(
+        tar_file_name, target_directory_name=target_directory_name,
+        file_and_dir_names_to_unzip=directory_names_to_unzip)
     return target_directory_name
 
 
