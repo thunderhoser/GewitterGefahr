@@ -59,12 +59,12 @@ REPORT_PERIOD_FOR_MERGER = 10
 REPORT_PERIOD_FOR_TIE_BREAKER = 500
 
 FILE_INDEX_COLUMN = 'file_index'
-ORIG_STORM_ID_COLUMN = 'original_storm_id'
 
 INPUT_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN]
-COLUMNS_TO_MERGE_ON = [ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+COLUMNS_TO_MERGE_ON = [
+    tracking_io.ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 EMPTY_TRACK_AGE_SEC = -1
 OUTPUT_COLUMNS_TO_KEEP = [
@@ -1263,7 +1263,7 @@ def read_input_storm_objects(input_file_names, keep_spc_date=False):
 
     argument_dict = {
         FILE_INDEX_COLUMN: file_indices,
-        ORIG_STORM_ID_COLUMN:
+        tracking_io.ORIG_STORM_ID_COLUMN:
             storm_object_table[tracking_io.STORM_ID_COLUMN].values}
     return storm_object_table.assign(**argument_dict)
 
@@ -1312,18 +1312,14 @@ def write_output_storm_objects(
 
         this_input_table = tracking_io.read_processed_file(input_file_names[i])
         column_dict_old_to_new = {
-            tracking_io.STORM_ID_COLUMN: ORIG_STORM_ID_COLUMN}
+            tracking_io.STORM_ID_COLUMN: tracking_io.ORIG_STORM_ID_COLUMN}
         this_input_table.rename(columns=column_dict_old_to_new, inplace=True)
         this_input_table.drop(ATTRIBUTES_TO_RECOMPUTE, axis=1, inplace=True)
 
         this_output_table = storm_object_table.loc[
             storm_object_table[FILE_INDEX_COLUMN] == i]
-        print this_output_table
-
         this_output_table = this_output_table.merge(
             this_input_table, on=COLUMNS_TO_MERGE_ON, how='left')
-        print this_output_table
-
         tracking_io.write_processed_file(
             this_output_table, output_file_names[i])
 
