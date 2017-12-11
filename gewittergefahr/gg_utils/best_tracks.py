@@ -14,6 +14,7 @@ Lakshmanan, V., B. Herzog, and D. Kingfield, 2015: "A method for extracting
     54 (2), 451-462.
 """
 
+import sys
 import copy
 import numpy
 import pandas
@@ -74,6 +75,8 @@ OUTPUT_COLUMNS_TO_KEEP = [
 ATTRIBUTES_TO_RECOMPUTE = [
     tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
     tracking_io.TRACKING_END_TIME_COLUMN]
+
+sys.stdout.flush()
 
 
 def _theil_sen_fit(
