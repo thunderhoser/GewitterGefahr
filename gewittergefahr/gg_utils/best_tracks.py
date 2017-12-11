@@ -1318,7 +1318,8 @@ def write_output_storm_objects(
         input_columns_to_drop = set(list(storm_object_table))
         for this_column in COLUMNS_TO_MERGE_ON:
             input_columns_to_drop.remove(this_column)
-        input_columns_to_drop = list(input_columns_to_drop.union(
+
+        input_columns_to_drop = list(input_columns_to_drop.intersection(
             set(list(this_input_table))))
         this_input_table.drop(input_columns_to_drop, axis=1, inplace=True)
 
