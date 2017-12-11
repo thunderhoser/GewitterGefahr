@@ -834,7 +834,7 @@ def merge_storm_tracks(
             if this_join_distance_metres > max_join_distance_metres:
                 continue
 
-            if max_velocity_diff_m_s01 is None:
+            if max_velocity_diff_m_s01 is not None:
                 this_velocity_diff_m_s01 = _get_velocity_diff_for_two_tracks(
                     storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[
                         these_track_indices],

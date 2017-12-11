@@ -45,9 +45,9 @@ def plot_storm_track(basemap_object=None, axes_object=None, latitudes_deg=None,
     :param line_style: Line style (in any format accepted by
         `matplotlib.lines`).
     :param start_marker: Marker type for beginning of track (in any format
-        accepted by `matplotlib.lines`).
+        accepted by `matplotlib.lines`).  This may also be None.
     :param end_marker: Marker type for end of track (in any format accepted by
-        `matplotlib.lines`).
+        `matplotlib.lines`).  This may also be None.
     :param start_marker_size: Size of marker at beginning of track.
     :param end_marker_size: Size of marker at end of track.
     """
@@ -66,27 +66,29 @@ def plot_storm_track(basemap_object=None, axes_object=None, latitudes_deg=None,
         x_coords_metres, y_coords_metres, color=line_colour,
         linestyle=line_style, linewidth=line_width)
 
-    if start_marker == 'x':
-        start_marker_edge_width = 2
-    else:
-        start_marker_edge_width = 1
+    if start_marker is not None:
+        if start_marker == 'x':
+            start_marker_edge_width = 2
+        else:
+            start_marker_edge_width = 1
 
-    axes_object.plot(
-        x_coords_metres[0], y_coords_metres[0], linestyle='None',
-        marker=start_marker, markerfacecolor=line_colour,
-        markeredgecolor=line_colour, markersize=start_marker_size,
-        markeredgewidth=start_marker_edge_width)
+        axes_object.plot(
+            x_coords_metres[0], y_coords_metres[0], linestyle='None',
+            marker=start_marker, markerfacecolor=line_colour,
+            markeredgecolor=line_colour, markersize=start_marker_size,
+            markeredgewidth=start_marker_edge_width)
 
-    if end_marker == 'x':
-        end_marker_edge_width = 2
-    else:
-        end_marker_edge_width = 1
+    if end_marker is not None:
+        if end_marker == 'x':
+            end_marker_edge_width = 2
+        else:
+            end_marker_edge_width = 1
 
-    axes_object.plot(
-        x_coords_metres[-1], y_coords_metres[-1], linestyle='None',
-        marker=end_marker, markerfacecolor=line_colour,
-        markeredgecolor=line_colour, markersize=end_marker_size,
-        markeredgewidth=end_marker_edge_width)
+        axes_object.plot(
+            x_coords_metres[-1], y_coords_metres[-1], linestyle='None',
+            marker=end_marker, markerfacecolor=line_colour,
+            markeredgecolor=line_colour, markersize=end_marker_size,
+            markeredgewidth=end_marker_edge_width)
 
 
 def plot_unfilled_polygon(basemap_object=None, axes_object=None,
