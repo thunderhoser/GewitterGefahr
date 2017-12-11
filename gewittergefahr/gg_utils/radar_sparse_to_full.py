@@ -104,5 +104,5 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict):
         num_grid_rows=metadata_dict[radar_io.NUM_LAT_COLUMN],
         num_grid_columns=metadata_dict[radar_io.NUM_LNG_COLUMN])
 
-    return (numpy.flipud(full_matrix), unique_grid_point_lat_deg,
-            unique_grid_point_lng_deg)
+    return (
+        full_matrix, unique_grid_point_lat_deg[::-1], unique_grid_point_lng_deg)
