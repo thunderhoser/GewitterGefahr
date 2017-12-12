@@ -32,7 +32,7 @@ EMPTY_STORM_ID = 'no_storm'
 DEFAULT_MAX_EXTRAP_TIME_SEC = 610
 DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
 DEFAULT_MAX_JOIN_TIME_SEC = 915
-DEFAULT_MAX_JOIN_DISTANCE_METRES = 30000.
+DEFAULT_MAX_JOIN_DISTANCE_METRES = 100000.
 DEFAULT_MAX_MEAN_JOIN_ERROR_METRES = 10000.
 
 DEFAULT_NUM_MAIN_ITERS = 3
@@ -820,6 +820,7 @@ def merge_storm_tracks(
                         these_track_indices]))
 
             if not this_join_time_sec <= max_join_time_sec:
+                print 'Join time = {0:d} seconds'.format(this_join_time_sec)
                 continue
             early_index = these_track_indices[early_index]
             late_index = these_track_indices[late_index]
@@ -835,6 +836,8 @@ def merge_storm_tracks(
                 storm_track_table[TRACK_Y_COORDS_COLUMN].values[late_index])
 
             if this_join_distance_metres > max_join_distance_metres:
+                print 'Join distance = {0:.1f} m'.format(
+                    this_join_distance_metres)
                 continue
 
             if max_velocity_diff_m_s01 is not None:
@@ -882,7 +885,8 @@ def merge_storm_tracks(
                 storm_object_table, [storm_id_j])
             storm_track_table_j_only = theil_sen_fit_for_each_track(
                 storm_track_table_j_only, verbose=False)
-            storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
+            storm_track_table.iloc[j] = copy.deepcopy(
+                storm_track_table_j_only.iloc[0])
 
     print ('Have considered all ' + str(num_working_tracks) +
            ' storm tracks for merging!')
@@ -975,7 +979,8 @@ def break_ties_among_storm_objects(
             storm_object_table, [storm_id_j])
         storm_track_table_j_only = theil_sen_fit_for_each_track(
             storm_track_table_j_only, verbose=False)
-        storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
+        storm_track_table.iloc[j] = copy.deepcopy(
+            storm_track_table_j_only.iloc[0])
 
     print ('Have considered all ' + str(num_working_tracks) +
            ' storm tracks for tie-breaking!')
