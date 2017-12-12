@@ -32,7 +32,7 @@ EMPTY_STORM_ID = 'no_storm'
 DEFAULT_MAX_EXTRAP_TIME_SEC = 610
 DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
 DEFAULT_MAX_JOIN_TIME_SEC = 915
-DEFAULT_MAX_JOIN_DISTANCE_METRES = 30000.
+DEFAULT_MAX_JOIN_DISTANCE_METRES = 100000.
 DEFAULT_MAX_MEAN_JOIN_ERROR_METRES = 10000.
 
 DEFAULT_NUM_MAIN_ITERS = 3
@@ -59,21 +59,24 @@ REPORT_PERIOD_FOR_MERGER = 10
 REPORT_PERIOD_FOR_TIE_BREAKER = 500
 
 FILE_INDEX_COLUMN = 'file_index'
-ORIG_STORM_ID_COLUMN = 'original_storm_id'
 
 INPUT_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
     tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN]
-COLUMNS_TO_MERGE_ON = [ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+COLUMNS_TO_MERGE_ON = [
+    tracking_io.ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 EMPTY_TRACK_AGE_SEC = -1
-OUTPUT_COLUMNS_TO_KEEP = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
-    tracking_io.TRACKING_END_TIME_COLUMN]
 ATTRIBUTES_TO_RECOMPUTE = [
     tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
     tracking_io.TRACKING_END_TIME_COLUMN]
+
+VERTEX_LATITUDES_COLUMN = 'polygon_vertex_latitudes_deg'
+VERTEX_LONGITUDES_COLUMN = 'polygon_vertex_longitudes_deg'
+OUTPUT_COLUMNS_FOR_THEA = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
+    VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 
 
 def _theil_sen_fit(
@@ -818,6 +821,7 @@ def merge_storm_tracks(
 
             if not this_join_time_sec <= max_join_time_sec:
                 continue
+
             early_index = these_track_indices[early_index]
             late_index = these_track_indices[late_index]
 
@@ -832,9 +836,11 @@ def merge_storm_tracks(
                 storm_track_table[TRACK_Y_COORDS_COLUMN].values[late_index])
 
             if this_join_distance_metres > max_join_distance_metres:
+                print 'Join distance = {0:.1f} m'.format(
+                    this_join_distance_metres)
                 continue
 
-            if max_velocity_diff_m_s01 is None:
+            if max_velocity_diff_m_s01 is not None:
                 this_velocity_diff_m_s01 = _get_velocity_diff_for_two_tracks(
                     storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[
                         these_track_indices],
@@ -859,6 +865,10 @@ def merge_storm_tracks(
 
             if (this_mean_prediction_error_metres >
                     max_mean_prediction_error_metres):
+                print 'Join distance = {0:.1f} m'.format(
+                    this_join_distance_metres)
+                print 'Mean prediction error = {0:.1f} m'.format(
+                    this_mean_prediction_error_metres)
                 continue
 
             remove_storm_track_flags[k] = True
@@ -879,7 +889,8 @@ def merge_storm_tracks(
                 storm_object_table, [storm_id_j])
             storm_track_table_j_only = theil_sen_fit_for_each_track(
                 storm_track_table_j_only, verbose=False)
-            storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
+            storm_track_table.iloc[j] = copy.deepcopy(
+                storm_track_table_j_only.iloc[0])
 
     print ('Have considered all ' + str(num_working_tracks) +
            ' storm tracks for merging!')
@@ -972,7 +983,8 @@ def break_ties_among_storm_objects(
             storm_object_table, [storm_id_j])
         storm_track_table_j_only = theil_sen_fit_for_each_track(
             storm_track_table_j_only, verbose=False)
-        storm_track_table.iloc[j] = storm_track_table_j_only.iloc[0]
+        storm_track_table.iloc[j] = copy.deepcopy(
+            storm_track_table_j_only.iloc[0])
 
     print ('Have considered all ' + str(num_working_tracks) +
            ' storm tracks for tie-breaking!')
@@ -1263,7 +1275,7 @@ def read_input_storm_objects(input_file_names, keep_spc_date=False):
 
     argument_dict = {
         FILE_INDEX_COLUMN: file_indices,
-        ORIG_STORM_ID_COLUMN:
+        tracking_io.ORIG_STORM_ID_COLUMN:
             storm_object_table[tracking_io.STORM_ID_COLUMN].values}
     return storm_object_table.assign(**argument_dict)
 
@@ -1312,23 +1324,78 @@ def write_output_storm_objects(
 
         this_input_table = tracking_io.read_processed_file(input_file_names[i])
         column_dict_old_to_new = {
-            tracking_io.STORM_ID_COLUMN: ORIG_STORM_ID_COLUMN}
+            tracking_io.STORM_ID_COLUMN: tracking_io.ORIG_STORM_ID_COLUMN}
         this_input_table.rename(columns=column_dict_old_to_new, inplace=True)
-
-        input_columns_to_drop = set(list(storm_object_table))
-        for this_column in COLUMNS_TO_MERGE_ON:
-            input_columns_to_drop.remove(this_column)
-        input_columns_to_drop = list(input_columns_to_drop.union(
-            set(list(this_input_table))))
-        this_input_table.drop(input_columns_to_drop, axis=1, inplace=True)
+        this_input_table.drop(ATTRIBUTES_TO_RECOMPUTE, axis=1, inplace=True)
 
         this_output_table = storm_object_table.loc[
             storm_object_table[FILE_INDEX_COLUMN] == i]
         this_output_table = this_output_table.merge(
             this_input_table, on=COLUMNS_TO_MERGE_ON, how='left')
-        this_output_table = this_output_table[OUTPUT_COLUMNS_TO_KEEP]
-
         tracking_io.write_processed_file(
             this_output_table, output_file_names[i])
 
     print '\n'
+
+
+def write_simple_output_for_thea(storm_object_table, csv_file_name):
+    """Writes output storm objects to CSV file for Thea.
+
+    :param storm_object_table: pandas DataFrame with columns specified by
+        `storm_tracking_io.write_processed_file`.
+    :param csv_file_name: Path to output file.
+    """
+
+    error_checking.assert_columns_in_dataframe(
+        storm_object_table, tracking_io.MANDATORY_COLUMNS)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
+
+    csv_file_handle = open(csv_file_name, 'w')
+    for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
+        if j != 0:
+            csv_file_handle.write(',')
+        csv_file_handle.write('{0:s}'.format(OUTPUT_COLUMNS_FOR_THEA[j]))
+
+    num_storm_objects = len(storm_object_table.index)
+    for i in range(num_storm_objects):
+        csv_file_handle.write('\n')
+        this_polygon_object = storm_object_table[
+            tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
+
+        for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
+            if j != 0:
+                csv_file_handle.write(',')
+
+            if OUTPUT_COLUMNS_FOR_THEA[j] == VERTEX_LATITUDES_COLUMN:
+                these_vertex_latitudes_deg = numpy.asarray(
+                    this_polygon_object.exterior.xy[1])
+
+                for k in range(len(these_vertex_latitudes_deg)):
+                    if k != 0:
+                        csv_file_handle.write(';')
+                    csv_file_handle.write('{0:.3f}'.format(
+                        these_vertex_latitudes_deg[k]))
+
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == VERTEX_LONGITUDES_COLUMN:
+                these_vertex_longitudes_deg = numpy.asarray(
+                    this_polygon_object.exterior.xy[0])
+
+                for k in range(len(these_vertex_longitudes_deg)):
+                    if k != 0:
+                        csv_file_handle.write(';')
+                    csv_file_handle.write('{0:.3f}'.format(
+                        these_vertex_longitudes_deg[k]))
+
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_io.STORM_ID_COLUMN:
+                csv_file_handle.write('{0:s}'.format(
+                    storm_object_table[tracking_io.STORM_ID_COLUMN].values[i]))
+
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_io.TIME_COLUMN:
+                csv_file_handle.write('{0:d}'.format(
+                    storm_object_table[tracking_io.TIME_COLUMN].values[i]))
+
+            else:
+                csv_file_handle.write('{0:.6f}'.format(
+                    storm_object_table[OUTPUT_COLUMNS_FOR_THEA[j]].values[i]))
+
+    csv_file_handle.close()
