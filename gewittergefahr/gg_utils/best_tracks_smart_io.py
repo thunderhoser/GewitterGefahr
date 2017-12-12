@@ -35,7 +35,7 @@ INPUT_FILE_NAMES_KEY = 'input_file_names_by_spc_date'
 OUTPUT_FILE_NAMES_KEY = 'output_file_names_by_spc_date'
 
 INTERMEDIATE_COLUMNS = [
-    tracking_io.STORM_ID_COLUMN, best_tracks.ORIG_STORM_ID_COLUMN,
+    tracking_io.STORM_ID_COLUMN, tracking_io.ORIG_STORM_ID_COLUMN,
     tracking_io.TIME_COLUMN, tracking_io.SPC_DATE_COLUMN,
     best_tracks.CENTROID_X_COLUMN, best_tracks.CENTROID_Y_COLUMN,
     best_tracks.FILE_INDEX_COLUMN]
