@@ -1348,8 +1348,11 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
 
     error_checking.assert_columns_in_dataframe(
         storm_object_table, tracking_io.MANDATORY_COLUMNS)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
+    storm_object_table.sort_values(
+        [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN], axis=0,
+        ascending=[True, True], inplace=True)
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
     csv_file_handle = open(csv_file_name, 'w')
     for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
         if j != 0:
