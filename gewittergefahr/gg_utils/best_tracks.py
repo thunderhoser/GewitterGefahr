@@ -67,13 +67,16 @@ COLUMNS_TO_MERGE_ON = [
     tracking_io.ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 EMPTY_TRACK_AGE_SEC = -1
-OUTPUT_COLUMNS_TO_KEEP = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
-    tracking_io.TRACKING_END_TIME_COLUMN]
 ATTRIBUTES_TO_RECOMPUTE = [
     tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
     tracking_io.TRACKING_END_TIME_COLUMN]
+
+VERTEX_LATITUDES_COLUMN = 'polygon_vertex_latitudes_deg'
+VERTEX_LONGITUDES_COLUMN = 'polygon_vertex_longitudes_deg'
+OUTPUT_COLUMNS_FOR_THEA = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
+    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
+    VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 
 
 def _theil_sen_fit(
@@ -1324,3 +1327,66 @@ def write_output_storm_objects(
             this_output_table, output_file_names[i])
 
     print '\n'
+
+
+def write_simple_output_for_thea(storm_object_table, csv_file_name):
+    """Writes output storm objects to CSV file for Thea.
+
+    :param storm_object_table: pandas DataFrame with columns specified by
+        `storm_tracking_io.write_processed_file`.
+    :param csv_file_name: Path to output file.
+    """
+
+    error_checking.assert_columns_in_dataframe(
+        storm_object_table, tracking_io.MANDATORY_COLUMNS)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
+
+    csv_file_handle = open(csv_file_name, 'w')
+    for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
+        if j != 0:
+            csv_file_handle.write(',')
+        csv_file_handle.write('{0:s}'.format(OUTPUT_COLUMNS_FOR_THEA[j]))
+
+    num_storm_objects = len(storm_object_table.index)
+    for i in range(num_storm_objects):
+        csv_file_handle.write('\n')
+        this_polygon_object = storm_object_table[
+            tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
+
+        for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
+            if j != 0:
+                csv_file_handle.write(',')
+
+            if OUTPUT_COLUMNS_FOR_THEA[j] == VERTEX_LATITUDES_COLUMN:
+                these_vertex_latitudes_deg = numpy.asarray(
+                    this_polygon_object.exterior.xy[1])
+
+                for k in range(len(these_vertex_latitudes_deg)):
+                    if k != 0:
+                        csv_file_handle.write(';')
+                    csv_file_handle.write('{0:.3f}'.format(
+                        these_vertex_latitudes_deg[k]))
+
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == VERTEX_LONGITUDES_COLUMN:
+                these_vertex_longitudes_deg = numpy.asarray(
+                    this_polygon_object.exterior.xy[0])
+
+                for k in range(len(these_vertex_longitudes_deg)):
+                    if k != 0:
+                        csv_file_handle.write(';')
+                    csv_file_handle.write('{0:.3f}'.format(
+                        these_vertex_longitudes_deg[k]))
+
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_io.STORM_ID_COLUMN:
+                csv_file_handle.write('{0:s}'.format(
+                    storm_object_table[tracking_io.STORM_ID_COLUMN].values[i]))
+
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_io.TIME_COLUMN:
+                csv_file_handle.write('{0:d}'.format(
+                    storm_object_table[tracking_io.TIME_COLUMN].values[i]))
+
+            else:
+                csv_file_handle.write('{0:.6f}'.format(
+                    storm_object_table[OUTPUT_COLUMNS_FOR_THEA[j]].values[i]))
+
+    csv_file_handle.close()
