@@ -820,8 +820,8 @@ def merge_storm_tracks(
                         these_track_indices]))
 
             if not this_join_time_sec <= max_join_time_sec:
-                print 'Join time = {0:d} seconds'.format(this_join_time_sec)
                 continue
+
             early_index = these_track_indices[early_index]
             late_index = these_track_indices[late_index]
 
@@ -865,6 +865,10 @@ def merge_storm_tracks(
 
             if (this_mean_prediction_error_metres >
                     max_mean_prediction_error_metres):
+                print 'Join distance = {0:.1f} m'.format(
+                    this_join_distance_metres)
+                print 'Mean prediction error = {0:.1f} m'.format(
+                    this_mean_prediction_error_metres)
                 continue
 
             remove_storm_track_flags[k] = True
