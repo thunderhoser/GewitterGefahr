@@ -3,6 +3,7 @@
 These are usually spatial statistics based on values inside a storm object.
 """
 
+import os.path
 import pickle
 import numpy
 import pandas
@@ -49,10 +50,15 @@ DEFAULT_STATISTIC_NAMES = [
 DEFAULT_PERCENTILE_LEVELS = numpy.array([0., 5., 25., 50., 75., 95., 100.])
 PERCENTILE_LEVEL_PRECISION = 0.1
 
-DEFAULT_RADAR_FIELD_NAMES = set(radar_io.RADAR_FIELD_NAMES)
-DEFAULT_RADAR_FIELD_NAMES.remove(radar_io.REFL_NAME)
-DEFAULT_RADAR_FIELD_NAMES.remove(radar_io.STORM_ID_NAME)
-DEFAULT_RADAR_FIELD_NAMES = list(DEFAULT_RADAR_FIELD_NAMES)
+DEFAULT_RADAR_FIELD_NAMES = [
+    radar_io.ECHO_TOP_18DBZ_NAME, radar_io.ECHO_TOP_50DBZ_NAME,
+    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME,
+    radar_io.REFL_NAME, radar_io.REFL_COLUMN_MAX_NAME, radar_io.MESH_NAME,
+    radar_io.REFL_0CELSIUS_NAME, radar_io.REFL_M10CELSIUS_NAME,
+    radar_io.REFL_M20CELSIUS_NAME, radar_io.REFL_LOWEST_ALTITUDE_NAME,
+    radar_io.SHI_NAME, radar_io.VIL_NAME]
+IGNORABLE_RADAR_FIELD_NAMES = [
+    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME]
 
 
 def _radar_field_and_statistic_to_column_name(
@@ -462,7 +468,11 @@ def get_stats_for_storm_objects(
                 height_m_agl=radar_height_by_pair_m_agl[j],
                 data_source=radar_data_source,
                 top_directory_name=top_radar_directory_name,
-                raise_error_if_missing=True)
+                raise_error_if_missing=
+                radar_field_name_by_pair[j] not in IGNORABLE_RADAR_FIELD_NAMES)
+
+            if not os.path.isfile(radar_file_name_matrix[i, j]):
+                radar_file_name_matrix[i, j] = None
 
     num_statistics = len(statistic_names)
     num_percentiles = len(percentile_levels)
@@ -473,14 +483,19 @@ def get_stats_for_storm_objects(
         (num_storms, num_radar_fields, num_percentiles), numpy.nan)
 
     for j in range(num_radar_fields):
+        metadata_dict_for_this_field = None
+
         for i in range(num_unique_storm_times):
+            if radar_file_name_matrix[i, j] is None:
+                continue
+
             this_time_string = time_conversion.unix_sec_to_string(
                 unique_storm_times_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
             print ('Computing stats for "' + str(radar_field_name_by_pair[j]) +
                    '" at ' + str(radar_height_by_pair_m_agl[j]) +
                    ' m AGL and ' + this_time_string + '...')
 
-            if i == 0:
+            if metadata_dict_for_this_field is None:
                 metadata_dict_for_this_field = (
                     radar_io.read_metadata_from_raw_file(
                         radar_file_name_matrix[i, j],
