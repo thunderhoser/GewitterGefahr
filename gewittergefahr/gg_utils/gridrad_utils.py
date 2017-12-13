@@ -424,7 +424,6 @@ def write_field_to_myrorss_file(
     grid_point_lat_matrix, grid_point_lng_matrix = (
         grids.latlng_vectors_to_matrices(
             unique_grid_point_lats_deg, unique_grid_point_lngs_deg))
-    grid_point_lat_matrix = numpy.flipud(grid_point_lat_matrix)
     grid_point_lat_vector = numpy.reshape(
         grid_point_lat_matrix, num_grid_rows * num_grid_columns)
     grid_point_lng_vector = numpy.reshape(
