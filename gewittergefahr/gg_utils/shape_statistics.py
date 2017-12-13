@@ -4,7 +4,6 @@ import copy
 import pickle
 import numpy
 import skimage.measure
-from area import polygon__area as polygon_area
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import shape_utils
 from gewittergefahr.gg_utils import smoothing_via_iterative_averaging as sia
@@ -258,19 +257,6 @@ def check_statistic_table(statistic_table, require_storm_objects=True):
             statistic_table, STORM_COLUMNS_TO_KEEP)
 
     return statistic_column_names
-
-
-def get_area_of_simple_polygon(polygon_object_latlng):
-    """Computes area of simple polygon.
-
-    :param polygon_object_latlng: Instance of `shapely.geometry.Polygon`, where
-        x-coordinates are actually longitudes and y-coordinates are actually
-        latitudes.
-    :return: area_metres2: Area of polygon exterior.  All holes (interior) will
-        be ignored.
-    """
-
-    return polygon_area([list(polygon_object_latlng.exterior.coords)])
 
 
 def get_basic_statistics(polygon_object_xy,
