@@ -21,7 +21,6 @@ from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -84,7 +83,7 @@ def _write_intermediate_results(storm_object_table, temp_file_name):
 
 def _shuffle_data_with_smart_io(
         storm_object_table=None, file_dict=None, working_spc_date_unix_sec=None,
-        read_from_intermediate=None, write_to_intermediate=None):
+        read_from_intermediate=None):
     """Shuffles data with smart IO.
 
     Specifically, this method ensures that only SPC dates (k - 1)...(k + 1) are
@@ -96,8 +95,6 @@ def _shuffle_data_with_smart_io(
     :param working_spc_date_unix_sec: Next SPC date to work on.
     :param read_from_intermediate: Boolean flag.  If True, will read from
         intermediate files.  If False, will read from input files.
-    :param write_to_intermediate: Boolean flag.  If True, will read to
-        intermediate files.  If False, will write to final output files.
     :return: storm_object_table: pandas DataFrame with columns documented in
         _write_intermediate_results.
     """
@@ -107,11 +104,7 @@ def _shuffle_data_with_smart_io(
     num_spc_dates = len(file_dict[SPC_DATES_KEY])
 
     if working_spc_date_index == 0:
-        if write_to_intermediate:
-            read_spc_date_indices = numpy.array([0, 1], dtype=int)
-        else:
-            read_spc_date_indices = numpy.array([], dtype=int)
-
+        read_spc_date_indices = numpy.array([0, 1], dtype=int)
         write_spc_date_indices = numpy.array(
             [num_spc_dates - 2, num_spc_dates - 1], dtype=int)
         clear_table = True
@@ -128,6 +121,13 @@ def _shuffle_data_with_smart_io(
             [working_spc_date_index - 2], dtype=int)
         clear_table = False
 
+    read_spc_date_indices = read_spc_date_indices[read_spc_date_indices >= 0]
+    read_spc_date_indices = read_spc_date_indices[
+        read_spc_date_indices < num_spc_dates]
+    write_spc_date_indices = write_spc_date_indices[write_spc_date_indices >= 0]
+    write_spc_date_indices = write_spc_date_indices[
+        write_spc_date_indices < num_spc_dates]
+
     if storm_object_table is not None:
         for this_index in write_spc_date_indices:
             this_spc_date_unix_sec = file_dict[SPC_DATES_KEY][this_index]
@@ -138,23 +138,13 @@ def _shuffle_data_with_smart_io(
                 storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
                 this_spc_date_unix_sec)[0]
 
-            if write_to_intermediate:
-                this_temp_file_name = file_dict[TEMP_FILE_NAMES_KEY][this_index]
-                print ('Writing intermediate data for ' + this_spc_date_string +
-                       ': ' + this_temp_file_name + '...')
+            this_temp_file_name = file_dict[TEMP_FILE_NAMES_KEY][this_index]
+            print ('Writing intermediate data for ' + this_spc_date_string +
+                   ': ' + this_temp_file_name + '...')
 
-                _write_intermediate_results(
-                    storm_object_table.iloc[this_spc_date_indices],
-                    this_temp_file_name)
-
-            else:
-                best_tracks.write_output_storm_objects(
-                    storm_object_table.iloc[this_spc_date_indices],
-                    input_file_names=
-                    file_dict[INPUT_FILE_NAMES_KEY][this_index],
-                    output_file_names=
-                    file_dict[OUTPUT_FILE_NAMES_KEY][this_index])
-
+            _write_intermediate_results(
+                storm_object_table.iloc[this_spc_date_indices],
+                this_temp_file_name)
             storm_object_table.drop(
                 storm_object_table.index[this_spc_date_indices], axis=0,
                 inplace=True)
@@ -181,8 +171,10 @@ def _shuffle_data_with_smart_io(
 
             these_centroid_x_metres, these_centroid_y_metres = (
                 projections.project_latlng_to_xy(
-                    storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
-                    storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
+                    this_storm_object_table[
+                        tracking_io.CENTROID_LAT_COLUMN].values,
+                    this_storm_object_table[
+                        tracking_io.CENTROID_LNG_COLUMN].values,
                     projection_object=PROJECTION_OBJECT,
                     false_easting_metres=0., false_northing_metres=0.))
 
@@ -305,7 +297,6 @@ def find_files_for_smart_io(
         start_spc_date_unix_sec, end_spc_date_unix_sec, num=num_spc_dates,
         dtype=int)
 
-    num_spc_dates = len(spc_dates_unix_sec)
     temp_file_names = [''] * num_spc_dates
     input_file_names_by_spc_date = [['']] * num_spc_dates
     output_file_names_by_spc_date = [['']] * num_spc_dates
@@ -420,8 +411,7 @@ def run_best_track(
                     storm_object_table=storm_object_table,
                     file_dict=smart_file_dict,
                     working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                    read_from_intermediate=i > 0 or j > 0,
-                    write_to_intermediate=True)
+                    read_from_intermediate=i > 0 or j > 0)
 
                 if k == 0:
                     best_track_start_time_unix_sec = numpy.min(
@@ -453,7 +443,7 @@ def run_best_track(
                 storm_object_table=storm_object_table,
                 file_dict=smart_file_dict,
                 working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                read_from_intermediate=True, write_to_intermediate=True)
+                read_from_intermediate=True)
 
             storm_track_table = best_tracks.storm_objects_to_tracks(
                 storm_object_table)
@@ -478,7 +468,7 @@ def run_best_track(
                 storm_object_table=storm_object_table,
                 file_dict=smart_file_dict,
                 working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                read_from_intermediate=True, write_to_intermediate=True)
+                read_from_intermediate=True)
 
             storm_track_table = best_tracks.storm_objects_to_tracks(
                 storm_object_table)
@@ -493,30 +483,32 @@ def run_best_track(
                     storm_object_table, storm_track_table,
                     working_track_indices=these_working_indices))
 
-        for k in range(num_spc_dates):
-            storm_object_table = _shuffle_data_with_smart_io(
-                storm_object_table=storm_object_table,
-                file_dict=smart_file_dict,
-                working_spc_date_unix_sec=spc_dates_unix_sec[k],
-                read_from_intermediate=True, write_to_intermediate=k == 0)
-
-            print ('Removing storm tracks with < ' + str(min_objects_in_track) +
-                   ' objects...')
-            storm_object_table = best_tracks.remove_short_tracks(
-                storm_object_table, min_objects_in_track=min_objects_in_track)
-
-            print 'Recomputing storm attributes...'
-            storm_object_table = best_tracks.recompute_attributes(
-                storm_object_table,
-                best_track_start_time_unix_sec=best_track_start_time_unix_sec,
-                best_track_end_time_unix_sec=best_track_end_time_unix_sec)
-
-        _shuffle_data_with_smart_io(
+    for k in range(num_spc_dates):
+        storm_object_table = _shuffle_data_with_smart_io(
             storm_object_table=storm_object_table,
             file_dict=smart_file_dict,
-            working_spc_date_unix_sec=spc_dates_unix_sec[-1],
-            read_from_intermediate=True, write_to_intermediate=False)
+            working_spc_date_unix_sec=spc_dates_unix_sec[k],
+            read_from_intermediate=True)
 
-        for k in range(num_spc_dates):
-            print 'Deleting temp files...'
-            os.remove(smart_file_dict[TEMP_FILE_NAMES_KEY][k])
+        print ('Removing storm tracks with < ' + str(min_objects_in_track) +
+               ' objects...')
+        storm_object_table = best_tracks.remove_short_tracks(
+            storm_object_table, min_objects_in_track=min_objects_in_track)
+
+        print 'Recomputing storm attributes...'
+        storm_object_table = best_tracks.recompute_attributes(
+            storm_object_table,
+            best_track_start_time_unix_sec=best_track_start_time_unix_sec,
+            best_track_end_time_unix_sec=best_track_end_time_unix_sec)
+
+        this_spc_date_indices = numpy.where(
+            storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
+            spc_dates_unix_sec[k])[0]
+        best_tracks.write_output_storm_objects(
+            storm_object_table.iloc[this_spc_date_indices],
+            input_file_names=smart_file_dict[INPUT_FILE_NAMES_KEY][k],
+            output_file_names=smart_file_dict[OUTPUT_FILE_NAMES_KEY][k])
+
+    for k in range(num_spc_dates):
+        print 'Deleting temp files...'
+        os.remove(smart_file_dict[TEMP_FILE_NAMES_KEY][k])

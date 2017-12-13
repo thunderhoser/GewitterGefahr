@@ -32,11 +32,11 @@ EMPTY_STORM_ID = 'no_storm'
 DEFAULT_MAX_EXTRAP_TIME_SEC = 610
 DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
 DEFAULT_MAX_JOIN_TIME_SEC = 915
-DEFAULT_MAX_JOIN_DISTANCE_METRES = 100000.
+DEFAULT_MAX_JOIN_DISTANCE_METRES = 30000.
 DEFAULT_MAX_MEAN_JOIN_ERROR_METRES = 10000.
 
 DEFAULT_NUM_MAIN_ITERS = 3
-DEFAULT_NUM_BREAKUP_ITERS = 5
+DEFAULT_NUM_BREAKUP_ITERS = 3
 DEFAULT_MIN_OBJECTS_IN_TRACK = 3
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
@@ -65,6 +65,11 @@ INPUT_COLUMNS_TO_KEEP = [
     tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN]
 COLUMNS_TO_MERGE_ON = [
     tracking_io.ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+OUTPUT_COLUMNS_FROM_BEST_TRACK = [
+    tracking_io.STORM_ID_COLUMN, tracking_io.ORIG_STORM_ID_COLUMN,
+    tracking_io.TIME_COLUMN, tracking_io.AGE_COLUMN,
+    tracking_io.TRACKING_START_TIME_COLUMN,
+    tracking_io.TRACKING_END_TIME_COLUMN]
 
 EMPTY_TRACK_AGE_SEC = -1
 ATTRIBUTES_TO_RECOMPUTE = [
@@ -1329,7 +1334,8 @@ def write_output_storm_objects(
         this_input_table.drop(ATTRIBUTES_TO_RECOMPUTE, axis=1, inplace=True)
 
         this_output_table = storm_object_table.loc[
-            storm_object_table[FILE_INDEX_COLUMN] == i]
+            storm_object_table[FILE_INDEX_COLUMN] == i][
+                OUTPUT_COLUMNS_FROM_BEST_TRACK]
         this_output_table = this_output_table.merge(
             this_input_table, on=COLUMNS_TO_MERGE_ON, how='left')
         tracking_io.write_processed_file(
@@ -1348,8 +1354,11 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
 
     error_checking.assert_columns_in_dataframe(
         storm_object_table, tracking_io.MANDATORY_COLUMNS)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
+    storm_object_table.sort_values(
+        [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN], axis=0,
+        ascending=[True, True], inplace=True)
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
     csv_file_handle = open(csv_file_name, 'w')
     for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
         if j != 0:

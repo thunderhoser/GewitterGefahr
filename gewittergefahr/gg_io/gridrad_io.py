@@ -220,9 +220,6 @@ def read_field_from_full_grid_file(
         metadata_dict[MIN_GRID_POINT_HEIGHT_COLUMN], max_height_m_asl,
         num=metadata_dict[NUM_HEIGHTS_COLUMN])
 
-    for i in range(metadata_dict[NUM_HEIGHTS_COLUMN]):
-        field_matrix[i, :, :] = numpy.flipud(field_matrix[i, :, :])
-
     netcdf_dataset.close()
     return (field_matrix, unique_grid_point_heights_m_asl,
-            unique_grid_point_lat_deg[::-1], unique_grid_point_lng_deg)
+            unique_grid_point_lat_deg, unique_grid_point_lng_deg)
