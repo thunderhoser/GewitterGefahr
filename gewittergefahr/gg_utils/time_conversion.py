@@ -15,6 +15,7 @@ import numpy
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
+MONTH_FORMAT = '%Y%m'
 SPC_DATE_FORMAT = '%Y%m%d'
 HOURS_TO_SECONDS = 3600
 DAYS_TO_SECONDS = 86400
@@ -117,3 +118,25 @@ def is_time_in_spc_date(unix_time_sec, spc_date_string):
 
     return numpy.logical_and(unix_time_sec >= min_time_unix_sec,
                              unix_time_sec <= max_time_unix_sec)
+
+
+def first_and_last_times_in_month(month_unix_sec):
+    """Returns first and last times in month (discretized in seconds).
+
+    For example, first/last times in December 2017 are 2017-12-01-000000 and
+    2017-12-31-235959.
+
+    :param month_unix_sec: Any Unix time in month.
+    :return: start_time_unix_sec: First time in month.
+    :return: end_time_unix_sec: Last time in month.
+    """
+
+    month_string = unix_sec_to_string(month_unix_sec, MONTH_FORMAT)
+    start_time_unix_sec = string_to_unix_sec(month_string, MONTH_FORMAT)
+
+    num_days_in_month = calendar.monthrange(
+        int(month_string[:4]), int(month_string[4:]))[1]
+    end_time_unix_sec = (
+        start_time_unix_sec + (num_days_in_month * DAYS_TO_SECONDS) - 1)
+
+    return start_time_unix_sec, end_time_unix_sec

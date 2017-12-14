@@ -22,9 +22,10 @@ TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_HOUR_MINUTE = '%Y%m%d%H%M'
 RAW_FILE_EXTENSION = '.dat'
 
-PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64060'
+PREFIXES_FOR_ONLINE_STATION_ID = ['C', 'K', 'P', 'T']
+PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64050'
 TOP_ONLINE_DIR_NAME_1MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin'
-ONLINE_SUBDIR_PREFIX_1MINUTE = '6406-'
+ONLINE_SUBDIR_PREFIX_1MINUTE = '6405-'
 
 PATHLESS_FILE_NAME_PREFIX_5MINUTE = '64010'
 TOP_ONLINE_DIR_NAME_5MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-fivemin'
@@ -71,6 +72,24 @@ CSV_FILE_NAME_5MINUTE = (
     '/localdata/ryan.lagerquist/aasswp/hfmetar5/hfmetar5_wind_HKA_201409.csv')
 
 
+def _station_id_to_online(station_id):
+    """Returns possible versions of station ID used in online database.
+
+    :param station_id: Station ID in GewitterGefahr format (example:
+        "YRL_hfmetar").
+    :return: possible_online_station_ids: 1-D list of possible station IDs used
+        in database.  Example: ["CYRL", "KYRL", "PYRL", "TYRL"].
+    """
+
+    start_of_station_id = station_id.split('_')[0]
+    possible_online_station_ids = []
+    for this_prefix in PREFIXES_FOR_ONLINE_STATION_ID:
+        possible_online_station_ids.append('{0:s}{1:s}'.format(
+            this_prefix, start_of_station_id))
+
+    return possible_online_station_ids
+
+
 def _local_time_string_to_unix_sec(local_time_string, utc_offset_hours):
     """Converts time from local string to Unix format.
 
@@ -98,25 +117,11 @@ def _parse_1minute_wind_from_line(line_string):
 
     try:
         wind_direction_deg = float(words[-4])
-    except IndexError:
-        return numpy.nan, numpy.nan, numpy.nan, numpy.nan
-    except ValueError:
-        wind_direction_deg = numpy.nan
-
-    try:
         wind_speed_kt = float(words[-3])
-    except (ValueError, IndexError):
-        wind_speed_kt = numpy.nan
-
-    try:
         wind_gust_direction_deg = float(words[-2])
-    except (ValueError, IndexError):
-        wind_gust_direction_deg = numpy.nan
-
-    try:
         wind_gust_speed_kt = float(words[-1])
     except (ValueError, IndexError):
-        wind_gust_speed_kt = numpy.nan
+        return numpy.nan, numpy.nan, numpy.nan, numpy.nan
 
     return (wind_speed_kt, wind_direction_deg, wind_gust_speed_kt,
             wind_gust_direction_deg)
@@ -397,23 +402,39 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
     :return: local_file_name: Path to downloaded file on local machine.  If
         download failed but raise_error_if_fails = False, local_file_name =
         None.
+    :raises: ValueError: if file cannot be downloaded.
     """
 
     local_file_name = find_local_raw_1minute_file(
         station_id=station_id, month_unix_sec=month_unix_sec,
         top_directory_name=top_local_directory_name,
         raise_error_if_missing=False)
+    possible_orig_station_ids = _station_id_to_online(station_id)
 
-    pathless_file_name = _get_pathless_raw_1minute_file_name(station_id,
-                                                             month_unix_sec)
-    online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-        TOP_ONLINE_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
-        time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_YEAR),
-        pathless_file_name)
+    for this_station_id in possible_orig_station_ids:
+        pathless_file_name = _get_pathless_raw_1minute_file_name(
+            this_station_id, month_unix_sec)
+        online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
+            TOP_ONLINE_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
+            time_conversion.unix_sec_to_string(
+                month_unix_sec, TIME_FORMAT_YEAR),
+            pathless_file_name)
 
-    return downloads.download_file_via_http(
-        online_file_name, local_file_name,
-        raise_error_if_fails=raise_error_if_fails)
+        this_local_file_name = downloads.download_file_via_http(
+            online_file_name, local_file_name,
+            raise_error_if_fails=raise_error_if_fails)
+
+        if this_local_file_name is not None:
+            return local_file_name
+
+    if raise_error_if_fails:
+        month_string = time_conversion.unix_sec_to_string(
+            month_unix_sec, TIME_FORMAT_MONTH)
+        raise ValueError(
+            'Could not download file for station "{0:s}", month {1:s}.'.format(
+                station_id, month_string))
+
+    return None
 
 
 def download_5minute_file(station_id=None, month_unix_sec=None,
@@ -436,17 +457,32 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         station_id=station_id, month_unix_sec=month_unix_sec,
         top_directory_name=top_local_directory_name,
         raise_error_if_missing=False)
+    possible_orig_station_ids = _station_id_to_online(station_id)
 
-    pathless_file_name = _get_pathless_raw_5minute_file_name(station_id,
-                                                             month_unix_sec)
-    online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-        TOP_ONLINE_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
-        time_conversion.unix_sec_to_string(month_unix_sec, TIME_FORMAT_YEAR),
-        pathless_file_name)
+    for this_station_id in possible_orig_station_ids:
+        pathless_file_name = _get_pathless_raw_5minute_file_name(
+            this_station_id, month_unix_sec)
+        online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
+            TOP_ONLINE_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
+            time_conversion.unix_sec_to_string(
+                month_unix_sec, TIME_FORMAT_YEAR),
+            pathless_file_name)
 
-    return downloads.download_file_via_http(
-        online_file_name, local_file_name,
-        raise_error_if_fails=raise_error_if_fails)
+        this_local_file_name = downloads.download_file_via_http(
+            online_file_name, local_file_name,
+            raise_error_if_fails=raise_error_if_fails)
+
+        if this_local_file_name is not None:
+            return local_file_name
+
+    if raise_error_if_fails:
+        month_string = time_conversion.unix_sec_to_string(
+            month_unix_sec, TIME_FORMAT_MONTH)
+        raise ValueError(
+            'Could not download file for station "{0:s}", month {1:s}.'.format(
+                station_id, month_string))
+
+    return None
 
 
 def read_1minute_winds_from_raw_file(text_file_name, utc_offset_hours):
