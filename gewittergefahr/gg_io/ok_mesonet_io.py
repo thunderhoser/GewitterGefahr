@@ -20,7 +20,7 @@ RAW_FILE_EXTENSION = '.mdf'
 
 MINUTES_TO_SECONDS = 60
 TIME_FORMAT_YEAR = '%Y'
-TIME_FORMAT_3LETTER_MONTH = '%b'
+TIME_FORMAT_MONTH = '%m'
 TIME_FORMAT_DAY_OF_MONTH = '%d'
 TIME_FORMAT_DATE = '%Y-%m-%d'
 TIME_FORMAT_MINUTE = '%Y%m%d%H%M'
@@ -151,10 +151,10 @@ def find_local_raw_file(unix_time_sec=None, top_directory_name=None,
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}{5:s}'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_YEAR),
-        time_conversion.unix_sec_to_string(unix_time_sec,
-                                           TIME_FORMAT_3LETTER_MONTH).lower(),
-        time_conversion.unix_sec_to_string(unix_time_sec,
-                                           TIME_FORMAT_DAY_OF_MONTH),
+        time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_MONTH).lower(),
+        time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_DAY_OF_MONTH),
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MINUTE),
         RAW_FILE_EXTENSION)
 

@@ -8,7 +8,7 @@ UNIX_DATE_SEC = 1505433600
 
 UNIX_TIME_SEC = 1506195300  # 1935 UTC 23 Sep 2017
 TOP_RAW_DIRECTORY_NAME = 'ok_mesonet/raw_files'
-RAW_FILE_NAME = 'ok_mesonet/raw_files/2017/sep/23/201709231935.mdf'
+RAW_FILE_NAME = 'ok_mesonet/raw_files/2017/09/23/201709231935.mdf'
 
 
 class OkMesonetIoTests(unittest.TestCase):
