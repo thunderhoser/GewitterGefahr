@@ -7,6 +7,9 @@ from gewittergefahr.gg_io import hfmetar_io
 
 TOLERANCE = 1e-6
 
+OFFLINE_STATION_ID = 'YRL_hfmetar'
+POSSIBLE_ONLINE_STATION_IDS = ['CYRL', 'KYRL', 'PYRL', 'TYRL']
+
 UNIX_TIME_SEC_NEG_OFFSET_DIFF_DAYS = 1505443380  # 0243 UTC 15 Sep 2017
 LOCAL_TIME_STRING_NEG_OFFSET_DIFF_DAYS = '201709142143'
 NEGATIVE_UTC_OFFSET_HOURS_DIFF_DAYS = -5
@@ -27,21 +30,17 @@ UNIX_TIME_SEC_ZERO_OFFSET = 1505443380  # 0243 UTC 15 Sep 2017
 LOCAL_TIME_STRING_ZERO_OFFSET = '201709150243'
 
 WIND_STRING_1MINUTE_ALL_GOOD = '180 10 190 14'
-WIND_ARRAY_1MINUTE_ALL_GOOD = numpy.array([10., 180., 14., 190.])
-
 WIND_STRING_1MINUTE_ALL_NAN = '180p 10s 190x 14y'
-WIND_ARRAY_1MINUTE_ALL_NAN = numpy.full(4, numpy.nan)
-
 WIND_STRING_1MINUTE_FIRST_NAN = 'foo 10 190 14'
-WIND_ARRAY_1MINUTE_FIRST_NAN = numpy.array([10., numpy.nan, 14., 190.])
-
 WIND_STRING_1MINUTE_3WORDS = '10 190 14'
-WIND_ARRAY_1MINUTE_3WORDS = numpy.full(4, numpy.nan)
-
 WIND_STRING_1MINUTE_2WORDS = '190 14'
-WIND_ARRAY_1MINUTE_2WORDS = numpy.full(4, numpy.nan)
-
 WIND_STRING_1MINUTE_1WORD = '14'
+
+WIND_ARRAY_1MINUTE_ALL_GOOD = numpy.array([10., 180., 14., 190.])
+WIND_ARRAY_1MINUTE_ALL_NAN = numpy.full(4, numpy.nan)
+WIND_ARRAY_1MINUTE_FIRST_NAN = numpy.full(4, numpy.nan)
+WIND_ARRAY_1MINUTE_3WORDS = numpy.full(4, numpy.nan)
+WIND_ARRAY_1MINUTE_2WORDS = numpy.full(4, numpy.nan)
 WIND_ARRAY_1MINUTE_1WORD = numpy.full(4, numpy.nan)
 
 WIND_STRING_5MINUTE_PREFIX = (
@@ -97,9 +96,9 @@ WIND_ARRAY_5MINUTE_NO_GUST_SPEED = numpy.full(4, numpy.nan)
 
 STATION_ID = 'CYEG'
 MONTH_UNIX_SEC = 1506194267  # Sep 2017
-PATHLESS_RAW_1MINUTE_FILE_NAME = '64060CYEG201709.dat'
+PATHLESS_RAW_1MINUTE_FILE_NAME = '64050CYEG201709.dat'
 TOP_DIRECTORY_NAME_RAW_1MINUTE = 'hfmetar/1minute/raw_files'
-RAW_1MINUTE_FILE_NAME = 'hfmetar/1minute/raw_files/CYEG/64060CYEG201709.dat'
+RAW_1MINUTE_FILE_NAME = 'hfmetar/1minute/raw_files/CYEG/64050CYEG201709.dat'
 
 PATHLESS_RAW_5MINUTE_FILE_NAME = '64010CYEG201709.dat'
 TOP_DIRECTORY_NAME_RAW_5MINUTE = 'hfmetar/5minute/raw_files'
@@ -108,6 +107,13 @@ RAW_5MINUTE_FILE_NAME = 'hfmetar/5minute/raw_files/CYEG/64010CYEG201709.dat'
 
 class HfmetarIoTests(unittest.TestCase):
     """Each method is a unit test for hfmetar_io.py."""
+
+    def test_station_id_to_online(self):
+        """Ensures correct output from _station_id_to_online."""
+
+        these_online_station_ids = hfmetar_io._station_id_to_online(
+            OFFLINE_STATION_ID)
+        self.assertTrue(these_online_station_ids == POSSIBLE_ONLINE_STATION_IDS)
 
     def test_local_time_to_unix_neg_offset_diff_days(self):
         """Ensures correct output from _local_time_string_to_unix_sec.
@@ -175,10 +181,9 @@ class HfmetarIoTests(unittest.TestCase):
             WIND_STRING_1MINUTE_ALL_GOOD)
         this_wind_array = numpy.asarray(this_wind_tuple)
 
-        self.assertTrue(
-            numpy.allclose(this_wind_array, WIND_ARRAY_1MINUTE_ALL_GOOD,
-                           atol=TOLERANCE,
-                           equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            this_wind_array, WIND_ARRAY_1MINUTE_ALL_GOOD, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_parse_1minute_wind_from_line_all_nan(self):
         """Ensures correct output from _parse_1minute_wind_from_line.
@@ -190,10 +195,9 @@ class HfmetarIoTests(unittest.TestCase):
             WIND_STRING_1MINUTE_ALL_NAN)
         this_wind_array = numpy.asarray(this_wind_tuple)
 
-        self.assertTrue(
-            numpy.allclose(this_wind_array, WIND_ARRAY_1MINUTE_ALL_NAN,
-                           atol=TOLERANCE,
-                           equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            this_wind_array, WIND_ARRAY_1MINUTE_ALL_NAN, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_parse_1minute_wind_from_line_first_nan(self):
         """Ensures correct output from _parse_1minute_wind_from_line.
@@ -205,9 +209,9 @@ class HfmetarIoTests(unittest.TestCase):
             WIND_STRING_1MINUTE_FIRST_NAN)
         this_wind_array = numpy.asarray(this_wind_tuple)
 
-        self.assertTrue(
-            numpy.allclose(this_wind_array, WIND_ARRAY_1MINUTE_FIRST_NAN,
-                           atol=TOLERANCE, equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            this_wind_array, WIND_ARRAY_1MINUTE_FIRST_NAN, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_parse_1minute_wind_from_line_3words(self):
         """Ensures correct output from _parse_1minute_wind_from_line.
@@ -219,10 +223,9 @@ class HfmetarIoTests(unittest.TestCase):
             WIND_STRING_1MINUTE_3WORDS)
         this_wind_array = numpy.asarray(this_wind_tuple)
 
-        self.assertTrue(
-            numpy.allclose(this_wind_array, WIND_ARRAY_1MINUTE_3WORDS,
-                           atol=TOLERANCE,
-                           equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            this_wind_array, WIND_ARRAY_1MINUTE_3WORDS, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_parse_1minute_wind_from_line_2words(self):
         """Ensures correct output from _parse_1minute_wind_from_line.
@@ -234,10 +237,9 @@ class HfmetarIoTests(unittest.TestCase):
             WIND_STRING_1MINUTE_2WORDS)
         this_wind_array = numpy.asarray(this_wind_tuple)
 
-        self.assertTrue(
-            numpy.allclose(this_wind_array, WIND_ARRAY_1MINUTE_2WORDS,
-                           atol=TOLERANCE,
-                           equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            this_wind_array, WIND_ARRAY_1MINUTE_2WORDS, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_parse_1minute_wind_from_line_1word(self):
         """Ensures correct output from _parse_1minute_wind_from_line.
@@ -249,10 +251,9 @@ class HfmetarIoTests(unittest.TestCase):
             WIND_STRING_1MINUTE_1WORD)
         this_wind_array = numpy.asarray(this_wind_tuple)
 
-        self.assertTrue(
-            numpy.allclose(this_wind_array, WIND_ARRAY_1MINUTE_1WORD,
-                           atol=TOLERANCE,
-                           equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            this_wind_array, WIND_ARRAY_1MINUTE_1WORD, atol=TOLERANCE,
+            equal_nan=True))
 
     def test_parse_5minute_wind_from_line_no_auto_no_gust(self):
         """Ensures correct output from _parse_5minute_wind_from_line.

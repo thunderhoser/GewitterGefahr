@@ -5,14 +5,19 @@ import warnings
 import subprocess
 import ftplib
 import urllib2
+import numpy
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 NUM_BYTES_PER_DOWNLOAD_CHUNK = 16384
-URL_NOT_FOUND_ERROR_CODE = 404
+HTTP_NOT_FOUND_ERROR_CODE = 404
 SERVICE_TEMP_UNAVAILABLE_ERROR_CODE = 503
 ACCEPTABLE_HTTP_ERROR_CODES = [
-    URL_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
+    HTTP_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
+
+URL_NOT_FOUND_ERROR_CODE = 550
+URL_TIMEOUT_ERROR_CODE = 110
+ACCEPTABLE_URL_ERROR_CODES = [URL_NOT_FOUND_ERROR_CODE, URL_TIMEOUT_ERROR_CODE]
 
 FTP_NOT_FOUND_ERROR_CODE = 550
 SSH_ARG_STRING = (
@@ -98,14 +103,25 @@ def download_file_via_http(file_url, local_file_name,
     error_checking.assert_is_string(file_url)
     error_checking.assert_is_string(local_file_name)
     error_checking.assert_is_boolean(raise_error_if_fails)
+    success = False
 
     try:
         response_object = urllib2.urlopen(file_url)
+        success = True
+
     except urllib2.HTTPError as this_error:
         if (raise_error_if_fails or
                 this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
             raise
 
+    except urllib2.URLError as this_error:
+        error_words = this_error.reason.split()
+        acceptable_error_flags = numpy.array(
+            [w in str(ACCEPTABLE_URL_ERROR_CODES) for w in error_words])
+        if raise_error_if_fails or not numpy.any(acceptable_error_flags):
+            raise
+
+    if not success:
         warnings.warn('Cannot find URL.  Expected at: ' + file_url)
         return None
 

@@ -22,6 +22,7 @@ DEFAULT_POLY_LINE_WIDTH = 2
 DEFAULT_POLY_HOLE_LINE_COLOUR = numpy.array([152., 152., 152.]) / 255
 DEFAULT_POLY_HOLE_LINE_WIDTH = 1
 DEFAULT_POLY_FILL_COLOUR = numpy.array([152., 152., 152.]) / 255
+DEFAULT_POLY_FILL_OPACITY = 1.
 
 
 def plot_storm_track(basemap_object=None, axes_object=None, latitudes_deg=None,
@@ -146,7 +147,7 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
                         line_colour=DEFAULT_POLY_LINE_COLOUR,
                         line_width=DEFAULT_POLY_LINE_WIDTH,
                         fill_colour=DEFAULT_POLY_FILL_COLOUR,
-                        alpha=1.0):
+                        opacity=DEFAULT_POLY_FILL_OPACITY):
     """Plots filled polygon (either storm object or buffer around storm object).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -157,7 +158,7 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
         `matplotlib.colors`).
     :param line_width: Width of polygon edge.
     :param fill_colour: Colour of polygon interior.
-    :param alpha: alpha level of the fill
+    :param opacity: Opacity of polygon fill (in range 0...1).
     """
 
     # TODO(thunderhoser): input should be a `shapely.geometry.Polygon` object.
@@ -183,5 +184,6 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
         hole_y_coords_list=hole_list_y_metres)
 
     polygon_patch = PolygonPatch(
-        polygon_object, lw=line_width, ec=line_colour, fc=fill_colour, alpha=alpha)
+        polygon_object, lw=line_width, ec=line_colour, fc=fill_colour,
+        alpha=opacity)
     axes_object.add_patch(polygon_patch)
