@@ -140,3 +140,24 @@ def first_and_last_times_in_month(month_unix_sec):
         start_time_unix_sec + (num_days_in_month * DAYS_TO_SECONDS) - 1)
 
     return start_time_unix_sec, end_time_unix_sec
+
+
+def first_and_last_times_in_year(year):
+    """Returns first and last times in year (discretized in seconds).
+
+    For example, first/last times in 2017 are 2017-01-01-000000 and
+    2017-12-31-235959.
+
+    :param year: Integer.
+    :return: start_time_unix_sec: First time in year.
+    :return: end_time_unix_sec: Last time in year.
+    """
+
+    error_checking.assert_is_integer(year)
+
+    time_format = '%Y-%m-%d-%H%M%S'
+    start_time_string = '{0:d}-01-01-000000'.format(year)
+    end_time_string = '{0:d}-12-31-235959'.format(year)
+
+    return (string_to_unix_sec(start_time_string, time_format),
+            string_to_unix_sec(end_time_string, time_format))

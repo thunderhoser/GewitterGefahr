@@ -30,9 +30,10 @@ UNIX_TIME_HOUR_SEC = 1506402000
 UNIX_TIME_MINUTE_SEC = 1506403200
 UNIX_TIME_SEC = 1506403233
 
-# First and last times in Sep 2017.
-MONTH_START_TIME_UNIX_SEC = 1504224000
-MONTH_END_TIME_UNIX_SEC = 1506815999
+START_TIME_SEP2017_UNIX_SEC = 1504224000
+END_TIME_SEP2017_UNIX_SEC = 1506815999
+START_TIME_2017_UNIX_SEC = 1483228800
+END_TIME_2017_UNIX_SEC = 1514764799
 
 TIME_1200UTC_SPC_DATE_UNIX_SEC = 1506340800
 TIME_0000UTC_SPC_DATE_UNIX_SEC = 1506384000
@@ -251,8 +252,16 @@ class TimeConversionTests(unittest.TestCase):
 
         this_start_time_unix_sec, this_end_time_unix_sec = (
             time_conversion.first_and_last_times_in_month(UNIX_TIME_MONTH_SEC))
-        self.assertTrue(this_start_time_unix_sec == MONTH_START_TIME_UNIX_SEC)
-        self.assertTrue(this_end_time_unix_sec == MONTH_END_TIME_UNIX_SEC)
+        self.assertTrue(this_start_time_unix_sec == START_TIME_SEP2017_UNIX_SEC)
+        self.assertTrue(this_end_time_unix_sec == END_TIME_SEP2017_UNIX_SEC)
+
+    def test_first_and_last_times_in_year(self):
+        """Ensures correct output from first_and_last_times_in_year."""
+
+        this_start_time_unix_sec, this_end_time_unix_sec = (
+            time_conversion.first_and_last_times_in_year(2017))
+        self.assertTrue(this_start_time_unix_sec == START_TIME_2017_UNIX_SEC)
+        self.assertTrue(this_end_time_unix_sec == END_TIME_2017_UNIX_SEC)
 
 
 if __name__ == '__main__':

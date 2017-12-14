@@ -16,7 +16,8 @@ ACCEPTABLE_HTTP_ERROR_CODES = [
     HTTP_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
 
 URL_NOT_FOUND_ERROR_CODE = 550
-ACCEPTABLE_URL_ERROR_CODES = [URL_NOT_FOUND_ERROR_CODE]
+URL_TIMEOUT_ERROR_CODE = 110
+ACCEPTABLE_URL_ERROR_CODES = [URL_NOT_FOUND_ERROR_CODE, URL_TIMEOUT_ERROR_CODE]
 
 FTP_NOT_FOUND_ERROR_CODE = 550
 SSH_ARG_STRING = (
@@ -102,11 +103,12 @@ def download_file_via_http(file_url, local_file_name,
     error_checking.assert_is_string(file_url)
     error_checking.assert_is_string(local_file_name)
     error_checking.assert_is_boolean(raise_error_if_fails)
-
     success = False
+
     try:
         response_object = urllib2.urlopen(file_url)
         success = True
+
     except urllib2.HTTPError as this_error:
         if (raise_error_if_fails or
                 this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
