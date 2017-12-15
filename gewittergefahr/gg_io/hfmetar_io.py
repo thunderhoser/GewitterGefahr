@@ -45,6 +45,7 @@ NUM_HEADER_LINES_IN_METAFILE = 2
 
 LOCAL_DATE_CHAR_INDICES_1MINUTE_FILE = numpy.array([13, 21], dtype=int)
 LOCAL_TIME_CHAR_INDICES_1MINUTE_FILE = numpy.array([21, 25], dtype=int)
+WIND_CHAR_INDICES_1MINUTE_FILE = numpy.array([68, 89], dtype=int)
 LOCAL_TIME_CHAR_INDICES_5MINUTE_FILE = numpy.array([13, 25], dtype=int)
 
 METADATA_COLUMNS_TO_MERGE = [
@@ -113,13 +114,15 @@ def _parse_1minute_wind_from_line(line_string):
     wind_gust_direction_deg: Direction of wind gust (degrees of origin).
     """
 
-    words = line_string.split()
+    wind_string = line_string[WIND_CHAR_INDICES_1MINUTE_FILE[0]:
+                              WIND_CHAR_INDICES_1MINUTE_FILE[1]]
+    wind_parts = wind_string.split()
 
     try:
-        wind_direction_deg = float(words[-4])
-        wind_speed_kt = float(words[-3])
-        wind_gust_direction_deg = float(words[-2])
-        wind_gust_speed_kt = float(words[-1])
+        wind_direction_deg = float(wind_parts[-4])
+        wind_speed_kt = float(wind_parts[-3])
+        wind_gust_direction_deg = float(wind_parts[-2])
+        wind_gust_speed_kt = float(wind_parts[-1])
     except (ValueError, IndexError):
         return numpy.nan, numpy.nan, numpy.nan, numpy.nan
 

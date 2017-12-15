@@ -29,19 +29,22 @@ POSITIVE_UTC_OFFSET_HOURS_SAME_DAY = 10
 UNIX_TIME_SEC_ZERO_OFFSET = 1505443380  # 0243 UTC 15 Sep 2017
 LOCAL_TIME_STRING_ZERO_OFFSET = '201709150243'
 
-WIND_STRING_1MINUTE_ALL_GOOD = '180 10 190 14'
-WIND_STRING_1MINUTE_ALL_NAN = '180p 10s 190x 14y'
-WIND_STRING_1MINUTE_FIRST_NAN = 'foo 10 190 14'
-WIND_STRING_1MINUTE_3WORDS = '10 190 14'
-WIND_STRING_1MINUTE_2WORDS = '190 14'
-WIND_STRING_1MINUTE_1WORD = '14'
+WIND_LINES_5MINUTE = [
+    '24156KPIH PIH2011010100440744   0.062 N                             204'
+    '    11   208   13                        ',
+    '12873KPIE PIE2011010100470547   0.157 N                             121'
+    '     8   127    9    17L60+              ',
+    '14842KPIA PIA2011010100330633   0.094 N                             260'
+    '    11   252   13    13 60+              ',
+    '23183KPHX PHX2011010100280728   0.188 N                 0.170 N     267'
+    '     4   263    4    07L60+              ',
+    '12841KORL ORL2011010100140514   0.221 ^                             128'
+    '     4   12>    5                        ']
 
-WIND_ARRAY_1MINUTE_ALL_GOOD = numpy.array([10., 180., 14., 190.])
-WIND_ARRAY_1MINUTE_ALL_NAN = numpy.full(4, numpy.nan)
-WIND_ARRAY_1MINUTE_FIRST_NAN = numpy.full(4, numpy.nan)
-WIND_ARRAY_1MINUTE_3WORDS = numpy.full(4, numpy.nan)
-WIND_ARRAY_1MINUTE_2WORDS = numpy.full(4, numpy.nan)
-WIND_ARRAY_1MINUTE_1WORD = numpy.full(4, numpy.nan)
+WIND_ARRAYS_5MINUTE = [
+    numpy.array([11., 204., 13., 208.]), numpy.array([8., 121., 9., 127.]),
+    numpy.array([11., 260., 13., 252.]), numpy.array([4., 267., 4., 263.]),
+    numpy.full(4, numpy.nan)]
 
 WIND_STRING_5MINUTE_PREFIX = (
     '53869KHKA HKA20110306135510303/06/11 13:55:31  5-MIN KHKA 061955Z')
@@ -171,89 +174,17 @@ class HfmetarIoTests(unittest.TestCase):
             LOCAL_TIME_STRING_ZERO_OFFSET, 0)
         self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC_ZERO_OFFSET)
 
-    def test_parse_1minute_wind_from_line_all_good(self):
-        """Ensures correct output from _parse_1minute_wind_from_line.
+    def test_parse_1minute_wind_from_line(self):
+        """Ensures correct output from _parse_1minute_wind_from_line."""
 
-        In this case, all 4 values are present and valid.
-        """
+        for i in range(len(WIND_LINES_5MINUTE)):
+            this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
+                WIND_LINES_5MINUTE[i])
+            this_wind_array = numpy.asarray(this_wind_tuple)
 
-        this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
-            WIND_STRING_1MINUTE_ALL_GOOD)
-        this_wind_array = numpy.asarray(this_wind_tuple)
-
-        self.assertTrue(numpy.allclose(
-            this_wind_array, WIND_ARRAY_1MINUTE_ALL_GOOD, atol=TOLERANCE,
-            equal_nan=True))
-
-    def test_parse_1minute_wind_from_line_all_nan(self):
-        """Ensures correct output from _parse_1minute_wind_from_line.
-
-        In this case, all 4 values are invalid.
-        """
-
-        this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
-            WIND_STRING_1MINUTE_ALL_NAN)
-        this_wind_array = numpy.asarray(this_wind_tuple)
-
-        self.assertTrue(numpy.allclose(
-            this_wind_array, WIND_ARRAY_1MINUTE_ALL_NAN, atol=TOLERANCE,
-            equal_nan=True))
-
-    def test_parse_1minute_wind_from_line_first_nan(self):
-        """Ensures correct output from _parse_1minute_wind_from_line.
-
-        In this case, only sustained wind direction is invalid.
-        """
-
-        this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
-            WIND_STRING_1MINUTE_FIRST_NAN)
-        this_wind_array = numpy.asarray(this_wind_tuple)
-
-        self.assertTrue(numpy.allclose(
-            this_wind_array, WIND_ARRAY_1MINUTE_FIRST_NAN, atol=TOLERANCE,
-            equal_nan=True))
-
-    def test_parse_1minute_wind_from_line_3words(self):
-        """Ensures correct output from _parse_1minute_wind_from_line.
-
-        In this case, wind string has only 3 words (should have 4).
-        """
-
-        this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
-            WIND_STRING_1MINUTE_3WORDS)
-        this_wind_array = numpy.asarray(this_wind_tuple)
-
-        self.assertTrue(numpy.allclose(
-            this_wind_array, WIND_ARRAY_1MINUTE_3WORDS, atol=TOLERANCE,
-            equal_nan=True))
-
-    def test_parse_1minute_wind_from_line_2words(self):
-        """Ensures correct output from _parse_1minute_wind_from_line.
-
-        In this case, wind string has only 2 words (should have 4).
-        """
-
-        this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
-            WIND_STRING_1MINUTE_2WORDS)
-        this_wind_array = numpy.asarray(this_wind_tuple)
-
-        self.assertTrue(numpy.allclose(
-            this_wind_array, WIND_ARRAY_1MINUTE_2WORDS, atol=TOLERANCE,
-            equal_nan=True))
-
-    def test_parse_1minute_wind_from_line_1word(self):
-        """Ensures correct output from _parse_1minute_wind_from_line.
-
-        In this case, wind string has only 1 word (should have 4).
-        """
-
-        this_wind_tuple = hfmetar_io._parse_1minute_wind_from_line(
-            WIND_STRING_1MINUTE_1WORD)
-        this_wind_array = numpy.asarray(this_wind_tuple)
-
-        self.assertTrue(numpy.allclose(
-            this_wind_array, WIND_ARRAY_1MINUTE_1WORD, atol=TOLERANCE,
-            equal_nan=True))
+            self.assertTrue(numpy.allclose(
+                this_wind_array, WIND_ARRAYS_5MINUTE[i], atol=TOLERANCE,
+                equal_nan=True))
 
     def test_parse_5minute_wind_from_line_no_auto_no_gust(self):
         """Ensures correct output from _parse_5minute_wind_from_line.
