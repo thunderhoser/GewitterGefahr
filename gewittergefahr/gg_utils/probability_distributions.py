@@ -10,6 +10,9 @@ COVAR_MATRIX_INVERSE_KEY = 'covar_matrix_inverse'
 COVAR_MATRIX_DETERMINANT_KEY = 'covar_matrix_determinant'
 PRIOR_CLASS_PROBABILITY_KEY = 'prior_class_probability'
 
+# TODO(thunderhoser): Methods should create a new matrix/table, rather than
+# overwriting the old one.
+
 
 def _transform_each_marginal_to_uniform(feature_matrix):
     """Transforms marginal distribution of each feature to uniform distribution.
@@ -179,14 +182,13 @@ def fit_multivariate_normal(feature_matrix, assume_diagonal_covar_matrix=False):
     """
 
     error_checking.assert_is_boolean(assume_diagonal_covar_matrix)
-
-    feature_matrix = _transform_each_marginal_to_normal(feature_matrix)
     num_real_values_by_feature = numpy.sum(
         numpy.invert(numpy.isnan(feature_matrix)), axis=0)
     if numpy.any(num_real_values_by_feature < 2):
         raise ValueError('Each column of feature_matrix must have >= 2 real '
                          'values (not NaN).')
 
+    feature_matrix = _transform_each_marginal_to_normal(feature_matrix)
     covariance_matrix, feature_means = _get_covariance_matrix(
         feature_matrix, assume_diagonal=assume_diagonal_covar_matrix)
 

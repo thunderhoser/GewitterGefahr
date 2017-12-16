@@ -152,7 +152,8 @@ class ProbabilityDistributionsTests(unittest.TestCase):
         this_feature_matrix = copy.deepcopy(FEATURE_MATRIX)
         with self.assertRaises(ValueError):
             prob_dist.fit_mvn_for_each_class(
-                this_feature_matrix, class_labels=BINARY_CLASS_LABELS, num_classes=3)
+                this_feature_matrix, class_labels=BINARY_CLASS_LABELS,
+                num_classes=3)
 
 
 if __name__ == '__main__':
