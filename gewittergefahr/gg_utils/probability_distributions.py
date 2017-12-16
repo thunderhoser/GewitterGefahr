@@ -110,7 +110,7 @@ def _get_feature_means(feature_matrix):
     return numpy.nanmean(feature_matrix, axis=0)
 
 
-def _get_covariance_matrix(feature_matrix, assume_diagonal=True):
+def _get_covariance_matrix(feature_matrix, assume_diagonal=False):
     """Computes covariance matrix.
 
     N = number of examples
@@ -152,7 +152,7 @@ def _get_covariance_matrix(feature_matrix, assume_diagonal=True):
     return covariance_matrix, feature_means
 
 
-def fit_multivariate_normal(feature_matrix, assume_diagonal_covar_matrix=True):
+def fit_multivariate_normal(feature_matrix, assume_diagonal_covar_matrix=False):
     """Fits data to a multivariate normal distribution.
 
     N = number of examples
@@ -197,7 +197,7 @@ def fit_multivariate_normal(feature_matrix, assume_diagonal_covar_matrix=True):
 
 
 def fit_mvn_for_each_class(feature_matrix, class_labels, num_classes,
-                           assume_diagonal_covar_matrix=True):
+                           assume_diagonal_covar_matrix=False):
     """Fits data to a multivariate normal distribution for each class.
 
     N = number of examples
@@ -317,3 +317,48 @@ def apply_mvn_for_each_class(feature_matrix, list_of_mvn_dictionaries):
             list_of_mvn_dictionaries[k][PRIOR_CLASS_PROBABILITY_KEY])
 
     return _normalize_class_probabilities(forecast_prob_matrix)
+
+
+class MultivariateNormalDist(object):
+    """Class for multivariate normal distributions.
+
+    Has `fit` and `predict` methods, just like scikit-learn models.
+    """
+
+    DEFAULT_NUM_CLASSES = 2
+
+    def __init__(self, num_classes=DEFAULT_NUM_CLASSES,
+                 assume_diagonal_covar_matrix=False):
+        """Constructor.
+
+        :param num_classes: Number of classes for target variable.  See
+            documentation for fit_mvn_for_each_class.
+        :param assume_diagonal_covar_matrix: See documentation for
+            fit_multivariate_normal.
+        """
+
+        self.list_of_mvn_dictionaries = None
+        self.num_classes = num_classes
+        self.assume_diagonal_covar_matrix = assume_diagonal_covar_matrix
+
+    def fit(self, feature_matrix, class_labels):
+        """Fits data to a multivariate normal distribution for each class.
+
+        :param feature_matrix: See documentation for fit_mvn_for_each_class.
+        :param class_labels: See documentation for fit_mvn_for_each_class.
+        """
+
+        self.list_of_mvn_dictionaries = fit_mvn_for_each_class(
+            feature_matrix, class_labels, num_classes=self.num_classes,
+            assume_diagonal_covar_matrix=self.assume_diagonal_covar_matrix)
+
+    def predict(self, feature_matrix):
+        """Uses multivariate normal distributions to predict class probs.
+
+        :param feature_matrix: See documentation for apply_mvn_for_each_class.
+        :return: forecast_prob_matrix: See documentation for
+            apply_mvn_for_each_class.
+        """
+
+        return apply_mvn_for_each_class(
+            feature_matrix, self.list_of_mvn_dictionaries)
