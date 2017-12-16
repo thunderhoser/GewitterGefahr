@@ -24,12 +24,18 @@ RAW_FILE_EXTENSION = '.dat'
 
 PREFIXES_FOR_ONLINE_STATION_ID = ['C', 'K', 'P', 'T']
 PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64050'
-TOP_ONLINE_DIR_NAME_1MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin'
+TOP_HTTP_DIR_NAME_1MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin'
 ONLINE_SUBDIR_PREFIX_1MINUTE = '6405-'
 
 PATHLESS_FILE_NAME_PREFIX_5MINUTE = '64010'
-TOP_ONLINE_DIR_NAME_5MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-fivemin'
+TOP_HTTP_DIR_NAME_5MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-fivemin'
 ONLINE_SUBDIR_PREFIX_5MINUTE = '6401-'
+
+FTP_SERVER_NAME = 'ftp.ncdc.noaa.gov'
+FTP_USER_NAME = 'ftp'
+FTP_PASSWORD = 'ryan.lagerquist@ou.edu'
+TOP_FTP_DIR_NAME_1MINUTE = '/pub/data/asos-onemin'
+TOP_FTP_DIR_NAME_5MINUTE = '/pub/data/asos-fivemin'
 
 FEET_TO_METRES = 1. / 3.2808
 HOURS_TO_SECONDS = 3600
@@ -418,14 +424,25 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
         pathless_file_name = _get_pathless_raw_1minute_file_name(
             this_station_id, month_unix_sec)
         online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-            TOP_ONLINE_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
+            TOP_FTP_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
             time_conversion.unix_sec_to_string(
                 month_unix_sec, TIME_FORMAT_YEAR),
             pathless_file_name)
 
-        this_local_file_name = downloads.download_file_via_http(
-            online_file_name, local_file_name,
+        this_local_file_name = downloads.download_file_via_ftp(
+            server_name=FTP_SERVER_NAME, user_name=FTP_USER_NAME,
+            password=FTP_PASSWORD, ftp_file_name=online_file_name,
+            local_file_name=local_file_name,
             raise_error_if_fails=raise_error_if_fails)
+
+        # online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
+        #     TOP_HTTP_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
+        #     time_conversion.unix_sec_to_string(
+        #         month_unix_sec, TIME_FORMAT_YEAR),
+        #     pathless_file_name)
+        # this_local_file_name = downloads.download_file_via_http(
+        #     online_file_name, local_file_name,
+        #     raise_error_if_fails=raise_error_if_fails)
 
         if this_local_file_name is not None:
             return local_file_name
@@ -466,14 +483,25 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         pathless_file_name = _get_pathless_raw_5minute_file_name(
             this_station_id, month_unix_sec)
         online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-            TOP_ONLINE_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
+            TOP_FTP_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
             time_conversion.unix_sec_to_string(
                 month_unix_sec, TIME_FORMAT_YEAR),
             pathless_file_name)
 
-        this_local_file_name = downloads.download_file_via_http(
-            online_file_name, local_file_name,
+        this_local_file_name = downloads.download_file_via_ftp(
+            server_name=FTP_SERVER_NAME, user_name=FTP_USER_NAME,
+            password=FTP_PASSWORD, ftp_file_name=online_file_name,
+            local_file_name=local_file_name,
             raise_error_if_fails=raise_error_if_fails)
+
+        # online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
+        #     TOP_HTTP_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
+        #     time_conversion.unix_sec_to_string(
+        #         month_unix_sec, TIME_FORMAT_YEAR),
+        #     pathless_file_name)
+        # this_local_file_name = downloads.download_file_via_http(
+        #     online_file_name, local_file_name,
+        #     raise_error_if_fails=raise_error_if_fails)
 
         if this_local_file_name is not None:
             return local_file_name
