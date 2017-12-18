@@ -7,33 +7,36 @@ MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
 
 from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import unzipping
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 
-def unzip_1day_tar_file(tar_file_name, spc_date_unix_sec=None,
-                        top_target_directory_name=None,
-                        field_to_heights_dict_m_agl=None):
-    """Unzips 1-day tar file (containing raw MYRORSS for one SPC date).
+def unzip_1day_tar_file(
+        tar_file_name, field_names, spc_date_string, top_target_directory_name,
+        refl_heights_m_agl=None):
+    """Unzips 1-day tar file (containing raw MYRORSS data for one SPC date).
 
     :param tar_file_name: Path to input file.
-    :param spc_date_unix_sec: SPC date in Unix format.
-    :param top_target_directory_name: Top-level directory for raw unzipped
+    :param field_names: 1-D list with names of radar fields.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param top_target_directory_name: Name of top-level directory for unzipped
         MYRORSS files.  This method will create a subdirectory therein for the
         SPC date.
-    :param field_to_heights_dict_m_agl: Dictionary, where each key is the name
-        of a radar field and each value is 1-D numpy array of heights (metres
+    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
         above ground level).
     :return: target_directory_name: Path to output directory.
     """
 
+    field_to_heights_dict_m_agl = radar_io.field_and_height_arrays_to_dict(
+        field_names, refl_heights_m_agl=refl_heights_m_agl,
+        data_source=radar_io.MYRORSS_SOURCE_ID)
+
     error_checking.assert_is_string(top_target_directory_name)
     target_directory_name = '{0:s}/{1:s}'.format(
-        top_target_directory_name,
-        time_conversion.time_to_spc_date_string(spc_date_unix_sec))
+        top_target_directory_name, spc_date_string)
 
     field_names = field_to_heights_dict_m_agl.keys()
     directory_names_to_unzip = []
+
     for this_field_name in field_names:
         these_heights_m_agl = field_to_heights_dict_m_agl[this_field_name]
 
