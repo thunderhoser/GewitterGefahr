@@ -10,9 +10,9 @@ from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_FRACTION_OF_VARIANCE_TO_KEEP = 0.875
 
-FEATURE_NAME_KEY = 'feature_name'
-ORIGINAL_MEAN_KEY = 'original_mean'
-ORIGINAL_STDEV_KEY = 'original_stdev'
+FEATURE_NAMES_KEY = 'feature_names'
+ORIGINAL_MEANS_KEY = 'original_means'
+ORIGINAL_STDEVIATIONS_KEY = 'original_standard_deviations'
 
 PC_MATRIX_KEY = 'principal_component_matrix'
 EIGENVALUE_MATRIX_KEY = 'eigenvalue_matrix'
@@ -33,11 +33,11 @@ def _reorder_standardization_dict(standardization_dict, new_feature_names):
 
     try:
         sort_indices = numpy.array(
-            [standardization_dict[FEATURE_NAME_KEY].index(f) for
+            [standardization_dict[FEATURE_NAMES_KEY].index(f) for
              f in new_feature_names])
-    except KeyError:
+    except ValueError as _:
         error_string = (
-            str(standardization_dict[FEATURE_NAME_KEY]) +
+            str(standardization_dict[FEATURE_NAMES_KEY]) +
             '\n\nFeature names in standardization_dict (shown above) do not '
             'span those in new_feature_names (shown below).\n\n' +
             str(new_feature_names))
@@ -93,9 +93,9 @@ def _standardize_features(feature_table, standardization_dict=None):
         feature_standard_deviations = numpy.nanstd(
             feature_table.as_matrix(), axis=0, ddof=1)
 
-        standardization_dict = {FEATURE_NAME_KEY: list(feature_table),
-                                ORIGINAL_MEAN_KEY: feature_means,
-                                ORIGINAL_STDEV_KEY: feature_standard_deviations}
+        standardization_dict = {FEATURE_NAMES_KEY: list(feature_table),
+                                ORIGINAL_MEANS_KEY: feature_means,
+                                ORIGINAL_STDEVIATIONS_KEY: feature_standard_deviations}
 
     else:
         standardization_dict = _reorder_standardization_dict(
@@ -108,8 +108,8 @@ def _standardize_features(feature_table, standardization_dict=None):
     for j in range(num_features):
         these_standardized_values = (
             (feature_table[feature_names[j]].values -
-             standardization_dict[ORIGINAL_MEAN_KEY][j]) /
-            standardization_dict[ORIGINAL_STDEV_KEY][j])
+             standardization_dict[ORIGINAL_MEANS_KEY][j]) /
+            standardization_dict[ORIGINAL_STDEVIATIONS_KEY][j])
 
         nan_indices = numpy.where(numpy.isnan(these_standardized_values))[0]
         these_standardized_values[nan_indices] = 0.
