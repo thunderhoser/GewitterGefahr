@@ -233,7 +233,7 @@ def read_winds_from_raw_file(text_file_name):
     error_checking.assert_file_exists(text_file_name)
     if _is_file_empty(text_file_name):
         wind_dict = {
-            raw_wind_io.STATION_ID_COLUMN: numpy.array([], dtype='s1'),
+            raw_wind_io.STATION_ID_COLUMN: numpy.array([], dtype='str'),
             raw_wind_io.TIME_COLUMN: numpy.array([], dtype=int),
             raw_wind_io.WIND_SPEED_COLUMN: numpy.array([]),
             raw_wind_io.WIND_DIR_COLUMN: numpy.array([]),
