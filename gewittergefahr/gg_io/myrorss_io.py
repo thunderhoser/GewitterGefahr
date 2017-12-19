@@ -5,9 +5,12 @@
 MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
 """
 
+import shutil
+import os.path
 import numpy
 from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import unzipping
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 IGNORABLE_RADAR_FIELD_NAMES = [
@@ -72,3 +75,40 @@ def unzip_1day_tar_file(
         file_and_dir_names_to_unzip=directory_names_to_unzip)
 
     return target_directory_name
+
+
+def remove_unzipped_data_1day(spc_date_string, top_directory_name):
+    """Removes unzipped MYRORSS data for one SPC date.
+
+    Basically, this method cleans up after unzip_1day_tar_file.
+
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param top_directory_name: Name of top-level directory for unzipped MYRORSS
+        files.  This method will find the subdirectory therein for the SPC date.
+    """
+
+    spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        spc_date_string)
+
+    field_names = radar_io.RADAR_FIELD_NAMES
+    field_names.remove(radar_io.STORM_ID_NAME)
+    field_to_heights_dict_m_agl = radar_io.field_and_height_arrays_to_dict(
+        field_names,
+        refl_heights_m_agl=numpy.array([radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL]),
+        data_source=radar_io.MYRORSS_SOURCE_ID)
+
+    for this_field_name in field_to_heights_dict_m_agl.keys():
+        example_file_name = radar_io.find_raw_file(
+            unix_time_sec=spc_date_unix_sec,
+            spc_date_unix_sec=spc_date_unix_sec, field_name=this_field_name,
+            height_m_agl=field_to_heights_dict_m_agl[this_field_name][0],
+            data_source=radar_io.MYRORSS_SOURCE_ID,
+            top_directory_name=top_directory_name, raise_error_if_missing=False)
+
+        field_and_height_dir_name, _ = os.path.split(example_file_name)
+        directory_name_parts = field_and_height_dir_name.split('/')
+        field_directory_name = '/'.join(directory_name_parts[:-1])
+
+        if os.path.isdir(field_directory_name):
+            print 'Removing directory "{0:s}"...'.format(field_directory_name)
+            shutil.rmtree(field_directory_name, ignore_errors=True)
