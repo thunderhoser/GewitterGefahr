@@ -74,38 +74,38 @@ class StormTrackingIoTests(unittest.TestCase):
         tracking_io._check_data_source(tracking_io.PROBSEVERE_SOURCE_ID)
 
     def test_column_name_to_distance_buffer_polygon_included(self):
-        """Ensures correct output from _column_name_to_distance_buffer.
+        """Ensures correct output from column_name_to_distance_buffer.
 
         In this case the original polygon is included in the distance buffer.
         """
 
         this_min_distance_metres, this_max_distance_metres = (
-            tracking_io._column_name_to_distance_buffer(
+            tracking_io.column_name_to_distance_buffer(
                 BUFFER_COLUMN_NAME_POLYGON_INCLUDED))
         self.assertTrue(numpy.isnan(this_min_distance_metres))
         self.assertTrue(this_max_distance_metres == MAX_DISTANCE_BUFFER_METRES)
 
     def test_column_name_to_distance_buffer_polygon_excluded(self):
-        """Ensures correct output from _column_name_to_distance_buffer.
+        """Ensures correct output from column_name_to_distance_buffer.
 
         In this case the original polygon is excluded from the distance buffer.
         """
 
         this_min_distance_metres, this_max_distance_metres = (
-            tracking_io._column_name_to_distance_buffer(
+            tracking_io.column_name_to_distance_buffer(
                 BUFFER_COLUMN_NAME_POLYGON_EXCLUDED))
         self.assertTrue(this_min_distance_metres == MIN_DISTANCE_BUFFER_METRES)
         self.assertTrue(this_max_distance_metres == MAX_DISTANCE_BUFFER_METRES)
 
     def test_column_name_to_distance_buffer_fake(self):
-        """Ensures correct output from _column_name_to_distance_buffer.
+        """Ensures correct output from column_name_to_distance_buffer.
 
         In this case the column name is fake (does not correspond to a distance
         buffer).
         """
 
         this_min_distance_metres, this_max_distance_metres = (
-            tracking_io._column_name_to_distance_buffer(
+            tracking_io.column_name_to_distance_buffer(
                 FAKE_BUFFER_COLUMN_NAME))
         self.assertTrue(this_min_distance_metres is None)
         self.assertTrue(this_max_distance_metres is None)
