@@ -2,12 +2,19 @@
 
 import numpy
 import pandas
+import scipy.sparse
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import geodetic_utils
+from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
+MAX_STORM_SPEED_M_S01 = 60.
+
+DEFAULT_LEAD_TIME_RES_SECONDS = 60
+DEFAULT_GRID_SPACING_METRES = 1000.
 DEFAULT_PROB_RADIUS_FOR_GRID_METRES = 1e4
 
 LATLNG_POLYGON_COLUMN_PREFIX = tracking_io.BUFFER_POLYGON_COLUMN_PREFIX
@@ -23,7 +30,11 @@ COLUMN_TYPES = [
 SPEED_COLUMN = 'speed_m_s01'
 GEOGRAPHIC_BEARING_COLUMN = 'geographic_bearing_deg'
 
-# TODO(thunderhoser): Still missing main method that puts forecasts on grid.
+INIT_TIME_COLUMN = 'init_time_unix_sec'
+GRID_POINTS_X_COLUMN = 'grid_points_x_metres'
+GRID_POINTS_Y_COLUMN = 'grid_points_y_metres'
+PROBABILITY_MATRIX_COLUMN = 'sparse_probability_matrix'
+PROJECTION_OBJECT_COLUMN = 'projection_object'
 
 
 def _column_name_to_distance_buffer(column_name):
@@ -153,24 +164,6 @@ def _check_distance_buffers(min_distances_metres, max_distances_metres):
             raise ValueError(error_string)
 
 
-def _init_azimuthal_equidistant_projection(
-        min_latitude_deg, max_latitude_deg, min_longitude_deg,
-        max_longitude_deg):
-    """Initializes azimuthal equidistant projection.
-
-    :param min_latitude_deg: Minimum latitude (deg N) covered by projection.
-    :param max_latitude_deg: Max latitude (deg N) covered by projection.
-    :param min_longitude_deg: Minimum longitude (deg E) covered by projection.
-    :param max_longitude_deg: Max longitude (deg E) covered by projection.
-    :return: projection_object: Instance of `pyproj.Proj`, which can be used in
-        the future to convert from lat-long to x-y and back.
-    """
-
-    return projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=(min_latitude_deg + max_latitude_deg) / 2,
-        central_longitude_deg=(min_longitude_deg + max_longitude_deg) / 2)
-
-
 def _polygons_from_latlng_to_xy(storm_object_table, projection_object):
     """Projects distance buffers around each storm object from lat-long to x-y.
 
@@ -222,6 +215,79 @@ def _polygons_from_latlng_to_xy(storm_object_table, projection_object):
                     false_easting_metres=0., false_northing_metres=0.))
 
     return storm_object_table
+
+
+def _create_xy_grid(storm_object_table, x_spacing_metres, y_spacing_metres,
+                    max_lead_time_sec):
+    """Creates x-y grid encompassing all storm objects.
+
+    M = number of grid rows (unique grid-point latitudes)
+    N = number of grid columns (unique grid-point longitudes)
+
+    :param storm_object_table: pandas DataFrame.  Each row contains the polygons
+        and forecast probabilities for distance buffers around one storm object.
+        For the [j]th distance buffer, required columns are given by the
+        following command:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="xy")
+
+    :param x_spacing_metres: Spacing between adjacent grid points in x-direction
+        (i.e., between adjacent columns).
+    :param y_spacing_metres: Spacing between adjacent grid points in y-direction
+        (i.e., between adjacent rows).
+    :param max_lead_time_sec: Max lead time for which gridded forecasts will be
+        created.
+    :return: grid_points_x_metres: length-N numpy array with x-coordinates of
+        grid points.
+    :return: grid_points_y_metres: length-M numpy array with y-coordinates of
+        grid points.
+    """
+
+    # TODO(thunderhoser): Needs integration test.
+
+    buffer_column_names_xy = _get_distance_buffer_columns(
+        storm_object_table, column_type='xy')
+
+    x_min_metres = numpy.inf
+    x_max_metres = -numpy.inf
+    y_min_metres = numpy.inf
+    y_max_metres = -numpy.inf
+
+    num_buffers = len(buffer_column_names_xy)
+    num_storm_objects = len(storm_object_table.index)
+
+    for i in range(num_storm_objects):
+        for j in range(num_buffers):
+            this_polygon_object = storm_object_table[
+                buffer_column_names_xy[j]].values[i]
+            these_x_metres = numpy.array(this_polygon_object.exterior.xy[0])
+            these_y_metres = numpy.array(this_polygon_object.exterior.xy[1])
+
+            x_min_metres = min([x_min_metres, numpy.min(these_x_metres)])
+            x_max_metres = max([x_max_metres, numpy.max(these_x_metres)])
+            y_min_metres = min([y_min_metres, numpy.min(these_y_metres)])
+            y_max_metres = max([y_max_metres, numpy.max(these_y_metres)])
+
+    x_min_metres = x_min_metres - MAX_STORM_SPEED_M_S01 * max_lead_time_sec
+    x_max_metres = x_max_metres + MAX_STORM_SPEED_M_S01 * max_lead_time_sec
+    y_min_metres = y_min_metres - MAX_STORM_SPEED_M_S01 * max_lead_time_sec
+    y_max_metres = y_max_metres + MAX_STORM_SPEED_M_S01 * max_lead_time_sec
+
+    x_min_metres = rounder.floor_to_nearest(x_min_metres, x_spacing_metres)
+    x_max_metres = rounder.ceiling_to_nearest(x_max_metres, x_spacing_metres)
+    y_min_metres = rounder.floor_to_nearest(y_min_metres, y_spacing_metres)
+    y_max_metres = rounder.ceiling_to_nearest(y_max_metres, y_spacing_metres)
+
+    num_rows = 1 + int(numpy.round(
+        (y_max_metres - y_min_metres) / y_spacing_metres))
+    num_columns = 1 + int(numpy.round(
+        (x_max_metres - x_min_metres) / x_spacing_metres))
+
+    return grids.get_xy_grid_points(
+        x_min_metres=x_min_metres, y_min_metres=y_min_metres,
+        x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres,
+        num_rows=num_rows, num_columns=num_columns)
 
 
 def _normalize_probs_by_polygon_area(
@@ -424,6 +490,9 @@ def _find_min_value_greater_or_equal(sorted_input_array, test_value):
         min_value_geq_test = sorted_input_array[i].
     """
 
+    # TODO(thunderhoser): Put this method somewhere else.  It applies to many
+    # more things than gridded forecasting.
+
     min_index_geq_test = numpy.searchsorted(
         sorted_input_array, numpy.array([test_value]), side='left')[0]
     return sorted_input_array[min_index_geq_test], min_index_geq_test
@@ -439,6 +508,9 @@ def _find_max_value_less_than_or_equal(sorted_input_array, test_value):
         input_array.  If max_index_leq_test = i, this means that
         max_value_leq_test = sorted_input_array[i].
     """
+
+    # TODO(thunderhoser): Put this method somewhere else.  It applies to many
+    # more things than gridded forecasting.
 
     max_index_leq_test = numpy.searchsorted(
         sorted_input_array, numpy.array([test_value]), side='right')[0] - 1
@@ -498,3 +570,195 @@ def _find_grid_points_in_polygon(
             columns_in_polygon.append(this_column)
 
     return numpy.array(rows_in_polygon), numpy.array(columns_in_polygon)
+
+
+def create_forecast_grids(
+        storm_object_table, min_lead_time_sec, max_lead_time_sec,
+        lead_time_resolution_sec=DEFAULT_LEAD_TIME_RES_SECONDS,
+        grid_spacing_x_metres=DEFAULT_GRID_SPACING_METRES,
+        grid_spacing_y_metres=DEFAULT_GRID_SPACING_METRES,
+        prob_radius_for_grid_metres=DEFAULT_PROB_RADIUS_FOR_GRID_METRES):
+    """For each time with at least one storm object, creates grid of fcst probs.
+
+    T = number of times with at least one storm object
+      = number of forecast-initialization times
+
+    M = number of rows in given forecast grid (different for each init time)
+    N = number of columns in given forecast grid (different for each init time)
+
+    :param storm_object_table: pandas DataFrame with columns listed below.  Each
+        row corresponds to one storm object.  For the [j]th distance buffer,
+        required columns are given by the following commands:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="latlng")
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="forecast")
+
+    Other required columns are listed below.
+
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time of storm object.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) at centroid of storm
+        object.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) at centroid of storm
+        object.
+    storm_object_table.east_velocity_m_s01: Eastward velocity of storm cell
+        (metres per second).
+    storm_object_table.north_velocity_m_s01: Northward velocity of storm cell
+        (metres per second).
+
+    :param min_lead_time_sec: Minimum lead time.  For each time with at least
+        one storm object, gridded probabilities will be event probabilities for
+        `min_lead_time_sec`...`max_lead_time_sec` into the future.
+    :param max_lead_time_sec: See documentation for `min_lead_time_sec`.
+    :param lead_time_resolution_sec: Spacing between successive lead times.  For
+        all lead times in {min_lead_time_sec,
+        min_lead_time_sec + lead_time_resolution_sec,
+        min_lead_time_sec + 2 * lead_time_resolution_sec, ...,
+        max_lead_time_sec}, storm objects will be extrapolated along their
+        respective motion vectors.  Lower values of `lead_time_resolution_sec`
+        lead to smoother forecast grids.
+    :param grid_spacing_x_metres: Spacing between adjacent grid points in
+        x-direction (i.e., between adjacent columns).
+    :param grid_spacing_y_metres: Spacing between adjacent grid points in
+        y-direction (i.e., between adjacent rows).
+    :param prob_radius_for_grid_metres: Effective radius for gridded
+        probabilities.  For example, if the gridded value is "probability within
+        10 km of a point," this should be 10 000.
+    :return: gridded_forecast_table: pandas DataFrame with columns listed below.
+        Each row corresponds to one forecast-initialization time.
+    gridded_forecast_table.init_time_unix_sec: Forecast-init time.
+    gridded_forecast_table.sparse_probability_matrix: Forecast grid.  This is an
+        instance of `scipy.sparse.csr_matrix`, and the corresponding full matrix
+        is M x N, with x-coordinate increasing to the right (along the columns)
+        and y-coordinate increasing down the columns.
+    gridded_forecast_table.grid_points_x_metres: length-N numpy array with x-
+        coordinates of grid points.
+    gridded_forecast_table.grid_points_y_metres: length-M numpy array with y-
+        coordinates of grid points.
+    gridded_forecast_table.projection_object: Instance of `pyproj.Proj`.  Can be
+        used to convert from x-y to lat-long.
+    """
+
+    # TODO(thunderhoser): Run integration test for this method.
+
+    error_checking.assert_is_integer(min_lead_time_sec)
+    error_checking.assert_is_geq(min_lead_time_sec, 0)
+    error_checking.assert_is_integer(max_lead_time_sec)
+    error_checking.assert_is_greater(max_lead_time_sec, min_lead_time_sec)
+    error_checking.assert_is_integer(lead_time_resolution_sec)
+    error_checking.assert_is_greater(lead_time_resolution_sec, 0)
+    error_checking.assert_is_greater(prob_radius_for_grid_metres, 0.)
+
+    num_lead_times = 1 + int(numpy.round(
+        float(max_lead_time_sec - min_lead_time_sec) /
+        lead_time_resolution_sec))
+    lead_times_seconds = numpy.linspace(
+        min_lead_time_sec, max_lead_time_sec, num=num_lead_times, dtype=int)
+
+    latlng_buffer_columns = _get_distance_buffer_columns(
+        storm_object_table, column_type=LATLNG_POLYGON_COLUMN_TYPE)
+
+    num_buffers = len(latlng_buffer_columns)
+    xy_buffer_columns = [''] * num_buffers
+    buffer_forecast_columns = [''] * num_buffers
+    min_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+    max_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+
+    for j in range(num_buffers):
+        min_buffer_distances_metres[j], max_buffer_distances_metres[j] = (
+            _column_name_to_distance_buffer(latlng_buffer_columns[j]))
+        xy_buffer_columns[j] = _distance_buffer_to_column_name(
+            min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+            column_type=XY_POLYGON_COLUMN_TYPE)
+        buffer_forecast_columns[j] = _distance_buffer_to_column_name(
+            min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+            column_type=FORECAST_COLUMN_TYPE)
+
+    _check_distance_buffers(
+        min_buffer_distances_metres, max_buffer_distances_metres)
+    storm_object_table = _storm_motion_from_uv_to_speed_direction(
+        storm_object_table)
+
+    init_times_unix_sec = numpy.unique(
+        storm_object_table[tracking_io.TIME_COLUMN].values)
+    gridded_forecast_table = pandas.DataFrame.from_dict(
+        {INIT_TIME_COLUMN: init_times_unix_sec})
+
+    num_init_times = len(init_times_unix_sec)
+    object_array = numpy.full(num_init_times, numpy.nan, dtype=object)
+    nested_array = gridded_forecast_table[[
+        INIT_TIME_COLUMN, INIT_TIME_COLUMN]].values.tolist()
+
+    argument_dict = {GRID_POINTS_X_COLUMN: nested_array,
+                     GRID_POINTS_Y_COLUMN: nested_array,
+                     PROBABILITY_MATRIX_COLUMN: nested_array,
+                     PROJECTION_OBJECT_COLUMN: object_array}
+    gridded_forecast_table = gridded_forecast_table.assign(**argument_dict)
+
+    for i in range(num_init_times):
+        this_storm_object_table = storm_object_table.loc[
+            storm_object_table[tracking_io.TIME_COLUMN] ==
+            init_times_unix_sec[i]]
+        this_num_storm_objects = len(this_storm_object_table.index)
+
+        this_centroid_lat_deg, this_centroid_lng_deg = (
+            polygons.get_latlng_centroid(
+                this_storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+                this_storm_object_table[
+                    tracking_io.CENTROID_LNG_COLUMN].values))
+        this_projection_object = (
+            projections.init_azimuthal_equidistant_projection(
+                this_centroid_lat_deg, this_centroid_lng_deg))
+        this_storm_object_table = _polygons_from_latlng_to_xy(
+            this_storm_object_table, this_projection_object)
+        this_storm_object_table = _normalize_probs_by_polygon_area(
+            this_storm_object_table, prob_radius_for_grid_metres)
+
+        these_grid_point_x_metres, these_grid_point_y_metres = _create_xy_grid(
+            this_storm_object_table, x_spacing_metres=grid_spacing_x_metres,
+            y_spacing_metres=grid_spacing_y_metres,
+            max_lead_time_sec=max_lead_time_sec)
+
+        this_num_grid_rows = len(these_grid_point_y_metres)
+        this_num_grid_columns = len(these_grid_point_x_metres)
+        this_probability_matrix = numpy.full(
+            (this_num_grid_rows, this_num_grid_columns), numpy.nan)
+        this_num_forecast_matrix = numpy.full(
+            (this_num_grid_rows, this_num_grid_columns), 0, dtype=int)
+
+        for this_lead_time_sec in lead_times_seconds:
+            this_extrap_storm_object_table = _extrapolate_polygons(
+                this_storm_object_table, this_lead_time_sec,
+                this_projection_object)
+
+            for j in range(num_buffers):
+                for k in range(this_num_storm_objects):
+                    these_rows_in_polygon, these_columns_in_polygon = (
+                        _find_grid_points_in_polygon(
+                            this_extrap_storm_object_table[
+                                xy_buffer_columns[j]].values[k],
+                            these_grid_point_x_metres,
+                            these_grid_point_y_metres))
+
+                    this_num_forecast_matrix[
+                        these_rows_in_polygon, these_columns_in_polygon] += 1
+                    this_probability_matrix[
+                        these_rows_in_polygon, these_columns_in_polygon] = (
+                            this_probability_matrix[
+                                these_rows_in_polygon, these_columns_in_polygon]
+                            + this_storm_object_table[
+                                buffer_forecast_columns[j]].values[k])
+
+        gridded_forecast_table[
+            GRID_POINTS_X_COLUMN].values[i] = these_grid_point_x_metres
+        gridded_forecast_table[
+            GRID_POINTS_Y_COLUMN].values[i] = these_grid_point_y_metres
+        gridded_forecast_table[
+            PROJECTION_OBJECT_COLUMN].values[i] = this_projection_object
+        gridded_forecast_table[PROBABILITY_MATRIX_COLUMN].values[i] = (
+            scipy.sparse.csr_matrix(
+                this_probability_matrix / this_num_forecast_matrix))
+
+    return gridded_forecast_table
