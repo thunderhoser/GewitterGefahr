@@ -8,10 +8,12 @@ from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import geodetic_utils
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
 MAX_STORM_SPEED_M_S01 = 60.
+TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 
 DEFAULT_LEAD_TIME_RES_SECONDS = 60
 DEFAULT_GRID_SPACING_METRES = 1000.
@@ -243,8 +245,6 @@ def _create_xy_grid(storm_object_table, x_spacing_metres, y_spacing_metres,
     :return: grid_points_y_metres: length-M numpy array with y-coordinates of
         grid points.
     """
-
-    # TODO(thunderhoser): Needs integration test.
 
     buffer_column_names_xy = _get_distance_buffer_columns(
         storm_object_table, column_type='xy')
@@ -683,6 +683,10 @@ def create_forecast_grids(
 
     init_times_unix_sec = numpy.unique(
         storm_object_table[tracking_io.TIME_COLUMN].values)
+    init_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
+        for t in init_times_unix_sec]
+
     gridded_forecast_table = pandas.DataFrame.from_dict(
         {INIT_TIME_COLUMN: init_times_unix_sec})
 
@@ -729,6 +733,10 @@ def create_forecast_grids(
             (this_num_grid_rows, this_num_grid_columns), 0, dtype=int)
 
         for this_lead_time_sec in lead_times_seconds:
+            print ('Updating forecast grid for initial time {0:s}, lead time '
+                   '{1:d} seconds...').format(init_time_strings[i],
+                                              this_lead_time_sec)
+
             this_extrap_storm_object_table = _extrapolate_polygons(
                 this_storm_object_table, this_lead_time_sec,
                 this_projection_object)
@@ -750,6 +758,9 @@ def create_forecast_grids(
                                 these_rows_in_polygon, these_columns_in_polygon]
                             + this_storm_object_table[
                                 buffer_forecast_columns[j]].values[k])
+
+        print 'Creating final forecast grid for initial time {0:s}...'.format(
+            init_time_strings[i])
 
         gridded_forecast_table[
             GRID_POINTS_X_COLUMN].values[i] = these_grid_point_x_metres

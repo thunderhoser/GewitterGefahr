@@ -34,7 +34,8 @@ EMPTY_STORM_OBJECT_DICT = {
 }
 EMPTY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(EMPTY_STORM_OBJECT_DICT)
 
-# The following constants are used to test _normalize_probs_by_polygon_area.
+# The following constants are used to test _create_xy_grid and
+# _normalize_probs_by_polygon_area.
 SMALL_BUFFER_VERTEX_X_METRES = numpy.array([-10., -5., -5., -10., -10.])
 SMALL_BUFFER_VERTEX_Y_METRES = numpy.array([-20., -20., -10., -10., -20.])
 SMALL_BUFFER_AREA_METRES2 = 50.
@@ -70,24 +71,35 @@ THIS_DICT = {SMALL_BUFFER_XY_COLUMN: SMALL_OBJECT_ARRAY,
              LARGE_BUFFER_XY_COLUMN: LARGE_OBJECT_ARRAY,
              SMALL_BUFFER_FORECAST_COLUMN: SMALL_BUFFER_FORECAST_PROBS,
              LARGE_BUFFER_FORECAST_COLUMN: LARGE_BUFFER_FORECAST_PROBS}
-STORM_OBJECT_TABLE_TO_NORMALIZE = pandas.DataFrame.from_dict(THIS_DICT)
+STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+GRID_SPACING_X_METRES = 10.
+GRID_SPACING_Y_METRES = 15.
+MAX_LEAD_TIME_SEC = 1
+GRID_POINTS_X_METRES = numpy.array(
+    [-70., -60., -50., -40., -30., -20., -10., 0., 10., 20., 30., 40., 50., 60.,
+     70.])
+GRID_POINTS_Y_METRES = numpy.array(
+    [-90., -75., -60., -45., -30., -15., 0., 15., 30., 45., 60., 75., 90.])
 
 # The following constants are used to test _find_grid_points_in_polygon.
-MIN_GRID_POINT_X_METRES = -20.
-MIN_GRID_POINT_Y_METRES = -40.
-GRID_SPACING_X_METRES = 2.
-GRID_SPACING_Y_METRES = 3.
-NUM_GRID_ROWS = 25
-NUM_GRID_COLUMNS = 20
+GRID_SPACING_FOR_PIP_X_METRES = 2.
+GRID_SPACING_FOR_PIP_Y_METRES = 3.
+MIN_GRID_POINT_FOR_PIP_X_METRES = -20.
+MIN_GRID_POINT_FOR_PIP_Y_METRES = -40.
+NUM_GRID_ROWS_FOR_PIP = 25
+NUM_GRID_COLUMNS_FOR_PIP = 20
 
-GRID_POINTS_X_METRES = numpy.linspace(
-    MIN_GRID_POINT_X_METRES,
-    MIN_GRID_POINT_X_METRES + (NUM_GRID_COLUMNS - 1) * GRID_SPACING_X_METRES,
-    num=NUM_GRID_COLUMNS)
-GRID_POINTS_Y_METRES = numpy.linspace(
-    MIN_GRID_POINT_Y_METRES,
-    MIN_GRID_POINT_Y_METRES + (NUM_GRID_ROWS - 1) * GRID_SPACING_Y_METRES,
-    num=NUM_GRID_ROWS)
+GRID_POINTS_FOR_PIP_X_METRES = numpy.linspace(
+    MIN_GRID_POINT_FOR_PIP_X_METRES,
+    MIN_GRID_POINT_FOR_PIP_X_METRES + (
+        (NUM_GRID_COLUMNS_FOR_PIP - 1) * GRID_SPACING_FOR_PIP_X_METRES),
+    num=NUM_GRID_COLUMNS_FOR_PIP)
+GRID_POINTS_FOR_PIP_Y_METRES = numpy.linspace(
+    MIN_GRID_POINT_FOR_PIP_Y_METRES,
+    MIN_GRID_POINT_FOR_PIP_Y_METRES + (
+        (NUM_GRID_ROWS_FOR_PIP - 1) * GRID_SPACING_FOR_PIP_Y_METRES),
+    num=NUM_GRID_ROWS_FOR_PIP)
 
 GRID_ROWS_IN_SMALL_BUFFER = numpy.array(
     [7, 7, 7, 8, 8, 8, 9, 9, 9, 10, 10, 10], dtype=int)
@@ -427,11 +439,24 @@ class GriddedForecastsTests(unittest.TestCase):
             gridded_forecasts._check_distance_buffers(
                 min_distances_metres, max_distances_metres)
 
+    def test_create_xy_grid(self):
+        """Ensures correct output from _create_xy_grid."""
+
+        these_x_metres, these_y_metres = gridded_forecasts._create_xy_grid(
+            STORM_OBJECT_TABLE, x_spacing_metres=GRID_SPACING_X_METRES,
+            y_spacing_metres=GRID_SPACING_Y_METRES,
+            max_lead_time_sec=MAX_LEAD_TIME_SEC)
+
+        self.assertTrue(numpy.allclose(
+            these_x_metres, GRID_POINTS_X_METRES, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_y_metres, GRID_POINTS_Y_METRES, atol=TOLERANCE))
+
     def test_normalize_probs_by_polygon_area(self):
         """Ensures correct output from _normalize_probs_by_polygon_area."""
 
         orig_storm_object_table = copy.deepcopy(
-            STORM_OBJECT_TABLE_TO_NORMALIZE)
+            STORM_OBJECT_TABLE)
         new_storm_object_table = (
             gridded_forecasts._normalize_probs_by_polygon_area(
                 orig_storm_object_table, PROB_RADIUS_FOR_GRID_METRES))
@@ -452,8 +477,8 @@ class GriddedForecastsTests(unittest.TestCase):
         these_rows, these_columns = (
             gridded_forecasts._find_grid_points_in_polygon(
                 SMALL_BUFFER_POLYGON_OBJECT_XY,
-                grid_points_x_metres=GRID_POINTS_X_METRES,
-                grid_points_y_metres=GRID_POINTS_Y_METRES))
+                grid_points_x_metres=GRID_POINTS_FOR_PIP_X_METRES,
+                grid_points_y_metres=GRID_POINTS_FOR_PIP_Y_METRES))
 
         self.assertTrue(numpy.array_equal(
             these_rows, GRID_ROWS_IN_SMALL_BUFFER))
@@ -469,8 +494,8 @@ class GriddedForecastsTests(unittest.TestCase):
         these_rows, these_columns = (
             gridded_forecasts._find_grid_points_in_polygon(
                 LARGE_BUFFER_POLYGON_OBJECT_XY,
-                grid_points_x_metres=GRID_POINTS_X_METRES,
-                grid_points_y_metres=GRID_POINTS_Y_METRES))
+                grid_points_x_metres=GRID_POINTS_FOR_PIP_X_METRES,
+                grid_points_y_metres=GRID_POINTS_FOR_PIP_Y_METRES))
 
         self.assertTrue(numpy.array_equal(
             these_rows, GRID_ROWS_IN_LARGE_BUFFER))
