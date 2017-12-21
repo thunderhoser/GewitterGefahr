@@ -1322,13 +1322,20 @@ def get_sounding_stats_for_storm_objects(
                 query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
                 query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
         else:
-            list_of_sharppy_stat_tables[i] = get_sounding_stats_from_sharppy(
-                list_of_sounding_tables[i],
-                eastward_motion_m_s01=
-                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
-                northward_motion_m_s01=
-                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
-                metadata_table=metadata_table)
+            try:
+                list_of_sharppy_stat_tables[i] = (
+                    get_sounding_stats_from_sharppy(
+                        list_of_sounding_tables[i],
+                        eastward_motion_m_s01=query_point_table[
+                            tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                        northward_motion_m_s01=query_point_table[
+                            tracking_io.NORTH_VELOCITY_COLUMN].values[i],
+                        metadata_table=metadata_table))
+            except:
+                print list_of_sounding_tables[i]
+                print list_of_sounding_tables[i][
+                    DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values
+                raise
 
         if i == 0:
             continue
