@@ -1335,6 +1335,7 @@ def get_sounding_stats_for_storm_objects(
                 print list_of_sounding_tables[i]
                 print list_of_sounding_tables[i][
                     DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values
+                print storm_object_table[tracking_io.TIME_COLUMN].values[i]
                 raise
 
         if i == 0:
