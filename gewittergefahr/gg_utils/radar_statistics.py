@@ -12,11 +12,14 @@ from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import dilation
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
+DEFAULT_DILATION_PERCENTILE_LEVEL = 90.
+
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
@@ -57,7 +60,10 @@ DEFAULT_RADAR_FIELD_NAMES = [
     radar_io.REFL_0CELSIUS_NAME, radar_io.REFL_M10CELSIUS_NAME,
     radar_io.REFL_M20CELSIUS_NAME, radar_io.REFL_LOWEST_ALTITUDE_NAME,
     radar_io.SHI_NAME, radar_io.VIL_NAME]
-IGNORABLE_RADAR_FIELD_NAMES = [
+
+IGNORABLE_FIELD_NAMES = [
+    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME]
+AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME]
 
 
@@ -406,7 +412,9 @@ def get_stats_for_storm_objects(
         radar_field_names=DEFAULT_RADAR_FIELD_NAMES,
         reflectivity_heights_m_agl=None,
         radar_data_source=radar_io.MYRORSS_SOURCE_ID,
-        top_radar_directory_name=None):
+        top_radar_directory_name=None, dilate_azimuthal_shear=False,
+        dilation_half_width_in_pixels=dilation.DEFAULT_HALF_WIDTH,
+        dilation_percentile_level=DEFAULT_DILATION_PERCENTILE_LEVEL):
     """Computes radar statistics for one or more storm objects.
 
     F = number of radar field-height pairs
@@ -427,6 +435,16 @@ def get_stats_for_storm_objects(
     :param radar_data_source: Data source for radar field.
     :param top_radar_directory_name: Name of top-level directory with radar
         files from given source.
+    :param dilate_azimuthal_shear: Boolean flag.  If False, azimuthal-shear
+        stats will be based only on values inside the storm object.  If True,
+        azimuthal-shear fields will be dilated, so azimuthal-shear stats will be
+        based on values inside and near the storm object.  This is useful
+        because sometimes large az-shear values occur in regions of low
+        reflectivity, which may not be included in the storm object.
+    :param dilation_half_width_in_pixels: See documentation for
+        `dilation.dilate_2d_matrix`.
+    :param dilation_percentile_level: See documentation for
+        `dilation.dilate_2d_matrix`.
     :return: storm_radar_statistic_table: pandas DataFrame with 2 + K * F
         columns, where the last K * F columns are one for each statistic-field
         pair.  Names of these columns are determined by
@@ -441,6 +459,7 @@ def get_stats_for_storm_objects(
 
     percentile_levels = _check_statistic_params(
         statistic_names, percentile_levels)
+    error_checking.assert_is_boolean(dilate_azimuthal_shear)
 
     radar_field_name_by_pair, radar_height_by_pair_m_agl = (
         radar_io.unique_fields_and_heights_to_pairs(
@@ -469,7 +488,7 @@ def get_stats_for_storm_objects(
                 data_source=radar_data_source,
                 top_directory_name=top_radar_directory_name,
                 raise_error_if_missing=
-                radar_field_name_by_pair[j] not in IGNORABLE_RADAR_FIELD_NAMES)
+                radar_field_name_by_pair[j] not in IGNORABLE_FIELD_NAMES)
 
             if not os.path.isfile(radar_file_name_matrix[i, j]):
                 radar_file_name_matrix[i, j] = None
@@ -516,6 +535,16 @@ def get_stats_for_storm_objects(
 
             radar_matrix_this_field, _, _ = radar_s2f.sparse_to_full_grid(
                 sparse_grid_table_this_field, metadata_dict_for_this_field)
+
+            if (dilate_azimuthal_shear and radar_field_name_by_pair[j] in
+                    AZIMUTHAL_SHEAR_FIELD_NAMES):
+                print 'Dilating azimuthal-shear field...'
+                radar_matrix_this_field = dilation.dilate_2d_matrix(
+                    radar_matrix_this_field,
+                    percentile_level=dilation_percentile_level,
+                    half_width_in_pixels=dilation_half_width_in_pixels,
+                    take_largest_absolute_value=True)
+
             radar_matrix_this_field[numpy.isnan(radar_matrix_this_field)] = 0.
 
             these_storm_flags = numpy.logical_and(
