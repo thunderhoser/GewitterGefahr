@@ -344,12 +344,12 @@ def read_field_from_grib_file(grib_file_name, grib1_field_name=None,
 
 
 if __name__ == '__main__':
-    downloads.download_file_via_http(
-        online_file_name=NARR_FILE_NAME_ONLINE,
-        local_file_name=NARR_FILE_NAME_LOCAL)
-    downloads.download_file_via_http(
-        online_file_name=RAP_FILE_NAME_ONLINE,
-        local_file_name=RAP_FILE_NAME_LOCAL)
+    downloads.download_files_via_http(
+        online_file_names=[NARR_FILE_NAME_ONLINE],
+        local_file_names=[NARR_FILE_NAME_LOCAL])
+    downloads.download_files_via_http(
+        online_file_names=[RAP_FILE_NAME_ONLINE],
+        local_file_names=[RAP_FILE_NAME_LOCAL])
 
     NARR_H500_MATRIX_METRES = read_field_from_grib_file(
         NARR_FILE_NAME_LOCAL, grib1_field_name=H500_NAME_GRIB,

@@ -324,10 +324,11 @@ def download_raw_file(
             local_file_name=local_gzip_file_name,
             raise_error_if_fails=raise_error_if_fails)
 
-    return downloads.download_file_via_http(
-        online_file_name=online_file_name, local_file_name=local_gzip_file_name,
-        user_name=user_name, password=password, host_name=HTTP_HOST_NAME,
-        raise_error_if_fails=raise_error_if_fails)
+    return downloads.download_files_via_http(
+        online_file_names=[online_file_name],
+        local_file_names=[local_gzip_file_name], user_name=user_name,
+        password=password, host_name=HTTP_HOST_NAME,
+        raise_error_if_fails=raise_error_if_fails)[0]
 
 
 def read_winds_from_raw_file(netcdf_file_name, secondary_source=None,

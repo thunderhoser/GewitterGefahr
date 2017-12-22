@@ -82,15 +82,18 @@ def download_file_via_passwordless_ssh(host_name=None, user_name=None,
     return local_file_name
 
 
-def download_file_via_http(
-        online_file_name, local_file_name, user_name=None, password=None,
+def download_files_via_http(
+        online_file_names, local_file_names, user_name=None, password=None,
         host_name=None, raise_error_if_fails=True):
-    """Downloads file via HTTP.
+    """Downloads files via HTTP.
 
-    :param online_file_name: URL.  Example: "https://nomads.ncdc.noaa.gov/data/
-        narr/201212/20121212/narr-a_221_20121212_1200_000.grb"
-    :param local_file_name: Target path on local machine (to which the file will
-        be downloaded).
+    N = number of files to download
+
+    :param online_file_names: length-N list of URLs.  Example:
+        "https://nomads.ncdc.noaa.gov/data/narr/201212/20121212/
+        narr-a_221_20121212_1200_000.grb"
+    :param local_file_names: length-N list of target paths on local machine (to
+        which files will be downloaded).
     :param user_name: User name on HTTP server.  To login anonymously, leave
         this as None.
     :param password: Password on HTTP server.  To login anonymously, leave
@@ -99,8 +102,8 @@ def download_file_via_http(
         "https://nomads.ncdc.noaa.gov"
     :param raise_error_if_fails: Boolean flag.  If True and download fails, this
         method will raise an error.
-    :return: local_file_name: If download fails, this will be None.  If download
-        succeeds, this will be the same as the input argument.
+    :return: local_file_names: Same as input, except that if download failed for
+        the [i]th file, local_file_names[i] = None.
     :raises: ValueError: if download failed and raise_error_if_fails = True.
     :raises: urllib2.HTTPError: if download failed for any reason not in
         `ACCEPTABLE_HTTP_ERROR_CODES` or `ACCEPTABLE_URL_ERROR_CODES`.  This
@@ -119,49 +122,63 @@ def download_file_via_http(
         opener_object = urllib2.build_opener(authentication_handler)
         urllib2.install_opener(opener_object)
 
-    error_checking.assert_is_string(online_file_name)
-    error_checking.assert_is_string(local_file_name)
+    error_checking.assert_is_string_list(online_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(online_file_names), num_dimensions=1)
+    num_files = len(online_file_names)
+
+    error_checking.assert_is_string_list(local_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.asarray(online_file_names),
+        exact_dimensions=numpy.array([num_files]))
+
     error_checking.assert_is_boolean(raise_error_if_fails)
-    success = False
 
-    try:
-        response_object = urllib2.urlopen(online_file_name)
-        success = True
+    for i in range(num_files):
+        this_download_succeeded = False
+        this_response_object = None
 
-    except urllib2.HTTPError as this_error:
-        if (raise_error_if_fails or
-                this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
-            raise
+        try:
+            this_response_object = urllib2.urlopen(online_file_names[i])
+            this_download_succeeded = True
 
-    except urllib2.URLError as this_error:
-        error_words = this_error.reason.split()
-        acceptable_error_flags = numpy.array(
-            [w in str(ACCEPTABLE_URL_ERROR_CODES) for w in error_words])
-        if raise_error_if_fails or not numpy.any(acceptable_error_flags):
-            raise
+        except urllib2.HTTPError as this_error:
+            if (raise_error_if_fails or
+                    this_error.code not in ACCEPTABLE_HTTP_ERROR_CODES):
+                raise
 
-    if not success:
-        warnings.warn('Cannot find URL.  Expected at: ' + online_file_name)
-        return None
+        except urllib2.URLError as this_error:
+            error_words = this_error.reason.split()
+            acceptable_error_flags = numpy.array(
+                [w in str(ACCEPTABLE_URL_ERROR_CODES) for w in error_words])
+            if raise_error_if_fails or not numpy.any(acceptable_error_flags):
+                raise
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=local_file_name)
-    with open(local_file_name, 'wb') as local_file_handle:
-        while True:
-            this_chunk = response_object.read(NUM_BYTES_PER_BLOCK)
-            if not this_chunk:
-                break
-            local_file_handle.write(this_chunk)
+        if not this_download_succeeded:
+            warnings.warn(
+                'Could not download file: {0:s}'.format(online_file_names[i]))
+            local_file_names[i] = None
+            continue
 
-    if not os.path.isfile(local_file_name):
-        info_string = (
-            'Download failed.  Local file expected at: ' + local_file_name)
-        if raise_error_if_fails:
-            raise ValueError(info_string)
-        else:
-            warnings.warn(info_string)
-            local_file_name = None
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=local_file_names[i])
+        with open(local_file_names[i], 'wb') as this_file_handle:
+            while True:
+                this_chunk = this_response_object.read(NUM_BYTES_PER_BLOCK)
+                if not this_chunk:
+                    break
+                this_file_handle.write(this_chunk)
 
-    return local_file_name
+        if not os.path.isfile(local_file_names[i]):
+            error_string = ('Could not download file.  Local file expected at: '
+                            '{0:s}').format(local_file_names[i])
+            if raise_error_if_fails:
+                raise ValueError(error_string)
+
+            warnings.warn(error_string)
+            local_file_names[i] = None
+
+    return local_file_names
 
 
 def download_file_via_ftp(server_name=None, user_name=None, password=None,
