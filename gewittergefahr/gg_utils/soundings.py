@@ -25,6 +25,7 @@ TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
+MIN_DEWPOINT_DEG_C = -273.1
 SENTINEL_VALUE_FOR_SHARPPY = -9999.
 REDUNDANT_PRESSURE_TOLERANCE_MB = 1e-3
 REDUNDANT_HEIGHT_TOLERANCE_METRES = 1e-3
@@ -729,6 +730,8 @@ def _sounding_to_sharppy_units(sounding_table):
 
     dewpoints_deg_c = temperature_conversions.kelvins_to_celsius(
         dewpoints_kelvins)
+    dewpoints_deg_c[dewpoints_deg_c < MIN_DEWPOINT_DEG_C] = MIN_DEWPOINT_DEG_C
+
     temperatures_deg_c = temperature_conversions.kelvins_to_celsius(
         sounding_table[
             nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values)
