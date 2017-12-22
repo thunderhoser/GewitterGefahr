@@ -1,5 +1,6 @@
 """Methods to create gridded spatial forecasts from storm-cell-based ones."""
 
+import copy
 import numpy
 import pandas
 import scipy.sparse
@@ -22,12 +23,21 @@ DEFAULT_PROB_RADIUS_FOR_GRID_METRES = 1e4
 LATLNG_POLYGON_COLUMN_PREFIX = tracking_io.BUFFER_POLYGON_COLUMN_PREFIX
 XY_POLYGON_COLUMN_PREFIX = 'polygon_object_xy_buffer'
 FORECAST_COLUMN_PREFIX = 'forecast_probability_buffer'
+GRID_ROWS_IN_POLYGON_COLUMN_PREFIX = 'grid_rows_in_buffer'
+GRID_COLUMNS_IN_POLYGON_COLUMN_PREFIX = 'grid_columns_in_buffer'
+COLUMN_PREFIXES = [
+    LATLNG_POLYGON_COLUMN_PREFIX, XY_POLYGON_COLUMN_PREFIX,
+    FORECAST_COLUMN_PREFIX, GRID_ROWS_IN_POLYGON_COLUMN_PREFIX,
+    GRID_COLUMNS_IN_POLYGON_COLUMN_PREFIX]
 
 LATLNG_POLYGON_COLUMN_TYPE = 'latlng'
 XY_POLYGON_COLUMN_TYPE = 'xy'
 FORECAST_COLUMN_TYPE = 'forecast'
+GRID_ROWS_IN_POLYGON_COLUMN_TYPE = 'grid_rows_in_polygon'
+GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE = 'grid_columns_in_polygon'
 COLUMN_TYPES = [
-    LATLNG_POLYGON_COLUMN_TYPE, XY_POLYGON_COLUMN_TYPE, FORECAST_COLUMN_TYPE]
+    LATLNG_POLYGON_COLUMN_TYPE, XY_POLYGON_COLUMN_TYPE, FORECAST_COLUMN_TYPE,
+    GRID_ROWS_IN_POLYGON_COLUMN_TYPE, GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE]
 
 SPEED_COLUMN = 'speed_m_s01'
 GEOGRAPHIC_BEARING_COLUMN = 'geographic_bearing_deg'
@@ -51,9 +61,10 @@ def _column_name_to_distance_buffer(column_name):
     :return: max_buffer_dist_metres: Maximum buffer distance.
     """
 
-    this_column_name = column_name.replace(
-        XY_POLYGON_COLUMN_PREFIX, LATLNG_POLYGON_COLUMN_PREFIX).replace(
-            FORECAST_COLUMN_PREFIX, LATLNG_POLYGON_COLUMN_PREFIX)
+    this_column_name = copy.deepcopy(column_name)
+    for this_prefix in COLUMN_PREFIXES:
+        this_column_name = this_column_name.replace(
+            this_prefix, LATLNG_POLYGON_COLUMN_PREFIX)
 
     return tracking_io.column_name_to_distance_buffer(this_column_name)
 
@@ -79,6 +90,12 @@ def _distance_buffer_to_column_name(
     if column_type == FORECAST_COLUMN_TYPE:
         return column_name.replace(
             LATLNG_POLYGON_COLUMN_PREFIX, FORECAST_COLUMN_PREFIX)
+    if column_type == GRID_ROWS_IN_POLYGON_COLUMN_TYPE:
+        return column_name.replace(
+            LATLNG_POLYGON_COLUMN_PREFIX, GRID_ROWS_IN_POLYGON_COLUMN_PREFIX)
+    if column_type == GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE:
+        return column_name.replace(
+            LATLNG_POLYGON_COLUMN_PREFIX, GRID_COLUMNS_IN_POLYGON_COLUMN_PREFIX)
 
     return None
 
@@ -107,6 +124,15 @@ def _get_distance_buffer_columns(storm_object_table, column_type):
 
         if (column_type == FORECAST_COLUMN_TYPE
                 and FORECAST_COLUMN_PREFIX not in this_column_name):
+            continue
+
+        if (column_type == GRID_ROWS_IN_POLYGON_COLUMN_TYPE
+                and GRID_ROWS_IN_POLYGON_COLUMN_PREFIX not in this_column_name):
+            continue
+
+        if (column_type == GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE
+                and GRID_COLUMNS_IN_POLYGON_COLUMN_PREFIX not in
+                this_column_name):
             continue
 
         _, this_max_distance_metres = _column_name_to_distance_buffer(
@@ -188,7 +214,7 @@ def _polygons_from_latlng_to_xy(storm_object_table, projection_object):
     """
 
     buffer_column_names_latlng = _get_distance_buffer_columns(
-        storm_object_table, column_type='latlng')
+        storm_object_table, column_type=LATLNG_POLYGON_COLUMN_TYPE)
 
     num_buffers = len(buffer_column_names_latlng)
     min_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
@@ -200,7 +226,7 @@ def _polygons_from_latlng_to_xy(storm_object_table, projection_object):
             _column_name_to_distance_buffer(buffer_column_names_latlng[j]))
         buffer_column_names_xy[j] = _distance_buffer_to_column_name(
             min_buffer_distances_metres[j], max_buffer_distances_metres[j],
-            column_type='xy')
+            column_type=XY_POLYGON_COLUMN_TYPE)
 
     num_storm_objects = len(storm_object_table.index)
     object_array = numpy.full(num_storm_objects, numpy.nan, dtype=object)
@@ -210,7 +236,7 @@ def _polygons_from_latlng_to_xy(storm_object_table, projection_object):
 
     for i in range(num_storm_objects):
         for j in range(num_buffers):
-            storm_object_table[buffer_column_names_xy[j]].values[i] = (
+            storm_object_table[buffer_column_names_xy[j]].values[i], _ = (
                 polygons.project_latlng_to_xy(
                     storm_object_table[buffer_column_names_latlng[j]].values[i],
                     projection_object=projection_object,
@@ -247,7 +273,7 @@ def _create_xy_grid(storm_object_table, x_spacing_metres, y_spacing_metres,
     """
 
     buffer_column_names_xy = _get_distance_buffer_columns(
-        storm_object_table, column_type='xy')
+        storm_object_table, column_type=XY_POLYGON_COLUMN_TYPE)
 
     x_min_metres = numpy.inf
     x_max_metres = -numpy.inf
@@ -324,7 +350,7 @@ def _normalize_probs_by_polygon_area(
     """
 
     buffer_column_names_xy = _get_distance_buffer_columns(
-        storm_object_table, column_type='xy')
+        storm_object_table, column_type=XY_POLYGON_COLUMN_TYPE)
 
     num_buffers = len(buffer_column_names_xy)
     min_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
@@ -336,7 +362,7 @@ def _normalize_probs_by_polygon_area(
             _column_name_to_distance_buffer(buffer_column_names_xy[j]))
         forecast_column_names[j] = _distance_buffer_to_column_name(
             min_buffer_distances_metres[j], max_buffer_distances_metres[j],
-            column_type='forecast')
+            column_type=FORECAST_COLUMN_TYPE)
 
     num_storm_objects = len(storm_object_table.index)
     prob_area_for_grid_metres2 = numpy.pi * prob_radius_for_grid_metres ** 2
@@ -423,7 +449,7 @@ def _extrapolate_polygons(
     """
 
     buffer_column_names_latlng = _get_distance_buffer_columns(
-        storm_object_table, column_type='latlng')
+        storm_object_table, column_type=LATLNG_POLYGON_COLUMN_TYPE)
 
     num_buffers = len(buffer_column_names_latlng)
     num_storm_objects = len(storm_object_table.index)
@@ -572,6 +598,188 @@ def _find_grid_points_in_polygon(
     return numpy.array(rows_in_polygon), numpy.array(columns_in_polygon)
 
 
+def _polygons_to_grid_points(
+        storm_object_table, grid_points_x_metres, grid_points_y_metres):
+    """Finds grid points in each polygon.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    P = number of grid points in a given polygon
+
+    :param storm_object_table: pandas DataFrame.  Each row contains the polygons
+        for distance buffers around one storm object.  For the [j]th distance
+        buffer, required column is given by the following command:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="xy")
+
+    :param grid_points_x_metres: length-N numpy array with x-coordinates of grid
+        points.  Must be sorted in ascending order.
+    :param grid_points_y_metres: length-M numpy array with y-coordinates of grid
+        points.  Must be sorted in ascending order.
+    :return: storm_object_table: Same as input but with additional columns.  For
+        the [j]th distance buffer, new columns are given by the following
+        command:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="grid_rows_in_polygon")
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j],
+            column_type="grid_columns_in_polygon")
+    """
+
+    xy_buffer_column_names = _get_distance_buffer_columns(
+        storm_object_table, column_type=XY_POLYGON_COLUMN_TYPE)
+
+    num_buffers = len(xy_buffer_column_names)
+    min_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+    max_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+    grid_rows_in_buffer_column_names = [''] * num_buffers
+    grid_columns_in_buffer_column_names = [''] * num_buffers
+
+    for j in range(num_buffers):
+        min_buffer_distances_metres[j], max_buffer_distances_metres[j] = (
+            _column_name_to_distance_buffer(xy_buffer_column_names[j]))
+
+        grid_rows_in_buffer_column_names[j] = _distance_buffer_to_column_name(
+            min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+            column_type=GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
+        grid_columns_in_buffer_column_names[j] = (
+            _distance_buffer_to_column_name(
+                min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+                column_type=GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE))
+
+    nested_array = storm_object_table[[
+        xy_buffer_column_names[0], xy_buffer_column_names[0]]].values.tolist()
+    for j in range(num_buffers):
+        storm_object_table = storm_object_table.assign(
+            **{grid_rows_in_buffer_column_names[j]: nested_array})
+        storm_object_table = storm_object_table.assign(
+            **{grid_columns_in_buffer_column_names[j]: nested_array})
+
+    num_storm_objects = len(storm_object_table.index)
+    for i in range(num_storm_objects):
+        for j in range(num_buffers):
+            (storm_object_table[grid_rows_in_buffer_column_names[j]].values[i],
+             storm_object_table[grid_columns_in_buffer_column_names[j]].values[
+                 i]) = _find_grid_points_in_polygon(
+                     storm_object_table[xy_buffer_column_names[j]].values[i],
+                     grid_points_x_metres, grid_points_y_metres)
+
+    return storm_object_table
+
+
+def _extrap_polygons_to_grid_points(
+        orig_storm_object_table, extrap_storm_object_table,
+        grid_spacing_x_metres, grid_spacing_y_metres):
+    """Finds grid points in each extrapolated polygon.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    P = number of grid points in a given polygon
+
+    K = number of storm objects
+    t_0 = initial time (valid time of all storm objects)
+    t_L = lead time
+
+    :param orig_storm_object_table: K-row pandas DataFrame.  Each row contains
+        data for distance buffers around one storm object at t_0.  For the [j]th
+        distance buffer, required columns are given by the following command:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="xy")
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="grid_rows_in_polygon")
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j],
+            column_type="grid_columns_in_polygon")
+
+    :param extrap_storm_object_table: K-row pandas DataFrame.  Each row contains
+        polygons for distance buffers around one storm object, extrapolated to
+        (t_0 + t_L).  For the [j]th distance buffer, required column is given by
+        the following command:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="xy")
+
+    :param grid_spacing_x_metres: Spacing between adjacent grid points in
+        x-direction (i.e., between adjacent columns).
+    :param grid_spacing_y_metres: Spacing between adjacent grid points in
+        y-direction (i.e., between adjacent rows).
+    :return: extrap_storm_object_table: Same as input but with additional
+        columns.  For the [j]th distance buffer, new columns are given by the
+        following command:
+
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j], column_type="grid_rows_in_polygon")
+        _distance_buffer_to_column_name(min_buffer_distances_metres[j],
+            max_buffer_distances_metres[j],
+            column_type="grid_columns_in_polygon")
+    """
+
+    xy_buffer_column_names = _get_distance_buffer_columns(
+        orig_storm_object_table, column_type=XY_POLYGON_COLUMN_TYPE)
+
+    num_buffers = len(xy_buffer_column_names)
+    min_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+    max_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+    grid_rows_in_buffer_column_names = [''] * num_buffers
+    grid_columns_in_buffer_column_names = [''] * num_buffers
+
+    for j in range(num_buffers):
+        min_buffer_distances_metres[j], max_buffer_distances_metres[j] = (
+            _column_name_to_distance_buffer(xy_buffer_column_names[j]))
+
+        grid_rows_in_buffer_column_names[j] = _distance_buffer_to_column_name(
+            min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+            column_type=GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
+        grid_columns_in_buffer_column_names[j] = (
+            _distance_buffer_to_column_name(
+                min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+                column_type=GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE))
+
+    nested_array = extrap_storm_object_table[[
+        xy_buffer_column_names[0], xy_buffer_column_names[0]]].values.tolist()
+    for j in range(num_buffers):
+        extrap_storm_object_table = extrap_storm_object_table.assign(
+            **{grid_rows_in_buffer_column_names[j]: nested_array})
+        extrap_storm_object_table = extrap_storm_object_table.assign(
+            **{grid_columns_in_buffer_column_names[j]: nested_array})
+
+    num_storm_objects = len(orig_storm_object_table.index)
+    for i in range(num_storm_objects):
+        for j in range(num_buffers):
+            this_orig_polygon_object = orig_storm_object_table[
+                xy_buffer_column_names[j]].values[i]
+            this_extrap_polygon_object = extrap_storm_object_table[
+                xy_buffer_column_names[j]].values[i]
+
+            this_x_diff_metres = (
+                numpy.array(this_extrap_polygon_object.exterior.xy[0])[0] -
+                numpy.array(this_orig_polygon_object.exterior.xy[0])[0])
+            this_y_diff_metres = (
+                numpy.array(this_extrap_polygon_object.exterior.xy[1])[0] -
+                numpy.array(this_orig_polygon_object.exterior.xy[1])[0])
+
+            this_row_diff = int(numpy.round(
+                this_y_diff_metres / grid_spacing_y_metres))
+            this_column_diff = int(numpy.round(
+                this_x_diff_metres / grid_spacing_x_metres))
+
+            extrap_storm_object_table[
+                grid_rows_in_buffer_column_names[j]].values[i] = (
+                    orig_storm_object_table[
+                        grid_rows_in_buffer_column_names[j]].values[i] +
+                    this_row_diff)
+            extrap_storm_object_table[
+                grid_columns_in_buffer_column_names[j]].values[i] = (
+                    orig_storm_object_table[
+                        grid_columns_in_buffer_column_names[j]].values[i] +
+                    this_column_diff)
+
+    return extrap_storm_object_table
+
+
 def create_forecast_grids(
         storm_object_table, min_lead_time_sec, max_lead_time_sec,
         lead_time_resolution_sec=DEFAULT_LEAD_TIME_RES_SECONDS,
@@ -641,8 +849,6 @@ def create_forecast_grids(
         used to convert from x-y to lat-long.
     """
 
-    # TODO(thunderhoser): Run integration test for this method.
-
     error_checking.assert_is_integer(min_lead_time_sec)
     error_checking.assert_is_geq(min_lead_time_sec, 0)
     error_checking.assert_is_integer(max_lead_time_sec)
@@ -661,20 +867,31 @@ def create_forecast_grids(
         storm_object_table, column_type=LATLNG_POLYGON_COLUMN_TYPE)
 
     num_buffers = len(latlng_buffer_columns)
-    xy_buffer_columns = [''] * num_buffers
-    buffer_forecast_columns = [''] * num_buffers
     min_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
     max_buffer_distances_metres = numpy.full(num_buffers, numpy.nan)
+
+    xy_buffer_columns = [''] * num_buffers
+    buffer_forecast_columns = [''] * num_buffers
+    grid_rows_in_buffer_column_names = [''] * num_buffers
+    grid_columns_in_buffer_column_names = [''] * num_buffers
 
     for j in range(num_buffers):
         min_buffer_distances_metres[j], max_buffer_distances_metres[j] = (
             _column_name_to_distance_buffer(latlng_buffer_columns[j]))
+
         xy_buffer_columns[j] = _distance_buffer_to_column_name(
             min_buffer_distances_metres[j], max_buffer_distances_metres[j],
             column_type=XY_POLYGON_COLUMN_TYPE)
         buffer_forecast_columns[j] = _distance_buffer_to_column_name(
             min_buffer_distances_metres[j], max_buffer_distances_metres[j],
             column_type=FORECAST_COLUMN_TYPE)
+        grid_rows_in_buffer_column_names[j] = _distance_buffer_to_column_name(
+            min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+            column_type=GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
+        grid_columns_in_buffer_column_names[j] = (
+            _distance_buffer_to_column_name(
+                min_buffer_distances_metres[j], max_buffer_distances_metres[j],
+                column_type=GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE))
 
     _check_distance_buffers(
         min_buffer_distances_metres, max_buffer_distances_metres)
@@ -724,11 +941,15 @@ def create_forecast_grids(
             this_storm_object_table, x_spacing_metres=grid_spacing_x_metres,
             y_spacing_metres=grid_spacing_y_metres,
             max_lead_time_sec=max_lead_time_sec)
+        this_storm_object_table = _polygons_to_grid_points(
+            this_storm_object_table,
+            grid_points_x_metres=these_grid_point_x_metres,
+            grid_points_y_metres=these_grid_point_y_metres)
 
         this_num_grid_rows = len(these_grid_point_y_metres)
         this_num_grid_columns = len(these_grid_point_x_metres)
         this_probability_matrix = numpy.full(
-            (this_num_grid_rows, this_num_grid_columns), numpy.nan)
+            (this_num_grid_rows, this_num_grid_columns), 0.)
         this_num_forecast_matrix = numpy.full(
             (this_num_grid_rows, this_num_grid_columns), 0, dtype=int)
 
@@ -740,15 +961,17 @@ def create_forecast_grids(
             this_extrap_storm_object_table = _extrapolate_polygons(
                 this_storm_object_table, this_lead_time_sec,
                 this_projection_object)
+            this_extrap_storm_object_table = _extrap_polygons_to_grid_points(
+                this_storm_object_table, this_extrap_storm_object_table,
+                grid_spacing_x_metres=grid_spacing_x_metres,
+                grid_spacing_y_metres=grid_spacing_y_metres)
 
             for j in range(num_buffers):
                 for k in range(this_num_storm_objects):
-                    these_rows_in_polygon, these_columns_in_polygon = (
-                        _find_grid_points_in_polygon(
-                            this_extrap_storm_object_table[
-                                xy_buffer_columns[j]].values[k],
-                            these_grid_point_x_metres,
-                            these_grid_point_y_metres))
+                    these_rows_in_polygon = this_extrap_storm_object_table[
+                        grid_rows_in_buffer_column_names[j]].values[k]
+                    these_columns_in_polygon = this_extrap_storm_object_table[
+                        grid_columns_in_buffer_column_names[j]].values[k]
 
                     this_num_forecast_matrix[
                         these_rows_in_polygon, these_columns_in_polygon] += 1

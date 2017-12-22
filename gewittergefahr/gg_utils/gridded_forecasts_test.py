@@ -17,6 +17,8 @@ SMALL_BUFFER_MAX_DISTANCE_METRES = 0.
 SMALL_BUFFER_LATLNG_COLUMN = 'polygon_object_latlng_buffer_0m'
 SMALL_BUFFER_XY_COLUMN = 'polygon_object_xy_buffer_0m'
 SMALL_BUFFER_FORECAST_COLUMN = 'forecast_probability_buffer_0m'
+SMALL_BUFFER_GRID_ROWS_COLUMN = 'grid_rows_in_buffer_0m'
+SMALL_BUFFER_GRID_COLUMNS_COLUMN = 'grid_columns_in_buffer_0m'
 
 MEDIUM_BUFFER_MIN_DISTANCE_METRES = 0.
 MEDIUM_BUFFER_MAX_DISTANCE_METRES = 5000.
@@ -26,11 +28,15 @@ LARGE_BUFFER_MAX_DISTANCE_METRES = 10000.
 LARGE_BUFFER_LATLNG_COLUMN = 'polygon_object_latlng_buffer_5000m_10000m'
 LARGE_BUFFER_XY_COLUMN = 'polygon_object_xy_buffer_5000m_10000m'
 LARGE_BUFFER_FORECAST_COLUMN = 'forecast_probability_buffer_5000m_10000m'
+LARGE_BUFFER_GRID_ROWS_COLUMN = 'grid_rows_in_buffer_5000m_10000m'
+LARGE_BUFFER_GRID_COLUMNS_COLUMN = 'grid_columns_in_buffer_5000m_10000m'
 
 EMPTY_STORM_OBJECT_DICT = {
-    SMALL_BUFFER_LATLNG_COLUMN: [], SMALL_BUFFER_XY_COLUMN: [],
-    SMALL_BUFFER_FORECAST_COLUMN: [], LARGE_BUFFER_LATLNG_COLUMN: [],
-    LARGE_BUFFER_XY_COLUMN: [], LARGE_BUFFER_FORECAST_COLUMN: []
+    SMALL_BUFFER_LATLNG_COLUMN: [], LARGE_BUFFER_LATLNG_COLUMN: [],
+    SMALL_BUFFER_XY_COLUMN: [], LARGE_BUFFER_XY_COLUMN: [],
+    SMALL_BUFFER_FORECAST_COLUMN: [], LARGE_BUFFER_FORECAST_COLUMN: [],
+    SMALL_BUFFER_GRID_ROWS_COLUMN: [], LARGE_BUFFER_GRID_ROWS_COLUMN: [],
+    SMALL_BUFFER_GRID_COLUMNS_COLUMN: [], LARGE_BUFFER_GRID_COLUMNS_COLUMN: []
 }
 EMPTY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(EMPTY_STORM_OBJECT_DICT)
 
@@ -199,6 +205,42 @@ class GriddedForecastsTests(unittest.TestCase):
             this_max_distance_metres, SMALL_BUFFER_MAX_DISTANCE_METRES,
             atol=TOLERANCE))
 
+    def test_column_name_to_distance_buffer_small_buffer_grid_rows(self):
+        """Ensures correct output from _column_name_to_distance_buffer.
+
+        In this case, the buffer is "inside storm" and the column name is for
+        grid rows inside the polygon.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            gridded_forecasts._column_name_to_distance_buffer(
+                SMALL_BUFFER_GRID_ROWS_COLUMN))
+
+        self.assertTrue(numpy.isclose(
+            this_min_distance_metres, SMALL_BUFFER_MIN_DISTANCE_METRES,
+            equal_nan=True, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_max_distance_metres, SMALL_BUFFER_MAX_DISTANCE_METRES,
+            atol=TOLERANCE))
+
+    def test_column_name_to_distance_buffer_small_buffer_grid_columns(self):
+        """Ensures correct output from _column_name_to_distance_buffer.
+
+        In this case, the buffer is "inside storm" and the column name is for
+        grid columns inside the polygon.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            gridded_forecasts._column_name_to_distance_buffer(
+                SMALL_BUFFER_GRID_COLUMNS_COLUMN))
+
+        self.assertTrue(numpy.isclose(
+            this_min_distance_metres, SMALL_BUFFER_MIN_DISTANCE_METRES,
+            equal_nan=True, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_max_distance_metres, SMALL_BUFFER_MAX_DISTANCE_METRES,
+            atol=TOLERANCE))
+
     def test_column_name_to_distance_buffer_large_buffer_latlng(self):
         """Ensures correct output from _column_name_to_distance_buffer.
 
@@ -253,6 +295,42 @@ class GriddedForecastsTests(unittest.TestCase):
             this_max_distance_metres, LARGE_BUFFER_MAX_DISTANCE_METRES,
             atol=TOLERANCE))
 
+    def test_column_name_to_distance_buffer_large_buffer_grid_rows(self):
+        """Ensures correct output from _column_name_to_distance_buffer.
+
+        In this case, the buffer is "5-10 km outside storm" and the column name
+        is for grid rows inside the polygon.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            gridded_forecasts._column_name_to_distance_buffer(
+                LARGE_BUFFER_GRID_ROWS_COLUMN))
+
+        self.assertTrue(numpy.isclose(
+            this_min_distance_metres, LARGE_BUFFER_MIN_DISTANCE_METRES,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_max_distance_metres, LARGE_BUFFER_MAX_DISTANCE_METRES,
+            atol=TOLERANCE))
+
+    def test_column_name_to_distance_buffer_large_buffer_grid_columns(self):
+        """Ensures correct output from _column_name_to_distance_buffer.
+
+        In this case, the buffer is "5-10 km outside storm" and the column name
+        is for grid columns inside the polygon.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            gridded_forecasts._column_name_to_distance_buffer(
+                LARGE_BUFFER_GRID_COLUMNS_COLUMN))
+
+        self.assertTrue(numpy.isclose(
+            this_min_distance_metres, LARGE_BUFFER_MIN_DISTANCE_METRES,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_max_distance_metres, LARGE_BUFFER_MAX_DISTANCE_METRES,
+            atol=TOLERANCE))
+
     def test_distance_buffer_to_column_name_small_buffer_latlng(self):
         """Ensures correct output from _distance_buffer_to_column_name.
 
@@ -289,6 +367,30 @@ class GriddedForecastsTests(unittest.TestCase):
             column_type=gridded_forecasts.FORECAST_COLUMN_TYPE)
         self.assertTrue(this_column_name == SMALL_BUFFER_FORECAST_COLUMN)
 
+    def test_distance_buffer_to_column_name_small_buffer_grid_rows(self):
+        """Ensures correct output from _distance_buffer_to_column_name.
+
+        In this case, the buffer is "inside storm" and the column name is for
+        grid rows inside the polygon.
+        """
+
+        this_column_name = gridded_forecasts._distance_buffer_to_column_name(
+            SMALL_BUFFER_MIN_DISTANCE_METRES, SMALL_BUFFER_MAX_DISTANCE_METRES,
+            column_type=gridded_forecasts.GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
+        self.assertTrue(this_column_name == SMALL_BUFFER_GRID_ROWS_COLUMN)
+
+    def test_distance_buffer_to_column_name_small_buffer_grid_columns(self):
+        """Ensures correct output from _distance_buffer_to_column_name.
+
+        In this case, the buffer is "inside storm" and the column name is for
+        grid columns inside the polygon.
+        """
+
+        this_column_name = gridded_forecasts._distance_buffer_to_column_name(
+            SMALL_BUFFER_MIN_DISTANCE_METRES, SMALL_BUFFER_MAX_DISTANCE_METRES,
+            column_type=gridded_forecasts.GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE)
+        self.assertTrue(this_column_name == SMALL_BUFFER_GRID_COLUMNS_COLUMN)
+
     def test_distance_buffer_to_column_name_large_buffer_latlng(self):
         """Ensures correct output from _distance_buffer_to_column_name.
 
@@ -324,6 +426,30 @@ class GriddedForecastsTests(unittest.TestCase):
             LARGE_BUFFER_MIN_DISTANCE_METRES, LARGE_BUFFER_MAX_DISTANCE_METRES,
             column_type=gridded_forecasts.FORECAST_COLUMN_TYPE)
         self.assertTrue(this_column_name == LARGE_BUFFER_FORECAST_COLUMN)
+
+    def test_distance_buffer_to_column_name_large_buffer_grid_rows(self):
+        """Ensures correct output from _distance_buffer_to_column_name.
+
+        In this case, the buffer is "5-10 km outside storm" and the column name
+        is for grid rows inside the polygon.
+        """
+
+        this_column_name = gridded_forecasts._distance_buffer_to_column_name(
+            LARGE_BUFFER_MIN_DISTANCE_METRES, LARGE_BUFFER_MAX_DISTANCE_METRES,
+            column_type=gridded_forecasts.GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
+        self.assertTrue(this_column_name == LARGE_BUFFER_GRID_ROWS_COLUMN)
+
+    def test_distance_buffer_to_column_name_large_buffer_grid_columns(self):
+        """Ensures correct output from _distance_buffer_to_column_name.
+
+        In this case, the buffer is "5-10 km outside storm" and the column name
+        is for grid columns inside the polygon.
+        """
+
+        this_column_name = gridded_forecasts._distance_buffer_to_column_name(
+            LARGE_BUFFER_MIN_DISTANCE_METRES, LARGE_BUFFER_MAX_DISTANCE_METRES,
+            column_type=gridded_forecasts.GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE)
+        self.assertTrue(this_column_name == LARGE_BUFFER_GRID_COLUMNS_COLUMN)
 
     def test_get_distance_buffer_columns_latlng(self):
         """Ensures correct output from _get_distance_buffer_columns.
@@ -363,6 +489,32 @@ class GriddedForecastsTests(unittest.TestCase):
         self.assertTrue(
             set(these_column_names) ==
             {SMALL_BUFFER_FORECAST_COLUMN, LARGE_BUFFER_FORECAST_COLUMN})
+
+    def test_get_distance_buffer_columns_grid_rows(self):
+        """Ensures correct output from _get_distance_buffer_columns.
+
+        In this case, should return columns with grid rows only.
+        """
+
+        these_column_names = gridded_forecasts._get_distance_buffer_columns(
+            EMPTY_STORM_OBJECT_TABLE,
+            column_type=gridded_forecasts.GRID_ROWS_IN_POLYGON_COLUMN_TYPE)
+        self.assertTrue(
+            set(these_column_names) ==
+            {SMALL_BUFFER_GRID_ROWS_COLUMN, LARGE_BUFFER_GRID_ROWS_COLUMN})
+
+    def test_get_distance_buffer_columns_grid_columns(self):
+        """Ensures correct output from _get_distance_buffer_columns.
+
+        In this case, should return columns with grid columns only.
+        """
+
+        these_column_names = gridded_forecasts._get_distance_buffer_columns(
+            EMPTY_STORM_OBJECT_TABLE,
+            column_type=gridded_forecasts.GRID_COLUMNS_IN_POLYGON_COLUMN_TYPE)
+        self.assertTrue(set(these_column_names) ==
+                        {SMALL_BUFFER_GRID_COLUMNS_COLUMN,
+                         LARGE_BUFFER_GRID_COLUMNS_COLUMN})
 
     def test_check_distance_buffers_all_good(self):
         """Ensures correct output from _check_distance_buffers.
