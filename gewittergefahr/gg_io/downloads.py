@@ -9,19 +9,19 @@ import numpy
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-NUM_BYTES_PER_DOWNLOAD_CHUNK = 16384
-HTTP_NOT_FOUND_ERROR_CODE = 404
-SERVICE_TEMP_UNAVAILABLE_ERROR_CODE = 503
-ACCEPTABLE_HTTP_ERROR_CODES = [
-    HTTP_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
-
-URL_NOT_FOUND_ERROR_CODE = 550
-URL_TIMEOUT_ERROR_CODE = 110
-ACCEPTABLE_URL_ERROR_CODES = [URL_NOT_FOUND_ERROR_CODE, URL_TIMEOUT_ERROR_CODE]
-
-FTP_NOT_FOUND_ERROR_CODE = 550
+NUM_BYTES_PER_BLOCK = 16384
 SSH_ARG_STRING = (
     'ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5')
+
+HTTP_NOT_FOUND_ERROR_CODE = 404
+SERVICE_TEMP_UNAVAILABLE_ERROR_CODE = 503
+URL_NOT_FOUND_ERROR_CODE = 550
+URL_TIMEOUT_ERROR_CODE = 110
+FTP_NOT_FOUND_ERROR_CODE = 550
+
+ACCEPTABLE_URL_ERROR_CODES = [URL_NOT_FOUND_ERROR_CODE, URL_TIMEOUT_ERROR_CODE]
+ACCEPTABLE_HTTP_ERROR_CODES = [
+    HTTP_NOT_FOUND_ERROR_CODE, SERVICE_TEMP_UNAVAILABLE_ERROR_CODE]
 
 
 def download_file_via_passwordless_ssh(host_name=None, user_name=None,
@@ -82,31 +82,50 @@ def download_file_via_passwordless_ssh(host_name=None, user_name=None,
     return local_file_name
 
 
-def download_file_via_http(file_url, local_file_name,
-                           raise_error_if_fails=True):
+def download_file_via_http(
+        online_file_name, local_file_name, user_name=None, password=None,
+        host_name=None, raise_error_if_fails=True):
     """Downloads file via HTTP.
 
-    :param file_url: URL (where the file is located online).  Example:
-        "https://nomads.ncdc.noaa.gov/data/narr/201212/20121212/
-        narr-a_221_20121212_1200_000.grb".
-    :param local_file_name: File path on local machine (where the file will be
-        stored).
-    :param raise_error_if_fails: Boolean flag.  If raise_error_if_fails = True
-        and download fails, will raise an error.
-    :return: local_file_name: If raise_error_if_fails = False and download
-        failed, this will be None.  Otherwise, this will be the same as input.
+    :param online_file_name: URL.  Example: "https://nomads.ncdc.noaa.gov/data/
+        narr/201212/20121212/narr-a_221_20121212_1200_000.grb"
+    :param local_file_name: Target path on local machine (to which the file will
+        be downloaded).
+    :param user_name: User name on HTTP server.  To login anonymously, leave
+        this as None.
+    :param password: Password on HTTP server.  To login anonymously, leave
+        this as None.
+    :param host_name: Host name (base URL name) for HTTP server.  Example:
+        "https://nomads.ncdc.noaa.gov"
+    :param raise_error_if_fails: Boolean flag.  If True and download fails, this
+        method will raise an error.
+    :return: local_file_name: If download fails, this will be None.  If download
+        succeeds, this will be the same as the input argument.
     :raises: ValueError: if download failed and raise_error_if_fails = True.
-    :raises: urllib2.HTTPError: if download failed for any reason other than URL
-        not found.
+    :raises: urllib2.HTTPError: if download failed for any reason not in
+        `ACCEPTABLE_HTTP_ERROR_CODES` or `ACCEPTABLE_URL_ERROR_CODES`.  This
+        error will be raised regardless of the flag `raise_error_if_fails`.
     """
 
-    error_checking.assert_is_string(file_url)
+    if not(user_name is None or password is None):
+        error_checking.assert_is_string(user_name)
+        error_checking.assert_is_string(password)
+        error_checking.assert_is_string(host_name)
+
+        manager_object = urllib2.HTTPPasswordMgrWithDefaultRealm()
+        manager_object.add_password(
+            realm=None, uri=host_name, user=user_name, passwd=password)
+        authentication_handler = urllib2.HTTPBasicAuthHandler(manager_object)
+        opener_object = urllib2.build_opener(authentication_handler)
+        urllib2.install_opener(opener_object)
+
+    error_checking.assert_is_string(online_file_name)
     error_checking.assert_is_string(local_file_name)
     error_checking.assert_is_boolean(raise_error_if_fails)
     success = False
 
     try:
-        response_object = urllib2.urlopen(file_url)
+        response_object = urllib2.urlopen(online_file_name)
         success = True
 
     except urllib2.HTTPError as this_error:
@@ -122,13 +141,13 @@ def download_file_via_http(file_url, local_file_name,
             raise
 
     if not success:
-        warnings.warn('Cannot find URL.  Expected at: ' + file_url)
+        warnings.warn('Cannot find URL.  Expected at: ' + online_file_name)
         return None
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=local_file_name)
     with open(local_file_name, 'wb') as local_file_handle:
         while True:
-            this_chunk = response_object.read(NUM_BYTES_PER_DOWNLOAD_CHUNK)
+            this_chunk = response_object.read(NUM_BYTES_PER_BLOCK)
             if not this_chunk:
                 break
             local_file_handle.write(this_chunk)
@@ -186,7 +205,7 @@ def download_file_via_ftp(server_name=None, user_name=None, password=None,
 
     try:
         ftp_object.retrbinary('RETR ' + ftp_file_name, local_file_handle.write,
-                              blocksize=NUM_BYTES_PER_DOWNLOAD_CHUNK)
+                              blocksize=NUM_BYTES_PER_BLOCK)
     except ftplib.error_perm as this_error:
         if (raise_error_if_fails or not this_error.message.startswith(
                 str(FTP_NOT_FOUND_ERROR_CODE))):

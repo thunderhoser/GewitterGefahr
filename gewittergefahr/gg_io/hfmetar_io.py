@@ -435,15 +435,6 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
             local_file_name=local_file_name,
             raise_error_if_fails=raise_error_if_fails)
 
-        # online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-        #     TOP_HTTP_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
-        #     time_conversion.unix_sec_to_string(
-        #         month_unix_sec, TIME_FORMAT_YEAR),
-        #     pathless_file_name)
-        # this_local_file_name = downloads.download_file_via_http(
-        #     online_file_name, local_file_name,
-        #     raise_error_if_fails=raise_error_if_fails)
-
         if this_local_file_name is not None:
             return local_file_name
 
@@ -493,15 +484,6 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
             password=FTP_PASSWORD, ftp_file_name=online_file_name,
             local_file_name=local_file_name,
             raise_error_if_fails=raise_error_if_fails)
-
-        # online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-        #     TOP_HTTP_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
-        #     time_conversion.unix_sec_to_string(
-        #         month_unix_sec, TIME_FORMAT_YEAR),
-        #     pathless_file_name)
-        # this_local_file_name = downloads.download_file_via_http(
-        #     online_file_name, local_file_name,
-        #     raise_error_if_fails=raise_error_if_fails)
 
         if this_local_file_name is not None:
             return local_file_name

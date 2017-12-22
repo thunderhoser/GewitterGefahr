@@ -294,7 +294,8 @@ def download_grib_file(init_time_unix_sec, lead_time_hours=None,
                 raise_error_if_fails and i == len(pathless_file_names) - 1 and
                 j == len(top_online_directory_names) - 1)
             local_file_name = downloads.download_file_via_http(
-                this_online_file_name, desired_local_file_name,
+                online_file_name=this_online_file_name,
+                local_file_name=desired_local_file_name,
                 raise_error_if_fails=this_raise_error_flag)
 
             if local_file_name is not None:

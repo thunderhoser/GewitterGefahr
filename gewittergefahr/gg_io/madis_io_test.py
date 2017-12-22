@@ -22,13 +22,20 @@ UNIX_TIME_SEC = 1506127260  # 0041 UTC 23 Sep 2017
 PATHLESS_FILE_NAME = '20170923_0000.gz'
 
 SECONDARY_DATA_SOURCE_LDAD = 'crn'
-FTP_FILE_NAME_LDAD = 'archive/2017/09/23/LDAD/crn/netCDF/20170923_0000.gz'
+SECONDARY_DATA_SOURCE_NON_LDAD = 'maritime'
 TOP_LOCAL_DIRECTORY_NAME = 'madis_data'
+
+FTP_FILE_NAME_LDAD = 'archive/2017/09/23/LDAD/crn/netCDF/20170923_0000.gz'
+HTTP_FILE_NAME_LDAD = (
+    'https://madis-data.ncep.noaa.gov/madisResearch/data/archive/2017/09/23/'
+    'LDAD/crn/netCDF/20170923_0000.gz')
 LOCAL_FILE_NAME_LDAD = 'madis_data/crn/201709/20170923_0000.gz'
 
-SECONDARY_DATA_SOURCE_NON_LDAD = 'maritime'
 FTP_FILE_NAME_NON_LDAD = (
     'archive/2017/09/23/point/maritime/netcdf/20170923_0000.gz')
+HTTP_FILE_NAME_NON_LDAD = (
+    'https://madis-data.ncep.noaa.gov/madisResearch/data/archive/2017/09/23/'
+    'point/maritime/netcdf/20170923_0000.gz')
 LOCAL_FILE_NAME_NON_LDAD = 'madis_data/maritime/201709/20170923_0000.gz'
 
 STATION_IDS_FOR_TABLE = ['CYEG', 'CYYC', 'CYQF', 'CYXH', 'CYQL', 'CYQU', 'CYOD',
@@ -180,27 +187,53 @@ class MadisIoTests(unittest.TestCase):
         for i in range(len(string_list)):
             self.assertTrue(string_list[i] == STRING_LIST[i])
 
-    def test_get_ftp_file_name_ldad(self):
-        """Ensures correct output from _get_ftp_file_name.
+    def test_get_online_file_name_ftp_ldad(self):
+        """Ensures correct output from _get_online_file_name.
 
-        In this case, secondary data source is CRN, which is part of the LDAD
-        (Local Data Acquisition and Dissemination) system.
+        In this case, protocol is FTP and secondary data source is CRN, which is
+        part of LDAD (Local Data Acquisition and Dissemination).
         """
 
-        this_ftp_file_name = madis_io._get_ftp_file_name(
-            UNIX_TIME_SEC, SECONDARY_DATA_SOURCE_LDAD)
+        this_ftp_file_name = madis_io._get_online_file_name(
+            unix_time_sec=UNIX_TIME_SEC,
+            secondary_source=SECONDARY_DATA_SOURCE_LDAD, protocol='ftp')
         self.assertTrue(this_ftp_file_name == FTP_FILE_NAME_LDAD)
 
-    def test_get_ftp_file_name_non_ldad(self):
-        """Ensures correct output from _get_ftp_file_name.
+    def test_get_online_file_name_ftp_non_ldad(self):
+        """Ensures correct output from _get_online_file_name.
 
-        In this case, secondary data source is maritime, which is not part of
-        LDAD.
+        In this case, protocol is FTP and secondary data source is maritime,
+        which is not part of LDAD.
         """
 
-        this_ftp_file_name = madis_io._get_ftp_file_name(
-            UNIX_TIME_SEC, SECONDARY_DATA_SOURCE_NON_LDAD)
+        this_ftp_file_name = madis_io._get_online_file_name(
+            unix_time_sec=UNIX_TIME_SEC,
+            secondary_source=SECONDARY_DATA_SOURCE_NON_LDAD, protocol='ftp')
         self.assertTrue(this_ftp_file_name == FTP_FILE_NAME_NON_LDAD)
+
+    def test_get_online_file_name_http_ldad(self):
+        """Ensures correct output from _get_online_file_name.
+
+        In this case, protocol is HTTP and secondary data source is CRN, which
+        is part of LDAD (Local Data Acquisition and Dissemination).
+        """
+
+        this_ftp_file_name = madis_io._get_online_file_name(
+            unix_time_sec=UNIX_TIME_SEC,
+            secondary_source=SECONDARY_DATA_SOURCE_LDAD, protocol='http')
+        self.assertTrue(this_ftp_file_name == HTTP_FILE_NAME_LDAD)
+
+    def test_get_online_file_name_http_non_ldad(self):
+        """Ensures correct output from _get_online_file_name.
+
+        In this case, protocol is HTTP and secondary data source is maritime,
+        which is not part of LDAD.
+        """
+
+        this_ftp_file_name = madis_io._get_online_file_name(
+            unix_time_sec=UNIX_TIME_SEC,
+            secondary_source=SECONDARY_DATA_SOURCE_NON_LDAD, protocol='http')
+        self.assertTrue(this_ftp_file_name == HTTP_FILE_NAME_NON_LDAD)
 
     def test_remove_low_quality_data_no_low_quality(self):
         """Ensures correct output from _remove_low_quality_data.
