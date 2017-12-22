@@ -8,6 +8,8 @@ from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import interp
+from gewittergefahr.gg_utils import grid_smoothing_2d
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding as rounder
@@ -16,9 +18,16 @@ from gewittergefahr.gg_utils import error_checking
 MAX_STORM_SPEED_M_S01 = 60.
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 
+GAUSSIAN_SMOOTHING_METHOD = 'gaussian'
+CRESSMAN_SMOOTHING_METHOD = 'cressman'
+VALID_SMOOTHING_METHODS = ['gaussian', 'cressman']
+
 DEFAULT_LEAD_TIME_RES_SECONDS = 60
 DEFAULT_GRID_SPACING_METRES = 1000.
+DEFAULT_GRID_SPACING_DEG = 0.01
 DEFAULT_PROB_RADIUS_FOR_GRID_METRES = 1e4
+DEFAULT_SMOOTHING_E_FOLDING_RADIUS_METRES = 5000.
+DEFAULT_SMOOTHING_CUTOFF_RADIUS_METRES = 15000.
 
 LATLNG_POLYGON_COLUMN_PREFIX = tracking_io.BUFFER_POLYGON_COLUMN_PREFIX
 XY_POLYGON_COLUMN_PREFIX = 'polygon_object_xy_buffer'
@@ -45,8 +54,27 @@ GEOGRAPHIC_BEARING_COLUMN = 'geographic_bearing_deg'
 INIT_TIME_COLUMN = 'init_time_unix_sec'
 GRID_POINTS_X_COLUMN = 'grid_points_x_metres'
 GRID_POINTS_Y_COLUMN = 'grid_points_y_metres'
-PROBABILITY_MATRIX_COLUMN = 'sparse_probability_matrix'
+GRID_POINT_LATITUDES_COLUMN = 'grid_point_latitudes_deg'
+GRID_POINT_LONGITUDES_COLUMN = 'grid_point_longitudes_deg'
+PROBABILITY_MATRIX_XY_COLUMN = 'sparse_probability_matrix_xy'
+PROBABILITY_MATRIX_LATLNG_COLUMN = 'sparse_probability_matrix_latlng'
 PROJECTION_OBJECT_COLUMN = 'projection_object'
+
+
+def _check_smoothing_method(smoothing_method):
+    """Ensures that smoothing method is valid.
+
+    :param smoothing_method: String name for smoothing method.
+    :raises: ValueError: if `smoothing_method not in VALID_SMOOTHING_METHODS`.
+    """
+
+    error_checking.assert_is_string(smoothing_method)
+    if smoothing_method not in VALID_SMOOTHING_METHODS:
+        error_string = (
+            str(VALID_SMOOTHING_METHODS) +
+            '\n\nValid smoothing methods (listed above) do not include "' +
+            smoothing_method + '".')
+        raise ValueError(error_string)
 
 
 def _column_name_to_distance_buffer(column_name):
@@ -249,8 +277,8 @@ def _create_xy_grid(storm_object_table, x_spacing_metres, y_spacing_metres,
                     max_lead_time_sec):
     """Creates x-y grid encompassing all storm objects.
 
-    M = number of grid rows (unique grid-point latitudes)
-    N = number of grid columns (unique grid-point longitudes)
+    M = number of grid rows (unique grid-point y-coordinates)
+    N = number of grid columns (unique grid-point x-coordinates)
 
     :param storm_object_table: pandas DataFrame.  Each row contains the polygons
         and forecast probabilities for distance buffers around one storm object.
@@ -314,6 +342,132 @@ def _create_xy_grid(storm_object_table, x_spacing_metres, y_spacing_metres,
         x_min_metres=x_min_metres, y_min_metres=y_min_metres,
         x_spacing_metres=x_spacing_metres, y_spacing_metres=y_spacing_metres,
         num_rows=num_rows, num_columns=num_columns)
+
+
+def _create_latlng_grid(
+        grid_points_x_metres, grid_points_y_metres, projection_object,
+        latitude_spacing_deg, longitude_spacing_deg):
+    """Creates a lat-long grid encompassing the original x-y grid.
+
+    M_xy = number of rows (unique grid-point y-coordinates) in original grid
+    N_xy = number of columns (unique grid-point x-coordinates) in original grid
+    M_ll = number of rows (unique grid-point latitudes) in new grid
+    N_ll = number of columns (unique grid-point longitudes) in new grid
+
+    :param grid_points_x_metres: numpy array (length N_xy) with x-coordinates of
+        original grid points.
+    :param grid_points_y_metres: numpy array (length M_xy) with y-coordinates of
+        original grid points.
+    :param projection_object: Instance of `pyproj.Proj` (used to convert from
+        x-y to lat-long coordinates).
+    :param latitude_spacing_deg: Spacing between latitudinally adjacent grid
+        points (i.e., between adjacent rows).
+    :param longitude_spacing_deg: Spacing between longitudinally adjacent grid
+        points (i.e., between adjacent columns).
+    :return: grid_point_latitudes_deg: numpy array (length M_ll) with latitudes
+        (deg N) of new grid points.
+    :return: grid_point_longitudes_deg: numpy array (length N_ll) with
+        longitudes (deg E) of new grid points.
+    """
+
+    grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
+        grids.xy_vectors_to_matrices(grid_points_x_metres,
+                                     grid_points_y_metres))
+
+    latitude_matrix_deg, longitude_matrix_deg = (
+        projections.project_xy_to_latlng(
+            grid_point_x_matrix_metres, grid_point_y_matrix_metres,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    min_latitude_deg = rounder.floor_to_nearest(
+        numpy.min(latitude_matrix_deg), latitude_spacing_deg)
+    max_latitude_deg = rounder.ceiling_to_nearest(
+        numpy.max(latitude_matrix_deg), latitude_spacing_deg)
+    min_longitude_deg = rounder.floor_to_nearest(
+        numpy.min(longitude_matrix_deg), longitude_spacing_deg)
+    max_longitude_deg = rounder.ceiling_to_nearest(
+        numpy.max(longitude_matrix_deg), longitude_spacing_deg)
+
+    num_rows = 1 + int(numpy.round(
+        (max_latitude_deg - min_latitude_deg) / latitude_spacing_deg))
+    num_columns = 1 + int(numpy.round(
+        (max_longitude_deg - min_longitude_deg) / longitude_spacing_deg))
+
+    return grids.get_latlng_grid_points(
+        min_latitude_deg=min_latitude_deg, min_longitude_deg=min_longitude_deg,
+        lat_spacing_deg=latitude_spacing_deg,
+        lng_spacing_deg=longitude_spacing_deg, num_rows=num_rows,
+        num_columns=num_columns)
+
+
+def _interp_probabilities_to_latlng_grid(
+        probability_matrix_xy, grid_points_x_metres, grid_points_y_metres,
+        projection_object, latitude_spacing_deg, longitude_spacing_deg):
+    """Interpolates forecast probabilities from x-y to lat-long grid.
+
+    M_xy = number of rows (unique grid-point y-coordinates) in original grid
+    N_xy = number of columns (unique grid-point x-coordinates) in original grid
+    M_ll = number of rows (unique grid-point latitudes) in new grid
+    N_ll = number of columns (unique grid-point longitudes) in new grid
+
+    :param probability_matrix_xy: numpy array (M_xy by N_xy) of forecast
+        probabilities on original grid.
+    :param grid_points_x_metres: numpy array (length N_xy) with x-coordinates of
+        original grid points.
+    :param grid_points_y_metres: numpy array (length M_xy) with y-coordinates of
+        original grid points.
+    :param projection_object: Instance of `pyproj.Proj` (used to convert from
+        x-y to lat-long coordinates).
+    :param latitude_spacing_deg: Spacing between latitudinally adjacent grid
+        points (i.e., between adjacent rows).
+    :param longitude_spacing_deg: Spacing between longitudinally adjacent grid
+        points (i.e., between adjacent columns).
+    :return: probability_matrix_latlng: numpy array (M_ll by N_ll) of forecast
+        probabilities on new grid.
+    :return: grid_point_latitudes_deg: numpy array (length M_ll) with latitudes
+        (deg N) of new grid points.
+    :return: grid_point_longitudes_deg: numpy array (length N_ll) with
+        longitudes (deg E) of new grid points.
+    """
+
+    grid_point_latitudes_deg, grid_point_longitudes_deg = _create_latlng_grid(
+        grid_points_x_metres=grid_points_x_metres,
+        grid_points_y_metres=grid_points_y_metres,
+        projection_object=projection_object,
+        latitude_spacing_deg=latitude_spacing_deg,
+        longitude_spacing_deg=longitude_spacing_deg)
+
+    grid_point_lat_matrix_deg, grid_point_lng_matrix_deg = (
+        grids.latlng_vectors_to_matrices(grid_point_latitudes_deg,
+                                         grid_point_longitudes_deg))
+
+    latlng_grid_x_matrix_metres, latlng_grid_y_matrix_metres = (
+        projections.project_latlng_to_xy(
+            grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    num_latlng_grid_rows = len(grid_point_latitudes_deg)
+    num_latlng_grid_columns = len(grid_point_longitudes_deg)
+    num_latlng_grid_points = num_latlng_grid_rows * num_latlng_grid_columns
+    latlng_grid_x_vector_metres = numpy.reshape(
+        latlng_grid_x_matrix_metres, num_latlng_grid_points)
+    latlng_grid_y_vector_metres = numpy.reshape(
+        latlng_grid_y_matrix_metres, num_latlng_grid_points)
+
+    probability_vector_latlng = interp.interp_from_xy_grid_to_points(
+        probability_matrix_xy, sorted_grid_point_x_metres=grid_points_x_metres,
+        sorted_grid_point_y_metres=grid_points_y_metres,
+        query_x_metres=latlng_grid_x_vector_metres,
+        query_y_metres=latlng_grid_y_vector_metres,
+        method_string=interp.NEAREST_INTERP_METHOD, allow_extrap=True)
+
+    probability_matrix_latlng = numpy.reshape(
+        probability_vector_latlng,
+        (num_latlng_grid_rows, num_latlng_grid_columns))
+    return (probability_matrix_latlng, grid_point_latitudes_deg,
+            grid_point_longitudes_deg)
 
 
 def _normalize_probs_by_polygon_area(
@@ -785,7 +939,14 @@ def create_forecast_grids(
         lead_time_resolution_sec=DEFAULT_LEAD_TIME_RES_SECONDS,
         grid_spacing_x_metres=DEFAULT_GRID_SPACING_METRES,
         grid_spacing_y_metres=DEFAULT_GRID_SPACING_METRES,
-        prob_radius_for_grid_metres=DEFAULT_PROB_RADIUS_FOR_GRID_METRES):
+        interp_to_latlng_grid=True,
+        latitude_spacing_deg=DEFAULT_GRID_SPACING_DEG,
+        longitude_spacing_deg=DEFAULT_GRID_SPACING_DEG,
+        prob_radius_for_grid_metres=DEFAULT_PROB_RADIUS_FOR_GRID_METRES,
+        smoothing_method=None,
+        smoothing_e_folding_radius_metres=
+        DEFAULT_SMOOTHING_E_FOLDING_RADIUS_METRES,
+        smoothing_cutoff_radius_metres=DEFAULT_SMOOTHING_CUTOFF_RADIUS_METRES):
     """For each time with at least one storm object, creates grid of fcst probs.
 
     T = number of times with at least one storm object
@@ -831,9 +992,25 @@ def create_forecast_grids(
         x-direction (i.e., between adjacent columns).
     :param grid_spacing_y_metres: Spacing between adjacent grid points in
         y-direction (i.e., between adjacent rows).
+    :param interp_to_latlng_grid: Boolean flag.  If True, the probability field
+        for each initial time will be saved as both an x-y grid and a lat-long
+        grid.
+    :param latitude_spacing_deg: Spacing between meridionally adjacent grid
+        points (i.e., between adjacent rows).
+    :param longitude_spacing_deg: Spacing between zonally adjacent grid points
+        (i.e., between adjacent columns).
     :param prob_radius_for_grid_metres: Effective radius for gridded
         probabilities.  For example, if the gridded value is "probability within
         10 km of a point," this should be 10 000.
+    :param smoothing_method: Smoothing method.  For each initial time, smoother
+        will be applied to the final forecast probability field.  Valid options
+        are "gaussian", "cressman", and None.
+    :param smoothing_e_folding_radius_metres: e-folding radius for Gaussian
+        smoother.  See documentation for `grid_smoothing_2d.apply_gaussian`.
+    :param smoothing_cutoff_radius_metres: Cutoff radius for Gaussian or
+        Cressman smoother.  See documentation for
+        `grid_smoothing_2d.apply_gaussian` or
+        `grid_smoothing_2d.apply_cressman`.
     :return: gridded_forecast_table: pandas DataFrame with columns listed below.
         Each row corresponds to one forecast-initialization time.
     gridded_forecast_table.init_time_unix_sec: Forecast-init time.
@@ -855,7 +1032,10 @@ def create_forecast_grids(
     error_checking.assert_is_greater(max_lead_time_sec, min_lead_time_sec)
     error_checking.assert_is_integer(lead_time_resolution_sec)
     error_checking.assert_is_greater(lead_time_resolution_sec, 0)
+    error_checking.assert_is_boolean(interp_to_latlng_grid)
     error_checking.assert_is_greater(prob_radius_for_grid_metres, 0.)
+    if smoothing_method is not None:
+        _check_smoothing_method(smoothing_method)
 
     num_lead_times = 1 + int(numpy.round(
         float(max_lead_time_sec - min_lead_time_sec) /
@@ -914,8 +1094,14 @@ def create_forecast_grids(
 
     argument_dict = {GRID_POINTS_X_COLUMN: nested_array,
                      GRID_POINTS_Y_COLUMN: nested_array,
-                     PROBABILITY_MATRIX_COLUMN: nested_array,
+                     PROBABILITY_MATRIX_XY_COLUMN: nested_array,
                      PROJECTION_OBJECT_COLUMN: object_array}
+
+    if interp_to_latlng_grid:
+        argument_dict.update({GRID_POINT_LATITUDES_COLUMN: nested_array,
+                              GRID_POINT_LONGITUDES_COLUMN: nested_array,
+                              PROBABILITY_MATRIX_LATLNG_COLUMN: nested_array})
+
     gridded_forecast_table = gridded_forecast_table.assign(**argument_dict)
 
     for i in range(num_init_times):
@@ -948,7 +1134,7 @@ def create_forecast_grids(
 
         this_num_grid_rows = len(these_grid_point_y_metres)
         this_num_grid_columns = len(these_grid_point_x_metres)
-        this_probability_matrix = numpy.full(
+        this_probability_matrix_xy = numpy.full(
             (this_num_grid_rows, this_num_grid_columns), 0.)
         this_num_forecast_matrix = numpy.full(
             (this_num_grid_rows, this_num_grid_columns), 0, dtype=int)
@@ -975,15 +1161,55 @@ def create_forecast_grids(
 
                     this_num_forecast_matrix[
                         these_rows_in_polygon, these_columns_in_polygon] += 1
-                    this_probability_matrix[
+                    this_probability_matrix_xy[
                         these_rows_in_polygon, these_columns_in_polygon] = (
-                            this_probability_matrix[
+                            this_probability_matrix_xy[
                                 these_rows_in_polygon, these_columns_in_polygon]
                             + this_storm_object_table[
                                 buffer_forecast_columns[j]].values[k])
 
-        print 'Creating final forecast grid for initial time {0:s}...'.format(
-            init_time_strings[i])
+        this_probability_matrix_xy = (
+            this_probability_matrix_xy / this_num_forecast_matrix)
+
+        if smoothing_method is not None:
+            print 'Smoothing forecast grid for initial time {0:s}...'.format(
+                init_time_strings[i])
+
+            if smoothing_method == GAUSSIAN_SMOOTHING_METHOD:
+                this_probability_matrix_xy = grid_smoothing_2d.apply_gaussian(
+                    this_probability_matrix_xy,
+                    grid_spacing_x=grid_spacing_x_metres,
+                    grid_spacing_y=grid_spacing_y_metres,
+                    e_folding_radius=smoothing_e_folding_radius_metres,
+                    cutoff_radius=smoothing_cutoff_radius_metres)
+
+            elif smoothing_method == CRESSMAN_SMOOTHING_METHOD:
+                this_probability_matrix_xy = grid_smoothing_2d.apply_cressman(
+                    this_probability_matrix_xy,
+                    grid_spacing_x=grid_spacing_x_metres,
+                    grid_spacing_y=grid_spacing_y_metres,
+                    cutoff_radius=smoothing_cutoff_radius_metres)
+
+        if interp_to_latlng_grid:
+            print ('Interpolating forecast to lat-long grid for initial time '
+                   '{0:s}...').format(init_time_strings[i])
+
+            (this_probability_matrix_latlng,
+             gridded_forecast_table[GRID_POINT_LATITUDES_COLUMN].values[i],
+             gridded_forecast_table[GRID_POINT_LONGITUDES_COLUMN].values[i]) = (
+                 _interp_probabilities_to_latlng_grid(
+                     this_probability_matrix_xy,
+                     grid_points_x_metres=these_grid_point_x_metres,
+                     grid_points_y_metres=these_grid_point_y_metres,
+                     projection_object=this_projection_object,
+                     latitude_spacing_deg=latitude_spacing_deg,
+                     longitude_spacing_deg=longitude_spacing_deg))
+
+            gridded_forecast_table[PROBABILITY_MATRIX_LATLNG_COLUMN].values[
+                i] = scipy.sparse.csr_matrix(this_probability_matrix_latlng)
+
+        print ('Creating final forecast grid for initial time '
+               '{0:s}...').format(init_time_strings[i])
 
         gridded_forecast_table[
             GRID_POINTS_X_COLUMN].values[i] = these_grid_point_x_metres
@@ -991,8 +1217,7 @@ def create_forecast_grids(
             GRID_POINTS_Y_COLUMN].values[i] = these_grid_point_y_metres
         gridded_forecast_table[
             PROJECTION_OBJECT_COLUMN].values[i] = this_projection_object
-        gridded_forecast_table[PROBABILITY_MATRIX_COLUMN].values[i] = (
-            scipy.sparse.csr_matrix(
-                this_probability_matrix / this_num_forecast_matrix))
+        gridded_forecast_table[PROBABILITY_MATRIX_XY_COLUMN].values[i] = (
+            scipy.sparse.csr_matrix(this_probability_matrix_xy))
 
     return gridded_forecast_table

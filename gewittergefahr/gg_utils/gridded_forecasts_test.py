@@ -5,6 +5,7 @@ import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import gridded_forecasts
 
 TOLERANCE = 1e-6
@@ -87,6 +88,20 @@ GRID_POINTS_X_METRES = numpy.array(
      70.])
 GRID_POINTS_Y_METRES = numpy.array(
     [-90., -75., -60., -45., -30., -15., 0., 15., 30., 45., 60., 75., 90.])
+
+# The following constants are used to test _create_latlng_grid.
+PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(
+    central_latitude_deg=35., central_longitude_deg=265.)
+GRID_LAT_SPACING_DEG = 0.0002
+GRID_LNG_SPACING_DEG = 0.0001
+
+GRID_POINT_LATITUDES_DEG = numpy.array(
+    [34.999, 34.9992, 34.9994, 34.9996, 34.9998, 35., 35.0002, 35.0004, 35.0006,
+     35.0008, 35.001])
+GRID_POINT_LONGITUDES_DEG = numpy.array(
+    [264.9992, 264.9993, 264.9994, 264.9995, 264.9996, 264.9997, 264.9998,
+     264.9999, 265., 265.0001, 265.0002, 265.0003, 265.0004, 265.0005, 265.0006,
+     265.0007, 265.0008])
 
 # The following constants are used to test _find_grid_points_in_polygon.
 GRID_SPACING_FOR_PIP_X_METRES = 2.
@@ -603,6 +618,22 @@ class GriddedForecastsTests(unittest.TestCase):
             these_x_metres, GRID_POINTS_X_METRES, atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
             these_y_metres, GRID_POINTS_Y_METRES, atol=TOLERANCE))
+
+    def test_create_latlng_grid(self):
+        """Ensures correct output from _create_latlng_grid."""
+
+        these_latitudes_deg, these_longitudes_deg = (
+            gridded_forecasts._create_latlng_grid(
+                grid_points_x_metres=GRID_POINTS_X_METRES,
+                grid_points_y_metres=GRID_POINTS_Y_METRES,
+                projection_object=PROJECTION_OBJECT,
+                latitude_spacing_deg=GRID_LAT_SPACING_DEG,
+                longitude_spacing_deg=GRID_LNG_SPACING_DEG))
+
+        self.assertTrue(numpy.allclose(
+            these_latitudes_deg, GRID_POINT_LATITUDES_DEG, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_longitudes_deg, GRID_POINT_LONGITUDES_DEG, atol=TOLERANCE))
 
     def test_normalize_probs_by_polygon_area(self):
         """Ensures correct output from _normalize_probs_by_polygon_area."""
