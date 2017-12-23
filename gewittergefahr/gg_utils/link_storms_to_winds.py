@@ -723,11 +723,13 @@ def _read_storm_tracks(tracking_file_names):
             list_of_storm_object_tables[i] = tracking_io.read_processed_file(
                 tracking_file_names[i])
 
-            distance_buffer_column_names = (
-                tracking_io.get_distance_buffer_columns(
-                    list_of_storm_object_tables[i]))
+            distance_buffer_columns = tracking_io.get_distance_buffer_columns(
+                list_of_storm_object_tables[i])
+            if distance_buffer_columns is None:
+                distance_buffer_columns = []
+
             columns_to_read = (
-                REQUIRED_STORM_COLUMNS + distance_buffer_column_names)
+                REQUIRED_STORM_COLUMNS + distance_buffer_columns)
             list_of_storm_object_tables[i] = list_of_storm_object_tables[i][
                 columns_to_read]
         else:
@@ -809,11 +811,11 @@ def get_columns_to_write(storm_to_winds_table):
     :return: columns_to_write: 1-D list with names of columns to write.
     """
 
-    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+    distance_buffer_columns = tracking_io.get_distance_buffer_columns(
         storm_to_winds_table)
-    if distance_buffer_column_names is None:
-        distance_buffer_column_names = []
-    return REQUIRED_COLUMNS_TO_WRITE + distance_buffer_column_names
+    if distance_buffer_columns is None:
+        distance_buffer_columns = []
+    return REQUIRED_COLUMNS_TO_WRITE + distance_buffer_columns
 
 
 def link_each_storm_to_winds(
