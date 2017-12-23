@@ -65,7 +65,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import classification_utils as classifn_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.linkage import storm_to_winds
+from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
 
 TOLERANCE = 1e-6
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
@@ -76,7 +76,7 @@ TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
 STORM_TO_WIND_COLUMNS_TO_KEEP = [
     tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, storm_to_winds.END_TIME_COLUMN,
+    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, storms_to_winds.END_TIME_COLUMN,
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
 COLUMNS_TO_MERGE_ON = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 INPUT_COLUMNS_TO_MAKE_BUFFERS = (
@@ -127,7 +127,7 @@ def _find_live_and_dead_storms(feature_table):
     min_lead_time_sec = label_parameter_dict[labels.MIN_LEAD_TIME_NAME]
 
     remaining_storm_lifetimes_sec = (
-        feature_table[storm_to_winds.END_TIME_COLUMN].values -
+        feature_table[storms_to_winds.END_TIME_COLUMN].values -
         feature_table[tracking_io.TIME_COLUMN].values)
     live_flags = remaining_storm_lifetimes_sec >= min_lead_time_sec
 
@@ -469,7 +469,7 @@ def join_features_and_label_for_storm_objects(
         Columns are documented in
         `soundings.write_sounding_stats_for_storm_objects`.
     :param storm_to_winds_table: pandas DataFrame with labels.  Columns are
-        documented in `storm_to_winds.write_storm_to_winds_table`.
+        documented in `link_storms_to_winds.write_storm_to_winds_table`.
     :param label_column_name: Name of label (in storm_to_winds_table) to be
         joined with the other tables.
     :return: feature_table: pandas DataFrame containing all columns with radar

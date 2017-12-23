@@ -3,7 +3,7 @@
 --- DEFINITIONS ---
 
 Linkage = association of a storm cell with other phenomena (e.g., wind
-observations).  See package `gewittergefahr.linkage`.
+observations).  See link_storms_to_winds.py.
 """
 
 import numpy
@@ -12,7 +12,7 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import wind_plotting
-from gewittergefahr.linkage import storm_to_winds
+from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
 
 
 def plot_one_storm_cell_to_winds(
@@ -28,7 +28,7 @@ def plot_one_storm_cell_to_winds(
     """Plots wind observations linked to one storm cell.
 
     :param storm_to_winds_table: pandas DataFrame with columns documented in
-        `storm_to_winds.write_storm_to_winds_table`.
+        `link_storms_to_winds.write_storm_to_winds_table`.
     :param storm_id: String ID for storm cell.  Only this storm cell and wind
         observations linked thereto will be plotted.
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -106,16 +106,16 @@ def plot_one_storm_cell_to_winds(
     for this_row in storm_cell_rows:
         wind_latitudes_deg = numpy.concatenate((
             wind_latitudes_deg, storm_to_winds_table[
-                storm_to_winds.WIND_LATITUDES_COLUMN].values[this_row]))
+                storms_to_winds.WIND_LATITUDES_COLUMN].values[this_row]))
         wind_longitudes_deg = numpy.concatenate((
             wind_longitudes_deg, storm_to_winds_table[
-                storm_to_winds.WIND_LONGITUDES_COLUMN].values[this_row]))
+                storms_to_winds.WIND_LONGITUDES_COLUMN].values[this_row]))
         u_winds_m_s01 = numpy.concatenate((
             u_winds_m_s01, storm_to_winds_table[
-                storm_to_winds.U_WINDS_COLUMN].values[this_row]))
+                storms_to_winds.U_WINDS_COLUMN].values[this_row]))
         v_winds_m_s01 = numpy.concatenate((
             v_winds_m_s01, storm_to_winds_table[
-                storm_to_winds.V_WINDS_COLUMN].values[this_row]))
+                storms_to_winds.V_WINDS_COLUMN].values[this_row]))
 
     wind_plotting.plot_wind_barbs(
         basemap_object=basemap_object, axes_object=axes_object,
