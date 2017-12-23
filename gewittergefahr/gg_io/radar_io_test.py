@@ -13,7 +13,7 @@ LL_SHEAR_NAME_MRMS = radar_io.LOW_LEVEL_SHEAR_NAME_MRMS
 LL_SHEAR_NAME_NEW = radar_io.LOW_LEVEL_SHEAR_NAME
 LL_SHEAR_NAME_NEW_FAKE = 'poop'
 
-# The following constants are used to test _get_valid_heights_for_field.
+# The following constants are used to test get_valid_heights_for_field.
 SHEAR_HEIGHTS_M_AGL = numpy.array([0])
 NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array([250])
 NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([500])
@@ -253,58 +253,58 @@ class RadarIoTests(unittest.TestCase):
         self.assertTrue(this_field_name_mrms == LL_SHEAR_NAME_MRMS)
 
     def test_get_valid_heights_for_field_shear_myrorss(self):
-        """Ensures correct output from _get_valid_heights_for_field.
+        """Ensures correct output from get_valid_heights_for_field.
 
         In this case, the field is azimuthal shear in MYRORSS.
         """
 
-        these_valid_heights_m_agl = radar_io._get_valid_heights_for_field(
+        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
             radar_io.MID_LEVEL_SHEAR_NAME,
             data_source=radar_io.MYRORSS_SOURCE_ID)
         self.assertTrue(
             numpy.array_equal(these_valid_heights_m_agl, SHEAR_HEIGHTS_M_AGL))
 
     def test_get_valid_heights_for_field_shear_mrms(self):
-        """Ensures correct output from _get_valid_heights_for_field.
+        """Ensures correct output from get_valid_heights_for_field.
 
         In this case, the field is azimuthal shear in MRMS.
         """
 
-        these_valid_heights_m_agl = radar_io._get_valid_heights_for_field(
+        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
             radar_io.MID_LEVEL_SHEAR_NAME, data_source=radar_io.MRMS_SOURCE_ID)
         self.assertTrue(
             numpy.array_equal(these_valid_heights_m_agl, SHEAR_HEIGHTS_M_AGL))
 
     def test_get_valid_heights_for_field_non_shear_myrorss(self):
-        """Ensures correct output from _get_valid_heights_for_field.
+        """Ensures correct output from get_valid_heights_for_field.
 
         In this case, the field is a non-shear field in MYRORSS.
         """
 
-        these_valid_heights_m_agl = radar_io._get_valid_heights_for_field(
+        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
             radar_io.REFL_M10CELSIUS_NAME,
             data_source=radar_io.MYRORSS_SOURCE_ID)
         self.assertTrue(numpy.array_equal(these_valid_heights_m_agl,
                                           NON_SHEAR_HEIGHTS_MYRORSS_M_AGL))
 
     def test_get_valid_heights_for_field_non_shear_mrms(self):
-        """Ensures correct output from _get_valid_heights_for_field.
+        """Ensures correct output from get_valid_heights_for_field.
 
         In this case, the field is a non-shear field in MRMS.
         """
 
-        these_valid_heights_m_agl = radar_io._get_valid_heights_for_field(
+        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
             radar_io.REFL_M10CELSIUS_NAME, data_source=radar_io.MRMS_SOURCE_ID)
         self.assertTrue(numpy.array_equal(these_valid_heights_m_agl,
                                           NON_SHEAR_HEIGHTS_MRMS_M_AGL))
 
     def test_get_valid_heights_for_field_reflectivity(self):
-        """Ensures correct output from _get_valid_heights_for_field.
+        """Ensures correct output from get_valid_heights_for_field.
 
         In this case, the field is simple reflectivity.
         """
 
-        these_valid_heights_m_agl = radar_io._get_valid_heights_for_field(
+        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
             radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
         self.assertTrue(len(these_valid_heights_m_agl) > 1)
 

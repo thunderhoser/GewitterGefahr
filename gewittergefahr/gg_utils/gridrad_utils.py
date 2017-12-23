@@ -51,68 +51,6 @@ def _get_field_name_for_echo_tops(critical_reflectivity_dbz,
         '18', '{0:.1f}'.format(critical_reflectivity_dbz))
 
 
-def _get_echo_top_single_column(
-        reflectivities_dbz=None, heights_m_asl=None,
-        critical_reflectivity_dbz=None):
-    """Finds echo top for a single column (horizontal location).
-
-    "Echo top" = maximum height with reflectivity >= critical value.
-
-    H = number of heights
-
-    :param reflectivities_dbz: length-H numpy array of reflectivities.
-    :param heights_m_asl: length-H numpy array of heights (metres above sea
-        level).  This method assumes that heights are sorted in ascending order.
-    :param critical_reflectivity_dbz: Critical reflectivity.
-    :return: echo_top_m_asl: Echo top.
-    """
-
-    critical_indices = numpy.where(
-        reflectivities_dbz >= critical_reflectivity_dbz)[0]
-    if len(critical_indices) == 0:
-        return numpy.nan
-
-    highest_critical_index = critical_indices[-1]
-    subcritical_indices = numpy.where(
-        reflectivities_dbz < critical_reflectivity_dbz)[0]
-    subcritical_indices = subcritical_indices[
-        subcritical_indices > highest_critical_index]
-
-    if len(subcritical_indices) == 0:
-        try:
-            height_spacing_metres = (
-                heights_m_asl[highest_critical_index + 1] -
-                heights_m_asl[highest_critical_index])
-        except IndexError:
-            height_spacing_metres = (
-                heights_m_asl[highest_critical_index] -
-                heights_m_asl[highest_critical_index - 1])
-
-        extrap_height_metres = height_spacing_metres * (
-            1. - critical_reflectivity_dbz /
-            reflectivities_dbz[highest_critical_index])
-        return heights_m_asl[highest_critical_index] + extrap_height_metres
-
-    adjacent_subcritical_index = subcritical_indices[0]
-    indices_for_interp = numpy.array(
-        [highest_critical_index, adjacent_subcritical_index], dtype=int)
-
-    # if len(critical_indices) > 1:
-    #     adjacent_critical_index = critical_indices[-2]
-    #     indices_for_interp = numpy.array(
-    #         [adjacent_critical_index, highest_critical_index,
-    #          adjacent_subcritical_index], dtype=int)
-    # else:
-    #     indices_for_interp = numpy.array(
-    #         [highest_critical_index, adjacent_subcritical_index], dtype=int)
-
-    interp_object = scipy.interpolate.interp1d(
-        reflectivities_dbz[indices_for_interp],
-        heights_m_asl[indices_for_interp], kind='linear', bounds_error=False,
-        fill_value='extrapolate', assume_sorted=False)
-    return interp_object(critical_reflectivity_dbz)
-
-
 def interp_temperature_sfc_from_nwp(
         radar_grid_point_lats_deg=None, radar_grid_point_lngs_deg=None,
         unix_time_sec=None, temperature_kelvins=None, model_name=None,
@@ -258,6 +196,85 @@ def get_column_max_reflectivity(reflectivity_matrix_dbz):
     return numpy.nanmax(reflectivity_matrix_dbz, axis=0)
 
 
+def get_echo_top_single_column(
+        reflectivities_dbz, heights_m_asl, critical_reflectivity_dbz,
+        check_args=False):
+    """Finds echo top for a single column (horizontal location).
+
+    "Echo top" = maximum height with reflectivity >= critical value.
+
+    H = number of heights
+
+    :param reflectivities_dbz: length-H numpy array of reflectivities.
+    :param heights_m_asl: length-H numpy array of heights (metres above sea
+        level).  This method assumes that heights are sorted in ascending order.
+    :param critical_reflectivity_dbz: Critical reflectivity.
+    :param check_args: Boolean flag.  If True, will check input arguments for
+        errors.
+    :return: echo_top_m_asl: Echo top.
+    """
+
+    # TODO(thunderhoser): Move this to radar_utils.py.
+
+    error_checking.assert_is_boolean(check_args)
+    if check_args:
+        error_checking.assert_is_real_numpy_array(reflectivities_dbz)
+        error_checking.assert_is_numpy_array(
+            reflectivities_dbz, num_dimensions=1)
+
+        num_heights = len(reflectivities_dbz)
+        error_checking.assert_is_geq_numpy_array(heights_m_asl, 0.)
+        error_checking.assert_is_numpy_array(
+            heights_m_asl, exact_dimensions=numpy.array([num_heights]))
+
+        error_checking.assert_is_greater(critical_reflectivity_dbz, 0.)
+
+    critical_indices = numpy.where(
+        reflectivities_dbz >= critical_reflectivity_dbz)[0]
+    if len(critical_indices) == 0:
+        return numpy.nan
+
+    highest_critical_index = critical_indices[-1]
+    subcritical_indices = numpy.where(
+        reflectivities_dbz < critical_reflectivity_dbz)[0]
+    subcritical_indices = subcritical_indices[
+        subcritical_indices > highest_critical_index]
+
+    if len(subcritical_indices) == 0:
+        try:
+            height_spacing_metres = (
+                heights_m_asl[highest_critical_index + 1] -
+                heights_m_asl[highest_critical_index])
+        except IndexError:
+            height_spacing_metres = (
+                heights_m_asl[highest_critical_index] -
+                heights_m_asl[highest_critical_index - 1])
+
+        extrap_height_metres = height_spacing_metres * (
+            1. - critical_reflectivity_dbz /
+            reflectivities_dbz[highest_critical_index])
+        return heights_m_asl[highest_critical_index] + extrap_height_metres
+
+    adjacent_subcritical_index = subcritical_indices[0]
+    indices_for_interp = numpy.array(
+        [highest_critical_index, adjacent_subcritical_index], dtype=int)
+
+    # if len(critical_indices) > 1:
+    #     adjacent_critical_index = critical_indices[-2]
+    #     indices_for_interp = numpy.array(
+    #         [adjacent_critical_index, highest_critical_index,
+    #          adjacent_subcritical_index], dtype=int)
+    # else:
+    #     indices_for_interp = numpy.array(
+    #         [highest_critical_index, adjacent_subcritical_index], dtype=int)
+
+    interp_object = scipy.interpolate.interp1d(
+        reflectivities_dbz[indices_for_interp],
+        heights_m_asl[indices_for_interp], kind='linear', bounds_error=False,
+        fill_value='extrapolate', assume_sorted=False)
+    return interp_object(critical_reflectivity_dbz)
+
+
 def get_echo_tops(
         reflectivity_matrix_dbz=None, unique_grid_point_heights_m_asl=None,
         critical_reflectivity_dbz=None):
@@ -306,10 +323,11 @@ def get_echo_tops(
         (num_grid_rows, num_grid_columns), numpy.nan)
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
-            echo_top_matrix_m_asl[i, j] = _get_echo_top_single_column(
+            echo_top_matrix_m_asl[i, j] = get_echo_top_single_column(
                 reflectivities_dbz=reflectivity_matrix_dbz[:, i, j],
                 heights_m_asl=unique_grid_point_heights_m_asl,
-                critical_reflectivity_dbz=critical_reflectivity_dbz)
+                critical_reflectivity_dbz=critical_reflectivity_dbz,
+                check_args=False)
 
     return echo_top_matrix_m_asl
 
