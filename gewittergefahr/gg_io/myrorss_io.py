@@ -36,6 +36,7 @@ def unzip_1day_tar_file(
     error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
         numpy.asarray(field_names), num_dimensions=1)
+    error_checking.assert_is_string(top_target_directory_name)
 
     # Put ignorable radar fields (ones that are allowed to be missing) at the
     # end.  This way, if the tar command errors out due to missing data, it will
@@ -53,10 +54,8 @@ def unzip_1day_tar_file(
         field_names, refl_heights_m_agl=refl_heights_m_agl,
         data_source=radar_io.MYRORSS_SOURCE_ID)
 
-    error_checking.assert_is_string(top_target_directory_name)
     target_directory_name = '{0:s}/{1:s}'.format(
         top_target_directory_name, spc_date_string)
-
     field_names = field_to_heights_dict_m_agl.keys()
     directory_names_to_unzip = []
 
