@@ -247,8 +247,6 @@ def _get_pathless_raw_file_pattern(unix_time_sec):
     :return: pathless_raw_file_pattern: Pattern for pathless name of raw file.
     """
 
-    # TODO(thunderhoser): needs unit tests.
-
     return '{0:s}*{1:s}*'.format(
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MINUTES),
         UNZIPPED_FILE_EXTENSION)
@@ -536,22 +534,22 @@ def find_raw_azimuthal_shear_file(
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    # TODO(thunderhoser): this needs to be cleaned up and unit-tested.
-
     error_checking.assert_is_integer(desired_time_unix_sec)
     error_checking.assert_is_integer(max_time_offset_sec)
     error_checking.assert_is_greater(max_time_offset_sec, 0)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    first_allowed_minute_unix_sec = rounder.floor_to_nearest(
-        float(desired_time_unix_sec - max_time_offset_sec), MINUTES_TO_SECONDS)
-    last_allowed_minute_unix_sec = rounder.floor_to_nearest(
-        float(desired_time_unix_sec + max_time_offset_sec), MINUTES_TO_SECONDS)
+    first_allowed_minute_unix_sec = numpy.round(int(rounder.floor_to_nearest(
+        float(desired_time_unix_sec - max_time_offset_sec),
+        MINUTES_TO_SECONDS)))
+    last_allowed_minute_unix_sec = numpy.round(int(rounder.floor_to_nearest(
+        float(desired_time_unix_sec + max_time_offset_sec),
+        MINUTES_TO_SECONDS)))
+
     allowed_minutes_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=numpy.round(int(first_allowed_minute_unix_sec)),
-        end_time_unix_sec=numpy.round(int(last_allowed_minute_unix_sec)),
-        time_interval_sec=MINUTES_TO_SECONDS, include_endpoint=True)
-    allowed_minutes_unix_sec = allowed_minutes_unix_sec.astype(int)
+        start_time_unix_sec=first_allowed_minute_unix_sec,
+        end_time_unix_sec=last_allowed_minute_unix_sec,
+        time_interval_sec=MINUTES_TO_SECONDS, include_endpoint=True).astype(int)
 
     spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     relative_directory_name = get_relative_dir_for_raw_files(
@@ -564,7 +562,6 @@ def find_raw_azimuthal_shear_file(
         this_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
             top_directory_name, spc_date_string, relative_directory_name,
             this_pathless_file_pattern)
-        print this_file_pattern
         raw_file_names += glob.glob(this_file_pattern)
 
     file_times_unix_sec = []
