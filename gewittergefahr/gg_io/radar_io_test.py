@@ -14,9 +14,10 @@ LL_SHEAR_NAME_NEW = radar_io.LOW_LEVEL_SHEAR_NAME
 LL_SHEAR_NAME_NEW_FAKE = 'poop'
 
 # The following constants are used to test get_valid_heights_for_field.
-SHEAR_HEIGHTS_M_AGL = numpy.array([0])
-NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array([250])
-NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([500])
+SHEAR_HEIGHTS_M_AGL = numpy.array([radar_io.SHEAR_HEIGHT_M_AGL])
+NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
+NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
 
 # The following constants are used to test _check_reflectivity_heights.
 REFL_HEIGHTS_M_AGL = numpy.array([500, 1000, 2000, 3000, 5000, 10000])
@@ -37,12 +38,12 @@ UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL = numpy.array(
 
 FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL = {
     'echo_top_50dbz_km': numpy.array([250]),
-    'low_level_shear_s01': numpy.array([0]),
+    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
     'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
     'reflectivity_column_max_dbz': numpy.array([250])}
 FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL = {
     'echo_top_50dbz_km': numpy.array([500]),
-    'low_level_shear_s01': numpy.array([0]),
+    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
     'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
     'reflectivity_column_max_dbz': numpy.array([500])}
 
@@ -53,9 +54,13 @@ FIELD_NAME_BY_PAIR = [
     'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
     'reflectivity_column_max_dbz']
 HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
-    [250, 0, 250, 500, 750, 1000, 5000, 10000, 20000, 250])
+    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
+     250, 500, 750, 1000, 5000, 10000, 20000,
+     radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
 HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
-    [500, 0, 250, 500, 750, 1000, 5000, 10000, 20000, 500])
+    [radar_io.DEFAULT_HEIGHT_MRMS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
+     250, 500, 750, 1000, 5000, 10000, 20000,
+     radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
 
 # The following constants are used to test _remove_sentinels_from_sparse_grid.
 THESE_GRID_ROWS = numpy.linspace(0, 10, num=11, dtype=int)
@@ -96,16 +101,16 @@ FIELD_MATRIX_NO_SENTINELS = numpy.array([
     [12, 13, numpy.nan]])
 
 # The following constants are used to test get_relative_dir_for_raw_files.
-RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.00'
-RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.00'
+RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.25'
+RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.25'
 
 # The following constants are used to test find_raw_file.
 TOP_RAW_DIRECTORY_NAME = 'radar'
 RAW_FILE_NAME_MYRORSS = (
     'radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
-    '/00.00/20171005-202002.netcdf.gz')
+    '/00.25/20171005-202002.netcdf.gz')
 RAW_FILE_NAME_MRMS = (
-    'radar/20171005/' + LL_SHEAR_NAME_MRMS + '/00.00/20171005-202002.netcdf.gz')
+    'radar/20171005/' + LL_SHEAR_NAME_MRMS + '/00.25/20171005-202002.netcdf.gz')
 
 # The following constants are used to test rowcol_to_latlng and
 # latlng_to_rowcol.
