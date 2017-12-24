@@ -25,6 +25,7 @@ TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
+MIN_RELATIVE_HUMIDITY_PERCENT = 1.
 SENTINEL_VALUE_FOR_SHARPPY = -9999.
 REDUNDANT_PRESSURE_TOLERANCE_MB = 1e-3
 REDUNDANT_HEIGHT_TOLERANCE_METRES = 1e-3
@@ -719,6 +720,14 @@ def _sounding_to_sharppy_units(sounding_table):
     else:
         columns_to_drop.append(nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
 
+        these_rh_percent = sounding_table[
+            nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES].values
+        these_rh_percent[
+            these_rh_percent < MIN_RELATIVE_HUMIDITY_PERCENT
+        ] = MIN_RELATIVE_HUMIDITY_PERCENT
+        sounding_table = sounding_table.assign(
+            **{nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES: these_rh_percent})
+
         dewpoints_kelvins = moisture_conversions.relative_humidity_to_dewpoint(
             PERCENT_TO_UNITLESS * sounding_table[
                 nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES].values,
@@ -1322,13 +1331,21 @@ def get_sounding_stats_for_storm_objects(
                 query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
                 query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
         else:
-            list_of_sharppy_stat_tables[i] = get_sounding_stats_from_sharppy(
-                list_of_sounding_tables[i],
-                eastward_motion_m_s01=
-                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
-                northward_motion_m_s01=
-                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i],
-                metadata_table=metadata_table)
+            try:
+                list_of_sharppy_stat_tables[i] = (
+                    get_sounding_stats_from_sharppy(
+                        list_of_sounding_tables[i],
+                        eastward_motion_m_s01=query_point_table[
+                            tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                        northward_motion_m_s01=query_point_table[
+                            tracking_io.NORTH_VELOCITY_COLUMN].values[i],
+                        metadata_table=metadata_table))
+            except:
+                print list_of_sounding_tables[i]
+                print list_of_sounding_tables[i][
+                    DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values
+                print storm_object_table[tracking_io.TIME_COLUMN].values[i]
+                raise
 
         if i == 0:
             continue

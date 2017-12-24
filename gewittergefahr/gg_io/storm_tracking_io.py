@@ -69,53 +69,6 @@ def _check_data_source(data_source):
         raise ValueError(error_string)
 
 
-def _column_name_to_distance_buffer(column_name):
-    """Parses distance buffer from column name.
-
-    If column name does not correspond to a distance buffer, this method will
-    return None for all output variables.
-
-    :param column_name: Name of column.
-    :return: min_buffer_dist_metres: Minimum buffer distance.
-    :return: max_buffer_dist_metres: Maximum buffer distance.
-    """
-
-    if not column_name.startswith(BUFFER_POLYGON_COLUMN_PREFIX):
-        return None, None
-
-    column_name = column_name.replace(BUFFER_POLYGON_COLUMN_PREFIX + '_', '')
-    column_name_parts = column_name.split('_')
-    if len(column_name_parts) == 1:
-        min_buffer_dist_metres = numpy.nan
-    elif len(column_name_parts) == 2:
-        min_buffer_dist_metres = -1
-    else:
-        return None, None
-
-    max_distance_part = column_name_parts[-1]
-    if not max_distance_part.endswith('m'):
-        return None, None
-    max_distance_part = max_distance_part.replace('m', '')
-    try:
-        max_buffer_dist_metres = float(int(max_distance_part))
-    except ValueError:
-        return None, None
-
-    if numpy.isnan(min_buffer_dist_metres):
-        return min_buffer_dist_metres, max_buffer_dist_metres
-
-    min_distance_part = column_name_parts[-2]
-    if not min_distance_part.endswith('m'):
-        return None, None
-    min_distance_part = min_distance_part.replace('m', '')
-    try:
-        min_buffer_dist_metres = float(int(min_distance_part))
-    except ValueError:
-        return None, None
-
-    return min_buffer_dist_metres, max_buffer_dist_metres
-
-
 def _get_pathless_processed_file_name(unix_time_sec, data_source):
     """Generates pathless name for processed storm-tracking file.
 
@@ -172,7 +125,8 @@ def remove_rows_with_nan(input_table):
     return input_table.loc[input_table.notnull().all(axis=1)]
 
 
-def distance_buffer_to_column_name(min_buffer_distance_metres, max_buffer_distance_metres):
+def distance_buffer_to_column_name(min_buffer_distance_metres,
+                                   max_buffer_distance_metres):
     """Generates column name for distance buffer.
 
     :param min_buffer_distance_metres: Minimum distance around original polygon.
@@ -196,6 +150,53 @@ def distance_buffer_to_column_name(min_buffer_distance_metres, max_buffer_distan
         int(max_buffer_distance_metres))
 
 
+def column_name_to_distance_buffer(column_name):
+    """Parses distance buffer from column name.
+
+    If column name does not correspond to a distance buffer, this method will
+    return None for all output variables.
+
+    :param column_name: Name of column.
+    :return: min_buffer_dist_metres: Minimum buffer distance.
+    :return: max_buffer_dist_metres: Maximum buffer distance.
+    """
+
+    if not column_name.startswith(BUFFER_POLYGON_COLUMN_PREFIX):
+        return None, None
+
+    column_name = column_name.replace(BUFFER_POLYGON_COLUMN_PREFIX + '_', '')
+    column_name_parts = column_name.split('_')
+    if len(column_name_parts) == 1:
+        min_buffer_dist_metres = numpy.nan
+    elif len(column_name_parts) == 2:
+        min_buffer_dist_metres = -1
+    else:
+        return None, None
+
+    max_distance_part = column_name_parts[-1]
+    if not max_distance_part.endswith('m'):
+        return None, None
+    max_distance_part = max_distance_part.replace('m', '')
+    try:
+        max_buffer_dist_metres = float(int(max_distance_part))
+    except ValueError:
+        return None, None
+
+    if numpy.isnan(min_buffer_dist_metres):
+        return min_buffer_dist_metres, max_buffer_dist_metres
+
+    min_distance_part = column_name_parts[-2]
+    if not min_distance_part.endswith('m'):
+        return None, None
+    min_distance_part = min_distance_part.replace('m', '')
+    try:
+        min_buffer_dist_metres = float(int(min_distance_part))
+    except ValueError:
+        return None, None
+
+    return min_buffer_dist_metres, max_buffer_dist_metres
+
+
 def get_distance_buffer_columns(storm_object_table):
     """Returns names of columns with buffered polygons.
 
@@ -208,7 +209,7 @@ def get_distance_buffer_columns(storm_object_table):
     distance_buffer_column_names = None
 
     for this_column_name in column_names:
-        _, this_max_distance_metres = _column_name_to_distance_buffer(
+        _, this_max_distance_metres = column_name_to_distance_buffer(
             this_column_name)
         if this_max_distance_metres is None:
             continue

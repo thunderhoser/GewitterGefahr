@@ -65,6 +65,26 @@ STATION_ID_NON_MADIS = 'CYEG_ok-mesonet'
 SECONDARY_DATA_SOURCE = 'sao'
 STATION_ID_MADIS = 'CYEG_madis_sao'
 
+# The following constants are used to test _remove_duplicate_observations.
+THESE_LATITUDES_DEG = numpy.array(
+    [51.1, 51.102, 51.104, 51.106, 53.5, 53.501, 53.502, 53.503])
+THESE_LONGITUDES_DEG = numpy.array(
+    [246.0, 246.001, 246.002, 246.1, 246.5, 246.501, 246.502, 246.6])
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 0, 2, 2, 2, 2], dtype=int)
+THESE_U_WINDS_M_S01 = numpy.array(
+    [5., 4.999, 5.001, 5.003, 8., 8.001, 8.002, 7.999])
+THESE_V_WINDS_M_S01 = numpy.array(
+    [-4., -4.001, -4.002, -3.999, 17., 17., 18., 17.])
+
+WIND_DICT_WITH_DUPLICATES = {raw_wind_io.LATITUDE_COLUMN: THESE_LATITUDES_DEG,
+                             raw_wind_io.LONGITUDE_COLUMN: THESE_LONGITUDES_DEG,
+                             raw_wind_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+                             raw_wind_io.U_WIND_COLUMN: THESE_U_WINDS_M_S01,
+                             raw_wind_io.V_WIND_COLUMN: THESE_V_WINDS_M_S01}
+WIND_TABLE_WITH_DUPLICATES = pandas.DataFrame.from_dict(
+    WIND_DICT_WITH_DUPLICATES)
+WITH_TABLE_SANS_DUPLICATES = WIND_TABLE_WITH_DUPLICATES.iloc[[0, 2, 3, 4, 6, 7]]
+
 # The following constants are used to test _get_pathless_processed_file_name.
 FILE_START_TIME_UNIX_SEC = 1506999600  # 0300 UTC 3 Oct 2017
 FILE_END_TIME_UNIX_SEC = 1507003200  # 0400 UTC 3 Oct 2017
@@ -269,6 +289,13 @@ class RawWindIoTests(unittest.TestCase):
             WIND_DIRECTIONS_DEG)
         self.assertTrue(numpy.array_equal(these_invalid_indices,
                                           DIRECTION_INVALID_INDICES))
+
+    def test_remove_duplicate_observations(self):
+        """Ensures correct output from _remove_duplicate_observations."""
+
+        this_wind_table = raw_wind_io._remove_duplicate_observations(
+            WIND_TABLE_WITH_DUPLICATES)
+        self.assertTrue(this_wind_table.equals(WITH_TABLE_SANS_DUPLICATES))
 
     def test_get_pathless_processed_file_name_madis(self):
         """Ensures correct output from _get_pathless_processed_file_name.

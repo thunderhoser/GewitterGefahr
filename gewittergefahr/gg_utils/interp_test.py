@@ -7,6 +7,11 @@ from gewittergefahr.gg_utils import interp
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test _find_nearest_value.
+SORTED_ARRAY = numpy.array([-5., -3., -1., 0., 1.5, 4., 9.])
+TEST_VALUES = numpy.array([-6., -5., -4., -3., 5., 8., 9., 10.])
+NEAREST_INDICES_FOR_TEST_VALUES = numpy.array([0., 0., 1., 1., 5., 6., 6., 6.])
+
 # The following constants are used to test _stack_1d_arrays_horizontally.
 LIST_OF_1D_ARRAYS = [numpy.array([1., 2., 3]),
                      numpy.array([0., 5., 10.]),
@@ -109,6 +114,17 @@ QUERY_VALUES_FOR_EXTRAP = numpy.array([17., 2.])
 
 class InterpTests(unittest.TestCase):
     """Each method is a unit test for interp.py."""
+
+    def test_find_nearest_value(self):
+        """Ensures correct output from _find_nearest_value."""
+
+        these_nearest_indices = numpy.full(len(TEST_VALUES), -1)
+        for i in range(len(TEST_VALUES)):
+            _, these_nearest_indices[i] = interp._find_nearest_value(
+                SORTED_ARRAY, TEST_VALUES[i])
+
+        self.assertTrue(numpy.array_equal(
+            these_nearest_indices, NEAREST_INDICES_FOR_TEST_VALUES))
 
     def test_stack_1d_arrays_horizontally_1array(self):
         """Ensures correct output from _stack_1d_arrays_horizontally.

@@ -18,6 +18,7 @@ near-surface wind observations, listed below:
 - urbanet stations
 """
 
+import copy
 import os
 import os.path
 import numpy
@@ -30,9 +31,13 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
-FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
-FTP_ROOT_DIRECTORY_NAME = 'archive'
 RAW_FILE_EXTENSION = '.gz'
+FTP_SERVER_NAME = 'madis-data.ncep.noaa.gov'
+TOP_FTP_DIRECTORY_NAME = 'archive'
+
+HTTP_HOST_NAME = 'https://madis-data.ncep.noaa.gov'
+TOP_HTTP_DIRECTORY_NAME = (
+    'https://madis-data.ncep.noaa.gov/madisResearch/data/archive')
 
 SECONDARY_SOURCES_IN_LDAD = [
     raw_wind_io.MADIS_COOP_DATA_SOURCE, raw_wind_io.MADIS_CRN_DATA_SOURCE,
@@ -129,12 +134,13 @@ def _char_matrix_to_string_list(char_matrix):
     return strings
 
 
-def _get_ftp_file_name(unix_time_sec, secondary_source):
-    """Generates expected path to raw file on FTP server.
+def _get_online_file_name(unix_time_sec, secondary_source, protocol):
+    """Generates expected file path on FTP or HTTP server.
 
     :param unix_time_sec: Valid time.
     :param secondary_source: String ID for secondary data source.
-    :return: ftp_file_name: Expected path to raw file on FTP server.
+    :param protocol: Protocol (either "http" or "ftp").
+    :return: online_file_name: Expected file path on FTP or HTTP server.
     """
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
@@ -146,15 +152,20 @@ def _get_ftp_file_name(unix_time_sec, secondary_source):
         first_subdir_name = 'point'
         second_subdir_name = 'netcdf'
 
-    ftp_directory_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:s}/{6:s}'.format(
-        FTP_ROOT_DIRECTORY_NAME,
+    if protocol == 'ftp':
+        top_directory_name = copy.deepcopy(TOP_FTP_DIRECTORY_NAME)
+    elif protocol == 'http':
+        top_directory_name = copy.deepcopy(TOP_HTTP_DIRECTORY_NAME)
+
+    online_directory_name = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:s}/{6:s}'.format(
+        top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_YEAR),
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_MONTH),
-        time_conversion.unix_sec_to_string(unix_time_sec,
-                                           TIME_FORMAT_DAY_OF_MONTH),
+        time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_DAY_OF_MONTH),
         first_subdir_name, secondary_source, second_subdir_name)
 
-    return '{0:s}/{1:s}'.format(ftp_directory_name, pathless_file_name)
+    return '{0:s}/{1:s}'.format(online_directory_name, pathless_file_name)
 
 
 def _remove_invalid_wind_rows(wind_table):
@@ -267,39 +278,57 @@ def find_local_raw_file(unix_time_sec=None, secondary_source=None,
     return raw_file_name
 
 
-def download_gzip_from_ftp(unix_time_sec=None, secondary_source=None,
-                           top_local_directory_name=None, ftp_user_name=None,
-                           ftp_password=None, raise_error_if_fails=True):
-    """Downloads gzip file from FTP server.
+def download_raw_file(
+        unix_time_sec, secondary_source, top_local_directory_name, protocol,
+        user_name=None, password=None, raise_error_if_fails=True):
+    """Downloads raw file from either FTP or HTTP server.
 
     :param unix_time_sec: Valid time.
     :param secondary_source: String ID for secondary data source.
-    :param top_local_directory_name: Name of top-level local directory with raw
-        MADIS files.
-    :param ftp_user_name: Username on FTP server.  If you want to login
-        anonymously, leave this as None.
-    :param ftp_password: Password on FTP server.  If you want to login
-        anonymously, leave this as None.
+    :param top_local_directory_name: Name of top-level directory with raw MADIS
+        files on local machine.
+    :param protocol: Protocol (either "http" or "ftp").
+    :param user_name: User name on FTP or HTTP server.  To login anonymously,
+        leave this as None.
+    :param password: Password on FTP or HTTP server.  To login anonymously,
+        leave this as None.
     :param raise_error_if_fails: Boolean flag.  If True and download fails, this
         method will raise an error.
-    :return: local_gzip_file_name: Path to gzip file on local machine.  If
-        download failed but raise_error_if_fails = False, this will be None.
+    :return: local_gzip_file_name: Local path to file that was just downloaded.
+        If download failed but raise_error_if_fails = False, this will be None.
+    :raises: ValueError: if protocol is neither "ftp" nor "http".
     """
+
+    error_checking.assert_is_string(protocol)
+    if protocol not in ['ftp', 'http']:
+        error_string = (
+            'Protocol should be either "ftp" or "http", not "{0:s}"'.format(
+                protocol))
+        raise ValueError(error_string)
 
     raw_wind_io.check_data_sources(
         raw_wind_io.MADIS_DATA_SOURCE, secondary_source)
-    ftp_file_name = _get_ftp_file_name(unix_time_sec, secondary_source)
+    online_file_name = _get_online_file_name(
+        unix_time_sec=unix_time_sec, secondary_source=secondary_source,
+        protocol=protocol)
 
     local_gzip_file_name = find_local_raw_file(
         unix_time_sec=unix_time_sec, secondary_source=secondary_source,
         top_directory_name=top_local_directory_name,
         raise_error_if_missing=False)
 
-    return downloads.download_file_via_ftp(
-        server_name=FTP_SERVER_NAME, user_name=ftp_user_name,
-        password=ftp_password, ftp_file_name=ftp_file_name,
-        local_file_name=local_gzip_file_name,
-        raise_error_if_fails=raise_error_if_fails)
+    if protocol == 'ftp':
+        return downloads.download_file_via_ftp(
+            server_name=FTP_SERVER_NAME, user_name=user_name, password=password,
+            ftp_file_name=online_file_name,
+            local_file_name=local_gzip_file_name,
+            raise_error_if_fails=raise_error_if_fails)
+
+    return downloads.download_files_via_http(
+        online_file_names=[online_file_name],
+        local_file_names=[local_gzip_file_name], user_name=user_name,
+        password=password, host_name=HTTP_HOST_NAME,
+        raise_error_if_fails=raise_error_if_fails)[0]
 
 
 def read_winds_from_raw_file(netcdf_file_name, secondary_source=None,

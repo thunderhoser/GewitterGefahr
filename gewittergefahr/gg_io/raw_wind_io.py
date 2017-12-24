@@ -283,6 +283,30 @@ def _check_wind_directions(wind_directions_deg):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
+def _remove_duplicate_observations(wind_table):
+    """Removes duplicate wind observations.
+
+    :param wind_table: See documentation for write_processed_file.
+    :return: wind_table: Same as input, but maybe with fewer rows.
+    """
+
+    wind_speeds_m_s01 = numpy.sqrt(
+        wind_table[U_WIND_COLUMN].values ** 2 +
+        wind_table[V_WIND_COLUMN].values ** 2)
+
+    num_observations = len(wind_speeds_m_s01)
+    observation_strings = [''] * num_observations
+    for i in range(num_observations):
+        observation_strings[i] = '{0:.2f}_{1:.2f}_{2:d}_{3:.2f}'.format(
+            wind_table[LATITUDE_COLUMN].values[i],
+            wind_table[LONGITUDE_COLUMN].values[i],
+            wind_table[TIME_COLUMN].values[i], wind_speeds_m_s01[i])
+
+    _, unique_indices = numpy.unique(
+        numpy.asarray(observation_strings), return_index=True)
+    return wind_table.iloc[unique_indices]
+
+
 def _get_pathless_processed_file_name(start_time_unix_sec=None,
                                       end_time_unix_sec=None,
                                       primary_source=None,
@@ -311,8 +335,8 @@ def _get_pathless_processed_file_name(start_time_unix_sec=None,
         PROCESSED_FILE_EXTENSION)
 
 
-def check_data_sources(primary_source, secondary_source=None,
-                       allow_merged=False):
+def check_data_sources(
+        primary_source, secondary_source=None, allow_merged=False):
     """Ensures that data sources are valid.
 
     :param primary_source: String ID for primary data source (must be in
@@ -337,7 +361,7 @@ def check_data_sources(primary_source, secondary_source=None,
         raise ValueError(error_string)
 
     if (primary_source == MADIS_DATA_SOURCE and
-                secondary_source not in SECONDARY_DATA_SOURCES):
+            secondary_source not in SECONDARY_DATA_SOURCES):
         error_string = (
             '\n\n' + str(SECONDARY_DATA_SOURCES) + '\n\nValid secondary ' +
             'sources (listed above) do not include "' + secondary_source + '".')
@@ -866,17 +890,16 @@ def write_processed_hourly_files(wind_table, write_mode='w',
     return processed_file_names
 
 
-def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
-                                           end_time_unix_sec=None,
-                                           top_directory_name=None):
-    """For each hour in period, merges files from all data sources.
+def merge_data_sources_by_hour(
+        start_time_unix_sec, end_time_unix_sec, top_directory_name):
+    """For each hour in time period, merges files from all data sources.
 
-    N = number of hours in time period (start_time_unix_sec...end_time_unix_sec)
+    N = number of hours in period (start_time_unix_sec...end_time_unix_sec)
 
     :param start_time_unix_sec: Beginning of time period.
     :param end_time_unix_sec: End of time period.
     :param top_directory_name: Name of top-level directory with processed wind
-        files.
+        files (both input and output).
     :return: merged_file_names: length-N list of paths to output files.
     """
 
@@ -887,7 +910,7 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
 
     for j in range(num_combined_sources):
         if j == 0:
-            these_processed_file_names, hour_start_times_unix_sec = (
+            these_input_file_names, hours_unix_sec = (
                 find_processed_hourly_files(
                     start_time_unix_sec=start_time_unix_sec,
                     end_time_unix_sec=end_time_unix_sec,
@@ -899,13 +922,13 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
                     top_directory_name=top_directory_name,
                     raise_error_if_missing=True))
 
-            num_hours = len(hour_start_times_unix_sec)
-            processed_file_names_2d = numpy.full(
+            num_hours = len(hours_unix_sec)
+            input_file_name_matrix = numpy.full(
                 (num_combined_sources, num_hours), None, dtype=object)
-            processed_file_names_2d[j, :] = these_processed_file_names
+            input_file_name_matrix[j, :] = these_input_file_names
 
         else:
-            processed_file_names_2d[j, :], _ = find_processed_hourly_files(
+            input_file_name_matrix[j, :], _ = find_processed_hourly_files(
                 start_time_unix_sec=start_time_unix_sec,
                 end_time_unix_sec=end_time_unix_sec,
                 primary_source=primary_and_secondary_source_pairs_as_table[
@@ -921,7 +944,7 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
 
         for j in range(num_combined_sources):
             this_list_of_wind_tables[j] = read_processed_file(
-                processed_file_names_2d[j, i])
+                input_file_name_matrix[j, i])
 
             if j != 0:
                 this_list_of_wind_tables[j], _ = (
@@ -930,14 +953,13 @@ def merge_hourly_files_across_data_sources(start_time_unix_sec=None,
 
         this_wind_table = pandas.concat(
             this_list_of_wind_tables, axis=0, ignore_index=True)
+        this_wind_table = _remove_duplicate_observations(this_wind_table)
 
         merged_file_names[i] = find_processed_file(
-            start_time_unix_sec=hour_start_times_unix_sec[i],
-            end_time_unix_sec=
-            hour_start_times_unix_sec[i] + HOURS_TO_SECONDS - 1,
+            start_time_unix_sec=hours_unix_sec[i],
+            end_time_unix_sec=hours_unix_sec[i] + HOURS_TO_SECONDS - 1,
             primary_source=MERGED_DATA_SOURCE,
             top_directory_name=top_directory_name, raise_error_if_missing=False)
-
         write_processed_file(
             this_wind_table, merged_file_names[i], write_mode='w')
 

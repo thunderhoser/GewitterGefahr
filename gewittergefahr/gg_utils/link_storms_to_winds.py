@@ -15,18 +15,21 @@ import numpy
 import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_io import raw_wind_io
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+
+TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 WIND_DATA_SOURCE = raw_wind_io.MERGED_DATA_SOURCE
 MAX_TIME_BEFORE_STORM_START_DEFAULT_SEC = 300
 MAX_TIME_AFTER_STORM_END_DEFAULT_SEC = 300
-PADDING_FOR_STORM_BOUNDING_BOX_DEFAULT_METRES = 10000.
+PADDING_FOR_STORM_BOUNDING_BOX_DEFAULT_METRES = 50000.
 INTERP_TIME_SPACING_DEFAULT_SEC = 10
 MAX_LINKAGE_DIST_DEFAULT_METRES = 30000.
 
@@ -141,7 +144,7 @@ def _project_storms_latlng_to_xy(storm_object_table, projection_object):
 
     V = number of vertices in a given storm object
 
-    :param storm_object_table: pandas DataFrame created by _read_storm_objects.
+    :param storm_object_table: pandas DataFrame created by _read_storm_tracks.
     :param projection_object: Instance of `pyproj.Proj`, created by
         _init_azimuthal_equidistant_projection.
     :return: storm_object_table: Same as input, but with additional columns
@@ -391,8 +394,6 @@ def _interp_storms_in_time(storm_object_table, query_time_unix_sec=None,
     interp_vertex_table_1object.vertex_y_metres: y-coordinate of vertex.
     """
 
-    print time_conversion.unix_sec_to_string(query_time_unix_sec, '%Y-%m-%d-%H%M%S')
-
     max_start_time_unix_sec = query_time_unix_sec + max_time_before_start_sec
     min_end_time_unix_sec = query_time_unix_sec - max_time_after_end_sec
 
@@ -547,6 +548,9 @@ def _find_nearest_storms(
         wind_table[raw_wind_io.TIME_COLUMN].values, interp_time_spacing_sec)
     unique_rounded_times_unix_sec, wind_times_orig_to_unique_rounded = (
         numpy.unique(rounded_times_unix_sec, return_inverse=True))
+    unique_rounded_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES) for
+        t in unique_rounded_times_unix_sec]
 
     num_wind_observations = len(wind_table.index)
     nearest_storm_ids = [None] * num_wind_observations
@@ -554,6 +558,9 @@ def _find_nearest_storms(
 
     num_unique_times = len(unique_rounded_times_unix_sec)
     for i in range(num_unique_times):
+        print 'Linking wind observations at ~{0:s} to storms...'.format(
+            unique_rounded_time_strings[i])
+
         these_wind_rows = numpy.where(wind_times_orig_to_unique_rounded == i)[0]
         this_interp_vertex_table = _interp_storms_in_time(
             storm_object_table,
@@ -679,13 +686,79 @@ def _create_storm_to_winds_table(storm_object_table, wind_to_storm_table):
     return storm_to_winds_table
 
 
-def _read_wind_observations(storm_object_table,
-                            max_time_before_storm_start_sec=None,
-                            max_time_after_storm_end_sec=None,
-                            top_directory_name=None):
-    """Reads wind observations to link with storm objects.
+def _read_storm_tracks(tracking_file_names):
+    """Reads storm tracks from one or more files.
 
-    :param storm_object_table: pandas DataFrame created by _read_storm_objects.
+    "Storm object" = one storm cell at one time step
+
+    :param tracking_file_names: 1-D list of paths to input files (created by
+        `storm_tracking_io.write_processed_file`).
+    :return: storm_object_table: pandas DataFrame.  Each row is one storm
+        object, and columns are listed below.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.tracking_start_time_unix_sec: Start time for tracking
+        period.
+    storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
+    storm_object_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
+    storm_object_table.file_index: Array index of file containing storm object.
+        If storm_object_table.file_index.values[i] = j, the [i]th storm object
+        came from tracking_file_names[j].
+    """
+
+    columns_to_read = None
+    file_indices = numpy.array([])
+
+    num_files = len(tracking_file_names)
+    list_of_storm_object_tables = [None] * num_files
+
+    for i in range(num_files):
+        print 'Reading storm tracks from file {0:d}/{1:d}: "{2:s}"...'.format(
+            i + 1, num_files, tracking_file_names[i])
+
+        if i == 0:
+            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+                tracking_file_names[i])
+
+            distance_buffer_columns = tracking_io.get_distance_buffer_columns(
+                list_of_storm_object_tables[i])
+            if distance_buffer_columns is None:
+                distance_buffer_columns = []
+
+            columns_to_read = (
+                REQUIRED_STORM_COLUMNS + distance_buffer_columns)
+            list_of_storm_object_tables[i] = list_of_storm_object_tables[i][
+                columns_to_read]
+        else:
+            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+                tracking_file_names[i])[columns_to_read]
+
+        this_num_storm_objects = len(list_of_storm_object_tables[i].index)
+        file_indices = numpy.concatenate((
+            file_indices,
+            numpy.linspace(i, i, num=this_num_storm_objects, dtype=int)))
+
+        if i == 0:
+            continue
+
+        list_of_storm_object_tables[i], _ = (
+            list_of_storm_object_tables[i].align(
+                list_of_storm_object_tables[0], axis=1))
+
+    storm_object_table = pandas.concat(
+        list_of_storm_object_tables, axis=0, ignore_index=True)
+    return storm_object_table.assign(**{FILE_INDEX_COLUMN: file_indices})
+
+
+def _read_wind_observations(
+        storm_object_table, max_time_before_storm_start_sec,
+        max_time_after_storm_end_sec, top_directory_name):
+    """Reads wind observations from one or more files.
+
+    :param storm_object_table: pandas DataFrame created by _read_storm_tracks.
     :param max_time_before_storm_start_sec: Max wind time before beginning of
         storm cell.  If wind observation W occurs >
         max_time_before_storm_start_sec before the first time in storm cell S, W
@@ -693,8 +766,8 @@ def _read_wind_observations(storm_object_table,
     :param max_time_after_storm_end_sec: Max wind time after end of storm cell.
         If wind observation W occurs > max_time_after_storm_end_sec after the
         last time in storm cell S, W cannot be linked to S.
-    :param top_directory_name: Name of top-level directory with processed wind
-        files (created by `raw_wind_io.write_processed_file`.
+    :param top_directory_name: Name of top-level directory with wind
+        observations (files created by `raw_wind_io.write_processed_file`).
     :return: wind_table: pandas DataFrame with columns documented in
         `raw_wind_io.write_processed_file`.
     """
@@ -712,12 +785,12 @@ def _read_wind_observations(storm_object_table,
         primary_source=WIND_DATA_SOURCE, top_directory_name=top_directory_name,
         raise_error_if_missing=True)
 
-    num_wind_files = len(wind_file_names)
-    list_of_wind_tables = [None] * num_wind_files
+    num_files = len(wind_file_names)
+    list_of_wind_tables = [None] * num_files
 
-    for i in range(num_wind_files):
-        print ('Reading wind file ' + str(i + 1) + '/' + str(num_wind_files) +
-               ': "' + wind_file_names[i] + '"...')
+    for i in range(num_files):
+        print ('Reading wind observations from file {0:d}/{1:d}:'
+               ' "{2:s}"...').format(i + 1, num_files, wind_file_names[i])
 
         list_of_wind_tables[i] = raw_wind_io.read_processed_file(
             wind_file_names[i])[REQUIRED_WIND_COLUMNS]
@@ -727,92 +800,26 @@ def _read_wind_observations(storm_object_table,
         list_of_wind_tables[i], _ = list_of_wind_tables[i].align(
             list_of_wind_tables[0], axis=1)
 
-    print '\n'
     return pandas.concat(list_of_wind_tables, axis=0, ignore_index=True)
 
 
-def _read_storm_objects(processed_file_names):
-    """Reads storm objects to link with wind observations.
-
-    N = number of storm objects
-
-    :param processed_file_names: 1-D list of paths to processed files (created
-        by `storm_tracking_io.write_processed_file`).
-    :return: storm_object_table: N-row pandas DataFrame with the following
-        columns.
-    storm_object_table.storm_id: String ID for storm cell.
-    storm_object_table.unix_time_sec: Valid time.
-    storm_object_table.tracking_start_time_unix_sec: Start time for tracking
-        period.
-    storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) of centroid.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) of centroid.
-    storm_object_table.polygon_object_latlng: Instance of
-        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
-    storm_object_table.file_index: Index of file from which storm object was
-        read.  If file_index = j at the [i]th row, this means the [i]th storm
-        object was read from the [j]th input file.
-    """
-
-    file_indices = numpy.array([])
-    num_files = len(processed_file_names)
-    list_of_storm_object_tables = [None] * num_files
-
-    for i in range(num_files):
-        print ('Reading storm-object file ' + str(i + 1) + '/' +
-               str(num_files) + ': "' + processed_file_names[i] + '"...')
-
-        if i == 0:
-            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
-                processed_file_names[i])
-
-            distance_buffer_column_names = (
-                tracking_io.get_distance_buffer_columns(
-                    list_of_storm_object_tables[i]))
-            columns_to_read = (
-                REQUIRED_STORM_COLUMNS + distance_buffer_column_names)
-            list_of_storm_object_tables[i] = list_of_storm_object_tables[i][
-                columns_to_read]
-        else:
-            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
-                processed_file_names[i])[columns_to_read]
-
-        this_num_storm_objects = len(list_of_storm_object_tables[i].index)
-        file_indices = numpy.concatenate((
-            file_indices,
-            numpy.linspace(i, i, num=this_num_storm_objects, dtype=int)))
-
-        if i == 0:
-            continue
-
-        list_of_storm_object_tables[i], _ = (
-            list_of_storm_object_tables[i].align(
-                list_of_storm_object_tables[0], axis=1))
-
-    print '\n'
-    storm_object_table = pandas.concat(list_of_storm_object_tables, axis=0,
-                                       ignore_index=True)
-    argument_dict = {FILE_INDEX_COLUMN: file_indices}
-    return storm_object_table.assign(**argument_dict)
-
-
 def get_columns_to_write(storm_to_winds_table):
-    """Returns list of columns to write to output file.
+    """Returns list of columns to write to file.
 
     :param storm_to_winds_table: pandas DataFrame created by
         _create_storm_to_winds_table.
     :return: columns_to_write: 1-D list with names of columns to write.
     """
 
-    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+    distance_buffer_columns = tracking_io.get_distance_buffer_columns(
         storm_to_winds_table)
-    if distance_buffer_column_names is None:
-        distance_buffer_column_names = []
-    return REQUIRED_COLUMNS_TO_WRITE + distance_buffer_column_names
+    if distance_buffer_columns is None:
+        distance_buffer_columns = []
+    return REQUIRED_COLUMNS_TO_WRITE + distance_buffer_columns
 
 
 def link_each_storm_to_winds(
-        storm_object_file_names=None, top_wind_directory_name=None,
+        storm_track_file_names, top_wind_directory_name,
         max_time_before_storm_start_sec=MAX_TIME_BEFORE_STORM_START_DEFAULT_SEC,
         max_time_after_storm_end_sec=MAX_TIME_AFTER_STORM_END_DEFAULT_SEC,
         padding_for_storm_bounding_box_metres=
@@ -821,10 +828,10 @@ def link_each_storm_to_winds(
         max_linkage_dist_metres=MAX_LINKAGE_DIST_DEFAULT_METRES):
     """Links each storm cell to zero or more wind observations.
 
-    :param storm_object_file_names: 1-D list of paths to storm-object files
-        (readable by `storm_tracking_io.read_processed_file`).
-    :param top_wind_directory_name: Name of top-level directory with processed
-        wind files (see _read_wind_observations for more).
+    :param storm_track_file_names: 1-D list of paths to storm-tracking files
+        (in format specified by `storm_tracking_io.read_processed_file`).
+    :param top_wind_directory_name: Name of top-level directory with wind
+        observations (files created by `raw_wind_io.write_processed_file`).
     :param max_time_before_storm_start_sec: [integer] Max wind time before
         beginning of storm cell.  If wind observation W occurs >
         max_time_before_storm_start_sec before the first time in storm cell S,
@@ -852,9 +859,9 @@ def link_each_storm_to_winds(
         _create_storm_to_winds_table.
     """
 
-    error_checking.assert_is_string_list(storm_object_file_names)
+    error_checking.assert_is_string_list(storm_track_file_names)
     error_checking.assert_is_numpy_array(
-        numpy.asarray(storm_object_file_names), num_dimensions=1)
+        numpy.asarray(storm_track_file_names), num_dimensions=1)
 
     error_checking.assert_is_integer(max_time_before_storm_start_sec)
     error_checking.assert_is_geq(max_time_before_storm_start_sec, 0)
@@ -863,12 +870,15 @@ def link_each_storm_to_winds(
     error_checking.assert_is_geq(padding_for_storm_bounding_box_metres, 0.)
     error_checking.assert_is_geq(max_linkage_dist_metres, 0.)
 
-    storm_object_table = _read_storm_objects(storm_object_file_names)
+    storm_object_table = _read_storm_tracks(storm_track_file_names)
+    print SEPARATOR_STRING
+
     wind_table = _read_wind_observations(
         storm_object_table,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
         top_directory_name=top_wind_directory_name)
+    print SEPARATOR_STRING
 
     projection_object = _init_azimuthal_equidistant_projection(
         storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
@@ -891,15 +901,16 @@ def link_each_storm_to_winds(
         max_time_after_storm_end_sec=max_time_after_storm_end_sec,
         max_linkage_dist_metres=max_linkage_dist_metres,
         interp_time_spacing_sec=interp_time_spacing_sec)
+    print SEPARATOR_STRING
 
     return _create_storm_to_winds_table(storm_object_table, wind_to_storm_table)
 
 
 def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
-    """Writes linkages (storm-to-wind assocations) to one or more Pickle files.
+    """Writes linkages (storm-to-wind associations) to one or more Pickle files.
 
     N = number of output files (should equal number of input files to
-        _read_storm_objects).
+        _read_storm_tracks).
 
     K = number of wind observations linked to a given storm cell
 
@@ -948,8 +959,9 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
     columns_to_write = get_columns_to_write(storm_to_winds_table)
 
     for i in range(num_files):
-        print ('Writing storm-to-winds file ' + str(i + 1) + '/' +
-               str(num_files) + ': "' + pickle_file_names[i] + '"...')
+        print ('Writing linkages (storm-to-wind associations) to file '
+               '{0:d}/{1:d}: "{2:s}"...').format(
+                   i + 1, num_files, pickle_file_names[i])
 
         file_system_utils.mkdir_recursive_if_necessary(
             file_name=pickle_file_names[i])
@@ -962,7 +974,7 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
 
 
 def read_storm_to_winds_table(pickle_file_name):
-    """Reads linkages (storm-to-wind assocations) from Pickle file.
+    """Reads linkages (storm-to-wind associations) from Pickle file.
 
     :param pickle_file_name: Path to input file.
     :return: storm_to_winds_table: pandas DataFrame with columns documented in

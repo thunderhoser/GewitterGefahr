@@ -24,12 +24,18 @@ RAW_FILE_EXTENSION = '.dat'
 
 PREFIXES_FOR_ONLINE_STATION_ID = ['C', 'K', 'P', 'T']
 PATHLESS_FILE_NAME_PREFIX_1MINUTE = '64050'
-TOP_ONLINE_DIR_NAME_1MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin'
+TOP_HTTP_DIR_NAME_1MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-onemin'
 ONLINE_SUBDIR_PREFIX_1MINUTE = '6405-'
 
 PATHLESS_FILE_NAME_PREFIX_5MINUTE = '64010'
-TOP_ONLINE_DIR_NAME_5MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-fivemin'
+TOP_HTTP_DIR_NAME_5MINUTE = 'ftp://ftp.ncdc.noaa.gov/pub/data/asos-fivemin'
 ONLINE_SUBDIR_PREFIX_5MINUTE = '6401-'
+
+FTP_SERVER_NAME = 'ftp.ncdc.noaa.gov'
+FTP_USER_NAME = 'ftp'
+FTP_PASSWORD = 'ryan.lagerquist@ou.edu'
+TOP_FTP_DIR_NAME_1MINUTE = '/pub/data/asos-onemin'
+TOP_FTP_DIR_NAME_5MINUTE = '/pub/data/asos-fivemin'
 
 FEET_TO_METRES = 1. / 3.2808
 HOURS_TO_SECONDS = 3600
@@ -45,6 +51,7 @@ NUM_HEADER_LINES_IN_METAFILE = 2
 
 LOCAL_DATE_CHAR_INDICES_1MINUTE_FILE = numpy.array([13, 21], dtype=int)
 LOCAL_TIME_CHAR_INDICES_1MINUTE_FILE = numpy.array([21, 25], dtype=int)
+WIND_CHAR_INDICES_1MINUTE_FILE = numpy.array([68, 89], dtype=int)
 LOCAL_TIME_CHAR_INDICES_5MINUTE_FILE = numpy.array([13, 25], dtype=int)
 
 METADATA_COLUMNS_TO_MERGE = [
@@ -113,13 +120,15 @@ def _parse_1minute_wind_from_line(line_string):
     wind_gust_direction_deg: Direction of wind gust (degrees of origin).
     """
 
-    words = line_string.split()
+    wind_string = line_string[WIND_CHAR_INDICES_1MINUTE_FILE[0]:
+                              WIND_CHAR_INDICES_1MINUTE_FILE[1]]
+    wind_parts = wind_string.split()
 
     try:
-        wind_direction_deg = float(words[-4])
-        wind_speed_kt = float(words[-3])
-        wind_gust_direction_deg = float(words[-2])
-        wind_gust_speed_kt = float(words[-1])
+        wind_direction_deg = float(wind_parts[-4])
+        wind_speed_kt = float(wind_parts[-3])
+        wind_gust_direction_deg = float(wind_parts[-2])
+        wind_gust_speed_kt = float(wind_parts[-1])
     except (ValueError, IndexError):
         return numpy.nan, numpy.nan, numpy.nan, numpy.nan
 
@@ -415,13 +424,15 @@ def download_1minute_file(station_id=None, month_unix_sec=None,
         pathless_file_name = _get_pathless_raw_1minute_file_name(
             this_station_id, month_unix_sec)
         online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-            TOP_ONLINE_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
+            TOP_FTP_DIR_NAME_1MINUTE, ONLINE_SUBDIR_PREFIX_1MINUTE,
             time_conversion.unix_sec_to_string(
                 month_unix_sec, TIME_FORMAT_YEAR),
             pathless_file_name)
 
-        this_local_file_name = downloads.download_file_via_http(
-            online_file_name, local_file_name,
+        this_local_file_name = downloads.download_file_via_ftp(
+            server_name=FTP_SERVER_NAME, user_name=FTP_USER_NAME,
+            password=FTP_PASSWORD, ftp_file_name=online_file_name,
+            local_file_name=local_file_name,
             raise_error_if_fails=raise_error_if_fails)
 
         if this_local_file_name is not None:
@@ -463,13 +474,15 @@ def download_5minute_file(station_id=None, month_unix_sec=None,
         pathless_file_name = _get_pathless_raw_5minute_file_name(
             this_station_id, month_unix_sec)
         online_file_name = '{0:s}/{1:s}{2:s}/{3:s}'.format(
-            TOP_ONLINE_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
+            TOP_FTP_DIR_NAME_5MINUTE, ONLINE_SUBDIR_PREFIX_5MINUTE,
             time_conversion.unix_sec_to_string(
                 month_unix_sec, TIME_FORMAT_YEAR),
             pathless_file_name)
 
-        this_local_file_name = downloads.download_file_via_http(
-            online_file_name, local_file_name,
+        this_local_file_name = downloads.download_file_via_ftp(
+            server_name=FTP_SERVER_NAME, user_name=FTP_USER_NAME,
+            password=FTP_PASSWORD, ftp_file_name=online_file_name,
+            local_file_name=local_file_name,
             raise_error_if_fails=raise_error_if_fails)
 
         if this_local_file_name is not None:

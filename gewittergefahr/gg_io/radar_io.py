@@ -61,7 +61,7 @@ GRID_COLUMN_COLUMN_ORIG = 'pixel_y'
 NUM_GRID_CELL_COLUMN_ORIG = 'pixel_count'
 
 ECHO_TOP_18DBZ_NAME = 'echo_top_18dbz_km'
-ECHO_TOP_40DBZ_NAME = 'echo_top_40.0dbz_km'
+ECHO_TOP_40DBZ_NAME = 'echo_top_40dbz_km'
 ECHO_TOP_50DBZ_NAME = 'echo_top_50dbz_km'
 LOW_LEVEL_SHEAR_NAME = 'low_level_shear_s01'
 MID_LEVEL_SHEAR_NAME = 'mid_level_shear_s01'
@@ -83,7 +83,7 @@ REFLECTIVITY_NAMES = [
     REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME]
 
 ECHO_TOP_18DBZ_NAME_ORIG = 'EchoTop_18'
-ECHO_TOP_40DBZ_NAME_ORIG = 'EchoTop_40.0'
+ECHO_TOP_40DBZ_NAME_ORIG = 'EchoTop_40'
 ECHO_TOP_50DBZ_NAME_ORIG = 'EchoTop_50'
 REFL_NAME_ORIG = 'MergedReflectivityQC'
 REFL_COLUMN_MAX_NAME_ORIG = 'MergedReflectivityQCComposite'
@@ -106,10 +106,12 @@ LOW_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_0-2kmAGL'
 MID_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_3-6kmAGL'
 
 RADAR_FIELD_NAMES = [
-    ECHO_TOP_18DBZ_NAME, ECHO_TOP_40DBZ_NAME, ECHO_TOP_50DBZ_NAME,
-    LOW_LEVEL_SHEAR_NAME, MID_LEVEL_SHEAR_NAME, REFL_NAME, REFL_COLUMN_MAX_NAME,
-    MESH_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME, REFL_M20CELSIUS_NAME,
-    REFL_LOWEST_ALTITUDE_NAME, SHI_NAME, VIL_NAME, STORM_ID_NAME]
+    ECHO_TOP_18DBZ_NAME, ECHO_TOP_40DBZ_NAME,
+    ECHO_TOP_50DBZ_NAME, LOW_LEVEL_SHEAR_NAME,
+    MID_LEVEL_SHEAR_NAME, REFL_NAME, REFL_COLUMN_MAX_NAME,
+    MESH_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
+    REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME, SHI_NAME,
+    VIL_NAME, STORM_ID_NAME]
 
 RADAR_FIELD_NAMES_MYRORSS = [
     ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_40DBZ_NAME_ORIG,
@@ -198,56 +200,6 @@ def _field_name_orig_to_new(field_name_orig, data_source=None):
     return RADAR_FIELD_NAMES[numpy.where(found_flags)[0][0]]
 
 
-def _get_valid_heights_for_field(field_name, data_source=None):
-    """Finds valid heights for radar field.
-
-    :param field_name: Name of radar field in new format (as opposed to MYRORSS
-        or MRMS format).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: valid_heights_m_agl: 1-D numpy array of valid heights (integer
-        metres above ground level).
-    :raises: ValueError: if field_name = "storm_id".
-    """
-
-    if field_name == STORM_ID_NAME:
-        raise ValueError('Field may be any radar field other than "' +
-                         STORM_ID_NAME + '".')
-
-    if data_source == MYRORSS_SOURCE_ID:
-        default_height_m_agl = copy.deepcopy(DEFAULT_HEIGHT_MYRORSS_M_AGL)
-    else:
-        default_height_m_agl = copy.deepcopy(DEFAULT_HEIGHT_MRMS_M_AGL)
-
-    if field_name in ECHO_TOP_NAMES:
-        return numpy.array([default_height_m_agl])
-    elif field_name == LOW_LEVEL_SHEAR_NAME:
-        return numpy.array([SHEAR_HEIGHT_M_AGL])
-    elif field_name == MID_LEVEL_SHEAR_NAME:
-        return numpy.array([SHEAR_HEIGHT_M_AGL])
-    elif field_name == REFL_NAME:
-        return numpy.array(
-            [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750,
-             3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000,
-             8500, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000,
-             18000, 19000, 20000])
-    elif field_name == REFL_COLUMN_MAX_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == MESH_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == REFL_0CELSIUS_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == REFL_M10CELSIUS_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == REFL_M20CELSIUS_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == REFL_LOWEST_ALTITUDE_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == SHI_NAME:
-        return numpy.array([default_height_m_agl])
-    elif field_name == VIL_NAME:
-        return numpy.array([default_height_m_agl])
-
-
 def _check_reflectivity_heights(heights_m_agl):
     """Ensures that all reflectivity heights are valid.
 
@@ -261,8 +213,8 @@ def _check_reflectivity_heights(heights_m_agl):
 
     # Data source doesn't matter in this method call (i.e., replacing
     # MYRORSS_SOURCE_ID with MRMS_SOURCE_ID would have no effect).
-    valid_heights_m_agl = _get_valid_heights_for_field(REFL_NAME,
-                                                       MYRORSS_SOURCE_ID)
+    valid_heights_m_agl = get_valid_heights_for_field(
+        REFL_NAME, MYRORSS_SOURCE_ID)
 
     for this_height_m_agl in heights_m_agl:
         if this_height_m_agl in valid_heights_m_agl:
@@ -391,6 +343,58 @@ def field_name_new_to_orig(field_name, data_source=None):
     return all_orig_field_names[numpy.where(found_flags)[0][0]]
 
 
+def get_valid_heights_for_field(field_name, data_source):
+    """Finds valid heights for radar field.
+
+    :param field_name: Field name in GewitterGefahr format (must belong to
+        `RADAR_FIELD_NAMES`).
+    :param data_source: Data source (either "myrorss" or "mrms").
+    :return: valid_heights_m_agl: 1-D integer numpy array of valid heights
+        (metres above ground level).
+    :raises: ValueError: if field_name = "storm_id".
+    """
+
+    check_field_name(field_name)
+    _check_data_source(data_source)
+    if field_name == STORM_ID_NAME:
+        raise ValueError('Field name cannot be "{0:s}".'.format(STORM_ID_NAME))
+
+    if data_source == MYRORSS_SOURCE_ID:
+        default_height_m_agl = copy.deepcopy(DEFAULT_HEIGHT_MYRORSS_M_AGL)
+    else:
+        default_height_m_agl = copy.deepcopy(DEFAULT_HEIGHT_MRMS_M_AGL)
+
+    if field_name in ECHO_TOP_NAMES:
+        return numpy.array([default_height_m_agl])
+    if field_name == LOW_LEVEL_SHEAR_NAME:
+        return numpy.array([SHEAR_HEIGHT_M_AGL])
+    if field_name == MID_LEVEL_SHEAR_NAME:
+        return numpy.array([SHEAR_HEIGHT_M_AGL])
+    if field_name == REFL_NAME:
+        return numpy.array(
+            [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750,
+             3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000,
+             8500, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000,
+             18000, 19000, 20000])
+
+    if field_name == REFL_COLUMN_MAX_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == MESH_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == REFL_0CELSIUS_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == REFL_M10CELSIUS_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == REFL_M20CELSIUS_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == REFL_LOWEST_ALTITUDE_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == SHI_NAME:
+        return numpy.array([default_height_m_agl])
+    if field_name == VIL_NAME:
+        return numpy.array([default_height_m_agl])
+
+
 def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
                                     data_source=None):
     """Converts two arrays (radar-field names and reflectivity heights) to dict.
@@ -414,7 +418,7 @@ def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
                 {this_field_name: refl_heights_m_agl})
         else:
             field_to_heights_dict_m_agl.update({
-                this_field_name: _get_valid_heights_for_field(
+                this_field_name: get_valid_heights_for_field(
                     this_field_name, data_source=data_source)})
 
     return field_to_heights_dict_m_agl
@@ -445,7 +449,7 @@ def unique_fields_and_heights_to_pairs(field_names, refl_heights_m_agl=None,
             _check_reflectivity_heights(refl_heights_m_agl)
             these_heights_m_agl = copy.deepcopy(refl_heights_m_agl)
         else:
-            these_heights_m_agl = _get_valid_heights_for_field(
+            these_heights_m_agl = get_valid_heights_for_field(
                 this_field_name, data_source=data_source)
 
         field_name_by_pair += [this_field_name] * len(these_heights_m_agl)
@@ -469,7 +473,7 @@ def get_relative_dir_for_raw_files(field_name=None, height_m_agl=None,
     if field_name == REFL_NAME:
         _check_reflectivity_heights(numpy.array([height_m_agl]))
     else:
-        height_m_agl = _get_valid_heights_for_field(
+        height_m_agl = get_valid_heights_for_field(
             field_name, data_source=data_source)[0]
 
     return '{0:s}/{1:05.2f}'.format(
