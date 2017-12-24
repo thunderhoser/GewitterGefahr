@@ -498,7 +498,7 @@ def get_stats_for_storm_objects(
                     unique_storm_times_unix_sec[i],
                     TIME_FORMAT_FOR_LOG_MESSAGES)
                 warning_string = (
-                    'Cannot find file for "{0:s}" at {1:d} metres AGL and '
+                    'Cannot find file for "{0:s}" at {1:f} metres AGL and '
                     '{2:s}.  File expected at: "{3:s}"').format(
                         radar_field_name_by_pair[j],
                         radar_height_by_pair_m_agl[j], this_time_string,
