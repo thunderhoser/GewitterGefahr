@@ -4,6 +4,7 @@ These are usually spatial statistics based on values inside a storm object.
 """
 
 import os.path
+import warnings
 import pickle
 import numpy
 import pandas
@@ -492,6 +493,17 @@ def get_stats_for_storm_objects(
 
             if not os.path.isfile(radar_file_name_matrix[i, j]):
                 radar_file_name_matrix[i, j] = None
+
+                this_time_string = time_conversion.unix_sec_to_string(
+                    unique_storm_times_unix_sec[i],
+                    TIME_FORMAT_FOR_LOG_MESSAGES)
+                warning_string = (
+                    'Cannot find file for "{0:s}" at {1:d} metres AGL and '
+                    '{2:s}.  File expected at: "{3:s}"').format(
+                        radar_field_name_by_pair[j],
+                        radar_height_by_pair_m_agl[j], this_time_string,
+                        radar_file_name_matrix[i, j])
+                warnings.warn(warning_string)
 
     num_statistics = len(statistic_names)
     num_percentiles = len(percentile_levels)
