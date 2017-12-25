@@ -360,6 +360,26 @@ class RadarIoTests(unittest.TestCase):
             FILE_TIME_UNIX_SEC, zipped=False)
         self.assertTrue(this_pathless_file_name == PATHLESS_UNZIPPED_FILE_NAME)
 
+    def test_raw_file_name_to_time_zipped(self):
+        """Ensures correct output from _raw_file_name_to_time.
+
+        In this case, input is name of zipped file.
+        """
+
+        this_time_unix_sec = radar_io._raw_file_name_to_time(
+            PATHLESS_ZIPPED_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
+
+    def test_raw_file_name_to_time_unzipped(self):
+        """Ensures correct output from _raw_file_name_to_time.
+
+        In this case, input is name of unzipped file.
+        """
+
+        this_time_unix_sec = radar_io._raw_file_name_to_time(
+            PATHLESS_UNZIPPED_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
+
     def test_remove_sentinels_from_sparse_grid(self):
         """Ensures correct output from _remove_sentinels_from_sparse_grid."""
 

@@ -274,6 +274,19 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
         UNZIPPED_FILE_EXTENSION)
 
 
+def _raw_file_name_to_time(raw_file_name):
+    """Parses time from file name.
+
+    :param raw_file_name: Path to raw file.
+    :return: unix_time_sec: Valid time.
+    """
+
+    _, time_string = os.path.split(raw_file_name)
+    time_string = time_string.replace(ZIPPED_FILE_EXTENSION, '').replace(
+        UNZIPPED_FILE_EXTENSION, '')
+    return time_conversion.string_to_unix_sec(time_string, TIME_FORMAT_SECONDS)
+
+
 def _remove_sentinels_from_sparse_grid(sparse_grid_table, field_name=None,
                                        sentinel_values=None):
     """Removes sentinel values from sparse radar grid.
@@ -566,10 +579,7 @@ def find_raw_azimuthal_shear_file(
 
     file_times_unix_sec = []
     for this_raw_file_name in raw_file_names:
-        _, this_pathless_file_name = os.path.split(this_raw_file_name)
-        this_time_string, _ = os.path.splitext(this_pathless_file_name)
-        file_times_unix_sec.append(time_conversion.string_to_unix_sec(
-            this_time_string, TIME_FORMAT_SECONDS))
+        file_times_unix_sec.append(_raw_file_name_to_time(this_raw_file_name))
 
     if len(file_times_unix_sec):
         file_times_unix_sec = numpy.array(file_times_unix_sec)
