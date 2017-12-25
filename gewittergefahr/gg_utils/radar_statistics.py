@@ -3,7 +3,6 @@
 These are usually spatial statistics based on values inside a storm object.
 """
 
-import os.path
 import warnings
 import pickle
 import numpy
@@ -481,17 +480,27 @@ def get_stats_for_storm_objects(
 
     for i in range(num_unique_storm_times):
         for j in range(num_radar_fields):
-            radar_file_name_matrix[i, j] = radar_io.find_raw_file(
-                unix_time_sec=unique_storm_times_unix_sec[i],
-                spc_date_unix_sec=unique_spc_dates_unix_sec[i],
-                field_name=radar_field_name_by_pair[j],
-                height_m_agl=radar_height_by_pair_m_agl[j],
-                data_source=radar_data_source,
-                top_directory_name=top_radar_directory_name,
-                raise_error_if_missing=
-                radar_field_name_by_pair[j] not in IGNORABLE_FIELD_NAMES)
+            if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
+                radar_file_name_matrix[i, j] = (
+                    radar_io.find_raw_azimuthal_shear_file(
+                        desired_time_unix_sec=unique_storm_times_unix_sec[i],
+                        spc_date_unix_sec=unique_spc_dates_unix_sec[i],
+                        field_name=radar_field_name_by_pair[j],
+                        data_source=radar_data_source,
+                        top_directory_name=top_radar_directory_name,
+                        raise_error_if_missing=False))
 
-            if not os.path.isfile(radar_file_name_matrix[i, j]):
+            else:
+                radar_file_name_matrix[i, j] = radar_io.find_raw_file(
+                    unix_time_sec=unique_storm_times_unix_sec[i],
+                    spc_date_unix_sec=unique_spc_dates_unix_sec[i],
+                    field_name=radar_field_name_by_pair[j],
+                    height_m_agl=radar_height_by_pair_m_agl[j],
+                    data_source=radar_data_source,
+                    top_directory_name=top_radar_directory_name,
+                    raise_error_if_missing=True)
+
+            if radar_file_name_matrix[i, j] is None:
                 this_time_string = time_conversion.unix_sec_to_string(
                     unique_storm_times_unix_sec[i],
                     TIME_FORMAT_FOR_LOG_MESSAGES)
@@ -500,10 +509,8 @@ def get_stats_for_storm_objects(
                     '{2:s}.  File expected at: "{3:s}"').format(
                         radar_field_name_by_pair[j],
                         numpy.round(int(radar_height_by_pair_m_agl[j])),
-                        this_time_string, radar_file_name_matrix[i, j])
+                        this_time_string)
                 warnings.warn(warning_string)
-
-                radar_file_name_matrix[i, j] = None
 
     num_statistics = len(statistic_names)
     num_percentiles = len(percentile_levels)

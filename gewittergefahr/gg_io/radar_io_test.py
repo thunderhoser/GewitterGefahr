@@ -23,11 +23,13 @@ NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
 REFL_HEIGHTS_M_AGL = numpy.array([500, 1000, 2000, 3000, 5000, 10000])
 REFL_HEIGHTS_ONE_BAD_M_AGL = numpy.array([500, 1000, 2000, 3456, 5000, 10000])
 
-# The following constants are used to test _get_pathless_raw_file_name.
+# The following constants are used to test _get_pathless_raw_file_pattern and
+# _get_pathless_raw_file_name.
 FILE_TIME_UNIX_SEC = 1507234802  # 202002 UTC 5 Oct 2017
 FILE_SPC_DATE_UNIX_SEC = 1507234802
 PATHLESS_ZIPPED_FILE_NAME = '20171005-202002.netcdf.gz'
 PATHLESS_UNZIPPED_FILE_NAME = '20171005-202002.netcdf'
+PATHLESS_FILE_PATTERN = '20171005-2020*.netcdf*'
 
 # The following constants are used to test field_and_height_arrays_to_dict.
 UNIQUE_FIELD_NAMES = [
@@ -104,7 +106,8 @@ FIELD_MATRIX_NO_SENTINELS = numpy.array([
 RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.25'
 RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.25'
 
-# The following constants are used to test find_raw_file.
+# The following constants are used to test find_raw_file and
+# find_raw_azimuthal_shear_file.
 TOP_RAW_DIRECTORY_NAME = 'radar'
 RAW_FILE_NAME_MYRORSS = (
     'radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
@@ -330,6 +333,13 @@ class RadarIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             radar_io._check_reflectivity_heights(REFL_HEIGHTS_ONE_BAD_M_AGL)
 
+    def test_get_pathless_raw_file_pattern(self):
+        """Ensures correct output from _get_pathless_raw_file_pattern."""
+
+        this_pathless_file_pattern = radar_io._get_pathless_raw_file_pattern(
+            FILE_TIME_UNIX_SEC)
+        self.assertTrue(this_pathless_file_pattern == PATHLESS_FILE_PATTERN)
+
     def test_get_pathless_raw_file_name_zipped(self):
         """Ensures correct output from _get_pathless_raw_file_name.
 
@@ -474,6 +484,18 @@ class RadarIoTests(unittest.TestCase):
             top_directory_name=TOP_RAW_DIRECTORY_NAME,
             raise_error_if_missing=False)
         self.assertTrue(this_raw_file_name == RAW_FILE_NAME_MRMS)
+
+    def test_find_raw_azimuthal_shear_file(self):
+        """Ensures correct output from find_raw_azimuthal_shear_file."""
+
+        this_raw_file_name = radar_io.find_raw_azimuthal_shear_file(
+            desired_time_unix_sec=FILE_TIME_UNIX_SEC,
+            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
+            field_name=LL_SHEAR_NAME_NEW,
+            data_source=radar_io.MYRORSS_SOURCE_ID,
+            top_directory_name=TOP_RAW_DIRECTORY_NAME,
+            raise_error_if_missing=False)
+        self.assertTrue(this_raw_file_name is None)
 
     def test_rowcol_to_latlng(self):
         """Ensures correct output from rowcol_to_latlng."""
