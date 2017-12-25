@@ -570,7 +570,9 @@ def find_raw_azimuthal_shear_file(
     file_times_unix_sec = []
     for this_raw_file_name in raw_file_names:
         _, this_pathless_file_name = os.path.split(this_raw_file_name)
-        this_time_string, _ = os.path.splitext(this_pathless_file_name)
+        this_time_string, ending = os.path.splitext(this_pathless_file_name)
+        if (ending.rfind("gz") > -1):
+            this_time_string, ending = os.path.splitext(this_time_string)
         file_times_unix_sec.append(time_conversion.string_to_unix_sec(
             this_time_string, TIME_FORMAT_SECONDS))
 
