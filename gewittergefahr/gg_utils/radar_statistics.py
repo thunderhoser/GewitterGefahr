@@ -10,6 +10,7 @@ import pandas
 import scipy.stats
 from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import dilation
@@ -29,9 +30,9 @@ STATISTIC_NAME_KEY = 'statistic_name'
 PERCENTILE_LEVEL_KEY = 'percentile_level'
 
 GRID_METADATA_KEYS_TO_COMPARE = [
-    radar_io.NW_GRID_POINT_LAT_COLUMN, radar_io.NW_GRID_POINT_LNG_COLUMN,
-    radar_io.LAT_SPACING_COLUMN, radar_io.LNG_SPACING_COLUMN,
-    radar_io.NUM_LAT_COLUMN, radar_io.NUM_LNG_COLUMN]
+    radar_utils.NW_GRID_POINT_LAT_COLUMN, radar_utils.NW_GRID_POINT_LNG_COLUMN,
+    radar_utils.LAT_SPACING_COLUMN, radar_utils.LNG_SPACING_COLUMN,
+    radar_utils.NUM_LAT_COLUMN, radar_utils.NUM_LNG_COLUMN]
 
 STORM_OBJECT_TO_GRID_PTS_COLUMNS = [
     tracking_io.STORM_ID_COLUMN, tracking_io.GRID_POINT_ROW_COLUMN,
@@ -54,17 +55,17 @@ DEFAULT_PERCENTILE_LEVELS = numpy.array([0., 5., 25., 50., 75., 95., 100.])
 PERCENTILE_LEVEL_PRECISION = 0.1
 
 DEFAULT_RADAR_FIELD_NAMES = [
-    radar_io.ECHO_TOP_18DBZ_NAME, radar_io.ECHO_TOP_50DBZ_NAME,
-    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME,
-    radar_io.REFL_COLUMN_MAX_NAME, radar_io.MESH_NAME,
-    radar_io.REFL_0CELSIUS_NAME, radar_io.REFL_M10CELSIUS_NAME,
-    radar_io.REFL_M20CELSIUS_NAME, radar_io.REFL_LOWEST_ALTITUDE_NAME,
-    radar_io.SHI_NAME, radar_io.VIL_NAME]
+    radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME,
+    radar_utils.REFL_COLUMN_MAX_NAME, radar_utils.MESH_NAME,
+    radar_utils.REFL_0CELSIUS_NAME, radar_utils.REFL_M10CELSIUS_NAME,
+    radar_utils.REFL_M20CELSIUS_NAME, radar_utils.REFL_LOWEST_ALTITUDE_NAME,
+    radar_utils.SHI_NAME, radar_utils.VIL_NAME]
 
 IGNORABLE_FIELD_NAMES = [
-    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME]
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 AZIMUTHAL_SHEAR_FIELD_NAMES = [
-    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME]
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
 
 def _radar_field_and_statistic_to_column_name(
@@ -77,7 +78,7 @@ def _radar_field_and_statistic_to_column_name(
     :return: column_name: Name of column.
     """
 
-    if radar_field_name == radar_io.REFL_NAME:
+    if radar_field_name == radar_utils.REFL_NAME:
         return '{0:s}_{1:d}m_{2:s}'.format(
             radar_field_name, int(radar_height_m_asl), statistic_name)
 
@@ -95,7 +96,7 @@ def _radar_field_and_percentile_to_column_name(
     :return: column_name: Name of column.
     """
 
-    if radar_field_name == radar_io.REFL_NAME:
+    if radar_field_name == radar_utils.REFL_NAME:
         return '{0:s}_{1:d}m_percentile{2:05.1f}'.format(
             radar_field_name, int(radar_height_m_asl), percentile_level)
 
@@ -144,13 +145,13 @@ def _column_name_to_statistic_params(column_name):
     radar_field_name = '_'.join(column_name_parts[:-1])
     radar_height_part = None
     try:
-        radar_io.check_field_name(radar_field_name)
+        radar_utils.check_field_name(radar_field_name)
     except ValueError:
         radar_field_name = '_'.join(column_name_parts[:-2])
         radar_height_part = column_name_parts[-2]
 
     try:
-        radar_io.check_field_name(radar_field_name)
+        radar_utils.check_field_name(radar_field_name)
     except ValueError:
         return None
 
@@ -342,19 +343,19 @@ def get_grid_points_in_storm_objects(storm_object_table,
             tracking_io.GRID_POINT_ROW_COLUMN].values[i],
          storm_object_to_grid_points_table[
              tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]) = (
-                 radar_io.latlng_to_rowcol(
+                 radar_utils.latlng_to_rowcol(
                      storm_object_to_grid_points_table[
                          tracking_io.GRID_POINT_LAT_COLUMN].values[i],
                      storm_object_to_grid_points_table[
                          tracking_io.GRID_POINT_LNG_COLUMN].values[i],
                      nw_grid_point_lat_deg=
-                     new_metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
+                     new_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
                      nw_grid_point_lng_deg=
-                     new_metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
+                     new_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
                      lat_spacing_deg=
-                     new_metadata_dict[radar_io.LAT_SPACING_COLUMN],
+                     new_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
                      lng_spacing_deg=
-                     new_metadata_dict[radar_io.LNG_SPACING_COLUMN]))
+                     new_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
     return storm_object_to_grid_points_table[STORM_OBJECT_TO_GRID_PTS_COLUMNS]
 
@@ -410,7 +411,7 @@ def get_stats_for_storm_objects(
         percentile_levels=DEFAULT_PERCENTILE_LEVELS,
         radar_field_names=DEFAULT_RADAR_FIELD_NAMES,
         reflectivity_heights_m_asl=None,
-        radar_data_source=radar_io.MYRORSS_SOURCE_ID,
+        radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
         top_radar_directory_name=None, dilate_azimuthal_shear=False,
         dilation_half_width_in_pixels=dilation.DEFAULT_HALF_WIDTH,
         dilation_percentile_level=DEFAULT_DILATION_PERCENTILE_LEVEL):
@@ -461,7 +462,7 @@ def get_stats_for_storm_objects(
     error_checking.assert_is_boolean(dilate_azimuthal_shear)
 
     radar_field_name_by_pair, radar_height_by_pair_m_asl = (
-        radar_io.unique_fields_and_heights_to_pairs(
+        radar_utils.unique_fields_and_heights_to_pairs(
             unique_field_names=radar_field_names,
             refl_heights_m_asl=reflectivity_heights_m_asl,
             data_source=radar_data_source))
@@ -552,7 +553,7 @@ def get_stats_for_storm_objects(
                         radar_io.FIELD_NAME_COLUMN_ORIG],
                     data_source=radar_data_source,
                     sentinel_values=metadata_dict_for_this_field[
-                        radar_io.SENTINEL_VALUE_COLUMN]))
+                        radar_utils.SENTINEL_VALUE_COLUMN]))
 
             radar_matrix_this_field, _, _ = radar_s2f.sparse_to_full_grid(
                 sparse_grid_table_this_field, metadata_dict_for_this_field)

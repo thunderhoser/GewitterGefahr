@@ -7,8 +7,8 @@ http://gridrad.org
 
 import numpy
 from gewittergefahr.gg_io import netcdf_io
-from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -50,7 +50,7 @@ RADAR_FIELD_NAMES_ORIG = [
 ZERO_TIME_UNIX_SEC = 978307200  # 0000 UTC 1 Jan 2001
 
 
-# TODO(thunderhoser): merge this file with radar_io.py (which reads MYRORSS and
+# TODO(thunderhoser): merge this file with radar_utils.py (which reads MYRORSS and
 # MRMS data).
 
 
@@ -138,21 +138,22 @@ def read_metadata_from_full_grid_file(netcdf_file_name,
         netcdf_dataset.variables[HEIGHT_NAME_ORIG])
 
     metadata_dict = {
-        radar_io.NW_GRID_POINT_LAT_COLUMN: numpy.max(grid_point_latitudes_deg),
-        radar_io.NW_GRID_POINT_LNG_COLUMN:
+        radar_utils.NW_GRID_POINT_LAT_COLUMN:
+            numpy.max(grid_point_latitudes_deg),
+        radar_utils.NW_GRID_POINT_LNG_COLUMN:
             lng_conversion.convert_lng_positive_in_west(
                 numpy.min(grid_point_longitudes_deg)),
         MIN_GRID_POINT_HEIGHT_COLUMN: numpy.min(grid_point_heights_m_asl),
-        radar_io.LAT_SPACING_COLUMN: numpy.absolute(
+        radar_utils.LAT_SPACING_COLUMN: numpy.absolute(
             grid_point_latitudes_deg[1] - grid_point_latitudes_deg[0]),
-        radar_io.LNG_SPACING_COLUMN: numpy.absolute(
+        radar_utils.LNG_SPACING_COLUMN: numpy.absolute(
             grid_point_longitudes_deg[1] - grid_point_longitudes_deg[0]),
         HEIGHT_SPACING_COLUMN: numpy.absolute(
             grid_point_heights_m_asl[1] - grid_point_heights_m_asl[0]),
-        radar_io.NUM_LAT_COLUMN: len(grid_point_latitudes_deg),
-        radar_io.NUM_LNG_COLUMN: len(grid_point_longitudes_deg),
+        radar_utils.NUM_LAT_COLUMN: len(grid_point_latitudes_deg),
+        radar_utils.NUM_LNG_COLUMN: len(grid_point_longitudes_deg),
         NUM_HEIGHTS_COLUMN: len(grid_point_heights_m_asl),
-        radar_io.UNIX_TIME_COLUMN: _time_from_gridrad_to_unix(
+        radar_utils.UNIX_TIME_COLUMN: _time_from_gridrad_to_unix(
             netcdf_dataset.variables[TIME_NAME_ORIG][0])
     }
 
@@ -201,17 +202,18 @@ def read_field_from_full_grid_file(
     field_matrix = numpy.array(
         netcdf_dataset.variables[field_name_orig][0, :, :, :])
 
-    min_latitude_deg = metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN] - (
-        metadata_dict[radar_io.LAT_SPACING_COLUMN] *
-        (metadata_dict[radar_io.NUM_LAT_COLUMN] - 1))
+    min_latitude_deg = metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
+        metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+        (metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1))
     unique_grid_point_lat_deg, unique_grid_point_lng_deg = (
         grids.get_latlng_grid_points(
             min_latitude_deg=min_latitude_deg,
-            min_longitude_deg=metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN],
-            num_rows=metadata_dict[radar_io.NUM_LAT_COLUMN],
-            num_columns=metadata_dict[radar_io.NUM_LNG_COLUMN]))
+            min_longitude_deg=
+            metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+            num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
+            num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN]))
 
     max_height_m_asl = metadata_dict[MIN_GRID_POINT_HEIGHT_COLUMN] + (
         metadata_dict[HEIGHT_SPACING_COLUMN] *

@@ -59,8 +59,8 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     error_checking.assert_is_less_than(
         lowest_refl_to_consider_dbz, critical_reflectivity_dbz)
 
-    grid_point_heights_m_asl = radar_io.get_valid_heights_for_field(
-        field_name=radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
+    grid_point_heights_m_asl = radar_utils.get_valid_heights_for_field(
+        radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
     grid_point_heights_m_asl = grid_point_heights_m_asl[
         grid_point_heights_m_asl <= top_height_to_consider_m_asl]
     spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
@@ -68,8 +68,8 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
 
     column_max_refl_file_name = radar_io.find_raw_file(
         unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
-        field_name=radar_io.REFL_COLUMN_MAX_NAME,
-        data_source=radar_io.MYRORSS_SOURCE_ID,
+        field_name=radar_utils.REFL_COLUMN_MAX_NAME,
+        data_source=radar_utils.MYRORSS_SOURCE_ID,
         top_directory_name=top_directory_name)
 
     num_grid_heights = len(grid_point_heights_m_asl)
@@ -77,8 +77,8 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     for k in range(num_grid_heights):
         single_height_refl_file_names[k] = radar_io.find_raw_file(
             unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
-            field_name=radar_io.REFL_NAME,
-            data_source=radar_io.MYRORSS_SOURCE_ID,
+            field_name=radar_utils.REFL_NAME,
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
             top_directory_name=top_directory_name,
             height_m_asl=grid_point_heights_m_asl[k])
 
@@ -86,12 +86,12 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         column_max_refl_file_name)
 
     metadata_dict = radar_io.read_metadata_from_raw_file(
-        column_max_refl_file_name, data_source=radar_io.MYRORSS_SOURCE_ID)
+        column_max_refl_file_name, data_source=radar_utils.MYRORSS_SOURCE_ID)
     this_sparse_grid_table = radar_io.read_data_from_sparse_grid_file(
         column_max_refl_file_name,
         field_name_orig=metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG],
-        data_source=radar_io.MYRORSS_SOURCE_ID,
-        sentinel_values=metadata_dict[radar_io.SENTINEL_VALUE_COLUMN])
+        data_source=radar_utils.MYRORSS_SOURCE_ID,
+        sentinel_values=metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN])
 
     (column_max_refl_matrix_dbz,
      grid_point_latitudes_deg,
@@ -125,12 +125,13 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
 
         this_metadata_dict = radar_io.read_metadata_from_raw_file(
             single_height_refl_file_names[k],
-            data_source=radar_io.MYRORSS_SOURCE_ID)
+            data_source=radar_utils.MYRORSS_SOURCE_ID)
         this_sparse_grid_table = radar_io.read_data_from_sparse_grid_file(
             single_height_refl_file_names[k],
             field_name_orig=this_metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG],
-            data_source=radar_io.MYRORSS_SOURCE_ID,
-            sentinel_values=this_metadata_dict[radar_io.SENTINEL_VALUE_COLUMN])
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            sentinel_values=
+            this_metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN])
 
         this_reflectivity_matrix_dbz, _, _ = radar_s2f.sparse_to_full_grid(
             this_sparse_grid_table, this_metadata_dict,

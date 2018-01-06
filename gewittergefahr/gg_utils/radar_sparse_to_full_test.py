@@ -4,6 +4,7 @@ import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 
 TOLERANCE = 1e-6
@@ -15,7 +16,7 @@ RADAR_VALUES = numpy.array([35., 50., 70., 65.])
 
 NUM_GRID_ROWS = 4
 NUM_GRID_COLUMNS = 6
-RADAR_FIELD_NAME = radar_io.REFL_COLUMN_MAX_NAME
+RADAR_FIELD_NAME = radar_utils.REFL_COLUMN_MAX_NAME
 
 SPARSE_GRID_DICT = {radar_io.GRID_ROW_COLUMN: START_ROWS,
                     radar_io.GRID_COLUMN_COLUMN: START_COLUMNS,

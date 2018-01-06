@@ -4,10 +4,10 @@ import copy
 import unittest
 import numpy
 import pandas
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_io import radar_io
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import radar_utils
 
 # The following constants are used to test _get_grid_points_in_storms.
 NW_GRID_POINT_LAT_DEG = 53.5
@@ -84,7 +84,7 @@ for i in range(NUM_STORMS_SMALL_SCALE):
             GRID_POINT_ROWS_BY_STORM[i], GRID_POINT_COLUMNS_BY_STORM[i]))
 
     THESE_VERTEX_LATITUDES_DEG, THESE_VERTEX_LONGITUDES_DEG = (
-        radar_io.rowcol_to_latlng(
+        radar_utils.rowcol_to_latlng(
             THESE_VERTEX_ROWS, THESE_VERTEX_COLUMNS,
             nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
             nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
@@ -115,7 +115,7 @@ FLATTENED_GRID_POINT_INDICES = numpy.concatenate((
     FLAT_GRID_POINT_INDICES_STORM_I, FLAT_GRID_POINT_INDICES_STORM_II,
     FLAT_GRID_POINT_INDICES_STORM_III))
 FLATTENED_STORM_IDS = [
-    'a', 'a', 'a', 'a', 'b', 'b', 'b', 'b', 'c', 'c', 'c', 'c']
+    'i', 'i', 'i', 'i', 'ii', 'ii', 'ii', 'ii', 'iii', 'iii', 'iii', 'iii']
 
 GRID_POINTS_IN_STORMS_DICT = {
     tracking_utils.FLATTENED_INDEX_COLUMN: FLATTENED_GRID_POINT_INDICES,
@@ -197,7 +197,7 @@ for i in range(NUM_STORMS_LARGE_SCALE):
             GRID_POINT_ROWS_BY_STORM[i], GRID_POINT_COLUMNS_BY_STORM[i]))
 
     THESE_VERTEX_LATITUDES_DEG, THESE_VERTEX_LONGITUDES_DEG = (
-        radar_io.rowcol_to_latlng(
+        radar_utils.rowcol_to_latlng(
             THESE_VERTEX_ROWS, THESE_VERTEX_COLUMNS,
             nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
             nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,

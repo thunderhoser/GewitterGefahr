@@ -1,17 +1,479 @@
 """Processing methods for radar data."""
 
+import copy
 import numpy
 import scipy.interpolate
-from netCDF4 import Dataset
-from gewittergefahr.gg_io import radar_io
-from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
-from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 METRES_TO_KM = 0.001
-GRID_SPACING_MULTIPLE_DEG = 0.01
+
+NW_GRID_POINT_LAT_COLUMN = 'nw_grid_point_lat_deg'
+NW_GRID_POINT_LNG_COLUMN = 'nw_grid_point_lng_deg'
+LAT_SPACING_COLUMN = 'lat_spacing_deg'
+LNG_SPACING_COLUMN = 'lng_spacing_deg'
+NUM_LAT_COLUMN = 'num_lat_in_grid'
+NUM_LNG_COLUMN = 'num_lng_in_grid'
+HEIGHT_COLUMN = 'height_m_asl'
+UNIX_TIME_COLUMN = 'unix_time_sec'
+FIELD_NAME_COLUMN = 'field_name'
+SENTINEL_VALUE_COLUMN = 'sentinel_values'
+
+ECHO_TOP_18DBZ_NAME = 'echo_top_18dbz_km'
+ECHO_TOP_40DBZ_NAME = 'echo_top_40dbz_km'
+ECHO_TOP_50DBZ_NAME = 'echo_top_50dbz_km'
+LOW_LEVEL_SHEAR_NAME = 'low_level_shear_s01'
+MID_LEVEL_SHEAR_NAME = 'mid_level_shear_s01'
+REFL_NAME = 'reflectivity_dbz'
+REFL_COLUMN_MAX_NAME = 'reflectivity_column_max_dbz'
+MESH_NAME = 'mesh_mm'
+REFL_0CELSIUS_NAME = 'reflectivity_0celsius_dbz'
+REFL_M10CELSIUS_NAME = 'reflectivity_m10celsius_dbz'
+REFL_M20CELSIUS_NAME = 'reflectivity_m20celsius_dbz'
+REFL_LOWEST_ALTITUDE_NAME = 'reflectivity_lowest_altitude_dbz'
+SHI_NAME = 'shi'
+VIL_NAME = 'vil_mm'
+STORM_ID_NAME = 'storm_id'
+
+ECHO_TOP_NAMES = [ECHO_TOP_18DBZ_NAME, ECHO_TOP_50DBZ_NAME, ECHO_TOP_40DBZ_NAME]
+SHEAR_NAMES = [LOW_LEVEL_SHEAR_NAME, MID_LEVEL_SHEAR_NAME]
+REFLECTIVITY_NAMES = [
+    REFL_NAME, REFL_COLUMN_MAX_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
+    REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME]
+
+ECHO_TOP_18DBZ_NAME_ORIG = 'EchoTop_18'
+ECHO_TOP_40DBZ_NAME_ORIG = 'EchoTop_40'
+ECHO_TOP_50DBZ_NAME_ORIG = 'EchoTop_50'
+REFL_NAME_ORIG = 'MergedReflectivityQC'
+REFL_COLUMN_MAX_NAME_ORIG = 'MergedReflectivityQCComposite'
+MESH_NAME_ORIG = 'MESH'
+REFL_0CELSIUS_NAME_ORIG = 'Reflectivity_0C'
+REFL_M10CELSIUS_NAME_ORIG = 'Reflectivity_-10C'
+REFL_M20CELSIUS_NAME_ORIG = 'Reflectivity_-20C'
+REFL_LOWEST_ALTITUDE_NAME_ORIG = 'ReflectivityAtLowestAltitude'
+SHI_NAME_ORIG = 'SHI'
+VIL_NAME_ORIG = 'VIL'
+STORM_ID_NAME_ORIG = 'ClusterID'
+
+MRMS_SOURCE_ID = 'mrms'
+MYRORSS_SOURCE_ID = 'myrorss'
+DATA_SOURCE_IDS = [MRMS_SOURCE_ID, MYRORSS_SOURCE_ID]
+
+LOW_LEVEL_SHEAR_NAME_MYRORSS = 'MergedLLShear'
+MID_LEVEL_SHEAR_NAME_MYRORSS = 'MergedMLShear'
+LOW_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_0-2kmAGL'
+MID_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_3-6kmAGL'
+
+RADAR_FIELD_NAMES = [
+    ECHO_TOP_18DBZ_NAME, ECHO_TOP_40DBZ_NAME,
+    ECHO_TOP_50DBZ_NAME, LOW_LEVEL_SHEAR_NAME,
+    MID_LEVEL_SHEAR_NAME, REFL_NAME, REFL_COLUMN_MAX_NAME,
+    MESH_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
+    REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME, SHI_NAME,
+    VIL_NAME, STORM_ID_NAME]
+
+RADAR_FIELD_NAMES_MYRORSS = [
+    ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_40DBZ_NAME_ORIG,
+    ECHO_TOP_50DBZ_NAME_ORIG, LOW_LEVEL_SHEAR_NAME_MYRORSS,
+    MID_LEVEL_SHEAR_NAME_MYRORSS, REFL_NAME_ORIG, REFL_COLUMN_MAX_NAME_ORIG,
+    MESH_NAME_ORIG, REFL_0CELSIUS_NAME_ORIG, REFL_M10CELSIUS_NAME_ORIG,
+    REFL_M20CELSIUS_NAME_ORIG, REFL_LOWEST_ALTITUDE_NAME_ORIG, SHI_NAME_ORIG,
+    VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
+
+RADAR_FIELD_NAMES_MRMS = [
+    ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_40DBZ_NAME_ORIG,
+    ECHO_TOP_50DBZ_NAME_ORIG, LOW_LEVEL_SHEAR_NAME_MRMS,
+    MID_LEVEL_SHEAR_NAME_MRMS, REFL_NAME_ORIG, REFL_COLUMN_MAX_NAME_ORIG,
+    MESH_NAME_ORIG, REFL_0CELSIUS_NAME_ORIG, REFL_M10CELSIUS_NAME_ORIG,
+    REFL_M20CELSIUS_NAME_ORIG, REFL_LOWEST_ALTITUDE_NAME_ORIG, SHI_NAME_ORIG,
+    VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
+
+SHEAR_HEIGHT_M_ASL = 250
+DEFAULT_HEIGHT_MYRORSS_M_ASL = 250
+DEFAULT_HEIGHT_MRMS_M_ASL = 500
+DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
+
+
+def check_data_source(data_source):
+    """Ensures that data source is recognized.
+
+    :param data_source: Data source (string).
+    :raises: ValueError: if `data_source not in DATA_SOURCE_IDS`.
+    """
+
+    error_checking.assert_is_string(data_source)
+    if data_source not in DATA_SOURCE_IDS:
+        error_string = (
+            '\n\n' + str(DATA_SOURCE_IDS) +
+            '\n\nValid data sources (listed above) do not include "' +
+            data_source + '".')
+        raise ValueError(error_string)
+
+
+def check_field_name(field_name):
+    """Ensures that name of radar field is recognized.
+
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :raises: ValueError: if name of radar field is not recognized.
+    """
+
+    if field_name not in RADAR_FIELD_NAMES:
+        error_string = (
+            '\n\n' + str(RADAR_FIELD_NAMES) +
+            '\n\nValid field names (listed above) do not include "' +
+            field_name + '".')
+        raise ValueError(error_string)
+
+
+def check_field_name_orig(field_name_orig, data_source):
+    """Ensures that name of radar field is recognized.
+
+    :param field_name_orig: Name of radar field in original (either MYRORSS or
+        MRMS) format.
+    :param data_source: Data source (string).
+    :raises: ValueError: if name of radar field is not recognized.
+    """
+
+    check_data_source(data_source)
+    if data_source == MYRORSS_SOURCE_ID:
+        valid_field_names = RADAR_FIELD_NAMES_MYRORSS
+    else:
+        valid_field_names = RADAR_FIELD_NAMES_MRMS
+
+    if field_name_orig not in valid_field_names:
+        error_string = (
+            '\n\n' + str(valid_field_names) +
+            '\n\nValid field names (listed above) do not include "' +
+            field_name_orig + '".')
+        raise ValueError(error_string)
+
+
+def field_name_orig_to_new(field_name_orig, data_source):
+    """Converts field name from original to new format.
+
+    "Original format" = MYRORSS or MRMS
+    "New format" = GewitterGefahr format, which is Pythonic and includes units
+                   at the end
+
+    :param field_name_orig: Name of radar field in original (either MYRORSS or
+        MRMS) format.
+    :param data_source: Data source (string).
+    :return: field_name: Name of radar field in new format.
+    """
+
+    check_data_source(data_source)
+    if data_source == MYRORSS_SOURCE_ID:
+        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS
+    else:
+        all_orig_field_names = RADAR_FIELD_NAMES_MRMS
+
+    found_flags = [s == field_name_orig for s in all_orig_field_names]
+    return RADAR_FIELD_NAMES[numpy.where(found_flags)[0][0]]
+
+
+def field_name_new_to_orig(field_name, data_source):
+    """Converts field name from new to original format.
+
+    "Original format" = MYRORSS or MRMS
+    "New format" = GewitterGefahr format, which is Pythonic and includes units
+                   at the end
+
+    :param field_name: Name of radar field in new format.
+    :param data_source: Data source (string).
+    :return: field_name_orig: Name of radar field in original (either MYRORSS or
+        MRMS) format.
+    """
+
+    check_data_source(data_source)
+    if data_source == MYRORSS_SOURCE_ID:
+        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS
+    else:
+        all_orig_field_names = RADAR_FIELD_NAMES_MRMS
+
+    found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
+    return all_orig_field_names[numpy.where(found_flags)[0][0]]
+
+
+def get_valid_heights_for_field(field_name, data_source):
+    """Returns valid heights for radar field.
+
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :return: valid_heights_m_asl: 1-D numpy array of valid heights (integer
+        metres above sea level).
+    :raises: ValueError: if field_name = "storm_id".
+    """
+
+    check_field_name(field_name)
+    check_data_source(data_source)
+    if field_name == STORM_ID_NAME:
+        raise ValueError('Field name cannot be "{0:s}".'.format(STORM_ID_NAME))
+
+    if data_source == MYRORSS_SOURCE_ID:
+        default_height_m_asl = DEFAULT_HEIGHT_MYRORSS_M_ASL
+    else:
+        default_height_m_asl = DEFAULT_HEIGHT_MRMS_M_ASL
+
+    if field_name in ECHO_TOP_NAMES:
+        return numpy.array([default_height_m_asl])
+    if field_name == LOW_LEVEL_SHEAR_NAME:
+        return numpy.array([SHEAR_HEIGHT_M_ASL])
+    if field_name == MID_LEVEL_SHEAR_NAME:
+        return numpy.array([SHEAR_HEIGHT_M_ASL])
+    if field_name == REFL_COLUMN_MAX_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == MESH_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == REFL_0CELSIUS_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == REFL_M10CELSIUS_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == REFL_M20CELSIUS_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == REFL_LOWEST_ALTITUDE_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == SHI_NAME:
+        return numpy.array([default_height_m_asl])
+    if field_name == VIL_NAME:
+        return numpy.array([default_height_m_asl])
+
+    if field_name == REFL_NAME:
+        return numpy.array(
+            [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750,
+             3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000,
+             8500, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000,
+             18000, 19000, 20000])
+
+
+def check_reflectivity_heights(heights_m_asl, data_source):
+    """Ensures that reflectivity heights are valid.
+
+    :param heights_m_asl: 1-D numpy array of reflectivity heights (metres above
+        sea level).
+    :param data_source: Data source (string).
+    :raises: ValueError: if any element of heights_m_asl is invalid.
+    """
+
+    error_checking.assert_is_real_numpy_array(heights_m_asl)
+    error_checking.assert_is_numpy_array(heights_m_asl, num_dimensions=1)
+
+    integer_heights_m_asl = numpy.round(heights_m_asl).astype(int)
+    valid_heights_m_asl = get_valid_heights_for_field(REFL_NAME, data_source)
+
+    for this_height_m_asl in integer_heights_m_asl:
+        if this_height_m_asl in valid_heights_m_asl:
+            continue
+
+        error_string = (
+            '\n\n' + str(valid_heights_m_asl) +
+            '\n\nValid reflectivity heights (metres ASL, listed above) do not '
+            'include ' + str(this_height_m_asl) + ' m ASL.')
+        raise ValueError(error_string)
+
+
+def field_and_height_arrays_to_dict(
+        field_names, data_source, refl_heights_m_asl=None):
+    """Converts two arrays (field names and reflectivity heights) to dictionary.
+
+    :param field_names: 1-D list with names of radar fields in GewitterGefahr
+        format.
+    :param data_source: Data source (string).
+    :param refl_heights_m_asl: 1-D numpy array of reflectivity heights (metres
+        above sea level).
+    :return: field_to_heights_dict_m_asl: Dictionary, where each key comes from
+        `field_names` and each value is a 1-D numpy array of heights (metres
+        above sea level).
+    """
+
+    field_to_heights_dict_m_asl = {}
+
+    for this_field_name in field_names:
+        if this_field_name == REFL_NAME:
+            check_reflectivity_heights(refl_heights_m_asl, data_source)
+            field_to_heights_dict_m_asl.update(
+                {this_field_name: refl_heights_m_asl})
+        else:
+            field_to_heights_dict_m_asl.update({
+                this_field_name: get_valid_heights_for_field(
+                    this_field_name, data_source=data_source)})
+
+    return field_to_heights_dict_m_asl
+
+
+def unique_fields_and_heights_to_pairs(
+        unique_field_names, data_source, refl_heights_m_asl=None):
+    """Converts unique arrays (field names and refl heights) to non-unique ones.
+
+    F = number of unique field names
+    N = number of field-height pairs
+
+    :param unique_field_names: length-F list with names of radar fields in
+        GewitterGefahr format.
+    :param data_source: Data source (string).
+    :param refl_heights_m_asl: 1-D numpy array of reflectivity heights (metres
+        above sea level).
+    :return: field_name_by_pair: length-N list of field names.
+    :return: height_by_pair_m_asl: length-N numpy array of radar heights (metres
+        above sea level).
+    """
+
+    field_name_by_pair = []
+    height_by_pair_m_asl = numpy.array([])
+
+    for this_field_name in unique_field_names:
+        if this_field_name == REFL_NAME:
+            check_reflectivity_heights(refl_heights_m_asl, data_source)
+            these_heights_m_asl = copy.deepcopy(refl_heights_m_asl)
+        else:
+            these_heights_m_asl = get_valid_heights_for_field(
+                this_field_name, data_source=data_source)
+
+        field_name_by_pair += [this_field_name] * len(these_heights_m_asl)
+        height_by_pair_m_asl = numpy.concatenate((
+            height_by_pair_m_asl, these_heights_m_asl))
+
+    return field_name_by_pair, height_by_pair_m_asl
+
+
+def rowcol_to_latlng(
+        grid_rows, grid_columns, nw_grid_point_lat_deg, nw_grid_point_lng_deg,
+        lat_spacing_deg, lng_spacing_deg):
+    """Converts radar coordinates from row-column to lat-long.
+
+    P = number of input grid points
+
+    :param grid_rows: length-P numpy array with row indices of grid points
+        (increasing from north to south).
+    :param grid_columns: length-P numpy array with column indices of grid points
+        (increasing from west to east).
+    :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
+        point.
+    :param nw_grid_point_lng_deg: Longitude (deg E) of northwesternmost grid
+        point.
+    :param lat_spacing_deg: Spacing (deg N) between meridionally adjacent grid
+        points.
+    :param lng_spacing_deg: Spacing (deg E) between zonally adjacent grid
+        points.
+    :return: latitudes_deg: length-P numpy array with latitudes (deg N) of grid
+        points.
+    :return: longitudes_deg: length-P numpy array with longitudes (deg E) of
+        grid points.
+    """
+
+    error_checking.assert_is_real_numpy_array(grid_rows)
+    error_checking.assert_is_geq_numpy_array(grid_rows, -0.5, allow_nan=True)
+    error_checking.assert_is_numpy_array(grid_rows, num_dimensions=1)
+    num_points = len(grid_rows)
+
+    error_checking.assert_is_real_numpy_array(grid_columns)
+    error_checking.assert_is_geq_numpy_array(grid_columns, -0.5, allow_nan=True)
+    error_checking.assert_is_numpy_array(
+        grid_columns, exact_dimensions=numpy.array([num_points]))
+
+    error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
+    nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
+        nw_grid_point_lng_deg, allow_nan=False)
+
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
+
+    latitudes_deg = rounder.round_to_nearest(
+        nw_grid_point_lat_deg - lat_spacing_deg * grid_rows,
+        lat_spacing_deg / 2)
+    longitudes_deg = rounder.round_to_nearest(
+        nw_grid_point_lng_deg + lng_spacing_deg * grid_columns,
+        lng_spacing_deg / 2)
+    return latitudes_deg, lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg, allow_nan=True)
+
+
+def latlng_to_rowcol(
+        latitudes_deg, longitudes_deg, nw_grid_point_lat_deg,
+        nw_grid_point_lng_deg, lat_spacing_deg, lng_spacing_deg):
+    """Converts radar coordinates from lat-long to row-column.
+
+    P = number of input grid points
+
+    :param latitudes_deg: length-P numpy array with latitudes (deg N) of grid
+        points.
+    :param longitudes_deg: length-P numpy array with longitudes (deg E) of
+        grid points.
+    :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
+        point.
+    :param nw_grid_point_lng_deg: Longitude (deg E) of northwesternmost grid
+        point.
+    :param lat_spacing_deg: Spacing (deg N) between meridionally adjacent grid
+        points.
+    :param lng_spacing_deg: Spacing (deg E) between zonally adjacent grid
+        points.
+    :return: grid_rows: length-P numpy array with row indices of grid points
+        (increasing from north to south).
+    :return: grid_columns: length-P numpy array with column indices of grid
+        points (increasing from west to east).
+    """
+
+    error_checking.assert_is_valid_lat_numpy_array(
+        latitudes_deg, allow_nan=True)
+    error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
+    num_points = len(latitudes_deg)
+
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg, allow_nan=True)
+    error_checking.assert_is_numpy_array(
+        longitudes_deg, exact_dimensions=numpy.array([num_points]))
+
+    error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
+    nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
+        nw_grid_point_lng_deg, allow_nan=False)
+
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
+
+    grid_columns = rounder.round_to_nearest(
+        (longitudes_deg - nw_grid_point_lng_deg) / lng_spacing_deg, 0.5)
+    grid_rows = rounder.round_to_nearest(
+        (nw_grid_point_lat_deg - latitudes_deg) / lat_spacing_deg, 0.5)
+    return grid_rows, grid_columns
+
+
+def get_center_of_grid(
+        nw_grid_point_lat_deg, nw_grid_point_lng_deg, lat_spacing_deg,
+        lng_spacing_deg, num_grid_rows, num_grid_columns):
+    """Finds center of radar grid.
+
+    :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
+        point.
+    :param nw_grid_point_lng_deg: Longitude (deg E) of northwesternmost grid
+        point.
+    :param lat_spacing_deg: Spacing (deg N) between meridionally adjacent grid
+        points.
+    :param lng_spacing_deg: Spacing (deg E) between zonally adjacent grid
+        points.
+    :param num_grid_rows: Number of rows (unique grid-point latitudes).
+    :param num_grid_columns: Number of columns (unique grid-point longitudes).
+    :return: center_latitude_deg: Latitude (deg N) at center of grid.
+    :return: center_longitude_deg: Longitude (deg E) at center of grid.
+    """
+
+    error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
+    nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
+        nw_grid_point_lng_deg, allow_nan=False)
+
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_greater(num_grid_rows, 1)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_greater(num_grid_columns, 1)
+
+    min_latitude_deg = nw_grid_point_lat_deg - (
+        (num_grid_rows - 1) * lat_spacing_deg)
+    max_longitude_deg = nw_grid_point_lng_deg + (
+        (num_grid_columns - 1) * lng_spacing_deg)
+
+    return (numpy.mean(numpy.array([min_latitude_deg, nw_grid_point_lat_deg])),
+            numpy.mean(numpy.array([nw_grid_point_lng_deg, max_longitude_deg])))
 
 
 def get_echo_top_single_column(
@@ -89,153 +551,3 @@ def get_echo_top_single_column(
         heights_m_asl[indices_for_interp], kind='linear', bounds_error=False,
         fill_value='extrapolate', assume_sorted=False)
     return interp_object(critical_reflectivity_dbz)
-
-
-def write_field_to_myrorss_file(
-        field_matrix, netcdf_file_name, field_name, metadata_dict,
-        height_m_asl=None):
-    """Writes field to MYRORSS-formatted file.
-
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
-
-    :param field_matrix: M-by-N numpy array with one radar variable at one time.
-        Latitude should increase down each column, and longitude should increase
-        to the right along each row.
-    :param netcdf_file_name: Path to output file.
-    :param field_name: Name of radar field in GewitterGefahr format.
-    :param metadata_dict: Dictionary created by either
-        `gridrad_io.read_metadata_from_full_grid_file` or
-        `radar_io.read_metadata_from_raw_file`.
-    :param height_m_asl: Height of radar field (metres above sea level).
-    """
-
-    if field_name == radar_io.REFL_NAME:
-        field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
-            field_names=[field_name],
-            refl_heights_m_asl=numpy.array([height_m_asl]),
-            data_source=radar_io.MYRORSS_SOURCE_ID)
-    else:
-        field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
-            field_names=[field_name], data_source=radar_io.MYRORSS_SOURCE_ID)
-
-    field_name = field_to_heights_dict_m_asl.keys()[0]
-    radar_height_m_asl = field_to_heights_dict_m_asl[field_name][0]
-
-    if field_name in radar_io.ECHO_TOP_NAMES:
-        field_matrix = METRES_TO_KM * field_matrix
-    field_name_myrorss = radar_io.field_name_new_to_orig(
-        field_name, data_source=radar_io.MYRORSS_SOURCE_ID)
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
-    netcdf_dataset = Dataset(
-        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
-
-    netcdf_dataset.setncattr(radar_io.FIELD_NAME_COLUMN_ORIG,
-                             field_name_myrorss)
-    netcdf_dataset.setncattr('DataType', 'SparseLatLonGrid')
-
-    netcdf_dataset.setncattr(
-        radar_io.NW_GRID_POINT_LAT_COLUMN_ORIG,
-        metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN])
-    netcdf_dataset.setncattr(
-        radar_io.NW_GRID_POINT_LNG_COLUMN_ORIG,
-        lng_conversion.convert_lng_negative_in_west(
-            metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN]))
-    netcdf_dataset.setncattr(
-        radar_io.HEIGHT_COLUMN_ORIG,
-        METRES_TO_KM * numpy.float(radar_height_m_asl))
-    netcdf_dataset.setncattr(
-        radar_io.UNIX_TIME_COLUMN_ORIG,
-        numpy.int32(metadata_dict[radar_io.UNIX_TIME_COLUMN]))
-    netcdf_dataset.setncattr('FractionalTime', 0.)
-
-    netcdf_dataset.setncattr('attributes', ' ColorMap SubType Unit')
-    netcdf_dataset.setncattr('ColorMap-unit', 'dimensionless')
-    netcdf_dataset.setncattr('ColorMap-value', '')
-    netcdf_dataset.setncattr('SubType-unit', 'dimensionless')
-    netcdf_dataset.setncattr('SubType-value', numpy.float(radar_height_m_asl))
-    netcdf_dataset.setncattr('Unit-unit', 'dimensionless')
-    netcdf_dataset.setncattr('Unit-value', 'dimensionless')
-
-    netcdf_dataset.setncattr(
-        radar_io.LAT_SPACING_COLUMN_ORIG, rounder.round_to_nearest(
-            metadata_dict[radar_io.LAT_SPACING_COLUMN],
-            GRID_SPACING_MULTIPLE_DEG))
-    netcdf_dataset.setncattr(
-        radar_io.LNG_SPACING_COLUMN_ORIG, rounder.round_to_nearest(
-            metadata_dict[radar_io.LNG_SPACING_COLUMN],
-            GRID_SPACING_MULTIPLE_DEG))
-    netcdf_dataset.setncattr(
-        radar_io.SENTINEL_VALUE_COLUMNS_ORIG[0], numpy.double(-99000.))
-    netcdf_dataset.setncattr(
-        radar_io.SENTINEL_VALUE_COLUMNS_ORIG[1], numpy.double(-99001.))
-
-    min_latitude_deg = metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN] - (
-        metadata_dict[radar_io.LAT_SPACING_COLUMN] *
-        (metadata_dict[radar_io.NUM_LAT_COLUMN] - 1))
-    unique_grid_point_lats_deg, unique_grid_point_lngs_deg = (
-        grids.get_latlng_grid_points(
-            min_latitude_deg=min_latitude_deg,
-            min_longitude_deg=metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN],
-            num_rows=metadata_dict[radar_io.NUM_LAT_COLUMN],
-            num_columns=metadata_dict[radar_io.NUM_LNG_COLUMN]))
-
-    num_grid_rows = len(unique_grid_point_lats_deg)
-    num_grid_columns = len(unique_grid_point_lngs_deg)
-    field_vector = numpy.reshape(field_matrix, num_grid_rows * num_grid_columns)
-
-    grid_point_lat_matrix, grid_point_lng_matrix = (
-        grids.latlng_vectors_to_matrices(
-            unique_grid_point_lats_deg, unique_grid_point_lngs_deg))
-    grid_point_lat_vector = numpy.reshape(
-        grid_point_lat_matrix, num_grid_rows * num_grid_columns)
-    grid_point_lng_vector = numpy.reshape(
-        grid_point_lng_matrix, num_grid_rows * num_grid_columns)
-
-    real_value_indices = numpy.where(numpy.invert(numpy.isnan(field_vector)))[0]
-    netcdf_dataset.createDimension(
-        radar_io.NUM_LAT_COLUMN_ORIG, num_grid_rows - 1)
-    netcdf_dataset.createDimension(
-        radar_io.NUM_LNG_COLUMN_ORIG, num_grid_columns - 1)
-    netcdf_dataset.createDimension(
-        radar_io.NUM_PIXELS_COLUMN_ORIG, len(real_value_indices))
-
-    row_index_vector, column_index_vector = radar_io.latlng_to_rowcol(
-        grid_point_lat_vector, grid_point_lng_vector,
-        nw_grid_point_lat_deg=metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
-        nw_grid_point_lng_deg=metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-        lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-        lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN])
-
-    netcdf_dataset.createVariable(
-        field_name_myrorss, numpy.single, (radar_io.NUM_PIXELS_COLUMN_ORIG,))
-    netcdf_dataset.createVariable(
-        radar_io.GRID_ROW_COLUMN_ORIG, numpy.int16,
-        (radar_io.NUM_PIXELS_COLUMN_ORIG,))
-    netcdf_dataset.createVariable(
-        radar_io.GRID_COLUMN_COLUMN_ORIG, numpy.int16,
-        (radar_io.NUM_PIXELS_COLUMN_ORIG,))
-    netcdf_dataset.createVariable(
-        radar_io.NUM_GRID_CELL_COLUMN_ORIG, numpy.int32,
-        (radar_io.NUM_PIXELS_COLUMN_ORIG,))
-
-    netcdf_dataset.variables[field_name_myrorss].setncattr(
-        'BackgroundValue', numpy.int32(-99900))
-    netcdf_dataset.variables[field_name_myrorss].setncattr(
-        'units', 'dimensionless')
-    netcdf_dataset.variables[field_name_myrorss].setncattr(
-        'NumValidRuns', numpy.int32(len(real_value_indices)))
-
-    netcdf_dataset.variables[field_name_myrorss][:] = field_vector[
-        real_value_indices]
-    netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG][:] = (
-        row_index_vector[real_value_indices])
-    netcdf_dataset.variables[radar_io.GRID_COLUMN_COLUMN_ORIG][:] = (
-        column_index_vector[real_value_indices])
-    netcdf_dataset.variables[radar_io.NUM_GRID_CELL_COLUMN_ORIG][:] = (
-        numpy.full(len(real_value_indices), 1, dtype=int))
-
-    netcdf_dataset.close()

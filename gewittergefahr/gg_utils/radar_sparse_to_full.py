@@ -7,6 +7,7 @@ Sensed Storms) or MRMS (Multi-radar Multi-sensor).
 import numpy
 from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import radar_utils
 
 MIN_CENTER_LAT_COLUMN = 'min_center_lat_deg'
 MAX_CENTER_LAT_COLUMN = 'max_center_lat_deg'
@@ -95,23 +96,25 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict, ignore_if_below=None):
         longitudes (deg E), sorted in acending order.
     """
 
-    min_latitude_deg = metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN] - (
-        metadata_dict[radar_io.LAT_SPACING_COLUMN] * (
-            metadata_dict[radar_io.NUM_LAT_COLUMN] - 1))
+    min_latitude_deg = metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
+        metadata_dict[radar_utils.LAT_SPACING_COLUMN] * (
+            metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1))
 
     (unique_grid_point_lat_deg, unique_grid_point_lng_deg) = (
         grids.get_latlng_grid_points(
             min_latitude_deg=min_latitude_deg,
-            min_longitude_deg=metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN],
-            num_rows=metadata_dict[radar_io.NUM_LAT_COLUMN],
-            num_columns=metadata_dict[radar_io.NUM_LNG_COLUMN]))
+            min_longitude_deg=
+            metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+            num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
+            num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN]))
 
     full_matrix = _convert(
-        sparse_grid_table, field_name=metadata_dict[radar_io.FIELD_NAME_COLUMN],
-        num_grid_rows=metadata_dict[radar_io.NUM_LAT_COLUMN],
-        num_grid_columns=metadata_dict[radar_io.NUM_LNG_COLUMN],
+        sparse_grid_table,
+        field_name=metadata_dict[radar_utils.FIELD_NAME_COLUMN],
+        num_grid_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
+        num_grid_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN],
         ignore_if_below=ignore_if_below)
 
     return (

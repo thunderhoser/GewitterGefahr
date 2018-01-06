@@ -4,8 +4,8 @@ import unittest
 import copy
 import numpy
 import pandas
-from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import feature_vectors
@@ -24,7 +24,7 @@ STORM_OBJECT_TIMES_UNIX_SEC = numpy.linspace(
     0, 24000, num=NUM_STORM_OBJECTS, dtype=int)
 
 RADAR_STATISTIC_NAME = radar_stats._radar_field_and_statistic_to_column_name(
-    radar_field_name=radar_io.VIL_NAME,
+    radar_field_name=radar_utils.VIL_NAME,
     statistic_name=radar_stats.STANDARD_DEVIATION_NAME)
 RADAR_STATISTIC_VALUES = numpy.full(NUM_STORM_OBJECTS, 3.)
 RADAR_STATISTIC_DICT = {

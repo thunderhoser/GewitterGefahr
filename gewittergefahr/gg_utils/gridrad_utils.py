@@ -19,7 +19,6 @@ import numpy
 import pandas
 import scipy.interpolate
 from gewittergefahr.gg_io import grib_io
-from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
@@ -40,9 +39,9 @@ def _get_field_name_for_echo_tops(critical_reflectivity_dbz,
     # TODO(thunderhoser): probably don't need this method anymore.
 
     if myrorss_format:
-        field_name_for_18dbz_tops = radar_io.ECHO_TOP_18DBZ_NAME_ORIG
+        field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME_ORIG
     else:
-        field_name_for_18dbz_tops = radar_io.ECHO_TOP_18DBZ_NAME
+        field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME
 
     return field_name_for_18dbz_tops.replace(
         '18', '{0:.1f}'.format(critical_reflectivity_dbz))

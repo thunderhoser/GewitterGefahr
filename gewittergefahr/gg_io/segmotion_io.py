@@ -22,6 +22,7 @@ from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import unzipping
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
@@ -603,12 +604,12 @@ def get_start_end_times_for_spc_date(spc_date_unix_sec=None,
         tracking_scale_metres2=tracking_scale_metres2)
 
     first_metadata_dict = radar_io.read_metadata_from_raw_file(
-        polygon_file_names[0], data_source=radar_io.MYRORSS_SOURCE_ID)
-    start_time_unix_sec = first_metadata_dict[radar_io.UNIX_TIME_COLUMN]
+        polygon_file_names[0], data_source=radar_utils.MYRORSS_SOURCE_ID)
+    start_time_unix_sec = first_metadata_dict[radar_utils.UNIX_TIME_COLUMN]
 
     last_metadata_dict = radar_io.read_metadata_from_raw_file(
-        polygon_file_names[-1], data_source=radar_io.MYRORSS_SOURCE_ID)
-    end_time_unix_sec = last_metadata_dict[radar_io.UNIX_TIME_COLUMN]
+        polygon_file_names[-1], data_source=radar_utils.MYRORSS_SOURCE_ID)
+    end_time_unix_sec = last_metadata_dict[radar_utils.UNIX_TIME_COLUMN]
 
     return start_time_unix_sec, end_time_unix_sec
 
@@ -727,7 +728,7 @@ def read_polygons_from_netcdf(
     if netcdf_dataset is None:
         return None
 
-    storm_id_var_name = metadata_dict[radar_io.FIELD_NAME_COLUMN]
+    storm_id_var_name = metadata_dict[radar_utils.FIELD_NAME_COLUMN]
     storm_id_var_name_orig = metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG]
     num_values = len(netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG])
 
@@ -756,7 +757,7 @@ def read_polygons_from_netcdf(
 
     num_storms = len(polygon_table.index)
     unix_times_sec = numpy.full(
-        num_storms, metadata_dict[radar_io.UNIX_TIME_COLUMN], dtype=int)
+        num_storms, metadata_dict[radar_utils.UNIX_TIME_COLUMN], dtype=int)
     spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
     tracking_start_times_unix_sec = numpy.full(
         num_storms, tracking_start_time_unix_sec, dtype=int)
@@ -800,24 +801,25 @@ def read_polygons_from_netcdf(
 
         (polygon_table[tracking_io.GRID_POINT_LAT_COLUMN].values[i],
          polygon_table[tracking_io.GRID_POINT_LNG_COLUMN].values[i]) = (
-             radar_io.rowcol_to_latlng(
+             radar_utils.rowcol_to_latlng(
                  polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
                  polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i],
                  nw_grid_point_lat_deg=
-                 metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
+                 metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
                  nw_grid_point_lng_deg=
-                 metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-                 lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-                 lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN]))
+                 metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
-        these_vertex_lat_deg, these_vertex_lng_deg = radar_io.rowcol_to_latlng(
-            these_vertex_rows, these_vertex_columns,
-            nw_grid_point_lat_deg=
-            metadata_dict[radar_io.NW_GRID_POINT_LAT_COLUMN],
-            nw_grid_point_lng_deg=
-            metadata_dict[radar_io.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=metadata_dict[radar_io.LAT_SPACING_COLUMN],
-            lng_spacing_deg=metadata_dict[radar_io.LNG_SPACING_COLUMN])
+        these_vertex_lat_deg, these_vertex_lng_deg = (
+            radar_utils.rowcol_to_latlng(
+                these_vertex_rows, these_vertex_columns,
+                nw_grid_point_lat_deg=
+                metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                nw_grid_point_lng_deg=
+                metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
         (polygon_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
          polygon_table[tracking_io.CENTROID_LNG_COLUMN].values[i]) = (
@@ -857,7 +859,7 @@ if __name__ == '__main__':
     print STATS_TABLE
 
     METADATA_DICT = radar_io.read_metadata_from_raw_file(
-        NETCDF_FILE_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
+        NETCDF_FILE_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
         spc_date_unix_sec=SPC_DATE_UNIX_SEC,

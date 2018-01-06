@@ -9,23 +9,25 @@ import shutil
 import os.path
 import numpy
 from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
 IGNORABLE_RADAR_FIELD_NAMES = [
-    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME]
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
 DEFAULT_FIELDS_TO_REMOVE = [
-    radar_io.ECHO_TOP_18DBZ_NAME, radar_io.ECHO_TOP_50DBZ_NAME,
-    radar_io.LOW_LEVEL_SHEAR_NAME, radar_io.MID_LEVEL_SHEAR_NAME,
-    radar_io.REFL_NAME, radar_io.REFL_COLUMN_MAX_NAME, radar_io.MESH_NAME,
-    radar_io.REFL_0CELSIUS_NAME, radar_io.REFL_M10CELSIUS_NAME,
-    radar_io.REFL_M20CELSIUS_NAME, radar_io.REFL_LOWEST_ALTITUDE_NAME,
-    radar_io.SHI_NAME, radar_io.VIL_NAME]
+    radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME,
+    radar_utils.REFL_NAME, radar_utils.REFL_COLUMN_MAX_NAME,
+    radar_utils.MESH_NAME, radar_utils.REFL_0CELSIUS_NAME,
+    radar_utils.REFL_M10CELSIUS_NAME, radar_utils.REFL_M20CELSIUS_NAME,
+    radar_utils.REFL_LOWEST_ALTITUDE_NAME, radar_utils.SHI_NAME,
+    radar_utils.VIL_NAME]
 
-DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_ASL = radar_io.get_valid_heights_for_field(
-    field_name=radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
+DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_ASL = radar_utils.get_valid_heights_for_field(
+    radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
 
 
 def unzip_1day_tar_file(
@@ -61,8 +63,8 @@ def unzip_1day_tar_file(
     for this_field_name in field_names_removed:
         field_names.append(this_field_name)
 
-    field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
-        field_names=field_names, data_source=radar_io.MYRORSS_SOURCE_ID,
+    field_to_heights_dict_m_asl = radar_utils.field_and_height_arrays_to_dict(
+        field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
         refl_heights_m_asl=refl_heights_m_asl)
 
     target_directory_name = '{0:s}/{1:s}'.format(
@@ -77,7 +79,7 @@ def unzip_1day_tar_file(
             directory_names_to_unzip.append(
                 radar_io.get_relative_dir_for_raw_files(
                     field_name=this_field_name,
-                    data_source=radar_io.MYRORSS_SOURCE_ID,
+                    data_source=radar_utils.MYRORSS_SOURCE_ID,
                     height_m_asl=this_height_m_asl))
 
     unzipping.unzip_tar(
@@ -109,8 +111,8 @@ def remove_unzipped_data_1day(
     spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
         spc_date_string)
 
-    field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
-        field_names=field_names, data_source=radar_io.MYRORSS_SOURCE_ID,
+    field_to_heights_dict_m_asl = radar_utils.field_and_height_arrays_to_dict(
+        field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
         refl_heights_m_asl=refl_heights_m_asl)
 
     for this_field_name in field_to_heights_dict_m_asl.keys():
@@ -120,7 +122,7 @@ def remove_unzipped_data_1day(
             example_file_name = radar_io.find_raw_file(
                 unix_time_sec=spc_date_unix_sec,
                 spc_date_unix_sec=spc_date_unix_sec, field_name=this_field_name,
-                data_source=radar_io.MYRORSS_SOURCE_ID,
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
                 top_directory_name=top_directory_name,
                 height_m_asl=this_height_m_asl,
                 raise_error_if_missing=False)
@@ -129,7 +131,7 @@ def remove_unzipped_data_1day(
             directory_name_parts = example_directory_name.split('/')
             remove_all_heights = False
 
-            if this_field_name == radar_io.REFL_NAME:
+            if this_field_name == radar_utils.REFL_NAME:
                 if (set(these_heights_m_asl) ==
                         set(DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_ASL)):
                     remove_all_heights = True

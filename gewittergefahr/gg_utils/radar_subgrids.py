@@ -4,7 +4,7 @@ These are usually centered around a storm object.
 """
 
 import numpy
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
 
@@ -41,7 +41,7 @@ def _center_points_latlng_to_rowcol(center_latitudes_deg, center_longitudes_deg,
         points.
     """
 
-    center_row_indices, center_column_indices = radar_io.latlng_to_rowcol(
+    center_row_indices, center_column_indices = radar_utils.latlng_to_rowcol(
         center_latitudes_deg, center_longitudes_deg,
         nw_grid_point_lat_deg=nw_grid_point_lat_deg,
         nw_grid_point_lng_deg=nw_grid_point_lng_deg,

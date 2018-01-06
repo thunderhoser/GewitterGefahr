@@ -10,8 +10,8 @@ MRMS = Multi-radar Multi-sensor
 import numpy
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
-from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 
 REFLECTIVITY_PLOTTING_UNITS = 'dBZ'
@@ -254,22 +254,22 @@ def _get_default_colour_map(field_name):
         boundaries for the (i + 1)th colour.
     """
 
-    if field_name in radar_io.REFLECTIVITY_NAMES:
+    if field_name in radar_utils.REFLECTIVITY_NAMES:
         return _get_default_refl_colour_map()
 
-    if field_name in radar_io.SHEAR_NAMES:
+    if field_name in radar_utils.SHEAR_NAMES:
         return _get_default_shear_colour_map()
 
-    if field_name in radar_io.ECHO_TOP_NAMES:
+    if field_name in radar_utils.ECHO_TOP_NAMES:
         return _get_default_echo_top_colour_map()
 
-    if field_name == radar_io.MESH_NAME:
+    if field_name == radar_utils.MESH_NAME:
         return _get_default_mesh_colour_map()
 
-    if field_name == radar_io.SHI_NAME:
+    if field_name == radar_utils.SHI_NAME:
         return _get_default_shi_colour_map()
 
-    if field_name == radar_io.VIL_NAME:
+    if field_name == radar_utils.VIL_NAME:
         return _get_default_vil_colour_map()
 
 
@@ -280,22 +280,22 @@ def _get_plotting_units(field_name):
     :return: plotting_units: String describing units.
     """
 
-    if field_name in radar_io.REFLECTIVITY_NAMES:
+    if field_name in radar_utils.REFLECTIVITY_NAMES:
         return REFLECTIVITY_PLOTTING_UNITS
 
-    if field_name in radar_io.SHEAR_NAMES:
+    if field_name in radar_utils.SHEAR_NAMES:
         return SHEAR_PLOTTING_UNITS
 
-    if field_name in radar_io.ECHO_TOP_NAMES:
+    if field_name in radar_utils.ECHO_TOP_NAMES:
         return ECHO_TOP_PLOTTING_UNITS
 
-    if field_name == radar_io.MESH_NAME:
+    if field_name == radar_utils.MESH_NAME:
         return MESH_PLOTTING_UNITS
 
-    if field_name == radar_io.SHI_NAME:
+    if field_name == radar_utils.SHI_NAME:
         return SHI_PLOTTING_UNITS
 
-    if field_name == radar_io.VIL_NAME:
+    if field_name == radar_utils.VIL_NAME:
         return VIL_PLOTTING_UNITS
 
 
@@ -308,7 +308,7 @@ def _convert_to_plotting_units(field_matrix_gg_units, field_name):
     :return: field_matrix_plotting_units: Same as input, but in plotting units.
     """
 
-    if field_name in radar_io.ECHO_TOP_NAMES:
+    if field_name in radar_utils.ECHO_TOP_NAMES:
         return field_matrix_gg_units * KM_TO_KFT
 
     return field_matrix_gg_units
@@ -346,7 +346,7 @@ def plot_latlng_grid(axes_object=None, field_name=None, field_matrix=None,
     :param colour_maximum: Maximum value for colour map.
     """
 
-    radar_io.check_field_name(field_name)
+    radar_utils.check_field_name(field_name)
 
     (field_matrix_at_edges,
      grid_cell_edge_latitudes_deg,
