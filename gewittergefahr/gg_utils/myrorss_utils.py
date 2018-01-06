@@ -11,7 +11,6 @@ Ortega, K., and Coauthors, 2012: "The multi-year reanalysis of remotely sensed
 
 import numpy
 from gewittergefahr.gg_io import radar_io
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import error_checking
@@ -63,11 +62,9 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
     grid_point_heights_m_asl = grid_point_heights_m_asl[
         grid_point_heights_m_asl <= top_height_to_consider_m_asl]
-    spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        spc_date_string)
 
     column_max_refl_file_name = radar_io.find_raw_file(
-        unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+        unix_time_sec=unix_time_sec, spc_date_string=spc_date_string,
         field_name=radar_utils.REFL_COLUMN_MAX_NAME,
         data_source=radar_utils.MYRORSS_SOURCE_ID,
         top_directory_name=top_directory_name)
@@ -76,7 +73,7 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     single_height_refl_file_names = [''] * num_grid_heights
     for k in range(num_grid_heights):
         single_height_refl_file_names[k] = radar_io.find_raw_file(
-            unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
+            unix_time_sec=unix_time_sec, spc_date_string=spc_date_string,
             field_name=radar_utils.REFL_NAME,
             data_source=radar_utils.MYRORSS_SOURCE_ID,
             top_directory_name=top_directory_name,

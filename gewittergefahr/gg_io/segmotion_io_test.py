@@ -15,7 +15,6 @@ STATS_COLUMN_NAMES = [
     tracking_io.AGE_COLUMN]
 
 SPC_DATE_STRING = '20170910'
-SPC_DATE_UNIX_SEC = 1505066400
 STORM_IDS_NO_SPC_DATE = ['989', '657', '212']
 STORM_IDS_WITH_SPC_DATE = ['989_20170910', '657_20170910', '212_20170910']
 
@@ -230,7 +229,7 @@ class SegmotionIoTests(unittest.TestCase):
         """Ensures correct output from find_local_stats_file."""
 
         this_stats_file_name = segmotion_io.find_local_stats_file(
-            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            unix_time_sec=UNIX_TIME_SEC, spc_date_string=SPC_DATE_STRING,
             top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
             tracking_scale_metres2=TRACKING_SCALE_METRES2,
             raise_error_if_missing=False)
@@ -241,7 +240,7 @@ class SegmotionIoTests(unittest.TestCase):
         """Ensures correct output from find_local_polygon_file."""
 
         this_polygon_file_name = segmotion_io.find_local_polygon_file(
-            unix_time_sec=UNIX_TIME_SEC, spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            unix_time_sec=UNIX_TIME_SEC, spc_date_string=SPC_DATE_STRING,
             top_raw_directory_name=TOP_RAW_DIRECTORY_NAME,
             tracking_scale_metres2=TRACKING_SCALE_METRES2,
             raise_error_if_missing=False)

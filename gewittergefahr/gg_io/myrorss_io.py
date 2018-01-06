@@ -46,6 +46,8 @@ def unzip_1day_tar_file(
     :return: target_directory_name: Path to output directory.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
         numpy.asarray(field_names), num_dimensions=1)
@@ -121,7 +123,7 @@ def remove_unzipped_data_1day(
         for this_height_m_asl in these_heights_m_asl:
             example_file_name = radar_io.find_raw_file(
                 unix_time_sec=spc_date_unix_sec,
-                spc_date_unix_sec=spc_date_unix_sec, field_name=this_field_name,
+                spc_date_string=spc_date_string, field_name=this_field_name,
                 data_source=radar_utils.MYRORSS_SOURCE_ID,
                 top_directory_name=top_directory_name,
                 height_m_asl=this_height_m_asl,

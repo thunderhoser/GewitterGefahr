@@ -15,7 +15,7 @@ LL_SHEAR_NAME_NEW = radar_utils.LOW_LEVEL_SHEAR_NAME
 # The following constants are used to test _get_pathless_raw_file_pattern and
 # _get_pathless_raw_file_name.
 FILE_TIME_UNIX_SEC = 1507234802
-FILE_SPC_DATE_UNIX_SEC = 1507234802
+FILE_SPC_DATE_STRING = '20171005'
 PATHLESS_ZIPPED_FILE_NAME = '20171005-202002.netcdf.gz'
 PATHLESS_UNZIPPED_FILE_NAME = '20171005-202002.netcdf'
 PATHLESS_FILE_PATTERN = '20171005-2020*.netcdf*'
@@ -166,7 +166,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_raw_file_name = radar_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
-            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
+            spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,
             data_source=radar_utils.MYRORSS_SOURCE_ID,
             top_directory_name=TOP_RAW_DIRECTORY_NAME,
@@ -178,7 +178,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_raw_file_name = radar_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
-            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
+            spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,
             data_source=radar_utils.MRMS_SOURCE_ID,
             top_directory_name=TOP_RAW_DIRECTORY_NAME,
@@ -190,7 +190,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_raw_file_name = radar_io.find_raw_azimuthal_shear_file(
             desired_time_unix_sec=FILE_TIME_UNIX_SEC,
-            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
+            spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,
             data_source=radar_utils.MYRORSS_SOURCE_ID,
             top_directory_name=TOP_RAW_DIRECTORY_NAME,

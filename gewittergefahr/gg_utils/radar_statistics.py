@@ -480,12 +480,15 @@ def get_stats_for_storm_objects(
         (num_unique_storm_times, num_radar_fields), '', dtype=object)
 
     for i in range(num_unique_storm_times):
+        this_spc_date_string = time_conversion.time_to_spc_date_string(
+            unique_spc_dates_unix_sec[i])
+
         for j in range(num_radar_fields):
             if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
                 radar_file_name_matrix[i, j] = (
                     radar_io.find_raw_azimuthal_shear_file(
                         desired_time_unix_sec=unique_storm_times_unix_sec[i],
-                        spc_date_unix_sec=unique_spc_dates_unix_sec[i],
+                        spc_date_string=this_spc_date_string,
                         field_name=radar_field_name_by_pair[j],
                         data_source=radar_data_source,
                         top_directory_name=top_radar_directory_name,
@@ -494,7 +497,7 @@ def get_stats_for_storm_objects(
             else:
                 radar_file_name_matrix[i, j] = radar_io.find_raw_file(
                     unix_time_sec=unique_storm_times_unix_sec[i],
-                    spc_date_unix_sec=unique_spc_dates_unix_sec[i],
+                    spc_date_string=this_spc_date_string,
                     field_name=radar_field_name_by_pair[j],
                     height_m_asl=radar_height_by_pair_m_asl[j],
                     data_source=radar_data_source,

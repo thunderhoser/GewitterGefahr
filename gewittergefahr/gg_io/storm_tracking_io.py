@@ -86,29 +86,29 @@ def _get_pathless_processed_file_name(unix_time_sec, data_source):
         PROCESSED_FILE_EXTENSION)
 
 
-def _get_relative_processed_directory(data_source=None, spc_date_unix_sec=None,
-                                      unix_time_sec=None,
-                                      tracking_scale_metres2=None):
+def _get_relative_processed_directory(
+        data_source, tracking_scale_metres2, unix_time_sec=None,
+        spc_date_string=None):
     """Generates relative path for processed storm-tracking files.
 
     :param data_source: Data source (either "segmotion" or "probSevere").
-    :param spc_date_unix_sec: SPC date in Unix format (needed only if
-        data_source = "segmotion").
+    :param tracking_scale_metres2: Tracking scale.
     :param unix_time_sec: Valid time (needed only if data_source =
         "probSevere").
-    :param tracking_scale_metres2: Tracking scale.
+    :param spc_date_string: SPC date (format "yyyymmdd") (needed only if
+        data_source = "segmotion").
     :return: relative_processed_dir_name: Relative path for processed storm-
         tracking files.
     """
 
     if data_source == SEGMOTION_SOURCE_ID:
-        date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
+        date_string = spc_date_string
     else:
-        date_string = time_conversion.unix_sec_to_string(unix_time_sec,
-                                                         DATE_FORMAT)
+        date_string = time_conversion.unix_sec_to_string(
+            unix_time_sec, DATE_FORMAT)
 
-    return '{0:s}/scale_{1:d}m2'.format(date_string,
-                                        int(tracking_scale_metres2))
+    return '{0:s}/scale_{1:d}m2'.format(
+        date_string, int(tracking_scale_metres2))
 
 
 def remove_rows_with_nan(input_table):
@@ -342,19 +342,19 @@ def make_buffers_around_polygons(storm_object_table,
     return storm_object_table
 
 
-def find_processed_file(unix_time_sec=None, data_source=None,
-                        spc_date_unix_sec=None, top_processed_dir_name=None,
-                        tracking_scale_metres2=None,
-                        raise_error_if_missing=True):
+def find_processed_file(
+        unix_time_sec, data_source, top_processed_dir_name,
+        tracking_scale_metres2, spc_date_string=None,
+        raise_error_if_missing=True):
     """Finds processed tracking file on local machine.
 
     :param unix_time_sec: Time in Unix format.
     :param data_source: Data source (either "segmotion" or "probSevere").
-    :param spc_date_unix_sec: SPC date in Unix format (needed only if
-        data_source = "segmotion").
     :param top_processed_dir_name: Top-level directory for processed tracking
         files.
     :param tracking_scale_metres2: Tracking scale.
+    :param spc_date_string: SPC date (format "yyyymmdd") (needed only if
+        data_source = "segmotion").
     :param raise_error_if_missing: Boolean flag.  If raise_error_if_missing =
         True and file is missing, will raise an error.
     :return: processed_file_name: Path to processed tracking file.  If
@@ -363,14 +363,18 @@ def find_processed_file(unix_time_sec=None, data_source=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    # Verification.
     _check_data_source(data_source)
+    if data_source == SEGMOTION_SOURCE_ID:
+        _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+
     error_checking.assert_is_string(top_processed_dir_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    pathless_file_name = _get_pathless_processed_file_name(unix_time_sec,
-                                                           data_source)
+    pathless_file_name = _get_pathless_processed_file_name(
+        unix_time_sec, data_source)
     relative_directory_name = _get_relative_processed_directory(
-        data_source=data_source, spc_date_unix_sec=spc_date_unix_sec,
+        data_source=data_source, spc_date_string=spc_date_string,
         unix_time_sec=unix_time_sec,
         tracking_scale_metres2=tracking_scale_metres2)
 
@@ -385,11 +389,11 @@ def find_processed_file(unix_time_sec=None, data_source=None,
 
 
 def find_processed_files_one_spc_date(
-        spc_date_unix_sec, data_source=None, top_processed_dir_name=None,
-        tracking_scale_metres2=None, raise_error_if_missing=True):
+        spc_date_string, data_source, top_processed_dir_name,
+        tracking_scale_metres2, raise_error_if_missing=True):
     """Finds all processed files for one SPC date.
 
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param data_source: Data source (either "segmotion" or "probSevere").
     :param top_processed_dir_name: Name of top-level directory with processed
         files for given data source.
@@ -403,11 +407,11 @@ def find_processed_files_one_spc_date(
 
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    example_time_unix_sec = time_conversion.time_to_spc_date_unix_sec(
-        spc_date_unix_sec)
+    example_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        spc_date_string)
     example_file_name = find_processed_file(
         unix_time_sec=example_time_unix_sec, data_source=data_source,
-        spc_date_unix_sec=spc_date_unix_sec,
+        spc_date_string=spc_date_string,
         top_processed_dir_name=top_processed_dir_name,
         tracking_scale_metres2=tracking_scale_metres2,
         raise_error_if_missing=False)

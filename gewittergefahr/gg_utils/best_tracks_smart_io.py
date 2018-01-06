@@ -302,13 +302,16 @@ def find_files_for_smart_io(
     output_file_names_by_spc_date = [['']] * num_spc_dates
 
     for i in range(num_spc_dates):
-        spc_dates_unix_sec[i] = time_conversion.time_to_spc_date_unix_sec(
-            spc_dates_unix_sec[i])
         temp_file_names[i] = tempfile.NamedTemporaryFile(delete=False).name
+
+        # spc_dates_unix_sec[i] = time_conversion.time_to_spc_date_unix_sec(
+        #     spc_dates_unix_sec[i])
+        this_spc_date_string = time_conversion.time_to_spc_date_string(
+            spc_dates_unix_sec[i])
 
         input_file_names_by_spc_date[i] = (
             tracking_io.find_processed_files_one_spc_date(
-                spc_dates_unix_sec[i], data_source=data_source,
+                spc_date_string=this_spc_date_string, data_source=data_source,
                 top_processed_dir_name=top_input_dir_name,
                 tracking_scale_metres2=tracking_scale_metres2,
                 raise_error_if_missing=True))
@@ -324,7 +327,7 @@ def find_files_for_smart_io(
                 tracking_io.find_processed_file(
                     unix_time_sec=these_times_unix_sec[j],
                     data_source=data_source,
-                    spc_date_unix_sec=spc_dates_unix_sec[i],
+                    spc_date_string=this_spc_date_string,
                     top_processed_dir_name=top_output_dir_name,
                     tracking_scale_metres2=tracking_scale_metres2,
                     raise_error_if_missing=False))

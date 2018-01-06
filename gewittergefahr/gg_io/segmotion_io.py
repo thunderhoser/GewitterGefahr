@@ -210,8 +210,8 @@ def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
         POLYGON_FILE_EXTENSION)
 
 
-def _get_relative_stats_dir_ordinal_scale(spc_date_string,
-                                          tracking_scale_ordinal):
+def _get_relative_stats_dir_ordinal_scale(
+        spc_date_string, tracking_scale_ordinal):
     """Generates expected relative path for stats directory.
 
     This directory should contain storm statistics for the given tracking scale.
@@ -228,8 +228,8 @@ def _get_relative_stats_dir_ordinal_scale(spc_date_string,
         spc_date_string, STATS_DIR_NAME_PART, tracking_scale_ordinal)
 
 
-def _get_relative_stats_dir_physical_scale(spc_date_string,
-                                           tracking_scale_metres2):
+def _get_relative_stats_dir_physical_scale(
+        spc_date_string, tracking_scale_metres2):
     """Generates expected relative path for stats directory.
 
     This directory should contain storm statistics for the given tracking scale.
@@ -243,8 +243,8 @@ def _get_relative_stats_dir_physical_scale(spc_date_string,
         spc_date_string, STATS_DIR_NAME_PART, int(tracking_scale_metres2))
 
 
-def _get_relative_polygon_dir_ordinal_scale(spc_date_string,
-                                            tracking_scale_ordinal):
+def _get_relative_polygon_dir_ordinal_scale(
+        spc_date_string, tracking_scale_ordinal):
     """Generates expected relative path for polygon directory.
 
     This directory should contain storm outlines (polygons) for the given
@@ -263,8 +263,8 @@ def _get_relative_polygon_dir_ordinal_scale(spc_date_string,
         spc_date_string, POLYGON_DIR_NAME_PART, tracking_scale_ordinal)
 
 
-def _get_relative_polygon_dir_physical_scale(spc_date_string,
-                                             tracking_scale_metres2):
+def _get_relative_polygon_dir_physical_scale(
+        spc_date_string, tracking_scale_metres2):
     """Generates expected relative path for polygon directory.
 
     This directory should contain storm outlines (polygons) for the given
@@ -280,10 +280,9 @@ def _get_relative_polygon_dir_physical_scale(spc_date_string,
         spc_date_string, POLYGON_DIR_NAME_PART, int(tracking_scale_metres2))
 
 
-def _rename_raw_dirs_ordinal_to_physical(top_raw_directory_name=None,
-                                         spc_date_string=None,
-                                         tracking_scales_ordinal=None,
-                                         tracking_scales_metres2=None):
+def _rename_raw_dirs_ordinal_to_physical(
+        top_raw_directory_name=None, spc_date_string=None,
+        tracking_scales_ordinal=None, tracking_scales_metres2=None):
     """Renames dirs by changing tracking scale from ordinal number to m^2.
 
     Each raw directory should contain either stats or polygon files for one
@@ -365,13 +364,13 @@ def _open_xml_file(xml_file_name):
 
 
 def unzip_1day_tar_file(
-        tar_file_name, spc_date_unix_sec=None, top_target_directory_name=None,
-        scales_to_extract_metres2=None):
+        tar_file_name, spc_date_string, top_target_dir_name,
+        scales_to_extract_metres2):
     """Unzips tar file with segmotion output for one SPC date.
 
     :param tar_file_name: Path to input file.
-    :param spc_date_unix_sec: SPC date.
-    :param top_target_directory_name: Name of top-level output directory.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param top_target_dir_name: Name of top-level output directory.
     :param scales_to_extract_metres2: 1-D numpy array of tracking scales to
         extract.
     :return: target_directory_name: Path to output directory.  This will be
@@ -379,6 +378,8 @@ def unzip_1day_tar_file(
         date.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_file_exists(tar_file_name)
     error_checking.assert_is_greater_numpy_array(scales_to_extract_metres2, 0)
     error_checking.assert_is_integer_numpy_array(scales_to_extract_metres2)
@@ -386,7 +387,6 @@ def unzip_1day_tar_file(
         scales_to_extract_metres2, num_dimensions=1)
 
     num_scales_to_extract = len(scales_to_extract_metres2)
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_names_to_unzip = []
 
     for j in range(num_scales_to_extract):
@@ -402,24 +402,23 @@ def unzip_1day_tar_file(
             this_relative_polygon_dir_name.replace(spc_date_string + '/', ''))
 
     target_directory_name = '{0:s}/{1:s}'.format(
-        top_target_directory_name, spc_date_string)
+        top_target_dir_name, spc_date_string)
     unzipping.unzip_tar(
         tar_file_name, target_directory_name=target_directory_name,
         file_and_dir_names_to_unzip=directory_names_to_unzip)
     return target_directory_name
 
 
-def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
-                          top_raw_directory_name=None,
-                          tracking_scale_metres2=None,
-                          raise_error_if_missing=True):
+def find_local_stats_file(
+        unix_time_sec, spc_date_string, top_raw_directory_name,
+        tracking_scale_metres2, raise_error_if_missing=True):
     """Finds statistics file on local machine.
 
     This file should contain storm stats (everything except polygons) for one
     time step and one tracking scale.
 
     :param unix_time_sec: Valid time.
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param top_raw_directory_name: Name of top-level directory with raw
         segmotion files.
     :param tracking_scale_metres2: Tracking scale.
@@ -431,11 +430,12 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_string(top_raw_directory_name)
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name, _get_relative_stats_dir_physical_scale(
             spc_date_string, tracking_scale_metres2))
@@ -458,17 +458,16 @@ def find_local_stats_file(unix_time_sec=None, spc_date_unix_sec=None,
     return stats_file_name
 
 
-def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
-                            top_raw_directory_name=None,
-                            tracking_scale_metres2=None,
-                            raise_error_if_missing=True):
+def find_local_polygon_file(
+        unix_time_sec, spc_date_string, top_raw_directory_name,
+        tracking_scale_metres2, raise_error_if_missing=True):
     """Finds polygon file on local machine.
 
     This file should contain storm outlines (polygons) for one time step and one
     tracking scale.
 
     :param unix_time_sec: Valid time.
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param top_raw_directory_name: Name of top-level directory with raw
         segmotion files.
     :param tracking_scale_metres2: Tracking scale.
@@ -480,11 +479,12 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_string(top_raw_directory_name)
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
             spc_date_string, tracking_scale_metres2))
@@ -507,13 +507,12 @@ def find_local_polygon_file(unix_time_sec=None, spc_date_unix_sec=None,
     return polygon_file_name
 
 
-def find_polygon_files_for_spc_date(spc_date_unix_sec=None,
-                                    top_raw_directory_name=None,
-                                    tracking_scale_metres2=None,
-                                    raise_error_if_missing=True):
+def find_polygon_files_for_spc_date(
+        spc_date_string, top_raw_directory_name, tracking_scale_metres2,
+        raise_error_if_missing=True):
     """Finds all polygon files for one SPC date.
 
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param top_raw_directory_name: Name of top-level directory with raw
         segmotion files.
     :param tracking_scale_metres2: Tracking scale.
@@ -524,7 +523,6 @@ def find_polygon_files_for_spc_date(spc_date_unix_sec=None,
 
     error_checking.assert_is_string(top_raw_directory_name)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     directory_name = '{0:s}/{1:s}'.format(
         top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
             spc_date_string, tracking_scale_metres2))
@@ -585,12 +583,11 @@ def find_polygon_files_for_spc_date(spc_date_unix_sec=None,
     return polygon_file_names
 
 
-def get_start_end_times_for_spc_date(spc_date_unix_sec=None,
-                                     top_raw_directory_name=None,
-                                     tracking_scale_metres2=None):
+def get_start_end_times_for_spc_date(
+        spc_date_string, top_raw_directory_name, tracking_scale_metres2):
     """Returns first and last tracking times for SPC date.
 
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param top_raw_directory_name: Name of top-level directory with raw
         segmotion files.
     :param tracking_scale_metres2: Tracking scale.
@@ -599,7 +596,7 @@ def get_start_end_times_for_spc_date(spc_date_unix_sec=None,
     """
 
     polygon_file_names = find_polygon_files_for_spc_date(
-        spc_date_unix_sec=spc_date_unix_sec,
+        spc_date_string=spc_date_string,
         top_raw_directory_name=top_raw_directory_name,
         tracking_scale_metres2=tracking_scale_metres2)
 
@@ -614,11 +611,11 @@ def get_start_end_times_for_spc_date(spc_date_unix_sec=None,
     return start_time_unix_sec, end_time_unix_sec
 
 
-def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
+def read_stats_from_xml(xml_file_name, spc_date_string):
     """Reads storm statistics from XML file.
 
     :param xml_file_name: Path to input file.
-    :param spc_date_unix_sec: SPC date in Unix format.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :return: stats_table: pandas DataFrame with the following columns.
     stats_table.storm_id: String ID for storm cell.
     stats_table.east_velocity_m_s01: Eastward velocity (m/s).
@@ -626,9 +623,11 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
     stats_table.age_sec: Age of storm cell (seconds).
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_file_exists(xml_file_name)
-    xml_tree = _open_xml_file(xml_file_name)
 
+    xml_tree = _open_xml_file(xml_file_name)
     storm_dict = {}
     this_column_name = None
     this_column_name_orig = None
@@ -661,8 +660,6 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
                 int(numpy.round(float(this_element.attrib['value']))))
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
-
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
         stats_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 
@@ -671,8 +668,8 @@ def read_stats_from_xml(xml_file_name, spc_date_unix_sec=None):
 
 
 def read_polygons_from_netcdf(
-        netcdf_file_name, metadata_dict=None, spc_date_unix_sec=None,
-        tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
+        netcdf_file_name, metadata_dict, spc_date_string,
+        tracking_start_time_unix_sec, tracking_end_time_unix_sec,
         raise_error_if_fails=True):
     """Reads storm polygons (outlines of storm cells) from NetCDF file.
 
@@ -684,7 +681,7 @@ def read_polygons_from_netcdf(
     :param netcdf_file_name: Path to input file.
     :param metadata_dict: Dictionary with metadata for NetCDF file, created by
         `radar_io.read_metadata_from_raw_file`.
-    :param spc_date_unix_sec: SPC date;
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param tracking_start_time_unix_sec: Start time for tracking period.  This
         can be found by `get_start_end_times_for_spc_date`.
     :param tracking_end_time_unix_sec: End time for tracking period.  This can
@@ -716,8 +713,6 @@ def read_polygons_from_netcdf(
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    error_checking.assert_is_integer(spc_date_unix_sec)
-    error_checking.assert_is_not_nan(spc_date_unix_sec)
     error_checking.assert_is_integer(tracking_start_time_unix_sec)
     error_checking.assert_is_not_nan(tracking_start_time_unix_sec)
     error_checking.assert_is_integer(tracking_end_time_unix_sec)
@@ -758,13 +753,15 @@ def read_polygons_from_netcdf(
     num_storms = len(polygon_table.index)
     unix_times_sec = numpy.full(
         num_storms, metadata_dict[radar_utils.UNIX_TIME_COLUMN], dtype=int)
+
+    spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        spc_date_string)
     spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
     tracking_start_times_unix_sec = numpy.full(
         num_storms, tracking_start_time_unix_sec, dtype=int)
     tracking_end_times_unix_sec = numpy.full(
         num_storms, tracking_end_time_unix_sec, dtype=int)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     storm_ids = _append_spc_date_to_storm_ids(
         polygon_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
 
@@ -851,18 +848,15 @@ def join_stats_and_polygons(stats_table, polygon_table):
 
 
 if __name__ == '__main__':
-    SPC_DATE_UNIX_SEC = time_conversion.spc_date_string_to_unix_sec(
-        SPC_DATE_STRING)
-
     STATS_TABLE = read_stats_from_xml(
-        XML_FILE_NAME, spc_date_unix_sec=SPC_DATE_UNIX_SEC)
+        XML_FILE_NAME, spc_date_string=SPC_DATE_STRING)
     print STATS_TABLE
 
     METADATA_DICT = radar_io.read_metadata_from_raw_file(
         NETCDF_FILE_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,
-        spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+        spc_date_string=SPC_DATE_STRING,
         tracking_start_time_unix_sec=TRACKING_START_TIME_UNIX_SEC,
         tracking_end_time_unix_sec=TRACKING_END_TIME_UNIX_SEC)
     print POLYGON_TABLE
@@ -881,7 +875,7 @@ if __name__ == '__main__':
     OUTPUT_FILE_NAME = tracking_io.find_processed_file(
         unix_time_sec=VALID_TIME_UNIX_SEC,
         data_source=tracking_io.SEGMOTION_SOURCE_ID,
-        spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+        spc_date_string=SPC_DATE_STRING,
         top_processed_dir_name=TOP_PROCESSED_DIR_NAME,
         tracking_scale_metres2=TRACKING_SCALE_METRES2,
         raise_error_if_missing=False)

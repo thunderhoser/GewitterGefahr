@@ -1036,12 +1036,12 @@ def read_features_for_storm_objects(pickle_file_name):
 
 
 def find_unsampled_file_one_time(
-        unix_time_sec=None, spc_date_unix_sec=None, top_directory_name=None,
+        unix_time_sec, spc_date_string, top_directory_name,
         raise_error_if_missing=True):
     """Locates file with unsampled feature vectors for one time step.
 
     :param unix_time_sec: Time step (valid time).
-    :param spc_date_unix_sec: SPC (Storm Prediction Center) date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param top_directory_name: Name of top-level directory with feature files.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.
@@ -1051,6 +1051,8 @@ def find_unsampled_file_one_time(
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
@@ -1060,9 +1062,7 @@ def find_unsampled_file_one_time(
             unix_time_sec, TIME_FORMAT_IN_FILE_NAMES), FEATURE_FILE_EXTENSION)
 
     unsampled_file_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_directory_name,
-        time_conversion.time_to_spc_date_string(spc_date_unix_sec),
-        pathless_file_name)
+        top_directory_name, spc_date_string, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(unsampled_file_name):
         raise ValueError(

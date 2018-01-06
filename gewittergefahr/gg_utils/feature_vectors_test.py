@@ -221,7 +221,7 @@ POLYGON_COLUMNS = [tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, BUFFER_COLUMN_NAME]
 
 # The following constants are used to test find_unsampled_file_one_time.
 FILE_TIME_UNIX_SEC = 1509936790  # 025310 6 Nov 2017
-FILE_SPC_DATE_UNIX_SEC = 1509936790
+FILE_SPC_DATE_STRING = '20171105'
 TOP_DIRECTORY_NAME = 'feature_vectors'
 FEATURE_FILE_NAME_ONE_TIME = (
     'feature_vectors/20171105/features_2017-11-06-025310.p')
@@ -584,7 +584,7 @@ class FeatureVectorsTests(unittest.TestCase):
 
         this_file_name = feature_vectors.find_unsampled_file_one_time(
             unix_time_sec=FILE_TIME_UNIX_SEC,
-            spc_date_unix_sec=FILE_SPC_DATE_UNIX_SEC,
+            spc_date_string=FILE_SPC_DATE_STRING,
             top_directory_name=TOP_DIRECTORY_NAME, raise_error_if_missing=False)
         self.assertTrue(this_file_name == FEATURE_FILE_NAME_ONE_TIME)
 

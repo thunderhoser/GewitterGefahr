@@ -16,7 +16,7 @@ BUFFER_COLUMN_NAME_POLYGON_EXCLUDED = 'polygon_object_latlng_buffer_0m_5000m'
 # The following constants are used to test _get_pathless_processed_file_name,
 # _get_relative_processed_directory, and find_processed_file.
 UNIX_TIME_SEC = 1507167848  # 014408 UTC 5 Oct 2017
-SPC_DATE_UNIX_SEC = 1507167848
+SPC_DATE_STRING = '20171004'
 TRACKING_SCALE_METRES2 = 5e7
 PATHLESS_SEGMOTION_FILE_NAME = 'storm-tracking_segmotion_2017-10-05-014408.p'
 PATHLESS_PROBSEVERE_FILE_NAME = 'storm-tracking_probSevere_2017-10-05-014408.p'
@@ -139,7 +139,7 @@ class StormTrackingIoTests(unittest.TestCase):
 
         this_relative_dir_name = tracking_io._get_relative_processed_directory(
             data_source=tracking_io.SEGMOTION_SOURCE_ID,
-            spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            spc_date_string=SPC_DATE_STRING,
             tracking_scale_metres2=TRACKING_SCALE_METRES2)
         self.assertTrue(this_relative_dir_name == RELATIVE_SEGMOTION_DIR_NAME)
 
@@ -190,7 +190,7 @@ class StormTrackingIoTests(unittest.TestCase):
         this_processed_file_name = tracking_io.find_processed_file(
             unix_time_sec=UNIX_TIME_SEC,
             data_source=tracking_io.SEGMOTION_SOURCE_ID,
-            spc_date_unix_sec=SPC_DATE_UNIX_SEC,
+            spc_date_string=SPC_DATE_STRING,
             top_processed_dir_name=TOP_PROCESSED_DIR_NAME_SEGMOTION,
             tracking_scale_metres2=TRACKING_SCALE_METRES2,
             raise_error_if_missing=False)

@@ -182,7 +182,7 @@ def get_relative_dir_for_raw_files(field_name, data_source, height_m_asl=None):
 
 
 def find_raw_azimuthal_shear_file(
-        desired_time_unix_sec, spc_date_unix_sec, field_name, data_source,
+        desired_time_unix_sec, spc_date_string, field_name, data_source,
         top_directory_name,
         max_time_offset_sec=DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC,
         raise_error_if_missing=False):
@@ -196,7 +196,7 @@ def find_raw_azimuthal_shear_file(
     fields.  This method accounts for said offset.
 
     :param desired_time_unix_sec: Desired valid time.
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param field_name: Field name in GewitterGefahr format.
     :param data_source: Data source (string).
     :param top_directory_name: Name of top-level directory with raw files.
@@ -211,6 +211,8 @@ def find_raw_azimuthal_shear_file(
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_integer(desired_time_unix_sec)
     error_checking.assert_is_integer(max_time_offset_sec)
     error_checking.assert_is_greater(max_time_offset_sec, 0)
@@ -228,7 +230,6 @@ def find_raw_azimuthal_shear_file(
         end_time_unix_sec=last_allowed_minute_unix_sec,
         time_interval_sec=MINUTES_TO_SECONDS, include_endpoint=True).astype(int)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(spc_date_unix_sec)
     relative_directory_name = get_relative_dir_for_raw_files(
         field_name=field_name, data_source=data_source)
 
@@ -269,14 +270,14 @@ def find_raw_azimuthal_shear_file(
 
 
 def find_raw_file(
-        unix_time_sec, spc_date_unix_sec, field_name, data_source,
+        unix_time_sec, spc_date_string, field_name, data_source,
         top_directory_name, height_m_asl=None, raise_error_if_missing=True):
     """Finds raw file.
 
     This file should contain one radar field at one height and valid time.
 
     :param unix_time_sec: Valid time.
-    :param spc_date_unix_sec: SPC date.
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param field_name: Name of radar field in GewitterGefahr format.
     :param data_source: Data source (string).
     :param top_directory_name: Name of top-level directory with raw files.
@@ -288,6 +289,8 @@ def find_raw_file(
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
+    # Verification.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
@@ -295,9 +298,7 @@ def find_raw_file(
         field_name=field_name, height_m_asl=height_m_asl,
         data_source=data_source)
     directory_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_directory_name,
-        time_conversion.time_to_spc_date_string(spc_date_unix_sec),
-        relative_directory_name)
+        top_directory_name, spc_date_string, relative_directory_name)
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
     raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
