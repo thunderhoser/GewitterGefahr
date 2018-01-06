@@ -1,6 +1,4 @@
-"""IO methods for radar data from MYRORSS or MRMS
-
---- DEFINITIONS ---
+"""IO methods for radar data from MYRORSS or MRMS.
 
 MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
 
@@ -19,15 +17,6 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
-
-# TODO(thunderhoser): need to improve terminology.  In some cases I use "field"
-# to mean one radar variable at any height, and in some cases I use it to mean
-# one variable at one height.  I should probably use it consistently for the
-# latter.
-
-# TODO(thunderhoser): Radar heights are in metres above sea level (m ASL), not
-# m AGL.  I don't know why I thought the latter.  Need to change terminology to
-# reflect this.
 
 NW_GRID_POINT_LAT_COLUMN = 'nw_grid_point_lat_deg'
 NW_GRID_POINT_LNG_COLUMN = 'nw_grid_point_lng_deg'
@@ -151,10 +140,10 @@ UNZIPPED_FILE_EXTENSION = '.netcdf'
 
 
 def _check_data_source(data_source):
-    """Ensures that data source is either "myrorss" or "mrms".
+    """Ensures that data source is recognized.
 
     :param data_source: Data source (string).
-    :raises: ValueError: data source is neither "myrorss" nor "mrms".
+    :raises: ValueError: if `data_source not in DATA_SOURCE_IDS`.
     """
 
     error_checking.assert_is_string(data_source)
@@ -166,19 +155,19 @@ def _check_data_source(data_source):
         raise ValueError(error_string)
 
 
-def _check_field_name_orig(field_name_orig, data_source=None):
+def _check_field_name_orig(field_name_orig, data_source):
     """Ensures that name of radar field is recognized.
 
     :param field_name_orig: Name of radar field in original (either MYRORSS or
         MRMS) format.
-    :param data_source: Data source (either "myrorss" or "mrms").
+    :param data_source: Data source (string).
     :raises: ValueError: if name of radar field is not recognized.
     """
 
     if data_source == MYRORSS_SOURCE_ID:
-        valid_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MYRORSS)
+        valid_field_names = RADAR_FIELD_NAMES_MYRORSS
     else:
-        valid_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MRMS)
+        valid_field_names = RADAR_FIELD_NAMES_MRMS
 
     if field_name_orig not in valid_field_names:
         error_string = (
@@ -188,41 +177,44 @@ def _check_field_name_orig(field_name_orig, data_source=None):
         raise ValueError(error_string)
 
 
-def _field_name_orig_to_new(field_name_orig, data_source=None):
-    """Converts field name from original (either MYRORSS or MRMS) to new format.
+def _field_name_orig_to_new(field_name_orig, data_source):
+    """Converts field name from original to new format.
+
+    "Original format" = MYRORSS or MRMS
+    "New format" = GewitterGefahr format, which is Pythonic and includes units
+                   at the end
 
     :param field_name_orig: Name of radar field in original (either MYRORSS or
         MRMS) format.
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: field_name: Field name in new format.
+    :param data_source: Data source (string).
+    :return: field_name: Name of radar field in new format.
     """
 
     if data_source == MYRORSS_SOURCE_ID:
-        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MYRORSS)
+        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS
     else:
-        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MRMS)
+        all_orig_field_names = RADAR_FIELD_NAMES_MRMS
 
     found_flags = [s == field_name_orig for s in all_orig_field_names]
     return RADAR_FIELD_NAMES[numpy.where(found_flags)[0][0]]
 
 
-def _check_reflectivity_heights(heights_m_agl):
-    """Ensures that all reflectivity heights are valid.
+def _check_reflectivity_heights(heights_m_agl, data_source):
+    """Ensures that reflectivity heights are valid.
 
-    :param heights_m_agl: 1-D numpy array of heights (integer metres above
+    :param heights_m_agl: 1-D numpy array of reflectivity heights (metres above
         ground level).
+    :param data_source: Data source (string).
     :raises: ValueError: if any element of heights_m_agl is invalid.
     """
 
-    error_checking.assert_is_integer_numpy_array(heights_m_agl)
+    error_checking.assert_is_real_numpy_array(heights_m_agl)
     error_checking.assert_is_numpy_array(heights_m_agl, num_dimensions=1)
 
-    # Data source doesn't matter in this method call (i.e., replacing
-    # MYRORSS_SOURCE_ID with MRMS_SOURCE_ID would have no effect).
-    valid_heights_m_agl = get_valid_heights_for_field(
-        REFL_NAME, MYRORSS_SOURCE_ID)
+    integer_heights_m_agl = numpy.round(heights_m_agl).astype(int)
+    valid_heights_m_agl = get_valid_heights_for_field(REFL_NAME, data_source)
 
-    for this_height_m_agl in heights_m_agl:
+    for this_height_m_agl in integer_heights_m_agl:
         if this_height_m_agl in valid_heights_m_agl:
             continue
 
@@ -234,17 +226,16 @@ def _check_reflectivity_heights(heights_m_agl):
 
 
 def _get_pathless_raw_file_pattern(unix_time_sec):
-    """Generates pattern for pathless name of raw file.
+    """Generates glob pattern for pathless name of raw file.
 
     This method rounds the time step to the nearest minute and allows the file
     to be either zipped or unzipped.
 
-    The "pattern" generated by this method is meant to be used as as input for
-    `glob.glob`.  This method is the "pattern" version of
-    _get_pathless_raw_file_name.
+    The pattern generated by this method is meant for input to `glob.glob`.
+    This method is the "pattern" version of _get_pathless_raw_file_name.
 
     :param unix_time_sec: Valid time.
-    :return: pathless_raw_file_pattern: Pattern for pathless name of raw file.
+    :return: pathless_raw_file_pattern: Pathless glob pattern for raw file.
     """
 
     return '{0:s}*{1:s}*'.format(
@@ -255,11 +246,9 @@ def _get_pathless_raw_file_pattern(unix_time_sec):
 def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
     """Generates pathless name for raw file.
 
-    This file should contain one radar field at one height and one time step.
-
-    :param unix_time_sec: Time in Unix format.
-    :param zipped: Boolean flag.  If zipped = True, will look for zipped file.
-        If zipped = False, will look for unzipped file.
+    :param unix_time_sec: Valid time.
+    :param zipped: Boolean flag.  If True, will generate name for zipped file.
+        If False, will generate name for unzipped file.
     :return: pathless_raw_file_name: Pathless name for raw file.
     """
 
@@ -287,14 +276,13 @@ def _raw_file_name_to_time(raw_file_name):
     return time_conversion.string_to_unix_sec(time_string, TIME_FORMAT_SECONDS)
 
 
-def _remove_sentinels_from_sparse_grid(sparse_grid_table, field_name=None,
-                                       sentinel_values=None):
-    """Removes sentinel values from sparse radar grid.
+def _remove_sentinels_from_sparse_grid(
+        sparse_grid_table, field_name, sentinel_values):
+    """Removes sentinel values from sparse grid.
 
-    :param sparse_grid_table: pandas DataFrame with columns documented in
-        read_data_from_sparse_grid_file.
-    :param field_name: Name of radar field in new format (as opposed to
-        MYRORSS/MRMS format).
+    :param sparse_grid_table: pandas DataFrame with columns produced by
+        `read_data_from_sparse_grid_file`.
+    :param field_name: Name of radar field in GewitterGefahr format.
     :param sentinel_values: 1-D numpy array of sentinel values.
     :return: sparse_grid_table: Same as input, except that rows with a sentinel
         value are removed.
@@ -310,18 +298,17 @@ def _remove_sentinels_from_sparse_grid(sparse_grid_table, field_name=None,
         sentinel_flags = numpy.logical_or(sentinel_flags, these_sentinel_flags)
 
     sentinel_indices = numpy.where(sentinel_flags)[0]
-    sparse_grid_table.drop(sparse_grid_table.index[sentinel_indices], axis=0,
-                           inplace=True)
-    return sparse_grid_table
+    return sparse_grid_table.drop(
+        sparse_grid_table.index[sentinel_indices], axis=0, inplace=False)
 
 
 def _remove_sentinels_from_full_grid(field_matrix, sentinel_values):
-    """Removes sentinel values from full radar grid.
+    """Removes sentinel values from full grid.
 
     M = number of rows (unique grid-point latitudes)
     N = number of columns (unique grid-point longitudes)
 
-    :param field_matrix: M-by-N numpy array with values of radar field.
+    :param field_matrix: M-by-N numpy array with radar field.
     :param sentinel_values: 1-D numpy array of sentinel values.
     :return: field_matrix: Same as input, except that sentinel values are
         replaced with NaN.
@@ -347,8 +334,7 @@ def _remove_sentinels_from_full_grid(field_matrix, sentinel_values):
 def check_field_name(field_name):
     """Ensures that name of radar field is recognized.
 
-    :param field_name: Name of radar field in new format (as opposed to MYRORSS
-        or MRMS format).
+    :param field_name: Name of radar field in GewitterGefahr format.
     :raises: ValueError: if name of radar field is not recognized.
     """
 
@@ -360,35 +346,35 @@ def check_field_name(field_name):
         raise ValueError(error_string)
 
 
-def field_name_new_to_orig(field_name, data_source=None):
+def field_name_new_to_orig(field_name, data_source):
     """Converts field name from new to original format.
 
-    New format = GewitterGefahr
-    Original format = either MYRORSS or MRMS
+    "Original format" = MYRORSS or MRMS
+    "New format" = GewitterGefahr format, which is Pythonic and includes units
+                   at the end
 
     :param field_name: Name of radar field in new format.
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: field_name_orig: Field name in original format.
+    :param data_source: Data source (string).
+    :return: field_name_orig: Name of radar field in original (either MYRORSS or
+        MRMS) format.
     """
 
-    _check_data_source(data_source)
     if data_source == MYRORSS_SOURCE_ID:
-        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MYRORSS)
+        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS
     else:
-        all_orig_field_names = copy.deepcopy(RADAR_FIELD_NAMES_MRMS)
+        all_orig_field_names = RADAR_FIELD_NAMES_MRMS
 
     found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
     return all_orig_field_names[numpy.where(found_flags)[0][0]]
 
 
 def get_valid_heights_for_field(field_name, data_source):
-    """Finds valid heights for radar field.
+    """Returns valid heights for radar field.
 
-    :param field_name: Field name in GewitterGefahr format (must belong to
-        `RADAR_FIELD_NAMES`).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: valid_heights_m_agl: 1-D integer numpy array of valid heights
-        (metres above ground level).
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :return: valid_heights_m_agl: 1-D numpy array of valid heights (integer
+        metres above ground level).
     :raises: ValueError: if field_name = "storm_id".
     """
 
@@ -398,9 +384,9 @@ def get_valid_heights_for_field(field_name, data_source):
         raise ValueError('Field name cannot be "{0:s}".'.format(STORM_ID_NAME))
 
     if data_source == MYRORSS_SOURCE_ID:
-        default_height_m_agl = copy.deepcopy(DEFAULT_HEIGHT_MYRORSS_M_AGL)
+        default_height_m_agl = DEFAULT_HEIGHT_MYRORSS_M_AGL
     else:
-        default_height_m_agl = copy.deepcopy(DEFAULT_HEIGHT_MRMS_M_AGL)
+        default_height_m_agl = DEFAULT_HEIGHT_MRMS_M_AGL
 
     if field_name in ECHO_TOP_NAMES:
         return numpy.array([default_height_m_agl])
@@ -408,13 +394,6 @@ def get_valid_heights_for_field(field_name, data_source):
         return numpy.array([SHEAR_HEIGHT_M_AGL])
     if field_name == MID_LEVEL_SHEAR_NAME:
         return numpy.array([SHEAR_HEIGHT_M_AGL])
-    if field_name == REFL_NAME:
-        return numpy.array(
-            [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750,
-             3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000,
-             8500, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000,
-             18000, 19000, 20000])
-
     if field_name == REFL_COLUMN_MAX_NAME:
         return numpy.array([default_height_m_agl])
     if field_name == MESH_NAME:
@@ -432,18 +411,25 @@ def get_valid_heights_for_field(field_name, data_source):
     if field_name == VIL_NAME:
         return numpy.array([default_height_m_agl])
 
+    if field_name == REFL_NAME:
+        return numpy.array(
+            [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750,
+             3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000,
+             8500, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000,
+             18000, 19000, 20000])
 
-def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
-                                    data_source=None):
-    """Converts two arrays (radar-field names and reflectivity heights) to dict.
 
-    :param field_names: 1-D list with names of radar fields in new format (as
-        opposed to MYRORSS or MRMS format).
+def field_and_height_arrays_to_dict(
+        field_names, data_source, refl_heights_m_agl=None):
+    """Converts two arrays (field names and reflectivity heights) to dictionary.
+
+    :param field_names: 1-D list with names of radar fields in GewitterGefahr
+        format.
+    :param data_source: Data source (string).
     :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
         above ground level).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: field_to_heights_dict_m_agl: Dictionary, where each key is the name
-        of a radar field and each value is 1-D numpy array of heights (metres
+    :return: field_to_heights_dict_m_agl: Dictionary, where each key comes from
+        `field_names` and each value is a 1-D numpy array of heights (metres
         above ground level).
     """
 
@@ -451,7 +437,7 @@ def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
 
     for this_field_name in field_names:
         if this_field_name == REFL_NAME:
-            _check_reflectivity_heights(refl_heights_m_agl)
+            _check_reflectivity_heights(refl_heights_m_agl, data_source)
             field_to_heights_dict_m_agl.update(
                 {this_field_name: refl_heights_m_agl})
         else:
@@ -462,18 +448,18 @@ def field_and_height_arrays_to_dict(field_names, refl_heights_m_agl=None,
     return field_to_heights_dict_m_agl
 
 
-def unique_fields_and_heights_to_pairs(field_names, refl_heights_m_agl=None,
-                                       data_source=None):
-    """Converts unique arrays to non-unique arrays.
+def unique_fields_and_heights_to_pairs(
+        unique_field_names, data_source, refl_heights_m_agl=None):
+    """Converts unique arrays (field names and refl heights) to non-unique ones.
 
     F = number of unique field names
     N = number of field-height pairs
 
-    :param field_names: length-F list with names of radar fields in new format
-        (rather than MYRORSS or MRMS format).
+    :param unique_field_names: length-F list with names of radar fields in
+        GewitterGefahr format.
+    :param data_source: Data source (string).
     :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
         above ground level).
-    :param data_source: Data source (either "myrorss" or "mrms").
     :return: field_name_by_pair: length-N list of field names.
     :return: height_by_pair_m_agl: length-N numpy array of radar heights (metres
         above ground level).
@@ -482,9 +468,9 @@ def unique_fields_and_heights_to_pairs(field_names, refl_heights_m_agl=None,
     field_name_by_pair = []
     height_by_pair_m_agl = numpy.array([])
 
-    for this_field_name in field_names:
+    for this_field_name in unique_field_names:
         if this_field_name == REFL_NAME:
-            _check_reflectivity_heights(refl_heights_m_agl)
+            _check_reflectivity_heights(refl_heights_m_agl, data_source)
             these_heights_m_agl = copy.deepcopy(refl_heights_m_agl)
         else:
             these_heights_m_agl = get_valid_heights_for_field(
@@ -497,19 +483,17 @@ def unique_fields_and_heights_to_pairs(field_names, refl_heights_m_agl=None,
     return field_name_by_pair, height_by_pair_m_agl
 
 
-def get_relative_dir_for_raw_files(field_name=None, height_m_agl=None,
-                                   data_source=None):
+def get_relative_dir_for_raw_files(field_name, data_source, height_m_agl=None):
     """Generates relative path for raw files.
 
-    :param field_name: Name of radar field in new format (as opposed to MYRORSS
-        or MRMS format).
-    :param height_m_agl: Height (metres above ground level).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :return: relative_raw_directory_name: Relative path for raw files.
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :param height_m_agl: Radar height (metres above ground level).
+    :return: relative_directory_name: Relative path for raw files.
     """
 
     if field_name == REFL_NAME:
-        _check_reflectivity_heights(numpy.array([height_m_agl]))
+        _check_reflectivity_heights(numpy.array([height_m_agl]), data_source)
     else:
         height_m_agl = get_valid_heights_for_field(
             field_name, data_source=data_source)[0]
@@ -524,26 +508,28 @@ def find_raw_azimuthal_shear_file(
         top_directory_name,
         max_time_offset_sec=DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC,
         raise_error_if_missing=False):
-    """Finds raw azimuthal-shear file on local machine.
+    """Finds raw az-shear file.
 
-    If you know the exact time step for azimuthal shear, use find_raw_file.
-    However, azimuthal shear is "special" and its times are often offset from
-    those of other radar fields.  This method accounts for that and finds
-    az-shear files within some offset of the desired time.
+    This file should contain one az-shear field (examples: low-level az-shear,
+    mid-level az-shear) for one valid time.
 
-    :param desired_time_unix_sec: Desired time for azimuthal shear.
+    If you know the exact valid time, use `find_raw_file`.  However, az-shear is
+    "special," and its valid times are usually offset from those of other radar
+    fields.  This method accounts for said offset.
+
+    :param desired_time_unix_sec: Desired valid time.
     :param spc_date_unix_sec: SPC date.
-    :param field_name: Field name in GewitterGefahr format (should match either
-        `LOW_LEVEL_SHEAR_NAME` or `MID_LEVEL_SHEAR_NAME`).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :param top_directory_name: Name of top-level directory with raw MYRORSS
-        files.
+    :param field_name: Field name in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :param top_directory_name: Name of top-level directory with raw files.
+    :param max_time_offset_sec: Maximum offset between actual and desired valid
+        time.  For example, if `desired_time_unix_sec` is 162933 UTC 5 Jan 2018
+        and `max_time_offset_sec` = 60, this method will look for az-shear at
+        valid times from 162833...163033 UTC 5 Jan 2018.
     :param raise_error_if_missing: Boolean flag.  If True and no az-shear file
-        can be found within `max_time_offset_sec` of `desired_time_unix_sec`,
-        will raise error.  If False and no az-shear file can be found within
-        `max_time_offset_sec` of `desired_time_unix_sec`, will return None.
-    :return: raw_file_name: Path to raw az-shear file.  If file is missing and
-        raise_error_if_missing = False, this is the *expected* path.
+        can be found, this method will raise an error.  If False and no az-shear
+        file can be found, will return None.
+    :return: raw_file_name: Path to raw az-shear file.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
@@ -604,24 +590,23 @@ def find_raw_azimuthal_shear_file(
     return raw_file_names[nearest_index]
 
 
-def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
-                  height_m_agl=None, data_source=None, top_directory_name=None,
-                  raise_error_if_missing=True):
-    """Finds raw file on local machine.
+def find_raw_file(
+        unix_time_sec, spc_date_unix_sec, field_name, data_source,
+        top_directory_name, height_m_agl=None, raise_error_if_missing=True):
+    """Finds raw file.
 
-    This file should contain one radar field at one height and one time step.
+    This file should contain one radar field at one height and valid time.
 
-    :param unix_time_sec: Time in Unix format.
-    :param spc_date_unix_sec: SPC date in Unix format.
-    :param field_name: Name of radar field in new format (as opposed to MYRORSS
-        or MRMS format).
-    :param height_m_agl: Height (metres above ground level).
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :param top_directory_name: Top-level directory for raw files.
-    :param raise_error_if_missing: Boolean flag.  If raise_error_if_missing =
-        True and file is missing, will raise error.
-    :return: raw_file_name: Path to raw file.  If raise_error_if_missing = False
-        and file is missing, this will be the *expected* path.
+    :param unix_time_sec: Valid time.
+    :param spc_date_unix_sec: SPC date.
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :param top_directory_name: Name of top-level directory with raw files.
+    :param height_m_agl: Radar height (metres above ground level).
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.  If False and file is missing, will
+        return *expected* path to raw file.
+    :return: raw_file_name: Path to raw file.
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
@@ -631,20 +616,18 @@ def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
     relative_directory_name = get_relative_dir_for_raw_files(
         field_name=field_name, height_m_agl=height_m_agl,
         data_source=data_source)
-
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
-    raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+    directory_name = '{0:s}/{1:s}/{2:s}'.format(
         top_directory_name,
         time_conversion.time_to_spc_date_string(spc_date_unix_sec),
-        relative_directory_name, pathless_file_name)
+        relative_directory_name)
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
+    raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         pathless_file_name = _get_pathless_raw_file_name(
             unix_time_sec, zipped=False)
-        raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-            top_directory_name,
-            time_conversion.time_to_spc_date_string(spc_date_unix_sec),
-            relative_directory_name, pathless_file_name)
+        raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_file_name):
         raise ValueError(
@@ -653,25 +636,29 @@ def find_raw_file(unix_time_sec=None, spc_date_unix_sec=None, field_name=None,
     return raw_file_name
 
 
-def rowcol_to_latlng(grid_rows, grid_columns, nw_grid_point_lat_deg=None,
-                     nw_grid_point_lng_deg=None, lat_spacing_deg=None,
-                     lng_spacing_deg=None):
+def rowcol_to_latlng(
+        grid_rows, grid_columns, nw_grid_point_lat_deg, nw_grid_point_lng_deg,
+        lat_spacing_deg, lng_spacing_deg):
     """Converts radar coordinates from row-column to lat-long.
 
-    P = number of points
+    P = number of input grid points
 
-    :param grid_rows: length-P numpy array of row indices (increasing from north
-        to south).
-    :param grid_columns: length-P numpy array of column indices (increasing from
-        west to east).
+    :param grid_rows: length-P numpy array with row indices of grid points
+        (increasing from north to south).
+    :param grid_columns: length-P numpy array with column indices of grid points
+        (increasing from west to east).
     :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
         point.
     :param nw_grid_point_lng_deg: Longitude (deg E) of northwesternmost grid
         point.
-    :param lat_spacing_deg: Spacing (deg N) between adjacent rows.
-    :param lng_spacing_deg: Spacing (deg E) between adjacent columns.
-    :return: latitudes_deg: length-P numpy array of latitudes (deg N).
-    :return: longitudes_deg: length-P numpy array of longitudes (deg E).
+    :param lat_spacing_deg: Spacing (deg N) between meridionally adjacent grid
+        points.
+    :param lng_spacing_deg: Spacing (deg E) between zonally adjacent grid
+        points.
+    :return: latitudes_deg: length-P numpy array with latitudes (deg N) of grid
+        points.
+    :return: longitudes_deg: length-P numpy array with longitudes (deg E) of
+        grid points.
     """
 
     error_checking.assert_is_real_numpy_array(grid_rows)
@@ -688,8 +675,8 @@ def rowcol_to_latlng(grid_rows, grid_columns, nw_grid_point_lat_deg=None,
     nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
         nw_grid_point_lng_deg, allow_nan=False)
 
-    error_checking.assert_is_greater(lat_spacing_deg, 0)
-    error_checking.assert_is_greater(lng_spacing_deg, 0)
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
 
     latitudes_deg = rounder.round_to_nearest(
         nw_grid_point_lat_deg - lat_spacing_deg * grid_rows,
@@ -698,37 +685,41 @@ def rowcol_to_latlng(grid_rows, grid_columns, nw_grid_point_lat_deg=None,
         nw_grid_point_lng_deg + lng_spacing_deg * grid_columns,
         lng_spacing_deg / 2)
     return latitudes_deg, lng_conversion.convert_lng_positive_in_west(
-        longitudes_deg, allow_nan=False)
+        longitudes_deg, allow_nan=True)
 
 
-def latlng_to_rowcol(latitudes_deg, longitudes_deg, nw_grid_point_lat_deg=None,
-                     nw_grid_point_lng_deg=None, lat_spacing_deg=None,
-                     lng_spacing_deg=None):
+def latlng_to_rowcol(
+        latitudes_deg, longitudes_deg, nw_grid_point_lat_deg,
+        nw_grid_point_lng_deg, lat_spacing_deg, lng_spacing_deg):
     """Converts radar coordinates from lat-long to row-column.
 
-    P = number of points
+    P = number of input grid points
 
-    :param latitudes_deg: length-P numpy array of latitudes (deg N).
-    :param longitudes_deg: length-P numpy array of longitudes (deg E).
+    :param latitudes_deg: length-P numpy array with latitudes (deg N) of grid
+        points.
+    :param longitudes_deg: length-P numpy array with longitudes (deg E) of
+        grid points.
     :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
         point.
     :param nw_grid_point_lng_deg: Longitude (deg E) of northwesternmost grid
         point.
-    :param lat_spacing_deg: Spacing (deg N) between adjacent rows.
-    :param lng_spacing_deg: Spacing (deg E) between adjacent columns.
-    :return: grid_rows: length-P numpy array of row indices (increasing from
-        north to south).
-    :return: grid_columns: length-P numpy array of column indices (increasing
-        from west to east).
+    :param lat_spacing_deg: Spacing (deg N) between meridionally adjacent grid
+        points.
+    :param lng_spacing_deg: Spacing (deg E) between zonally adjacent grid
+        points.
+    :return: grid_rows: length-P numpy array with row indices of grid points
+        (increasing from north to south).
+    :return: grid_columns: length-P numpy array with column indices of grid
+        points (increasing from west to east).
     """
 
-    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg,
-                                                   allow_nan=True)
+    error_checking.assert_is_valid_lat_numpy_array(
+        latitudes_deg, allow_nan=True)
     error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
     num_points = len(latitudes_deg)
 
-    longitudes_deg = lng_conversion.convert_lng_positive_in_west(longitudes_deg,
-                                                                 allow_nan=True)
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg, allow_nan=True)
     error_checking.assert_is_numpy_array(
         longitudes_deg, exact_dimensions=numpy.array([num_points]))
 
@@ -736,8 +727,8 @@ def latlng_to_rowcol(latitudes_deg, longitudes_deg, nw_grid_point_lat_deg=None,
     nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
         nw_grid_point_lng_deg, allow_nan=False)
 
-    error_checking.assert_is_greater(lat_spacing_deg, 0)
-    error_checking.assert_is_greater(lng_spacing_deg, 0)
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
 
     grid_columns = rounder.round_to_nearest(
         (longitudes_deg - nw_grid_point_lng_deg) / lng_spacing_deg, 0.5)
@@ -746,37 +737,40 @@ def latlng_to_rowcol(latitudes_deg, longitudes_deg, nw_grid_point_lat_deg=None,
     return grid_rows, grid_columns
 
 
-def get_center_of_grid(nw_grid_point_lat_deg=None, nw_grid_point_lng_deg=None,
-                       lat_spacing_deg=None, lng_spacing_deg=None,
-                       num_grid_rows=None, num_grid_columns=None):
-    """Finds center of grid.
+def get_center_of_grid(
+        nw_grid_point_lat_deg, nw_grid_point_lng_deg, lat_spacing_deg,
+        lng_spacing_deg, num_grid_rows, num_grid_columns):
+    """Finds center of radar grid.
 
     :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
         point.
     :param nw_grid_point_lng_deg: Longitude (deg E) of northwesternmost grid
         point.
-    :param lat_spacing_deg: Spacing (deg N) between adjacent rows.
-    :param lng_spacing_deg: Spacing (deg E) between adjacent columns.
+    :param lat_spacing_deg: Spacing (deg N) between meridionally adjacent grid
+        points.
+    :param lng_spacing_deg: Spacing (deg E) between zonally adjacent grid
+        points.
     :param num_grid_rows: Number of rows (unique grid-point latitudes).
     :param num_grid_columns: Number of columns (unique grid-point longitudes).
     :return: center_latitude_deg: Latitude (deg N) at center of grid.
     :return: center_longitude_deg: Longitude (deg E) at center of grid.
     """
 
+    # TODO(thunderhoser): move this method to radar_utils.py.
+
     error_checking.assert_is_valid_latitude(nw_grid_point_lat_deg)
     nw_grid_point_lng_deg = lng_conversion.convert_lng_positive_in_west(
         nw_grid_point_lng_deg, allow_nan=False)
 
-    error_checking.assert_is_greater(lat_spacing_deg, 0)
-    error_checking.assert_is_greater(lng_spacing_deg, 0)
+    error_checking.assert_is_greater(lat_spacing_deg, 0.)
+    error_checking.assert_is_greater(lng_spacing_deg, 0.)
     error_checking.assert_is_integer(num_grid_rows)
-    error_checking.assert_is_greater(num_grid_rows, 0)
+    error_checking.assert_is_greater(num_grid_rows, 1)
     error_checking.assert_is_integer(num_grid_columns)
-    error_checking.assert_is_greater(num_grid_columns, 0)
+    error_checking.assert_is_greater(num_grid_columns, 1)
 
     min_latitude_deg = nw_grid_point_lat_deg - (
         (num_grid_rows - 1) * lat_spacing_deg)
-
     max_longitude_deg = nw_grid_point_lng_deg + (
         (num_grid_columns - 1) * lng_spacing_deg)
 
@@ -784,47 +778,49 @@ def get_center_of_grid(nw_grid_point_lat_deg=None, nw_grid_point_lng_deg=None,
             numpy.mean(numpy.array([nw_grid_point_lng_deg, max_longitude_deg])))
 
 
-def read_metadata_from_raw_file(netcdf_file_name, data_source=None,
-                                raise_error_if_fails=True):
-    """Reads metadata raw (either MYRORSS or MRMS) file..
+def read_metadata_from_raw_file(
+        netcdf_file_name, data_source, raise_error_if_fails=True):
+    """Reads metadata from raw (either MYRORSS or MRMS) file.
 
-    This file should contain one radar field at one height and one time step.
+    This file should contain one radar field at one height and valid time.
 
     :param netcdf_file_name: Path to input file.
-    :param data_source: Data source (either "myrorss" or "mrms").
-    :param raise_error_if_fails: Boolean flag.  If True and file cannot be
-        opened, this method will raise an error.  If False and file cannot be
-        opened, this method will return None.
+    :param data_source: Data source (string).
+    :param raise_error_if_fails: Boolean flag.  If True and file cannot be read,
+        this method will raise an error.  If False and file cannot be read, will
+        return None.
     :return: metadata_dict: Dictionary with the following keys.
     metadata_dict['nw_grid_point_lat_deg']: Latitude (deg N) of northwesternmost
         grid point.
     metadata_dict['nw_grid_point_lng_deg']: Longitude (deg E) of
         northwesternmost grid point.
-    metadata_dict['lat_spacing_deg']: Spacing (deg N) between adjacent rows.
-    metadata_dict['lng_spacing_deg']: Spacing (deg E) between adjacent columns.
+    metadata_dict['lat_spacing_deg']: Spacing (deg N) between meridionally
+        adjacent grid points.
+    metadata_dict['lng_spacing_deg']: Spacing (deg E) between zonally adjacent
+        grid points.
     metadata_dict['num_lat_in_grid']: Number of rows (unique grid-point
         latitudes).
     metadata_dict['num_lng_in_grid']: Number of columns (unique grid-point
         longitudes).
-    metadata_dict['height_m_agl']: Height (metres above ground level).
-    metadata_dict['unix_time_sec']: Time in Unix format.
-    metadata_dict['field_name']: Name of radar field in new format.
-    metadata_dict['field_name_orig']: Name of radar field in original (MYRORSS
-        or MRMS) format.
+    metadata_dict['height_m_agl']: Radar height (metres above ground level).
+    metadata_dict['unix_time_sec']: Valid time.
+    metadata_dict['field_name']: Name of radar field in GewitterGefahr format.
+    metadata_dict['field_name_orig']: Name of radar field in original (either
+        MYRORSS or MRMS) format.
     metadata_dict['sentinel_values']: 1-D numpy array of sentinel values.
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
-                                           raise_error_if_fails)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name, raise_error_if_fails)
     if netcdf_dataset is None:
         return None
 
     field_name_orig = str(getattr(netcdf_dataset, FIELD_NAME_COLUMN_ORIG))
 
     metadata_dict = {
-        NW_GRID_POINT_LAT_COLUMN: getattr(netcdf_dataset,
-                                          NW_GRID_POINT_LAT_COLUMN_ORIG),
+        NW_GRID_POINT_LAT_COLUMN:
+            getattr(netcdf_dataset, NW_GRID_POINT_LAT_COLUMN_ORIG),
         NW_GRID_POINT_LNG_COLUMN: lng_conversion.convert_lng_positive_in_west(
             getattr(netcdf_dataset, NW_GRID_POINT_LNG_COLUMN_ORIG),
             allow_nan=False),
@@ -835,8 +831,8 @@ def read_metadata_from_raw_file(netcdf_file_name, data_source=None,
         HEIGHT_COLUMN: getattr(netcdf_dataset, HEIGHT_COLUMN_ORIG),
         UNIX_TIME_COLUMN: getattr(netcdf_dataset, UNIX_TIME_COLUMN_ORIG),
         FIELD_NAME_COLUMN_ORIG: field_name_orig,
-        FIELD_NAME_COLUMN: _field_name_orig_to_new(field_name_orig,
-                                                   data_source=data_source)}
+        FIELD_NAME_COLUMN:
+            _field_name_orig_to_new(field_name_orig, data_source)}
 
     metadata_dict[NW_GRID_POINT_LAT_COLUMN] = rounder.floor_to_nearest(
         metadata_dict[NW_GRID_POINT_LAT_COLUMN],
@@ -845,53 +841,51 @@ def read_metadata_from_raw_file(netcdf_file_name, data_source=None,
         metadata_dict[NW_GRID_POINT_LNG_COLUMN],
         metadata_dict[LNG_SPACING_COLUMN])
 
-    sentinel_values = numpy.full(len(SENTINEL_VALUE_COLUMNS_ORIG), numpy.nan)
-    for i in range(len(SENTINEL_VALUE_COLUMNS_ORIG)):
-        sentinel_values[i] = getattr(netcdf_dataset,
-                                     SENTINEL_VALUE_COLUMNS_ORIG[i])
+    sentinel_values = []
+    for this_column in SENTINEL_VALUE_COLUMNS_ORIG:
+        sentinel_values.append(getattr(netcdf_dataset, this_column))
 
-    metadata_dict.update({SENTINEL_VALUE_COLUMN: sentinel_values})
+    metadata_dict.update({SENTINEL_VALUE_COLUMN: numpy.array(sentinel_values)})
     netcdf_dataset.close()
     return metadata_dict
 
 
-def read_data_from_sparse_grid_file(netcdf_file_name, field_name_orig=None,
-                                    data_source=None, sentinel_values=None,
-                                    raise_error_if_fails=True):
+def read_data_from_sparse_grid_file(
+        netcdf_file_name, field_name_orig, data_source, sentinel_values,
+        raise_error_if_fails=True):
     """Reads sparse radar grid from raw (either MYRORSS or MRMS) file.
 
-    This file should contain one radar field at one height and one time step.
+    This file should contain one radar field at one height and valid time.
 
     :param netcdf_file_name: Path to input file.
     :param field_name_orig: Name of radar field in original (either MYRORSS or
         MRMS) format.
-    :param data_source: Data source (either "myrorss" or "mrms").
+    :param data_source: Data source (string).
     :param sentinel_values: 1-D numpy array of sentinel values.
-    :param raise_error_if_fails: Boolean flag.  If True and file cannot be
-        opened, this method will raise an error.  If False and file cannot be
-        opened, this method will return None.
+    :param raise_error_if_fails: Boolean flag.  If True and file cannot be read,
+        this method will raise an error.  If False and file cannot be read, will
+        return None.
     :return: sparse_grid_table: pandas DataFrame with the following columns.
-        Each row corresponds to one grid cell.
+        Each row corresponds to one grid point.
     sparse_grid_table.grid_row: Row index.
     sparse_grid_table.grid_column: Column index.
-    sparse_grid_table.<field_name>: Radar measurement (field_name is determined
-        by the method `field_name_orig_to_new`).
-    sparse_grid_table.num_grid_cells: Number of consecutive grid cells --
-        starting at the current one and counting along rows first, columns
-        second -- with the same radar measurement.
+    sparse_grid_table.<field_name>: Radar measurement (column name is produced
+        by _field_name_orig_to_new).
+    sparse_grid_table.num_grid_cells: Number of consecutive grid points with the
+        same radar measurement.  Counting is row-major (to the right along the
+        row, then down to the next column if necessary).
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
     error_checking.assert_is_numpy_array_without_nan(sentinel_values)
     error_checking.assert_is_numpy_array(sentinel_values, num_dimensions=1)
 
-    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
-                                           raise_error_if_fails)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name, raise_error_if_fails)
     if netcdf_dataset is None:
         return None
 
-    field_name = _field_name_orig_to_new(field_name_orig,
-                                         data_source=data_source)
+    field_name = _field_name_orig_to_new(field_name_orig, data_source)
     num_values = len(netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG])
 
     if num_values == 0:
@@ -899,7 +893,7 @@ def read_data_from_sparse_grid_file(netcdf_file_name, field_name_orig=None,
             GRID_ROW_COLUMN: numpy.array([], dtype=int),
             GRID_COLUMN_COLUMN: numpy.array([], dtype=int),
             NUM_GRID_CELL_COLUMN: numpy.array([], dtype=int),
-            field_name: numpy.array([], dtype=int)}
+            field_name: numpy.array([])}
     else:
         sparse_grid_dict = {
             GRID_ROW_COLUMN: netcdf_dataset.variables[GRID_ROW_COLUMN_ORIG][:],
@@ -912,38 +906,33 @@ def read_data_from_sparse_grid_file(netcdf_file_name, field_name_orig=None,
     netcdf_dataset.close()
     sparse_grid_table = pandas.DataFrame.from_dict(sparse_grid_dict)
     return _remove_sentinels_from_sparse_grid(
-        sparse_grid_table, field_name, sentinel_values)
+        sparse_grid_table, field_name=field_name,
+        sentinel_values=sentinel_values)
 
 
-def read_data_from_full_grid_file(netcdf_file_name, metadata_dict,
-                                  raise_error_if_fails=True):
+def read_data_from_full_grid_file(
+        netcdf_file_name, metadata_dict, raise_error_if_fails=True):
     """Reads full radar grid from raw (either MYRORSS or MRMS) file.
 
-    This file should contain one radar field at one height and one time step.
-
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
+    This file should contain one radar field at one height and valid time.
 
     :param netcdf_file_name: Path to input file.
-    :param metadata_dict: Dictionary with metadata for NetCDF file, created by
-        read_metadata_from_raw_file.
-    :param raise_error_if_fails: Boolean flag.  If True and file cannot be
-        opened, this method will raise an error.  If False and file cannot be
-        opened, this method will return None for all output variables.
-    :return: field_matrix: M-by-N numpy array with values of radar field.
-    :return: unique_grid_point_lat_deg: length-M numpy array of grid-point
-        latitudes (deg N).  If array is increasing (decreasing), latitude
-        increases (decreases) while traveling down the columns of field_matrix.
-    :return: unique_grid_point_lng_deg: length-N numpy array of grid-point
-        longitudes (deg E).  If array is increasing (decreasing), longitude
-        increases (decreases) while traveling right across the rows of
-        field_matrix.
+    :param metadata_dict: Dictionary created by `read_metadata_from_raw_file`.
+    :param raise_error_if_fails: Boolean flag.  If True and file cannot be read,
+        this method will raise an error.  If False and file cannot be read, will
+        return None for all output vars.
+    :return: field_matrix: M-by-N numpy array with radar field.  Latitude
+        increases while moving up each column, and longitude increases while
+        moving right along each row.
+    :return: grid_point_latitudes_deg: length-M numpy array of grid-point
+        latitudes (deg N).  This array is monotonically decreasing.
+    :return: grid_point_longitudes_deg: length-N numpy array of grid-point
+        longitudes (deg E).  This array is monotonically increasing.
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-
-    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
-                                           raise_error_if_fails)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name, raise_error_if_fails)
     if netcdf_dataset is None:
         return None, None, None
 
@@ -953,7 +942,7 @@ def read_data_from_full_grid_file(netcdf_file_name, metadata_dict,
 
     min_latitude_deg = metadata_dict[NW_GRID_POINT_LAT_COLUMN] - (
         metadata_dict[LAT_SPACING_COLUMN] * (metadata_dict[NUM_LAT_COLUMN] - 1))
-    unique_grid_point_lat_deg, unique_grid_point_lng_deg = (
+    grid_point_latitudes_deg, grid_point_longitudes_deg = (
         grids.get_latlng_grid_points(
             min_latitude_deg=min_latitude_deg,
             min_longitude_deg=metadata_dict[NW_GRID_POINT_LNG_COLUMN],
@@ -964,5 +953,5 @@ def read_data_from_full_grid_file(netcdf_file_name, metadata_dict,
 
     field_matrix = _remove_sentinels_from_full_grid(
         field_matrix, metadata_dict[SENTINEL_VALUE_COLUMN])
-    return (numpy.flipud(field_matrix), unique_grid_point_lat_deg[::-1],
-            unique_grid_point_lng_deg)
+    return (numpy.flipud(field_matrix), grid_point_latitudes_deg[::-1],
+            grid_point_longitudes_deg)

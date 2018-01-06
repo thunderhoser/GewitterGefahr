@@ -13,15 +13,10 @@ LL_SHEAR_NAME_MRMS = radar_io.LOW_LEVEL_SHEAR_NAME_MRMS
 LL_SHEAR_NAME_NEW = radar_io.LOW_LEVEL_SHEAR_NAME
 LL_SHEAR_NAME_NEW_FAKE = 'poop'
 
-# The following constants are used to test get_valid_heights_for_field.
-SHEAR_HEIGHTS_M_AGL = numpy.array([radar_io.SHEAR_HEIGHT_M_AGL])
-NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array(
-    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
-NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
-
 # The following constants are used to test _check_reflectivity_heights.
-REFL_HEIGHTS_M_AGL = numpy.array([500, 1000, 2000, 3000, 5000, 10000])
-REFL_HEIGHTS_ONE_BAD_M_AGL = numpy.array([500, 1000, 2000, 3456, 5000, 10000])
+REFL_HEIGHTS_M_AGL = numpy.array([500., 1000., 2000., 3000., 5000., 10000])
+REFL_HEIGHTS_ONE_BAD_M_AGL = numpy.array(
+    [500., 1000., 2000., 3456., 5000., 10000])
 
 # The following constants are used to test _get_pathless_raw_file_pattern and
 # _get_pathless_raw_file_name.
@@ -31,51 +26,15 @@ PATHLESS_ZIPPED_FILE_NAME = '20171005-202002.netcdf.gz'
 PATHLESS_UNZIPPED_FILE_NAME = '20171005-202002.netcdf'
 PATHLESS_FILE_PATTERN = '20171005-2020*.netcdf*'
 
-# The following constants are used to test field_and_height_arrays_to_dict.
-UNIQUE_FIELD_NAMES = [
-    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
-    'reflectivity_column_max_dbz']
-UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL = numpy.array(
-    [250, 500, 750, 1000, 5000, 10000, 20000])
-
-FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL = {
-    'echo_top_50dbz_km': numpy.array([250]),
-    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
-    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
-    'reflectivity_column_max_dbz': numpy.array([250])}
-FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL = {
-    'echo_top_50dbz_km': numpy.array([500]),
-    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
-    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
-    'reflectivity_column_max_dbz': numpy.array([500])}
-
-# The following constants are used to test unique_fields_and_heights_to_pairs.
-FIELD_NAME_BY_PAIR = [
-    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
-    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
-    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
-    'reflectivity_column_max_dbz']
-HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
-    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
-     250, 500, 750, 1000, 5000, 10000, 20000,
-     radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
-HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
-    [radar_io.DEFAULT_HEIGHT_MRMS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
-     250, 500, 750, 1000, 5000, 10000, 20000,
-     radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
-
 # The following constants are used to test _remove_sentinels_from_sparse_grid.
 THESE_GRID_ROWS = numpy.linspace(0, 10, num=11, dtype=int)
 THESE_GRID_COLUMNS = numpy.linspace(0, 10, num=11, dtype=int)
 THESE_NUM_GRID_CELLS = numpy.linspace(0, 10, num=11, dtype=int)
-THESE_RADAR_VALUES = numpy.linspace(0, 10, num=11)
+THESE_RADAR_VALUES = numpy.array(
+    [-99000., 1., -99001., 3., -99000., 5., -99001., 7., 8., 9., 10.])
 
 SENTINEL_VALUES = numpy.array([-99000., -99001.])
 RADAR_FIELD_WITH_SENTINELS = radar_io.VIL_NAME
-THESE_RADAR_VALUES[0] = SENTINEL_VALUES[0]
-THESE_RADAR_VALUES[2] = SENTINEL_VALUES[1]
-THESE_RADAR_VALUES[4] = SENTINEL_VALUES[0]
-THESE_RADAR_VALUES[6] = SENTINEL_VALUES[1]
 
 THIS_DICTIONARY = {radar_io.GRID_ROW_COLUMN: THESE_GRID_ROWS,
                    radar_io.GRID_COLUMN_COLUMN: THESE_GRID_COLUMNS,
@@ -101,6 +60,45 @@ FIELD_MATRIX_NO_SENTINELS = numpy.array([
     [numpy.nan, 7, 8],
     [9, 10, numpy.nan],
     [12, 13, numpy.nan]])
+
+# The following constants are used to test get_valid_heights_for_field.
+SHEAR_HEIGHTS_M_AGL = numpy.array([radar_io.SHEAR_HEIGHT_M_AGL])
+NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
+NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
+
+# The following constants are used to test field_and_height_arrays_to_dict.
+UNIQUE_FIELD_NAMES = [
+    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
+    'reflectivity_column_max_dbz']
+UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL = numpy.array(
+    [250., 500., 750., 1000., 5000., 10000., 20000])
+
+FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL = {
+    'echo_top_50dbz_km': numpy.array([250]),
+    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
+    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+    'reflectivity_column_max_dbz': numpy.array([250])}
+FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL = {
+    'echo_top_50dbz_km': numpy.array([500]),
+    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
+    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+    'reflectivity_column_max_dbz': numpy.array([500])}
+
+# The following constants are used to test unique_fields_and_heights_to_pairs.
+FIELD_NAME_BY_PAIR = [
+    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
+    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
+    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
+    'reflectivity_column_max_dbz']
+HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
+     250., 500., 750., 1000., 5000., 10000., 20000,
+     radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
+HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MRMS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
+     250., 500., 750., 1000., 5000., 10000., 20000,
+     radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
 
 # The following constants are used to test get_relative_dir_for_raw_files.
 RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.25'
@@ -171,8 +169,8 @@ class RadarIoTests(unittest.TestCase):
         In this case, input is valid field name from MYRORSS.
         """
 
-        radar_io._check_field_name_orig(LL_SHEAR_NAME_MYRORSS,
-                                        data_source=radar_io.MYRORSS_SOURCE_ID)
+        radar_io._check_field_name_orig(
+            LL_SHEAR_NAME_MYRORSS, data_source=radar_io.MYRORSS_SOURCE_ID)
 
     def test_check_field_name_orig_myrorss_invalid(self):
         """Ensures correct output from _check_field_name_orig.
@@ -190,8 +188,8 @@ class RadarIoTests(unittest.TestCase):
         In this case, input is valid field name from MRMS.
         """
 
-        radar_io._check_field_name_orig(LL_SHEAR_NAME_MRMS,
-                                        data_source=radar_io.MRMS_SOURCE_ID)
+        radar_io._check_field_name_orig(
+            LL_SHEAR_NAME_MRMS, data_source=radar_io.MRMS_SOURCE_ID)
 
     def test_check_field_name_orig_mrms_invalid(self):
         """Ensures correct output from _check_field_name_orig.
@@ -200,25 +198,8 @@ class RadarIoTests(unittest.TestCase):
         """
 
         with self.assertRaises(ValueError):
-            radar_io._check_field_name_orig(LL_SHEAR_NAME_MYRORSS,
-                                            data_source=radar_io.MRMS_SOURCE_ID)
-
-    def test_check_field_name_valid(self):
-        """Ensures correct output from check_field_name.
-
-        In this case, field name is valid.
-        """
-
-        radar_io.check_field_name(LL_SHEAR_NAME_NEW)
-
-    def test_check_field_name_invalid(self):
-        """Ensures correct output from check_field_name.
-
-        In this case, field name is invalid.
-        """
-
-        with self.assertRaises(ValueError):
-            radar_io.check_field_name(LL_SHEAR_NAME_NEW_FAKE)
+            radar_io._check_field_name_orig(
+                LL_SHEAR_NAME_MYRORSS, data_source=radar_io.MRMS_SOURCE_ID)
 
     def test_field_name_orig_to_new_myrorss(self):
         """Ensures correct output from _field_name_orig_to_new.
@@ -239,6 +220,109 @@ class RadarIoTests(unittest.TestCase):
         this_field_name = radar_io._field_name_orig_to_new(
             LL_SHEAR_NAME_MRMS, data_source=radar_io.MRMS_SOURCE_ID)
         self.assertTrue(this_field_name == LL_SHEAR_NAME_NEW)
+
+    def test_check_reflectivity_heights_valid(self):
+        """Ensures correct output from _check_reflectivity_heights.
+
+        In this case, all heights are valid.
+        """
+
+        radar_io._check_reflectivity_heights(
+            REFL_HEIGHTS_M_AGL, data_source=radar_io.MYRORSS_SOURCE_ID)
+
+    def test_check_reflectivity_heights_invalid(self):
+        """Ensures correct output from _check_reflectivity_heights.
+
+        In this case, at least one height is invalid.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_io._check_reflectivity_heights(
+                REFL_HEIGHTS_ONE_BAD_M_AGL,
+                data_source=radar_io.MYRORSS_SOURCE_ID)
+
+    def test_get_pathless_raw_file_pattern(self):
+        """Ensures correct output from _get_pathless_raw_file_pattern."""
+
+        this_pathless_file_pattern = radar_io._get_pathless_raw_file_pattern(
+            FILE_TIME_UNIX_SEC)
+        self.assertTrue(this_pathless_file_pattern == PATHLESS_FILE_PATTERN)
+
+    def test_get_pathless_raw_file_name_zipped(self):
+        """Ensures correct output from _get_pathless_raw_file_name.
+
+        In this case, generating name for zipped file.
+        """
+
+        this_pathless_file_name = radar_io._get_pathless_raw_file_name(
+            FILE_TIME_UNIX_SEC, zipped=True)
+        self.assertTrue(this_pathless_file_name == PATHLESS_ZIPPED_FILE_NAME)
+
+    def test_get_pathless_raw_file_name_unzipped(self):
+        """Ensures correct output from _get_pathless_raw_file_name.
+
+        In this case, generating name for unzipped file.
+        """
+
+        this_pathless_file_name = radar_io._get_pathless_raw_file_name(
+            FILE_TIME_UNIX_SEC, zipped=False)
+        self.assertTrue(this_pathless_file_name == PATHLESS_UNZIPPED_FILE_NAME)
+
+    def test_raw_file_name_to_time_zipped(self):
+        """Ensures correct output from _raw_file_name_to_time.
+
+        In this case, input is name of zipped file.
+        """
+
+        this_time_unix_sec = radar_io._raw_file_name_to_time(
+            PATHLESS_ZIPPED_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
+
+    def test_raw_file_name_to_time_unzipped(self):
+        """Ensures correct output from _raw_file_name_to_time.
+
+        In this case, input is name of unzipped file.
+        """
+
+        this_time_unix_sec = radar_io._raw_file_name_to_time(
+            PATHLESS_UNZIPPED_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
+
+    def test_remove_sentinels_from_sparse_grid(self):
+        """Ensures correct output from _remove_sentinels_from_sparse_grid."""
+
+        this_sparse_grid_table = radar_io._remove_sentinels_from_sparse_grid(
+            SPARSE_GRID_TABLE_WITH_SENTINELS,
+            field_name=RADAR_FIELD_WITH_SENTINELS,
+            sentinel_values=SENTINEL_VALUES)
+        self.assertTrue(
+            this_sparse_grid_table.equals(SPARSE_GRID_TABLE_NO_SENTINELS))
+
+    def test_remove_sentinels_from_full_grid(self):
+        """Ensures correct output from _remove_sentinels_from_full_grid."""
+
+        this_field_matrix = radar_io._remove_sentinels_from_full_grid(
+            FIELD_MATRIX_WITH_SENTINELS, SENTINEL_VALUES)
+        self.assertTrue(numpy.allclose(
+            this_field_matrix, FIELD_MATRIX_NO_SENTINELS, atol=TOLERANCE,
+            equal_nan=True))
+
+    def test_check_field_name_valid(self):
+        """Ensures correct output from check_field_name.
+
+        In this case, field name is valid.
+        """
+
+        radar_io.check_field_name(LL_SHEAR_NAME_NEW)
+
+    def test_check_field_name_invalid(self):
+        """Ensures correct output from check_field_name.
+
+        In this case, field name is invalid.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_io.check_field_name(LL_SHEAR_NAME_NEW_FAKE)
 
     def test_field_name_new_to_orig_myrorss(self):
         """Ensures correct output from field_name_new_to_orig.
@@ -316,89 +400,6 @@ class RadarIoTests(unittest.TestCase):
             radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
         self.assertTrue(len(these_valid_heights_m_agl) > 1)
 
-    def test_check_reflectivity_heights_valid(self):
-        """Ensures correct output from _check_reflectivity_heights.
-
-        In this case, all heights are valid.
-        """
-
-        radar_io._check_reflectivity_heights(REFL_HEIGHTS_M_AGL)
-
-    def test_check_reflectivity_heights_invalid(self):
-        """Ensures correct output from _check_reflectivity_heights.
-
-        In this case, at least one height is invalid.
-        """
-
-        with self.assertRaises(ValueError):
-            radar_io._check_reflectivity_heights(REFL_HEIGHTS_ONE_BAD_M_AGL)
-
-    def test_get_pathless_raw_file_pattern(self):
-        """Ensures correct output from _get_pathless_raw_file_pattern."""
-
-        this_pathless_file_pattern = radar_io._get_pathless_raw_file_pattern(
-            FILE_TIME_UNIX_SEC)
-        self.assertTrue(this_pathless_file_pattern == PATHLESS_FILE_PATTERN)
-
-    def test_get_pathless_raw_file_name_zipped(self):
-        """Ensures correct output from _get_pathless_raw_file_name.
-
-        In this case, generating name for zipped file.
-        """
-
-        this_pathless_file_name = radar_io._get_pathless_raw_file_name(
-            FILE_TIME_UNIX_SEC, zipped=True)
-        self.assertTrue(this_pathless_file_name == PATHLESS_ZIPPED_FILE_NAME)
-
-    def test_get_pathless_raw_file_name_unzipped(self):
-        """Ensures correct output from _get_pathless_raw_file_name.
-
-        In this case, generating name for unzipped file.
-        """
-
-        this_pathless_file_name = radar_io._get_pathless_raw_file_name(
-            FILE_TIME_UNIX_SEC, zipped=False)
-        self.assertTrue(this_pathless_file_name == PATHLESS_UNZIPPED_FILE_NAME)
-
-    def test_raw_file_name_to_time_zipped(self):
-        """Ensures correct output from _raw_file_name_to_time.
-
-        In this case, input is name of zipped file.
-        """
-
-        this_time_unix_sec = radar_io._raw_file_name_to_time(
-            PATHLESS_ZIPPED_FILE_NAME)
-        self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
-
-    def test_raw_file_name_to_time_unzipped(self):
-        """Ensures correct output from _raw_file_name_to_time.
-
-        In this case, input is name of unzipped file.
-        """
-
-        this_time_unix_sec = radar_io._raw_file_name_to_time(
-            PATHLESS_UNZIPPED_FILE_NAME)
-        self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
-
-    def test_remove_sentinels_from_sparse_grid(self):
-        """Ensures correct output from _remove_sentinels_from_sparse_grid."""
-
-        this_sparse_grid_table = radar_io._remove_sentinels_from_sparse_grid(
-            SPARSE_GRID_TABLE_WITH_SENTINELS,
-            field_name=RADAR_FIELD_WITH_SENTINELS,
-            sentinel_values=SENTINEL_VALUES)
-        self.assertTrue(
-            this_sparse_grid_table.equals(SPARSE_GRID_TABLE_NO_SENTINELS))
-
-    def test_remove_sentinels_from_full_grid(self):
-        """Ensures correct output from _remove_sentinels_from_full_grid."""
-
-        this_field_matrix = radar_io._remove_sentinels_from_full_grid(
-            FIELD_MATRIX_WITH_SENTINELS, SENTINEL_VALUES)
-        self.assertTrue(numpy.allclose(
-            this_field_matrix, FIELD_MATRIX_NO_SENTINELS, atol=TOLERANCE,
-            equal_nan=True))
-
     def test_field_and_height_arrays_to_dict_myrorss(self):
         """Ensures correct output from field_and_height_arrays_to_dict.
 
@@ -407,7 +408,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_field_to_heights_dict_m_agl = (
             radar_io.field_and_height_arrays_to_dict(
-                UNIQUE_FIELD_NAMES,
+                field_names=UNIQUE_FIELD_NAMES,
                 refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
                 data_source=radar_io.MYRORSS_SOURCE_ID))
         self.assertTrue(this_field_to_heights_dict_m_agl ==
@@ -421,7 +422,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_field_to_heights_dict_m_agl = (
             radar_io.field_and_height_arrays_to_dict(
-                UNIQUE_FIELD_NAMES,
+                field_names=UNIQUE_FIELD_NAMES,
                 refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
                 data_source=radar_io.MRMS_SOURCE_ID))
         self.assertTrue(this_field_to_heights_dict_m_agl ==
@@ -435,7 +436,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_field_name_by_pair, this_height_by_pair_m_agl = (
             radar_io.unique_fields_and_heights_to_pairs(
-                UNIQUE_FIELD_NAMES,
+                unique_field_names=UNIQUE_FIELD_NAMES,
                 refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
                 data_source=radar_io.MYRORSS_SOURCE_ID))
 
@@ -451,7 +452,7 @@ class RadarIoTests(unittest.TestCase):
 
         this_field_name_by_pair, this_height_by_pair_m_agl = (
             radar_io.unique_fields_and_heights_to_pairs(
-                UNIQUE_FIELD_NAMES,
+                unique_field_names=UNIQUE_FIELD_NAMES,
                 refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
                 data_source=radar_io.MRMS_SOURCE_ID))
 

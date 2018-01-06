@@ -112,12 +112,12 @@ def write_field_to_myrorss_file(
 
     if field_name == radar_io.REFL_NAME:
         field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
-            [field_name], refl_heights_m_agl=numpy.array([height_m_asl]),
+            field_names=[field_name],
+            refl_heights_m_agl=numpy.array([height_m_asl]),
             data_source=radar_io.MYRORSS_SOURCE_ID)
     else:
         field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
-            [field_name], refl_heights_m_agl=None,
-            data_source=radar_io.MYRORSS_SOURCE_ID)
+            field_names=[field_name], data_source=radar_io.MYRORSS_SOURCE_ID)
 
     field_name = field_to_heights_dict_m_asl.keys()[0]
     radar_height_m_asl = field_to_heights_dict_m_asl[field_name][0]
@@ -125,7 +125,7 @@ def write_field_to_myrorss_file(
     if field_name in radar_io.ECHO_TOP_NAMES:
         field_matrix = METRES_TO_KM * field_matrix
     field_name_myrorss = radar_io.field_name_new_to_orig(
-        field_name, radar_io.MYRORSS_SOURCE_ID)
+        field_name, data_source=radar_io.MYRORSS_SOURCE_ID)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = Dataset(

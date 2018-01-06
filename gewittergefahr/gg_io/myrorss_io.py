@@ -25,7 +25,7 @@ DEFAULT_FIELDS_TO_REMOVE = [
     radar_io.SHI_NAME, radar_io.VIL_NAME]
 
 DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_AGL = radar_io.get_valid_heights_for_field(
-    radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
+    field_name=radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
 
 
 def unzip_1day_tar_file(
@@ -62,8 +62,8 @@ def unzip_1day_tar_file(
         field_names.append(this_field_name)
 
     field_to_heights_dict_m_agl = radar_io.field_and_height_arrays_to_dict(
-        field_names, refl_heights_m_agl=refl_heights_m_agl,
-        data_source=radar_io.MYRORSS_SOURCE_ID)
+        field_names=field_names, data_source=radar_io.MYRORSS_SOURCE_ID,
+        refl_heights_m_agl=refl_heights_m_agl)
 
     target_directory_name = '{0:s}/{1:s}'.format(
         top_target_directory_name, spc_date_string)
@@ -76,8 +76,9 @@ def unzip_1day_tar_file(
         for this_height_m_agl in these_heights_m_agl:
             directory_names_to_unzip.append(
                 radar_io.get_relative_dir_for_raw_files(
-                    field_name=this_field_name, height_m_agl=this_height_m_agl,
-                    data_source=radar_io.MYRORSS_SOURCE_ID))
+                    field_name=this_field_name,
+                    data_source=radar_io.MYRORSS_SOURCE_ID,
+                    height_m_agl=this_height_m_agl))
 
     unzipping.unzip_tar(
         tar_file_name,
@@ -109,8 +110,8 @@ def remove_unzipped_data_1day(
         spc_date_string)
 
     field_to_heights_dict_m_agl = radar_io.field_and_height_arrays_to_dict(
-        field_names, refl_heights_m_agl=refl_heights_m_agl,
-        data_source=radar_io.MYRORSS_SOURCE_ID)
+        field_names=field_names, data_source=radar_io.MYRORSS_SOURCE_ID,
+        refl_heights_m_agl=refl_heights_m_agl)
 
     for this_field_name in field_to_heights_dict_m_agl.keys():
         these_heights_m_agl = field_to_heights_dict_m_agl[this_field_name]
@@ -119,9 +120,9 @@ def remove_unzipped_data_1day(
             example_file_name = radar_io.find_raw_file(
                 unix_time_sec=spc_date_unix_sec,
                 spc_date_unix_sec=spc_date_unix_sec, field_name=this_field_name,
-                height_m_agl=this_height_m_agl,
                 data_source=radar_io.MYRORSS_SOURCE_ID,
                 top_directory_name=top_directory_name,
+                height_m_agl=this_height_m_agl,
                 raise_error_if_missing=False)
 
             example_directory_name, _ = os.path.split(example_file_name)

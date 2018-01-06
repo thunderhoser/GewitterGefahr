@@ -60,7 +60,7 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         lowest_refl_to_consider_dbz, critical_reflectivity_dbz)
 
     grid_point_heights_m_asl = radar_io.get_valid_heights_for_field(
-        radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
+        field_name=radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
     grid_point_heights_m_asl = grid_point_heights_m_asl[
         grid_point_heights_m_asl <= top_height_to_consider_m_asl]
     spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
@@ -78,9 +78,9 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         single_height_refl_file_names[k] = radar_io.find_raw_file(
             unix_time_sec=unix_time_sec, spc_date_unix_sec=spc_date_unix_sec,
             field_name=radar_io.REFL_NAME,
-            height_m_agl=grid_point_heights_m_asl[k],
             data_source=radar_io.MYRORSS_SOURCE_ID,
-            top_directory_name=top_directory_name)
+            top_directory_name=top_directory_name,
+            height_m_agl=grid_point_heights_m_asl[k])
 
     print 'Reading "{0:s}" for echo-top calculation...'.format(
         column_max_refl_file_name)

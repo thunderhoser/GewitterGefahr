@@ -3,7 +3,6 @@
 import numpy
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
-from gewittergefahr.gg_io import radar_io
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import error_checking
 

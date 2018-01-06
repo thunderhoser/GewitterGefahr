@@ -463,7 +463,8 @@ def get_stats_for_storm_objects(
 
     radar_field_name_by_pair, radar_height_by_pair_m_agl = (
         radar_io.unique_fields_and_heights_to_pairs(
-            radar_field_names, refl_heights_m_agl=reflectivity_heights_m_agl,
+            unique_field_names=radar_field_names,
+            refl_heights_m_agl=reflectivity_heights_m_agl,
             data_source=radar_data_source))
     num_radar_fields = len(radar_field_name_by_pair)
 
