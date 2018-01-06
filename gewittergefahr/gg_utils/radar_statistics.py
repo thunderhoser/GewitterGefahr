@@ -24,7 +24,7 @@ TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
 
 RADAR_FIELD_NAME_KEY = 'radar_field_name'
-RADAR_HEIGHT_KEY = 'radar_height_m_agl'
+RADAR_HEIGHT_KEY = 'radar_height_m_asl'
 STATISTIC_NAME_KEY = 'statistic_name'
 PERCENTILE_LEVEL_KEY = 'percentile_level'
 
@@ -68,36 +68,36 @@ AZIMUTHAL_SHEAR_FIELD_NAMES = [
 
 
 def _radar_field_and_statistic_to_column_name(
-        radar_field_name=None, radar_height_m_agl=None, statistic_name=None):
+        radar_field_name=None, radar_height_m_asl=None, statistic_name=None):
     """Generates column name for radar field and statistic.
 
     :param radar_field_name: Name of radar field.
-    :param radar_height_m_agl: Radar height (metres above ground level).
+    :param radar_height_m_asl: Radar height (metres above sea level).
     :param statistic_name: Name of statistic.
     :return: column_name: Name of column.
     """
 
     if radar_field_name == radar_io.REFL_NAME:
         return '{0:s}_{1:d}m_{2:s}'.format(
-            radar_field_name, int(radar_height_m_agl), statistic_name)
+            radar_field_name, int(radar_height_m_asl), statistic_name)
 
     return '{0:s}_{1:s}'.format(
         radar_field_name, statistic_name)
 
 
 def _radar_field_and_percentile_to_column_name(
-        radar_field_name=None, radar_height_m_agl=None, percentile_level=None):
+        radar_field_name=None, radar_height_m_asl=None, percentile_level=None):
     """Generates column name for radar field and percentile level.
 
     :param radar_field_name: Name of radar field.
-    :param radar_height_m_agl: Radar height (metres above ground level).
+    :param radar_height_m_asl: Radar height (metres above sea level).
     :param percentile_level: Percentile level.
     :return: column_name: Name of column.
     """
 
     if radar_field_name == radar_io.REFL_NAME:
         return '{0:s}_{1:d}m_percentile{2:05.1f}'.format(
-            radar_field_name, int(radar_height_m_agl), percentile_level)
+            radar_field_name, int(radar_height_m_asl), percentile_level)
 
     return '{0:s}_percentile{1:05.1f}'.format(
         radar_field_name, percentile_level)
@@ -113,9 +113,8 @@ def _column_name_to_statistic_params(column_name):
     :return: parameter_dict: Dictionary with the following keys.
     parameter_dict['radar_field_name']: Name of radar field on which statistic
         is based.
-    parameter_dict['radar_height_m_agl']: Radar height (metres above ground
-        level).  If radar field is not single-elevation reflectivity, this will
-        be None.
+    parameter_dict['radar_height_m_asl']: Radar height (metres above sea level).
+        If radar field is not single-elevation reflectivity, this will be None.
     parameter_dict['statistic_name']: Name of statistic.  If statistic is a
         percentile, this will be None.
     parameter_dict['percentile_level']: Percentile level.  If statistic is non-
@@ -157,19 +156,19 @@ def _column_name_to_statistic_params(column_name):
 
     # Determine radar height.
     if radar_height_part is None:
-        radar_height_m_agl = None
+        radar_height_m_asl = None
     else:
         if not radar_height_part.endswith('m'):
             return None
 
         radar_height_part = radar_height_part.replace('m', '')
         try:
-            radar_height_m_agl = int(radar_height_part)
+            radar_height_m_asl = int(radar_height_part)
         except ValueError:
             return None
 
     return {RADAR_FIELD_NAME_KEY: radar_field_name,
-            RADAR_HEIGHT_KEY: radar_height_m_agl,
+            RADAR_HEIGHT_KEY: radar_height_m_asl,
             STATISTIC_NAME_KEY: statistic_name,
             PERCENTILE_LEVEL_KEY: percentile_level}
 
@@ -410,7 +409,7 @@ def get_stats_for_storm_objects(
         statistic_names=DEFAULT_STATISTIC_NAMES,
         percentile_levels=DEFAULT_PERCENTILE_LEVELS,
         radar_field_names=DEFAULT_RADAR_FIELD_NAMES,
-        reflectivity_heights_m_agl=None,
+        reflectivity_heights_m_asl=None,
         radar_data_source=radar_io.MYRORSS_SOURCE_ID,
         top_radar_directory_name=None, dilate_azimuthal_shear=False,
         dilation_half_width_in_pixels=dilation.DEFAULT_HALF_WIDTH,
@@ -429,9 +428,9 @@ def get_stats_for_storm_objects(
     :param statistic_names: 1-D list of non-percentile-based statistics.
     :param percentile_levels: 1-D numpy array of percentile levels.
     :param radar_field_names: 1-D list with names of radar fields.
-    :param reflectivity_heights_m_agl: 1-D numpy array of heights (metres above
-        ground level) for radar field "reflectivity_dbz".  If "reflectivity_dbz"
-        is not in `radar_field_names`, this can be left as None.
+    :param reflectivity_heights_m_asl: 1-D numpy array of heights (metres above
+        sea level) for radar field "reflectivity_dbz".  If "reflectivity_dbz" is
+        not in `radar_field_names`, this can be left as None.
     :param radar_data_source: Data source for radar field.
     :param top_radar_directory_name: Name of top-level directory with radar
         files from given source.
@@ -461,10 +460,10 @@ def get_stats_for_storm_objects(
         statistic_names, percentile_levels)
     error_checking.assert_is_boolean(dilate_azimuthal_shear)
 
-    radar_field_name_by_pair, radar_height_by_pair_m_agl = (
+    radar_field_name_by_pair, radar_height_by_pair_m_asl = (
         radar_io.unique_fields_and_heights_to_pairs(
             unique_field_names=radar_field_names,
-            refl_heights_m_agl=reflectivity_heights_m_agl,
+            refl_heights_m_asl=reflectivity_heights_m_asl,
             data_source=radar_data_source))
     num_radar_fields = len(radar_field_name_by_pair)
 
@@ -496,7 +495,7 @@ def get_stats_for_storm_objects(
                     unix_time_sec=unique_storm_times_unix_sec[i],
                     spc_date_unix_sec=unique_spc_dates_unix_sec[i],
                     field_name=radar_field_name_by_pair[j],
-                    height_m_agl=radar_height_by_pair_m_agl[j],
+                    height_m_asl=radar_height_by_pair_m_asl[j],
                     data_source=radar_data_source,
                     top_directory_name=top_radar_directory_name,
                     raise_error_if_missing=True)
@@ -506,10 +505,10 @@ def get_stats_for_storm_objects(
                     unique_storm_times_unix_sec[i],
                     TIME_FORMAT_FOR_LOG_MESSAGES)
                 warning_string = (
-                    'Cannot find file for "{0:s}" at {1:d} metres AGL and '
+                    'Cannot find file for "{0:s}" at {1:d} metres ASL and '
                     '{2:s}.').format(
                         radar_field_name_by_pair[j],
-                        numpy.round(int(radar_height_by_pair_m_agl[j])),
+                        int(numpy.round(radar_height_by_pair_m_asl[j])),
                         this_time_string)
                 warnings.warn(warning_string)
 
@@ -530,9 +529,11 @@ def get_stats_for_storm_objects(
 
             this_time_string = time_conversion.unix_sec_to_string(
                 unique_storm_times_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
-            print ('Computing stats for "' + str(radar_field_name_by_pair[j]) +
-                   '" at ' + str(radar_height_by_pair_m_agl[j]) +
-                   ' m AGL and ' + this_time_string + '...')
+            print ('Computing stats for "{0:s}" at {1:d} metres ASL and '
+                   '{2:s}...').format(
+                       radar_field_name_by_pair[j],
+                       int(numpy.round(radar_height_by_pair_m_asl[j])),
+                       this_time_string)
 
             if metadata_dict_for_this_field is None:
                 metadata_dict_for_this_field = (
@@ -596,7 +597,7 @@ def get_stats_for_storm_objects(
         for k in range(num_statistics):
             this_column_name = _radar_field_and_statistic_to_column_name(
                 radar_field_name=radar_field_name_by_pair[j],
-                radar_height_m_agl=radar_height_by_pair_m_agl[j],
+                radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 statistic_name=statistic_names[k])
 
             storm_radar_statistic_dict.update(
@@ -605,7 +606,7 @@ def get_stats_for_storm_objects(
         for k in range(num_percentiles):
             this_column_name = _radar_field_and_percentile_to_column_name(
                 radar_field_name=radar_field_name_by_pair[j],
-                radar_height_m_agl=radar_height_by_pair_m_agl[j],
+                radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 percentile_level=percentile_levels[k])
 
             storm_radar_statistic_dict.update(

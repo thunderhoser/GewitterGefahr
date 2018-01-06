@@ -24,7 +24,7 @@ LAT_SPACING_COLUMN = 'lat_spacing_deg'
 LNG_SPACING_COLUMN = 'lng_spacing_deg'
 NUM_LAT_COLUMN = 'num_lat_in_grid'
 NUM_LNG_COLUMN = 'num_lng_in_grid'
-HEIGHT_COLUMN = 'height_m_agl'
+HEIGHT_COLUMN = 'height_m_asl'
 UNIX_TIME_COLUMN = 'unix_time_sec'
 FIELD_NAME_COLUMN = 'field_name'
 SENTINEL_VALUE_COLUMN = 'sentinel_values'
@@ -120,19 +120,18 @@ RADAR_FIELD_NAMES_MRMS = [
     REFL_M20CELSIUS_NAME_ORIG, REFL_LOWEST_ALTITUDE_NAME_ORIG, SHI_NAME_ORIG,
     VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
 
-HEIGHT_ARRAY_COLUMN = 'heights_m_agl'
-SENTINEL_TOLERANCE = 10.
-
 TIME_FORMAT_SECONDS = '%Y%m%d-%H%M%S'
 TIME_FORMAT_MINUTES = '%Y%m%d-%H%M'
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 DAYS_TO_SECONDS = 86400
 MINUTES_TO_SECONDS = 60
-METRES_TO_KM = 1e-3
 
-SHEAR_HEIGHT_M_AGL = 250
-DEFAULT_HEIGHT_MYRORSS_M_AGL = 250
-DEFAULT_HEIGHT_MRMS_M_AGL = 500
+METRES_TO_KM = 1e-3
+SENTINEL_TOLERANCE = 10.
+
+SHEAR_HEIGHT_M_ASL = 250
+DEFAULT_HEIGHT_MYRORSS_M_ASL = 250
+DEFAULT_HEIGHT_MRMS_M_ASL = 500
 DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
 
 ZIPPED_FILE_EXTENSION = '.gz'
@@ -199,29 +198,29 @@ def _field_name_orig_to_new(field_name_orig, data_source):
     return RADAR_FIELD_NAMES[numpy.where(found_flags)[0][0]]
 
 
-def _check_reflectivity_heights(heights_m_agl, data_source):
+def _check_reflectivity_heights(heights_m_asl, data_source):
     """Ensures that reflectivity heights are valid.
 
-    :param heights_m_agl: 1-D numpy array of reflectivity heights (metres above
-        ground level).
+    :param heights_m_asl: 1-D numpy array of reflectivity heights (metres above
+        sea level).
     :param data_source: Data source (string).
-    :raises: ValueError: if any element of heights_m_agl is invalid.
+    :raises: ValueError: if any element of heights_m_asl is invalid.
     """
 
-    error_checking.assert_is_real_numpy_array(heights_m_agl)
-    error_checking.assert_is_numpy_array(heights_m_agl, num_dimensions=1)
+    error_checking.assert_is_real_numpy_array(heights_m_asl)
+    error_checking.assert_is_numpy_array(heights_m_asl, num_dimensions=1)
 
-    integer_heights_m_agl = numpy.round(heights_m_agl).astype(int)
-    valid_heights_m_agl = get_valid_heights_for_field(REFL_NAME, data_source)
+    integer_heights_m_asl = numpy.round(heights_m_asl).astype(int)
+    valid_heights_m_asl = get_valid_heights_for_field(REFL_NAME, data_source)
 
-    for this_height_m_agl in integer_heights_m_agl:
-        if this_height_m_agl in valid_heights_m_agl:
+    for this_height_m_asl in integer_heights_m_asl:
+        if this_height_m_asl in valid_heights_m_asl:
             continue
 
         error_string = (
-            '\n\n' + str(valid_heights_m_agl) +
-            '\n\nValid reflectivity heights (metres AGL, listed above) do not '
-            'include ' + str(this_height_m_agl) + ' m AGL.')
+            '\n\n' + str(valid_heights_m_asl) +
+            '\n\nValid reflectivity heights (metres ASL, listed above) do not '
+            'include ' + str(this_height_m_asl) + ' m ASL.')
         raise ValueError(error_string)
 
 
@@ -373,8 +372,8 @@ def get_valid_heights_for_field(field_name, data_source):
 
     :param field_name: Name of radar field in GewitterGefahr format.
     :param data_source: Data source (string).
-    :return: valid_heights_m_agl: 1-D numpy array of valid heights (integer
-        metres above ground level).
+    :return: valid_heights_m_asl: 1-D numpy array of valid heights (integer
+        metres above sea level).
     :raises: ValueError: if field_name = "storm_id".
     """
 
@@ -384,32 +383,32 @@ def get_valid_heights_for_field(field_name, data_source):
         raise ValueError('Field name cannot be "{0:s}".'.format(STORM_ID_NAME))
 
     if data_source == MYRORSS_SOURCE_ID:
-        default_height_m_agl = DEFAULT_HEIGHT_MYRORSS_M_AGL
+        default_height_m_asl = DEFAULT_HEIGHT_MYRORSS_M_ASL
     else:
-        default_height_m_agl = DEFAULT_HEIGHT_MRMS_M_AGL
+        default_height_m_asl = DEFAULT_HEIGHT_MRMS_M_ASL
 
     if field_name in ECHO_TOP_NAMES:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == LOW_LEVEL_SHEAR_NAME:
-        return numpy.array([SHEAR_HEIGHT_M_AGL])
+        return numpy.array([SHEAR_HEIGHT_M_ASL])
     if field_name == MID_LEVEL_SHEAR_NAME:
-        return numpy.array([SHEAR_HEIGHT_M_AGL])
+        return numpy.array([SHEAR_HEIGHT_M_ASL])
     if field_name == REFL_COLUMN_MAX_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == MESH_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == REFL_0CELSIUS_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == REFL_M10CELSIUS_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == REFL_M20CELSIUS_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == REFL_LOWEST_ALTITUDE_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == SHI_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
     if field_name == VIL_NAME:
-        return numpy.array([default_height_m_agl])
+        return numpy.array([default_height_m_asl])
 
     if field_name == REFL_NAME:
         return numpy.array(
@@ -420,36 +419,36 @@ def get_valid_heights_for_field(field_name, data_source):
 
 
 def field_and_height_arrays_to_dict(
-        field_names, data_source, refl_heights_m_agl=None):
+        field_names, data_source, refl_heights_m_asl=None):
     """Converts two arrays (field names and reflectivity heights) to dictionary.
 
     :param field_names: 1-D list with names of radar fields in GewitterGefahr
         format.
     :param data_source: Data source (string).
-    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
-        above ground level).
-    :return: field_to_heights_dict_m_agl: Dictionary, where each key comes from
+    :param refl_heights_m_asl: 1-D numpy array of reflectivity heights (metres
+        above sea level).
+    :return: field_to_heights_dict_m_asl: Dictionary, where each key comes from
         `field_names` and each value is a 1-D numpy array of heights (metres
-        above ground level).
+        above sea level).
     """
 
-    field_to_heights_dict_m_agl = {}
+    field_to_heights_dict_m_asl = {}
 
     for this_field_name in field_names:
         if this_field_name == REFL_NAME:
-            _check_reflectivity_heights(refl_heights_m_agl, data_source)
-            field_to_heights_dict_m_agl.update(
-                {this_field_name: refl_heights_m_agl})
+            _check_reflectivity_heights(refl_heights_m_asl, data_source)
+            field_to_heights_dict_m_asl.update(
+                {this_field_name: refl_heights_m_asl})
         else:
-            field_to_heights_dict_m_agl.update({
+            field_to_heights_dict_m_asl.update({
                 this_field_name: get_valid_heights_for_field(
                     this_field_name, data_source=data_source)})
 
-    return field_to_heights_dict_m_agl
+    return field_to_heights_dict_m_asl
 
 
 def unique_fields_and_heights_to_pairs(
-        unique_field_names, data_source, refl_heights_m_agl=None):
+        unique_field_names, data_source, refl_heights_m_asl=None):
     """Converts unique arrays (field names and refl heights) to non-unique ones.
 
     F = number of unique field names
@@ -458,49 +457,49 @@ def unique_fields_and_heights_to_pairs(
     :param unique_field_names: length-F list with names of radar fields in
         GewitterGefahr format.
     :param data_source: Data source (string).
-    :param refl_heights_m_agl: 1-D numpy array of reflectivity heights (metres
-        above ground level).
+    :param refl_heights_m_asl: 1-D numpy array of reflectivity heights (metres
+        above sea level).
     :return: field_name_by_pair: length-N list of field names.
-    :return: height_by_pair_m_agl: length-N numpy array of radar heights (metres
-        above ground level).
+    :return: height_by_pair_m_asl: length-N numpy array of radar heights (metres
+        above sea level).
     """
 
     field_name_by_pair = []
-    height_by_pair_m_agl = numpy.array([])
+    height_by_pair_m_asl = numpy.array([])
 
     for this_field_name in unique_field_names:
         if this_field_name == REFL_NAME:
-            _check_reflectivity_heights(refl_heights_m_agl, data_source)
-            these_heights_m_agl = copy.deepcopy(refl_heights_m_agl)
+            _check_reflectivity_heights(refl_heights_m_asl, data_source)
+            these_heights_m_asl = copy.deepcopy(refl_heights_m_asl)
         else:
-            these_heights_m_agl = get_valid_heights_for_field(
+            these_heights_m_asl = get_valid_heights_for_field(
                 this_field_name, data_source=data_source)
 
-        field_name_by_pair += [this_field_name] * len(these_heights_m_agl)
-        height_by_pair_m_agl = numpy.concatenate((
-            height_by_pair_m_agl, these_heights_m_agl))
+        field_name_by_pair += [this_field_name] * len(these_heights_m_asl)
+        height_by_pair_m_asl = numpy.concatenate((
+            height_by_pair_m_asl, these_heights_m_asl))
 
-    return field_name_by_pair, height_by_pair_m_agl
+    return field_name_by_pair, height_by_pair_m_asl
 
 
-def get_relative_dir_for_raw_files(field_name, data_source, height_m_agl=None):
+def get_relative_dir_for_raw_files(field_name, data_source, height_m_asl=None):
     """Generates relative path for raw files.
 
     :param field_name: Name of radar field in GewitterGefahr format.
     :param data_source: Data source (string).
-    :param height_m_agl: Radar height (metres above ground level).
+    :param height_m_asl: Radar height (metres above sea level).
     :return: relative_directory_name: Relative path for raw files.
     """
 
     if field_name == REFL_NAME:
-        _check_reflectivity_heights(numpy.array([height_m_agl]), data_source)
+        _check_reflectivity_heights(numpy.array([height_m_asl]), data_source)
     else:
-        height_m_agl = get_valid_heights_for_field(
+        height_m_asl = get_valid_heights_for_field(
             field_name, data_source=data_source)[0]
 
     return '{0:s}/{1:05.2f}'.format(
         field_name_new_to_orig(field_name, data_source=data_source),
-        float(height_m_agl) * METRES_TO_KM)
+        float(height_m_asl) * METRES_TO_KM)
 
 
 def find_raw_azimuthal_shear_file(
@@ -592,7 +591,7 @@ def find_raw_azimuthal_shear_file(
 
 def find_raw_file(
         unix_time_sec, spc_date_unix_sec, field_name, data_source,
-        top_directory_name, height_m_agl=None, raise_error_if_missing=True):
+        top_directory_name, height_m_asl=None, raise_error_if_missing=True):
     """Finds raw file.
 
     This file should contain one radar field at one height and valid time.
@@ -602,7 +601,7 @@ def find_raw_file(
     :param field_name: Name of radar field in GewitterGefahr format.
     :param data_source: Data source (string).
     :param top_directory_name: Name of top-level directory with raw files.
-    :param height_m_agl: Radar height (metres above ground level).
+    :param height_m_asl: Radar height (metres above sea level).
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will raise an error.  If False and file is missing, will
         return *expected* path to raw file.
@@ -614,7 +613,7 @@ def find_raw_file(
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     relative_directory_name = get_relative_dir_for_raw_files(
-        field_name=field_name, height_m_agl=height_m_agl,
+        field_name=field_name, height_m_asl=height_m_asl,
         data_source=data_source)
     directory_name = '{0:s}/{1:s}/{2:s}'.format(
         top_directory_name,
@@ -802,7 +801,7 @@ def read_metadata_from_raw_file(
         latitudes).
     metadata_dict['num_lng_in_grid']: Number of columns (unique grid-point
         longitudes).
-    metadata_dict['height_m_agl']: Radar height (metres above ground level).
+    metadata_dict['height_m_asl']: Radar height (metres above ground level).
     metadata_dict['unix_time_sec']: Valid time.
     metadata_dict['field_name']: Name of radar field in GewitterGefahr format.
     metadata_dict['field_name_orig']: Name of radar field in original (either

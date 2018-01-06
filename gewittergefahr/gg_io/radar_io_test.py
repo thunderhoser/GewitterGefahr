@@ -14,9 +14,9 @@ LL_SHEAR_NAME_NEW = radar_io.LOW_LEVEL_SHEAR_NAME
 LL_SHEAR_NAME_NEW_FAKE = 'poop'
 
 # The following constants are used to test _check_reflectivity_heights.
-REFL_HEIGHTS_M_AGL = numpy.array([500., 1000., 2000., 3000., 5000., 10000])
-REFL_HEIGHTS_ONE_BAD_M_AGL = numpy.array(
-    [500., 1000., 2000., 3456., 5000., 10000])
+REFL_HEIGHTS_M_ASL = numpy.array([500., 1000., 2000., 3000., 5000., 10000.])
+REFL_HEIGHTS_ONE_BAD_M_ASL = numpy.array(
+    [500., 1000., 2000., 3456., 5000., 10000.])
 
 # The following constants are used to test _get_pathless_raw_file_pattern and
 # _get_pathless_raw_file_name.
@@ -62,27 +62,27 @@ FIELD_MATRIX_NO_SENTINELS = numpy.array([
     [12, 13, numpy.nan]])
 
 # The following constants are used to test get_valid_heights_for_field.
-SHEAR_HEIGHTS_M_AGL = numpy.array([radar_io.SHEAR_HEIGHT_M_AGL])
-NON_SHEAR_HEIGHTS_MYRORSS_M_AGL = numpy.array(
-    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
-NON_SHEAR_HEIGHTS_MRMS_M_AGL = numpy.array([radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
+SHEAR_HEIGHTS_M_ASL = numpy.array([radar_io.SHEAR_HEIGHT_M_ASL])
+NON_SHEAR_HEIGHTS_MYRORSS_M_ASL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_ASL])
+NON_SHEAR_HEIGHTS_MRMS_M_ASL = numpy.array([radar_io.DEFAULT_HEIGHT_MRMS_M_ASL])
 
 # The following constants are used to test field_and_height_arrays_to_dict.
 UNIQUE_FIELD_NAMES = [
     'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
     'reflectivity_column_max_dbz']
-UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL = numpy.array(
-    [250., 500., 750., 1000., 5000., 10000., 20000])
+UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL = numpy.array(
+    [250., 500., 750., 1000., 5000., 10000., 20000.])
 
-FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL = {
+FIELD_TO_HEIGHTS_DICT_MYRORSS_M_ASL = {
     'echo_top_50dbz_km': numpy.array([250]),
-    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
-    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_ASL]),
+    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
     'reflectivity_column_max_dbz': numpy.array([250])}
-FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL = {
+FIELD_TO_HEIGHTS_DICT_MRMS_M_ASL = {
     'echo_top_50dbz_km': numpy.array([500]),
-    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_AGL]),
-    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+    'low_level_shear_s01': numpy.array([radar_io.SHEAR_HEIGHT_M_ASL]),
+    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
     'reflectivity_column_max_dbz': numpy.array([500])}
 
 # The following constants are used to test unique_fields_and_heights_to_pairs.
@@ -91,14 +91,14 @@ FIELD_NAME_BY_PAIR = [
     'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
     'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
     'reflectivity_column_max_dbz']
-HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
-    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
-     250., 500., 750., 1000., 5000., 10000., 20000,
-     radar_io.DEFAULT_HEIGHT_MYRORSS_M_AGL])
-HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
-    [radar_io.DEFAULT_HEIGHT_MRMS_M_AGL, radar_io.SHEAR_HEIGHT_M_AGL,
-     250., 500., 750., 1000., 5000., 10000., 20000,
-     radar_io.DEFAULT_HEIGHT_MRMS_M_AGL])
+HEIGHT_BY_PAIR_MYRORSS_M_ASL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MYRORSS_M_ASL, radar_io.SHEAR_HEIGHT_M_ASL,
+     250., 500., 750., 1000., 5000., 10000., 20000.,
+     radar_io.DEFAULT_HEIGHT_MYRORSS_M_ASL])
+HEIGHT_BY_PAIR_MRMS_M_ASL = numpy.array(
+    [radar_io.DEFAULT_HEIGHT_MRMS_M_ASL, radar_io.SHEAR_HEIGHT_M_ASL,
+     250., 500., 750., 1000., 5000., 10000., 20000.,
+     radar_io.DEFAULT_HEIGHT_MRMS_M_ASL])
 
 # The following constants are used to test get_relative_dir_for_raw_files.
 RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.25'
@@ -228,7 +228,7 @@ class RadarIoTests(unittest.TestCase):
         """
 
         radar_io._check_reflectivity_heights(
-            REFL_HEIGHTS_M_AGL, data_source=radar_io.MYRORSS_SOURCE_ID)
+            REFL_HEIGHTS_M_ASL, data_source=radar_io.MYRORSS_SOURCE_ID)
 
     def test_check_reflectivity_heights_invalid(self):
         """Ensures correct output from _check_reflectivity_heights.
@@ -238,7 +238,7 @@ class RadarIoTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             radar_io._check_reflectivity_heights(
-                REFL_HEIGHTS_ONE_BAD_M_AGL,
+                REFL_HEIGHTS_ONE_BAD_M_ASL,
                 data_source=radar_io.MYRORSS_SOURCE_ID)
 
     def test_get_pathless_raw_file_pattern(self):
@@ -350,11 +350,11 @@ class RadarIoTests(unittest.TestCase):
         In this case, the field is azimuthal shear in MYRORSS.
         """
 
-        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
+        these_valid_heights_m_asl = radar_io.get_valid_heights_for_field(
             radar_io.MID_LEVEL_SHEAR_NAME,
             data_source=radar_io.MYRORSS_SOURCE_ID)
         self.assertTrue(
-            numpy.array_equal(these_valid_heights_m_agl, SHEAR_HEIGHTS_M_AGL))
+            numpy.array_equal(these_valid_heights_m_asl, SHEAR_HEIGHTS_M_ASL))
 
     def test_get_valid_heights_for_field_shear_mrms(self):
         """Ensures correct output from get_valid_heights_for_field.
@@ -362,10 +362,10 @@ class RadarIoTests(unittest.TestCase):
         In this case, the field is azimuthal shear in MRMS.
         """
 
-        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
+        these_valid_heights_m_asl = radar_io.get_valid_heights_for_field(
             radar_io.MID_LEVEL_SHEAR_NAME, data_source=radar_io.MRMS_SOURCE_ID)
         self.assertTrue(
-            numpy.array_equal(these_valid_heights_m_agl, SHEAR_HEIGHTS_M_AGL))
+            numpy.array_equal(these_valid_heights_m_asl, SHEAR_HEIGHTS_M_ASL))
 
     def test_get_valid_heights_for_field_non_shear_myrorss(self):
         """Ensures correct output from get_valid_heights_for_field.
@@ -373,11 +373,11 @@ class RadarIoTests(unittest.TestCase):
         In this case, the field is a non-shear field in MYRORSS.
         """
 
-        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
+        these_valid_heights_m_asl = radar_io.get_valid_heights_for_field(
             radar_io.REFL_M10CELSIUS_NAME,
             data_source=radar_io.MYRORSS_SOURCE_ID)
-        self.assertTrue(numpy.array_equal(these_valid_heights_m_agl,
-                                          NON_SHEAR_HEIGHTS_MYRORSS_M_AGL))
+        self.assertTrue(numpy.array_equal(these_valid_heights_m_asl,
+                                          NON_SHEAR_HEIGHTS_MYRORSS_M_ASL))
 
     def test_get_valid_heights_for_field_non_shear_mrms(self):
         """Ensures correct output from get_valid_heights_for_field.
@@ -385,10 +385,10 @@ class RadarIoTests(unittest.TestCase):
         In this case, the field is a non-shear field in MRMS.
         """
 
-        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
+        these_valid_heights_m_asl = radar_io.get_valid_heights_for_field(
             radar_io.REFL_M10CELSIUS_NAME, data_source=radar_io.MRMS_SOURCE_ID)
-        self.assertTrue(numpy.array_equal(these_valid_heights_m_agl,
-                                          NON_SHEAR_HEIGHTS_MRMS_M_AGL))
+        self.assertTrue(numpy.array_equal(these_valid_heights_m_asl,
+                                          NON_SHEAR_HEIGHTS_MRMS_M_ASL))
 
     def test_get_valid_heights_for_field_reflectivity(self):
         """Ensures correct output from get_valid_heights_for_field.
@@ -396,9 +396,9 @@ class RadarIoTests(unittest.TestCase):
         In this case, the field is simple reflectivity.
         """
 
-        these_valid_heights_m_agl = radar_io.get_valid_heights_for_field(
+        these_valid_heights_m_asl = radar_io.get_valid_heights_for_field(
             radar_io.REFL_NAME, data_source=radar_io.MYRORSS_SOURCE_ID)
-        self.assertTrue(len(these_valid_heights_m_agl) > 1)
+        self.assertTrue(len(these_valid_heights_m_asl) > 1)
 
     def test_field_and_height_arrays_to_dict_myrorss(self):
         """Ensures correct output from field_and_height_arrays_to_dict.
@@ -406,13 +406,13 @@ class RadarIoTests(unittest.TestCase):
         In this case, data source is MYRORSS.
         """
 
-        this_field_to_heights_dict_m_agl = (
+        this_field_to_heights_dict_m_asl = (
             radar_io.field_and_height_arrays_to_dict(
                 field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
                 data_source=radar_io.MYRORSS_SOURCE_ID))
-        self.assertTrue(this_field_to_heights_dict_m_agl ==
-                        FIELD_TO_HEIGHTS_DICT_MYRORSS_M_AGL)
+        self.assertTrue(this_field_to_heights_dict_m_asl ==
+                        FIELD_TO_HEIGHTS_DICT_MYRORSS_M_ASL)
 
     def test_field_and_height_arrays_to_dict_mrms(self):
         """Ensures correct output from field_and_height_arrays_to_dict.
@@ -420,13 +420,13 @@ class RadarIoTests(unittest.TestCase):
         In this case, data source is MRMS.
         """
 
-        this_field_to_heights_dict_m_agl = (
+        this_field_to_heights_dict_m_asl = (
             radar_io.field_and_height_arrays_to_dict(
                 field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
                 data_source=radar_io.MRMS_SOURCE_ID))
-        self.assertTrue(this_field_to_heights_dict_m_agl ==
-                        FIELD_TO_HEIGHTS_DICT_MRMS_M_AGL)
+        self.assertTrue(this_field_to_heights_dict_m_asl ==
+                        FIELD_TO_HEIGHTS_DICT_MRMS_M_ASL)
 
     def test_unique_fields_and_heights_to_pairs_myrorss(self):
         """Ensures correct output from unique_fields_and_heights_to_pairs.
@@ -434,15 +434,15 @@ class RadarIoTests(unittest.TestCase):
         In this case, data source is MYRORSS.
         """
 
-        this_field_name_by_pair, this_height_by_pair_m_agl = (
+        this_field_name_by_pair, this_height_by_pair_m_asl = (
             radar_io.unique_fields_and_heights_to_pairs(
                 unique_field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
                 data_source=radar_io.MYRORSS_SOURCE_ID))
 
         self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
         self.assertTrue(numpy.array_equal(
-            this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MYRORSS_M_AGL))
+            this_height_by_pair_m_asl, HEIGHT_BY_PAIR_MYRORSS_M_ASL))
 
     def test_unique_fields_and_heights_to_pairs_mrms(self):
         """Ensures correct output from unique_fields_and_heights_to_pairs.
@@ -450,15 +450,15 @@ class RadarIoTests(unittest.TestCase):
         In this case, data source is MRMS.
         """
 
-        this_field_name_by_pair, this_height_by_pair_m_agl = (
+        this_field_name_by_pair, this_height_by_pair_m_asl = (
             radar_io.unique_fields_and_heights_to_pairs(
                 unique_field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_agl=UNIQUE_REFLECTIVITY_HEIGHTS_M_AGL,
+                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
                 data_source=radar_io.MRMS_SOURCE_ID))
 
         self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
         self.assertTrue(numpy.array_equal(
-            this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MRMS_M_AGL))
+            this_height_by_pair_m_asl, HEIGHT_BY_PAIR_MRMS_M_ASL))
 
     def test_get_relative_dir_for_raw_files_myrorss(self):
         """Ensures correct output from get_relative_dir_for_raw_files.

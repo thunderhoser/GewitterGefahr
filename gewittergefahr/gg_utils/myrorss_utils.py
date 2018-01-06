@@ -80,7 +80,7 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
             field_name=radar_io.REFL_NAME,
             data_source=radar_io.MYRORSS_SOURCE_ID,
             top_directory_name=top_directory_name,
-            height_m_agl=grid_point_heights_m_asl[k])
+            height_m_asl=grid_point_heights_m_asl[k])
 
     print 'Reading "{0:s}" for echo-top calculation...'.format(
         column_max_refl_file_name)

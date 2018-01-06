@@ -113,7 +113,7 @@ def write_field_to_myrorss_file(
     if field_name == radar_io.REFL_NAME:
         field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(
             field_names=[field_name],
-            refl_heights_m_agl=numpy.array([height_m_asl]),
+            refl_heights_m_asl=numpy.array([height_m_asl]),
             data_source=radar_io.MYRORSS_SOURCE_ID)
     else:
         field_to_heights_dict_m_asl = radar_io.field_and_height_arrays_to_dict(

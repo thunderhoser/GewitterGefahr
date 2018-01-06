@@ -13,7 +13,7 @@ FAKE_PERCENTILE_LEVEL = -9999.
 # _column_name_to_statistic_params.
 REFLECTIVITY_FIELD_NAME = 'reflectivity_dbz'
 NON_REFLECTIVITY_FIELD_NAME = 'vil_mm'
-REFLECTIVITY_HEIGHT_M_AGL = 2000
+REFLECTIVITY_HEIGHT_M_ASL = 2000
 STATISTIC_NAME = 'kurtosis'
 COLUMN_NAME_FOR_REFLECTIVITY_STAT = 'reflectivity_dbz_2000m_kurtosis'
 COLUMN_NAME_FOR_NON_REFLECTIVITY_STAT = 'vil_mm_kurtosis'
@@ -61,7 +61,7 @@ class RadarStatisticsTests(unittest.TestCase):
         this_column_name = (
             radar_stats._radar_field_and_statistic_to_column_name(
                 radar_field_name=REFLECTIVITY_FIELD_NAME,
-                radar_height_m_agl=REFLECTIVITY_HEIGHT_M_AGL,
+                radar_height_m_asl=REFLECTIVITY_HEIGHT_M_ASL,
                 statistic_name=STATISTIC_NAME))
         self.assertTrue(this_column_name == COLUMN_NAME_FOR_REFLECTIVITY_STAT)
 
@@ -87,7 +87,7 @@ class RadarStatisticsTests(unittest.TestCase):
         this_column_name = (
             radar_stats._radar_field_and_percentile_to_column_name(
                 radar_field_name=REFLECTIVITY_FIELD_NAME,
-                radar_height_m_agl=REFLECTIVITY_HEIGHT_M_AGL,
+                radar_height_m_asl=REFLECTIVITY_HEIGHT_M_ASL,
                 percentile_level=PERCENTILE_LEVEL_ORIG))
         self.assertTrue(
             this_column_name == COLUMN_NAME_FOR_REFLECTIVITY_PRCTILE)
@@ -118,7 +118,7 @@ class RadarStatisticsTests(unittest.TestCase):
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_FIELD_NAME_KEY] ==
                         REFLECTIVITY_FIELD_NAME)
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_HEIGHT_KEY] ==
-                        REFLECTIVITY_HEIGHT_M_AGL)
+                        REFLECTIVITY_HEIGHT_M_ASL)
         self.assertTrue(this_parameter_dict[radar_stats.STATISTIC_NAME_KEY] ==
                         STATISTIC_NAME)
         self.assertTrue(
@@ -155,7 +155,7 @@ class RadarStatisticsTests(unittest.TestCase):
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_FIELD_NAME_KEY] ==
                         REFLECTIVITY_FIELD_NAME)
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_HEIGHT_KEY] ==
-                        REFLECTIVITY_HEIGHT_M_AGL)
+                        REFLECTIVITY_HEIGHT_M_ASL)
         self.assertTrue(
             this_parameter_dict[radar_stats.STATISTIC_NAME_KEY] is None)
         self.assertTrue(this_parameter_dict[radar_stats.PERCENTILE_LEVEL_KEY] ==
