@@ -115,6 +115,14 @@ class RadarUtilsTests(unittest.TestCase):
 
         radar_utils.check_data_source(radar_utils.MRMS_SOURCE_ID)
 
+    def test_check_data_source_gridrad(self):
+        """Ensures correct output from check_data_source.
+
+        In this case, data source is GridRad.
+        """
+
+        radar_utils.check_data_source(radar_utils.GRIDRAD_SOURCE_ID)
+
     def test_check_data_source_fake(self):
         """Ensures correct output from check_data_source.
 
@@ -179,6 +187,27 @@ class RadarUtilsTests(unittest.TestCase):
             radar_utils.check_field_name_orig(
                 LL_SHEAR_NAME_MYRORSS, data_source=radar_utils.MRMS_SOURCE_ID)
 
+    def test_check_field_name_orig_gridrad_valid(self):
+        """Ensures correct output from check_field_name_orig.
+
+        In this case, input is valid field name from GridRad.
+        """
+
+        radar_utils.check_field_name_orig(
+            radar_utils.DIFFERENTIAL_REFL_NAME_GRIDRAD,
+            data_source=radar_utils.GRIDRAD_SOURCE_ID)
+
+    def test_check_field_name_orig_gridrad_invalid(self):
+        """Ensures correct output from check_field_name_orig.
+
+        In this case, input is field name from MYRORSS (invalid for GridRad).
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.check_field_name_orig(
+                LL_SHEAR_NAME_MYRORSS,
+                data_source=radar_utils.GRIDRAD_SOURCE_ID)
+
     def test_field_name_orig_to_new_myrorss(self):
         """Ensures correct output from field_name_orig_to_new.
 
@@ -199,25 +228,83 @@ class RadarUtilsTests(unittest.TestCase):
             LL_SHEAR_NAME_MRMS, data_source=radar_utils.MRMS_SOURCE_ID)
         self.assertTrue(this_field_name == LL_SHEAR_NAME_NEW)
 
-    def test_field_name_new_to_orig_myrorss(self):
+    def test_field_name_orig_to_new_gridrad(self):
+        """Ensures correct output from field_name_orig_to_new.
+
+        In this case, original field name is from GridRad.
+        """
+
+        this_field_name = radar_utils.field_name_orig_to_new(
+            radar_utils.DIFFERENTIAL_REFL_NAME_GRIDRAD,
+            data_source=radar_utils.GRIDRAD_SOURCE_ID)
+        self.assertTrue(this_field_name == radar_utils.DIFFERENTIAL_REFL_NAME)
+
+    def test_field_name_new_to_orig_myrorss_valid(self):
         """Ensures correct output from field_name_new_to_orig.
 
-        In this case, original field name is from MYRORSS.
+        In this case, field name is being converted to MYRORSS format.
         """
 
         this_field_name_myrorss = radar_utils.field_name_new_to_orig(
             LL_SHEAR_NAME_NEW, data_source=radar_utils.MYRORSS_SOURCE_ID)
         self.assertTrue(this_field_name_myrorss == LL_SHEAR_NAME_MYRORSS)
 
-    def test_field_name_new_to_orig_mrms(self):
+    def test_field_name_new_to_orig_myrorss_invalid(self):
         """Ensures correct output from field_name_new_to_orig.
 
-        In this case, original field name is from MRMS.
+        In this case, trying to convert field name to MYRORSS format, but field
+        does not exist in MYRORSS.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.field_name_new_to_orig(
+                radar_utils.DIFFERENTIAL_REFL_NAME,
+                data_source=radar_utils.MYRORSS_SOURCE_ID)
+
+    def test_field_name_new_to_orig_mrms_valid(self):
+        """Ensures correct output from field_name_new_to_orig.
+
+        In this case, field name is being converted to MRMS format.
         """
 
         this_field_name_mrms = radar_utils.field_name_new_to_orig(
             LL_SHEAR_NAME_NEW, data_source=radar_utils.MRMS_SOURCE_ID)
         self.assertTrue(this_field_name_mrms == LL_SHEAR_NAME_MRMS)
+
+    def test_field_name_new_to_orig_mrms_invalid(self):
+        """Ensures correct output from field_name_new_to_orig.
+
+        In this case, trying to convert field name to MRMS format, but field
+        does not exist in MRMS.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.field_name_new_to_orig(
+                radar_utils.DIFFERENTIAL_REFL_NAME,
+                data_source=radar_utils.MRMS_SOURCE_ID)
+
+    def test_field_name_new_to_orig_gridrad_valid(self):
+        """Ensures correct output from field_name_new_to_orig.
+
+        In this case, field name is being converted to GridRad format.
+        """
+
+        this_field_name_gridrad = radar_utils.field_name_new_to_orig(
+            radar_utils.DIFFERENTIAL_REFL_NAME,
+            data_source=radar_utils.GRIDRAD_SOURCE_ID)
+        self.assertTrue(this_field_name_gridrad ==
+                        radar_utils.DIFFERENTIAL_REFL_NAME_GRIDRAD)
+
+    def test_field_name_new_to_orig_gridrad_invalid(self):
+        """Ensures correct output from field_name_new_to_orig.
+
+        In this case, trying to convert field name to GridRad format, but field
+        does not exist in GridRad.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.field_name_new_to_orig(
+                LL_SHEAR_NAME_NEW, data_source=radar_utils.GRIDRAD_SOURCE_ID)
 
     def test_get_valid_heights_for_field_shear_myrorss(self):
         """Ensures correct output from get_valid_heights_for_field.
@@ -277,6 +364,30 @@ class RadarUtilsTests(unittest.TestCase):
             radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
         self.assertTrue(len(these_valid_heights_m_asl) > 1)
 
+    def test_get_valid_heights_for_field_gridrad(self):
+        """Ensures correct output from get_valid_heights_for_field.
+
+        In this case, desired data source is GridRad, for which
+        get_valid_heights_for_field does not work.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.get_valid_heights_for_field(
+                radar_utils.REFL_NAME,
+                data_source=radar_utils.GRIDRAD_SOURCE_ID)
+
+    def test_get_valid_heights_for_field_storm_id(self):
+        """Ensures correct output from get_valid_heights_for_field.
+
+        In this case, desired field is storm ID, for which
+        get_valid_heights_for_field does not work.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.get_valid_heights_for_field(
+                radar_utils.STORM_ID_NAME,
+                data_source=radar_utils.MYRORSS_SOURCE_ID)
+
     def test_check_reflectivity_heights_valid(self):
         """Ensures correct output from check_reflectivity_heights.
 
@@ -324,27 +435,6 @@ class RadarUtilsTests(unittest.TestCase):
                 data_source=radar_utils.MRMS_SOURCE_ID))
         self.assertTrue(this_field_to_heights_dict_m_asl ==
                         FIELD_TO_HEIGHTS_DICT_MRMS_M_ASL)
-
-    def test_get_echo_top_single_column(self):
-        """Ensures correct output from get_echo_top_single_column."""
-
-        this_num_rows = THIS_REFL_MATRIX_1KM_DBZ.shape[0]
-        this_num_columns = THIS_REFL_MATRIX_1KM_DBZ.shape[1]
-        this_echo_top_matrix_m_asl = numpy.full(
-            (this_num_rows, this_num_columns), numpy.nan)
-
-        for i in range(this_num_rows):
-            for j in range(this_num_columns):
-                this_echo_top_matrix_m_asl[i, j] = (
-                    radar_utils.get_echo_top_single_column(
-                        reflectivities_dbz=REFLECTIVITY_MATRIX_DBZ[:, i, j],
-                        heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
-                        critical_reflectivity_dbz=CRIT_REFL_FOR_ECHO_TOPS_DBZ,
-                        check_args=True))
-
-        self.assertTrue(numpy.allclose(
-            this_echo_top_matrix_m_asl, ECHO_TOP_MATRIX_M_ASL, atol=TOLERANCE,
-            equal_nan=True))
 
     def test_unique_fields_and_heights_to_pairs_myrorss(self):
         """Ensures correct output from unique_fields_and_heights_to_pairs.
@@ -421,6 +511,27 @@ class RadarUtilsTests(unittest.TestCase):
             this_center_lat_deg, GRID_CENTER_LATITUDE_DEG, atol=TOLERANCE))
         self.assertTrue(numpy.isclose(
             this_center_lng_deg, GRID_CENTER_LONGITUDE_DEG, atol=TOLERANCE))
+
+    def test_get_echo_top_single_column(self):
+        """Ensures correct output from get_echo_top_single_column."""
+
+        this_num_rows = THIS_REFL_MATRIX_1KM_DBZ.shape[0]
+        this_num_columns = THIS_REFL_MATRIX_1KM_DBZ.shape[1]
+        this_echo_top_matrix_m_asl = numpy.full(
+            (this_num_rows, this_num_columns), numpy.nan)
+
+        for i in range(this_num_rows):
+            for j in range(this_num_columns):
+                this_echo_top_matrix_m_asl[i, j] = (
+                    radar_utils.get_echo_top_single_column(
+                        reflectivities_dbz=REFLECTIVITY_MATRIX_DBZ[:, i, j],
+                        heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
+                        critical_reflectivity_dbz=CRIT_REFL_FOR_ECHO_TOPS_DBZ,
+                        check_args=True))
+
+        self.assertTrue(numpy.allclose(
+            this_echo_top_matrix_m_asl, ECHO_TOP_MATRIX_M_ASL, atol=TOLERANCE,
+            equal_nan=True))
 
 
 if __name__ == '__main__':

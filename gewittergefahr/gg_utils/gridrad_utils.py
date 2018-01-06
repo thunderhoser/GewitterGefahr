@@ -39,7 +39,7 @@ def _get_field_name_for_echo_tops(critical_reflectivity_dbz,
     # TODO(thunderhoser): probably don't need this method anymore.
 
     if myrorss_format:
-        field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME_ORIG
+        field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME_MYRORSS
     else:
         field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME
 

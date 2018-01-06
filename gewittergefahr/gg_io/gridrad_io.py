@@ -13,6 +13,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 KM_TO_METRES = 1000
+ZERO_TIME_UNIX_SEC = 978307200
 
 MIN_GRID_POINT_HEIGHT_COLUMN = 'lowest_grid_point_height_m_asl'
 HEIGHT_SPACING_COLUMN = 'height_spacing_metres'
@@ -22,65 +23,6 @@ LATITUDE_NAME_ORIG = 'Latitude'
 LONGITUDE_NAME_ORIG = 'Longitude'
 HEIGHT_NAME_ORIG = 'Altitude'
 TIME_NAME_ORIG = 'time'
-REFL_NAME_ORIG = 'ZH'
-DIFFERENTIAL_REFL_NAME_ORIG = 'ZDR'
-SPEC_DIFF_PHASE_NAME_ORIG = 'KDP'
-CORRELATION_COEFF_NAME_ORIG = 'RHV'
-SPECTRUM_WIDTH_NAME_ORIG = 'SW'
-VORTICITY_NAME_ORIG = 'VOR'
-DIVERGENCE_NAME_ORIG = 'DIV'
-
-REFL_NAME = 'reflectivity_dbz'
-DIFFERENTIAL_REFL_NAME = 'differential_reflectivity_db'
-SPEC_DIFF_PHASE_NAME = 'specific_differential_phase_deg_km01'
-CORRELATION_COEFF_NAME = 'correlation_coefficient'
-SPECTRUM_WIDTH_NAME = 'spectrum_width_m_s01'
-VORTICITY_NAME = 'vorticity_s01'
-DIVERGENCE_NAME = 'divergence_s01'
-
-RADAR_FIELD_NAMES = [
-    REFL_NAME, DIFFERENTIAL_REFL_NAME, SPEC_DIFF_PHASE_NAME,
-    CORRELATION_COEFF_NAME, SPECTRUM_WIDTH_NAME, VORTICITY_NAME,
-    DIVERGENCE_NAME]
-RADAR_FIELD_NAMES_ORIG = [
-    REFL_NAME_ORIG, DIFFERENTIAL_REFL_NAME_ORIG, SPEC_DIFF_PHASE_NAME_ORIG,
-    CORRELATION_COEFF_NAME_ORIG, SPECTRUM_WIDTH_NAME_ORIG, VORTICITY_NAME_ORIG,
-    DIVERGENCE_NAME_ORIG]
-
-ZERO_TIME_UNIX_SEC = 978307200  # 0000 UTC 1 Jan 2001
-
-
-# TODO(thunderhoser): merge this file with radar_utils.py (which reads MYRORSS and
-# MRMS data).
-
-
-def _check_field_name(field_name):
-    """Ensures that name of radar field is valid.
-
-    :param field_name: Name of radar field in GewitterGefahr (not GridRad)
-        format.
-    :raises: ValueError: if name of radar field is invalid.
-    """
-
-    error_checking.assert_is_string(field_name)
-    if field_name not in RADAR_FIELD_NAMES:
-        error_string = (
-            '\n\n' + str(RADAR_FIELD_NAMES) +
-            '\n\nValid field names (listed above) do not include "' +
-            field_name + '".')
-        raise ValueError(error_string)
-
-
-def _field_name_new_to_orig(field_name):
-    """Converts field name from new (GewitterGefahr) to orig (GridRad) format.
-
-    :param field_name: Name of radar field in GewitterGefahr format.
-    :return: field_name_orig: Field name in GridRad format.
-    """
-
-    _check_field_name(field_name)
-    found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
-    return RADAR_FIELD_NAMES_ORIG[numpy.where(found_flags)[0][0]]
 
 
 def _time_from_gridrad_to_unix(gridrad_time_sec):
@@ -96,8 +38,8 @@ def _time_from_gridrad_to_unix(gridrad_time_sec):
     return gridrad_time_sec + ZERO_TIME_UNIX_SEC
 
 
-def read_metadata_from_full_grid_file(netcdf_file_name,
-                                      raise_error_if_fails=True):
+def read_metadata_from_full_grid_file(
+        netcdf_file_name, raise_error_if_fails=True):
     """Reads metadata from full-grid (not sparse-grid) file.
 
     This file should contain all radar variables for one time step.
@@ -198,7 +140,8 @@ def read_field_from_full_grid_file(
     if netcdf_dataset is None:
         return None, None, None, None
 
-    field_name_orig = _field_name_new_to_orig(field_name)
+    field_name_orig = radar_utils.field_name_new_to_orig(
+        field_name, data_source=radar_utils.GRIDRAD_SOURCE_ID)
     field_matrix = numpy.array(
         netcdf_dataset.variables[field_name_orig][0, :, :, :])
 

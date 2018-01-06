@@ -25,15 +25,21 @@ ECHO_TOP_40DBZ_NAME = 'echo_top_40dbz_km'
 ECHO_TOP_50DBZ_NAME = 'echo_top_50dbz_km'
 LOW_LEVEL_SHEAR_NAME = 'low_level_shear_s01'
 MID_LEVEL_SHEAR_NAME = 'mid_level_shear_s01'
+MESH_NAME = 'mesh_mm'
 REFL_NAME = 'reflectivity_dbz'
 REFL_COLUMN_MAX_NAME = 'reflectivity_column_max_dbz'
-MESH_NAME = 'mesh_mm'
 REFL_0CELSIUS_NAME = 'reflectivity_0celsius_dbz'
 REFL_M10CELSIUS_NAME = 'reflectivity_m10celsius_dbz'
 REFL_M20CELSIUS_NAME = 'reflectivity_m20celsius_dbz'
 REFL_LOWEST_ALTITUDE_NAME = 'reflectivity_lowest_altitude_dbz'
 SHI_NAME = 'shi'
 VIL_NAME = 'vil_mm'
+DIFFERENTIAL_REFL_NAME = 'differential_reflectivity_db'
+SPEC_DIFF_PHASE_NAME = 'specific_differential_phase_deg_km01'
+CORRELATION_COEFF_NAME = 'correlation_coefficient'
+SPECTRUM_WIDTH_NAME = 'spectrum_width_m_s01'
+VORTICITY_NAME = 'vorticity_s01'
+DIVERGENCE_NAME = 'divergence_s01'
 STORM_ID_NAME = 'storm_id'
 
 ECHO_TOP_NAMES = [ECHO_TOP_18DBZ_NAME, ECHO_TOP_50DBZ_NAME, ECHO_TOP_40DBZ_NAME]
@@ -42,57 +48,120 @@ REFLECTIVITY_NAMES = [
     REFL_NAME, REFL_COLUMN_MAX_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
     REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME]
 
-ECHO_TOP_18DBZ_NAME_ORIG = 'EchoTop_18'
-ECHO_TOP_40DBZ_NAME_ORIG = 'EchoTop_40'
-ECHO_TOP_50DBZ_NAME_ORIG = 'EchoTop_50'
-REFL_NAME_ORIG = 'MergedReflectivityQC'
-REFL_COLUMN_MAX_NAME_ORIG = 'MergedReflectivityQCComposite'
-MESH_NAME_ORIG = 'MESH'
-REFL_0CELSIUS_NAME_ORIG = 'Reflectivity_0C'
-REFL_M10CELSIUS_NAME_ORIG = 'Reflectivity_-10C'
-REFL_M20CELSIUS_NAME_ORIG = 'Reflectivity_-20C'
-REFL_LOWEST_ALTITUDE_NAME_ORIG = 'ReflectivityAtLowestAltitude'
-SHI_NAME_ORIG = 'SHI'
-VIL_NAME_ORIG = 'VIL'
-STORM_ID_NAME_ORIG = 'ClusterID'
+ECHO_TOP_18DBZ_NAME_MYRORSS = 'EchoTop_18'
+ECHO_TOP_40DBZ_NAME_MYRORSS = 'EchoTop_40'
+ECHO_TOP_50DBZ_NAME_MYRORSS = 'EchoTop_50'
+LOW_LEVEL_SHEAR_NAME_MYRORSS = 'MergedLLShear'
+MID_LEVEL_SHEAR_NAME_MYRORSS = 'MergedMLShear'
+MESH_NAME_MYRORSS = 'MESH'
+REFL_NAME_MYRORSS = 'MergedReflectivityQC'
+REFL_COLUMN_MAX_NAME_MYRORSS = 'MergedReflectivityQCComposite'
+REFL_0CELSIUS_NAME_MYRORSS = 'Reflectivity_0C'
+REFL_M10CELSIUS_NAME_MYRORSS = 'Reflectivity_-10C'
+REFL_M20CELSIUS_NAME_MYRORSS = 'Reflectivity_-20C'
+REFL_LOWEST_ALTITUDE_NAME_MYRORSS = 'ReflectivityAtLowestAltitude'
+SHI_NAME_MYRORSS = 'SHI'
+VIL_NAME_MYRORSS = 'VIL'
+STORM_ID_NAME_MYRORSS = 'ClusterID'
+
+ECHO_TOP_18DBZ_NAME_MRMS = 'EchoTop_18'
+ECHO_TOP_50DBZ_NAME_MRMS = 'EchoTop_50'
+LOW_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_0-2kmAGL'
+MID_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_3-6kmAGL'
+MESH_NAME_MRMS = 'MESH'
+REFL_NAME_MRMS = 'MergedReflectivityQC'
+REFL_COLUMN_MAX_NAME_MRMS = 'MergedReflectivityQCComposite'
+REFL_0CELSIUS_NAME_MRMS = 'Reflectivity_0C'
+REFL_M10CELSIUS_NAME_MRMS = 'Reflectivity_-10C'
+REFL_M20CELSIUS_NAME_MRMS = 'Reflectivity_-20C'
+REFL_LOWEST_ALTITUDE_NAME_MRMS = 'ReflectivityAtLowestAltitude'
+SHI_NAME_MRMS = 'SHI'
+VIL_NAME_MRMS = 'VIL'
+
+DIFFERENTIAL_REFL_NAME_GRIDRAD = 'ZDR'
+SPEC_DIFF_PHASE_NAME_GRIDRAD = 'KDP'
+CORRELATION_COEFF_NAME_GRIDRAD = 'RHV'
+SPECTRUM_WIDTH_NAME_GRIDRAD = 'SW'
+VORTICITY_NAME_GRIDRAD = 'VOR'
+DIVERGENCE_NAME_GRIDRAD = 'DIV'
 
 MRMS_SOURCE_ID = 'mrms'
 MYRORSS_SOURCE_ID = 'myrorss'
-DATA_SOURCE_IDS = [MRMS_SOURCE_ID, MYRORSS_SOURCE_ID]
-
-LOW_LEVEL_SHEAR_NAME_MYRORSS = 'MergedLLShear'
-MID_LEVEL_SHEAR_NAME_MYRORSS = 'MergedMLShear'
-LOW_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_0-2kmAGL'
-MID_LEVEL_SHEAR_NAME_MRMS = 'MergedAzShear_3-6kmAGL'
+GRIDRAD_SOURCE_ID = 'gridrad'
+DATA_SOURCE_IDS = [MRMS_SOURCE_ID, MYRORSS_SOURCE_ID, GRIDRAD_SOURCE_ID]
 
 RADAR_FIELD_NAMES = [
     ECHO_TOP_18DBZ_NAME, ECHO_TOP_40DBZ_NAME,
     ECHO_TOP_50DBZ_NAME, LOW_LEVEL_SHEAR_NAME,
-    MID_LEVEL_SHEAR_NAME, REFL_NAME, REFL_COLUMN_MAX_NAME,
-    MESH_NAME, REFL_0CELSIUS_NAME, REFL_M10CELSIUS_NAME,
-    REFL_M20CELSIUS_NAME, REFL_LOWEST_ALTITUDE_NAME, SHI_NAME,
-    VIL_NAME, STORM_ID_NAME]
+    MID_LEVEL_SHEAR_NAME, MESH_NAME, REFL_NAME,
+    REFL_COLUMN_MAX_NAME, REFL_0CELSIUS_NAME,
+    REFL_M10CELSIUS_NAME, REFL_M20CELSIUS_NAME,
+    REFL_LOWEST_ALTITUDE_NAME, SHI_NAME, VIL_NAME,
+    DIFFERENTIAL_REFL_NAME, SPEC_DIFF_PHASE_NAME,
+    CORRELATION_COEFF_NAME, SPECTRUM_WIDTH_NAME,
+    VORTICITY_NAME, DIVERGENCE_NAME,
+    STORM_ID_NAME]
 
 RADAR_FIELD_NAMES_MYRORSS = [
-    ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_40DBZ_NAME_ORIG,
-    ECHO_TOP_50DBZ_NAME_ORIG, LOW_LEVEL_SHEAR_NAME_MYRORSS,
-    MID_LEVEL_SHEAR_NAME_MYRORSS, REFL_NAME_ORIG, REFL_COLUMN_MAX_NAME_ORIG,
-    MESH_NAME_ORIG, REFL_0CELSIUS_NAME_ORIG, REFL_M10CELSIUS_NAME_ORIG,
-    REFL_M20CELSIUS_NAME_ORIG, REFL_LOWEST_ALTITUDE_NAME_ORIG, SHI_NAME_ORIG,
-    VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
+    ECHO_TOP_18DBZ_NAME_MYRORSS, ECHO_TOP_40DBZ_NAME_MYRORSS,
+    ECHO_TOP_50DBZ_NAME_MYRORSS, LOW_LEVEL_SHEAR_NAME_MYRORSS,
+    MID_LEVEL_SHEAR_NAME_MYRORSS, MESH_NAME_MYRORSS, REFL_NAME_MYRORSS,
+    REFL_COLUMN_MAX_NAME_MYRORSS, REFL_0CELSIUS_NAME_MYRORSS,
+    REFL_M10CELSIUS_NAME_MYRORSS, REFL_M20CELSIUS_NAME_MYRORSS,
+    REFL_LOWEST_ALTITUDE_NAME_MYRORSS, SHI_NAME_MYRORSS, VIL_NAME_MYRORSS,
+    STORM_ID_NAME_MYRORSS]
 
 RADAR_FIELD_NAMES_MRMS = [
-    ECHO_TOP_18DBZ_NAME_ORIG, ECHO_TOP_40DBZ_NAME_ORIG,
-    ECHO_TOP_50DBZ_NAME_ORIG, LOW_LEVEL_SHEAR_NAME_MRMS,
-    MID_LEVEL_SHEAR_NAME_MRMS, REFL_NAME_ORIG, REFL_COLUMN_MAX_NAME_ORIG,
-    MESH_NAME_ORIG, REFL_0CELSIUS_NAME_ORIG, REFL_M10CELSIUS_NAME_ORIG,
-    REFL_M20CELSIUS_NAME_ORIG, REFL_LOWEST_ALTITUDE_NAME_ORIG, SHI_NAME_ORIG,
-    VIL_NAME_ORIG, STORM_ID_NAME_ORIG]
+    ECHO_TOP_18DBZ_NAME_MRMS, ECHO_TOP_50DBZ_NAME_MRMS,
+    LOW_LEVEL_SHEAR_NAME_MRMS, MID_LEVEL_SHEAR_NAME_MRMS, MESH_NAME_MRMS,
+    REFL_NAME_MRMS, REFL_COLUMN_MAX_NAME_MRMS, REFL_0CELSIUS_NAME_MRMS,
+    REFL_M10CELSIUS_NAME_MRMS, REFL_M20CELSIUS_NAME_MRMS,
+    REFL_LOWEST_ALTITUDE_NAME_MRMS, SHI_NAME_MRMS, VIL_NAME_MRMS]
+
+RADAR_FIELD_NAMES_GRIDRAD = [
+    DIFFERENTIAL_REFL_NAME_GRIDRAD, SPEC_DIFF_PHASE_NAME_GRIDRAD,
+    CORRELATION_COEFF_NAME_GRIDRAD, SPECTRUM_WIDTH_NAME_GRIDRAD,
+    VORTICITY_NAME_GRIDRAD, DIVERGENCE_NAME_GRIDRAD]
+
+RADAR_FIELD_NAMES_MYRORSS_PADDED = [
+    ECHO_TOP_18DBZ_NAME_MYRORSS, ECHO_TOP_40DBZ_NAME_MYRORSS,
+    ECHO_TOP_50DBZ_NAME_MYRORSS, LOW_LEVEL_SHEAR_NAME_MYRORSS,
+    MID_LEVEL_SHEAR_NAME_MYRORSS, MESH_NAME_MYRORSS, REFL_NAME_MYRORSS,
+    REFL_COLUMN_MAX_NAME_MYRORSS, REFL_0CELSIUS_NAME_MYRORSS,
+    REFL_M10CELSIUS_NAME_MYRORSS, REFL_M20CELSIUS_NAME_MYRORSS,
+    REFL_LOWEST_ALTITUDE_NAME_MYRORSS, SHI_NAME_MYRORSS, VIL_NAME_MYRORSS,
+    None, None,
+    None, None,
+    None, None,
+    STORM_ID_NAME_MYRORSS]
+
+RADAR_FIELD_NAMES_MRMS_PADDED = [
+    ECHO_TOP_18DBZ_NAME_MRMS, None,
+    ECHO_TOP_50DBZ_NAME_MRMS, LOW_LEVEL_SHEAR_NAME_MRMS,
+    MID_LEVEL_SHEAR_NAME_MRMS, MESH_NAME_MRMS, REFL_NAME_MRMS,
+    REFL_COLUMN_MAX_NAME_MRMS, REFL_0CELSIUS_NAME_MRMS,
+    REFL_M10CELSIUS_NAME_MRMS, REFL_M20CELSIUS_NAME_MRMS,
+    REFL_LOWEST_ALTITUDE_NAME_MRMS, SHI_NAME_MRMS, VIL_NAME_MRMS,
+    None, None,
+    None, None,
+    None, None,
+    None]
+
+RADAR_FIELD_NAMES_GRIDRAD_PADDED = [
+    None, None,
+    None, None,
+    None, None, None,
+    None, None,
+    None, None,
+    None, None, None,
+    DIFFERENTIAL_REFL_NAME_GRIDRAD, SPEC_DIFF_PHASE_NAME_GRIDRAD,
+    CORRELATION_COEFF_NAME_GRIDRAD, SPECTRUM_WIDTH_NAME_GRIDRAD,
+    VORTICITY_NAME_GRIDRAD, DIVERGENCE_NAME_GRIDRAD,
+    None]
 
 SHEAR_HEIGHT_M_ASL = 250
 DEFAULT_HEIGHT_MYRORSS_M_ASL = 250
 DEFAULT_HEIGHT_MRMS_M_ASL = 500
-DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
 
 
 def check_data_source(data_source):
@@ -136,10 +205,13 @@ def check_field_name_orig(field_name_orig, data_source):
     """
 
     check_data_source(data_source)
+
     if data_source == MYRORSS_SOURCE_ID:
         valid_field_names = RADAR_FIELD_NAMES_MYRORSS
-    else:
+    elif data_source == MRMS_SOURCE_ID:
         valid_field_names = RADAR_FIELD_NAMES_MRMS
+    elif data_source == GRIDRAD_SOURCE_ID:
+        valid_field_names = RADAR_FIELD_NAMES_GRIDRAD
 
     if field_name_orig not in valid_field_names:
         error_string = (
@@ -152,21 +224,26 @@ def check_field_name_orig(field_name_orig, data_source):
 def field_name_orig_to_new(field_name_orig, data_source):
     """Converts field name from original to new format.
 
-    "Original format" = MYRORSS or MRMS
-    "New format" = GewitterGefahr format, which is Pythonic and includes units
-                   at the end
+    "Original format" = in original data source (examples: MYRORSS, MRMS,
+    GridRad).
 
-    :param field_name_orig: Name of radar field in original (either MYRORSS or
-        MRMS) format.
+    "New format" = GewitterGefahr format, which is Pythonic and includes units
+    at the end.
+
+    :param field_name_orig: Name of radar field in original format.
     :param data_source: Data source (string).
     :return: field_name: Name of radar field in new format.
     """
 
+    error_checking.assert_is_string(field_name_orig)
     check_data_source(data_source)
+
     if data_source == MYRORSS_SOURCE_ID:
-        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS
-    else:
-        all_orig_field_names = RADAR_FIELD_NAMES_MRMS
+        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS_PADDED
+    elif data_source == MRMS_SOURCE_ID:
+        all_orig_field_names = RADAR_FIELD_NAMES_MRMS_PADDED
+    elif data_source == GRIDRAD_SOURCE_ID:
+        all_orig_field_names = RADAR_FIELD_NAMES_GRIDRAD_PADDED
 
     found_flags = [s == field_name_orig for s in all_orig_field_names]
     return RADAR_FIELD_NAMES[numpy.where(found_flags)[0][0]]
@@ -175,24 +252,36 @@ def field_name_orig_to_new(field_name_orig, data_source):
 def field_name_new_to_orig(field_name, data_source):
     """Converts field name from new to original format.
 
-    "Original format" = MYRORSS or MRMS
+    "Original format" = in original data source (examples: MYRORSS, MRMS,
+    GridRad).
+
     "New format" = GewitterGefahr format, which is Pythonic and includes units
-                   at the end
+    at the end.
 
     :param field_name: Name of radar field in new format.
     :param data_source: Data source (string).
-    :return: field_name_orig: Name of radar field in original (either MYRORSS or
-        MRMS) format.
+    :return: field_name_orig: Name of radar field in original format.
+    :raises: ValueError: if field does not exist for given data source.
     """
 
     check_data_source(data_source)
+
     if data_source == MYRORSS_SOURCE_ID:
-        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS
-    else:
-        all_orig_field_names = RADAR_FIELD_NAMES_MRMS
+        all_orig_field_names = RADAR_FIELD_NAMES_MYRORSS_PADDED
+    elif data_source == MRMS_SOURCE_ID:
+        all_orig_field_names = RADAR_FIELD_NAMES_MRMS_PADDED
+    elif data_source == GRIDRAD_SOURCE_ID:
+        all_orig_field_names = RADAR_FIELD_NAMES_GRIDRAD_PADDED
 
     found_flags = [s == field_name for s in RADAR_FIELD_NAMES]
-    return all_orig_field_names[numpy.where(found_flags)[0][0]]
+    field_name_orig = all_orig_field_names[numpy.where(found_flags)[0][0]]
+    if field_name_orig is None:
+        error_string = (
+            'Field "{0:s}" does not exist for data source "{1:s}"').format(
+                field_name, data_source)
+        raise ValueError(error_string)
+
+    return field_name_orig
 
 
 def get_valid_heights_for_field(field_name, data_source):
@@ -202,13 +291,17 @@ def get_valid_heights_for_field(field_name, data_source):
     :param data_source: Data source (string).
     :return: valid_heights_m_asl: 1-D numpy array of valid heights (integer
         metres above sea level).
-    :raises: ValueError: if field_name = "storm_id".
+    :raises: ValueError: if data source is "gridrad".
+    :raises: ValueError: if field name is "storm_id".
     """
 
-    check_field_name(field_name)
     check_data_source(data_source)
+    if data_source == GRIDRAD_SOURCE_ID:
+        raise ValueError('Data source cannot be "{0:s}".'.format(data_source))
+
+    check_field_name(field_name)
     if field_name == STORM_ID_NAME:
-        raise ValueError('Field name cannot be "{0:s}".'.format(STORM_ID_NAME))
+        raise ValueError('Field name cannot be "{0:s}".'.format(field_name))
 
     if data_source == MYRORSS_SOURCE_ID:
         default_height_m_asl = DEFAULT_HEIGHT_MYRORSS_M_ASL
@@ -290,7 +383,8 @@ def field_and_height_arrays_to_dict(
 
     for this_field_name in field_names:
         if this_field_name == REFL_NAME:
-            check_reflectivity_heights(refl_heights_m_asl, data_source)
+            check_reflectivity_heights(
+                refl_heights_m_asl, data_source=data_source)
             field_to_heights_dict_m_asl.update(
                 {this_field_name: refl_heights_m_asl})
         else:
@@ -323,7 +417,8 @@ def unique_fields_and_heights_to_pairs(
 
     for this_field_name in unique_field_names:
         if this_field_name == REFL_NAME:
-            check_reflectivity_heights(refl_heights_m_asl, data_source)
+            check_reflectivity_heights(
+                refl_heights_m_asl, data_source=data_source)
             these_heights_m_asl = copy.deepcopy(refl_heights_m_asl)
         else:
             these_heights_m_asl = get_valid_heights_for_field(
