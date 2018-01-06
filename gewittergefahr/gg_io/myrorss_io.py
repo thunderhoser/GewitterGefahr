@@ -8,7 +8,7 @@ MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
 import shutil
 import os.path
 import numpy
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
@@ -79,7 +79,7 @@ def unzip_1day_tar_file(
 
         for this_height_m_asl in these_heights_m_asl:
             directory_names_to_unzip.append(
-                radar_io.get_relative_dir_for_raw_files(
+                myrorss_and_mrms_io.get_relative_dir_for_raw_files(
                     field_name=this_field_name,
                     data_source=radar_utils.MYRORSS_SOURCE_ID,
                     height_m_asl=this_height_m_asl))
@@ -121,7 +121,7 @@ def remove_unzipped_data_1day(
         these_heights_m_asl = field_to_heights_dict_m_asl[this_field_name]
 
         for this_height_m_asl in these_heights_m_asl:
-            example_file_name = radar_io.find_raw_file(
+            example_file_name = myrorss_and_mrms_io.find_raw_file(
                 unix_time_sec=spc_date_unix_sec,
                 spc_date_string=spc_date_string, field_name=this_field_name,
                 data_source=radar_utils.MYRORSS_SOURCE_ID,

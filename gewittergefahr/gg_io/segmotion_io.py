@@ -17,7 +17,7 @@ import xml.etree.ElementTree as ElementTree
 import numpy
 import pandas
 from gewittergefahr.gg_io import netcdf_io
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
@@ -600,11 +600,11 @@ def get_start_end_times_for_spc_date(
         top_raw_directory_name=top_raw_directory_name,
         tracking_scale_metres2=tracking_scale_metres2)
 
-    first_metadata_dict = radar_io.read_metadata_from_raw_file(
+    first_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
         polygon_file_names[0], data_source=radar_utils.MYRORSS_SOURCE_ID)
     start_time_unix_sec = first_metadata_dict[radar_utils.UNIX_TIME_COLUMN]
 
-    last_metadata_dict = radar_io.read_metadata_from_raw_file(
+    last_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
         polygon_file_names[-1], data_source=radar_utils.MYRORSS_SOURCE_ID)
     end_time_unix_sec = last_metadata_dict[radar_utils.UNIX_TIME_COLUMN]
 
@@ -680,7 +680,7 @@ def read_polygons_from_netcdf(
 
     :param netcdf_file_name: Path to input file.
     :param metadata_dict: Dictionary with metadata for NetCDF file, created by
-        `radar_io.read_metadata_from_raw_file`.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`.
     :param spc_date_string: SPC date (format "yyyymmdd").
     :param tracking_start_time_unix_sec: Start time for tracking period.  This
         can be found by `get_start_end_times_for_spc_date`.
@@ -724,23 +724,29 @@ def read_polygons_from_netcdf(
         return None
 
     storm_id_var_name = metadata_dict[radar_utils.FIELD_NAME_COLUMN]
-    storm_id_var_name_orig = metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG]
-    num_values = len(netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG])
+    storm_id_var_name_orig = metadata_dict[
+        myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG]
+    num_values = len(
+        netcdf_dataset.variables[myrorss_and_mrms_io.GRID_ROW_COLUMN_ORIG])
 
     if num_values == 0:
         sparse_grid_dict = {
-            radar_io.GRID_ROW_COLUMN: numpy.array([], dtype=int),
-            radar_io.GRID_COLUMN_COLUMN: numpy.array([], dtype=int),
-            radar_io.NUM_GRID_CELL_COLUMN: numpy.array([], dtype=int),
+            myrorss_and_mrms_io.GRID_ROW_COLUMN: numpy.array([], dtype=int),
+            myrorss_and_mrms_io.GRID_COLUMN_COLUMN: numpy.array([], dtype=int),
+            myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN:
+                numpy.array([], dtype=int),
             storm_id_var_name: numpy.array([], dtype=int)}
     else:
         sparse_grid_dict = {
-            radar_io.GRID_ROW_COLUMN:
-                netcdf_dataset.variables[radar_io.GRID_ROW_COLUMN_ORIG][:],
-            radar_io.GRID_COLUMN_COLUMN:
-                netcdf_dataset.variables[radar_io.GRID_COLUMN_COLUMN_ORIG][:],
-            radar_io.NUM_GRID_CELL_COLUMN:
-                netcdf_dataset.variables[radar_io.NUM_GRID_CELL_COLUMN_ORIG][:],
+            myrorss_and_mrms_io.GRID_ROW_COLUMN:
+                netcdf_dataset.variables[
+                    myrorss_and_mrms_io.GRID_ROW_COLUMN_ORIG][:],
+            myrorss_and_mrms_io.GRID_COLUMN_COLUMN:
+                netcdf_dataset.variables[
+                    myrorss_and_mrms_io.GRID_COLUMN_COLUMN_ORIG][:],
+            myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN:
+                netcdf_dataset.variables[
+                    myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN_ORIG][:],
             storm_id_var_name:
                 netcdf_dataset.variables[storm_id_var_name_orig][:]}
 
@@ -852,7 +858,7 @@ if __name__ == '__main__':
         XML_FILE_NAME, spc_date_string=SPC_DATE_STRING)
     print STATS_TABLE
 
-    METADATA_DICT = radar_io.read_metadata_from_raw_file(
+    METADATA_DICT = myrorss_and_mrms_io.read_metadata_from_raw_file(
         NETCDF_FILE_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
     POLYGON_TABLE = read_polygons_from_netcdf(
         NETCDF_FILE_NAME, metadata_dict=METADATA_DICT,

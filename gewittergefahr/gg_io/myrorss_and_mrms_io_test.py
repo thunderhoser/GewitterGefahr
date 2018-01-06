@@ -1,9 +1,9 @@
-"""Unit tests for radar_io.py."""
+"""Unit tests for myrorss_and_mrms_io.py."""
 
 import unittest
 import numpy
 import pandas
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 
 TOLERANCE = 1e-6
@@ -31,9 +31,10 @@ THESE_RADAR_VALUES = numpy.array(
     [SENTINEL_VALUES[0], 1., SENTINEL_VALUES[1], 3., SENTINEL_VALUES[0], 5.,
      SENTINEL_VALUES[1], 7., 8., 9., 10.])
 
-THIS_DICTIONARY = {radar_io.GRID_ROW_COLUMN: THESE_GRID_ROWS,
-                   radar_io.GRID_COLUMN_COLUMN: THESE_GRID_COLUMNS,
-                   radar_io.NUM_GRID_CELL_COLUMN: THESE_NUM_GRID_CELLS,
+THIS_DICTIONARY = {myrorss_and_mrms_io.GRID_ROW_COLUMN: THESE_GRID_ROWS,
+                   myrorss_and_mrms_io.GRID_COLUMN_COLUMN: THESE_GRID_COLUMNS,
+                   myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN:
+                       THESE_NUM_GRID_CELLS,
                    RADAR_FIELD_WITH_SENTINELS: THESE_RADAR_VALUES}
 SPARSE_GRID_TABLE_WITH_SENTINELS = pandas.DataFrame.from_dict(THIS_DICTIONARY)
 
@@ -70,14 +71,15 @@ RAW_FILE_NAME_MRMS = (
     'radar/20171005/' + LL_SHEAR_NAME_MRMS + '/00.25/20171005-202002.netcdf.gz')
 
 
-class RadarIoTests(unittest.TestCase):
-    """Each method is a unit test for radar_io.py."""
+class MyrorssAndMrmsIoTests(unittest.TestCase):
+    """Each method is a unit test for myrorss_and_mrms_io.py."""
 
     def test_get_pathless_raw_file_pattern(self):
         """Ensures correct output from _get_pathless_raw_file_pattern."""
 
-        this_pathless_file_pattern = radar_io._get_pathless_raw_file_pattern(
-            FILE_TIME_UNIX_SEC)
+        this_pathless_file_pattern = (
+            myrorss_and_mrms_io._get_pathless_raw_file_pattern(
+                FILE_TIME_UNIX_SEC))
         self.assertTrue(this_pathless_file_pattern == PATHLESS_FILE_PATTERN)
 
     def test_get_pathless_raw_file_name_zipped(self):
@@ -86,8 +88,9 @@ class RadarIoTests(unittest.TestCase):
         In this case, generating name for zipped file.
         """
 
-        this_pathless_file_name = radar_io._get_pathless_raw_file_name(
-            FILE_TIME_UNIX_SEC, zipped=True)
+        this_pathless_file_name = (
+            myrorss_and_mrms_io._get_pathless_raw_file_name(
+                FILE_TIME_UNIX_SEC, zipped=True))
         self.assertTrue(this_pathless_file_name == PATHLESS_ZIPPED_FILE_NAME)
 
     def test_get_pathless_raw_file_name_unzipped(self):
@@ -96,8 +99,9 @@ class RadarIoTests(unittest.TestCase):
         In this case, generating name for unzipped file.
         """
 
-        this_pathless_file_name = radar_io._get_pathless_raw_file_name(
-            FILE_TIME_UNIX_SEC, zipped=False)
+        this_pathless_file_name = (
+            myrorss_and_mrms_io._get_pathless_raw_file_name(
+                FILE_TIME_UNIX_SEC, zipped=False))
         self.assertTrue(this_pathless_file_name == PATHLESS_UNZIPPED_FILE_NAME)
 
     def test_raw_file_name_to_time_zipped(self):
@@ -106,7 +110,7 @@ class RadarIoTests(unittest.TestCase):
         In this case, input is name of zipped file.
         """
 
-        this_time_unix_sec = radar_io._raw_file_name_to_time(
+        this_time_unix_sec = myrorss_and_mrms_io._raw_file_name_to_time(
             PATHLESS_ZIPPED_FILE_NAME)
         self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
 
@@ -116,25 +120,27 @@ class RadarIoTests(unittest.TestCase):
         In this case, input is name of unzipped file.
         """
 
-        this_time_unix_sec = radar_io._raw_file_name_to_time(
+        this_time_unix_sec = myrorss_and_mrms_io._raw_file_name_to_time(
             PATHLESS_UNZIPPED_FILE_NAME)
         self.assertTrue(this_time_unix_sec == FILE_TIME_UNIX_SEC)
 
     def test_remove_sentinels_from_sparse_grid(self):
         """Ensures correct output from _remove_sentinels_from_sparse_grid."""
 
-        this_sparse_grid_table = radar_io._remove_sentinels_from_sparse_grid(
-            SPARSE_GRID_TABLE_WITH_SENTINELS,
-            field_name=RADAR_FIELD_WITH_SENTINELS,
-            sentinel_values=SENTINEL_VALUES)
+        this_sparse_grid_table = (
+            myrorss_and_mrms_io._remove_sentinels_from_sparse_grid(
+                SPARSE_GRID_TABLE_WITH_SENTINELS,
+                field_name=RADAR_FIELD_WITH_SENTINELS,
+                sentinel_values=SENTINEL_VALUES))
         self.assertTrue(
             this_sparse_grid_table.equals(SPARSE_GRID_TABLE_NO_SENTINELS))
 
     def test_remove_sentinels_from_full_grid(self):
         """Ensures correct output from _remove_sentinels_from_full_grid."""
 
-        this_field_matrix = radar_io._remove_sentinels_from_full_grid(
-            FIELD_MATRIX_WITH_SENTINELS, SENTINEL_VALUES)
+        this_field_matrix = (
+            myrorss_and_mrms_io._remove_sentinels_from_full_grid(
+                FIELD_MATRIX_WITH_SENTINELS, SENTINEL_VALUES))
         self.assertTrue(numpy.allclose(
             this_field_matrix, FIELD_MATRIX_NO_SENTINELS, atol=TOLERANCE,
             equal_nan=True))
@@ -145,9 +151,10 @@ class RadarIoTests(unittest.TestCase):
         In this case, data source is MYRORSS.
         """
 
-        this_relative_dir_name = radar_io.get_relative_dir_for_raw_files(
-            field_name=LL_SHEAR_NAME_NEW,
-            data_source=radar_utils.MYRORSS_SOURCE_ID)
+        this_relative_dir_name = (
+            myrorss_and_mrms_io.get_relative_dir_for_raw_files(
+                field_name=LL_SHEAR_NAME_NEW,
+                data_source=radar_utils.MYRORSS_SOURCE_ID))
         self.assertTrue(this_relative_dir_name == RELATIVE_DIR_NAME_MYRORSS)
 
     def test_get_relative_dir_for_raw_files_mrms(self):
@@ -156,15 +163,16 @@ class RadarIoTests(unittest.TestCase):
         In this case, data source is MRMS.
         """
 
-        this_relative_dir_name = radar_io.get_relative_dir_for_raw_files(
-            field_name=LL_SHEAR_NAME_NEW,
-            data_source=radar_utils.MRMS_SOURCE_ID)
+        this_relative_dir_name = (
+            myrorss_and_mrms_io.get_relative_dir_for_raw_files(
+                field_name=LL_SHEAR_NAME_NEW,
+                data_source=radar_utils.MRMS_SOURCE_ID))
         self.assertTrue(this_relative_dir_name == RELATIVE_DIR_NAME_MRMS)
 
     def test_find_raw_file_myrorss(self):
         """Ensures correct output from find_raw_file."""
 
-        this_raw_file_name = radar_io.find_raw_file(
+        this_raw_file_name = myrorss_and_mrms_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,
@@ -176,7 +184,7 @@ class RadarIoTests(unittest.TestCase):
     def test_find_raw_file_mrms(self):
         """Ensures correct output from find_raw_file."""
 
-        this_raw_file_name = radar_io.find_raw_file(
+        this_raw_file_name = myrorss_and_mrms_io.find_raw_file(
             unix_time_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,
@@ -188,7 +196,7 @@ class RadarIoTests(unittest.TestCase):
     def test_find_raw_azimuthal_shear_file(self):
         """Ensures correct output from find_raw_azimuthal_shear_file."""
 
-        this_raw_file_name = radar_io.find_raw_azimuthal_shear_file(
+        this_raw_file_name = myrorss_and_mrms_io.find_raw_azimuthal_shear_file(
             desired_time_unix_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,

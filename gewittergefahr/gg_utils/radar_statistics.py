@@ -8,7 +8,7 @@ import pickle
 import numpy
 import pandas
 import scipy.stats
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
@@ -178,9 +178,11 @@ def _are_grids_equal(metadata_dict_orig, metadata_dict_new):
     """Indicates whether or not two grids are equal.
 
     :param metadata_dict_orig: Dictionary (with keys specified by
-        `radar_io.read_metadata_from_raw_file`) describing original radar grid.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing original
+        radar grid.
     :param metadata_dict_new: Dictionary (with keys specified by
-        `radar_io.read_metadata_from_raw_file`) describing new radar grid.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing new radar
+        grid.
     :return: are_grids_equal_flag: Boolean flag.
     """
 
@@ -317,11 +319,11 @@ def get_grid_points_in_storm_objects(storm_object_table,
     :param storm_object_table: pandas DataFrame with columns specified by
         `storm_tracking_io.write_processed_file`.
     :param metadata_dict_for_storm_objects: Dictionary (with keys specified by
-        `radar_io.read_metadata_from_raw_file`) describing grid used to create
-        storm objects.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing grid used
+        to create storm objects.
     :param new_metadata_dict: Dictionary (with keys specified by
-        `radar_io.read_metadata_from_raw_file`) describing new grid, for which
-        points in each storm object will be found.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing new grid,
+        for which points in each storm object will be found.
     :return: storm_object_to_grid_points_table: pandas DataFrame with the
         following columns.  Each row is one storm object.
     storm_object_to_grid_points_table.storm_id: String ID for storm cell.
@@ -424,8 +426,8 @@ def get_stats_for_storm_objects(
         `storm_tracking_io.write_processed_file`.  May contain additional
         columns.
     :param metadata_dict_for_storm_objects: Dictionary (with keys specified by
-        `radar_io.read_metadata_from_raw_file`) describing grid used to create
-        storm objects.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing grid used
+        to create storm objects.
     :param statistic_names: 1-D list of non-percentile-based statistics.
     :param percentile_levels: 1-D numpy array of percentile levels.
     :param radar_field_names: 1-D list with names of radar fields.
@@ -486,7 +488,7 @@ def get_stats_for_storm_objects(
         for j in range(num_radar_fields):
             if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
                 radar_file_name_matrix[i, j] = (
-                    radar_io.find_raw_azimuthal_shear_file(
+                    myrorss_and_mrms_io.find_raw_azimuthal_shear_file(
                         desired_time_unix_sec=unique_storm_times_unix_sec[i],
                         spc_date_string=this_spc_date_string,
                         field_name=radar_field_name_by_pair[j],
@@ -495,14 +497,15 @@ def get_stats_for_storm_objects(
                         raise_error_if_missing=False))
 
             else:
-                radar_file_name_matrix[i, j] = radar_io.find_raw_file(
-                    unix_time_sec=unique_storm_times_unix_sec[i],
-                    spc_date_string=this_spc_date_string,
-                    field_name=radar_field_name_by_pair[j],
-                    height_m_asl=radar_height_by_pair_m_asl[j],
-                    data_source=radar_data_source,
-                    top_directory_name=top_radar_directory_name,
-                    raise_error_if_missing=True)
+                radar_file_name_matrix[i, j] = (
+                    myrorss_and_mrms_io.find_raw_file(
+                        unix_time_sec=unique_storm_times_unix_sec[i],
+                        spc_date_string=this_spc_date_string,
+                        field_name=radar_field_name_by_pair[j],
+                        height_m_asl=radar_height_by_pair_m_asl[j],
+                        data_source=radar_data_source,
+                        top_directory_name=top_radar_directory_name,
+                        raise_error_if_missing=True))
 
             if radar_file_name_matrix[i, j] is None:
                 this_time_string = time_conversion.unix_sec_to_string(
@@ -541,7 +544,7 @@ def get_stats_for_storm_objects(
 
             if metadata_dict_for_this_field is None:
                 metadata_dict_for_this_field = (
-                    radar_io.read_metadata_from_raw_file(
+                    myrorss_and_mrms_io.read_metadata_from_raw_file(
                         radar_file_name_matrix[i, j],
                         data_source=radar_data_source))
                 storm_object_to_grid_pts_table_this_field = (
@@ -550,10 +553,10 @@ def get_stats_for_storm_objects(
                         metadata_dict_for_this_field))
 
             sparse_grid_table_this_field = (
-                radar_io.read_data_from_sparse_grid_file(
+                myrorss_and_mrms_io.read_data_from_sparse_grid_file(
                     radar_file_name_matrix[i, j],
                     field_name_orig=metadata_dict_for_this_field[
-                        radar_io.FIELD_NAME_COLUMN_ORIG],
+                        myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
                     data_source=radar_data_source,
                     sentinel_values=metadata_dict_for_this_field[
                         radar_utils.SENTINEL_VALUE_COLUMN]))

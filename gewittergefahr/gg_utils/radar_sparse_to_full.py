@@ -5,7 +5,7 @@ Sensed Storms) or MRMS (Multi-radar Multi-sensor).
 """
 
 import numpy
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
 
@@ -23,7 +23,7 @@ def _convert(sparse_grid_table, field_name, num_grid_rows, num_grid_columns,
     N = number of columns (unique grid-point longitudes)
 
     :param sparse_grid_table: pandas DataFrame created by
-        `radar_io.read_data_from_sparse_grid_file`.
+        `myrorss_and_mrms_io.read_data_from_sparse_grid_file`.
     :param field_name: Name of radar field.  This should also be a column name
         in `sparse_grid_table`.
     :param num_grid_rows: Number of rows in grid.
@@ -43,15 +43,16 @@ def _convert(sparse_grid_table, field_name, num_grid_rows, num_grid_columns,
 
     new_sparse_grid_table = sparse_grid_table.iloc[sparse_indices_to_consider]
     data_start_indices = numpy.ravel_multi_index(
-        (new_sparse_grid_table[radar_io.GRID_ROW_COLUMN].values,
-         new_sparse_grid_table[radar_io.GRID_COLUMN_COLUMN].values),
+        (new_sparse_grid_table[myrorss_and_mrms_io.GRID_ROW_COLUMN].values,
+         new_sparse_grid_table[myrorss_and_mrms_io.GRID_COLUMN_COLUMN].values),
         (num_grid_rows, num_grid_columns))
     data_end_indices = (data_start_indices + new_sparse_grid_table[
-        radar_io.NUM_GRID_CELL_COLUMN].values - 1)
+        myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values - 1)
 
     num_data_runs = len(data_start_indices)
     num_data_values = numpy.sum(
-        new_sparse_grid_table[radar_io.NUM_GRID_CELL_COLUMN].values).astype(int)
+        new_sparse_grid_table[
+            myrorss_and_mrms_io.NUM_GRID_CELL_COLUMN].values).astype(int)
 
     data_indices = numpy.full(num_data_values, numpy.nan, dtype=int)
     data_values = numpy.full(num_data_values, numpy.nan)
@@ -82,9 +83,9 @@ def sparse_to_full_grid(sparse_grid_table, metadata_dict, ignore_if_below=None):
     N = number of columns (unique grid-point longitudes)
 
     :param sparse_grid_table: pandas DataFrame created by
-        `radar_io.read_data_from_sparse_grid_file`.
+        `myrorss_and_mrms_io.read_data_from_sparse_grid_file`.
     :param metadata_dict: Dictionary created by
-        `radar_io.read_metadata_from_raw_file`.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`.
     :param ignore_if_below: This method will ignore radar values <
         `ignore_if_below`.  If None, this method will consider all values.
     :return: full_matrix: M-by-N numpy array of radar values.  Latitude

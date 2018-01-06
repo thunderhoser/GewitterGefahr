@@ -10,7 +10,7 @@ Ortega, K., and Coauthors, 2012: "The multi-year reanalysis of remotely sensed
 """
 
 import numpy
-from gewittergefahr.gg_io import radar_io
+from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import error_checking
@@ -46,7 +46,8 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     :return: grid_point_longitudes_deg: length-N numpy array with longitudes
         (deg E) of grid points, sorted in ascending order.
     :return: metadata_dict: Dictionary created by
-        `radar_io.read_metadata_from_raw_file` for column-max reflectivity.
+        `myrorss_and_mrms_io.read_metadata_from_raw_file` for column-max
+        reflectivity.
     """
 
     error_checking.assert_is_greater(critical_reflectivity_dbz, 0.)
@@ -63,7 +64,7 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     grid_point_heights_m_asl = grid_point_heights_m_asl[
         grid_point_heights_m_asl <= top_height_to_consider_m_asl]
 
-    column_max_refl_file_name = radar_io.find_raw_file(
+    column_max_refl_file_name = myrorss_and_mrms_io.find_raw_file(
         unix_time_sec=unix_time_sec, spc_date_string=spc_date_string,
         field_name=radar_utils.REFL_COLUMN_MAX_NAME,
         data_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -72,7 +73,7 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     num_grid_heights = len(grid_point_heights_m_asl)
     single_height_refl_file_names = [''] * num_grid_heights
     for k in range(num_grid_heights):
-        single_height_refl_file_names[k] = radar_io.find_raw_file(
+        single_height_refl_file_names[k] = myrorss_and_mrms_io.find_raw_file(
             unix_time_sec=unix_time_sec, spc_date_string=spc_date_string,
             field_name=radar_utils.REFL_NAME,
             data_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -82,13 +83,15 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     print 'Reading "{0:s}" for echo-top calculation...'.format(
         column_max_refl_file_name)
 
-    metadata_dict = radar_io.read_metadata_from_raw_file(
+    metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
         column_max_refl_file_name, data_source=radar_utils.MYRORSS_SOURCE_ID)
-    this_sparse_grid_table = radar_io.read_data_from_sparse_grid_file(
-        column_max_refl_file_name,
-        field_name_orig=metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG],
-        data_source=radar_utils.MYRORSS_SOURCE_ID,
-        sentinel_values=metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN])
+    this_sparse_grid_table = (
+        myrorss_and_mrms_io.read_data_from_sparse_grid_file(
+            column_max_refl_file_name,
+            field_name_orig=
+            metadata_dict[myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            sentinel_values=metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN]))
 
     (column_max_refl_matrix_dbz,
      grid_point_latitudes_deg,
@@ -120,15 +123,17 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
         print 'Reading "{0:s}" for echo-top calculation...'.format(
             single_height_refl_file_names[k])
 
-        this_metadata_dict = radar_io.read_metadata_from_raw_file(
+        this_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
             single_height_refl_file_names[k],
             data_source=radar_utils.MYRORSS_SOURCE_ID)
-        this_sparse_grid_table = radar_io.read_data_from_sparse_grid_file(
-            single_height_refl_file_names[k],
-            field_name_orig=this_metadata_dict[radar_io.FIELD_NAME_COLUMN_ORIG],
-            data_source=radar_utils.MYRORSS_SOURCE_ID,
-            sentinel_values=
-            this_metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN])
+        this_sparse_grid_table = (
+            myrorss_and_mrms_io.read_data_from_sparse_grid_file(
+                single_height_refl_file_names[k],
+                field_name_orig=
+                this_metadata_dict[myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
+                sentinel_values=
+                this_metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN]))
 
         this_reflectivity_matrix_dbz, _, _ = radar_s2f.sparse_to_full_grid(
             this_sparse_grid_table, this_metadata_dict,
