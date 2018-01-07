@@ -23,6 +23,7 @@ from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
@@ -51,8 +52,8 @@ NORTH_VELOCITY_COLUMN_ORIG = 'MotionSouth'
 AGE_COLUMN_ORIG = 'Age'
 
 XML_COLUMN_NAMES = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.EAST_VELOCITY_COLUMN,
-    tracking_io.NORTH_VELOCITY_COLUMN, tracking_io.AGE_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.EAST_VELOCITY_COLUMN,
+    tracking_utils.NORTH_VELOCITY_COLUMN, tracking_utils.AGE_COLUMN]
 XML_COLUMN_NAMES_ORIG = [
     STORM_ID_COLUMN_ORIG, EAST_VELOCITY_COLUMN_ORIG, NORTH_VELOCITY_COLUMN_ORIG,
     AGE_COLUMN_ORIG]
@@ -132,14 +133,14 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix):
 
     unique_storm_ids = [str(int(this_id)) for this_id in
                         unique_numeric_storm_ids]
-    polygon_dict = {tracking_io.STORM_ID_COLUMN: unique_storm_ids}
+    polygon_dict = {tracking_utils.STORM_ID_COLUMN: unique_storm_ids}
     polygon_table = pandas.DataFrame.from_dict(polygon_dict)
 
     nested_array = polygon_table[[
-        tracking_io.STORM_ID_COLUMN,
-        tracking_io.STORM_ID_COLUMN]].values.tolist()
-    argument_dict = {tracking_io.GRID_POINT_ROW_COLUMN: nested_array,
-                     tracking_io.GRID_POINT_COLUMN_COLUMN: nested_array}
+        tracking_utils.STORM_ID_COLUMN,
+        tracking_utils.STORM_ID_COLUMN]].values.tolist()
+    argument_dict = {tracking_utils.GRID_POINT_ROW_COLUMN: nested_array,
+                     tracking_utils.GRID_POINT_COLUMN_COLUMN: nested_array}
     polygon_table = polygon_table.assign(**argument_dict)
 
     num_grid_rows = numeric_storm_id_matrix.shape[0]
@@ -155,13 +156,13 @@ def _storm_id_matrix_to_coord_lists(numeric_storm_id_matrix):
          this_storm_column_indices) = numpy.unravel_index(
              this_storm_linear_indices, (num_grid_rows, num_grid_columns))
 
-        polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[
+        polygon_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[
             i] = this_storm_row_indices
-        polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[
+        polygon_table[tracking_utils.GRID_POINT_COLUMN_COLUMN].values[
             i] = this_storm_column_indices
 
-    return polygon_table.loc[
-        polygon_table[tracking_io.STORM_ID_COLUMN] != str(int(SENTINEL_VALUE))]
+    return polygon_table.loc[polygon_table[tracking_utils.STORM_ID_COLUMN] !=
+                             str(int(SENTINEL_VALUE))]
 
 
 def _get_pathless_stats_file_name(unix_time_sec, zipped=True):
@@ -649,22 +650,23 @@ def read_stats_from_xml(xml_file_name, spc_date_string):
         if this_column_name_orig not in XML_COLUMN_NAMES_ORIG:
             continue
 
-        if this_column_name == tracking_io.STORM_ID_COLUMN:
+        if this_column_name == tracking_utils.STORM_ID_COLUMN:
             this_column_values.append(this_element.attrib['value'])
-        elif this_column_name == tracking_io.NORTH_VELOCITY_COLUMN:
+        elif this_column_name == tracking_utils.NORTH_VELOCITY_COLUMN:
             this_column_values.append(-1 * float(this_element.attrib['value']))
-        elif this_column_name == tracking_io.EAST_VELOCITY_COLUMN:
+        elif this_column_name == tracking_utils.EAST_VELOCITY_COLUMN:
             this_column_values.append(float(this_element.attrib['value']))
-        elif this_column_name == tracking_io.AGE_COLUMN:
+        elif this_column_name == tracking_utils.AGE_COLUMN:
             this_column_values.append(
                 int(numpy.round(float(this_element.attrib['value']))))
 
     stats_table = pandas.DataFrame.from_dict(storm_dict)
     storm_ids = _append_spc_date_to_storm_ids(
-        stats_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
+        stats_table[tracking_utils.STORM_ID_COLUMN].values, spc_date_string)
 
-    stats_table = stats_table.assign(**{tracking_io.STORM_ID_COLUMN: storm_ids})
-    return tracking_io.remove_rows_with_nan(stats_table)
+    stats_table = stats_table.assign(
+        **{tracking_utils.STORM_ID_COLUMN: storm_ids})
+    return tracking_utils.remove_nan_rows_from_dataframe(stats_table)
 
 
 def read_polygons_from_netcdf(
@@ -769,44 +771,47 @@ def read_polygons_from_netcdf(
         num_storms, tracking_end_time_unix_sec, dtype=int)
 
     storm_ids = _append_spc_date_to_storm_ids(
-        polygon_table[tracking_io.STORM_ID_COLUMN].values, spc_date_string)
+        polygon_table[tracking_utils.STORM_ID_COLUMN].values, spc_date_string)
 
     simple_array = numpy.full(num_storms, numpy.nan)
     object_array = numpy.full(num_storms, numpy.nan, dtype=object)
     nested_array = polygon_table[[
-        tracking_io.STORM_ID_COLUMN,
-        tracking_io.STORM_ID_COLUMN]].values.tolist()
+        tracking_utils.STORM_ID_COLUMN,
+        tracking_utils.STORM_ID_COLUMN]].values.tolist()
 
     argument_dict = {
-        tracking_io.STORM_ID_COLUMN: storm_ids,
-        tracking_io.TIME_COLUMN: unix_times_sec,
-        tracking_io.SPC_DATE_COLUMN: spc_dates_unix_sec,
-        tracking_io.TRACKING_START_TIME_COLUMN: tracking_start_times_unix_sec,
-        tracking_io.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
-        tracking_io.CENTROID_LAT_COLUMN: simple_array,
-        tracking_io.CENTROID_LNG_COLUMN: simple_array,
-        tracking_io.GRID_POINT_LAT_COLUMN: nested_array,
-        tracking_io.GRID_POINT_LNG_COLUMN: nested_array,
-        tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
-        tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
+        tracking_utils.STORM_ID_COLUMN: storm_ids,
+        tracking_utils.TIME_COLUMN: unix_times_sec,
+        tracking_utils.SPC_DATE_COLUMN: spc_dates_unix_sec,
+        tracking_utils.TRACKING_START_TIME_COLUMN:
+            tracking_start_times_unix_sec,
+        tracking_utils.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
+        tracking_utils.CENTROID_LAT_COLUMN: simple_array,
+        tracking_utils.CENTROID_LNG_COLUMN: simple_array,
+        tracking_utils.GRID_POINT_LAT_COLUMN: nested_array,
+        tracking_utils.GRID_POINT_LNG_COLUMN: nested_array,
+        tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
+        tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
     polygon_table = polygon_table.assign(**argument_dict)
 
     for i in range(num_storms):
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
-                polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
-                polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]))
+                polygon_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+                polygon_table[
+                    tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]))
 
-        (polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
-         polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]) = (
+        (polygon_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+         polygon_table[tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]) = (
              polygons.simple_polygon_to_grid_points(
                  these_vertex_rows, these_vertex_columns))
 
-        (polygon_table[tracking_io.GRID_POINT_LAT_COLUMN].values[i],
-         polygon_table[tracking_io.GRID_POINT_LNG_COLUMN].values[i]) = (
+        (polygon_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
+         polygon_table[tracking_utils.GRID_POINT_LNG_COLUMN].values[i]) = (
              radar_utils.rowcol_to_latlng(
-                 polygon_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i],
-                 polygon_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i],
+                 polygon_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+                 polygon_table[
+                     tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i],
                  nw_grid_point_lat_deg=
                  metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
                  nw_grid_point_lng_deg=
@@ -824,15 +829,15 @@ def read_polygons_from_netcdf(
                 lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
                 lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
-        (polygon_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
-         polygon_table[tracking_io.CENTROID_LNG_COLUMN].values[i]) = (
+        (polygon_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
+         polygon_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]) = (
              polygons.get_latlng_centroid(
                  these_vertex_lat_deg, these_vertex_lng_deg))
 
-        polygon_table[tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
+        polygon_table[tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(
                 these_vertex_columns, these_vertex_rows))
-        polygon_table[tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
+        polygon_table[tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(
                 these_vertex_lng_deg, these_vertex_lat_deg))
 
@@ -844,13 +849,13 @@ def join_stats_and_polygons(stats_table, polygon_table):
 
     :param stats_table: pandas DataFrame created by read_stats_from_xml.
     :param polygon_table: pandas DataFrame created by read_polygons_from_netcdf
-        or `tracking_io.make_buffers_around_polygons`.
+        or `tracking_utils.make_buffers_around_storm_objects`.
     :return: storm_table: pandas DataFrame with columns from both stats_table
         and polygon_table.
     """
 
-    return polygon_table.merge(stats_table, on=tracking_io.STORM_ID_COLUMN,
-                               how='inner')
+    return polygon_table.merge(
+        stats_table, on=tracking_utils.STORM_ID_COLUMN, how='inner')
 
 
 if __name__ == '__main__':
@@ -867,9 +872,9 @@ if __name__ == '__main__':
         tracking_end_time_unix_sec=TRACKING_END_TIME_UNIX_SEC)
     print POLYGON_TABLE
 
-    POLYGON_TABLE = tracking_io.make_buffers_around_polygons(
-        POLYGON_TABLE, min_buffer_dists_metres=MIN_BUFFER_DISTS_METRES,
-        max_buffer_dists_metres=MAX_BUFFER_DISTS_METRES)
+    POLYGON_TABLE = tracking_utils.make_buffers_around_storm_objects(
+        POLYGON_TABLE, min_distances_metres=MIN_BUFFER_DISTS_METRES,
+        max_distances_metres=MAX_BUFFER_DISTS_METRES)
     print POLYGON_TABLE
 
     STORM_TABLE = join_stats_and_polygons(STATS_TABLE, POLYGON_TABLE)
@@ -880,7 +885,7 @@ if __name__ == '__main__':
 
     OUTPUT_FILE_NAME = tracking_io.find_processed_file(
         unix_time_sec=VALID_TIME_UNIX_SEC,
-        data_source=tracking_io.SEGMOTION_SOURCE_ID,
+        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
         spc_date_string=SPC_DATE_STRING,
         top_processed_dir_name=TOP_PROCESSED_DIR_NAME,
         tracking_scale_metres2=TRACKING_SCALE_METRES2,

@@ -7,7 +7,7 @@ observations).  See link_storms_to_winds.py.
 """
 
 import numpy
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import storm_plotting
@@ -55,13 +55,13 @@ def plot_one_storm_cell_to_winds(
     error_checking.assert_is_greater(colour_maximum_kt, colour_minimum_kt)
 
     storm_cell_flags = [this_id == storm_id for this_id in storm_to_winds_table[
-        tracking_io.STORM_ID_COLUMN].values]
+        tracking_utils.STORM_ID_COLUMN].values]
     storm_cell_rows = numpy.where(numpy.array(storm_cell_flags))[0]
 
     centroid_latitudes_deg = storm_to_winds_table[
-        tracking_io.CENTROID_LAT_COLUMN].values[storm_cell_rows]
+        tracking_utils.CENTROID_LAT_COLUMN].values[storm_cell_rows]
     centroid_longitudes_deg = storm_to_winds_table[
-        tracking_io.CENTROID_LNG_COLUMN].values[storm_cell_rows]
+        tracking_utils.CENTROID_LNG_COLUMN].values[storm_cell_rows]
 
     storm_plotting.plot_storm_track(
         basemap_object=basemap_object, axes_object=axes_object,
@@ -69,14 +69,15 @@ def plot_one_storm_cell_to_winds(
         longitudes_deg=centroid_longitudes_deg, line_colour=storm_colour,
         line_width=storm_line_width)
 
-    storm_times_unix_sec = storm_to_winds_table[tracking_io.TIME_COLUMN].values[
-        storm_cell_rows]
+    storm_times_unix_sec = storm_to_winds_table[
+        tracking_utils.TIME_COLUMN].values[storm_cell_rows]
     first_storm_object_row = storm_cell_rows[numpy.argmin(storm_times_unix_sec)]
     last_storm_object_row = storm_cell_rows[numpy.argmax(storm_times_unix_sec)]
 
     first_vertex_dict = polygons.polygon_object_to_vertex_arrays(
-        storm_to_winds_table[tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[
-            first_storm_object_row])
+        storm_to_winds_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
+                first_storm_object_row])
     first_vertex_latitudes_deg = first_vertex_dict[polygons.EXTERIOR_Y_COLUMN]
     first_vertex_longitudes_deg = first_vertex_dict[polygons.EXTERIOR_X_COLUMN]
 
@@ -87,8 +88,9 @@ def plot_one_storm_cell_to_winds(
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
     last_vertex_dict = polygons.polygon_object_to_vertex_arrays(
-        storm_to_winds_table[tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[
-            last_storm_object_row])
+        storm_to_winds_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
+                last_storm_object_row])
     last_vertex_latitudes_deg = last_vertex_dict[polygons.EXTERIOR_Y_COLUMN]
     last_vertex_longitudes_deg = last_vertex_dict[polygons.EXTERIOR_X_COLUMN]
 

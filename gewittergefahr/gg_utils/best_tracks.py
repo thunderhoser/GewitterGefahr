@@ -19,6 +19,7 @@ import numpy
 import pandas
 from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import file_system_utils
@@ -61,26 +62,26 @@ REPORT_PERIOD_FOR_TIE_BREAKER = 500
 FILE_INDEX_COLUMN = 'file_index'
 
 INPUT_COLUMNS_TO_KEEP = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
+    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN]
 COLUMNS_TO_MERGE_ON = [
-    tracking_io.ORIG_STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+    tracking_utils.ORIG_STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 OUTPUT_COLUMNS_FROM_BEST_TRACK = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.ORIG_STORM_ID_COLUMN,
-    tracking_io.TIME_COLUMN, tracking_io.AGE_COLUMN,
-    tracking_io.TRACKING_START_TIME_COLUMN,
-    tracking_io.TRACKING_END_TIME_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.ORIG_STORM_ID_COLUMN,
+    tracking_utils.TIME_COLUMN, tracking_utils.AGE_COLUMN,
+    tracking_utils.TRACKING_START_TIME_COLUMN,
+    tracking_utils.TRACKING_END_TIME_COLUMN]
 
 EMPTY_TRACK_AGE_SEC = -1
 ATTRIBUTES_TO_RECOMPUTE = [
-    tracking_io.AGE_COLUMN, tracking_io.TRACKING_START_TIME_COLUMN,
-    tracking_io.TRACKING_END_TIME_COLUMN]
+    tracking_utils.AGE_COLUMN, tracking_utils.TRACKING_START_TIME_COLUMN,
+    tracking_utils.TRACKING_END_TIME_COLUMN]
 
 VERTEX_LATITUDES_COLUMN = 'polygon_vertex_latitudes_deg'
 VERTEX_LONGITUDES_COLUMN = 'polygon_vertex_longitudes_deg'
 OUTPUT_COLUMNS_FOR_THEA = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
+    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
     VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 
 
@@ -386,13 +387,13 @@ def _find_changed_tracks(storm_track_table, orig_storm_track_table):
 
     num_storm_tracks = len(storm_track_table.index)
     orig_storm_ids = numpy.asarray(
-        orig_storm_track_table[tracking_io.STORM_ID_COLUMN].values)
+        orig_storm_track_table[tracking_utils.STORM_ID_COLUMN].values)
     track_changed_flags = numpy.full(num_storm_tracks, False, dtype=bool)
 
     for j in range(num_storm_tracks):
         this_storm_in_orig_flags = (
             orig_storm_ids == storm_track_table[
-                tracking_io.STORM_ID_COLUMN].values[j])
+                tracking_utils.STORM_ID_COLUMN].values[j])
         this_orig_index = numpy.where(this_storm_in_orig_flags)[0][0]
 
         if not numpy.array_equal(
@@ -493,7 +494,7 @@ def storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     """
 
     storm_id_by_object = numpy.asarray(
-        storm_object_table[tracking_io.STORM_ID_COLUMN].values)
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
     unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
         storm_id_by_object, return_inverse=True)
 
@@ -509,14 +510,14 @@ def storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
         storm_ids_to_use.remove(EMPTY_STORM_ID)
     storm_ids_to_use = list(storm_ids_to_use)
 
-    storm_track_dict = {tracking_io.STORM_ID_COLUMN: storm_ids_to_use}
+    storm_track_dict = {tracking_utils.STORM_ID_COLUMN: storm_ids_to_use}
     storm_track_table = pandas.DataFrame.from_dict(storm_track_dict)
 
     num_storms_to_use = len(storm_ids_to_use)
     simple_array = numpy.full(num_storms_to_use, numpy.nan, dtype=int)
     nested_array = storm_track_table[[
-        tracking_io.STORM_ID_COLUMN,
-        tracking_io.STORM_ID_COLUMN]].values.tolist()
+        tracking_utils.STORM_ID_COLUMN,
+        tracking_utils.STORM_ID_COLUMN]].values.tolist()
 
     argument_dict = {TRACK_TIMES_COLUMN: nested_array,
                      TRACK_X_COORDS_COLUMN: nested_array,
@@ -534,14 +535,14 @@ def storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
         these_storm_object_indices = numpy.where(
             storm_ids_object_to_unique == i)[0]
         sort_indices = numpy.argsort(
-            storm_object_table[tracking_io.TIME_COLUMN].values[
+            storm_object_table[tracking_utils.TIME_COLUMN].values[
                 these_storm_object_indices])
         these_storm_object_indices = these_storm_object_indices[sort_indices]
 
         this_table_index = storm_ids_to_use.index(unique_storm_ids[i])
 
         storm_track_table[TRACK_TIMES_COLUMN].values[this_table_index] = (
-            storm_object_table[tracking_io.TIME_COLUMN].values[
+            storm_object_table[tracking_utils.TIME_COLUMN].values[
                 these_storm_object_indices])
         storm_track_table[TRACK_X_COORDS_COLUMN].values[this_table_index] = (
             storm_object_table[CENTROID_X_COLUMN].values[
@@ -679,7 +680,7 @@ def break_storm_tracks(
     num_working_objects = len(working_object_indices)
     num_objects_done = 0
     orig_storm_ids = numpy.asarray(
-        storm_object_table[tracking_io.STORM_ID_COLUMN].values[
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values[
             working_object_indices])
 
     for i in working_object_indices:
@@ -691,9 +692,9 @@ def break_storm_tracks(
 
         times_before_start_sec = (
             storm_track_table[TRACK_START_TIME_COLUMN].values -
-            storm_object_table[tracking_io.TIME_COLUMN].values[i])
+            storm_object_table[tracking_utils.TIME_COLUMN].values[i])
         times_after_end_sec = (
-            storm_object_table[tracking_io.TIME_COLUMN].values[i] -
+            storm_object_table[tracking_utils.TIME_COLUMN].values[i] -
             storm_track_table[TRACK_END_TIME_COLUMN].values)
 
         try_track_flags = numpy.logical_and(
@@ -706,7 +707,8 @@ def break_storm_tracks(
         prediction_errors_metres = _get_prediction_errors_for_one_object(
             x_coord_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
             y_coord_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
-            unix_time_sec=storm_object_table[tracking_io.TIME_COLUMN].values[i],
+            unix_time_sec=
+            storm_object_table[tracking_utils.TIME_COLUMN].values[i],
             storm_track_table=storm_track_table.iloc[try_track_indices])
 
         if numpy.min(prediction_errors_metres) > max_prediction_error_metres:
@@ -714,15 +716,15 @@ def break_storm_tracks(
 
         nearest_track_index = try_track_indices[
             numpy.argmin(prediction_errors_metres)]
-        storm_object_table[tracking_io.STORM_ID_COLUMN].values[i] = (
-            storm_track_table[tracking_io.STORM_ID_COLUMN].values[
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values[i] = (
+            storm_track_table[tracking_utils.STORM_ID_COLUMN].values[
                 nearest_track_index])
 
     print ('Have performed break-up step for all ' + str(num_working_objects) +
            ' storm objects!')
 
     new_storm_ids = numpy.asarray(
-        storm_object_table[tracking_io.STORM_ID_COLUMN].values[
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values[
             working_object_indices])
     object_changed_indices = numpy.where(orig_storm_ids != new_storm_ids)[0]
     print ('Assigned ' + str(len(object_changed_indices)) +
@@ -732,8 +734,8 @@ def break_storm_tracks(
     storm_track_table = storm_objects_to_tracks(storm_object_table)
     storm_track_table = storm_track_table.merge(
         orig_storm_track_table[
-            THEIL_SEN_MODEL_COLUMNS + [tracking_io.STORM_ID_COLUMN]],
-        on=tracking_io.STORM_ID_COLUMN, how='left')
+            THEIL_SEN_MODEL_COLUMNS + [tracking_utils.STORM_ID_COLUMN]],
+        on=tracking_utils.STORM_ID_COLUMN, how='left')
 
     track_changed_indices = _find_changed_tracks(
         storm_track_table, orig_storm_track_table)
@@ -880,15 +882,15 @@ def merge_storm_tracks(
             num_pairs_merged += 1
 
             storm_id_j = storm_track_table[
-                tracking_io.STORM_ID_COLUMN].values[j]
+                tracking_utils.STORM_ID_COLUMN].values[j]
             storm_id_k = storm_track_table[
-                tracking_io.STORM_ID_COLUMN].values[k]
+                tracking_utils.STORM_ID_COLUMN].values[k]
 
             for i in range(len(storm_object_table.index)):
                 if storm_object_table[
-                        tracking_io.STORM_ID_COLUMN].values[i] == storm_id_k:
+                        tracking_utils.STORM_ID_COLUMN].values[i] == storm_id_k:
                     storm_object_table[
-                        tracking_io.STORM_ID_COLUMN].values[i] = storm_id_j
+                        tracking_utils.STORM_ID_COLUMN].values[i] = storm_id_j
 
             storm_track_table_j_only = storm_objects_to_tracks(
                 storm_object_table, [storm_id_j])
@@ -979,11 +981,11 @@ def break_ties_among_storm_objects(
         num_ties_broken += len(these_object_indices_to_remove)
         num_tracks_with_ties_broken += 1
         for i in these_object_indices_to_remove:
-            storm_object_table[tracking_io.STORM_ID_COLUMN].values[
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values[
                 i] = EMPTY_STORM_ID
 
         storm_id_j = storm_track_table[
-            tracking_io.STORM_ID_COLUMN].values[j]
+            tracking_utils.STORM_ID_COLUMN].values[j]
         storm_track_table_j_only = storm_objects_to_tracks(
             storm_object_table, [storm_id_j])
         storm_track_table_j_only = theil_sen_fit_for_each_track(
@@ -1018,7 +1020,7 @@ def remove_short_tracks(
     check_best_track_params(min_objects_in_track=min_objects_in_track)
 
     storm_id_by_object = numpy.asarray(
-        storm_object_table[tracking_io.STORM_ID_COLUMN].values)
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
     unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
         storm_id_by_object, return_inverse=True)
     remove_storm_object_rows = numpy.array([], dtype=int)
@@ -1074,26 +1076,27 @@ def recompute_attributes(
         num_storm_objects, EMPTY_TRACK_AGE_SEC, dtype=int)
 
     storm_id_by_object = numpy.asarray(
-        storm_object_table[tracking_io.STORM_ID_COLUMN].values)
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
     unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
         storm_id_by_object, return_inverse=True)
 
     for i in range(len(unique_storm_ids)):
         these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
         this_start_time_unix_sec = numpy.min(
-            storm_object_table[tracking_io.TIME_COLUMN].values[
+            storm_object_table[tracking_utils.TIME_COLUMN].values[
                 these_object_indices])
         if this_start_time_unix_sec == best_track_start_time_unix_sec:
             continue
 
         track_ages_sec[these_object_indices] = (
-            storm_object_table[tracking_io.TIME_COLUMN].values[
+            storm_object_table[tracking_utils.TIME_COLUMN].values[
                 these_object_indices] - this_start_time_unix_sec)
 
     argument_dict = {
-        tracking_io.TRACKING_START_TIME_COLUMN: tracking_start_times_unix_sec,
-        tracking_io.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
-        tracking_io.AGE_COLUMN: track_ages_sec
+        tracking_utils.TRACKING_START_TIME_COLUMN:
+            tracking_start_times_unix_sec,
+        tracking_utils.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
+        tracking_utils.AGE_COLUMN: track_ages_sec
     }
     return storm_object_table.assign(**argument_dict)
 
@@ -1156,13 +1159,13 @@ def run_best_track(
 
     global_centroid_lat_deg, global_centroid_lng_deg = (
         polygons.get_latlng_centroid(
-            storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
-            storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values))
+            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
+            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values))
     projection_object = projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)
     x_centroids_metres, y_centroids_metres = projections.project_latlng_to_xy(
-        storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
-        storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values,
         projection_object=projection_object, false_easting_metres=0.,
         false_northing_metres=0.)
 
@@ -1170,8 +1173,8 @@ def run_best_track(
                      CENTROID_Y_COLUMN: y_centroids_metres}
     storm_object_table = storm_object_table.assign(**argument_dict)
     storm_object_table.drop(
-        [tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN],
-        axis=1, inplace=True)
+        [tracking_utils.CENTROID_LAT_COLUMN,
+         tracking_utils.CENTROID_LNG_COLUMN], axis=1, inplace=True)
 
     storm_track_table = storm_objects_to_tracks(storm_object_table)
     storm_track_table = theil_sen_fit_for_each_track(storm_track_table)
@@ -1203,9 +1206,9 @@ def run_best_track(
             storm_object_table, storm_track_table)
 
     best_track_start_time_unix_sec = numpy.min(
-        storm_object_table[tracking_io.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.TIME_COLUMN].values)
     best_track_end_time_unix_sec = numpy.max(
-        storm_object_table[tracking_io.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.TIME_COLUMN].values)
 
     print ('Removing storm tracks with < ' + str(min_objects_in_track) +
            ' objects...')
@@ -1247,7 +1250,8 @@ def read_input_storm_objects(input_file_names, keep_spc_date=False):
 
     error_checking.assert_is_boolean(keep_spc_date)
     if keep_spc_date:
-        columns_to_keep = INPUT_COLUMNS_TO_KEEP + [tracking_io.SPC_DATE_COLUMN]
+        columns_to_keep = INPUT_COLUMNS_TO_KEEP + [
+            tracking_utils.SPC_DATE_COLUMN]
     else:
         columns_to_keep = copy.deepcopy(INPUT_COLUMNS_TO_KEEP)
 
@@ -1280,8 +1284,8 @@ def read_input_storm_objects(input_file_names, keep_spc_date=False):
 
     argument_dict = {
         FILE_INDEX_COLUMN: file_indices,
-        tracking_io.ORIG_STORM_ID_COLUMN:
-            storm_object_table[tracking_io.STORM_ID_COLUMN].values}
+        tracking_utils.ORIG_STORM_ID_COLUMN:
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values}
     return storm_object_table.assign(**argument_dict)
 
 
@@ -1329,7 +1333,7 @@ def write_output_storm_objects(
 
         this_input_table = tracking_io.read_processed_file(input_file_names[i])
         column_dict_old_to_new = {
-            tracking_io.STORM_ID_COLUMN: tracking_io.ORIG_STORM_ID_COLUMN}
+            tracking_utils.STORM_ID_COLUMN: tracking_utils.ORIG_STORM_ID_COLUMN}
         this_input_table.rename(columns=column_dict_old_to_new, inplace=True)
         this_input_table.drop(ATTRIBUTES_TO_RECOMPUTE, axis=1, inplace=True)
 
@@ -1355,7 +1359,7 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
     error_checking.assert_columns_in_dataframe(
         storm_object_table, tracking_io.MANDATORY_COLUMNS)
     storm_object_table.sort_values(
-        [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN], axis=0,
+        [tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN], axis=0,
         ascending=[True, True], inplace=True)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
@@ -1369,7 +1373,7 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
     for i in range(num_storm_objects):
         csv_file_handle.write('\n')
         this_polygon_object = storm_object_table[
-            tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
 
         for j in range(len(OUTPUT_COLUMNS_FOR_THEA)):
             if j != 0:
@@ -1395,13 +1399,14 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
                     csv_file_handle.write('{0:.3f}'.format(
                         these_vertex_longitudes_deg[k]))
 
-            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_io.STORM_ID_COLUMN:
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_utils.STORM_ID_COLUMN:
                 csv_file_handle.write('{0:s}'.format(
-                    storm_object_table[tracking_io.STORM_ID_COLUMN].values[i]))
+                    storm_object_table[
+                        tracking_utils.STORM_ID_COLUMN].values[i]))
 
-            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_io.TIME_COLUMN:
+            elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_utils.TIME_COLUMN:
                 csv_file_handle.write('{0:d}'.format(
-                    storm_object_table[tracking_io.TIME_COLUMN].values[i]))
+                    storm_object_table[tracking_utils.TIME_COLUMN].values[i]))
 
             else:
                 csv_file_handle.write('{0:.6f}'.format(

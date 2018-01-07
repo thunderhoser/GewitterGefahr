@@ -4,7 +4,7 @@ import unittest
 import copy
 import numpy
 import pandas
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
@@ -28,8 +28,8 @@ RADAR_STATISTIC_NAME = radar_stats._radar_field_and_statistic_to_column_name(
     statistic_name=radar_stats.STANDARD_DEVIATION_NAME)
 RADAR_STATISTIC_VALUES = numpy.full(NUM_STORM_OBJECTS, 3.)
 RADAR_STATISTIC_DICT = {
-    tracking_io.STORM_ID_COLUMN: STORM_IDS,
-    tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
+    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
+    tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
     RADAR_STATISTIC_NAME: RADAR_STATISTIC_VALUES
 }
 RADAR_STATISTIC_TABLE = pandas.DataFrame.from_dict(RADAR_STATISTIC_DICT)
@@ -38,8 +38,8 @@ RADAR_STATISTIC_TABLE = pandas.DataFrame.from_dict(RADAR_STATISTIC_DICT)
 SHAPE_STATISTIC_NAME = shape_stats.AREA_NAME
 SHAPE_STATISTIC_VALUES = numpy.full(NUM_STORM_OBJECTS, 200.)
 SHAPE_STATISTIC_DICT = {
-    tracking_io.STORM_ID_COLUMN: STORM_IDS,
-    tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
+    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
+    tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
     SHAPE_STATISTIC_NAME: SHAPE_STATISTIC_VALUES
 }
 SHAPE_STATISTIC_TABLE = pandas.DataFrame.from_dict(SHAPE_STATISTIC_DICT)
@@ -48,8 +48,8 @@ SHAPE_STATISTIC_TABLE = pandas.DataFrame.from_dict(SHAPE_STATISTIC_DICT)
 SOUNDING_STAT_NAME = 'storm_velocity_m_s01_magnitude'
 SOUNDING_STAT_VALUES = numpy.full(NUM_STORM_OBJECTS, 10.)
 SOUNDING_STAT_DICT = {
-    tracking_io.STORM_ID_COLUMN: STORM_IDS,
-    tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
+    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
+    tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
     SOUNDING_STAT_NAME: SOUNDING_STAT_VALUES
 }
 SOUNDING_STAT_TABLE = pandas.DataFrame.from_dict(SOUNDING_STAT_DICT)
@@ -102,8 +102,8 @@ CLASSIFICATION_LABELS = numpy.full(NUM_STORM_OBJECTS, 0, dtype=int)
 CLASSIFICATION_LABELS[-2:] = 1
 
 STORM_TO_WINDS_DICT = {
-    tracking_io.STORM_ID_COLUMN: STORM_IDS,
-    tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
+    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
+    tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
     storms_to_winds.END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN: NUM_OBSERVATIONS_BY_STORM_OBJECT,
     REGRESSION_LABEL_COLUMN_NAME: REGRESSION_LABELS_M_S01,
@@ -122,7 +122,7 @@ POLYGON_OBJECT_ARRAY_LATLNG = numpy.full(
     NUM_STORM_OBJECTS, POLYGON_OBJECT_LATLNG, dtype=object)
 
 THIS_ARGUMENT_DICT = {
-    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG}
+    tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG}
 STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_ARGUMENT_DICT)
 
 # The following constants are used to test _select_storms_uniformly_by_category
@@ -172,7 +172,7 @@ BUFFERED_POLYGON_OBJECT_LATLNG = polygons.project_xy_to_latlng(
 BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG = numpy.full(
     NUM_STORM_OBJECTS, BUFFERED_POLYGON_OBJECT_LATLNG, dtype=object)
 
-BUFFER_COLUMN_NAME = tracking_io.distance_buffer_to_column_name(
+BUFFER_COLUMN_NAME = tracking_utils.distance_buffer_to_column_name(
     MIN_DISTANCE_METRES, MAX_DISTANCE_METRES)
 THIS_ARGUMENT_DICT = {BUFFER_COLUMN_NAME: BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG}
 STORM_TO_WINDS_TABLE = STORM_TO_WINDS_TABLE.assign(**THIS_ARGUMENT_DICT)
@@ -200,11 +200,11 @@ FEATURE_COLUMN_NAMES = [
 # The following constants are used to test
 # join_features_and_label_for_storm_objects.
 FEATURE_DICT = {
-    tracking_io.STORM_ID_COLUMN: STORM_IDS,
-    tracking_io.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
+    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
+    tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
     storms_to_winds.END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN: NUM_OBSERVATIONS_BY_STORM_OBJECT,
-    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG,
+    tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG,
     BUFFER_COLUMN_NAME: BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG,
     REGRESSION_LABEL_COLUMN_NAME: REGRESSION_LABELS_M_S01,
     CLASSIFICATION_LABEL_COLUMN_NAME: CLASSIFICATION_LABELS,
@@ -215,9 +215,10 @@ FEATURE_DICT = {
 
 FEATURE_TABLE = pandas.DataFrame.from_dict(FEATURE_DICT)
 INTEGER_AND_STRING_COLUMNS = [
-    storms_to_winds.END_TIME_COLUMN, tracking_io.STORM_ID_COLUMN,
-    tracking_io.TIME_COLUMN, CLASSIFICATION_LABEL_COLUMN_NAME]
-POLYGON_COLUMNS = [tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, BUFFER_COLUMN_NAME]
+    storms_to_winds.END_TIME_COLUMN, tracking_utils.STORM_ID_COLUMN,
+    tracking_utils.TIME_COLUMN, CLASSIFICATION_LABEL_COLUMN_NAME]
+POLYGON_COLUMNS = [
+    tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN, BUFFER_COLUMN_NAME]
 
 # The following constants are used to test find_unsampled_file_one_time.
 FILE_TIME_UNIX_SEC = 1509936790  # 025310 6 Nov 2017

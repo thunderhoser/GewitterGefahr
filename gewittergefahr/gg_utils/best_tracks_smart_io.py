@@ -18,6 +18,7 @@ import tempfile
 import numpy
 import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import time_conversion
@@ -34,8 +35,8 @@ INPUT_FILE_NAMES_KEY = 'input_file_names_by_spc_date'
 OUTPUT_FILE_NAMES_KEY = 'output_file_names_by_spc_date'
 
 INTERMEDIATE_COLUMNS = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.ORIG_STORM_ID_COLUMN,
-    tracking_io.TIME_COLUMN, tracking_io.SPC_DATE_COLUMN,
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.ORIG_STORM_ID_COLUMN,
+    tracking_utils.TIME_COLUMN, tracking_utils.SPC_DATE_COLUMN,
     best_tracks.CENTROID_X_COLUMN, best_tracks.CENTROID_Y_COLUMN,
     best_tracks.FILE_INDEX_COLUMN]
 
@@ -135,7 +136,7 @@ def _shuffle_data_with_smart_io(
                 this_spc_date_unix_sec)
 
             this_spc_date_indices = numpy.where(
-                storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
+                storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                 this_spc_date_unix_sec)[0]
 
             this_temp_file_name = file_dict[TEMP_FILE_NAMES_KEY][this_index]
@@ -172,9 +173,9 @@ def _shuffle_data_with_smart_io(
             these_centroid_x_metres, these_centroid_y_metres = (
                 projections.project_latlng_to_xy(
                     this_storm_object_table[
-                        tracking_io.CENTROID_LAT_COLUMN].values,
+                        tracking_utils.CENTROID_LAT_COLUMN].values,
                     this_storm_object_table[
-                        tracking_io.CENTROID_LNG_COLUMN].values,
+                        tracking_utils.CENTROID_LNG_COLUMN].values,
                     projection_object=PROJECTION_OBJECT,
                     false_easting_metres=0., false_northing_metres=0.))
 
@@ -184,8 +185,8 @@ def _shuffle_data_with_smart_io(
             this_storm_object_table = this_storm_object_table.assign(
                 **argument_dict)
             this_storm_object_table.drop(
-                [tracking_io.CENTROID_LAT_COLUMN,
-                 tracking_io.CENTROID_LNG_COLUMN], axis=1, inplace=True)
+                [tracking_utils.CENTROID_LAT_COLUMN,
+                 tracking_utils.CENTROID_LNG_COLUMN], axis=1, inplace=True)
 
         if storm_object_table is None:
             storm_object_table = copy.deepcopy(this_storm_object_table)
@@ -222,7 +223,7 @@ def _find_tracks_with_spc_date(storm_object_table, storm_track_table,
             storm_track_table[
                 best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK].values[i])
         these_spc_dates_unix_sec = numpy.array(
-            storm_object_table[tracking_io.SPC_DATE_COLUMN].values[
+            storm_object_table[tracking_utils.SPC_DATE_COLUMN].values[
                 these_object_indices])
         if not numpy.any(these_spc_dates_unix_sec == spc_date_unix_sec):
             continue
@@ -418,17 +419,17 @@ def run_best_track(
 
                 if k == 0:
                     best_track_start_time_unix_sec = numpy.min(
-                        storm_object_table[tracking_io.TIME_COLUMN].values)
+                        storm_object_table[tracking_utils.TIME_COLUMN].values)
                 if k == num_spc_dates - 1:
                     best_track_end_time_unix_sec = numpy.max(
-                        storm_object_table[tracking_io.TIME_COLUMN].values)
+                        storm_object_table[tracking_utils.TIME_COLUMN].values)
 
                 storm_track_table = best_tracks.storm_objects_to_tracks(
                     storm_object_table)
                 storm_track_table = best_tracks.theil_sen_fit_for_each_track(
                     storm_track_table)
                 these_working_indices = numpy.where(
-                    storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
+                    storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                     spc_dates_unix_sec[k])[0]
 
                 storm_object_table, storm_track_table = (
@@ -505,7 +506,7 @@ def run_best_track(
             best_track_end_time_unix_sec=best_track_end_time_unix_sec)
 
         this_spc_date_indices = numpy.where(
-            storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
+            storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
             spc_dates_unix_sec[k])[0]
         best_tracks.write_output_storm_objects(
             storm_object_table.iloc[this_spc_date_indices],

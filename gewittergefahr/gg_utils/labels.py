@@ -9,7 +9,7 @@ the max wind speed associated with the storm object.
 
 import pickle
 import numpy
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import classification_utils as classifn_utils
 from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
@@ -20,8 +20,8 @@ KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
 NUM_OBSERVATIONS_FOR_LABEL_COLUMN = 'num_observations_for_label'
 MANDATORY_COLUMNS = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.TRACKING_END_TIME_COLUMN, NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
+    tracking_utils.TRACKING_END_TIME_COLUMN, NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
 
 DEFAULT_MIN_LEAD_TIME_SEC = 0
 DEFAULT_MAX_LEAD_TIME_SEC = 86400  # Greater than will ever occur.
@@ -459,8 +459,8 @@ def label_wind_for_regression(
     percentile_level = parameter_dict[PERCENTILE_LEVEL_NAME]
 
     times_before_end_of_tracking_sec = (
-        storm_to_winds_table[tracking_io.TRACKING_END_TIME_COLUMN] -
-        storm_to_winds_table[tracking_io.TIME_COLUMN])
+        storm_to_winds_table[tracking_utils.TRACKING_END_TIME_COLUMN] -
+        storm_to_winds_table[tracking_utils.TIME_COLUMN])
     bad_storm_object_rows = numpy.where(
         times_before_end_of_tracking_sec < max_lead_time_sec)[0]
     storm_to_winds_table.drop(

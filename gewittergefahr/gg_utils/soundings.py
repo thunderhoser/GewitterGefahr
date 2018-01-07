@@ -10,7 +10,7 @@ from sharppy.sharptab import interp as sharppy_interp
 from sharppy.sharptab import profile as sharppy_profile
 from sharppy.sharptab import utils as sharppy_utils
 from gewittergefahr.gg_io import grib_io
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import interp
@@ -23,7 +23,8 @@ LEAD_TIME_COLUMN = 'lead_time_seconds'
 
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
-STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+STORM_COLUMNS_TO_KEEP = [
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 
 MIN_RELATIVE_HUMIDITY_PERCENT = 1.
 SENTINEL_VALUE_FOR_SHARPPY = -9999.
@@ -785,8 +786,9 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
     if numpy.any(lead_times_seconds > 0):
         storm_speeds_m_s01, geodetic_bearings_deg = (
             geodetic_utils.xy_components_to_displacements_and_bearings(
-                storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values,
-                storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
+                storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
+                storm_object_table[
+                    tracking_utils.NORTH_VELOCITY_COLUMN].values))
 
     num_storm_objects = len(storm_object_table.index)
     num_lead_times = len(lead_times_seconds)
@@ -795,10 +797,10 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
     for i in range(num_lead_times):
         if lead_times_seconds[i] == 0:
             list_of_query_point_tables[i] = storm_object_table[[
-                tracking_io.CENTROID_LAT_COLUMN,
-                tracking_io.CENTROID_LNG_COLUMN, tracking_io.TIME_COLUMN,
-                tracking_io.EAST_VELOCITY_COLUMN,
-                tracking_io.NORTH_VELOCITY_COLUMN]]
+                tracking_utils.CENTROID_LAT_COLUMN,
+                tracking_utils.CENTROID_LNG_COLUMN, tracking_utils.TIME_COLUMN,
+                tracking_utils.EAST_VELOCITY_COLUMN,
+                tracking_utils.NORTH_VELOCITY_COLUMN]]
 
             argument_dict = {
                 LEAD_TIME_COLUMN: numpy.full(num_storm_objects, 0, dtype=int)}
@@ -810,23 +812,23 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
             these_extrap_lats_deg, these_extrap_lngs_deg = (
                 geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
                     start_latitudes_deg=
-                    storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
+                    storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
                     start_longitudes_deg=
-                    storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values,
+                    storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values,
                     displacements_metres=
                     storm_speeds_m_s01 * lead_times_seconds[i],
                     geodetic_bearings_deg=geodetic_bearings_deg))
 
             this_dict = {
-                tracking_io.CENTROID_LAT_COLUMN: these_extrap_lats_deg,
-                tracking_io.CENTROID_LNG_COLUMN: these_extrap_lngs_deg,
-                tracking_io.TIME_COLUMN:
-                    (storm_object_table[tracking_io.TIME_COLUMN].values +
+                tracking_utils.CENTROID_LAT_COLUMN: these_extrap_lats_deg,
+                tracking_utils.CENTROID_LNG_COLUMN: these_extrap_lngs_deg,
+                tracking_utils.TIME_COLUMN:
+                    (storm_object_table[tracking_utils.TIME_COLUMN].values +
                      lead_times_seconds[i]),
-                tracking_io.EAST_VELOCITY_COLUMN: storm_object_table[
-                    tracking_io.EAST_VELOCITY_COLUMN].values,
-                tracking_io.NORTH_VELOCITY_COLUMN: storm_object_table[
-                    tracking_io.NORTH_VELOCITY_COLUMN].values,
+                tracking_utils.EAST_VELOCITY_COLUMN: storm_object_table[
+                    tracking_utils.EAST_VELOCITY_COLUMN].values,
+                tracking_utils.NORTH_VELOCITY_COLUMN: storm_object_table[
+                    tracking_utils.NORTH_VELOCITY_COLUMN].values,
                 LEAD_TIME_COLUMN: numpy.full(
                     num_storm_objects, lead_times_seconds[i], dtype=int)
             }
@@ -1298,9 +1300,9 @@ def get_sounding_stats_for_storm_objects(
         storm_object_table, lead_times_seconds)
 
     column_dict_old_to_new = {
-        tracking_io.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
-        tracking_io.CENTROID_LNG_COLUMN: interp.QUERY_LNG_COLUMN,
-        tracking_io.TIME_COLUMN: interp.QUERY_TIME_COLUMN}
+        tracking_utils.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
+        tracking_utils.CENTROID_LNG_COLUMN: interp.QUERY_LNG_COLUMN,
+        tracking_utils.TIME_COLUMN: interp.QUERY_TIME_COLUMN}
     query_point_table.rename(columns=column_dict_old_to_new, inplace=True)
 
     if all_ruc_grids:
@@ -1328,23 +1330,25 @@ def get_sounding_stats_for_storm_objects(
 
         if list_of_sounding_tables[i] is None:
             list_of_sharppy_stat_tables[i] = _get_empty_sharppy_stat_table(
-                query_point_table[tracking_io.EAST_VELOCITY_COLUMN].values[i],
-                query_point_table[tracking_io.NORTH_VELOCITY_COLUMN].values[i])
+                query_point_table[
+                    tracking_utils.EAST_VELOCITY_COLUMN].values[i],
+                query_point_table[
+                    tracking_utils.NORTH_VELOCITY_COLUMN].values[i])
         else:
             try:
                 list_of_sharppy_stat_tables[i] = (
                     get_sounding_stats_from_sharppy(
                         list_of_sounding_tables[i],
                         eastward_motion_m_s01=query_point_table[
-                            tracking_io.EAST_VELOCITY_COLUMN].values[i],
+                            tracking_utils.EAST_VELOCITY_COLUMN].values[i],
                         northward_motion_m_s01=query_point_table[
-                            tracking_io.NORTH_VELOCITY_COLUMN].values[i],
+                            tracking_utils.NORTH_VELOCITY_COLUMN].values[i],
                         metadata_table=metadata_table))
             except:
                 print list_of_sounding_tables[i]
                 print list_of_sounding_tables[i][
                     DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values
-                print storm_object_table[tracking_io.TIME_COLUMN].values[i]
+                print storm_object_table[tracking_utils.TIME_COLUMN].values[i]
                 raise
 
         if i == 0:

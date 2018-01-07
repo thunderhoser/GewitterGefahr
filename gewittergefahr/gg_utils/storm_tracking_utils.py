@@ -1,30 +1,52 @@
-"""Methods for processing storm tracks and outlines."""
+"""Processing methods for storm-tracking data (both polygons and tracks)."""
 
 import copy
 import numpy
 import pandas
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import error_checking
 
-FLATTENED_INDEX_COLUMN = 'flattened_index'
+SEGMOTION_SOURCE_ID = 'segmotion'
+PROBSEVERE_SOURCE_ID = 'probSevere'
+DATA_SOURCE_IDS = [SEGMOTION_SOURCE_ID, PROBSEVERE_SOURCE_ID]
+
 STORM_ID_COLUMN = 'storm_id'
+TIME_COLUMN = 'unix_time_sec'
+SPC_DATE_COLUMN = 'spc_date_unix_sec'
+EAST_VELOCITY_COLUMN = 'east_velocity_m_s01'
+NORTH_VELOCITY_COLUMN = 'north_velocity_m_s01'
+AGE_COLUMN = 'age_sec'
 
+CENTROID_LAT_COLUMN = 'centroid_lat_deg'
+CENTROID_LNG_COLUMN = 'centroid_lng_deg'
+GRID_POINT_LAT_COLUMN = 'grid_point_latitudes_deg'
+GRID_POINT_LNG_COLUMN = 'grid_point_longitudes_deg'
+GRID_POINT_ROW_COLUMN = 'grid_point_rows'
+GRID_POINT_COLUMN_COLUMN = 'grid_point_columns'
+POLYGON_OBJECT_LATLNG_COLUMN = 'polygon_object_latlng'
+POLYGON_OBJECT_ROWCOL_COLUMN = 'polygon_object_rowcol'
+TRACKING_START_TIME_COLUMN = 'tracking_start_time_unix_sec'
+TRACKING_END_TIME_COLUMN = 'tracking_end_time_unix_sec'
+
+BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_latlng_buffer'
+ORIG_STORM_ID_COLUMN = 'original_storm_id'
+
+FLATTENED_INDEX_COLUMN = 'flattened_index'
 COLUMNS_TO_CHANGE_WHEN_MERGING_SCALES = [
-    tracking_io.CENTROID_LAT_COLUMN, tracking_io.CENTROID_LNG_COLUMN,
-    tracking_io.GRID_POINT_LAT_COLUMN, tracking_io.GRID_POINT_LNG_COLUMN,
-    tracking_io.GRID_POINT_ROW_COLUMN, tracking_io.GRID_POINT_COLUMN_COLUMN,
-    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN,
-    tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN]
+    CENTROID_LAT_COLUMN, CENTROID_LNG_COLUMN, GRID_POINT_LAT_COLUMN,
+    GRID_POINT_LNG_COLUMN, GRID_POINT_ROW_COLUMN, GRID_POINT_COLUMN_COLUMN,
+    POLYGON_OBJECT_LATLNG_COLUMN, POLYGON_OBJECT_ROWCOL_COLUMN]
 
 
-def _get_grid_points_in_storms(storm_object_table, num_grid_rows=None,
-                               num_grid_columns=None):
-    """Finds grid points in all storm objects.
+def _get_grid_points_in_storms(
+        storm_object_table, num_grid_rows, num_grid_columns):
+    """Finds grid points in each storm object.
 
     N = number of storm objects
-    P = number of grid points in a storm object
+    P = number of grid points in a given storm object
 
-    :param storm_object_table: N-row pandas DataFrame in format specified by
+    :param storm_object_table: N-row pandas DataFrame with columns documented in
         `storm_tracking_io.write_processed_file`.
     :param num_grid_rows: Number of rows (unique grid-point latitudes).
     :param num_grid_columns: Number of columns (unique grid-point longitudes).
@@ -48,16 +70,15 @@ def _get_grid_points_in_storms(storm_object_table, num_grid_rows=None,
     for i in range(num_storms):
         grid_point_row_indices = numpy.concatenate((
             grid_point_row_indices,
-            storm_object_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i]))
+            storm_object_table[GRID_POINT_ROW_COLUMN].values[i]))
         grid_point_column_indices = numpy.concatenate((
             grid_point_column_indices,
-            storm_object_table[tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]))
+            storm_object_table[GRID_POINT_COLUMN_COLUMN].values[i]))
 
         this_num_grid_points = len(
-            storm_object_table[tracking_io.GRID_POINT_ROW_COLUMN].values[i])
-        this_storm_id_list = (
-            [storm_object_table[tracking_io.STORM_ID_COLUMN].values[i]] *
-            this_num_grid_points)
+            storm_object_table[GRID_POINT_ROW_COLUMN].values[i])
+        this_storm_id_list = ([storm_object_table[STORM_ID_COLUMN].values[i]] *
+                              this_num_grid_points)
         grid_point_storm_ids += this_storm_id_list
 
     grid_point_flattened_indices = numpy.ravel_multi_index(
@@ -70,6 +91,136 @@ def _get_grid_points_in_storms(storm_object_table, num_grid_rows=None,
         STORM_ID_COLUMN: grid_point_storm_ids
     }
     return pandas.DataFrame.from_dict(grid_points_in_storms_dict)
+
+
+def check_data_source(data_source):
+    """Ensures that data source is recognized.
+
+    :param data_source: Data source (string).
+    :raises: ValueError: if `data_source not in DATA_SOURCE_IDS`.
+    """
+
+    error_checking.assert_is_string(data_source)
+    if data_source not in DATA_SOURCE_IDS:
+        error_string = (
+            '\n' + str(DATA_SOURCE_IDS) +
+            '\nValid data sources (listed above) do not include "' +
+            data_source + '".')
+        raise ValueError(error_string)
+
+
+def remove_nan_rows_from_dataframe(input_table):
+    """Removes NaN rows from pandas DataFrame.
+
+    "NaN row" = a row with one or more NaN values
+
+    :param input_table: pandas DataFrame.
+    :return: output_table: Same as input_table, but without NaN rows.
+    """
+
+    # TODO(thunderhoser): This method should be in utils.py or something.
+
+    return input_table.loc[input_table.notnull().all(axis=1)]
+
+
+def distance_buffer_to_column_name(min_distance_metres, max_distance_metres):
+    """Generates column name for distance buffer around storm object.
+
+    :param min_distance_metres: Minimum distance around storm object.  If there
+        is no minimum distance (i.e., if the storm object is part of the
+        buffer), this should be NaN.
+    :param max_distance_metres: Maximum distance around storm object.
+    :return: column_name: Column name for distance buffer.
+    """
+
+    error_checking.assert_is_geq(max_distance_metres, 0.)
+    if numpy.isnan(min_distance_metres):
+        return '{0:s}_{1:d}m'.format(
+            BUFFER_POLYGON_COLUMN_PREFIX, int(max_distance_metres))
+
+    error_checking.assert_is_geq(min_distance_metres, 0.)
+    error_checking.assert_is_greater(
+        max_distance_metres, min_distance_metres)
+
+    return '{0:s}_{1:d}m_{2:d}m'.format(
+        BUFFER_POLYGON_COLUMN_PREFIX, int(min_distance_metres),
+        int(max_distance_metres))
+
+
+def column_name_to_distance_buffer(column_name):
+    """Parses distance buffer (around storm object) from column name.
+
+    If distance buffer cannot be found in column name, this method will return
+    None for all output vars.
+
+    :param column_name: Column name for distance buffer.
+    :return: min_distance_metres: Minimum distance around storm object.  If
+        there is no minimum distance (i.e., if the storm object is part of the
+        buffer), this is NaN.
+    :return: max_distance_metres: Maximum distance around storm object.
+    """
+
+    if not column_name.startswith(BUFFER_POLYGON_COLUMN_PREFIX):
+        return None, None
+
+    column_name = column_name.replace(BUFFER_POLYGON_COLUMN_PREFIX + '_', '')
+    column_name_parts = column_name.split('_')
+    if len(column_name_parts) == 1:
+        min_buffer_dist_metres = numpy.nan
+    elif len(column_name_parts) == 2:
+        min_buffer_dist_metres = -1
+    else:
+        return None, None
+
+    max_distance_part = column_name_parts[-1]
+    if not max_distance_part.endswith('m'):
+        return None, None
+    max_distance_part = max_distance_part.replace('m', '')
+    try:
+        max_buffer_dist_metres = float(int(max_distance_part))
+    except ValueError:
+        return None, None
+
+    if numpy.isnan(min_buffer_dist_metres):
+        return min_buffer_dist_metres, max_buffer_dist_metres
+
+    min_distance_part = column_name_parts[-2]
+    if not min_distance_part.endswith('m'):
+        return None, None
+    min_distance_part = min_distance_part.replace('m', '')
+    try:
+        min_buffer_dist_metres = float(int(min_distance_part))
+    except ValueError:
+        return None, None
+
+    return min_buffer_dist_metres, max_buffer_dist_metres
+
+
+def get_distance_buffer_columns(storm_object_table):
+    """Finds columns with distance buffers around storm objects.
+
+    :param storm_object_table: pandas DataFrame.
+    :return: distance_buffer_column_names: 1-D list with names of columns
+        corresponding to distance buffers.  Each column should contain
+        `shapely.geometry.Polygon` object for one pair of distances (i.e., one
+        min distance and one max distance).
+    """
+
+    column_names = list(storm_object_table)
+    distance_buffer_column_names = None
+
+    for this_column_name in column_names:
+        _, this_max_distance_metres = column_name_to_distance_buffer(
+            this_column_name)
+        if this_max_distance_metres is None:
+            continue
+
+        if distance_buffer_column_names is None:
+            distance_buffer_column_names = [this_column_name]
+        else:
+            distance_buffer_column_names.append(this_column_name)
+
+    return distance_buffer_column_names
 
 
 def merge_storms_at_two_scales(storm_object_table_small_scale=None,
@@ -102,7 +253,7 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
         num_grid_columns=num_grid_columns)
 
     storm_ids_large_scale = storm_object_table_large_scale[
-        tracking_io.STORM_ID_COLUMN].values
+        STORM_ID_COLUMN].values
     num_storms_large_scale = len(storm_ids_large_scale)
 
     storm_object_table_merged = copy.deepcopy(storm_object_table_small_scale)
@@ -110,9 +261,9 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
 
     for i in range(num_storms_large_scale):
         these_row_indices = storm_object_table_large_scale[
-            tracking_io.GRID_POINT_ROW_COLUMN].values[i]
+            GRID_POINT_ROW_COLUMN].values[i]
         these_column_indices = storm_object_table_large_scale[
-            tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]
+            GRID_POINT_COLUMN_COLUMN].values[i]
         these_flattened_indices = numpy.ravel_multi_index(
             (these_row_indices, these_column_indices),
             (num_grid_rows, num_grid_columns))
@@ -138,7 +289,7 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
         storm_ids_small_scale_grown.append(this_storm_id_small_scale)
         these_storm_flags_small_scale = [
             s == this_storm_id_small_scale for s in
-            storm_object_table_small_scale[tracking_io.STORM_ID_COLUMN].values]
+            storm_object_table_small_scale[STORM_ID_COLUMN].values]
         this_storm_index_small_scale = numpy.where(
             these_storm_flags_small_scale)[0][0]
 
@@ -148,3 +299,130 @@ def merge_storms_at_two_scales(storm_object_table_small_scale=None,
                     this_column].values[i]
 
     return storm_object_table_merged
+
+
+def make_buffers_around_storm_objects(
+        storm_object_table, min_distances_metres, max_distances_metres):
+    """Creates one or more distance buffers around each storm object.
+
+    N = number of storm objects
+    B = number of buffers around each storm object
+    V = number of vertices in a given buffer
+
+    :param storm_object_table: N-row pandas DataFrame with the following
+        columns.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, containing vertices of storm object in
+        lat-long coordinates.
+
+    :param min_distances_metres: length-B numpy array of minimum buffer
+        distances.  If min_distances_metres[i] is NaN, the storm object is
+        included in the [i]th buffer, so the [i]th buffer is inclusive.  If
+        min_distances_metres[i] is a real number, the storm object is *not*
+        included in the [i]th buffer, so the [i]th buffer is exclusive.
+    :param max_distances_metres: length-B numpy array of maximum buffer
+        distances.  Must be all real numbers (no NaN).
+    :return: storm_object_table: Same as input, but with B additional columns.
+        Each additional column (listed below) contains a
+        `shapely.geometry.Polygon` instance for each storm object.  Each
+        `shapely.geometry.Polygon` instance contains the lat-long vertices of
+        one distance buffer around one storm object.
+    storm_object_table.polygon_object_latlng_buffer_<D>m: For an inclusive
+        buffer of D metres around the storm.
+    storm_object_table.polygon_object_latlng_buffer_<d>_<D>m: For an exclusive
+        buffer of d...D metres around the storm.
+    """
+
+    error_checking.assert_is_geq_numpy_array(
+        min_distances_metres, 0., allow_nan=True)
+    error_checking.assert_is_numpy_array(
+        min_distances_metres, num_dimensions=1)
+
+    num_buffers = len(min_distances_metres)
+    error_checking.assert_is_geq_numpy_array(
+        max_distances_metres, 0., allow_nan=False)
+    error_checking.assert_is_numpy_array(
+        max_distances_metres, exact_dimensions=numpy.array([num_buffers]))
+
+    for j in range(num_buffers):
+        if numpy.isnan(min_distances_metres[j]):
+            continue
+        error_checking.assert_is_greater(
+            max_distances_metres[j], min_distances_metres[j],
+            allow_nan=False)
+
+    num_storm_objects = len(storm_object_table.index)
+    centroid_latitudes_deg = numpy.full(num_storm_objects, numpy.nan)
+    centroid_longitudes_deg = numpy.full(num_storm_objects, numpy.nan)
+
+    for i in range(num_storm_objects):
+        this_centroid_object = storm_object_table[
+            POLYGON_OBJECT_LATLNG_COLUMN].values[0].centroid
+        centroid_latitudes_deg[i] = this_centroid_object.y
+        centroid_longitudes_deg[i] = this_centroid_object.x
+
+    global_centroid_lat_deg, global_centroid_lng_deg = (
+        polygons.get_latlng_centroid(
+            centroid_latitudes_deg, centroid_longitudes_deg))
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        global_centroid_lat_deg, global_centroid_lng_deg)
+
+    object_array = numpy.full(num_storm_objects, numpy.nan, dtype=object)
+    argument_dict = {}
+    buffer_column_names = [''] * num_buffers
+
+    for j in range(num_buffers):
+        buffer_column_names[j] = distance_buffer_to_column_name(
+            min_distances_metres[j], max_distances_metres[j])
+        argument_dict.update({buffer_column_names[j]: object_array})
+    storm_object_table = storm_object_table.assign(**argument_dict)
+
+    for i in range(num_storm_objects):
+        orig_vertex_dict_latlng = polygons.polygon_object_to_vertex_arrays(
+            storm_object_table[POLYGON_OBJECT_LATLNG_COLUMN].values[i])
+
+        (orig_vertex_x_metres,
+         orig_vertex_y_metres) = projections.project_latlng_to_xy(
+             orig_vertex_dict_latlng[polygons.EXTERIOR_Y_COLUMN],
+             orig_vertex_dict_latlng[polygons.EXTERIOR_X_COLUMN],
+             projection_object=projection_object)
+
+        for j in range(num_buffers):
+            buffer_polygon_object_xy = polygons.buffer_simple_polygon(
+                orig_vertex_x_metres, orig_vertex_y_metres,
+                min_buffer_dist_metres=min_distances_metres[j],
+                max_buffer_dist_metres=max_distances_metres[j])
+
+            buffer_vertex_dict = polygons.polygon_object_to_vertex_arrays(
+                buffer_polygon_object_xy)
+
+            (buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+             buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN]) = (
+                 projections.project_xy_to_latlng(
+                     buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                     buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                     projection_object=projection_object))
+
+            this_num_holes = len(buffer_vertex_dict[polygons.HOLE_X_COLUMN])
+            for k in range(this_num_holes):
+                (buffer_vertex_dict[polygons.HOLE_Y_COLUMN][k],
+                 buffer_vertex_dict[polygons.HOLE_X_COLUMN][k]) = (
+                     projections.project_xy_to_latlng(
+                         buffer_vertex_dict[polygons.HOLE_X_COLUMN][k],
+                         buffer_vertex_dict[polygons.HOLE_Y_COLUMN][k],
+                         projection_object=projection_object))
+
+            buffer_polygon_object_latlng = (
+                polygons.vertex_arrays_to_polygon_object(
+                    buffer_vertex_dict[polygons.EXTERIOR_X_COLUMN],
+                    buffer_vertex_dict[polygons.EXTERIOR_Y_COLUMN],
+                    hole_x_coords_list=
+                    buffer_vertex_dict[polygons.HOLE_X_COLUMN],
+                    hole_y_coords_list=
+                    buffer_vertex_dict[polygons.HOLE_Y_COLUMN]))
+
+            storm_object_table[buffer_column_names[j]].values[
+                i] = buffer_polygon_object_latlng
+
+    return storm_object_table

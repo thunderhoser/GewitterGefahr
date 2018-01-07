@@ -4,7 +4,7 @@ import copy
 import pickle
 import numpy
 import skimage.measure
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import shape_utils
 from gewittergefahr.gg_utils import smoothing_via_iterative_averaging as sia
 from gewittergefahr.gg_utils import polygons
@@ -16,7 +16,8 @@ from gewittergefahr.gg_utils import error_checking
 
 RADIANS_TO_DEGREES = 180. / numpy.pi
 GRID_SPACING_FOR_BINARY_MATRIX_DEFAULT_METRES = 100.
-STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+STORM_COLUMNS_TO_KEEP = [
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 
 NUM_VERTICES_IN_SMOOTHING_HALF_WINDOW_DEFAULT = (
     sia.NUM_VERTICES_IN_HALF_WINDOW_DEFAULT)
@@ -409,11 +410,11 @@ def get_stats_for_storm_objects(
     for i in range(num_storm_objects):
         this_polygon_object_xy = _project_polygon_latlng_to_xy(
             storm_object_table[
-                tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i],
+                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i],
             centroid_latitude_deg=
-            storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values[i],
+            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
             centroid_longitude_deg=
-            storm_object_table[tracking_io.CENTROID_LNG_COLUMN].values[i])
+            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[i])
 
         if basic_stat_names:
             this_basic_stat_dict = get_basic_statistics(

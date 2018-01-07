@@ -9,7 +9,7 @@ import numpy
 import pandas
 import scipy.stats
 from gewittergefahr.gg_io import myrorss_and_mrms_io
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import time_conversion
@@ -22,7 +22,8 @@ TOLERANCE = 1e-6
 DEFAULT_DILATION_PERCENTILE_LEVEL = 90.
 
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
-STORM_COLUMNS_TO_KEEP = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+STORM_COLUMNS_TO_KEEP = [
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 
 RADAR_FIELD_NAME_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_asl'
@@ -35,10 +36,10 @@ GRID_METADATA_KEYS_TO_COMPARE = [
     radar_utils.NUM_LAT_COLUMN, radar_utils.NUM_LNG_COLUMN]
 
 STORM_OBJECT_TO_GRID_PTS_COLUMNS = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.GRID_POINT_ROW_COLUMN,
-    tracking_io.GRID_POINT_COLUMN_COLUMN]
-GRID_POINT_LATLNG_COLUMNS = [tracking_io.GRID_POINT_LAT_COLUMN,
-                             tracking_io.GRID_POINT_LNG_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.GRID_POINT_ROW_COLUMN,
+    tracking_utils.GRID_POINT_COLUMN_COLUMN]
+GRID_POINT_LATLNG_COLUMNS = [
+    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN]
 
 # TODO(thunderhoser): Currently statistic names cannot have underscores (this
 # will ruin _column_name_to_statistic_params).  I should change that.
@@ -342,14 +343,14 @@ def get_grid_points_in_storm_objects(storm_object_table,
 
     for i in range(num_storm_objects):
         (storm_object_to_grid_points_table[
-            tracking_io.GRID_POINT_ROW_COLUMN].values[i],
+            tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
          storm_object_to_grid_points_table[
-             tracking_io.GRID_POINT_COLUMN_COLUMN].values[i]) = (
+             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]) = (
                  radar_utils.latlng_to_rowcol(
                      storm_object_to_grid_points_table[
-                         tracking_io.GRID_POINT_LAT_COLUMN].values[i],
+                         tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
                      storm_object_to_grid_points_table[
-                         tracking_io.GRID_POINT_LNG_COLUMN].values[i],
+                         tracking_utils.GRID_POINT_LNG_COLUMN].values[i],
                      nw_grid_point_lat_deg=
                      new_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
                      nw_grid_point_lng_deg=
@@ -471,7 +472,7 @@ def get_stats_for_storm_objects(
     num_radar_fields = len(radar_field_name_by_pair)
 
     storm_object_time_matrix = storm_object_table.as_matrix(
-        columns=[tracking_io.TIME_COLUMN, tracking_io.SPC_DATE_COLUMN])
+        columns=[tracking_utils.TIME_COLUMN, tracking_utils.SPC_DATE_COLUMN])
     unique_time_matrix = numpy.vstack(
         {tuple(this_row) for this_row in storm_object_time_matrix}).astype(int)
     unique_storm_times_unix_sec = unique_time_matrix[:, 0]
@@ -576,9 +577,9 @@ def get_stats_for_storm_objects(
             radar_matrix_this_field[numpy.isnan(radar_matrix_this_field)] = 0.
 
             these_storm_flags = numpy.logical_and(
-                storm_object_table[tracking_io.TIME_COLUMN].values ==
+                storm_object_table[tracking_utils.TIME_COLUMN].values ==
                 unique_storm_times_unix_sec[i],
-                storm_object_table[tracking_io.SPC_DATE_COLUMN].values ==
+                storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                 unique_spc_dates_unix_sec[i])
             these_storm_indices = numpy.where(these_storm_flags)[0]
 
@@ -586,10 +587,10 @@ def get_stats_for_storm_objects(
                 radar_values_this_storm = extract_radar_grid_points(
                     radar_matrix_this_field,
                     row_indices=storm_object_to_grid_pts_table_this_field[
-                        tracking_io.GRID_POINT_ROW_COLUMN].values[
+                        tracking_utils.GRID_POINT_ROW_COLUMN].values[
                             this_storm_index].astype(int),
                     column_indices=storm_object_to_grid_pts_table_this_field[
-                        tracking_io.GRID_POINT_COLUMN_COLUMN].values[
+                        tracking_utils.GRID_POINT_COLUMN_COLUMN].values[
                             this_storm_index].astype(int))
 
                 (statistic_matrix[this_storm_index, j, :],

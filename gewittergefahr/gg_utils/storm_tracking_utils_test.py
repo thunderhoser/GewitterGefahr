@@ -4,10 +4,29 @@ import copy
 import unittest
 import numpy
 import pandas
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import radar_utils
+
+FAKE_DATA_SOURCE = 'foo'
+
+MIN_BUFFER_DISTANCE_METRES = 0.
+MAX_BUFFER_DISTANCE_METRES = 5000.
+BUFFER_COLUMN_NAME_INCLUSIVE = 'polygon_object_latlng_buffer_5000m'
+BUFFER_COLUMN_NAME_EXCLUSIVE = 'polygon_object_latlng_buffer_0m_5000m'
+BUFFER_COLUMN_NAME_FAKE = 'poop'
+
+# The following constants are used to test remove_rows_with_nan.
+ARRAY_WITHOUT_NAN = numpy.array([1, 2, 3, 4, 5])
+ARRAY_WITH_NAN = numpy.array([1, numpy.nan, 3, numpy.nan, 5])
+
+THIS_DICTIONARY = {'without_nan': ARRAY_WITHOUT_NAN,
+                   'with_nan': ARRAY_WITH_NAN}
+TABLE_WITH_NAN_ROWS = pandas.DataFrame.from_dict(THIS_DICTIONARY)
+
+ROWS_WITH_NAN = numpy.array([1, 3], dtype=int)
+TABLE_WITHOUT_NAN_ROWS = TABLE_WITH_NAN_ROWS.drop(
+    TABLE_WITH_NAN_ROWS.index[ROWS_WITH_NAN], axis=0, inplace=False)
 
 # The following constants are used to test _get_grid_points_in_storms.
 NW_GRID_POINT_LAT_DEG = 53.5
@@ -48,36 +67,37 @@ GRID_POINT_LNG_BY_STORM_DEG = [
     GRID_POINT_LNG_STORM_III_DEG]
 
 STORM_OBJECT_DICT_SMALL_SCALE = {
-    tracking_io.STORM_ID_COLUMN: STORM_IDS_SMALL_SCALE}
+    tracking_utils.STORM_ID_COLUMN: STORM_IDS_SMALL_SCALE}
 STORM_OBJECT_TABLE_SMALL_SCALE = pandas.DataFrame.from_dict(
     STORM_OBJECT_DICT_SMALL_SCALE)
 
 SIMPLE_ARRAY = numpy.full(NUM_STORMS_SMALL_SCALE, numpy.nan)
 OBJECT_ARRAY = numpy.full(NUM_STORMS_SMALL_SCALE, numpy.nan, dtype=object)
 NESTED_ARRAY = STORM_OBJECT_TABLE_SMALL_SCALE[[
-    tracking_io.STORM_ID_COLUMN,
-    tracking_io.STORM_ID_COLUMN]].values.tolist()
+    tracking_utils.STORM_ID_COLUMN,
+    tracking_utils.STORM_ID_COLUMN]].values.tolist()
 
-ARGUMENT_DICT = {tracking_io.CENTROID_LAT_COLUMN: SIMPLE_ARRAY,
-                 tracking_io.CENTROID_LNG_COLUMN: SIMPLE_ARRAY,
-                 tracking_io.GRID_POINT_LAT_COLUMN: NESTED_ARRAY,
-                 tracking_io.GRID_POINT_LNG_COLUMN: NESTED_ARRAY,
-                 tracking_io.GRID_POINT_ROW_COLUMN: NESTED_ARRAY,
-                 tracking_io.GRID_POINT_COLUMN_COLUMN: NESTED_ARRAY,
-                 tracking_io.POLYGON_OBJECT_LATLNG_COLUMN: OBJECT_ARRAY,
-                 tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN: OBJECT_ARRAY}
+ARGUMENT_DICT = {tracking_utils.CENTROID_LAT_COLUMN: SIMPLE_ARRAY,
+                 tracking_utils.CENTROID_LNG_COLUMN: SIMPLE_ARRAY,
+                 tracking_utils.GRID_POINT_LAT_COLUMN: NESTED_ARRAY,
+                 tracking_utils.GRID_POINT_LNG_COLUMN: NESTED_ARRAY,
+                 tracking_utils.GRID_POINT_ROW_COLUMN: NESTED_ARRAY,
+                 tracking_utils.GRID_POINT_COLUMN_COLUMN: NESTED_ARRAY,
+                 tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: OBJECT_ARRAY,
+                 tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN: OBJECT_ARRAY}
 STORM_OBJECT_TABLE_SMALL_SCALE = STORM_OBJECT_TABLE_SMALL_SCALE.assign(
     **ARGUMENT_DICT)
 
 for i in range(NUM_STORMS_SMALL_SCALE):
-    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_io.GRID_POINT_LAT_COLUMN].values[
+    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_utils.GRID_POINT_LAT_COLUMN].values[
         i] = GRID_POINT_LAT_BY_STORM_DEG[i]
-    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_io.GRID_POINT_LNG_COLUMN].values[
+    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_utils.GRID_POINT_LNG_COLUMN].values[
         i] = GRID_POINT_LNG_BY_STORM_DEG[i]
-    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_io.GRID_POINT_ROW_COLUMN].values[
+    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_utils.GRID_POINT_ROW_COLUMN].values[
         i] = GRID_POINT_ROWS_BY_STORM[i]
-    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_io.GRID_POINT_COLUMN_COLUMN].values[
-        i] = GRID_POINT_COLUMNS_BY_STORM[i]
+    STORM_OBJECT_TABLE_SMALL_SCALE[
+        tracking_utils.GRID_POINT_COLUMN_COLUMN
+    ].values[i] = GRID_POINT_COLUMNS_BY_STORM[i]
 
     THESE_VERTEX_ROWS, THESE_VERTEX_COLUMNS = (
         polygons.grid_points_in_poly_to_vertices(
@@ -94,17 +114,17 @@ for i in range(NUM_STORMS_SMALL_SCALE):
     THIS_CENTROID_LAT_DEG, THIS_CENTROID_LNG_DEG = polygons.get_latlng_centroid(
         THESE_VERTEX_LATITUDES_DEG, THESE_VERTEX_LONGITUDES_DEG)
 
-    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_io.CENTROID_LAT_COLUMN].values[
+    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_utils.CENTROID_LAT_COLUMN].values[
         i] = THIS_CENTROID_LAT_DEG
-    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_io.CENTROID_LNG_COLUMN].values[
+    STORM_OBJECT_TABLE_SMALL_SCALE[tracking_utils.CENTROID_LNG_COLUMN].values[
         i] = THIS_CENTROID_LNG_DEG
 
     STORM_OBJECT_TABLE_SMALL_SCALE[
-        tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
+        tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(
                 THESE_VERTEX_LONGITUDES_DEG, THESE_VERTEX_LATITUDES_DEG))
     STORM_OBJECT_TABLE_SMALL_SCALE[
-        tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
+        tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(
                 THESE_VERTEX_COLUMNS, THESE_VERTEX_ROWS))
 
@@ -179,18 +199,19 @@ GRID_POINT_LNG_BY_STORM_DEG = [
     GRID_POINT_LNG_STORM_C_DEG]
 
 STORM_OBJECT_TABLE_LARGE_SCALE = copy.deepcopy(STORM_OBJECT_TABLE_SMALL_SCALE)
-ARGUMENT_DICT = {tracking_io.STORM_ID_COLUMN: STORM_IDS_LARGE_SCALE}
+ARGUMENT_DICT = {tracking_utils.STORM_ID_COLUMN: STORM_IDS_LARGE_SCALE}
 STORM_OBJECT_TABLE_LARGE_SCALE.assign(**ARGUMENT_DICT)
 
 for i in range(NUM_STORMS_LARGE_SCALE):
-    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_io.GRID_POINT_LAT_COLUMN].values[
+    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_utils.GRID_POINT_LAT_COLUMN].values[
         i] = GRID_POINT_LAT_BY_STORM_DEG[i]
-    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_io.GRID_POINT_LNG_COLUMN].values[
+    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_utils.GRID_POINT_LNG_COLUMN].values[
         i] = GRID_POINT_LNG_BY_STORM_DEG[i]
-    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_io.GRID_POINT_ROW_COLUMN].values[
+    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_utils.GRID_POINT_ROW_COLUMN].values[
         i] = GRID_POINT_ROWS_BY_STORM[i]
-    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_io.GRID_POINT_COLUMN_COLUMN].values[
-        i] = GRID_POINT_COLUMNS_BY_STORM[i]
+    STORM_OBJECT_TABLE_LARGE_SCALE[
+        tracking_utils.GRID_POINT_COLUMN_COLUMN
+    ].values[i] = GRID_POINT_COLUMNS_BY_STORM[i]
 
     THESE_VERTEX_ROWS, THESE_VERTEX_COLUMNS = (
         polygons.grid_points_in_poly_to_vertices(
@@ -207,17 +228,17 @@ for i in range(NUM_STORMS_LARGE_SCALE):
     THIS_CENTROID_LAT_DEG, THIS_CENTROID_LNG_DEG = polygons.get_latlng_centroid(
         THESE_VERTEX_LATITUDES_DEG, THESE_VERTEX_LONGITUDES_DEG)
 
-    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_io.CENTROID_LAT_COLUMN].values[
+    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_utils.CENTROID_LAT_COLUMN].values[
         i] = THIS_CENTROID_LAT_DEG
-    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_io.CENTROID_LNG_COLUMN].values[
+    STORM_OBJECT_TABLE_LARGE_SCALE[tracking_utils.CENTROID_LNG_COLUMN].values[
         i] = THIS_CENTROID_LNG_DEG
 
     STORM_OBJECT_TABLE_LARGE_SCALE[
-        tracking_io.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
+        tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(
                 THESE_VERTEX_LONGITUDES_DEG, THESE_VERTEX_LATITUDES_DEG))
     STORM_OBJECT_TABLE_LARGE_SCALE[
-        tracking_io.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
+        tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(
                 THESE_VERTEX_COLUMNS, THESE_VERTEX_ROWS))
 
@@ -229,6 +250,94 @@ for this_column in tracking_utils.COLUMNS_TO_CHANGE_WHEN_MERGING_SCALES:
 
 class StormTrackingUtilsTests(unittest.TestCase):
     """Each method is a unit test for storm_tracking_utils.py."""
+
+    def test_check_data_source_segmotion(self):
+        """Ensures correct output from check_data_source.
+
+        In this case, data source is segmotion.
+        """
+
+        tracking_utils.check_data_source(tracking_utils.SEGMOTION_SOURCE_ID)
+
+    def test_check_data_source_probsevere(self):
+        """Ensures correct output from check_data_source.
+
+        In this case, data source is probSevere.
+        """
+
+        tracking_utils.check_data_source(tracking_utils.PROBSEVERE_SOURCE_ID)
+
+    def test_check_data_source_fake(self):
+        """Ensures correct output from check_data_source.
+
+        In this case, data source is unrecognized.
+        """
+
+        with self.assertRaises(ValueError):
+            tracking_utils.check_data_source(FAKE_DATA_SOURCE)
+
+    def test_remove_nan_rows_from_dataframe(self):
+        """Ensures correct output from remove_nan_rows_from_dataframe."""
+
+        this_table = tracking_utils.remove_nan_rows_from_dataframe(
+            TABLE_WITH_NAN_ROWS)
+        self.assertTrue(this_table.equals(TABLE_WITHOUT_NAN_ROWS))
+
+    def test_column_name_to_distance_buffer_inclusive(self):
+        """Ensures correct output from column_name_to_distance_buffer.
+
+        In this case the distance buffer includes the storm object.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            tracking_utils.column_name_to_distance_buffer(
+                BUFFER_COLUMN_NAME_INCLUSIVE))
+        self.assertTrue(numpy.isnan(this_min_distance_metres))
+        self.assertTrue(this_max_distance_metres == MAX_BUFFER_DISTANCE_METRES)
+
+    def test_column_name_to_distance_buffer_exclusive(self):
+        """Ensures correct output from column_name_to_distance_buffer.
+
+        In this case the distance buffer does not include the storm object.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            tracking_utils.column_name_to_distance_buffer(
+                BUFFER_COLUMN_NAME_EXCLUSIVE))
+        self.assertTrue(this_min_distance_metres == MIN_BUFFER_DISTANCE_METRES)
+        self.assertTrue(this_max_distance_metres == MAX_BUFFER_DISTANCE_METRES)
+
+    def test_column_name_to_distance_buffer_fake(self):
+        """Ensures correct output from column_name_to_distance_buffer.
+
+        In this case the column name does not correspond to a distance buffer.
+        """
+
+        this_min_distance_metres, this_max_distance_metres = (
+            tracking_utils.column_name_to_distance_buffer(
+                BUFFER_COLUMN_NAME_FAKE))
+        self.assertTrue(this_min_distance_metres is None)
+        self.assertTrue(this_max_distance_metres is None)
+
+    def test_distance_buffer_to_column_name_inclusive(self):
+        """Ensures correct output from distance_buffer_to_column_name.
+
+        In this case the distance buffer includes the storm object.
+        """
+
+        this_column_name = tracking_utils.distance_buffer_to_column_name(
+            numpy.nan, MAX_BUFFER_DISTANCE_METRES)
+        self.assertTrue(this_column_name == BUFFER_COLUMN_NAME_INCLUSIVE)
+
+    def test_distance_buffer_to_column_name_exclusive(self):
+        """Ensures correct output from distance_buffer_to_column_name.
+
+        In this case the distance buffer does not include the storm object.
+        """
+
+        this_column_name = tracking_utils.distance_buffer_to_column_name(
+            MIN_BUFFER_DISTANCE_METRES, MAX_BUFFER_DISTANCE_METRES)
+        self.assertTrue(this_column_name == BUFFER_COLUMN_NAME_EXCLUSIVE)
 
     def test_get_grid_points_in_storms(self):
         """Ensures correct output from _get_grid_points_in_storms."""

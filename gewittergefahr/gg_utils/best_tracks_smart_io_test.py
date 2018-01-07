@@ -3,7 +3,7 @@
 import unittest
 import numpy
 import pandas
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import best_tracks_smart_io
 
@@ -14,17 +14,17 @@ THESE_STORM_IDS = [
 THESE_SPC_DATES_UNIX_SEC = numpy.array(
     [-1, -1, 0, 0, 0, 1, 1, 1, 2, 2], dtype=int)
 
-THIS_DICT = {tracking_io.STORM_ID_COLUMN: THESE_STORM_IDS,
-             tracking_io.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC}
+THIS_DICT = {tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+             tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC}
 STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_STORM_IDS = ['bar', 'foo', 'hal', 'moo']
-THIS_DICT = {tracking_io.STORM_ID_COLUMN: THESE_STORM_IDS}
+THIS_DICT = {tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS}
 STORM_TRACK_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
 THIS_NESTED_ARRAY = STORM_TRACK_TABLE[[
-    tracking_io.STORM_ID_COLUMN,
-    tracking_io.STORM_ID_COLUMN]].values.tolist()
+    tracking_utils.STORM_ID_COLUMN,
+    tracking_utils.STORM_ID_COLUMN]].values.tolist()
 THIS_DICT = {best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK: THIS_NESTED_ARRAY}
 STORM_TRACK_TABLE = STORM_TRACK_TABLE.assign(**THIS_DICT)
 

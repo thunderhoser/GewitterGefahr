@@ -4,7 +4,7 @@ import copy
 import numpy
 import pandas
 import scipy.sparse
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import grids
@@ -29,7 +29,7 @@ DEFAULT_PROB_RADIUS_FOR_GRID_METRES = 1e4
 DEFAULT_SMOOTHING_E_FOLDING_RADIUS_METRES = 5000.
 DEFAULT_SMOOTHING_CUTOFF_RADIUS_METRES = 15000.
 
-LATLNG_POLYGON_COLUMN_PREFIX = tracking_io.BUFFER_POLYGON_COLUMN_PREFIX
+LATLNG_POLYGON_COLUMN_PREFIX = tracking_utils.BUFFER_POLYGON_COLUMN_PREFIX
 XY_POLYGON_COLUMN_PREFIX = 'polygon_object_xy_buffer'
 FORECAST_COLUMN_PREFIX = 'forecast_probability_buffer'
 GRID_ROWS_IN_POLYGON_COLUMN_PREFIX = 'grid_rows_in_buffer'
@@ -94,7 +94,7 @@ def _column_name_to_distance_buffer(column_name):
         this_column_name = this_column_name.replace(
             this_prefix, LATLNG_POLYGON_COLUMN_PREFIX)
 
-    return tracking_io.column_name_to_distance_buffer(this_column_name)
+    return tracking_utils.column_name_to_distance_buffer(this_column_name)
 
 
 def _distance_buffer_to_column_name(
@@ -107,7 +107,7 @@ def _distance_buffer_to_column_name(
     :return: column_name: Name of column.
     """
 
-    column_name = tracking_io.distance_buffer_to_column_name(
+    column_name = tracking_utils.distance_buffer_to_column_name(
         min_buffer_dist_metres, max_buffer_dist_metres)
 
     if column_type == LATLNG_POLYGON_COLUMN_TYPE:
@@ -558,16 +558,16 @@ def _storm_motion_from_uv_to_speed_direction(storm_object_table):
 
     storm_speeds_m_s01, geodetic_bearings_deg = (
         geodetic_utils.xy_components_to_displacements_and_bearings(
-            storm_object_table[tracking_io.EAST_VELOCITY_COLUMN].values,
-            storm_object_table[tracking_io.NORTH_VELOCITY_COLUMN].values))
+            storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
+            storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values))
 
     argument_dict = {SPEED_COLUMN: storm_speeds_m_s01,
                      GEOGRAPHIC_BEARING_COLUMN: geodetic_bearings_deg}
     storm_object_table = storm_object_table.assign(**argument_dict)
 
     return storm_object_table.drop(
-        [tracking_io.EAST_VELOCITY_COLUMN, tracking_io.NORTH_VELOCITY_COLUMN],
-        axis=1, inplace=False)
+        [tracking_utils.EAST_VELOCITY_COLUMN,
+         tracking_utils.NORTH_VELOCITY_COLUMN], axis=1, inplace=False)
 
 
 def _extrapolate_polygons(
@@ -1079,7 +1079,7 @@ def create_forecast_grids(
         storm_object_table)
 
     init_times_unix_sec = numpy.unique(
-        storm_object_table[tracking_io.TIME_COLUMN].values)
+        storm_object_table[tracking_utils.TIME_COLUMN].values)
     init_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
         for t in init_times_unix_sec]
@@ -1106,15 +1106,16 @@ def create_forecast_grids(
 
     for i in range(num_init_times):
         this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_io.TIME_COLUMN] ==
+            storm_object_table[tracking_utils.TIME_COLUMN] ==
             init_times_unix_sec[i]]
         this_num_storm_objects = len(this_storm_object_table.index)
 
         this_centroid_lat_deg, this_centroid_lng_deg = (
             polygons.get_latlng_centroid(
-                this_storm_object_table[tracking_io.CENTROID_LAT_COLUMN].values,
                 this_storm_object_table[
-                    tracking_io.CENTROID_LNG_COLUMN].values))
+                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                this_storm_object_table[
+                    tracking_utils.CENTROID_LNG_COLUMN].values))
         this_projection_object = (
             projections.init_azimuthal_equidistant_projection(
                 this_centroid_lat_deg, this_centroid_lng_deg))

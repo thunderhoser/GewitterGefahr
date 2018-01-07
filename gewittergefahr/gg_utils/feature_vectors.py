@@ -55,7 +55,7 @@ Dead storm object = storm object for which the corresponding cell no longer
 import os.path
 import pickle
 import numpy
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import soundings
@@ -75,12 +75,14 @@ FEATURE_FILE_EXTENSION = '.p'
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
 STORM_TO_WIND_COLUMNS_TO_KEEP = [
-    tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN,
-    tracking_io.POLYGON_OBJECT_LATLNG_COLUMN, storms_to_winds.END_TIME_COLUMN,
-    labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
-COLUMNS_TO_MERGE_ON = [tracking_io.STORM_ID_COLUMN, tracking_io.TIME_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
+    tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN,
+    storms_to_winds.END_TIME_COLUMN, labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN]
+
+COLUMNS_TO_MERGE_ON = [
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 INPUT_COLUMNS_TO_MAKE_BUFFERS = (
-    COLUMNS_TO_MERGE_ON + [tracking_io.POLYGON_OBJECT_LATLNG_COLUMN])
+    COLUMNS_TO_MERGE_ON + [tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN])
 
 LIVE_SELECTED_INDICES_KEY = 'live_selected_indices'
 LIVE_INDICES_KEY = 'live_indices'
@@ -128,7 +130,7 @@ def _find_live_and_dead_storms(feature_table):
 
     remaining_storm_lifetimes_sec = (
         feature_table[storms_to_winds.END_TIME_COLUMN].values -
-        feature_table[tracking_io.TIME_COLUMN].values)
+        feature_table[tracking_utils.TIME_COLUMN].values)
     live_flags = remaining_storm_lifetimes_sec >= min_lead_time_sec
 
     return (numpy.array(numpy.where(live_flags)[0]),
@@ -225,7 +227,7 @@ def _get_observation_densities(feature_table):
     :param feature_table: N-row pandas DataFrame created by
         join_features_and_label_for_storm_objects.
     :return: feature_table: Same as input, except that columns may have been
-        added by `storm_tracking_io.make_buffers_around_polygons`.
+        added by `storm_tracking_utils.make_buffers_around_storm_objects`.
     :return: observation_densities_m02: length-N numpy array of observation
         densities (number per m^2).
     """
@@ -240,14 +242,14 @@ def _get_observation_densities(feature_table):
     if min_buffer_distance_metres < TOLERANCE:
         min_buffer_distance_metres = numpy.nan
 
-    buffer_column_name = tracking_io.distance_buffer_to_column_name(
+    buffer_column_name = tracking_utils.distance_buffer_to_column_name(
         min_buffer_distance_metres, max_buffer_distance_metres)
     if buffer_column_name not in feature_table:
         buffer_table = feature_table[INPUT_COLUMNS_TO_MAKE_BUFFERS]
-        buffer_table = tracking_io.make_buffers_around_polygons(
+        buffer_table = tracking_utils.make_buffers_around_storm_objects(
             buffer_table,
-            min_buffer_dists_metres=numpy.array([min_buffer_distance_metres]),
-            max_buffer_dists_metres=numpy.array([max_buffer_distance_metres]))
+            min_distances_metres=numpy.array([min_buffer_distance_metres]),
+            max_distances_metres=numpy.array([max_buffer_distance_metres]))
 
         feature_table = feature_table.merge(
             buffer_table, on=COLUMNS_TO_MERGE_ON, how='inner')
@@ -478,9 +480,9 @@ def join_features_and_label_for_storm_objects(
         classification label, feature_table will also contain the corresponding
         regression label.  If storm_to_winds_table contains distance buffers
         (with column names given by
-        `storm_tracking_io.distance_buffer_to_column_name`), these will also be
-        in feature_table.  Each row is one storm object.  Mandatory columns are
-        listed below.
+        `storm_tracking_utils.distance_buffer_to_column_name`), these will also
+        be in feature_table.  Each row is one storm object.  Mandatory columns
+        are listed below.
     feature_table.storm_id: String ID for storm cell.
     feature_table.unix_time_sec: Valid time of storm object.
     feature_table.end_time_unix_sec: End time of corresponding storm cell.
@@ -541,7 +543,7 @@ def join_features_and_label_for_storm_objects(
 
         label_column_names = [label_column_name, regression_label_column_name]
 
-    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+    distance_buffer_column_names = tracking_utils.get_distance_buffer_columns(
         storm_to_winds_table)
     if distance_buffer_column_names is None:
         distance_buffer_column_names = []
@@ -1002,7 +1004,7 @@ def write_features_for_storm_objects(feature_table, pickle_file_name):
      regression_label_column_name,
      classification_label_column_name) = check_feature_table(
          feature_table, require_storm_objects=True)
-    distance_buffer_column_names = tracking_io.get_distance_buffer_columns(
+    distance_buffer_column_names = tracking_utils.get_distance_buffer_columns(
         feature_table)
     columns_to_write = (
         STORM_TO_WIND_COLUMNS_TO_KEEP + feature_column_names +

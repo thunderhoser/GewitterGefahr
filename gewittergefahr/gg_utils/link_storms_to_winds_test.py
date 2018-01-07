@@ -5,7 +5,7 @@ import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_io import raw_wind_io
-from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
 
 TOLERANCE = 1e-6
@@ -24,8 +24,8 @@ THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0,
                                     1200, 1200, 1200, 1200,
                                     1500, 1500])
 
-THIS_STORM_OBJECT_DICT = {tracking_io.STORM_ID_COLUMN: THESE_STORM_IDS,
-                          tracking_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC}
+THIS_STORM_OBJECT_DICT = {tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+                          tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC}
 STORM_OBJECT_TABLE_NO_CELL_INFO = pandas.DataFrame.from_dict(
     THIS_STORM_OBJECT_DICT)
 
@@ -86,13 +86,13 @@ THESE_CENTROIDS_X_METRES = numpy.array([5000., 10000., 12000.])
 THESE_CENTROIDS_Y_METRES = numpy.array([5000., 6000., 9000.])
 
 THIS_STORM_OBJECT_DICT = {
-    tracking_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     storms_to_winds.CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
     storms_to_winds.CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES}
 STORM_OBJECT_TABLE_1CELL = pandas.DataFrame.from_dict(THIS_STORM_OBJECT_DICT)
 
 THIS_NESTED_ARRAY = STORM_OBJECT_TABLE_1CELL[[
-    tracking_io.TIME_COLUMN, tracking_io.TIME_COLUMN]].values.tolist()
+    tracking_utils.TIME_COLUMN, tracking_utils.TIME_COLUMN]].values.tolist()
 THIS_ARGUMENT_DICT = {storms_to_winds.VERTICES_X_COLUMN: THIS_NESTED_ARRAY,
                       storms_to_winds.VERTICES_Y_COLUMN: THIS_NESTED_ARRAY}
 STORM_OBJECT_TABLE_1CELL = STORM_OBJECT_TABLE_1CELL.assign(**THIS_ARGUMENT_DICT)
@@ -117,7 +117,7 @@ THESE_VERTICES_X_METRES = numpy.array([5500., 15500., 15500., 5500., 5500.])
 THESE_VERTICES_Y_METRES = numpy.array([-3250., -3250., 16750., 16750., -3250.])
 THIS_STORM_ID_LIST = ['foo'] * 5
 THIS_INTERP_VERTEX_DICT = {
-    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    tracking_utils.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
     storms_to_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
     storms_to_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
 VERTEX_TABLE_1OBJECT_INTERP = pandas.DataFrame.from_dict(
@@ -126,7 +126,7 @@ VERTEX_TABLE_1OBJECT_INTERP = pandas.DataFrame.from_dict(
 THESE_VERTICES_X_METRES = numpy.array([3000., 23000., 23000., 3000., 3000.])
 THESE_VERTICES_Y_METRES = numpy.array([5500., 5500., 15500., 15500., 5500.])
 THIS_INTERP_VERTEX_DICT = {
-    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    tracking_utils.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
     storms_to_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
     storms_to_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
 VERTEX_TABLE_1OBJECT_EXTRAP = pandas.DataFrame.from_dict(
@@ -158,8 +158,8 @@ THESE_END_TIMES_UNIX_SEC = numpy.array([700, 600,
                                         700, 600])
 
 THIS_STORM_OBJECT_DICT = {
-    tracking_io.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
     storms_to_winds.CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
     storms_to_winds.CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES,
     storms_to_winds.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
@@ -167,7 +167,7 @@ THIS_STORM_OBJECT_DICT = {
 STORM_OBJECT_TABLE_2CELLS = pandas.DataFrame.from_dict(THIS_STORM_OBJECT_DICT)
 
 THIS_NESTED_ARRAY = STORM_OBJECT_TABLE_2CELLS[[
-    tracking_io.TIME_COLUMN, tracking_io.TIME_COLUMN]].values.tolist()
+    tracking_utils.TIME_COLUMN, tracking_utils.TIME_COLUMN]].values.tolist()
 THIS_ARGUMENT_DICT = {storms_to_winds.VERTICES_X_COLUMN: THIS_NESTED_ARRAY,
                       storms_to_winds.VERTICES_Y_COLUMN: THIS_NESTED_ARRAY}
 STORM_OBJECT_TABLE_2CELLS = STORM_OBJECT_TABLE_2CELLS.assign(
@@ -212,7 +212,7 @@ THIS_STORM_ID_LIST = ['bar', 'bar', 'bar', 'bar', 'bar',
                       'foo', 'foo', 'foo', 'foo', 'foo']
 
 THIS_INTERP_VERTEX_DICT = {
-    tracking_io.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
+    tracking_utils.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
     storms_to_winds.VERTEX_X_COLUMN: THESE_VERTICES_X_METRES,
     storms_to_winds.VERTEX_Y_COLUMN: THESE_VERTICES_Y_METRES}
 INTERP_VERTEX_TABLE_2OBJECTS = pandas.DataFrame.from_dict(
@@ -304,7 +304,7 @@ WIND_TO_STORM_TABLE = WIND_TO_STORM_TABLE_SIMPLE.assign(**THIS_ARGUMENT_DICT)
 
 STORM_TO_WINDS_TABLE = copy.deepcopy(STORM_OBJECT_TABLE_2CELLS)
 THIS_NESTED_ARRAY = STORM_TO_WINDS_TABLE[[
-    tracking_io.TIME_COLUMN, tracking_io.TIME_COLUMN]].values.tolist()
+    tracking_utils.TIME_COLUMN, tracking_utils.TIME_COLUMN]].values.tolist()
 THIS_ARGUMENT_DICT = {
     storms_to_winds.STATION_IDS_COLUMN: THIS_NESTED_ARRAY,
     storms_to_winds.WIND_LATITUDES_COLUMN: THIS_NESTED_ARRAY,
@@ -540,7 +540,7 @@ class StormsToWindsTests(unittest.TestCase):
                         len(STORM_TO_WINDS_TABLE.index))
 
         num_rows = len(this_storm_to_winds_table.index)
-        string_columns = [tracking_io.STORM_ID_COLUMN,
+        string_columns = [tracking_utils.STORM_ID_COLUMN,
                           storms_to_winds.STATION_IDS_COLUMN]
 
         for i in range(num_rows):
