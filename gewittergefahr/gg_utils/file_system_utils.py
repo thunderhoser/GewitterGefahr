@@ -2,6 +2,7 @@
 
 import os
 import os.path
+import errno
 from gewittergefahr.gg_utils import error_checking
 
 
@@ -22,5 +23,10 @@ def mkdir_recursive_if_necessary(directory_name=None, file_name=None):
     else:
         error_checking.assert_is_string(directory_name)
 
-    if not os.path.isdir(directory_name):
+    try:
         os.makedirs(directory_name)
+    except OSError as this_error:
+        if this_error.errno == errno.EEXIST and os.path.isdir(directory_name):
+            pass
+        else:
+            raise

@@ -33,11 +33,21 @@ def open_netcdf(netcdf_file_name, raise_error_if_fails=False):
     if gzip_as_input:
         gzip_file_object = gzip.open(netcdf_file_name, 'rb')
         netcdf_temporary_file_object = tempfile.NamedTemporaryFile(delete=False)
-        shutil.copyfileobj(gzip_file_object, netcdf_temporary_file_object)
-
         netcdf_file_name = netcdf_temporary_file_object.name
+
+        success = False
+        try:
+            shutil.copyfileobj(gzip_file_object, netcdf_temporary_file_object)
+            success = True
+        except IOError:
+            if raise_error_if_fails:
+                raise
+
         gzip_file_object.close()
         netcdf_temporary_file_object.close()
+        if not success:
+            os.remove(netcdf_file_name)
+            return None
 
     try:
         netcdf_dataset = Dataset(netcdf_file_name)
