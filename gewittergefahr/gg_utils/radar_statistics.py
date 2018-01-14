@@ -19,7 +19,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
-DEFAULT_DILATION_PERCENTILE_LEVEL = 90.
+DEFAULT_DILATION_PERCENTILE_LEVEL = 100.
 
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 STORM_COLUMNS_TO_KEEP = [
