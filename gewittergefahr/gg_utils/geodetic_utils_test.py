@@ -7,6 +7,15 @@ from gewittergefahr.gg_utils import geodetic_utils
 DEFAULT_TOLERANCE = 1e-6
 TOLERANCE_DEG = 1e-2
 
+# The following constants are used to test get_latlng_centroid.
+POINT_LATITUDES_DEG = numpy.array(
+    [20., 25., 30., numpy.nan, numpy.nan, 40., numpy.nan, 55.])
+POINT_LONGITUDES_DEG = numpy.array(
+    [-100., 265., 275., numpy.nan, numpy.nan, -70., numpy.nan, -60.])
+
+CENTROID_LATITUDE_DEG = 34.
+CENTROID_LONGITUDE_DEG = 278.
+
 START_LATITUDES_DEG = numpy.array([-88., -60., -30., 0., 30., 60., 88.])
 START_LONGITUDES_DEG = numpy.array([0., 60., 120., 180., 240., 300., 0.])
 START_TO_END_DISTANCES_METRES = 1e4 * numpy.array([1., 2., 3., 4., 5., 6., 7.])
@@ -31,6 +40,20 @@ Y_DISPLACEMENTS_METRES = numpy.array(
 
 class GeodeticUtilsTests(unittest.TestCase):
     """Each method is a unit test for geodetic_utils.py."""
+
+    def test_get_latlng_centroid(self):
+        """Ensures correct output from get_latlng_centroid."""
+
+        this_centroid_lat_deg, this_centroid_lng_deg = (
+            geodetic_utils.get_latlng_centroid(
+                POINT_LATITUDES_DEG, POINT_LONGITUDES_DEG, allow_nan=True))
+
+        self.assertTrue(numpy.isclose(
+            this_centroid_lat_deg, CENTROID_LATITUDE_DEG,
+            atol=DEFAULT_TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_centroid_lng_deg, CENTROID_LONGITUDE_DEG,
+            atol=DEFAULT_TOLERANCE))
 
     def test_start_points_and_distances_and_bearings_to_endpoints(self):
         """Crrctness of start_points_and_distances_and_bearings_to_endpoints."""

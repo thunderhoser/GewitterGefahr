@@ -4,6 +4,7 @@ import copy
 import numpy
 import pandas
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import error_checking
 
@@ -363,7 +364,7 @@ def make_buffers_around_storm_objects(
         centroid_longitudes_deg[i] = this_centroid_object.x
 
     global_centroid_lat_deg, global_centroid_lng_deg = (
-        polygons.get_latlng_centroid(
+        geodetic_utils.get_latlng_centroid(
             centroid_latitudes_deg, centroid_longitudes_deg))
     projection_object = projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)

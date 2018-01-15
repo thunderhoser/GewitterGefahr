@@ -8,6 +8,7 @@ from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -275,7 +276,7 @@ def read_storm_objects_from_raw_file(json_file_name):
 
         (storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
          storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]) = (
-             polygons.get_latlng_centroid(
+             geodetic_utils.get_latlng_centroid(
                  these_vertex_lat_deg, these_vertex_lng_deg))
 
         storm_object_table[

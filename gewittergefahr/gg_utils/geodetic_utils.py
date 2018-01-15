@@ -10,6 +10,46 @@ RADIANS_TO_DEGREES = 180. / numpy.pi
 DEGREES_TO_RADIANS = numpy.pi / 180
 
 
+def get_latlng_centroid(latitudes_deg, longitudes_deg, allow_nan=True):
+    """Finds centroid of lat-long points.
+
+    P = number of points
+
+    :param latitudes_deg: length-P numpy array of latitudes (deg N).
+    :param longitudes_deg: length-P numpy array of longitudes (deg E).
+    :param allow_nan: Boolean flag.  If True, input arrays may contain NaN's
+        (however, NaN's must occur at the exact same positions in the two
+        arrays).
+    :return: centroid_lat_deg: Centroid latitude (deg N).
+    :return: centroid_lng_deg: Centroid longitude (deg E).
+    :raises: ValueError: if allow_nan = True but NaN's do not occur at the same
+        positions in the two arrays.
+    """
+
+    error_checking.assert_is_boolean(allow_nan)
+    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg, allow_nan)
+    error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
+    num_points = len(latitudes_deg)
+
+    longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        longitudes_deg, allow_nan)
+    error_checking.assert_is_numpy_array(
+        longitudes_deg, exact_dimensions=numpy.array([num_points]))
+
+    nan_latitude_indices = numpy.where(numpy.isnan(latitudes_deg))[0]
+    nan_longitude_indices = numpy.where(numpy.isnan(longitudes_deg))[0]
+    if not numpy.array_equal(nan_latitude_indices, nan_longitude_indices):
+        error_string = (
+            '\nNaN''s occur at the following positions in `latitudes_deg`:\n' +
+            str(nan_latitude_indices) +
+            '\nand the following positions in `longitudes_deg`:\n' +
+            str(nan_longitude_indices) +
+            '\nNaN''s should occur at the same positions in the two arrays.')
+        raise ValueError(error_string)
+
+    return numpy.nanmean(latitudes_deg), numpy.nanmean(longitudes_deg)
+
+
 def start_points_and_distances_and_bearings_to_endpoints(
         start_latitudes_deg=None, start_longitudes_deg=None,
         displacements_metres=None, geodetic_bearings_deg=None):

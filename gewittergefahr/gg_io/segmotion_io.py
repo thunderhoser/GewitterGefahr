@@ -23,6 +23,7 @@ from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
@@ -801,6 +802,16 @@ def read_polygons_from_netcdf(
                 polygon_table[
                     tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]))
 
+        # these_vertex_rows, these_vertex_columns = (
+        #     polygons.grid_points_in_poly_to_vertices(
+        #         metadata_dict[radar_utils.NUM_LAT_COLUMN] -
+        #         polygon_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+        #         polygon_table[
+        #             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]))
+        #
+        # these_vertex_rows = (
+        #     metadata_dict[radar_utils.NUM_LAT_COLUMN] - these_vertex_rows)
+
         (polygon_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
          polygon_table[tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]) = (
              polygons.simple_polygon_to_grid_points(
@@ -831,7 +842,7 @@ def read_polygons_from_netcdf(
 
         (polygon_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
          polygon_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]) = (
-             polygons.get_latlng_centroid(
+             geodetic_utils.get_latlng_centroid(
                  these_vertex_lat_deg, these_vertex_lng_deg))
 
         polygon_table[tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (

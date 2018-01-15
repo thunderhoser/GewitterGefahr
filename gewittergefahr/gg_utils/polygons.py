@@ -1,18 +1,12 @@
-"""Processing methods for polygons.
+"""Methods for handling polygons.
 
-Currently the only polygons in GewitterGefahr are storm-cell outlines.  However,
-I may add other polygons.
+In general, x- and y- coordinates may be in one of three formats:
 
-When a method says that x- and y-coordinates may be in one of three formats, the
-three formats are as follows:
-
-[1] metres;
-[2] degrees of longitude and latitude, respectively;
-[3] columns and rows, respectively, in a grid (where y-coordinate increases with
-    row number and x-coordinate increases with column number).
+[1] Metres.
+[2] Longitude (deg E) and latitude (deg N), respectively.
+[3] Columns and rows in a grid, respectively.
 """
 
-import copy
 import numpy
 import cv2
 import shapely.geometry
@@ -30,8 +24,8 @@ UP_RIGHT_DIRECTION_NAME = 'up_right'
 UP_LEFT_DIRECTION_NAME = 'up_left'
 DOWN_RIGHT_DIRECTION_NAME = 'down_right'
 DOWN_LEFT_DIRECTION_NAME = 'down_left'
-COMPLEX_DIRECTIONS = [UP_RIGHT_DIRECTION_NAME, UP_LEFT_DIRECTION_NAME,
-                      DOWN_RIGHT_DIRECTION_NAME, DOWN_LEFT_DIRECTION_NAME]
+COMPLEX_DIRECTION_NAMES = [UP_RIGHT_DIRECTION_NAME, UP_LEFT_DIRECTION_NAME,
+                           DOWN_RIGHT_DIRECTION_NAME, DOWN_LEFT_DIRECTION_NAME]
 
 EXTERIOR_X_COLUMN = 'exterior_x_coords'
 EXTERIOR_Y_COLUMN = 'exterior_y_coords'
@@ -42,7 +36,8 @@ HOLE_Y_COLUMN = 'hole_y_coords_list'
 def _check_vertex_arrays(x_coordinates, y_coordinates, allow_nan=True):
     """Checks vertex arrays for errors.
 
-    x- and y-coordinates may be in one of the formats listed at the top.
+    x- and y-coordinates may be in one of three formats (see docstring at top of
+    file).
 
     V = number of vertices
 
@@ -50,14 +45,11 @@ def _check_vertex_arrays(x_coordinates, y_coordinates, allow_nan=True):
         The first NaN separates the exterior from the first hole, and the [i]th
         NaN separates the [i - 1]th hole from the [i]th hole.
     :param y_coordinates: Same as above, except for y-coordinates.
-    :param allow_nan: Boolean flag.  If allow_nan = False and NaN is found in
-        either of the vertex arrays, this method will raise an error.
-        Otherwise, the only restriction on NaN's is that, if
-        x_coordinates[i] = NaN, y_coordinates[i] must be NaN -- and vice-versa.
-    :raises: ValueError: if allow_nan = True and NaN is found in either of the
-        vertex arrays.
-    :raises: ValueError: if x_coordinates[i] = NaN and y_coordinates[i] != NaN,
-        or vice-versa.
+    :param allow_nan: Boolean flag.  If True, input arrays may contain NaN's
+        (however, NaN's must occur at the exact same positions in the two
+        arrays).
+    :raises: ValueError: if allow_nan = True but NaN's do not occur at the same
+        positions in the two arrays.
     """
 
     error_checking.assert_is_boolean(allow_nan)
@@ -78,51 +70,46 @@ def _check_vertex_arrays(x_coordinates, y_coordinates, allow_nan=True):
     y_nan_indices = numpy.where(numpy.isnan(y_coordinates))[0]
     if not numpy.array_equal(x_nan_indices, y_nan_indices):
         error_string = (
-            '\nThe following elements of `x_coordinates` are NaN:\n' +
+            '\nNaN''s occur at the following positions in `x_coordinates`:\n' +
             str(x_nan_indices) +
-            '\nThe following elements of `y_coordinates` are NaN:\n' +
+            '\nand the following positions in `y_coordinates`:\n' +
             str(y_nan_indices) +
-            '\nAs shown above, NaN entries (polygon discontinuities) do not '
-            'match.')
+            '\nNaN''s should occur at the same positions in the two arrays.')
         raise ValueError(error_string)
 
 
-def _get_longest_inner_list(list_of_lists):
-    """Finds longest list in a list.
+def _get_longest_inner_list(outer_list):
+    """Finds longest inner list.
 
-    :param list_of_lists: 1-D list of lists.
-    :return: longest_list: Longest of inner lists.
+    :param outer_list: 1-D list of 1-D lists.
+    :return: longest_inner_list: Longest inner list.
     """
 
-    num_lists = len(list_of_lists)
-    list_lengths = numpy.full(num_lists, 0, dtype=int)
-    for i in range(num_lists):
-        list_lengths[i] = len(list_of_lists[i])
+    num_outer_lists = len(outer_list)
+    lengths_of_inner_lists = numpy.full(num_outer_lists, 0, dtype=int)
+    for i in range(num_outer_lists):
+        lengths_of_inner_lists[i] = len(outer_list[i])
 
-    return list_of_lists[numpy.argmax(list_lengths)]
+    return outer_list[numpy.argmax(lengths_of_inner_lists)]
 
 
-def _get_longest_vertex_arrays_without_nan(vertex_x_coords, vertex_y_coords):
-    """Finds longest sequence of vertices without NaN.
+def _get_longest_simple_polygon(vertex_x_coords, vertex_y_coords):
+    """Finds longest simple polygon (that with the most vertices).
 
-    This is equivalent to finding the simple polygon with the most vertices.
-
-    x- and y-coordinates may be in one of the formats listed at the top.
+    x- and y-coordinates may be in one of three formats (see docstring at top of
+    file).
 
     V = number of vertices
 
-    :param vertex_x_coords: length-V numpy array with x-coordinates of vertices.
-        The first NaN separates the exterior from the first hole, and the [i]th
-        NaN separates the [i - 1]th hole from the [i]th hole.
-    :param vertex_y_coords: Same as above, except for y-coordinates.
-    :return: simple_vertex_x_coords: Longest subsequence of vertex_x_coords
+    :param vertex_x_coords: See documentation for _check_vertex_arrays.
+    :param vertex_y_coords: See documentation for _check_vertex_arrays.
+    :return: vertex_x_coords_simple: Longest subsequence of `vertex_x_coords`
         without NaN.
-    :return: simple_vertex_y_coords: Longest subsequence of vertex_y_coords
+    :return: vertex_y_coords_simple: Longest subsequence of `vertex_y_coords`
         without NaN.
     """
 
     _check_vertex_arrays(vertex_x_coords, vertex_y_coords, allow_nan=True)
-
     nan_flags = numpy.isnan(vertex_x_coords)
     if not numpy.any(nan_flags):
         return vertex_x_coords, vertex_y_coords
@@ -158,81 +145,45 @@ def _get_longest_vertex_arrays_without_nan(vertex_x_coords, vertex_y_coords):
 
 
 def _vertex_arrays_to_list(vertex_x_coords, vertex_y_coords):
-    """Converts vertex coordinates from two arrays to one list.
+    """Converts vertices of simple polygon from two arrays to one list.
 
-    x- and y-coordinates may be in one of the formats listed at the top.  In
-    this case, coordinates may not contain NaN's (simple polygons only).
+    x- and y-coordinates may be in one of three formats (see docstring at top of
+    file).
 
     V = number of vertices
 
-    :param vertex_x_coords: length-V numpy array with x-coordinates of vertices.
-    :param vertex_y_coords: length-V numpy array with y-coordinates of vertices.
-    :return: vertex_coords_list: length-V list, where the [i]th element is a
-        tuple with (x-coordinate, y-coordinate).
+    :param vertex_x_coords: See documentation for _check_vertex_arrays.
+    :param vertex_y_coords: See documentation for _check_vertex_arrays.
+    :return: vertex_coords_as_list: length-V list, where each element is an
+        (x, y) tuple.
     """
 
     _check_vertex_arrays(vertex_x_coords, vertex_y_coords, allow_nan=False)
 
     num_vertices = len(vertex_x_coords)
-    vertex_coords_list = []
+    vertex_coords_as_list = []
     for i in range(num_vertices):
-        vertex_coords_list.append((vertex_x_coords[i], vertex_y_coords[i]))
+        vertex_coords_as_list.append((vertex_x_coords[i], vertex_y_coords[i]))
 
-    return vertex_coords_list
-
-
-def _vertex_list_to_arrays(vertex_coords_list):
-    """Converts vertex coordinates from one list to two arrays.
-
-    x- and y-coordinates may be in one of the formats listed at the top.  In
-    this case, coordinates may not contain NaN's (simple polygons only).
-
-    V = number of vertices
-
-    :param vertex_coords_list: length-V list, where the [i]th element is a
-        tuple with (x-coordinate, y-coordinate).
-    :return: vertex_x_coords: length-V numpy array with x-coordinates of
-        vertices.
-    :return: vertex_y_coords: length-V numpy array with y-coordinates of
-        vertices.
-    """
-
-    num_vertices = len(vertex_coords_list)
-    vertex_x_coords = numpy.full(num_vertices, numpy.nan)
-    vertex_y_coords = numpy.full(num_vertices, numpy.nan)
-
-    for i in range(num_vertices):
-        vertex_x_coords[i] = vertex_coords_list[i][0]
-        vertex_y_coords[i] = vertex_coords_list[i][1]
-
-    return vertex_x_coords, vertex_y_coords
+    return vertex_coords_as_list
 
 
-def _get_direction_of_vertex_pair(first_row, second_row, first_column,
-                                  second_column):
-    """Finds direction between two vertices (from the first to the second).
+def _get_edge_direction(first_row, second_row, first_column, second_column):
+    """Finds direction of polygon edge.
 
     This method assumes that row number increases downward and column number
-    increases to the right.
+    increases rightward.
 
-    There are 8 possible directions:
+    There are 8 possible directions: up, down, left, right, up-left, up-right,
+    down-left, down-right.
 
-    - up
-    - down
-    - right
-    - left
-    - up and right (45-degree angle)
-    - up and left (45-degree angle)
-    - down and right (45-degree angle)
-    - down and left (45-degree angle)
-
-    :param first_row: Row number of first vertex.
-    :param second_row: Row number of second vertex.
+    :param first_row: Row number of first vertex (start point of edge).
+    :param second_row: Row number of second vertex (end point of edge).
     :param first_column: Column number of first vertex.
     :param second_column: Column number of second vertex.
-    :return: direction_string: String indicating direction from first to second
-        vertex.  Possible strings are "up", "down", "right", "left", "up_right",
-        "up_left", "down_right", and "down_left".
+    :return: direction_string: String indicating direction of edge.  May be
+        "up", "down", "left", "right", "up_left", "up_right", "down_left", or
+        "down_right".
     """
 
     if first_column == second_column:
@@ -259,23 +210,21 @@ def _get_direction_of_vertex_pair(first_row, second_row, first_column,
         if second_column < first_column:
             return UP_LEFT_DIRECTION_NAME
 
-    return None
-
 
 def _remove_redundant_vertices(row_indices_orig, column_indices_orig):
     """Removes redundant vertices from a simple polygon.
 
-    v = original number of vertices
-    V = final number of vertices
+    V_0 = number of original vertices
+    V = number of final vertices
 
-    :param row_indices_orig: length-v numpy array with row numbers of original
-        vertices.
-    :param column_indices_orig: length-v numpy array with column numbers of
+    :param row_indices_orig: numpy array (length V_0) with row numbers of
         original vertices.
-    :return: row_indices: length-V numpy array with row numbers of non-redundant
-        vertices.
-    :return: column_indices: length-V numpy array with column numbers of non-
-        redundant vertices.
+    :param column_indices_orig: numpy array (length V_0) with column numbers of
+        original vertices.
+    :return: row_indices: length-V numpy array with row numbers of final (non-
+        redundant) vertices.
+    :return: column_indices: length-V numpy array with column numbers of final
+        (non-redundant) vertices.
     """
 
     _check_vertex_arrays(column_indices_orig, row_indices_orig, allow_nan=False)
@@ -305,24 +254,23 @@ def _remove_redundant_vertices(row_indices_orig, column_indices_orig):
 
 
 def _patch_diag_connections_in_binary_matrix(binary_matrix):
-    """Patches diagonal connections in binary image matrix.
+    """Patches diagonal connections in binary image matrices.
 
-    When two pixels p and qare connected only diagonally, this method "patches"
-    the connection by adding another pixel -- adjacent to both p and q -- to the
-    image.  In other words, this method flips one bit in the image from False to
-    True.
+    When two pixels (p and q) are connected only diagonally, this method
+    "patches" the connection by adding another pixel -- adjacent to both p and q
+    -- to the image.  In other words, this method flips one bit of the image
+    from False to True.
 
     If diagonal connections are not patched, grid_points_in_poly_to_vertices
-    will create disjoint polygons.
+    will create disjoint polygons, rather than one simple polygon.
 
     M = number of rows in binary image
     N = number of columns in binary image
 
-    :param binary_matrix: M-by-N numpy array of Boolean flags.
-        binary_matrix[i, j] indicates whether or not pixel [i, j] is inside the
-        polygon.
-    :return: binary_matrix: Same as input, except that diagonal connections have
-        been patched.
+    :param binary_matrix: M-by-N numpy array of Boolean flags.  If
+        binary_matrix[i, j] = True, pixel [i, j] is inside the polygon.
+    :return: binary_matrix: Same as input, except that diagonal connections are
+        patched.
     """
 
     num_rows = binary_matrix.shape[0]
@@ -355,32 +303,29 @@ def _patch_diag_connections_in_binary_matrix(binary_matrix):
     return binary_matrix
 
 
-def _binary_matrix_to_grid_points_in_poly(binary_matrix, first_row_index,
-                                          first_column_index):
+def _binary_matrix_to_grid_points_in_poly(
+        binary_matrix, first_row_index, first_column_index):
     """Converts binary image matrix to list of grid points in polygon.
 
-    M = number of rows in subgrid
-    N = number of columns in subgrid
-    P = number of grid points in polygon
+    M = number of rows in binary image
+    N = number of columns in binary image
+    P = number of grid points in polygon.
 
-    :param binary_matrix: M-by-N numpy array of Boolean flags.
-        binary_matrix[i, j] indicates whether or not pixel [i, j] -- in the
-        subgrid, not necessarily the full grid -- is inside the polygon.
-    :param first_row_index: Used to convert row numbers from the subgrid to the
-        full grid.  Row 0 in the subgrid = row `first_row_index` in the full
-        grid.
-    :param first_column_index: Used to convert column numbers from the subgrid
-        to the full grid.  Column 0 in the subgrid = column `first_column_index`
-        in the full grid.
-    :return: row_indices: length-P numpy array with row numbers of grid points
-        in polygon.  These are rows in the full grid.
-    :return: column_indices: Same as above, except for columns.
+    :param binary_matrix: M-by-N numpy array of Boolean flags.  If
+        binary_matrix[i, j] = True, pixel [i, j] is inside the polygon.
+    :param first_row_index: Used to convert row numbers from the binary image
+        (which spans only a subgrid) to the full grid.  Row 0 in the subgrid =
+        row `first_row_index` in the full grid.
+    :param first_column_index: Same as above, but for column numbers.
+    :return: row_indices: length-P numpy array with row numbers (relative to the
+        full grid) of grid points in polygon.
+    :return: column_indices: Same as above, but for column numbers.
     """
 
     num_rows_in_subgrid = binary_matrix.shape[0]
     num_columns_in_subgrid = binary_matrix.shape[1]
-    binary_vector = numpy.reshape(binary_matrix,
-                                  num_rows_in_subgrid * num_columns_in_subgrid)
+    binary_vector = numpy.reshape(
+        binary_matrix, num_rows_in_subgrid * num_columns_in_subgrid)
 
     linear_indices_in_subgrid = numpy.where(binary_vector)[0]
     (row_indices_in_subgrid, column_indices_in_subgrid) = numpy.unravel_index(
@@ -392,262 +337,188 @@ def _binary_matrix_to_grid_points_in_poly(binary_matrix, first_row_index,
 
 
 def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
-    """Moves vertices from grid points to grid-cell edges.
+    """Moves vertices of simple polygon from grid points to grid-cell edges.
 
-    This ensures that vertices follow the outlines of grid cells, rather than
-    cutting through grid cells.
+    This method ensures that vertices follow the outlines of grid cells, rather
+    than cutting through grid cells.
 
-    This method works only for simple polygons sorted in counterclockwise order.
+    V_0 = number of original vertices
+    V = number of final vertices
 
-    v = original number of vertices
-    V = final number of vertices
-
-    :param row_indices_orig: length-v numpy array with row numbers (integers) of
-        original vertices.
-    :param column_indices_orig: length-v numpy array with column numbers
+    :param row_indices_orig: numpy array (length V_0) with row numbers
+        (integers) of original vertices.
+    :param column_indices_orig: numpy array (length V_0) with column numbers
         (integers) of original vertices.
     :return: row_indices: length-V numpy array with row numbers (half-integers)
-        of final vertices (not cutting through grid cells).
-    :return: column_indices: Same as above, except for columns.
+        of final vertices.
+    :return: column_indices: length-V numpy array with column numbers (half-
+        integers) of final vertices.
     """
 
     error_checking.assert_is_integer_numpy_array(row_indices_orig)
     error_checking.assert_is_integer_numpy_array(column_indices_orig)
 
-    num_orig_vertices = len(row_indices_orig)
+    num_vertices_orig = len(row_indices_orig)
     row_indices = numpy.array([])
     column_indices = numpy.array([])
 
-    for i in range(num_orig_vertices - 1):
-        this_direction = _get_direction_of_vertex_pair(
-            row_indices_orig[i], row_indices_orig[i + 1],
-            column_indices_orig[i], column_indices_orig[i + 1])
+    for i in range(num_vertices_orig - 1):
+        this_direction_name = _get_edge_direction(
+            first_row=row_indices_orig[i], second_row=row_indices_orig[i + 1],
+            first_column=column_indices_orig[i],
+            second_column=column_indices_orig[i + 1])
 
-        # TODO(thunderhoser): put the following block in another method.
-        if this_direction in COMPLEX_DIRECTIONS:
-            this_absolute_row_diff = numpy.absolute(
-                row_indices_orig[i + 1] - row_indices_orig[i])
-            this_absolute_column_diff = numpy.absolute(
-                column_indices_orig[i + 1] - column_indices_orig[i])
-            this_num_steps = int(numpy.min(numpy.array(
-                [this_absolute_row_diff, this_absolute_column_diff])))
-
-            these_row_indices_orig = numpy.linspace(
-                float(row_indices_orig[i]), float(row_indices_orig[i + 1]),
-                num=this_num_steps + 1)
-            these_column_indices_orig = numpy.linspace(
-                float(column_indices_orig[i]),
-                float(column_indices_orig[i + 1]), num=this_num_steps + 1)
-
-            these_row_integer_flags = numpy.isclose(
-                these_row_indices_orig, numpy.round(these_row_indices_orig),
-                atol=TOLERANCE)
-            these_column_integer_flags = numpy.isclose(
-                these_column_indices_orig,
-                numpy.round(these_column_indices_orig), atol=TOLERANCE)
-            these_valid_flags = numpy.logical_and(
-                these_row_integer_flags, these_column_integer_flags)
-
-            these_valid_indices = numpy.where(these_valid_flags)[0]
-            these_row_indices_orig = these_row_indices_orig[these_valid_indices]
-            these_column_indices_orig = these_column_indices_orig[
-                these_valid_indices]
-            this_num_steps = len(these_row_indices_orig) - 1
-
-        if this_direction == UP_DIRECTION_NAME:
+        if this_direction_name == UP_DIRECTION_NAME:
             rows_to_append = numpy.array(
                 [row_indices_orig[i] + 0.5, row_indices_orig[i + 1] - 0.5])
-            columns_to_append = numpy.array([column_indices_orig[i] + 0.5,
-                                             column_indices_orig[i + 1] + 0.5])
-        elif this_direction == DOWN_DIRECTION_NAME:
+            columns_to_append = numpy.array(
+                [column_indices_orig[i] + 0.5,
+                 column_indices_orig[i + 1] + 0.5])
+
+        elif this_direction_name == DOWN_DIRECTION_NAME:
             rows_to_append = numpy.array(
                 [row_indices_orig[i] - 0.5, row_indices_orig[i + 1] + 0.5])
-            columns_to_append = numpy.array([column_indices_orig[i] - 0.5,
-                                             column_indices_orig[i + 1] - 0.5])
-        elif this_direction == RIGHT_DIRECTION_NAME:
+            columns_to_append = numpy.array(
+                [column_indices_orig[i] - 0.5,
+                 column_indices_orig[i + 1] - 0.5])
+
+        elif this_direction_name == RIGHT_DIRECTION_NAME:
             rows_to_append = numpy.array(
                 [row_indices_orig[i] + 0.5, row_indices_orig[i + 1] + 0.5])
-            columns_to_append = numpy.array([column_indices_orig[i] - 0.5,
-                                             column_indices_orig[i + 1] + 0.5])
-        elif this_direction == LEFT_DIRECTION_NAME:
+            columns_to_append = numpy.array(
+                [column_indices_orig[i] - 0.5,
+                 column_indices_orig[i + 1] + 0.5])
+
+        elif this_direction_name == LEFT_DIRECTION_NAME:
             rows_to_append = numpy.array(
                 [row_indices_orig[i] - 0.5, row_indices_orig[i + 1] - 0.5])
-            columns_to_append = numpy.array([column_indices_orig[i] + 0.5,
-                                             column_indices_orig[i + 1] - 0.5])
+            columns_to_append = numpy.array(
+                [column_indices_orig[i] + 0.5,
+                 column_indices_orig[i + 1] - 0.5])
+
         else:
-            rows_to_append = numpy.array([])
-            columns_to_append = numpy.array([])
-
-            for j in range(this_num_steps):
-                if this_direction == UP_RIGHT_DIRECTION_NAME:
-                    these_rows_to_append = numpy.array(
-                        [these_row_indices_orig[j] + 0.5,
-                         these_row_indices_orig[j + 1] + 0.5,
-                         these_row_indices_orig[j + 1] + 0.5])
-                    these_columns_to_append = numpy.array(
-                        [these_column_indices_orig[j] + 0.5,
-                         these_column_indices_orig[j] + 0.5,
-                         these_column_indices_orig[j + 1] + 0.5])
-                elif this_direction == UP_LEFT_DIRECTION_NAME:
-                    these_rows_to_append = numpy.array(
-                        [these_row_indices_orig[j] - 0.5,
-                         these_row_indices_orig[j] - 0.5,
-                         these_row_indices_orig[j + 1] - 0.5])
-                    these_columns_to_append = numpy.array(
-                        [these_column_indices_orig[j] + 0.5,
-                         these_column_indices_orig[j + 1] + 0.5,
-                         these_column_indices_orig[j + 1] + 0.5])
-                elif this_direction == DOWN_RIGHT_DIRECTION_NAME:
-                    these_rows_to_append = numpy.array(
-                        [these_row_indices_orig[j] + 0.5,
-                         these_row_indices_orig[j] + 0.5,
-                         these_row_indices_orig[j + 1] + 0.5])
-                    these_columns_to_append = numpy.array(
-                        [these_column_indices_orig[j] - 0.5,
-                         these_column_indices_orig[j + 1] - 0.5,
-                         these_column_indices_orig[j + 1] - 0.5])
-                elif this_direction == DOWN_LEFT_DIRECTION_NAME:
-                    these_rows_to_append = numpy.array(
-                        [these_row_indices_orig[j] - 0.5,
-                         these_row_indices_orig[j + 1] - 0.5,
-                         these_row_indices_orig[j + 1] - 0.5])
-                    these_columns_to_append = numpy.array(
-                        [these_column_indices_orig[j] - 0.5,
-                         these_column_indices_orig[j] - 0.5,
-                         these_column_indices_orig[j + 1] - 0.5])
-
-                rows_to_append = numpy.concatenate((
-                    rows_to_append, these_rows_to_append))
-                columns_to_append = numpy.concatenate((
-                    columns_to_append, these_columns_to_append))
+            rows_to_append, columns_to_append = (
+                _vertices_from_grid_points_to_edges_complex_direction(
+                    first_row=row_indices_orig[i],
+                    second_row=row_indices_orig[i + 1],
+                    first_column=column_indices_orig[i],
+                    second_column=column_indices_orig[i + 1]))
 
         row_indices = numpy.concatenate((row_indices, rows_to_append))
         column_indices = numpy.concatenate((column_indices, columns_to_append))
 
+    if not (row_indices[-1] == row_indices[0] and
+            column_indices[-1] == column_indices[0]):
+        row_indices = numpy.concatenate((row_indices, row_indices[[0]]))
+        column_indices = numpy.concatenate(
+            (column_indices, column_indices[[0]]))
+
     return row_indices, column_indices
 
 
-def separate_exterior_and_holes(vertex_x_coords, vertex_y_coords):
-    """Separates exterior of polygon from holes in polygon.
+def _vertices_from_grid_points_to_edges_complex_direction(
+        first_row, second_row, first_column, second_column):
+    """Moves vertices along one polygon edge from grid pts to grid-cell edges.
 
-    x- and y-coordinates may be in one of the formats listed at the top.
+    This method should be used only when the polygon edge has a complex
+    direction (up-left, up-right, down-left, or down-right).
 
-    V = number of vertices
-    H = number of holes
-    V_e = number of exterior vertices
-    V_hi = number of vertices in [i]th hole
+    V = number of vertices after moving from grid points to grid-cell edges
 
-    :param vertex_x_coords: length-V numpy array with x-coordinates of vertices.
-        The first NaN separates the exterior from the first hole, and the [i]th
-        NaN separates the [i - 1]th hole from the [i]th hole.
-    :param vertex_y_coords: Same as above, except for y-coordinates.
-    :return: vertex_dict: Dictionary with the following keys.
-    vertex_dict.exterior_x_coords: numpy array (length V_e) with x-coordinates
-        of exterior vertices.
-    vertex_dict.exterior_y_coords: numpy array (length V_e) with y-coordinates
-        of exterior vertices.
-    vertex_dict.hole_x_coords_list: length-H list, where the [i]th item is a
-        numpy array (length V_hi) with x-coordinates of interior vertices.
-    vertex_dict.hole_y_coords_list: Same as above, except for y-coordinates.
+    :param first_row: Row number of first vertex (integer).
+    :param second_row: Row number of second vertex (integer).
+    :param first_column: Column number of first vertex (integer).
+    :param second_column: Column number of second vertex (integer).
+    :return: new_rows: length-V numpy array of row numbers (half-integers).
+    :return: new_columns: length-V numpy array of column numbers (half-
+        integers).
     """
 
-    _check_vertex_arrays(vertex_x_coords, vertex_y_coords, allow_nan=True)
+    direction_name = _get_edge_direction(
+        first_row=first_row, second_row=second_row, first_column=first_column,
+        second_column=second_column)
 
-    nan_flags = numpy.isnan(vertex_x_coords)
-    if not numpy.any(nan_flags):
-        return {EXTERIOR_X_COLUMN: vertex_x_coords,
-                EXTERIOR_Y_COLUMN: vertex_y_coords,
-                HOLE_X_COLUMN: [], HOLE_Y_COLUMN: []}
+    absolute_row_diff = numpy.absolute(second_row - first_row)
+    absolute_column_diff = numpy.absolute(second_column - first_column)
+    num_steps = int(min([absolute_row_diff, absolute_column_diff]))
 
-    nan_indices = numpy.where(nan_flags)[0]
-    num_holes = len(nan_indices)
-    exterior_x_coords = vertex_x_coords[0:nan_indices[0]]
-    exterior_y_coords = vertex_y_coords[0:nan_indices[0]]
-    hole_x_coords_list = []
-    hole_y_coords_list = []
+    row_indices_orig = numpy.linspace(
+        float(first_row), float(second_row), num=num_steps + 1)
+    column_indices_orig = numpy.linspace(
+        float(first_column), float(second_column), num=num_steps + 1)
 
-    for i in range(num_holes):
-        if i == num_holes - 1:
-            this_hole_x_coords = vertex_x_coords[(nan_indices[i] + 1):]
-            this_hole_y_coords = vertex_y_coords[(nan_indices[i] + 1):]
-        else:
-            this_hole_x_coords = (
-                vertex_x_coords[(nan_indices[i] + 1):nan_indices[i + 1]])
-            this_hole_y_coords = (
-                vertex_y_coords[(nan_indices[i] + 1):nan_indices[i + 1]])
+    integer_row_flags = numpy.isclose(
+        row_indices_orig, numpy.round(row_indices_orig), atol=TOLERANCE)
+    integer_column_flags = numpy.isclose(
+        column_indices_orig, numpy.round(column_indices_orig), atol=TOLERANCE)
+    valid_flags = numpy.logical_and(integer_row_flags, integer_column_flags)
 
-        hole_x_coords_list.append(this_hole_x_coords)
-        hole_y_coords_list.append(this_hole_y_coords)
+    valid_indices = numpy.where(valid_flags)[0]
+    row_indices_orig = row_indices_orig[valid_indices]
+    column_indices_orig = column_indices_orig[valid_indices]
+    num_steps = len(row_indices_orig) - 1
 
-    return {EXTERIOR_X_COLUMN: exterior_x_coords,
-            EXTERIOR_Y_COLUMN: exterior_y_coords,
-            HOLE_X_COLUMN: hole_x_coords_list,
-            HOLE_Y_COLUMN: hole_y_coords_list}
+    new_rows = numpy.array([])
+    new_columns = numpy.array([])
 
+    for j in range(num_steps):
+        if direction_name == UP_RIGHT_DIRECTION_NAME:
+            these_new_rows = numpy.array(
+                [row_indices_orig[j] + 0.5, row_indices_orig[j + 1] + 0.5,
+                 row_indices_orig[j + 1] + 0.5])
+            these_new_columns = numpy.array(
+                [column_indices_orig[j] + 0.5, column_indices_orig[j] + 0.5,
+                 column_indices_orig[j + 1] + 0.5])
 
-def merge_exterior_and_holes(exterior_x_coords, exterior_y_coords,
-                             hole_x_coords_list=None, hole_y_coords_list=None):
-    """Merges exterior of polygon with holes in polygon.
+        elif direction_name == UP_LEFT_DIRECTION_NAME:
+            these_new_rows = numpy.array(
+                [row_indices_orig[j] - 0.5, row_indices_orig[j] - 0.5,
+                 row_indices_orig[j + 1] - 0.5])
+            these_new_columns = numpy.array(
+                [column_indices_orig[j] + 0.5, column_indices_orig[j + 1] + 0.5,
+                 column_indices_orig[j + 1] + 0.5])
 
-    x- and y-coordinates may be in one of the formats listed at the top.
+        elif direction_name == DOWN_RIGHT_DIRECTION_NAME:
+            these_new_rows = numpy.array(
+                [row_indices_orig[j] + 0.5, row_indices_orig[j] + 0.5,
+                 row_indices_orig[j + 1] + 0.5])
+            these_new_columns = numpy.array(
+                [column_indices_orig[j] - 0.5, column_indices_orig[j + 1] - 0.5,
+                 column_indices_orig[j + 1] - 0.5])
 
-    V = number of vertices
-    H = number of holes
-    V_e = number of exterior vertices
-    V_hi = number of vertices in [i]th hole
+        elif direction_name == DOWN_LEFT_DIRECTION_NAME:
+            these_new_rows = numpy.array(
+                [row_indices_orig[j] - 0.5, row_indices_orig[j + 1] - 0.5,
+                 row_indices_orig[j + 1] - 0.5])
+            these_new_columns = numpy.array(
+                [column_indices_orig[j] - 0.5, column_indices_orig[j] - 0.5,
+                 column_indices_orig[j + 1] - 0.5])
 
-    :param exterior_x_coords: numpy array (length V_e) with x-coordinates of
-        exterior vertices.
-    :param exterior_y_coords: numpy array (length V_e) with y-coordinates of
-        exterior vertices.
-    :param hole_x_coords_list: length-H list, where the [i]th item is a numpy
-        array (length V_hi) with x-coordinates of interior vertices.
-    :param hole_y_coords_list: Same as above, except for y-coordinates.
-    :return: vertex_x_coords: length-V numpy array with x-coordinates of
-        vertices.  The first NaN separates the exterior from the first hole, and
-        the [i]th NaN separates the [i - 1]th hole from the [i]th hole.
-    :return: vertex_y_coords: Same as above, except for y-coordinates.
-    """
+        new_rows = numpy.concatenate((new_rows, these_new_rows))
+        new_columns = numpy.concatenate((new_columns, these_new_columns))
 
-    _check_vertex_arrays(exterior_x_coords, exterior_y_coords, allow_nan=False)
-
-    vertex_x_coords = copy.deepcopy(exterior_x_coords)
-    vertex_y_coords = copy.deepcopy(exterior_y_coords)
-    if hole_x_coords_list is None:
-        return vertex_x_coords, vertex_y_coords
-
-    num_holes = len(hole_x_coords_list)
-    for i in range(num_holes):
-        _check_vertex_arrays(
-            hole_x_coords_list[i], hole_y_coords_list[i], allow_nan=False)
-
-    single_nan_array = numpy.array([numpy.nan])
-    for i in range(num_holes):
-        vertex_x_coords = numpy.concatenate(
-            (vertex_x_coords, single_nan_array, hole_x_coords_list[i]))
-        vertex_y_coords = numpy.concatenate(
-            (vertex_y_coords, single_nan_array, hole_y_coords_list[i]))
-
-    return vertex_x_coords, vertex_y_coords
+    return new_rows, new_columns
 
 
-def project_latlng_to_xy(polygon_object_latlng, projection_object=None,
-                         false_easting_metres=0, false_northing_metres=0.):
+def project_latlng_to_xy(
+        polygon_object_latlng, projection_object=None, false_easting_metres=0,
+        false_northing_metres=0.):
     """Converts polygon from lat-long to x-y coordinates.
 
-    :param polygon_object_latlng: Instance of `shapely.geometry.Polygon`, with
+    :param polygon_object_latlng: `shapely.geometry.Polygon` object with
         vertices in lat-long coordinates.
-    :param projection_object: Projection object created by `pyproj.Proj`.  If
-        projection_object = None, will use azimuthal equidistant projection
-        centered at polygon centroid.
-    :param false_easting_metres: False easting.  Will be added to all x-
-        coordinates.
-    :param false_northing_metres: False northing.  Will be added to all y-
-        coordinates.
-    :return: polygon_object_xy: Instance of `shapely.geometry.Polygon`, with
+    :param projection_object: `pyproj.Proj` object.  If None, this method will
+        create an azimuthal equidistant projection centered at the polygon
+        centroid.
+    :param false_easting_metres: False easting (will be added to all x-
+        coordinates).
+    :param false_northing_metres: False northing (will be added to all y-
+        coordinates).
+    :return: polygon_object_xy_metres: `shapely.geometry.Polygon` object with
         vertices in x-y coordinates.
-    :return: projection_object: Object (created by `pyproj.Proj`) used to
-        convert coordinates.
+    :return: projection_object: `pyproj.Proj` object.  If input was defined,
+        this is simply the input object.  If input was None, this is the object
+        created on the fly.
     """
 
     if projection_object is None:
@@ -686,22 +557,24 @@ def project_latlng_to_xy(polygon_object_latlng, projection_object=None,
     return polygon_object_xy, projection_object
 
 
-def project_xy_to_latlng(polygon_object_xy, projection_object,
-                         false_easting_metres=0, false_northing_metres=0.):
+def project_xy_to_latlng(
+        polygon_object_xy_metres, projection_object, false_easting_metres=0,
+        false_northing_metres=0.):
     """Converts polygon from x-y to lat-long coordinates.
 
-    :param polygon_object_xy: Instance of `shapely.geometry.Polygon`, with
+    :param polygon_object_xy_metres: `shapely.geometry.Polygon` object with
         vertices in x-y coordinates.
-    :param projection_object: Projection object created by `pyproj.Proj`.
-    :param false_easting_metres: False easting.  Will be subtracted from all x-
-        coordinates before conversion.
-    :param false_northing_metres: False northing.  Will be subtracted from all
-        y-coordinates before conversion.
-    :return: polygon_object_latlng: Instance of `shapely.geometry.Polygon`, with
+    :param projection_object: `pyproj.Proj` object.  Will be used to convert
+        coordinates.
+    :param false_easting_metres: False easting (will be subtracted from all x-
+        coordinates before converting).
+    :param false_northing_metres: False northing (will be subtracted from all y-
+        coordinates before converting).
+    :return: polygon_object_latlng: `shapely.geometry.Polygon` object with
         vertices in lat-long coordinates.
     """
 
-    vertex_dict = polygon_object_to_vertex_arrays(polygon_object_xy)
+    vertex_dict = polygon_object_to_vertex_arrays(polygon_object_xy_metres)
     vertex_dict[EXTERIOR_Y_COLUMN], vertex_dict[EXTERIOR_X_COLUMN] = (
         projections.project_xy_to_latlng(
             vertex_dict[EXTERIOR_X_COLUMN], vertex_dict[EXTERIOR_Y_COLUMN],
@@ -731,33 +604,34 @@ def project_xy_to_latlng(polygon_object_xy, projection_object,
 
 
 def grid_points_in_poly_to_binary_matrix(row_indices, column_indices):
-    """Converts list of grid points in polygon to binary image matrix.
+    """Converts list of grid points in polygon to binary image.
 
     P = number of grid points in polygon
-    M = max(row_indices) - min(row_indices) + 3 = number of rows in subgrid
+    M = max(row_indices) - min(row_indices) + 3 = number of rows in binary image
     N = max(column_indices) - min(column_indices) + 3 = number of columns in
-        subgrid
+        binary image
 
-    :param row_indices: length-P numpy array with row numbers of grid points in
-        polygon.
-    :param column_indices: length-P numpy array with column numbers of grid
+    :param row_indices: length-P numpy array with row numbers (integers) of grid
         points in polygon.
-    :return: binary_matrix: M-by-N numpy array of Boolean flags.
-        binary_matrix[i, j] indicates whether or not pixel [i, j] -- in the
-        subgrid, not necessarily the full grid -- is inside the polygon.
-    :return: first_row_index: Same as min(row_indices) - 1.  This can be used
-        later to convert row numbers from the subgrid to the full grid.
-    :return: first_column_index: Same as min(column_indices) - 1.  This can be
-        used later to convert column numbers from the subgrid to the full grid.
+    :param column_indices: length-P numpy array with column numbers (integers)
+        of grid points in polygon.
+    :return: binary_matrix: M-by-N numpy array of Boolean flags.  If
+        binary_matrix[i, j] = True, pixel [i, j] is inside the polygon.
+    :return: first_row_index: Used to convert row numbers from the binary image
+        (which spans only a subgrid) to the full grid.  Row 0 in the subgrid =
+        row `first_row_index` in the full grid.
+    :return: first_column_index: Same as above, but for column numbers.
     """
 
     error_checking.assert_is_integer_numpy_array(row_indices)
     error_checking.assert_is_geq_numpy_array(row_indices, 0)
     error_checking.assert_is_numpy_array(row_indices, num_dimensions=1)
+    num_points_in_polygon = len(row_indices)
 
     error_checking.assert_is_integer_numpy_array(column_indices)
     error_checking.assert_is_geq_numpy_array(column_indices, 0)
-    error_checking.assert_is_numpy_array(column_indices, num_dimensions=1)
+    error_checking.assert_is_numpy_array(
+        column_indices, exact_dimensions=numpy.array([num_points_in_polygon]))
 
     num_rows_in_subgrid = max(row_indices) - min(row_indices) + 3
     num_columns_in_subgrid = max(column_indices) - min(column_indices) + 3
@@ -771,30 +645,28 @@ def grid_points_in_poly_to_binary_matrix(row_indices, column_indices):
         (row_indices_in_subgrid, column_indices_in_subgrid),
         (num_rows_in_subgrid, num_columns_in_subgrid))
 
-    binary_vector = numpy.full(num_rows_in_subgrid * num_columns_in_subgrid,
-                               False, dtype=bool)
+    binary_vector = numpy.full(
+        num_rows_in_subgrid * num_columns_in_subgrid, False, dtype=bool)
     binary_vector[linear_indices_in_subgrid] = True
-    binary_matrix = numpy.reshape(binary_vector,
-                                  (num_rows_in_subgrid, num_columns_in_subgrid))
+    binary_matrix = numpy.reshape(
+        binary_vector, (num_rows_in_subgrid, num_columns_in_subgrid))
 
     return binary_matrix, first_row_index, first_column_index
 
 
-def sort_vertices_counterclockwise(vertex_x_coords, vertex_y_coords):
+def sort_counterclockwise(vertex_x_coords, vertex_y_coords):
     """Sorts vertices of a simple polygon in counterclockwise order.
 
-    This method assumes that vertices are already sorted in one of two ways
-    (clockwise or counterclockwise), so this method either reverses the order or
-    leaves the original.
+    This method assumes that vertices are already sorted either clockwise or
+    counterclockwise.  Thus, this method decides whether to leave the order as
+    is or reverse it.
 
     V = number of vertices
 
-    :param vertex_x_coords: length-V numpy array with x-coordinates of vertices.
-    :param vertex_y_coords: length-V numpy array with y-coordinates of vertices.
-    :return: vertex_x_coords: length-V numpy array of x-coordinates in CCW
-        order.
-    :return: vertex_y_coords: length-V numpy array of y-coordinates in CCW
-        order.
+    :param vertex_x_coords: See documentation for _check_vertex_arrays.
+    :param vertex_y_coords: See documentation for _check_vertex_arrays.
+    :return: vertex_x_coords: Same as input, except in counterclockwise order.
+    :return: vertex_y_coords: Same as input, except in counterclockwise order.
     """
 
     _check_vertex_arrays(vertex_x_coords, vertex_y_coords, allow_nan=False)
@@ -810,39 +682,18 @@ def sort_vertices_counterclockwise(vertex_x_coords, vertex_y_coords):
 
         signed_area = signed_area + (this_x_difference * this_y_sum)
 
-    is_polygon_ccw = signed_area < 0
-    if is_polygon_ccw:
+    if signed_area < 0:
         return vertex_x_coords, vertex_y_coords
-
     return vertex_x_coords[::-1], vertex_y_coords[::-1]
 
 
-def get_latlng_centroid(latitudes_deg, longitudes_deg):
-    """Finds centroid of a set of lat-long points.
+def vertex_arrays_to_polygon_object(
+        exterior_x_coords, exterior_y_coords, hole_x_coords_list=None,
+        hole_y_coords_list=None):
+    """Converts polygon from vertex arrays to `shapely.geometry.Polygon` object.
 
-    N = number of points
-
-    :param latitudes_deg: length-N numpy array of latitudes (deg N).
-    :param longitudes_deg: length-N numpy array of longitudes (deg E).
-    :return: centroid_lat_deg: Latitude of centroid (deg N).
-    :return: centroid_lng_deg: Longitude of centroid (deg E).
-    """
-
-    # TODO(thunderhoser): This method belongs somewhere else, since it can be
-    # used for any collection of points (not just polygon vertices).
-
-    return (numpy.mean(latitudes_deg[numpy.invert(numpy.isnan(latitudes_deg))]),
-            numpy.mean(
-                longitudes_deg[numpy.invert(numpy.isnan(longitudes_deg))]))
-
-
-def vertex_arrays_to_polygon_object(exterior_x_coords, exterior_y_coords,
-                                    hole_x_coords_list=None,
-                                    hole_y_coords_list=None):
-    """Converts arrays of vertex coords to `shapely.geometry.Polygon` object.
-
-    H = number of holes
     V_e = number of exterior vertices
+    H = number of holes
     V_hi = number of vertices in [i]th hole
 
     :param exterior_x_coords: numpy array (length V_e) with x-coordinates of
@@ -851,24 +702,24 @@ def vertex_arrays_to_polygon_object(exterior_x_coords, exterior_y_coords,
         exterior vertices.
     :param hole_x_coords_list: length-H list, where the [i]th item is a numpy
         array (length V_hi) with x-coordinates of interior vertices.
-    :return: polygon_object: Instance of `shapely.geometry.Polygon`.
-    :raises: ValueError: if the resulting polygon is invalid.
+    :param hole_y_coords_list: Same as above, except for y-coordinates.
+    :return: polygon_object: `shapely.geometry.Polygon` object.
+    :raises: ValueError: if the polygon is invalid.
     """
 
-    exterior_coords_list = _vertex_arrays_to_list(
+    exterior_coords_as_list = _vertex_arrays_to_list(
         exterior_x_coords, exterior_y_coords)
-
     if hole_x_coords_list is None:
-        return shapely.geometry.Polygon(shell=exterior_coords_list)
+        return shapely.geometry.Polygon(shell=exterior_coords_as_list)
 
     num_holes = len(hole_x_coords_list)
-    list_of_hole_coords_lists = []
+    outer_list_of_hole_coords = []
     for i in range(num_holes):
-        list_of_hole_coords_lists.append(_vertex_arrays_to_list(
+        outer_list_of_hole_coords.append(_vertex_arrays_to_list(
             hole_x_coords_list[i], hole_y_coords_list[i]))
 
     polygon_object = shapely.geometry.Polygon(
-        shell=exterior_coords_list, holes=tuple(list_of_hole_coords_lists))
+        shell=exterior_coords_as_list, holes=tuple(outer_list_of_hole_coords))
 
     if not polygon_object.is_valid:
         raise ValueError('Resulting polygon is invalid.')
@@ -877,58 +728,50 @@ def vertex_arrays_to_polygon_object(exterior_x_coords, exterior_y_coords,
 
 
 def polygon_object_to_vertex_arrays(polygon_object):
-    """Converts `shapely.geometry.Polygon` object to arrays of vertex coords.
+    """Converts polygon from `shapely.geometry.Polygon` object to vertex arrays.
 
-    H = number of holes
     V_e = number of exterior vertices
+    H = number of holes
     V_hi = number of vertices in [i]th hole
 
-    :param polygon_object: Instance of `shapely.geometry.Polygon`.
+    :param polygon_object: `shapely.geometry.Polygon` object.
     :return: vertex_dict: Dictionary with the following keys.
-    vertex_dict.exterior_x_coords: numpy array (length V_e) with x-coordinates
-        of exterior vertices.
-    vertex_dict.exterior_y_coords: numpy array (length V_e) with y-coordinates
-        of exterior vertices.
-    vertex_dict.hole_x_coords_list: length-H list, where the [i]th item is a
+    vertex_dict['exterior_x_coords']: numpy array (length V_e) with
+        x-coordinates of exterior vertices.
+    vertex_dict['exterior_y_coords']: numpy array (length V_e) with
+        y-coordinates of exterior vertices.
+    vertex_dict['hole_x_coords_list']: length-H list, where the [i]th item is a
         numpy array (length V_hi) with x-coordinates of interior vertices.
-    vertex_dict.hole_y_coords_list: Same as above, except for y-coordinates.
+    vertex_dict['hole_y_coords_list']: Same as above, except for y-coordinates.
     """
 
-    exterior_x_coords, exterior_y_coords = _vertex_list_to_arrays(
-        list(polygon_object.exterior.coords))
-
     num_holes = len(polygon_object.interiors)
-    if num_holes == 0:
-        return {EXTERIOR_X_COLUMN: exterior_x_coords,
-                EXTERIOR_Y_COLUMN: exterior_y_coords,
-                HOLE_X_COLUMN: [], HOLE_Y_COLUMN: []}
-
     hole_x_coords_list = []
     hole_y_coords_list = []
+
     for i in range(num_holes):
-        (this_hole_x_coords, this_hole_y_coords) = _vertex_list_to_arrays(
-            list(polygon_object.interiors[i].coords))
+        hole_x_coords_list.append(
+            numpy.array(polygon_object.interiors[i].xy[0]))
+        hole_y_coords_list.append(
+            numpy.array(polygon_object.interiors[i].xy[1]))
 
-        hole_x_coords_list.append(this_hole_x_coords)
-        hole_y_coords_list.append(this_hole_y_coords)
-
-    return {EXTERIOR_X_COLUMN: exterior_x_coords,
-            EXTERIOR_Y_COLUMN: exterior_y_coords,
+    return {EXTERIOR_X_COLUMN: numpy.array(polygon_object.exterior.xy[0]),
+            EXTERIOR_Y_COLUMN: numpy.array(polygon_object.exterior.xy[1]),
             HOLE_X_COLUMN: hole_x_coords_list,
             HOLE_Y_COLUMN: hole_y_coords_list}
 
 
-def grid_points_in_poly_to_vertices(grid_point_row_indices,
-                                    grid_point_column_indices):
-    """Converts list of grid points in polygon to list of vertices.
+def grid_points_in_poly_to_vertices(
+        grid_point_row_indices, grid_point_column_indices):
+    """Converts list of grid points in polygon to vertices.
 
-    The resulting vertices follow grid-cell edges, rather than cutting through
-    grid cells.  Vertices are sorted in counterclockwise order.
+    The resulting vertices are sorted counterclockwise and follow grid-cell
+    edges (rather than cutting through grid cells).
 
-    If there are disjoint polygons, this method returns the longest polygon
-    (that with the most vertices).  If there are holes inside the longest
-    polygon, this method removes the holes.  In other words, this method always
-    returns a simple polygon and tries to return the largest one.
+    This method returns a simple polygon.  If the list of grid points defines
+    several disjoint polygons, this method returns the longest one (that with
+    the most vertices).  Also, this method removes holes from the interior of
+    said polygon.
 
     P = number of grid points in polygon
     V = number of vertices
@@ -944,18 +787,18 @@ def grid_points_in_poly_to_vertices(grid_point_row_indices,
     """
 
     error_checking.assert_is_integer_numpy_array(grid_point_row_indices)
-    error_checking.assert_is_numpy_array_without_nan(grid_point_row_indices)
+    error_checking.assert_is_geq_numpy_array(grid_point_row_indices, 0)
     error_checking.assert_is_numpy_array(
         grid_point_row_indices, num_dimensions=1)
     num_grid_points = len(grid_point_row_indices)
 
     error_checking.assert_is_integer_numpy_array(grid_point_column_indices)
-    error_checking.assert_is_numpy_array_without_nan(grid_point_column_indices)
+    error_checking.assert_is_geq_numpy_array(grid_point_column_indices, 0)
     error_checking.assert_is_numpy_array(
         grid_point_column_indices,
         exact_dimensions=numpy.array([num_grid_points]))
 
-    (binary_matrix, first_row_index, first_column_index) = (
+    binary_matrix, first_row_index, first_column_index = (
         grid_points_in_poly_to_binary_matrix(
             grid_point_row_indices, grid_point_column_indices))
     binary_matrix = _patch_diag_connections_in_binary_matrix(binary_matrix)
@@ -966,11 +809,10 @@ def grid_points_in_poly_to_vertices(grid_point_row_indices,
 
     contour_matrix = _get_longest_inner_list(contour_list)
     contour_matrix = numpy.array(contour_matrix)[:, 0, :]
-    num_contour_points = contour_matrix.shape[0]
 
-    num_vertices = num_contour_points + 1
-    vertex_row_indices = numpy.full(num_vertices, numpy.nan)
-    vertex_column_indices = numpy.full(num_vertices, numpy.nan)
+    num_vertices = contour_matrix.shape[0] + 1
+    vertex_row_indices = numpy.full(num_vertices, -1, dtype=int)
+    vertex_column_indices = numpy.full(num_vertices, -1, dtype=int)
 
     for i in range(num_vertices):
         if i == num_vertices - 1:
@@ -984,7 +826,8 @@ def grid_points_in_poly_to_vertices(grid_point_row_indices,
     vertex_column_indices += first_column_index
     vertex_row_indices, vertex_column_indices = (
         _vertices_from_grid_points_to_edges(
-            vertex_row_indices.astype(int), vertex_column_indices.astype(int)))
+            vertex_row_indices, vertex_column_indices))
+
     return _remove_redundant_vertices(vertex_row_indices, vertex_column_indices)
 
 
@@ -1007,33 +850,31 @@ def simple_polygon_to_grid_points(vertex_row_indices, vertex_column_indices):
     polygon_object = vertex_arrays_to_polygon_object(
         vertex_column_indices, vertex_row_indices)
 
-    min_grid_point_row = numpy.floor(numpy.min(vertex_row_indices))
-    max_grid_point_row = numpy.ceil(numpy.max(vertex_row_indices))
+    min_grid_point_row = int(numpy.floor(numpy.min(vertex_row_indices)))
+    max_grid_point_row = int(numpy.ceil(numpy.max(vertex_row_indices)))
     num_grid_point_rows = max_grid_point_row - min_grid_point_row + 1
-    min_grid_point_column = numpy.floor(numpy.min(vertex_column_indices))
-    max_grid_point_column = numpy.ceil(numpy.max(vertex_column_indices))
-    num_grid_point_columns = max_grid_point_column - min_grid_point_column + 1
-
-    unique_grid_point_rows = numpy.linspace(
+    grid_point_rows = numpy.linspace(
         min_grid_point_row, max_grid_point_row, num=num_grid_point_rows,
         dtype=int)
-    unique_grid_point_columns = numpy.linspace(
+
+    min_grid_point_column = int(numpy.floor(numpy.min(vertex_column_indices)))
+    max_grid_point_column = int(numpy.ceil(numpy.max(vertex_column_indices)))
+    num_grid_point_columns = max_grid_point_column - min_grid_point_column + 1
+    grid_point_columns = numpy.linspace(
         min_grid_point_column, max_grid_point_column,
         num=num_grid_point_columns, dtype=int)
 
-    (grid_point_column_matrix,
-     grid_point_row_matrix) = grids.xy_vectors_to_matrices(
-         unique_grid_point_columns, unique_grid_point_rows)
-
-    grid_point_row_vector = numpy.reshape(grid_point_row_matrix,
-                                          grid_point_row_matrix.size)
-    grid_point_column_vector = numpy.reshape(grid_point_column_matrix,
-                                             grid_point_column_matrix.size)
+    grid_point_column_matrix, grid_point_row_matrix = (
+        grids.xy_vectors_to_matrices(grid_point_columns, grid_point_rows))
+    grid_point_row_vector = numpy.reshape(
+        grid_point_row_matrix, grid_point_row_matrix.size)
+    grid_point_column_vector = numpy.reshape(
+        grid_point_column_matrix, grid_point_column_matrix.size)
 
     num_grid_points = len(grid_point_row_vector)
     in_polygon_flags = numpy.full(num_grid_points, False, dtype=bool)
     for i in range(num_grid_points):
-        in_polygon_flags[i] = is_point_in_or_on_polygon(
+        in_polygon_flags[i] = point_in_or_on_polygon(
             polygon_object, query_x_coordinate=grid_point_column_vector[i],
             query_y_coordinate=grid_point_row_vector[i])
 
@@ -1043,58 +884,58 @@ def simple_polygon_to_grid_points(vertex_row_indices, vertex_column_indices):
 
 
 def fix_probsevere_vertices(row_indices_orig, column_indices_orig):
-    """Fixes vertices of storm object generated by probSevere.
+    """Fixes vertices of storm object created by probSevere.
 
-    Specifically, this method moves vertices from grid points to grid-cell
-    edges.  This ensures that vertices follow the outlines of grid cells, rather
-    than cutting through grid cells.
+    The resulting vertices are sorted counterclockwise and follow grid-cell
+    edges (rather than cutting through grid cells).
 
-    v = original number of vertices
-    V = final number of vertices
+    V_0 = number of original vertices
+    V = number of final vertices
 
-    :param row_indices_orig: length-v numpy array with row numbers (integers) of
+    :param row_indices_orig: numpy array (length V_0) with row numbers of
         original vertices.
-    :param column_indices_orig: length-v numpy array with column numbers
-        (integers) of original vertices.
-    :return: row_indices: length-V numpy array with row numbers (half-integers)
-        of new vertices.
-    :return: column_indices: length-V numpy array with column numbers (half-
-        integers) of new vertices.
+    :param column_indices_orig: numpy array (length V_0) with column numbers of
+        original vertices.
+    :return: row_indices: length-V numpy array with row numbers of final (non-
+        redundant) vertices.
+    :return: column_indices: length-V numpy array with column numbers of final
+        (non-redundant) vertices.
     """
 
-    column_indices_orig, row_indices_orig = (
-        _get_longest_vertex_arrays_without_nan(
-            column_indices_orig, row_indices_orig))
+    column_indices_orig, row_indices_orig = _get_longest_simple_polygon(
+        column_indices_orig, row_indices_orig)
+    row_indices_orig = row_indices_orig.astype(int)
+    column_indices_orig = column_indices_orig.astype(int)
 
     if (row_indices_orig[0] != row_indices_orig[-1] or
             column_indices_orig[0] != column_indices_orig[-1]):
         row_indices_orig = numpy.concatenate((
-            row_indices_orig, numpy.array([row_indices_orig[0]])))
+            row_indices_orig, row_indices_orig[[0]]))
         column_indices_orig = numpy.concatenate((
-            column_indices_orig, numpy.array([column_indices_orig[0]])))
+            column_indices_orig, column_indices_orig[[0]]))
 
-    (column_indices_orig, row_indices_orig) = sort_vertices_counterclockwise(
+    column_indices_orig, row_indices_orig = sort_counterclockwise(
         column_indices_orig, -1 * row_indices_orig)
     row_indices_orig *= -1
 
     row_indices, column_indices = _vertices_from_grid_points_to_edges(
-        row_indices_orig.astype(int), column_indices_orig.astype(int))
+        row_indices_orig, column_indices_orig)
     return _remove_redundant_vertices(row_indices, column_indices)
 
 
-def is_point_in_or_on_polygon(polygon_object=None, query_x_coordinate=None,
-                              query_y_coordinate=None):
+def point_in_or_on_polygon(
+        polygon_object, query_x_coordinate, query_y_coordinate):
     """Returns True if point is inside/touching the polygon, False otherwise.
 
-    x- and y-coordinates may be in one of the formats listed at the top.
-    However, coordinates in the first three input args must all be in the same
+    x- and y-coordinates may be in one of three formats (see docstring at top of
+    file).  However, the 3 input arguments must have coordinates in the same
     format.
 
-    :param polygon_object: Instance of `shapely.geometry.Polygon`.
+    :param polygon_object: `shapely.geometry.Polygon` object.
     :param query_x_coordinate: x-coordinate of query point.
     :param query_y_coordinate: y-coordinate of query point.
-    :return: point_in_or_on_poly_flag: Boolean flag.  True if point is
-        inside/touching the polygon, False otherwise.
+    :return: result: Boolean flag.  True if point is inside/touching the
+        polygon, False otherwise.
     """
 
     error_checking.assert_is_not_nan(query_x_coordinate)
@@ -1108,36 +949,39 @@ def is_point_in_or_on_polygon(polygon_object=None, query_x_coordinate=None,
     return polygon_object.touches(point_object)
 
 
-def buffer_simple_polygon(orig_vertex_x_metres, orig_vertex_y_metres,
-                          min_buffer_dist_metres=numpy.nan,
-                          max_buffer_dist_metres=None, preserve_angles=False):
+def buffer_simple_polygon(
+        vertex_x_metres, vertex_y_metres, max_buffer_dist_metres,
+        min_buffer_dist_metres=numpy.nan, preserve_angles=False):
     """Creates buffer around simple polygon.
 
-    v = number of vertices in original polygon
-    V = number of vertices in buffer
+    V_0 = number of original vertices
+    V = number of final vertices
 
-    :param orig_vertex_x_metres: length-v numpy array with x-coordinates of
-        vertices.
-    :param orig_vertex_y_metres: length-v numpy array with y-coordinates of
-        vertices.
-    :param min_buffer_dist_metres: Minimum buffer distance.  If defined, the
-        original polygon will *not* be included in the buffer (example: if you
-        want "0-5 km outside the storm," make min_buffer_dist_metres = 0; if you
-        want "5-10 km outside the storm," make min_buffer_dist_metres = 5000).
-        If NaN, the original polygon *will* be included in the buffer (example:
-        if you want "within 5 km of the storm" or "within 10 km of the storm,"
-        make min_buffer_dist_metres = NaN).
-    :param max_buffer_dist_metres: Maximum buffer distance.
+    :param vertex_x_metres: numpy array (length V_0) with x-coordinates of
+        original vertices.
+    :param vertex_y_metres: numpy array (length V_0) with y-coordinates of
+        original vertices.
+    :param max_buffer_dist_metres: Max buffer distance.
+    :param min_buffer_dist_metres: Minimum buffer distance.  If NaN, the buffer
+        will be inclusive (i.e., the original polygon will be included in the
+        buffer).  Otherwise, the buffer will be exclusive (i.e., the buffer will
+        not include the original polygon).  For example, if
+        `min_buffer_dist_metres` = NaN and `max_buffer_dist_metres` = 5, the
+        buffer will include the original polygon and an area of 5 metres outside
+        the original polygon.  However, if `min_buffer_dist_metres` = 0 and
+        `max_buffer_dist_metres` = 5, the buffer will include only an area of 5
+        metres outside the original polygon.  If `min_buffer_dist_metres` = 1
+        and `max_buffer_dist_metres` = 5, the buffer will include only an area
+        of 1-5 metres outside the original polygon.
     :param preserve_angles: Boolean flag.  If True, will preserve the angles of
-        all vertices.  However, this means that buffer distances will not be
-        strictly respected.  It is highly recommended that you leave this as
-        False.
-    :return: buffer_polygon_object: Instance of `shapely.geometry.polygon`.
+        all vertices in the original polygon, which means that distance will not
+        be strictly respected.  If False, will preserve buffer distances, which
+        means that vertex angles will not be strictly respected.  We highly
+        recommend keeping this as False (True only for unit tests).
+    :return: buffered_polygon_object: `shapely.geometry.Polygon` object.
     """
 
-    _check_vertex_arrays(
-        orig_vertex_x_metres, orig_vertex_y_metres, allow_nan=False)
-    error_checking.assert_is_real_number(min_buffer_dist_metres)
+    _check_vertex_arrays(vertex_x_metres, vertex_y_metres, allow_nan=False)
     error_checking.assert_is_geq(min_buffer_dist_metres, 0., allow_nan=True)
 
     error_checking.assert_is_not_nan(max_buffer_dist_metres)
@@ -1146,17 +990,15 @@ def buffer_simple_polygon(orig_vertex_x_metres, orig_vertex_y_metres,
             max_buffer_dist_metres, min_buffer_dist_metres)
 
     error_checking.assert_is_boolean(preserve_angles)
-
     if preserve_angles:
         join_style = shapely.geometry.JOIN_STYLE.mitre
     else:
         join_style = shapely.geometry.JOIN_STYLE.round
 
     orig_polygon_object = vertex_arrays_to_polygon_object(
-        orig_vertex_x_metres, orig_vertex_y_metres)
+        vertex_x_metres, vertex_y_metres)
     max_buffer_polygon_object = orig_polygon_object.buffer(
         max_buffer_dist_metres, join_style=join_style)
-
     if numpy.isnan(min_buffer_dist_metres):
         return max_buffer_polygon_object
 

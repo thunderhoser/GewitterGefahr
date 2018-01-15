@@ -20,6 +20,7 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import polygons
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -131,9 +132,9 @@ def _init_azimuthal_equidistant_projection(storm_centroid_latitudes_deg,
         convert between lat-long and x-y coordinates.
     """
 
-    (global_centroid_lat_deg,
-     global_centroid_lng_deg) = polygons.get_latlng_centroid(
-         storm_centroid_latitudes_deg, storm_centroid_longitudes_deg)
+    global_centroid_lat_deg, global_centroid_lng_deg = (
+        geodetic_utils.get_latlng_centroid(
+            storm_centroid_latitudes_deg, storm_centroid_longitudes_deg))
 
     return projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)
@@ -499,7 +500,7 @@ def _find_nearest_storms_at_one_time(interp_vertex_table,
         this_polygon_object = polygons.vertex_arrays_to_polygon_object(
             interp_vertex_table[VERTEX_X_COLUMN].values[this_storm_indices],
             interp_vertex_table[VERTEX_Y_COLUMN].values[this_storm_indices])
-        this_point_in_polygon_flag = polygons.is_point_in_or_on_polygon(
+        this_point_in_polygon_flag = polygons.point_in_or_on_polygon(
             this_polygon_object, query_x_coordinate=wind_x_coords_metres[k],
             query_y_coordinate=wind_y_coords_metres[k])
 

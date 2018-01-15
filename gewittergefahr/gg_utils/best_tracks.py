@@ -20,8 +20,8 @@ import pandas
 from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -1158,7 +1158,7 @@ def run_best_track(
         min_objects_in_track=min_objects_in_track)
 
     global_centroid_lat_deg, global_centroid_lng_deg = (
-        polygons.get_latlng_centroid(
+        geodetic_utils.get_latlng_centroid(
             storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
             storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values))
     projection_object = projections.init_azimuthal_equidistant_projection(

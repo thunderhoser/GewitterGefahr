@@ -739,7 +739,7 @@ def _find_grid_points_in_polygon(
 
     for this_row in range(min_row_to_test, max_row_to_test + 1):
         for this_column in range(min_column_to_test, max_column_to_test + 1):
-            this_flag = polygons.is_point_in_or_on_polygon(
+            this_flag = polygons.point_in_or_on_polygon(
                 polygon_object_xy,
                 query_x_coordinate=grid_points_x_metres[this_column],
                 query_y_coordinate=grid_points_y_metres[this_row])
@@ -1111,7 +1111,7 @@ def create_forecast_grids(
         this_num_storm_objects = len(this_storm_object_table.index)
 
         this_centroid_lat_deg, this_centroid_lng_deg = (
-            polygons.get_latlng_centroid(
+            geodetic_utils.get_latlng_centroid(
                 this_storm_object_table[
                     tracking_utils.CENTROID_LAT_COLUMN].values,
                 this_storm_object_table[

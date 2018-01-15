@@ -92,8 +92,7 @@ def plot_storm_track(basemap_object=None, axes_object=None, latitudes_deg=None,
             markeredgewidth=end_marker_edge_width)
 
 
-def plot_unfilled_polygon(basemap_object=None, axes_object=None,
-                          vertex_latitudes_deg=None, vertex_longitudes_deg=None,
+def plot_unfilled_polygon(basemap_object, axes_object, polygon_object_latlng,
                           exterior_colour=DEFAULT_POLY_LINE_COLOUR,
                           exterior_line_width=DEFAULT_POLY_LINE_WIDTH,
                           hole_colour=DEFAULT_POLY_HOLE_LINE_COLOUR,
@@ -104,8 +103,8 @@ def plot_unfilled_polygon(basemap_object=None, axes_object=None,
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param vertex_latitudes_deg: length-V numpy array of latitudes (deg N).
-    :param vertex_longitudes_deg: length-V numpy array of longitudes (deg E).
+    :param polygon_object_latlng: `shapely.geometry.Polygon` object with
+        vertices in lat-long coordinates.
     :param exterior_colour: Colour for exterior of polygon (in any format
         accepted by `matplotlib.colors`).
     :param exterior_line_width: Line width for exterior of polygon (real
@@ -116,10 +115,8 @@ def plot_unfilled_polygon(basemap_object=None, axes_object=None,
         number).
     """
 
-    # TODO(thunderhoser): input should be a `shapely.geometry.Polygon` object.
-
-    vertex_dict = polygons.separate_exterior_and_holes(
-        vertex_longitudes_deg, vertex_latitudes_deg)
+    vertex_dict = polygons.polygon_object_to_vertex_arrays(
+        polygon_object_latlng)
 
     exterior_latitudes_deg = vertex_dict[polygons.EXTERIOR_Y_COLUMN]
     exterior_longitudes_deg = vertex_dict[polygons.EXTERIOR_X_COLUMN]
@@ -142,8 +139,7 @@ def plot_unfilled_polygon(basemap_object=None, axes_object=None,
             linestyle='solid', linewidth=hole_line_width)
 
 
-def plot_filled_polygon(basemap_object=None, axes_object=None,
-                        vertex_latitudes_deg=None, vertex_longitudes_deg=None,
+def plot_filled_polygon(basemap_object, axes_object, polygon_object_latlng,
                         line_colour=DEFAULT_POLY_LINE_COLOUR,
                         line_width=DEFAULT_POLY_LINE_WIDTH,
                         fill_colour=DEFAULT_POLY_FILL_COLOUR,
@@ -152,8 +148,8 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param vertex_latitudes_deg: length-V numpy array of latitudes (deg N).
-    :param vertex_longitudes_deg: length-V numpy array of longitudes (deg E).
+    :param polygon_object_latlng: `shapely.geometry.Polygon` object with
+        vertices in lat-long coordinates.
     :param line_colour: Colour of polygon edge (in any format accepted by
         `matplotlib.colors`).
     :param line_width: Width of polygon edge.
@@ -161,10 +157,8 @@ def plot_filled_polygon(basemap_object=None, axes_object=None,
     :param opacity: Opacity of polygon fill (in range 0...1).
     """
 
-    # TODO(thunderhoser): input should be a `shapely.geometry.Polygon` object.
-
-    vertex_dict = polygons.separate_exterior_and_holes(
-        vertex_longitudes_deg, vertex_latitudes_deg)
+    vertex_dict = polygons.polygon_object_to_vertex_arrays(
+        polygon_object_latlng)
     (exterior_x_metres, exterior_y_metres) = basemap_object(
         vertex_dict[polygons.EXTERIOR_X_COLUMN],
         vertex_dict[polygons.EXTERIOR_Y_COLUMN])
