@@ -39,7 +39,7 @@ def open_netcdf(netcdf_file_name, raise_error_if_fails=False):
         try:
             shutil.copyfileobj(gzip_file_object, netcdf_temporary_file_object)
             success = True
-        except IOError:
+        except:
             if raise_error_if_fails:
                 raise
 
