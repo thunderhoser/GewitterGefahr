@@ -441,7 +441,7 @@ def sequential_forward_selection(
     remaining_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
+    min_cross_entropy_by_num_selected = numpy.full(num_features + 1, numpy.nan)
     min_cross_entropy_by_num_selected[0] = 1e10
 
     while len(remaining_feature_names) >= num_features_to_add_per_step:
@@ -501,17 +501,19 @@ def sfs_with_backward_steps(
         target_name, estimator_object,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SFS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SFS,
+        num_features_to_add_per_forward_step=1,
+        num_features_to_remove_per_backward_step=1,
         min_fractional_xentropy_decrease=
         DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS):
     """Runs SFS (sequential forward selection) with backward steps.
 
-    This method is called "plus l - take away r selection" in Chapter 9 of Webb
+    This method is called "plus-l-minus-r selection" in Chapter 9 of Webb
     (2003), where l > r.
 
     --- DEFINITIONS ---
 
-    "Forward step" = addition of one feature.
-    "Backward step" = removal of one feature.
+    "Forward step" = addition of `num_features_to_add_per_step` features.
+    "Backward step" = removal of `num_features_to_remove_per_step` features.
     "Major step" = l forward steps followed by r backward steps.
 
     :param training_table: See documentation for
@@ -525,6 +527,10 @@ def sfs_with_backward_steps(
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
+    :param num_features_to_add_per_step: Number of features added at each
+        forward step.
+    :param num_features_to_remove_per_step: Number of features removed at each
+        backward step.
     :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
         fractional decrease in cross-entropy from a major step is <
         `min_fractional_xentropy_decrease`, algorithm will stop.  Must be in
@@ -532,23 +538,30 @@ def sfs_with_backward_steps(
     :return: sfs_dictionary: See doc for sequential_forward_selection.
     """
 
-    # TODO(thunderhoser): Allow user to choose number of features added per
-    # forward step, number removed per backwards step.
-
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         testing_table=testing_table, feature_names=feature_names,
-        target_name=target_name)
-
-    num_features = len(feature_names)
+        target_name=target_name,
+        num_features_to_add_per_step=num_features_to_add_per_forward_step,
+        num_features_to_remove_per_step=
+        num_features_to_remove_per_backward_step)
 
     error_checking.assert_is_integer(num_forward_steps)
-    error_checking.assert_is_geq(num_forward_steps, 2)
-    error_checking.assert_is_leq(num_forward_steps, num_features)
-
+    error_checking.assert_is_geq(num_forward_steps, 1)
     error_checking.assert_is_integer(num_backward_steps)
     error_checking.assert_is_geq(num_backward_steps, 1)
-    error_checking.assert_is_less_than(num_backward_steps, num_forward_steps)
+
+    num_features_to_add_per_major_step = (
+        num_forward_steps * num_features_to_add_per_forward_step)
+    num_features_to_remove_per_major_step = (
+        num_backward_steps * num_features_to_remove_per_backward_step)
+
+    num_features = len(feature_names)
+    error_checking.assert_is_less_than(
+        num_features_to_add_per_major_step, num_features)
+    error_checking.assert_is_less_than(
+        num_features_to_remove_per_major_step,
+        num_features_to_add_per_major_step)
 
     error_checking.assert_is_greater(min_fractional_xentropy_decrease, 0.)
     error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
@@ -559,10 +572,11 @@ def sfs_with_backward_steps(
     selected_feature_names = []
     remaining_feature_names = copy.deepcopy(feature_names)
 
-    min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
+    min_cross_entropy_by_num_selected = numpy.full(num_features + 1, numpy.nan)
     min_cross_entropy_by_num_selected[0] = 1e10
 
-    while len(selected_feature_names) + num_forward_steps <= num_features:
+    while (len(selected_feature_names) + num_features_to_add_per_major_step <=
+           num_features):
         major_step_num += 1
         min_cross_entropy_prev_major_step = min_cross_entropy_by_num_selected[
             len(selected_feature_names)]
@@ -577,25 +591,29 @@ def sfs_with_backward_steps(
                        major_step_num, i + 1, num_selected_features,
                        num_remaining_features)
 
-            min_new_cross_entropy, this_best_feature_name_as_list = (
+            min_new_cross_entropy, these_best_feature_names = (
                 _forward_selection_step(
                     training_table=training_table,
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     remaining_feature_names=remaining_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_add=1))
-            this_best_feature_name = this_best_feature_name_as_list[0]
+                    num_features_to_add=num_features_to_add_per_forward_step))
 
-            print ('Minimum cross-entropy ({0:.4f}) given by adding feature '
-                   '"{1:s}" (previous minimum = {2:.4f}).').format(
-                       min_new_cross_entropy, this_best_feature_name,
-                       min_cross_entropy_by_num_selected[num_selected_features])
+            print ('Minimum cross-entropy ({0:.4f}) given by adding features '
+                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cross_entropy,
+                       min_cross_entropy_by_num_selected[num_selected_features],
+                       these_best_feature_names)
 
-            selected_feature_names.append(this_best_feature_name)
-            remaining_feature_names.remove(this_best_feature_name)
+            selected_feature_names += these_best_feature_names
+            remaining_feature_names = [
+                s for s in remaining_feature_names
+                if s not in these_best_feature_names]
+
             min_cross_entropy_by_num_selected[
-                num_selected_features + 1] = min_new_cross_entropy
+                (num_selected_features + 1):(len(selected_feature_names) + 1)
+            ] = min_new_cross_entropy
 
         for i in range(num_backward_steps):
             num_selected_features = len(selected_feature_names)
@@ -604,26 +622,30 @@ def sfs_with_backward_steps(
                        major_step_num, i + 1, num_selected_features,
                        num_features)
 
-            min_new_cross_entropy, this_worst_feature_name_as_list = (
+            min_new_cross_entropy, these_worst_feature_names = (
                 _backward_selection_step(
                     training_table=training_table,
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_remove=1))
-            this_worst_feature_name = this_worst_feature_name_as_list[0]
+                    num_features_to_remove=
+                    num_features_to_remove_per_backward_step))
 
-            print ('Minimum cross-entropy ({0:.4f}) given by removing feature '
-                   '"{1:s}" (previous minimum = {2:.4f}).').format(
-                       min_new_cross_entropy, this_worst_feature_name,
-                       min_cross_entropy_by_num_selected[num_selected_features])
+            print ('Minimum cross-entropy ({0:.4f}) given by removing features '
+                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cross_entropy,
+                       min_cross_entropy_by_num_selected[num_selected_features],
+                       these_worst_feature_names)
 
-            remaining_feature_names.append(this_worst_feature_name)
-            selected_feature_names.remove(this_worst_feature_name)
+            remaining_feature_names += these_worst_feature_names
+            selected_feature_names = [
+                s for s in selected_feature_names
+                if s not in these_worst_feature_names]
 
-            min_cross_entropy_by_num_selected[num_selected_features] = numpy.nan
             min_cross_entropy_by_num_selected[
-                num_selected_features - 1] = min_new_cross_entropy
+                (len(selected_feature_names) + 1):] = numpy.nan
+            min_cross_entropy_by_num_selected[
+                len(selected_feature_names)] = min_new_cross_entropy
 
         print '\n'
         stop_if_cross_entropy_above = min_cross_entropy_prev_major_step * (
@@ -685,7 +707,7 @@ def floating_sfs(
     remaining_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
+    min_cross_entropy_by_num_selected = numpy.full(num_features + 1, numpy.nan)
     min_cross_entropy_by_num_selected[0] = 1e10
 
     while len(remaining_feature_names) >= num_features_to_add_per_step:
@@ -836,7 +858,7 @@ def sequential_backward_selection(
     selected_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_removed = numpy.full(num_features, numpy.nan)
+    min_cross_entropy_by_num_removed = numpy.full(num_features + 1, numpy.nan)
     min_cross_entropy_by_num_removed[0] = 1e10
 
     while len(selected_feature_names) >= num_features_to_remove_per_step:
@@ -896,17 +918,19 @@ def sbs_with_forward_steps(
         target_name, estimator_object,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SBS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SBS,
+        num_features_to_add_per_forward_step=1,
+        num_features_to_remove_per_backward_step=1,
         min_fractional_xentropy_decrease=
         DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS):
     """Runs SBS (sequential backward selection) with forward steps.
 
-    This method is called "plus l - take away r selection" in Chapter 9 of Webb
+    This method is called "plus-l-minus-r selection" in Chapter 9 of Webb
     (2003), where l < r.
 
     --- DEFINITIONS ---
 
-    "Forward step" = addition of one feature.
-    "Backward step" = removal of one feature.
+    "Forward step" = addition of `num_features_to_add_per_step` features.
+    "Backward step" = removal of `num_features_to_remove_per_step` features.
     "Major step" = r backward steps followed by l forward steps.
 
     :param training_table: See documentation for
@@ -920,6 +944,10 @@ def sbs_with_forward_steps(
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
+    :param num_features_to_add_per_step: Number of features added at each
+        forward step.
+    :param num_features_to_remove_per_step: Number of features removed at each
+        backward step.
     :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
         fractional decrease in cross-entropy from a major step is <
         `min_fractional_xentropy_decrease`, algorithm will stop.  Must be in
@@ -929,23 +957,30 @@ def sbs_with_forward_steps(
         sequential_backward_selection.
     """
 
-    # TODO(thunderhoser): Allow user to choose number of features added per
-    # forward step, number removed per backwards step.
-
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         testing_table=testing_table, feature_names=feature_names,
-        target_name=target_name)
-
-    num_features = len(feature_names)
-
-    error_checking.assert_is_integer(num_backward_steps)
-    error_checking.assert_is_geq(num_backward_steps, 2)
-    error_checking.assert_is_leq(num_backward_steps, num_features)
+        target_name=target_name,
+        num_features_to_add_per_step=num_features_to_add_per_forward_step,
+        num_features_to_remove_per_step=
+        num_features_to_remove_per_backward_step)
 
     error_checking.assert_is_integer(num_forward_steps)
     error_checking.assert_is_geq(num_forward_steps, 1)
-    error_checking.assert_is_less_than(num_forward_steps, num_backward_steps)
+    error_checking.assert_is_integer(num_backward_steps)
+    error_checking.assert_is_geq(num_backward_steps, 1)
+
+    num_features_to_add_per_major_step = (
+        num_forward_steps * num_features_to_add_per_forward_step)
+    num_features_to_remove_per_major_step = (
+        num_backward_steps * num_features_to_remove_per_backward_step)
+
+    num_features = len(feature_names)
+    error_checking.assert_is_less_than(
+        num_features_to_remove_per_major_step, num_features)
+    error_checking.assert_is_less_than(
+        num_features_to_add_per_major_step,
+        num_features_to_remove_per_major_step)
 
     error_checking.assert_is_greater(min_fractional_xentropy_decrease, -1.)
     error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
@@ -956,10 +991,11 @@ def sbs_with_forward_steps(
     removed_feature_names = []
     selected_feature_names = copy.deepcopy(feature_names)
 
-    min_cross_entropy_by_num_removed = numpy.full(num_features, numpy.nan)
+    min_cross_entropy_by_num_removed = numpy.full(num_features + 1, numpy.nan)
     min_cross_entropy_by_num_removed[0] = 1e10
 
-    while len(selected_feature_names) - num_backward_steps >= 0:
+    while (len(selected_feature_names) - num_features_to_remove_per_major_step
+           > 0):
         major_step_num += 1
 
         min_cross_entropy_prev_major_step = min_cross_entropy_by_num_removed[
@@ -977,24 +1013,29 @@ def sbs_with_forward_steps(
                        major_step_num, i + 1, num_removed_features,
                        num_selected_features)
 
-            min_new_cross_entropy, this_worst_feature_name_as_list = (
+            min_new_cross_entropy, these_worst_feature_names = (
                 _backward_selection_step(
                     training_table=training_table,
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_remove=1))
-            this_worst_feature_name = this_worst_feature_name_as_list[0]
+                    num_features_to_remove=
+                    num_features_to_remove_per_backward_step))
 
-            print ('Minimum cross-entropy ({0:.4f}) given by removing feature '
-                   '"{1:s}" (previous minimum = {2:.4f}).').format(
-                       min_new_cross_entropy, this_worst_feature_name,
-                       min_cross_entropy_by_num_removed[num_removed_features])
+            print ('Minimum cross-entropy ({0:.4f}) given by removing features '
+                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cross_entropy,
+                       min_cross_entropy_by_num_removed[num_removed_features],
+                       these_worst_feature_names)
 
-            removed_feature_names.append(this_worst_feature_name)
-            selected_feature_names.remove(this_worst_feature_name)
+            removed_feature_names += these_worst_feature_names
+            selected_feature_names = [
+                s for s in selected_feature_names
+                if s not in these_worst_feature_names]
+
             min_cross_entropy_by_num_removed[
-                num_removed_features + 1] = min_new_cross_entropy
+                (num_removed_features + 1):(len(removed_feature_names) + 1)
+            ] = min_new_cross_entropy
 
         for i in range(num_forward_steps):
             num_removed_features = len(removed_feature_names)
@@ -1003,27 +1044,30 @@ def sbs_with_forward_steps(
                        major_step_num, i + 1, num_removed_features,
                        num_features)
 
-            min_new_cross_entropy, this_best_feature_name_as_list = (
+            min_new_cross_entropy, these_best_feature_names = (
                 _forward_selection_step(
                     training_table=training_table,
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     remaining_feature_names=removed_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_add=1))
-            this_best_feature_name = this_best_feature_name_as_list[0]
+                    num_features_to_add=num_features_to_add_per_forward_step))
 
-            print ('Minimum cross-entropy ({0:.4f}) given by adding feature '
-                   '"{1:s}" (previous minimum = {2:.4f}).').format(
-                       min_new_cross_entropy, this_best_feature_name,
-                       min_cross_entropy_by_num_removed[num_removed_features])
+            print ('Minimum cross-entropy ({0:.4f}) given by adding features '
+                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cross_entropy,
+                       min_cross_entropy_by_num_removed[num_removed_features],
+                       these_best_feature_names)
 
-            selected_feature_names.append(this_best_feature_name)
-            removed_feature_names.remove(this_best_feature_name)
+            selected_feature_names += these_best_feature_names
+            removed_feature_names = [
+                s for s in removed_feature_names
+                if s not in these_best_feature_names]
 
-            min_cross_entropy_by_num_removed[num_removed_features] = numpy.nan
             min_cross_entropy_by_num_removed[
-                num_removed_features - 1] = min_new_cross_entropy
+                (len(removed_feature_names) + 1):] = numpy.nan
+            min_cross_entropy_by_num_removed[
+                len(removed_feature_names)] = min_new_cross_entropy
 
         print '\n'
         stop_if_cross_entropy_above = min_cross_entropy_prev_major_step * (
@@ -1089,7 +1133,7 @@ def floating_sbs(
     selected_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_removed = numpy.full(num_features, numpy.nan)
+    min_cross_entropy_by_num_removed = numpy.full(num_features + 1, numpy.nan)
     min_cross_entropy_by_num_removed[0] = 1e10
 
     while selected_feature_names:  # While there are still features to remove.

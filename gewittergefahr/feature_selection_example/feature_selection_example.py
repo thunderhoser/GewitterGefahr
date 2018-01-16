@@ -225,7 +225,10 @@ if __name__ == '__main__':
         training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
         testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
         target_name=LABEL_COLUMN,
-        estimator_object=sklearn.neural_network.MLPClassifier())
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
+        num_features_to_remove_per_backward_step=
+        NUM_FEATURES_TO_REMOVE_PER_STEP)
     _print_forward_selection_results(SFS_WITH_BACKWARD_STEPS_DICT)
 
     SFS_BACKWARD_IMAGE_FILE_NAME = (
@@ -281,7 +284,10 @@ if __name__ == '__main__':
         training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
         testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
         target_name=LABEL_COLUMN,
-        estimator_object=sklearn.neural_network.MLPClassifier())
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
+        num_features_to_remove_per_backward_step=
+        NUM_FEATURES_TO_REMOVE_PER_STEP)
     _print_backward_selection_results(SBS_WITH_FORWARD_STEPS_DICT)
 
     SBS_FORWARD_IMAGE_FILE_NAME = (
