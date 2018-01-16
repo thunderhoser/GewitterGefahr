@@ -474,11 +474,14 @@ def _normalize_probs_by_polygon_area(
         storm_object_table, prob_radius_for_grid_metres):
     """Normalizes each forecast probability by area of the attached polygon.
 
-    Specifically, this method multiplies each probability by pi * r^2 / A,
-    where:
+    Specifically, this method applies the following equation:
 
-    A = area of the attached polygon
+    f_norm = 1 - (1 - f_polygon)^(pi * r^2 / A)
+
+    f_polygon = forecast probability of event occurring within the polygon
+    A = area of the polygon
     r = `prob_radius_for_grid_metres`
+    f_norm = forecast probability of event occurring within radius r
 
     Also:
 
@@ -526,11 +529,11 @@ def _normalize_probs_by_polygon_area(
             storm_object_table[buffer_column_names_xy[j]].values[i].area
             for i in range(num_storm_objects)])
 
-        these_normalized_probs = prob_area_for_grid_metres2 * (
-            storm_object_table[forecast_column_names[j]].values /
-            these_areas_metres2)
-        these_normalized_probs[these_normalized_probs < 0.] = 0.
-        these_normalized_probs[these_normalized_probs > 1.] = 1.
+        these_original_probs = storm_object_table[
+            forecast_column_names[j]].values
+        these_normalized_probs = 1. - numpy.power(
+            1. - these_original_probs,
+            prob_area_for_grid_metres2 / these_areas_metres2)
 
         storm_object_table = storm_object_table.assign(
             **{forecast_column_names[j]: these_normalized_probs})
