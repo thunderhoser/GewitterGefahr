@@ -14,6 +14,7 @@ Webb, A.R., 2003: "Statistical Pattern Recognition". John Wiley & Sons.
 """
 
 import copy
+from itertools import combinations
 import numpy
 import pandas
 import sklearn.base
@@ -22,8 +23,8 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): This module has a lot of duplicated code.  Need to clean
-# up.
+# TODO(thunderhoser): Allow user to choose cost function for any selection
+# algorithm.
 
 FONT_SIZE = 30
 FEATURE_NAME_FONT_SIZE = 18
@@ -67,34 +68,50 @@ BACKWARD_SELECTION_TYPE = 'backward'
 
 
 def _check_sequential_selection_inputs(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None):
+        training_table, validation_table, feature_names, target_name,
+        num_features_to_add_per_step=1, num_features_to_remove_per_step=1,
+        testing_table=None):
     """Checks inputs for sequential forward or backward selection.
 
     :param training_table: pandas DataFrame, where each row is one training
         example.
     :param validation_table: pandas DataFrame, where each row is one validation
         example.
-    :param testing_table: pandas DataFrame, where each row is one testing
-        example.
     :param feature_names: length-F list with names of features (predictor
         variables).  Each feature must be a column in training_table,
         validation_table, and testing_table.
     :param target_name: Name of target variable (predictand).  Must be a column
         in training_table, validation_table, and testing_table.
+    :param num_features_to_add_per_step: Number of features to add at each
+        forward step.
+    :param num_features_to_remove_per_step: Number of features to remove at each
+        backward step.
+    :param testing_table: pandas DataFrame, where each row is one testing
+        example.
     """
 
-    error_checking.assert_is_string(target_name)
     error_checking.assert_is_string_list(feature_names)
     error_checking.assert_is_numpy_array(
         numpy.asarray(feature_names), num_dimensions=1)
 
+    error_checking.assert_is_string(target_name)
     variable_names = feature_names + [target_name]
     error_checking.assert_columns_in_dataframe(training_table, variable_names)
     error_checking.assert_columns_in_dataframe(validation_table, variable_names)
     if testing_table is not None:
         error_checking.assert_columns_in_dataframe(
             testing_table, variable_names)
+
+    num_features = len(feature_names)
+    error_checking.assert_is_integer(num_features_to_add_per_step)
+    error_checking.assert_is_geq(num_features_to_add_per_step, 1)
+    error_checking.assert_is_less_than(
+        num_features_to_add_per_step, num_features)
+
+    error_checking.assert_is_integer(num_features_to_remove_per_step)
+    error_checking.assert_is_geq(num_features_to_remove_per_step, 1)
+    error_checking.assert_is_less_than(
+        num_features_to_remove_per_step, num_features)
 
     # Ensure that label is binary.
     error_checking.assert_is_integer_numpy_array(
@@ -105,9 +122,130 @@ def _check_sequential_selection_inputs(
         training_table[target_name].values, 1)
 
 
+def _forward_selection_step(
+        training_table, validation_table, selected_feature_names,
+        remaining_feature_names, target_name, estimator_object,
+        num_features_to_add=1):
+    """Performs one forward selection step (i.e., adds features to the model).
+
+    The best set of L features is added to the model, where L >= 1.
+
+    Each member of `selected_feature_names` and `remaining_feature_names`, as
+    well as `target_name`, must be a column in both `training_table` and
+    `validation_table`.
+
+    :param training_table: pandas DataFrame, where each row is one training
+        example.
+    :param validation_table: pandas DataFrame, where each row is one validation
+        example.
+    :param selected_feature_names: 1-D list with names of selected features
+        (those already in the model).
+    :param remaining_feature_names: 1-D list with names of remaining features
+        (those which may be added to the model).
+    :param target_name: Name of target variable (predictand).
+    :param num_features_to_add: Number of features to add (L in the above
+        discussion).
+    :param estimator_object: Instance of scikit-learn estimator.  Must implement
+        the methods `fit` and `predict_proba`.
+    :return: min_cross_entropy: Lowest cross-entropy produced by adding any set
+        of L features from `remaining_feature_names` to the model.
+    :return: best_feature_names: length-L list of features whose addition
+        results in `min_cross_entropy`.
+    """
+
+    combination_object = combinations(
+        remaining_feature_names, num_features_to_add)
+    list_of_remaining_feature_combos = []
+    for this_tuple in list(combination_object):
+        list_of_remaining_feature_combos.append(list(this_tuple))
+
+    num_remaining_feature_combos = len(list_of_remaining_feature_combos)
+    cross_entropy_by_feature_combo = numpy.full(
+        num_remaining_feature_combos, numpy.nan)
+
+    for j in range(num_remaining_feature_combos):
+        these_feature_names = (
+            selected_feature_names + list_of_remaining_feature_combos[j])
+
+        new_estimator_object = sklearn.base.clone(estimator_object)
+        new_estimator_object.fit(
+            training_table.as_matrix(columns=these_feature_names),
+            training_table[target_name].values)
+
+        these_forecast_probabilities = new_estimator_object.predict_proba(
+            validation_table.as_matrix(columns=these_feature_names))[:, 1]
+        cross_entropy_by_feature_combo[j] = model_eval.get_cross_entropy(
+            these_forecast_probabilities,
+            validation_table[target_name].values)
+
+    min_cross_entropy = numpy.min(cross_entropy_by_feature_combo)
+    best_index = numpy.argmin(cross_entropy_by_feature_combo)
+    return min_cross_entropy, list_of_remaining_feature_combos[best_index]
+
+
+def _backward_selection_step(
+        training_table, validation_table, selected_feature_names, target_name,
+        estimator_object, num_features_to_remove=1):
+    """Performs one backward selection step (removes features from the model).
+
+    The worst set of R features is removed from the model, where R >= 1.
+
+    Each member of `selected_feature_names`, as well as `target_name`, must be a
+    column in both `training_table` and `validation_table`.
+
+    :param training_table: pandas DataFrame, where each row is one training
+        example.
+    :param validation_table: pandas DataFrame, where each row is one validation
+        example.
+    :param selected_feature_names: 1-D list with names of selected features
+        (each of which may be removed from the model).
+    :param target_name: Name of target variable (predictand).
+    :param estimator_object: Instance of scikit-learn estimator.  Must implement
+        the methods `fit` and `predict_proba`.
+    :param num_features_to_remove: Number of features to remove (R in the above
+        discussion).
+    :return: min_cross_entropy: Lowest cross-entropy produced by removing any
+        set of R features in `selected_feature_names` from the model.
+    :return: worst_feature_names: length-L list of features whose removal
+        results in `min_cross_entropy`.
+    """
+
+    combination_object = combinations(
+        selected_feature_names, num_features_to_remove)
+    list_of_selected_feature_combos = []
+    for this_tuple in list(combination_object):
+        list_of_selected_feature_combos.append(list(this_tuple))
+
+    num_selected_feature_combos = len(list_of_selected_feature_combos)
+    cross_entropy_by_feature_combo = numpy.full(
+        num_selected_feature_combos, numpy.nan)
+
+    for j in range(num_selected_feature_combos):
+        these_feature_names = set(selected_feature_names)
+        for this_name in list_of_selected_feature_combos[j]:
+            these_feature_names.remove(this_name)
+        these_feature_names = list(these_feature_names)
+
+        new_estimator_object = sklearn.base.clone(estimator_object)
+        new_estimator_object.fit(
+            training_table.as_matrix(columns=these_feature_names),
+            training_table[target_name].values)
+
+        these_forecast_probabilities = (
+            new_estimator_object.predict_proba(validation_table.as_matrix(
+                columns=these_feature_names))[:, 1])
+        cross_entropy_by_feature_combo[j] = model_eval.get_cross_entropy(
+            these_forecast_probabilities,
+            validation_table[target_name].values)
+
+    min_cross_entropy = numpy.min(cross_entropy_by_feature_combo)
+    worst_index = numpy.argmin(cross_entropy_by_feature_combo)
+    return min_cross_entropy, list_of_selected_feature_combos[worst_index]
+
+
 def _evaluate_feature_selection(
-        training_table=None, validation_table=None, testing_table=None,
-        estimator_object=None, selected_feature_names=None, target_name=None):
+        training_table, validation_table, testing_table, estimator_object,
+        selected_feature_names, target_name):
     """Evaluates feature selection.
 
     Specifically, this method computes 4 performance metrics:
@@ -170,9 +308,9 @@ def _evaluate_feature_selection(
 
 
 def _plot_selection_results(
-        feature_name_by_step=None, cross_entropy_by_step=None,
-        selection_type=None, cross_entropy_before_permutn=None,
-        plot_feature_names=False, bar_face_colour=DEFAULT_BAR_FACE_COLOUR,
+        feature_name_by_step, cross_entropy_by_step, selection_type,
+        cross_entropy_before_permutn=None, plot_feature_names=False,
+        bar_face_colour=DEFAULT_BAR_FACE_COLOUR,
         bar_edge_colour=DEFAULT_BAR_EDGE_COLOUR,
         bar_edge_width=DEFAULT_BAR_EDGE_WIDTH):
     """Plots bar graph with results of feature-selection algorithm.
@@ -258,8 +396,8 @@ def _plot_selection_results(
 
 
 def sequential_forward_selection(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None, estimator_object=None,
+        training_table, validation_table, testing_table, feature_names,
+        target_name, estimator_object, num_features_to_add_per_step=1,
         min_fractional_xentropy_decrease=
         DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS):
     """Runs the SFS (sequential forward selection) algorithm.
@@ -276,6 +414,7 @@ def sequential_forward_selection(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
+    :param num_features_to_add_per_step: Number of features to add at each step.
     :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
         fractional decrease in cross-entropy from adding a feature is <
         `min_fractional_xentropy_decrease`, SFS will stop.  Must be in range
@@ -290,7 +429,8 @@ def sequential_forward_selection(
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         testing_table=testing_table, feature_names=feature_names,
-        target_name=target_name)
+        target_name=target_name,
+        num_features_to_add_per_step=num_features_to_add_per_step)
 
     error_checking.assert_is_greater(min_fractional_xentropy_decrease, 0.)
     error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
@@ -304,55 +444,45 @@ def sequential_forward_selection(
     min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
     min_cross_entropy_by_num_selected[0] = 1e10
 
-    while remaining_feature_names:  # While there are still features to select.
+    while len(remaining_feature_names) >= num_features_to_add_per_step:
         num_selected_features = len(selected_feature_names)
         num_remaining_features = len(remaining_feature_names)
-        new_xentropy_by_feature = numpy.full(num_remaining_features, numpy.nan)
-
         print ('Step {0:d} of sequential forward selection: {1:d} features '
                'selected, {2:d} remaining...').format(
                    num_selected_features + 1, num_selected_features,
                    num_remaining_features)
 
-        for j in range(num_remaining_features):
-            these_feature_names = (
-                selected_feature_names + [remaining_feature_names[j]])
+        min_new_cross_entropy, these_best_feature_names = (
+            _forward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                remaining_feature_names=remaining_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                num_features_to_add=num_features_to_add_per_step))
 
-            new_estimator_object = sklearn.base.clone(estimator_object)
-            new_estimator_object.fit(
-                training_table.as_matrix(columns=these_feature_names),
-                training_table[target_name].values)
-
-            these_forecast_probabilities = new_estimator_object.predict_proba(
-                validation_table.as_matrix(columns=these_feature_names))[:, 1]
-            new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                these_forecast_probabilities,
-                validation_table[target_name].values)
-
-        min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-        this_best_feature_index = numpy.argmin(new_xentropy_by_feature)
-        this_best_feature_name = remaining_feature_names[
-            this_best_feature_index]
-
-        print (
-            'Minimum cross-entropy ({0:.4f}) given by adding feature '
-            '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                min_new_cross_entropy, this_best_feature_name,
-                min_cross_entropy_by_num_selected[num_selected_features])
+        print ('Minimum cross-entropy ({0:.4f}) given by adding features shown '
+               'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cross_entropy,
+                   min_cross_entropy_by_num_selected[num_selected_features],
+                   these_best_feature_names)
 
         stop_if_cross_entropy_above = (
-            min_cross_entropy_by_num_selected[num_selected_features] * (
-                1. - min_fractional_xentropy_decrease))
+            (1. - min_fractional_xentropy_decrease) *
+            min_cross_entropy_by_num_selected[num_selected_features])
         if min_new_cross_entropy > stop_if_cross_entropy_above:
             break
 
-        min_cross_entropy_by_num_selected[
-            num_selected_features + 1] = min_new_cross_entropy
+        selected_feature_names += these_best_feature_names
+        remaining_feature_names = [
+            s for s in remaining_feature_names
+            if s not in these_best_feature_names]
 
-        selected_feature_names.append(this_best_feature_name)
-        remaining_feature_names = set(remaining_feature_names)
-        remaining_feature_names.remove(this_best_feature_name)
-        remaining_feature_names = list(remaining_feature_names)
+        min_cross_entropy_by_num_selected[
+            (num_selected_features + 1):(len(selected_feature_names) + 1)
+        ] = min_new_cross_entropy
+        # min_cross_entropy_by_num_selected[
+        #     len(selected_feature_names)] = min_new_cross_entropy
 
     sfs_dictionary = _evaluate_feature_selection(
         training_table=training_table, validation_table=validation_table,
@@ -367,8 +497,8 @@ def sequential_forward_selection(
 
 
 def sfs_with_backward_steps(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None, estimator_object=None,
+        training_table, validation_table, testing_table, feature_names,
+        target_name, estimator_object,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SFS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SFS,
         min_fractional_xentropy_decrease=
@@ -401,6 +531,9 @@ def sfs_with_backward_steps(
         range (0, 1).
     :return: sfs_dictionary: See doc for sequential_forward_selection.
     """
+
+    # TODO(thunderhoser): Allow user to choose number of features added per
+    # forward step, number removed per backwards step.
 
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
@@ -439,97 +572,58 @@ def sfs_with_backward_steps(
         for i in range(num_forward_steps):
             num_selected_features = len(selected_feature_names)
             num_remaining_features = len(remaining_feature_names)
-            new_xentropy_by_feature = numpy.full(
-                num_remaining_features, numpy.nan)
-
             print ('Major step {0:d}, forward step {1:d}: {2:d} features '
                    'selected, {3:d} remaining...').format(
                        major_step_num, i + 1, num_selected_features,
                        num_remaining_features)
 
-            for j in range(num_remaining_features):
-                these_feature_names = (
-                    selected_feature_names + [remaining_feature_names[j]])
+            min_new_cross_entropy, this_best_feature_name_as_list = (
+                _forward_selection_step(
+                    training_table=training_table,
+                    validation_table=validation_table,
+                    selected_feature_names=selected_feature_names,
+                    remaining_feature_names=remaining_feature_names,
+                    target_name=target_name, estimator_object=estimator_object,
+                    num_features_to_add=1))
+            this_best_feature_name = this_best_feature_name_as_list[0]
 
-                new_estimator_object = sklearn.base.clone(estimator_object)
-                new_estimator_object.fit(
-                    training_table.as_matrix(columns=these_feature_names),
-                    training_table[target_name].values)
+            print ('Minimum cross-entropy ({0:.4f}) given by adding feature '
+                   '"{1:s}" (previous minimum = {2:.4f}).').format(
+                       min_new_cross_entropy, this_best_feature_name,
+                       min_cross_entropy_by_num_selected[num_selected_features])
 
-                these_forecast_probabilities = (
-                    new_estimator_object.predict_proba(
-                        validation_table.as_matrix(
-                            columns=these_feature_names))[:, 1])
-                new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                    these_forecast_probabilities,
-                    validation_table[target_name].values)
-
-            min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-            this_best_feature_index = numpy.argmin(new_xentropy_by_feature)
-            this_best_feature_name = remaining_feature_names[
-                this_best_feature_index]
-
-            print (
-                'Minimum cross-entropy ({0:.4f}) given by adding feature '
-                '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                    min_new_cross_entropy, this_best_feature_name,
-                    min_cross_entropy_by_num_selected[num_selected_features])
-
+            selected_feature_names.append(this_best_feature_name)
+            remaining_feature_names.remove(this_best_feature_name)
             min_cross_entropy_by_num_selected[
                 num_selected_features + 1] = min_new_cross_entropy
 
-            selected_feature_names.append(this_best_feature_name)
-            remaining_feature_names = set(remaining_feature_names)
-            remaining_feature_names.remove(this_best_feature_name)
-            remaining_feature_names = list(remaining_feature_names)
-
         for i in range(num_backward_steps):
             num_selected_features = len(selected_feature_names)
-            new_xentropy_by_feature = numpy.full(
-                num_selected_features, numpy.nan)
-
             print ('Major step {0:d}, backward step {1:d}: {2:d}/{3:d} '
                    'features selected...').format(
                        major_step_num, i + 1, num_selected_features,
                        num_features)
 
-            for j in range(num_selected_features):
-                these_feature_names = set(selected_feature_names)
-                these_feature_names.remove(selected_feature_names[j])
-                these_feature_names = list(these_feature_names)
+            min_new_cross_entropy, this_worst_feature_name_as_list = (
+                _backward_selection_step(
+                    training_table=training_table,
+                    validation_table=validation_table,
+                    selected_feature_names=selected_feature_names,
+                    target_name=target_name, estimator_object=estimator_object,
+                    num_features_to_remove=1))
+            this_worst_feature_name = this_worst_feature_name_as_list[0]
 
-                new_estimator_object = sklearn.base.clone(estimator_object)
-                new_estimator_object.fit(
-                    training_table.as_matrix(columns=these_feature_names),
-                    training_table[target_name].values)
+            print ('Minimum cross-entropy ({0:.4f}) given by removing feature '
+                   '"{1:s}" (previous minimum = {2:.4f}).').format(
+                       min_new_cross_entropy, this_worst_feature_name,
+                       min_cross_entropy_by_num_selected[num_selected_features])
 
-                these_forecast_probabilities = (
-                    new_estimator_object.predict_proba(
-                        validation_table.as_matrix(
-                            columns=these_feature_names))[:, 1])
-                new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                    these_forecast_probabilities,
-                    validation_table[target_name].values)
-
-            min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-            this_worst_feature_index = numpy.argmin(new_xentropy_by_feature)
-            this_worst_feature_name = selected_feature_names[
-                this_worst_feature_index]
-
-            print (
-                'Minimum cross-entropy ({0:.4f}) given by removing feature '
-                '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                    min_new_cross_entropy, this_worst_feature_name,
-                    min_cross_entropy_by_num_selected[num_selected_features])
+            remaining_feature_names.append(this_worst_feature_name)
+            selected_feature_names.remove(this_worst_feature_name)
 
             min_cross_entropy_by_num_selected[num_selected_features] = numpy.nan
             min_cross_entropy_by_num_selected[
                 num_selected_features - 1] = min_new_cross_entropy
-
-            remaining_feature_names.append(this_worst_feature_name)
-            selected_feature_names = set(selected_feature_names)
-            selected_feature_names.remove(this_worst_feature_name)
-            selected_feature_names = list(selected_feature_names)
 
         print '\n'
         stop_if_cross_entropy_above = min_cross_entropy_prev_major_step * (
@@ -554,8 +648,8 @@ def sfs_with_backward_steps(
 
 
 def floating_sfs(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None, estimator_object=None,
+        training_table, validation_table, testing_table, feature_names,
+        target_name, estimator_object, num_features_to_add_per_step=1,
         min_fractional_xentropy_decrease=
         DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS):
     """Runs the SFFS (sequential forward floating selection) algorithm.
@@ -569,6 +663,7 @@ def floating_sfs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param num_features_to_add_per_step: Number of features to add at each step.
     :param min_fractional_xentropy_decrease: See doc for
         sequential_forward_selection.
     :return: sfs_dictionary: See doc for sequential_forward_selection.
@@ -577,7 +672,8 @@ def floating_sfs(
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         testing_table=testing_table, feature_names=feature_names,
-        target_name=target_name)
+        target_name=target_name,
+        num_features_to_add_per_step=num_features_to_add_per_step)
 
     error_checking.assert_is_greater(min_fractional_xentropy_decrease, 0.)
     error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
@@ -592,54 +688,46 @@ def floating_sfs(
     min_cross_entropy_by_num_selected = numpy.full(num_features, numpy.nan)
     min_cross_entropy_by_num_selected[0] = 1e10
 
-    while remaining_feature_names:  # While there are still features to select.
+    while len(remaining_feature_names) >= num_features_to_add_per_step:
         major_step_num += 1
         num_selected_features = len(selected_feature_names)
         num_remaining_features = len(remaining_feature_names)
-        new_xentropy_by_feature = numpy.full(num_remaining_features, numpy.nan)
 
         print ('Major step {0:d} of SFFS: {1:d} features selected, {2:d} '
                'remaining...').format(major_step_num, num_selected_features,
                                       num_remaining_features)
 
-        for j in range(num_remaining_features):
-            these_feature_names = (
-                selected_feature_names + [remaining_feature_names[j]])
+        min_new_cross_entropy, these_best_feature_names = (
+            _forward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                remaining_feature_names=remaining_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                num_features_to_add=num_features_to_add_per_step))
 
-            new_estimator_object = sklearn.base.clone(estimator_object)
-            new_estimator_object.fit(
-                training_table.as_matrix(columns=these_feature_names),
-                training_table[target_name].values)
-
-            these_forecast_probabilities = new_estimator_object.predict_proba(
-                validation_table.as_matrix(columns=these_feature_names))[:, 1]
-            new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                these_forecast_probabilities,
-                validation_table[target_name].values)
-
-        min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-        this_best_feature_index = numpy.argmin(new_xentropy_by_feature)
-        this_best_feature_name = remaining_feature_names[
-            this_best_feature_index]
-
-        print (
-            'Minimum cross-entropy ({0:.4f}) given by adding feature '
-            '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                min_new_cross_entropy, this_best_feature_name,
-                min_cross_entropy_by_num_selected[num_selected_features])
+        print ('Minimum cross-entropy ({0:.4f}) given by adding features shown '
+               'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cross_entropy,
+                   min_cross_entropy_by_num_selected[num_selected_features],
+                   these_best_feature_names)
 
         stop_if_cross_entropy_above = (
-            min_cross_entropy_by_num_selected[num_selected_features] * (
-                1. - min_fractional_xentropy_decrease))
+            (1. - min_fractional_xentropy_decrease) *
+            min_cross_entropy_by_num_selected[num_selected_features])
         if min_new_cross_entropy > stop_if_cross_entropy_above:
             break
 
+        selected_feature_names += these_best_feature_names
+        remaining_feature_names = [
+            s for s in remaining_feature_names
+            if s not in these_best_feature_names]
+
         min_cross_entropy_by_num_selected[
-            num_selected_features + 1] = min_new_cross_entropy
-        selected_feature_names.append(this_best_feature_name)
-        remaining_feature_names = set(remaining_feature_names)
-        remaining_feature_names.remove(this_best_feature_name)
-        remaining_feature_names = list(remaining_feature_names)
+            (num_selected_features + 1):(len(selected_feature_names) + 1)
+        ] = min_new_cross_entropy
+        # min_cross_entropy_by_num_selected[
+        #     len(selected_feature_names)] = min_new_cross_entropy
 
         if len(selected_feature_names) < 2:
             continue
@@ -648,61 +736,42 @@ def floating_sfs(
         while len(selected_feature_names) >= 2:
             backward_step_num += 1
             num_selected_features = len(selected_feature_names)
-            new_xentropy_by_feature = numpy.full(
-                num_selected_features, numpy.nan)
-
             print ('Major step {0:d}, backward step {1:d}: {2:d}/{3:d} '
                    'features selected...').format(
                        major_step_num, backward_step_num, num_selected_features,
                        num_features)
 
-            for j in range(num_selected_features):
-                these_feature_names = set(selected_feature_names)
-                these_feature_names.remove(selected_feature_names[j])
-                these_feature_names = list(these_feature_names)
-
-                new_estimator_object = sklearn.base.clone(estimator_object)
-                new_estimator_object.fit(
-                    training_table.as_matrix(columns=these_feature_names),
-                    training_table[target_name].values)
-
-                these_forecast_probabilities = (
-                    new_estimator_object.predict_proba(
-                        validation_table.as_matrix(
-                            columns=these_feature_names))[:, 1])
-                new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                    these_forecast_probabilities,
-                    validation_table[target_name].values)
-
-            min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-            this_worst_feature_index = numpy.argmin(new_xentropy_by_feature)
-            this_worst_feature_name = selected_feature_names[
-                this_worst_feature_index]
+            min_new_cross_entropy, this_worst_feature_name_as_list = (
+                _backward_selection_step(
+                    training_table=training_table,
+                    validation_table=validation_table,
+                    selected_feature_names=selected_feature_names,
+                    target_name=target_name, estimator_object=estimator_object,
+                    num_features_to_remove=1))
+            this_worst_feature_name = this_worst_feature_name_as_list[0]
 
             if backward_step_num == 1:
+                this_worst_feature_index = selected_feature_names.index(
+                    this_worst_feature_name)
                 if this_worst_feature_index == num_selected_features - 1:
                     break  # Cannot remove feature that was just added.
 
-            else:
-                if (min_new_cross_entropy >= min_cross_entropy_by_num_selected[
-                        num_selected_features - 1]):
-                    break  # Remove feature only if it improves performance.
+            if (min_new_cross_entropy >= min_cross_entropy_by_num_selected[
+                    num_selected_features - 1]):
+                break  # Remove feature only if it improves performance.
 
-            print (
-                'Minimum cross-entropy ({0:.4f}) given by removing feature '
-                '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                    min_new_cross_entropy, this_worst_feature_name,
-                    min_cross_entropy_by_num_selected[
-                        num_selected_features - 1])
+            print ('Minimum cross-entropy ({0:.4f}) given by removing feature '
+                   '"{1:s}" (previous minimum = {2:.4f}).').format(
+                       min_new_cross_entropy, this_worst_feature_name,
+                       min_cross_entropy_by_num_selected[
+                           num_selected_features - 1])
+
+            remaining_feature_names.append(this_worst_feature_name)
+            selected_feature_names.remove(this_worst_feature_name)
 
             min_cross_entropy_by_num_selected[num_selected_features] = numpy.nan
             min_cross_entropy_by_num_selected[
                 num_selected_features - 1] = min_new_cross_entropy
-
-            remaining_feature_names.append(this_worst_feature_name)
-            selected_feature_names = set(selected_feature_names)
-            selected_feature_names.remove(this_worst_feature_name)
-            selected_feature_names = list(selected_feature_names)
 
         print '\n'
 
@@ -719,8 +788,8 @@ def floating_sfs(
 
 
 def sequential_backward_selection(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None, estimator_object=None,
+        training_table, validation_table, testing_table, feature_names,
+        target_name, estimator_object, num_features_to_remove_per_step=1,
         min_fractional_xentropy_decrease=
         DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS):
     """Runs the SBS (sequential backward selection) algorithm.
@@ -736,6 +805,8 @@ def sequential_backward_selection(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param num_features_to_remove_per_step: Number of features to remove at each
+        step.
     :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
         fractional decrease in cross-entropy from removing a feature is <
         `min_fractional_xentropy_decrease`, SBS will stop.  Must be in range
@@ -753,7 +824,8 @@ def sequential_backward_selection(
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         testing_table=testing_table, feature_names=feature_names,
-        target_name=target_name)
+        target_name=target_name,
+        num_features_to_remove_per_step=num_features_to_remove_per_step)
 
     error_checking.assert_is_greater(min_fractional_xentropy_decrease, -1.)
     error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
@@ -767,56 +839,44 @@ def sequential_backward_selection(
     min_cross_entropy_by_num_removed = numpy.full(num_features, numpy.nan)
     min_cross_entropy_by_num_removed[0] = 1e10
 
-    while selected_feature_names:  # While there are still features to remove.
+    while len(selected_feature_names) >= num_features_to_remove_per_step:
         num_removed_features = len(removed_feature_names)
         num_selected_features = len(selected_feature_names)
-        new_xentropy_by_feature = numpy.full(num_selected_features, numpy.nan)
-
         print ('Step {0:d} of sequential backward selection: {1:d} features '
                'removed, {2:d} remaining...').format(
                    num_removed_features + 1, num_removed_features,
                    num_selected_features)
 
-        for j in range(num_selected_features):
-            these_feature_names = set(selected_feature_names)
-            these_feature_names.remove(selected_feature_names[j])
-            these_feature_names = list(these_feature_names)
+        min_new_cross_entropy, these_worst_feature_names = (
+            _backward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                num_features_to_remove=num_features_to_remove_per_step))
 
-            new_estimator_object = sklearn.base.clone(estimator_object)
-            new_estimator_object.fit(
-                training_table.as_matrix(columns=these_feature_names),
-                training_table[target_name].values)
-
-            these_forecast_probabilities = new_estimator_object.predict_proba(
-                validation_table.as_matrix(columns=these_feature_names))[:, 1]
-            new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                these_forecast_probabilities,
-                validation_table[target_name].values)
-
-        min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-        this_worst_feature_index = numpy.argmin(new_xentropy_by_feature)
-        this_worst_feature_name = selected_feature_names[
-            this_worst_feature_index]
-
-        print (
-            'Minimum cross-entropy ({0:.4f}) given by removing feature '
-            '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                min_new_cross_entropy, this_worst_feature_name,
-                min_cross_entropy_by_num_removed[num_removed_features])
+        print ('Minimum cross-entropy ({0:.4f}) given by removing features '
+               'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cross_entropy,
+                   min_cross_entropy_by_num_removed[num_removed_features],
+                   these_worst_feature_names)
 
         stop_if_cross_entropy_above = (
-            min_cross_entropy_by_num_removed[num_removed_features] * (
-                1. - min_fractional_xentropy_decrease))
+            (1. - min_fractional_xentropy_decrease) *
+            min_cross_entropy_by_num_removed[num_removed_features])
         if min_new_cross_entropy > stop_if_cross_entropy_above:
             break
 
-        min_cross_entropy_by_num_removed[
-            num_removed_features + 1] = min_new_cross_entropy
+        removed_feature_names += these_worst_feature_names
+        selected_feature_names = [
+            s for s in selected_feature_names
+            if s not in these_worst_feature_names]
 
-        removed_feature_names.append(this_worst_feature_name)
-        selected_feature_names = set(selected_feature_names)
-        selected_feature_names.remove(this_worst_feature_name)
-        selected_feature_names = list(selected_feature_names)
+        min_cross_entropy_by_num_removed[
+            (num_removed_features + 1):(len(removed_feature_names) + 1)
+        ] = min_new_cross_entropy
+        # min_cross_entropy_by_num_removed[
+        #     len(removed_feature_names)] = min_new_cross_entropy
 
     sbs_dictionary = _evaluate_feature_selection(
         training_table=training_table, validation_table=validation_table,
@@ -832,8 +892,8 @@ def sequential_backward_selection(
 
 
 def sbs_with_forward_steps(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None, estimator_object=None,
+        training_table, validation_table, testing_table, feature_names,
+        target_name, estimator_object,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SBS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SBS,
         min_fractional_xentropy_decrease=
@@ -868,6 +928,9 @@ def sbs_with_forward_steps(
     :return: sbs_dictionary: See documentation for
         sequential_backward_selection.
     """
+
+    # TODO(thunderhoser): Allow user to choose number of features added per
+    # forward step, number removed per backwards step.
 
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
@@ -909,97 +972,58 @@ def sbs_with_forward_steps(
         for i in range(num_backward_steps):
             num_removed_features = len(removed_feature_names)
             num_selected_features = len(selected_feature_names)
-            new_xentropy_by_feature = numpy.full(
-                num_selected_features, numpy.nan)
-
             print ('Major step {0:d}, backward step {1:d}: {2:d} features '
                    'removed, {3:d} remaining...').format(
                        major_step_num, i + 1, num_removed_features,
                        num_selected_features)
 
-            for j in range(num_selected_features):
-                these_feature_names = set(selected_feature_names)
-                these_feature_names.remove(selected_feature_names[j])
-                these_feature_names = list(these_feature_names)
+            min_new_cross_entropy, this_worst_feature_name_as_list = (
+                _backward_selection_step(
+                    training_table=training_table,
+                    validation_table=validation_table,
+                    selected_feature_names=selected_feature_names,
+                    target_name=target_name, estimator_object=estimator_object,
+                    num_features_to_remove=1))
+            this_worst_feature_name = this_worst_feature_name_as_list[0]
 
-                new_estimator_object = sklearn.base.clone(estimator_object)
-                new_estimator_object.fit(
-                    training_table.as_matrix(columns=these_feature_names),
-                    training_table[target_name].values)
+            print ('Minimum cross-entropy ({0:.4f}) given by removing feature '
+                   '"{1:s}" (previous minimum = {2:.4f}).').format(
+                       min_new_cross_entropy, this_worst_feature_name,
+                       min_cross_entropy_by_num_removed[num_removed_features])
 
-                these_forecast_probabilities = (
-                    new_estimator_object.predict_proba(
-                        validation_table.as_matrix(
-                            columns=these_feature_names))[:, 1])
-                new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                    these_forecast_probabilities,
-                    validation_table[target_name].values)
-
-            min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-            this_worst_feature_index = numpy.argmin(new_xentropy_by_feature)
-            this_worst_feature_name = selected_feature_names[
-                this_worst_feature_index]
-
-            print (
-                'Minimum cross-entropy ({0:.4f}) given by removing feature '
-                '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                    min_new_cross_entropy, this_worst_feature_name,
-                    min_cross_entropy_by_num_removed[num_removed_features])
-
+            removed_feature_names.append(this_worst_feature_name)
+            selected_feature_names.remove(this_worst_feature_name)
             min_cross_entropy_by_num_removed[
                 num_removed_features + 1] = min_new_cross_entropy
 
-            removed_feature_names.append(this_worst_feature_name)
-            selected_feature_names = set(selected_feature_names)
-            selected_feature_names.remove(this_worst_feature_name)
-            selected_feature_names = list(selected_feature_names)
-
         for i in range(num_forward_steps):
             num_removed_features = len(removed_feature_names)
-            new_xentropy_by_feature = numpy.full(
-                num_removed_features, numpy.nan)
-
             print ('Major step {0:d}, forward step {1:d}: {2:d}/{3:d} '
                    'features removed...').format(
                        major_step_num, i + 1, num_removed_features,
                        num_features)
 
-            for j in range(num_removed_features):
-                these_feature_names = (
-                    selected_feature_names + [removed_feature_names[j]])
+            min_new_cross_entropy, this_best_feature_name_as_list = (
+                _forward_selection_step(
+                    training_table=training_table,
+                    validation_table=validation_table,
+                    selected_feature_names=selected_feature_names,
+                    remaining_feature_names=removed_feature_names,
+                    target_name=target_name, estimator_object=estimator_object,
+                    num_features_to_add=1))
+            this_best_feature_name = this_best_feature_name_as_list[0]
 
-                new_estimator_object = sklearn.base.clone(estimator_object)
-                new_estimator_object.fit(
-                    training_table.as_matrix(columns=these_feature_names),
-                    training_table[target_name].values)
+            print ('Minimum cross-entropy ({0:.4f}) given by adding feature '
+                   '"{1:s}" (previous minimum = {2:.4f}).').format(
+                       min_new_cross_entropy, this_best_feature_name,
+                       min_cross_entropy_by_num_removed[num_removed_features])
 
-                these_forecast_probabilities = (
-                    new_estimator_object.predict_proba(
-                        validation_table.as_matrix(
-                            columns=these_feature_names))[:, 1])
-                new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                    these_forecast_probabilities,
-                    validation_table[target_name].values)
-
-            min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-            this_best_feature_index = numpy.argmin(new_xentropy_by_feature)
-            this_best_feature_name = removed_feature_names[
-                this_best_feature_index]
-
-            print (
-                'Minimum cross-entropy ({0:.4f}) given by adding feature '
-                '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                    min_new_cross_entropy, this_best_feature_name,
-                    min_cross_entropy_by_num_removed[num_removed_features])
+            selected_feature_names.append(this_best_feature_name)
+            removed_feature_names.remove(this_best_feature_name)
 
             min_cross_entropy_by_num_removed[num_removed_features] = numpy.nan
             min_cross_entropy_by_num_removed[
-                num_removed_features + 1] = min_new_cross_entropy
-
-            selected_feature_names.append(this_best_feature_name)
-            removed_feature_names = set(removed_feature_names)
-            removed_feature_names.remove(this_best_feature_name)
-            removed_feature_names = list(removed_feature_names)
+                num_removed_features - 1] = min_new_cross_entropy
 
         print '\n'
         stop_if_cross_entropy_above = min_cross_entropy_prev_major_step * (
@@ -1027,8 +1051,8 @@ def sbs_with_forward_steps(
 
 
 def floating_sbs(
-        training_table=None, validation_table=None, testing_table=None,
-        feature_names=None, target_name=None, estimator_object=None,
+        training_table, validation_table, testing_table, feature_names,
+        target_name, estimator_object, num_features_to_remove_per_step=1,
         min_fractional_xentropy_decrease=
         DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS):
     """Runs the SBFS (sequential backward floating selection) algorithm.
@@ -1042,6 +1066,8 @@ def floating_sbs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param num_features_to_remove_per_step: Number of features to remove at each
+        step.
     :param min_fractional_xentropy_decrease: See doc for
         sequential_backward_selection.
     :return: sbs_dictionary: See doc for sequential_backward_selection.
@@ -1050,7 +1076,8 @@ def floating_sbs(
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         testing_table=testing_table, feature_names=feature_names,
-        target_name=target_name)
+        target_name=target_name,
+        num_features_to_remove_per_step=num_features_to_remove_per_step)
 
     error_checking.assert_is_greater(min_fractional_xentropy_decrease, -1.)
     error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
@@ -1069,51 +1096,41 @@ def floating_sbs(
         major_step_num += 1
         num_removed_features = len(removed_feature_names)
         num_selected_features = len(selected_feature_names)
-        new_xentropy_by_feature = numpy.full(num_selected_features, numpy.nan)
 
         print ('Major step {0:d} of SBFS: {1:d} features removed, {2:d} '
                'remaining...').format(
                    major_step_num, num_removed_features, num_selected_features)
 
-        for j in range(num_selected_features):
-            these_feature_names = set(selected_feature_names)
-            these_feature_names.remove(selected_feature_names[j])
-            these_feature_names = list(these_feature_names)
+        min_new_cross_entropy, these_worst_feature_names = (
+            _backward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                num_features_to_remove=num_features_to_remove_per_step))
 
-            new_estimator_object = sklearn.base.clone(estimator_object)
-            new_estimator_object.fit(
-                training_table.as_matrix(columns=these_feature_names),
-                training_table[target_name].values)
-
-            these_forecast_probabilities = new_estimator_object.predict_proba(
-                validation_table.as_matrix(columns=these_feature_names))[:, 1]
-            new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                these_forecast_probabilities,
-                validation_table[target_name].values)
-
-        min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-        this_worst_feature_index = numpy.argmin(new_xentropy_by_feature)
-        this_worst_feature_name = selected_feature_names[
-            this_worst_feature_index]
-
-        print (
-            'Minimum cross-entropy ({0:.4f}) given by removing feature '
-            '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                min_new_cross_entropy, this_worst_feature_name,
-                min_cross_entropy_by_num_removed[num_removed_features])
+        print ('Minimum cross-entropy ({0:.4f}) given by removing features '
+               'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cross_entropy,
+                   min_cross_entropy_by_num_removed[num_removed_features],
+                   these_worst_feature_names)
 
         stop_if_cross_entropy_above = (
-            min_cross_entropy_by_num_removed[num_removed_features] * (
-                1. - min_fractional_xentropy_decrease))
+            (1. - min_fractional_xentropy_decrease) *
+            min_cross_entropy_by_num_removed[num_removed_features])
         if min_new_cross_entropy > stop_if_cross_entropy_above:
             break
 
+        removed_feature_names += these_worst_feature_names
+        selected_feature_names = [
+            s for s in selected_feature_names
+            if s not in these_worst_feature_names]
+
         min_cross_entropy_by_num_removed[
-            num_removed_features + 1] = min_new_cross_entropy
-        removed_feature_names.append(this_worst_feature_name)
-        selected_feature_names = set(selected_feature_names)
-        selected_feature_names.remove(this_worst_feature_name)
-        selected_feature_names = list(selected_feature_names)
+            (num_removed_features + 1):(len(removed_feature_names) + 1)
+        ] = min_new_cross_entropy
+        # min_cross_entropy_by_num_removed[
+        #     len(removed_feature_names)] = min_new_cross_entropy
 
         if len(removed_feature_names) < 2:
             continue
@@ -1122,59 +1139,43 @@ def floating_sbs(
         while len(removed_feature_names) >= 2:
             forward_step_num += 1
             num_removed_features = len(removed_feature_names)
-            new_xentropy_by_feature = numpy.full(
-                num_removed_features, numpy.nan)
-
             print ('Major step {0:d}, forward step {1:d}: {2:d}/{3:d} '
                    'features removed...').format(
                        major_step_num, forward_step_num, num_removed_features,
                        num_features)
 
-            for j in range(num_removed_features):
-                these_feature_names = (
-                    selected_feature_names + [removed_feature_names[j]])
-
-                new_estimator_object = sklearn.base.clone(estimator_object)
-                new_estimator_object.fit(
-                    training_table.as_matrix(columns=these_feature_names),
-                    training_table[target_name].values)
-
-                these_forecast_probabilities = (
-                    new_estimator_object.predict_proba(
-                        validation_table.as_matrix(
-                            columns=these_feature_names))[:, 1])
-                new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
-                    these_forecast_probabilities,
-                    validation_table[target_name].values)
-
-            min_new_cross_entropy = numpy.min(new_xentropy_by_feature)
-            this_best_feature_index = numpy.argmin(new_xentropy_by_feature)
-            this_best_feature_name = removed_feature_names[
-                this_best_feature_index]
+            min_new_cross_entropy, this_best_feature_name_as_list = (
+                _forward_selection_step(
+                    training_table=training_table,
+                    validation_table=validation_table,
+                    selected_feature_names=selected_feature_names,
+                    remaining_feature_names=removed_feature_names,
+                    target_name=target_name, estimator_object=estimator_object,
+                    num_features_to_add=1))
+            this_best_feature_name = this_best_feature_name_as_list[0]
 
             if forward_step_num == 1:
+                this_best_feature_index = removed_feature_names.index(
+                    this_best_feature_name)
                 if this_best_feature_index == num_removed_features - 1:
                     break  # Cannot add feature that was just removed.
 
-            else:
-                if (min_new_cross_entropy >= min_cross_entropy_by_num_removed[
-                        num_removed_features - 1]):
-                    break  # Add feature only if it improves performance.
+            if (min_new_cross_entropy >= min_cross_entropy_by_num_removed[
+                    num_removed_features - 1]):
+                break  # Add feature only if it improves performance.
 
-            print (
-                'Minimum cross-entropy ({0:.4f}) given by adding feature '
-                '"{1:s}"; previous min cross-entropy = {2:.4f}').format(
-                    min_new_cross_entropy, this_best_feature_name,
-                    min_cross_entropy_by_num_removed[num_removed_features - 1])
+            print ('Minimum cross-entropy ({0:.4f}) given by adding feature '
+                   '"{1:s}" (previous minimum = {2:.4f}).').format(
+                       min_new_cross_entropy, this_best_feature_name,
+                       min_cross_entropy_by_num_removed[
+                           num_removed_features - 1])
+
+            selected_feature_names.append(this_best_feature_name)
+            removed_feature_names.remove(this_best_feature_name)
 
             min_cross_entropy_by_num_removed[num_removed_features] = numpy.nan
             min_cross_entropy_by_num_removed[
                 num_removed_features - 1] = min_new_cross_entropy
-
-            selected_feature_names.append(this_best_feature_name)
-            removed_feature_names = set(removed_feature_names)
-            removed_feature_names.remove(this_best_feature_name)
-            removed_feature_names = list(removed_feature_names)
 
         print '\n'
 
@@ -1192,8 +1193,8 @@ def floating_sbs(
 
 
 def permutation_selection(
-        training_table=None, validation_table=None, feature_names=None,
-        target_name=None, estimator_object=None):
+        training_table, validation_table, feature_names, target_name,
+        estimator_object):
     """Runs the permutation algorithm (Lakshmanan et al. 2015).
 
     :param training_table: See documentation for
@@ -1219,8 +1220,7 @@ def permutation_selection(
 
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
-        testing_table=None, feature_names=feature_names,
-        target_name=target_name)
+        feature_names=feature_names, target_name=target_name)
 
     # Find validation cross-entropy and AUC before permutation.
     new_estimator_object = sklearn.base.clone(estimator_object)
@@ -1288,11 +1288,10 @@ def permutation_selection(
             max_prev_cross_entropy = copy.deepcopy(
                 orig_validation_cross_entropy)
 
-        print (
-            'Max cross-entropy ({0:.4f}) given by permuting feature "{1:s}"; '
-            'previous max cross-entropy = {2:.4f}').format(
-                max_new_cross_entropy, this_best_feature_name,
-                max_prev_cross_entropy)
+        print ('Max cross-entropy ({0:.4f}) given by permuting feature "{1:s}" '
+               '(previous max = {2:.4f}).').format(
+                   max_new_cross_entropy, this_best_feature_name,
+                   max_prev_cross_entropy)
 
         validation_table = validation_table.assign(
             **{this_best_feature_name: permuted_values_for_best_feature})
@@ -1364,8 +1363,8 @@ def plot_backward_selection_results(
 
 
 def plot_permutation_results(
-        permutation_table, plot_feature_names=False,
-        orig_validation_cross_entropy=None,
+        permutation_table, orig_validation_cross_entropy,
+        plot_feature_names=False,
         bar_face_colour=DEFAULT_BAR_FACE_COLOUR,
         bar_edge_colour=DEFAULT_BAR_EDGE_COLOUR,
         bar_edge_width=DEFAULT_BAR_EDGE_WIDTH):
@@ -1373,10 +1372,10 @@ def plot_permutation_results(
 
     :param permutation_table: pandas DataFrame returned by
         `permutation_selection`.
-    :param plot_feature_names: See documentation for
-        _plot_selection_results.
     :param orig_validation_cross_entropy: Validation cross-entropy before
         permutation.
+    :param plot_feature_names: See documentation for
+        _plot_selection_results.
     :param bar_face_colour: See doc for _plot_selection_results.
     :param bar_edge_colour: See doc for _plot_selection_results.
     :param bar_edge_width: See doc for _plot_selection_results.

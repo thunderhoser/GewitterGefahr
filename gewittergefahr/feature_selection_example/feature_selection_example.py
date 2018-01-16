@@ -17,6 +17,8 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DEFAULT_TRAINING_FRACTION = 0.5
 DEFAULT_VALIDATION_FRACTION = 0.3
+NUM_FEATURES_TO_ADD_PER_STEP = 2
+NUM_FEATURES_TO_REMOVE_PER_STEP = 2
 
 HADRON_STRING_LABEL = 'h'
 GAMMA_PARTICLE_STRING_LABEL = 'g'
@@ -205,7 +207,8 @@ if __name__ == '__main__':
         training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
         testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
         target_name=LABEL_COLUMN,
-        estimator_object=sklearn.neural_network.MLPClassifier())
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
     _print_forward_selection_results(SFS_DICTIONARY)
 
     SFS_IMAGE_FILE_NAME = '{0:s}/sfs_results.jpg'.format(WORKING_DIRECTORY_NAME)
@@ -241,7 +244,8 @@ if __name__ == '__main__':
         training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
         testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
         target_name=LABEL_COLUMN,
-        estimator_object=sklearn.neural_network.MLPClassifier())
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
     _print_forward_selection_results(SFFS_DICTIONARY)
 
     SFFS_IMAGE_FILE_NAME = '{0:s}/sffs_results.jpg'.format(
@@ -259,7 +263,8 @@ if __name__ == '__main__':
         training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
         testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
         target_name=LABEL_COLUMN,
-        estimator_object=sklearn.neural_network.MLPClassifier())
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
     _print_backward_selection_results(SBS_DICTIONARY)
 
     SBS_IMAGE_FILE_NAME = '{0:s}/sbs_results.jpg'.format(WORKING_DIRECTORY_NAME)
@@ -295,7 +300,8 @@ if __name__ == '__main__':
         training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
         testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
         target_name=LABEL_COLUMN,
-        estimator_object=sklearn.neural_network.MLPClassifier())
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
     _print_backward_selection_results(SBFS_DICTIONARY)
 
     SBFS_IMAGE_FILE_NAME = '{0:s}/sbfs_results.jpg'.format(
