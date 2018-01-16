@@ -10,6 +10,75 @@ from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import nwp_model_utils
 
 TOLERANCE = 1e-6
+MB_TO_PASCALS = 100
+
+# The following constants are used to test _remove_bad_sounding_rows and
+# _fill_missing_humidity_values.
+THESE_HEIGHTS_M_ASL = numpy.array(
+    [100., 500., 1000., 1500., 2000., 2500., numpy.nan, 3500., 4000.,
+     4500., 5000., 5500., 6000., 6500., 7000., 7500., 8000., 8500., 10000.])
+THESE_PRESSURES_MB = numpy.array(
+    [1000., 950., 900., 850., numpy.nan, 750., 700., 650., 600.,
+     550., 500., 475., 450., 425., 400., 375., 350., 325., 250.])
+THESE_TEMPERATURES_KELVINS = numpy.array(
+    [300., 297.5, 295., 292.5, 290., 287.5, 285., 282.5, 280.,
+     275., numpy.nan, 265., 260., 255., 250., 245., 240., 235., 230.])
+THESE_SPECIFIC_HUMIDITIES = numpy.array(
+    [0.0198, 0.019, 0.018, 0.017, 0.016, 0.015, 0.014, 0.013, 0.012,
+     0.011, 0.01, 0.009, 0.008, 0.007, 0.006, 0.005, 0.004, 0.003, 0.])
+THESE_SPFH_SOME_MISSING = numpy.array(
+    [numpy.nan, numpy.nan, 0.018, 0.017, numpy.nan, 0.015, 0.014, 0.013, 0.012,
+     0.011, numpy.nan, 0.009, 0.008, numpy.nan, numpy.nan, 0.005, 0.004, 0.003,
+     numpy.nan])
+
+THESE_BAD_ROWS = numpy.concatenate((
+    numpy.where(numpy.isnan(THESE_HEIGHTS_M_ASL))[0],
+    numpy.where(numpy.isnan(THESE_PRESSURES_MB))[0],
+    numpy.where(numpy.isnan(THESE_TEMPERATURES_KELVINS))[0]))
+
+THESE_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
+    THESE_SPECIFIC_HUMIDITIES, THESE_PRESSURES_MB * MB_TO_PASCALS)
+THESE_RH_PERCENT = 100 * moisture_conversions.dewpoint_to_relative_humidity(
+    THESE_DEWPOINTS_KELVINS, THESE_TEMPERATURES_KELVINS,
+    THESE_PRESSURES_MB * MB_TO_PASCALS)
+
+THESE_SPFH_MISSING_ROWS = numpy.where(numpy.isnan(THESE_SPFH_SOME_MISSING))[0]
+THESE_RH_SOME_MISSING_PERCENT = copy.deepcopy(THESE_RH_PERCENT)
+THESE_RH_SOME_MISSING_PERCENT[THESE_SPFH_MISSING_ROWS] = numpy.nan
+
+THIS_BASE_SOUNDING_DICT = {
+    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES: THESE_HEIGHTS_M_ASL,
+    soundings.PRESSURE_COLUMN_FOR_SHARPPY_INPUT: THESE_PRESSURES_MB,
+    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES:
+        THESE_TEMPERATURES_KELVINS}
+THIS_BASE_SOUNDING_TABLE = pandas.DataFrame.from_dict(THIS_BASE_SOUNDING_DICT)
+
+SOUNDING_TABLE_SPFH_MISSING_BAD_ROWS = THIS_BASE_SOUNDING_TABLE.assign(
+    **{nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
+           THESE_SPFH_SOME_MISSING})
+SOUNDING_TABLE_SPFH_MISSING = SOUNDING_TABLE_SPFH_MISSING_BAD_ROWS.drop(
+    SOUNDING_TABLE_SPFH_MISSING_BAD_ROWS.index[THESE_BAD_ROWS], axis=0,
+    inplace=False)
+
+SOUNDING_TABLE_SPFH_FILLED_BAD_ROWS = THIS_BASE_SOUNDING_TABLE.assign(
+    **{nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
+           THESE_SPECIFIC_HUMIDITIES})
+SOUNDING_TABLE_SPFH_FILLED = SOUNDING_TABLE_SPFH_FILLED_BAD_ROWS.drop(
+    SOUNDING_TABLE_SPFH_FILLED_BAD_ROWS.index[THESE_BAD_ROWS], axis=0,
+    inplace=False)
+
+SOUNDING_TABLE_RH_MISSING_BAD_ROWS = THIS_BASE_SOUNDING_TABLE.assign(
+    **{nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES:
+           THESE_RH_SOME_MISSING_PERCENT})
+SOUNDING_TABLE_RH_MISSING = SOUNDING_TABLE_RH_MISSING_BAD_ROWS.drop(
+    SOUNDING_TABLE_RH_MISSING_BAD_ROWS.index[THESE_BAD_ROWS], axis=0,
+    inplace=False)
+
+SOUNDING_TABLE_RH_FILLED_BAD_ROWS = THIS_BASE_SOUNDING_TABLE.assign(
+    **{nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES: THESE_RH_PERCENT})
+SOUNDING_TABLE_RH_FILLED = SOUNDING_TABLE_RH_FILLED_BAD_ROWS.drop(
+    SOUNDING_TABLE_RH_FILLED_BAD_ROWS.index[THESE_BAD_ROWS], axis=0,
+    inplace=False)
 
 # The following constants are used to test _column_name_to_sounding_stat.
 STORM_VELOCITY_X_NAME = 'storm_velocity_m_s01_x'
@@ -419,6 +488,126 @@ SOUNDING_STAT_TABLE = pandas.DataFrame.from_dict(SOUNDING_STAT_DICT)
 
 class SoundingsTests(unittest.TestCase):
     """Each method is a unit test for soundings.py."""
+
+    def test_remove_bad_sounding_rows_spfh_large_table(self):
+        """Ensures correct output from _remove_bad_sounding_rows.
+
+        In this case, sounding table is large and moisture variable is specific
+        humidity.
+        """
+
+        this_sounding_table = copy.deepcopy(
+            SOUNDING_TABLE_SPFH_MISSING_BAD_ROWS)
+        this_sounding_table = soundings._remove_bad_sounding_rows(
+            this_sounding_table)
+
+        these_columns = list(this_sounding_table)
+        expected_columns = list(SOUNDING_TABLE_SPFH_MISSING)
+        self.assertTrue(set(these_columns) == set(expected_columns))
+
+        for this_column in these_columns:
+            self.assertTrue(numpy.allclose(
+                this_sounding_table[this_column].values,
+                SOUNDING_TABLE_SPFH_MISSING[this_column].values,
+                equal_nan=True))
+
+    def test_remove_bad_sounding_rows_spfh_small_table(self):
+        """Ensures correct output from _remove_bad_sounding_rows.
+
+        In this case, sounding table is small and moisture variable is specific
+        humidity.
+        """
+
+        these_rows = numpy.linspace(
+            0, soundings.MIN_PRESSURE_LEVELS_IN_SOUNDING - 1,
+            num=soundings.MIN_PRESSURE_LEVELS_IN_SOUNDING, dtype=int)
+
+        this_sounding_table = copy.deepcopy(
+            SOUNDING_TABLE_SPFH_MISSING_BAD_ROWS.iloc[these_rows])
+        this_sounding_table = soundings._remove_bad_sounding_rows(
+            this_sounding_table)
+
+        self.assertTrue(this_sounding_table is None)
+
+    def test_remove_bad_sounding_rows_rh_large_table(self):
+        """Ensures correct output from _remove_bad_sounding_rows.
+
+        In this case, sounding table is large and moisture variable is relative
+        humidity.
+        """
+
+        this_sounding_table = copy.deepcopy(
+            SOUNDING_TABLE_RH_MISSING_BAD_ROWS)
+        this_sounding_table = soundings._remove_bad_sounding_rows(
+            this_sounding_table)
+
+        these_columns = list(this_sounding_table)
+        expected_columns = list(SOUNDING_TABLE_RH_MISSING)
+        self.assertTrue(set(these_columns) == set(expected_columns))
+
+        for this_column in these_columns:
+            self.assertTrue(numpy.allclose(
+                this_sounding_table[this_column].values,
+                SOUNDING_TABLE_RH_MISSING[this_column].values,
+                equal_nan=True))
+
+    def test_remove_bad_sounding_rows_rh_small_table(self):
+        """Ensures correct output from _remove_bad_sounding_rows.
+
+        In this case, sounding table is small and moisture variable is relative
+        humidity.
+        """
+
+        these_rows = numpy.linspace(
+            0, soundings.MIN_PRESSURE_LEVELS_IN_SOUNDING - 1,
+            num=soundings.MIN_PRESSURE_LEVELS_IN_SOUNDING, dtype=int)
+
+        this_sounding_table = copy.deepcopy(
+            SOUNDING_TABLE_RH_MISSING_BAD_ROWS.iloc[these_rows])
+        this_sounding_table = soundings._remove_bad_sounding_rows(
+            this_sounding_table)
+
+        self.assertTrue(this_sounding_table is None)
+
+    def test_fill_missing_humidity_values_spfh(self):
+        """Ensures correct output from _fill_missing_humidity_values.
+
+        In this case, moisture variable is specific humidity.
+        """
+
+        this_sounding_table = copy.deepcopy(SOUNDING_TABLE_SPFH_MISSING)
+        this_sounding_table = soundings._fill_missing_humidity_values(
+            this_sounding_table)
+
+        these_columns = list(this_sounding_table)
+        expected_columns = list(SOUNDING_TABLE_SPFH_FILLED)
+        self.assertTrue(set(these_columns) == set(expected_columns))
+
+        for this_column in these_columns:
+            self.assertTrue(numpy.allclose(
+                this_sounding_table[this_column].values,
+                SOUNDING_TABLE_SPFH_FILLED[this_column].values,
+                equal_nan=True))
+
+    def test_fill_missing_humidity_values_rh(self):
+        """Ensures correct output from _fill_missing_humidity_values.
+
+        In this case, moisture variable is relative humidity.
+        """
+
+        this_sounding_table = copy.deepcopy(SOUNDING_TABLE_RH_MISSING)
+        this_sounding_table = soundings._fill_missing_humidity_values(
+            this_sounding_table)
+
+        these_columns = list(this_sounding_table)
+        expected_columns = list(SOUNDING_TABLE_RH_FILLED)
+        self.assertTrue(set(these_columns) == set(expected_columns))
+
+        for this_column in these_columns:
+            self.assertTrue(numpy.allclose(
+                this_sounding_table[this_column].values,
+                SOUNDING_TABLE_RH_FILLED[this_column].values,
+                equal_nan=True))
 
     def test_column_name_to_sounding_stat_x_component(self):
         """Ensures correct output from _column_name_to_sounding_stat.

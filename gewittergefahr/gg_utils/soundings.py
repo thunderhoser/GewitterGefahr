@@ -4,6 +4,7 @@ import os.path
 import pickle
 import numpy
 import pandas
+import scipy.interpolate
 from sharppy.sharptab import params as sharppy_params
 from sharppy.sharptab import winds as sharppy_winds
 from sharppy.sharptab import interp as sharppy_interp
@@ -33,6 +34,7 @@ REDUNDANT_HEIGHT_TOLERANCE_METRES = 1e-3
 MIN_PRESSURE_LEVELS_IN_SOUNDING = 15
 
 PERCENT_TO_UNITLESS = 0.01
+UNITLESS_TO_PERCENT = 100
 PASCALS_TO_MB = 0.01
 MB_TO_PASCALS = 100
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
@@ -82,17 +84,115 @@ COLUMN_TYPE_DICT_FOR_METADATA = {
     IN_MUPCL_OBJECT_COLUMN_FOR_METADATA: bool}
 
 
-def _remove_sounding_rows_with_nan(sounding_table):
-    """Removes any row with a NaN from sounding table.
+def _remove_bad_sounding_rows(sounding_table):
+    """Removes bad rows from sounding table.
 
-    :param sounding_table: pandas DataFrame (may contain NaN's).
-    :return: sounding_table: Same as input, except that rows with NaN have been
-        removed.  If there are no rows without NaN, returns None.
+    A "bad row" is one for which any non-humidity value is NaN.
+
+    :param sounding_table: pandas DataFrame with the following columns (must
+        contain either relative_humidity_percent or specific_humidity; does not
+        need both).
+    sounding_table.pressure_mb: Pressure (millibars).
+    sounding_table.temperature_kelvins: Temperature.
+    sounding_table.relative_humidity_percent: [optional] Relative humidity.
+    sounding_table.specific_humidity: [optional] Specific humidity (unitless).
+    sounding_table.geopotential_height_metres: Geopotential height.
+    sounding_table.u_wind_m_s01: u-wind (metres per second).
+    sounding_table.v_wind_m_s01: v-wind (metres per second).
+
+    :return: sounding_table: Same as input but without bad rows.
     """
 
-    sounding_table = sounding_table.loc[sounding_table.notnull().all(axis=1)]
+    columns_to_check = list(sounding_table)
+    if nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES in columns_to_check:
+        columns_to_check.remove(nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
+    if nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES in columns_to_check:
+        columns_to_check.remove(nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
+
+    sounding_table = sounding_table.loc[
+        sounding_table[columns_to_check].notnull().all(axis=1)]
     if len(sounding_table.index) < MIN_PRESSURE_LEVELS_IN_SOUNDING:
         return None
+
+    return sounding_table
+
+
+def _fill_missing_humidity_values(sounding_table):
+    """Fills missing humidity values in sounding table.
+
+    :param sounding_table: See documentation for _remove_bad_sounding_rows.
+    :return: sounding_table: Same as input but without missing humidity values.
+    """
+
+    if nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES in list(sounding_table):
+        humidity_column = nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
+    else:
+        humidity_column = nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES
+
+    missing_value_flags = numpy.isnan(sounding_table[humidity_column].values)
+    if not numpy.any(missing_value_flags):
+        return sounding_table
+
+    real_value_indices = numpy.where(numpy.invert(missing_value_flags))[0]
+    if len(real_value_indices) < 2:
+        return None
+
+    heights_to_interp_m_asl = sounding_table[
+        nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES].values[
+            real_value_indices]
+
+    if humidity_column == nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
+        spfc_humidities_to_interp_kg_kg01 = sounding_table[
+            humidity_column].values[real_value_indices]
+    else:
+        dewpoints_to_interp_kelvins = (
+            moisture_conversions.relative_humidity_to_dewpoint(
+                sounding_table[humidity_column].values[real_value_indices] *
+                PERCENT_TO_UNITLESS,
+                sounding_table[
+                    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
+                ].values[real_value_indices],
+                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                    real_value_indices] * MB_TO_PASCALS))
+
+        spfc_humidities_to_interp_kg_kg01 = (
+            moisture_conversions.dewpoint_to_specific_humidity(
+                dewpoints_to_interp_kelvins,
+                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                    real_value_indices] * MB_TO_PASCALS))
+
+    interp_object = scipy.interpolate.interp1d(
+        heights_to_interp_m_asl, spfc_humidities_to_interp_kg_kg01,
+        kind='linear', bounds_error=False, fill_value='extrapolate')
+
+    missing_value_indices = numpy.where(missing_value_flags)[0]
+    query_heights_m_asl = sounding_table[
+        nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES].values[
+            missing_value_indices]
+    query_spfc_humidities_kg_kg01 = interp_object(query_heights_m_asl)
+
+    if humidity_column == nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
+        sounding_table[humidity_column].values[
+            missing_value_indices] = query_spfc_humidities_kg_kg01
+    else:
+        query_dewpoints_kelvins = (
+            moisture_conversions.specific_humidity_to_dewpoint(
+                query_spfc_humidities_kg_kg01,
+                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                    missing_value_indices] * MB_TO_PASCALS))
+
+        query_relative_humidities = (
+            moisture_conversions.dewpoint_to_relative_humidity(
+                query_dewpoints_kelvins,
+                sounding_table[
+                    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
+                ].values[missing_value_indices],
+                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                    missing_value_indices] * MB_TO_PASCALS))
+
+        sounding_table[humidity_column].values[missing_value_indices] = (
+            query_relative_humidities * UNITLESS_TO_PERCENT)
+
     return sounding_table
 
 
@@ -1081,7 +1181,12 @@ def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
 
         list_of_sounding_tables[i][PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
             -1] = PASCALS_TO_MB * interp_table[lowest_pressure_name].values[i]
-        list_of_sounding_tables[i] = _remove_sounding_rows_with_nan(
+        list_of_sounding_tables[i] = _remove_bad_sounding_rows(
+            list_of_sounding_tables[i])
+        if list_of_sounding_tables[i] is None:
+            continue
+
+        list_of_sounding_tables[i] = _fill_missing_humidity_values(
             list_of_sounding_tables[i])
         if list_of_sounding_tables[i] is None:
             continue
