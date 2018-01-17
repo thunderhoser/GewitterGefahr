@@ -368,8 +368,13 @@ def read_winds_from_raw_file(netcdf_file_name, secondary_source=None,
     if netcdf_dataset is None:
         return None
 
-    station_names = _char_matrix_to_string_list(
-        netcdf_dataset.variables[STATION_NAME_COLUMN_ORIG][:])
+    # TODO(thunderhoser): This is hacky (accounts for length-0 arrays of station
+    # names).  Find a better way to handle this exception.
+    try:
+        station_names = _char_matrix_to_string_list(
+            netcdf_dataset.variables[STATION_NAME_COLUMN_ORIG][:])
+    except IndexError:
+        return None
 
     try:
         station_ids = _char_matrix_to_string_list(
