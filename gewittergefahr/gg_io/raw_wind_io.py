@@ -960,6 +960,9 @@ def merge_data_sources_by_hour(
             end_time_unix_sec=hours_unix_sec[i] + HOURS_TO_SECONDS - 1,
             primary_source=MERGED_DATA_SOURCE,
             top_directory_name=top_directory_name, raise_error_if_missing=False)
+
+        print 'Writing wind obs for all data sources to "{0:s}"...'.format(
+            merged_file_names[i])
         write_processed_file(
             this_wind_table, merged_file_names[i], write_mode='w')
 
