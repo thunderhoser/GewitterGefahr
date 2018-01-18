@@ -803,7 +803,15 @@ def _read_wind_observations(
         list_of_wind_tables[i], _ = list_of_wind_tables[i].align(
             list_of_wind_tables[0], axis=1)
 
-    return pandas.concat(list_of_wind_tables, axis=0, ignore_index=True)
+    wind_table = pandas.concat(list_of_wind_tables, axis=0, ignore_index=True)
+
+    wind_speeds_m_s01 = numpy.sqrt(
+        wind_table[raw_wind_io.U_WIND_COLUMN] ** 2 +
+        wind_table[raw_wind_io.V_WIND_COLUMN] ** 2)
+    invalid_rows = raw_wind_io.check_wind_speeds(
+        wind_speeds_m_s01, one_component=False)
+    return wind_table.drop(
+        wind_table.index[invalid_rows], axis=0, inplace=False)
 
 
 def get_columns_to_write(storm_to_winds_table):

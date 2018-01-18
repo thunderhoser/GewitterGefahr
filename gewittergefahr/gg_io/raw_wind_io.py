@@ -23,6 +23,7 @@ WIND_DIR_DEFAULT_DEG = 0.
 DEGREES_TO_RADIANS = numpy.pi / 180
 RADIANS_TO_DEGREES = 180. / numpy.pi
 HOURS_TO_SECONDS = 3600
+KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
 TIME_FORMAT_MONTH_YEAR = '%Y%m'
 TIME_FORMAT_SECOND = '%Y-%m-%d-%H%M%S'
@@ -62,9 +63,9 @@ SECONDARY_SOURCE_COLUMN = 'secondary_source'
 
 MIN_WIND_DIRECTION_DEG = 0.
 MAX_WIND_DIRECTION_DEG = 360. - TOLERANCE
-MIN_SIGNED_WIND_SPEED_M_S01 = -100.
+MIN_SIGNED_WIND_SPEED_M_S01 = -100. * KT_TO_METRES_PER_SECOND
 MIN_ABSOLUTE_WIND_SPEED_M_S01 = 0.
-MAX_WIND_SPEED_M_S01 = 100.
+MAX_WIND_SPEED_M_S01 = 100. * KT_TO_METRES_PER_SECOND
 MIN_ELEVATION_M_ASL = -418.  # Lowest point on land (shore of Dead Sea).
 MAX_ELEVATION_M_ASL = 8848.  # Highest point on land (Mount Everest).
 MIN_LATITUDE_DEG = -90.
@@ -235,34 +236,6 @@ def _check_longitudes_positive_in_west(longitudes_deg):
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
-def _check_wind_speeds(wind_speeds_m_s01, one_component=False):
-    """Finds invalid wind speeds.
-
-    N = number of observations.
-
-    :param wind_speeds_m_s01: length-N numpy array of wind speeds (m/s).
-    :param one_component: Boolean flag.  If True, wind speeds are only one
-        component (either u or v), which means that they can be negative.  If
-        False, wind speeds are absolute (vector magnitudes), so they cannot be
-        negative.
-    :return: invalid_indices: 1-D numpy array with indices of invalid speeds.
-    """
-
-    error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
-    error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
-    error_checking.assert_is_boolean(one_component)
-
-    if one_component:
-        this_min_wind_speed_m_s01 = MIN_SIGNED_WIND_SPEED_M_S01
-    else:
-        this_min_wind_speed_m_s01 = MIN_ABSOLUTE_WIND_SPEED_M_S01
-
-    valid_flags = numpy.logical_and(
-        wind_speeds_m_s01 >= this_min_wind_speed_m_s01,
-        wind_speeds_m_s01 <= MAX_WIND_SPEED_M_S01)
-    return numpy.where(numpy.invert(valid_flags))[0]
-
-
 def _check_wind_directions(wind_directions_deg):
     """Finds invalid wind directions.
 
@@ -333,6 +306,34 @@ def _get_pathless_processed_file_name(start_time_unix_sec=None,
         time_conversion.unix_sec_to_string(
             end_time_unix_sec, TIME_FORMAT_SECOND),
         PROCESSED_FILE_EXTENSION)
+
+
+def check_wind_speeds(wind_speeds_m_s01, one_component=False):
+    """Finds invalid wind speeds.
+
+    N = number of observations.
+
+    :param wind_speeds_m_s01: length-N numpy array of wind speeds (m/s).
+    :param one_component: Boolean flag.  If True, wind speeds are only one
+        component (either u or v), which means that they can be negative.  If
+        False, wind speeds are absolute (vector magnitudes), so they cannot be
+        negative.
+    :return: invalid_indices: 1-D numpy array with indices of invalid speeds.
+    """
+
+    error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
+    error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
+    error_checking.assert_is_boolean(one_component)
+
+    if one_component:
+        this_min_wind_speed_m_s01 = MIN_SIGNED_WIND_SPEED_M_S01
+    else:
+        this_min_wind_speed_m_s01 = MIN_ABSOLUTE_WIND_SPEED_M_S01
+
+    valid_flags = numpy.logical_and(
+        wind_speeds_m_s01 >= this_min_wind_speed_m_s01,
+        wind_speeds_m_s01 <= MAX_WIND_SPEED_M_S01)
+    return numpy.where(numpy.invert(valid_flags))[0]
 
 
 def check_data_sources(
@@ -424,12 +425,12 @@ def remove_invalid_rows(input_table, check_speed_flag=False,
     error_checking.assert_is_boolean(check_time_flag)
 
     if check_speed_flag:
-        invalid_sustained_indices = _check_wind_speeds(
+        invalid_sustained_indices = check_wind_speeds(
             input_table[WIND_SPEED_COLUMN].values, one_component=False)
         input_table[WIND_SPEED_COLUMN].values[
             invalid_sustained_indices] = numpy.nan
 
-        invalid_gust_indices = _check_wind_speeds(
+        invalid_gust_indices = check_wind_speeds(
             input_table[WIND_GUST_SPEED_COLUMN].values, one_component=False)
         input_table[WIND_GUST_SPEED_COLUMN].values[
             invalid_gust_indices] = numpy.nan
@@ -449,13 +450,13 @@ def remove_invalid_rows(input_table, check_speed_flag=False,
         input_table[WIND_GUST_DIR_COLUMN].values[invalid_indices] = numpy.nan
 
     if check_u_wind_flag:
-        invalid_indices = _check_wind_speeds(input_table[U_WIND_COLUMN].values,
+        invalid_indices = check_wind_speeds(input_table[U_WIND_COLUMN].values,
                                              one_component=True)
         input_table.drop(input_table.index[invalid_indices], axis=0,
                          inplace=True)
 
     if check_v_wind_flag:
-        invalid_indices = _check_wind_speeds(input_table[V_WIND_COLUMN].values,
+        invalid_indices = check_wind_speeds(input_table[V_WIND_COLUMN].values,
                                              one_component=True)
         input_table.drop(input_table.index[invalid_indices], axis=0,
                          inplace=True)

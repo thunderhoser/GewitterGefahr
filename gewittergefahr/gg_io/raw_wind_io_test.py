@@ -43,12 +43,12 @@ LNG_INVALID_INDICES = numpy.array([0, 5, 6, 7], dtype=int)
 LNG_INVALID_INDICES_NEGATIVE_IN_WEST = numpy.array([0, 4, 5, 6, 7], dtype=int)
 LNG_INVALID_INDICES_POSITIVE_IN_WEST = numpy.array([0, 1, 5, 6, 7], dtype=int)
 
-# The following constants are used to test _check_wind_speeds.
+# The following constants are used to test check_wind_speeds.
 SIGNED_WIND_SPEEDS_M_S01 = numpy.array(
-    [-400., -100., -10., 0., 10., 100., 400., numpy.nan, None],
+    [-100., -50., -10., 0., 10., 50., 100., numpy.nan, None],
     dtype=numpy.float64)
 ABSOLUTE_WIND_SPEEDS_M_S01 = numpy.array(
-    [-400., -100., -10., 0., 10., 100., 400., numpy.nan, None],
+    [-100., -50., -10., 0., 10., 50., 100., numpy.nan, None],
     dtype=numpy.float64)
 SIGNED_SPEED_INVALID_INDICES = numpy.array([0, 6, 7, 8], dtype=int)
 ABSOLUTE_SPEED_INVALID_INDICES = numpy.array([0, 1, 2, 6, 7, 8], dtype=int)
@@ -259,25 +259,25 @@ class RawWindIoTests(unittest.TestCase):
                                           LNG_INVALID_INDICES_POSITIVE_IN_WEST))
 
     def test_check_wind_speeds_signed(self):
-        """Ensures correct output from _check_wind_speeds.
+        """Ensures correct output from check_wind_speeds.
 
         In this case wind speeds are signed (either u- or v-component), so they
         can be negative.
         """
 
-        these_invalid_indices = raw_wind_io._check_wind_speeds(
+        these_invalid_indices = raw_wind_io.check_wind_speeds(
             SIGNED_WIND_SPEEDS_M_S01, one_component=True)
         self.assertTrue(numpy.array_equal(these_invalid_indices,
                                           SIGNED_SPEED_INVALID_INDICES))
 
     def test_check_wind_speeds_absolute(self):
-        """Ensures correct output from _check_wind_speeds.
+        """Ensures correct output from check_wind_speeds.
 
         In this case wind speeds are absolute (vector magnitudes), so they
         cannot be negative.
         """
 
-        these_invalid_indices = raw_wind_io._check_wind_speeds(
+        these_invalid_indices = raw_wind_io.check_wind_speeds(
             ABSOLUTE_WIND_SPEEDS_M_S01, one_component=False)
         self.assertTrue(numpy.array_equal(these_invalid_indices,
                                           ABSOLUTE_SPEED_INVALID_INDICES))
