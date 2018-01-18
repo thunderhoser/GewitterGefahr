@@ -45,8 +45,8 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
-DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS = 0.01
-DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS = -0.01
+MIN_FRACTIONAL_COST_DECREASE_SFS_DEFAULT = 0.01
+MIN_FRACTIONAL_COST_DECREASE_SBS_DEFAULT = -0.01
 
 DEFAULT_NUM_FORWARD_STEPS_FOR_SFS = 2
 DEFAULT_NUM_BACKWARD_STEPS_FOR_SFS = 1
@@ -56,11 +56,12 @@ DEFAULT_NUM_BACKWARD_STEPS_FOR_SBS = 2
 SELECTED_FEATURES_KEY = 'selected_feature_names'
 REMOVED_FEATURES_KEY = 'removed_feature_names'
 FEATURE_NAME_KEY = 'feature_name'
+VALIDATION_COST_KEY = 'validation_cost'
 VALIDATION_XENTROPY_KEY = 'validation_cross_entropy'
 VALIDATION_AUC_KEY = 'validation_auc'
 TESTING_XENTROPY_KEY = 'testing_cross_entropy'
 TESTING_AUC_KEY = 'testing_auc'
-VALIDATION_XENTROPY_BY_STEP_KEY = 'validation_cross_entropy_by_step'
+VALIDATION_COST_BY_STEP_KEY = 'validation_cost_by_step'
 
 PERMUTATION_TYPE = 'permutation'
 FORWARD_SELECTION_TYPE = 'forward'
@@ -124,7 +125,7 @@ def _check_sequential_selection_inputs(
 
 def _forward_selection_step(
         training_table, validation_table, selected_feature_names,
-        remaining_feature_names, target_name, estimator_object,
+        remaining_feature_names, target_name, estimator_object, cost_function,
         num_features_to_add=1):
     """Performs one forward selection step (i.e., adds features to the model).
 
@@ -143,14 +144,17 @@ def _forward_selection_step(
     :param remaining_feature_names: 1-D list with names of remaining features
         (those which may be added to the model).
     :param target_name: Name of target variable (predictand).
-    :param num_features_to_add: Number of features to add (L in the above
-        discussion).
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :return: min_cross_entropy: Lowest cross-entropy produced by adding any set
-        of L features from `remaining_feature_names` to the model.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Inputs should be forecast_probabilities and observed_values (in that
+        order).  Output should be real-valued float.
+    :param num_features_to_add: Number of features to add (L in the above
+        discussion).
+    :return: min_cost: Minimum cost given by adding any set of L features from
+        `remaining_feature_names` to the model.
     :return: best_feature_names: length-L list of features whose addition
-        results in `min_cross_entropy`.
+        resulted in `min_cost`.
     """
 
     combination_object = combinations(
@@ -160,8 +164,7 @@ def _forward_selection_step(
         list_of_remaining_feature_combos.append(list(this_tuple))
 
     num_remaining_feature_combos = len(list_of_remaining_feature_combos)
-    cross_entropy_by_feature_combo = numpy.full(
-        num_remaining_feature_combos, numpy.nan)
+    cost_by_feature_combo = numpy.full(num_remaining_feature_combos, numpy.nan)
 
     for j in range(num_remaining_feature_combos):
         these_feature_names = (
@@ -174,18 +177,18 @@ def _forward_selection_step(
 
         these_forecast_probabilities = new_estimator_object.predict_proba(
             validation_table.as_matrix(columns=these_feature_names))[:, 1]
-        cross_entropy_by_feature_combo[j] = model_eval.get_cross_entropy(
+        cost_by_feature_combo[j] = cost_function(
             these_forecast_probabilities,
             validation_table[target_name].values)
 
-    min_cross_entropy = numpy.min(cross_entropy_by_feature_combo)
-    best_index = numpy.argmin(cross_entropy_by_feature_combo)
-    return min_cross_entropy, list_of_remaining_feature_combos[best_index]
+    min_cost = numpy.min(cost_by_feature_combo)
+    best_index = numpy.argmin(cost_by_feature_combo)
+    return min_cost, list_of_remaining_feature_combos[best_index]
 
 
 def _backward_selection_step(
         training_table, validation_table, selected_feature_names, target_name,
-        estimator_object, num_features_to_remove=1):
+        estimator_object, cost_function, num_features_to_remove=1):
     """Performs one backward selection step (removes features from the model).
 
     The worst set of R features is removed from the model, where R >= 1.
@@ -202,12 +205,15 @@ def _backward_selection_step(
     :param target_name: Name of target variable (predictand).
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Inputs should be forecast_probabilities and observed_values (in that
+        order).  Output should be real-valued float.
     :param num_features_to_remove: Number of features to remove (R in the above
         discussion).
-    :return: min_cross_entropy: Lowest cross-entropy produced by removing any
-        set of R features in `selected_feature_names` from the model.
-    :return: worst_feature_names: length-L list of features whose removal
-        results in `min_cross_entropy`.
+    :return: min_cost: Minimum cost given by removing any set of R features in
+        `selected_feature_names` from the model.
+    :return: best_feature_names: length-R list of features whose removal
+        resulted in `min_cost`.
     """
 
     combination_object = combinations(
@@ -217,8 +223,7 @@ def _backward_selection_step(
         list_of_selected_feature_combos.append(list(this_tuple))
 
     num_selected_feature_combos = len(list_of_selected_feature_combos)
-    cross_entropy_by_feature_combo = numpy.full(
-        num_selected_feature_combos, numpy.nan)
+    cost_by_feature_combo = numpy.full(num_selected_feature_combos, numpy.nan)
 
     for j in range(num_selected_feature_combos):
         these_feature_names = set(selected_feature_names)
@@ -234,13 +239,13 @@ def _backward_selection_step(
         these_forecast_probabilities = (
             new_estimator_object.predict_proba(validation_table.as_matrix(
                 columns=these_feature_names))[:, 1])
-        cross_entropy_by_feature_combo[j] = model_eval.get_cross_entropy(
+        cost_by_feature_combo[j] = cost_function(
             these_forecast_probabilities,
             validation_table[target_name].values)
 
-    min_cross_entropy = numpy.min(cross_entropy_by_feature_combo)
-    worst_index = numpy.argmin(cross_entropy_by_feature_combo)
-    return min_cross_entropy, list_of_selected_feature_combos[worst_index]
+    min_cost = numpy.min(cost_by_feature_combo)
+    worst_index = numpy.argmin(cost_by_feature_combo)
+    return min_cost, list_of_selected_feature_combos[worst_index]
 
 
 def _evaluate_feature_selection(
@@ -308,27 +313,25 @@ def _evaluate_feature_selection(
 
 
 def _plot_selection_results(
-        feature_name_by_step, cross_entropy_by_step, selection_type,
-        cross_entropy_before_permutn=None, plot_feature_names=False,
+        used_feature_names, validation_cost_by_feature, selection_type,
+        validation_cost_before_permutn=None, plot_feature_names=False,
         bar_face_colour=DEFAULT_BAR_FACE_COLOUR,
         bar_edge_colour=DEFAULT_BAR_EDGE_COLOUR,
         bar_edge_width=DEFAULT_BAR_EDGE_WIDTH):
     """Plots bar graph with results of feature-selection algorithm.
 
-    K = number of steps executed in feature-selection algorithm
+    K = number of features added, removed, or permuted
 
-    :param feature_name_by_step: length-K list of feature names.  If algorithm
-        was permutation, these are the features permuted, in order of their
-        permutation.  If algorithm was SFS, SFS with backward steps, or SFFS,
-        these are features added in order of their addition.  If algorithm was
-        SBS, SBS with forward steps, or SBFS, these are features removed in
-        order of their removal.
-    :param cross_entropy_by_step: length-K list of cross-entropies.
-        cross_entropy_by_step[k] is cross-entropy after the [k]th step.
-    :param selection_type: Type of selection algorithm used.  May be
-        "permutation", "forward", or "backward".
-    :param cross_entropy_before_permutn: Cross-entropy before permutation.  If
-        selection_type != "permutation", you can leave this as None.
+    :param used_feature_names: length-K list of feature names in order of their
+        addition to the model, removal from the model, or permutation in the
+        model's training data.
+    :param validation_cost_by_feature: length-K list of validation costs.
+        validation_cost_by_feature[k] is cost after adding, removing, or
+        permuting feature_names[k].
+    :param selection_type: Type of selection algorithm used.  May be "forward",
+        "backward", or "permutation".
+    :param validation_cost_before_permutn: Validation cost before permutation.
+        If selection_type != "permutation", you can leave this as None.
     :param plot_feature_names: Boolean flag.  If True, will plot feature names
         on x-axis.  If False, will plot ordinal numbers on x-axis.
     :param bar_face_colour: Colour (in any format accepted by
@@ -337,17 +340,18 @@ def _plot_selection_results(
     :param bar_edge_width: Width for edge of bars.
     """
 
-    num_steps = len(feature_name_by_step)
+    num_features_used = len(used_feature_names)
 
     if selection_type == PERMUTATION_TYPE:
         x_coords_at_bar_edges = numpy.linspace(
-            -0.5, num_steps + 0.5, num=num_steps + 2)
+            -0.5, num_features_used + 0.5, num=num_features_used + 2)
         y_values = numpy.concatenate((
-            numpy.array([cross_entropy_before_permutn]), cross_entropy_by_step))
+            numpy.array([validation_cost_before_permutn]),
+            validation_cost_by_feature))
     else:
         x_coords_at_bar_edges = numpy.linspace(
-            0.5, num_steps + 0.5, num=num_steps + 1)
-        y_values = copy.deepcopy(cross_entropy_by_step)
+            0.5, num_features_used + 0.5, num=num_features_used + 1)
+        y_values = copy.deepcopy(validation_cost_by_feature)
 
     x_width_of_bar = x_coords_at_bar_edges[1] - x_coords_at_bar_edges[0]
     x_coords_at_bar_centers = x_coords_at_bar_edges[:-1] + x_width_of_bar / 2
@@ -386,20 +390,49 @@ def _plot_selection_results(
     if plot_feature_names:
         if selection_type == PERMUTATION_TYPE:
             pyplot.xticks(
-                x_coords_at_bar_centers, [' '] + feature_name_by_step.tolist(),
+                x_coords_at_bar_centers, [' '] + used_feature_names.tolist(),
                 rotation='vertical', fontsize=FEATURE_NAME_FONT_SIZE)
         else:
-            pyplot.xticks(x_coords_at_bar_centers, feature_name_by_step,
+            pyplot.xticks(x_coords_at_bar_centers, used_feature_names,
                           rotation='vertical', fontsize=FEATURE_NAME_FONT_SIZE)
 
-    axes_object.set_ylabel('Validation cross-entropy')
+    axes_object.set_ylabel('Validation cost')
+
+
+def _get_cross_entropy(forecast_probabilities, observed_labels):
+    """Computes cross-entropy.
+
+    :param forecast_probabilities: length-N numpy array with forecast
+        probabilities of some event (e.g., tornado).
+    :param observed_labels: length-N integer numpy array of observed labels
+        (1 for "yes", 0 for "no").
+    :return: cross_entropy: Cross-entropy.
+    """
+
+    return model_eval.get_cross_entropy(forecast_probabilities, observed_labels)
+
+
+def _get_negative_auc(forecast_probabilities, observed_labels):
+    """Computes negative AUC (area under ROC curve).
+
+    ROC = receiver operating characteristic
+
+    This function may be used as a cost function.
+
+    :param forecast_probabilities: See documentation for _get_cross_entropy.
+    :param observed_labels: See documentation for _get_cross_entropy.
+    :return: negative_auc: Negative area under ROC curve.
+    """
+
+    return sklearn.metrics.roc_auc_score(
+        observed_labels, forecast_probabilities)
 
 
 def sequential_forward_selection(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, num_features_to_add_per_step=1,
-        min_fractional_xentropy_decrease=
-        DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS):
+        target_name, estimator_object, cost_function=_get_cross_entropy,
+        num_features_to_add_per_step=1, min_fractional_cost_decrease=
+        MIN_FRACTIONAL_COST_DECREASE_SFS_DEFAULT):
     """Runs the SFS (sequential forward selection) algorithm.
 
     SFS is defined in Chapter 9 of Webb (2003).
@@ -414,16 +447,19 @@ def sequential_forward_selection(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
+    :param cost_function: Cost function to be minimized.  For more details, see
+        doc for _forward_selection_step.
     :param num_features_to_add_per_step: Number of features to add at each step.
-    :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
-        fractional decrease in cross-entropy from adding a feature is <
-        `min_fractional_xentropy_decrease`, SFS will stop.  Must be in range
-        (0, 1).
+    :param min_fractional_cost_decrease: Stopping criterion.  Once the
+        fractional cost decrease over one step is <
+        `min_fractional_cost_decrease`, SFS will stop.  Must be in range (0, 1).
     :return: sfs_dictionary: Same as output from _evaluate_feature_selection,
-        except with one additional key.
-    sfs_dictionary['validation_xentropy_by_step']: length-f numpy array of
-        validation cross-entropies.  The [i]th element is the cross-entropy
-        after the [i]th feature addition.
+        but with one additional key.
+    sfs_dictionary['validation_cost_by_step']: length-f numpy array of
+        validation costs.  The [i]th element is the cost with i features added.
+        In other words, validation_cost_by_step[0] is the cost with 1 feature
+        added; validation_cost_by_step[1] is the cost with 2 features added;
+        ...; etc.
     """
 
     _check_sequential_selection_inputs(
@@ -432,17 +468,16 @@ def sequential_forward_selection(
         target_name=target_name,
         num_features_to_add_per_step=num_features_to_add_per_step)
 
-    error_checking.assert_is_greater(min_fractional_xentropy_decrease, 0.)
-    error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
+    error_checking.assert_is_greater(min_fractional_cost_decrease, 0.)
+    error_checking.assert_is_less_than(min_fractional_cost_decrease, 1.)
 
-    # Initialize feature sets; initialize min cross-entropy to ridiculously high
-    # number.
+    # Initialize values.
     selected_feature_names = []
     remaining_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_selected = numpy.full(num_features + 1, numpy.nan)
-    min_cross_entropy_by_num_selected[0] = 1e10
+    min_cost_by_num_selected = numpy.full(num_features + 1, numpy.nan)
+    min_cost_by_num_selected[0] = numpy.inf
 
     while len(remaining_feature_names) >= num_features_to_add_per_step:
         num_selected_features = len(selected_feature_names)
@@ -452,25 +487,23 @@ def sequential_forward_selection(
                    num_selected_features + 1, num_selected_features,
                    num_remaining_features)
 
-        min_new_cross_entropy, these_best_feature_names = (
-            _forward_selection_step(
-                training_table=training_table,
-                validation_table=validation_table,
-                selected_feature_names=selected_feature_names,
-                remaining_feature_names=remaining_feature_names,
-                target_name=target_name, estimator_object=estimator_object,
-                num_features_to_add=num_features_to_add_per_step))
+        min_new_cost, these_best_feature_names = _forward_selection_step(
+            training_table=training_table, validation_table=validation_table,
+            selected_feature_names=selected_feature_names,
+            remaining_feature_names=remaining_feature_names,
+            target_name=target_name, estimator_object=estimator_object,
+            cost_function=cost_function,
+            num_features_to_add=num_features_to_add_per_step)
 
-        print ('Minimum cross-entropy ({0:.4f}) given by adding features shown '
-               'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cross_entropy,
-                   min_cross_entropy_by_num_selected[num_selected_features],
+        print ('Minimum cost ({0:.4f}) given by adding features shown below '
+               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cost,
+                   min_cost_by_num_selected[num_selected_features],
                    these_best_feature_names)
 
-        stop_if_cross_entropy_above = (
-            (1. - min_fractional_xentropy_decrease) *
-            min_cross_entropy_by_num_selected[num_selected_features])
-        if min_new_cross_entropy > stop_if_cross_entropy_above:
+        stopping_criterion = min_cost_by_num_selected[num_selected_features] * (
+            1. - min_fractional_cost_decrease)
+        if min_new_cost > stopping_criterion:
             break
 
         selected_feature_names += these_best_feature_names
@@ -478,11 +511,9 @@ def sequential_forward_selection(
             s for s in remaining_feature_names
             if s not in these_best_feature_names]
 
-        min_cross_entropy_by_num_selected[
+        min_cost_by_num_selected[
             (num_selected_features + 1):(len(selected_feature_names) + 1)
-        ] = min_new_cross_entropy
-        # min_cross_entropy_by_num_selected[
-        #     len(selected_feature_names)] = min_new_cross_entropy
+        ] = min_new_cost
 
     sfs_dictionary = _evaluate_feature_selection(
         training_table=training_table, validation_table=validation_table,
@@ -491,20 +522,20 @@ def sequential_forward_selection(
 
     num_selected_features = len(selected_feature_names)
     sfs_dictionary.update(
-        {VALIDATION_XENTROPY_BY_STEP_KEY:
-             min_cross_entropy_by_num_selected[1:(num_selected_features + 1)]})
+        {VALIDATION_COST_BY_STEP_KEY:
+             min_cost_by_num_selected[1:(num_selected_features + 1)]})
     return sfs_dictionary
 
 
 def sfs_with_backward_steps(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object,
+        target_name, estimator_object, cost_function=_get_cross_entropy,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SFS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SFS,
         num_features_to_add_per_forward_step=1,
         num_features_to_remove_per_backward_step=1,
-        min_fractional_xentropy_decrease=
-        DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS):
+        min_fractional_cost_decrease=
+        MIN_FRACTIONAL_COST_DECREASE_SFS_DEFAULT):
     """Runs SFS (sequential forward selection) with backward steps.
 
     This method is called "plus-l-minus-r selection" in Chapter 9 of Webb
@@ -524,17 +555,18 @@ def sfs_with_backward_steps(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
+    :param cost_function: Cost function to be minimized.  For more details, see
+        doc for _forward_selection_step.
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
-    :param num_features_to_add_per_step: Number of features added at each
-        forward step.
-    :param num_features_to_remove_per_step: Number of features removed at each
-        backward step.
-    :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
-        fractional decrease in cross-entropy from a major step is <
-        `min_fractional_xentropy_decrease`, algorithm will stop.  Must be in
-        range (0, 1).
+    :param num_features_to_add_per_forward_step: Number of features to add at
+        each forward step.
+    :param num_features_to_remove_per_backward_step: Number of features to
+        remove at each backward step.
+    :param min_fractional_cost_decrease: Stopping criterion.  Once the
+        fractional cost decrease over a major step is <
+        `min_fractional_cost_decrease`, SFS will stop.  Must be in range (0, 1).
     :return: sfs_dictionary: See doc for sequential_forward_selection.
     """
 
@@ -563,24 +595,23 @@ def sfs_with_backward_steps(
         num_features_to_remove_per_major_step,
         num_features_to_add_per_major_step)
 
-    error_checking.assert_is_greater(min_fractional_xentropy_decrease, 0.)
-    error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
+    error_checking.assert_is_greater(min_fractional_cost_decrease, 0.)
+    error_checking.assert_is_less_than(min_fractional_cost_decrease, 1.)
 
-    # Initialize feature sets; initialize min cross-entropy to ridiculously high
-    # number.
-    major_step_num = 0
+    # Initialize values.
     selected_feature_names = []
     remaining_feature_names = copy.deepcopy(feature_names)
 
-    min_cross_entropy_by_num_selected = numpy.full(num_features + 1, numpy.nan)
-    min_cross_entropy_by_num_selected[0] = 1e10
+    min_cost_by_num_selected = numpy.full(num_features + 1, numpy.nan)
+    min_cost_by_num_selected[0] = numpy.inf
+    major_step_num = 0
 
     while (len(selected_feature_names) + num_features_to_add_per_major_step <=
            num_features):
         major_step_num += 1
-        min_cross_entropy_prev_major_step = min_cross_entropy_by_num_selected[
+        min_cost_last_major_step = min_cost_by_num_selected[
             len(selected_feature_names)]
-        selected_feature_names_prev_major_step = copy.deepcopy(
+        selected_feature_names_last_major_step = copy.deepcopy(
             selected_feature_names)
 
         for i in range(num_forward_steps):
@@ -591,19 +622,19 @@ def sfs_with_backward_steps(
                        major_step_num, i + 1, num_selected_features,
                        num_remaining_features)
 
-            min_new_cross_entropy, these_best_feature_names = (
-                _forward_selection_step(
-                    training_table=training_table,
-                    validation_table=validation_table,
-                    selected_feature_names=selected_feature_names,
-                    remaining_feature_names=remaining_feature_names,
-                    target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_add=num_features_to_add_per_forward_step))
+            min_new_cost, these_best_feature_names = _forward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                remaining_feature_names=remaining_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                cost_function=cost_function,
+                num_features_to_add=num_features_to_add_per_forward_step)
 
-            print ('Minimum cross-entropy ({0:.4f}) given by adding features '
-                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cross_entropy,
-                       min_cross_entropy_by_num_selected[num_selected_features],
+            print ('Minimum cost ({0:.4f}) given by adding features shown below'
+                   ' (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cost,
+                       min_cost_by_num_selected[num_selected_features],
                        these_best_feature_names)
 
             selected_feature_names += these_best_feature_names
@@ -611,9 +642,9 @@ def sfs_with_backward_steps(
                 s for s in remaining_feature_names
                 if s not in these_best_feature_names]
 
-            min_cross_entropy_by_num_selected[
+            min_cost_by_num_selected[
                 (num_selected_features + 1):(len(selected_feature_names) + 1)
-            ] = min_new_cross_entropy
+            ] = min_new_cost
 
         for i in range(num_backward_steps):
             num_selected_features = len(selected_feature_names)
@@ -622,19 +653,18 @@ def sfs_with_backward_steps(
                        major_step_num, i + 1, num_selected_features,
                        num_features)
 
-            min_new_cross_entropy, these_worst_feature_names = (
-                _backward_selection_step(
-                    training_table=training_table,
-                    validation_table=validation_table,
-                    selected_feature_names=selected_feature_names,
-                    target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_remove=
-                    num_features_to_remove_per_backward_step))
+            min_new_cost, these_worst_feature_names = _backward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                cost_function=cost_function,
+                num_features_to_remove=num_features_to_remove_per_backward_step)
 
-            print ('Minimum cross-entropy ({0:.4f}) given by removing features '
-                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cross_entropy,
-                       min_cross_entropy_by_num_selected[num_selected_features],
+            print ('Minimum cost ({0:.4f}) given by removing features shown '
+                   'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cost,
+                       min_cost_by_num_selected[num_selected_features],
                        these_worst_feature_names)
 
             remaining_feature_names += these_worst_feature_names
@@ -642,19 +672,19 @@ def sfs_with_backward_steps(
                 s for s in selected_feature_names
                 if s not in these_worst_feature_names]
 
-            min_cross_entropy_by_num_selected[
+            min_cost_by_num_selected[
                 (len(selected_feature_names) + 1):] = numpy.nan
-            min_cross_entropy_by_num_selected[
-                len(selected_feature_names)] = min_new_cross_entropy
+            min_cost_by_num_selected[
+                len(selected_feature_names)] = min_new_cost
 
         print '\n'
-        stop_if_cross_entropy_above = min_cross_entropy_prev_major_step * (
-            1. - min_fractional_xentropy_decrease)
+        stopping_criterion = min_cost_last_major_step * (
+            1. - min_fractional_cost_decrease)
 
-        if (min_cross_entropy_by_num_selected[len(selected_feature_names)] >
-                stop_if_cross_entropy_above):
+        if (min_cost_by_num_selected[len(selected_feature_names)] >
+                stopping_criterion):
             selected_feature_names = copy.deepcopy(
-                selected_feature_names_prev_major_step)
+                selected_feature_names_last_major_step)
             break
 
     sfs_dictionary = _evaluate_feature_selection(
@@ -664,16 +694,16 @@ def sfs_with_backward_steps(
 
     num_selected_features = len(selected_feature_names)
     sfs_dictionary.update(
-        {VALIDATION_XENTROPY_BY_STEP_KEY:
-             min_cross_entropy_by_num_selected[1:(num_selected_features + 1)]})
+        {VALIDATION_COST_BY_STEP_KEY:
+             min_cost_by_num_selected[1:(num_selected_features + 1)]})
     return sfs_dictionary
 
 
 def floating_sfs(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, num_features_to_add_per_step=1,
-        min_fractional_xentropy_decrease=
-        DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SFS):
+        target_name, estimator_object, cost_function=_get_cross_entropy,
+        num_features_to_add_per_step=1, min_fractional_cost_decrease=
+        MIN_FRACTIONAL_COST_DECREASE_SFS_DEFAULT):
     """Runs the SFFS (sequential forward floating selection) algorithm.
 
     SFFS is defined in Chapter 9 of Webb (2003).
@@ -685,8 +715,10 @@ def floating_sfs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param cost_function: Cost function to be minimized.  For more details, see
+        doc for _forward_selection_step.
     :param num_features_to_add_per_step: Number of features to add at each step.
-    :param min_fractional_xentropy_decrease: See doc for
+    :param min_fractional_cost_decrease: See doc for
         sequential_forward_selection.
     :return: sfs_dictionary: See doc for sequential_forward_selection.
     """
@@ -697,18 +729,17 @@ def floating_sfs(
         target_name=target_name,
         num_features_to_add_per_step=num_features_to_add_per_step)
 
-    error_checking.assert_is_greater(min_fractional_xentropy_decrease, 0.)
-    error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
+    error_checking.assert_is_greater(min_fractional_cost_decrease, 0.)
+    error_checking.assert_is_less_than(min_fractional_cost_decrease, 1.)
 
-    # Initialize feature sets; initialize min cross-entropy to ridiculously high
-    # number.
-    major_step_num = 0
+    # Initialize values.
     selected_feature_names = []
     remaining_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_selected = numpy.full(num_features + 1, numpy.nan)
-    min_cross_entropy_by_num_selected[0] = 1e10
+    min_cost_by_num_selected = numpy.full(num_features + 1, numpy.nan)
+    min_cost_by_num_selected[0] = numpy.inf
+    major_step_num = 0
 
     while len(remaining_feature_names) >= num_features_to_add_per_step:
         major_step_num += 1
@@ -719,25 +750,23 @@ def floating_sfs(
                'remaining...').format(major_step_num, num_selected_features,
                                       num_remaining_features)
 
-        min_new_cross_entropy, these_best_feature_names = (
-            _forward_selection_step(
-                training_table=training_table,
-                validation_table=validation_table,
-                selected_feature_names=selected_feature_names,
-                remaining_feature_names=remaining_feature_names,
-                target_name=target_name, estimator_object=estimator_object,
-                num_features_to_add=num_features_to_add_per_step))
+        min_new_cost, these_best_feature_names = _forward_selection_step(
+            training_table=training_table, validation_table=validation_table,
+            selected_feature_names=selected_feature_names,
+            remaining_feature_names=remaining_feature_names,
+            target_name=target_name, estimator_object=estimator_object,
+            cost_function=cost_function,
+            num_features_to_add=num_features_to_add_per_step)
 
-        print ('Minimum cross-entropy ({0:.4f}) given by adding features shown '
-               'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cross_entropy,
-                   min_cross_entropy_by_num_selected[num_selected_features],
+        print ('Minimum cost ({0:.4f}) given by adding features shown below '
+               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cost,
+                   min_cost_by_num_selected[num_selected_features],
                    these_best_feature_names)
 
-        stop_if_cross_entropy_above = (
-            (1. - min_fractional_xentropy_decrease) *
-            min_cross_entropy_by_num_selected[num_selected_features])
-        if min_new_cross_entropy > stop_if_cross_entropy_above:
+        stopping_criterion = min_cost_by_num_selected[num_selected_features] * (
+            1. - min_fractional_cost_decrease)
+        if min_new_cost > stopping_criterion:
             break
 
         selected_feature_names += these_best_feature_names
@@ -745,11 +774,9 @@ def floating_sfs(
             s for s in remaining_feature_names
             if s not in these_best_feature_names]
 
-        min_cross_entropy_by_num_selected[
+        min_cost_by_num_selected[
             (num_selected_features + 1):(len(selected_feature_names) + 1)
-        ] = min_new_cross_entropy
-        # min_cross_entropy_by_num_selected[
-        #     len(selected_feature_names)] = min_new_cross_entropy
+        ] = min_new_cost
 
         if len(selected_feature_names) < 2:
             continue
@@ -763,37 +790,36 @@ def floating_sfs(
                        major_step_num, backward_step_num, num_selected_features,
                        num_features)
 
-            min_new_cross_entropy, this_worst_feature_name_as_list = (
+            min_new_cost, this_worst_feature_name_as_list = (
                 _backward_selection_step(
                     training_table=training_table,
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_remove=1))
+                    cost_function=cost_function, num_features_to_remove=1))
             this_worst_feature_name = this_worst_feature_name_as_list[0]
 
+            # Cannot remove feature that was just added in the forward step.
             if backward_step_num == 1:
                 this_worst_feature_index = selected_feature_names.index(
                     this_worst_feature_name)
                 if this_worst_feature_index == num_selected_features - 1:
-                    break  # Cannot remove feature that was just added.
+                    break
 
-            if (min_new_cross_entropy >= min_cross_entropy_by_num_selected[
+            # Remove feature only if this improves performance.
+            if (min_new_cost >= min_cost_by_num_selected[
                     num_selected_features - 1]):
-                break  # Remove feature only if it improves performance.
+                break
 
-            print ('Minimum cross-entropy ({0:.4f}) given by removing feature '
-                   '"{1:s}" (previous minimum = {2:.4f}).').format(
-                       min_new_cross_entropy, this_worst_feature_name,
-                       min_cross_entropy_by_num_selected[
-                           num_selected_features - 1])
+            print ('Minimum cost ({0:.4f}) given by removing feature "{1:s}" '
+                   '(previous minimum = {2:.4f}).').format(
+                       min_new_cost, this_worst_feature_name,
+                       min_cost_by_num_selected[num_selected_features - 1])
 
             remaining_feature_names.append(this_worst_feature_name)
             selected_feature_names.remove(this_worst_feature_name)
-
-            min_cross_entropy_by_num_selected[num_selected_features] = numpy.nan
-            min_cross_entropy_by_num_selected[
-                num_selected_features - 1] = min_new_cross_entropy
+            min_cost_by_num_selected[num_selected_features] = numpy.nan
+            min_cost_by_num_selected[num_selected_features - 1] = min_new_cost
 
         print '\n'
 
@@ -804,16 +830,16 @@ def floating_sfs(
 
     num_selected_features = len(selected_feature_names)
     sfs_dictionary.update(
-        {VALIDATION_XENTROPY_BY_STEP_KEY:
-             min_cross_entropy_by_num_selected[1:(num_selected_features + 1)]})
+        {VALIDATION_COST_BY_STEP_KEY:
+             min_cost_by_num_selected[1:(num_selected_features + 1)]})
     return sfs_dictionary
 
 
 def sequential_backward_selection(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, num_features_to_remove_per_step=1,
-        min_fractional_xentropy_decrease=
-        DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS):
+        target_name, estimator_object, cost_function=_get_cross_entropy,
+        num_features_to_remove_per_step=1, min_fractional_cost_decrease=
+        MIN_FRACTIONAL_COST_DECREASE_SBS_DEFAULT):
     """Runs the SBS (sequential backward selection) algorithm.
 
     SBS is defined in Chapter 9 of Webb (2003).
@@ -827,20 +853,23 @@ def sequential_backward_selection(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param cost_function: Cost function to be minimized.  For more details, see
+        doc for _backward_selection_step.
     :param num_features_to_remove_per_step: Number of features to remove at each
         step.
-    :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
-        fractional decrease in cross-entropy from removing a feature is <
-        `min_fractional_xentropy_decrease`, SBS will stop.  Must be in range
-        (-1, 1).  If negative, cross-entropy may increase slightly without SBS
-        stopping.
+    :param min_fractional_cost_decrease: Stopping criterion.  Once the
+        fractional cost decrease over one step is <
+        `min_fractional_cost_decrease`, SBS will stop.  Must be in range
+        (-1, 1).  If negative, cost may increase slightly without SBS stopping.
     :return: sbs_dictionary: Same as output from _evaluate_feature_selection,
-        but with the following additional keys.
-    sbs_dictionary['removed_feature_names']: length-f with names of removed
-        features (in order of their removal).
-    sbs_dictionary['validation_xentropy_by_step']: length-f numpy array of
-        validation cross-entropies.  The [i]th element is the cross-entropy
-        after the [i]th feature removal.
+        but with two additional keys.
+    sbs_dictionary['removed_feature_names']: length-f list with names of
+        features removed (in order of their removal).
+    sbs_dictionary['validation_cost_by_step']: length-f numpy array of
+        validation costs.  The [i]th element is the cost with i features
+        removed.  In other words, validation_cost_by_step[0] is the cost with 1
+        feature removed; validation_cost_by_step[1] is the cost with 2 features
+        removed; ...; etc.
     """
 
     _check_sequential_selection_inputs(
@@ -849,17 +878,16 @@ def sequential_backward_selection(
         target_name=target_name,
         num_features_to_remove_per_step=num_features_to_remove_per_step)
 
-    error_checking.assert_is_greater(min_fractional_xentropy_decrease, -1.)
-    error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
+    error_checking.assert_is_greater(min_fractional_cost_decrease, -1.)
+    error_checking.assert_is_less_than(min_fractional_cost_decrease, 1.)
 
-    # Initialize feature sets; initialize min cross-entropy to ridiculously high
-    # number.
+    # Initialize values.
     removed_feature_names = []
     selected_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_removed = numpy.full(num_features + 1, numpy.nan)
-    min_cross_entropy_by_num_removed[0] = 1e10
+    min_cost_by_num_removed = numpy.full(num_features + 1, numpy.nan)
+    min_cost_by_num_removed[0] = numpy.inf
 
     while len(selected_feature_names) >= num_features_to_remove_per_step:
         num_removed_features = len(removed_feature_names)
@@ -869,24 +897,22 @@ def sequential_backward_selection(
                    num_removed_features + 1, num_removed_features,
                    num_selected_features)
 
-        min_new_cross_entropy, these_worst_feature_names = (
-            _backward_selection_step(
-                training_table=training_table,
-                validation_table=validation_table,
-                selected_feature_names=selected_feature_names,
-                target_name=target_name, estimator_object=estimator_object,
-                num_features_to_remove=num_features_to_remove_per_step))
+        min_new_cost, these_worst_feature_names = _backward_selection_step(
+            training_table=training_table, validation_table=validation_table,
+            selected_feature_names=selected_feature_names,
+            target_name=target_name, estimator_object=estimator_object,
+            cost_function=cost_function,
+            num_features_to_remove=num_features_to_remove_per_step)
 
-        print ('Minimum cross-entropy ({0:.4f}) given by removing features '
-               'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cross_entropy,
-                   min_cross_entropy_by_num_removed[num_removed_features],
+        print ('Minimum cost ({0:.4f}) given by removing features shown below '
+               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cost,
+                   min_cost_by_num_removed[num_removed_features],
                    these_worst_feature_names)
 
-        stop_if_cross_entropy_above = (
-            (1. - min_fractional_xentropy_decrease) *
-            min_cross_entropy_by_num_removed[num_removed_features])
-        if min_new_cross_entropy > stop_if_cross_entropy_above:
+        stopping_criterion = min_cost_by_num_removed[num_removed_features] * (
+            1. - min_fractional_cost_decrease)
+        if min_new_cost > stopping_criterion:
             break
 
         removed_feature_names += these_worst_feature_names
@@ -894,11 +920,9 @@ def sequential_backward_selection(
             s for s in selected_feature_names
             if s not in these_worst_feature_names]
 
-        min_cross_entropy_by_num_removed[
+        min_cost_by_num_removed[
             (num_removed_features + 1):(len(removed_feature_names) + 1)
-        ] = min_new_cross_entropy
-        # min_cross_entropy_by_num_removed[
-        #     len(removed_feature_names)] = min_new_cross_entropy
+        ] = min_new_cost
 
     sbs_dictionary = _evaluate_feature_selection(
         training_table=training_table, validation_table=validation_table,
@@ -908,20 +932,20 @@ def sequential_backward_selection(
     num_removed_features = len(removed_feature_names)
     sbs_dictionary.update({REMOVED_FEATURES_KEY: removed_feature_names})
     sbs_dictionary.update(
-        {VALIDATION_XENTROPY_BY_STEP_KEY:
-             min_cross_entropy_by_num_removed[1:(num_removed_features + 1)]})
+        {VALIDATION_COST_BY_STEP_KEY:
+             min_cost_by_num_removed[1:(num_removed_features + 1)]})
     return sbs_dictionary
 
 
 def sbs_with_forward_steps(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object,
+        target_name, estimator_object, cost_function=_get_cross_entropy,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SBS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SBS,
         num_features_to_add_per_forward_step=1,
         num_features_to_remove_per_backward_step=1,
-        min_fractional_xentropy_decrease=
-        DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS):
+        min_fractional_cost_decrease=
+        MIN_FRACTIONAL_COST_DECREASE_SBS_DEFAULT):
     """Runs SBS (sequential backward selection) with forward steps.
 
     This method is called "plus-l-minus-r selection" in Chapter 9 of Webb
@@ -941,18 +965,19 @@ def sbs_with_forward_steps(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
+    :param cost_function: Cost function to be minimized.  For more details, see
+        doc for _backward_selection_step.
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
-    :param num_features_to_add_per_step: Number of features added at each
-        forward step.
-    :param num_features_to_remove_per_step: Number of features removed at each
-        backward step.
-    :param min_fractional_xentropy_decrease: Stopping criterion.  Once the
-        fractional decrease in cross-entropy from a major step is <
-        `min_fractional_xentropy_decrease`, algorithm will stop.  Must be in
-        range (-1, 1).  If negative, cross-entropy may increase slightly without
-        the algorithm stopping.
+    :param num_features_to_add_per_forward_step: Number of features to add at
+        each forward step.
+    :param num_features_to_remove_per_backward_step: Number of features to
+        remove at each backward step.
+    :param min_fractional_cost_decrease: Stopping criterion.  Once the
+        fractional cost decrease over a major step is <
+        `min_fractional_cost_decrease`, SBS will stop.  Must be in range
+        (-1, 1).
     :return: sbs_dictionary: See documentation for
         sequential_backward_selection.
     """
@@ -982,27 +1007,26 @@ def sbs_with_forward_steps(
         num_features_to_add_per_major_step,
         num_features_to_remove_per_major_step)
 
-    error_checking.assert_is_greater(min_fractional_xentropy_decrease, -1.)
-    error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
+    error_checking.assert_is_greater(min_fractional_cost_decrease, -1.)
+    error_checking.assert_is_less_than(min_fractional_cost_decrease, 1.)
 
-    # Initialize feature sets; initialize min cross-entropy to ridiculously high
-    # number.
-    major_step_num = 0
+    # Initialize values.
     removed_feature_names = []
     selected_feature_names = copy.deepcopy(feature_names)
 
-    min_cross_entropy_by_num_removed = numpy.full(num_features + 1, numpy.nan)
-    min_cross_entropy_by_num_removed[0] = 1e10
+    min_cost_by_num_removed = numpy.full(num_features + 1, numpy.nan)
+    min_cost_by_num_removed[0] = numpy.inf
+    major_step_num = 0
 
     while (len(selected_feature_names) - num_features_to_remove_per_major_step
            > 0):
         major_step_num += 1
 
-        min_cross_entropy_prev_major_step = min_cross_entropy_by_num_removed[
+        min_cost_last_major_step = min_cost_by_num_removed[
             len(removed_feature_names)]
-        removed_feature_names_prev_major_step = copy.deepcopy(
+        removed_feature_names_last_major_step = copy.deepcopy(
             removed_feature_names)
-        selected_feature_names_prev_major_step = copy.deepcopy(
+        selected_feature_names_last_major_step = copy.deepcopy(
             selected_feature_names)
 
         for i in range(num_backward_steps):
@@ -1013,19 +1037,18 @@ def sbs_with_forward_steps(
                        major_step_num, i + 1, num_removed_features,
                        num_selected_features)
 
-            min_new_cross_entropy, these_worst_feature_names = (
-                _backward_selection_step(
-                    training_table=training_table,
-                    validation_table=validation_table,
-                    selected_feature_names=selected_feature_names,
-                    target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_remove=
-                    num_features_to_remove_per_backward_step))
+            min_new_cost, these_worst_feature_names = _backward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                cost_function=cost_function,
+                num_features_to_remove=num_features_to_remove_per_backward_step)
 
-            print ('Minimum cross-entropy ({0:.4f}) given by removing features '
-                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cross_entropy,
-                       min_cross_entropy_by_num_removed[num_removed_features],
+            print ('Minimum cost ({0:.4f}) given by removing features shown '
+                   'below (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cost,
+                       min_cost_by_num_removed[num_removed_features],
                        these_worst_feature_names)
 
             removed_feature_names += these_worst_feature_names
@@ -1033,9 +1056,9 @@ def sbs_with_forward_steps(
                 s for s in selected_feature_names
                 if s not in these_worst_feature_names]
 
-            min_cross_entropy_by_num_removed[
+            min_cost_by_num_removed[
                 (num_removed_features + 1):(len(removed_feature_names) + 1)
-            ] = min_new_cross_entropy
+            ] = min_new_cost
 
         for i in range(num_forward_steps):
             num_removed_features = len(removed_feature_names)
@@ -1044,19 +1067,19 @@ def sbs_with_forward_steps(
                        major_step_num, i + 1, num_removed_features,
                        num_features)
 
-            min_new_cross_entropy, these_best_feature_names = (
-                _forward_selection_step(
-                    training_table=training_table,
-                    validation_table=validation_table,
-                    selected_feature_names=selected_feature_names,
-                    remaining_feature_names=removed_feature_names,
-                    target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_add=num_features_to_add_per_forward_step))
+            min_new_cost, these_best_feature_names = _forward_selection_step(
+                training_table=training_table,
+                validation_table=validation_table,
+                selected_feature_names=selected_feature_names,
+                remaining_feature_names=removed_feature_names,
+                target_name=target_name, estimator_object=estimator_object,
+                cost_function=cost_function,
+                num_features_to_add=num_features_to_add_per_forward_step)
 
-            print ('Minimum cross-entropy ({0:.4f}) given by adding features '
-                   'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                       min_new_cross_entropy,
-                       min_cross_entropy_by_num_removed[num_removed_features],
+            print ('Minimum cost ({0:.4f}) given by adding features shown below'
+                   ' (previous minimum = {1:.4f}).\n{2:s}\n').format(
+                       min_new_cost,
+                       min_cost_by_num_removed[num_removed_features],
                        these_best_feature_names)
 
             selected_feature_names += these_best_feature_names
@@ -1064,21 +1087,21 @@ def sbs_with_forward_steps(
                 s for s in removed_feature_names
                 if s not in these_best_feature_names]
 
-            min_cross_entropy_by_num_removed[
+            min_cost_by_num_removed[
                 (len(removed_feature_names) + 1):] = numpy.nan
-            min_cross_entropy_by_num_removed[
-                len(removed_feature_names)] = min_new_cross_entropy
+            min_cost_by_num_removed[
+                len(removed_feature_names)] = min_new_cost
 
         print '\n'
-        stop_if_cross_entropy_above = min_cross_entropy_prev_major_step * (
-            1. - min_fractional_xentropy_decrease)
+        stopping_criterion = min_cost_last_major_step * (
+            1. - min_fractional_cost_decrease)
 
-        if (min_cross_entropy_by_num_removed[len(removed_feature_names)] >
-                stop_if_cross_entropy_above):
+        if (min_cost_by_num_removed[len(removed_feature_names)] >
+                stopping_criterion):
             removed_feature_names = copy.deepcopy(
-                removed_feature_names_prev_major_step)
+                removed_feature_names_last_major_step)
             selected_feature_names = copy.deepcopy(
-                selected_feature_names_prev_major_step)
+                selected_feature_names_last_major_step)
             break
 
     sbs_dictionary = _evaluate_feature_selection(
@@ -1089,16 +1112,16 @@ def sbs_with_forward_steps(
     num_removed_features = len(removed_feature_names)
     sbs_dictionary.update({REMOVED_FEATURES_KEY: removed_feature_names})
     sbs_dictionary.update(
-        {VALIDATION_XENTROPY_BY_STEP_KEY:
-             min_cross_entropy_by_num_removed[1:(num_removed_features + 1)]})
+        {VALIDATION_COST_BY_STEP_KEY:
+             min_cost_by_num_removed[1:(num_removed_features + 1)]})
     return sbs_dictionary
 
 
 def floating_sbs(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, num_features_to_remove_per_step=1,
-        min_fractional_xentropy_decrease=
-        DEFAULT_MIN_FRACTIONAL_XENTROPY_DECR_FOR_SBS):
+        target_name, estimator_object, cost_function=_get_cross_entropy,
+        num_features_to_remove_per_step=1, min_fractional_cost_decrease=
+        MIN_FRACTIONAL_COST_DECREASE_SBS_DEFAULT):
     """Runs the SBFS (sequential backward floating selection) algorithm.
 
     SBFS is defined in Chapter 9 of Webb (2003).
@@ -1110,9 +1133,11 @@ def floating_sbs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param cost_function: Cost function to be minimized.  For more details, see
+        doc for _backward_selection_step.
     :param num_features_to_remove_per_step: Number of features to remove at each
         step.
-    :param min_fractional_xentropy_decrease: See doc for
+    :param min_fractional_cost_decrease: See doc for
         sequential_backward_selection.
     :return: sbs_dictionary: See doc for sequential_backward_selection.
     """
@@ -1123,20 +1148,19 @@ def floating_sbs(
         target_name=target_name,
         num_features_to_remove_per_step=num_features_to_remove_per_step)
 
-    error_checking.assert_is_greater(min_fractional_xentropy_decrease, -1.)
-    error_checking.assert_is_less_than(min_fractional_xentropy_decrease, 1.)
+    error_checking.assert_is_greater(min_fractional_cost_decrease, -1.)
+    error_checking.assert_is_less_than(min_fractional_cost_decrease, 1.)
 
-    # Initialize feature sets; initialize min cross-entropy to ridiculously high
-    # number.
-    major_step_num = 0
+    # Initialize values.
     removed_feature_names = []
     selected_feature_names = copy.deepcopy(feature_names)
 
     num_features = len(feature_names)
-    min_cross_entropy_by_num_removed = numpy.full(num_features + 1, numpy.nan)
-    min_cross_entropy_by_num_removed[0] = 1e10
+    min_cost_by_num_removed = numpy.full(num_features + 1, numpy.nan)
+    min_cost_by_num_removed[0] = numpy.inf
+    major_step_num = 0
 
-    while selected_feature_names:  # While there are still features to remove.
+    while len(selected_feature_names) > num_features_to_remove_per_step:
         major_step_num += 1
         num_removed_features = len(removed_feature_names)
         num_selected_features = len(selected_feature_names)
@@ -1145,24 +1169,22 @@ def floating_sbs(
                'remaining...').format(
                    major_step_num, num_removed_features, num_selected_features)
 
-        min_new_cross_entropy, these_worst_feature_names = (
-            _backward_selection_step(
-                training_table=training_table,
-                validation_table=validation_table,
-                selected_feature_names=selected_feature_names,
-                target_name=target_name, estimator_object=estimator_object,
-                num_features_to_remove=num_features_to_remove_per_step))
+        min_new_cost, these_worst_feature_names = _backward_selection_step(
+            training_table=training_table, validation_table=validation_table,
+            selected_feature_names=selected_feature_names,
+            target_name=target_name, estimator_object=estimator_object,
+            cost_function=cost_function,
+            num_features_to_remove=num_features_to_remove_per_step)
 
-        print ('Minimum cross-entropy ({0:.4f}) given by removing features '
-               'shown below (previous minimum = {1:.4f}).\n{2:s}\n').format(
-                   min_new_cross_entropy,
-                   min_cross_entropy_by_num_removed[num_removed_features],
+        print ('Minimum cost ({0:.4f}) given by removing features shown below '
+               '(previous minimum = {1:.4f}).\n{2:s}\n').format(
+                   min_new_cost,
+                   min_cost_by_num_removed[num_removed_features],
                    these_worst_feature_names)
 
-        stop_if_cross_entropy_above = (
-            (1. - min_fractional_xentropy_decrease) *
-            min_cross_entropy_by_num_removed[num_removed_features])
-        if min_new_cross_entropy > stop_if_cross_entropy_above:
+        stopping_criterion = min_cost_by_num_removed[num_removed_features] * (
+            1. - min_fractional_cost_decrease)
+        if min_new_cost > stopping_criterion:
             break
 
         removed_feature_names += these_worst_feature_names
@@ -1170,11 +1192,9 @@ def floating_sbs(
             s for s in selected_feature_names
             if s not in these_worst_feature_names]
 
-        min_cross_entropy_by_num_removed[
+        min_cost_by_num_removed[
             (num_removed_features + 1):(len(removed_feature_names) + 1)
-        ] = min_new_cross_entropy
-        # min_cross_entropy_by_num_removed[
-        #     len(removed_feature_names)] = min_new_cross_entropy
+        ] = min_new_cost
 
         if len(removed_feature_names) < 2:
             continue
@@ -1188,38 +1208,37 @@ def floating_sbs(
                        major_step_num, forward_step_num, num_removed_features,
                        num_features)
 
-            min_new_cross_entropy, this_best_feature_name_as_list = (
+            min_new_cost, this_best_feature_name_as_list = (
                 _forward_selection_step(
                     training_table=training_table,
                     validation_table=validation_table,
                     selected_feature_names=selected_feature_names,
                     remaining_feature_names=removed_feature_names,
                     target_name=target_name, estimator_object=estimator_object,
-                    num_features_to_add=1))
+                    cost_function=cost_function, num_features_to_add=1))
             this_best_feature_name = this_best_feature_name_as_list[0]
 
+            # Cannot add feature that was just removed in the backward step.
             if forward_step_num == 1:
                 this_best_feature_index = removed_feature_names.index(
                     this_best_feature_name)
                 if this_best_feature_index == num_removed_features - 1:
-                    break  # Cannot add feature that was just removed.
+                    break
 
-            if (min_new_cross_entropy >= min_cross_entropy_by_num_removed[
+            # Add feature only if it improves performance.
+            if (min_new_cost >= min_cost_by_num_removed[
                     num_removed_features - 1]):
-                break  # Add feature only if it improves performance.
+                break
 
-            print ('Minimum cross-entropy ({0:.4f}) given by adding feature '
-                   '"{1:s}" (previous minimum = {2:.4f}).').format(
-                       min_new_cross_entropy, this_best_feature_name,
-                       min_cross_entropy_by_num_removed[
-                           num_removed_features - 1])
+            print ('Minimum cost ({0:.4f}) given by adding feature "{1:s}" '
+                   '(previous minimum = {2:.4f}).').format(
+                       min_new_cost, this_best_feature_name,
+                       min_cost_by_num_removed[num_removed_features - 1])
 
             selected_feature_names.append(this_best_feature_name)
             removed_feature_names.remove(this_best_feature_name)
-
-            min_cross_entropy_by_num_removed[num_removed_features] = numpy.nan
-            min_cross_entropy_by_num_removed[
-                num_removed_features - 1] = min_new_cross_entropy
+            min_cost_by_num_removed[num_removed_features] = numpy.nan
+            min_cost_by_num_removed[num_removed_features - 1] = min_new_cost
 
         print '\n'
 
@@ -1231,14 +1250,14 @@ def floating_sbs(
     num_removed_features = len(removed_feature_names)
     sbs_dictionary.update({REMOVED_FEATURES_KEY: removed_feature_names})
     sbs_dictionary.update(
-        {VALIDATION_XENTROPY_BY_STEP_KEY:
-             min_cross_entropy_by_num_removed[1:(num_removed_features + 1)]})
+        {VALIDATION_COST_BY_STEP_KEY:
+             min_cost_by_num_removed[1:(num_removed_features + 1)]})
     return sbs_dictionary
 
 
 def permutation_selection(
         training_table, validation_table, feature_names, target_name,
-        estimator_object):
+        estimator_object, cost_function=_get_cross_entropy):
     """Runs the permutation algorithm (Lakshmanan et al. 2015).
 
     :param training_table: See documentation for
@@ -1247,26 +1266,29 @@ def permutation_selection(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Inputs should be forecast_probabilities and observed_values (in that
+        order).  Output should be real-valued float.
     :return: permutation_table: pandas DataFrame with the following columns.
         Each row corresponds to one feature.  Order of rows = order in which
         features were permuted.  In other words, the feature in the [i]th row
         was the [i]th to be permuted.
-    permutation_table.feature_name: Name of feature.
-    permutation_table.validation_cross_entropy: Validation cross-entropy after
-        permuting feature (and keeping features in previous rows permuted).
+    permutation_table.feature_name: Feature name.
+    permutation_table.validation_cost: Validation cost after permuting feature
+        (and keeping features in previous rows permuted).
+    permutation_table.validation_cross_entropy: Same but for cross-entropy.
     permutation_table.validation_auc: Same but for area under ROC curve.
 
-    orig_validation_cross_entropy: Validation cross-entropy with no permuted
-        features.
-    orig_validation_auc: Validation area under ROC curve with no permuted
-        features.
+    orig_validation_cost: Validation cost with no permuted features.
+    orig_validation_cross_entropy: Same but for cross-entropy.
+    orig_validation_auc: Same but for area under ROC curve.
     """
 
     _check_sequential_selection_inputs(
         training_table=training_table, validation_table=validation_table,
         feature_names=feature_names, target_name=target_name)
 
-    # Find validation cross-entropy and AUC before permutation.
+    # Find cost before permutation.
     new_estimator_object = sklearn.base.clone(estimator_object)
     new_estimator_object.fit(
         training_table.as_matrix(columns=feature_names),
@@ -1274,16 +1296,19 @@ def permutation_selection(
 
     forecast_probs_for_validation = new_estimator_object.predict_proba(
         validation_table.as_matrix(columns=feature_names))[:, 1]
-    orig_validation_cross_entropy = model_eval.get_cross_entropy(
+    orig_validation_cost = cost_function(
         forecast_probs_for_validation, validation_table[target_name].values)
+    orig_validation_cross_entropy = model_eval.get_cross_entropy(
+        forecast_probs_for_validation,
+        validation_table[target_name].values)
     orig_validation_auc = sklearn.metrics.roc_auc_score(
         validation_table[target_name].values, forecast_probs_for_validation)
 
-    # Initialize values for permutation algorithm.
+    # Initialize values.
     remaining_feature_names = copy.deepcopy(feature_names)
     permutation_dict = {
-        FEATURE_NAME_KEY: [], VALIDATION_XENTROPY_KEY: [],
-        VALIDATION_AUC_KEY: []
+        FEATURE_NAME_KEY: [], VALIDATION_COST_KEY: [],
+        VALIDATION_XENTROPY_KEY: [], VALIDATION_AUC_KEY: []
     }
 
     while remaining_feature_names:  # While there are still features to permute.
@@ -1295,6 +1320,7 @@ def permutation_selection(
                    num_permuted_features + 1, num_permuted_features,
                    num_remaining_features)
 
+        new_cost_by_feature = numpy.full(num_remaining_features, numpy.nan)
         new_xentropy_by_feature = numpy.full(num_remaining_features, numpy.nan)
         new_auc_by_feature = numpy.full(num_remaining_features, numpy.nan)
         permuted_values_for_best_feature = None
@@ -1309,6 +1335,9 @@ def permutation_selection(
 
             these_forecast_probabilities = new_estimator_object.predict_proba(
                 this_validation_matrix)[:, 1]
+            new_cost_by_feature[j] = cost_function(
+                these_forecast_probabilities,
+                validation_table[target_name].values)
             new_xentropy_by_feature[j] = model_eval.get_cross_entropy(
                 these_forecast_probabilities,
                 validation_table[target_name].values)
@@ -1316,42 +1345,39 @@ def permutation_selection(
                 validation_table[target_name].values,
                 these_forecast_probabilities)
 
-            if numpy.nanargmax(new_xentropy_by_feature) == j:
+            if numpy.nanargmax(new_cost_by_feature) == j:
                 permuted_values_for_best_feature = (
                     this_validation_matrix[:, column_to_permute])
 
-        max_new_cross_entropy = numpy.max(new_xentropy_by_feature)
-        this_best_feature_index = numpy.argmax(new_xentropy_by_feature)
+        max_new_cost = numpy.max(new_cost_by_feature)
+        this_best_feature_index = numpy.argmax(new_cost_by_feature)
         this_best_feature_name = remaining_feature_names[
             this_best_feature_index]
 
-        if len(permutation_dict[VALIDATION_XENTROPY_KEY]):
-            max_prev_cross_entropy = permutation_dict[
-                VALIDATION_XENTROPY_KEY][-1]
+        if len(permutation_dict[VALIDATION_COST_KEY]):
+            max_previous_cost = permutation_dict[VALIDATION_COST_KEY][-1]
         else:
-            max_prev_cross_entropy = copy.deepcopy(
-                orig_validation_cross_entropy)
+            max_previous_cost = copy.deepcopy(orig_validation_cost)
 
-        print ('Max cross-entropy ({0:.4f}) given by permuting feature "{1:s}" '
+        print ('Maximum cost ({0:.4f}) given by permuting feature "{1:s}" '
                '(previous max = {2:.4f}).').format(
-                   max_new_cross_entropy, this_best_feature_name,
-                   max_prev_cross_entropy)
+                   max_new_cost, this_best_feature_name, max_previous_cost)
 
+        remaining_feature_names.remove(this_best_feature_name)
         validation_table = validation_table.assign(
             **{this_best_feature_name: permuted_values_for_best_feature})
 
         permutation_dict[FEATURE_NAME_KEY].append(this_best_feature_name)
+        permutation_dict[VALIDATION_COST_KEY].append(
+            new_cost_by_feature[this_best_feature_index])
         permutation_dict[VALIDATION_XENTROPY_KEY].append(
             new_xentropy_by_feature[this_best_feature_index])
         permutation_dict[VALIDATION_AUC_KEY].append(
             new_auc_by_feature[this_best_feature_index])
 
-        remaining_feature_names = set(remaining_feature_names)
-        remaining_feature_names.remove(this_best_feature_name)
-        remaining_feature_names = list(remaining_feature_names)
-
     permutation_table = pandas.DataFrame.from_dict(permutation_dict)
-    return permutation_table, orig_validation_cross_entropy, orig_validation_auc
+    return (permutation_table, orig_validation_cost,
+            orig_validation_cross_entropy, orig_validation_auc)
 
 
 def plot_forward_selection_results(
@@ -1364,17 +1390,16 @@ def plot_forward_selection_results(
     :param forward_selection_dict: Dictionary returned by
         `sequential_forward_selection`, `sfs_with_backward_steps`, or
         `floating_sfs`.
-    :param plot_feature_names: See documentation for
-        _plot_selection_results.
+    :param plot_feature_names: See documentation for _plot_selection_results.
     :param bar_face_colour: See doc for _plot_selection_results.
     :param bar_edge_colour: See doc for _plot_selection_results.
     :param bar_edge_width: See doc for _plot_selection_results.
     """
 
     _plot_selection_results(
-        feature_name_by_step=forward_selection_dict[SELECTED_FEATURES_KEY],
-        cross_entropy_by_step=forward_selection_dict[
-            VALIDATION_XENTROPY_BY_STEP_KEY],
+        used_feature_names=forward_selection_dict[SELECTED_FEATURES_KEY],
+        validation_cost_by_feature=
+        forward_selection_dict[VALIDATION_COST_BY_STEP_KEY],
         selection_type=FORWARD_SELECTION_TYPE,
         plot_feature_names=plot_feature_names, bar_face_colour=bar_face_colour,
         bar_edge_colour=bar_edge_colour, bar_edge_width=bar_edge_width)
@@ -1390,25 +1415,23 @@ def plot_backward_selection_results(
     :param backward_selection_dict: Dictionary returned by
         `sequential_backward_selection`, `sbs_with_forward_steps`, or
         `floating_sbs`.
-    :param plot_feature_names: See documentation for
-        _plot_selection_results.
+    :param plot_feature_names: See documentation for _plot_selection_results.
     :param bar_face_colour: See doc for _plot_selection_results.
     :param bar_edge_colour: See doc for _plot_selection_results.
     :param bar_edge_width: See doc for _plot_selection_results.
     """
 
     _plot_selection_results(
-        feature_name_by_step=backward_selection_dict[REMOVED_FEATURES_KEY],
-        cross_entropy_by_step=backward_selection_dict[
-            VALIDATION_XENTROPY_BY_STEP_KEY],
+        used_feature_names=backward_selection_dict[REMOVED_FEATURES_KEY],
+        validation_cost_by_feature=
+        backward_selection_dict[VALIDATION_COST_BY_STEP_KEY],
         selection_type=BACKWARD_SELECTION_TYPE,
         plot_feature_names=plot_feature_names, bar_face_colour=bar_face_colour,
         bar_edge_colour=bar_edge_colour, bar_edge_width=bar_edge_width)
 
 
 def plot_permutation_results(
-        permutation_table, orig_validation_cross_entropy,
-        plot_feature_names=False,
+        permutation_table, orig_validation_cost, plot_feature_names=False,
         bar_face_colour=DEFAULT_BAR_FACE_COLOUR,
         bar_edge_colour=DEFAULT_BAR_EDGE_COLOUR,
         bar_edge_width=DEFAULT_BAR_EDGE_WIDTH):
@@ -1416,19 +1439,18 @@ def plot_permutation_results(
 
     :param permutation_table: pandas DataFrame returned by
         `permutation_selection`.
-    :param orig_validation_cross_entropy: Validation cross-entropy before
-        permutation.
-    :param plot_feature_names: See documentation for
-        _plot_selection_results.
+    :param orig_validation_cost: Validation cost before permutation.
+    :param plot_feature_names: See documentation for _plot_selection_results.
     :param bar_face_colour: See doc for _plot_selection_results.
     :param bar_edge_colour: See doc for _plot_selection_results.
     :param bar_edge_width: See doc for _plot_selection_results.
     """
 
     _plot_selection_results(
-        feature_name_by_step=permutation_table[FEATURE_NAME_KEY].values,
-        cross_entropy_by_step=permutation_table[VALIDATION_XENTROPY_KEY].values,
+        used_feature_names=permutation_table[FEATURE_NAME_KEY].values,
+        validation_cost_by_feature=
+        permutation_table[VALIDATION_XENTROPY_KEY].values,
         selection_type=PERMUTATION_TYPE,
-        cross_entropy_before_permutn=orig_validation_cross_entropy,
+        validation_cost_before_permutn=orig_validation_cost,
         plot_feature_names=plot_feature_names, bar_face_colour=bar_face_colour,
         bar_edge_colour=bar_edge_colour, bar_edge_width=bar_edge_width)

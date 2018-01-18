@@ -512,8 +512,6 @@ def get_brier_score(forecast_probabilities=None, observed_labels=None):
 def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
     """Computes cross-entropy.
 
-    N = number of forecasts
-
     :param forecast_probabilities: See documentation for
         _check_forecast_probs_and_observed_labels.
     :param observed_labels: See doc for
