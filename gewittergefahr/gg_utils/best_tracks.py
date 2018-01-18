@@ -32,6 +32,7 @@ DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
 DEFAULT_MAX_JOIN_TIME_SEC = 915
 DEFAULT_MAX_JOIN_DISTANCE_M_S01 = 40.
 DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01 = 20.
+USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG = True
 
 DEFAULT_NUM_MAIN_ITERS = 5
 DEFAULT_NUM_BREAKUP_ITERS = 2
@@ -425,6 +426,7 @@ def check_best_track_params(
         max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
         max_prediction_error_for_breakup_metres=
         DEFAULT_MAX_PREDICTION_ERROR_METRES,
+        use_extra_breakup_criteria=USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG,
         max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_distance_m_s01=DEFAULT_MAX_JOIN_DISTANCE_M_S01,
         max_mean_join_error_m_s01=DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01,
@@ -436,6 +438,7 @@ def check_best_track_params(
     :param max_extrap_time_for_breakup_sec: See documentation for
         run_best_track.
     :param max_prediction_error_for_breakup_metres: See doc for run_best_track.
+    :param use_extra_breakup_criteria: See doc for run_best_track.
     :param max_join_time_sec: See doc for run_best_track.
     :param max_join_distance_m_s01: See doc for run_best_track.
     :param max_mean_join_error_m_s01: See doc for run_best_track.
@@ -448,6 +451,8 @@ def check_best_track_params(
     error_checking.assert_is_greater(max_extrap_time_for_breakup_sec, 0)
     error_checking.assert_is_greater(
         max_prediction_error_for_breakup_metres, 0.)
+    error_checking.assert_is_boolean(use_extra_breakup_criteria)
+
     error_checking.assert_is_integer(max_join_time_sec)
     error_checking.assert_is_greater(max_join_time_sec, 0)
     error_checking.assert_is_greater(max_join_distance_m_s01, 0.)
@@ -626,7 +631,9 @@ def break_storm_tracks(
         storm_object_table=None, storm_track_table=None,
         working_object_indices=None,
         max_extrapolation_time_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
-        max_prediction_error_metres=DEFAULT_MAX_PREDICTION_ERROR_METRES):
+        max_prediction_error_metres=DEFAULT_MAX_PREDICTION_ERROR_METRES,
+        use_extra_criteria=USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG,
+        min_objects_in_track=None):
     """Breaks storm tracks and reassigns storm objects.
 
     This is the "break-up" step in w2besttrack.
@@ -651,15 +658,28 @@ def break_storm_tracks(
     :param max_prediction_error_metres: Maximum prediction error.  For storm
         object s to be assigned to track S, the Theil-Sen prediction for S must
         be within `max_prediction_error_metres` of the true position of s.
+    :param use_extra_criteria: Boolean flag.  If True, will use the following
+        extra criterion.  If storm object s comes from a track S with
+        `min_objects_in_track` storm objects, and S is the first- or second-best
+        match for s, s will not be reassigned.
+    :param min_objects_in_track: See above.
     :return: storm_object_table: Same as input, except that "storm_id" column
         may have changed for several objects.
     :return: storm_track_table: Same as input, except that values may have
         changed for several tracks.
     """
 
-    check_best_track_params(
-        max_extrap_time_for_breakup_sec=max_extrapolation_time_sec,
-        max_prediction_error_for_breakup_metres=max_prediction_error_metres)
+    error_checking.assert_is_boolean(use_extra_criteria)
+    if use_extra_criteria:
+        check_best_track_params(
+            max_extrap_time_for_breakup_sec=max_extrapolation_time_sec,
+            max_prediction_error_for_breakup_metres=max_prediction_error_metres,
+            use_extra_breakup_criteria=use_extra_criteria,
+            min_objects_in_track=min_objects_in_track)
+    else:
+        check_best_track_params(
+            max_extrap_time_for_breakup_sec=max_extrapolation_time_sec,
+            max_prediction_error_for_breakup_metres=max_prediction_error_metres)
 
     num_storm_objects = len(storm_object_table.index)
     if working_object_indices is None:
@@ -709,6 +729,27 @@ def break_storm_tracks(
 
         if numpy.min(prediction_errors_metres) > max_prediction_error_metres:
             continue
+
+        if use_extra_criteria:
+            orig_storm_id = storm_object_table[
+                tracking_utils.STORM_ID_COLUMN].values[i]
+            orig_track_indices = numpy.where(
+                numpy.array(storm_object_table[
+                    tracking_utils.STORM_ID_COLUMN].values) ==
+                orig_storm_id)[0]
+
+            num_objects_in_orig_track = len(orig_track_indices)
+            if num_objects_in_orig_track < min_objects_in_track:
+                continue
+
+            sort_indices = numpy.argsort(prediction_errors_metres)
+            min_error_indices = sort_indices[0:2]
+            nearest_track_indices = try_track_indices[min_error_indices]
+            nearest_track_ids = storm_object_table[
+                tracking_utils.STORM_ID_COLUMN].values[nearest_track_indices]
+
+            if orig_storm_id in nearest_track_ids:
+                continue
 
         nearest_track_index = try_track_indices[
             numpy.argmin(prediction_errors_metres)]
@@ -1097,6 +1138,7 @@ def run_best_track(
         max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
         max_prediction_error_for_breakup_metres=
         DEFAULT_MAX_PREDICTION_ERROR_METRES,
+        use_extra_breakup_criteria=USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG,
         max_join_time_sec=DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_distance_m_s01=DEFAULT_MAX_JOIN_DISTANCE_M_S01,
         max_mean_join_error_m_s01=DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01,
@@ -1120,6 +1162,7 @@ def run_best_track(
     :param max_extrap_time_for_breakup_sec: See doc for break_storm_tracks.
     :param max_prediction_error_for_breakup_metres: See doc for
         break_storm_tracks.
+    :param use_extra_breakup_criteria: See doc for break_storm_tracks.
     :param max_join_time_sec: See documentation for merge_storm_tracks.
     :param max_join_distance_m_s01: See documentation for merge_storm_tracks.
     :param max_mean_join_error_m_s01: See doc for merge_storm_tracks.
@@ -1139,6 +1182,7 @@ def run_best_track(
         max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
         max_prediction_error_for_breakup_metres=
         max_prediction_error_for_breakup_metres,
+        use_extra_breakup_criteria=use_extra_breakup_criteria,
         max_join_time_sec=max_join_time_sec,
         max_join_distance_m_s01=max_join_distance_m_s01,
         max_mean_join_error_m_s01=max_mean_join_error_m_s01,
@@ -1180,7 +1224,9 @@ def run_best_track(
                 storm_track_table=storm_track_table,
                 max_extrapolation_time_sec=max_extrap_time_for_breakup_sec,
                 max_prediction_error_metres=
-                max_prediction_error_for_breakup_metres)
+                max_prediction_error_for_breakup_metres,
+                use_extra_criteria=use_extra_breakup_criteria,
+                min_objects_in_track=min_objects_in_track)
 
         storm_object_table, storm_track_table = merge_storm_tracks(
             storm_object_table=storm_object_table,

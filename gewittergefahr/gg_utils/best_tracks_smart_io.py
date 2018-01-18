@@ -362,6 +362,8 @@ def run_best_track(
         max_extrap_time_for_breakup_sec=best_tracks.DEFAULT_MAX_EXTRAP_TIME_SEC,
         max_prediction_error_for_breakup_metres=
         best_tracks.DEFAULT_MAX_PREDICTION_ERROR_METRES,
+        use_extra_breakup_criteria=
+        best_tracks.USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG,
         max_join_time_sec=best_tracks.DEFAULT_MAX_JOIN_TIME_SEC,
         max_join_distance_m_s01=best_tracks.DEFAULT_MAX_JOIN_DISTANCE_M_S01,
         max_mean_join_error_m_s01=best_tracks.DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01,
@@ -375,6 +377,7 @@ def run_best_track(
         `best_tracks.run_best_track`.
     :param max_prediction_error_for_breakup_metres: See doc for
         `best_tracks.run_best_track`.
+    :param use_extra_breakup_criteria: See doc for `best_tracks.run_best_track`.
     :param max_join_time_sec: See doc for `best_tracks.run_best_track`.
     :param max_join_distance_m_s01: See doc for `best_tracks.run_best_track`.
     :param max_mean_join_error_m_s01: See doc for `best_tracks.run_best_track`.
@@ -388,6 +391,7 @@ def run_best_track(
         max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
         max_prediction_error_for_breakup_metres=
         max_prediction_error_for_breakup_metres,
+        use_extra_breakup_criteria=use_extra_breakup_criteria,
         max_join_time_sec=max_join_time_sec,
         max_join_distance_m_s01=max_join_distance_m_s01,
         max_mean_join_error_m_s01=max_mean_join_error_m_s01,
@@ -436,7 +440,9 @@ def run_best_track(
                         max_extrapolation_time_sec=
                         max_extrap_time_for_breakup_sec,
                         max_prediction_error_metres=
-                        max_prediction_error_for_breakup_metres))
+                        max_prediction_error_for_breakup_metres,
+                        use_extra_criteria=use_extra_breakup_criteria,
+                        min_objects_in_track=min_objects_in_track))
 
         for k in range(num_spc_dates):
             storm_object_table = _shuffle_data_with_smart_io(
