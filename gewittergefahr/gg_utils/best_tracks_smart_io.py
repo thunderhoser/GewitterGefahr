@@ -363,10 +363,8 @@ def run_best_track(
         max_prediction_error_for_breakup_metres=
         best_tracks.DEFAULT_MAX_PREDICTION_ERROR_METRES,
         max_join_time_sec=best_tracks.DEFAULT_MAX_JOIN_TIME_SEC,
-        max_join_distance_metres=best_tracks.DEFAULT_MAX_JOIN_DISTANCE_METRES,
-        max_mean_join_error_metres=
-        best_tracks.DEFAULT_MAX_MEAN_JOIN_ERROR_METRES,
-        max_velocity_diff_for_join_m_s01=None,
+        max_join_distance_m_s01=best_tracks.DEFAULT_MAX_JOIN_DISTANCE_M_S01,
+        max_mean_join_error_m_s01=best_tracks.DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01,
         num_main_iters=best_tracks.DEFAULT_NUM_MAIN_ITERS,
         num_breakup_iters=best_tracks.DEFAULT_NUM_BREAKUP_ITERS,
         min_objects_in_track=best_tracks.DEFAULT_MIN_OBJECTS_IN_TRACK):
@@ -378,9 +376,8 @@ def run_best_track(
     :param max_prediction_error_for_breakup_metres: See doc for
         `best_tracks.run_best_track`.
     :param max_join_time_sec: See doc for `best_tracks.run_best_track`.
-    :param max_join_distance_metres: See doc for `best_tracks.run_best_track`.
-    :param max_mean_join_error_metres: See doc for `best_tracks.run_best_track`.
-    :param max_velocity_diff_for_join_m_s01: See doc for `best_tracks.run_best_track`.
+    :param max_join_distance_m_s01: See doc for `best_tracks.run_best_track`.
+    :param max_mean_join_error_m_s01: See doc for `best_tracks.run_best_track`.
     :param num_main_iters: See doc for `best_tracks.run_best_track`.
     :param num_breakup_iters: See doc for `best_tracks.run_best_track`.
     :param min_objects_in_track: See doc for
@@ -392,9 +389,8 @@ def run_best_track(
         max_prediction_error_for_breakup_metres=
         max_prediction_error_for_breakup_metres,
         max_join_time_sec=max_join_time_sec,
-        max_join_distance_metres=max_join_distance_metres,
-        max_mean_join_error_metres=max_mean_join_error_metres,
-        max_velocity_diff_for_join_m_s01=max_velocity_diff_for_join_m_s01,
+        max_join_distance_m_s01=max_join_distance_m_s01,
+        max_mean_join_error_m_s01=max_mean_join_error_m_s01,
         num_main_iters=num_main_iters, num_breakup_iters=num_breakup_iters,
         min_objects_in_track=min_objects_in_track)
 
@@ -463,9 +459,8 @@ def run_best_track(
                     storm_track_table=storm_track_table,
                     working_track_indices=these_working_indices,
                     max_join_time_sec=max_join_time_sec,
-                    max_join_distance_metres=max_join_distance_metres,
-                    max_mean_prediction_error_metres=max_mean_join_error_metres,
-                    max_velocity_diff_m_s01=max_velocity_diff_for_join_m_s01))
+                    max_join_distance_m_s01=max_join_distance_m_s01,
+                    max_mean_prediction_error_m_s01=max_mean_join_error_m_s01))
 
         for k in range(num_spc_dates):
             storm_object_table = _shuffle_data_with_smart_io(

@@ -109,8 +109,11 @@ Y_LATE_PREDICTED_BY_EARLY_METRES = numpy.array([72., 83., 94.])
 ERRORS_LATE_PREDICTED_BY_EARLY_METRES = numpy.sqrt(
     (X_LATE_PREDICTED_BY_EARLY_METRES - X_COORDS_LATE_TRACK_METRES) ** 2 +
     (Y_LATE_PREDICTED_BY_EARLY_METRES - Y_COORDS_LATE_TRACK_METRES) ** 2)
-MEAN_ERROR_LATE_PREDICTED_BY_EARLY_METRES = numpy.mean(
-    ERRORS_LATE_PREDICTED_BY_EARLY_METRES)
+
+THESE_EXTRAP_TIMES_SEC = (
+    TIMES_LATE_TRACK_UNIX_SEC - TIMES_EARLY_TRACK_UNIX_SEC[-1])
+MEAN_ERROR_LATE_PREDICTED_BY_EARLY_M_S01 = numpy.mean(
+    ERRORS_LATE_PREDICTED_BY_EARLY_METRES / THESE_EXTRAP_TIMES_SEC)
 
 # The following constants are used to test _break_ties_one_storm_track.
 X_COORDS_IN_TIE_METRES = numpy.array(
@@ -400,16 +403,17 @@ class BestTracksTests(unittest.TestCase):
                 x_coords_metres=X_COORDS_EARLY_TRACK_METRES,
                 y_coords_metres=Y_COORDS_EARLY_TRACK_METRES))
 
-        this_mean_error_metres = (
+        this_mean_error_m_s01 = (
             best_tracks._get_mean_prediction_error_for_two_tracks(
                 x_coords_late_metres=X_COORDS_LATE_TRACK_METRES,
                 y_coords_late_metres=Y_COORDS_LATE_TRACK_METRES,
                 late_times_unix_sec=TIMES_LATE_TRACK_UNIX_SEC,
                 theil_sen_model_for_x_early=theil_sen_model_for_x_early,
-                theil_sen_model_for_y_early=theil_sen_model_for_y_early))
+                theil_sen_model_for_y_early=theil_sen_model_for_y_early,
+                last_early_time_unix_sec=numpy.max(TIMES_EARLY_TRACK_UNIX_SEC)))
 
         self.assertTrue(numpy.isclose(
-            this_mean_error_metres, MEAN_ERROR_LATE_PREDICTED_BY_EARLY_METRES,
+            this_mean_error_m_s01, MEAN_ERROR_LATE_PREDICTED_BY_EARLY_M_S01,
             atol=TOLERANCE))
 
     def test_break_ties_one_storm_track(self):
