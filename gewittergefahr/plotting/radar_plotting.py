@@ -347,18 +347,16 @@ def plot_latlng_grid(axes_object=None, field_name=None, field_matrix=None,
     """
 
     radar_utils.check_field_name(field_name)
+    field_matrix = _convert_to_plotting_units(field_matrix, field_name)
+    field_matrix = numpy.ma.masked_where(
+        numpy.isnan(field_matrix), field_matrix)
 
-    (field_matrix_at_edges,
-     grid_cell_edge_latitudes_deg,
-     grid_cell_edge_longitudes_deg) = grids.latlng_field_grid_points_to_edges(
-         field_matrix=field_matrix, min_latitude_deg=min_latitude_deg,
-         min_longitude_deg=min_longitude_deg, lat_spacing_deg=lat_spacing_deg,
-         lng_spacing_deg=lng_spacing_deg)
-
-    field_matrix_at_edges = _convert_to_plotting_units(
-        field_matrix_at_edges, field_name)
-    field_matrix_at_edges = numpy.ma.masked_where(
-        numpy.isnan(field_matrix_at_edges), field_matrix_at_edges)
+    grid_point_latitudes_deg, grid_point_longitudes_deg = (
+        grids.get_latlng_grid_points(
+            min_latitude_deg=min_latitude_deg,
+            min_longitude_deg=min_longitude_deg,
+            lat_spacing_deg=lat_spacing_deg, lng_spacing_deg=lng_spacing_deg,
+            num_rows=field_matrix.shape[0], num_columns=field_matrix.shape[1]))
 
     if colour_map is None:
         colour_map, colour_norm_object, _ = _get_default_colour_map(field_name)
@@ -369,7 +367,7 @@ def plot_latlng_grid(axes_object=None, field_name=None, field_matrix=None,
         colour_norm_object = None
 
     pyplot.pcolormesh(
-        grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
-        field_matrix_at_edges, cmap=colour_map, norm=colour_norm_object,
-        vmin=colour_minimum, vmax=colour_maximum, shading='flat',
-        edgecolors='None', axes=axes_object)
+        grid_point_longitudes_deg, grid_point_latitudes_deg, field_matrix,
+        cmap=colour_map, norm=colour_norm_object, vmin=colour_minimum,
+        vmax=colour_maximum, shading='flat', edgecolors='None',
+        axes=axes_object)
