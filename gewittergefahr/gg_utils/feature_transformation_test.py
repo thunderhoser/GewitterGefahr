@@ -11,10 +11,10 @@ TOLERANCE = 1e-6
 FEATURE_NAMES = ['a', 'b', 'c']
 FEATURE_MATRIX = numpy.array(
     [[1., 0., 10.],
-     [2., 1., 5.],
+     [2., 1., 9.],
      [3., 2., numpy.nan],
-     [4., numpy.nan, 0.],
-     [5., numpy.nan, 5.]])
+     [4., numpy.nan, 8.],
+     [5., numpy.nan, -3.]])
 
 FEATURE_MATRIX_TOO_MANY_NAN = numpy.array(
     [[1., 0., 10.],
@@ -34,22 +34,47 @@ for j in range(len(FEATURE_NAMES)):
         {FEATURE_NAMES[j]: FEATURE_MATRIX_TOO_MANY_NAN[:, j]})
 FEATURE_TABLE_TOO_MANY_NAN = pandas.DataFrame.from_dict(THIS_FEATURE_DICT)
 
-# The following constants are used to test _standardize_features.
-FEATURE_MEANS = numpy.array([3., 1., 5.])
-FEATURE_STANDARD_DEVIATIONS = numpy.sqrt(numpy.array([2.5, 1., 50. / 3]))
+# The following constants are used to test replace_missing_values.
+FEATURE_MEANS = numpy.array([3., 1., 6.])
+REPLACEMENT_DICT_MEAN = {
+    feature_trans.FEATURE_NAMES_KEY: FEATURE_NAMES,
+    feature_trans.ORIGINAL_MEANS_KEY: FEATURE_MEANS
+}
+FEATURE_MATRIX_MISSING_TO_MEAN = numpy.array(
+    [[1., 0., 10.],
+     [2., 1., 9.],
+     [3., 2., 6.],
+     [4., 1., 8.],
+     [5., 1., -3.]])
+
+FEATURE_MEDIANS = numpy.array([3., 1., 8.5])
+REPLACEMENT_DICT_MEDIAN = {
+    feature_trans.FEATURE_NAMES_KEY: FEATURE_NAMES,
+    feature_trans.ORIGINAL_MEDIANS_KEY: FEATURE_MEDIANS
+}
+FEATURE_MATRIX_MISSING_TO_MEDIAN = numpy.array(
+    [[1., 0., 10.],
+     [2., 1., 9.],
+     [3., 2., 8.5],
+     [4., 1., 8.],
+     [5., 1., -3.]])
+
+# The following constants are used to test standardize_features.
+FEATURE_STANDARD_DEVIATIONS = numpy.sqrt(numpy.array([2.5, 1., 110. / 3]))
 STANDARDIZATION_DICT = {
-    feature_trans.FEATURE_NAME_KEY: FEATURE_NAMES,
-    feature_trans.ORIGINAL_MEAN_KEY: FEATURE_MEANS,
-    feature_trans.ORIGINAL_STDEV_KEY: FEATURE_STANDARD_DEVIATIONS
+    feature_trans.FEATURE_NAMES_KEY: FEATURE_NAMES,
+    feature_trans.ORIGINAL_MEANS_KEY: FEATURE_MEANS,
+    feature_trans.ORIGINAL_STDEVS_KEY: FEATURE_STANDARD_DEVIATIONS
 }
 
-# The following constants are used to test _reorder_standardization_dict.
+# The following constants are used to test
+# _reorder_standardization_or_replacement_dict.
 PERMUTED_FEATURE_NAMES = ['b', 'c', 'a']
 PERMUTED_STANDARDIZATION_DICT = {
-    feature_trans.FEATURE_NAME_KEY: PERMUTED_FEATURE_NAMES,
-    feature_trans.ORIGINAL_MEAN_KEY: numpy.array([1., 5., 3.]),
-    feature_trans.ORIGINAL_STDEV_KEY:
-        numpy.sqrt(numpy.array([1., 50. / 3, 2.5]))
+    feature_trans.FEATURE_NAMES_KEY: PERMUTED_FEATURE_NAMES,
+    feature_trans.ORIGINAL_MEANS_KEY: numpy.array([1., 6., 3.]),
+    feature_trans.ORIGINAL_STDEVS_KEY:
+        numpy.sqrt(numpy.array([1., 110. / 3, 2.5]))
 }
 
 # The following constants are used to test filter_svd_by_explained_variance.
@@ -88,57 +113,104 @@ SVD_DICTIONARY_95PCT_VARIANCE = {
 class FeatureTransformationTests(unittest.TestCase):
     """Each method is a unit test for feature_transformation.py."""
 
-    def test_reorder_standardization_dict(self):
-        """Ensures correct output from _reorder_standardization_dict."""
+    def test_reorder_standardization_or_replacement_dict(self):
+        """Ensures crctness of _reorder_standardization_or_replacement_dict."""
 
         this_standardization_dict = copy.deepcopy(STANDARDIZATION_DICT)
-        this_standardization_dict = feature_trans._reorder_standardization_dict(
-            this_standardization_dict, PERMUTED_FEATURE_NAMES)
+        this_standardization_dict = (
+            feature_trans._reorder_standardization_or_replacement_dict(
+                this_standardization_dict, PERMUTED_FEATURE_NAMES))
 
         self.assertTrue(set(this_standardization_dict.keys()) ==
                         set(PERMUTED_STANDARDIZATION_DICT.keys()))
         self.assertTrue(numpy.allclose(
-            this_standardization_dict[feature_trans.ORIGINAL_MEAN_KEY],
-            PERMUTED_STANDARDIZATION_DICT[feature_trans.ORIGINAL_MEAN_KEY],
+            this_standardization_dict[feature_trans.ORIGINAL_MEANS_KEY],
+            PERMUTED_STANDARDIZATION_DICT[feature_trans.ORIGINAL_MEANS_KEY],
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
-            this_standardization_dict[feature_trans.ORIGINAL_STDEV_KEY],
-            PERMUTED_STANDARDIZATION_DICT[feature_trans.ORIGINAL_STDEV_KEY],
+            this_standardization_dict[feature_trans.ORIGINAL_STDEVS_KEY],
+            PERMUTED_STANDARDIZATION_DICT[feature_trans.ORIGINAL_STDEVS_KEY],
             atol=TOLERANCE))
 
-    def test_reorder_standardization_dict_mismatch(self):
-        """Ensures that _reorder_standardization_dict throws error*.
+    def test_reorder_standardization_or_replacement_dict_mismatch(self):
+        """Ensures _reorder_standardization_or_replacement_dict throws error*.
 
         * Because standardization_dict does not contain all desired features.
         """
 
         these_feature_names = FEATURE_NAMES + ['foo']
         with self.assertRaises(ValueError):
-            feature_trans._reorder_standardization_dict(
+            feature_trans._reorder_standardization_or_replacement_dict(
                 STANDARDIZATION_DICT, these_feature_names)
 
-    def test_standardize_features(self):
-        """Ensures correct output from _standardize_features."""
+    def test_replace_missing_values_with_mean(self):
+        """Ensures correct output from replace_missing_values.
 
-        _, this_standardization_dict = feature_trans._standardize_features(
+        In this case, missing values of feature F are replaced with the mean
+        F-value.
+        """
+
+        this_feature_table, this_replacement_dict = (
+            feature_trans.replace_missing_values(
+                FEATURE_TABLE,
+                replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD))
+
+        self.assertTrue(numpy.allclose(
+            FEATURE_MATRIX_MISSING_TO_MEAN, this_feature_table.as_matrix(),
+            atol=TOLERANCE))
+
+        self.assertTrue(set(this_replacement_dict.keys()) ==
+                        set(REPLACEMENT_DICT_MEAN.keys()))
+        self.assertTrue(numpy.allclose(
+            this_replacement_dict[feature_trans.ORIGINAL_MEANS_KEY],
+            REPLACEMENT_DICT_MEAN[feature_trans.ORIGINAL_MEANS_KEY],
+            atol=TOLERANCE))
+
+    def test_replace_missing_values_with_median(self):
+        """Ensures correct output from replace_missing_values.
+
+        In this case, missing values of feature F are replaced with the median
+        F-value.
+        """
+
+        this_feature_table, this_replacement_dict = (
+            feature_trans.replace_missing_values(
+                FEATURE_TABLE, replacement_method=
+                feature_trans.MEDIAN_VALUE_REPLACEMENT_METHOD))
+
+        self.assertTrue(numpy.allclose(
+            FEATURE_MATRIX_MISSING_TO_MEDIAN, this_feature_table.as_matrix(),
+            atol=TOLERANCE))
+
+        self.assertTrue(set(this_replacement_dict.keys()) ==
+                        set(REPLACEMENT_DICT_MEDIAN.keys()))
+        self.assertTrue(numpy.allclose(
+            this_replacement_dict[feature_trans.ORIGINAL_MEDIANS_KEY],
+            REPLACEMENT_DICT_MEDIAN[feature_trans.ORIGINAL_MEDIANS_KEY],
+            atol=TOLERANCE))
+
+    def test_standardize_features(self):
+        """Ensures correct output from standardize_features."""
+
+        _, this_standardization_dict = feature_trans.standardize_features(
             FEATURE_TABLE)
 
         self.assertTrue(set(this_standardization_dict.keys()) ==
                         set(STANDARDIZATION_DICT.keys()))
         self.assertTrue(numpy.allclose(
-            this_standardization_dict[feature_trans.ORIGINAL_MEAN_KEY],
-            STANDARDIZATION_DICT[feature_trans.ORIGINAL_MEAN_KEY],
+            this_standardization_dict[feature_trans.ORIGINAL_MEANS_KEY],
+            STANDARDIZATION_DICT[feature_trans.ORIGINAL_MEANS_KEY],
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
-            this_standardization_dict[feature_trans.ORIGINAL_STDEV_KEY],
-            STANDARDIZATION_DICT[feature_trans.ORIGINAL_STDEV_KEY],
+            this_standardization_dict[feature_trans.ORIGINAL_STDEVS_KEY],
+            STANDARDIZATION_DICT[feature_trans.ORIGINAL_STDEVS_KEY],
             atol=TOLERANCE))
 
     def test_standardize_features_too_many_nans(self):
-        """Ensures that _standardize_features throws too-many-NaN error."""
+        """Ensures that standardize_features throws too-many-NaN error."""
 
         with self.assertRaises(ValueError):
-            feature_trans._standardize_features(FEATURE_TABLE_TOO_MANY_NAN)
+            feature_trans.standardize_features(FEATURE_TABLE_TOO_MANY_NAN)
 
     def test_perform_svd_no_crash(self):
         """Ensures that perform_svd does not crash.
