@@ -96,6 +96,7 @@ def _rename_svd_transformed_features(transformed_input_table):
 def _preprocess_data_for_learning(
         input_table, feature_names, learning_phase, replace_missing,
         standardize, transform_via_svd,
+        fraction_of_explained_variance_for_svd=1.,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
         replacement_dict_for_training_data=None,
         standardization_dict_for_training_data=None,
@@ -132,6 +133,12 @@ def _preprocess_data_for_learning(
     :param transform_via_svd: Boolean flag.  If True, will transform features to
         empirical orthogonal functions (EOFs), using singular-value
         decomposition (SVD).
+    :param fraction_of_explained_variance_for_svd:
+        [used only if transform_via_svd = True]
+        Determines number of modes (transformed features) to keep.  Will select
+        modes in descending order of explained variance, until cumulative
+        explained variance >= `fraction_of_explained_variance_for_svd` of
+        variance in full dataset.
     :param replacement_method:
         [used only if replace_missing = True and learning_phase == "training"]
         See doc for `feature_transformation.repalce_missing_values`.
@@ -173,9 +180,6 @@ def _preprocess_data_for_learning(
         Otherwise, this is merely the input dictionary.
     """
 
-    # TODO(thunderhoser): allow subset of SVD-transformed features to be
-    # removed.
-
     error_checking.assert_is_boolean(replace_missing)
     error_checking.assert_is_boolean(standardize)
     error_checking.assert_is_boolean(transform_via_svd)
@@ -195,6 +199,10 @@ def _preprocess_data_for_learning(
             (standardization_dict_for_training_data,
              svd_dict_for_training_data) = feature_trans.perform_svd(
                  input_table[feature_names])
+            svd_dict_for_training_data = (
+                feature_trans.filter_svd_by_explained_variance(
+                    svd_dict_for_training_data, fraction_of_variance_to_keep=
+                    fraction_of_explained_variance_for_svd))
 
         transformed_input_table = pandas.DataFrame(
             feature_trans.transform_features_via_svd(
@@ -327,6 +335,7 @@ def train_logistic_regression(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd, fit_intercept,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
+        fraction_of_explained_variance_for_svd=1.,
         convergence_tolerance=DEFAULT_CONVERGENCE_TOL_FOR_LOGISTIC,
         penalty_multiplier=DEFAULT_PENALTY_MULT_FOR_LOGISTIC,
         l1_weight=DEFAULT_L1_WEIGHT,
@@ -342,6 +351,8 @@ def train_logistic_regression(
     :param fit_intercept: Boolean flag.  If True, will fit the intercept (bias)
         coefficient.  If False, will assume intercept = 0.
     :param replacement_method: See doc for _preprocess_data_for_learning.
+    :param fraction_of_explained_variance_for_svd: See doc for
+        _preprocess_data_for_learning.
     :param convergence_tolerance: Stopping criterion.  Training will stop when
         `loss > previous_loss - convergence_tolerance`.
     :param penalty_multiplier: Coefficient used to multiply L1 and L2 penalties
@@ -366,7 +377,9 @@ def train_logistic_regression(
          input_table=training_table, feature_names=feature_names,
          learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
          standardize=standardize, transform_via_svd=transform_via_svd,
-         replacement_method=replacement_method)
+         replacement_method=replacement_method,
+         fraction_of_explained_variance_for_svd=
+         fraction_of_explained_variance_for_svd)
 
     error_checking.assert_is_boolean(fit_intercept)
     error_checking.assert_is_greater(convergence_tolerance, 0.)
@@ -392,6 +405,7 @@ def train_random_forest(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
+        fraction_of_explained_variance_for_svd=1.,
         num_trees=DEFAULT_NUM_TREES_FOR_RANDOM_FOREST,
         loss_function=DEFAULT_LOSS_FOR_RANDOM_FOREST,
         num_features_per_split=None,
@@ -407,6 +421,8 @@ def train_random_forest(
     :param standardize: See doc for _preprocess_data_for_learning.
     :param transform_via_svd: See doc for _preprocess_data_for_learning.
     :param replacement_method: See doc for _preprocess_data_for_learning.
+    :param fraction_of_explained_variance_for_svd: See doc for
+        _preprocess_data_for_learning.
     :param num_trees: Number of trees in forest.
     :param loss_function: Loss function (either "entropy" or "gini").
     :param num_features_per_split: Number of features to investigate at each
@@ -432,7 +448,9 @@ def train_random_forest(
          input_table=training_table, feature_names=feature_names,
          learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
          standardize=standardize, transform_via_svd=transform_via_svd,
-         replacement_method=replacement_method)
+         replacement_method=replacement_method,
+         fraction_of_explained_variance_for_svd=
+         fraction_of_explained_variance_for_svd)
 
     num_features_total = len(preprocessed_feature_names)
     if num_features_per_split is None:
@@ -469,6 +487,7 @@ def train_gradient_boosted_trees(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
+        fraction_of_explained_variance_for_svd=1.,
         num_trees=DEFAULT_NUM_TREES_FOR_GBT,
         loss_function=DEFAULT_LOSS_FOR_GBT,
         learning_rate=DEFAULT_LEARNING_RATE_FOR_GBT,
@@ -485,6 +504,8 @@ def train_gradient_boosted_trees(
     :param standardize: See doc for _preprocess_data_for_learning.
     :param transform_via_svd: See doc for _preprocess_data_for_learning.
     :param replacement_method: See doc for _preprocess_data_for_learning.
+    :param fraction_of_explained_variance_for_svd: See doc for
+        _preprocess_data_for_learning.
     :param num_trees: Number of trees in ensemble.
     :param loss_function: Loss function (either "deviance" or "exponential").
     :param learning_rate: Learning rate (used to decrease the contribution of
@@ -514,7 +535,9 @@ def train_gradient_boosted_trees(
          input_table=training_table, feature_names=feature_names,
          learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
          standardize=standardize, transform_via_svd=transform_via_svd,
-         replacement_method=replacement_method)
+         replacement_method=replacement_method,
+         fraction_of_explained_variance_for_svd=
+         fraction_of_explained_variance_for_svd)
 
     num_features_total = len(preprocessed_feature_names)
     if num_features_per_split is None:
@@ -548,6 +571,7 @@ def train_neural_net(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
+        fraction_of_explained_variance_for_svd=1.,
         hidden_layer_sizes=DEFAULT_HIDDEN_LAYER_SIZES_FOR_NN,
         hidden_layer_activation_function=DEFAULT_ACTIVATION_FUNCTION_FOR_NN,
         solver=DEFAULT_SOLVER_FOR_NN, l2_weight=DEFAULT_L2_WEIGHT_FOR_NN,
@@ -568,6 +592,8 @@ def train_neural_net(
     :param standardize: See doc for _preprocess_data_for_learning.
     :param transform_via_svd: See doc for _preprocess_data_for_learning.
     :param replacement_method: See doc for _preprocess_data_for_learning.
+    :param fraction_of_explained_variance_for_svd: See doc for
+        _preprocess_data_for_learning.
     :param hidden_layer_sizes: length-H numpy array, where the [i]th element is
         the number of nodes in the [i]th hidden layer.
     :param hidden_layer_activation_function: Activation function for hidden
@@ -605,7 +631,9 @@ def train_neural_net(
          input_table=training_table, feature_names=feature_names,
          learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
          standardize=standardize, transform_via_svd=transform_via_svd,
-         replacement_method=replacement_method)
+         replacement_method=replacement_method,
+         fraction_of_explained_variance_for_svd=
+         fraction_of_explained_variance_for_svd)
 
     error_checking.assert_is_integer_numpy_array(hidden_layer_sizes)
     error_checking.assert_is_numpy_array(hidden_layer_sizes, num_dimensions=1)
