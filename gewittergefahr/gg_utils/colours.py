@@ -15,7 +15,7 @@ MAX_B_FOR_LAB_SPACE = 127.
 NUM_H_FOR_HSV_SPACE = 256
 NUM_S_FOR_HSV_SPACE = 256
 NUM_V_FOR_HSV_SPACE = 256
-DEFAULT_MIN_HSV_DISTANCE_FROM_COLOUR = 0.5
+DEFAULT_MIN_RGB_DISTANCE_FROM_COLOUR = 0.25
 
 
 def get_uniform_colours_in_lab_space(num_colours):
@@ -48,7 +48,7 @@ def get_uniform_colours_in_lab_space(num_colours):
 
 def get_uniform_colours_in_hsv_space(
         num_colours, colour_to_exclude_rgb=None,
-        min_hsv_distance_from_colour=DEFAULT_MIN_HSV_DISTANCE_FROM_COLOUR):
+        min_rgb_distance_from_colour=DEFAULT_MIN_RGB_DISTANCE_FROM_COLOUR):
     """Returns array of uniformly spaced colours in HSV space.
 
     N = number of colours
@@ -56,7 +56,7 @@ def get_uniform_colours_in_hsv_space(
     :param num_colours: Number of colours.
     :param colour_to_exclude_rgb: This colour (and similar colours) will not be
         returned.  If None, no colours will be excluded.
-    :param min_hsv_distance_from_colour: No colour within this Euclidean HSV
+    :param min_rgb_distance_from_colour: No colour within this Euclidean RGB
         distance of `colour_to_exclude_rgb` will be returned.
     :return: rgb_matrix: N-by-3 numpy array, where each row is an RGB colour.
         All values range from 0...1.
@@ -67,13 +67,8 @@ def get_uniform_colours_in_hsv_space(
             colour_to_exclude_rgb, exact_dimensions=numpy.array([3]))
         error_checking.assert_is_geq_numpy_array(colour_to_exclude_rgb, 0.)
         error_checking.assert_is_leq_numpy_array(colour_to_exclude_rgb, 1.)
-
-        error_checking.assert_is_greater(min_hsv_distance_from_colour, 0.)
-        error_checking.assert_is_leq(min_hsv_distance_from_colour, 1.)
-
-        colour_to_exclude_hsv = skimage.color.rgb2hsv(
-            numpy.reshape(colour_to_exclude_rgb, (1, 1, 3)))
-        colour_to_exclude_hsv = numpy.reshape(colour_to_exclude_hsv, 3)
+        error_checking.assert_is_greater(min_rgb_distance_from_colour, 0.)
+        error_checking.assert_is_leq(min_rgb_distance_from_colour, 1.)
 
         orig_num_colours = copy.deepcopy(num_colours)
         num_colours = 10 * num_colours
@@ -90,6 +85,10 @@ def get_uniform_colours_in_hsv_space(
         dims=(NUM_H_FOR_HSV_SPACE, NUM_S_FOR_HSV_SPACE, NUM_V_FOR_HSV_SPACE))
     hsv_matrix = hsv_matrix / 255
 
+    rgb_matrix = skimage.color.hsv2rgb(
+        numpy.reshape(hsv_matrix, (1, num_colours, 3)))
+    rgb_matrix = numpy.reshape(rgb_matrix, (num_colours, 3))
+
     if colour_to_exclude_rgb is not None:
         good_indices = []
         all_indices = range(num_colours)
@@ -97,8 +96,8 @@ def get_uniform_colours_in_hsv_space(
 
         for i in all_indices:
             this_distance = numpy.linalg.norm(
-                hsv_matrix[i, :] - colour_to_exclude_hsv)
-            if this_distance < min_hsv_distance_from_colour:
+                rgb_matrix[i, :] - colour_to_exclude_rgb)
+            if not this_distance >= min_rgb_distance_from_colour:
                 continue
 
             good_indices.append(i)
@@ -106,9 +105,7 @@ def get_uniform_colours_in_hsv_space(
                 break
 
         good_indices = numpy.array(good_indices, dtype=int)
-        hsv_matrix = hsv_matrix[good_indices, :]
+        rgb_matrix = rgb_matrix[good_indices, :]
         num_colours = copy.deepcopy(orig_num_colours)
 
-    rgb_matrix = skimage.color.hsv2rgb(
-        numpy.reshape(hsv_matrix, (1, num_colours, 3)))
-    return numpy.reshape(rgb_matrix, (num_colours, 3))
+    return rgb_matrix[0:(num_colours + 1), :]
