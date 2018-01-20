@@ -11,7 +11,9 @@ Currently this module does binary classification only.
 """
 
 import numpy
+import pandas
 import sklearn
+from gewittergefahr.gg_utils import feature_transformation as feature_trans
 from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_PENALTY_MULT_FOR_LOGISTIC = 1e-4
@@ -44,24 +46,234 @@ DEFAULT_MAX_NUM_EPOCHS_FOR_NN = 500
 DEFAULT_CONVERGENCE_TOLERANCE_FOR_NN = 1e-4
 DEFAULT_EARLY_STOPPING_FRACTION_FOR_NN = 0.1
 
+TRAINING_PHASE = 'training'
+VALIDATION_PHASE = 'validation'
+TESTING_PHASE = 'testing'
+VALID_LEARNING_PHASES = [TRAINING_PHASE, VALIDATION_PHASE, TESTING_PHASE]
 
-def _check_training_data(training_table, feature_names, target_name):
-    """Checks training data for errors.
+FORECAST_PROBABILITY_COLUMN = 'forecast_probability'
+OBSERVED_CLASS_COLUMN = 'observed_class'
 
-    :param training_table: pandas DataFrame, where each row is one training
-        example.
-    :param feature_names: 1-D list with names of features (predictor variables).
-        Each feature must be a column in training_table.
-    :param target_name: Name of target variable (predictand).  Must be a column
-        in training_table.
+
+def _check_learning_phase(learning_phase):
+    """Ensures that learning phase is valid.
+
+    :param learning_phase: String ("training", "validation", or "testing").
+    :raises: ValueError: if `learning_phase not in VALID_LEARNING_PHASES`.
     """
 
-    error_checking.assert_is_string(target_name)
+    error_checking.assert_is_string(learning_phase)
+    if learning_phase not in VALID_LEARNING_PHASES:
+        error_string = (
+            '\n\n{0:s}\n\nValid learning phases (listed above) do not include '
+            '"{1:s}".').format(VALID_LEARNING_PHASES, learning_phase)
+        raise ValueError(error_string)
+
+
+def _rename_svd_transformed_features(transformed_input_table):
+    """Renames features created by SVD (singular-value decomposition) transfn.
+
+    :param transformed_input_table: pandas DataFrame, where each row is one
+        example (data point) and each column is one SVD-transformed feature.
+    :return: transformed_input_table: Same as input, but with different column
+        names.
+    """
+
+    orig_feature_names = list(transformed_input_table)
+    num_features = len(orig_feature_names)
+    column_dict_old_to_new = {}
+
+    for j in range(num_features):
+        this_new_feature_name = 'svd_transformed_feature{0:04d}'.format(j)
+        column_dict_old_to_new.update(
+            {orig_feature_names[j]: this_new_feature_name})
+
+    transformed_input_table.rename(
+        columns=column_dict_old_to_new, inplace=True)
+    return transformed_input_table
+
+
+def _preprocess_data_for_learning(
+        input_table, feature_names, learning_phase, replace_missing,
+        standardize, transform_via_svd,
+        replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
+        replacement_dict_for_training_data=None,
+        standardization_dict_for_training_data=None,
+        svd_dict_for_training_data=None):
+    """Pre-processes data for input to any machine-learning algorithm.
+
+    "Input" to a machine-learning algorithm means training, validation, or
+    testing.  Data must be pre-processed in the same way for all three phases of
+    learning.
+
+    For training, `*dict_for_training_data` should all be left as None, because
+    they will be computed on the fly.  However, for validation and testing,
+    `*dict_for_training_data` should be the dictionaries created for training
+    data.  In other words, these values are *not* computed on the fly for
+    validation or testing.
+
+    If transform_via_svd = True, data will be standardized and missing values
+    will be replaced.  Thus, transform_via_svd = True implies that
+    replace_missing = standardize = True.
+
+    Similarly, if standardize = True, missing values will be replaced.  Thus,
+    standardize = True implies that replace_missing = True.
+
+    :param input_table: pandas DataFrame, where each row is one example (data
+        point).
+    :param feature_names: 1-D list with names of features (predictor variables).
+        Each feature must be a column of input_table.
+    :param learning_phase: Learning phase ("training", "validation", or
+        "testing").
+    :param replace_missing: Boolean flag.  If True, missing values of feature F
+        will be replaced with the mean or median F-value.
+    :param standardize: Boolean flag.  If True, each feature will be
+        standardized to z-scores.
+    :param transform_via_svd: Boolean flag.  If True, will transform features to
+        empirical orthogonal functions (EOFs), using singular-value
+        decomposition (SVD).
+    :param replacement_method:
+        [used only if replace_missing = True and learning_phase == "training"]
+        See doc for `feature_transformation.repalce_missing_values`.
+    :param replacement_dict_for_training_data:
+        [used only if replace_missing = True and learning_phase != "training"]
+        Dictionary created earlier for training data.  See doc for
+        `feature_transformation.repalce_missing_values`.
+    :param standardization_dict_for_training_data:
+        [used only if standardize = True or transform_via_svd = True]
+        If learning phase is "training", this will not be used (means and
+        standard deviations are created on the fly, from the training data
+        themselves).  Otherwise, this must be the dictionary created earlier for
+        training data.
+    :param svd_dict_for_training_data:
+        [used only if transform_via_svd = True]
+        If learning phase is "training", this will not be used (SVD parameters
+        are created on the fly, from the training data themselves).  Otherwise,
+        this must be the dictionary created earlier for training data.
+    :return: transformed_input_table: Same as input_table, except that feature
+        columns may have been transformed by standardization or SVD.  All non-
+        feature columns are unchanged.  If SVD transformation was used,
+        feature names (ergo, column names) are different.
+    :return: transformed_feature_names: 1-D list with names of transformed
+        features (predictor variables).  Each transformed feature is a column of
+        transformed_input_table.
+    :return: replacement_dict_for_training_data:
+        [None if replace_missing = False]
+        See documentation for `feature_transformation.replace_missing_values`.
+        If learning phase is "training", this dictionary was just created on the
+        fly.  Otherwise, this is merely the input dictionary.
+    :return: standardization_dict_for_training_data:
+        [None if standardize = transform_via_svd = False]
+        See documentation for `feature_transformation.standardize_features`.  If
+        learning phase is "training", this dictionary was just created on the
+        fly.  Otherwise, this is merely the input dictionary.
+    :return: svd_dict_for_training_data: [None if transform_via_svd = False]
+        See documentation for `feature_transformation.perform_svd`.  If learning
+        phase is "training", this dictionary was just created on the fly.
+        Otherwise, this is merely the input dictionary.
+    """
+
+    # TODO(thunderhoser): allow subset of SVD-transformed features to be
+    # removed.
+
+    error_checking.assert_is_boolean(replace_missing)
+    error_checking.assert_is_boolean(standardize)
+    error_checking.assert_is_boolean(transform_via_svd)
+
+    # If no pre-processing, exit now.
+    if not (replace_missing or standardize or transform_via_svd):
+        return (input_table, feature_names, replacement_dict_for_training_data,
+                standardization_dict_for_training_data,
+                svd_dict_for_training_data)
+
+    _check_learning_phase(learning_phase)
+    _check_input_data_for_learning(
+        input_table=input_table, feature_names=feature_names, target_name=None)
+
+    if transform_via_svd:
+        if learning_phase == TRAINING_PHASE:
+            (standardization_dict_for_training_data,
+             svd_dict_for_training_data) = feature_trans.perform_svd(
+                 input_table[feature_names])
+
+        transformed_input_table = pandas.DataFrame(
+            feature_trans.transform_features_via_svd(
+                feature_table=input_table[feature_names],
+                standardization_dict=standardization_dict_for_training_data,
+                svd_dictionary=svd_dict_for_training_data))
+        transformed_input_table = _rename_svd_transformed_features(
+            transformed_input_table)
+
+    elif standardize:
+        if learning_phase == TRAINING_PHASE:
+            transformed_input_table, standardization_dict_for_training_data = (
+                feature_trans.standardize_features(
+                    feature_table=input_table[feature_names],
+                    standardization_dict=None))
+        else:
+            transformed_input_table, _ = feature_trans.standardize_features(
+                feature_table=input_table[feature_names],
+                standardization_dict=standardization_dict_for_training_data)
+
+    elif replace_missing:
+        if learning_phase == TRAINING_PHASE:
+            transformed_input_table, replacement_dict_for_training_data = (
+                feature_trans.replace_missing_values(
+                    feature_table=input_table[feature_names],
+                    replacement_method=replacement_method,
+                    replacement_dict=None))
+        else:
+            transformed_input_table, _ = feature_trans.replace_missing_values(
+                feature_table=input_table[feature_names],
+                replacement_dict=replacement_dict_for_training_data)
+
+    transformed_feature_names = list(transformed_input_table)
+    non_feature_columns = [
+        s for s in list(input_table) if s not in feature_names]
+    for this_column in non_feature_columns:
+        transformed_input_table[this_column] = input_table[this_column]
+
+    if transform_via_svd:
+        return (transformed_input_table, transformed_feature_names, None,
+                standardization_dict_for_training_data,
+                svd_dict_for_training_data)
+
+    if standardize:
+        return (transformed_input_table, transformed_feature_names, None,
+                standardization_dict_for_training_data, None)
+
+    return (transformed_input_table, transformed_feature_names,
+            replacement_dict_for_training_data, None, None)
+
+
+def _check_input_data_for_learning(
+        input_table, feature_names, target_name=None):
+    """Checks input data (to machine-learning model) for errors.
+
+    :param input_table: pandas DataFrame, where each row is one example (data
+        point).
+    :param feature_names: 1-D list with names of features (predictor variables).
+        Each feature must be a column of input_table.
+    :param target_name: Name of target variable (predictand).  Must be a column
+        of input_table.  All values must be 0 or 1.
+    """
+
     error_checking.assert_is_string_list(feature_names)
     error_checking.assert_is_numpy_array(
         numpy.array(feature_names), num_dimensions=1)
+
+    if target_name is None:
+        error_checking.assert_columns_in_dataframe(input_table, feature_names)
+        return
+
+    error_checking.assert_is_string(target_name)
     error_checking.assert_columns_in_dataframe(
-        training_table, feature_names + [target_name])
+        input_table, feature_names + [target_name])
+
+    target_values = input_table[target_name].values
+    error_checking.assert_is_integer_numpy_array(target_values)
+    error_checking.assert_is_geq_numpy_array(target_values, 0)
+    error_checking.assert_is_leq_numpy_array(target_values, 1)
 
 
 def _check_decision_tree_hyperparams(
@@ -112,7 +324,9 @@ def _check_decision_tree_hyperparams(
 
 
 def train_logistic_regression(
-        training_table, feature_names, target_name, fit_intercept,
+        training_table, feature_names, target_name, replace_missing,
+        standardize, transform_via_svd, fit_intercept,
+        replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
         convergence_tolerance=DEFAULT_CONVERGENCE_TOL_FOR_LOGISTIC,
         penalty_multiplier=DEFAULT_PENALTY_MULT_FOR_LOGISTIC,
         l1_weight=DEFAULT_L1_WEIGHT,
@@ -122,8 +336,12 @@ def train_logistic_regression(
     :param training_table: See documentation for _check_training_data.
     :param feature_names: See doc for _check_training_data.
     :param target_name: See doc for _check_training_data.
+    :param replace_missing: See documentation for _preprocess_data_for_learning.
+    :param standardize: See doc for _preprocess_data_for_learning.
+    :param transform_via_svd: See doc for _preprocess_data_for_learning.
     :param fit_intercept: Boolean flag.  If True, will fit the intercept (bias)
         coefficient.  If False, will assume intercept = 0.
+    :param replacement_method: See doc for _preprocess_data_for_learning.
     :param convergence_tolerance: Stopping criterion.  Training will stop when
         `loss > previous_loss - convergence_tolerance`.
     :param penalty_multiplier: Coefficient used to multiply L1 and L2 penalties
@@ -134,11 +352,21 @@ def train_logistic_regression(
         data).
     :return: model_object: Trained model (instance of
         `sklearn.linear_model.SGDClassifier`).
+    :return: replacement_dict: See doc for _preprocess_data_for_learning.
+    :return: standardization_dict: See doc for _preprocess_data_for_learning.
+    :return: svd_dictionary: See doc for _preprocess_data_for_learning.
     """
 
-    _check_training_data(
-        training_table=training_table, feature_names=feature_names,
+    _check_input_data_for_learning(
+        input_table=training_table, feature_names=feature_names,
         target_name=target_name)
+
+    (preprocessed_training_table, preprocessed_feature_names, replacement_dict,
+     standardization_dict, svd_dictionary) = _preprocess_data_for_learning(
+         input_table=training_table, feature_names=feature_names,
+         learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
+         standardize=standardize, transform_via_svd=transform_via_svd,
+         replacement_method=replacement_method)
 
     error_checking.assert_is_boolean(fit_intercept)
     error_checking.assert_is_greater(convergence_tolerance, 0.)
@@ -154,13 +382,16 @@ def train_logistic_regression(
         max_iter=max_num_epochs, tol=convergence_tolerance, verbose=1)
 
     model_object.fit(
-        training_table.as_matrix(columns=feature_names),
-        training_table[target_name].values)
-    return model_object
+        preprocessed_training_table.as_matrix(
+            columns=preprocessed_feature_names),
+        preprocessed_training_table[target_name].values)
+    return model_object, replacement_dict, standardization_dict, svd_dictionary
 
 
 def train_random_forest(
-        training_table, feature_names, target_name,
+        training_table, feature_names, target_name, replace_missing,
+        standardize, transform_via_svd,
+        replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
         num_trees=DEFAULT_NUM_TREES_FOR_RANDOM_FOREST,
         loss_function=DEFAULT_LOSS_FOR_RANDOM_FOREST,
         num_features_per_split=None,
@@ -172,6 +403,10 @@ def train_random_forest(
     :param training_table: See documentation for _check_training_data.
     :param feature_names: See doc for _check_training_data.
     :param target_name: See doc for _check_training_data.
+    :param replace_missing: See documentation for _preprocess_data_for_learning.
+    :param standardize: See doc for _preprocess_data_for_learning.
+    :param transform_via_svd: See doc for _preprocess_data_for_learning.
+    :param replacement_method: See doc for _preprocess_data_for_learning.
     :param num_trees: Number of trees in forest.
     :param loss_function: Loss function (either "entropy" or "gini").
     :param num_features_per_split: Number of features to investigate at each
@@ -183,13 +418,23 @@ def train_random_forest(
         a leaf node.  `None` defaults to 1.
     :return: model_object: Trained model (instance of
         `sklearn.ensemble.RandomForestClassifier`).
+    :return: replacement_dict: See doc for _preprocess_data_for_learning.
+    :return: standardization_dict: See doc for _preprocess_data_for_learning.
+    :return: svd_dictionary: See doc for _preprocess_data_for_learning.
     """
 
-    _check_training_data(
-        training_table=training_table, feature_names=feature_names,
+    _check_input_data_for_learning(
+        input_table=training_table, feature_names=feature_names,
         target_name=target_name)
-    num_features_total = len(feature_names)
 
+    (preprocessed_training_table, preprocessed_feature_names, replacement_dict,
+     standardization_dict, svd_dictionary) = _preprocess_data_for_learning(
+         input_table=training_table, feature_names=feature_names,
+         learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
+         standardize=standardize, transform_via_svd=transform_via_svd,
+         replacement_method=replacement_method)
+
+    num_features_total = len(preprocessed_feature_names)
     if num_features_per_split is None:
         num_features_per_split = int(
             numpy.round(numpy.sqrt(num_features_total)))
@@ -214,14 +459,18 @@ def train_random_forest(
         min_samples_leaf=min_examples_per_leaf, bootstrap=True, verbose=1)
 
     model_object.fit(
-        training_table.as_matrix(columns=feature_names),
-        training_table[target_name].values)
-    return model_object
+        preprocessed_training_table.as_matrix(
+            columns=preprocessed_feature_names),
+        preprocessed_training_table[target_name].values)
+    return model_object, replacement_dict, standardization_dict, svd_dictionary
 
 
 def train_gradient_boosted_trees(
-        training_table, feature_names, target_name,
-        num_trees=DEFAULT_NUM_TREES_FOR_GBT, loss_function=DEFAULT_LOSS_FOR_GBT,
+        training_table, feature_names, target_name, replace_missing,
+        standardize, transform_via_svd,
+        replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
+        num_trees=DEFAULT_NUM_TREES_FOR_GBT,
+        loss_function=DEFAULT_LOSS_FOR_GBT,
         learning_rate=DEFAULT_LEARNING_RATE_FOR_GBT,
         num_features_per_split=None, max_depth=DEFAULT_MAX_DEPTH_FOR_GBT,
         min_examples_per_split=DEFAULT_MIN_EXAMPLES_PER_GBT_SPLIT,
@@ -232,6 +481,10 @@ def train_gradient_boosted_trees(
     :param training_table: See documentation for _check_training_data.
     :param feature_names: See doc for _check_training_data.
     :param target_name: See doc for _check_training_data.
+    :param replace_missing: See documentation for _preprocess_data_for_learning.
+    :param standardize: See doc for _preprocess_data_for_learning.
+    :param transform_via_svd: See doc for _preprocess_data_for_learning.
+    :param replacement_method: See doc for _preprocess_data_for_learning.
     :param num_trees: Number of trees in ensemble.
     :param loss_function: Loss function (either "deviance" or "exponential").
     :param learning_rate: Learning rate (used to decrease the contribution of
@@ -247,13 +500,23 @@ def train_gradient_boosted_trees(
         tree.
     :return: model_object: Trained model (instance of
         `sklearn.ensemble.GradientBoostingClassifier`).
+    :return: replacement_dict: See doc for _preprocess_data_for_learning.
+    :return: standardization_dict: See doc for _preprocess_data_for_learning.
+    :return: svd_dictionary: See doc for _preprocess_data_for_learning.
     """
 
-    _check_training_data(
-        training_table=training_table, feature_names=feature_names,
+    _check_input_data_for_learning(
+        input_table=training_table, feature_names=feature_names,
         target_name=target_name)
-    num_features_total = len(feature_names)
 
+    (preprocessed_training_table, preprocessed_feature_names, replacement_dict,
+     standardization_dict, svd_dictionary) = _preprocess_data_for_learning(
+         input_table=training_table, feature_names=feature_names,
+         learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
+         standardize=standardize, transform_via_svd=transform_via_svd,
+         replacement_method=replacement_method)
+
+    num_features_total = len(preprocessed_feature_names)
     if num_features_per_split is None:
         num_features_per_split = num_features_total
     if min_examples_per_split is None:
@@ -275,13 +538,16 @@ def train_gradient_boosted_trees(
         max_features=num_features_per_split, verbose=1)
 
     model_object.fit(
-        training_table.as_matrix(columns=feature_names),
-        training_table[target_name].values)
-    return model_object
+        preprocessed_training_table.as_matrix(
+            columns=preprocessed_feature_names),
+        preprocessed_training_table[target_name].values)
+    return model_object, replacement_dict, standardization_dict, svd_dictionary
 
 
 def train_neural_net(
-        training_table, feature_names, target_name,
+        training_table, feature_names, target_name, replace_missing,
+        standardize, transform_via_svd,
+        replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
         hidden_layer_sizes=DEFAULT_HIDDEN_LAYER_SIZES_FOR_NN,
         hidden_layer_activation_function=DEFAULT_ACTIVATION_FUNCTION_FOR_NN,
         solver=DEFAULT_SOLVER_FOR_NN, l2_weight=DEFAULT_L2_WEIGHT_FOR_NN,
@@ -298,6 +564,10 @@ def train_neural_net(
     :param training_table: See documentation for _check_training_data.
     :param feature_names: See doc for _check_training_data.
     :param target_name: See doc for _check_training_data.
+    :param replace_missing: See documentation for _preprocess_data_for_learning.
+    :param standardize: See doc for _preprocess_data_for_learning.
+    :param transform_via_svd: See doc for _preprocess_data_for_learning.
+    :param replacement_method: See doc for _preprocess_data_for_learning.
     :param hidden_layer_sizes: length-H numpy array, where the [i]th element is
         the number of nodes in the [i]th hidden layer.
     :param hidden_layer_activation_function: Activation function for hidden
@@ -320,12 +590,22 @@ def train_neural_net(
         checking early-stopping criterion.
     :return: model_object: Trained model (instance of
         `sklearn.neural_network.MLPClassifier`).
+    :return: replacement_dict: See doc for _preprocess_data_for_learning.
+    :return: standardization_dict: See doc for _preprocess_data_for_learning.
+    :return: svd_dictionary: See doc for _preprocess_data_for_learning.
     :raises: ValueError: if `solver not in VALID_SOLVERS_FOR_NN`.
     """
 
-    _check_training_data(
-        training_table=training_table, feature_names=feature_names,
+    _check_input_data_for_learning(
+        input_table=training_table, feature_names=feature_names,
         target_name=target_name)
+
+    (preprocessed_training_table, preprocessed_feature_names, replacement_dict,
+     standardization_dict, svd_dictionary) = _preprocess_data_for_learning(
+         input_table=training_table, feature_names=feature_names,
+         learning_phase=TRAINING_PHASE, replace_missing=replace_missing,
+         standardize=standardize, transform_via_svd=transform_via_svd,
+         replacement_method=replacement_method)
 
     error_checking.assert_is_integer_numpy_array(hidden_layer_sizes)
     error_checking.assert_is_numpy_array(hidden_layer_sizes, num_dimensions=1)
@@ -361,6 +641,105 @@ def train_neural_net(
         validation_fraction=early_stopping_fraction)
 
     model_object.fit(
-        training_table.as_matrix(columns=feature_names),
-        training_table[target_name].values)
-    return model_object
+        preprocessed_training_table.as_matrix(
+            columns=preprocessed_feature_names),
+        preprocessed_training_table[target_name].values)
+    return model_object, replacement_dict, standardization_dict, svd_dictionary
+
+
+def apply_trained_model(
+        trained_model_object, input_table, feature_names, replace_missing,
+        standardize, transform_via_svd, replacement_dict_for_training_data=None,
+        standardization_dict_for_training_data=None,
+        svd_dict_for_training_data=None):
+    """Uses a trained model to make predictions for binary classification.
+
+    N = number of examples
+
+    :param trained_model_object: Trained instance of scikit-learn model.  Must
+        implement the method `predict_proba`.
+    :param input_table: N-row pandas DataFrame, where each row is one example
+        (data point).
+    :param feature_names: 1-D list with names of features (predictor variables).
+        Each feature must be a column of input_table.
+    :param replace_missing: See documentation for _preprocess_data_for_learning.
+    :param standardize: See doc for _preprocess_data_for_learning.
+    :param transform_via_svd: See doc for _preprocess_data_for_learning.
+    :param replacement_dict_for_training_data: See doc for
+        _preprocess_data_for_learning.
+    :param standardization_dict_for_training_data: See doc for
+        _preprocess_data_for_learning.
+    :param svd_dict_for_training_data: See doc for
+        _preprocess_data_for_learning.
+    :return: forecast_probabilities: length-N numpy array of forecast
+        probabilities.  The [i]th value is the forecast probability of an event
+        (class = 1 rather than 0) for the [i]th example.
+    """
+
+    _check_input_data_for_learning(
+        input_table=input_table, feature_names=feature_names, target_name=None)
+
+    preprocessed_input_table, preprocessed_feature_names, _, _, _ = (
+        _preprocess_data_for_learning(
+            input_table=input_table, feature_names=feature_names,
+            learning_phase=TESTING_PHASE, replace_missing=replace_missing,
+            standardize=standardize, transform_via_svd=transform_via_svd,
+            replacement_dict_for_training_data=
+            replacement_dict_for_training_data,
+            standardization_dict_for_training_data=
+            standardization_dict_for_training_data,
+            svd_dict_for_training_data=svd_dict_for_training_data))
+
+    return trained_model_object.predict_proba(
+        preprocessed_input_table.as_matrix(
+            columns=preprocessed_feature_names))[:, 1]
+
+
+def create_forecast_observation_table(
+        trained_model_object, input_table, feature_names, target_name,
+        replace_missing, standardize, transform_via_svd,
+        replacement_dict_for_training_data=None,
+        standardization_dict_for_training_data=None,
+        svd_dict_for_training_data=None):
+    """Matches predictions with true labels for binary classification.
+
+    N = number of examples
+
+    :param trained_model_object: Trained instance of scikit-learn model.  Must
+        implement the method `predict_proba`.
+    :param input_table: N-row pandas DataFrame, where each row is one example
+        (data point).
+    :param feature_names: 1-D list with names of features (predictor variables).
+        Each feature must be a column of input_table.
+    :param target_name: Name of target variable (predictand).  Must be a column
+        of input_table.
+    :param replace_missing: See documentation for _preprocess_data_for_learning.
+    :param standardize: See doc for _preprocess_data_for_learning.
+    :param transform_via_svd: See doc for _preprocess_data_for_learning.
+    :param replacement_dict_for_training_data: See doc for
+        _preprocess_data_for_learning.
+    :param standardization_dict_for_training_data: See doc for
+        _preprocess_data_for_learning.
+    :param svd_dict_for_training_data: See doc for
+        _preprocess_data_for_learning.
+    :return: forecast_observation_table: N-row pandas DataFrame, where each row
+        is one example (data point).  Columns are listed below.
+    forecast_observation_table.forecast_probability: Forecast probability of an
+        event (class = 1 rather than 0).
+    forecast_observation_table.observed_class: Observed class (0 for non-event,
+        1 for event).
+    """
+
+    forecast_probabilities = apply_trained_model(
+        trained_model_object=trained_model_object, input_table=input_table,
+        feature_names=feature_names, replace_missing=replace_missing,
+        standardize=standardize, transform_via_svd=transform_via_svd,
+        replacement_dict_for_training_data=replacement_dict_for_training_data,
+        standardization_dict_for_training_data=
+        standardization_dict_for_training_data,
+        svd_dict_for_training_data=svd_dict_for_training_data)
+
+    forecast_observation_dict = {
+        FORECAST_PROBABILITY_COLUMN: forecast_probabilities,
+        OBSERVED_CLASS_COLUMN: input_table[target_name].values}
+    return pandas.DataFrame.from_dict(forecast_observation_dict)
