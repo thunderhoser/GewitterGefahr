@@ -96,9 +96,13 @@ OUTPUT_COLUMNS_FOR_THEA = [
     tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
     VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 
+TRACK_LIFETIMES_KEY = 'track_lifetimes_sec'
+LINEARITY_ERROR_BY_TRACK_KEY = 'centroid_rmse_by_track_metres'
+MISMATCH_ERROR_BY_TRACK_KEY = 'temporal_stdev_of_spatial_median_by_storm_track'
+RADAR_FIELD_FOR_EVAL_KEY = 'radar_field_for_evaluation'
 MEDIAN_LIFETIME_KEY = 'median_lifetime_sec'
-LINEARITY_ERROR_KEY = 'mean_centroid_rmse_for_long_tracks_metres'
-MISMATCH_ERROR_KEY = 'mean_stdev_of_field_for_long_tracks'
+MEAN_LINEARITY_ERROR_KEY = 'mean_centroid_rmse_for_long_tracks_metres'
+MEAN_MISMATCH_ERROR_KEY = 'mean_stdev_of_field_for_long_tracks'
 MAX_CENTROID_RMSE_METRES = 1e5
 
 
@@ -1535,6 +1539,7 @@ def evaluate_tracks(
         top_radar_directory_name, radar_field_for_evaluation):
     """Evaluates a set of storm tracks, using methods in Lakshmanan/Smith 2010.
 
+    N = number of storm tracks
     P = number of grid points in a given storm object
 
     :param storm_object_table: pandas DataFrame created by
@@ -1551,15 +1556,24 @@ def evaluate_tracks(
         (vertically integrated liquid), as in Lakshmanan/Smith 2010.  If data
         source is GridRad, this defaults to composite (column-max) reflectivity.
     :return: evaluation_dict: Dictionary with the following keys.
+    evaluation_dict['track_lifetimes_sec']: length-N numpy array of track
+        lifetimes.
+    evaluation_dict['centroid_rmse_by_track_metres']: length-N numpy array,
+        where [i]th element is RMSE of centroid positions predicted by Theil-Sen
+        fit for [i]th storm track.
+    evaluation_dict['temporal_stdev_of_spatial_median_by_storm_track']: length-N
+        numpy array, where [i]th element is temporal standard deviation of
+        spatial median of `radar_field_for_evaluation` inside the storm cell.
+    evaluation_dict['radar_field_for_evaluation']: Same as input argument.
     evaluation_dict['median_lifetime_sec']: Median lifetime of all storm tracks.
-    evaluation_dict['mean_centroid_rmse_for_long_tracks_metres']: Mean, over all
-        tracks with lifetime >= `median_lifetime_sec`, of RMSE of centroid
-        positions predicted by Theil-Sen fit.  This is the "linearity error" in
+    evaluation_dict['mean_centroid_rmse_for_long_tracks_metres']: Mean
+        'centroid_rmse_by_track_metres' for storm tracks with lifetime >=
+        'median_lifetime_sec'.  This is the "linearity error" in
         Lakshmanan/Smith 2010.
-    evaluation_dict['mean_stdev_of_field_for_long_tracks']: Mean, over all
-        tracks with lifetime >= `median_lifetime_sec`, of temporal standard
-        deviation of spatial median of `radar_field_for_evaluation` inside storm
-        cell.  This is the "mismatch error" in Lakshmanan/Smith 2010.
+    evaluation_dict['mean_stdev_of_field_for_long_tracks']: Mean
+        'temporal_stdev_of_spatial_median_by_storm_track' for storm tracks with
+        lifetime >= 'median_lifetime_sec'.  This is the "mismatch error" in
+        Lakshmanan/Smith 2010.
     """
 
     storm_object_table = _project_storm_centroids_latlng_to_xy(
@@ -1573,15 +1587,14 @@ def evaluate_tracks(
         storm_track_table[TRACK_START_TIME_COLUMN].values).astype(float)
     median_lifetime_sec = numpy.median(
         track_lifetimes_sec[track_lifetimes_sec != 0])
+    long_track_indices = numpy.where(
+        track_lifetimes_sec >= median_lifetime_sec)[0]
 
     # Compute linearity error.
     num_tracks = len(storm_track_table.index)
     centroid_rmse_by_track_metres = numpy.full(num_tracks, numpy.nan)
 
     for i in range(num_tracks):
-        if track_lifetimes_sec[i] < median_lifetime_sec:
-            continue
-
         centroid_rmse_by_track_metres[i] = _get_theil_sen_rmse(
             theil_sen_model_for_x=
             storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[i],
@@ -1595,7 +1608,7 @@ def evaluate_tracks(
     centroid_rmse_by_track_metres[
         centroid_rmse_by_track_metres > MAX_CENTROID_RMSE_METRES] = numpy.nan
     mean_centroid_rmse_for_long_tracks_metres = numpy.nanmean(
-        centroid_rmse_by_track_metres)
+        centroid_rmse_by_track_metres[long_track_indices])
 
     # Compute mismatch error.
     storm_object_statistic_table = radar_stats.get_stats_for_storm_objects(
@@ -1609,13 +1622,10 @@ def evaluate_tracks(
         radar_field_name=radar_field_for_evaluation, percentile_level=50.)
     spatial_median_by_storm_object = storm_object_statistic_table[
         median_column_name]
-
     temporal_stdev_of_spatial_median_by_storm_track = numpy.full(
         num_tracks, numpy.nan)
-    for i in range(num_tracks):
-        if track_lifetimes_sec[i] < median_lifetime_sec:
-            continue
 
+    for i in range(num_tracks):
         these_object_indices = storm_track_table[
             OBJECT_INDICES_COLUMN_FOR_TRACK].values[i]
         if len(these_object_indices) < 2:
@@ -1625,10 +1635,15 @@ def evaluate_tracks(
             spatial_median_by_storm_object[these_object_indices], ddof=1)
 
     mean_stdev_of_field_for_long_tracks = numpy.nanmean(
-        temporal_stdev_of_spatial_median_by_storm_track)
+        temporal_stdev_of_spatial_median_by_storm_track[long_track_indices])
 
     return {
+        TRACK_LIFETIMES_KEY: track_lifetimes_sec,
+        LINEARITY_ERROR_BY_TRACK_KEY: centroid_rmse_by_track_metres,
+        MISMATCH_ERROR_BY_TRACK_KEY:
+            temporal_stdev_of_spatial_median_by_storm_track,
+        RADAR_FIELD_FOR_EVAL_KEY: radar_field_for_evaluation,
         MEDIAN_LIFETIME_KEY: median_lifetime_sec,
-        LINEARITY_ERROR_KEY: mean_centroid_rmse_for_long_tracks_metres,
-        MISMATCH_ERROR_KEY: mean_stdev_of_field_for_long_tracks
+        MEAN_LINEARITY_ERROR_KEY: mean_centroid_rmse_for_long_tracks_metres,
+        MEAN_MISMATCH_ERROR_KEY: mean_stdev_of_field_for_long_tracks
     }
