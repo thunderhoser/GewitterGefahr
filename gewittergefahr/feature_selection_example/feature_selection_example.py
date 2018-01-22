@@ -8,6 +8,8 @@ PDF in the same directory as this module.
 import os.path
 import numpy
 import pandas
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 import sklearn.neural_network
 from gewittergefahr.gg_utils import feature_selection

@@ -1,6 +1,8 @@
 """Helper methods for geographic maps."""
 
 import numpy
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
 from mpl_toolkits.basemap import Basemap

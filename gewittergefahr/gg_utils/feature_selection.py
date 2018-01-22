@@ -19,6 +19,8 @@ import numpy
 import pandas
 import sklearn.base
 import sklearn.metrics
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import error_checking

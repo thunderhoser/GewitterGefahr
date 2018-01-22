@@ -13,6 +13,8 @@ Hsu, W., and A. Murphy, 1986: "The attributes diagram: A geometrical framework
 
 import numpy
 from descartes import PolygonPatch
+import matplotlib
+matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
 from gewittergefahr.gg_utils import model_evaluation as model_eval
