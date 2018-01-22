@@ -99,6 +99,7 @@ OUTPUT_COLUMNS_FOR_THEA = [
 MEDIAN_LIFETIME_KEY = 'median_lifetime_sec'
 LINEARITY_ERROR_KEY = 'mean_centroid_rmse_for_long_tracks_metres'
 MISMATCH_ERROR_KEY = 'mean_stdev_of_field_for_long_tracks'
+MAX_CENTROID_RMSE_METRES = 1e5
 
 
 def _project_storm_centroids_latlng_to_xy(storm_object_table):
@@ -1590,9 +1591,9 @@ def evaluate_tracks(
             storm_track_table[TRACK_TIMES_COLUMN].values[i],
             track_x_metres=storm_track_table[TRACK_X_COORDS_COLUMN].values[i],
             track_y_metres=storm_track_table[TRACK_Y_COORDS_COLUMN].values[i])
-        if centroid_rmse_by_track_metres[i] > 50000:
-            print centroid_rmse_by_track_metres[i]
 
+    centroid_rmse_by_track_metres[
+        centroid_rmse_by_track_metres > MAX_CENTROID_RMSE_METRES] = numpy.nan
     mean_centroid_rmse_for_long_tracks_metres = numpy.nanmean(
         centroid_rmse_by_track_metres)
     print mean_centroid_rmse_for_long_tracks_metres
