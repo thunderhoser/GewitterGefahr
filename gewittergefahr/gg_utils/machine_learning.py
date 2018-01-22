@@ -12,13 +12,17 @@ Currently this module does binary classification only.
 
 import numpy
 import pandas
-import sklearn
+import sklearn.linear_model
+import sklearn.ensemble
+import sklearn.neural_network
 from gewittergefahr.gg_utils import feature_transformation as feature_trans
 from gewittergefahr.gg_utils import error_checking
 
+DEFAULT_EXP_VARIANCE_FRACTION_FOR_SVD = 0.85
+
 DEFAULT_PENALTY_MULT_FOR_LOGISTIC = 1e-4
 DEFAULT_L1_WEIGHT = 0.5
-DEFAULT_MAX_NUM_EPOCHS_FOR_LOGISTIC = 10
+DEFAULT_MAX_NUM_EPOCHS_FOR_LOGISTIC = 100
 DEFAULT_CONVERGENCE_TOL_FOR_LOGISTIC = 1e-4
 
 DEFAULT_NUM_TREES_FOR_RANDOM_FOREST = 500
@@ -96,7 +100,8 @@ def _rename_svd_transformed_features(transformed_input_table):
 def _preprocess_data_for_learning(
         input_table, feature_names, learning_phase, replace_missing,
         standardize, transform_via_svd,
-        fraction_of_explained_variance_for_svd=1.,
+        fraction_of_explained_variance_for_svd=
+        DEFAULT_EXP_VARIANCE_FRACTION_FOR_SVD,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
         replacement_dict_for_training_data=None,
         standardization_dict_for_training_data=None,
@@ -239,7 +244,8 @@ def _preprocess_data_for_learning(
     non_feature_columns = [
         s for s in list(input_table) if s not in feature_names]
     for this_column in non_feature_columns:
-        transformed_input_table[this_column] = input_table[this_column]
+        transformed_input_table = transformed_input_table.assign(
+            **{this_column: input_table[this_column].values})
 
     if transform_via_svd:
         return (transformed_input_table, transformed_feature_names, None,
@@ -315,8 +321,10 @@ def _check_decision_tree_hyperparams(
     error_checking.assert_is_greater(num_features_per_split, 0)
     error_checking.assert_is_leq(num_features_per_split, num_features_total)
 
-    error_checking.assert_is_integer(max_depth)
-    error_checking.assert_is_greater(max_depth, 0)
+    if max_depth is not None:
+        error_checking.assert_is_integer(max_depth)
+        error_checking.assert_is_greater(max_depth, 0)
+
     error_checking.assert_is_integer(min_examples_per_split)
     error_checking.assert_is_greater(min_examples_per_split, 1)
     error_checking.assert_is_integer(min_examples_per_leaf)
@@ -335,7 +343,8 @@ def train_logistic_regression(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd, fit_intercept,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
-        fraction_of_explained_variance_for_svd=1.,
+        fraction_of_explained_variance_for_svd=
+        DEFAULT_EXP_VARIANCE_FRACTION_FOR_SVD,
         convergence_tolerance=DEFAULT_CONVERGENCE_TOL_FOR_LOGISTIC,
         penalty_multiplier=DEFAULT_PENALTY_MULT_FOR_LOGISTIC,
         l1_weight=DEFAULT_L1_WEIGHT,
@@ -391,8 +400,13 @@ def train_logistic_regression(
 
     model_object = sklearn.linear_model.SGDClassifier(
         loss='log', penalty='elasticnet', alpha=penalty_multiplier,
-        l1_ratio=l1_weight, fit_intercept=fit_intercept,
-        max_iter=max_num_epochs, tol=convergence_tolerance, verbose=1)
+        l1_ratio=l1_weight, fit_intercept=fit_intercept, verbose=1,
+        n_iter=max_num_epochs)
+
+    # model_object = sklearn.linear_model.SGDClassifier(
+    #     loss='log', penalty='elasticnet', alpha=penalty_multiplier,
+    #     l1_ratio=l1_weight, fit_intercept=fit_intercept,
+    #     max_iter=max_num_epochs, tol=convergence_tolerance, verbose=1)
 
     model_object.fit(
         preprocessed_training_table.as_matrix(
@@ -405,7 +419,8 @@ def train_random_forest(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
-        fraction_of_explained_variance_for_svd=1.,
+        fraction_of_explained_variance_for_svd=
+        DEFAULT_EXP_VARIANCE_FRACTION_FOR_SVD,
         num_trees=DEFAULT_NUM_TREES_FOR_RANDOM_FOREST,
         loss_function=DEFAULT_LOSS_FOR_RANDOM_FOREST,
         num_features_per_split=None,
@@ -487,7 +502,8 @@ def train_gradient_boosted_trees(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
-        fraction_of_explained_variance_for_svd=1.,
+        fraction_of_explained_variance_for_svd=
+        DEFAULT_EXP_VARIANCE_FRACTION_FOR_SVD,
         num_trees=DEFAULT_NUM_TREES_FOR_GBT,
         loss_function=DEFAULT_LOSS_FOR_GBT,
         learning_rate=DEFAULT_LEARNING_RATE_FOR_GBT,
@@ -571,7 +587,8 @@ def train_neural_net(
         training_table, feature_names, target_name, replace_missing,
         standardize, transform_via_svd,
         replacement_method=feature_trans.MEAN_VALUE_REPLACEMENT_METHOD,
-        fraction_of_explained_variance_for_svd=1.,
+        fraction_of_explained_variance_for_svd=
+        DEFAULT_EXP_VARIANCE_FRACTION_FOR_SVD,
         hidden_layer_sizes=DEFAULT_HIDDEN_LAYER_SIZES_FOR_NN,
         hidden_layer_activation_function=DEFAULT_ACTIVATION_FUNCTION_FOR_NN,
         solver=DEFAULT_SOLVER_FOR_NN, l2_weight=DEFAULT_L2_WEIGHT_FOR_NN,
