@@ -202,123 +202,123 @@ if __name__ == '__main__':
     TRAINING_TABLE, VALIDATION_TABLE, TESTING_TABLE = (
         _split_training_validation_testing(INPUT_TABLE))
 
-    # # Sequential forward selection.
-    # SFS_DICTIONARY = feature_selection.sequential_forward_selection(
-    #     training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
-    #     testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
-    #     target_name=LABEL_COLUMN,
-    #     estimator_object=sklearn.neural_network.MLPClassifier(),
-    #     num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
-    # _print_forward_selection_results(SFS_DICTIONARY)
-    #
-    # SFS_IMAGE_FILE_NAME = '{0:s}/sfs_results.jpg'.format(WORKING_DIRECTORY_NAME)
-    # print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-    #     SFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
-    #
-    # feature_selection.plot_forward_selection_results(
-    #     SFS_DICTIONARY, plot_feature_names=True)
-    # pyplot.savefig(SFS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
-    # pyplot.close()
-    #
-    # # Sequential forward selection with backward steps.
-    # SFS_WITH_BACKWARD_STEPS_DICT = feature_selection.sfs_with_backward_steps(
-    #     training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
-    #     testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
-    #     target_name=LABEL_COLUMN,
-    #     estimator_object=sklearn.neural_network.MLPClassifier(),
-    #     num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
-    #     num_features_to_remove_per_backward_step=
-    #     NUM_FEATURES_TO_REMOVE_PER_STEP)
-    # _print_forward_selection_results(SFS_WITH_BACKWARD_STEPS_DICT)
-    #
-    # SFS_BACKWARD_IMAGE_FILE_NAME = (
-    #     '{0:s}/sfs_with_backward_steps_results.jpg'.format(
-    #         WORKING_DIRECTORY_NAME))
-    # print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-    #     SFS_BACKWARD_IMAGE_FILE_NAME, SEPARATOR_STRING)
-    #
-    # feature_selection.plot_forward_selection_results(
-    #     SFS_WITH_BACKWARD_STEPS_DICT, plot_feature_names=True)
-    # pyplot.savefig(SFS_BACKWARD_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
-    # pyplot.close()
-    #
-    # # Sequential forward floating selection.
-    # SFFS_DICTIONARY = feature_selection.floating_sfs(
-    #     training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
-    #     testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
-    #     target_name=LABEL_COLUMN,
-    #     estimator_object=sklearn.neural_network.MLPClassifier(),
-    #     num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
-    # _print_forward_selection_results(SFFS_DICTIONARY)
-    #
-    # SFFS_IMAGE_FILE_NAME = '{0:s}/sffs_results.jpg'.format(
-    #     WORKING_DIRECTORY_NAME)
-    # print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-    #     SFFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
-    #
-    # feature_selection.plot_forward_selection_results(
-    #     SFFS_DICTIONARY, plot_feature_names=True)
-    # pyplot.savefig(SFFS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
-    # pyplot.close()
-    #
-    # # Sequential backward selection.
-    # SBS_DICTIONARY = feature_selection.sequential_backward_selection(
-    #     training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
-    #     testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
-    #     target_name=LABEL_COLUMN,
-    #     estimator_object=sklearn.neural_network.MLPClassifier(),
-    #     num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
-    # _print_backward_selection_results(SBS_DICTIONARY)
-    #
-    # SBS_IMAGE_FILE_NAME = '{0:s}/sbs_results.jpg'.format(WORKING_DIRECTORY_NAME)
-    # print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-    #     SBS_IMAGE_FILE_NAME, SEPARATOR_STRING)
-    #
-    # feature_selection.plot_backward_selection_results(
-    #     SBS_DICTIONARY, plot_feature_names=True)
-    # pyplot.savefig(SBS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
-    # pyplot.close()
-    #
-    # # Sequential backward selection with forward steps.
-    # SBS_WITH_FORWARD_STEPS_DICT = feature_selection.sbs_with_forward_steps(
-    #     training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
-    #     testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
-    #     target_name=LABEL_COLUMN,
-    #     estimator_object=sklearn.neural_network.MLPClassifier(),
-    #     num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
-    #     num_features_to_remove_per_backward_step=
-    #     NUM_FEATURES_TO_REMOVE_PER_STEP)
-    # _print_backward_selection_results(SBS_WITH_FORWARD_STEPS_DICT)
-    #
-    # SBS_FORWARD_IMAGE_FILE_NAME = (
-    #     '{0:s}/sbs_with_forward_steps_results.jpg'.format(
-    #         WORKING_DIRECTORY_NAME))
-    # print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-    #     SBS_FORWARD_IMAGE_FILE_NAME, SEPARATOR_STRING)
-    #
-    # feature_selection.plot_backward_selection_results(
-    #     SBS_WITH_FORWARD_STEPS_DICT, plot_feature_names=True)
-    # pyplot.savefig(SBS_FORWARD_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
-    # pyplot.close()
-    #
-    # # Sequential backward floating selection.
-    # SBFS_DICTIONARY = feature_selection.floating_sbs(
-    #     training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
-    #     testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
-    #     target_name=LABEL_COLUMN,
-    #     estimator_object=sklearn.neural_network.MLPClassifier(),
-    #     num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
-    # _print_backward_selection_results(SBFS_DICTIONARY)
-    #
-    # SBFS_IMAGE_FILE_NAME = '{0:s}/sbfs_results.jpg'.format(
-    #     WORKING_DIRECTORY_NAME)
-    # print 'Saving bar graph to "{0:s}"...{1:s}'.format(
-    #     SBFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
-    #
-    # feature_selection.plot_backward_selection_results(
-    #     SBFS_DICTIONARY, plot_feature_names=True)
-    # pyplot.savefig(SBFS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
-    # pyplot.close()
+    # Sequential forward selection.
+    SFS_DICTIONARY = feature_selection.sequential_forward_selection(
+        training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
+        testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
+        target_name=LABEL_COLUMN,
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
+    _print_forward_selection_results(SFS_DICTIONARY)
+
+    SFS_IMAGE_FILE_NAME = '{0:s}/sfs_results.jpg'.format(WORKING_DIRECTORY_NAME)
+    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
+        SFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+
+    feature_selection.plot_forward_selection_results(
+        SFS_DICTIONARY, plot_feature_names=True)
+    pyplot.savefig(SFS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    # Sequential forward selection with backward steps.
+    SFS_WITH_BACKWARD_STEPS_DICT = feature_selection.sfs_with_backward_steps(
+        training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
+        testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
+        target_name=LABEL_COLUMN,
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
+        num_features_to_remove_per_backward_step=
+        NUM_FEATURES_TO_REMOVE_PER_STEP)
+    _print_forward_selection_results(SFS_WITH_BACKWARD_STEPS_DICT)
+
+    SFS_BACKWARD_IMAGE_FILE_NAME = (
+        '{0:s}/sfs_with_backward_steps_results.jpg'.format(
+            WORKING_DIRECTORY_NAME))
+    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
+        SFS_BACKWARD_IMAGE_FILE_NAME, SEPARATOR_STRING)
+
+    feature_selection.plot_forward_selection_results(
+        SFS_WITH_BACKWARD_STEPS_DICT, plot_feature_names=True)
+    pyplot.savefig(SFS_BACKWARD_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    # Sequential forward floating selection.
+    SFFS_DICTIONARY = feature_selection.floating_sfs(
+        training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
+        testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
+        target_name=LABEL_COLUMN,
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_step=NUM_FEATURES_TO_ADD_PER_STEP)
+    _print_forward_selection_results(SFFS_DICTIONARY)
+
+    SFFS_IMAGE_FILE_NAME = '{0:s}/sffs_results.jpg'.format(
+        WORKING_DIRECTORY_NAME)
+    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
+        SFFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+
+    feature_selection.plot_forward_selection_results(
+        SFFS_DICTIONARY, plot_feature_names=True)
+    pyplot.savefig(SFFS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    # Sequential backward selection.
+    SBS_DICTIONARY = feature_selection.sequential_backward_selection(
+        training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
+        testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
+        target_name=LABEL_COLUMN,
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
+    _print_backward_selection_results(SBS_DICTIONARY)
+
+    SBS_IMAGE_FILE_NAME = '{0:s}/sbs_results.jpg'.format(WORKING_DIRECTORY_NAME)
+    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
+        SBS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+
+    feature_selection.plot_backward_selection_results(
+        SBS_DICTIONARY, plot_feature_names=True)
+    pyplot.savefig(SBS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    # Sequential backward selection with forward steps.
+    SBS_WITH_FORWARD_STEPS_DICT = feature_selection.sbs_with_forward_steps(
+        training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
+        testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
+        target_name=LABEL_COLUMN,
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_add_per_forward_step=NUM_FEATURES_TO_ADD_PER_STEP,
+        num_features_to_remove_per_backward_step=
+        NUM_FEATURES_TO_REMOVE_PER_STEP)
+    _print_backward_selection_results(SBS_WITH_FORWARD_STEPS_DICT)
+
+    SBS_FORWARD_IMAGE_FILE_NAME = (
+        '{0:s}/sbs_with_forward_steps_results.jpg'.format(
+            WORKING_DIRECTORY_NAME))
+    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
+        SBS_FORWARD_IMAGE_FILE_NAME, SEPARATOR_STRING)
+
+    feature_selection.plot_backward_selection_results(
+        SBS_WITH_FORWARD_STEPS_DICT, plot_feature_names=True)
+    pyplot.savefig(SBS_FORWARD_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    # Sequential backward floating selection.
+    SBFS_DICTIONARY = feature_selection.floating_sbs(
+        training_table=TRAINING_TABLE, validation_table=VALIDATION_TABLE,
+        testing_table=TESTING_TABLE, feature_names=FEATURE_COLUMNS,
+        target_name=LABEL_COLUMN,
+        estimator_object=sklearn.neural_network.MLPClassifier(),
+        num_features_to_remove_per_step=NUM_FEATURES_TO_REMOVE_PER_STEP)
+    _print_backward_selection_results(SBFS_DICTIONARY)
+
+    SBFS_IMAGE_FILE_NAME = '{0:s}/sbfs_results.jpg'.format(
+        WORKING_DIRECTORY_NAME)
+    print 'Saving bar graph to "{0:s}"...{1:s}'.format(
+        SBFS_IMAGE_FILE_NAME, SEPARATOR_STRING)
+
+    feature_selection.plot_backward_selection_results(
+        SBFS_DICTIONARY, plot_feature_names=True)
+    pyplot.savefig(SBFS_IMAGE_FILE_NAME, dpi=DOTS_PER_INCH)
+    pyplot.close()
 
     # Permutation selection (actually importance-ranking, because permutation
     # does not explicitly select variables).
