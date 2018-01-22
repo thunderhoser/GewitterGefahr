@@ -18,6 +18,7 @@ import copy
 import numpy
 import sklearn.metrics
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import error_checking
@@ -247,12 +248,9 @@ def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
         bin.
     """
 
-    error_checking.assert_is_integer(num_bins)
-    error_checking.assert_is_geq(num_bins, 2)
-
-    bin_cutoffs = numpy.linspace(0., 1., num=num_bins + 1)
-    bin_cutoffs[-1] = bin_cutoffs[-1] + TOLERANCE
-    return numpy.digitize(forecast_probabilities, bin_cutoffs, right=False) - 1
+    return histograms.create_histogram(
+        input_values=forecast_probabilities, num_bins=num_bins, min_value=0.,
+        max_value=1.)
 
 
 def get_contingency_table(forecast_labels, observed_labels):
