@@ -1596,7 +1596,6 @@ def evaluate_tracks(
         centroid_rmse_by_track_metres > MAX_CENTROID_RMSE_METRES] = numpy.nan
     mean_centroid_rmse_for_long_tracks_metres = numpy.nanmean(
         centroid_rmse_by_track_metres)
-    print mean_centroid_rmse_for_long_tracks_metres
 
     # Compute mismatch error.
     storm_object_statistic_table = radar_stats.get_stats_for_storm_objects(
