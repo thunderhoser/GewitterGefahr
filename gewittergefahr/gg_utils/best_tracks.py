@@ -9,6 +9,10 @@ For the w2besttrack paper, see Lakshmanan et al. (2015).
 
 --- REFERENCES ---
 
+Lakshmanan, V., and T. Smith, 2010: "An objective method of evaluating and
+    devising storm-tracking algorithms". Weather and Forecasting, 25 (2),
+    701-709.
+
 Lakshmanan, V., B. Herzog, and D. Kingfield, 2015: "A method for extracting
     post-event storm tracks". Journal of Applied Meteorology and Climatology,
     54 (2), 451-462.
@@ -21,6 +25,7 @@ from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -61,19 +66,28 @@ FILE_INDEX_COLUMN = 'file_index'
 
 INPUT_COLUMNS_TO_KEEP = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN]
+    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
+    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN,
+    tracking_utils.GRID_POINT_ROW_COLUMN,
+    tracking_utils.GRID_POINT_COLUMN_COLUMN]
 COLUMNS_TO_MERGE_ON = [
     tracking_utils.ORIG_STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 OUTPUT_COLUMNS_FROM_BEST_TRACK = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.ORIG_STORM_ID_COLUMN,
     tracking_utils.TIME_COLUMN, tracking_utils.AGE_COLUMN,
     tracking_utils.TRACKING_START_TIME_COLUMN,
-    tracking_utils.TRACKING_END_TIME_COLUMN]
+    tracking_utils.TRACKING_END_TIME_COLUMN,
+    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN,
+    tracking_utils.GRID_POINT_ROW_COLUMN,
+    tracking_utils.GRID_POINT_COLUMN_COLUMN]
 
 EMPTY_TRACK_AGE_SEC = -1
-ATTRIBUTES_TO_RECOMPUTE = [
+ATTRIBUTES_TO_OVERWRITE = [
     tracking_utils.AGE_COLUMN, tracking_utils.TRACKING_START_TIME_COLUMN,
-    tracking_utils.TRACKING_END_TIME_COLUMN]
+    tracking_utils.TRACKING_END_TIME_COLUMN,
+    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN,
+    tracking_utils.GRID_POINT_ROW_COLUMN,
+    tracking_utils.GRID_POINT_COLUMN_COLUMN]
 
 VERTEX_LATITUDES_COLUMN = 'polygon_vertex_latitudes_deg'
 VERTEX_LONGITUDES_COLUMN = 'polygon_vertex_longitudes_deg'
@@ -81,6 +95,40 @@ OUTPUT_COLUMNS_FOR_THEA = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
     tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
     VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
+
+
+def _project_storm_centroids_latlng_to_xy(storm_object_table):
+    """Projects storm centroids from lat-long to x-y coordinates.
+
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+
+    :return: storm_object_table: Same as input, except that "centroid_lat_deg"
+        and "centroid_lng_deg" are replaced by the following.
+    storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
+    """
+
+    global_centroid_lat_deg, global_centroid_lng_deg = (
+        geodetic_utils.get_latlng_centroid(
+            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
+            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values))
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        global_centroid_lat_deg, global_centroid_lng_deg)
+    x_centroids_metres, y_centroids_metres = projections.project_latlng_to_xy(
+        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
+        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values,
+        projection_object=projection_object, false_easting_metres=0.,
+        false_northing_metres=0.)
+
+    argument_dict = {CENTROID_X_COLUMN: x_centroids_metres,
+                     CENTROID_Y_COLUMN: y_centroids_metres}
+    storm_object_table = storm_object_table.assign(**argument_dict)
+    return storm_object_table.drop(
+        [tracking_utils.CENTROID_LAT_COLUMN,
+         tracking_utils.CENTROID_LNG_COLUMN], axis=1, inplace=False)
 
 
 def _theil_sen_fit(
@@ -135,6 +183,44 @@ def _theil_sen_predict(theil_sen_model_for_x=None, theil_sen_model_for_y=None,
     return x_predicted_metres, y_predicted_metres
 
 
+def _get_theil_sen_rmse(
+        theil_sen_model_for_x, theil_sen_model_for_y, track_times_unix_sec,
+        track_x_metres, track_y_metres):
+    """For a single track, finds RMSE of Theil-Sen-predicted centroid locations.
+
+    RMSE = root mean squared error
+    P = number of points in track
+
+    :param theil_sen_model_for_x: Instance of
+        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
+        and predictand is x-coordinate.
+    :param theil_sen_model_for_y: Instance of
+        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
+        and predictand is y-coordinate.
+    :param track_times_unix_sec: length-P numpy array of valid times.
+    :param track_x_metres: length-P numpy array with x-coordinates of object
+        centroids.
+    :param track_y_metres: length-P numpy array with y-coordinates of object
+        centroids.
+    :return: rmse_metres: RMSE of predicted centroid locations from Theil-Sen
+        model.
+    """
+
+    num_points = len(track_x_metres)
+    x_predicted_metres = numpy.full(num_points, numpy.nan)
+    y_predicted_metres = numpy.full(num_points, numpy.nan)
+
+    for j in range(num_points):
+        x_predicted_metres[j], y_predicted_metres[j] = _theil_sen_predict(
+            theil_sen_model_for_x=theil_sen_model_for_x,
+            theil_sen_model_for_y=theil_sen_model_for_y,
+            query_time_unix_sec=track_times_unix_sec[j])
+
+    return numpy.sqrt(numpy.mean(
+        (x_predicted_metres - track_x_metres) ** 2 +
+        (y_predicted_metres - track_y_metres) ** 2))
+
+
 def _get_prediction_errors_for_one_object(
         x_coord_metres=None, y_coord_metres=None, unix_time_sec=None,
         storm_track_table=None):
@@ -146,7 +232,7 @@ def _get_prediction_errors_for_one_object(
     :param y_coord_metres: Actual y-coordinate of storm object.
     :param unix_time_sec: Valid time of storm object.
     :param storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
+        storm_objects_to_tracks.
     :return: prediction_errors_metres: length-N numpy array of prediction errors
         (distances between actual location and Theil-Sen prediction).
     """
@@ -380,9 +466,9 @@ def _find_changed_tracks(storm_track_table, orig_storm_track_table):
     """Finds tracks that chgd from orig_storm_track_table to storm_track_table.
 
     :param storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
+        storm_objects_to_tracks.
     :param orig_storm_track_table: pandas DataFrame with columns documented in
-        _theil_sen_fit_for_each_track.
+        storm_objects_to_tracks.
     :return: track_changed_indices: 1-D numpy array of rows (indices into
         storm_track_table) for which track changed.
     """
@@ -471,9 +557,9 @@ def storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
 
     T = number of times (storm objects) in a given track
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object.
-    storm_object_table.storm_id: String ID.
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
@@ -638,9 +724,9 @@ def break_storm_tracks(
 
     This is the "break-up" step in w2besttrack.
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object.
-    storm_object_table.storm_id: String ID.
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
     storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
@@ -1038,9 +1124,9 @@ def remove_short_tracks(
         storm_object_table, min_objects_in_track=DEFAULT_MIN_OBJECTS_IN_TRACK):
     """Removes storm tracks without enough storm objects.
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object.
-    storm_object_table.storm_id: String ID.
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
 
     :param min_objects_in_track: Minimum number of storm objects in a track.
@@ -1080,16 +1166,16 @@ def recompute_attributes(
     - start time of tracking period
     - end time of tracking period
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object.
-    storm_object_table.storm_id: String ID.
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
 
     :param best_track_start_time_unix_sec: Start of tracking period.
     :param best_track_end_time_unix_sec: End of tracking period.
-    :return: storm_object_table: Same as input, but with additional columns
-        listed below.
-    storm_object_table.age_sec: Age of storm track.
+    :return: storm_object_table: Same as input, but with new columns listed
+        below.
+    storm_object_table.age_sec: Age of storm cell.
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
     """
@@ -1150,15 +1236,7 @@ def run_best_track(
     In other words, original tracks must be read before this method and new
     tracks must be written after this method.
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.  Each row is one storm object.
-    storm_object_table.storm_id: String ID for storm track.
-    storm_object_table.unix_time_sec: Valid time for storm object.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm-object
-        centroid.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm-object
-        centroid.
-
+    :param storm_object_table: See documentation for read_input_storm_objects.
     :param max_extrap_time_for_breakup_sec: See doc for break_storm_tracks.
     :param max_prediction_error_for_breakup_metres: See doc for
         break_storm_tracks.
@@ -1173,9 +1251,8 @@ def run_best_track(
     :param min_objects_in_track: Minimum number of storm objects in a track.
         After all the main iterations, any track with < `min_objects_in_track`
         storm objects will be removed.
-    :return: storm_object_table: Same as input, except that "storm_id" may have
-        changed for several storm objects.  Also, this will be without the
-        columns "centroid_lat_deg" and "centroid_lng_deg".
+    :return: storm_object_table: See documentation for
+        write_output_storm_objects.
     """
 
     check_best_track_params(
@@ -1189,25 +1266,8 @@ def run_best_track(
         num_main_iters=num_main_iters, num_breakup_iters=num_breakup_iters,
         min_objects_in_track=min_objects_in_track)
 
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values))
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        global_centroid_lat_deg, global_centroid_lng_deg)
-    x_centroids_metres, y_centroids_metres = projections.project_latlng_to_xy(
-        storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
-        storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values,
-        projection_object=projection_object, false_easting_metres=0.,
-        false_northing_metres=0.)
-
-    argument_dict = {CENTROID_X_COLUMN: x_centroids_metres,
-                     CENTROID_Y_COLUMN: y_centroids_metres}
-    storm_object_table = storm_object_table.assign(**argument_dict)
-    storm_object_table.drop(
-        [tracking_utils.CENTROID_LAT_COLUMN,
-         tracking_utils.CENTROID_LNG_COLUMN], axis=1, inplace=True)
-
+    storm_object_table = _project_storm_centroids_latlng_to_xy(
+        storm_object_table)
     storm_track_table = storm_objects_to_tracks(storm_object_table)
     storm_track_table = theil_sen_fit_for_each_track(storm_track_table)
 
@@ -1261,20 +1321,28 @@ def read_input_storm_objects(input_file_names, keep_spc_date=False):
     Input files should be in the format produced by
     `storm_tracking_io.write_processed_file`.
 
+    P = number of grid points in a given storm object
+
     :param input_file_names: 1-D list of paths to input files.
     :param keep_spc_date: Boolean flag.  If True, will keep the column
         "spc_date_unix_sec" in the input files.  If False, will throw it out.
     :return: storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
-    storm_object_table.storm_id: String ID for storm track.
-    storm_object_table.original_storm_id: Original string ID for storm track.
-    storm_object_table.unix_time_sec: Valid time of storm object.
-    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm-object
-        centroid.
-    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm-object
-        centroid.
-    storm_object_table.file_index: Index of file from which storm object was
-        read.  This is an index into `storm_object_file_names`.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.original_storm_id: Original ID (before best-track).
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.file_index: Array index of file containing storm object.
+        This is an index into `input_file_names`.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+    storm_object_table.grid_point_latitudes_deg: length-P numpy array with
+        latitudes (deg N) of grid points in storm object.
+    storm_object_table.grid_point_longitudes_deg: length-P numpy array with
+        longitudes (deg E) of grid points in storm object.
+    storm_object_table.grid_point_rows: length-P numpy array with row indices
+        (integers) of grid points in storm object.
+    storm_object_table.grid_point_columns: length-P numpy array with column
+        indices (integers) of grid points in storm object.
     """
 
     error_checking.assert_is_string_list(input_file_names)
@@ -1327,17 +1395,26 @@ def write_output_storm_objects(
     """Writes output storm objects (after best-track) to one or more files.
 
     N = number of input files = number of output files
+    P = number of grid points in a given storm object
 
     :param storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
-    storm_object_table.storm_id: String ID for storm track.
-    storm_object_table.original_storm_id: Original string ID for storm track.
-    storm_object_table.unix_time_sec: Valid time of storm object.
-    storm_object_table.file_index: Index of file from which storm object was
-        read.  This is an index into `storm_object_file_names`.
-    storm_object_table.age_sec: Age of storm track.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.original_storm_id: Original ID (before best-track).
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.file_index: Array index of input file containing storm
+        object.  This is an index into `input_file_names`.
+    storm_object_table.age_sec: Age of storm cell (seconds).
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
+    storm_object_table.grid_point_latitudes_deg: length-P numpy array with
+        latitudes (deg N) of grid points in storm object.
+    storm_object_table.grid_point_longitudes_deg: length-P numpy array with
+        longitudes (deg E) of grid points in storm object.
+    storm_object_table.grid_point_rows: length-P numpy array with row indices
+        (integers) of grid points in storm object.
+    storm_object_table.grid_point_columns: length-P numpy array with column
+        indices (integers) of grid points in storm object.
 
     :param input_file_names: length-N list of paths to input files (used by
         read_input_storm_objects).
@@ -1368,7 +1445,7 @@ def write_output_storm_objects(
         column_dict_old_to_new = {
             tracking_utils.STORM_ID_COLUMN: tracking_utils.ORIG_STORM_ID_COLUMN}
         this_input_table.rename(columns=column_dict_old_to_new, inplace=True)
-        this_input_table.drop(ATTRIBUTES_TO_RECOMPUTE, axis=1, inplace=True)
+        this_input_table.drop(ATTRIBUTES_TO_OVERWRITE, axis=1, inplace=True)
 
         this_output_table = storm_object_table.loc[
             storm_object_table[FILE_INDEX_COLUMN] == i][
@@ -1446,3 +1523,99 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
                     storm_object_table[OUTPUT_COLUMNS_FOR_THEA[j]].values[i]))
 
     csv_file_handle.close()
+
+
+def evaluate_tracks(
+        storm_object_table, metadata_dict_for_storm_objects, radar_data_source,
+        top_radar_directory_name, radar_field_for_evaluation):
+    """Evaluates a set of storm tracks, using methods in Lakshmanan/Smith 2010.
+
+    P = number of grid points in a given storm object
+
+    :param storm_object_table: pandas DataFrame created by
+        read_input_storm_objects with `keep_spc_date = True.`
+    :param metadata_dict_for_storm_objects: Dictionary (with keys specified by
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing grid used
+        to create storm objects.
+    :param radar_data_source: Source of radar data used to create storm objects
+        (examples: "myrorss" or "gridrad").
+    :param top_radar_directory_name: Name of top-level directory with radar data
+        from the given source.
+    :param radar_field_for_evaluation: Name of radar field to use for
+        evaluation.  If data source is MYRORSS or MRMS, this defaults to VIL
+        (vertically integrated liquid), as in Lakshmanan/Smith 2010.  If data
+        source is GridRad, this defaults to composite (column-max) reflectivity.
+    :return: median_lifetime_sec: Median lifetime of all storm tracks.
+    :return: mean_centroid_rmse_for_long_tracks_metres: Mean, over all tracks
+        with lifetime >= `median_lifetime_sec`, of RMSE of centroid positions
+        predicted by Theil-Sen fit.  This is the "linearity error" in
+        Lakshmanan/Smith 2010.
+    :return: mean_stdev_of_field_for_long_tracks: Mean, over all tracks with
+        lifetime >= `median_lifetime_sec`, of temporal standard deviation of
+        spatial median of `radar_field_for_evaluation` inside storm cell.  This
+        is the "mismatch error" in Lakshmanan/Smith 2010.
+    """
+
+    storm_object_table = _project_storm_centroids_latlng_to_xy(
+        storm_object_table)
+    storm_track_table = storm_objects_to_tracks(storm_object_table)
+    storm_track_table = theil_sen_fit_for_each_track(storm_track_table)
+
+    # Compute median track lifetime.
+    track_lifetimes_sec = (
+        storm_track_table[TRACK_END_TIME_COLUMN].values -
+        storm_track_table[TRACK_START_TIME_COLUMN].values)
+    median_lifetime_sec = numpy.median(track_lifetimes_sec)
+
+    # Compute linearity error.
+    num_tracks = len(storm_track_table.index)
+    centroid_rmse_by_track_metres = numpy.full(num_tracks, numpy.nan)
+
+    for i in range(num_tracks):
+        if track_lifetimes_sec[i] < median_lifetime_sec:
+            continue
+
+        centroid_rmse_by_track_metres[i] = _get_theil_sen_rmse(
+            theil_sen_model_for_x=
+            storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[i],
+            theil_sen_model_for_y=
+            storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values[i],
+            track_times_unix_sec=
+            storm_track_table[TRACK_TIMES_COLUMN].values[i],
+            track_x_metres=storm_track_table[TRACK_X_COORDS_COLUMN].values[i],
+            track_y_metres=storm_track_table[TRACK_Y_COORDS_COLUMN].values[i])
+
+    mean_centroid_rmse_for_long_tracks_metres = numpy.nanmean(
+        centroid_rmse_by_track_metres)
+
+    # Compute mismatch error.
+    storm_object_statistic_table = radar_stats.get_stats_for_storm_objects(
+        storm_object_table, metadata_dict_for_storm_objects,
+        percentile_levels=numpy.array([50.]),
+        radar_field_names=[radar_field_for_evaluation],
+        radar_data_source=radar_data_source,
+        top_radar_directory_name=top_radar_directory_name)
+
+    median_column_name = radar_stats.radar_field_and_percentile_to_column_name(
+        radar_field_name=radar_field_for_evaluation, percentile_level=50.)
+    spatial_median_by_storm_object = storm_object_statistic_table[
+        median_column_name]
+
+    temporal_stdev_of_spatial_median_by_storm_track = numpy.full(
+        num_tracks, numpy.nan)
+    for i in range(num_tracks):
+        if track_lifetimes_sec[i] < median_lifetime_sec:
+            continue
+
+        these_object_indices = storm_track_table[
+            OBJECT_INDICES_COLUMN_FOR_TRACK].values[i]
+        if len(these_object_indices) < 2:
+            continue
+
+        temporal_stdev_of_spatial_median_by_storm_track[i] = numpy.std(
+            spatial_median_by_storm_object[these_object_indices], ddof=1)
+
+    mean_stdev_of_field_for_long_tracks = numpy.nanmean(
+        temporal_stdev_of_spatial_median_by_storm_track)
+    return (median_lifetime_sec, mean_centroid_rmse_for_long_tracks_metres,
+            mean_stdev_of_field_for_long_tracks)

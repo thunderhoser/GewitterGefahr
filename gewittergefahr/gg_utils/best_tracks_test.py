@@ -13,11 +13,11 @@ TOLERANCE = 1e-6
 X_COEFF_THEIL_SEN_M_S01 = 2.5
 Y_COEFF_THEIL_SEN_M_S01 = -3.6
 
-TIMES_THEIL_SEN_INPUT_UNIX_SEC = numpy.linspace(0, 9, num=10, dtype=int)
-X_FOR_THEIL_SEN_INPUT_METRES = (
-    X_COEFF_THEIL_SEN_M_S01 * TIMES_THEIL_SEN_INPUT_UNIX_SEC.astype(float))
-Y_FOR_THEIL_SEN_INPUT_METRES = (
-    Y_COEFF_THEIL_SEN_M_S01 * TIMES_THEIL_SEN_INPUT_UNIX_SEC.astype(float))
+TIMES_LINEAR_UNIX_SEC = numpy.linspace(0, 9, num=10, dtype=int)
+X_LINEAR_METRES = numpy.array(
+    [0., 2.5, 5., 7.5, 10., 12.5, 15., 17.5, 20., 22.5])
+Y_LINEAR_METRES = numpy.array(
+    [0., -3.6, -7.2, -10.8, -14.4, -18., -21.6, -25.2, -28.8, -32.4])
 
 # The following constants are used to test _theil_sen_predict.
 QUERY_TIME_THEIL_SEN_UNIX_SEC = 20
@@ -25,6 +25,14 @@ X_PREDICTED_THEIL_SEN_METRES = (
     X_COEFF_THEIL_SEN_M_S01 * QUERY_TIME_THEIL_SEN_UNIX_SEC)
 Y_PREDICTED_THEIL_SEN_METRES = (
     Y_COEFF_THEIL_SEN_M_S01 * QUERY_TIME_THEIL_SEN_UNIX_SEC)
+
+# The following constants are used to test get_theil_sen_rmse.
+X_ERRORS_METRES = numpy.array([-0.5, -1., -2., -1., 0., 0.5, 1., 2., 1.5, 0.])
+Y_ERRORS_METRES = numpy.array([3., 1., 2., 1.5, 0.5, 0., 0.5, 1., -1., -2.])
+THEIL_SEN_RMSE_METRES = numpy.sqrt(36.5 / 10)
+
+X_NOISY_METRES = X_LINEAR_METRES + X_ERRORS_METRES
+Y_NOISY_METRES = Y_LINEAR_METRES + Y_ERRORS_METRES
 
 # The following constants are used to test
 # _get_prediction_errors_for_one_object.
@@ -261,9 +269,8 @@ class BestTracksTests(unittest.TestCase):
         """Ensures correct output from _theil_sen_fit."""
 
         this_ts_model_for_x, this_ts_model_for_y = best_tracks._theil_sen_fit(
-            unix_times_sec=TIMES_THEIL_SEN_INPUT_UNIX_SEC,
-            x_coords_metres=X_FOR_THEIL_SEN_INPUT_METRES,
-            y_coords_metres=Y_FOR_THEIL_SEN_INPUT_METRES)
+            unix_times_sec=TIMES_LINEAR_UNIX_SEC,
+            x_coords_metres=X_LINEAR_METRES, y_coords_metres=Y_LINEAR_METRES)
 
         this_x_coefficient_m_s01 = this_ts_model_for_x.coef_[0]
         this_y_coefficient_m_s01 = this_ts_model_for_y.coef_[0]
@@ -283,9 +290,8 @@ class BestTracksTests(unittest.TestCase):
         """
 
         this_ts_model_for_x, this_ts_model_for_y = best_tracks._theil_sen_fit(
-            unix_times_sec=TIMES_THEIL_SEN_INPUT_UNIX_SEC,
-            x_coords_metres=X_FOR_THEIL_SEN_INPUT_METRES,
-            y_coords_metres=Y_FOR_THEIL_SEN_INPUT_METRES)
+            unix_times_sec=TIMES_LINEAR_UNIX_SEC,
+            x_coords_metres=X_LINEAR_METRES, y_coords_metres=Y_LINEAR_METRES)
 
         this_x_predicted_metres, this_y_predicted_metres = (
             best_tracks._theil_sen_predict(
@@ -299,6 +305,25 @@ class BestTracksTests(unittest.TestCase):
         self.assertTrue(
             numpy.absolute(this_y_predicted_metres -
                            Y_PREDICTED_THEIL_SEN_METRES) <= TOLERANCE)
+
+    def test_get_theil_sen_rmse(self):
+        """Ensures correct output from _get_theil_sen_rmse.
+
+        This is an integration test, not a unit test, because it also requires
+        _theil_sen_fit.
+        """
+
+        this_ts_model_for_x, this_ts_model_for_y = best_tracks._theil_sen_fit(
+            unix_times_sec=TIMES_LINEAR_UNIX_SEC,
+            x_coords_metres=X_LINEAR_METRES, y_coords_metres=Y_LINEAR_METRES)
+
+        this_rmse_metres = best_tracks._get_theil_sen_rmse(
+            theil_sen_model_for_x=this_ts_model_for_x,
+            theil_sen_model_for_y=this_ts_model_for_y,
+            track_times_unix_sec=TIMES_LINEAR_UNIX_SEC,
+            track_x_metres=X_NOISY_METRES, track_y_metres=Y_NOISY_METRES)
+
+        self.assertTrue(numpy.isclose(this_rmse_metres, THEIL_SEN_RMSE_METRES))
 
     def test_get_prediction_errors_for_one_object(self):
         """Ensures correct output from _get_prediction_errors_for_one_object.

@@ -69,42 +69,6 @@ AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
 
-def _radar_field_and_statistic_to_column_name(
-        radar_field_name=None, radar_height_m_asl=None, statistic_name=None):
-    """Generates column name for radar field and statistic.
-
-    :param radar_field_name: Name of radar field.
-    :param radar_height_m_asl: Radar height (metres above sea level).
-    :param statistic_name: Name of statistic.
-    :return: column_name: Name of column.
-    """
-
-    if radar_field_name == radar_utils.REFL_NAME:
-        return '{0:s}_{1:d}m_{2:s}'.format(
-            radar_field_name, int(radar_height_m_asl), statistic_name)
-
-    return '{0:s}_{1:s}'.format(
-        radar_field_name, statistic_name)
-
-
-def _radar_field_and_percentile_to_column_name(
-        radar_field_name=None, radar_height_m_asl=None, percentile_level=None):
-    """Generates column name for radar field and percentile level.
-
-    :param radar_field_name: Name of radar field.
-    :param radar_height_m_asl: Radar height (metres above sea level).
-    :param percentile_level: Percentile level.
-    :return: column_name: Name of column.
-    """
-
-    if radar_field_name == radar_utils.REFL_NAME:
-        return '{0:s}_{1:d}m_percentile{2:05.1f}'.format(
-            radar_field_name, int(radar_height_m_asl), percentile_level)
-
-    return '{0:s}_percentile{1:05.1f}'.format(
-        radar_field_name, percentile_level)
-
-
 def _column_name_to_statistic_params(column_name):
     """Determines parameters of statistic from column name.
 
@@ -225,6 +189,50 @@ def _check_statistic_params(statistic_names, percentile_levels):
 
     return numpy.unique(
         rounder.round_to_nearest(percentile_levels, PERCENTILE_LEVEL_PRECISION))
+
+
+def radar_field_and_statistic_to_column_name(
+        radar_field_name, statistic_name, radar_height_m_asl=None):
+    """Generates column name for radar field and statistic.
+
+    :param radar_field_name: Name of radar field.
+    :param statistic_name: Name of statistic.
+    :param radar_height_m_asl: Radar height (metres above sea level).
+    :return: column_name: Name of column.
+    """
+
+    error_checking.assert_is_string(radar_field_name)
+    error_checking.assert_is_string(statistic_name)
+
+    if radar_field_name == radar_utils.REFL_NAME:
+        error_checking.assert_is_not_nan(radar_height_m_asl)
+        return '{0:s}_{1:d}m_{2:s}'.format(
+            radar_field_name, int(radar_height_m_asl), statistic_name)
+
+    return '{0:s}_{1:s}'.format(
+        radar_field_name, statistic_name)
+
+
+def radar_field_and_percentile_to_column_name(
+        radar_field_name, percentile_level, radar_height_m_asl=None):
+    """Generates column name for radar field and percentile level.
+
+    :param radar_field_name: Name of radar field.
+    :param percentile_level: Percentile level.
+    :param radar_height_m_asl: Radar height (metres above sea level).
+    :return: column_name: Name of column.
+    """
+
+    error_checking.assert_is_string(radar_field_name)
+    error_checking.assert_is_not_nan(percentile_level)
+
+    if radar_field_name == radar_utils.REFL_NAME:
+        error_checking.assert_is_not_nan(radar_height_m_asl)
+        return '{0:s}_{1:d}m_percentile{2:05.1f}'.format(
+            radar_field_name, int(radar_height_m_asl), percentile_level)
+
+    return '{0:s}_percentile{1:05.1f}'.format(
+        radar_field_name, percentile_level)
 
 
 def get_statistic_columns(statistic_table):
@@ -451,8 +459,8 @@ def get_stats_for_storm_objects(
     :return: storm_radar_statistic_table: pandas DataFrame with 2 + K * F
         columns, where the last K * F columns are one for each statistic-field
         pair.  Names of these columns are determined by
-        _radar_field_and_statistic_to_column_name and
-        _radar_field_and_percentile_to_column_name.  The first 2 columns are
+        radar_field_and_statistic_to_column_name and
+        radar_field_and_percentile_to_column_name.  The first 2 columns are
         listed below.
     storm_radar_statistic_table.storm_id: String ID for storm cell.  Same as
         input column `storm_object_table.storm_id`.
@@ -603,7 +611,7 @@ def get_stats_for_storm_objects(
     storm_radar_statistic_dict = {}
     for j in range(num_radar_fields):
         for k in range(num_statistics):
-            this_column_name = _radar_field_and_statistic_to_column_name(
+            this_column_name = radar_field_and_statistic_to_column_name(
                 radar_field_name=radar_field_name_by_pair[j],
                 radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 statistic_name=statistic_names[k])
@@ -612,7 +620,7 @@ def get_stats_for_storm_objects(
                 {this_column_name: statistic_matrix[:, j, k]})
 
         for k in range(num_percentiles):
-            this_column_name = _radar_field_and_percentile_to_column_name(
+            this_column_name = radar_field_and_percentile_to_column_name(
                 radar_field_name=radar_field_name_by_pair[j],
                 radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 percentile_level=percentile_levels[k])

@@ -37,8 +37,10 @@ OUTPUT_FILE_NAMES_KEY = 'output_file_names_by_spc_date'
 INTERMEDIATE_COLUMNS = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.ORIG_STORM_ID_COLUMN,
     tracking_utils.TIME_COLUMN, tracking_utils.SPC_DATE_COLUMN,
-    best_tracks.CENTROID_X_COLUMN, best_tracks.CENTROID_Y_COLUMN,
-    best_tracks.FILE_INDEX_COLUMN]
+    tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN,
+    tracking_utils.GRID_POINT_ROW_COLUMN,
+    tracking_utils.GRID_POINT_COLUMN_COLUMN, best_tracks.CENTROID_X_COLUMN,
+    best_tracks.CENTROID_Y_COLUMN, best_tracks.FILE_INDEX_COLUMN]
 
 
 def _read_intermediate_results(temp_file_name):
@@ -61,16 +63,27 @@ def _read_intermediate_results(temp_file_name):
 def _write_intermediate_results(storm_object_table, temp_file_name):
     """Writes intermediate best-track results for a subset of storm objects.
 
-    :param: storm_object_table: pandas DataFrame with the following columns.
+    P = number of grid points in a given storm object
+
+    :param storm_object_table: pandas DataFrame with the following columns.
         Each row is one storm object.
-    storm_object_table.storm_id: String ID for storm track.
-    storm_object_table.original_storm_id: Original string ID for storm track.
-    storm_object_table.unix_time_sec: Valid time of storm object.
-    storm_object_table.centroid_x_metres: x-coordinate of storm-object centroid.
-    storm_object_table.centroid_y_metres: y-coordinate of storm-object centroid.
-    storm_object_table.spc_date_unix_sec: Valid SPC date for storm object.
-    storm_object_table.file_index: Index of file from which storm object was
-        read.  This is an index into the file-name array for the given SPC date.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.original_storm_id: Original ID (before best-track).
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.spc_date_unix_sec: Valid SPC date.
+    storm_object_table.grid_point_latitudes_deg: length-P numpy array with
+        latitudes (deg N) of grid points in storm object.
+    storm_object_table.grid_point_longitudes_deg: length-P numpy array with
+        longitudes (deg E) of grid points in storm object.
+    storm_object_table.grid_point_rows: length-P numpy array with row indices
+        (integers) of grid points in storm object.
+    storm_object_table.grid_point_columns: length-P numpy array with column
+        indices (integers) of grid points in storm object.
+
+    storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
+    storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
+    storm_object_table.file_index: Array index of file containing storm object.
+        This is an index into the file-name array for the given SPC date.
 
     :param temp_file_name: Path to intermediate file.
     """
@@ -204,9 +217,9 @@ def _find_tracks_with_spc_date(storm_object_table, storm_track_table,
                                spc_date_unix_sec=None):
     """Finds tracks with at least one storm object in given SPC date.
 
-    :param storm_object_table: pandas DataFrame with at least the following
-        columns.
-    storm_object_table.spc_date_unix_sec: Valid SPC date of storm object.
+    :param storm_object_table: pandas DataFrame with the following columns.
+        Each row is one storm object.
+    storm_object_table.spc_date_unix_sec: Valid SPC date.
 
     :param storm_track_table: pandas DataFrame with columns documented in
         _storm_objects_to_tracks.
