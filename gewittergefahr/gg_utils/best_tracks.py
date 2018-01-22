@@ -1590,7 +1590,8 @@ def evaluate_tracks(
             storm_track_table[TRACK_TIMES_COLUMN].values[i],
             track_x_metres=storm_track_table[TRACK_X_COORDS_COLUMN].values[i],
             track_y_metres=storm_track_table[TRACK_Y_COORDS_COLUMN].values[i])
-        print centroid_rmse_by_track_metres[i]
+        if centroid_rmse_by_track_metres[i] > 50000:
+            print centroid_rmse_by_track_metres[i]
 
     mean_centroid_rmse_for_long_tracks_metres = numpy.nanmean(
         centroid_rmse_by_track_metres)
