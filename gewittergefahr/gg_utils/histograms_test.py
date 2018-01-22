@@ -10,7 +10,10 @@ INPUT_VALUES = numpy.array(
 NUM_BINS = 5
 MIN_VALUE_FOR_HISTOGRAM = 0.
 MAX_VALUE_FOR_HISTOGRAM = 1.
-BIN_INDICES = numpy.array([0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4, 4])
+
+BIN_INDICES = numpy.array([0, 0, 0, 0, 1, 1, 2, 2, 3, 3, 4, 4, 4, 4, 4],
+                          dtype=int)
+NUM_EXAMPLES_BY_BIN = numpy.array([4, 2, 2, 2, 5], dtype=int)
 
 
 class HistogramsTests(unittest.TestCase):
@@ -19,12 +22,15 @@ class HistogramsTests(unittest.TestCase):
     def test_create_histogram(self):
         """Ensures correct output from create_histogram."""
 
-        these_bin_indices = histograms.create_histogram(
-            input_values=INPUT_VALUES, num_bins=NUM_BINS,
-            min_value=MIN_VALUE_FOR_HISTOGRAM,
-            max_value=MAX_VALUE_FOR_HISTOGRAM)
+        these_bin_indices, this_num_examples_by_bin = (
+            histograms.create_histogram(
+                input_values=INPUT_VALUES, num_bins=NUM_BINS,
+                min_value=MIN_VALUE_FOR_HISTOGRAM,
+                max_value=MAX_VALUE_FOR_HISTOGRAM))
 
         self.assertTrue(numpy.array_equal(these_bin_indices, BIN_INDICES))
+        self.assertTrue(numpy.array_equal(
+            this_num_examples_by_bin, NUM_EXAMPLES_BY_BIN))
 
 
 if __name__ == '__main__':

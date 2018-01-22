@@ -248,9 +248,10 @@ def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
         bin.
     """
 
-    return histograms.create_histogram(
+    bin_index_by_forecast, _ = histograms.create_histogram(
         input_values=forecast_probabilities, num_bins=num_bins, min_value=0.,
         max_value=1.)
+    return bin_index_by_forecast
 
 
 def get_contingency_table(forecast_labels, observed_labels):
