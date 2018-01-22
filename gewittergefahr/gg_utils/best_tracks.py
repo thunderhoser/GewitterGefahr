@@ -96,6 +96,10 @@ OUTPUT_COLUMNS_FOR_THEA = [
     tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
     VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 
+MEDIAN_LIFETIME_KEY = 'median_lifetime_sec'
+LINEARITY_ERROR_KEY = 'mean_centroid_rmse_for_long_tracks_metres'
+MISMATCH_ERROR_KEY = 'mean_stdev_of_field_for_long_tracks'
+
 
 def _project_storm_centroids_latlng_to_xy(storm_object_table):
     """Projects storm centroids from lat-long to x-y coordinates.
@@ -1545,15 +1549,16 @@ def evaluate_tracks(
         evaluation.  If data source is MYRORSS or MRMS, this defaults to VIL
         (vertically integrated liquid), as in Lakshmanan/Smith 2010.  If data
         source is GridRad, this defaults to composite (column-max) reflectivity.
-    :return: median_lifetime_sec: Median lifetime of all storm tracks.
-    :return: mean_centroid_rmse_for_long_tracks_metres: Mean, over all tracks
-        with lifetime >= `median_lifetime_sec`, of RMSE of centroid positions
-        predicted by Theil-Sen fit.  This is the "linearity error" in
+    :return: evaluation_dict: Dictionary with the following keys.
+    evaluation_dict['median_lifetime_sec']: Median lifetime of all storm tracks.
+    evaluation_dict['mean_centroid_rmse_for_long_tracks_metres']: Mean, over all
+        tracks with lifetime >= `median_lifetime_sec`, of RMSE of centroid
+        positions predicted by Theil-Sen fit.  This is the "linearity error" in
         Lakshmanan/Smith 2010.
-    :return: mean_stdev_of_field_for_long_tracks: Mean, over all tracks with
-        lifetime >= `median_lifetime_sec`, of temporal standard deviation of
-        spatial median of `radar_field_for_evaluation` inside storm cell.  This
-        is the "mismatch error" in Lakshmanan/Smith 2010.
+    evaluation_dict['mean_stdev_of_field_for_long_tracks']: Mean, over all
+        tracks with lifetime >= `median_lifetime_sec`, of temporal standard
+        deviation of spatial median of `radar_field_for_evaluation` inside storm
+        cell.  This is the "mismatch error" in Lakshmanan/Smith 2010.
     """
 
     storm_object_table = _project_storm_centroids_latlng_to_xy(
@@ -1564,8 +1569,9 @@ def evaluate_tracks(
     # Compute median track lifetime.
     track_lifetimes_sec = (
         storm_track_table[TRACK_END_TIME_COLUMN].values -
-        storm_track_table[TRACK_START_TIME_COLUMN].values)
-    median_lifetime_sec = numpy.median(track_lifetimes_sec)
+        storm_track_table[TRACK_START_TIME_COLUMN].values).astype(float)
+    median_lifetime_sec = numpy.median(
+        track_lifetimes_sec[track_lifetimes_sec != 0])
 
     # Compute linearity error.
     num_tracks = len(storm_track_table.index)
@@ -1617,5 +1623,9 @@ def evaluate_tracks(
 
     mean_stdev_of_field_for_long_tracks = numpy.nanmean(
         temporal_stdev_of_spatial_median_by_storm_track)
-    return (median_lifetime_sec, mean_centroid_rmse_for_long_tracks_metres,
-            mean_stdev_of_field_for_long_tracks)
+
+    return {
+        MEDIAN_LIFETIME_KEY: median_lifetime_sec,
+        LINEARITY_ERROR_KEY: mean_centroid_rmse_for_long_tracks_metres,
+        MISMATCH_ERROR_KEY: mean_stdev_of_field_for_long_tracks
+    }
