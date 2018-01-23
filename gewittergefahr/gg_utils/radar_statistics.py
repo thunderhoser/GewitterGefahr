@@ -3,7 +3,6 @@
 These are usually spatial statistics based on values inside a storm object.
 """
 
-import warnings
 import pickle
 import numpy
 import pandas
@@ -472,75 +471,42 @@ def get_stats_for_storm_objects(
         statistic_names, percentile_levels)
     error_checking.assert_is_boolean(dilate_azimuthal_shear)
 
-    radar_field_name_by_pair, radar_height_by_pair_m_asl = (
-        radar_utils.unique_fields_and_heights_to_pairs(
-            unique_field_names=radar_field_names,
-            refl_heights_m_asl=reflectivity_heights_m_asl,
-            data_source=radar_data_source))
+    file_dictionary = myrorss_and_mrms_io.find_many_raw_files(
+        valid_times_unix_sec=
+        storm_object_table[tracking_utils.TIME_COLUMN].values,
+        spc_dates_unix_sec=
+        storm_object_table[tracking_utils.SPC_DATE_COLUMN].values,
+        data_source=radar_data_source, field_names=radar_field_names,
+        top_directory_name=top_radar_directory_name,
+        reflectivity_heights_m_asl=reflectivity_heights_m_asl)
+
+    radar_file_names_2d_list = file_dictionary[
+        myrorss_and_mrms_io.RADAR_FILE_NAME_LIST_KEY]
+    unique_storm_times_unix_sec = file_dictionary[
+        myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
+    unique_spc_dates_unix_sec = file_dictionary[
+        myrorss_and_mrms_io.UNIQUE_SPC_DATES_KEY]
+    radar_field_name_by_pair = file_dictionary[
+        myrorss_and_mrms_io.FIELD_NAME_BY_PAIR_KEY]
+    radar_height_by_pair_m_asl = file_dictionary[
+        myrorss_and_mrms_io.HEIGHT_BY_PAIR_KEY]
+
     num_radar_fields = len(radar_field_name_by_pair)
-
-    storm_object_time_matrix = storm_object_table.as_matrix(
-        columns=[tracking_utils.TIME_COLUMN, tracking_utils.SPC_DATE_COLUMN])
-    unique_time_matrix = numpy.vstack(
-        {tuple(this_row) for this_row in storm_object_time_matrix}).astype(int)
-    unique_storm_times_unix_sec = unique_time_matrix[:, 0]
-    unique_spc_dates_unix_sec = unique_time_matrix[:, 1]
-
     num_unique_storm_times = len(unique_storm_times_unix_sec)
-    radar_file_name_matrix = numpy.full(
-        (num_unique_storm_times, num_radar_fields), '', dtype=object)
-
-    for i in range(num_unique_storm_times):
-        this_spc_date_string = time_conversion.time_to_spc_date_string(
-            unique_spc_dates_unix_sec[i])
-
-        for j in range(num_radar_fields):
-            if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
-                radar_file_name_matrix[i, j] = (
-                    myrorss_and_mrms_io.find_raw_azimuthal_shear_file(
-                        desired_time_unix_sec=unique_storm_times_unix_sec[i],
-                        spc_date_string=this_spc_date_string,
-                        field_name=radar_field_name_by_pair[j],
-                        data_source=radar_data_source,
-                        top_directory_name=top_radar_directory_name,
-                        raise_error_if_missing=False))
-
-            else:
-                radar_file_name_matrix[i, j] = (
-                    myrorss_and_mrms_io.find_raw_file(
-                        unix_time_sec=unique_storm_times_unix_sec[i],
-                        spc_date_string=this_spc_date_string,
-                        field_name=radar_field_name_by_pair[j],
-                        height_m_asl=radar_height_by_pair_m_asl[j],
-                        data_source=radar_data_source,
-                        top_directory_name=top_radar_directory_name,
-                        raise_error_if_missing=True))
-
-            if radar_file_name_matrix[i, j] is None:
-                this_time_string = time_conversion.unix_sec_to_string(
-                    unique_storm_times_unix_sec[i],
-                    TIME_FORMAT_FOR_LOG_MESSAGES)
-                warning_string = (
-                    'Cannot find file for "{0:s}" at {1:d} metres ASL and '
-                    '{2:s}.').format(
-                        radar_field_name_by_pair[j],
-                        int(numpy.round(radar_height_by_pair_m_asl[j])),
-                        this_time_string)
-                warnings.warn(warning_string)
-
     num_statistics = len(statistic_names)
     num_percentiles = len(percentile_levels)
-    num_storms = len(storm_object_table.index)
+    num_storm_objects = len(storm_object_table.index)
+
     statistic_matrix = numpy.full(
-        (num_storms, num_radar_fields, num_statistics), numpy.nan)
+        (num_storm_objects, num_radar_fields, num_statistics), numpy.nan)
     percentile_matrix = numpy.full(
-        (num_storms, num_radar_fields, num_percentiles), numpy.nan)
+        (num_storm_objects, num_radar_fields, num_percentiles), numpy.nan)
 
     for j in range(num_radar_fields):
         metadata_dict_for_this_field = None
 
         for i in range(num_unique_storm_times):
-            if radar_file_name_matrix[i, j] is None:
+            if radar_file_names_2d_list[i][j] is None:
                 continue
 
             this_time_string = time_conversion.unix_sec_to_string(
@@ -554,7 +520,7 @@ def get_stats_for_storm_objects(
             if metadata_dict_for_this_field is None:
                 metadata_dict_for_this_field = (
                     myrorss_and_mrms_io.read_metadata_from_raw_file(
-                        radar_file_name_matrix[i, j],
+                        radar_file_names_2d_list[i][j],
                         data_source=radar_data_source))
                 storm_object_to_grid_pts_table_this_field = (
                     get_grid_points_in_storm_objects(
@@ -563,7 +529,7 @@ def get_stats_for_storm_objects(
 
             sparse_grid_table_this_field = (
                 myrorss_and_mrms_io.read_data_from_sparse_grid_file(
-                    radar_file_name_matrix[i, j],
+                    radar_file_names_2d_list[i][j],
                     field_name_orig=metadata_dict_for_this_field[
                         myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
                     data_source=radar_data_source,

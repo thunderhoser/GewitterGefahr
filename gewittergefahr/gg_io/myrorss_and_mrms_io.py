@@ -7,6 +7,7 @@ MRMS = Multi-radar Multi-sensor
 
 import os
 import glob
+import warnings
 import numpy
 import pandas
 from netCDF4 import Dataset
@@ -52,6 +53,14 @@ DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
 
 ZIPPED_FILE_EXTENSION = '.gz'
 UNZIPPED_FILE_EXTENSION = '.netcdf'
+
+AZIMUTHAL_SHEAR_FIELD_NAMES = [
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
+RADAR_FILE_NAME_LIST_KEY = 'radar_file_name_2d_list'
+UNIQUE_TIMES_KEY = 'unique_times_unix_sec'
+UNIQUE_SPC_DATES_KEY = 'unique_spc_dates_unix_sec'
+FIELD_NAME_BY_PAIR_KEY = 'field_name_by_pair'
+HEIGHT_BY_PAIR_KEY = 'height_by_pair_m_asl'
 
 
 def _get_pathless_raw_file_pattern(unix_time_sec):
@@ -313,6 +322,106 @@ def find_raw_file(
             'Cannot find raw file.  Expected at location: ' + raw_file_name)
 
     return raw_file_name
+
+
+def find_many_raw_files(
+        valid_times_unix_sec, spc_dates_unix_sec, data_source, field_names,
+        top_directory_name, reflectivity_heights_m_asl=None):
+    """Finds raw file for each field and time step.
+
+    N = number of input times
+    T = number of unique time steps
+    V = number of radar variables
+    F = number of radar fields (variable/height pairs)
+
+    :param valid_times_unix_sec: length-N numpy array of valid times.
+    :param spc_dates_unix_sec: length-N numpy array of corresponding SPC dates.
+    :param data_source: Data source (string).
+    :param field_names: length-V list of field names.
+    :param top_directory_name: Name of top-level directory with radar data for
+        the given source.
+    :param reflectivity_heights_m_asl: 1-D numpy array of heights (metres above
+        sea level) for radar field "reflectivity_dbz".  If "reflectivity_dbz" is
+        not one of the `field_names`, leave this argument as None.
+    :return: file_dictionary: Dictionary with the following keys.
+    file_dictionary['radar_file_name_2d_list']: T-by-F list of paths to raw
+        files.
+    file_dictionary['unique_times_unix_sec']: length-T numpy array of unique
+        valid times.
+    file_dictionary['unique_spc_dates_unix_sec']: length-T numpy array of unique
+        SPC dates.
+    file_dictionary['field_name_by_pair']: length-F list of field names.
+    file_dictionary['height_by_pair_m_asl']: length-F numpy array of heights
+        (metres above sea level).
+    """
+
+    field_name_by_pair, height_by_pair_m_asl = (
+        radar_utils.unique_fields_and_heights_to_pairs(
+            unique_field_names=field_names,
+            refl_heights_m_asl=reflectivity_heights_m_asl,
+            data_source=data_source))
+    num_fields = len(field_name_by_pair)
+
+    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
+    error_checking.assert_is_numpy_array(valid_times_unix_sec, num_dimensions=1)
+    num_times = len(valid_times_unix_sec)
+
+    error_checking.assert_is_integer_numpy_array(spc_dates_unix_sec)
+    error_checking.assert_is_numpy_array(
+        spc_dates_unix_sec, exact_dimensions=numpy.array([num_times]))
+
+    time_matrix = numpy.hstack((
+        numpy.reshape(valid_times_unix_sec, (num_times, 1)),
+        numpy.reshape(spc_dates_unix_sec, (num_times, 1))))
+    unique_time_matrix = numpy.vstack(
+        {tuple(this_row) for this_row in time_matrix}).astype(int)
+    unique_times_unix_sec = unique_time_matrix[:, 0]
+    unique_spc_dates_unix_sec = unique_time_matrix[:, 1]
+
+    num_unique_times = len(unique_times_unix_sec)
+    radar_file_names_2d_list = [[''] * num_fields] * num_unique_times
+
+    for i in range(num_unique_times):
+        this_spc_date_string = time_conversion.time_to_spc_date_string(
+            unique_spc_dates_unix_sec[i])
+
+        for j in range(num_fields):
+            if field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
+                radar_file_names_2d_list[i][j] = find_raw_azimuthal_shear_file(
+                    desired_time_unix_sec=unique_times_unix_sec[i],
+                    spc_date_string=this_spc_date_string,
+                    field_name=field_name_by_pair[j], data_source=data_source,
+                    top_directory_name=top_directory_name,
+                    raise_error_if_missing=False)
+
+            else:
+                radar_file_names_2d_list[i][j] = find_raw_file(
+                    unix_time_sec=unique_times_unix_sec[i],
+                    spc_date_string=this_spc_date_string,
+                    field_name=field_name_by_pair[j],
+                    height_m_asl=height_by_pair_m_asl[j],
+                    data_source=data_source,
+                    top_directory_name=top_directory_name,
+                    raise_error_if_missing=True)
+
+            if radar_file_names_2d_list[i][j] is None:
+                this_time_string = time_conversion.unix_sec_to_string(
+                    unique_times_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
+
+                warning_string = (
+                    'Cannot find file for "{0:s}" at {1:d} metres ASL and '
+                    '{2:s}.').format(field_name_by_pair[j],
+                                     int(height_by_pair_m_asl[j]),
+                                     this_time_string)
+                warnings.warn(warning_string)
+
+    return {
+        RADAR_FILE_NAME_LIST_KEY: radar_file_names_2d_list,
+        UNIQUE_TIMES_KEY: unique_times_unix_sec,
+        UNIQUE_SPC_DATES_KEY: unique_spc_dates_unix_sec,
+        FIELD_NAME_BY_PAIR_KEY: field_name_by_pair,
+        HEIGHT_BY_PAIR_KEY: height_by_pair_m_asl
+    }
 
 
 def read_metadata_from_raw_file(
