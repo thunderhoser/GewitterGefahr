@@ -1501,7 +1501,7 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
             next_storm_id = 'NaN'
         else:
             next_storm_id = storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values[i - 1]
+                tracking_utils.STORM_ID_COLUMN].values[i + 1]
 
         this_storm_id = storm_object_table[
             tracking_utils.STORM_ID_COLUMN].values[i]
