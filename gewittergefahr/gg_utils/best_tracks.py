@@ -35,13 +35,13 @@ EMPTY_STORM_ID = 'no_storm'
 DEFAULT_MAX_EXTRAP_TIME_SEC = 610
 DEFAULT_MAX_PREDICTION_ERROR_METRES = 10000.
 DEFAULT_MAX_JOIN_TIME_SEC = 915
-DEFAULT_MAX_JOIN_DISTANCE_M_S01 = 40.
-DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01 = 20.
+DEFAULT_MAX_JOIN_DISTANCE_M_S01 = 30.
+DEFAULT_MAX_MEAN_JOIN_ERROR_M_S01 = 10.
 USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG = True
 
 DEFAULT_NUM_MAIN_ITERS = 5
 DEFAULT_NUM_BREAKUP_ITERS = 3
-DEFAULT_MIN_OBJECTS_IN_TRACK = 1
+DEFAULT_MIN_OBJECTS_IN_TRACK = 3
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -1490,6 +1490,24 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
 
     num_storm_objects = len(storm_object_table.index)
     for i in range(num_storm_objects):
+        if i == 0:
+            previous_storm_id = 'NaN'
+        else:
+            previous_storm_id = storm_object_table[
+                tracking_utils.STORM_ID_COLUMN].values[i - 1]
+
+        if i == num_storm_objects - 1:
+            next_storm_id = 'NaN'
+        else:
+            next_storm_id = storm_object_table[
+                tracking_utils.STORM_ID_COLUMN].values[i - 1]
+
+        this_storm_id = storm_object_table[
+            tracking_utils.STORM_ID_COLUMN].values[i]
+        if not (this_storm_id == previous_storm_id
+                or this_storm_id == next_storm_id):
+            continue
+
         csv_file_handle.write('\n')
         this_polygon_object = storm_object_table[
             tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
