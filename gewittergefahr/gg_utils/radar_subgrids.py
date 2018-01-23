@@ -409,7 +409,7 @@ def get_images_for_storm_objects(
         print 'Writing images to "{0:s}"...\n'.format(image_file_names[i])
 
         these_storm_ids = storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values[these_storm_indices]
+            tracking_utils.STORM_ID_COLUMN].values[these_storm_indices].tolist()
         write_storm_images(
             image_file_names[i], storm_ids=these_storm_ids,
             radar_field_name_by_pair=radar_field_name_by_pair,
