@@ -25,7 +25,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 def plot_histogram(
         input_values, num_bins, min_value, max_value, axes_object,
-        x_tick_spacing, y_tick_spacing,
+        x_tick_spacing_num_bins, y_tick_spacing,
         bar_face_colour=DEFAULT_HISTOGRAM_FACE_COLOUR,
         bar_edge_colour=DEFAULT_HISTOGRAM_EDGE_COLOUR,
         bar_edge_width=DEFAULT_HISTOGRAM_EDGE_WIDTH):
@@ -36,15 +36,18 @@ def plot_histogram(
     :param min_value: See documentation for `histograms.create_histogram`.
     :param max_value: See documentation for `histograms.create_histogram`.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param x_tick_spacing: Spacing between adjacent tick marks on x-axis.
-    :param y_tick_spacing: Spacing between adjacent tick marks on y-axis.
+    :param x_tick_spacing_num_bins: Spacing between adjacent tick marks on
+        x-axis, in terms of # bins.
+    :param y_tick_spacing: Spacing between adjacent tick marks on
+        y-axis, in terms of frequency.
     :param bar_face_colour: Colour (in any format accepted by
         `matplotlib.colors`) for interior of each bar.
     :param bar_edge_colour: Colour for edge of each bar.
     :param bar_edge_width: Width for edge of each bar.
     """
 
-    error_checking.assert_is_greater(x_tick_spacing, 0.)
+    error_checking.assert_is_integer(x_tick_spacing_num_bins)
+    error_checking.assert_is_greater(x_tick_spacing_num_bins, 0)
     error_checking.assert_is_greater(y_tick_spacing, 0.)
 
     _, num_examples_by_bin = histograms.create_histogram(
@@ -63,14 +66,9 @@ def plot_histogram(
         color=bar_face_colour, edgecolor=bar_edge_colour,
         linewidth=bar_edge_width)
 
-    min_x_tick_value = numpy.min(bin_centers)
-    max_x_tick_value = min_x_tick_value + rounder.ceiling_to_nearest(
-        numpy.max(bin_centers) - min_x_tick_value, x_tick_spacing)
-    num_x_ticks = 1 + int(numpy.round(
-        (max_x_tick_value - min_x_tick_value) / x_tick_spacing))
-
-    x_tick_indices = numpy.unique(numpy.round(
-        numpy.linspace(0., num_bins - 1., num=num_x_ticks)).astype(int))
+    x_tick_indices = numpy.arange(
+        0, num_bins - 1, step=x_tick_spacing_num_bins, dtype=int)
+    x_tick_indices = x_tick_indices[x_tick_indices < num_bins]
     x_tick_values = bin_centers[x_tick_indices]
 
     max_y_tick_value = rounder.ceiling_to_nearest(
