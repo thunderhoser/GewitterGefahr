@@ -1480,7 +1480,6 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
     storm_object_table.sort_values(
         [tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN], axis=0,
         ascending=[True, True], inplace=True)
-    print storm_object_table
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
     csv_file_handle = open(csv_file_name, 'w')
@@ -1491,24 +1490,6 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
 
     num_storm_objects = len(storm_object_table.index)
     for i in range(num_storm_objects):
-        if i == 0:
-            previous_storm_id = 'NaN'
-        else:
-            previous_storm_id = storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values[i - 1]
-
-        if i == num_storm_objects - 1:
-            next_storm_id = 'NaN'
-        else:
-            next_storm_id = storm_object_table[
-                tracking_utils.STORM_ID_COLUMN].values[i + 1]
-
-        this_storm_id = storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values[i]
-        if not (this_storm_id == previous_storm_id
-                or this_storm_id == next_storm_id):
-            continue
-
         csv_file_handle.write('\n')
         this_polygon_object = storm_object_table[
             tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
