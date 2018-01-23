@@ -4,7 +4,8 @@ from setuptools import setup
 
 PACKAGE_NAMES = [
     'gewittergefahr', 'gewittergefahr.gg_io', 'gewittergefahr.gg_utils',
-    'gewittergefahr.plotting', 'gewittergefahr.feature_selection_example']
+    'gewittergefahr.plotting', 'gewittergefahr.scripts',
+    'gewittergefahr.feature_selection_example']
 KEYWORDS = [
     'machine learning', 'artificial intelligence', 'data mining', 'weather',
     'meteorology', 'thunderstorm', 'straight-line wind']
