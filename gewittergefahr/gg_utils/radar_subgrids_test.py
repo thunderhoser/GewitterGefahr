@@ -76,6 +76,16 @@ NUM_COLUMNS_TO_EXTRACT = 4
 RADAR_FIELD_SUBMATRIX = numpy.array([[5., 15., 25., 35.],
                                      [10., 25., 40., 55.]])
 
+# The following constants are used to test find_storm_image_file.
+TOP_STORM_IMAGE_DIR_NAME = 'storm_images'
+VALID_TIME_UNIX_SEC = 1516749825
+SPC_DATE_STRING = '20180123'
+RADAR_FIELD_NAME = 'echo_top_40dbz_km'
+RADAR_HEIGHT_M_ASL = 250
+STORM_IMAGE_FILE_NAME = (
+    'storm_images/2018/20180123/EchoTop_40/00.25/storm_images_'
+    '2018-01-23-232345.p')
+
 
 class RadarSubgridsTests(unittest.TestCase):
     """Each method is a unit test for radar_subgrids.py."""
@@ -155,6 +165,17 @@ class RadarSubgridsTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_submatrix, RADAR_FIELD_SUBMATRIX, atol=TOLERANCE))
+
+    def test_find_storm_image_file(self):
+        """Ensures correct output from find_storm_image_file."""
+
+        this_file_name = radar_subgrids.find_storm_image_file(
+            top_directory_name=TOP_STORM_IMAGE_DIR_NAME,
+            unix_time_sec=VALID_TIME_UNIX_SEC, spc_date_string=SPC_DATE_STRING,
+            radar_field_name=RADAR_FIELD_NAME,
+            radar_height_m_asl=RADAR_HEIGHT_M_ASL, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME)
 
 
 if __name__ == '__main__':

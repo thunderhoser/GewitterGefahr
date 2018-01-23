@@ -158,23 +158,20 @@ def _get_rowcol_indices_for_subgrid(num_rows_in_full_grid=None,
 
 
 def _check_storm_images(
-        image_matrix, storm_ids, radar_field_name_by_pair,
-        radar_height_by_pair_m_asl):
+        image_matrix, storm_ids, radar_field_name, radar_height_m_asl):
     """Checks storm-centered radar images for errors.
 
     These images should be created by `get_images_for_storm_objects`.
 
-    S = number of storm objects
-    F = number of radar fields (variable/height pairs)
+    K = number of storm objects
     M = number of rows in each image
     N = number of columns in each image
 
-    :param image_matrix: 4-D numpy array (F x S x M x N) with image for each
-        radar field and storm object.
-    :param storm_ids: length-S list of storm IDs (strings).
-    :param radar_field_name_by_pair: length-F list with names of radar fields.
-    :param radar_height_by_pair_m_asl: length-F list with heights (metres above
-        sea level) of radar fields.
+    :param image_matrix: K-by-M-by-N numpy array with image for each storm
+        object.
+    :param storm_ids: length-K list of storm IDs (strings).
+    :param radar_field_name: Name of radar field.
+    :param radar_height_m_asl: Height (metres above sea level) of radar field.
     """
 
     error_checking.assert_is_string_list(storm_ids)
@@ -182,21 +179,13 @@ def _check_storm_images(
         numpy.array(storm_ids), num_dimensions=1)
     num_storm_objects = len(storm_ids)
 
-    error_checking.assert_is_string_list(radar_field_name_by_pair)
-    error_checking.assert_is_numpy_array(
-        numpy.array(radar_field_name_by_pair), num_dimensions=1)
-    num_radar_fields = len(radar_field_name_by_pair)
+    radar_utils.check_field_name(radar_field_name)
+    error_checking.assert_is_geq(radar_height_m_asl, 0)
 
-    error_checking.assert_is_numpy_array(
-        radar_height_by_pair_m_asl,
-        exact_dimensions=numpy.array([num_radar_fields]))
-    error_checking.assert_is_geq_numpy_array(radar_height_by_pair_m_asl, 0)
-
-    error_checking.assert_is_numpy_array(image_matrix, num_dimensions=4)
+    error_checking.assert_is_numpy_array(image_matrix, num_dimensions=3)
     error_checking.assert_is_numpy_array(
         image_matrix, exact_dimensions=numpy.array(
-            [num_radar_fields, num_storm_objects, image_matrix.shape[2],
-             image_matrix.shape[3]]))
+            [num_storm_objects, image_matrix.shape[1], image_matrix.shape[2]]))
 
 
 def extract_radar_subgrid(field_matrix, center_row_index=None,
@@ -282,8 +271,9 @@ def get_images_for_storm_objects(
     Images for storm object s will have the same center as s.
 
     N = number of storm objects
-    F = number of radar fields
     T = number of time steps with storm objects
+    V = number of radar variables
+    F = number of radar fields (height/variable pairs)
 
     :param storm_object_table: N-row pandas DataFrame with the following
         columns.  Each row is one storm object.
@@ -303,14 +293,14 @@ def get_images_for_storm_objects(
     :param num_columns_per_image: Number of columns in each image (subgrid).  We
         recommend that you make this a power of 2 (examples: 8, 16, 32, 64,
         etc.).
-    :param radar_field_names: length-F list with names of radar fields.
+    :param radar_field_names: length-V list with names of radar fields.
     :param reflectivity_heights_m_asl: 1-D numpy array of heights (metres above
         sea level) for radar field "reflectivity_dbz".  If "reflectivity_dbz" is
         not one of the `radar_field_names`, leave this argument as None.
     :param radar_data_source: Source of radar data (examples: "myrorss",
         "mrms").
-    :return: image_file_names: length-T list of paths to output files (one for
-        each time step with storm objects).
+    :return: image_file_names_2d_list: T-by-F list of paths to output files (one
+        for each time step with storm objects and each radar field).
     """
 
     error_checking.assert_is_integer(num_rows_per_image)
@@ -340,7 +330,8 @@ def get_images_for_storm_objects(
 
     num_radar_fields = len(radar_field_name_by_pair)
     num_unique_storm_times = len(unique_storm_times_unix_sec)
-    image_file_names = [''] * num_unique_storm_times
+    image_file_names_2d_list = (
+        [[''] * num_radar_fields] * num_unique_storm_times)
 
     for i in range(num_unique_storm_times):
         this_time_string = time_conversion.unix_sec_to_string(
@@ -353,16 +344,19 @@ def get_images_for_storm_objects(
             unique_storm_times_unix_sec[i],
             storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
             unique_spc_dates_unix_sec[i])
-        these_storm_indices = numpy.where(these_storm_flags)[0]
 
+        these_storm_indices = numpy.where(these_storm_flags)[0]
+        these_storm_ids = storm_object_table[
+            tracking_utils.STORM_ID_COLUMN].values[these_storm_indices].tolist()
         this_num_storms = len(these_storm_indices)
-        this_4d_image_matrix = numpy.full(
-            (num_radar_fields, this_num_storms, num_rows_per_image,
-             num_columns_per_image), numpy.nan)
 
         for j in range(num_radar_fields):
             if radar_file_names_2d_list[i][j] is None:
                 continue
+
+            this_3d_image_matrix = numpy.full(
+                (this_num_storms, num_rows_per_image, num_columns_per_image),
+                numpy.nan)
 
             print (
                 'Extracting images for "{0:s}" at {1:d} metres ASL and '
@@ -406,38 +400,43 @@ def get_images_for_storm_objects(
                     this_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
             for k in range(this_num_storms):
-                this_4d_image_matrix[j, k, :, :] = extract_radar_subgrid(
+                this_3d_image_matrix[k, :, :] = extract_radar_subgrid(
                     this_radar_matrix,
                     center_row_index=these_storm_center_rows[k],
                     center_column_index=these_storm_center_columns[k],
                     num_rows_in_subgrid=num_rows_per_image,
                     num_columns_in_subgrid=num_columns_per_image)
 
-        image_file_names[i] = find_storm_image_file(
-            top_directory_name=top_storm_image_dir_name,
-            unix_time_sec=unique_storm_times_unix_sec[i],
-            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
-        print 'Writing images to "{0:s}"...\n'.format(image_file_names[i])
+            image_file_names_2d_list[i][j] = find_storm_image_file(
+                top_directory_name=top_storm_image_dir_name,
+                unix_time_sec=unique_storm_times_unix_sec[i],
+                spc_date_string=this_spc_date_string,
+                radar_field_name=radar_field_name_by_pair[j],
+                radar_height_m_asl=radar_height_by_pair_m_asl[j],
+                raise_error_if_missing=False)
 
-        these_storm_ids = storm_object_table[
-            tracking_utils.STORM_ID_COLUMN].values[these_storm_indices].tolist()
-        write_storm_images(
-            image_file_names[i], storm_ids=these_storm_ids,
-            radar_field_name_by_pair=radar_field_name_by_pair,
-            radar_height_by_pair_m_asl=radar_height_by_pair_m_asl,
-            image_matrix=this_4d_image_matrix)
+            print 'Writing images to "{0:s}"...\n'.format(
+                image_file_names_2d_list[i][j])
+            write_storm_images(
+                image_file_names_2d_list[i][j],
+                image_matrix=this_3d_image_matrix, storm_ids=these_storm_ids,
+                radar_field_name=radar_field_name_by_pair[j],
+                radar_height_m_asl=radar_height_by_pair_m_asl[j])
 
-    return image_file_names
+    return image_file_names_2d_list
 
 
-def find_storm_image_file(top_directory_name, unix_time_sec, spc_date_string,
-                          raise_error_if_missing=True):
+def find_storm_image_file(
+        top_directory_name, unix_time_sec, spc_date_string, radar_field_name,
+        radar_height_m_asl, raise_error_if_missing=True):
     """Finds file with storm-centered radar images.
 
     :param top_directory_name: Name of top-level directory with files containing
         storm-centered radar images.
     :param unix_time_sec: Valid time.
     :param spc_date_string: SPC date (format "yyyymmdd").
+    :param radar_field_name: Name of radar field.
+    :param radar_height_m_asl: Height (metres above sea level) of radar field.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         will raise error.
     :return: storm_image_file_name: Path to image file.  If file is missing and
@@ -448,9 +447,17 @@ def find_storm_image_file(top_directory_name, unix_time_sec, spc_date_string,
     _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    storm_image_file_name = '{0:s}/{1:s}/{2:s}/storm_images_{3:s}.p'.format(
-        top_directory_name, spc_date_string[:4], spc_date_string,
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+    relative_dir_name_for_field = (
+        myrorss_and_mrms_io.get_relative_dir_for_raw_files(
+            field_name=radar_field_name,
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            height_m_asl=radar_height_m_asl))
+
+    storm_image_file_name = (
+        '{0:s}/{1:s}/{2:s}/{3:s}/storm_images_{4:s}.p'.format(
+            top_directory_name, spc_date_string[:4], spc_date_string,
+            relative_dir_name_for_field,
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT)))
 
     if raise_error_if_missing and not os.path.isfile(storm_image_file_name):
         error_string = (
@@ -462,35 +469,30 @@ def find_storm_image_file(top_directory_name, unix_time_sec, spc_date_string,
 
 
 def write_storm_images(
-        pickle_file_name, image_matrix, storm_ids, radar_field_name_by_pair,
-        radar_height_by_pair_m_asl):
+        pickle_file_name, image_matrix, storm_ids, radar_field_name,
+        radar_height_m_asl):
     """Writes storm-centered radar images (subgrids) to Pickle file.
 
     These images should be created by `get_images_for_storm_objects`.
 
-    S = number of storm objects
-    F = number of radar fields (variable/height pairs)
-    M = number of rows in each image
-    N = number of columns in each image
-
     :param pickle_file_name: Path to output file.
     :param image_matrix: See documentation for _check_storm_images.
     :param storm_ids: See doc for _check_storm_images.
-    :param radar_field_name_by_pair: See doc for _check_storm_images.
-    :param radar_height_by_pair_m_asl: See doc for _check_storm_images.
+    :param radar_field_name: See doc for _check_storm_images.
+    :param radar_height_m_asl: See doc for _check_storm_images.
     """
 
     _check_storm_images(
         image_matrix=image_matrix, storm_ids=storm_ids,
-        radar_field_name_by_pair=radar_field_name_by_pair,
-        radar_height_by_pair_m_asl=radar_height_by_pair_m_asl)
+        radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(image_matrix, pickle_file_handle)
     pickle.dump(storm_ids, pickle_file_handle)
-    pickle.dump(radar_field_name_by_pair, pickle_file_handle)
-    pickle.dump(radar_height_by_pair_m_asl, pickle_file_handle)
+    pickle.dump(radar_field_name, pickle_file_handle)
+    pickle.dump(radar_height_m_asl, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -500,18 +502,20 @@ def read_storm_images(pickle_file_name):
     :param pickle_file_name: Path to output file.
     :return: image_matrix: See documentation for _check_storm_images.
     :return: storm_ids: See doc for _check_storm_images.
-    :return: radar_field_name_by_pair: See doc for _check_storm_images.
-    :return: radar_height_by_pair_m_asl: See doc for _check_storm_images.
+    :return: radar_field_name: See doc for _check_storm_images.
+    :return: radar_height_m_asl: See doc for _check_storm_images.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     image_matrix = pickle.load(pickle_file_handle)
     storm_ids = pickle.load(pickle_file_handle)
-    radar_field_name_by_pair = pickle.load(pickle_file_handle)
-    radar_height_by_pair_m_asl = pickle.load(pickle_file_handle)
+    radar_field_name = pickle.load(pickle_file_handle)
+    radar_height_m_asl = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
     _check_storm_images(
         image_matrix=image_matrix, storm_ids=storm_ids,
-        radar_field_name_by_pair=radar_field_name_by_pair,
-        radar_height_by_pair_m_asl=radar_height_by_pair_m_asl)
+        radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    return image_matrix, storm_ids, radar_field_name, radar_height_m_asl
