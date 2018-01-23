@@ -286,6 +286,12 @@ def get_images_for_storm_objects(
 
     :param storm_object_table: N-row pandas DataFrame with the following
         columns.  Each row is one storm object.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.spc_date_unix_sec: SPC date.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+
     :param top_radar_directory_name: Name of top-level directory with radar
         data.
     :param num_rows_per_image: Number of rows in each image (subgrid).  We
