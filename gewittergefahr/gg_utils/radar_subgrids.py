@@ -3,6 +3,7 @@
 These are usually centered around a storm object.
 """
 
+import os.path
 import pickle
 import numpy
 from gewittergefahr.gg_io import myrorss_and_mrms_io
@@ -14,7 +15,7 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 MIN_ROW_IN_SUBGRID_COLUMN = 'min_row_in_subgrid'
 MAX_ROW_IN_SUBGRID_COLUMN = 'max_row_in_subgrid'
@@ -270,7 +271,7 @@ def extract_radar_subgrid(field_matrix, center_row_index=None,
 
 
 def get_images_for_storm_objects(
-        storm_object_table, top_radar_directory_name,
+        storm_object_table, top_radar_dir_name, top_storm_image_dir_name,
         num_rows_per_image=DEFAULT_NUM_ROWS_PER_IMAGE,
         num_columns_per_image=DEFAULT_NUM_COLUMNS_PER_IMAGE,
         radar_field_names=DEFAULT_RADAR_FIELD_NAMES,
@@ -292,8 +293,10 @@ def get_images_for_storm_objects(
     storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
     storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
 
-    :param top_radar_directory_name: Name of top-level directory with radar
+    :param top_radar_dir_name: [input] Name of top-level directory with radar
         data.
+    :param top_storm_image_dir_name: [output] Name of top-level directory for
+        files with storm-centered radar images.
     :param num_rows_per_image: Number of rows in each image (subgrid).  We
         recommend that you make this a power of 2 (examples: 8, 16, 32, 64,
         etc.).
@@ -321,7 +324,7 @@ def get_images_for_storm_objects(
         spc_dates_unix_sec=
         storm_object_table[tracking_utils.SPC_DATE_COLUMN].values,
         data_source=radar_data_source, field_names=radar_field_names,
-        top_directory_name=top_radar_directory_name,
+        top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
 
     radar_file_names_2d_list = file_dictionary[
@@ -341,7 +344,7 @@ def get_images_for_storm_objects(
 
     for i in range(num_unique_storm_times):
         this_time_string = time_conversion.unix_sec_to_string(
-            unique_storm_times_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
+            unique_storm_times_unix_sec[i], TIME_FORMAT)
         this_spc_date_string = time_conversion.time_to_spc_date_string(
             unique_spc_dates_unix_sec[i])
 
@@ -410,8 +413,10 @@ def get_images_for_storm_objects(
                     num_rows_in_subgrid=num_rows_per_image,
                     num_columns_in_subgrid=num_columns_per_image)
 
-        image_file_names[i] = 'storm_images_{0:s}_{1:s}.p'.format(
-            this_spc_date_string, this_time_string)
+        image_file_names[i] = find_storm_image_file(
+            top_directory_name=top_storm_image_dir_name,
+            unix_time_sec=unique_storm_times_unix_sec[i],
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
         print 'Writing images to "{0:s}"...\n'.format(image_file_names[i])
 
         these_storm_ids = storm_object_table[
@@ -423,6 +428,37 @@ def get_images_for_storm_objects(
             image_matrix=this_4d_image_matrix)
 
     return image_file_names
+
+
+def find_storm_image_file(top_directory_name, unix_time_sec, spc_date_string,
+                          raise_error_if_missing=True):
+    """Finds file with storm-centered radar images.
+
+    :param top_directory_name: Name of top-level directory with files containing
+        storm-centered radar images.
+    :param unix_time_sec: Valid time.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        will raise error.
+    :return: storm_image_file_name: Path to image file.  If file is missing and
+        raise_error_if_missing = False, this is the *expected* path.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    storm_image_file_name = '{0:s}/{1:s}/{2:s}/storm_images_{3:s}.p'.format(
+        top_directory_name, spc_date_string[:4], spc_date_string,
+        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+
+    if raise_error_if_missing and not os.path.isfile(storm_image_file_name):
+        error_string = (
+            'Cannot find file with storm-centered images.  Expected at: '
+            '{0:s}').format(storm_image_file_name)
+        raise ValueError(error_string)
+
+    return storm_image_file_name
 
 
 def write_storm_images(
