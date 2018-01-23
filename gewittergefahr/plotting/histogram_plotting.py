@@ -63,8 +63,14 @@ def plot_histogram(
         color=bar_face_colour, edgecolor=bar_edge_colour,
         linewidth=bar_edge_width)
 
+    min_x_tick_value = numpy.min(bin_centers)
+    max_x_tick_value = min_x_tick_value + rounder.ceiling_to_nearest(
+        numpy.max(bin_centers) - min_x_tick_value, x_tick_spacing)
+    num_x_ticks = 1 + int(numpy.round(
+        (max_x_tick_value - min_x_tick_value) / x_tick_spacing))
+
     x_tick_indices = numpy.unique(numpy.round(
-        numpy.linspace(0., num_bins - 1., num=num_bins)).astype(int))
+        numpy.linspace(0., num_bins - 1., num=num_x_ticks)).astype(int))
     x_tick_values = bin_centers[x_tick_indices]
 
     max_y_tick_value = rounder.ceiling_to_nearest(
