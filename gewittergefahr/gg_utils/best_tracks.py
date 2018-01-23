@@ -1480,6 +1480,7 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
     storm_object_table.sort_values(
         [tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN], axis=0,
         ascending=[True, True], inplace=True)
+    print storm_object_table
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=csv_file_name)
     csv_file_handle = open(csv_file_name, 'w')
