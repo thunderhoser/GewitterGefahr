@@ -60,14 +60,13 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
-from gewittergefahr.gg_utils import error_checking
 
 SPC_DATE_FORMAT = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
 VALID_RADAR_DATA_SOURCES = [
     radar_utils.MYRORSS_SOURCE_ID, radar_utils.GRIDRAD_SOURCE_ID]
 
-NUM_TASKS_PER_SPC_DATE = 1
+NUM_CORES_PER_SPC_DATE = 1
 NUM_NODES_PER_SPC_DATE = 1
 MEGABYTES_PER_SPC_DATE = 8000
 TIME_LIMIT_STRING = '48:00:00'
@@ -170,9 +169,6 @@ def _write_slurm_file(
     else:
         segmotion_arg_string = SEGMOTION_ARG_STRING_FOR_MYRORSS
 
-    error_checking.assert_is_string(top_radar_dir_name)
-    error_checking.assert_is_string(email_address)
-    error_checking.assert_is_string(partition_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=slurm_file_name)
 
     # Create list of SPC dates.
@@ -197,7 +193,7 @@ def _write_slurm_file(
     slurm_file_handle.write('#SBATCH --job-name="{0:s}"\n'.format(
         slurm_job_name))
     slurm_file_handle.write('#SBATCH --ntasks={0:d}\n'.format(
-        NUM_TASKS_PER_SPC_DATE))
+        NUM_CORES_PER_SPC_DATE))
     slurm_file_handle.write('#SBATCH --nodes={0:d}\n'.format(
         NUM_NODES_PER_SPC_DATE))
     slurm_file_handle.write('#SBATCH --mem={0:d}\n'.format(
