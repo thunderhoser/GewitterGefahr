@@ -29,6 +29,7 @@ from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import grid_smoothing_2d
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
+from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Add method that assigns storm IDs, method that assigns
@@ -41,7 +42,7 @@ DAYS_TO_SECONDS = 86400
 DEGREES_LAT_TO_METRES = 60 * 1852
 
 CENTRAL_PROJ_LATITUDE_DEG = 35.
-CENTRAL_PROJ_LONGITUDE_DEG = 295.
+CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
 VALID_RADAR_FIELDS = [
     radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_40DBZ_NAME,
@@ -707,5 +708,8 @@ def run_tracking(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
 
     storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
-    return _remove_short_tracks(
+    storm_object_table = _remove_short_tracks(
         storm_object_table, min_duration_seconds=min_track_duration_seconds)
+    return best_tracks.recompute_attributes(
+        storm_object_table, best_track_start_time_unix_sec=unix_times_sec[0],
+        best_track_end_time_unix_sec=unix_times_sec[-1])

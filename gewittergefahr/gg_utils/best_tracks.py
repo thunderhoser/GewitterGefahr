@@ -91,10 +91,13 @@ ATTRIBUTES_TO_OVERWRITE = [
 
 VERTEX_LATITUDES_COLUMN = 'polygon_vertex_latitudes_deg'
 VERTEX_LONGITUDES_COLUMN = 'polygon_vertex_longitudes_deg'
+# OUTPUT_COLUMNS_FOR_THEA = [
+#     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
+#     tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
+#     VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 OUTPUT_COLUMNS_FOR_THEA = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
-    VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
+    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN]
 
 TRACK_LIFETIMES_KEY = 'track_lifetimes_sec'
 LINEARITY_ERROR_BY_TRACK_KEY = 'centroid_rmse_by_track_metres'
@@ -1188,6 +1191,9 @@ def recompute_attributes(
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
     """
+
+    # TODO(thunderhoser): This method should be moved, since it is now being
+    # used by gridrad_tracking.py.
 
     error_checking.assert_is_integer(best_track_start_time_unix_sec)
     error_checking.assert_is_integer(best_track_end_time_unix_sec)
