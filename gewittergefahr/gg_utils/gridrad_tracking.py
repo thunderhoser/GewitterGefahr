@@ -399,18 +399,12 @@ def _find_input_radar_files(
         # TODO(thunderhoser): stop accessing protected method.
         these_times_unix_sec = numpy.array(
             [myrorss_and_mrms_io._raw_file_name_to_time(f)
-             for f in input_radar_file_names], dtype=int)
-
-        print these_times_unix_sec
+             for f in these_file_names], dtype=int)
 
         if i == 0:
             keep_time_indices = numpy.where(
                 these_times_unix_sec >= start_time_unix_sec)[0]
             these_times_unix_sec = these_times_unix_sec[keep_time_indices]
-            print keep_time_indices
-            print type(keep_time_indices)
-            print these_file_names
-            print type(these_file_names)
             these_file_names = these_file_names[keep_time_indices]
 
         if i == num_spc_dates - 1:
