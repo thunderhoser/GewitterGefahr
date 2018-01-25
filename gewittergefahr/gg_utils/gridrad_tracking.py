@@ -29,8 +29,8 @@ from gewittergefahr.gg_utils import grid_smoothing_2d
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): Add unit tests, method that assigns storm IDs, method that
-# assigns storm properties, and IO methods for tracking files.
+# TODO(thunderhoser): Add method that assigns storm IDs, method that assigns
+# storm properties, and IO methods for tracking files.
 
 TOLERANCE = 1e-6
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -73,6 +73,7 @@ def _check_radar_field(radar_field_name):
     :raises: ValueError: if `radar_field_name not in VALID_RADAR_FIELDS`.
     """
 
+    error_checking.assert_is_string(radar_field_name)
     if radar_field_name not in VALID_RADAR_FIELDS:
         error_string = (
             '\n\n{0:s}\n\nValid radar fields (listed above) do not include '
@@ -87,6 +88,7 @@ def _check_radar_data_source(radar_data_source):
     :raises: ValueError: if `radar_data_source not in VALID_RADAR_DATA_SOURCES`.
     """
 
+    error_checking.assert_is_string(radar_data_source)
     if radar_data_source not in VALID_RADAR_DATA_SOURCES:
         error_string = (
             '\n\n{0:s}\n\nValid data sources (listed above) do not include '
