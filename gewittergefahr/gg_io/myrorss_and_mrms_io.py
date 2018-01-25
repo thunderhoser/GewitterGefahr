@@ -45,7 +45,7 @@ TIME_FORMAT_SECONDS = '%Y%m%d-%H%M%S'
 TIME_FORMAT_MINUTES = '%Y%m%d-%H%M'
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 TIME_FORMAT_SECONDS_REGEX = (
-    '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]')
+    '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]')
 
 MINUTES_TO_SECONDS = 60
 METRES_TO_KM = 1e-3
