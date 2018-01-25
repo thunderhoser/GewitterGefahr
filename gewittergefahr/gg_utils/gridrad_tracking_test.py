@@ -1,10 +1,14 @@
 """Unit tests for gridrad_tracking.py."""
 
+import copy
 import unittest
 import numpy
+import pandas
 from gewittergefahr.gg_utils import gridrad_tracking
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
+from gewittergefahr.gg_utils import time_conversion
 
 TOLERANCE = 1e-6
 
@@ -64,7 +68,7 @@ LOCAL_MAX_DICT_LARGE_DISTANCE = {
 }
 
 # The following constants are used to test _link_local_maxima_in_time.
-PREVIOUS_TIME_UNIX_SEC = 0
+PREVIOUS_TIME_UNIX_SEC = 1516860600  # 0610 UTC 25 Jan 2018
 PREVIOUS_LOCAL_MAX_DICT = {
     gridrad_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
     gridrad_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
@@ -75,8 +79,8 @@ MAX_LINK_TIME_SECONDS = 300
 MAX_LINK_DISTANCE_M_S01 = 10.
 MAX_LINK_DISTANCE_METRES = MAX_LINK_TIME_SECONDS * MAX_LINK_DISTANCE_M_S01
 
-CURRENT_TIME_UNIX_SEC = 300
-CURRENT_TIME_TOO_LATE_UNIX_SEC = 600
+CURRENT_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
+CURRENT_TIME_TOO_LATE_UNIX_SEC = 1516861200
 
 CURRENT_LOCAL_MAX_DICT_BOTH_FAR = {
     gridrad_tracking.X_COORDS_KEY:
@@ -130,6 +134,61 @@ CURRENT_LOCAL_MAX_DICT_EMPTY = {
     gridrad_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC
 }
 CURRENT_TO_PREV_INDICES_NO_LINKS = numpy.array([-1, -1], dtype=int)
+
+# The following constants are used to test _create_storm_id.
+STORM_TIME_UNIX_SEC = 1516860900  # 0615 UTC 25 Jan 2018
+STORM_SPC_DATE_STRING = '20180124'
+PREV_SPC_DATE_STRING = '20180123'
+PREV_NUMERIC_ID_USED = 0
+
+STORM_ID_FIRST_IN_DAY = '000000_20180124'
+STORM_ID_SECOND_IN_DAY = '000001_20180124'
+
+# The following constants are used to test _local_maxima_to_storm_tracks.
+LOCAL_MAX_DICT_TIME0 = {
+    gridrad_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
+    gridrad_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    gridrad_tracking.VALID_TIME_KEY: PREVIOUS_TIME_UNIX_SEC,
+    gridrad_tracking.CURRENT_TO_PREV_INDICES_KEY:
+        CURRENT_TO_PREV_INDICES_NO_LINKS
+}
+
+LOCAL_MAX_DICT_TIME1 = {
+    gridrad_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
+    gridrad_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    gridrad_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC,
+    gridrad_tracking.CURRENT_TO_PREV_INDICES_KEY:
+        CURRENT_TO_PREV_INDICES_BOTH_NEAR
+}
+
+LOCAL_MAX_DICT_BY_TIME = [LOCAL_MAX_DICT_TIME0, LOCAL_MAX_DICT_TIME1]
+
+THESE_STORM_IDS = [
+    STORM_ID_FIRST_IN_DAY, STORM_ID_SECOND_IN_DAY, STORM_ID_FIRST_IN_DAY,
+    STORM_ID_SECOND_IN_DAY]
+THESE_TIMES_UNIX_SEC = numpy.array(
+    [PREVIOUS_TIME_UNIX_SEC, PREVIOUS_TIME_UNIX_SEC, CURRENT_TIME_UNIX_SEC,
+     CURRENT_TIME_UNIX_SEC])
+THESE_SPC_DATES_UNIX_SEC = numpy.full(
+    4, time_conversion.time_to_spc_date_unix_sec(PREVIOUS_TIME_UNIX_SEC),
+    dtype=int)
+THESE_CENTROID_LATITUDES_DEG = numpy.concatenate((
+    LOCAL_MAX_LATITUDES_DEG, LOCAL_MAX_LATITUDES_DEG))
+THESE_CENTROID_LONGITUDES_DEG = numpy.concatenate((
+    LOCAL_MAX_LONGITUDES_DEG, LOCAL_MAX_LONGITUDES_DEG))
+
+STORM_OBJECT_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC,
+    tracking_utils.CENTROID_LAT_COLUMN: THESE_CENTROID_LATITUDES_DEG,
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_CENTROID_LONGITUDES_DEG
+}
+STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(STORM_OBJECT_DICT)
+
+# The following constants are used to test _remove_short_tracks.
+SMALL_THRESHOLD_DURATION_SEC = 100
+LARGE_THRESHOLD_DURATION_SEC = 1000
 
 
 class GridradTrackingTests(unittest.TestCase):
@@ -318,6 +377,74 @@ class GridradTrackingTests(unittest.TestCase):
                 max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
         self.assertTrue(numpy.array_equal(
             these_current_to_prev_indices, numpy.array([])))
+
+    def test_create_storm_id_first_in_day(self):
+        """Ensures correct output from _create_storm_id.
+
+        In this case, storm to be labeled is the first storm in the SPC date.
+        """
+
+        this_storm_id, this_numeric_id, this_spc_date_string = (
+            gridrad_tracking._create_storm_id(
+                storm_start_time_unix_sec=STORM_TIME_UNIX_SEC,
+                prev_numeric_id_used=PREV_NUMERIC_ID_USED,
+                prev_spc_date_string=PREV_SPC_DATE_STRING))
+
+        self.assertTrue(this_storm_id == STORM_ID_FIRST_IN_DAY)
+        self.assertTrue(this_numeric_id == 0)
+        self.assertTrue(this_spc_date_string == STORM_SPC_DATE_STRING)
+
+    def test_create_storm_id_second_in_day(self):
+        """Ensures correct output from _create_storm_id.
+
+        In this case, storm to be labeled is the second storm in the SPC date.
+        """
+
+        this_storm_id, this_numeric_id, this_spc_date_string = (
+            gridrad_tracking._create_storm_id(
+                storm_start_time_unix_sec=STORM_TIME_UNIX_SEC,
+                prev_numeric_id_used=PREV_NUMERIC_ID_USED,
+                prev_spc_date_string=STORM_SPC_DATE_STRING))
+
+        self.assertTrue(this_storm_id == STORM_ID_SECOND_IN_DAY)
+        self.assertTrue(this_numeric_id == PREV_NUMERIC_ID_USED + 1)
+        self.assertTrue(this_spc_date_string == STORM_SPC_DATE_STRING)
+
+    def test_local_maxima_to_storm_tracks(self):
+        """Ensures correct output from _local_maxima_to_storm_tracks."""
+
+        this_storm_object_table = (
+            gridrad_tracking._local_maxima_to_storm_tracks(
+                LOCAL_MAX_DICT_BY_TIME))
+        self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
+
+    def test_remove_short_tracks_short_threshold(self):
+        """Ensures correct output from _remove_short_tracks.
+
+        In this case, minimum track duration is short, so all tracks should be
+        kept.
+        """
+
+        this_storm_object_table = copy.deepcopy(STORM_OBJECT_TABLE)
+        this_storm_object_table = gridrad_tracking._remove_short_tracks(
+            this_storm_object_table,
+            min_duration_seconds=SMALL_THRESHOLD_DURATION_SEC)
+
+        self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
+
+    def test_remove_short_tracks_long_threshold(self):
+        """Ensures correct output from _remove_short_tracks.
+
+        In this case, minimum track duration is long, so all tracks should be
+        removed.
+        """
+
+        this_storm_object_table = copy.deepcopy(STORM_OBJECT_TABLE)
+        this_storm_object_table = gridrad_tracking._remove_short_tracks(
+            this_storm_object_table,
+            min_duration_seconds=LARGE_THRESHOLD_DURATION_SEC)
+
+        self.assertTrue(this_storm_object_table.empty)
 
 
 if __name__ == '__main__':

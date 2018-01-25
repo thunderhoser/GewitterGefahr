@@ -32,8 +32,8 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): Add method that assigns storm IDs, method that assigns
-# storm properties, and IO methods for tracking files.
+# TODO(thunderhoser): Add method to create polygons.
+# TODO(thunderhoser): Add IO method.
 
 TOLERANCE = 1e-6
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -403,7 +403,7 @@ def _find_input_radar_files(
             data_source=data_source, top_directory_name=top_directory_name,
             raise_error_if_missing=True)
 
-        # TODO(thunderhoser): stop accessing protected method.
+        # TODO(thunderhoser): stop using protected method.
         these_times_unix_sec = numpy.array(
             [myrorss_and_mrms_io._raw_file_name_to_time(f)
              for f in these_file_names], dtype=int)
