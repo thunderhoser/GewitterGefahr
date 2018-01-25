@@ -417,7 +417,9 @@ def _find_input_radar_files(
         unix_times_sec = numpy.concatenate((
             unix_times_sec, these_times_unix_sec))
 
-    print input_radar_file_names
+    sort_indices = numpy.argsort(unix_times_sec)
+    unix_times_sec = unix_times_sec[sort_indices]
+    input_radar_file_names = [input_radar_file_names[i] for i in sort_indices]
 
     return {
         RADAR_FILE_NAMES_KEY: input_radar_file_names,
