@@ -360,7 +360,7 @@ def find_raw_files_one_spc_date(
         example_time_unix_sec, TIME_FORMAT_SECONDS)
     pathless_file_pattern = example_pathless_file_name.replace(
         example_time_string, TIME_FORMAT_SECONDS_REGEX)
-    pathless_file_pattern = example_pathless_file_name.replace(
+    pathless_file_pattern = pathless_file_pattern.replace(
         ZIPPED_FILE_EXTENSION, '*')
 
     raw_file_pattern = '{0:s}/{1:s}'.format(
