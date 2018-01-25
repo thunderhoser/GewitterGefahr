@@ -370,8 +370,6 @@ def _find_input_radar_files(
                     end_time_unix_sec, TIME_FORMAT), end_spc_date_string))
         raise ValueError(error_string)
 
-    print start_time_unix_sec
-    print end_time_unix_sec
     error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
 
     # Create list of SPC dates in period.
@@ -402,6 +400,8 @@ def _find_input_radar_files(
         these_times_unix_sec = numpy.array(
             [myrorss_and_mrms_io._raw_file_name_to_time(f)
              for f in input_radar_file_names], dtype=int)
+
+        print these_times_unix_sec
 
         if i == 0:
             keep_time_indices = numpy.where(
