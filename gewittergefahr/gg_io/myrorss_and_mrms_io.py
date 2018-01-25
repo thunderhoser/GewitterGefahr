@@ -44,9 +44,12 @@ NUM_GRID_CELL_COLUMN_ORIG = 'pixel_count'
 TIME_FORMAT_SECONDS = '%Y%m%d-%H%M%S'
 TIME_FORMAT_MINUTES = '%Y%m%d-%H%M'
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
-MINUTES_TO_SECONDS = 60
+TIME_FORMAT_SECONDS_REGEX = (
+    '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]')
 
+MINUTES_TO_SECONDS = 60
 METRES_TO_KM = 1e-3
+
 SENTINEL_TOLERANCE = 10.
 GRID_SPACING_MULTIPLE_DEG = 0.01
 DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
@@ -322,6 +325,53 @@ def find_raw_file(
             'Cannot find raw file.  Expected at location: ' + raw_file_name)
 
     return raw_file_name
+
+
+def find_raw_files_one_spc_date(
+        spc_date_string, field_name, data_source, top_directory_name,
+        height_m_asl=None, raise_error_if_missing=True):
+    """Finds raw files for one field and one SPC date.
+
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :param top_directory_name: Name of top-level directory with raw files.
+    :param height_m_asl: Radar height (metres above sea level).
+    :param raise_error_if_missing: Boolean flag.  If True and no files are
+        found, will raise error.
+    :return: raw_file_names: 1-D list of paths to raw files.
+    :raises: ValueError: if raise_error_if_missing = True and no files are
+        found.
+    """
+
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    example_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        spc_date_string)
+    example_file_name = find_raw_file(
+        unix_time_sec=example_time_unix_sec, spc_date_string=spc_date_string,
+        field_name=field_name, data_source=data_source,
+        top_directory_name=top_directory_name, height_m_asl=height_m_asl,
+        raise_error_if_missing=False)
+
+    example_directory_name, example_pathless_file_name = os.path.split(
+        example_file_name)
+    example_time_string = time_conversion.unix_sec_to_string(
+        example_time_unix_sec, TIME_FORMAT_SECONDS)
+    example_pathless_file_name = example_pathless_file_name.replace(
+        example_time_string, TIME_FORMAT_SECONDS_REGEX)
+
+    raw_file_pattern = '{0:s}/{1:s}'.format(
+        example_directory_name, example_pathless_file_name)
+    raw_file_names = glob.glob(raw_file_pattern)
+
+    if raise_error_if_missing and not raw_file_names:
+        error_string = (
+            'Could not find any files with the following pattern: {0:s}'.format(
+                raw_file_pattern))
+        raise ValueError(error_string)
+
+    return raw_file_names
 
 
 def find_many_raw_files(
