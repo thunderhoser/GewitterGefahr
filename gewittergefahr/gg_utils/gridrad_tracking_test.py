@@ -11,6 +11,7 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
 
 TOLERANCE = 1e-6
+RELATIVE_DISTANCE_TOLERANCE = 0.005
 
 # The following constants are used to test _find_local_maxima.
 RADAR_MATRIX = numpy.array([
@@ -148,6 +149,8 @@ STORM_ID_SECOND_IN_DAY = '000001_20180124'
 LOCAL_MAX_DICT_TIME0 = {
     gridrad_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
     gridrad_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    gridrad_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
+    gridrad_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
     gridrad_tracking.VALID_TIME_KEY: PREVIOUS_TIME_UNIX_SEC,
     gridrad_tracking.CURRENT_TO_PREV_INDICES_KEY:
         CURRENT_TO_PREV_INDICES_NO_LINKS
@@ -156,6 +159,8 @@ LOCAL_MAX_DICT_TIME0 = {
 LOCAL_MAX_DICT_TIME1 = {
     gridrad_tracking.LATITUDES_KEY: LOCAL_MAX_LATITUDES_DEG,
     gridrad_tracking.LONGITUDES_KEY: LOCAL_MAX_LONGITUDES_DEG,
+    gridrad_tracking.X_COORDS_KEY: LOCAL_MAX_X_COORDS_METRES,
+    gridrad_tracking.Y_COORDS_KEY: LOCAL_MAX_Y_COORDS_METRES,
     gridrad_tracking.VALID_TIME_KEY: CURRENT_TIME_UNIX_SEC,
     gridrad_tracking.CURRENT_TO_PREV_INDICES_KEY:
         CURRENT_TO_PREV_INDICES_BOTH_NEAR
@@ -176,19 +181,53 @@ THESE_CENTROID_LATITUDES_DEG = numpy.concatenate((
     LOCAL_MAX_LATITUDES_DEG, LOCAL_MAX_LATITUDES_DEG))
 THESE_CENTROID_LONGITUDES_DEG = numpy.concatenate((
     LOCAL_MAX_LONGITUDES_DEG, LOCAL_MAX_LONGITUDES_DEG))
+THESE_CENTROID_X_METRES = numpy.concatenate((
+    LOCAL_MAX_X_COORDS_METRES, LOCAL_MAX_X_COORDS_METRES))
+THESE_CENTROID_Y_METRES = numpy.concatenate((
+    LOCAL_MAX_Y_COORDS_METRES, LOCAL_MAX_Y_COORDS_METRES))
 
 STORM_OBJECT_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
     tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC,
     tracking_utils.CENTROID_LAT_COLUMN: THESE_CENTROID_LATITUDES_DEG,
-    tracking_utils.CENTROID_LNG_COLUMN: THESE_CENTROID_LONGITUDES_DEG
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_CENTROID_LONGITUDES_DEG,
+    gridrad_tracking.CENTROID_X_COLUMN: THESE_CENTROID_X_METRES,
+    gridrad_tracking.CENTROID_Y_COLUMN: THESE_CENTROID_Y_METRES
 }
 STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(STORM_OBJECT_DICT)
 
 # The following constants are used to test _remove_short_tracks.
 SMALL_THRESHOLD_DURATION_SEC = 100
 LARGE_THRESHOLD_DURATION_SEC = 1000
+
+# The following constants are used to test _get_velocities_one_storm_track.
+CENTROID_LATS_FOR_VELOCITY_DEG = numpy.array([40., 40., 41., 41., 40., 40.])
+CENTROID_LNGS_FOR_VELOCITY_DEG = numpy.array(
+    [265., 266., 266., 267., 267., 266.])
+TIMES_FOR_VELOCITY_UNIX_SEC = numpy.array([0, 1, 2, 3, 4, 5], dtype=int)
+
+DEG_LAT_TO_METRES = 60. * 1852
+DEGREES_TO_RADIANS = numpy.pi / 180
+NORTH_VELOCITIES_M_S01 = numpy.array(
+    [numpy.nan, 0., DEG_LAT_TO_METRES, 0., -DEG_LAT_TO_METRES, 0.])
+EAST_VELOCITIES_M_S01 = numpy.array(
+    [numpy.nan, DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS),
+     0., DEG_LAT_TO_METRES * numpy.cos(41. * DEGREES_TO_RADIANS),
+     0., -DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS)])
+
+# The following constants are used to test _get_grid_points_in_radius.
+X_GRID_MATRIX_METRES = numpy.array([[0., 1., 2., 3.],
+                                    [1., 2., 3., 4.],
+                                    [2., 3., 4., 5.]])
+Y_GRID_MATRIX_METRES = numpy.array([[5., 7., 9., 11.],
+                                    [10., 12., 14., 16.],
+                                    [15., 17., 19., 21.]])
+X_QUERY_METRES = 3.
+Y_QUERY_METRES = 10.
+CRITICAL_RADIUS_METRES = 5.
+ROWS_WITHIN_RADIUS = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
+COLUMNS_WITHIN_RADIUS = numpy.array([1, 2, 3, 0, 1, 2])
 
 
 class GridradTrackingTests(unittest.TestCase):
@@ -445,6 +484,37 @@ class GridradTrackingTests(unittest.TestCase):
             min_duration_seconds=LARGE_THRESHOLD_DURATION_SEC)
 
         self.assertTrue(this_storm_object_table.empty)
+
+    def test_get_velocities_one_storm_track(self):
+        """Ensures correct output from _get_velocities_one_storm_track."""
+
+        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
+            gridrad_tracking._get_velocities_one_storm_track(
+                centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
+                centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
+                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC))
+
+        self.assertTrue(numpy.allclose(
+            these_east_velocities_m_s01, EAST_VELOCITIES_M_S01,
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            these_north_velocities_m_s01, NORTH_VELOCITIES_M_S01,
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+
+    def test_get_grid_points_in_radius(self):
+        """Ensures correct output from _get_grid_points_in_radius."""
+
+        these_row_indices, these_column_indices = (
+            gridrad_tracking._get_grid_points_in_radius(
+                x_grid_matrix_metres=X_GRID_MATRIX_METRES,
+                y_grid_matrix_metres=Y_GRID_MATRIX_METRES,
+                x_query_metres=X_QUERY_METRES, y_query_metres=Y_QUERY_METRES,
+                radius_metres=CRITICAL_RADIUS_METRES))
+
+        self.assertTrue(numpy.array_equal(
+            these_row_indices, ROWS_WITHIN_RADIUS))
+        self.assertTrue(numpy.array_equal(
+            these_column_indices, COLUMNS_WITHIN_RADIUS))
 
 
 if __name__ == '__main__':

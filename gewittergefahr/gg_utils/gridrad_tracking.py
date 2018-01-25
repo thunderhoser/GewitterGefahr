@@ -21,19 +21,20 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 
 import numpy
 import pandas
+from geopy.distance import vincenty
 from gewittergefahr.gg_io import myrorss_and_mrms_io
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import dilation
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import grid_smoothing_2d
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import error_checking
-
-# TODO(thunderhoser): Add method to create polygons.
-# TODO(thunderhoser): Add IO method.
 
 TOLERANCE = 1e-6
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -57,8 +58,10 @@ DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MAX_LINK_TIME_SECONDS = 300
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = 50.
 DEFAULT_MIN_TRACK_DURATION_SECONDS = 900
+DEFAULT_STORM_OBJECT_AREA_METRES2 = int(1e8)  # 100 km^2
 
-RADAR_FILE_NAMES_KEY = 'radar_file_names'
+RADAR_FILE_NAMES_KEY = 'input_radar_file_names'
+TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
 VALID_TIMES_KEY = 'unix_times_sec'
 
 LATITUDES_KEY = 'latitudes_deg'
@@ -69,6 +72,9 @@ Y_COORDS_KEY = 'y_coords_metres'
 VALID_TIME_KEY = 'unix_time_sec'
 CURRENT_TO_PREV_INDICES_KEY = 'current_to_previous_indices'
 STORM_IDS_KEY = 'storm_ids'
+
+CENTROID_X_COLUMN = 'centroid_x_metres'
+CENTROID_Y_COLUMN = 'centroid_y_metres'
 
 
 def _check_radar_field(radar_field_name):
@@ -313,10 +319,12 @@ def _link_local_maxima_in_time(
 
 
 def _find_input_radar_files(
-        echo_top_field_name, data_source, top_directory_name,
-        start_spc_date_string, end_spc_date_string, start_time_unix_sec=None,
-        end_time_unix_sec=None):
+        echo_top_field_name, data_source, top_radar_dir_name,
+        top_tracking_dir_name, tracking_scale_metres2, start_spc_date_string,
+        end_spc_date_string, start_time_unix_sec=None, end_time_unix_sec=None):
     """Finds input radar files for the given time period and radar field.
+
+    Also creates paths for output tracking files.
 
     N = number of radar files found
 
@@ -324,8 +332,12 @@ def _find_input_radar_files(
         be an echo-top field (to my knowledge, the GridRad method hasn't been
         used on other fields, such as reflectivity).
     :param data_source: Data source (must be either "myrorss" or "mrms").
-    :param top_directory_name: Name of top-level directory with radar data from
-        the given source.
+    :param top_radar_dir_name: [input] Name of top-level directory with radar
+        data from the given source.
+    :param top_tracking_dir_name: [output] Name of top-level directory for
+        storm tracks.
+    :param tracking_scale_metres2: Tracking scale (storm-object area).  This
+        determines names of output tracking files.
     :param start_spc_date_string: First SPC date in period (format "yyyymmdd").
     :param end_spc_date_string: Last SPC date in period (format "yyyymmdd").
     :param start_time_unix_sec: Start of time period.  Default is 1200 UTC at
@@ -335,7 +347,10 @@ def _find_input_radar_files(
         the given SPC date (e.g., if SPC date is "20180124", this will be 1200
         UTC 25 Jan 2018).
     :return: file_dictionary: Dictionary with the following keys.
-    file_dictionary['radar_file_names']: length-N list of paths to radar files.
+    file_dictionary['input_radar_file_names']: length-N list of paths to radar
+        files.
+    file_dictionary['output_tracking_file_names']: length-N list of paths to
+        tracking files.
     file_dictionary['unix_times_sec']: length-N numpy array of time steps.
 
     :raises: ValueError: if `start_time_unix_sec` is not in
@@ -395,41 +410,60 @@ def _find_input_radar_files(
 
     # Find radar files.
     input_radar_file_names = []
+    output_tracking_file_names = []
     unix_times_sec = numpy.array([], dtype=int)
 
     for i in range(num_spc_dates):
-        these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
-            spc_date_string=spc_date_strings[i], field_name=echo_top_field_name,
-            data_source=data_source, top_directory_name=top_directory_name,
-            raise_error_if_missing=True)
+        these_radar_file_names = (
+            myrorss_and_mrms_io.find_raw_files_one_spc_date(
+                spc_date_string=spc_date_strings[i],
+                field_name=echo_top_field_name,
+                data_source=data_source, top_directory_name=top_radar_dir_name,
+                raise_error_if_missing=True))
 
         # TODO(thunderhoser): stop using protected method.
         these_times_unix_sec = numpy.array(
             [myrorss_and_mrms_io._raw_file_name_to_time(f)
-             for f in these_file_names], dtype=int)
+             for f in these_radar_file_names], dtype=int)
 
         if i == 0:
             keep_time_indices = numpy.where(
                 these_times_unix_sec >= start_time_unix_sec)[0]
             these_times_unix_sec = these_times_unix_sec[keep_time_indices]
-            these_file_names = [these_file_names[i] for i in keep_time_indices]
+            these_radar_file_names = [
+                these_radar_file_names[i] for i in keep_time_indices]
 
         if i == num_spc_dates - 1:
             keep_time_indices = numpy.where(
                 these_times_unix_sec <= end_time_unix_sec)[0]
             these_times_unix_sec = these_times_unix_sec[keep_time_indices]
-            these_file_names = [these_file_names[i] for i in keep_time_indices]
+            these_radar_file_names = [
+                these_radar_file_names[i] for i in keep_time_indices]
 
-        input_radar_file_names += these_file_names
+        this_num_times = len(these_times_unix_sec)
+        these_tracking_file_names = [''] * this_num_times
+        for j in range(this_num_times):
+            these_tracking_file_names[j] = tracking_io.find_processed_file(
+                unix_time_sec=these_times_unix_sec[j], data_source=data_source,
+                top_processed_dir_name=top_tracking_dir_name,
+                tracking_scale_metres2=tracking_scale_metres2,
+                spc_date_string=spc_date_strings[i],
+                raise_error_if_missing=False)
+
+        input_radar_file_names += these_radar_file_names
+        output_tracking_file_names += these_tracking_file_names
         unix_times_sec = numpy.concatenate((
             unix_times_sec, these_times_unix_sec))
 
     sort_indices = numpy.argsort(unix_times_sec)
     unix_times_sec = unix_times_sec[sort_indices]
     input_radar_file_names = [input_radar_file_names[i] for i in sort_indices]
+    output_tracking_file_names = [
+        output_tracking_file_names[i] for i in sort_indices]
 
     return {
         RADAR_FILE_NAMES_KEY: input_radar_file_names,
+        TRACKING_FILE_NAMES_KEY: output_tracking_file_names,
         VALID_TIMES_KEY: unix_times_sec
     }
 
@@ -473,6 +507,10 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
         latitudes (deg N) of local maxima at the [i]th time.
     local_max_dict_by_time[i]['longitudes_deg']: length-P numpy array with
         longitudes (deg E) of local maxima at the [i]th time.
+    local_max_dict_by_time[i]['x_coords_metres']: length-P numpy array with
+        x-coordinates of local maxima at the [i]th time.
+    local_max_dict_by_time[i]['y_coords_metres']: length-P numpy array with
+        y-coordinates of local maxima at the [i]th time.
     local_max_dict_by_time[i]['unix_time_sec']: The [i]th time.
     local_max_dict_by_time[i]['current_to_previous_indices']: length-P numpy
         array with indices of previous local maxima to which current local
@@ -490,6 +528,10 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
         object.
     storm_object_table.centroid_lng_deg: Longitude (deg E) at center of storm
         object.
+    storm_object_table.centroid_x_metres: x-coordinate at center of storm
+        object.
+    storm_object_table.centroid_y_metres: y-coordinate at center of storm
+        object.
     """
 
     num_times = len(local_max_dict_by_time)
@@ -501,6 +543,8 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     all_spc_dates_unix_sec = numpy.array([], dtype=int)
     all_centroid_latitudes_deg = numpy.array([])
     all_centroid_longitudes_deg = numpy.array([])
+    all_centroid_x_metres = numpy.array([])
+    all_centroid_y_metres = numpy.array([])
 
     for i in range(num_times):
         this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
@@ -543,13 +587,19 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
         all_centroid_longitudes_deg = numpy.concatenate((
             all_centroid_longitudes_deg,
             local_max_dict_by_time[i][LONGITUDES_KEY]))
+        all_centroid_x_metres = numpy.concatenate((
+            all_centroid_x_metres, local_max_dict_by_time[i][X_COORDS_KEY]))
+        all_centroid_y_metres = numpy.concatenate((
+            all_centroid_y_metres, local_max_dict_by_time[i][Y_COORDS_KEY]))
 
     storm_object_dict = {
         tracking_utils.STORM_ID_COLUMN: all_storm_ids,
         tracking_utils.TIME_COLUMN: all_times_unix_sec,
         tracking_utils.SPC_DATE_COLUMN: all_spc_dates_unix_sec,
         tracking_utils.CENTROID_LAT_COLUMN: all_centroid_latitudes_deg,
-        tracking_utils.CENTROID_LNG_COLUMN: all_centroid_longitudes_deg
+        tracking_utils.CENTROID_LNG_COLUMN: all_centroid_longitudes_deg,
+        CENTROID_X_COLUMN: all_centroid_x_metres,
+        CENTROID_Y_COLUMN: all_centroid_y_metres
     }
 
     return pandas.DataFrame.from_dict(storm_object_dict)
@@ -590,9 +640,311 @@ def _remove_short_tracks(
         storm_object_table.index[rows_to_remove], axis=0, inplace=False)
 
 
+def _get_velocities_one_storm_track(
+        centroid_latitudes_deg, centroid_longitudes_deg, unix_times_sec):
+    """Computes velocity at each point along one storm track.
+
+    Specifically, for each storm object, computes velocity using a backward
+    difference (current minus previous position).
+
+    N = number of points (storm objects) in track
+
+    :param centroid_latitudes_deg: length-N numpy array with latitudes (deg N)
+        of storm centroid.
+    :param centroid_longitudes_deg: length-N numpy array with longitudes (deg E)
+        of storm centroid.
+    :param unix_times_sec: length-N numpy array of valid times.
+    :return: east_velocities_m_s01: length-N numpy array of eastward velocities
+        (metres per second).
+    :return: north_velocities_m_s01: length-N numpy array of northward
+        velocities (metres per second).
+    """
+
+    num_storm_objects = len(unix_times_sec)
+    east_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
+    north_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
+    time_diffs_seconds = numpy.full(num_storm_objects, -1, dtype=int)
+    sort_indices = numpy.argsort(unix_times_sec)
+
+    for i in range(1, num_storm_objects):
+        this_end_latitude_deg = centroid_latitudes_deg[sort_indices[i]]
+        this_end_longitude_deg = centroid_longitudes_deg[sort_indices[i]]
+        this_start_latitude_deg = centroid_latitudes_deg[sort_indices[i - 1]]
+        this_start_longitude_deg = centroid_longitudes_deg[sort_indices[i - 1]]
+
+        this_end_point = (this_end_latitude_deg, this_end_longitude_deg)
+        this_start_point = (this_end_latitude_deg, this_start_longitude_deg)
+        east_displacements_metres[i] = vincenty(
+            this_start_point, this_end_point).meters
+        if this_start_longitude_deg > this_end_longitude_deg:
+            east_displacements_metres[i] = -1 * east_displacements_metres[i]
+
+        this_start_point = (this_start_latitude_deg, this_end_longitude_deg)
+        north_displacements_metres[i] = vincenty(
+            this_start_point, this_end_point).meters
+        if this_start_latitude_deg > this_end_latitude_deg:
+            north_displacements_metres[i] = -1 * north_displacements_metres[i]
+
+        time_diffs_seconds[i] = (
+            unix_times_sec[sort_indices[i]] -
+            unix_times_sec[sort_indices[i - 1]])
+
+    return (east_displacements_metres / time_diffs_seconds,
+            north_displacements_metres / time_diffs_seconds)
+
+
+def _get_storm_velocities(storm_object_table):
+    """Computes storm velocities.
+
+    Specifically, for each storm object, computes velocity using a backward
+    difference (current minus previous position).
+
+    :param storm_object_table: pandas DataFrame created by
+        `_local_maxima_to_storm_tracks`.
+    :return: storm_object_table: Same as input, but with two additional columns.
+    storm_object_table.east_velocity_m_s01: Eastward velocity (metres per
+        second).
+    storm_object_table.north_velocity_m_s01: Northward velocity (metres per
+        second).
+    """
+
+    all_storm_ids = numpy.array(
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
+    unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
+        all_storm_ids, return_inverse=True)
+
+    num_storm_objects = len(storm_object_table.index)
+    east_velocities_m_s01 = numpy.full(num_storm_objects, numpy.nan)
+    north_velocities_m_s01 = numpy.full(num_storm_objects, numpy.nan)
+
+    for i in range(len(unique_storm_ids)):
+        these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
+
+        (east_velocities_m_s01[these_object_indices],
+         north_velocities_m_s01[these_object_indices]) = (
+             _get_velocities_one_storm_track(
+                 centroid_latitudes_deg=
+                 storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[
+                     these_object_indices],
+                 centroid_longitudes_deg=
+                 storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[
+                     these_object_indices],
+                 unix_times_sec=storm_object_table[
+                     tracking_utils.TIME_COLUMN].values[these_object_indices]))
+
+    argument_dict = {
+        tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
+        tracking_utils.NORTH_VELOCITY_COLUMN: north_velocities_m_s01}
+    return storm_object_table.assign(**argument_dict)
+
+
+def _get_grid_points_in_radius(
+        x_grid_matrix_metres, y_grid_matrix_metres, x_query_metres,
+        y_query_metres, radius_metres):
+    """Finds grid points within some radius of query point.
+
+    M = number of rows in grid
+    N = number of columns in grid
+    P = number of grid points within `radius_metres` of query point
+
+    :param x_grid_matrix_metres: M-by-N numpy array with x-coordinates of grid
+        points.
+    :param y_grid_matrix_metres: M-by-N numpy array with y-coordinates of grid
+        points.
+    :param x_query_metres: x-coordinate of query point.
+    :param y_query_metres: y-coordinate of query point.
+    :param radius_metres: Critical radius from query point.
+    :return: row_indices: length-P numpy array with row indices (integers) of
+        grid points within `radius_metres` of query point.
+    :return: column_indices: length-P numpy array with column indices (integers)
+        of grid points within `radius_metres` of query point.
+    """
+
+    num_rows = x_grid_matrix_metres.shape[0]
+    num_columns = x_grid_matrix_metres.shape[1]
+    x_grid_vector_metres = numpy.reshape(
+        x_grid_matrix_metres, num_rows * num_columns)
+    y_grid_vector_metres = numpy.reshape(
+        y_grid_matrix_metres, num_rows * num_columns)
+
+    x_in_range_flags = numpy.logical_and(
+        x_grid_vector_metres >= x_query_metres - radius_metres,
+        x_grid_vector_metres <= x_query_metres + radius_metres)
+    y_in_range_flags = numpy.logical_and(
+        y_grid_vector_metres >= y_query_metres - radius_metres,
+        y_grid_vector_metres <= y_query_metres + radius_metres)
+
+    try_indices = numpy.where(
+        numpy.logical_and(x_in_range_flags, y_in_range_flags))[0]
+    distances_metres = numpy.sqrt(
+        (x_grid_vector_metres[try_indices] - x_query_metres) ** 2 +
+        (y_grid_vector_metres[try_indices] - y_query_metres) ** 2)
+    linear_indices = try_indices[
+        numpy.where(distances_metres <= radius_metres)[0]]
+
+    return numpy.unravel_index(linear_indices, (num_rows, num_columns))
+
+
+def _storm_objects_to_polygons(
+        storm_object_table, radar_metadata_dict, projection_object,
+        object_area_metres2):
+    """Creates bounding polygon for each storm object.
+
+    P = number of grid points in a given storm object
+
+    :param storm_object_table: pandas DataFrame created by
+        `_local_maxima_to_storm_tracks`.
+    :param radar_metadata_dict: Dictionary with metadata for radar grid, created
+        by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
+    :param projection_object: Instance of `pyproj.Proj`, which will be used to
+        convert grid coordinates from lat-long to x-y.
+    :param object_area_metres2: Each storm object will have approx this area.
+    :return: storm_object_table: Same as input, but with additional columns
+        listed below.
+    storm_object_table.grid_point_latitudes_deg: length-P numpy array with
+        latitudes (deg N) of grid points in storm object.
+    storm_object_table.grid_point_longitudes_deg: length-P numpy array with
+        longitudes (deg E) of grid points in storm object.
+    storm_object_table.grid_point_rows: length-P numpy array with row indices
+        (integers) of grid points in storm object.
+    storm_object_table.grid_point_columns: length-P numpy array with column
+        indices (integers) of grid points in storm object.
+    storm_object_table.polygon_object_latlng: Instance of
+        `shapely.geometry.Polygon`, with vertices in lat-long coordinates.
+    storm_object_table.polygon_object_rowcol: Instance of
+        `shapely.geometry.Polygon`, with vertices in row-column coordinates.
+    """
+
+    # TODO(thunderhoser): need more than one `radar_metadata_dict`.
+
+    min_latitude_deg = (
+        radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
+            radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+            (radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
+
+    grid_point_latitudes_deg, grid_point_longitudes_deg = (
+        grids.get_latlng_grid_points(
+            min_latitude_deg=min_latitude_deg,
+            min_longitude_deg=
+            radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+            num_rows=radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
+            num_columns=radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
+
+    grid_latitude_matrix_deg, grid_longitude_matrix_deg = (
+        grids.latlng_vectors_to_matrices(
+            grid_point_latitudes_deg, grid_point_longitudes_deg))
+
+    x_grid_matrix_metres, y_grid_matrix_metres = (
+        projections.project_latlng_to_xy(
+            grid_latitude_matrix_deg, grid_longitude_matrix_deg,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    num_storm_objects = len(storm_object_table.index)
+    object_array = numpy.full(num_storm_objects, numpy.nan, dtype=object)
+    nested_array = storm_object_table[[
+        tracking_utils.STORM_ID_COLUMN,
+        tracking_utils.STORM_ID_COLUMN]].values.tolist()
+
+    argument_dict = {
+        tracking_utils.GRID_POINT_ROW_COLUMN: nested_array,
+        tracking_utils.GRID_POINT_COLUMN_COLUMN: nested_array,
+        tracking_utils.GRID_POINT_LAT_COLUMN: nested_array,
+        tracking_utils.GRID_POINT_LNG_COLUMN: nested_array,
+        tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: object_array,
+        tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
+    storm_object_table = storm_object_table.assign(**argument_dict)
+
+    object_radius_metres = numpy.sqrt(object_area_metres2 / numpy.pi)
+
+    for i in range(num_storm_objects):
+        these_grid_point_rows, these_grid_point_columns = (
+            _get_grid_points_in_radius(
+                x_grid_matrix_metres=x_grid_matrix_metres,
+                y_grid_matrix_metres=y_grid_matrix_metres,
+                x_query_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
+                y_query_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
+                radius_metres=object_radius_metres))
+
+        these_vertex_rows, these_vertex_columns = (
+            polygons.grid_points_in_poly_to_vertices(
+                these_grid_point_rows, these_grid_point_columns))
+
+        (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+         storm_object_table[
+             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]) = (
+                 polygons.simple_polygon_to_grid_points(
+                     these_vertex_rows, these_vertex_columns))
+
+        (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
+         storm_object_table[tracking_utils.GRID_POINT_LNG_COLUMN].values[i]) = (
+             radar_utils.rowcol_to_latlng(
+                 storm_object_table[
+                     tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+                 storm_object_table[
+                     tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i],
+                 nw_grid_point_lat_deg=
+                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                 nw_grid_point_lng_deg=
+                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=
+                 radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=
+                 radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+
+        these_vertex_lat_deg, these_vertex_lng_deg = (
+            radar_utils.rowcol_to_latlng(
+                these_vertex_rows, these_vertex_columns,
+                nw_grid_point_lat_deg=
+                radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                nw_grid_point_lng_deg=
+                radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                lat_spacing_deg=
+                radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                lng_spacing_deg=
+                radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+
+        storm_object_table[
+            tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
+                polygons.vertex_arrays_to_polygon_object(
+                    these_vertex_columns, these_vertex_rows))
+        storm_object_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
+                polygons.vertex_arrays_to_polygon_object(
+                    these_vertex_lng_deg, these_vertex_lat_deg))
+
+    return storm_object_table
+
+
+def _write_storm_objects(storm_object_table, file_dictionary):
+    """Writes storm objects to one Pickle file per time step.
+
+    :param storm_object_table: pandas DataFrame created by `run_tracking`.
+    :param file_dictionary: Dictionary created by `_find_input_radar_files`.
+    """
+
+    pickle_file_names = file_dictionary[TRACKING_FILE_NAMES_KEY]
+    file_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
+    num_files = len(pickle_file_names)
+
+    for i in range(num_files):
+        print 'Writing storm objects to file: "{0:s}"...'.format(
+            pickle_file_names[i])
+
+        this_storm_object_table = storm_object_table.loc[
+            storm_object_table[tracking_utils.TIME_COLUMN] ==
+            file_times_unix_sec[i]]
+        tracking_io.write_processed_file(
+            this_storm_object_table, pickle_file_names[i])
+
+
 def run_tracking(
-        echo_top_field_name, top_radar_dir_name, start_spc_date_string,
-        end_spc_date_string, radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
+        echo_top_field_name, top_radar_dir_name, top_tracking_dir_name,
+        start_spc_date_string, end_spc_date_string,
+        radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
+        storm_object_area_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
         start_time_unix_sec=None, end_time_unix_sec=None,
         min_echo_top_height_km_asl=DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL,
         e_folding_radius_for_smoothing_pixels=
@@ -608,9 +960,12 @@ def run_tracking(
 
     :param echo_top_field_name: See documentation for `_find_input_radar_files`.
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
+    :param top_tracking_dir_name: See doc for `_find_input_radar_files`.
     :param start_spc_date_string: See doc for `_find_input_radar_files`.
     :param end_spc_date_string: See doc for `_find_input_radar_files`.
     :param radar_data_source: See doc for `_find_input_radar_files`.
+    :param storm_object_area_metres2: Area for bounding polygon around each
+        storm object.
     :param start_time_unix_sec: See doc for `_find_input_radar_files`.
     :param end_time_unix_sec: See doc for `_find_input_radar_files`.
     :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
@@ -630,11 +985,15 @@ def run_tracking(
         where each row is one storm object.
     """
 
+    # TODO(thunderhoser): Fix output documentation.
+
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
     file_dictionary = _find_input_radar_files(
         echo_top_field_name=echo_top_field_name, data_source=radar_data_source,
-        top_directory_name=top_radar_dir_name,
+        top_radar_dir_name=top_radar_dir_name,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=storm_object_area_metres2,
         start_spc_date_string=start_spc_date_string,
         end_spc_date_string=end_spc_date_string,
         start_time_unix_sec=start_time_unix_sec,
@@ -710,6 +1069,13 @@ def run_tracking(
     storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
     storm_object_table = _remove_short_tracks(
         storm_object_table, min_duration_seconds=min_track_duration_seconds)
-    return best_tracks.recompute_attributes(
+    storm_object_table = best_tracks.recompute_attributes(
         storm_object_table, best_track_start_time_unix_sec=unix_times_sec[0],
         best_track_end_time_unix_sec=unix_times_sec[-1])
+    storm_object_table = _get_storm_velocities(storm_object_table)
+
+    return _storm_objects_to_polygons(
+        storm_object_table=storm_object_table,
+        radar_metadata_dict=this_radar_metadata_dict,
+        projection_object=projection_object,
+        object_area_metres2=storm_object_area_metres2)
