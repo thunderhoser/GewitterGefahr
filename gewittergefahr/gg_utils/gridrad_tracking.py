@@ -534,3 +534,4 @@ def run_tracking(
 
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
+        print local_max_dict_by_time[i]
