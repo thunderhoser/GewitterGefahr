@@ -20,6 +20,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import numpy
+import pandas
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
@@ -27,6 +28,7 @@ from gewittergefahr.gg_utils import dilation
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import grid_smoothing_2d
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Add method that assigns storm IDs, method that assigns
@@ -53,6 +55,7 @@ DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_PIXELS = 3
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MAX_LINK_TIME_SECONDS = 300
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = 50.
+DEFAULT_MIN_TRACK_DURATION_SECONDS = 900
 
 RADAR_FILE_NAMES_KEY = 'radar_file_names'
 VALID_TIMES_KEY = 'unix_times_sec'
@@ -64,6 +67,7 @@ X_COORDS_KEY = 'x_coords_metres'
 Y_COORDS_KEY = 'y_coords_metres'
 VALID_TIME_KEY = 'unix_time_sec'
 CURRENT_TO_PREV_INDICES_KEY = 'current_to_previous_indices'
+STORM_IDS_KEY = 'storm_ids'
 
 
 def _check_radar_field(radar_field_name):
@@ -429,6 +433,162 @@ def _find_input_radar_files(
     }
 
 
+def _create_storm_id(
+        storm_start_time_unix_sec, prev_numeric_id_used, prev_spc_date_string):
+    """Creates storm ID.
+
+    :param storm_start_time_unix_sec: Start time of storm for which ID is being
+        created.
+    :param prev_numeric_id_used: Previous numeric ID (integer) used in the
+        dataset.
+    :param prev_spc_date_string: Previous SPC date (format "yyyymmdd") in the
+        dataset.
+    :return: string_id: String ID for new storm.
+    :return: numeric_id: Numeric ID for new storm.
+    :return: spc_date_string: SPC date (format "yyyymmdd") for new storm.
+    """
+
+    spc_date_string = time_conversion.time_to_spc_date_string(
+        storm_start_time_unix_sec)
+
+    if spc_date_string == prev_spc_date_string:
+        numeric_id = prev_numeric_id_used + 1
+    else:
+        numeric_id = 0
+
+    string_id = '{0:06d}_{1:s}'.format(numeric_id, spc_date_string)
+    return string_id, numeric_id, spc_date_string
+
+
+def _local_maxima_to_storm_tracks(local_max_dict_by_time):
+    """Converts time series of local maxima to storm tracks.
+
+    N = number of time steps
+    P = number of local maxima at a given time
+
+    :param local_max_dict_by_time: length-N list of dictionaries with the
+        following keys.
+    local_max_dict_by_time[i]['latitudes_deg']: length-P numpy array with
+        latitudes (deg N) of local maxima at the [i]th time.
+    local_max_dict_by_time[i]['longitudes_deg']: length-P numpy array with
+        longitudes (deg E) of local maxima at the [i]th time.
+    local_max_dict_by_time[i]['unix_time_sec']: The [i]th time.
+    local_max_dict_by_time[i]['current_to_previous_indices']: length-P numpy
+        array with indices of previous local maxima to which current local
+        maxima are linked.  In other words, if current_to_previous_indices[j]
+        = k, the [j]th current local max is linked to the [k]th previous local
+        max.
+
+    :return: storm_object_table: pandas DataFrame with the following columns,
+        where each row is one storm object.
+    storm_object_table.storm_id: Storm ID (string).  All objects with the same
+        ID belong to the same track.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.spc_date_unix_sec: SPC date.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) at center of storm
+        object.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) at center of storm
+        object.
+    """
+
+    num_times = len(local_max_dict_by_time)
+    prev_numeric_id_used = -1
+    prev_spc_date_string = '00000101'
+
+    all_storm_ids = []
+    all_times_unix_sec = numpy.array([], dtype=int)
+    all_spc_dates_unix_sec = numpy.array([], dtype=int)
+    all_centroid_latitudes_deg = numpy.array([])
+    all_centroid_longitudes_deg = numpy.array([])
+
+    for i in range(num_times):
+        this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
+        local_max_dict_by_time[i].update(
+            {STORM_IDS_KEY: [''] * this_num_storm_objects})
+
+        for j in range(this_num_storm_objects):
+            this_previous_index = local_max_dict_by_time[
+                i][CURRENT_TO_PREV_INDICES_KEY][j]
+
+            if this_previous_index == -1:
+                (local_max_dict_by_time[i][STORM_IDS_KEY][j],
+                 prev_numeric_id_used, prev_spc_date_string) = _create_storm_id(
+                     storm_start_time_unix_sec=
+                     local_max_dict_by_time[i][VALID_TIME_KEY],
+                     prev_numeric_id_used=prev_numeric_id_used,
+                     prev_spc_date_string=prev_spc_date_string)
+
+            else:
+                local_max_dict_by_time[i][STORM_IDS_KEY][j] = (
+                    local_max_dict_by_time[i - 1][STORM_IDS_KEY][
+                        this_previous_index])
+
+        these_times_unix_sec = numpy.full(
+            this_num_storm_objects, local_max_dict_by_time[i][VALID_TIME_KEY],
+            dtype=int)
+        these_spc_dates_unix_sec = numpy.full(
+            this_num_storm_objects,
+            time_conversion.time_to_spc_date_unix_sec(these_times_unix_sec[0]),
+            dtype=int)
+
+        all_storm_ids += local_max_dict_by_time[i][STORM_IDS_KEY]
+        all_times_unix_sec = numpy.concatenate((
+            all_times_unix_sec, these_times_unix_sec))
+        all_spc_dates_unix_sec = numpy.concatenate((
+            all_spc_dates_unix_sec, these_spc_dates_unix_sec))
+        all_centroid_latitudes_deg = numpy.concatenate((
+            all_centroid_latitudes_deg,
+            local_max_dict_by_time[i][LATITUDES_KEY]))
+        all_centroid_longitudes_deg = numpy.concatenate((
+            all_centroid_longitudes_deg,
+            local_max_dict_by_time[i][LONGITUDES_KEY]))
+
+    storm_object_dict = {
+        tracking_utils.STORM_ID_COLUMN: all_storm_ids,
+        tracking_utils.TIME_COLUMN: all_times_unix_sec,
+        tracking_utils.SPC_DATE_COLUMN: all_spc_dates_unix_sec,
+        tracking_utils.CENTROID_LAT_COLUMN: all_centroid_latitudes_deg,
+        tracking_utils.CENTROID_LNG_COLUMN: all_centroid_longitudes_deg
+    }
+
+    return pandas.DataFrame.from_dict(storm_object_dict)
+
+
+def _remove_short_tracks(
+        storm_object_table,
+        min_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS):
+    """Removes short-lived storm tracks.
+
+    :param storm_object_table: pandas DataFrame created by
+        _local_maxima_to_storm_tracks.
+    :param min_duration_seconds: Minimum storm duration.  Any track with
+        duration < `min_duration_seconds` will be dropped.
+    :return: storm_object_table: Same as input, except maybe with fewer rows.
+    """
+
+    all_storm_ids = numpy.array(
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
+    unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
+        all_storm_ids, return_inverse=True)
+    rows_to_remove = numpy.array([], dtype=int)
+
+    for i in range(len(unique_storm_ids)):
+        these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
+        these_times_unix_sec = storm_object_table[
+            tracking_utils.TIME_COLUMN].values[these_object_indices]
+
+        this_duration_seconds = (
+            numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec))
+        if this_duration_seconds >= min_duration_seconds:
+            continue
+
+        rows_to_remove = numpy.concatenate((
+            rows_to_remove, these_object_indices))
+
+    return storm_object_table.drop(
+        storm_object_table.index[rows_to_remove], axis=0, inplace=False)
+
+
 def run_tracking(
         echo_top_field_name, top_radar_dir_name, start_spc_date_string,
         end_spc_date_string, radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -441,7 +601,8 @@ def run_tracking(
         min_distance_between_maxima_metres=
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
-        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01):
+        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
+        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS):
     """Runs tracking algorithm for the given time period and radar field.
 
     :param echo_top_field_name: See documentation for `_find_input_radar_files`.
@@ -462,7 +623,10 @@ def run_tracking(
         `_remove_redundant_local_maxima`.
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
     :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
-    :return: poop: Haven't decided yet.
+    :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
+        storms will be removed.
+    :return: storm_object_table: pandas DataFrame with the following columns,
+        where each row is one storm object.
     """
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
@@ -529,8 +693,9 @@ def run_tracking(
                 max_link_time_seconds=max_link_time_seconds,
                 max_link_distance_m_s01=max_link_distance_m_s01)
         else:
-            print 'Linking local maxima at {0:s} with those at {1:s}...'.format(
-                time_strings[i], time_strings[i - 1])
+            print (
+                'Linking local maxima at {0:s} with those at {1:s}...\n'.format(
+                    time_strings[i], time_strings[i - 1]))
 
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
@@ -540,4 +705,7 @@ def run_tracking(
 
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
-        print local_max_dict_by_time[i]
+
+    storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
+    return _remove_short_tracks(
+        storm_object_table, min_duration_seconds=min_track_duration_seconds)
