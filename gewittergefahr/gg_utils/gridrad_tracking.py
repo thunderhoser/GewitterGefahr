@@ -370,6 +370,8 @@ def _find_input_radar_files(
                     end_time_unix_sec, TIME_FORMAT), end_spc_date_string))
         raise ValueError(error_string)
 
+    print start_time_unix_sec
+    print end_time_unix_sec
     error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
 
     # Create list of SPC dates in period.
