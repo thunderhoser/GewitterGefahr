@@ -358,11 +358,13 @@ def find_raw_files_one_spc_date(
         example_file_name)
     example_time_string = time_conversion.unix_sec_to_string(
         example_time_unix_sec, TIME_FORMAT_SECONDS)
-    example_pathless_file_name = example_pathless_file_name.replace(
+    pathless_file_pattern = example_pathless_file_name.replace(
         example_time_string, TIME_FORMAT_SECONDS_REGEX)
+    pathless_file_pattern = example_pathless_file_name.replace(
+        ZIPPED_FILE_EXTENSION, '*')
 
     raw_file_pattern = '{0:s}/{1:s}'.format(
-        example_directory_name, example_pathless_file_name)
+        example_directory_name, pathless_file_pattern)
     raw_file_names = glob.glob(raw_file_pattern)
 
     if raise_error_if_missing and not raw_file_names:
