@@ -950,8 +950,9 @@ def _storm_objects_to_polygons(
 
 
 def run_tracking(
-        echo_top_field_name, top_radar_dir_name, top_tracking_dir_name,
-        start_spc_date_string, end_spc_date_string,
+        top_radar_dir_name, top_tracking_dir_name, start_spc_date_string,
+        end_spc_date_string,
+        echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
         radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
         storm_object_area_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
         start_time_unix_sec=None, end_time_unix_sec=None,
@@ -967,11 +968,11 @@ def run_tracking(
         min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS):
     """Runs tracking algorithm for the given time period and radar field.
 
-    :param echo_top_field_name: See documentation for `_find_input_radar_files`.
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
     :param top_tracking_dir_name: See doc for `_find_input_radar_files`.
     :param start_spc_date_string: See doc for `_find_input_radar_files`.
     :param end_spc_date_string: See doc for `_find_input_radar_files`.
+    :param echo_top_field_name: See documentation for `_find_input_radar_files`.
     :param radar_data_source: See doc for `_find_input_radar_files`.
     :param storm_object_area_metres2: Area for bounding polygon around each
         storm object.
@@ -992,9 +993,8 @@ def run_tracking(
         storms will be removed.
     :return: storm_object_table: pandas DataFrame with columns listed in
         `storm_tracking_io.write_processed_file`.
+    :return: file_dictionary: See documentation for `_find_input_radar_files`.
     """
-
-    # TODO(thunderhoser): Fix output documentation.
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
