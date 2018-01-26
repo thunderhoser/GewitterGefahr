@@ -56,9 +56,10 @@ DEFAULT_E_FOLDING_RADIUS_FOR_SMOOTHING_PIXELS = 1.2
 DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_PIXELS = 3
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MAX_LINK_TIME_SECONDS = 300
-DEFAULT_MAX_LINK_DISTANCE_M_S01 = 50.
+DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
+    0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
 DEFAULT_MIN_TRACK_DURATION_SECONDS = 900
-DEFAULT_STORM_OBJECT_AREA_METRES2 = int(1e8)  # 100 km^2
+DEFAULT_STORM_OBJECT_AREA_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
 
 RADAR_FILE_NAMES_KEY = 'input_radar_file_names'
 TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
@@ -448,7 +449,7 @@ def _find_input_radar_files(
                 unix_time_sec=these_times_unix_sec[j],
                 data_source=tracking_utils.SEGMOTION_SOURCE_ID,
                 top_processed_dir_name=top_tracking_dir_name,
-                tracking_scale_metres2=tracking_scale_metres2,
+                tracking_scale_metres2=int(numpy.round(tracking_scale_metres2)),
                 spc_date_string=spc_date_strings[i],
                 raise_error_if_missing=False)
 
@@ -662,6 +663,8 @@ def _get_velocities_one_storm_track(
         velocities (metres per second).
     """
 
+    # TODO(thunderhoser): Smooth!
+
     num_storm_objects = len(unix_times_sec)
     east_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
     north_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
@@ -837,7 +840,7 @@ def _storm_objects_to_polygons(
         tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN: object_array}
     storm_object_table = storm_object_table.assign(**argument_dict)
 
-    object_radius_metres = numpy.sqrt(object_area_metres2 / numpy.pi)
+    object_radius_metres = numpy.sqrt(float(object_area_metres2) / numpy.pi)
     radar_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
     num_radar_times = len(radar_times_unix_sec)
 
