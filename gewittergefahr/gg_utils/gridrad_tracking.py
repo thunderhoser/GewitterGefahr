@@ -842,6 +842,11 @@ def _storm_objects_to_polygons(
     num_radar_times = len(radar_times_unix_sec)
 
     for i in range(num_radar_times):
+        this_time_string = time_conversion.unix_sec_to_string(
+            radar_times_unix_sec[i], TIME_FORMAT)
+        print 'Creating polygons for storm objects at {0:s}...'.format(
+            this_time_string)
+
         these_object_indices = numpy.where(
             storm_object_table[tracking_utils.TIME_COLUMN] ==
             radar_times_unix_sec[i])[0]
@@ -941,28 +946,6 @@ def _storm_objects_to_polygons(
     return storm_object_table
 
 
-def _write_storm_objects(storm_object_table, file_dictionary):
-    """Writes storm objects to one Pickle file per time step.
-
-    :param storm_object_table: pandas DataFrame created by `run_tracking`.
-    :param file_dictionary: Dictionary created by `_find_input_radar_files`.
-    """
-
-    pickle_file_names = file_dictionary[TRACKING_FILE_NAMES_KEY]
-    file_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
-    num_files = len(pickle_file_names)
-
-    for i in range(num_files):
-        print 'Writing storm objects to file: "{0:s}"...'.format(
-            pickle_file_names[i])
-
-        this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_utils.TIME_COLUMN] ==
-            file_times_unix_sec[i]]
-        tracking_io.write_processed_file(
-            this_storm_object_table, pickle_file_names[i])
-
-
 def run_tracking(
         echo_top_field_name, top_radar_dir_name, top_tracking_dir_name,
         start_spc_date_string, end_spc_date_string,
@@ -1007,6 +990,8 @@ def run_tracking(
     :return: storm_object_table: pandas DataFrame with columns listed in
         `storm_tracking_io.write_processed_file`.
     """
+
+    # TODO(thunderhoser): Fix output documentation.
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
@@ -1091,15 +1076,47 @@ def run_tracking(
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
 
+    print ('Converting time series of local "{0:s}" maxima to storm '
+           'tracks...').format(echo_top_field_name)
     storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
+
+    print 'Removing tracks with duration < {0:d} seconds...'.format(
+        int(min_track_duration_seconds))
     storm_object_table = _remove_short_tracks(
         storm_object_table, min_duration_seconds=min_track_duration_seconds)
+
+    print 'Computing storm age for each storm object...'
     storm_object_table = best_tracks.recompute_attributes(
         storm_object_table, best_track_start_time_unix_sec=unix_times_sec[0],
         best_track_end_time_unix_sec=unix_times_sec[-1])
+
+    print 'Computing velocity for each storm object...\n'
     storm_object_table = _get_storm_velocities(storm_object_table)
 
-    return _storm_objects_to_polygons(
+    storm_object_table = _storm_objects_to_polygons(
         storm_object_table=storm_object_table, file_dictionary=file_dictionary,
         projection_object=projection_object,
         object_area_metres2=storm_object_area_metres2)
+    return storm_object_table, file_dictionary
+
+
+def write_storm_objects(storm_object_table, file_dictionary):
+    """Writes storm objects to one Pickle file per time step.
+
+    :param storm_object_table: pandas DataFrame created by `run_tracking`.
+    :param file_dictionary: Dictionary created by `_find_input_radar_files`.
+    """
+
+    pickle_file_names = file_dictionary[TRACKING_FILE_NAMES_KEY]
+    file_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
+    num_files = len(pickle_file_names)
+
+    for i in range(num_files):
+        print 'Writing storm objects to file: "{0:s}"...'.format(
+            pickle_file_names[i])
+
+        this_storm_object_table = storm_object_table.loc[
+            storm_object_table[tracking_utils.TIME_COLUMN] ==
+            file_times_unix_sec[i]]
+        tracking_io.write_processed_file(
+            this_storm_object_table, pickle_file_names[i])
