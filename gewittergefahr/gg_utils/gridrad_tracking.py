@@ -445,7 +445,8 @@ def _find_input_radar_files(
         these_tracking_file_names = [''] * this_num_times
         for j in range(this_num_times):
             these_tracking_file_names[j] = tracking_io.find_processed_file(
-                unix_time_sec=these_times_unix_sec[j], data_source=data_source,
+                unix_time_sec=these_times_unix_sec[j],
+                data_source=tracking_utils.SEGMOTION_SOURCE_ID,
                 top_processed_dir_name=top_tracking_dir_name,
                 tracking_scale_metres2=tracking_scale_metres2,
                 spc_date_string=spc_date_strings[i],
