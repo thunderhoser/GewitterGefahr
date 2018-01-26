@@ -1193,7 +1193,7 @@ def recompute_attributes(
     """
 
     # TODO(thunderhoser): This method should be moved, since it is now being
-    # used by gridrad_tracking.py.
+    # used by echo_top_tracking.py.
 
     error_checking.assert_is_integer(best_track_start_time_unix_sec)
     error_checking.assert_is_integer(best_track_end_time_unix_sec)

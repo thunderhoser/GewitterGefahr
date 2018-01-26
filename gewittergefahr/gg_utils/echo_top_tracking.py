@@ -1,12 +1,11 @@
-"""Implements the GridRad storm-tracking algorithm.
+"""Implements the echo-top-based storm-tracking algorithm.
 
-This algorithm is discussed in Section 3c of Homeyer et al. (2017).  The
-algorithm should be applied to echo-top fields only.  The main advantage of this
-algorithm (in my experience) over segmotion (Lakshmanan and Smith 2010) is that
-it provides more intuitive and longer storm tracks.  The main disadvantage of
-the GridRad algorithm (in my experience) is that it provides only storm centers,
-not objects.  In other words, the GridRad algorithm does not provide the
-bounding polygons.
+This algorithm is discussed in Section 3c of Homeyer et al. (2017).  The main
+advantage of this algorithm (in my experience) over segmotion (Lakshmanan and
+Smith 2010) is that it provides more intuitive and longer storm tracks.  The
+main disadvantage of the echo-top-based algorithm (in my experience) is that it
+provides only storm centers, not objects.  In other words, the echo-top-based
+algorithm does not provide the bounding polygons.
 
 --- REFERENCES ---
 
@@ -82,7 +81,7 @@ CENTROID_Y_COLUMN = 'centroid_y_metres'
 
 
 def _check_radar_field(radar_field_name):
-    """Ensures that radar field is valid for GridRad tracking.
+    """Ensures that radar field is valid for echo-top-based tracking.
 
     :param radar_field_name: Field name (string).
     :raises: ValueError: if `radar_field_name not in VALID_RADAR_FIELDS`.
@@ -97,7 +96,7 @@ def _check_radar_field(radar_field_name):
 
 
 def _check_radar_data_source(radar_data_source):
-    """Ensures that data source is valid for GridRad tracking.
+    """Ensures that data source is valid for echo-top-based tracking.
 
     :param radar_data_source: Data source (string).
     :raises: ValueError: if `radar_data_source not in VALID_RADAR_DATA_SOURCES`.
@@ -333,8 +332,7 @@ def _find_input_radar_files(
     N = number of radar files found
 
     :param echo_top_field_name: Name of radar field to use for tracking.  Must
-        be an echo-top field (to my knowledge, the GridRad method hasn't been
-        used on other fields, such as reflectivity).
+        be an echo-top field.
     :param data_source: Data source (must be either "myrorss" or "mrms").
     :param top_radar_dir_name: [input] Name of top-level directory with radar
         data from the given source.

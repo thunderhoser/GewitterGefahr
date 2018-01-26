@@ -1,7 +1,7 @@
-"""Runs GridRad storm-tracking algorithm with default parameters.
+"""Runs echo-top-based storm-tracking algorithm with default parameters.
 
 This algorithm is discussed in Section 3c of Homeyer et al. (2017) and the
-documentation for `gridrad_tracking.py`.
+documentation for `echo_top_tracking.py`.
 
 --- REFERENCES ---
 
@@ -11,10 +11,10 @@ Homeyer, C.R., and J.D. McAuliffe, and K.M. Bedka, 2017: "On the development of
 """
 
 import argparse
-from gewittergefahr.gg_utils import gridrad_tracking
+from gewittergefahr.gg_utils import echo_top_tracking
 
-# TODO(thunderhoser): All input args to GridRad tracking should be input args to
-# this script.  In other words, allow for other than default params.
+# TODO(thunderhoser): All input args to echo-top-based tracking should be input
+# args to this script.  In other words, allow for other than default params.
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -46,10 +46,10 @@ INPUT_ARG_PARSER.add_argument(
     help=TRACKING_DIR_HELP_STRING)
 
 
-def _run_gridrad_tracking(
+def _run_echo_top_tracking(
         first_spc_date_string, last_spc_date_string, top_radar_dir_name,
         top_tracking_dir_name):
-    """Runs GridRad storm-tracking algorithm with default parameters.
+    """Runs echo-top-based storm-tracking algorithm with default parameters.
 
     :param first_spc_date_string: SPC (Storm Prediction Center) date in format
         "yyyymmdd".  Tracking will be run for all dates from
@@ -61,14 +61,14 @@ def _run_gridrad_tracking(
         storm-tracking data.
     """
 
-    storm_object_table, file_dictionary = gridrad_tracking.run_tracking(
+    storm_object_table, file_dictionary = echo_top_tracking.run_tracking(
         top_radar_dir_name=top_radar_dir_name,
         top_tracking_dir_name=top_tracking_dir_name,
         start_spc_date_string=first_spc_date_string,
         end_spc_date_string=last_spc_date_string)
     print SEPARATOR_STRING
 
-    gridrad_tracking.write_storm_objects(storm_object_table, file_dictionary)
+    echo_top_tracking.write_storm_objects(storm_object_table, file_dictionary)
 
 
 if __name__ == '__main__':
@@ -80,7 +80,7 @@ if __name__ == '__main__':
     TOP_RADAR_DIR_NAME = getattr(INPUT_ARG_OBJECT, RADAR_DIR_INPUT_ARG)
     TOP_TRACKING_DIR_NAME = getattr(INPUT_ARG_OBJECT, TRACKING_DIR_INPUT_ARG)
 
-    _run_gridrad_tracking(
+    _run_echo_top_tracking(
         first_spc_date_string=FIRST_SPC_DATE_STRING,
         last_spc_date_string=LAST_SPC_DATE_STRING,
         top_radar_dir_name=TOP_RADAR_DIR_NAME,
