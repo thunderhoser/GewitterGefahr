@@ -62,6 +62,7 @@ DEFAULT_STORM_OBJECT_AREA_METRES2 = int(1e8)  # 100 km^2
 
 RADAR_FILE_NAMES_KEY = 'input_radar_file_names'
 TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
+RADAR_METADATA_DICTS_KEY = 'list_of_radar_metadata_dicts'
 VALID_TIMES_KEY = 'unix_times_sec'
 
 LATITUDES_KEY = 'latitudes_deg'
@@ -786,16 +787,21 @@ def _get_grid_points_in_radius(
 
 
 def _storm_objects_to_polygons(
-        storm_object_table, radar_metadata_dict, projection_object,
+        storm_object_table, file_dictionary, projection_object,
         object_area_metres2):
     """Creates bounding polygon for each storm object.
 
+    N = number of time steps
     P = number of grid points in a given storm object
 
     :param storm_object_table: pandas DataFrame created by
         `_local_maxima_to_storm_tracks`.
-    :param radar_metadata_dict: Dictionary with metadata for radar grid, created
-        by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
+    :param file_dictionary: Dictionary with keys created by
+        `_find_input_radar_files`, as well as those listed below.
+    file_dictionary['list_of_radar_metadata_dicts']: length-N list of
+        dictionaries, where the [i]th dictionary contains metadata for the radar
+        grid at the [i]th time step.
+
     :param projection_object: Instance of `pyproj.Proj`, which will be used to
         convert grid coordinates from lat-long to x-y.
     :param object_area_metres2: Each storm object will have approx this area.
@@ -815,33 +821,6 @@ def _storm_objects_to_polygons(
         `shapely.geometry.Polygon`, with vertices in row-column coordinates.
     """
 
-    # TODO(thunderhoser): need more than one `radar_metadata_dict`.
-
-    min_latitude_deg = (
-        radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
-            radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
-            (radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
-
-    grid_point_latitudes_deg, grid_point_longitudes_deg = (
-        grids.get_latlng_grid_points(
-            min_latitude_deg=min_latitude_deg,
-            min_longitude_deg=
-            radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-            lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-            num_rows=radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
-            num_columns=radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
-
-    grid_latitude_matrix_deg, grid_longitude_matrix_deg = (
-        grids.latlng_vectors_to_matrices(
-            grid_point_latitudes_deg, grid_point_longitudes_deg))
-
-    x_grid_matrix_metres, y_grid_matrix_metres = (
-        projections.project_latlng_to_xy(
-            grid_latitude_matrix_deg, grid_longitude_matrix_deg,
-            projection_object=projection_object, false_easting_metres=0.,
-            false_northing_metres=0.))
-
     num_storm_objects = len(storm_object_table.index)
     object_array = numpy.full(num_storm_objects, numpy.nan, dtype=object)
     nested_array = storm_object_table[[
@@ -858,62 +837,105 @@ def _storm_objects_to_polygons(
     storm_object_table = storm_object_table.assign(**argument_dict)
 
     object_radius_metres = numpy.sqrt(object_area_metres2 / numpy.pi)
+    radar_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
+    num_radar_times = len(radar_times_unix_sec)
 
-    for i in range(num_storm_objects):
-        these_grid_point_rows, these_grid_point_columns = (
-            _get_grid_points_in_radius(
-                x_grid_matrix_metres=x_grid_matrix_metres,
-                y_grid_matrix_metres=y_grid_matrix_metres,
-                x_query_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
-                y_query_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
-                radius_metres=object_radius_metres))
+    for i in range(num_radar_times):
+        these_object_indices = numpy.where(
+            storm_object_table[tracking_utils.TIME_COLUMN] ==
+            radar_times_unix_sec[i])[0]
+        this_num_storm_objects = len(these_object_indices)
+        if this_num_storm_objects == 0:
+            continue
 
-        these_vertex_rows, these_vertex_columns = (
-            polygons.grid_points_in_poly_to_vertices(
-                these_grid_point_rows, these_grid_point_columns))
+        this_radar_metadata_dict = file_dictionary[RADAR_METADATA_DICTS_KEY][i]
+        this_min_latitude_deg = (
+            this_radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
+                this_radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+                (this_radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
 
-        (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
-         storm_object_table[
-             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]) = (
-                 polygons.simple_polygon_to_grid_points(
-                     these_vertex_rows, these_vertex_columns))
-
-        (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
-         storm_object_table[tracking_utils.GRID_POINT_LNG_COLUMN].values[i]) = (
-             radar_utils.rowcol_to_latlng(
-                 storm_object_table[
-                     tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
-                 storm_object_table[
-                     tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i],
-                 nw_grid_point_lat_deg=
-                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-                 nw_grid_point_lng_deg=
-                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-                 lat_spacing_deg=
-                 radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-                 lng_spacing_deg=
-                 radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
-
-        these_vertex_lat_deg, these_vertex_lng_deg = (
-            radar_utils.rowcol_to_latlng(
-                these_vertex_rows, these_vertex_columns,
-                nw_grid_point_lat_deg=
-                radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-                nw_grid_point_lng_deg=
-                radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+        these_grid_point_lats_deg, these_grid_point_lngs_deg = (
+            grids.get_latlng_grid_points(
+                min_latitude_deg=this_min_latitude_deg,
+                min_longitude_deg=
+                this_radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
                 lat_spacing_deg=
-                radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                this_radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
                 lng_spacing_deg=
-                radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+                this_radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+                num_rows=this_radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
+                num_columns=
+                this_radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
 
-        storm_object_table[
-            tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
-                polygons.vertex_arrays_to_polygon_object(
-                    these_vertex_columns, these_vertex_rows))
-        storm_object_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i] = (
-                polygons.vertex_arrays_to_polygon_object(
-                    these_vertex_lng_deg, these_vertex_lat_deg))
+        this_latitude_matrix_deg, this_longitude_matrix_deg = (
+            grids.latlng_vectors_to_matrices(
+                these_grid_point_lats_deg, these_grid_point_lngs_deg))
+
+        this_x_matrix_metres, this_y_matrix_metres = (
+            projections.project_latlng_to_xy(
+                this_latitude_matrix_deg, this_longitude_matrix_deg,
+                projection_object=projection_object, false_easting_metres=0.,
+                false_northing_metres=0.))
+
+        for j in these_object_indices:
+            these_grid_point_rows, these_grid_point_columns = (
+                _get_grid_points_in_radius(
+                    x_grid_matrix_metres=this_x_matrix_metres,
+                    y_grid_matrix_metres=this_y_matrix_metres,
+                    x_query_metres=
+                    storm_object_table[CENTROID_X_COLUMN].values[j],
+                    y_query_metres=
+                    storm_object_table[CENTROID_Y_COLUMN].values[j],
+                    radius_metres=object_radius_metres))
+
+            these_vertex_rows, these_vertex_columns = (
+                polygons.grid_points_in_poly_to_vertices(
+                    these_grid_point_rows, these_grid_point_columns))
+
+            (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[j],
+             storm_object_table[
+                 tracking_utils.GRID_POINT_COLUMN_COLUMN].values[j]) = (
+                     polygons.simple_polygon_to_grid_points(
+                         these_vertex_rows, these_vertex_columns))
+
+            (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[j],
+             storm_object_table[
+                 tracking_utils.GRID_POINT_LNG_COLUMN].values[j]) = (
+                     radar_utils.rowcol_to_latlng(
+                         storm_object_table[
+                             tracking_utils.GRID_POINT_ROW_COLUMN].values[j],
+                         storm_object_table[
+                             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[j],
+                         nw_grid_point_lat_deg=this_radar_metadata_dict[
+                             radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                         nw_grid_point_lng_deg=this_radar_metadata_dict[
+                             radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                         lat_spacing_deg=this_radar_metadata_dict[
+                             radar_utils.LAT_SPACING_COLUMN],
+                         lng_spacing_deg=this_radar_metadata_dict[
+                             radar_utils.LNG_SPACING_COLUMN]))
+
+            these_vertex_lat_deg, these_vertex_lng_deg = (
+                radar_utils.rowcol_to_latlng(
+                    these_vertex_rows, these_vertex_columns,
+                    nw_grid_point_lat_deg=this_radar_metadata_dict[
+                        radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                    nw_grid_point_lng_deg=this_radar_metadata_dict[
+                        radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                    lat_spacing_deg=
+                    this_radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                    lng_spacing_deg=
+                    this_radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+
+            storm_object_table[
+                tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[j] = (
+                    polygons.vertex_arrays_to_polygon_object(
+                        these_vertex_columns, these_vertex_rows))
+
+            storm_object_table[
+                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[j] = (
+                    polygons.vertex_arrays_to_polygon_object(
+                        these_vertex_lng_deg, these_vertex_lat_deg))
 
     return storm_object_table
 
@@ -981,11 +1003,9 @@ def run_tracking(
     :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
     :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
         storms will be removed.
-    :return: storm_object_table: pandas DataFrame with the following columns,
-        where each row is one storm object.
+    :return: storm_object_table: pandas DataFrame with columns listed in
+        `storm_tracking_io.write_processed_file`.
     """
-
-    # TODO(thunderhoser): Fix output documentation.
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
@@ -1008,28 +1028,31 @@ def run_tracking(
 
     time_strings = [time_conversion.unix_sec_to_string(t, TIME_FORMAT)
                     for t in unix_times_sec]
+
     num_times = len(unix_times_sec)
     local_max_dict_by_time = [{}] * num_times
+    file_dictionary[RADAR_METADATA_DICTS_KEY] = [{}] * num_times
 
     for i in range(num_times):
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
             echo_top_field_name, time_strings[i])
 
-        this_radar_metadata_dict = (
+        file_dictionary[RADAR_METADATA_DICTS_KEY][i] = (
             myrorss_and_mrms_io.read_metadata_from_raw_file(
                 input_radar_file_names[i], data_source=radar_data_source))
 
         this_sparse_grid_table = (
             myrorss_and_mrms_io.read_data_from_sparse_grid_file(
                 input_radar_file_names[i],
-                field_name_orig=this_radar_metadata_dict[
+                field_name_orig=file_dictionary[RADAR_METADATA_DICTS_KEY][i][
                     myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
                 data_source=radar_data_source,
-                sentinel_values=
-                this_radar_metadata_dict[radar_utils.SENTINEL_VALUE_COLUMN]))
+                sentinel_values=file_dictionary[RADAR_METADATA_DICTS_KEY][i][
+                    radar_utils.SENTINEL_VALUE_COLUMN]))
 
         this_echo_top_matrix_km_asl, _, _ = radar_s2f.sparse_to_full_grid(
-            this_sparse_grid_table, this_radar_metadata_dict,
+            this_sparse_grid_table,
+            file_dictionary[RADAR_METADATA_DICTS_KEY][i],
             ignore_if_below=min_echo_top_height_km_asl)
 
         this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
@@ -1037,7 +1060,8 @@ def run_tracking(
             e_folding_radius_pixels=e_folding_radius_for_smoothing_pixels)
 
         local_max_dict_by_time[i] = _find_local_maxima(
-            this_echo_top_matrix_km_asl, this_radar_metadata_dict,
+            this_echo_top_matrix_km_asl,
+            file_dictionary[RADAR_METADATA_DICTS_KEY][i],
             neigh_half_width_in_pixels=half_width_for_max_filter_pixels)
 
         local_max_dict_by_time[i] = _remove_redundant_local_maxima(
@@ -1075,7 +1099,6 @@ def run_tracking(
     storm_object_table = _get_storm_velocities(storm_object_table)
 
     return _storm_objects_to_polygons(
-        storm_object_table=storm_object_table,
-        radar_metadata_dict=this_radar_metadata_dict,
+        storm_object_table=storm_object_table, file_dictionary=file_dictionary,
         projection_object=projection_object,
         object_area_metres2=storm_object_area_metres2)
