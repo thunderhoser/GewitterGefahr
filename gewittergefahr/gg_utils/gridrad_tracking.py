@@ -58,7 +58,9 @@ DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MAX_LINK_TIME_SECONDS = 300
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
+
 DEFAULT_MIN_TRACK_DURATION_SECONDS = 900
+DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY = 3
 DEFAULT_STORM_OBJECT_AREA_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
 
 RADAR_FILE_NAMES_KEY = 'input_radar_file_names'
@@ -644,7 +646,8 @@ def _remove_short_tracks(
 
 
 def _get_velocities_one_storm_track(
-        centroid_latitudes_deg, centroid_longitudes_deg, unix_times_sec):
+        centroid_latitudes_deg, centroid_longitudes_deg, unix_times_sec,
+        num_points_back):
     """Computes velocity at each point along one storm track.
 
     Specifically, for each storm object, computes velocity using a backward
@@ -657,13 +660,15 @@ def _get_velocities_one_storm_track(
     :param centroid_longitudes_deg: length-N numpy array with longitudes (deg E)
         of storm centroid.
     :param unix_times_sec: length-N numpy array of valid times.
+    :param num_points_back: Velocity calculation for the [i]th point will
+        consider the distance between the [i]th and [i - k]th points, where
+        k = `num_points_back`.  Larger values lead to a more smoothly changing
+        velocity over the track (less noisy estimates).
     :return: east_velocities_m_s01: length-N numpy array of eastward velocities
         (metres per second).
     :return: north_velocities_m_s01: length-N numpy array of northward
         velocities (metres per second).
     """
-
-    # TODO(thunderhoser): Smooth!
 
     num_storm_objects = len(unix_times_sec)
     east_displacements_metres = numpy.full(num_storm_objects, numpy.nan)
@@ -671,11 +676,17 @@ def _get_velocities_one_storm_track(
     time_diffs_seconds = numpy.full(num_storm_objects, -1, dtype=int)
     sort_indices = numpy.argsort(unix_times_sec)
 
-    for i in range(1, num_storm_objects):
+    for i in range(0, num_storm_objects):
+        this_num_points_back = min([i, num_points_back])
+        if this_num_points_back == 0:
+            continue
+
         this_end_latitude_deg = centroid_latitudes_deg[sort_indices[i]]
         this_end_longitude_deg = centroid_longitudes_deg[sort_indices[i]]
-        this_start_latitude_deg = centroid_latitudes_deg[sort_indices[i - 1]]
-        this_start_longitude_deg = centroid_longitudes_deg[sort_indices[i - 1]]
+        this_start_latitude_deg = centroid_latitudes_deg[
+            sort_indices[i - this_num_points_back]]
+        this_start_longitude_deg = centroid_longitudes_deg[
+            sort_indices[i - this_num_points_back]]
 
         this_end_point = (this_end_latitude_deg, this_end_longitude_deg)
         this_start_point = (this_end_latitude_deg, this_start_longitude_deg)
@@ -692,13 +703,13 @@ def _get_velocities_one_storm_track(
 
         time_diffs_seconds[i] = (
             unix_times_sec[sort_indices[i]] -
-            unix_times_sec[sort_indices[i - 1]])
+            unix_times_sec[sort_indices[i - this_num_points_back]])
 
     return (east_displacements_metres / time_diffs_seconds,
             north_displacements_metres / time_diffs_seconds)
 
 
-def _get_storm_velocities(storm_object_table):
+def _get_storm_velocities(storm_object_table, num_points_back):
     """Computes storm velocities.
 
     Specifically, for each storm object, computes velocity using a backward
@@ -706,6 +717,8 @@ def _get_storm_velocities(storm_object_table):
 
     :param storm_object_table: pandas DataFrame created by
         `_local_maxima_to_storm_tracks`.
+    :param num_points_back: See documentation for
+        `_get_velocities_one_storm_track`.
     :return: storm_object_table: Same as input, but with two additional columns.
     storm_object_table.east_velocity_m_s01: Eastward velocity (metres per
         second).
@@ -735,7 +748,8 @@ def _get_storm_velocities(storm_object_table):
                  storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[
                      these_object_indices],
                  unix_times_sec=storm_object_table[
-                     tracking_utils.TIME_COLUMN].values[these_object_indices]))
+                     tracking_utils.TIME_COLUMN].values[these_object_indices],
+                 num_points_back=num_points_back))
 
     argument_dict = {
         tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
@@ -965,7 +979,8 @@ def run_tracking(
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS):
+        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS,
+        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
     """Runs tracking algorithm for the given time period and radar field.
 
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
@@ -991,6 +1006,8 @@ def run_tracking(
     :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
     :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
         storms will be removed.
+    :param num_points_back_for_velocity: See doc for
+        `_get_velocities_one_storm_track`.
     :return: storm_object_table: pandas DataFrame with columns listed in
         `storm_tracking_io.write_processed_file`.
     :return: file_dictionary: See documentation for `_find_input_radar_files`.
@@ -1094,7 +1111,8 @@ def run_tracking(
         best_track_end_time_unix_sec=unix_times_sec[-1])
 
     print 'Computing velocity for each storm object...\n'
-    storm_object_table = _get_storm_velocities(storm_object_table)
+    storm_object_table = _get_storm_velocities(
+        storm_object_table, num_points_back=num_points_back_for_velocity)
 
     storm_object_table = _storm_objects_to_polygons(
         storm_object_table=storm_object_table, file_dictionary=file_dictionary,

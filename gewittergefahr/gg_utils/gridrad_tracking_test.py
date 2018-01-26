@@ -11,7 +11,7 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
 
 TOLERANCE = 1e-6
-RELATIVE_DISTANCE_TOLERANCE = 0.005
+RELATIVE_DISTANCE_TOLERANCE = 0.015
 
 # The following constants are used to test _find_local_maxima.
 RADAR_MATRIX = numpy.array([
@@ -209,12 +209,23 @@ TIMES_FOR_VELOCITY_UNIX_SEC = numpy.array([0, 1, 2, 3, 4, 5], dtype=int)
 
 DEG_LAT_TO_METRES = 60. * 1852
 DEGREES_TO_RADIANS = numpy.pi / 180
-NORTH_VELOCITIES_M_S01 = numpy.array(
+
+NORTH_VELOCITIES_1POINT_M_S01 = numpy.array(
     [numpy.nan, 0., DEG_LAT_TO_METRES, 0., -DEG_LAT_TO_METRES, 0.])
-EAST_VELOCITIES_M_S01 = numpy.array(
+EAST_VELOCITIES_1POINT_M_S01 = numpy.array(
     [numpy.nan, DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS),
      0., DEG_LAT_TO_METRES * numpy.cos(41. * DEGREES_TO_RADIANS),
      0., -DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS)])
+
+NORTH_VELOCITIES_2POINTS_M_S01 = numpy.array(
+    [numpy.nan, 0., DEG_LAT_TO_METRES / 2, DEG_LAT_TO_METRES / 2,
+     -DEG_LAT_TO_METRES / 2, -DEG_LAT_TO_METRES / 2])
+EAST_VELOCITIES_2POINTS_M_S01 = numpy.array(
+    [numpy.nan, DEG_LAT_TO_METRES * numpy.cos(40. * DEGREES_TO_RADIANS),
+     DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
+     DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
+     DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
+     -DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2])
 
 # The following constants are used to test _get_grid_points_in_radius.
 X_GRID_MATRIX_METRES = numpy.array([[0., 1., 2., 3.],
@@ -485,20 +496,44 @@ class GridradTrackingTests(unittest.TestCase):
 
         self.assertTrue(this_storm_object_table.empty)
 
-    def test_get_velocities_one_storm_track(self):
-        """Ensures correct output from _get_velocities_one_storm_track."""
+    def test_get_velocities_one_storm_track_1point(self):
+        """Ensures correct output from _get_velocities_one_storm_track.
+
+        In this case, each velocity is based on the displacement from 1 point
+        back in the storm track.
+        """
 
         these_east_velocities_m_s01, these_north_velocities_m_s01 = (
             gridrad_tracking._get_velocities_one_storm_track(
                 centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
                 centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
-                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC))
+                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=1))
 
         self.assertTrue(numpy.allclose(
-            these_east_velocities_m_s01, EAST_VELOCITIES_M_S01,
+            these_east_velocities_m_s01, EAST_VELOCITIES_1POINT_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
         self.assertTrue(numpy.allclose(
-            these_north_velocities_m_s01, NORTH_VELOCITIES_M_S01,
+            these_north_velocities_m_s01, NORTH_VELOCITIES_1POINT_M_S01,
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+
+    def test_get_velocities_one_storm_track_2points(self):
+        """Ensures correct output from _get_velocities_one_storm_track.
+
+        In this case, each velocity is based on the displacement from 2 points
+        back in the storm track.
+        """
+
+        these_east_velocities_m_s01, these_north_velocities_m_s01 = (
+            gridrad_tracking._get_velocities_one_storm_track(
+                centroid_latitudes_deg=CENTROID_LATS_FOR_VELOCITY_DEG,
+                centroid_longitudes_deg=CENTROID_LNGS_FOR_VELOCITY_DEG,
+                unix_times_sec=TIMES_FOR_VELOCITY_UNIX_SEC, num_points_back=2))
+
+        self.assertTrue(numpy.allclose(
+            these_east_velocities_m_s01, EAST_VELOCITIES_2POINTS_M_S01,
+            rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
+        self.assertTrue(numpy.allclose(
+            these_north_velocities_m_s01, NORTH_VELOCITIES_2POINTS_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
 
     def test_get_grid_points_in_radius(self):
