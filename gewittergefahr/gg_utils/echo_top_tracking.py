@@ -551,6 +551,9 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
 
     for i in range(num_times):
         this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
+        if this_num_storm_objects == 0:
+            continue
+
         local_max_dict_by_time[i].update(
             {STORM_IDS_KEY: [''] * this_num_storm_objects})
 
