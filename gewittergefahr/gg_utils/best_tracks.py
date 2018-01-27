@@ -91,13 +91,10 @@ ATTRIBUTES_TO_OVERWRITE = [
 
 VERTEX_LATITUDES_COLUMN = 'polygon_vertex_latitudes_deg'
 VERTEX_LONGITUDES_COLUMN = 'polygon_vertex_longitudes_deg'
-# OUTPUT_COLUMNS_FOR_THEA = [
-#     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-#     tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
-#     VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 OUTPUT_COLUMNS_FOR_THEA = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
-    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN]
+    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
+    VERTEX_LATITUDES_COLUMN, VERTEX_LONGITUDES_COLUMN]
 
 TRACK_LIFETIMES_KEY = 'track_lifetimes_sec'
 LINEARITY_ERROR_BY_TRACK_KEY = 'centroid_rmse_by_track_metres'
