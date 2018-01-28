@@ -151,14 +151,18 @@ def _write_slurm_file(
 
     # Run storm-tracking for the given SPC date.
     slurm_file_handle.write(
-        ('"{0:s}" -u "{1:s}" --{2:s}="{3:s}" --{4:s}="{5:s}" --{6:s}="{7:s}" '
-         '--{8:s}="{9:s}"').format(
-             PYTHON_EXE_NAME, PYTHON_SCRIPT_NAME,
-             FIRST_SPC_DATE_INPUT_ARG, first_spc_date_string,
-             LAST_SPC_DATE_INPUT_ARG, last_spc_date_string,
-             run_echo_top_tracking.RADAR_DIR_INPUT_ARG, top_radar_dir_name,
-             run_echo_top_tracking.TRACKING_DIR_INPUT_ARG,
-             top_tracking_dir_name))
+        '"{0:s}" -u "{1:s}" --{2:s}='.format(
+            PYTHON_EXE_NAME, PYTHON_SCRIPT_NAME,
+            run_echo_top_tracking.FIRST_SPC_DATE_INPUT_ARG))
+    slurm_file_handle.write('"${this_spc_date_string}"')
+
+    slurm_file_handle.write(' --{0:s}='.format(
+        run_echo_top_tracking.LAST_SPC_DATE_INPUT_ARG))
+    slurm_file_handle.write('"${this_spc_date_string}"')
+
+    slurm_file_handle.write(' --{0:s}="{1:s}" --{2:s}="{3:s}"'.format(
+        run_echo_top_tracking.RADAR_DIR_INPUT_ARG, top_radar_dir_name,
+        run_echo_top_tracking.TRACKING_DIR_INPUT_ARG, top_tracking_dir_name))
     slurm_file_handle.close()
 
 
