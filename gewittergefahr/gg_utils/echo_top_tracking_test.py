@@ -240,6 +240,38 @@ CRITICAL_RADIUS_METRES = 5.
 ROWS_WITHIN_RADIUS = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
 COLUMNS_WITHIN_RADIUS = numpy.array([1, 2, 3, 0, 1, 2])
 
+# The following constants are used to test _join_tracks_between_periods.
+THESE_STORM_IDS = ['a', 'b', 'a', 'b']
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 300, 300], dtype=int)
+THESE_LATITUDES_DEG = numpy.array([30., 40., 30., 40.])
+THESE_LONGITUDES_DEG = numpy.array([290., 300., 290., 300.])
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
+EARLY_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+THESE_STORM_IDS = ['c', 'd', 'c', 'd']
+THESE_TIMES_UNIX_SEC = numpy.array([600, 600, 900, 900], dtype=int)
+THESE_LATITUDES_DEG = numpy.array([40., 50., 40., 50.])
+THESE_LONGITUDES_DEG = numpy.array([300., 250., 300., 250.])
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
+LATE_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: ['b', 'd', 'b', 'd'],
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
+JOINED_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
 
 class EchoTopTrackingTests(unittest.TestCase):
     """Each method is a unit test for echo_top_tracking.py."""
@@ -550,6 +582,21 @@ class EchoTopTrackingTests(unittest.TestCase):
             these_row_indices, ROWS_WITHIN_RADIUS))
         self.assertTrue(numpy.array_equal(
             these_column_indices, COLUMNS_WITHIN_RADIUS))
+
+    def test_join_tracks_between_periods(self):
+        """Ensures correct output from _join_tracks_between_periods."""
+
+        this_late_storm_object_table = copy.deepcopy(LATE_STORM_OBJECT_TABLE)
+        this_joined_storm_object_table = (
+            echo_top_tracking._join_tracks_between_periods(
+                early_storm_object_table=EARLY_STORM_OBJECT_TABLE,
+                late_storm_object_table=this_late_storm_object_table,
+                projection_object=PROJECTION_OBJECT,
+                max_link_time_seconds=MAX_LINK_TIME_SECONDS,
+                max_link_distance_m_s01=MAX_LINK_DISTANCE_M_S01))
+
+        self.assertTrue(this_joined_storm_object_table.equals(
+            JOINED_STORM_OBJECT_TABLE))
 
 
 if __name__ == '__main__':

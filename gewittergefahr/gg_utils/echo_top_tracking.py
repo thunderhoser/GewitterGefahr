@@ -18,6 +18,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
     American Meteorological Society.
 """
 
+import copy
 import numpy
 import pandas
 from geopy.distance import vincenty
@@ -37,6 +38,7 @@ from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 DEGREES_LAT_TO_METRES = 60 * 1852
@@ -58,7 +60,8 @@ DEFAULT_MAX_LINK_TIME_SECONDS = 300
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
 
-DEFAULT_MIN_TRACK_DURATION_SECONDS = 900
+DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS = 0
+DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS = 900
 DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY = 3
 DEFAULT_STORM_OBJECT_AREA_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
 
@@ -75,6 +78,11 @@ Y_COORDS_KEY = 'y_coords_metres'
 VALID_TIME_KEY = 'unix_time_sec'
 CURRENT_TO_PREV_INDICES_KEY = 'current_to_previous_indices'
 STORM_IDS_KEY = 'storm_ids'
+
+SPC_DATE_STRINGS_KEY = 'spc_date_strings'
+INPUT_FILE_NAMES_BY_DATE_KEY = 'input_file_names_by_date'
+OUTPUT_FILE_NAMES_BY_DATE_KEY = 'output_file_names_by_date'
+VALID_TIMES_BY_DATE_KEY = 'times_by_date_unix_sec'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -321,15 +329,13 @@ def _link_local_maxima_in_time(
     return current_to_previous_indices
 
 
-def _find_input_radar_files(
+def _find_radar_and_tracking_files(
         echo_top_field_name, data_source, top_radar_dir_name,
         top_tracking_dir_name, tracking_scale_metres2, start_spc_date_string,
         end_spc_date_string, start_time_unix_sec=None, end_time_unix_sec=None):
-    """Finds input radar files for the given time period and radar field.
+    """Finds input radar files and creates paths for output tracking files.
 
-    Also creates paths for output tracking files.
-
-    N = number of radar files found
+    N = number of time steps
 
     :param echo_top_field_name: Name of radar field to use for tracking.  Must
         be an echo-top field.
@@ -612,8 +618,7 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
 
 
 def _remove_short_tracks(
-        storm_object_table,
-        min_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS):
+        storm_object_table, min_duration_seconds):
     """Removes short-lived storm tracks.
 
     :param storm_object_table: pandas DataFrame created by
@@ -816,7 +821,7 @@ def _storm_objects_to_polygons(
     :param storm_object_table: pandas DataFrame created by
         `_local_maxima_to_storm_tracks`.
     :param file_dictionary: Dictionary with keys created by
-        `_find_input_radar_files`, as well as those listed below.
+        `_find_radar_and_tracking_files`, as well as those listed below.
     file_dictionary['list_of_radar_metadata_dicts']: length-N list of
         dictionaries, where the [i]th dictionary contains metadata for the radar
         grid at the [i]th time step.
@@ -964,6 +969,95 @@ def _storm_objects_to_polygons(
     return storm_object_table
 
 
+def _find_input_and_output_tracking_files(
+        first_spc_date_string, last_spc_date_string, top_input_dir_name,
+        tracking_scale_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
+        top_output_dir_name=None):
+    """Finds input and output tracking files.
+
+    These files will be used by `join_tracks_across_spc_dates`.
+
+    N = number of SPC dates
+
+    :param first_spc_date_string: First SPC date (format "yyyymmdd").
+    :param last_spc_date_string: Last SPC date (format "yyyymmdd").
+    :param top_input_dir_name: Name of top-level directory with original
+        tracking files (before joining across SPC dates).
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).  This
+        will be used to find files.
+    :param top_output_dir_name: Name of top-level directory for new tracking
+        files (after joining across SPC dates).
+    :return: tracking_file_dict: Dictionary with the following keys.
+    tracking_file_dict['spc_date_strings']: length-N list of SPC dates (format
+        "yyyymmdd").
+    tracking_file_dict['input_file_names_by_date']: length-N list, where the
+        [i]th element is a 1-D list of paths to input files for the [i]th SPC
+        date.
+    tracking_file_dict['output_file_names_by_date']: Same but for output files.
+    tracking_file_dict['times_by_date_unix_sec']: length-N list, where the
+        [i]th element is a 1-D numpy array of valid times for the [i]th SPC
+        date.
+    """
+
+    first_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        first_spc_date_string)
+    last_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        last_spc_date_string)
+
+    num_spc_dates = 1 + int(
+        (last_spc_date_unix_sec - first_spc_date_unix_sec) / DAYS_TO_SECONDS)
+    spc_dates_unix_sec = numpy.linspace(
+        first_spc_date_unix_sec, last_spc_date_unix_sec, num=num_spc_dates,
+        dtype=int)
+    spc_date_strings = [time_conversion.time_to_spc_date_string(t)
+                        for t in spc_dates_unix_sec]
+
+    tracking_file_dict = {
+        SPC_DATE_STRINGS_KEY: spc_date_strings,
+        INPUT_FILE_NAMES_BY_DATE_KEY: [[]] * num_spc_dates,
+        OUTPUT_FILE_NAMES_BY_DATE_KEY: [[]] * num_spc_dates,
+        VALID_TIMES_BY_DATE_KEY: [[]] * num_spc_dates
+    }
+
+    for i in range(num_spc_dates):
+        these_input_file_names = tracking_io.find_processed_files_one_spc_date(
+            spc_date_string=spc_date_strings[i],
+            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            top_processed_dir_name=top_input_dir_name,
+            tracking_scale_metres2=tracking_scale_metres2)
+
+        these_times_unix_sec = numpy.array(
+            [tracking_io.processed_file_name_to_time(f)
+             for f in these_input_file_names], dtype=int)
+
+        sort_indices = numpy.argsort(these_times_unix_sec)
+        these_times_unix_sec = these_times_unix_sec[sort_indices]
+        these_input_file_names = [
+            these_input_file_names[k] for k in sort_indices]
+
+        if top_output_dir_name == top_input_dir_name:
+            these_output_file_names = copy.deepcopy(these_input_file_names)
+        else:
+            these_output_file_names = []
+            for this_time_unix_sec in these_times_unix_sec:
+                these_output_file_names.append(
+                    tracking_io.find_processed_file(
+                        unix_time_sec=this_time_unix_sec,
+                        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+                        top_processed_dir_name=top_output_dir_name,
+                        tracking_scale_metres2=tracking_scale_metres2,
+                        spc_date_string=spc_date_strings[i],
+                        raise_error_if_missing=False))
+
+        tracking_file_dict[INPUT_FILE_NAMES_BY_DATE_KEY][
+            i] = these_input_file_names
+        tracking_file_dict[OUTPUT_FILE_NAMES_BY_DATE_KEY][
+            i] = these_output_file_names
+        tracking_file_dict[VALID_TIMES_BY_DATE_KEY][i] = these_times_unix_sec
+
+    return tracking_file_dict
+
+
 def run_tracking(
         top_radar_dir_name, top_tracking_dir_name, start_spc_date_string,
         end_spc_date_string,
@@ -980,20 +1074,21 @@ def run_tracking(
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SECONDS,
+        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
     """Runs tracking algorithm for the given time period and radar field.
 
-    :param top_radar_dir_name: See doc for `_find_input_radar_files`.
-    :param top_tracking_dir_name: See doc for `_find_input_radar_files`.
-    :param start_spc_date_string: See doc for `_find_input_radar_files`.
-    :param end_spc_date_string: See doc for `_find_input_radar_files`.
-    :param echo_top_field_name: See documentation for `_find_input_radar_files`.
-    :param radar_data_source: See doc for `_find_input_radar_files`.
+    :param top_radar_dir_name: See doc for `_find_radar_and_tracking_files`.
+    :param top_tracking_dir_name: See doc for `_find_radar_and_tracking_files`.
+    :param start_spc_date_string: See doc for `_find_radar_and_tracking_files`.
+    :param end_spc_date_string: See doc for `_find_radar_and_tracking_files`.
+    :param echo_top_field_name: See documentation for
+        `_find_radar_and_tracking_files`.
+    :param radar_data_source: See doc for `_find_radar_and_tracking_files`.
     :param storm_object_area_metres2: Area for bounding polygon around each
         storm object.
-    :param start_time_unix_sec: See doc for `_find_input_radar_files`.
-    :param end_time_unix_sec: See doc for `_find_input_radar_files`.
+    :param start_time_unix_sec: See doc for `_find_radar_and_tracking_files`.
+    :param end_time_unix_sec: See doc for `_find_radar_and_tracking_files`.
     :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
         level).  Only local maxima >= `min_echo_top_height_km_asl` will be
         tracked.
@@ -1011,12 +1106,13 @@ def run_tracking(
         `_get_velocities_one_storm_track`.
     :return: storm_object_table: pandas DataFrame with columns listed in
         `storm_tracking_io.write_processed_file`.
-    :return: file_dictionary: See documentation for `_find_input_radar_files`.
+    :return: file_dictionary: See documentation for
+        `_find_radar_and_tracking_files`.
     """
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
-    file_dictionary = _find_input_radar_files(
+    file_dictionary = _find_radar_and_tracking_files(
         echo_top_field_name=echo_top_field_name, data_source=radar_data_source,
         top_radar_dir_name=top_radar_dir_name,
         top_tracking_dir_name=top_tracking_dir_name,
@@ -1122,11 +1218,285 @@ def run_tracking(
     return storm_object_table, file_dictionary
 
 
+def _join_tracks_between_periods(
+        early_storm_object_table, late_storm_object_table, projection_object,
+        max_link_time_seconds, max_link_distance_m_s01):
+    """Joins storm tracks between two time periods.
+
+    :param early_storm_object_table: pandas DataFrame for early period.  Each
+        row is one storm object.  Must contain the following columns.
+    early_storm_object_table.storm_id: String ID for storm.
+    early_storm_object_table.unix_time_sec: Valid time.
+    early_storm_object_table.centroid_lat_deg: Latitude (deg N) of storm
+        centroid.
+    early_storm_object_table.centroid_lng_deg: Longitude (deg E) of storm
+        centroid.
+
+    :param late_storm_object_table: Same as above, but for late period.
+    :param projection_object: Instance of `pyproj.Proj` (will be used to convert
+        lat-long coordinates to x-y).
+    :param max_link_time_seconds: See documentation for
+        `_link_local_maxima_in_time`.
+    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
+    :return: late_storm_object_table: Same as input, except that some storm IDs
+        may be changed.
+    """
+
+    last_early_time_unix_sec = numpy.max(
+        early_storm_object_table[tracking_utils.TIME_COLUMN].values)
+    previous_indices = numpy.where(
+        early_storm_object_table[tracking_utils.TIME_COLUMN] ==
+        last_early_time_unix_sec)[0]
+    previous_latitudes_deg = early_storm_object_table[
+        tracking_utils.CENTROID_LAT_COLUMN].values[previous_indices]
+    previous_longitudes_deg = early_storm_object_table[
+        tracking_utils.CENTROID_LNG_COLUMN].values[previous_indices]
+    previous_x_coords_metres, previous_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            previous_latitudes_deg, previous_longitudes_deg,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    previous_local_max_dict = {
+        X_COORDS_KEY: previous_x_coords_metres,
+        Y_COORDS_KEY: previous_y_coords_metres,
+        VALID_TIME_KEY: last_early_time_unix_sec}
+
+    first_late_time_unix_sec = numpy.min(
+        late_storm_object_table[tracking_utils.TIME_COLUMN].values)
+    current_indices = numpy.where(
+        late_storm_object_table[tracking_utils.TIME_COLUMN] ==
+        first_late_time_unix_sec)[0]
+    current_latitudes_deg = late_storm_object_table[
+        tracking_utils.CENTROID_LAT_COLUMN].values[current_indices]
+    current_longitudes_deg = late_storm_object_table[
+        tracking_utils.CENTROID_LNG_COLUMN].values[current_indices]
+    current_x_coords_metres, current_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            current_latitudes_deg, current_longitudes_deg,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    current_local_max_dict = {
+        X_COORDS_KEY: current_x_coords_metres,
+        Y_COORDS_KEY: current_y_coords_metres,
+        VALID_TIME_KEY: first_late_time_unix_sec}
+
+    current_to_previous_indices = _link_local_maxima_in_time(
+        current_local_max_dict=current_local_max_dict,
+        previous_local_max_dict=previous_local_max_dict,
+        max_link_time_seconds=max_link_time_seconds,
+        max_link_distance_m_s01=max_link_distance_m_s01)
+
+    previous_storm_ids = early_storm_object_table[
+        tracking_utils.STORM_ID_COLUMN].values[previous_indices]
+    orig_current_storm_ids = late_storm_object_table[
+        tracking_utils.STORM_ID_COLUMN].values[current_indices]
+    num_current_storms = len(orig_current_storm_ids)
+
+    for i in range(num_current_storms):
+        if current_to_previous_indices[i] == -1:
+            continue
+
+        this_new_current_storm_id = previous_storm_ids[
+            current_to_previous_indices[i]]
+        late_storm_object_table.replace(
+            to_replace=orig_current_storm_ids[i],
+            value=this_new_current_storm_id, inplace=True)
+
+    return late_storm_object_table
+
+
+def join_tracks_across_spc_dates(
+        first_spc_date_string, last_spc_date_string, top_input_dir_name,
+        tracking_scale_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
+        top_output_dir_name=None,
+        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
+        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
+        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS,
+        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
+    """Joins storm tracks across SPC dates.
+
+    This method assumes that the initial tracking (performed by `run_tracking`)
+    was done for each SPC date individually.  This leads to artificial
+    truncations at 1200 UTC (the cutoff between SPC dates).  This method fixes
+    said truncations by joining tracks from adjacent SPC dates.
+
+    T = number of time steps
+
+    :param first_spc_date_string: First SPC date (format "yyyymmdd").  This
+        method will join tracks for all SPC dates from `first_spc_date_string`
+        ...`last_spc_date_string`.
+    :param last_spc_date_string: See above.
+    :param top_input_dir_name: Name of top-level directory with original
+        tracking files (before joining across SPC dates).
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).  This
+        will be used to find files.
+    :param top_output_dir_name: Name of top-level directory for new tracking
+        files (after joining across SPC dates).  Default is
+        `top_input_dir_name`, in which case the original files will be
+        overwritten.
+    :param max_link_time_seconds: See documentation for
+        `_link_local_maxima_in_time`.
+    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
+    :param min_track_duration_seconds: See doc for `_remove_short_tracks`.
+    :param num_points_back_for_velocity: See doc for
+        `_get_velocities_one_storm_track`.
+    :return: tracking_file_dict: Dictionary created by
+        `_find_input_and_output_tracking_files`.
+    :raises: ValueError: if number of SPC dates = 1.
+    :raises: ValueError: if storm_object_table for SPC date "yyyymmdd" contains
+        any SPC dates other than "yyyymmdd".
+    """
+
+    if top_output_dir_name is None:
+        top_output_dir_name = copy.deepcopy(top_input_dir_name)
+
+    tracking_file_dict = _find_input_and_output_tracking_files(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        top_input_dir_name=top_input_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2,
+        top_output_dir_name=top_output_dir_name)
+
+    spc_date_strings = tracking_file_dict[SPC_DATE_STRINGS_KEY]
+    num_spc_dates = len(spc_date_strings)
+    if num_spc_dates == 1:
+        raise ValueError('Number of SPC dates must be > 1.')
+
+    input_file_names_by_spc_date = tracking_file_dict[
+        INPUT_FILE_NAMES_BY_DATE_KEY]
+    output_file_names_by_spc_date = tracking_file_dict[
+        OUTPUT_FILE_NAMES_BY_DATE_KEY]
+    times_by_spc_date_unix_sec = tracking_file_dict[VALID_TIMES_BY_DATE_KEY]
+
+    first_storm_object_table = tracking_io.read_processed_file(
+        input_file_names_by_spc_date[0][0])
+    tracking_start_time_unix_sec = first_storm_object_table[
+        tracking_utils.TRACKING_START_TIME_COLUMN].values[0]
+
+    last_storm_object_table = tracking_io.read_processed_file(
+        input_file_names_by_spc_date[-1][-1])
+    tracking_end_time_unix_sec = last_storm_object_table[
+        tracking_utils.TRACKING_END_TIME_COLUMN].values[0]
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
+
+    for i in range(num_spc_dates + 1):
+        if i == num_spc_dates:
+
+            # Write new data for the last two SPC dates.
+            for j in [num_spc_dates - 2, num_spc_dates - 1]:
+                this_file_dictionary = {
+                    VALID_TIMES_KEY: times_by_spc_date_unix_sec[j],
+                    TRACKING_FILE_NAMES_KEY: output_file_names_by_spc_date[j]}
+                write_storm_objects(
+                    storm_object_table_by_date[j], this_file_dictionary)
+                print '\n'
+
+            print SEPARATOR_STRING
+            break
+
+        # Write new data for two SPC dates ago.
+        if i >= 2:
+            this_file_dictionary = {
+                VALID_TIMES_KEY: times_by_spc_date_unix_sec[i - 2],
+                TRACKING_FILE_NAMES_KEY: output_file_names_by_spc_date[i - 2]}
+            write_storm_objects(
+                storm_object_table_by_date[i - 2], this_file_dictionary)
+            print '\n'
+
+            storm_object_table_by_date[i - 2] = pandas.DataFrame()
+
+        # Read data for current, previous, and next SPC dates.
+        for j in [i - 1, i, i + 1]:
+            if j < 0 or j >= num_spc_dates:
+                continue
+            if not storm_object_table_by_date[j].empty:
+                continue
+
+            storm_object_table_by_date[j] = (
+                tracking_io.read_many_processed_files(
+                    input_file_names_by_spc_date[j]))
+            print '\n'
+
+            these_spc_date_strings = numpy.array(
+                storm_object_table_by_date[j][
+                    tracking_utils.SPC_DATE_COLUMN].values)
+
+            if not numpy.all(these_spc_date_strings == spc_date_strings[j]):
+                error_string = (
+                    'storm_object_table for SPC date "{0:s}" contains other SPC'
+                    ' dates (shown below).\n\n{1:s}').format(
+                        spc_date_strings[i],
+                        set(these_spc_date_strings.tolist()))
+                raise ValueError(error_string)
+
+        # Join tracks between current and next SPC dates.
+        if i != num_spc_dates - 1:
+            print (
+                'Joining tracks between SPC dates "{0:s}" and '
+                '"{1:s}"...').format(spc_date_strings[i],
+                                     spc_date_strings[i + 1])
+
+            storm_object_table_by_date[i + 1] = _join_tracks_between_periods(
+                early_storm_object_table=storm_object_table_by_date[i],
+                late_storm_object_table=storm_object_table_by_date[i + 1],
+                projection_object=projection_object,
+                max_link_time_seconds=max_link_time_seconds,
+                max_link_distance_m_s01=max_link_distance_m_s01)
+
+        # Recompute attributes for current and previous SPC dates.
+        if i == 0:
+            indices_to_concat = numpy.array([i, i + 1], dtype=int)
+        elif i == num_spc_dates - 1:
+            indices_to_concat = numpy.array([i - 1, i], dtype=int)
+        else:
+            indices_to_concat = numpy.array([i - 1, i, i + 1], dtype=int)
+
+        concat_storm_object_table = pandas.concat(
+            [storm_object_table_by_date[k] for k in indices_to_concat],
+            axis=0, ignore_index=True)
+
+        print 'Removing tracks with duration < {0:d} seconds...'.format(
+            int(min_track_duration_seconds))
+        concat_storm_object_table = _remove_short_tracks(
+            concat_storm_object_table,
+            min_duration_seconds=min_track_duration_seconds)
+
+        print 'Recomputing storm age for each storm object...'
+        concat_storm_object_table = best_tracks.recompute_attributes(
+            concat_storm_object_table,
+            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
+            best_track_end_time_unix_sec=tracking_end_time_unix_sec)
+
+        print 'Recomputing velocity for each storm object...'
+        concat_storm_object_table = _get_storm_velocities(
+            concat_storm_object_table,
+            num_points_back=num_points_back_for_velocity)
+
+        storm_object_table_by_date[i] = concat_storm_object_table.loc[
+            concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+            spc_date_strings[i]]
+
+        if i != 0:
+            storm_object_table_by_date[i - 1] = concat_storm_object_table.loc[
+                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                spc_date_strings[i - 1]]
+
+        print SEPARATOR_STRING
+
+
 def write_storm_objects(storm_object_table, file_dictionary):
     """Writes storm objects to one Pickle file per time step.
 
     :param storm_object_table: pandas DataFrame created by `run_tracking`.
-    :param file_dictionary: Dictionary created by `_find_input_radar_files`.
+    :param file_dictionary: Dictionary created by
+        `_find_radar_and_tracking_files`.
     """
 
     pickle_file_names = file_dictionary[TRACKING_FILE_NAMES_KEY]

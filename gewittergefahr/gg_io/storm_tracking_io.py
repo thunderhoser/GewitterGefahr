@@ -4,6 +4,7 @@ import os
 import glob
 import pickle
 import numpy
+import pandas
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -276,3 +277,33 @@ def read_processed_file(pickle_file_name):
     error_checking.assert_columns_in_dataframe(
         storm_object_table, MANDATORY_COLUMNS)
     return storm_object_table
+
+
+def read_many_processed_files(pickle_file_names):
+    """Reads tracking data from many processed files.
+
+    Data from all files are concatenated into the same pandas DataFrame.
+
+    :param pickle_file_names: 1-D list of paths to input files.
+    :return: storm_object_table: See documentation for write processed file.
+    """
+
+    error_checking.assert_is_string_list(pickle_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(pickle_file_names), num_dimensions=1)
+
+    num_files = len(pickle_file_names)
+    list_of_storm_object_tables = [None] * num_files
+
+    for i in range(num_files):
+        list_of_storm_object_tables[i] = read_processed_file(
+            pickle_file_names[i])
+        if i == 0:
+            continue
+
+        list_of_storm_object_tables[i], _ = (
+            list_of_storm_object_tables[i].align(
+                list_of_storm_object_tables[0], axis=1))
+
+    return pandas.concat(
+        list_of_storm_object_tables, axis=0, ignore_index=True)
