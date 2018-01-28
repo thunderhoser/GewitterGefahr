@@ -57,17 +57,20 @@ OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  A single Pickle file, with sounding stats for '
     'each storm object, will be written here.')
 
+DEFAULT_LEAD_TIMES_SECONDS = [0]
+DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
+    echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2))
+
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
-    '--' + LEAD_TIMES_INPUT_ARG, type=int, required=False, nargs='+',
+    '--' + LEAD_TIMES_INPUT_ARG, type=int, nargs='+', required=False,
     default=[0], help=LEAD_TIMES_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-    default=echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2,
-    help=TRACKING_SCALE_HELP_STRING)
+    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
     '--' + RUC_DIRECTORY_INPUT_ARG, type=str, required=True,
     help=RUC_DIRECTORY_HELP_STRING)
@@ -146,9 +149,6 @@ if __name__ == '__main__':
     TOP_RUC_DIRECTORY_NAME = getattr(INPUT_ARG_OBJECT, RUC_DIRECTORY_INPUT_ARG)
     TOP_TRACKING_DIR_NAME = getattr(INPUT_ARG_OBJECT, TRACKING_DIR_INPUT_ARG)
     OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_INPUT_ARG)
-
-    print LEAD_TIMES_SECONDS
-    print type(LEAD_TIMES_SECONDS)
 
     _compute_sounding_stats(
         spc_date_string=SPC_DATE_STRING,
