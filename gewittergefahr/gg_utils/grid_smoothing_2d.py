@@ -155,6 +155,10 @@ def apply_gaussian(input_matrix, grid_spacing_x, grid_spacing_y,
     :return: output_matrix: M-by-N numpy array of smoothed input values.
     """
 
+    # TODO(thunderhoser): For some reason, using
+    # `scipy.ndimage.filters.gaussian_filter` is way faster.  I should change
+    # this module to use said method.
+
     error_checking.assert_is_greater(e_folding_radius, 0.)
     if cutoff_radius is None:
         cutoff_radius = EFOLDING_TO_CUTOFF_RADIUS_DEFAULT * e_folding_radius
