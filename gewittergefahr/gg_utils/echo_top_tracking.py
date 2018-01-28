@@ -22,6 +22,7 @@ import copy
 import time
 import numpy
 import pandas
+from scipy.ndimage.filters import gaussian_filter
 from geopy.distance import vincenty
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
@@ -139,10 +140,15 @@ def _gaussian_smooth_radar_field(
     if cutoff_radius_pixels is None:
         cutoff_radius_pixels = 3 * e_folding_radius_pixels
 
-    return grid_smoothing_2d.apply_gaussian(
-        input_matrix=radar_matrix, grid_spacing_x=1., grid_spacing_y=1.,
-        e_folding_radius=e_folding_radius_pixels,
-        cutoff_radius=cutoff_radius_pixels)
+    return gaussian_filter(
+        input=radar_matrix, sigma=e_folding_radius_pixels, order=0,
+        mode='constant', cval=0.,
+        truncate=cutoff_radius_pixels / e_folding_radius_pixels)
+
+    # return grid_smoothing_2d.apply_gaussian(
+    #     input_matrix=radar_matrix, grid_spacing_x=1., grid_spacing_y=1.,
+    #     e_folding_radius=e_folding_radius_pixels,
+    #     cutoff_radius=cutoff_radius_pixels)
 
 
 def _find_local_maxima(
