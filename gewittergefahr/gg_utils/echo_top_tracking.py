@@ -1375,6 +1375,10 @@ def join_tracks_across_spc_dates(
         OUTPUT_FILE_NAMES_BY_DATE_KEY]
     times_by_spc_date_unix_sec = tracking_file_dict[VALID_TIMES_BY_DATE_KEY]
 
+    spc_dates_unix_sec = numpy.array(
+        [time_conversion.spc_date_string_to_unix_sec(s)
+         for s in spc_date_strings])
+
     first_storm_object_table = tracking_io.read_processed_file(
         input_file_names_by_spc_date[0][0])
     tracking_start_time_unix_sec = first_storm_object_table[
@@ -1429,16 +1433,20 @@ def join_tracks_across_spc_dates(
                     input_file_names_by_spc_date[j]))
             print '\n'
 
-            these_spc_date_strings = numpy.array(
-                storm_object_table_by_date[j][
-                    tracking_utils.SPC_DATE_COLUMN].values)
+            these_spc_dates_unix_sec = storm_object_table_by_date[j][
+                tracking_utils.SPC_DATE_COLUMN].values
 
-            if not numpy.all(these_spc_date_strings == spc_date_strings[j]):
+            if not numpy.all(these_spc_dates_unix_sec == spc_dates_unix_sec[j]):
+                these_spc_dates_unix_sec = numpy.unique(
+                    these_spc_dates_unix_sec)
+                these_spc_date_strings = [
+                    time_conversion.time_to_spc_date_string(t)
+                    for t in these_spc_dates_unix_sec]
+
                 error_string = (
                     'storm_object_table for SPC date "{0:s}" contains other SPC'
                     ' dates (shown below).\n\n{1:s}').format(
-                        spc_date_strings[i],
-                        set(these_spc_date_strings.tolist()))
+                        spc_date_strings[i], these_spc_date_strings)
                 raise ValueError(error_string)
 
         # Join tracks between current and next SPC dates.
