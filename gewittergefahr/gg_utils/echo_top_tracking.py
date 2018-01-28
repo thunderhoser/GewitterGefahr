@@ -42,6 +42,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DAYS_TO_SECONDS = 86400
 DEGREES_LAT_TO_METRES = 60 * 1852
+DEGREES_TO_RADIANS = numpy.pi / 180
 
 CENTRAL_PROJ_LATITUDE_DEG = 35.
 CENTRAL_PROJ_LONGITUDE_DEG = 265.
@@ -772,21 +773,86 @@ def _get_storm_velocities(storm_object_table, num_points_back):
     return storm_object_table.assign(**argument_dict)
 
 
-def _get_grid_points_in_radius(
-        x_grid_matrix_metres, y_grid_matrix_metres, x_query_metres,
-        y_query_metres, radius_metres):
+def _get_latlng_grid_points_maybe_in_radius(
+        grid_point_latitudes_deg, grid_point_longitudes_deg, query_latitude_deg,
+        query_longitude_deg, radius_metres):
+    """Finds grid ponts that may be within some radius of query point.
+
+    This method pares down the number of options for
+    _get_latlng_grid_points_in_radius.
+
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+
+    :param grid_point_latitudes_deg: length-M numpy array with latitudes (deg N)
+        of grid points.
+    :param grid_point_longitudes_deg: length-N numpy array with longitudes
+        (deg E) of grid points.
+    :param query_latitude_deg: Latitude (deg N) of query point.
+    :param query_longitude_deg: Longitude (deg E) of query point.
+    :param radius_metres: Critical radius from query point.
+    :return: latitude_indices: 1-D numpy array with indices of latitudes that
+        may be within `radius_metres` of query point.  These are array indices
+        into `grid_point_latitudes_deg`.
+    :return: longitude_indices: 1-D numpy array with indices of longitudes that
+        may be within `radius_metres` of query point.  These are array indices
+        into `grid_point_longitudes_deg`.
+    """
+
+    min_latitude_to_try_deg = query_latitude_deg - (
+        1.5 * radius_metres / DEGREES_LAT_TO_METRES)
+    max_latitude_to_try_deg = query_latitude_deg + (
+        1.5 * radius_metres / DEGREES_LAT_TO_METRES)
+
+    max_abs_latitude_to_try_radians = DEGREES_TO_RADIANS * numpy.max(
+        numpy.absolute(numpy.array(
+            [min_latitude_to_try_deg, max_latitude_to_try_deg])))
+    degrees_lng_to_metres = DEGREES_LAT_TO_METRES * numpy.cos(
+        max_abs_latitude_to_try_radians)
+
+    min_longitude_to_try_deg = query_longitude_deg - (
+        1.5 * radius_metres / degrees_lng_to_metres)
+    max_longitude_to_try_deg = query_longitude_deg + (
+        1.5 * radius_metres / degrees_lng_to_metres)
+
+    latitude_indices = numpy.where(numpy.logical_and(
+        grid_point_latitudes_deg >= min_latitude_to_try_deg,
+        grid_point_latitudes_deg <= max_latitude_to_try_deg))[0]
+    longitude_indices = numpy.where(numpy.logical_and(
+        grid_point_longitudes_deg >= min_longitude_to_try_deg,
+        grid_point_longitudes_deg <= max_longitude_to_try_deg))[0]
+
+    return latitude_indices, longitude_indices
+
+
+def _get_latlng_grid_points_in_radius(
+        grid_point_latitudes_deg, grid_point_longitudes_deg, query_latitude_deg,
+        query_longitude_deg, grid_x_matrix_metres, grid_y_matrix_metres,
+        query_x_metres, query_y_metres, radius_metres):
     """Finds grid points within some radius of query point.
 
-    M = number of rows in grid
-    N = number of columns in grid
+    The input grid must be a regular lat-long grid.
+
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
     P = number of grid points within `radius_metres` of query point
 
-    :param x_grid_matrix_metres: M-by-N numpy array with x-coordinates of grid
+    :param grid_point_latitudes_deg: length-M numpy array with latitudes (deg N)
+        of grid points.  grid_point_latitudes_deg[i] is the latitude for all
+        points in the [i]th row of `grid_x_matrix_metres` and
+        `grid_y_matrix_metres`.
+    :param grid_point_longitudes_deg: length-N numpy array with longitudes
+        (deg E) of grid points.  grid_point_longitudes_deg[j] is the longitude
+        for all points in the [j]th column of `grid_x_matrix_metres` and
+        `grid_y_matrix_metres`.
+    :param query_latitude_deg: Latitude (deg N) of query point.
+    :param query_longitude_deg: Longitude (deg E) of query point.
+    :param grid_x_matrix_metres: M-by-N numpy array with x-coordinates of grid
         points.
-    :param y_grid_matrix_metres: M-by-N numpy array with y-coordinates of grid
+    :param grid_y_matrix_metres: M-by-N numpy array with y-coordinates of grid
         points.
-    :param x_query_metres: x-coordinate of query point.
-    :param y_query_metres: y-coordinate of query point.
+    :param query_x_metres: x-coordinate of query point.
+    :param query_y_metres: y-coordinate of query point.
     :param radius_metres: Critical radius from query point.
     :return: row_indices: length-P numpy array with row indices (integers) of
         grid points within `radius_metres` of query point.
@@ -794,25 +860,34 @@ def _get_grid_points_in_radius(
         of grid points within `radius_metres` of query point.
     """
 
-    num_rows = x_grid_matrix_metres.shape[0]
-    num_columns = x_grid_matrix_metres.shape[1]
-    x_grid_vector_metres = numpy.reshape(
-        x_grid_matrix_metres, num_rows * num_columns)
-    y_grid_vector_metres = numpy.reshape(
-        y_grid_matrix_metres, num_rows * num_columns)
+    try_row_indices, try_column_indices = (
+        _get_latlng_grid_points_maybe_in_radius(
+            grid_point_latitudes_deg=grid_point_latitudes_deg,
+            grid_point_longitudes_deg=grid_point_longitudes_deg,
+            query_latitude_deg=query_latitude_deg,
+            query_longitude_deg=query_longitude_deg,
+            radius_metres=radius_metres))
 
-    x_in_range_flags = numpy.logical_and(
-        x_grid_vector_metres >= x_query_metres - radius_metres,
-        x_grid_vector_metres <= x_query_metres + radius_metres)
-    y_in_range_flags = numpy.logical_and(
-        y_grid_vector_metres >= y_query_metres - radius_metres,
-        y_grid_vector_metres <= y_query_metres + radius_metres)
+    try_column_index_matrix, try_row_index_matrix = numpy.meshgrid(
+        try_column_indices, try_row_indices)
+    try_row_indices = numpy.reshape(
+        try_row_index_matrix, try_row_index_matrix.size)
+    try_column_indices = numpy.reshape(
+        try_column_index_matrix, try_column_index_matrix.size)
 
-    try_indices = numpy.where(
-        numpy.logical_and(x_in_range_flags, y_in_range_flags))[0]
+    num_rows = len(grid_point_latitudes_deg)
+    num_columns = len(grid_point_longitudes_deg)
+    try_indices = numpy.ravel_multi_index(
+        (try_row_indices, try_column_indices), (num_rows, num_columns))
+
+    grid_x_vector_metres = numpy.reshape(
+        grid_x_matrix_metres, num_rows * num_columns)
+    grid_y_vector_metres = numpy.reshape(
+        grid_y_matrix_metres, num_rows * num_columns)
+
     distances_metres = numpy.sqrt(
-        (x_grid_vector_metres[try_indices] - x_query_metres) ** 2 +
-        (y_grid_vector_metres[try_indices] - y_query_metres) ** 2)
+        (grid_x_vector_metres[try_indices] - query_x_metres) ** 2 +
+        (grid_y_vector_metres[try_indices] - query_y_metres) ** 2)
     linear_indices = try_indices[
         numpy.where(distances_metres <= radius_metres)[0]]
 
@@ -905,6 +980,7 @@ def _storm_objects_to_polygons(
                 num_columns=
                 this_radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
 
+        these_grid_point_lats_deg = these_grid_point_lats_deg[::-1]
         this_latitude_matrix_deg, this_longitude_matrix_deg = (
             grids.latlng_vectors_to_matrices(
                 these_grid_point_lats_deg, these_grid_point_lngs_deg))
@@ -917,13 +993,19 @@ def _storm_objects_to_polygons(
 
         for j in these_object_indices:
             these_grid_point_rows, these_grid_point_columns = (
-                _get_grid_points_in_radius(
-                    x_grid_matrix_metres=this_x_matrix_metres,
-                    y_grid_matrix_metres=this_y_matrix_metres,
-                    x_query_metres=
-                    storm_object_table[CENTROID_X_COLUMN].values[j],
-                    y_query_metres=
-                    storm_object_table[CENTROID_Y_COLUMN].values[j],
+                _get_latlng_grid_points_in_radius(
+                    grid_point_latitudes_deg=these_grid_point_lats_deg,
+                    grid_point_longitudes_deg=these_grid_point_lngs_deg,
+                    query_latitude_deg=storm_object_table[
+                        tracking_utils.CENTROID_LAT_COLUMN].values[j],
+                    query_longitude_deg=storm_object_table[
+                        tracking_utils.CENTROID_LNG_COLUMN].values[j],
+                    grid_x_matrix_metres=this_x_matrix_metres,
+                    grid_y_matrix_metres=this_y_matrix_metres,
+                    query_x_metres=storm_object_table[
+                        CENTROID_X_COLUMN].values[j],
+                    query_y_metres=storm_object_table[
+                        CENTROID_Y_COLUMN].values[j],
                     radius_metres=object_radius_metres))
 
             these_vertex_rows, these_vertex_columns = (
