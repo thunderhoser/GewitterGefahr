@@ -296,6 +296,9 @@ def read_many_processed_files(pickle_file_names):
     list_of_storm_object_tables = [None] * num_files
 
     for i in range(num_files):
+        print 'Reading storm tracks from file: "{0:s}"...'.format(
+            pickle_file_names[i])
+
         list_of_storm_object_tables[i] = read_processed_file(
             pickle_file_names[i])
         if i == 0:
