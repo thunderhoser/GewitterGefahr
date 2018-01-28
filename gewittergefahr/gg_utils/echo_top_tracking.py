@@ -19,6 +19,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import copy
+import time
 import numpy
 import pandas
 from geopy.distance import vincenty
@@ -1112,6 +1113,7 @@ def run_tracking(
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
+    this_time_unix_sec = time.time()
     file_dictionary = _find_radar_and_tracking_files(
         echo_top_field_name=echo_top_field_name, data_source=radar_data_source,
         top_radar_dir_name=top_radar_dir_name,
@@ -1121,6 +1123,10 @@ def run_tracking(
         end_spc_date_string=end_spc_date_string,
         start_time_unix_sec=start_time_unix_sec,
         end_time_unix_sec=end_time_unix_sec)
+
+    elapsed_time_sec = time.time() - this_time_unix_sec
+    print 'Time elapsed to find radar and tracking files: {0:f} s'.format(
+        elapsed_time_sec)
 
     input_radar_file_names = file_dictionary[RADAR_FILE_NAMES_KEY]
     unix_times_sec = file_dictionary[VALID_TIMES_KEY]
@@ -1140,6 +1146,7 @@ def run_tracking(
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
             echo_top_field_name, time_strings[i])
 
+        this_time_unix_sec = time.time()
         file_dictionary[RADAR_METADATA_DICTS_KEY][i] = (
             myrorss_and_mrms_io.read_metadata_from_raw_file(
                 input_radar_file_names[i], data_source=radar_data_source))
@@ -1158,21 +1165,40 @@ def run_tracking(
             file_dictionary[RADAR_METADATA_DICTS_KEY][i],
             ignore_if_below=min_echo_top_height_km_asl)
 
+        elapsed_time_sec = time.time() - this_time_unix_sec
+        print 'Time elapsed to read radar data: {0:f} s'.format(
+            elapsed_time_sec)
+
+        this_time_unix_sec = time.time()
         this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
             this_echo_top_matrix_km_asl,
             e_folding_radius_pixels=e_folding_radius_for_smoothing_pixels)
 
+        elapsed_time_sec = time.time() - this_time_unix_sec
+        print 'Time elapsed to smooth field: {0:f} s'.format(elapsed_time_sec)
+
+        this_time_unix_sec = time.time()
         local_max_dict_by_time[i] = _find_local_maxima(
             this_echo_top_matrix_km_asl,
             file_dictionary[RADAR_METADATA_DICTS_KEY][i],
             neigh_half_width_in_pixels=half_width_for_max_filter_pixels)
 
+        elapsed_time_sec = time.time() - this_time_unix_sec
+        print 'Time elapsed to find local maxima: {0:f} s'.format(
+            elapsed_time_sec)
+
+        this_time_unix_sec = time.time()
         local_max_dict_by_time[i] = _remove_redundant_local_maxima(
             local_max_dict_by_time[i], projection_object=projection_object,
             min_distance_between_maxima_metres=
             min_distance_between_maxima_metres)
         local_max_dict_by_time[i].update({VALID_TIME_KEY: unix_times_sec[i]})
 
+        elapsed_time_sec = time.time() - this_time_unix_sec
+        print 'Time elapsed to remove redundant local maxima: {0:f} s'.format(
+            elapsed_time_sec)
+
+        this_time_unix_sec = time.time()
         if i == 0:
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
@@ -1189,6 +1215,10 @@ def run_tracking(
                 previous_local_max_dict=local_max_dict_by_time[i - 1],
                 max_link_time_seconds=max_link_time_seconds,
                 max_link_distance_m_s01=max_link_distance_m_s01)
+
+        elapsed_time_sec = time.time() - this_time_unix_sec
+        print 'Time elapsed to link local maxima in time: {0:f} s'.format(
+            elapsed_time_sec)
 
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
