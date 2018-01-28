@@ -1494,12 +1494,12 @@ def join_tracks_across_spc_dates(
 
         storm_object_table_by_date[i] = concat_storm_object_table.loc[
             concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-            spc_date_strings[i]]
+            spc_dates_unix_sec[i]]
 
         if i != 0:
             storm_object_table_by_date[i - 1] = concat_storm_object_table.loc[
                 concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_date_strings[i - 1]]
+                spc_dates_unix_sec[i - 1]]
 
         print SEPARATOR_STRING
 
