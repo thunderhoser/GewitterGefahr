@@ -143,10 +143,14 @@ def _gaussian_smooth_radar_field(
     #     e_folding_radius=e_folding_radius_pixels,
     #     cutoff_radius=cutoff_radius_pixels)
 
-    return gaussian_filter(
+    radar_matrix[numpy.isnan(radar_matrix)] = 0.
+    radar_matrix = gaussian_filter(
         input=radar_matrix, sigma=e_folding_radius_pixels, order=0,
         mode='constant', cval=0.,
         truncate=cutoff_radius_pixels / e_folding_radius_pixels)
+
+    radar_matrix[numpy.absolute(radar_matrix) < TOLERANCE] = numpy.nan
+    return radar_matrix
 
 
 def _find_local_maxima(
