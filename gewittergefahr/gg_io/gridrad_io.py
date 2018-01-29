@@ -5,12 +5,19 @@
 http://gridrad.org
 """
 
+import os.path
 import numpy
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
+
+YEAR_FORMAT = '%Y'
+TIME_FORMAT_IN_FILE_NAMES = '%Y%m%dT%H%M%SZ'
+PATHLESS_FILE_NAME_PREFIX = 'nexrad_3d_4_1'
+FILE_EXTENSION = '.nc'
 
 KM_TO_METRES = 1000
 ZERO_TIME_UNIX_SEC = 978307200
@@ -36,6 +43,50 @@ def _time_from_gridrad_to_unix(gridrad_time_sec):
     """
 
     return gridrad_time_sec + ZERO_TIME_UNIX_SEC
+
+
+def _get_pathless_file_name(unix_time_sec):
+    """Determines pathless name of GridRad file.
+
+    :param unix_time_sec: Valid time.
+    :return: pathless_file_name: Pathless name of GridRad file.
+    """
+
+    return '{0:s}_{1:s}{2:s}'.format(
+        PATHLESS_FILE_NAME_PREFIX,
+        time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_IN_FILE_NAMES),
+        FILE_EXTENSION)
+
+
+def find_file(unix_time_sec, top_directory_name, raise_error_if_missing=True):
+    """Finds GridRad file on local machine.
+
+    Each GridRad file contains all fields at all heights for one valid time.
+
+    :param unix_time_sec: Valid time.
+    :param top_directory_name: Name of top-level directory with GridRad.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, will raise error.  If file is missing and
+        raise_error_if_missing = False, will return *expected* path to file.
+    :return: gridrad_file_name: Path to GridRad file.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+
+    spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
+    gridrad_file_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_directory_name, spc_date_string[:4],
+        _get_pathless_file_name(unix_time_sec))
+
+    if raise_error_if_missing and not os.path.isfile(gridrad_file_name):
+        error_string = (
+            'Cannot find GridRad file.  Expected at location: {0:s}'.format(
+                gridrad_file_name))
+        raise ValueError(error_string)
+
+    return gridrad_file_name
 
 
 def read_metadata_from_full_grid_file(
