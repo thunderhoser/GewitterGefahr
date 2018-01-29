@@ -54,12 +54,14 @@ VALID_RADAR_DATA_SOURCES = [
     radar_utils.MYRORSS_SOURCE_ID, radar_utils.MRMS_SOURCE_ID]
 
 DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL = 4.
-DEFAULT_E_FOLDING_RADIUS_FOR_SMOOTHING_PIXELS = 1.2
 DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_PIXELS = 3
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MAX_LINK_TIME_SECONDS = 300
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
+
+DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
+DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
 
 DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS = 0
 DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS = 900
@@ -120,9 +122,7 @@ def _check_radar_data_source(radar_data_source):
 
 
 def _gaussian_smooth_radar_field(
-        radar_matrix,
-        e_folding_radius_pixels=DEFAULT_E_FOLDING_RADIUS_FOR_SMOOTHING_PIXELS,
-        cutoff_radius_pixels=None):
+        radar_matrix, e_folding_radius_pixels, cutoff_radius_pixels=None):
     """Applies Gaussian smoother to radar field.  NaN's are treated as zero.
 
     M = number of rows (unique grid-point latitudes)
@@ -155,8 +155,7 @@ def _gaussian_smooth_radar_field(
 
 
 def _find_local_maxima(
-        radar_matrix, radar_metadata_dict,
-        neigh_half_width_in_pixels=DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_PIXELS):
+        radar_matrix, radar_metadata_dict, neigh_half_width_in_pixels):
     """Finds local maxima in radar field.
 
     M = number of rows (unique grid-point latitudes)
@@ -1157,10 +1156,10 @@ def run_tracking(
         storm_object_area_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
         start_time_unix_sec=None, end_time_unix_sec=None,
         min_echo_top_height_km_asl=DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL,
-        e_folding_radius_for_smoothing_pixels=
-        DEFAULT_E_FOLDING_RADIUS_FOR_SMOOTHING_PIXELS,
-        half_width_for_max_filter_pixels=
-        DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_PIXELS,
+        e_fold_radius_for_smoothing_deg_lat=
+        DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT,
+        half_width_for_max_filter_deg_lat=
+        DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT,
         min_distance_between_maxima_metres=
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
@@ -1183,10 +1182,12 @@ def run_tracking(
     :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
         level).  Only local maxima >= `min_echo_top_height_km_asl` will be
         tracked.
-    :param e_folding_radius_for_smoothing_pixels: See doc for
-        `_gaussian_smooth_radar_field`.  This will be applied separately to the
-        radar field at each time step, before finding local maxima.
-    :param half_width_for_max_filter_pixels: See doc for `_find_local_maxima`.
+    :param e_fold_radius_for_smoothing_deg_lat: e-folding radius for
+        `_gaussian_smooth_radar_field`.  Units are degrees of latitude.  This
+        will be applied separately to the radar field at each time step, before
+        finding local maxima.
+    :param half_width_for_max_filter_deg_lat: Half-width for max filter used in
+        `_find_local_maxima`.  Units are degrees of latitude.
     :param min_distance_between_maxima_metres: See doc for
         `_remove_redundant_local_maxima`.
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
@@ -1248,15 +1249,21 @@ def run_tracking(
             this_sparse_grid_table,
             file_dictionary[RADAR_METADATA_DICTS_KEY][i],
             ignore_if_below=min_echo_top_height_km_asl)
-
+        
+        this_latitude_spacing_deg = file_dictionary[RADAR_METADATA_DICTS_KEY][
+            i][radar_utils.LAT_SPACING_COLUMN]
+        this_e_folding_radius_pixels = (
+            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
         this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
             this_echo_top_matrix_km_asl,
-            e_folding_radius_pixels=e_folding_radius_for_smoothing_pixels)
-
+            e_folding_radius_pixels=this_e_folding_radius_pixels)
+        
+        this_half_width_in_pixels = int(numpy.round(
+            half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
         local_max_dict_by_time[i] = _find_local_maxima(
             this_echo_top_matrix_km_asl,
             file_dictionary[RADAR_METADATA_DICTS_KEY][i],
-            neigh_half_width_in_pixels=half_width_for_max_filter_pixels)
+            neigh_half_width_in_pixels=this_half_width_in_pixels)
 
         local_max_dict_by_time[i] = _remove_redundant_local_maxima(
             local_max_dict_by_time[i], projection_object=projection_object,
