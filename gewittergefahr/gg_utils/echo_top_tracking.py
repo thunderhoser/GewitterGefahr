@@ -931,68 +931,35 @@ def _storm_objects_to_polygons(
                     projection_object=projection_object, false_easting_metres=0.,
                     false_northing_metres=0.))
 
-        these_centroid_rows, these_centroid_columns = (
-            radar_utils.latlng_to_rowcol(
-                storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[
-                    these_object_indices],
-                storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[
-                    these_object_indices],
-                nw_grid_point_lat_deg=this_radar_metadata_dict[
-                    radar_utils.NW_GRID_POINT_LAT_COLUMN],
-                nw_grid_point_lng_deg=this_radar_metadata_dict[
-                    radar_utils.NW_GRID_POINT_LNG_COLUMN],
-                lat_spacing_deg=this_radar_metadata_dict[
-                    radar_utils.LAT_SPACING_COLUMN],
-                lng_spacing_deg=this_radar_metadata_dict[
-                    radar_utils.LNG_SPACING_COLUMN]))
+        for j in these_object_indices:
+            these_grid_point_rows, these_grid_point_columns = (
+                _get_grid_points_in_radius(
+                    x_grid_matrix_metres=this_x_matrix_metres,
+                    y_grid_matrix_metres=this_y_matrix_metres,
+                    x_query_metres=
+                    storm_object_table[CENTROID_X_COLUMN].values[j],
+                    y_query_metres=
+                    storm_object_table[CENTROID_Y_COLUMN].values[j],
+                    radius_metres=object_radius_metres))
 
-        first_vertex_rows = None
-        first_vertex_columns = None
-        first_grid_point_rows = None
-        first_grid_point_columns = None
+            these_vertex_rows, these_vertex_columns = (
+                polygons.grid_points_in_poly_to_vertices(
+                    these_grid_point_rows, these_grid_point_columns))
 
-        for j in range(len(these_object_indices)):
-            k = these_object_indices[j]
-
-            if j == 0:
-                these_grid_point_rows, these_grid_point_columns = (
-                    _get_grid_points_in_radius(
-                        x_grid_matrix_metres=this_x_matrix_metres,
-                        y_grid_matrix_metres=this_y_matrix_metres,
-                        x_query_metres=storm_object_table[
-                            CENTROID_X_COLUMN].values[k],
-                        y_query_metres=storm_object_table[
-                            CENTROID_Y_COLUMN].values[k],
-                        radius_metres=object_radius_metres))
-
-                first_vertex_rows, first_vertex_columns = (
-                    polygons.grid_points_in_poly_to_vertices(
-                        these_grid_point_rows, these_grid_point_columns))
-
-                first_grid_point_rows, first_grid_point_columns = (
-                    polygons.simple_polygon_to_grid_points(
-                        first_vertex_rows, first_vertex_columns))
-
-            this_row_offset = (
-                these_centroid_rows[j] - these_centroid_rows[0])
-            this_column_offset = (
-                these_centroid_columns[j] - these_centroid_columns[0])
-
-            storm_object_table[
-                tracking_utils.GRID_POINT_ROW_COLUMN
-            ].values[k] = first_grid_point_rows + int(this_row_offset)
-            storm_object_table[
-                tracking_utils.GRID_POINT_COLUMN_COLUMN
-            ].values[k] = first_grid_point_columns + int(this_column_offset)
-
-            (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[k],
+            (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[j],
              storm_object_table[
-                 tracking_utils.GRID_POINT_LNG_COLUMN].values[k]) = (
+                 tracking_utils.GRID_POINT_COLUMN_COLUMN].values[j]) = (
+                     polygons.simple_polygon_to_grid_points(
+                         these_vertex_rows, these_vertex_columns))
+
+            (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[j],
+             storm_object_table[
+                 tracking_utils.GRID_POINT_LNG_COLUMN].values[j]) = (
                      radar_utils.rowcol_to_latlng(
                          storm_object_table[
-                             tracking_utils.GRID_POINT_ROW_COLUMN].values[k],
+                             tracking_utils.GRID_POINT_ROW_COLUMN].values[j],
                          storm_object_table[
-                             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[k],
+                             tracking_utils.GRID_POINT_COLUMN_COLUMN].values[j],
                          nw_grid_point_lat_deg=this_radar_metadata_dict[
                              radar_utils.NW_GRID_POINT_LAT_COLUMN],
                          nw_grid_point_lng_deg=this_radar_metadata_dict[
@@ -1001,9 +968,6 @@ def _storm_objects_to_polygons(
                              radar_utils.LAT_SPACING_COLUMN],
                          lng_spacing_deg=this_radar_metadata_dict[
                              radar_utils.LNG_SPACING_COLUMN]))
-
-            these_vertex_rows = first_vertex_rows + this_row_offset
-            these_vertex_columns = first_vertex_columns + this_column_offset
 
             these_vertex_lat_deg, these_vertex_lng_deg = (
                 radar_utils.rowcol_to_latlng(
@@ -1018,12 +982,12 @@ def _storm_objects_to_polygons(
                     this_radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
             storm_object_table[
-                tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[k] = (
+                tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[j] = (
                     polygons.vertex_arrays_to_polygon_object(
                         these_vertex_columns, these_vertex_rows))
 
             storm_object_table[
-                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[k] = (
+                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[j] = (
                     polygons.vertex_arrays_to_polygon_object(
                         these_vertex_lng_deg, these_vertex_lat_deg))
 
