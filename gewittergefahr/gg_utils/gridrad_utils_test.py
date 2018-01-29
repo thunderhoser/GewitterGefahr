@@ -3,8 +3,34 @@
 import unittest
 import numpy
 from gewittergefahr.gg_utils import gridrad_utils
+from gewittergefahr.gg_utils import radar_utils
 
 TOLERANCE = 1e-6
+
+# The following constants are used to test fields_and_refl_heights_to_pairs.
+FIELD_NAMES = [
+    radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME,
+    radar_utils.SPEC_DIFF_PHASE_NAME, radar_utils.CORRELATION_COEFF_NAME,
+    radar_utils.SPECTRUM_WIDTH_NAME, radar_utils.VORTICITY_NAME,
+    radar_utils.DIVERGENCE_NAME]
+HEIGHTS_M_ASL = numpy.array([500, 2500, 5000, 10000])
+
+FIELD_NAME_BY_PAIR = (
+    [radar_utils.REFL_NAME] * len(HEIGHTS_M_ASL) +
+    [radar_utils.DIFFERENTIAL_REFL_NAME] * len(HEIGHTS_M_ASL) +
+    [radar_utils.SPEC_DIFF_PHASE_NAME] * len(HEIGHTS_M_ASL) +
+    [radar_utils.CORRELATION_COEFF_NAME] * len(HEIGHTS_M_ASL) +
+    [radar_utils.SPECTRUM_WIDTH_NAME] * len(HEIGHTS_M_ASL) +
+    [radar_utils.VORTICITY_NAME] * len(HEIGHTS_M_ASL) +
+    [radar_utils.DIVERGENCE_NAME] * len(HEIGHTS_M_ASL))
+
+HEIGHT_BY_PAIR_M_ASL = numpy.array([500, 2500, 5000, 10000,
+                                    500, 2500, 5000, 10000,
+                                    500, 2500, 5000, 10000,
+                                    500, 2500, 5000, 10000,
+                                    500, 2500, 5000, 10000,
+                                    500, 2500, 5000, 10000,
+                                    500, 2500, 5000, 10000])
 
 # These constants are used to test interp_reflectivity_to_heights.
 THIS_REFL_MATRIX_1KM_DBZ = numpy.array(
@@ -42,88 +68,20 @@ CRIT_REFL_FOR_ECHO_TOPS_DBZ = 40.
 ECHO_TOP_MATRIX_M_ASL = numpy.array(
     [[3000., 3200.], [3333.333333, numpy.nan], [2333.333333, 2333.333333]])
 
-# These constants are used to test _get_field_name_for_echo_tops.
-CRIT_REFL_0DECIMALS_DBZ = 40.
-CRIT_REFL_1DECIMAL_DBZ = 40.1
-CRIT_REFL_2DECIMALS_DBZ = 40.12
-
-FIELD_NAME_0DECIMALS_NON_MYRORSS = 'echo_top_40.0dbz_km'
-FIELD_NAME_1DECIMAL_NON_MYRORSS = 'echo_top_40.1dbz_km'
-FIELD_NAME_2DECIMALS_NON_MYRORSS = 'echo_top_40.1dbz_km'
-
-FIELD_NAME_0DECIMALS_MYRORSS = 'EchoTop_40.0'
-FIELD_NAME_1DECIMAL_MYRORSS = 'EchoTop_40.1'
-FIELD_NAME_2DECIMALS_MYRORSS = 'EchoTop_40.1'
-
 
 class GridradUtilsTests(unittest.TestCase):
     """Each method is a unit test for gridrad_utils.py."""
 
-    def test_get_field_name_for_echo_tops_0decimals_non_myrorss(self):
-        """Ensures correct output from _get_field_name_for_echo_tops.
+    def test_fields_and_refl_heights_to_pairs(self):
+        """Ensures correct output from fields_and_refl_heights_to_pairs."""
 
-        In this case, critical reflectivity has 0 decimal places and field name
-        will be in GewitterGefahr format.
-        """
+        this_field_name_by_pair, this_height_by_pair_m_asl = (
+            gridrad_utils.fields_and_refl_heights_to_pairs(
+                field_names=FIELD_NAMES, heights_m_asl=HEIGHTS_M_ASL))
 
-        this_field_name = gridrad_utils._get_field_name_for_echo_tops(
-            CRIT_REFL_0DECIMALS_DBZ, False)
-        self.assertTrue(this_field_name == FIELD_NAME_0DECIMALS_NON_MYRORSS)
-
-    def test_get_field_name_for_echo_tops_0decimals_myrorss(self):
-        """Ensures correct output from _get_field_name_for_echo_tops.
-
-        In this case, critical reflectivity has 0 decimal places and field name
-        will be in MYRORSS format.
-        """
-
-        this_field_name = gridrad_utils._get_field_name_for_echo_tops(
-            CRIT_REFL_0DECIMALS_DBZ, True)
-        self.assertTrue(this_field_name == FIELD_NAME_0DECIMALS_MYRORSS)
-
-    def test_get_field_name_for_echo_tops_1decimal_non_myrorss(self):
-        """Ensures correct output from _get_field_name_for_echo_tops.
-
-        In this case, critical reflectivity has 1 decimal place and field name
-        will be in GewitterGefahr format.
-        """
-
-        this_field_name = gridrad_utils._get_field_name_for_echo_tops(
-            CRIT_REFL_1DECIMAL_DBZ, False)
-        self.assertTrue(this_field_name == FIELD_NAME_1DECIMAL_NON_MYRORSS)
-
-    def test_get_field_name_for_echo_tops_1decimal_myrorss(self):
-        """Ensures correct output from _get_field_name_for_echo_tops.
-
-        In this case, critical reflectivity has 1 decimal place and field name
-        will be in MYRORSS format.
-        """
-
-        this_field_name = gridrad_utils._get_field_name_for_echo_tops(
-            CRIT_REFL_1DECIMAL_DBZ, True)
-        self.assertTrue(this_field_name == FIELD_NAME_1DECIMAL_MYRORSS)
-
-    def test_get_field_name_for_echo_tops_2decimals_non_myrorss(self):
-        """Ensures correct output from _get_field_name_for_echo_tops.
-
-        In this case, critical reflectivity has 2 decimal places and field name
-        will be in GewitterGefahr format.
-        """
-
-        this_field_name = gridrad_utils._get_field_name_for_echo_tops(
-            CRIT_REFL_2DECIMALS_DBZ, False)
-        self.assertTrue(this_field_name == FIELD_NAME_2DECIMALS_NON_MYRORSS)
-
-    def test_get_field_name_for_echo_tops_2decimals_myrorss(self):
-        """Ensures correct output from _get_field_name_for_echo_tops.
-
-        In this case, critical reflectivity has 2 decimal places and field name
-        will be in MYRORSS format.
-        """
-
-        this_field_name = gridrad_utils._get_field_name_for_echo_tops(
-            CRIT_REFL_2DECIMALS_DBZ, True)
-        self.assertTrue(this_field_name == FIELD_NAME_2DECIMALS_MYRORSS)
+        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
+        self.assertTrue(numpy.array_equal(
+            this_height_by_pair_m_asl, HEIGHT_BY_PAIR_M_ASL))
 
     def test_interp_reflectivity_to_heights(self):
         """Ensures correct output from interp_reflectivity_to_heights."""

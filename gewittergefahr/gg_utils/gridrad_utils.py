@@ -26,25 +26,42 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
 
-def _get_field_name_for_echo_tops(critical_reflectivity_dbz,
-                                  myrorss_format=False):
-    """Creates field name for echo tops.
+def fields_and_refl_heights_to_pairs(field_names, heights_m_asl):
+    """Converts unique arrays (field names and heights) to non-unique ones.
 
-    :param critical_reflectivity_dbz: Critical reflectivity for echo tops.
-    :param myrorss_format: Boolean flag.  If True, field name will be in MYRORSS
-        format.  If False, will be in GewitterGefahr format.
-    :return: field_name: Field name for echo tops.
+    F = number of fields
+    H = number of heights
+    N = F * H = number of field/height pairs
+
+    :param field_names: length-F list with names of radar fields in
+        GewitterGefahr format.
+    :param heights_m_asl: length-H numpy array of heights (metres above sea
+        level).
+    :return: field_name_by_pair: length-N list of field names.
+    :return: height_by_pair_m_asl: length-N numpy array of corresponding heights
+        (metres above sea level).
     """
 
-    # TODO(thunderhoser): probably don't need this method anymore.
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names), num_dimensions=1)
 
-    if myrorss_format:
-        field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME_MYRORSS
-    else:
-        field_name_for_18dbz_tops = radar_utils.ECHO_TOP_18DBZ_NAME
+    radar_utils.check_heights(
+        data_source=radar_utils.GRIDRAD_SOURCE_ID, heights_m_asl=heights_m_asl)
 
-    return field_name_for_18dbz_tops.replace(
-        '18', '{0:.1f}'.format(critical_reflectivity_dbz))
+    field_name_by_pair = []
+    height_by_pair_m_asl = numpy.array([], dtype=int)
+
+    for this_field_name in field_names:
+        _ = radar_utils.field_name_new_to_orig(
+            field_name=this_field_name,
+            data_source=radar_utils.GRIDRAD_SOURCE_ID)
+
+        field_name_by_pair += [this_field_name] * len(heights_m_asl)
+        height_by_pair_m_asl = numpy.concatenate((
+            height_by_pair_m_asl, heights_m_asl))
+
+    return field_name_by_pair, height_by_pair_m_asl
 
 
 def interp_temperature_sfc_from_nwp(
