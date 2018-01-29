@@ -19,6 +19,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import copy
+import time
 import numpy
 import pandas
 from scipy.ndimage.filters import gaussian_filter
@@ -960,6 +961,7 @@ def _storm_objects_to_polygons(
         if this_num_storm_objects == 0:
             continue
 
+        init_time_unix_sec = time.time()
         this_radar_metadata_dict = file_dictionary[RADAR_METADATA_DICTS_KEY][i]
         this_min_latitude_deg = (
             this_radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
@@ -1005,12 +1007,17 @@ def _storm_objects_to_polygons(
                 lng_spacing_deg=this_radar_metadata_dict[
                     radar_utils.LNG_SPACING_COLUMN]))
 
+        elapsed_time_sec = time.time() - init_time_unix_sec
+        print 'Elapsed time for non-storm-specific things: {0:f} sec'.format(
+            elapsed_time_sec)
+
         first_vertex_rows = None
         first_vertex_columns = None
         first_grid_point_rows = None
         first_grid_point_columns = None
 
         for j in range(len(these_object_indices)):
+            init_time_unix_sec = time.time()
             k = these_object_indices[j]
 
             if j == 0:
@@ -1097,6 +1104,10 @@ def _storm_objects_to_polygons(
                 tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[k] = (
                     polygons.vertex_arrays_to_polygon_object(
                         these_vertex_lng_deg, these_vertex_lat_deg))
+
+            elapsed_time_sec = time.time() - init_time_unix_sec
+            print 'Elapsed time for storm object: {0:f} sec'.format(
+                elapsed_time_sec)
 
     return storm_object_table
 
