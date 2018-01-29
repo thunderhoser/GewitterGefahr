@@ -10,6 +10,7 @@ import os.path
 import numpy
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
@@ -26,8 +27,8 @@ DEFAULT_FIELDS_TO_REMOVE = [
     radar_utils.REFL_LOWEST_ALTITUDE_NAME, radar_utils.SHI_NAME,
     radar_utils.VIL_NAME]
 
-DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_ASL = radar_utils.get_valid_heights_for_field(
-    radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
+DEFAULT_REFL_HEIGHTS_TO_REMOVE_M_ASL = radar_utils.get_valid_heights(
+    data_source=radar_utils.MYRORSS_SOURCE_ID, field_name=radar_utils.REFL_NAME)
 
 
 def unzip_1day_tar_file(
@@ -65,9 +66,10 @@ def unzip_1day_tar_file(
     for this_field_name in field_names_removed:
         field_names.append(this_field_name)
 
-    field_to_heights_dict_m_asl = radar_utils.field_and_height_arrays_to_dict(
-        field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
-        refl_heights_m_asl=refl_heights_m_asl)
+    field_to_heights_dict_m_asl = (
+        myrorss_and_mrms_utils.fields_and_refl_heights_to_dict(
+            field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
+            refl_heights_m_asl=refl_heights_m_asl))
 
     target_directory_name = '{0:s}/{1:s}'.format(
         top_target_directory_name, spc_date_string)
@@ -113,9 +115,10 @@ def remove_unzipped_data_1day(
     spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
         spc_date_string)
 
-    field_to_heights_dict_m_asl = radar_utils.field_and_height_arrays_to_dict(
-        field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
-        refl_heights_m_asl=refl_heights_m_asl)
+    field_to_heights_dict_m_asl = (
+        myrorss_and_mrms_utils.fields_and_refl_heights_to_dict(
+            field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
+            refl_heights_m_asl=refl_heights_m_asl))
 
     for this_field_name in field_to_heights_dict_m_asl.keys():
         these_heights_m_asl = field_to_heights_dict_m_asl[this_field_name]

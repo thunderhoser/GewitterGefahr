@@ -59,8 +59,9 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     error_checking.assert_is_less_than(
         lowest_refl_to_consider_dbz, critical_reflectivity_dbz)
 
-    grid_point_heights_m_asl = radar_utils.get_valid_heights_for_field(
-        radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
+    grid_point_heights_m_asl = radar_utils.get_valid_heights(
+        data_source=radar_utils.MYRORSS_SOURCE_ID,
+        field_name=radar_utils.REFL_NAME)
     grid_point_heights_m_asl = grid_point_heights_m_asl[
         grid_point_heights_m_asl <= top_height_to_consider_m_asl]
 

@@ -1,6 +1,27 @@
-"""Processing methods for radar data."""
+"""Methods for handling radar data from all sources.
 
-import copy
+These sources are MYRORSS, MRMS, and GridRad.
+
+--- DEFINITIONS ---
+
+MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms (Ortega et al. 2012)
+
+MRMS = Multi-radar Multi-sensor network (Smith et al. 2016)
+
+GridRad = radar-compositing software by Cameron Homeyer and Kenneth Bowman
+(http://gridrad.org/pdf/GridRad-v3.1-Algorithm-Description.pdf)
+
+--- REFERENCES ---
+
+Ortega, K., and Coauthors, 2012: "The multi-year reanalysis of remotely sensed
+    storms (MYRORSS) project". Conference on Severe Local Storms, Nashville, TN,
+    American Meteorological Society.
+
+Smith, T., and Coauthors, 2016: "Multi-radar Multi-sensor (MRMS) severe weather
+    and aviation products: Initial operating capabilities". Bulletin of the
+    American Meteorological Society, 97 (9), 1617-1630.
+"""
+
 import numpy
 import scipy.interpolate
 from gewittergefahr.gg_utils import number_rounding as rounder
@@ -286,20 +307,21 @@ def field_name_new_to_orig(field_name, data_source):
     return field_name_orig
 
 
-def get_valid_heights_for_field(field_name, data_source):
-    """Returns valid heights for radar field.
+def get_valid_heights(data_source, field_name=None):
+    """Finds valid heights for given data source and field.
 
-    :param field_name: Name of radar field in GewitterGefahr format.
     :param data_source: Data source (string).
+    :param field_name: Field name in GewitterGefahr format (string).
     :return: valid_heights_m_asl: 1-D numpy array of valid heights (integer
         metres above sea level).
-    :raises: ValueError: if data source is "gridrad".
     :raises: ValueError: if field name is "storm_id".
     """
 
     check_data_source(data_source)
     if data_source == GRIDRAD_SOURCE_ID:
-        raise ValueError('Data source cannot be "{0:s}".'.format(data_source))
+        first_heights_m_asl = numpy.linspace(500, 7000, num=14, dtype=int)
+        second_heights_m_asl = numpy.linspace(8000, 22000, num=15, dtype=int)
+        return numpy.concatenate((first_heights_m_asl, second_heights_m_asl))
 
     check_field_name(field_name)
     if field_name == STORM_ID_NAME:
@@ -334,103 +356,39 @@ def get_valid_heights_for_field(field_name, data_source):
         return numpy.array([default_height_m_asl])
 
     if field_name == REFL_NAME:
-        return numpy.array(
-            [250, 500, 750, 1000, 1250, 1500, 1750, 2000, 2250, 2500, 2750,
-             3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500, 7000, 7500, 8000,
-             8500, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000,
-             18000, 19000, 20000])
+        first_heights_m_asl = numpy.linspace(250, 3000, num=12, dtype=int)
+        second_heights_m_asl = numpy.linspace(3500, 9000, num=12, dtype=int)
+        third_heights_m_asl = numpy.linspace(10000, 20000, num=11, dtype=int)
+        return numpy.concatenate((
+            first_heights_m_asl, second_heights_m_asl, third_heights_m_asl))
 
 
-def check_reflectivity_heights(heights_m_asl, data_source):
-    """Ensures that reflectivity heights are valid.
+def check_heights(data_source, heights_m_asl, field_name=None):
+    """Ensures validity of radar heights for the given source and field.
 
-    :param heights_m_asl: 1-D numpy array of reflectivity heights (metres above
-        sea level).
     :param data_source: Data source (string).
-    :raises: ValueError: if any element of heights_m_asl is invalid.
+    :param heights_m_asl: 1-D numpy array of heights (metres above sea level).
+    :param field_name: Field name in GewitterGefahr format (string).
+    :raises: ValueError: if any element of `heights_m_asl` is invalid.
     """
 
     error_checking.assert_is_real_numpy_array(heights_m_asl)
     error_checking.assert_is_numpy_array(heights_m_asl, num_dimensions=1)
 
     integer_heights_m_asl = numpy.round(heights_m_asl).astype(int)
-    valid_heights_m_asl = get_valid_heights_for_field(REFL_NAME, data_source)
+    valid_heights_m_asl = get_valid_heights(
+        data_source=data_source, field_name=field_name)
 
     for this_height_m_asl in integer_heights_m_asl:
         if this_height_m_asl in valid_heights_m_asl:
             continue
 
         error_string = (
-            '\n\n' + str(valid_heights_m_asl) +
-            '\n\nValid reflectivity heights (metres ASL, listed above) do not '
-            'include ' + str(this_height_m_asl) + ' m ASL.')
+            '\n\n{0:s}\n\nValid heights for source "{1:s}" and field "{2:s}" '
+            '(listed above in metres ASL) do not include the following: '
+            '{3:d}').format(valid_heights_m_asl, data_source, field_name,
+                            this_height_m_asl)
         raise ValueError(error_string)
-
-
-def field_and_height_arrays_to_dict(
-        field_names, data_source, refl_heights_m_asl=None):
-    """Converts two arrays (field names and reflectivity heights) to dictionary.
-
-    :param field_names: 1-D list with names of radar fields in GewitterGefahr
-        format.
-    :param data_source: Data source (string).
-    :param refl_heights_m_asl: 1-D numpy array of reflectivity heights (metres
-        above sea level).
-    :return: field_to_heights_dict_m_asl: Dictionary, where each key comes from
-        `field_names` and each value is a 1-D numpy array of heights (metres
-        above sea level).
-    """
-
-    field_to_heights_dict_m_asl = {}
-
-    for this_field_name in field_names:
-        if this_field_name == REFL_NAME:
-            check_reflectivity_heights(
-                refl_heights_m_asl, data_source=data_source)
-            field_to_heights_dict_m_asl.update(
-                {this_field_name: refl_heights_m_asl})
-        else:
-            field_to_heights_dict_m_asl.update({
-                this_field_name: get_valid_heights_for_field(
-                    this_field_name, data_source=data_source)})
-
-    return field_to_heights_dict_m_asl
-
-
-def unique_fields_and_heights_to_pairs(
-        unique_field_names, data_source, refl_heights_m_asl=None):
-    """Converts unique arrays (field names and refl heights) to non-unique ones.
-
-    F = number of unique field names
-    N = number of field-height pairs
-
-    :param unique_field_names: length-F list with names of radar fields in
-        GewitterGefahr format.
-    :param data_source: Data source (string).
-    :param refl_heights_m_asl: 1-D numpy array of reflectivity heights (metres
-        above sea level).
-    :return: field_name_by_pair: length-N list of field names.
-    :return: height_by_pair_m_asl: length-N numpy array of radar heights (metres
-        above sea level).
-    """
-
-    field_name_by_pair = []
-    height_by_pair_m_asl = numpy.array([])
-
-    for this_field_name in unique_field_names:
-        if this_field_name == REFL_NAME:
-            check_reflectivity_heights(
-                refl_heights_m_asl, data_source=data_source)
-            these_heights_m_asl = copy.deepcopy(refl_heights_m_asl)
-        else:
-            these_heights_m_asl = get_valid_heights_for_field(
-                this_field_name, data_source=data_source)
-
-        field_name_by_pair += [this_field_name] * len(these_heights_m_asl)
-        height_by_pair_m_asl = numpy.concatenate((
-            height_by_pair_m_asl, these_heights_m_asl))
-
-    return field_name_by_pair, height_by_pair_m_asl
 
 
 def rowcol_to_latlng(

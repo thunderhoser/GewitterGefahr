@@ -12,50 +12,12 @@ LL_SHEAR_NAME_MRMS = radar_utils.LOW_LEVEL_SHEAR_NAME_MRMS
 LL_SHEAR_NAME_NEW = radar_utils.LOW_LEVEL_SHEAR_NAME
 LL_SHEAR_NAME_NEW_FAKE = 'poop'
 
-# The following constants are used to test get_valid_heights_for_field.
+# The following constants are used to test get_valid_heights.
 SHEAR_HEIGHTS_M_ASL = numpy.array([radar_utils.SHEAR_HEIGHT_M_ASL])
 NON_SHEAR_HEIGHTS_MYRORSS_M_ASL = numpy.array(
     [radar_utils.DEFAULT_HEIGHT_MYRORSS_M_ASL])
 NON_SHEAR_HEIGHTS_MRMS_M_ASL = numpy.array(
     [radar_utils.DEFAULT_HEIGHT_MRMS_M_ASL])
-
-# The following constants are used to test check_reflectivity_heights.
-REFL_HEIGHTS_M_ASL = numpy.array([500., 1000., 2000., 3000., 5000., 10000.])
-REFL_HEIGHTS_ONE_BAD_M_ASL = numpy.array(
-    [500., 1000., 2000., 3456., 5000., 10000.])
-
-# The following constants are used to test field_and_height_arrays_to_dict.
-UNIQUE_FIELD_NAMES = [
-    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
-    'reflectivity_column_max_dbz']
-UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL = numpy.array(
-    [250., 500., 750., 1000., 5000., 10000., 20000.])
-
-FIELD_TO_HEIGHTS_DICT_MYRORSS_M_ASL = {
-    'echo_top_50dbz_km': numpy.array([250]),
-    'low_level_shear_s01': numpy.array([radar_utils.SHEAR_HEIGHT_M_ASL]),
-    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
-    'reflectivity_column_max_dbz': numpy.array([250])}
-FIELD_TO_HEIGHTS_DICT_MRMS_M_ASL = {
-    'echo_top_50dbz_km': numpy.array([500]),
-    'low_level_shear_s01': numpy.array([radar_utils.SHEAR_HEIGHT_M_ASL]),
-    'reflectivity_dbz': UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
-    'reflectivity_column_max_dbz': numpy.array([500])}
-
-# The following constants are used to test unique_fields_and_heights_to_pairs.
-FIELD_NAME_BY_PAIR = [
-    'echo_top_50dbz_km', 'low_level_shear_s01', 'reflectivity_dbz',
-    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
-    'reflectivity_dbz', 'reflectivity_dbz', 'reflectivity_dbz',
-    'reflectivity_column_max_dbz']
-HEIGHT_BY_PAIR_MYRORSS_M_ASL = numpy.array(
-    [radar_utils.DEFAULT_HEIGHT_MYRORSS_M_ASL, radar_utils.SHEAR_HEIGHT_M_ASL,
-     250., 500., 750., 1000., 5000., 10000., 20000.,
-     radar_utils.DEFAULT_HEIGHT_MYRORSS_M_ASL])
-HEIGHT_BY_PAIR_MRMS_M_ASL = numpy.array(
-    [radar_utils.DEFAULT_HEIGHT_MRMS_M_ASL, radar_utils.SHEAR_HEIGHT_M_ASL,
-     250., 500., 750., 1000., 5000., 10000., 20000.,
-     radar_utils.DEFAULT_HEIGHT_MRMS_M_ASL])
 
 # The following constants are used to test rowcol_to_latlng and
 # latlng_to_rowcol.
@@ -306,167 +268,184 @@ class RadarUtilsTests(unittest.TestCase):
             radar_utils.field_name_new_to_orig(
                 LL_SHEAR_NAME_NEW, data_source=radar_utils.GRIDRAD_SOURCE_ID)
 
-    def test_get_valid_heights_for_field_shear_myrorss(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_get_valid_heights_myrorss_shear(self):
+        """Ensures correct output from get_valid_heights.
 
-        In this case, the field is azimuthal shear in MYRORSS.
+        In this case, data source and field are azimuthal shear in MYRORSS.
         """
 
-        these_valid_heights_m_asl = radar_utils.get_valid_heights_for_field(
-            radar_utils.MID_LEVEL_SHEAR_NAME,
-            data_source=radar_utils.MYRORSS_SOURCE_ID)
+        these_valid_heights_m_asl = radar_utils.get_valid_heights(
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            field_name=radar_utils.MID_LEVEL_SHEAR_NAME)
         self.assertTrue(
             numpy.array_equal(these_valid_heights_m_asl, SHEAR_HEIGHTS_M_ASL))
 
-    def test_get_valid_heights_for_field_shear_mrms(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_get_valid_heights_mrms_shear(self):
+        """Ensures correct output from get_valid_heights.
 
-        In this case, the field is azimuthal shear in MRMS.
+        In this case, data source and field are azimuthal shear in MRMS.
         """
 
-        these_valid_heights_m_asl = radar_utils.get_valid_heights_for_field(
-            radar_utils.MID_LEVEL_SHEAR_NAME,
-            data_source=radar_utils.MRMS_SOURCE_ID)
+        these_valid_heights_m_asl = radar_utils.get_valid_heights(
+            data_source=radar_utils.MRMS_SOURCE_ID,
+            field_name=radar_utils.MID_LEVEL_SHEAR_NAME)
         self.assertTrue(
             numpy.array_equal(these_valid_heights_m_asl, SHEAR_HEIGHTS_M_ASL))
 
-    def test_get_valid_heights_for_field_non_shear_myrorss(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_get_valid_heights_myrorss_non_shear(self):
+        """Ensures correct output from get_valid_heights.
 
-        In this case, the field is a non-shear field in MYRORSS.
+        In this case, data source is MYRORSS; field is *not* azimuthal shear.
         """
 
-        these_valid_heights_m_asl = radar_utils.get_valid_heights_for_field(
-            radar_utils.REFL_M10CELSIUS_NAME,
-            data_source=radar_utils.MYRORSS_SOURCE_ID)
-        self.assertTrue(numpy.array_equal(these_valid_heights_m_asl,
-                                          NON_SHEAR_HEIGHTS_MYRORSS_M_ASL))
+        these_valid_heights_m_asl = radar_utils.get_valid_heights(
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            field_name=radar_utils.REFL_M10CELSIUS_NAME)
+        self.assertTrue(numpy.array_equal(
+            these_valid_heights_m_asl, NON_SHEAR_HEIGHTS_MYRORSS_M_ASL))
 
-    def test_get_valid_heights_for_field_non_shear_mrms(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_get_valid_heights_mrms_non_shear(self):
+        """Ensures correct output from get_valid_heights.
 
-        In this case, the field is a non-shear field in MRMS.
+        In this case, data source is MRMS and field is *not* azimuthal shear.
         """
 
-        these_valid_heights_m_asl = radar_utils.get_valid_heights_for_field(
-            radar_utils.REFL_M10CELSIUS_NAME,
-            data_source=radar_utils.MRMS_SOURCE_ID)
-        self.assertTrue(numpy.array_equal(these_valid_heights_m_asl,
-                                          NON_SHEAR_HEIGHTS_MRMS_M_ASL))
+        these_valid_heights_m_asl = radar_utils.get_valid_heights(
+            data_source=radar_utils.MRMS_SOURCE_ID,
+            field_name=radar_utils.REFL_M10CELSIUS_NAME)
+        self.assertTrue(numpy.array_equal(
+            these_valid_heights_m_asl, NON_SHEAR_HEIGHTS_MRMS_M_ASL))
 
-    def test_get_valid_heights_for_field_reflectivity(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_get_valid_heights_reflectivity(self):
+        """Ensures correct output from get_valid_heights.
 
-        In this case, the field is simple reflectivity.
+        In this case, field is reflectivity (defined at many height levels).
         """
 
-        these_valid_heights_m_asl = radar_utils.get_valid_heights_for_field(
-            radar_utils.REFL_NAME, data_source=radar_utils.MYRORSS_SOURCE_ID)
+        these_valid_heights_m_asl = radar_utils.get_valid_heights(
+            data_source=radar_utils.MRMS_SOURCE_ID,
+            field_name=radar_utils.REFL_NAME)
         self.assertTrue(len(these_valid_heights_m_asl) > 1)
 
-    def test_get_valid_heights_for_field_gridrad(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_get_valid_heights_gridrad(self):
+        """Ensures correct output from get_valid_heights.
 
-        In this case, desired data source is GridRad, for which
-        get_valid_heights_for_field does not work.
+        In this case, data source is GridRad.
+        """
+
+        these_valid_heights_m_asl = radar_utils.get_valid_heights(
+            data_source=radar_utils.GRIDRAD_SOURCE_ID)
+        self.assertTrue(len(these_valid_heights_m_asl) > 1)
+
+    def test_get_valid_heights_storm_id(self):
+        """Ensures correct output from get_valid_heights.
+
+        In this case, field is storm ID, which is not defined at certain
+        heights.
         """
 
         with self.assertRaises(ValueError):
-            radar_utils.get_valid_heights_for_field(
-                radar_utils.REFL_NAME,
-                data_source=radar_utils.GRIDRAD_SOURCE_ID)
+            radar_utils.get_valid_heights(
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
+                field_name=radar_utils.STORM_ID_NAME)
 
-    def test_get_valid_heights_for_field_storm_id(self):
-        """Ensures correct output from get_valid_heights_for_field.
+    def test_check_heights_myrorss_shear_valid(self):
+        """Ensures correct output from check_heights.
 
-        In this case, desired field is storm ID, for which
-        get_valid_heights_for_field does not work.
+        In this case, data source and field are azimuthal shear in MYRORSS;
+        input height is valid.
+        """
+
+        radar_utils.check_heights(
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            heights_m_asl=numpy.array([radar_utils.SHEAR_HEIGHT_M_ASL]),
+            field_name=radar_utils.MID_LEVEL_SHEAR_NAME)
+
+    def test_check_heights_myrorss_shear_invalid(self):
+        """Ensures correct output from check_heights.
+
+        In this case, data source and field are azimuthal shear in MYRORSS;
+        input height is *invalid*.
         """
 
         with self.assertRaises(ValueError):
-            radar_utils.get_valid_heights_for_field(
-                radar_utils.STORM_ID_NAME,
-                data_source=radar_utils.MYRORSS_SOURCE_ID)
+            radar_utils.check_heights(
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
+                heights_m_asl=numpy.array(
+                    [radar_utils.SHEAR_HEIGHT_M_ASL + 1]),
+                field_name=radar_utils.MID_LEVEL_SHEAR_NAME)
 
-    def test_check_reflectivity_heights_valid(self):
-        """Ensures correct output from check_reflectivity_heights.
+    def test_check_heights_myrorss_non_shear_valid(self):
+        """Ensures correct output from check_heights.
 
-        In this case, all heights are valid.
+        In this case, data source is MYRORSS; field is *not* azimuthal shear;
+        and input height is valid.
         """
 
-        radar_utils.check_reflectivity_heights(
-            REFL_HEIGHTS_M_ASL, data_source=radar_utils.MYRORSS_SOURCE_ID)
+        radar_utils.check_heights(
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            heights_m_asl=numpy.array(
+                [radar_utils.DEFAULT_HEIGHT_MYRORSS_M_ASL]),
+            field_name=radar_utils.REFL_M10CELSIUS_NAME)
 
-    def test_check_reflectivity_heights_invalid(self):
-        """Ensures correct output from check_reflectivity_heights.
+    def test_check_heights_myrorss_non_shear_invalid(self):
+        """Ensures correct output from check_heights.
 
-        In this case, at least one height is invalid.
+        In this case, data source is MYRORSS; field is *not* azimuthal shear;
+        and input height is *invalid*.
         """
 
         with self.assertRaises(ValueError):
-            radar_utils.check_reflectivity_heights(
-                REFL_HEIGHTS_ONE_BAD_M_ASL,
-                data_source=radar_utils.MYRORSS_SOURCE_ID)
+            radar_utils.check_heights(
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
+                heights_m_asl=numpy.array(
+                    [radar_utils.DEFAULT_HEIGHT_MYRORSS_M_ASL + 1]),
+                field_name=radar_utils.REFL_M10CELSIUS_NAME)
 
-    def test_field_and_height_arrays_to_dict_myrorss(self):
-        """Ensures correct output from field_and_height_arrays_to_dict.
+    def test_check_heights_myrorss_reflectivity_valid(self):
+        """Ensures correct output from check_heights.
 
-        In this case, data source is MYRORSS.
+        In this case, data source is MYRORSS; field is reflectivity (defined at
+        many height levels); and input height is valid.
         """
 
-        this_field_to_heights_dict_m_asl = (
-            radar_utils.field_and_height_arrays_to_dict(
-                field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
-                data_source=radar_utils.MYRORSS_SOURCE_ID))
-        self.assertTrue(this_field_to_heights_dict_m_asl ==
-                        FIELD_TO_HEIGHTS_DICT_MYRORSS_M_ASL)
+        radar_utils.check_heights(
+            data_source=radar_utils.MYRORSS_SOURCE_ID,
+            heights_m_asl=numpy.array([250.]), field_name=radar_utils.REFL_NAME)
 
-    def test_field_and_height_arrays_to_dict_mrms(self):
-        """Ensures correct output from field_and_height_arrays_to_dict.
+    def test_check_heights_myrorss_reflectivity_invalid(self):
+        """Ensures correct output from check_heights.
 
-        In this case, data source is MRMS.
+        In this case, data source is MYRORSS; field is reflectivity (defined at
+        many height levels); and input height is *invalid*.
         """
 
-        this_field_to_heights_dict_m_asl = (
-            radar_utils.field_and_height_arrays_to_dict(
-                field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
-                data_source=radar_utils.MRMS_SOURCE_ID))
-        self.assertTrue(this_field_to_heights_dict_m_asl ==
-                        FIELD_TO_HEIGHTS_DICT_MRMS_M_ASL)
+        with self.assertRaises(ValueError):
+            radar_utils.check_heights(
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
+                heights_m_asl=numpy.array([251.]),
+                field_name=radar_utils.REFL_NAME)
 
-    def test_unique_fields_and_heights_to_pairs_myrorss(self):
-        """Ensures correct output from unique_fields_and_heights_to_pairs.
+    def test_check_heights_gridrad_valid(self):
+        """Ensures correct output from check_heights.
 
-        In this case, data source is MYRORSS.
+        In this case, data source is GridRad and input height is valid.
         """
 
-        this_field_name_by_pair, this_height_by_pair_m_asl = (
-            radar_utils.unique_fields_and_heights_to_pairs(
-                unique_field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
-                data_source=radar_utils.MYRORSS_SOURCE_ID))
+        radar_utils.check_heights(
+            data_source=radar_utils.GRIDRAD_SOURCE_ID,
+            heights_m_asl=numpy.array([500.]))
 
-        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
-        self.assertTrue(numpy.array_equal(
-            this_height_by_pair_m_asl, HEIGHT_BY_PAIR_MYRORSS_M_ASL))
+    def test_check_heights_gridrad_invalid(self):
+        """Ensures correct output from check_heights.
 
-    def test_unique_fields_and_heights_to_pairs_mrms(self):
-        """Ensures correct output from unique_fields_and_heights_to_pairs.
-
-        In this case, data source is MRMS.
+        In this case, data source is GridRad and input height is *invalid*.
         """
 
-        this_field_name_by_pair, this_height_by_pair_m_asl = (
-            radar_utils.unique_fields_and_heights_to_pairs(
-                unique_field_names=UNIQUE_FIELD_NAMES,
-                refl_heights_m_asl=UNIQUE_REFLECTIVITY_HEIGHTS_M_ASL,
-                data_source=radar_utils.MRMS_SOURCE_ID))
-
-        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR)
-        self.assertTrue(numpy.array_equal(
-            this_height_by_pair_m_asl, HEIGHT_BY_PAIR_MRMS_M_ASL))
+        with self.assertRaises(ValueError):
+            radar_utils.check_heights(
+                data_source=radar_utils.GRIDRAD_SOURCE_ID,
+                heights_m_asl=numpy.array([501.]))
 
     def test_rowcol_to_latlng(self):
         """Ensures correct output from rowcol_to_latlng."""

@@ -18,6 +18,7 @@ from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -182,11 +183,12 @@ def get_relative_dir_for_raw_files(field_name, data_source, height_m_asl=None):
     """
 
     if field_name == radar_utils.REFL_NAME:
-        radar_utils.check_reflectivity_heights(
-            numpy.array([height_m_asl]), data_source=data_source)
+        radar_utils.check_heights(
+            data_source=data_source, heights_m_asl=numpy.array([height_m_asl]),
+            field_name=radar_utils.REFL_NAME)
     else:
-        height_m_asl = radar_utils.get_valid_heights_for_field(
-            field_name, data_source=data_source)[0]
+        height_m_asl = radar_utils.get_valid_heights(
+            data_source=data_source, field_name=field_name)[0]
 
     return '{0:s}/{1:05.2f}'.format(
         radar_utils.field_name_new_to_orig(field_name, data_source=data_source),
@@ -408,10 +410,9 @@ def find_many_raw_files(
     """
 
     field_name_by_pair, height_by_pair_m_asl = (
-        radar_utils.unique_fields_and_heights_to_pairs(
-            unique_field_names=field_names,
-            refl_heights_m_asl=reflectivity_heights_m_asl,
-            data_source=data_source))
+        myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
+            field_names=field_names, data_source=data_source,
+            refl_heights_m_asl=reflectivity_heights_m_asl))
     num_fields = len(field_name_by_pair)
 
     error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
@@ -689,13 +690,16 @@ def write_field_to_myrorss_file(
 
     if field_name == radar_utils.REFL_NAME:
         field_to_heights_dict_m_asl = (
-            radar_utils.field_and_height_arrays_to_dict(
-                [field_name], refl_heights_m_asl=numpy.array([height_m_asl]),
-                data_source=radar_utils.MYRORSS_SOURCE_ID))
+            myrorss_and_mrms_utils.fields_and_refl_heights_to_dict(
+                field_names=[field_name],
+                data_source=radar_utils.MYRORSS_SOURCE_ID,
+                refl_heights_m_asl=numpy.array([height_m_asl])))
+
     else:
         field_to_heights_dict_m_asl = (
-            radar_utils.field_and_height_arrays_to_dict(
-                [field_name], data_source=radar_utils.MYRORSS_SOURCE_ID))
+            myrorss_and_mrms_utils.fields_and_refl_heights_to_dict(
+                field_names=[field_name],
+                data_source=radar_utils.MYRORSS_SOURCE_ID))
 
     field_name = field_to_heights_dict_m_asl.keys()[0]
     radar_height_m_asl = field_to_heights_dict_m_asl[field_name][0]
