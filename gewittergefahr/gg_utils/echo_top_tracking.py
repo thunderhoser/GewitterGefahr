@@ -19,7 +19,6 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import copy
-import time
 import numpy
 import pandas
 from scipy.ndimage.filters import gaussian_filter
@@ -33,6 +32,7 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import radar_statistics
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import error_checking
@@ -961,51 +961,45 @@ def _storm_objects_to_polygons(
         if this_num_storm_objects == 0:
             continue
 
-        init_time_unix_sec = time.time()
         this_radar_metadata_dict = file_dictionary[RADAR_METADATA_DICTS_KEY][i]
-        this_min_latitude_deg = (
-            this_radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
-                this_radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
-                (this_radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
+        if i == 0:
+            recompute_grid = True
+        else:
+            prev_radar_metadata_dict = file_dictionary[
+                RADAR_METADATA_DICTS_KEY][i]
+            recompute_grid = not radar_statistics.are_grids_equal(
+                prev_radar_metadata_dict, this_radar_metadata_dict)
 
-        these_grid_point_lats_deg, these_grid_point_lngs_deg = (
-            grids.get_latlng_grid_points(
-                min_latitude_deg=this_min_latitude_deg,
-                min_longitude_deg=
-                this_radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-                lat_spacing_deg=
-                this_radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-                lng_spacing_deg=
-                this_radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-                num_rows=this_radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
-                num_columns=
-                this_radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
+        if recompute_grid:
+            this_min_latitude_deg = (
+                this_radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] -
+                (this_radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+                 (this_radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
 
-        these_grid_point_lats_deg = these_grid_point_lats_deg[::-1]
+            these_grid_point_lats_deg, these_grid_point_lngs_deg = (
+                grids.get_latlng_grid_points(
+                    min_latitude_deg=this_min_latitude_deg,
+                    min_longitude_deg=this_radar_metadata_dict[
+                        radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                    lat_spacing_deg=this_radar_metadata_dict[
+                        radar_utils.LAT_SPACING_COLUMN],
+                    lng_spacing_deg=this_radar_metadata_dict[
+                        radar_utils.LNG_SPACING_COLUMN],
+                    num_rows=this_radar_metadata_dict[
+                        radar_utils.NUM_LAT_COLUMN],
+                    num_columns=this_radar_metadata_dict[
+                        radar_utils.NUM_LNG_COLUMN]))
 
-        elapsed_time_sec = time.time() - init_time_unix_sec
-        print 'Elapsed time to create lat-long grid points: {0:f} sec'.format(
-            elapsed_time_sec)
+            these_grid_point_lats_deg = these_grid_point_lats_deg[::-1]
+            this_latitude_matrix_deg, this_longitude_matrix_deg = (
+                grids.latlng_vectors_to_matrices(
+                    these_grid_point_lats_deg, these_grid_point_lngs_deg))
 
-        init_time_unix_sec = time.time()
-        this_latitude_matrix_deg, this_longitude_matrix_deg = (
-            grids.latlng_vectors_to_matrices(
-                these_grid_point_lats_deg, these_grid_point_lngs_deg))
-
-        elapsed_time_sec = time.time() - init_time_unix_sec
-        print 'Elapsed time to create lat-long matrices: {0:f} sec'.format(
-            elapsed_time_sec)
-
-        init_time_unix_sec = time.time()
-        this_x_matrix_metres, this_y_matrix_metres = (
-            projections.project_latlng_to_xy(
-                this_latitude_matrix_deg, this_longitude_matrix_deg,
-                projection_object=projection_object, false_easting_metres=0.,
-                false_northing_metres=0.))
-
-        elapsed_time_sec = time.time() - init_time_unix_sec
-        print 'Elapsed time to create x-y matrices: {0:f} sec'.format(
-            elapsed_time_sec)
+            this_x_matrix_metres, this_y_matrix_metres = (
+                projections.project_latlng_to_xy(
+                    this_latitude_matrix_deg, this_longitude_matrix_deg,
+                    projection_object=projection_object, false_easting_metres=0.,
+                    false_northing_metres=0.))
 
         these_centroid_rows, these_centroid_columns = (
             radar_utils.latlng_to_rowcol(
@@ -1028,7 +1022,6 @@ def _storm_objects_to_polygons(
         first_grid_point_columns = None
 
         for j in range(len(these_object_indices)):
-            init_time_unix_sec = time.time()
             k = these_object_indices[j]
 
             if j == 0:
@@ -1115,10 +1108,6 @@ def _storm_objects_to_polygons(
                 tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[k] = (
                     polygons.vertex_arrays_to_polygon_object(
                         these_vertex_lng_deg, these_vertex_lat_deg))
-
-            elapsed_time_sec = time.time() - init_time_unix_sec
-            print 'Elapsed time for storm object: {0:f} sec'.format(
-                elapsed_time_sec)
 
     return storm_object_table
 

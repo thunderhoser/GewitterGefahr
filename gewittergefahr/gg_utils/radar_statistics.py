@@ -138,26 +138,6 @@ def _column_name_to_statistic_params(column_name):
             PERCENTILE_LEVEL_KEY: percentile_level}
 
 
-def _are_grids_equal(metadata_dict_orig, metadata_dict_new):
-    """Indicates whether or not two grids are equal.
-
-    :param metadata_dict_orig: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing original
-        radar grid.
-    :param metadata_dict_new: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing new radar
-        grid.
-    :return: are_grids_equal_flag: Boolean flag.
-    """
-
-    metadata_dict_orig = {
-        k: metadata_dict_orig[k] for k in GRID_METADATA_KEYS_TO_COMPARE}
-    metadata_dict_new = {
-        k: metadata_dict_new[k] for k in GRID_METADATA_KEYS_TO_COMPARE}
-
-    return metadata_dict_orig == metadata_dict_new
-
-
 def _check_statistic_params(statistic_names, percentile_levels):
     """Ensures that parameters of statistic are valid.
 
@@ -188,6 +168,27 @@ def _check_statistic_params(statistic_names, percentile_levels):
 
     return numpy.unique(
         rounder.round_to_nearest(percentile_levels, PERCENTILE_LEVEL_PRECISION))
+
+
+def are_grids_equal(metadata_dict_orig, metadata_dict_new):
+    """Indicates whether or not two grids are equal.
+
+    :param metadata_dict_orig: Dictionary (with keys specified by
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing original
+        radar grid.
+    :param metadata_dict_new: Dictionary (with keys specified by
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing new radar
+        grid.
+    :return: are_grids_equal_flag: Boolean flag.
+    """
+
+    for this_key in GRID_METADATA_KEYS_TO_COMPARE:
+        this_absolute_diff = numpy.absolute(
+            metadata_dict_orig[this_key] - metadata_dict_new[this_key])
+        if this_absolute_diff > TOLERANCE:
+            return False
+
+    return True
 
 
 def radar_field_and_statistic_to_column_name(
@@ -341,7 +342,7 @@ def get_grid_points_in_storm_objects(storm_object_table,
         column indices (integers) of grid points in storm object.
     """
 
-    if _are_grids_equal(metadata_dict_for_storm_objects, new_metadata_dict):
+    if are_grids_equal(metadata_dict_for_storm_objects, new_metadata_dict):
         return storm_object_table[STORM_OBJECT_TO_GRID_PTS_COLUMNS]
 
     storm_object_to_grid_points_table = storm_object_table[
