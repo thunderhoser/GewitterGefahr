@@ -982,15 +982,30 @@ def _storm_objects_to_polygons(
                 this_radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
 
         these_grid_point_lats_deg = these_grid_point_lats_deg[::-1]
+
+        elapsed_time_sec = time.time() - init_time_unix_sec
+        print 'Elapsed time to create lat-long grid points: {0:f} sec'.format(
+            elapsed_time_sec)
+
+        init_time_unix_sec = time.time()
         this_latitude_matrix_deg, this_longitude_matrix_deg = (
             grids.latlng_vectors_to_matrices(
                 these_grid_point_lats_deg, these_grid_point_lngs_deg))
 
+        elapsed_time_sec = time.time() - init_time_unix_sec
+        print 'Elapsed time to create lat-long matrices: {0:f} sec'.format(
+            elapsed_time_sec)
+
+        init_time_unix_sec = time.time()
         this_x_matrix_metres, this_y_matrix_metres = (
             projections.project_latlng_to_xy(
                 this_latitude_matrix_deg, this_longitude_matrix_deg,
                 projection_object=projection_object, false_easting_metres=0.,
                 false_northing_metres=0.))
+
+        elapsed_time_sec = time.time() - init_time_unix_sec
+        print 'Elapsed time to create x-y matrices: {0:f} sec'.format(
+            elapsed_time_sec)
 
         these_centroid_rows, these_centroid_columns = (
             radar_utils.latlng_to_rowcol(
@@ -1006,10 +1021,6 @@ def _storm_objects_to_polygons(
                     radar_utils.LAT_SPACING_COLUMN],
                 lng_spacing_deg=this_radar_metadata_dict[
                     radar_utils.LNG_SPACING_COLUMN]))
-
-        elapsed_time_sec = time.time() - init_time_unix_sec
-        print 'Elapsed time for non-storm-specific things: {0:f} sec'.format(
-            elapsed_time_sec)
 
         first_vertex_rows = None
         first_vertex_columns = None
