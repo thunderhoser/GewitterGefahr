@@ -985,15 +985,6 @@ def _storm_objects_to_polygons(
                 tracking_utils.GRID_POINT_COLUMN_COLUMN
             ].values[k] = first_grid_point_columns + int(this_column_offset)
 
-            these_vertex_rows = first_vertex_rows + this_row_offset
-            these_vertex_columns = first_vertex_columns + this_column_offset
-
-            (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[k],
-             storm_object_table[
-                 tracking_utils.GRID_POINT_COLUMN_COLUMN].values[k]) = (
-                     polygons.simple_polygon_to_grid_points(
-                         these_vertex_rows, these_vertex_columns))
-
             (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[k],
              storm_object_table[
                  tracking_utils.GRID_POINT_LNG_COLUMN].values[k]) = (
@@ -1010,6 +1001,9 @@ def _storm_objects_to_polygons(
                              radar_utils.LAT_SPACING_COLUMN],
                          lng_spacing_deg=this_radar_metadata_dict[
                              radar_utils.LNG_SPACING_COLUMN]))
+
+            these_vertex_rows = first_vertex_rows + this_row_offset
+            these_vertex_columns = first_vertex_columns + this_column_offset
 
             these_vertex_lat_deg, these_vertex_lng_deg = (
                 radar_utils.rowcol_to_latlng(
