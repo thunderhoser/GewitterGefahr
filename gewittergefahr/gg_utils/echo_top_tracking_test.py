@@ -227,41 +227,18 @@ EAST_VELOCITIES_2POINTS_M_S01 = numpy.array(
      DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2,
      -DEG_LAT_TO_METRES * numpy.cos(40.5 * DEGREES_TO_RADIANS) / 2])
 
-# The following constants are used to test
-# _get_latlng_grid_points_maybe_in_radius.
-GRID_POINT_LATITUDES_DEG = numpy.array([53.6, 53.5, 53.4, 53.3])
-GRID_POINT_LONGITUDES_DEG = numpy.array([246.1, 246.3, 246.5, 246.7, 246.9])
-QUERY_LATITUDE_DEG = 53.5
-QUERY_LONGITUDE_DEG = 246.5
-CRITICAL_RADIUS_METRES = 12500.
-
-LAT_MAYBE_IN_RADIUS_INDICES = numpy.array([0, 1, 2], dtype=int)
-LNG_MAYBE_IN_RADIUS_INDICES = numpy.array([1, 2, 3], dtype=int)
-
-# The following constants are used to test _get_latlng_grid_points_in_radius.
-GRID_LATITUDE_MATRIX_DEG = numpy.array([[53.6, 53.6, 53.6, 53.6, 53.6],
-                                        [53.5, 53.5, 53.5, 53.5, 53.5],
-                                        [53.4, 53.4, 53.4, 53.4, 53.4],
-                                        [53.3, 53.3, 53.3, 53.3, 53.3]])
-GRID_LONGITUDE_MATRIX_DEG = numpy.array([[246.1, 246.3, 246.5, 246.7, 246.9],
-                                         [246.1, 246.3, 246.5, 246.7, 246.9],
-                                         [246.1, 246.3, 246.5, 246.7, 246.9],
-                                         [246.1, 246.3, 246.5, 246.7, 246.9]])
-
-GRID_X_MATRIX_METRES, GRID_Y_MATRIX_METRES = projections.project_latlng_to_xy(
-    GRID_LATITUDE_MATRIX_DEG, GRID_LONGITUDE_MATRIX_DEG,
-    projection_object=PROJECTION_OBJECT, false_easting_metres=0.,
-    false_northing_metres=0.)
-QUERY_X_METRES_AS_ARRAY, QUERY_Y_METRES_AS_ARRAY = (
-    projections.project_latlng_to_xy(
-        numpy.array([QUERY_LATITUDE_DEG]), numpy.array([QUERY_LONGITUDE_DEG]),
-        projection_object=PROJECTION_OBJECT, false_easting_metres=0.,
-        false_northing_metres=0.))
-
-QUERY_X_METRES = QUERY_X_METRES_AS_ARRAY[0]
-QUERY_Y_METRES = QUERY_Y_METRES_AS_ARRAY[0]
-ROWS_WITHIN_RADIUS = numpy.array([0, 1, 2], dtype=int)
-COLUMNS_WITHIN_RADIUS = numpy.array([2, 2, 2], dtype=int)
+# The following constants are used to test _get_grid_points_in_radius.
+X_GRID_MATRIX_METRES = numpy.array([[0., 1., 2., 3.],
+                                    [1., 2., 3., 4.],
+                                    [2., 3., 4., 5.]])
+Y_GRID_MATRIX_METRES = numpy.array([[5., 7., 9., 11.],
+                                    [10., 12., 14., 16.],
+                                    [15., 17., 19., 21.]])
+X_QUERY_METRES = 3.
+Y_QUERY_METRES = 10.
+CRITICAL_RADIUS_METRES = 5.
+ROWS_WITHIN_RADIUS = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
+COLUMNS_WITHIN_RADIUS = numpy.array([1, 2, 3, 0, 1, 2])
 
 # The following constants are used to test _join_tracks_between_periods.
 THESE_STORM_IDS = ['a', 'b', 'a', 'b']
@@ -591,36 +568,15 @@ class EchoTopTrackingTests(unittest.TestCase):
             these_north_velocities_m_s01, NORTH_VELOCITIES_2POINTS_M_S01,
             rtol=RELATIVE_DISTANCE_TOLERANCE, equal_nan=True))
 
-    def test_get_latlng_grid_points_maybe_in_radius(self):
-        """Ensures correctness of _get_latlng_grid_points_maybe_in_radius."""
-
-        these_lat_indices, these_lng_indices = (
-            echo_top_tracking._get_latlng_grid_points_maybe_in_radius(
-                grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-                grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-                query_latitude_deg=QUERY_LATITUDE_DEG,
-                query_longitude_deg=QUERY_LONGITUDE_DEG,
-                radius_metres=CRITICAL_RADIUS_METRES))
-
-        self.assertTrue(numpy.array_equal(
-            these_lat_indices, LAT_MAYBE_IN_RADIUS_INDICES))
-        self.assertTrue(numpy.array_equal(
-            these_lng_indices, LNG_MAYBE_IN_RADIUS_INDICES))
-
-    def test_get_latlng_grid_points_in_radius(self):
-        """Ensures correct output from _get_latlng_grid_points_in_radius."""
+    def test_get_grid_points_in_radius(self):
+        """Ensures correct output from _get_grid_points_in_radius."""
 
         these_row_indices, these_column_indices = (
-            echo_top_tracking._get_latlng_grid_points_in_radius(
-                grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-                grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-                query_latitude_deg=QUERY_LATITUDE_DEG,
-                query_longitude_deg=QUERY_LONGITUDE_DEG,
-                radius_metres=CRITICAL_RADIUS_METRES,
-                grid_x_matrix_metres=GRID_X_MATRIX_METRES,
-                grid_y_matrix_metres=GRID_Y_MATRIX_METRES,
-                query_x_metres=QUERY_X_METRES,
-                query_y_metres=QUERY_Y_METRES))
+            echo_top_tracking._get_grid_points_in_radius(
+                x_grid_matrix_metres=X_GRID_MATRIX_METRES,
+                y_grid_matrix_metres=Y_GRID_MATRIX_METRES,
+                x_query_metres=X_QUERY_METRES, y_query_metres=Y_QUERY_METRES,
+                radius_metres=CRITICAL_RADIUS_METRES))
 
         self.assertTrue(numpy.array_equal(
             these_row_indices, ROWS_WITHIN_RADIUS))

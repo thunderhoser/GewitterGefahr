@@ -182,6 +182,8 @@ def are_grids_equal(metadata_dict_orig, metadata_dict_new):
     :return: are_grids_equal_flag: Boolean flag.
     """
 
+    # TODO(thunderhoser): Put this method somewhere else.
+
     for this_key in GRID_METADATA_KEYS_TO_COMPARE:
         this_absolute_diff = numpy.absolute(
             metadata_dict_orig[this_key] - metadata_dict_new[this_key])
