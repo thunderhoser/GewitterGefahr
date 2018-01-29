@@ -55,14 +55,12 @@ VALID_RADAR_DATA_SOURCES = [
     radar_utils.MYRORSS_SOURCE_ID, radar_utils.MRMS_SOURCE_ID]
 
 DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL = 4.
-DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_PIXELS = 3
+DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
+DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
 DEFAULT_MAX_LINK_TIME_SECONDS = 300
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
-
-DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
-DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
 
 DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS = 0
 DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS = 900
@@ -90,6 +88,9 @@ VALID_TIMES_BY_DATE_KEY = 'times_by_date_unix_sec'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
+
+DEFAULT_EAST_VELOCITY_M_S01 = 5.
+DEFAULT_NORTH_VELOCITY_M_S01 = 10.
 
 
 def _check_radar_field(radar_field_name):
@@ -766,6 +767,11 @@ def _get_storm_velocities(storm_object_table, num_points_back):
                  unix_times_sec=storm_object_table[
                      tracking_utils.TIME_COLUMN].values[these_object_indices],
                  num_points_back=num_points_back))
+
+    east_velocities_m_s01[
+        numpy.isnan(east_velocities_m_s01)] = DEFAULT_EAST_VELOCITY_M_S01
+    north_velocities_m_s01[
+        numpy.isnan(north_velocities_m_s01)] = DEFAULT_NORTH_VELOCITY_M_S01
 
     argument_dict = {
         tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
