@@ -876,9 +876,9 @@ def _storm_objects_to_polygons(
 
     object_radius_metres = numpy.sqrt(float(object_area_metres2) / numpy.pi)
 
-    prev_radar_metadata_dict = None
     radar_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
     num_radar_times = len(radar_times_unix_sec)
+    num_storm_objects_processed = 0
 
     for i in range(num_radar_times):
         this_time_string = time_conversion.unix_sec_to_string(
@@ -894,13 +894,15 @@ def _storm_objects_to_polygons(
             continue
 
         this_radar_metadata_dict = file_dictionary[RADAR_METADATA_DICTS_KEY][i]
-        if prev_radar_metadata_dict is None:
+        if num_storm_objects_processed == 0:
             recompute_grid = True
         else:
             prev_radar_metadata_dict = file_dictionary[
                 RADAR_METADATA_DICTS_KEY][i]
             recompute_grid = not radar_statistics.are_grids_equal(
                 prev_radar_metadata_dict, this_radar_metadata_dict)
+
+        num_storm_objects_processed += this_num_storm_objects
 
         if recompute_grid:
             this_min_latitude_deg = (
