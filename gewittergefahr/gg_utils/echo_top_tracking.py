@@ -903,6 +903,7 @@ def _storm_objects_to_polygons(
                 prev_radar_metadata_dict, this_radar_metadata_dict)
 
         num_storm_objects_processed += this_num_storm_objects
+        print recompute_grid
 
         if recompute_grid:
             this_min_latitude_deg = (
