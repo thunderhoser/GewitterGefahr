@@ -946,6 +946,9 @@ def _storm_objects_to_polygons(
                     storm_object_table[CENTROID_Y_COLUMN].values[j],
                     radius_metres=object_radius_metres))
 
+            print len(these_grid_point_rows)
+            print len(these_grid_point_columns)
+
             these_vertex_rows, these_vertex_columns = (
                 polygons.grid_points_in_poly_to_vertices(
                     these_grid_point_rows, these_grid_point_columns))
