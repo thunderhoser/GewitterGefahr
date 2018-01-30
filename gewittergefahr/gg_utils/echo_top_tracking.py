@@ -878,7 +878,7 @@ def _storm_objects_to_polygons(
 
     radar_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
     num_radar_times = len(radar_times_unix_sec)
-    num_storm_objects_processed = 0
+    any_storm_objects_processed = False
 
     for i in range(num_radar_times):
         this_time_string = time_conversion.unix_sec_to_string(
@@ -894,15 +894,15 @@ def _storm_objects_to_polygons(
             continue
 
         this_radar_metadata_dict = file_dictionary[RADAR_METADATA_DICTS_KEY][i]
-        if num_storm_objects_processed == 0:
+        if not any_storm_objects_processed:
             recompute_grid = True
         else:
             prev_radar_metadata_dict = file_dictionary[
-                RADAR_METADATA_DICTS_KEY][i]
+                RADAR_METADATA_DICTS_KEY][i - 1]
             recompute_grid = not radar_statistics.are_grids_equal(
                 prev_radar_metadata_dict, this_radar_metadata_dict)
 
-        num_storm_objects_processed += this_num_storm_objects
+        any_storm_objects_processed = True
 
         if recompute_grid:
             this_min_latitude_deg = (
@@ -1170,14 +1170,10 @@ def run_tracking(
     for i in range(num_times):
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
             echo_top_field_name, time_strings[i])
-        print input_radar_file_names[i]
-        print '\n'
 
         file_dictionary[RADAR_METADATA_DICTS_KEY][i] = (
             myrorss_and_mrms_io.read_metadata_from_raw_file(
                 input_radar_file_names[i], data_source=radar_data_source))
-        print file_dictionary[RADAR_METADATA_DICTS_KEY][i]
-        print '\n'
 
         this_sparse_grid_table = (
             myrorss_and_mrms_io.read_data_from_sparse_grid_file(
