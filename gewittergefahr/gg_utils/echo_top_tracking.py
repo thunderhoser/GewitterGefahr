@@ -901,10 +901,6 @@ def _storm_objects_to_polygons(
                 RADAR_METADATA_DICTS_KEY][i]
             recompute_grid = not radar_statistics.are_grids_equal(
                 prev_radar_metadata_dict, this_radar_metadata_dict)
-            print prev_radar_metadata_dict
-            print '\n'
-            print this_radar_metadata_dict
-            print '\n'
 
         num_storm_objects_processed += this_num_storm_objects
 
@@ -949,9 +945,6 @@ def _storm_objects_to_polygons(
                     y_query_metres=
                     storm_object_table[CENTROID_Y_COLUMN].values[j],
                     radius_metres=object_radius_metres))
-
-            print len(these_grid_point_rows)
-            print len(these_grid_point_columns)
 
             these_vertex_rows, these_vertex_columns = (
                 polygons.grid_points_in_poly_to_vertices(
@@ -1177,10 +1170,14 @@ def run_tracking(
     for i in range(num_times):
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
             echo_top_field_name, time_strings[i])
+        print input_radar_file_names[i]
+        print '\n'
 
         file_dictionary[RADAR_METADATA_DICTS_KEY][i] = (
             myrorss_and_mrms_io.read_metadata_from_raw_file(
                 input_radar_file_names[i], data_source=radar_data_source))
+        print file_dictionary[RADAR_METADATA_DICTS_KEY][i]
+        print '\n'
 
         this_sparse_grid_table = (
             myrorss_and_mrms_io.read_data_from_sparse_grid_file(
