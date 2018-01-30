@@ -540,14 +540,21 @@ def read_metadata_from_raw_file(
         radar_utils.FIELD_NAME_COLUMN: radar_utils.field_name_orig_to_new(
             field_name_orig, data_source=data_source)}
 
-    metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] = (
-        rounder.floor_to_nearest(
-            metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-            metadata_dict[radar_utils.LAT_SPACING_COLUMN]))
-    metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN] = (
-        rounder.ceiling_to_nearest(
-            metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-            metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+    latitude_spacing_deg = metadata_dict[radar_utils.LAT_SPACING_COLUMN]
+    longitude_spacing_deg = metadata_dict[radar_utils.LNG_SPACING_COLUMN]
+
+    # TODO(thunderhoser): The following "if" condition is a hack.  The purpose
+    # is to change grid corners only for actual MYRORSS data, not GridRad data
+    # in MYRORSS format.
+    if latitude_spacing_deg < 0.011 and longitude_spacing_deg < 0.011:
+        metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] = (
+            rounder.floor_to_nearest(
+                metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                metadata_dict[radar_utils.LAT_SPACING_COLUMN]))
+        metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN] = (
+            rounder.ceiling_to_nearest(
+                metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
     sentinel_values = []
     for this_column in SENTINEL_VALUE_COLUMNS_ORIG:
