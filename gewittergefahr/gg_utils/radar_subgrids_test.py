@@ -83,8 +83,8 @@ SPC_DATE_STRING = '20180123'
 RADAR_FIELD_NAME = 'echo_top_40dbz_km'
 RADAR_HEIGHT_M_ASL = 250
 STORM_IMAGE_FILE_NAME = (
-    'storm_images/2018/20180123/EchoTop_40/00.25/storm_images_'
-    '2018-01-23-232345.p')
+    'storm_images/2018/20180123/echo_top_40dbz_km/00250_metres_asl/'
+    'storm_images_2018-01-23-232345.p')
 
 
 class RadarSubgridsTests(unittest.TestCase):
