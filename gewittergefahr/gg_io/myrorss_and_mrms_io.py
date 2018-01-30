@@ -52,7 +52,7 @@ MINUTES_TO_SECONDS = 60
 METRES_TO_KM = 1e-3
 
 SENTINEL_TOLERANCE = 10.
-GRID_SPACING_MULTIPLE_DEG = 0.01
+LATLNG_MULTIPLE_DEG = 1e-4
 DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
 
 ZIPPED_FILE_EXTENSION = '.gz'
@@ -718,12 +718,13 @@ def write_field_to_myrorss_file(
     netcdf_dataset.setncattr('DataType', 'SparseLatLonGrid')
 
     netcdf_dataset.setncattr(
-        NW_GRID_POINT_LAT_COLUMN_ORIG,
-        metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN])
+        NW_GRID_POINT_LAT_COLUMN_ORIG, rounder.round_to_nearest(
+            metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+            LATLNG_MULTIPLE_DEG))
     netcdf_dataset.setncattr(
-        NW_GRID_POINT_LNG_COLUMN_ORIG,
-        lng_conversion.convert_lng_negative_in_west(
-            metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN]))
+        NW_GRID_POINT_LNG_COLUMN_ORIG, rounder.round_to_nearest(
+            metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            LATLNG_MULTIPLE_DEG))
     netcdf_dataset.setncattr(
         HEIGHT_COLUMN_ORIG,
         METRES_TO_KM * numpy.float(radar_height_m_asl))
@@ -743,11 +744,11 @@ def write_field_to_myrorss_file(
     netcdf_dataset.setncattr(
         LAT_SPACING_COLUMN_ORIG, rounder.round_to_nearest(
             metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-            GRID_SPACING_MULTIPLE_DEG))
+            LATLNG_MULTIPLE_DEG))
     netcdf_dataset.setncattr(
         LNG_SPACING_COLUMN_ORIG, rounder.round_to_nearest(
             metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-            GRID_SPACING_MULTIPLE_DEG))
+            LATLNG_MULTIPLE_DEG))
     netcdf_dataset.setncattr(
         SENTINEL_VALUE_COLUMNS_ORIG[0], numpy.double(-99000.))
     netcdf_dataset.setncattr(

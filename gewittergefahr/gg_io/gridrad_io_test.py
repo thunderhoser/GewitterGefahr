@@ -8,7 +8,7 @@ UNIX_TIME_SEC = 1490703000  # 1210 UTC 28 Mar 2017
 
 TOP_DIRECTORY_NAME = 'gridrad_data'
 PATHLESS_FILE_NAME = 'nexrad_3d_4_1_20170328T121000Z.nc'
-FULL_FILE_NAME = 'gridrad_data/2017/nexrad_3d_4_1_20170328T121000Z.nc'
+FULL_FILE_NAME = 'gridrad_data/2017/20170328/nexrad_3d_4_1_20170328T121000Z.nc'
 
 
 class GridradIoTests(unittest.TestCase):
