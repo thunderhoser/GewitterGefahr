@@ -54,10 +54,9 @@ DEFAULT_HEIGHTS_FOR_GRIDRAD_M_ASL = numpy.array(
     [1000, 2000, 3000, 4000, 5000, 8000, 10000, 12000], dtype=int)
 
 
-def _center_points_latlng_to_rowcol(center_latitudes_deg, center_longitudes_deg,
-                                    nw_grid_point_lat_deg=None,
-                                    nw_grid_point_lng_deg=None,
-                                    lat_spacing_deg=None, lng_spacing_deg=None):
+def _center_points_latlng_to_rowcol(
+        center_latitudes_deg, center_longitudes_deg, nw_grid_point_lat_deg,
+        nw_grid_point_lng_deg, lat_spacing_deg, lng_spacing_deg):
     """Converts center points from lat-long to row-column coordinates.
 
     Each "center point" is meant for input to extract_points_as_2d_array.
@@ -87,12 +86,9 @@ def _center_points_latlng_to_rowcol(center_latitudes_deg, center_longitudes_deg,
             rounder.round_to_half_integer(center_column_indices))
 
 
-def _get_rowcol_indices_for_subgrid(num_rows_in_full_grid=None,
-                                    num_columns_in_full_grid=None,
-                                    center_row_index=None,
-                                    center_column_index=None,
-                                    num_rows_in_subgrid=None,
-                                    num_columns_in_subgrid=None):
+def _get_rowcol_indices_for_subgrid(
+        num_rows_in_full_grid, num_columns_in_full_grid, center_row_index,
+        center_column_index, num_rows_in_subgrid, num_columns_in_subgrid):
     """Generates row-column indices for subgrid.
 
     These row-column indices are meant for input to extract_points_as_2d_array.
@@ -199,9 +195,9 @@ def _check_storm_images(
             [num_storm_objects, image_matrix.shape[1], image_matrix.shape[2]]))
 
 
-def extract_radar_subgrid(field_matrix, center_row_index=None,
-                          center_column_index=None, num_rows_in_subgrid=None,
-                          num_columns_in_subgrid=None):
+def extract_radar_subgrid(
+        field_matrix, center_row_index, center_column_index,
+        num_rows_in_subgrid, num_columns_in_subgrid):
     """Extracts contiguous subset of radar field.
 
     M = number of rows (unique grid-point latitudes) in full grid
