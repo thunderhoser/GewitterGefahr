@@ -901,9 +901,12 @@ def _storm_objects_to_polygons(
                 RADAR_METADATA_DICTS_KEY][i]
             recompute_grid = not radar_statistics.are_grids_equal(
                 prev_radar_metadata_dict, this_radar_metadata_dict)
+            print prev_radar_metadata_dict
+            print '\n'
+            print this_radar_metadata_dict
+            print '\n'
 
         num_storm_objects_processed += this_num_storm_objects
-        print recompute_grid
 
         if recompute_grid:
             this_min_latitude_deg = (
