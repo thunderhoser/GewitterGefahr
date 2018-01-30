@@ -42,6 +42,7 @@ USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG = True
 DEFAULT_NUM_MAIN_ITERS = 5
 DEFAULT_NUM_BREAKUP_ITERS = 3
 DEFAULT_MIN_OBJECTS_IN_TRACK = 2
+MIN_OBJECTS_IN_TRACK_FOR_THEA = 3
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -1493,6 +1494,12 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
 
     num_storm_objects = len(storm_object_table.index)
     for i in range(num_storm_objects):
+        these_storm_indices = numpy.where(
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values ==
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values[i])[0]
+        if len(these_storm_indices) < MIN_OBJECTS_IN_TRACK_FOR_THEA:
+            continue
+
         csv_file_handle.write('\n')
         this_polygon_object = storm_object_table[
             tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i]
