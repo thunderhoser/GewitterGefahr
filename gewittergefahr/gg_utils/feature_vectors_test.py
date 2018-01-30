@@ -25,7 +25,7 @@ STORM_OBJECT_TIMES_UNIX_SEC = numpy.linspace(
 
 RADAR_STATISTIC_NAME = radar_stats.radar_field_and_statistic_to_column_name(
     radar_field_name=radar_utils.VIL_NAME,
-    statistic_name=radar_stats.STANDARD_DEVIATION_NAME)
+    radar_height_m_asl=250, statistic_name=radar_stats.STANDARD_DEVIATION_NAME)
 RADAR_STATISTIC_VALUES = numpy.full(NUM_STORM_OBJECTS, 3.)
 RADAR_STATISTIC_DICT = {
     tracking_utils.STORM_ID_COLUMN: STORM_IDS,

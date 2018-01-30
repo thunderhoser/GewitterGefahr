@@ -43,7 +43,7 @@ GRID_POINT_LATLNG_COLUMNS = [
     tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN]
 
 # TODO(thunderhoser): Currently statistic names cannot have underscores (this
-# will ruin _column_name_to_statistic_params).  I should change that.
+# will ruin _column_name_to_statistic_params).  This should be fixed.
 AVERAGE_NAME = 'mean'
 STANDARD_DEVIATION_NAME = 'stdev'
 SKEWNESS_NAME = 'skewness'
@@ -67,15 +67,11 @@ DEFAULT_FIELDS_FOR_MYRORSS_AND_MRMS = [
 AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
+# TODO(thunderhoser): Deal with dual-pol variables in GridRad and the fact that
+# they might be missing.
 DEFAULT_FIELDS_FOR_GRIDRAD = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
     radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME]
-
-# DEFAULT_FIELDS_FOR_GRIDRAD = [
-#     radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME,
-#     radar_utils.SPEC_DIFF_PHASE_NAME, radar_utils.CORRELATION_COEFF_NAME,
-#     radar_utils.SPECTRUM_WIDTH_NAME, radar_utils.VORTICITY_NAME,
-#     radar_utils.DIVERGENCE_NAME]
 
 DEFAULT_HEIGHTS_FOR_GRIDRAD_M_ASL = numpy.array(
     [1000, 2000, 3000, 4000, 5000, 8000, 10000, 12000], dtype=int)
@@ -92,7 +88,6 @@ def _column_name_to_statistic_params(column_name):
     parameter_dict['radar_field_name']: Name of radar field on which statistic
         is based.
     parameter_dict['radar_height_m_asl']: Radar height (metres above sea level).
-        If radar field is not single-elevation reflectivity, this will be None.
     parameter_dict['statistic_name']: Name of statistic.  If statistic is a
         percentile, this will be None.
     parameter_dict['percentile_level']: Percentile level.  If statistic is non-
@@ -119,31 +114,22 @@ def _column_name_to_statistic_params(column_name):
             return None
 
     # Determine radar field.
-    radar_field_name = '_'.join(column_name_parts[:-1])
-    radar_height_part = None
-    try:
-        radar_utils.check_field_name(radar_field_name)
-    except ValueError:
-        radar_field_name = '_'.join(column_name_parts[:-2])
-        radar_height_part = column_name_parts[-2]
-
+    radar_field_name = '_'.join(column_name_parts[:-2])
     try:
         radar_utils.check_field_name(radar_field_name)
     except ValueError:
         return None
 
     # Determine radar height.
-    if radar_height_part is None:
-        radar_height_m_asl = None
-    else:
-        if not radar_height_part.endswith('m'):
-            return None
+    radar_height_part = column_name_parts[-2]
+    if not radar_height_part.endswith('metres'):
+        return None
 
-        radar_height_part = radar_height_part.replace('m', '')
-        try:
-            radar_height_m_asl = int(radar_height_part)
-        except ValueError:
-            return None
+    radar_height_part = radar_height_part.replace('metres', '')
+    try:
+        radar_height_m_asl = int(radar_height_part)
+    except ValueError:
+        return None
 
     return {RADAR_FIELD_NAME_KEY: radar_field_name,
             RADAR_HEIGHT_KEY: radar_height_m_asl,
@@ -207,47 +193,40 @@ def are_grids_equal(metadata_dict_orig, metadata_dict_new):
 
 
 def radar_field_and_statistic_to_column_name(
-        radar_field_name, statistic_name, radar_height_m_asl=None):
+        radar_field_name, radar_height_m_asl, statistic_name):
     """Generates column name for radar field and statistic.
 
     :param radar_field_name: Name of radar field.
-    :param statistic_name: Name of statistic.
     :param radar_height_m_asl: Radar height (metres above sea level).
+    :param statistic_name: Name of statistic.
     :return: column_name: Name of column.
     """
 
     error_checking.assert_is_string(radar_field_name)
+    error_checking.assert_is_not_nan(radar_height_m_asl)
     error_checking.assert_is_string(statistic_name)
 
-    if radar_field_name == radar_utils.REFL_NAME:
-        error_checking.assert_is_not_nan(radar_height_m_asl)
-        return '{0:s}_{1:d}m_{2:s}'.format(
-            radar_field_name, int(radar_height_m_asl), statistic_name)
-
-    return '{0:s}_{1:s}'.format(
-        radar_field_name, statistic_name)
+    return '{0:s}_{1:d}metres_{2:s}'.format(
+        radar_field_name, int(numpy.round(radar_height_m_asl)), statistic_name)
 
 
 def radar_field_and_percentile_to_column_name(
-        radar_field_name, percentile_level, radar_height_m_asl=None):
+        radar_field_name, radar_height_m_asl, percentile_level):
     """Generates column name for radar field and percentile level.
 
     :param radar_field_name: Name of radar field.
-    :param percentile_level: Percentile level.
     :param radar_height_m_asl: Radar height (metres above sea level).
+    :param percentile_level: Percentile level.
     :return: column_name: Name of column.
     """
 
     error_checking.assert_is_string(radar_field_name)
+    error_checking.assert_is_not_nan(radar_height_m_asl)
     error_checking.assert_is_not_nan(percentile_level)
 
-    if radar_field_name == radar_utils.REFL_NAME:
-        error_checking.assert_is_not_nan(radar_height_m_asl)
-        return '{0:s}_{1:d}m_percentile{2:05.1f}'.format(
-            radar_field_name, int(radar_height_m_asl), percentile_level)
-
-    return '{0:s}_percentile{1:05.1f}'.format(
-        radar_field_name, percentile_level)
+    return '{0:s}_{1:d}metres_percentile{2:05.1f}'.format(
+        radar_field_name, int(numpy.round(radar_height_m_asl)),
+        percentile_level)
 
 
 def get_statistic_columns(statistic_table):

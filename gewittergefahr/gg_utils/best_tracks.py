@@ -25,6 +25,7 @@ from sklearn.linear_model import TheilSenRegressor
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import projections
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -1628,8 +1629,12 @@ def evaluate_tracks(
         radar_data_source=radar_data_source,
         top_radar_directory_name=top_radar_directory_name)
 
+    radar_height_m_asl = radar_utils.get_valid_heights(
+        data_source=radar_data_source, field_name=radar_field_for_evaluation)[0]
     median_column_name = radar_stats.radar_field_and_percentile_to_column_name(
-        radar_field_name=radar_field_for_evaluation, percentile_level=50.)
+        radar_field_name=radar_field_for_evaluation,
+        radar_height_m_asl=radar_height_m_asl, percentile_level=50.)
+
     spatial_median_by_storm_object = storm_object_statistic_table[
         median_column_name]
     temporal_stdev_of_spatial_median_by_storm_track = numpy.full(
