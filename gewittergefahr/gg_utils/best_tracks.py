@@ -1515,7 +1515,7 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
                 for k in range(len(these_vertex_latitudes_deg)):
                     if k != 0:
                         csv_file_handle.write(';')
-                    csv_file_handle.write('{0:.3f}'.format(
+                    csv_file_handle.write('{0:.5f}'.format(
                         these_vertex_latitudes_deg[k]))
 
             elif OUTPUT_COLUMNS_FOR_THEA[j] == VERTEX_LONGITUDES_COLUMN:
@@ -1525,7 +1525,7 @@ def write_simple_output_for_thea(storm_object_table, csv_file_name):
                 for k in range(len(these_vertex_longitudes_deg)):
                     if k != 0:
                         csv_file_handle.write(';')
-                    csv_file_handle.write('{0:.3f}'.format(
+                    csv_file_handle.write('{0:.5f}'.format(
                         these_vertex_longitudes_deg[k]))
 
             elif OUTPUT_COLUMNS_FOR_THEA[j] == tracking_utils.STORM_ID_COLUMN:

@@ -1,6 +1,7 @@
 """Uses GridRad data to compute radar statistics for each storm object."""
 
 import argparse
+import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -36,6 +37,8 @@ OUTPUT_DIR_HELP_STRING = (
 DEFAULT_TRACKING_DIR_NAME = '/condo/swatcommon/common/gridrad/echo_top_tracking'
 DEFAULT_GRIDRAD_DIR_NAME = '/condo/swatcommon/common/gridrad/native_format'
 DEFAULT_OUTPUT_DIR_NAME = '/condo/swatcommon/common/gridrad/radar_statistics'
+DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
+    echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
