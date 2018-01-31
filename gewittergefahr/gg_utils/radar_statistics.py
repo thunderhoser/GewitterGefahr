@@ -169,15 +169,13 @@ def _check_statistic_params(statistic_names, percentile_levels):
         rounder.round_to_nearest(percentile_levels, PERCENTILE_LEVEL_PRECISION))
 
 
-def are_grids_equal(metadata_dict_orig, metadata_dict_new):
+def are_grids_equal(orig_metadata_dict, new_metadata_dict):
     """Indicates whether or not two grids are equal.
 
-    :param metadata_dict_orig: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing original
-        radar grid.
-    :param metadata_dict_new: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing new radar
-        grid.
+    :param orig_metadata_dict: Dictionary with metadata for original grid.  Keys
+        are listed in documentation of `get_grid_points_in_storm_objects`.
+    :param new_metadata_dict: Dictionary with metadata for new grid.  Keys are
+        listed in documentation of `get_grid_points_in_storm_objects`.
     :return: are_grids_equal_flag: Boolean flag.
     """
 
@@ -185,7 +183,7 @@ def are_grids_equal(metadata_dict_orig, metadata_dict_new):
 
     for this_key in GRID_METADATA_KEYS_TO_COMPARE:
         this_absolute_diff = numpy.absolute(
-            metadata_dict_orig[this_key] - metadata_dict_new[this_key])
+            orig_metadata_dict[this_key] - new_metadata_dict[this_key])
         if this_absolute_diff > TOLERANCE:
             return False
 
@@ -280,8 +278,7 @@ def check_statistic_table(statistic_table, require_storm_objects=True):
     return statistic_column_names
 
 
-def extract_radar_grid_points(field_matrix, row_indices=None,
-                              column_indices=None):
+def extract_radar_grid_points(field_matrix, row_indices, column_indices):
     """Extracts grid points from radar field.
 
     M = number of rows (unique grid-point latitudes)
@@ -314,19 +311,30 @@ def extract_radar_grid_points(field_matrix, row_indices=None,
     return field_matrix[row_indices, column_indices]
 
 
-def get_grid_points_in_storm_objects(storm_object_table,
-                                     metadata_dict_for_storm_objects,
-                                     new_metadata_dict):
+def get_grid_points_in_storm_objects(
+        storm_object_table, orig_grid_metadata_dict, new_grid_metadata_dict):
     """Finds grid points inside each storm object.
 
     :param storm_object_table: pandas DataFrame with columns specified by
         `storm_tracking_io.write_processed_file`.
-    :param metadata_dict_for_storm_objects: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing grid used
-        to create storm objects.
-    :param new_metadata_dict: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing new grid,
-        for which points in each storm object will be found.
+    :param orig_grid_metadata_dict: Dictionary with the following keys,
+        describing radar grid used to create storm objects.
+    orig_grid_metadata_dict['nw_grid_point_lat_deg']: Latitude (deg N) of
+        northwesternmost grid point.
+    orig_grid_metadata_dict['nw_grid_point_lng_deg']: Longitude (deg E) of
+        northwesternmost grid point.
+    orig_grid_metadata_dict['lat_spacing_deg']: Spacing (deg N) between adjacent
+        rows.
+    orig_grid_metadata_dict['lng_spacing_deg']: Spacing (deg E) between adjacent
+        columns.
+    orig_grid_metadata_dict['num_lat_in_grid']: Number of rows (unique grid-
+        point latitudes).
+    orig_grid_metadata_dict['num_lng_in_grid']: Number of columns (unique grid-
+        point longitudes).
+
+    :param new_grid_metadata_dict: Same as `orig_grid_metadata_dict`, except for
+        new radar grid.  We want to know grid points inside each storm object
+        for the new grid.
     :return: storm_object_to_grid_points_table: pandas DataFrame with the
         following columns.  Each row is one storm object.
     storm_object_to_grid_points_table.storm_id: String ID for storm cell.
@@ -336,7 +344,7 @@ def get_grid_points_in_storm_objects(storm_object_table,
         column indices (integers) of grid points in storm object.
     """
 
-    if are_grids_equal(metadata_dict_for_storm_objects, new_metadata_dict):
+    if are_grids_equal(orig_grid_metadata_dict, new_grid_metadata_dict):
         return storm_object_table[STORM_OBJECT_TO_GRID_PTS_COLUMNS]
 
     storm_object_to_grid_points_table = storm_object_table[
@@ -353,14 +361,14 @@ def get_grid_points_in_storm_objects(storm_object_table,
                          tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
                      storm_object_to_grid_points_table[
                          tracking_utils.GRID_POINT_LNG_COLUMN].values[i],
-                     nw_grid_point_lat_deg=
-                     new_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-                     nw_grid_point_lng_deg=
-                     new_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                     nw_grid_point_lat_deg=new_grid_metadata_dict[
+                         radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                     nw_grid_point_lng_deg=new_grid_metadata_dict[
+                         radar_utils.NW_GRID_POINT_LNG_COLUMN],
                      lat_spacing_deg=
-                     new_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                     new_grid_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
                      lng_spacing_deg=
-                     new_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+                     new_grid_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
     return storm_object_to_grid_points_table[STORM_OBJECT_TO_GRID_PTS_COLUMNS]
 
@@ -410,155 +418,175 @@ def get_spatial_statistics(radar_field, statistic_names=DEFAULT_STATISTIC_NAMES,
     return statistic_values, percentile_values
 
 
-def get_stats_for_storm_objects(
-        storm_object_table, metadata_dict_for_storm_objects,
+def get_storm_based_radar_stats_myrorss_or_mrms(
+        storm_object_table, top_radar_dir_name, metadata_dict_for_storm_objects,
         statistic_names=DEFAULT_STATISTIC_NAMES,
         percentile_levels=DEFAULT_PERCENTILE_LEVELS,
         radar_field_names=DEFAULT_FIELDS_FOR_MYRORSS_AND_MRMS,
         reflectivity_heights_m_asl=None,
-        radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
-        top_radar_directory_name=None, dilate_azimuthal_shear=False,
+        radar_source=radar_utils.MYRORSS_SOURCE_ID,
+        dilate_azimuthal_shear=False,
         dilation_half_width_in_pixels=dilation.DEFAULT_HALF_WIDTH,
         dilation_percentile_level=DEFAULT_DILATION_PERCENTILE_LEVEL):
-    """Computes radar statistics for one or more storm objects.
+    """Computes radar statistics for each storm object.
 
-    F = number of radar field-height pairs
-    K = number of statistics (percentile- and non-percentile-based)
+    In this case, radar data must be from MYRORSS or MRMS.
 
-    :param storm_object_table: pandas DataFrame with columns documented in
-        `storm_tracking_io.write_processed_file`.  May contain additional
-        columns.
-    :param metadata_dict_for_storm_objects: Dictionary (with keys specified by
-        `myrorss_and_mrms_io.read_metadata_from_raw_file`) describing grid used
-        to create storm objects.
+    N = number of storm objects
+    P = number of field/height pairs
+    S = number of statistics (percentile- and non-percentile-based)
+
+    :param storm_object_table: See documentation for
+        `get_storm_based_radar_stats_gridrad`.
+    :param top_radar_dir_name: See doc for
+        `get_storm_based_radar_stats_gridrad`.
+    :param metadata_dict_for_storm_objects: Dictionary created by
+        `myrorss_and_mrms_io.read_metadata_from_raw_file`, describing radar grid
+        used to create storm objects.
     :param statistic_names: 1-D list of non-percentile-based statistics.
     :param percentile_levels: 1-D numpy array of percentile levels.
-    :param radar_field_names: 1-D list with names of radar fields.
+    :param radar_field_names: 1-D list of radar fields for which stats will be
+        computed.
     :param reflectivity_heights_m_asl: 1-D numpy array of heights (metres above
-        sea level) for radar field "reflectivity_dbz".  If "reflectivity_dbz" is
-        not in `radar_field_names`, this can be left as None.
-    :param radar_data_source: Data source for radar field.
-    :param top_radar_directory_name: Name of top-level directory with radar
-        files from given source.
+        sea level) for the field "reflectivity_dbz".  If "reflectivity_dbz" is
+        not in `radar_field_names`, you can leave this as None.
+    :param radar_source: Source of radar data (either "myrorss" or "mrms").
     :param dilate_azimuthal_shear: Boolean flag.  If False, azimuthal-shear
         stats will be based only on values inside the storm object.  If True,
         azimuthal-shear fields will be dilated, so azimuthal-shear stats will be
         based on values inside and near the storm object.  This is useful
-        because sometimes large az-shear values occur in regions of low
-        reflectivity, which may not be included in the storm object.
+        because sometimes large az-shear values occur just outside the storm
+        object.
     :param dilation_half_width_in_pixels: See documentation for
         `dilation.dilate_2d_matrix`.
     :param dilation_percentile_level: See documentation for
         `dilation.dilate_2d_matrix`.
-    :return: storm_radar_statistic_table: pandas DataFrame with 2 + K * F
-        columns, where the last K * F columns are one for each statistic-field
-        pair.  Names of these columns are determined by
-        radar_field_and_statistic_to_column_name and
-        radar_field_and_percentile_to_column_name.  The first 2 columns are
+    :return: storm_object_statistic_table: pandas DataFrame with 2 + S * P
+        columns.  The last S * P columns are one for each statistic-field-height
+        tuple.  Names of these columns are determined by
+        `radar_field_and_statistic_to_column_name` and
+        `radar_field_and_percentile_to_column_name`.  The first 2 columns are
         listed below.
-    storm_radar_statistic_table.storm_id: String ID for storm cell.  Same as
-        input column `storm_object_table.storm_id`.
-    storm_radar_statistic_table.unix_time_sec: Valid time.  Same as input column
-        `storm_object_table.unix_time_sec`.
+    storm_object_statistic_table.storm_id: Storm ID (string) (taken from input
+        table).
+    storm_object_statistic_table.unix_time_sec: Valid time (taken from input
+        table).
     """
 
+    # Error-checking.
     percentile_levels = _check_statistic_params(
         statistic_names, percentile_levels)
     error_checking.assert_is_boolean(dilate_azimuthal_shear)
 
+    # Find radar files.
     file_dictionary = myrorss_and_mrms_io.find_many_raw_files(
         valid_times_unix_sec=
         storm_object_table[tracking_utils.TIME_COLUMN].values,
         spc_dates_unix_sec=
         storm_object_table[tracking_utils.SPC_DATE_COLUMN].values,
-        data_source=radar_data_source, field_names=radar_field_names,
-        top_directory_name=top_radar_directory_name,
+        data_source=radar_source, field_names=radar_field_names,
+        top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
 
     radar_file_names_2d_list = file_dictionary[
         myrorss_and_mrms_io.RADAR_FILE_NAME_LIST_KEY]
-    unique_storm_times_unix_sec = file_dictionary[
-        myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
-    unique_spc_dates_unix_sec = file_dictionary[
+    valid_times_unix_sec = file_dictionary[myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
+    valid_spc_dates_unix_sec = file_dictionary[
         myrorss_and_mrms_io.UNIQUE_SPC_DATES_KEY]
     radar_field_name_by_pair = file_dictionary[
         myrorss_and_mrms_io.FIELD_NAME_BY_PAIR_KEY]
     radar_height_by_pair_m_asl = file_dictionary[
         myrorss_and_mrms_io.HEIGHT_BY_PAIR_KEY]
 
-    num_radar_fields = len(radar_field_name_by_pair)
-    num_unique_storm_times = len(unique_storm_times_unix_sec)
+    # Initialize output.
+    num_field_height_pairs = len(radar_field_name_by_pair)
+    num_valid_times = len(valid_times_unix_sec)
     num_statistics = len(statistic_names)
     num_percentiles = len(percentile_levels)
     num_storm_objects = len(storm_object_table.index)
 
     statistic_matrix = numpy.full(
-        (num_storm_objects, num_radar_fields, num_statistics), numpy.nan)
+        (num_storm_objects, num_field_height_pairs, num_statistics), numpy.nan)
     percentile_matrix = numpy.full(
-        (num_storm_objects, num_radar_fields, num_percentiles), numpy.nan)
+        (num_storm_objects, num_field_height_pairs, num_percentiles), numpy.nan)
 
-    for j in range(num_radar_fields):
-        metadata_dict_for_this_field = None
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_FOR_LOG_MESSAGES)
+        for t in valid_times_unix_sec]
 
-        for i in range(num_unique_storm_times):
+    for j in range(num_field_height_pairs):
+        metadata_dict_this_field_height = None
+
+        for i in range(num_valid_times):
             if radar_file_names_2d_list[i][j] is None:
                 continue
 
-            this_time_string = time_conversion.unix_sec_to_string(
-                unique_storm_times_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
-            print ('Computing stats for "{0:s}" at {1:d} metres ASL and '
-                   '{2:s}...').format(
-                       radar_field_name_by_pair[j],
-                       int(numpy.round(radar_height_by_pair_m_asl[j])),
-                       this_time_string)
+            print (
+                'Computing stats for "{0:s}" at {1:d} metres ASL and '
+                '{2:s}...').format(
+                    radar_field_name_by_pair[j],
+                    int(numpy.round(radar_height_by_pair_m_asl[j])),
+                    valid_time_strings[i])
 
-            if metadata_dict_for_this_field is None:
-                metadata_dict_for_this_field = (
+            if metadata_dict_this_field_height is None:
+
+                # Find grid points in each storm object for the [j]th
+                # field/height pair.
+                metadata_dict_this_field_height = (
                     myrorss_and_mrms_io.read_metadata_from_raw_file(
                         radar_file_names_2d_list[i][j],
-                        data_source=radar_data_source))
-                storm_object_to_grid_pts_table_this_field = (
-                    get_grid_points_in_storm_objects(
-                        storm_object_table, metadata_dict_for_storm_objects,
-                        metadata_dict_for_this_field))
+                        data_source=radar_source))
 
-            sparse_grid_table_this_field = (
+                storm_to_grid_pts_table_this_field_height = (
+                    get_grid_points_in_storm_objects(
+                        storm_object_table=storm_object_table,
+                        orig_grid_metadata_dict=metadata_dict_for_storm_objects,
+                        new_grid_metadata_dict=metadata_dict_this_field_height))
+
+            # Read data for [j]th field/height pair at [i]th time step.
+            sparse_grid_table_this_field_height = (
                 myrorss_and_mrms_io.read_data_from_sparse_grid_file(
                     radar_file_names_2d_list[i][j],
-                    field_name_orig=metadata_dict_for_this_field[
+                    field_name_orig=metadata_dict_this_field_height[
                         myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
-                    data_source=radar_data_source,
-                    sentinel_values=metadata_dict_for_this_field[
+                    data_source=radar_source,
+                    sentinel_values=metadata_dict_this_field_height[
                         radar_utils.SENTINEL_VALUE_COLUMN]))
 
-            radar_matrix_this_field, _, _ = radar_s2f.sparse_to_full_grid(
-                sparse_grid_table_this_field, metadata_dict_for_this_field)
+            radar_matrix_this_field_height, _, _ = (
+                radar_s2f.sparse_to_full_grid(
+                    sparse_grid_table_this_field_height,
+                    metadata_dict_this_field_height))
 
             if (dilate_azimuthal_shear and radar_field_name_by_pair[j] in
                     AZIMUTHAL_SHEAR_FIELD_NAMES):
                 print 'Dilating azimuthal-shear field...'
-                radar_matrix_this_field = dilation.dilate_2d_matrix(
-                    radar_matrix_this_field,
+                radar_matrix_this_field_height = dilation.dilate_2d_matrix(
+                    radar_matrix_this_field_height,
                     percentile_level=dilation_percentile_level,
                     half_width_in_pixels=dilation_half_width_in_pixels,
                     take_largest_absolute_value=True)
 
-            radar_matrix_this_field[numpy.isnan(radar_matrix_this_field)] = 0.
+            radar_matrix_this_field_height[
+                numpy.isnan(radar_matrix_this_field_height)] = 0.
 
+            # Find storm objects at [i]th valid time.
             these_storm_flags = numpy.logical_and(
                 storm_object_table[tracking_utils.TIME_COLUMN].values ==
-                unique_storm_times_unix_sec[i],
+                valid_times_unix_sec[i],
                 storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
-                unique_spc_dates_unix_sec[i])
+                valid_spc_dates_unix_sec[i])
             these_storm_indices = numpy.where(these_storm_flags)[0]
 
+            # Extract storm-based radar stats for [j]th field/height pair at
+            # [i]th time step.
             for this_storm_index in these_storm_indices:
                 radar_values_this_storm = extract_radar_grid_points(
-                    radar_matrix_this_field,
-                    row_indices=storm_object_to_grid_pts_table_this_field[
+                    radar_matrix_this_field_height,
+                    row_indices=storm_to_grid_pts_table_this_field_height[
                         tracking_utils.GRID_POINT_ROW_COLUMN].values[
                             this_storm_index].astype(int),
-                    column_indices=storm_object_to_grid_pts_table_this_field[
+                    column_indices=storm_to_grid_pts_table_this_field_height[
                         tracking_utils.GRID_POINT_COLUMN_COLUMN].values[
                             this_storm_index].astype(int))
 
@@ -569,15 +597,16 @@ def get_stats_for_storm_objects(
                          statistic_names=statistic_names,
                          percentile_levels=percentile_levels))
 
-    storm_radar_statistic_dict = {}
-    for j in range(num_radar_fields):
+    # Create pandas DataFrame.
+    storm_object_statistic_dict = {}
+    for j in range(num_field_height_pairs):
         for k in range(num_statistics):
             this_column_name = radar_field_and_statistic_to_column_name(
                 radar_field_name=radar_field_name_by_pair[j],
                 radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 statistic_name=statistic_names[k])
 
-            storm_radar_statistic_dict.update(
+            storm_object_statistic_dict.update(
                 {this_column_name: statistic_matrix[:, j, k]})
 
         for k in range(num_percentiles):
@@ -586,54 +615,54 @@ def get_stats_for_storm_objects(
                 radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 percentile_level=percentile_levels[k])
 
-            storm_radar_statistic_dict.update(
+            storm_object_statistic_dict.update(
                 {this_column_name: percentile_matrix[:, j, k]})
 
-    storm_radar_statistic_table = pandas.DataFrame.from_dict(
-        storm_radar_statistic_dict)
+    storm_object_statistic_table = pandas.DataFrame.from_dict(
+        storm_object_statistic_dict)
     return pandas.concat(
         [storm_object_table[STORM_COLUMNS_TO_KEEP],
-         storm_radar_statistic_table], axis=1)
+         storm_object_statistic_table], axis=1)
 
 
-def compute_gridrad_stats_for_storm_objects(
-        storm_object_table, top_radar_directory_name,
+def get_storm_based_radar_stats_gridrad(
+        storm_object_table, top_radar_dir_name,
         statistic_names=DEFAULT_STATISTIC_NAMES,
         percentile_levels=DEFAULT_PERCENTILE_LEVELS,
         radar_field_names=DEFAULT_FIELDS_FOR_GRIDRAD,
         radar_heights_m_asl=DEFAULT_HEIGHTS_FOR_GRIDRAD_M_ASL):
     """Computes radar statistics for each storm object.
 
-    In this case, the source of radar data must be GridRad.
+    In this case, radar data must be from GridRad.
 
-    V = number of radar variables
+    N = number of storm objects
+    F = number of radar fields
     H = number of radar heights
-    F = number of radar fields (variable/height pairs)
-    K = number of statistics (percentile- and non-percentile-based)
+    S = number of statistics (percentile- and non-percentile-based)
 
-    :param storm_object_table: pandas DataFrame with columns listed in
-        `storm_tracking_io.write_processed_file`.
-    :param top_radar_directory_name: Name of top-level directory with GridRad
-        data.
+    :param storm_object_table: N-row pandas DataFrame with columns listed in
+        `storm_tracking_io.write_processed_file`.  Each row is one storm object.
+    :param top_radar_dir_name: [input] Name of top-level directory with radar
+        data from the given source.
     :param statistic_names: 1-D list of non-percentile-based statistics.
     :param percentile_levels: 1-D numpy array of percentile levels.
-    :param radar_field_names: length-V list of radar fields for which stats will
+    :param radar_field_names: length-F list of radar fields for which stats will
         be computed.
     :param radar_heights_m_asl: length-H numpy array of radar heights (metres
         above sea level).
-    :return: storm_radar_statistic_table: pandas DataFrame with 2 + K * F
-        columns.  The last K * F columns are one for each statistic-field pair.
-        Names of these columns are determined by
+    :return: storm_object_statistic_table: pandas DataFrame with 2 + S * F * H
+        columns.  The last S * F * H columns are one for each statistic-field-
+        height tuple.  Names of these columns are determined by
         `radar_field_and_statistic_to_column_name` and
         `radar_field_and_percentile_to_column_name`.  The first 2 columns are
         listed below.
-    storm_radar_statistic_table.storm_id: String ID for storm cell (taken from
-        input table).
-    storm_radar_statistic_table.unix_time_sec: Valid time (taken from input
+    storm_object_statistic_table.storm_id: Storm ID (string) (taken from input
+        table).
+    storm_object_statistic_table.unix_time_sec: Valid time (taken from input
         table).
     """
 
-    # Check input arguments.
+    # Error-checking.
     percentile_levels = _check_statistic_params(
         statistic_names, percentile_levels)
 
@@ -654,8 +683,7 @@ def compute_gridrad_stats_for_storm_objects(
     for i in range(num_radar_times):
         radar_file_names[i] = gridrad_io.find_file(
             unix_time_sec=radar_times_unix_sec[i],
-            top_directory_name=top_radar_directory_name,
-            raise_error_if_missing=True)
+            top_directory_name=top_radar_dir_name, raise_error_if_missing=True)
 
     # Initialize output.
     num_radar_fields = len(radar_field_names)
@@ -673,8 +701,10 @@ def compute_gridrad_stats_for_storm_objects(
          num_percentiles),
         numpy.nan)
 
-    # Compute statistics.
     for i in range(num_radar_times):
+
+        # Read metadata for [i]th valid time and find storm objects at [i]th
+        # valid time.
         this_metadata_dict = gridrad_io.read_metadata_from_full_grid_file(
             radar_file_names[i])
         these_storm_indices = numpy.where(
@@ -682,6 +712,8 @@ def compute_gridrad_stats_for_storm_objects(
             radar_times_unix_sec[i])[0]
 
         for j in range(num_radar_fields):
+
+            # Read data for [j]th field at [i]th valid time.
             print 'Reading "{0:s}" from file "{1:s}"...'.format(
                 radar_field_names[j], radar_time_strings[i])
 
@@ -702,6 +734,9 @@ def compute_gridrad_stats_for_storm_objects(
             radar_matrix_this_field[numpy.isnan(radar_matrix_this_field)] = 0.
 
             for k in range(num_radar_heights):
+
+                # Compute radar stats for [j]th field at [k]th height and [i]th
+                # valid time.
                 print (
                     'Computing stats for "{0:s}" at {1:d} metres ASL and '
                     '{2:s}...').format(
@@ -731,7 +766,8 @@ def compute_gridrad_stats_for_storm_objects(
 
             print '\n'
 
-    storm_radar_statistic_dict = {}
+    # Create pandas DataFrame.
+    storm_object_statistic_dict = {}
     for j in range(num_radar_fields):
         for k in range(num_radar_heights):
             for m in range(num_statistics):
@@ -740,7 +776,7 @@ def compute_gridrad_stats_for_storm_objects(
                     radar_height_m_asl=radar_heights_m_asl[k],
                     statistic_name=statistic_names[m])
 
-                storm_radar_statistic_dict.update(
+                storm_object_statistic_dict.update(
                     {this_column_name: statistic_matrix[:, j, k, m]})
 
             for m in range(num_percentiles):
@@ -749,32 +785,32 @@ def compute_gridrad_stats_for_storm_objects(
                     radar_height_m_asl=radar_heights_m_asl[k],
                     percentile_level=percentile_levels[m])
 
-                storm_radar_statistic_dict.update(
+                storm_object_statistic_dict.update(
                     {this_column_name: percentile_matrix[:, j, k, m]})
 
-    storm_radar_statistic_table = pandas.DataFrame.from_dict(
-        storm_radar_statistic_dict)
+    storm_object_statistic_table = pandas.DataFrame.from_dict(
+        storm_object_statistic_dict)
     return pandas.concat(
         [storm_object_table[STORM_COLUMNS_TO_KEEP],
-         storm_radar_statistic_table], axis=1)
+         storm_object_statistic_table], axis=1)
 
 
-def write_stats_for_storm_objects(storm_radar_statistic_table,
+def write_stats_for_storm_objects(storm_object_statistic_table,
                                   pickle_file_name):
     """Writes radar statistics for storm objects to a Pickle file.
 
-    :param storm_radar_statistic_table: pandas DataFrame created by
+    :param storm_object_statistic_table: pandas DataFrame created by
         get_stats_for_storm_objects.
     :param pickle_file_name: Path to output file.
     """
 
     statistic_column_names = check_statistic_table(
-        storm_radar_statistic_table, require_storm_objects=True)
+        storm_object_statistic_table, require_storm_objects=True)
     columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_radar_statistic_table[columns_to_write],
+    pickle.dump(storm_object_statistic_table[columns_to_write],
                 pickle_file_handle)
     pickle_file_handle.close()
 
@@ -783,14 +819,14 @@ def read_stats_for_storm_objects(pickle_file_name):
     """Reads radar statistics for storm objects from a Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: storm_radar_statistic_table: pandas DataFrame with columns
+    :return: storm_object_statistic_table: pandas DataFrame with columns
         documented in get_stats_for_storm_objects.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    storm_radar_statistic_table = pickle.load(pickle_file_handle)
+    storm_object_statistic_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
     check_statistic_table(
-        storm_radar_statistic_table, require_storm_objects=True)
-    return storm_radar_statistic_table
+        storm_object_statistic_table, require_storm_objects=True)
+    return storm_object_statistic_table
