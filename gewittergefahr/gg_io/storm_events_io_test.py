@@ -34,23 +34,27 @@ STRING_WITH_MANY_MONTHS_FIXED = (
 TIME_STRING = '15-SEP-17 21:58:33'
 TIME_UNIX_SEC = 1505512713
 
-# SLW = straight-line wind.
-EVENT_TYPE_STRING_SLW_NO_CAPS = 'thunderstorm wind'
-EVENT_TYPE_STRING_SLW_ALL_CAPS = 'THUNDERSTORM WIND'
-EVENT_TYPE_STRING_SLW_SOME_CAPS = 'ThUnDeRsToRm WiNd'
-EVENT_TYPE_STRING_SLW_TRAILING_WHITESPACE = '\t   thunderstorm wind \r\n'
-EVENT_TYPE_STRING_NOT_SLW = 'tornado'
+# SLTW = straight-line thunderstorm wind.
+EVENT_TYPE_STRING_SLTW_NO_CAPS = 'thunderstorm wind'
+EVENT_TYPE_STRING_SLTW_ALL_CAPS = 'THUNDERSTORM WIND'
+EVENT_TYPE_STRING_SLTW_SOME_CAPS = 'ThUnDeRsToRm WiNd'
+EVENT_TYPE_STRING_SLTW_TRAILING_WHITESPACE = '\t   thunderstorm wind \r\n'
 
 NUM_WIND_REPORTS = 11
 FAKE_STATION_IDS = [
-    '000000_storm_events', '000001_storm_events', '000002_storm_events',
-    '000003_storm_events', '000004_storm_events', '000005_storm_events',
-    '000006_storm_events', '000007_storm_events', '000008_storm_events',
-    '000009_storm_events', '000010_storm_events']
+    '000000_storm-events', '000001_storm-events', '000002_storm-events',
+    '000003_storm-events', '000004_storm-events', '000005_storm-events',
+    '000006_storm-events', '000007_storm-events', '000008_storm-events',
+    '000009_storm-events', '000010_storm-events']
+
+EVENT_TYPE_STRING_TORNADO_NO_CAPS = 'tornado'
+EVENT_TYPE_STRING_TORNADO_ALL_CAPS = 'TORNADO'
+EVENT_TYPE_STRING_TORNADO_SOME_CAPS = 'ToRnAdO'
+EVENT_TYPE_STRING_TORNADO_TRAILING_WHITESPACE = '\t\r\n      TorNaDo  \t'
 
 YEAR_FOR_RAW_FILE = 2015
-RAW_DIRECTORY_NAME = 'storm_events/raw_files'
-RAW_FILE_NAME = 'storm_events/raw_files/storm_events2015.csv'
+STORM_EVENT_DIR_NAME = 'storm_events/raw_files'
+STORM_EVENT_FILE_NAME = 'storm_events/raw_files/storm_events2015.csv'
 
 
 class StormEventsIoTests(unittest.TestCase):
@@ -192,7 +196,7 @@ class StormEventsIoTests(unittest.TestCase):
         """
 
         this_flag = storm_events_io._is_event_thunderstorm_wind(
-            EVENT_TYPE_STRING_SLW_NO_CAPS)
+            EVENT_TYPE_STRING_SLTW_NO_CAPS)
         self.assertTrue(this_flag)
 
     def test_is_event_thunderstorm_wind_all_caps(self):
@@ -202,7 +206,7 @@ class StormEventsIoTests(unittest.TestCase):
         """
 
         this_flag = storm_events_io._is_event_thunderstorm_wind(
-            EVENT_TYPE_STRING_SLW_ALL_CAPS)
+            EVENT_TYPE_STRING_SLTW_ALL_CAPS)
         self.assertTrue(this_flag)
 
     def test_is_event_thunderstorm_wind_some_caps(self):
@@ -212,7 +216,7 @@ class StormEventsIoTests(unittest.TestCase):
         """
 
         this_flag = storm_events_io._is_event_thunderstorm_wind(
-            EVENT_TYPE_STRING_SLW_SOME_CAPS)
+            EVENT_TYPE_STRING_SLTW_SOME_CAPS)
         self.assertTrue(this_flag)
 
     def test_is_event_thunderstorm_wind_trailing_whitespace(self):
@@ -222,33 +226,84 @@ class StormEventsIoTests(unittest.TestCase):
         """
 
         this_flag = storm_events_io._is_event_thunderstorm_wind(
-            EVENT_TYPE_STRING_SLW_TRAILING_WHITESPACE)
+            EVENT_TYPE_STRING_SLTW_TRAILING_WHITESPACE)
         self.assertTrue(this_flag)
 
-    def test_is_event_thunderstorm_wind_tornado(self):
+    def test_is_event_thunderstorm_wind_false(self):
         """Ensures correct output from _is_event_thunderstorm_wind.
 
-        In this case, the event type is tornado.
+        In this case, the event type is not straight-line wind.
         """
 
         this_flag = storm_events_io._is_event_thunderstorm_wind(
-            EVENT_TYPE_STRING_NOT_SLW)
+            EVENT_TYPE_STRING_TORNADO_ALL_CAPS)
         self.assertFalse(this_flag)
 
-    def test_generate_fake_station_ids(self):
-        """Ensures correct output from _generate_fake_station_ids."""
+    def test_create_fake_station_ids_for_wind(self):
+        """Ensures correct output from _create_fake_station_ids_for_wind."""
 
-        these_station_ids = storm_events_io._generate_fake_station_ids(
+        these_station_ids = storm_events_io._create_fake_station_ids_for_wind(
             NUM_WIND_REPORTS)
         self.assertTrue(these_station_ids == FAKE_STATION_IDS)
 
-    def test_find_local_raw_file(self):
-        """Ensures correct output from find_local_raw_file."""
+    def test_is_event_tornado_no_caps(self):
+        """Ensures correct output from _is_event_tornado.
 
-        this_file_name = storm_events_io.find_local_raw_file(
-            YEAR_FOR_RAW_FILE, directory_name=RAW_DIRECTORY_NAME,
+        In this case, the event-type string has no caps.
+        """
+
+        this_flag = storm_events_io._is_event_tornado(
+            EVENT_TYPE_STRING_TORNADO_NO_CAPS)
+        self.assertTrue(this_flag)
+
+    def test_is_event_tornado_all_caps(self):
+        """Ensures correct output from _is_event_tornado.
+
+        In this case, the event-type string has all caps.
+        """
+
+        this_flag = storm_events_io._is_event_tornado(
+            EVENT_TYPE_STRING_TORNADO_ALL_CAPS)
+        self.assertTrue(this_flag)
+
+    def test_is_event_tornado_some_caps(self):
+        """Ensures correct output from _is_event_tornado.
+
+        In this case, the event-type string has alternating caps and non-caps
+        (throwback to teenage MySpace profiles).
+        """
+
+        this_flag = storm_events_io._is_event_tornado(
+            EVENT_TYPE_STRING_TORNADO_SOME_CAPS)
+        self.assertTrue(this_flag)
+
+    def test_is_event_tornado_false(self):
+        """Ensures correct output from _is_event_tornado.
+
+        In this case, the event is not a tornado.
+        """
+
+        this_flag = storm_events_io._is_event_tornado(
+            EVENT_TYPE_STRING_SLTW_ALL_CAPS)
+        self.assertFalse(this_flag)
+
+    def test_is_event_tornado_trailing_whitespace(self):
+        """Ensures correct output from _is_event_tornado.
+
+        In this case, the event-type string has trailing whitespace.
+        """
+
+        this_flag = storm_events_io._is_event_tornado(
+            EVENT_TYPE_STRING_TORNADO_TRAILING_WHITESPACE)
+        self.assertTrue(this_flag)
+
+    def test_find_file(self):
+        """Ensures correct output from find_file."""
+
+        this_file_name = storm_events_io.find_file(
+            YEAR_FOR_RAW_FILE, directory_name=STORM_EVENT_DIR_NAME,
             raise_error_if_missing=False)
-        self.assertTrue(this_file_name == RAW_FILE_NAME)
+        self.assertTrue(this_file_name == STORM_EVENT_FILE_NAME)
 
 
 if __name__ == '__main__':

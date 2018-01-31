@@ -1,14 +1,9 @@
-"""IO methods for reports of damaging SLW* in the Storm Events database.
+"""IO methods for tornado and SLTW* reports from the Storm Events database.
 
-* SLW = straight-line wind
+* SLTW = straight-line thunderstorm wind
 
-Raw files are downloaded from here: ftp://ftp.ncdc.noaa.gov/pub/data/swdi/
+Raw files are downloaded from: ftp://ftp.ncdc.noaa.gov/pub/data/swdi/
 stormevents/csvfiles/StormEvents_details*.csv.gz
-
-Unfortunately there is no way to script the download, because the file names
-contain last-modified dates.  Each gzip file contains only one CSV file, so this
-code does not handle the gzip files.  This code assumes that the raw data format
-(or "native format") is CSV.
 """
 
 import os.path
@@ -20,19 +15,37 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): replace main method with named method.
 
-PATHLESS_RAW_FILE_PREFIX = 'storm_events'
-RAW_FILE_EXTENSION = '.csv'
-REQUIRED_EVENT_TYPE = 'thunderstorm wind'
+PATHLESS_FILE_PREFIX = 'storm_events'
+FILE_EXTENSION = '.csv'
 
 HOURS_TO_SECONDS = 3600
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
+FEET_TO_METRES = 1. / 3.2808
 
-TIME_COLUMN_ORIG = 'BEGIN_DATE_TIME'
+TORNADO_EVENT_TYPE = 'tornado'
+DAMAGING_WIND_EVENT_TYPE = 'thunderstorm wind'
+
+START_TIME_COLUMN_ORIG = 'BEGIN_DATE_TIME'
+END_TIME_COLUMN_ORIG = 'END_DATE_TIME'
 EVENT_TYPE_COLUMN_ORIG = 'EVENT_TYPE'
 TIME_ZONE_COLUMN_ORIG = 'CZ_TIMEZONE'
+START_LATITUDE_COLUMN_ORIG = 'BEGIN_LAT'
+START_LONGITUDE_COLUMN_ORIG = 'BEGIN_LON'
+END_LATITUDE_COLUMN_ORIG = 'END_LAT'
+END_LONGITUDE_COLUMN_ORIG = 'END_LON'
+
 WIND_SPEED_COLUMN_ORIG = 'MAGNITUDE'
-LATITUDE_COLUMN_ORIG = 'BEGIN_LAT'
-LONGITUDE_COLUMN_ORIG = 'BEGIN_LON'
+TORNADO_RATING_COLUMN_ORIG = 'TOR_F_SCALE'
+TORNADO_WIDTH_COLUMN_ORIG = 'TOR_WIDTH'
+
+TORNADO_START_TIME_COLUMN = 'start_time_unix_sec'
+TORNADO_END_TIME_COLUMN = 'end_time_unix_sec'
+TORNADO_START_LAT_COLUMN = 'start_latitude_deg'
+TORNADO_END_LAT_COLUMN = 'end_latitude_deg'
+TORNADO_START_LNG_COLUMN = 'start_longitude_deg'
+TORNADO_END_LNG_COLUMN = 'end_longitude_deg'
+TORNADO_FUJITA_RATING_COLUMN = 'f_or_ef_rating'
+TORNADO_WIDTH_COLUMN = 'width_metres'
 
 TIME_ZONE_STRINGS = ['PST', 'PST-8', 'MST', 'MST-7', 'CST', 'CST-6', 'EST',
                      'EST-5', 'AST', 'AST-4']
@@ -119,23 +132,35 @@ def _is_event_thunderstorm_wind(event_type_string):
     """Determines whether or not event type is thunderstorm wind.
 
     :param event_type_string: String description of event.  Must contain
-        "thunderstorm wind," with any combination of capital and lower-case
+        "thunderstorm wind", with any combination of capital and lower-case
         letters.
-    :return: is_thunderstorm_wind: Boolean flag, either True or False.
+    :return: is_thunderstorm_wind: Boolean flag.
     """
 
     index_of_thunderstorm_wind = event_type_string.lower().find(
-        REQUIRED_EVENT_TYPE)
+        DAMAGING_WIND_EVENT_TYPE)
     return index_of_thunderstorm_wind != -1
 
 
-def _generate_fake_station_ids(num_reports):
-    """Generates a fake station ID for each wind report.
+def _is_event_tornado(event_type_string):
+    """Determines whether or not event type is tornado.
 
-    All other wind datasets (high-frequency METARs, MADIS, and Oklahoma Mesonet)
-    have station IDs.  This makes Storm Events look like the other datasets
-    (i.e., ensures that all datasets have the same columns), which allows them
-    to be easily merged.
+    :param event_type_string: String description of event.  Must contain
+        "tornado", with any combination of capital and lower-case letters.
+    :return: is_tornado: Boolean flag.
+    """
+
+    index_of_tornado = event_type_string.lower().find(TORNADO_EVENT_TYPE)
+    return index_of_tornado != -1
+
+
+def _create_fake_station_ids_for_wind(num_reports):
+    """Creates a fake station ID for each wind report.
+
+    All other wind datasets (high-frequency METARs, MADIS, and the Oklahoma
+    Mesonet) have station IDs.  This makes Storm Events look like the other
+    datasets (i.e., ensures that all datasets have the same columns), which
+    allows them to be easily merged.
 
     N = number of wind reports
 
@@ -143,20 +168,21 @@ def _generate_fake_station_ids(num_reports):
     :return: station_ids: length-N list of string IDs.
     """
 
-    numeric_station_ids = numpy.linspace(0, num_reports - 1, num=num_reports,
-                                         dtype=int)
+    numeric_station_ids = numpy.linspace(
+        0, num_reports - 1, num=num_reports, dtype=int)
+
     return [raw_wind_io.append_source_to_station_id(
-        '{0:06d}'.format(i), primary_source=
-        raw_wind_io.STORM_EVENTS_DATA_SOURCE) for i in numeric_station_ids]
+        '{0:06d}'.format(i),
+        primary_source=raw_wind_io.STORM_EVENTS_DATA_SOURCE)
+            for i in numeric_station_ids]
 
 
-def _remove_invalid_wind_rows(wind_table):
-    """Removes any row with invalid wind data.
+def _remove_invalid_wind_reports(wind_table):
+    """Removes wind reports with invalid v-wind, latitude, longitude, or time.
 
-    :param wind_table: pandas DataFrame created by either
-        read_1minute_winds_from_text or read_5minute_winds_from_text.
-    :return: wind_table: Same as input, except that any row with invalid v-wind,
-        latitude, longitude, or time is removed.
+    :param wind_table: pandas DataFrame created by
+        `read_thunderstorm_wind_reports`.
+    :return: wind_table: Same as input, except that some rows may be gone.
     """
 
     return raw_wind_io.remove_invalid_rows(
@@ -164,37 +190,40 @@ def _remove_invalid_wind_rows(wind_table):
         check_lng_flag=True, check_time_flag=True)
 
 
-def find_local_raw_file(year, directory_name=None, raise_error_if_missing=True):
-    """Finds raw file on local machine.
+def find_file(year, directory_name, raise_error_if_missing=True):
+    """Finds Storm Events file.
 
     This file should contain all storm reports for one year.
 
-    :param year: [integer] Will look for file from this year.
+    :param year: Year (integer).
     :param directory_name: Name of directory with Storm Events files.
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.
-    :return: raw_file_name: File path.  If raise_error_if_missing = False and
-        file is missing, this will be the *expected* path.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.
+    :return: storm_event_file_name: Path to Storm Events file.  If file is
+        missing and raise_error_if_missing = False, this will be the *expected*
+        path.
+    :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
     error_checking.assert_is_integer(year)
     error_checking.assert_is_string(directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    raw_file_name = '{0:s}/{1:s}{2:s}{3:s}'.format(
-        directory_name, PATHLESS_RAW_FILE_PREFIX, _year_number_to_string(year),
-        RAW_FILE_EXTENSION)
+    storm_event_file_name = '{0:s}/{1:s}{2:s}{3:s}'.format(
+        directory_name, PATHLESS_FILE_PREFIX, _year_number_to_string(year),
+        FILE_EXTENSION)
 
-    if raise_error_if_missing and not os.path.isfile(raw_file_name):
-        raise ValueError(
-            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+    if raise_error_if_missing and not os.path.isfile(storm_event_file_name):
+        error_string = (
+            'Cannot find Storm Events file.  Expected at: {0:s}'.format(
+                storm_event_file_name))
+        raise ValueError(error_string)
 
-    return raw_file_name
+    return storm_event_file_name
 
 
-def read_wind_reports_from_raw_file(csv_file_name):
-    """Reads straight-line-wind reports from raw file.
+def read_thunderstorm_wind_reports(csv_file_name):
+    """Reads thunderstorm-wind reports from file.
 
     This file should contain all storm reports for one year.
 
@@ -202,51 +231,49 @@ def read_wind_reports_from_raw_file(csv_file_name):
     :return: wind_table: pandas DataFrame with the following columns.
     wind_table.latitude_deg: Latitude (deg N).
     wind_table.longitude_deg: Longitude (deg E).
-    wind_table.unix_time_sec: Observation time (seconds since 0000 UTC 1 Jan
-        1970).
-    wind_table.u_wind_m_s01: u-component of wind (m/s).
-    wind_table.v_wind_m_s01: v-component of wind (m/s).
+    wind_table.unix_time_sec: Valid time.
+    wind_table.u_wind_m_s01: u-component of wind (metres per second).
+    wind_table.v_wind_m_s01: v-component of wind (metres per second).
     """
 
     error_checking.assert_file_exists(csv_file_name)
-    report_table = pandas.read_csv(csv_file_name, header=0, sep=',')
+    storm_event_table = pandas.read_csv(csv_file_name, header=0, sep=',')
 
-    num_reports = len(report_table.index)
-    thunderstorm_wind_flags = numpy.full(num_reports, False, dtype=bool)
-    for i in range(num_reports):
-        thunderstorm_wind_flags[i] = _is_event_thunderstorm_wind(
-            report_table[EVENT_TYPE_COLUMN_ORIG].values[i])
+    thunderstorm_wind_flags = numpy.array(
+        [_is_event_thunderstorm_wind(s)
+         for s in storm_event_table[EVENT_TYPE_COLUMN_ORIG].values])
 
-    non_tstorm_wind_indices = (
-        numpy.where(numpy.invert(thunderstorm_wind_flags))[0])
-    report_table.drop(report_table.index[non_tstorm_wind_indices], axis=0,
-                      inplace=True)
+    bad_rows = numpy.where(numpy.invert(thunderstorm_wind_flags))[0]
+    storm_event_table.drop(
+        storm_event_table.index[bad_rows], axis=0, inplace=True)
 
-    num_reports = len(report_table.index)
+    num_reports = len(storm_event_table.index)
     unix_times_sec = numpy.full(num_reports, -1, dtype=int)
     for i in range(num_reports):
         this_utc_offset_hours = _time_zone_string_to_utc_offset(
-            report_table[TIME_ZONE_COLUMN_ORIG].values[i])
+            storm_event_table[TIME_ZONE_COLUMN_ORIG].values[i])
         if numpy.isnan(this_utc_offset_hours):
             continue
 
         unix_times_sec[i] = _local_time_string_to_unix_sec(
-            report_table[TIME_COLUMN_ORIG].values[i], this_utc_offset_hours)
+            storm_event_table[START_TIME_COLUMN_ORIG].values[i],
+            this_utc_offset_hours)
 
-    wind_speeds_m_s01 = KT_TO_METRES_PER_SECOND * report_table[
+    wind_speeds_m_s01 = KT_TO_METRES_PER_SECOND * storm_event_table[
         WIND_SPEED_COLUMN_ORIG].values
-    wind_directions_deg = numpy.full(num_reports,
-                                     raw_wind_io.WIND_DIR_DEFAULT_DEG)
-    (u_winds_m_s01, v_winds_m_s01) = raw_wind_io.speed_and_direction_to_uv(
+    wind_directions_deg = numpy.full(
+        num_reports, raw_wind_io.WIND_DIR_DEFAULT_DEG)
+    u_winds_m_s01, v_winds_m_s01 = raw_wind_io.speed_and_direction_to_uv(
         wind_speeds_m_s01, wind_directions_deg)
 
-    station_ids = _generate_fake_station_ids(num_reports)
+    station_ids = _create_fake_station_ids_for_wind(num_reports)
 
     wind_dict = {
         raw_wind_io.TIME_COLUMN: unix_times_sec,
-        raw_wind_io.LATITUDE_COLUMN: report_table[LATITUDE_COLUMN_ORIG].values,
+        raw_wind_io.LATITUDE_COLUMN:
+            storm_event_table[START_LATITUDE_COLUMN_ORIG].values,
         raw_wind_io.LONGITUDE_COLUMN:
-            report_table[LONGITUDE_COLUMN_ORIG].values,
+            storm_event_table[START_LONGITUDE_COLUMN_ORIG].values,
         raw_wind_io.STATION_ID_COLUMN: station_ids,
         raw_wind_io.STATION_NAME_COLUMN: station_ids,
         raw_wind_io.ELEVATION_COLUMN: numpy.full(num_reports, numpy.nan),
@@ -254,11 +281,78 @@ def read_wind_reports_from_raw_file(csv_file_name):
         raw_wind_io.V_WIND_COLUMN: v_winds_m_s01}
 
     wind_table = pandas.DataFrame.from_dict(wind_dict)
-    return _remove_invalid_wind_rows(wind_table)
+    return _remove_invalid_wind_reports(wind_table)
+
+
+def read_tornado_reports(csv_file_name):
+    """Reads tornado reports from file.
+
+    This file should contain all storm reports for one year.
+
+    :param csv_file_name: Path to input file.
+    :return: tornado_table: pandas DataFrame with the following columns.
+    tornado_table.start_time_unix_sec: Start time.
+    tornado_table.end_time_unix_sec: End time.
+    tornado_table.start_latitude_deg: Latitude (deg N) of start point.
+    tornado_table.start_longitude_deg: Longitude (deg E) of start point.
+    tornado_table.end_latitude_deg: Latitude (deg N) of end point.
+    tornado_table.end_longitude_deg: Longitude (deg E) of end point.
+    tornado_table.fujita_rating: F-scale or EF-scale rating (integer from
+        0...5).
+    tornado_table.width_metres: Tornado width (metres).
+    """
+
+    error_checking.assert_file_exists(csv_file_name)
+    storm_event_table = pandas.read_csv(csv_file_name, header=0, sep=',')
+
+    tornado_flags = numpy.array(
+        [_is_event_tornado(s)
+         for s in storm_event_table[EVENT_TYPE_COLUMN_ORIG].values])
+
+    bad_rows = numpy.where(numpy.invert(tornado_flags))[0]
+    storm_event_table.drop(
+        storm_event_table.index[bad_rows], axis=0, inplace=True)
+
+    num_reports = len(storm_event_table.index)
+    start_times_unix_sec = numpy.full(num_reports, -1, dtype=int)
+    end_times_unix_sec = numpy.full(num_reports, -1, dtype=int)
+
+    for i in range(num_reports):
+        this_utc_offset_hours = _time_zone_string_to_utc_offset(
+            storm_event_table[TIME_ZONE_COLUMN_ORIG].values[i])
+        if numpy.isnan(this_utc_offset_hours):
+            continue
+
+        start_times_unix_sec[i] = _local_time_string_to_unix_sec(
+            storm_event_table[START_TIME_COLUMN_ORIG].values[i],
+            this_utc_offset_hours)
+        end_times_unix_sec[i] = _local_time_string_to_unix_sec(
+            storm_event_table[END_TIME_COLUMN_ORIG].values[i],
+            this_utc_offset_hours)
+
+    tornado_dict = {
+        TORNADO_START_TIME_COLUMN: start_times_unix_sec,
+        TORNADO_END_TIME_COLUMN: end_times_unix_sec,
+        TORNADO_START_LAT_COLUMN:
+            storm_event_table[START_LATITUDE_COLUMN_ORIG].values,
+        TORNADO_START_LNG_COLUMN:
+            storm_event_table[START_LONGITUDE_COLUMN_ORIG].values,
+        TORNADO_END_LAT_COLUMN:
+            storm_event_table[END_LATITUDE_COLUMN_ORIG].values,
+        TORNADO_END_LNG_COLUMN:
+            storm_event_table[END_LONGITUDE_COLUMN_ORIG].values,
+        TORNADO_FUJITA_RATING_COLUMN:
+            storm_event_table[TORNADO_RATING_COLUMN_ORIG].values,
+        TORNADO_WIDTH_COLUMN: FEET_TO_METRES * storm_event_table[
+            TORNADO_WIDTH_COLUMN_ORIG].values
+    }
+
+    tornado_table = pandas.DataFrame.from_dict(tornado_dict)
+    return _remove_invalid_tornado_reports(tornado_table)
 
 
 if __name__ == '__main__':
-    WIND_TABLE = read_wind_reports_from_raw_file(ORIG_CSV_FILE_NAME)
+    WIND_TABLE = read_thunderstorm_wind_reports(ORIG_CSV_FILE_NAME)
     print WIND_TABLE
 
     raw_wind_io.write_processed_file(WIND_TABLE, NEW_CSV_FILE_NAME)
