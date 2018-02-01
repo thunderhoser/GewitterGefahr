@@ -9,8 +9,8 @@ from gewittergefahr.gg_utils import radar_statistics
 from gewittergefahr.gg_utils import file_system_utils
 
 # TODO(thunderhoser): All input args to
-# `radar_statistics.compute_gridrad_stats_for_storm_objects` should be input
-# args to this script.
+# `radar_statistics.get_storm_based_radar_stats_gridrad` should be input args to
+# this script.
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -89,10 +89,10 @@ def _compute_radar_stats_from_gridrad(
         tracking_file_names)
     print SEPARATOR_STRING
 
-    storm_radar_statistic_table = (
-        radar_statistics.compute_gridrad_stats_for_storm_objects(
+    storm_object_statistic_table = (
+        radar_statistics.get_storm_based_radar_stats_gridrad(
             storm_object_table=storm_object_table,
-            top_radar_directory_name=top_gridrad_dir_name))
+            top_radar_dir_name=top_gridrad_dir_name))
     print SEPARATOR_STRING
 
     output_file_name = '{0:s}/radar_stats_for_storm_objects_{1:s}.p'.format(
@@ -100,7 +100,7 @@ def _compute_radar_stats_from_gridrad(
     print 'Writing radar statistics to file: "{0:s}"...'.format(
         output_file_name)
     radar_statistics.write_stats_for_storm_objects(
-        storm_radar_statistic_table, output_file_name)
+        storm_object_statistic_table, output_file_name)
 
 
 if __name__ == '__main__':

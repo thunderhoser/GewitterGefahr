@@ -1622,12 +1622,14 @@ def evaluate_tracks(
         centroid_rmse_by_track_metres[long_track_indices])
 
     # Compute mismatch error.
-    storm_object_statistic_table = radar_stats.get_stats_for_storm_objects(
-        storm_object_table, metadata_dict_for_storm_objects,
-        percentile_levels=numpy.array([50.]),
-        radar_field_names=[radar_field_for_evaluation],
-        radar_data_source=radar_data_source,
-        top_radar_directory_name=top_radar_directory_name)
+    storm_object_statistic_table = (
+        radar_stats.get_storm_based_radar_stats_myrorss_or_mrms(
+            storm_object_table=storm_object_table,
+            top_radar_dir_name=top_radar_directory_name,
+            metadata_dict_for_storm_objects=metadata_dict_for_storm_objects,
+            statistic_names=[], percentile_levels=numpy.array([50.]),
+            radar_field_names=[radar_field_for_evaluation],
+            radar_source=radar_data_source))
 
     radar_height_m_asl = radar_utils.get_valid_heights(
         data_source=radar_data_source, field_name=radar_field_for_evaluation)[0]
