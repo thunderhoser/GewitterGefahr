@@ -15,7 +15,7 @@ from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
-IGNORABLE_RADAR_FIELD_NAMES = [
+AZIMUTHAL_RADAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
 DEFAULT_FIELDS_TO_REMOVE = [
@@ -53,12 +53,12 @@ def unzip_1day_tar_file(
     error_checking.assert_is_numpy_array(
         numpy.asarray(field_names), num_dimensions=1)
     error_checking.assert_is_string(top_target_directory_name)
-
-    # Put ignorable radar fields (ones that are allowed to be missing) at the
-    # end.  This way, if the tar command errors out due to missing data, it will
-    # do so after unzipping all the non-missing data.
+    
+    # Put azimuthal-shear fields (which are allowed to be missing) at the end.
+    # This way, if the tar command errors out due to missing data, it will do so
+    # after unzipping all the non-missing data.
     field_names_removed = []
-    for this_field_name in IGNORABLE_RADAR_FIELD_NAMES:
+    for this_field_name in AZIMUTHAL_RADAR_FIELD_NAMES:
         if this_field_name in field_names:
             field_names.remove(this_field_name)
             field_names_removed.append(this_field_name)
