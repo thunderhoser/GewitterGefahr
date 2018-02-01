@@ -9,6 +9,74 @@ from gewittergefahr.gg_utils import error_checking
 RADIANS_TO_DEGREES = 180. / numpy.pi
 DEGREES_TO_RADIANS = numpy.pi / 180
 
+MIN_LATITUDE_DEG = -90.
+MAX_LATITUDE_DEG = 90.
+MIN_LONGITUDE_NEGATIVE_IN_WEST_DEG = -180.
+MAX_LONGITUDE_NEGATIVE_IN_WEST_DEG = 180.
+MIN_LONGITUDE_POSITIVE_IN_WEST_DEG = 0.
+MAX_LONGITUDE_POSITIVE_IN_WEST_DEG = 360.
+
+POSITIVE_LONGITUDE_ARG = 'positive'
+NEGATIVE_LONGITUDE_ARG = 'negative'
+EITHER_SIGN_LONGITUDE_ARG = 'either'
+VALID_LONGITUDE_SIGN_ARGS = [
+    POSITIVE_LONGITUDE_ARG, NEGATIVE_LONGITUDE_ARG, EITHER_SIGN_LONGITUDE_ARG]
+
+
+def find_invalid_latitudes(latitudes_deg):
+    """Returns array indices of invalid latitudes.
+
+    :param latitudes_deg: 1-D numpy array of latitudes (deg N).
+    :return: invalid_indices: 1-D numpy array with array indices of invalid
+        latitudes.
+    """
+
+    error_checking.assert_is_real_numpy_array(latitudes_deg)
+    error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
+
+    valid_flags = numpy.logical_and(
+        latitudes_deg >= MIN_LATITUDE_DEG, latitudes_deg <= MAX_LATITUDE_DEG)
+    return numpy.where(numpy.invert(valid_flags))[0]
+
+
+def find_invalid_longitudes(
+        longitudes_deg, sign_in_western_hemisphere=POSITIVE_LONGITUDE_ARG):
+    """Returns array indices of invalid longitudes.
+
+    :param longitudes_deg: 1-D numpy array of longitudes (deg E).
+    :param sign_in_western_hemisphere: Required sign in western hemisphere.  May
+        be "positive", "negative", or "either".
+    :return: invalid_indices: 1-D numpy array with array indices of invalid
+        longitudes.
+    :raises: ValueError: if `sign_in_western_hemisphere` is not one of the 3
+        aforelisted options.
+    """
+
+    error_checking.assert_is_real_numpy_array(longitudes_deg)
+    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
+    error_checking.assert_is_string(sign_in_western_hemisphere)
+
+    if sign_in_western_hemisphere == POSITIVE_LONGITUDE_ARG:
+        valid_flags = numpy.logical_and(
+            longitudes_deg >= MIN_LONGITUDE_POSITIVE_IN_WEST_DEG,
+            longitudes_deg <= MAX_LONGITUDE_POSITIVE_IN_WEST_DEG)
+    elif sign_in_western_hemisphere == NEGATIVE_LONGITUDE_ARG:
+        valid_flags = numpy.logical_and(
+            longitudes_deg >= MIN_LONGITUDE_NEGATIVE_IN_WEST_DEG,
+            longitudes_deg <= MAX_LONGITUDE_NEGATIVE_IN_WEST_DEG)
+    elif sign_in_western_hemisphere == EITHER_SIGN_LONGITUDE_ARG:
+        valid_flags = numpy.logical_and(
+            longitudes_deg >= MIN_LONGITUDE_NEGATIVE_IN_WEST_DEG,
+            longitudes_deg <= MAX_LONGITUDE_POSITIVE_IN_WEST_DEG)
+    else:
+        error_string = (
+            '\n\n{0:s}Valid options for `sign_in_western_hemisphere` are listed'
+            ' above and do not include "{1:s}".').format(
+            VALID_LONGITUDE_SIGN_ARGS, sign_in_western_hemisphere)
+        raise ValueError(error_string)
+
+    return numpy.where(numpy.invert(valid_flags))[0]
+
 
 def get_latlng_centroid(latitudes_deg, longitudes_deg, allow_nan=True):
     """Finds centroid of lat-long points.

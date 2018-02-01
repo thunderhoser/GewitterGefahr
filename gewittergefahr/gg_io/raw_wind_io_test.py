@@ -31,18 +31,6 @@ ELEVATIONS_M_ASL = numpy.array(
     [-1000., 0., 1000., 5000., 10000., numpy.nan, None], dtype=numpy.float64)
 ELEV_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
 
-# The following constants are used to test _check_latitudes.
-LATITUDES_DEG = numpy.array(
-    [-100., -90., 0., 90., 1000., numpy.nan, None], dtype=numpy.float64)
-LAT_INVALID_INDICES = numpy.array([0, 4, 5, 6], dtype=int)
-
-# The following constants are used to test _check_longitudes*.
-LONGITUDES_DEG = numpy.array(
-    [-200., -180., 0., 180., 360., 500., numpy.nan, None], dtype=numpy.float64)
-LNG_INVALID_INDICES = numpy.array([0, 5, 6, 7], dtype=int)
-LNG_INVALID_INDICES_NEGATIVE_IN_WEST = numpy.array([0, 4, 5, 6, 7], dtype=int)
-LNG_INVALID_INDICES_POSITIVE_IN_WEST = numpy.array([0, 1, 5, 6, 7], dtype=int)
-
 # The following constants are used to test check_wind_speeds.
 SIGNED_WIND_SPEEDS_M_S01 = numpy.array(
     [-100., -50., -10., 0., 10., 50., 100., numpy.nan, None],
@@ -227,36 +215,6 @@ class RawWindIoTests(unittest.TestCase):
         these_invalid_indices = raw_wind_io._check_elevations(ELEVATIONS_M_ASL)
         self.assertTrue(numpy.array_equal(these_invalid_indices,
                                           ELEV_INVALID_INDICES))
-
-    def test_check_latitudes(self):
-        """Ensures correct output from _check_latitudes."""
-
-        these_invalid_indices = raw_wind_io._check_latitudes(LATITUDES_DEG)
-        self.assertTrue(numpy.array_equal(these_invalid_indices,
-                                          LAT_INVALID_INDICES))
-
-    def test_check_longitudes(self):
-        """Ensures correct output from _check_longitudes."""
-
-        these_invalid_indices = raw_wind_io._check_longitudes(LONGITUDES_DEG)
-        self.assertTrue(numpy.array_equal(these_invalid_indices,
-                                          LNG_INVALID_INDICES))
-
-    def test_check_longitudes_negative_in_west(self):
-        """Ensures correct output from _check_longitudes_negative_in_west."""
-
-        these_invalid_indices = raw_wind_io._check_longitudes_negative_in_west(
-            LONGITUDES_DEG)
-        self.assertTrue(numpy.array_equal(these_invalid_indices,
-                                          LNG_INVALID_INDICES_NEGATIVE_IN_WEST))
-
-    def test_check_longitudes_positive_in_west(self):
-        """Ensures correct output from _check_longitudes_positive_in_west."""
-
-        these_invalid_indices = raw_wind_io._check_longitudes_positive_in_west(
-            LONGITUDES_DEG)
-        self.assertTrue(numpy.array_equal(these_invalid_indices,
-                                          LNG_INVALID_INDICES_POSITIVE_IN_WEST))
 
     def test_check_wind_speeds_signed(self):
         """Ensures correct output from check_wind_speeds.

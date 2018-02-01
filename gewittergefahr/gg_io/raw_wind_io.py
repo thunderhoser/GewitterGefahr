@@ -12,6 +12,7 @@ import numpy
 import pandas
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import file_system_utils
@@ -158,81 +159,6 @@ def _check_elevations(elevations_m_asl):
 
     valid_flags = numpy.logical_and(elevations_m_asl >= MIN_ELEVATION_M_ASL,
                                     elevations_m_asl <= MAX_ELEVATION_M_ASL)
-    return numpy.where(numpy.invert(valid_flags))[0]
-
-
-def _check_latitudes(latitudes_deg):
-    """Finds invalid latitudes.
-
-    N = number of latitudes.
-
-    :param latitudes_deg: length-N numpy array of latitudes (deg N).
-    :return: invalid_indices: 1-D numpy array with indices of invalid latitudes.
-    """
-
-    error_checking.assert_is_real_numpy_array(latitudes_deg)
-    error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
-
-    valid_flags = numpy.logical_and(latitudes_deg >= MIN_LATITUDE_DEG,
-                                    latitudes_deg <= MAX_LATITUDE_DEG)
-    return numpy.where(numpy.invert(valid_flags))[0]
-
-
-def _check_longitudes(longitudes_deg):
-    """Finds invalid longitudes.
-
-    N = number of longitudes.
-
-    :param longitudes_deg: length-N numpy array of longitudes (deg E).
-    :return: invalid_indices: 1-D numpy array with indices of invalid
-        longitudes.
-    """
-
-    error_checking.assert_is_real_numpy_array(longitudes_deg)
-    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
-
-    valid_flags = numpy.logical_and(longitudes_deg >= MIN_LONGITUDE_DEG,
-                                    longitudes_deg <= MAX_LONGITUDE_DEG)
-    return numpy.where(numpy.invert(valid_flags))[0]
-
-
-def _check_longitudes_negative_in_west(longitudes_deg):
-    """Finds invalid longitudes.
-
-    N = number of longitudes.
-
-    :param longitudes_deg: length-N numpy array of longitudes (deg E), where
-        values in western hemisphere are negative.
-    :return: invalid_indices: 1-D numpy array with indices of invalid
-        longitudes.
-    """
-
-    error_checking.assert_is_real_numpy_array(longitudes_deg)
-    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
-
-    valid_flags = numpy.logical_and(
-        longitudes_deg >= MIN_LNG_NEGATIVE_IN_WEST_DEG,
-        longitudes_deg <= MAX_LNG_NEGATIVE_IN_WEST_DEG)
-    return numpy.where(numpy.invert(valid_flags))[0]
-
-
-def _check_longitudes_positive_in_west(longitudes_deg):
-    """Finds invalid longitudes.
-
-    N = number of longitudes.
-
-    :param longitudes_deg: length-N numpy array of longitudes (deg E), where
-        values in western hemisphere are positive.
-    :return: invalid_indices: 1-D numpy array with indices of invalid
-        longitudes.
-    """
-
-    error_checking.assert_is_real_numpy_array(longitudes_deg)
-    error_checking.assert_is_numpy_array(longitudes_deg, num_dimensions=1)
-
-    valid_flags = numpy.logical_and(
-        longitudes_deg >= MIN_LNG_POSITIVE_IN_WEST_DEG,
-        longitudes_deg <= MAX_LNG_POSITIVE_IN_WEST_DEG)
     return numpy.where(numpy.invert(valid_flags))[0]
 
 
@@ -462,15 +388,17 @@ def remove_invalid_rows(input_table, check_speed_flag=False,
                          inplace=True)
 
     if check_lat_flag:
-        invalid_indices = _check_latitudes(input_table[LATITUDE_COLUMN].values)
-        input_table.drop(input_table.index[invalid_indices], axis=0,
-                         inplace=True)
+        invalid_indices = geodetic_utils.find_invalid_latitudes(
+            input_table[LATITUDE_COLUMN].values)
+        input_table.drop(
+            input_table.index[invalid_indices], axis=0, inplace=True)
 
     if check_lng_flag:
-        invalid_indices = _check_longitudes(
-            input_table[LONGITUDE_COLUMN].values)
-        input_table.drop(input_table.index[invalid_indices], axis=0,
-                         inplace=True)
+        invalid_indices = geodetic_utils.find_invalid_longitudes(
+            input_table[LONGITUDE_COLUMN].values,
+            sign_in_western_hemisphere=geodetic_utils.EITHER_SIGN_LONGITUDE_ARG)
+        input_table.drop(
+            input_table.index[invalid_indices], axis=0, inplace=True)
 
         input_table[LONGITUDE_COLUMN] = (
             lng_conversion.convert_lng_positive_in_west(

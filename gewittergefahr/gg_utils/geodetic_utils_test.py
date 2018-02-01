@@ -7,6 +7,22 @@ from gewittergefahr.gg_utils import geodetic_utils
 DEFAULT_TOLERANCE = 1e-6
 TOLERANCE_DEG = 1e-2
 
+# The following constants are used to test find_invalid_latitudes.
+LATITUDES_SOME_INVALID_DEG = numpy.array(
+    [numpy.nan, -numpy.inf, -180., -100., -90., -30., 0., 45., 60., 90., 100.,
+     1000., numpy.inf])
+INVALID_LAT_INDICES = numpy.array([0, 1, 2, 3, 10, 11, 12], dtype=int)
+
+# The following constants are used to test find_invalid_longitudes.
+LONGITUDES_SOME_INVALID_DEG = numpy.array(
+    [numpy.nan, -numpy.inf, -500., -180., -135., -90., 0., 45., 135., 180.,
+     270., 360., 666., numpy.inf])
+INVALID_LNG_INDICES_EITHER_SIGN = numpy.array([0, 1, 2, 12, 13], dtype=int)
+INVALID_LNG_INDICES_POSITIVE_IN_WEST = numpy.array(
+    [0, 1, 2, 3, 4, 5, 12, 13], dtype=int)
+INVALID_LNG_INDICES_NEGATIVE_IN_WEST = numpy.array(
+    [0, 1, 2, 10, 11, 12, 13], dtype=int)
+
 # The following constants are used to test get_latlng_centroid.
 POINT_LATITUDES_DEG = numpy.array(
     [20., 25., 30., numpy.nan, numpy.nan, 40., numpy.nan, 55.])
@@ -40,6 +56,51 @@ Y_DISPLACEMENTS_METRES = numpy.array(
 
 class GeodeticUtilsTests(unittest.TestCase):
     """Each method is a unit test for geodetic_utils.py."""
+
+    def test_find_invalid_latitudes(self):
+        """Ensures correct output from find_invalid_latitudes."""
+
+        these_invalid_indices = geodetic_utils.find_invalid_latitudes(
+            LATITUDES_SOME_INVALID_DEG)
+        self.assertTrue(numpy.array_equal(
+            these_invalid_indices, INVALID_LAT_INDICES))
+
+    def test_find_invalid_longitudes_either_sign(self):
+        """Ensures correct output from find_invalid_longitudes.
+
+        In this case, western-hemisphere longitudes can be either positive or
+        negative.
+        """
+
+        these_invalid_indices = geodetic_utils.find_invalid_longitudes(
+            LONGITUDES_SOME_INVALID_DEG,
+            sign_in_western_hemisphere=geodetic_utils.EITHER_SIGN_LONGITUDE_ARG)
+        self.assertTrue(numpy.array_equal(
+            these_invalid_indices, INVALID_LNG_INDICES_EITHER_SIGN))
+
+    def test_find_invalid_longitudes_positive_in_west(self):
+        """Ensures correct output from find_invalid_longitudes.
+
+        In this case, western-hemisphere longitudes must be positive.
+        """
+
+        these_invalid_indices = geodetic_utils.find_invalid_longitudes(
+            LONGITUDES_SOME_INVALID_DEG,
+            sign_in_western_hemisphere=geodetic_utils.POSITIVE_LONGITUDE_ARG)
+        self.assertTrue(numpy.array_equal(
+            these_invalid_indices, INVALID_LNG_INDICES_POSITIVE_IN_WEST))
+
+    def test_find_invalid_longitudes_negative_in_west(self):
+        """Ensures correct output from find_invalid_longitudes.
+
+        In this case, western-hemisphere longitudes must be negative.
+        """
+
+        these_invalid_indices = geodetic_utils.find_invalid_longitudes(
+            LONGITUDES_SOME_INVALID_DEG,
+            sign_in_western_hemisphere=geodetic_utils.NEGATIVE_LONGITUDE_ARG)
+        self.assertTrue(numpy.array_equal(
+            these_invalid_indices, INVALID_LNG_INDICES_NEGATIVE_IN_WEST))
 
     def test_get_latlng_centroid(self):
         """Ensures correct output from get_latlng_centroid."""
