@@ -53,6 +53,11 @@ TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.END_LNG_COLUMN] = (
     lng_conversion.convert_lng_positive_in_west(
         TORNADO_TABLE_NO_INVALID_ROWS[tornado_io.END_LNG_COLUMN].values))
 
+# The following constants are used to test find_processed_file.
+TORNADO_DIRECTORY_NAME = 'tornado_reports'
+YEAR = 4055
+TORNADO_FILE_NAME = 'tornado_reports/tornado_reports_4055.csv'
+
 
 class TornadoIoTests(unittest.TestCase):
     """Each method is a unit test for tornado_io.py."""
@@ -180,6 +185,14 @@ class TornadoIoTests(unittest.TestCase):
         this_orig_table = copy.deepcopy(TORNADO_TABLE_WITH_INVALID_ROWS)
         this_new_table = tornado_io.remove_invalid_reports(this_orig_table)
         self.assertTrue(this_new_table.equals(TORNADO_TABLE_NO_INVALID_ROWS))
+
+    def test_find_processed_file(self):
+        """Ensures correct output from find_processed_file."""
+
+        this_file_name = tornado_io.find_processed_file(
+            directory_name=TORNADO_DIRECTORY_NAME, year=YEAR,
+            raise_error_if_missing=False)
+        self.assertTrue(this_file_name == TORNADO_FILE_NAME)
 
 
 if __name__ == '__main__':

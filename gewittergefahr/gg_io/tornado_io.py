@@ -1,6 +1,7 @@
 """IO methods for tornado reports."""
 
 import re
+import os.path
 import numpy
 import pandas
 from gewittergefahr.gg_utils import geodetic_utils
@@ -133,6 +134,36 @@ def remove_invalid_reports(
     return tornado_table
 
 
+def find_processed_file(directory_name, year, raise_error_if_missing=True):
+    """Finds processed file with tornado reports.
+
+    See `write_processed_file` for the definition of a "processed file".
+
+    :param directory_name: Name of directory.
+    :param year: Year (integer).
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.
+    :return: processed_file_name: Path to file.  If file is missing and
+        raise_error_if_missing = True, this will be the *expected* path.
+    :raises: ValueError: if file is missing and raise_error_if_missing = True.
+    """
+
+    error_checking.assert_is_string(directory_name)
+    error_checking.assert_is_integer(year)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    processed_file_name = '{0:s}/tornado_reports_{1:04d}.csv'.format(
+        directory_name, year)
+
+    if raise_error_if_missing and not os.path.isfile(processed_file_name):
+        error_string = (
+            'Cannot find processed file with tornado reports.  Expected at: '
+            '{0:s}').format(processed_file_name)
+        raise ValueError(error_string)
+
+    return processed_file_name
+
+
 def write_processed_file(tornado_table, csv_file_name):
     """Writes tornado reports to CSV file.
 
@@ -164,9 +195,7 @@ def write_processed_file(tornado_table, csv_file_name):
 def read_processed_file(csv_file_name):
     """Reads tornado reports from CSV file.
 
-    This is considered a "processed file," as opposed to a "raw file" (one taken
-    directly from the Storm Events database).  Raw files with tornado reports
-    are handled by storm_events_io.py.
+    See `write_processed_file` for the definition of a "processed file".
 
     :param csv_file_name: Path to input file.
     :return: tornado_table: See documentation for `write_processed_file`.
