@@ -12,7 +12,7 @@ import numpy
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import classification_utils as classifn_utils
-from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
+from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -419,10 +419,10 @@ def label_wind_for_regression(
     occurring at times (t + min_lead_time_sec)...(t + max_lead_time_sec) and
     distances of min_distance_metres...max_distance_metres from the boundary of
     the storm object.  Linkages (association of storm objects with wind
-    observations) are created by link_storms_to_winds.py.
+    observations) are created by link_events_to_storms.py.
 
     :param storm_to_winds_table: pandas DataFrame with columns documented in
-        `link_storms_to_winds.write_storm_to_winds_table`.
+        `link_events_to_storms.write_storm_to_winds_table`.
     :param min_lead_time_sec: Minimum lead time (wind time minus storm-object
         time).  Wind observations occurring before t + min_lead_time_sec are
         ignored.
@@ -471,9 +471,9 @@ def label_wind_for_regression(
 
     for i in range(num_storm_objects):
         these_relative_wind_times_sec = storm_to_winds_table[
-            storms_to_winds.RELATIVE_TIMES_COLUMN].values[i]
+            events2storms.RELATIVE_EVENT_TIMES_COLUMN].values[i]
         these_distances_metres = storm_to_winds_table[
-            storms_to_winds.LINKAGE_DISTANCES_COLUMN].values[i]
+            events2storms.LINKAGE_DISTANCES_COLUMN].values[i]
 
         these_valid_time_flags = numpy.logical_and(
             these_relative_wind_times_sec >= min_lead_time_sec,
@@ -489,9 +489,9 @@ def label_wind_for_regression(
 
         these_valid_wind_indices = numpy.where(these_valid_wind_flags)[0]
         these_u_winds_m_s01 = storm_to_winds_table[
-            storms_to_winds.U_WINDS_COLUMN].values[i][these_valid_wind_indices]
+            events2storms.U_WINDS_COLUMN].values[i][these_valid_wind_indices]
         these_v_winds_m_s01 = storm_to_winds_table[
-            storms_to_winds.V_WINDS_COLUMN].values[i][these_valid_wind_indices]
+            events2storms.V_WINDS_COLUMN].values[i][these_valid_wind_indices]
 
         these_wind_speeds_m_s01 = numpy.sqrt(
             these_u_winds_m_s01 ** 2 + these_v_winds_m_s01 ** 2)
@@ -592,9 +592,8 @@ def write_labels(storm_to_winds_table, pickle_file_name):
 
     label_column_names = check_label_table(
         storm_to_winds_table, require_storm_objects=True)
-    columns_to_write = (
-        label_column_names +
-        storms_to_winds.get_columns_to_write(storm_to_winds_table))
+    columns_to_write = label_column_names + events2storms.get_columns_to_write(
+        storm_to_winds_table=storm_to_winds_table)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')

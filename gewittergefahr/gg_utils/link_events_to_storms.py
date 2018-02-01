@@ -1062,7 +1062,7 @@ def _read_tornado_reports(
     return tornado_table
 
 
-def _get_columns_to_write(
+def get_columns_to_write(
         storm_to_winds_table=None, storm_to_tornadoes_table=None):
     """Returns list of columns to write.
 
@@ -1292,7 +1292,7 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
     num_files = len(pickle_file_names)
     error_checking.assert_is_greater(num_files, max_file_index)
 
-    columns_to_write = _get_columns_to_write(
+    columns_to_write = get_columns_to_write(
         storm_to_winds_table=storm_to_winds_table)
 
     for i in range(num_files):

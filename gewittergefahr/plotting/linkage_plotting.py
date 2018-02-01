@@ -2,17 +2,16 @@
 
 --- DEFINITIONS ---
 
-Linkage = association of a storm cell with other phenomena (e.g., wind
-observations).  See link_storms_to_winds.py.
+Linkage = association of a storm cell with other phenomena (e.g., damaging
+straight-line wind, tornado).  See link_events_to_storms.py.
 """
 
 import numpy
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import storm_plotting
 from gewittergefahr.plotting import wind_plotting
-from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
+from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 
 
 def plot_one_storm_cell_to_winds(
@@ -28,7 +27,7 @@ def plot_one_storm_cell_to_winds(
     """Plots wind observations linked to one storm cell.
 
     :param storm_to_winds_table: pandas DataFrame with columns documented in
-        `link_storms_to_winds.write_storm_to_winds_table`.
+        `link_events_to_storms.write_storm_to_winds_table`.
     :param storm_id: String ID for storm cell.  Only this storm cell and wind
         observations linked thereto will be plotted.
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -74,30 +73,18 @@ def plot_one_storm_cell_to_winds(
     first_storm_object_row = storm_cell_rows[numpy.argmin(storm_times_unix_sec)]
     last_storm_object_row = storm_cell_rows[numpy.argmax(storm_times_unix_sec)]
 
-    first_vertex_dict = polygons.polygon_object_to_vertex_arrays(
-        storm_to_winds_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
-                first_storm_object_row])
-    first_vertex_latitudes_deg = first_vertex_dict[polygons.EXTERIOR_Y_COLUMN]
-    first_vertex_longitudes_deg = first_vertex_dict[polygons.EXTERIOR_X_COLUMN]
-
     storm_plotting.plot_unfilled_polygon(
         basemap_object=basemap_object, axes_object=axes_object,
-        vertex_latitudes_deg=first_vertex_latitudes_deg,
-        vertex_longitudes_deg=first_vertex_longitudes_deg,
+        polygon_object_latlng=storm_to_winds_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
+            first_storm_object_row],
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
-    last_vertex_dict = polygons.polygon_object_to_vertex_arrays(
-        storm_to_winds_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
-                last_storm_object_row])
-    last_vertex_latitudes_deg = last_vertex_dict[polygons.EXTERIOR_Y_COLUMN]
-    last_vertex_longitudes_deg = last_vertex_dict[polygons.EXTERIOR_X_COLUMN]
-
     storm_plotting.plot_unfilled_polygon(
         basemap_object=basemap_object, axes_object=axes_object,
-        vertex_latitudes_deg=last_vertex_latitudes_deg,
-        vertex_longitudes_deg=last_vertex_longitudes_deg,
+        polygon_object_latlng=storm_to_winds_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
+            last_storm_object_row],
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
     wind_latitudes_deg = numpy.array([])
@@ -108,16 +95,16 @@ def plot_one_storm_cell_to_winds(
     for this_row in storm_cell_rows:
         wind_latitudes_deg = numpy.concatenate((
             wind_latitudes_deg, storm_to_winds_table[
-                storms_to_winds.WIND_LATITUDES_COLUMN].values[this_row]))
+                events2storms.EVENT_LATITUDES_COLUMN].values[this_row]))
         wind_longitudes_deg = numpy.concatenate((
             wind_longitudes_deg, storm_to_winds_table[
-                storms_to_winds.WIND_LONGITUDES_COLUMN].values[this_row]))
+                events2storms.EVENT_LONGITUDES_COLUMN].values[this_row]))
         u_winds_m_s01 = numpy.concatenate((
             u_winds_m_s01, storm_to_winds_table[
-                storms_to_winds.U_WINDS_COLUMN].values[this_row]))
+                events2storms.U_WINDS_COLUMN].values[this_row]))
         v_winds_m_s01 = numpy.concatenate((
             v_winds_m_s01, storm_to_winds_table[
-                storms_to_winds.V_WINDS_COLUMN].values[this_row]))
+                events2storms.V_WINDS_COLUMN].values[this_row]))
 
     wind_plotting.plot_wind_barbs(
         basemap_object=basemap_object, axes_object=axes_object,

@@ -11,7 +11,7 @@ from gewittergefahr.gg_utils import shape_statistics as shape_stats
 from gewittergefahr.gg_utils import feature_vectors
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import polygons
-from gewittergefahr.gg_utils import link_storms_to_winds as storms_to_winds
+from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 
 TOLERANCE = 1e-6
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
@@ -104,7 +104,7 @@ CLASSIFICATION_LABELS[-2:] = 1
 STORM_TO_WINDS_DICT = {
     tracking_utils.STORM_ID_COLUMN: STORM_IDS,
     tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
-    storms_to_winds.END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
+    events2storms.STORM_END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN: NUM_OBSERVATIONS_BY_STORM_OBJECT,
     REGRESSION_LABEL_COLUMN_NAME: REGRESSION_LABELS_M_S01,
     CLASSIFICATION_LABEL_COLUMN_NAME: CLASSIFICATION_LABELS
@@ -202,7 +202,7 @@ FEATURE_COLUMN_NAMES = [
 FEATURE_DICT = {
     tracking_utils.STORM_ID_COLUMN: STORM_IDS,
     tracking_utils.TIME_COLUMN: STORM_OBJECT_TIMES_UNIX_SEC,
-    storms_to_winds.END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
+    events2storms.STORM_END_TIME_COLUMN: STORM_END_TIMES_UNIX_SEC,
     labels.NUM_OBSERVATIONS_FOR_LABEL_COLUMN: NUM_OBSERVATIONS_BY_STORM_OBJECT,
     tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN: POLYGON_OBJECT_ARRAY_LATLNG,
     BUFFER_COLUMN_NAME: BUFFERED_POLYGON_OBJECT_ARRAY_LATLNG,
@@ -215,7 +215,7 @@ FEATURE_DICT = {
 
 FEATURE_TABLE = pandas.DataFrame.from_dict(FEATURE_DICT)
 INTEGER_AND_STRING_COLUMNS = [
-    storms_to_winds.END_TIME_COLUMN, tracking_utils.STORM_ID_COLUMN,
+    events2storms.STORM_END_TIME_COLUMN, tracking_utils.STORM_ID_COLUMN,
     tracking_utils.TIME_COLUMN, CLASSIFICATION_LABEL_COLUMN_NAME]
 POLYGON_COLUMNS = [
     tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN, BUFFER_COLUMN_NAME]
