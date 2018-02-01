@@ -1087,6 +1087,95 @@ def _find_input_and_output_tracking_files(
     return tracking_file_dict
 
 
+def _join_tracks_between_periods(
+        early_storm_object_table, late_storm_object_table, projection_object,
+        max_link_time_seconds, max_link_distance_m_s01):
+    """Joins storm tracks between two time periods.
+
+    :param early_storm_object_table: pandas DataFrame for early period.  Each
+        row is one storm object.  Must contain the following columns.
+    early_storm_object_table.storm_id: String ID for storm.
+    early_storm_object_table.unix_time_sec: Valid time.
+    early_storm_object_table.centroid_lat_deg: Latitude (deg N) of storm
+        centroid.
+    early_storm_object_table.centroid_lng_deg: Longitude (deg E) of storm
+        centroid.
+
+    :param late_storm_object_table: Same as above, but for late period.
+    :param projection_object: Instance of `pyproj.Proj` (will be used to convert
+        lat-long coordinates to x-y).
+    :param max_link_time_seconds: See documentation for
+        `_link_local_maxima_in_time`.
+    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
+    :return: late_storm_object_table: Same as input, except that some storm IDs
+        may be changed.
+    """
+
+    last_early_time_unix_sec = numpy.max(
+        early_storm_object_table[tracking_utils.TIME_COLUMN].values)
+    previous_indices = numpy.where(
+        early_storm_object_table[tracking_utils.TIME_COLUMN] ==
+        last_early_time_unix_sec)[0]
+    previous_latitudes_deg = early_storm_object_table[
+        tracking_utils.CENTROID_LAT_COLUMN].values[previous_indices]
+    previous_longitudes_deg = early_storm_object_table[
+        tracking_utils.CENTROID_LNG_COLUMN].values[previous_indices]
+    previous_x_coords_metres, previous_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            previous_latitudes_deg, previous_longitudes_deg,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    previous_local_max_dict = {
+        X_COORDS_KEY: previous_x_coords_metres,
+        Y_COORDS_KEY: previous_y_coords_metres,
+        VALID_TIME_KEY: last_early_time_unix_sec}
+
+    first_late_time_unix_sec = numpy.min(
+        late_storm_object_table[tracking_utils.TIME_COLUMN].values)
+    current_indices = numpy.where(
+        late_storm_object_table[tracking_utils.TIME_COLUMN] ==
+        first_late_time_unix_sec)[0]
+    current_latitudes_deg = late_storm_object_table[
+        tracking_utils.CENTROID_LAT_COLUMN].values[current_indices]
+    current_longitudes_deg = late_storm_object_table[
+        tracking_utils.CENTROID_LNG_COLUMN].values[current_indices]
+    current_x_coords_metres, current_y_coords_metres = (
+        projections.project_latlng_to_xy(
+            current_latitudes_deg, current_longitudes_deg,
+            projection_object=projection_object, false_easting_metres=0.,
+            false_northing_metres=0.))
+
+    current_local_max_dict = {
+        X_COORDS_KEY: current_x_coords_metres,
+        Y_COORDS_KEY: current_y_coords_metres,
+        VALID_TIME_KEY: first_late_time_unix_sec}
+
+    current_to_previous_indices = _link_local_maxima_in_time(
+        current_local_max_dict=current_local_max_dict,
+        previous_local_max_dict=previous_local_max_dict,
+        max_link_time_seconds=max_link_time_seconds,
+        max_link_distance_m_s01=max_link_distance_m_s01)
+
+    previous_storm_ids = early_storm_object_table[
+        tracking_utils.STORM_ID_COLUMN].values[previous_indices]
+    orig_current_storm_ids = late_storm_object_table[
+        tracking_utils.STORM_ID_COLUMN].values[current_indices]
+    num_current_storms = len(orig_current_storm_ids)
+
+    for i in range(num_current_storms):
+        if current_to_previous_indices[i] == -1:
+            continue
+
+        this_new_current_storm_id = previous_storm_ids[
+            current_to_previous_indices[i]]
+        late_storm_object_table.replace(
+            to_replace=orig_current_storm_ids[i],
+            value=this_new_current_storm_id, inplace=True)
+
+    return late_storm_object_table
+
+
 def run_tracking(
         top_radar_dir_name, top_tracking_dir_name, start_spc_date_string,
         end_spc_date_string,
@@ -1255,95 +1344,6 @@ def run_tracking(
     return storm_object_table, file_dictionary
 
 
-def _join_tracks_between_periods(
-        early_storm_object_table, late_storm_object_table, projection_object,
-        max_link_time_seconds, max_link_distance_m_s01):
-    """Joins storm tracks between two time periods.
-
-    :param early_storm_object_table: pandas DataFrame for early period.  Each
-        row is one storm object.  Must contain the following columns.
-    early_storm_object_table.storm_id: String ID for storm.
-    early_storm_object_table.unix_time_sec: Valid time.
-    early_storm_object_table.centroid_lat_deg: Latitude (deg N) of storm
-        centroid.
-    early_storm_object_table.centroid_lng_deg: Longitude (deg E) of storm
-        centroid.
-
-    :param late_storm_object_table: Same as above, but for late period.
-    :param projection_object: Instance of `pyproj.Proj` (will be used to convert
-        lat-long coordinates to x-y).
-    :param max_link_time_seconds: See documentation for
-        `_link_local_maxima_in_time`.
-    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
-    :return: late_storm_object_table: Same as input, except that some storm IDs
-        may be changed.
-    """
-
-    last_early_time_unix_sec = numpy.max(
-        early_storm_object_table[tracking_utils.TIME_COLUMN].values)
-    previous_indices = numpy.where(
-        early_storm_object_table[tracking_utils.TIME_COLUMN] ==
-        last_early_time_unix_sec)[0]
-    previous_latitudes_deg = early_storm_object_table[
-        tracking_utils.CENTROID_LAT_COLUMN].values[previous_indices]
-    previous_longitudes_deg = early_storm_object_table[
-        tracking_utils.CENTROID_LNG_COLUMN].values[previous_indices]
-    previous_x_coords_metres, previous_y_coords_metres = (
-        projections.project_latlng_to_xy(
-            previous_latitudes_deg, previous_longitudes_deg,
-            projection_object=projection_object, false_easting_metres=0.,
-            false_northing_metres=0.))
-
-    previous_local_max_dict = {
-        X_COORDS_KEY: previous_x_coords_metres,
-        Y_COORDS_KEY: previous_y_coords_metres,
-        VALID_TIME_KEY: last_early_time_unix_sec}
-
-    first_late_time_unix_sec = numpy.min(
-        late_storm_object_table[tracking_utils.TIME_COLUMN].values)
-    current_indices = numpy.where(
-        late_storm_object_table[tracking_utils.TIME_COLUMN] ==
-        first_late_time_unix_sec)[0]
-    current_latitudes_deg = late_storm_object_table[
-        tracking_utils.CENTROID_LAT_COLUMN].values[current_indices]
-    current_longitudes_deg = late_storm_object_table[
-        tracking_utils.CENTROID_LNG_COLUMN].values[current_indices]
-    current_x_coords_metres, current_y_coords_metres = (
-        projections.project_latlng_to_xy(
-            current_latitudes_deg, current_longitudes_deg,
-            projection_object=projection_object, false_easting_metres=0.,
-            false_northing_metres=0.))
-
-    current_local_max_dict = {
-        X_COORDS_KEY: current_x_coords_metres,
-        Y_COORDS_KEY: current_y_coords_metres,
-        VALID_TIME_KEY: first_late_time_unix_sec}
-
-    current_to_previous_indices = _link_local_maxima_in_time(
-        current_local_max_dict=current_local_max_dict,
-        previous_local_max_dict=previous_local_max_dict,
-        max_link_time_seconds=max_link_time_seconds,
-        max_link_distance_m_s01=max_link_distance_m_s01)
-
-    previous_storm_ids = early_storm_object_table[
-        tracking_utils.STORM_ID_COLUMN].values[previous_indices]
-    orig_current_storm_ids = late_storm_object_table[
-        tracking_utils.STORM_ID_COLUMN].values[current_indices]
-    num_current_storms = len(orig_current_storm_ids)
-
-    for i in range(num_current_storms):
-        if current_to_previous_indices[i] == -1:
-            continue
-
-        this_new_current_storm_id = previous_storm_ids[
-            current_to_previous_indices[i]]
-        late_storm_object_table.replace(
-            to_replace=orig_current_storm_ids[i],
-            value=this_new_current_storm_id, inplace=True)
-
-    return late_storm_object_table
-
-
 def join_tracks_across_spc_dates(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
         tracking_scale_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
@@ -1386,6 +1386,7 @@ def join_tracks_across_spc_dates(
         any SPC dates other than "yyyymmdd".
     """
 
+    # Find input files, paths for output files.
     if top_output_dir_name is None:
         top_output_dir_name = copy.deepcopy(top_input_dir_name)
 
@@ -1395,7 +1396,6 @@ def join_tracks_across_spc_dates(
         top_input_dir_name=top_input_dir_name,
         tracking_scale_metres2=tracking_scale_metres2,
         top_output_dir_name=top_output_dir_name)
-
     spc_date_strings = tracking_file_dict[SPC_DATE_STRINGS_KEY]
     num_spc_dates = len(spc_date_strings)
     if num_spc_dates == 1:
@@ -1411,6 +1411,7 @@ def join_tracks_across_spc_dates(
         [time_conversion.spc_date_string_to_unix_sec(s)
          for s in spc_date_strings])
 
+    # Find start/end times of tracking period.
     first_storm_object_table = tracking_io.read_processed_file(
         input_file_names_by_spc_date[0][0])
     tracking_start_time_unix_sec = first_storm_object_table[
@@ -1421,16 +1422,18 @@ def join_tracks_across_spc_dates(
     tracking_end_time_unix_sec = last_storm_object_table[
         tracking_utils.TRACKING_END_TIME_COLUMN].values[0]
 
+    # Initialize equidistant projection.
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
+    # Main loop.
     storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
 
     for i in range(num_spc_dates + 1):
         if i == num_spc_dates:
 
-            # Write new data for the last two SPC dates.
+            # Write new tracks for the last two SPC dates.
             for j in [num_spc_dates - 2, num_spc_dates - 1]:
                 this_file_dictionary = {
                     VALID_TIMES_KEY: times_by_spc_date_unix_sec[j],
@@ -1442,7 +1445,7 @@ def join_tracks_across_spc_dates(
             print SEPARATOR_STRING
             break
 
-        # Write new data for two SPC dates ago.
+        # Write and clear new tracks for the [i - 2]th SPC date.
         if i >= 2:
             this_file_dictionary = {
                 VALID_TIMES_KEY: times_by_spc_date_unix_sec[i - 2],
@@ -1453,7 +1456,7 @@ def join_tracks_across_spc_dates(
 
             storm_object_table_by_date[i - 2] = pandas.DataFrame()
 
-        # Read data for current, previous, and next SPC dates.
+        # Read tracks for the [i - 1]th, [i]th, and [i + 1]th SPC dates.
         for j in [i - 1, i, i + 1]:
             if j < 0 or j >= num_spc_dates:
                 continue
@@ -1481,7 +1484,7 @@ def join_tracks_across_spc_dates(
                         spc_date_strings[i], these_spc_date_strings)
                 raise ValueError(error_string)
 
-        # Join tracks between current and next SPC dates.
+        # Join tracks between [i]th and [i + 1]th SPC dates.
         if i != num_spc_dates - 1:
             print (
                 'Joining tracks between SPC dates "{0:s}" and '
@@ -1495,7 +1498,7 @@ def join_tracks_across_spc_dates(
                 max_link_time_seconds=max_link_time_seconds,
                 max_link_distance_m_s01=max_link_distance_m_s01)
 
-        # Recompute attributes for current and previous SPC dates.
+        # Recompute track properties for the [i]th and [i - 1]th SPC dates.
         if i == 0:
             indices_to_concat = numpy.array([i, i + 1], dtype=int)
         elif i == num_spc_dates - 1:
