@@ -397,6 +397,14 @@ STORM_TO_WINDS_TABLE[events2storms.RELATIVE_EVENT_TIMES_COLUMN].values[
 STORM_TO_WINDS_TABLE[events2storms.RELATIVE_EVENT_TIMES_COLUMN].values[
     5] = numpy.array([0, 0, 0])
 
+# The following constants are used to find find_storm_to_events_file.
+TOP_DIRECTORY_NAME = 'storm_to_events'
+FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
+STORM_TO_WINDS_FILE_NAME = (
+    'storm_to_events/20180201/storm_to_winds_2018-02-01-222631.p')
+STORM_TO_TORNADOES_FILE_NAME = (
+    'storm_to_events/20180201/storm_to_tornadoes_2018-02-01-222631.p')
+
 
 class LinkEventsToStormsTests(unittest.TestCase):
     """Each method is a unit test for link_events_to_storms.py."""
@@ -581,6 +589,32 @@ class LinkEventsToStormsTests(unittest.TestCase):
                         this_storm_to_winds_table[this_column_name].values[i],
                         STORM_TO_WINDS_TABLE[this_column_name].values[i],
                         atol=TOLERANCE))
+
+    def test_find_storm_to_events_file_wind(self):
+        """Ensures correct output from find_storm_to_events_file.
+
+        In this case, event type is damaging straight-line wind.
+        """
+
+        this_file_name = events2storms.find_storm_to_events_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            unix_time_sec=FILE_TIME_UNIX_SEC,
+            event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
+            raise_error_if_missing=False)
+        self.assertTrue(this_file_name == STORM_TO_WINDS_FILE_NAME)
+
+    def test_find_storm_to_events_file_tornado(self):
+        """Ensures correct output from find_storm_to_events_file.
+
+        In this case, event type is tornado.
+        """
+
+        this_file_name = events2storms.find_storm_to_events_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            unix_time_sec=FILE_TIME_UNIX_SEC,
+            event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
+            raise_error_if_missing=False)
+        self.assertTrue(this_file_name == STORM_TO_TORNADOES_FILE_NAME)
 
 
 if __name__ == '__main__':

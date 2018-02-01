@@ -13,6 +13,7 @@ a storm object.
 """
 
 import copy
+import os.path
 import pickle
 import numpy
 import pandas
@@ -32,6 +33,10 @@ from gewittergefahr.gg_utils import error_checking
 YEAR_FORMAT = '%Y'
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+WIND_EVENT_TYPE_STRING = 'wind'
+TORNADO_EVENT_TYPE_STRING = 'tornado'
+VALID_EVENT_TYPE_STRINGS = [WIND_EVENT_TYPE_STRING, TORNADO_EVENT_TYPE_STRING]
 
 WIND_DATA_SOURCE = raw_wind_io.MERGED_DATA_SOURCE
 
@@ -102,6 +107,21 @@ REQUIRED_STORM_TO_TORNADOES_COLUMNS = REQUIRED_STORM_COLUMNS + [
     STORM_START_TIME_COLUMN, STORM_END_TIME_COLUMN, LINKAGE_DISTANCES_COLUMN,
     RELATIVE_EVENT_TIMES_COLUMN, EVENT_LATITUDES_COLUMN,
     EVENT_LONGITUDES_COLUMN, FUJITA_RATINGS_COLUMN]
+
+
+def _check_event_type(event_type_string):
+    """Ensures that event type is recognized.
+
+    :param event_type_string: Event type.
+    :raises: ValueError: if `event_type_string not in VALID_EVENT_TYPE_STRINGS`.
+    """
+
+    error_checking.assert_is_string(event_type_string)
+    if event_type_string not in VALID_EVENT_TYPE_STRINGS:
+        error_string = (
+            '\n\n{0:s}Valid event types (listed above) do not include '
+            '"{1:s}".').format(VALID_EVENT_TYPE_STRINGS, event_type_string)
+        raise ValueError(error_string)
 
 
 def _check_linkage_params(
@@ -1244,8 +1264,104 @@ def link_each_storm_to_tornadoes(
         storm_object_table, tornado_to_storm_table)
 
 
-def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
-    """Writes storm-to-wind linkages to one or more Pickle files.
+def find_storm_to_events_file(
+        top_directory_name, unix_time_sec, event_type_string,
+        raise_error_if_missing=True):
+    """Finds file with storm-to-wind or storm-to-tornado linkages for one time.
+
+    This file should be one created by `write_storm_to_winds_table` or
+    `write_storm_to_tornadoes_table`.
+
+    :param top_directory_name: Name of top-level directory with storm-to-event
+        files.
+    :param unix_time_sec: Valid time.
+    :param event_type_string: Either "wind" or "tornado".
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.
+    :return: storm_to_events_file_name: File path.  If file is missing and
+        raise_error_if_missing = False, this is the *expected* path.
+    :raises: ValueError: if file is missing and raise_error_if_missing = True.
+    """
+
+    # Error-checking.
+    error_checking.assert_is_string(top_directory_name)
+    _check_event_type(event_type_string)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
+
+    if event_type_string == WIND_EVENT_TYPE_STRING:
+        storm_to_events_file_name = '{0:s}/{1:s}/storm_to_winds_{2:s}.p'.format(
+            top_directory_name, spc_date_string,
+            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+    else:
+        storm_to_events_file_name = (
+            '{0:s}/{1:s}/storm_to_tornadoes_{2:s}.p'.format(
+                top_directory_name, spc_date_string,
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT)))
+
+    if raise_error_if_missing and not os.path.isfile(storm_to_events_file_name):
+        error_string = (
+            'Cannot find file with storm-to-event linkages.  Expected at: '
+            '{0:s}').format(storm_to_events_file_name)
+        raise ValueError(error_string)
+
+    return storm_to_events_file_name
+
+
+def write_linkages_one_file_per_storm_time(
+        top_directory_name, file_times_unix_sec, storm_to_winds_table=None,
+        storm_to_tornadoes_table=None):
+    """Writes files with storm-to-wind or storm-to-tornado linkages.
+
+    This method writes one file per time step.
+
+    Only one of the last two input arguments may be specified.
+
+    :param top_directory_name: Name of top-level directory for output files (see
+        `find_storm_to_events_file`).
+    :param file_times_unix_sec: 1-D numpy array of file times.
+    :param storm_to_winds_table: pandas DataFrame created by
+        `_create_storm_to_winds_table`.
+    :param storm_to_tornadoes_table: pandas DataFrame created by
+        `_create_storm_to_tornadoes_table`.
+    :return: storm_to_events_file_names: 1-D list of paths to output files.
+    """
+
+    error_checking.assert_is_numpy_array(file_times_unix_sec, num_dimensions=1)
+    if storm_to_winds_table is not None:
+        event_type_string = WIND_EVENT_TYPE_STRING
+    else:
+        event_type_string = TORNADO_EVENT_TYPE_STRING
+
+    num_files = len(file_times_unix_sec)
+    storm_to_events_file_names = [''] * num_files
+    for i in range(num_files):
+        storm_to_events_file_names[i] = find_storm_to_events_file(
+            top_directory_name=top_directory_name,
+            unix_time_sec=file_times_unix_sec[i],
+            event_type_string=event_type_string, raise_error_if_missing=False)
+
+    for i in range(num_files):
+        print 'Writing linkages to file: "{0:s}"...'.format(
+            storm_to_events_file_names[i])
+
+        if event_type_string == WIND_EVENT_TYPE_STRING:
+            write_storm_to_winds_table(
+                storm_to_winds_table.loc[
+                    storm_to_winds_table[tracking_utils.TIME_COLUMN] ==
+                    file_times_unix_sec[i]], storm_to_events_file_names[i])
+        else:
+            write_storm_to_tornadoes_table(
+                storm_to_tornadoes_table.loc[
+                    storm_to_tornadoes_table[tracking_utils.TIME_COLUMN] ==
+                    file_times_unix_sec[i]], storm_to_events_file_names[i])
+
+    return storm_to_events_file_names
+
+
+def write_storm_to_winds_table(storm_to_winds_table, pickle_file_name):
+    """Writes storm-to-wind linkages to Pickle file.
 
     :param storm_to_winds_table: pandas DataFrame with the following mandatory
         columns (may also contain distance buffers, for which column names are
@@ -1259,9 +1375,6 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
         `_read_storm_objects`.
     storm_to_winds_table.centroid_lat_deg: See doc for `_read_storm_objects`.
     storm_to_winds_table.centroid_lng_deg: See doc for `_read_storm_objects`.
-    storm_to_winds_table.file_index: Array index of output file for storm
-        object. If storm_object_table.file_index.values[i] = j, the [i]th storm
-        object will be written to pickle_file_names[j].
     storm_to_winds_table.polygon_object_latlng: See doc for
         `_read_storm_objects`.
     storm_to_winds_table.wind_station_ids: See doc for
@@ -1279,35 +1392,18 @@ def write_storm_to_winds_table(storm_to_winds_table, pickle_file_names):
     storm_to_winds_table.relative_event_times_sec: See doc for
         `_create_storm_to_winds_table`.
 
-    :param pickle_file_names: 1-D list of paths to output files.
+    :param pickle_file_name: Path to output file.
     """
 
-    # TODO(thunderhoser): need more user-friendly IO.
-
-    error_checking.assert_is_string_list(pickle_file_names)
-    error_checking.assert_is_numpy_array(
-        numpy.asarray(pickle_file_names), num_dimensions=1)
-
-    max_file_index = numpy.max(storm_to_winds_table[FILE_INDEX_COLUMN].values)
-    num_files = len(pickle_file_names)
-    error_checking.assert_is_greater(num_files, max_file_index)
-
+    error_checking.assert_columns_in_dataframe(
+        storm_to_winds_table, REQUIRED_STORM_TO_WINDS_COLUMNS)
     columns_to_write = get_columns_to_write(
         storm_to_winds_table=storm_to_winds_table)
 
-    for i in range(num_files):
-        print 'Writing storm-to-wind linkages to file: "{0:s}"...'.format(
-            pickle_file_names[i])
-
-        file_system_utils.mkdir_recursive_if_necessary(
-            file_name=pickle_file_names[i])
-
-        this_file_handle = open(pickle_file_names[i], 'wb')
-        pickle.dump(
-            storm_to_winds_table.loc[
-                storm_to_winds_table[FILE_INDEX_COLUMN] == i
-            ][columns_to_write], this_file_handle)
-        this_file_handle.close()
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    this_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(storm_to_winds_table[columns_to_write], this_file_handle)
+    this_file_handle.close()
 
 
 def read_storm_to_winds_table(pickle_file_name):
@@ -1325,3 +1421,63 @@ def read_storm_to_winds_table(pickle_file_name):
     error_checking.assert_columns_in_dataframe(
         storm_to_winds_table, REQUIRED_STORM_TO_WINDS_COLUMNS)
     return storm_to_winds_table
+
+
+def write_storm_to_tornadoes_table(storm_to_tornadoes_table, pickle_file_name):
+    """Writes storm-to-tornado linkages to Pickle file.
+
+    :param storm_to_tornadoes_table: pandas DataFrame with the following
+        mandatory columns (may also contain distance buffers, for which column
+        names are given by
+        `storm_tracking_utils.distance_buffer_to_column_name`).  Each row is one
+        storm object.
+    storm_to_winds_table.storm_id: See documentation for `_read_storm_objects`.
+    storm_to_winds_table.unix_time_sec: See doc for `_read_storm_objects`.
+    storm_to_winds_table.tracking_start_time_unix_sec: See doc for
+        `_read_storm_objects`.
+    storm_to_winds_table.tracking_end_time_unix_sec: See doc for
+        `_read_storm_objects`.
+    storm_to_winds_table.centroid_lat_deg: See doc for `_read_storm_objects`.
+    storm_to_winds_table.centroid_lng_deg: See doc for `_read_storm_objects`.
+    storm_to_winds_table.polygon_object_latlng: See doc for
+        `_read_storm_objects`.
+    storm_to_winds_table.event_latitudes_deg: See doc for
+        `_create_storm_to_tornadoes_table`.
+    storm_to_winds_table.event_longitudes_deg: See doc for
+        `_create_storm_to_tornadoes_table`.
+    storm_to_winds_table.linkage_distances_metres: See doc for
+        `_create_storm_to_tornadoes_table`.
+    storm_to_winds_table.relative_event_times_sec: See doc for
+        `_create_storm_to_tornadoes_table`.
+    storm_to_winds_table.f_or_ef_scale_ratings: See doc for
+        `_create_storm_to_tornadoes_table`.
+
+    :param pickle_file_name: Path to output file.
+    """
+
+    error_checking.assert_columns_in_dataframe(
+        storm_to_tornadoes_table, REQUIRED_STORM_TO_TORNADOES_COLUMNS)
+    columns_to_write = get_columns_to_write(
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    this_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(storm_to_tornadoes_table[columns_to_write], this_file_handle)
+    this_file_handle.close()
+
+
+def read_storm_to_tornadoes_table(pickle_file_name):
+    """Reads storm-to-tornado linkages from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_to_tornadoes_table: See documentation for
+        `write_storm_to_tornadoes_table`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(
+        storm_to_tornadoes_table, REQUIRED_STORM_TO_TORNADOES_COLUMNS)
+    return storm_to_tornadoes_table
