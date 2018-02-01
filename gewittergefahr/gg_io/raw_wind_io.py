@@ -376,14 +376,14 @@ def remove_invalid_rows(input_table, check_speed_flag=False,
         input_table[WIND_GUST_DIR_COLUMN].values[invalid_indices] = numpy.nan
 
     if check_u_wind_flag:
-        invalid_indices = check_wind_speeds(input_table[U_WIND_COLUMN].values,
-                                             one_component=True)
+        invalid_indices = check_wind_speeds(
+            input_table[U_WIND_COLUMN].values, one_component=True)
         input_table.drop(input_table.index[invalid_indices], axis=0,
                          inplace=True)
 
     if check_v_wind_flag:
-        invalid_indices = check_wind_speeds(input_table[V_WIND_COLUMN].values,
-                                             one_component=True)
+        invalid_indices = check_wind_speeds(
+            input_table[V_WIND_COLUMN].values, one_component=True)
         input_table.drop(input_table.index[invalid_indices], axis=0,
                          inplace=True)
 
