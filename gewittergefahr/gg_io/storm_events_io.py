@@ -10,6 +10,7 @@ import os.path
 import numpy
 import pandas
 from gewittergefahr.gg_io import raw_wind_io
+from gewittergefahr.gg_io import tornado_io
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -38,15 +39,6 @@ WIND_SPEED_COLUMN_ORIG = 'MAGNITUDE'
 TORNADO_RATING_COLUMN_ORIG = 'TOR_F_SCALE'
 TORNADO_WIDTH_COLUMN_ORIG = 'TOR_WIDTH'
 
-TORNADO_START_TIME_COLUMN = 'start_time_unix_sec'
-TORNADO_END_TIME_COLUMN = 'end_time_unix_sec'
-TORNADO_START_LAT_COLUMN = 'start_latitude_deg'
-TORNADO_END_LAT_COLUMN = 'end_latitude_deg'
-TORNADO_START_LNG_COLUMN = 'start_longitude_deg'
-TORNADO_END_LNG_COLUMN = 'end_longitude_deg'
-TORNADO_FUJITA_RATING_COLUMN = 'f_or_ef_rating'
-TORNADO_WIDTH_COLUMN = 'width_metres'
-
 TIME_ZONE_STRINGS = ['PST', 'PST-8', 'MST', 'MST-7', 'CST', 'CST-6', 'EST',
                      'EST-5', 'AST', 'AST-4']
 UTC_OFFSETS_HOURS = numpy.array([-8, -8, -7, -7, -6, -6, -5, -5, -4, -4])
@@ -56,10 +48,15 @@ MONTH_NAMES_3LETTERS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug',
 TIME_FORMAT = '%d-%b-%y %H:%M:%S'
 
 # The following constants are used only in the main method.
-ORIG_CSV_FILE_NAME = (
-    '/localdata/ryan.lagerquist/software/matlab/madis/raw_files/storm_events/'
-    'storm_events2011.csv')
-NEW_CSV_FILE_NAME = '/localdata/ryan.lagerquist/aasswp/slw_reports_2011.csv'
+STORM_EVENT_FILE_NAME = (
+    '/localdata/ryan.lagerquist/gewittergefahr_data/wind_observations/'
+    'storm_events/storm_events2011.csv')
+PROCESSED_WIND_FILE_NAME = (
+    '/localdata/ryan.lagerquist/gewittergefahr_data/wind_observations/'
+    'storm_events/sltw_reports_2011.csv')
+PROCESSED_TORNADO_FILE_NAME = (
+    '/localdata/ryan.lagerquist/gewittergefahr_data/wind_observations/'
+    'storm_events/tornado_reports_2011.csv')
 
 
 def _year_number_to_string(year):
@@ -331,28 +328,34 @@ def read_tornado_reports(csv_file_name):
             this_utc_offset_hours)
 
     tornado_dict = {
-        TORNADO_START_TIME_COLUMN: start_times_unix_sec,
-        TORNADO_END_TIME_COLUMN: end_times_unix_sec,
-        TORNADO_START_LAT_COLUMN:
+        tornado_io.START_TIME_COLUMN: start_times_unix_sec,
+        tornado_io.END_TIME_COLUMN: end_times_unix_sec,
+        tornado_io.START_LAT_COLUMN:
             storm_event_table[START_LATITUDE_COLUMN_ORIG].values,
-        TORNADO_START_LNG_COLUMN:
+        tornado_io.START_LNG_COLUMN:
             storm_event_table[START_LONGITUDE_COLUMN_ORIG].values,
-        TORNADO_END_LAT_COLUMN:
+        tornado_io.END_LAT_COLUMN:
             storm_event_table[END_LATITUDE_COLUMN_ORIG].values,
-        TORNADO_END_LNG_COLUMN:
+        tornado_io.END_LNG_COLUMN:
             storm_event_table[END_LONGITUDE_COLUMN_ORIG].values,
-        TORNADO_FUJITA_RATING_COLUMN:
+        tornado_io.FUJITA_RATING_COLUMN:
             storm_event_table[TORNADO_RATING_COLUMN_ORIG].values,
-        TORNADO_WIDTH_COLUMN: FEET_TO_METRES * storm_event_table[
+        tornado_io.WIDTH_COLUMN: FEET_TO_METRES * storm_event_table[
             TORNADO_WIDTH_COLUMN_ORIG].values
     }
 
     tornado_table = pandas.DataFrame.from_dict(tornado_dict)
-    return _remove_invalid_tornado_reports(tornado_table)
+    return tornado_io.remove_invalid_reports(tornado_table)
 
 
 if __name__ == '__main__':
-    WIND_TABLE = read_thunderstorm_wind_reports(ORIG_CSV_FILE_NAME)
+    WIND_TABLE = read_thunderstorm_wind_reports(STORM_EVENT_FILE_NAME)
     print WIND_TABLE
 
-    raw_wind_io.write_processed_file(WIND_TABLE, NEW_CSV_FILE_NAME)
+    raw_wind_io.write_processed_file(WIND_TABLE, PROCESSED_WIND_FILE_NAME)
+    print '\n'
+
+    TORNADO_TABLE = read_tornado_reports(STORM_EVENT_FILE_NAME)
+    print TORNADO_TABLE
+
+    tornado_io.write_processed_file(TORNADO_TABLE, PROCESSED_TORNADO_FILE_NAME)
