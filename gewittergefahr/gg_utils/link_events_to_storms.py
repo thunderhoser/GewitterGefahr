@@ -43,8 +43,10 @@ WIND_DATA_SOURCE = raw_wind_io.MERGED_DATA_SOURCE
 DEFAULT_MAX_TIME_BEFORE_STORM_SEC = 300
 DEFAULT_MAX_TIME_AFTER_STORM_SEC = 300
 DEFAULT_PADDING_FOR_BOUNDING_BOX_METRES = 50000.
-DEFAULT_INTERP_TIME_RESOLUTION_SEC = 10
-DEFAULT_MAX_LINK_DISTANCE_METRES = 30000.
+DEFAULT_INTERP_TIME_RESOLUTION_FOR_WIND_SEC = 10
+DEFAULT_INTERP_TIME_RESOLUTION_FOR_TORNADOES_SEC = 1
+DEFAULT_MAX_LINK_DISTANCE_FOR_WIND_METRES = 30000.
+DEFAULT_MAX_LINK_DISTANCE_FOR_TORNADOES_METRES = 30000.
 
 REQUIRED_STORM_COLUMNS = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
@@ -655,6 +657,7 @@ def _find_nearest_storms(
                 event_y_coords_metres=event_table[EVENT_Y_COLUMN].values[
                     these_wind_rows],
                 max_link_distance_metres=max_link_distance_metres))
+        print these_nearest_storm_ids
 
         linkage_distances_metres[these_wind_rows] = these_link_distances_metres
         for j in range(len(these_wind_rows)):
@@ -929,7 +932,7 @@ def _read_storm_objects(tracking_file_names):
                 tracking_file_names[i])[columns_to_read]
 
         these_file_indices = numpy.full(
-            len(list_of_storm_object_tables[i].index), i)
+            len(list_of_storm_object_tables[i].index), i, dtype=int)
         file_indices = numpy.concatenate((file_indices, these_file_indices))
 
         if i == 0:
@@ -1117,8 +1120,8 @@ def link_each_storm_to_winds(
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
         padding_for_storm_bounding_box_metres=
         DEFAULT_PADDING_FOR_BOUNDING_BOX_METRES,
-        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RESOLUTION_SEC,
-        max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES):
+        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RESOLUTION_FOR_WIND_SEC,
+        max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_FOR_WIND_METRES):
     """Links each storm cell to zero or more wind observations.
 
     :param tracking_file_names: See documentation for
@@ -1192,8 +1195,10 @@ def link_each_storm_to_tornadoes(
         max_time_after_storm_end_sec=DEFAULT_MAX_TIME_AFTER_STORM_SEC,
         padding_for_storm_bounding_box_metres=
         DEFAULT_PADDING_FOR_BOUNDING_BOX_METRES,
-        interp_time_resolution_sec=DEFAULT_INTERP_TIME_RESOLUTION_SEC,
-        max_link_distance_metres=DEFAULT_MAX_LINK_DISTANCE_METRES):
+        interp_time_resolution_sec=
+        DEFAULT_INTERP_TIME_RESOLUTION_FOR_TORNADOES_SEC,
+        max_link_distance_metres=
+        DEFAULT_MAX_LINK_DISTANCE_FOR_TORNADOES_METRES):
     """Links each storm cell to zero or more tornadoes.
 
     :param tracking_file_names: See documentation for
