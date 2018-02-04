@@ -111,21 +111,6 @@ REQUIRED_STORM_TO_TORNADOES_COLUMNS = REQUIRED_STORM_COLUMNS + [
     EVENT_LONGITUDES_COLUMN, FUJITA_RATINGS_COLUMN]
 
 
-def _check_event_type(event_type_string):
-    """Ensures that event type is recognized.
-
-    :param event_type_string: Event type.
-    :raises: ValueError: if `event_type_string not in VALID_EVENT_TYPE_STRINGS`.
-    """
-
-    error_checking.assert_is_string(event_type_string)
-    if event_type_string not in VALID_EVENT_TYPE_STRINGS:
-        error_string = (
-            '\n\n{0:s}Valid event types (listed above) do not include '
-            '"{1:s}".').format(VALID_EVENT_TYPE_STRINGS, event_type_string)
-        raise ValueError(error_string)
-
-
 def _check_linkage_params(
         tracking_file_names, max_time_before_storm_start_sec,
         max_time_after_storm_end_sec, padding_for_storm_bounding_box_metres,
@@ -1085,6 +1070,21 @@ def _read_tornado_reports(
     return tornado_table
 
 
+def check_event_type(event_type_string):
+    """Ensures that event type is recognized.
+
+    :param event_type_string: Event type.
+    :raises: ValueError: if `event_type_string not in VALID_EVENT_TYPE_STRINGS`.
+    """
+
+    error_checking.assert_is_string(event_type_string)
+    if event_type_string not in VALID_EVENT_TYPE_STRINGS:
+        error_string = (
+            '\n\n{0:s}Valid event types (listed above) do not include '
+            '"{1:s}".').format(VALID_EVENT_TYPE_STRINGS, event_type_string)
+        raise ValueError(error_string)
+
+
 def get_columns_to_write(
         storm_to_winds_table=None, storm_to_tornadoes_table=None):
     """Returns list of columns to write.
@@ -1290,7 +1290,7 @@ def find_storm_to_events_file(
 
     # Error-checking.
     error_checking.assert_is_string(top_directory_name)
-    _check_event_type(event_type_string)
+    check_event_type(event_type_string)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
