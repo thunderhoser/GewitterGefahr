@@ -64,52 +64,6 @@ def _check_learning_goal(goal_string):
         raise ValueError(error_string)
 
 
-def _check_label_params(
-        min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
-        max_link_distance_metres):
-    """Error-checks (and if necessary, rounds) labeling parameters.
-
-    t_s = "storm time" = valid time of storm object
-    t_e = "event time" = time of wind observation or tornado
-    "Lead time" = t_e - t_s
-
-    :param min_lead_time_sec: Minimum lead time.  Events occurring before
-        (t_s + min_lead_time_sec) will be ignored (not used to create the
-        label).
-    :param max_lead_time_sec: Max lead time.  Events occurring after
-        (t_s + max_lead_time_sec) will be ignored.
-    :param min_link_distance_metres: Minimum linkage distance.  Events closer to
-        the storm boundary will be ignored.
-    :param max_link_distance_metres: Max linkage distance.  Events farther from
-        the storm boundary will be ignored.
-    :return: parameter_dict: Dictionary with the following keys.
-    parameter_dict['min_lead_time_sec']: Same as input.
-    parameter_dict['max_lead_time_sec']: Same as input.
-    parameter_dict['min_link_distance_metres']: Same as input, but rounded.
-    parameter_dict['max_link_distance_metres']: Same as input, but rounded.
-    """
-
-    error_checking.assert_is_integer(min_lead_time_sec)
-    error_checking.assert_is_geq(min_lead_time_sec, 0)
-    error_checking.assert_is_integer(max_lead_time_sec)
-    error_checking.assert_is_geq(max_lead_time_sec, min_lead_time_sec)
-    error_checking.assert_is_geq(min_link_distance_metres, 0.)
-    error_checking.assert_is_geq(max_link_distance_metres,
-                                 min_link_distance_metres)
-
-    min_link_distance_metres = rounder.round_to_nearest(
-        min_link_distance_metres, DISTANCE_PRECISION_METRES)
-    max_link_distance_metres = rounder.round_to_nearest(
-        max_link_distance_metres, DISTANCE_PRECISION_METRES)
-
-    return {
-        MIN_LEAD_TIME_KEY: min_lead_time_sec,
-        MAX_LEAD_TIME_KEY: max_lead_time_sec,
-        MIN_LINKAGE_DISTANCE_KEY: min_link_distance_metres,
-        MAX_LINKAGE_DISTANCE_KEY: max_link_distance_metres
-    }
-
-
 def _check_wind_speed_label_params(
         min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
         max_link_distance_metres, percentile_level):
@@ -207,6 +161,52 @@ def _remove_data_near_end_of_tracking_period(
     return storm_to_events_table
 
 
+def check_label_params(
+        min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
+        max_link_distance_metres):
+    """Error-checks (and if necessary, rounds) labeling parameters.
+
+    t_s = "storm time" = valid time of storm object
+    t_e = "event time" = time of wind observation or tornado
+    "Lead time" = t_e - t_s
+
+    :param min_lead_time_sec: Minimum lead time.  Events occurring before
+        (t_s + min_lead_time_sec) will be ignored (not used to create the
+        label).
+    :param max_lead_time_sec: Max lead time.  Events occurring after
+        (t_s + max_lead_time_sec) will be ignored.
+    :param min_link_distance_metres: Minimum linkage distance.  Events closer to
+        the storm boundary will be ignored.
+    :param max_link_distance_metres: Max linkage distance.  Events farther from
+        the storm boundary will be ignored.
+    :return: parameter_dict: Dictionary with the following keys.
+    parameter_dict['min_lead_time_sec']: Same as input.
+    parameter_dict['max_lead_time_sec']: Same as input.
+    parameter_dict['min_link_distance_metres']: Same as input, but rounded.
+    parameter_dict['max_link_distance_metres']: Same as input, but rounded.
+    """
+
+    error_checking.assert_is_integer(min_lead_time_sec)
+    error_checking.assert_is_geq(min_lead_time_sec, 0)
+    error_checking.assert_is_integer(max_lead_time_sec)
+    error_checking.assert_is_geq(max_lead_time_sec, min_lead_time_sec)
+    error_checking.assert_is_geq(min_link_distance_metres, 0.)
+    error_checking.assert_is_geq(max_link_distance_metres,
+                                 min_link_distance_metres)
+
+    min_link_distance_metres = rounder.round_to_nearest(
+        min_link_distance_metres, DISTANCE_PRECISION_METRES)
+    max_link_distance_metres = rounder.round_to_nearest(
+        max_link_distance_metres, DISTANCE_PRECISION_METRES)
+
+    return {
+        MIN_LEAD_TIME_KEY: min_lead_time_sec,
+        MAX_LEAD_TIME_KEY: max_lead_time_sec,
+        MIN_LINKAGE_DISTANCE_KEY: min_link_distance_metres,
+        MAX_LINKAGE_DISTANCE_KEY: max_link_distance_metres
+    }
+
+
 def get_column_name_for_regression_label(
         min_lead_time_sec, max_lead_time_sec, min_link_distance_metres,
         max_link_distance_metres, wind_speed_percentile_level):
@@ -257,7 +257,7 @@ def get_column_name_for_num_wind_obs(
     :return: column_name: Column name for number of wind observations.
     """
 
-    parameter_dict = _check_label_params(
+    parameter_dict = check_label_params(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
@@ -302,7 +302,7 @@ def get_column_name_for_classification_label(
             max_link_distance_metres=max_link_distance_metres,
             percentile_level=wind_speed_percentile_level)
     else:
-        parameter_dict = _check_label_params(
+        parameter_dict = check_label_params(
             min_lead_time_sec=min_lead_time_sec,
             max_lead_time_sec=max_lead_time_sec,
             min_link_distance_metres=min_link_distance_metres,
@@ -358,12 +358,12 @@ def column_name_to_label_params(column_name):
         `get_column_name_for_classification_label`).
     :return: parameter_dict: Dictionary with the following keys.
     parameter_dict['min_lead_time_sec']: See documentation for
-        `_check_label_params`.
-    parameter_dict['max_lead_time_sec']: See doc for `_check_label_params`.
+        `check_label_params`.
+    parameter_dict['max_lead_time_sec']: See doc for `check_label_params`.
     parameter_dict['min_link_distance_metres']: See doc for
-        `_check_label_params`.
+        `check_label_params`.
     parameter_dict['max_link_distance_metres']: See doc for
-        `_check_label_params`.
+        `check_label_params`.
     parameter_dict['event_type']: Either "wind" or "tornado".
     parameter_dict['wind_speed_percentile_level']: See doc for
         `_check_wind_speed_label_params`.  If event type is not wind, this is
@@ -821,9 +821,9 @@ def label_tornado_occurrence(
         `link_events_to_storms.write_storm_to_tornadoes_table`.
     :param min_lead_time_sec: See documentation for
         `_check_wind_speed_label_params`.
-    :param max_lead_time_sec: See doc for `_check_label_params`.
-    :param min_link_distance_metres: See doc for `_check_label_params`.
-    :param max_link_distance_metres: See doc for `_check_label_params`.
+    :param max_lead_time_sec: See doc for `check_label_params`.
+    :param min_link_distance_metres: See doc for `check_label_params`.
+    :param max_link_distance_metres: See doc for `check_label_params`.
     :return: storm_to_tornadoes_table: Same as input, with the following
         exceptions.
         [1] May have fewer rows (storm objects near the end of the tracking
@@ -832,7 +832,7 @@ def label_tornado_occurrence(
             `get_column_name_for_classification_label`).
     """
 
-    parameter_dict = _check_label_params(
+    parameter_dict = check_label_params(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
