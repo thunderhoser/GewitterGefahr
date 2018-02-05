@@ -16,9 +16,11 @@ from gewittergefahr.gg_utils import error_checking
 
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
-REQUIRED_STORM_COLUMNS = [
+REQUIRED_STORM_INPUT_COLUMNS = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
     tracking_utils.TRACKING_END_TIME_COLUMN]
+REQUIRED_STORM_OUTPUT_COLUMNS = [
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 
 DEFAULT_MIN_LEAD_TIME_SEC = 0
 DEFAULT_MAX_LEAD_TIME_SEC = 86400
@@ -96,7 +98,7 @@ def _check_wind_speed_label_params(
     parameter_dict['wind_speed_percentile_level']: Same as input, but rounded.
     """
 
-    parameter_dict = _check_label_params(
+    parameter_dict = check_label_params(
         min_lead_time_sec=min_lead_time_sec,
         max_lead_time_sec=max_lead_time_sec,
         min_link_distance_metres=min_link_distance_metres,
@@ -585,29 +587,56 @@ def check_wind_speed_label_table(wind_speed_label_table):
         wind-speed-based labels.
     :return: num_wind_obs_column_names: 1-D list with names of columns
         containing number of wind observations used to create label.
-    :raises: ValueError: if `wind_speed_label_table` contains no columns with
+    :raises: TypeError: if `wind_speed_label_table` contains no columns with
         wind-speed-based labels.
+    :raises: ValueError: if `wind_speed_label_table` contains a classification
+        label but not the corresponding regression label.
     """
 
     error_checking.assert_columns_in_dataframe(
-        wind_speed_label_table, REQUIRED_STORM_COLUMNS)
+        wind_speed_label_table, REQUIRED_STORM_OUTPUT_COLUMNS)
 
-    label_column_names = get_columns_with_labels(
+    classification_column_names = get_columns_with_labels(
+        label_table=wind_speed_label_table,
+        goal_string=CLASSIFICATION_GOAL_STRING,
+        event_type_string=events2storms.WIND_EVENT_TYPE_STRING)
+    if classification_column_names is None:
+        classification_column_names = []
+
+    for this_classifn_column_name in classification_column_names:
+        this_parameter_dict = column_name_to_label_params(
+            this_classifn_column_name)
+
+        this_regression_column_name = (
+            get_column_name_for_regression_label(
+                min_lead_time_sec=this_parameter_dict[MIN_LEAD_TIME_KEY],
+                max_lead_time_sec=this_parameter_dict[MAX_LEAD_TIME_KEY],
+                min_link_distance_metres=this_parameter_dict[
+                    MIN_LINKAGE_DISTANCE_KEY],
+                max_link_distance_metres=this_parameter_dict[
+                    MAX_LINKAGE_DISTANCE_KEY],
+                wind_speed_percentile_level=this_parameter_dict[
+                    WIND_SPEED_PERCENTILE_LEVEL_KEY]))
+
+        if this_regression_column_name in list(wind_speed_label_table):
+            continue
+
+        error_string = (
+            'wind_speed_label_table contains classification label ("{0:s}") '
+            'but not the corresponding regression label ("{1:s}").').format(
+                this_classifn_column_name, this_regression_column_name)
+        raise ValueError(error_string)
+
+    regression_column_names = get_columns_with_labels(
         label_table=wind_speed_label_table, goal_string=REGRESSION_GOAL_STRING,
         event_type_string=events2storms.WIND_EVENT_TYPE_STRING)
-    if label_column_names is None:
-        label_column_names = []
+    if regression_column_names is None:
+        regression_column_names = []
 
-    these_label_column_names = get_columns_with_labels(
-        label_table=wind_speed_label_table, goal_string=CLASSIFICATION_GOAL_STRING,
-        event_type_string=events2storms.WIND_EVENT_TYPE_STRING)
-    if these_label_column_names is None:
-        these_label_column_names = []
-
-    label_column_names += these_label_column_names
+    label_column_names = classification_column_names + regression_column_names
     if not len(label_column_names):
-        raise ValueError('wind_speed_label_table contains no columns with '
-                         'wind-speed-based label.')
+        raise TypeError('wind_speed_label_table contains no columns with '
+                        'wind-speed-based label.')
 
     num_wind_obs_column_names = get_columns_with_num_wind_obs(
         label_table=wind_speed_label_table,
@@ -623,19 +652,19 @@ def check_tornado_label_table(tornado_label_table):
         tornado-based labels for one storm object.
     :return: label_column_names: 1-D list with names of columns containing
         tornado-based labels.
-    :raises: ValueError: if `tornado_label_table` contains no columns with
+    :raises: TypeError: if `tornado_label_table` contains no columns with
         tornado-based labels.
     """
 
     error_checking.assert_columns_in_dataframe(
-        tornado_label_table, REQUIRED_STORM_COLUMNS)
+        tornado_label_table, REQUIRED_STORM_OUTPUT_COLUMNS)
 
     label_column_names = get_columns_with_labels(
         label_table=tornado_label_table, goal_string=CLASSIFICATION_GOAL_STRING,
         event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING)
 
     if label_column_names is None:
-        raise ValueError(
+        raise TypeError(
             'tornado_label_table contains no columns with tornado-based label.')
 
     return label_column_names
