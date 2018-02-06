@@ -479,20 +479,22 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
     error_checking.assert_is_boolean(dilate_azimuthal_shear)
 
     # Find radar files.
+    spc_date_strings = [
+        time_conversion.time_to_spc_date_string(t)
+        for t in storm_object_table[tracking_utils.SPC_DATE_COLUMN].values]
+
     file_dictionary = myrorss_and_mrms_io.find_many_raw_files(
-        valid_times_unix_sec=
+        desired_times_unix_sec=
         storm_object_table[tracking_utils.TIME_COLUMN].values,
-        spc_dates_unix_sec=
-        storm_object_table[tracking_utils.SPC_DATE_COLUMN].values,
-        data_source=radar_source, field_names=radar_field_names,
-        top_directory_name=top_radar_dir_name,
+        spc_date_strings=spc_date_strings, data_source=radar_source,
+        field_names=radar_field_names, top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
 
     radar_file_names_2d_list = file_dictionary[
         myrorss_and_mrms_io.RADAR_FILE_NAME_LIST_KEY]
     valid_times_unix_sec = file_dictionary[myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
     valid_spc_dates_unix_sec = file_dictionary[
-        myrorss_and_mrms_io.UNIQUE_SPC_DATES_KEY]
+        myrorss_and_mrms_io.SPC_DATES_AT_UNIQUE_TIMES_KEY]
     radar_field_name_by_pair = file_dictionary[
         myrorss_and_mrms_io.FIELD_NAME_BY_PAIR_KEY]
     radar_height_by_pair_m_asl = file_dictionary[
