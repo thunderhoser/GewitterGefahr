@@ -1104,8 +1104,11 @@ def _local_maxima_to_polygons(
                 max_distance_from_center_metres=
                 min_distance_between_maxima_metres))
 
+        print this_echo_top_submatrix_km_asl
         this_echo_top_submatrix_km_asl[
             numpy.isnan(this_echo_top_submatrix_km_asl)] = 0.
+        print this_echo_top_submatrix_km_asl
+        print '\n'
 
         (local_max_dict[GRID_POINT_ROWS_KEY][i],
          local_max_dict[GRID_POINT_COLUMNS_KEY][i]) = numpy.where(

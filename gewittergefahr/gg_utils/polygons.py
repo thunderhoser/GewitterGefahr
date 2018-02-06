@@ -812,8 +812,6 @@ def grid_points_in_poly_to_vertices(
         grid_point_column_indices,
         exact_dimensions=numpy.array([num_grid_points]))
 
-    print len(grid_point_row_indices)
-
     binary_matrix, first_row_index, first_column_index = (
         grid_points_in_poly_to_binary_matrix(
             grid_point_row_indices, grid_point_column_indices))
