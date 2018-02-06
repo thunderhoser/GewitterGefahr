@@ -809,24 +809,27 @@ def grid_points_in_poly_to_vertices(
             grid_point_row_indices, grid_point_column_indices))
     binary_matrix = _patch_diag_connections_in_binary_matrix(binary_matrix)
 
-    _, contour_list, _ = cv2.findContours(
-        binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
-        cv2.CHAIN_APPROX_SIMPLE)
+    if numpy.sum(binary_matrix) == 1:
+        vertex_row_indices, vertex_column_indices = numpy.where(binary_matrix)
+    else:
+        _, contour_list, _ = cv2.findContours(
+            binary_matrix.astype(numpy.uint8), cv2.RETR_EXTERNAL,
+            cv2.CHAIN_APPROX_SIMPLE)
 
-    contour_matrix = _get_longest_inner_list(contour_list)
-    contour_matrix = numpy.array(contour_matrix)[:, 0, :]
+        contour_matrix = _get_longest_inner_list(contour_list)
+        contour_matrix = numpy.array(contour_matrix)[:, 0, :]
 
-    num_vertices = contour_matrix.shape[0] + 1
-    vertex_row_indices = numpy.full(num_vertices, -1, dtype=int)
-    vertex_column_indices = numpy.full(num_vertices, -1, dtype=int)
+        num_vertices = contour_matrix.shape[0] + 1
+        vertex_row_indices = numpy.full(num_vertices, -1, dtype=int)
+        vertex_column_indices = numpy.full(num_vertices, -1, dtype=int)
 
-    for i in range(num_vertices):
-        if i == num_vertices - 1:
-            vertex_row_indices[i] = contour_matrix[0, 1]
-            vertex_column_indices[i] = contour_matrix[0, 0]
-        else:
-            vertex_row_indices[i] = contour_matrix[i, 1]
-            vertex_column_indices[i] = contour_matrix[i, 0]
+        for i in range(num_vertices):
+            if i == num_vertices - 1:
+                vertex_row_indices[i] = contour_matrix[0, 1]
+                vertex_column_indices[i] = contour_matrix[0, 0]
+            else:
+                vertex_row_indices[i] = contour_matrix[i, 1]
+                vertex_column_indices[i] = contour_matrix[i, 0]
 
     vertex_row_indices += first_row_index
     vertex_column_indices += first_column_index
