@@ -56,6 +56,12 @@ SECOND_VERTEX_COLUMN_DOWN_RIGHT = 6
 SECOND_VERTEX_ROW_DOWN_LEFT = 6
 SECOND_VERTEX_COLUMN_DOWN_LEFT = 4
 
+# The following constants are used to test _vertices_from_grid_points_to_edges.
+VERTEX_ROWS_ONE_GRID_POINT_ORIG = numpy.array([5])
+VERTEX_COLUMNS_ONE_GRID_POINT_ORIG = numpy.array([3])
+VERTEX_ROWS_ONE_GRID_POINT_NEW = numpy.array([5.5, 5.5, 4.5, 4.5, 5.5])
+VERTEX_COLUMNS_ONE_GRID_POINT_NEW = numpy.array([2.5, 3.5, 3.5, 2.5, 2.5])
+
 # The following constants are used to test _remove_redundant_vertices,
 # _vertices_from_grid_points_to_edges, and fix_probsevere_vertices.
 VERTEX_ROWS_GRID_POINTS = numpy.array(
@@ -405,8 +411,10 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_column_indices, COLUMN_INDICES_IN_POLYGON))
 
-    def test_vertices_from_grid_points_to_edges(self):
+    def test_vertices_from_grid_points_to_edges_many_points(self):
         """Ensures correct output from _vertices_from_grid_points_to_edges.
+
+        In this case there are many grid points in the polygon.
 
         This is an integration test, because it also depends on
         _remove_redundant_vertices.  This makes more sense than testing
@@ -428,6 +436,22 @@ class PolygonsTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_vertex_columns_non_redundant,
             VERTEX_COLUMNS_GRID_CELL_EDGES_NON_REDUNDANT))
+
+    def test_vertices_from_grid_points_to_edges_one_point(self):
+        """Ensures correct output from _vertices_from_grid_points_to_edges.
+
+        In this case there is only grid point in the polygon.
+        """
+
+        these_vertex_rows, these_vertex_columns = (
+            polygons._vertices_from_grid_points_to_edges(
+                VERTEX_ROWS_ONE_GRID_POINT_ORIG,
+                VERTEX_COLUMNS_ONE_GRID_POINT_ORIG))
+
+        self.assertTrue(numpy.array_equal(
+            these_vertex_rows, VERTEX_ROWS_ONE_GRID_POINT_NEW))
+        self.assertTrue(numpy.array_equal(
+            these_vertex_columns, VERTEX_COLUMNS_ONE_GRID_POINT_NEW))
 
     def test_project_latlng_to_xy(self):
         """Ensures correct output from project_latlng_to_xy.

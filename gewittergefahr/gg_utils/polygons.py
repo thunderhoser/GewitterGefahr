@@ -407,6 +407,12 @@ def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
         row_indices = numpy.concatenate((row_indices, rows_to_append))
         column_indices = numpy.concatenate((column_indices, columns_to_append))
 
+    if num_vertices_orig == 1:
+        row_indices = row_indices_orig[0] + numpy.array(
+            [0.5, 0.5, -0.5, -0.5, 0.5])
+        column_indices = column_indices_orig[0] + numpy.array(
+            [-0.5, 0.5, 0.5, -0.5, -0.5])
+
     if not (row_indices[-1] == row_indices[0] and
             column_indices[-1] == column_indices[0]):
         row_indices = numpy.concatenate((row_indices, row_indices[[0]]))
