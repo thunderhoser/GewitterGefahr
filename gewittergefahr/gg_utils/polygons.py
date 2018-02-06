@@ -812,12 +812,12 @@ def grid_points_in_poly_to_vertices(
         grid_point_column_indices,
         exact_dimensions=numpy.array([num_grid_points]))
 
+    print len(grid_point_row_indices)
+
     binary_matrix, first_row_index, first_column_index = (
         grid_points_in_poly_to_binary_matrix(
             grid_point_row_indices, grid_point_column_indices))
     binary_matrix = _patch_diag_connections_in_binary_matrix(binary_matrix)
-
-    print numpy.sum(binary_matrix)
 
     if numpy.sum(binary_matrix) == 1:
         vertex_row_indices, vertex_column_indices = numpy.where(binary_matrix)
