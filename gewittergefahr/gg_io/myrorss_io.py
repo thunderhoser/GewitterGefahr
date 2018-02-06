@@ -53,7 +53,7 @@ def unzip_1day_tar_file(
     error_checking.assert_is_numpy_array(
         numpy.asarray(field_names), num_dimensions=1)
     error_checking.assert_is_string(top_target_directory_name)
-    
+
     # Put azimuthal-shear fields (which are allowed to be missing) at the end.
     # This way, if the tar command errors out due to missing data, it will do so
     # after unzipping all the non-missing data.
@@ -71,8 +71,8 @@ def unzip_1day_tar_file(
             field_names=field_names, data_source=radar_utils.MYRORSS_SOURCE_ID,
             refl_heights_m_asl=refl_heights_m_asl))
 
-    target_directory_name = '{0:s}/{1:s}'.format(
-        top_target_directory_name, spc_date_string)
+    target_directory_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_target_directory_name, spc_date_string[:4], spc_date_string)
     field_names = field_to_heights_dict_m_asl.keys()
     directory_names_to_unzip = []
 

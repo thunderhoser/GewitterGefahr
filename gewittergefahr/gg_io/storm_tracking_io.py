@@ -75,8 +75,8 @@ def _get_relative_processed_directory(
         date_string = time_conversion.unix_sec_to_string(
             unix_time_sec, DATE_FORMAT)
 
-    return '{0:s}/scale_{1:d}m2'.format(
-        date_string, int(tracking_scale_metres2))
+    return '{0:s}/{1:s}/scale_{2:d}m2'.format(
+        date_string[:4], date_string, int(numpy.round(tracking_scale_metres2)))
 
 
 def find_processed_file(

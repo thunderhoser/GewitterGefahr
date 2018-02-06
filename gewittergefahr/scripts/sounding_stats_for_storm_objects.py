@@ -59,7 +59,7 @@ OUTPUT_DIR_HELP_STRING = (
 
 DEFAULT_LEAD_TIMES_SECONDS = [0]
 DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2))
+    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(

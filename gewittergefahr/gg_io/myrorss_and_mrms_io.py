@@ -225,8 +225,9 @@ def find_raw_file(
     relative_directory_name = get_relative_dir_for_raw_files(
         field_name=field_name, height_m_asl=height_m_asl,
         data_source=data_source)
-    directory_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_directory_name, spc_date_string, relative_directory_name)
+    directory_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_directory_name, spc_date_string[:4], spc_date_string,
+        relative_directory_name)
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
     raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
@@ -310,9 +311,9 @@ def find_raw_file_inexact_time(
     for this_time_unix_sec in allowed_minutes_unix_sec:
         this_pathless_file_pattern = _get_pathless_raw_file_pattern(
             this_time_unix_sec)
-        this_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-            top_directory_name, spc_date_string, relative_directory_name,
-            this_pathless_file_pattern)
+        this_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}'.format(
+            top_directory_name, spc_date_string[:4], spc_date_string,
+            relative_directory_name, this_pathless_file_pattern)
         raw_file_names += glob.glob(this_file_pattern)
 
     file_times_unix_sec = []

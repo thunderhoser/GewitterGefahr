@@ -26,17 +26,18 @@ PATHLESS_POLYGON_FILE_NAME_UNZIPPED = '20170910-181300.netcdf'
 
 TRACKING_SCALE_ORDINAL = 0
 TRACKING_SCALE_METRES2 = 5e7
-RELATIVE_STATS_DIR_NAME_ORDINAL_SCALE = '20170910/PolygonTable/scale_0'
-RELATIVE_POLYGON_DIR_NAME_ORDINAL_SCALE = '20170910/ClusterID/scale_0'
-RELATIVE_STATS_DIR_NAME_PHYSICAL_SCALE = (
-    '20170910/PolygonTable/scale_50000000m2')
-RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE = '20170910/ClusterID/scale_50000000m2'
+RELATIVE_STATS_DIR_NAME_ORDINAL_SCALE = 'PolygonTable/scale_0'
+RELATIVE_POLYGON_DIR_NAME_ORDINAL_SCALE = 'ClusterID/scale_0'
+RELATIVE_STATS_DIR_NAME_PHYSICAL_SCALE = 'PolygonTable/scale_50000000m2'
+RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE = 'ClusterID/scale_50000000m2'
 
 TOP_RAW_DIRECTORY_NAME = 'segmotion'
 STATS_FILE_NAME_ZIPPED = (
-    'segmotion/20170910/PolygonTable/scale_50000000m2/20170910-181300.xml.gz')
+    'segmotion/2017/20170910/PolygonTable/scale_50000000m2/'
+    '20170910-181300.xml.gz')
 POLYGON_FILE_NAME_ZIPPED = (
-    'segmotion/20170910/ClusterID/scale_50000000m2/20170910-181300.netcdf.gz')
+    'segmotion/2017/20170910/ClusterID/scale_50000000m2/'
+    '20170910-181300.netcdf.gz')
 
 STORM_IDS = ['0', '1', '2', '3']
 EAST_VELOCITIES_M_S01 = numpy.array([5., 7.5, 10., 8.])
@@ -201,7 +202,7 @@ class SegmotionIoTests(unittest.TestCase):
 
         this_relative_dir_name = (
             segmotion_io._get_relative_stats_dir_ordinal_scale(
-                SPC_DATE_STRING, TRACKING_SCALE_ORDINAL))
+                TRACKING_SCALE_ORDINAL))
         self.assertTrue(
             this_relative_dir_name == RELATIVE_STATS_DIR_NAME_ORDINAL_SCALE)
 
@@ -210,7 +211,7 @@ class SegmotionIoTests(unittest.TestCase):
 
         this_relative_dir_name = (
             segmotion_io._get_relative_polygon_dir_ordinal_scale(
-                SPC_DATE_STRING, TRACKING_SCALE_ORDINAL))
+                TRACKING_SCALE_ORDINAL))
         self.assertTrue(
             this_relative_dir_name == RELATIVE_POLYGON_DIR_NAME_ORDINAL_SCALE)
 
@@ -219,7 +220,7 @@ class SegmotionIoTests(unittest.TestCase):
 
         this_relative_dir_name = (
             segmotion_io._get_relative_stats_dir_physical_scale(
-                SPC_DATE_STRING, TRACKING_SCALE_METRES2))
+                TRACKING_SCALE_METRES2))
         self.assertTrue(
             this_relative_dir_name == RELATIVE_STATS_DIR_NAME_PHYSICAL_SCALE)
 
@@ -228,7 +229,7 @@ class SegmotionIoTests(unittest.TestCase):
 
         this_relative_dir_name = (
             segmotion_io._get_relative_polygon_dir_physical_scale(
-                SPC_DATE_STRING, TRACKING_SCALE_METRES2))
+                TRACKING_SCALE_METRES2))
         self.assertTrue(
             this_relative_dir_name == RELATIVE_POLYGON_DIR_NAME_PHYSICAL_SCALE)
 

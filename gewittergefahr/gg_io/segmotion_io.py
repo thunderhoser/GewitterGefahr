@@ -212,74 +212,54 @@ def _get_pathless_polygon_file_name(unix_time_sec, zipped=True):
         POLYGON_FILE_EXTENSION)
 
 
-def _get_relative_stats_dir_ordinal_scale(
-        spc_date_string, tracking_scale_ordinal):
-    """Generates expected relative path for stats directory.
+def _get_relative_stats_dir_ordinal_scale(tracking_scale_ordinal):
+    """Generates relative path for directory with storm statistics.
 
-    This directory should contain storm statistics for the given tracking scale.
-
-    N = number of tracking scales
-
-    :param spc_date_string: SPC date in format "yyyymmdd".
-    :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
-        [0, N - 1]).
-    :return: stats_directory_name: Expected relative path for stats directory.
+    :param tracking_scale_ordinal: Tracking scale.  This should be an ordinal
+        number in [0, N - 1], where N = number of tracking scales.
+    :return: relative_stats_dir_name: Relative path for directory with storm
+        statistics.
     """
 
-    return '{0:s}/{1:s}/scale_{2:d}'.format(
-        spc_date_string, STATS_DIR_NAME_PART, tracking_scale_ordinal)
+    return '{0:s}/scale_{1:d}'.format(
+        STATS_DIR_NAME_PART, tracking_scale_ordinal)
 
 
-def _get_relative_stats_dir_physical_scale(
-        spc_date_string, tracking_scale_metres2):
-    """Generates expected relative path for stats directory.
+def _get_relative_stats_dir_physical_scale(tracking_scale_metres2):
+    """Generates relative path for directory with storm statistics.
 
-    This directory should contain storm statistics for the given tracking scale.
-
-    :param spc_date_string: SPC date in format "yyyymmdd".
-    :param tracking_scale_metres2: Tracking scale.
-    :return: stats_directory_name: Expected relative path for stats directory.
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).
+    :return: relative_stats_dir_name: Relative path for directory with storm
+        statistics.
     """
 
-    return '{0:s}/{1:s}/scale_{2:d}m2'.format(
-        spc_date_string, STATS_DIR_NAME_PART, int(tracking_scale_metres2))
+    return '{0:s}/scale_{1:d}m2'.format(
+        STATS_DIR_NAME_PART, int(numpy.round(tracking_scale_metres2)))
 
 
-def _get_relative_polygon_dir_ordinal_scale(
-        spc_date_string, tracking_scale_ordinal):
-    """Generates expected relative path for polygon directory.
+def _get_relative_polygon_dir_ordinal_scale(tracking_scale_ordinal):
+    """Generates relative path for directory with storm boundaries (polygons).
 
-    This directory should contain storm outlines (polygons) for the given
-    tracking scale.
-
-    N = number of tracking scales
-
-    :param spc_date_string: SPC date in format "yyyymmdd".
-    :param tracking_scale_ordinal: Tracking scale (must be ordinal number in
-        [0, N - 1]).
-    :return: polygon_directory_name: Expected relative path for polygon
-        directory.
+    :param tracking_scale_ordinal: Tracking scale.  This should be an ordinal
+        number in [0, N - 1], where N = number of tracking scales.
+    :return: relative_polygon_dir_name: Relative path for directory with storm
+        boundaries (polygons).
     """
 
-    return '{0:s}/{1:s}/scale_{2:d}'.format(
-        spc_date_string, POLYGON_DIR_NAME_PART, tracking_scale_ordinal)
+    return '{0:s}/scale_{1:d}'.format(
+        POLYGON_DIR_NAME_PART, tracking_scale_ordinal)
 
 
-def _get_relative_polygon_dir_physical_scale(
-        spc_date_string, tracking_scale_metres2):
-    """Generates expected relative path for polygon directory.
+def _get_relative_polygon_dir_physical_scale(tracking_scale_metres2):
+    """Generates relative path for directory with storm boundaries (polygons).
 
-    This directory should contain storm outlines (polygons) for the given
-    tracking scale.
-
-    :param spc_date_string: SPC date in format "yyyymmdd".
-    :param tracking_scale_metres2: Tracking scale.
-    :return: polygon_directory_name: Expected relative path for polygon
-        directory.
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).
+    :return: relative_polygon_dir_name: Relative path for directory with storm
+        boundaries (polygons).
     """
 
-    return '{0:s}/{1:s}/scale_{2:d}m2'.format(
-        spc_date_string, POLYGON_DIR_NAME_PART, int(tracking_scale_metres2))
+    return '{0:s}/scale_{1:d}m2'.format(
+        POLYGON_DIR_NAME_PART, int(numpy.round(tracking_scale_metres2)))
 
 
 def _rename_raw_dirs_ordinal_to_physical(
@@ -302,19 +282,18 @@ def _rename_raw_dirs_ordinal_to_physical(
         (m^2).
     """
 
-    # TODO(thunderhoser): Write rename method in file_system_utils.py that
-    # handles case where target already exists.
-
     num_scales = len(tracking_scales_ordinal)
 
     for j in range(num_scales):
-        orig_stats_dir_name = '{0:s}/{1:s}'.format(
-            top_raw_directory_name, _get_relative_stats_dir_ordinal_scale(
-                spc_date_string, tracking_scales_ordinal[j]))
-        new_stats_dir_name = '{0:s}/{1:s}'.format(
-            top_raw_directory_name, _get_relative_stats_dir_physical_scale(
-                spc_date_string, tracking_scales_metres2[j]))
+        orig_stats_dir_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+            top_raw_directory_name, spc_date_string[:4], spc_date_string,
+            _get_relative_stats_dir_ordinal_scale(tracking_scales_ordinal[j]))
+        new_stats_dir_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+            top_raw_directory_name, spc_date_string[:4], spc_date_string,
+            _get_relative_stats_dir_physical_scale(tracking_scales_metres2[j]))
 
+        # TODO(thunderhoser): Write a rename method somewhere, which handles the
+        # case where the target already exists.
         try:
             os.rename(orig_stats_dir_name, new_stats_dir_name)
         except OSError as this_error:
@@ -324,12 +303,13 @@ def _rename_raw_dirs_ordinal_to_physical(
             else:
                 raise
 
-        orig_polygon_dir_name = '{0:s}/{1:s}'.format(
-            top_raw_directory_name, _get_relative_polygon_dir_ordinal_scale(
-                spc_date_string, tracking_scales_ordinal[j]))
-        new_polygon_dir_name = '{0:s}/{1:s}'.format(
-            top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
-                spc_date_string, tracking_scales_metres2[j]))
+        orig_polygon_dir_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+            top_raw_directory_name, spc_date_string[:4], spc_date_string,
+            _get_relative_polygon_dir_ordinal_scale(tracking_scales_ordinal[j]))
+        new_polygon_dir_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+            top_raw_directory_name, spc_date_string[:4], spc_date_string,
+            _get_relative_polygon_dir_physical_scale(
+                tracking_scales_metres2[j]))
 
         try:
             os.rename(orig_polygon_dir_name, new_polygon_dir_name)
@@ -392,19 +372,22 @@ def unzip_1day_tar_file(
     directory_names_to_unzip = []
 
     for j in range(num_scales_to_extract):
-        this_relative_stats_dir_name = _get_relative_stats_dir_physical_scale(
-            spc_date_string, scales_to_extract_metres2[j])
-        this_relative_polygon_dir_name = (
+        this_relative_stats_dir_name = '{0:s}/{1:s}'.format(
+            spc_date_string,
+            _get_relative_stats_dir_physical_scale(
+                scales_to_extract_metres2[j]))
+        this_relative_polygon_dir_name = '{0:s}/{1:s}'.format(
+            spc_date_string,
             _get_relative_polygon_dir_physical_scale(
-                spc_date_string, scales_to_extract_metres2[j]))
+                scales_to_extract_metres2[j]))
 
         directory_names_to_unzip.append(
             this_relative_stats_dir_name.replace(spc_date_string + '/', ''))
         directory_names_to_unzip.append(
             this_relative_polygon_dir_name.replace(spc_date_string + '/', ''))
 
-    target_directory_name = '{0:s}/{1:s}'.format(
-        top_target_dir_name, spc_date_string)
+    target_directory_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_target_dir_name, spc_date_string[:4], spc_date_string)
     unzipping.unzip_tar(
         tar_file_name, target_directory_name=target_directory_name,
         file_and_dir_names_to_unzip=directory_names_to_unzip)
@@ -432,15 +415,15 @@ def find_local_stats_file(
     :raises: ValueError: if raise_error_if_missing = True and file is missing.
     """
 
-    # Verification.
+    # Error-checking.
     _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_is_string(top_raw_directory_name)
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    directory_name = '{0:s}/{1:s}'.format(
-        top_raw_directory_name, _get_relative_stats_dir_physical_scale(
-            spc_date_string, tracking_scale_metres2))
+    directory_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_raw_directory_name, spc_date_string[:4], spc_date_string,
+        _get_relative_stats_dir_physical_scale(tracking_scale_metres2))
 
     pathless_file_name = _get_pathless_stats_file_name(
         unix_time_sec, zipped=True)
@@ -487,9 +470,9 @@ def find_local_polygon_file(
     error_checking.assert_is_greater(tracking_scale_metres2, 0.)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    directory_name = '{0:s}/{1:s}'.format(
-        top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
-            spc_date_string, tracking_scale_metres2))
+    directory_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_raw_directory_name, spc_date_string[:4], spc_date_string,
+        _get_relative_polygon_dir_physical_scale(tracking_scale_metres2))
 
     pathless_file_name = _get_pathless_polygon_file_name(
         unix_time_sec, zipped=True)
@@ -525,9 +508,9 @@ def find_polygon_files_for_spc_date(
 
     error_checking.assert_is_string(top_raw_directory_name)
 
-    directory_name = '{0:s}/{1:s}'.format(
-        top_raw_directory_name, _get_relative_polygon_dir_physical_scale(
-            spc_date_string, tracking_scale_metres2))
+    directory_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_raw_directory_name, spc_date_string[:4], spc_date_string,
+        _get_relative_polygon_dir_physical_scale(tracking_scale_metres2))
 
     first_hour_unix_sec = SPC_DATE_START_HOUR * HOURS_TO_SECONDS + (
         time_conversion.string_to_unix_sec(

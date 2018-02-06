@@ -38,7 +38,7 @@ DEFAULT_TRACKING_DIR_NAME = '/condo/swatcommon/common/gridrad/echo_top_tracking'
 DEFAULT_GRIDRAD_DIR_NAME = '/condo/swatcommon/common/gridrad/native_format'
 DEFAULT_OUTPUT_DIR_NAME = '/condo/swatcommon/common/gridrad/radar_statistics'
 DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2))
+    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -49,8 +49,7 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-    default=echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2,
-    help=TRACKING_SCALE_HELP_STRING)
+    default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
     '--' + GRIDRAD_DIR_INPUT_ARG, type=str, required=False,
     default=DEFAULT_GRIDRAD_DIR_NAME, help=GRIDRAD_DIR_HELP_STRING)

@@ -95,9 +95,8 @@ def get_raw_file_name_on_ftp(unix_time_sec, top_ftp_directory_name):
     return '{0:s}/{1:s}'.format(top_ftp_directory_name, pathless_file_name)
 
 
-def find_raw_file_on_local_machine(unix_time_sec=None,
-                                   top_local_directory_name=None,
-                                   raise_error_if_missing=True):
+def find_raw_file_on_local_machine(
+        unix_time_sec, top_local_directory_name, raise_error_if_missing=True):
     """Generates name of raw file on local machine.
 
     :param unix_time_sec: Time in Unix format.
@@ -112,9 +111,11 @@ def find_raw_file_on_local_machine(unix_time_sec=None,
     """
 
     pathless_file_name = _get_pathless_raw_file_name(unix_time_sec)
-    raw_local_file_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_local_directory_name,
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT_DATE),
+    date_string = time_conversion.unix_sec_to_string(
+        unix_time_sec, TIME_FORMAT_DATE)
+
+    raw_local_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_local_directory_name, date_string[:4], date_string,
         pathless_file_name)
 
     if raise_error_if_missing and not os.path.isfile(raw_local_file_name):

@@ -58,17 +58,18 @@ FIELD_MATRIX_NO_SENTINELS = numpy.array([
     [12, 13, numpy.nan]])
 
 # The following constants are used to test get_relative_dir_for_raw_files.
-RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.25'
-RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.25'
+RELATIVE_DIR_NAME_MYRORSS = '{0:s}/00.25'.format(LL_SHEAR_NAME_MYRORSS)
+RELATIVE_DIR_NAME_MRMS = '{0:s}/00.25'.format(LL_SHEAR_NAME_MRMS)
 
 # The following constants are used to test find_raw_file and
 # find_raw_file_inexact_time.
 TOP_RAW_DIRECTORY_NAME = 'radar'
 RAW_FILE_NAME_MYRORSS = (
-    'radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
-    '/00.25/20171005-202002.netcdf.gz')
+    'radar/2017/20171005/{0:s}/00.25/20171005-202002.netcdf.gz'.format(
+        LL_SHEAR_NAME_MYRORSS))
 RAW_FILE_NAME_MRMS = (
-    'radar/20171005/' + LL_SHEAR_NAME_MRMS + '/00.25/20171005-202002.netcdf.gz')
+    'radar/2017/20171005/{0:s}/00.25/20171005-202002.netcdf.gz'.format(
+        LL_SHEAR_NAME_MRMS))
 
 
 class MyrorssAndMrmsIoTests(unittest.TestCase):

@@ -20,7 +20,7 @@ SPC_DATE_FORMAT = '%Y%m%d'
 DAYS_TO_SECONDS = 86400
 
 TRACKING_SCALE_METRES2 = int(numpy.round(
-    echo_top_tracking.DEFAULT_STORM_OBJECT_AREA_METRES2))
+    echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
 FIRST_SPC_DATE_INPUT_ARG = 'first_spc_date_string'
 LAST_SPC_DATE_INPUT_ARG = 'last_spc_date_string'

@@ -13,7 +13,7 @@ RAW_FTP_FILE_NAME = (
 
 TOP_LOCAL_DIRECTORY_NAME = '/data/storm_tracking/probSevere'
 RAW_LOCAL_FILE_NAME = (
-    '/data/storm_tracking/probSevere/20171005/'
+    '/data/storm_tracking/probSevere/2017/20171005/'
     'SSEC_AWIPS_PROBSEVERE_20171005_052627.json')
 
 

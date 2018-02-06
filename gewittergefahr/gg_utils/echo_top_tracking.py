@@ -32,7 +32,6 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import radar_statistics
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import error_checking
