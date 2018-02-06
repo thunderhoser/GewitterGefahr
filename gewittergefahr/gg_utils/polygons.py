@@ -303,39 +303,6 @@ def _patch_diag_connections_in_binary_matrix(binary_matrix):
     return binary_matrix
 
 
-def _binary_matrix_to_grid_points_in_poly(
-        binary_matrix, first_row_index, first_column_index):
-    """Converts binary image matrix to list of grid points in polygon.
-
-    M = number of rows in binary image
-    N = number of columns in binary image
-    P = number of grid points in polygon.
-
-    :param binary_matrix: M-by-N numpy array of Boolean flags.  If
-        binary_matrix[i, j] = True, pixel [i, j] is inside the polygon.
-    :param first_row_index: Used to convert row numbers from the binary image
-        (which spans only a subgrid) to the full grid.  Row 0 in the subgrid =
-        row `first_row_index` in the full grid.
-    :param first_column_index: Same as above, but for column numbers.
-    :return: row_indices: length-P numpy array with row numbers (relative to the
-        full grid) of grid points in polygon.
-    :return: column_indices: Same as above, but for column numbers.
-    """
-
-    num_rows_in_subgrid = binary_matrix.shape[0]
-    num_columns_in_subgrid = binary_matrix.shape[1]
-    binary_vector = numpy.reshape(
-        binary_matrix, num_rows_in_subgrid * num_columns_in_subgrid)
-
-    linear_indices_in_subgrid = numpy.where(binary_vector)[0]
-    (row_indices_in_subgrid, column_indices_in_subgrid) = numpy.unravel_index(
-        linear_indices_in_subgrid,
-        (num_rows_in_subgrid, num_columns_in_subgrid))
-
-    return (row_indices_in_subgrid + first_row_index,
-            column_indices_in_subgrid + first_column_index)
-
-
 def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
     """Moves vertices of simple polygon from grid points to grid-cell edges.
 

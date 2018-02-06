@@ -112,8 +112,7 @@ BINARY_MATRIX_NO_DIAG_CONNECTIONS = numpy.array([[0, 1, 1, 0, 0, 0, 0, 0],
                                                  [0, 0, 0, 0, 1, 1, 1, 1]],
                                                 dtype=bool)
 
-# The following constants are used to test
-# _binary_matrix_to_grid_points_in_poly, grid_points_in_poly_to_binary_matrix,
+# The following constants are used to test grid_points_in_poly_to_binary_matrix,
 # grid_points_in_poly_to_vertices, and simple_polygon_to_grid_points.
 ROW_INDICES_IN_POLYGON = numpy.array(
     [101, 101, 102, 102, 102, 102, 103, 103, 103, 104])
@@ -399,19 +398,6 @@ class PolygonsTests(unittest.TestCase):
             BINARY_MATRIX_NO_DIAG_CONNECTIONS)
         self.assertTrue(numpy.array_equal(
             this_binary_matrix, BINARY_MATRIX_NO_DIAG_CONNECTIONS))
-
-    def test_binary_matrix_to_grid_points_in_poly(self):
-        """Ensures correct output from _binary_matrix_to_grid_points_in_poly."""
-
-        these_row_indices, these_column_indices = (
-            polygons._binary_matrix_to_grid_points_in_poly(
-                POINT_IN_OR_ON_POLYGON_MATRIX, FIRST_ROW_INDEX,
-                FIRST_COLUMN_INDEX))
-
-        self.assertTrue(numpy.array_equal(
-            these_row_indices, ROW_INDICES_IN_POLYGON))
-        self.assertTrue(numpy.array_equal(
-            these_column_indices, COLUMN_INDICES_IN_POLYGON))
 
     def test_vertices_from_grid_points_to_edges_many_inputs(self):
         """Ensures correct output from _vertices_from_grid_points_to_edges.
