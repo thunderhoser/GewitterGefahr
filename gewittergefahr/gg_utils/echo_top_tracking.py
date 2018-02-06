@@ -141,26 +141,22 @@ def _gaussian_smooth_radar_field(
     :param e_folding_radius_pixels: e-folding radius for Gaussian smoother.
     :param cutoff_radius_pixels: Cutoff radius for Gaussian smoother.  Default
         is 3 * e-folding radius.
-    :return: radar_matrix: Smoothed version of input.
+    :return: smoothed_radar_matrix: Smoothed version of input.
     """
 
     e_folding_radius_pixels = float(e_folding_radius_pixels)
     if cutoff_radius_pixels is None:
         cutoff_radius_pixels = 3 * e_folding_radius_pixels
 
-    # return grid_smoothing_2d.apply_gaussian(
-    #     input_matrix=radar_matrix, grid_spacing_x=1., grid_spacing_y=1.,
-    #     e_folding_radius=e_folding_radius_pixels,
-    #     cutoff_radius=cutoff_radius_pixels)
-
     radar_matrix[numpy.isnan(radar_matrix)] = 0.
-    radar_matrix = gaussian_filter(
+    smoothed_radar_matrix = gaussian_filter(
         input=radar_matrix, sigma=e_folding_radius_pixels, order=0,
         mode='constant', cval=0.,
         truncate=cutoff_radius_pixels / e_folding_radius_pixels)
 
-    radar_matrix[numpy.absolute(radar_matrix) < TOLERANCE] = numpy.nan
-    return radar_matrix
+    smoothed_radar_matrix[
+        numpy.absolute(smoothed_radar_matrix) < TOLERANCE] = numpy.nan
+    return smoothed_radar_matrix
 
 
 def _find_local_maxima(
@@ -1107,7 +1103,9 @@ def _local_maxima_to_polygons(
                 center_longitude_deg=local_max_dict[LONGITUDES_KEY][i],
                 max_distance_from_center_metres=
                 min_distance_between_maxima_metres))
-        print this_echo_top_submatrix_km_asl
+
+        this_echo_top_submatrix_km_asl[
+            numpy.isnan(this_echo_top_submatrix_km_asl)] = 0.
 
         (local_max_dict[GRID_POINT_ROWS_KEY][i],
          local_max_dict[GRID_POINT_COLUMNS_KEY][i]) = numpy.where(
@@ -1595,14 +1593,14 @@ def run_tracking_better_polygons(
             i][radar_utils.LAT_SPACING_COLUMN]
         this_e_folding_radius_pixels = (
             e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
-        this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
+        this_smooth_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
             this_echo_top_matrix_km_asl,
             e_folding_radius_pixels=this_e_folding_radius_pixels)
 
         this_half_width_in_pixels = int(numpy.round(
             half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
         local_max_dict_by_time[i] = _find_local_maxima(
-            this_echo_top_matrix_km_asl,
+            this_smooth_echo_top_matrix_km_asl,
             file_dictionary[RADAR_METADATA_DICTS_KEY][i],
             neigh_half_width_in_pixels=this_half_width_in_pixels)
 
