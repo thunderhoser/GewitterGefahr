@@ -433,9 +433,6 @@ def rowcol_to_latlng(
     error_checking.assert_is_greater(lat_spacing_deg, 0.)
     error_checking.assert_is_greater(lng_spacing_deg, 0.)
 
-    print lat_spacing_deg
-    print lng_spacing_deg
-
     latitudes_deg = rounder.round_to_nearest(
         nw_grid_point_lat_deg - lat_spacing_deg * grid_rows,
         lat_spacing_deg / 2)

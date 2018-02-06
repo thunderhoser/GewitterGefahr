@@ -1110,6 +1110,18 @@ def _local_maxima_to_polygons(
         (local_max_dict[GRID_POINT_ROWS_KEY][i],
          local_max_dict[GRID_POINT_COLUMNS_KEY][i]) = numpy.where(
              this_echo_top_submatrix_km_asl >= min_echo_top_height_km_asl)
+
+        if not len(local_max_dict[GRID_POINT_ROWS_KEY][i]):
+            this_row = numpy.floor(
+                float(this_echo_top_submatrix_km_asl.shape[0]) / 2)
+            this_column = numpy.floor(
+                float(this_echo_top_submatrix_km_asl.shape[1]) / 2)
+
+            local_max_dict[GRID_POINT_ROWS_KEY][i] = numpy.array(
+                [this_row], dtype=int)
+            local_max_dict[GRID_POINT_COLUMNS_KEY][i] = numpy.array(
+                [this_column], dtype=int)
+
         local_max_dict[GRID_POINT_ROWS_KEY][i] = (
             local_max_dict[GRID_POINT_ROWS_KEY][i] + this_row_offset)
         local_max_dict[GRID_POINT_COLUMNS_KEY][i] = (
