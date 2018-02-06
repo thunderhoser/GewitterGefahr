@@ -1082,7 +1082,6 @@ def _local_maxima_to_polygons(
             num_rows=radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
             num_columns=radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
     grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
-    print grid_point_latitudes_deg[:10]
 
     num_maxima = len(local_max_dict[LATITUDES_KEY])
     local_max_dict[GRID_POINT_ROWS_KEY] = [[]] * num_maxima
@@ -1104,8 +1103,6 @@ def _local_maxima_to_polygons(
                 center_longitude_deg=local_max_dict[LONGITUDES_KEY][i],
                 max_distance_from_center_metres=
                 min_distance_between_maxima_metres))
-
-        print local_max_dict[LATITUDES_KEY][i]
 
         this_echo_top_submatrix_km_asl[
             numpy.isnan(this_echo_top_submatrix_km_asl)] = 0.
