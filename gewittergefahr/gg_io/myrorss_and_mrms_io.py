@@ -54,6 +54,7 @@ METRES_TO_KM = 1e-3
 SENTINEL_TOLERANCE = 10.
 LATLNG_MULTIPLE_DEG = 1e-4
 DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC = 180
+DEFAULT_MAX_TIME_OFFSET_FOR_NON_SHEAR_SEC = 10
 
 ZIPPED_FILE_EXTENSION = '.gz'
 UNZIPPED_FILE_EXTENSION = '.netcdf'
@@ -62,7 +63,7 @@ AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 RADAR_FILE_NAME_LIST_KEY = 'radar_file_name_2d_list'
 UNIQUE_TIMES_KEY = 'unique_times_unix_sec'
-UNIQUE_SPC_DATES_KEY = 'unique_spc_dates_unix_sec'
+SPC_DATES_AT_UNIQUE_TIMES_KEY = 'spc_dates_at_unique_times_unix_sec'
 FIELD_NAME_BY_PAIR_KEY = 'field_name_by_pair'
 HEIGHT_BY_PAIR_KEY = 'height_by_pair_m_asl'
 
@@ -195,42 +196,99 @@ def get_relative_dir_for_raw_files(field_name, data_source, height_m_asl=None):
         float(height_m_asl) * METRES_TO_KM)
 
 
-def find_raw_azimuthal_shear_file(
+def find_raw_file(
+        unix_time_sec, spc_date_string, field_name, data_source,
+        top_directory_name, height_m_asl=None, raise_error_if_missing=True):
+    """Finds raw file.
+
+    File should contain one field at one time step (e.g., MESH at 123502 UTC,
+    reflectivity at 500 m above sea level and 123502 UTC).
+
+    :param unix_time_sec: Valid time.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param field_name: Name of radar field in GewitterGefahr format.
+    :param data_source: Data source (string).
+    :param top_directory_name: Name of top-level directory with raw files.
+    :param height_m_asl: Radar height (metres above sea level).
+    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
+        this method will raise an error.  If False and file is missing, will
+        return *expected* path to raw file.
+    :return: raw_file_name: Path to raw file.
+    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    """
+
+    # Error-checking.
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    relative_directory_name = get_relative_dir_for_raw_files(
+        field_name=field_name, height_m_asl=height_m_asl,
+        data_source=data_source)
+    directory_name = '{0:s}/{1:s}/{2:s}'.format(
+        top_directory_name, spc_date_string, relative_directory_name)
+
+    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
+    raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        pathless_file_name = _get_pathless_raw_file_name(
+            unix_time_sec, zipped=False)
+        raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
+
+    if raise_error_if_missing and not os.path.isfile(raw_file_name):
+        raise ValueError(
+            'Cannot find raw file.  Expected at location: ' + raw_file_name)
+
+    return raw_file_name
+
+
+def find_raw_file_inexact_time(
         desired_time_unix_sec, spc_date_string, field_name, data_source,
-        top_directory_name,
-        max_time_offset_sec=DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC,
+        top_directory_name, height_m_asl=None, max_time_offset_sec=None,
         raise_error_if_missing=False):
-    """Finds raw az-shear file.
+    """Finds raw file at inexact time.
 
-    This file should contain one az-shear field (examples: low-level az-shear,
-    mid-level az-shear) for one valid time.
-
-    If you know the exact valid time, use `find_raw_file`.  However, az-shear is
-    "special," and its valid times are usually offset from those of other radar
-    fields.  This method accounts for said offset.
+    If you know the exact valid time, use `find_raw_file`.
 
     :param desired_time_unix_sec: Desired valid time.
     :param spc_date_string: SPC date (format "yyyymmdd").
     :param field_name: Field name in GewitterGefahr format.
     :param data_source: Data source (string).
     :param top_directory_name: Name of top-level directory with raw files.
+    :param height_m_asl: Radar height (metres above sea level).
     :param max_time_offset_sec: Maximum offset between actual and desired valid
-        time.  For example, if `desired_time_unix_sec` is 162933 UTC 5 Jan 2018
-        and `max_time_offset_sec` = 60, this method will look for az-shear at
-        valid times from 162833...163033 UTC 5 Jan 2018.
-    :param raise_error_if_missing: Boolean flag.  If True and no az-shear file
-        can be found, this method will raise an error.  If False and no az-shear
-        file can be found, will return None.
-    :return: raw_file_name: Path to raw az-shear file.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+        time.
+
+    For example, if `desired_time_unix_sec` is 162933 UTC 5 Jan 2018 and
+    `max_time_offset_sec` = 60, this method will look for az-shear at valid
+    times from 162833...163033 UTC 5 Jan 2018.
+
+    If None, this defaults to `DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC` for
+    azimuthal-shear fields and `DEFAULT_MAX_TIME_OFFSET_FOR_NON_SHEAR_SEC` for
+    all other fields.
+
+    :param raise_error_if_missing: Boolean flag.  If no file is found and
+        raise_error_if_missing = True, this method will error out.  If no file
+        is found and raise_error_if_missing = False, will return None.
+    :return: raw_file_name: Path to raw file.
+    :raises: ValueError: if no file is found and raise_error_if_missing = True.
     """
 
-    # Verification.
-    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    # Error-checking.
     error_checking.assert_is_integer(desired_time_unix_sec)
+    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    radar_utils.check_field_name(field_name)
+    if max_time_offset_sec is None:
+        if field_name in AZIMUTHAL_SHEAR_FIELD_NAMES:
+            max_time_offset_sec = DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC
+        else:
+            max_time_offset_sec = DEFAULT_MAX_TIME_OFFSET_FOR_NON_SHEAR_SEC
+
     error_checking.assert_is_integer(max_time_offset_sec)
     error_checking.assert_is_greater(max_time_offset_sec, 0)
-    error_checking.assert_is_boolean(raise_error_if_missing)
 
     first_allowed_minute_unix_sec = numpy.round(int(rounder.floor_to_nearest(
         float(desired_time_unix_sec - max_time_offset_sec),
@@ -245,7 +303,8 @@ def find_raw_azimuthal_shear_file(
         time_interval_sec=MINUTES_TO_SECONDS, include_endpoint=True).astype(int)
 
     relative_directory_name = get_relative_dir_for_raw_files(
-        field_name=field_name, data_source=data_source)
+        field_name=field_name, data_source=data_source,
+        height_m_asl=height_m_asl)
 
     raw_file_names = []
     for this_time_unix_sec in allowed_minutes_unix_sec:
@@ -281,52 +340,6 @@ def find_raw_azimuthal_shear_file(
         return None
 
     return raw_file_names[nearest_index]
-
-
-def find_raw_file(
-        unix_time_sec, spc_date_string, field_name, data_source,
-        top_directory_name, height_m_asl=None, raise_error_if_missing=True):
-    """Finds raw file.
-
-    This file should contain one radar field at one height and valid time.
-
-    :param unix_time_sec: Valid time.
-    :param spc_date_string: SPC date (format "yyyymmdd").
-    :param field_name: Name of radar field in GewitterGefahr format.
-    :param data_source: Data source (string).
-    :param top_directory_name: Name of top-level directory with raw files.
-    :param height_m_asl: Radar height (metres above sea level).
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.  If False and file is missing, will
-        return *expected* path to raw file.
-    :return: raw_file_name: Path to raw file.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
-    """
-
-    # Verification.
-    _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
-    error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
-
-    relative_directory_name = get_relative_dir_for_raw_files(
-        field_name=field_name, height_m_asl=height_m_asl,
-        data_source=data_source)
-    directory_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_directory_name, spc_date_string, relative_directory_name)
-
-    pathless_file_name = _get_pathless_raw_file_name(unix_time_sec, zipped=True)
-    raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
-
-    if raise_error_if_missing and not os.path.isfile(raw_file_name):
-        pathless_file_name = _get_pathless_raw_file_name(
-            unix_time_sec, zipped=False)
-        raw_file_name = '{0:s}/{1:s}'.format(directory_name, pathless_file_name)
-
-    if raise_error_if_missing and not os.path.isfile(raw_file_name):
-        raise ValueError(
-            'Cannot find raw file.  Expected at location: ' + raw_file_name)
-
-    return raw_file_name
 
 
 def find_raw_files_one_spc_date(
@@ -379,31 +392,40 @@ def find_raw_files_one_spc_date(
 
 
 def find_many_raw_files(
-        valid_times_unix_sec, spc_dates_unix_sec, data_source, field_names,
-        top_directory_name, reflectivity_heights_m_asl=None):
-    """Finds raw file for each field and time step.
+        desired_times_unix_sec, spc_date_strings, data_source, field_names,
+        top_directory_name, reflectivity_heights_m_asl=None,
+        max_time_offset_for_az_shear_sec=
+        DEFAULT_MAX_TIME_OFFSET_FOR_AZ_SHEAR_SEC,
+        max_time_offset_for_non_shear_sec=
+        DEFAULT_MAX_TIME_OFFSET_FOR_NON_SHEAR_SEC):
+    """Finds raw file for each field/height pair and time step.
 
     N = number of input times
-    T = number of unique time steps
-    V = number of radar variables
-    F = number of radar fields (variable/height pairs)
+    T = number of unique input times
+    F = number of field/height pairs
 
-    :param valid_times_unix_sec: length-N numpy array of valid times.
-    :param spc_dates_unix_sec: length-N numpy array of corresponding SPC dates.
-    :param data_source: Data source (string).
-    :param field_names: length-V list of field names.
-    :param top_directory_name: Name of top-level directory with radar data for
+    :param desired_times_unix_sec: length-N numpy array with desired valid
+        times.
+    :param spc_date_strings: length-N list of corresponding SPC dates (format
+        "yyyymmdd").
+    :param data_source: Data source ("myrorss" or "mrms").
+    :param field_names: 1-D list of field names.
+    :param top_directory_name: Name of top-level directory with radar data from
         the given source.
     :param reflectivity_heights_m_asl: 1-D numpy array of heights (metres above
-        sea level) for radar field "reflectivity_dbz".  If "reflectivity_dbz" is
-        not one of the `field_names`, leave this argument as None.
+        sea level) for the field "reflectivity_dbz".  If "reflectivity_dbz" is
+        not in `field_names`, leave this as None.
+    :param max_time_offset_for_az_shear_sec: Max time offset (between desired
+        and actual valid time) for azimuthal-shear fields.
+    :param max_time_offset_for_non_shear_sec: Max time offset (between desired
+        and actual valid time) for non-azimuthal-shear fields.
     :return: file_dictionary: Dictionary with the following keys.
     file_dictionary['radar_file_name_2d_list']: T-by-F list of paths to raw
         files.
     file_dictionary['unique_times_unix_sec']: length-T numpy array of unique
         valid times.
-    file_dictionary['unique_spc_dates_unix_sec']: length-T numpy array of unique
-        SPC dates.
+    file_dictionary['spc_date_strings_for_unique_times']: length-T numpy array
+        of corresponding SPC dates.
     file_dictionary['field_name_by_pair']: length-F list of field names.
     file_dictionary['height_by_pair_m_asl']: length-F numpy array of heights
         (metres above sea level).
@@ -415,47 +437,60 @@ def find_many_raw_files(
             refl_heights_m_asl=reflectivity_heights_m_asl))
     num_fields = len(field_name_by_pair)
 
-    error_checking.assert_is_integer_numpy_array(valid_times_unix_sec)
-    error_checking.assert_is_numpy_array(valid_times_unix_sec, num_dimensions=1)
-    num_times = len(valid_times_unix_sec)
-
-    error_checking.assert_is_integer_numpy_array(spc_dates_unix_sec)
+    error_checking.assert_is_integer_numpy_array(desired_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        spc_dates_unix_sec, exact_dimensions=numpy.array([num_times]))
+        desired_times_unix_sec, num_dimensions=1)
+    num_times = len(desired_times_unix_sec)
+
+    error_checking.assert_is_string_list(spc_date_strings)
+    error_checking.assert_is_numpy_array(
+        numpy.array(spc_date_strings),
+        exact_dimensions=numpy.array([num_times]))
+
+    spc_dates_unix_sec = numpy.array(
+        [time_conversion.spc_date_string_to_unix_sec(s)
+         for s in spc_date_strings])
 
     time_matrix = numpy.hstack((
-        numpy.reshape(valid_times_unix_sec, (num_times, 1)),
+        numpy.reshape(desired_times_unix_sec, (num_times, 1)),
         numpy.reshape(spc_dates_unix_sec, (num_times, 1))))
     unique_time_matrix = numpy.vstack(
         {tuple(this_row) for this_row in time_matrix}).astype(int)
     unique_times_unix_sec = unique_time_matrix[:, 0]
-    unique_spc_dates_unix_sec = unique_time_matrix[:, 1]
+    spc_dates_at_unique_times_unix_sec = unique_time_matrix[:, 1]
 
     num_unique_times = len(unique_times_unix_sec)
     radar_file_names_2d_list = [[''] * num_fields] * num_unique_times
 
     for i in range(num_unique_times):
         this_spc_date_string = time_conversion.time_to_spc_date_string(
-            unique_spc_dates_unix_sec[i])
+            spc_dates_at_unique_times_unix_sec[i])
 
         for j in range(num_fields):
             if field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
-                radar_file_names_2d_list[i][j] = find_raw_azimuthal_shear_file(
+                this_max_time_offset_sec = max_time_offset_for_az_shear_sec
+                this_raise_error_flag = False
+            else:
+                this_max_time_offset_sec = max_time_offset_for_non_shear_sec
+                this_raise_error_flag = True
+
+            if this_max_time_offset_sec == 0:
+                radar_file_names_2d_list[i][j] = find_raw_file(
+                    unix_time_sec=unique_times_unix_sec[i],
+                    spc_date_string=this_spc_date_string,
+                    field_name=field_name_by_pair[j], data_source=data_source,
+                    top_directory_name=top_directory_name,
+                    height_m_asl=height_by_pair_m_asl[j],
+                    raise_error_if_missing=this_raise_error_flag)
+            else:
+                radar_file_names_2d_list[i][j] = find_raw_file_inexact_time(
                     desired_time_unix_sec=unique_times_unix_sec[i],
                     spc_date_string=this_spc_date_string,
                     field_name=field_name_by_pair[j], data_source=data_source,
                     top_directory_name=top_directory_name,
-                    raise_error_if_missing=False)
-
-            else:
-                radar_file_names_2d_list[i][j] = find_raw_file(
-                    unix_time_sec=unique_times_unix_sec[i],
-                    spc_date_string=this_spc_date_string,
-                    field_name=field_name_by_pair[j],
                     height_m_asl=height_by_pair_m_asl[j],
-                    data_source=data_source,
-                    top_directory_name=top_directory_name,
-                    raise_error_if_missing=True)
+                    max_time_offset_sec=this_max_time_offset_sec,
+                    raise_error_if_missing=this_raise_error_flag)
 
             if radar_file_names_2d_list[i][j] is None:
                 this_time_string = time_conversion.unix_sec_to_string(
@@ -463,15 +498,15 @@ def find_many_raw_files(
 
                 warning_string = (
                     'Cannot find file for "{0:s}" at {1:d} metres ASL and '
-                    '{2:s}.').format(field_name_by_pair[j],
-                                     int(height_by_pair_m_asl[j]),
-                                     this_time_string)
+                    '{2:s}.').format(
+                        field_name_by_pair[j], int(height_by_pair_m_asl[j]),
+                        this_time_string)
                 warnings.warn(warning_string)
 
     return {
         RADAR_FILE_NAME_LIST_KEY: radar_file_names_2d_list,
         UNIQUE_TIMES_KEY: unique_times_unix_sec,
-        UNIQUE_SPC_DATES_KEY: unique_spc_dates_unix_sec,
+        SPC_DATES_AT_UNIQUE_TIMES_KEY: spc_dates_at_unique_times_unix_sec,
         FIELD_NAME_BY_PAIR_KEY: field_name_by_pair,
         HEIGHT_BY_PAIR_KEY: height_by_pair_m_asl
     }

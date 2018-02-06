@@ -62,7 +62,7 @@ RELATIVE_DIR_NAME_MYRORSS = LL_SHEAR_NAME_MYRORSS + '/00.25'
 RELATIVE_DIR_NAME_MRMS = LL_SHEAR_NAME_MRMS + '/00.25'
 
 # The following constants are used to test find_raw_file and
-# find_raw_azimuthal_shear_file.
+# find_raw_file_inexact_time.
 TOP_RAW_DIRECTORY_NAME = 'radar'
 RAW_FILE_NAME_MYRORSS = (
     'radar/20171005/' + LL_SHEAR_NAME_MYRORSS +
@@ -193,10 +193,10 @@ class MyrorssAndMrmsIoTests(unittest.TestCase):
             raise_error_if_missing=False)
         self.assertTrue(this_raw_file_name == RAW_FILE_NAME_MRMS)
 
-    def test_find_raw_azimuthal_shear_file(self):
-        """Ensures correct output from find_raw_azimuthal_shear_file."""
+    def test_find_raw_file_inexact_time(self):
+        """Ensures correct output from find_raw_file_inexact_time."""
 
-        this_raw_file_name = myrorss_and_mrms_io.find_raw_azimuthal_shear_file(
+        this_raw_file_name = myrorss_and_mrms_io.find_raw_file_inexact_time(
             desired_time_unix_sec=FILE_TIME_UNIX_SEC,
             spc_date_string=FILE_SPC_DATE_STRING,
             field_name=LL_SHEAR_NAME_NEW,
