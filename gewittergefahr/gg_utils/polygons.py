@@ -362,6 +362,20 @@ def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
     row_indices = numpy.array([])
     column_indices = numpy.array([])
 
+    # Handle case of only one unique vertex.
+    rowcol_matrix_orig = numpy.hstack((
+        numpy.reshape(row_indices_orig, (num_vertices_orig, 1)),
+        numpy.reshape(column_indices_orig, (num_vertices_orig, 1))))
+    unique_rowcol_matrix_orig = numpy.vstack(
+        {tuple(this_row) for this_row in rowcol_matrix_orig}).astype(int)
+
+    if unique_rowcol_matrix_orig.shape[0] == 1:
+        row_indices = row_indices_orig[0] + numpy.array(
+            [0.5, 0.5, -0.5, -0.5, 0.5])
+        column_indices = column_indices_orig[0] + numpy.array(
+            [-0.5, 0.5, 0.5, -0.5, -0.5])
+        return row_indices, column_indices
+
     for i in range(num_vertices_orig - 1):
         this_direction_name = _get_edge_direction(
             first_row=row_indices_orig[i], second_row=row_indices_orig[i + 1],
@@ -406,12 +420,6 @@ def _vertices_from_grid_points_to_edges(row_indices_orig, column_indices_orig):
 
         row_indices = numpy.concatenate((row_indices, rows_to_append))
         column_indices = numpy.concatenate((column_indices, columns_to_append))
-
-    if num_vertices_orig == 1:
-        row_indices = row_indices_orig[0] + numpy.array(
-            [0.5, 0.5, -0.5, -0.5, 0.5])
-        column_indices = column_indices_orig[0] + numpy.array(
-            [-0.5, 0.5, 0.5, -0.5, -0.5])
 
     if not (row_indices[-1] == row_indices[0] and
             column_indices[-1] == column_indices[0]):
@@ -835,8 +843,6 @@ def grid_points_in_poly_to_vertices(
 
     vertex_row_indices += first_row_index
     vertex_column_indices += first_column_index
-    print vertex_row_indices
-    print vertex_column_indices
     vertex_row_indices, vertex_column_indices = (
         _vertices_from_grid_points_to_edges(
             vertex_row_indices, vertex_column_indices))
