@@ -485,7 +485,7 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
 
     file_dictionary = myrorss_and_mrms_io.find_many_raw_files(
         desired_times_unix_sec=
-        storm_object_table[tracking_utils.TIME_COLUMN].values,
+        storm_object_table[tracking_utils.TIME_COLUMN].values.astype(int),
         spc_date_strings=spc_date_strings, data_source=radar_source,
         field_names=radar_field_names, top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
