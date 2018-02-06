@@ -89,6 +89,13 @@ VALID_TIMES_BY_DATE_KEY = 'times_by_date_unix_sec'
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
 
+GRID_POINT_ROWS_KEY = 'list_of_grid_point_rows'
+GRID_POINT_COLUMNS_KEY = 'list_of_grid_point_columns'
+GRID_POINT_LATITUDES_KEY = 'list_of_grid_point_latitudes_deg'
+GRID_POINT_LONGITUDES_KEY = 'list_of_grid_point_longitudes_deg'
+POLYGON_OBJECTS_ROWCOL_KEY = 'polygon_objects_rowcol'
+POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
+
 DEFAULT_EAST_VELOCITY_M_S01 = 5.
 DEFAULT_NORTH_VELOCITY_M_S01 = 10.
 
@@ -566,6 +573,15 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     all_centroid_x_metres = numpy.array([])
     all_centroid_y_metres = numpy.array([])
 
+    include_polygons = POLYGON_OBJECTS_LATLNG_KEY in local_max_dict_by_time[0]
+    if include_polygons:
+        all_grid_point_rows_2d_list = []
+        all_grid_point_columns_2d_list = []
+        all_grid_point_latitudes_deg_2d_list = []
+        all_grid_point_longitudes_deg_2d_list = []
+        all_polygon_objects_latlng = numpy.array([], dtype=object)
+        all_polygon_objects_rowcol = numpy.array([], dtype=object)
+
     for i in range(num_times):
         this_num_storm_objects = len(local_max_dict_by_time[i][LATITUDES_KEY])
         if this_num_storm_objects == 0:
@@ -614,6 +630,23 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
             all_centroid_x_metres, local_max_dict_by_time[i][X_COORDS_KEY]))
         all_centroid_y_metres = numpy.concatenate((
             all_centroid_y_metres, local_max_dict_by_time[i][Y_COORDS_KEY]))
+
+        if include_polygons:
+            all_grid_point_rows_2d_list += local_max_dict_by_time[i][
+                GRID_POINT_ROWS_KEY]
+            all_grid_point_columns_2d_list += local_max_dict_by_time[i][
+                GRID_POINT_COLUMNS_KEY]
+            all_grid_point_latitudes_deg_2d_list += local_max_dict_by_time[i][
+                GRID_POINT_LATITUDES_KEY]
+            all_grid_point_longitudes_deg_2d_list += local_max_dict_by_time[i][
+                GRID_POINT_LONGITUDES_KEY]
+
+            all_polygon_objects_latlng = numpy.concatenate((
+                all_polygon_objects_latlng,
+                local_max_dict_by_time[i][POLYGON_OBJECTS_LATLNG_KEY]))
+            all_polygon_objects_rowcol = numpy.concatenate((
+                all_polygon_objects_rowcol,
+                local_max_dict_by_time[i][POLYGON_OBJECTS_ROWCOL_KEY]))
 
     storm_object_dict = {
         tracking_utils.STORM_ID_COLUMN: all_storm_ids,
@@ -998,6 +1031,132 @@ def _storm_objects_to_polygons(
     return storm_object_table
 
 
+def _local_maxima_to_polygons(
+        local_max_dict, echo_top_matrix_km_asl, min_echo_top_height_km_asl,
+        radar_metadata_dict, min_distance_between_maxima_metres):
+    """Converts local maxima at one time step from points to polygons.
+
+    P = number of local maxima
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+    G_i = number of grid points in the [i]th polygon
+
+    :param local_max_dict: Dictionary with at least the following keys.
+    local_max_dict['latitudes_deg']: length-P numpy array with latitudes (deg N)
+        of local maxima.
+    local_max_dict['longitudes_deg']: length-P numpy array with longitudes
+        (deg E) of local maxima.
+    :param echo_top_matrix_km_asl: M-by-N numpy array of echo tops (km above sea
+        level).
+    :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
+        level).  Smaller values are not considered local maxima.
+    :param radar_metadata_dict: Dictionary with metadata for radar grid, created
+        by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
+    :param min_distance_between_maxima_metres: Minimum distance between two
+        local maxima.
+    :return: local_max_dict: Same as input, but with extra keys listed below.
+    local_max_dict['list_of_grid_point_rows']: length-N list, where the [i]th
+        element is a numpy array (length G_i) with row indices of grid points in
+        polygon.
+    local_max_dict['list_of_grid_point_columns']: Same but for columns.
+    local_max_dict['list_of_grid_point_latitudes_deg']: Same but for latitudes
+        (deg N).
+    local_max_dict['list_of_grid_point_longitudes_deg']: Same but for longitudes
+        (deg E).
+    local_max_dict['polygon_objects_rowcol']: length-N list, where each element
+        is an instance of `shapely.geometry.Polygon` with vertices in row-column
+        coordinates.
+    local_max_dict['polygon_objects_latlng']: Same but for lat-long coordinates.
+    """
+
+    # TODO(thunderhoser): I may want to let this influence centroids... ?
+
+    min_grid_point_latitude_deg = (
+        radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] -
+        (radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+         (radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
+
+    grid_point_latitudes_deg, grid_point_longitudes_deg = (
+        grids.get_latlng_grid_points(
+            min_latitude_deg=min_grid_point_latitude_deg,
+            min_longitude_deg=
+            radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+            num_rows=radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
+            num_columns=radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
+    grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
+
+    num_maxima = len(local_max_dict[LATITUDES_KEY])
+    local_max_dict[GRID_POINT_ROWS_KEY] = [[]] * num_maxima
+    local_max_dict[GRID_POINT_COLUMNS_KEY] = [[]] * num_maxima
+    local_max_dict[GRID_POINT_LATITUDES_KEY] = [[]] * num_maxima
+    local_max_dict[GRID_POINT_LONGITUDES_KEY] = [[]] * num_maxima
+    local_max_dict[POLYGON_OBJECTS_ROWCOL_KEY] = numpy.full(
+        num_maxima, numpy.nan, dtype=object)
+    local_max_dict[POLYGON_OBJECTS_LATLNG_KEY] = numpy.full(
+        num_maxima, numpy.nan, dtype=object)
+
+    for i in range(num_maxima):
+        this_echo_top_submatrix_km_asl, this_row_offset, this_column_offset = (
+            grids.extract_latlng_subgrid(
+                data_matrix=echo_top_matrix_km_asl,
+                grid_point_latitudes_deg=grid_point_latitudes_deg,
+                grid_point_longitudes_deg=grid_point_longitudes_deg,
+                center_latitude_deg=local_max_dict[LATITUDES_KEY][i],
+                center_longitude_deg=local_max_dict[LONGITUDES_KEY][i],
+                max_distance_from_center_metres=
+                min_distance_between_maxima_metres))
+
+        (local_max_dict[GRID_POINT_ROWS_KEY][i],
+         local_max_dict[GRID_POINT_COLUMNS_KEY][i]) = numpy.where(
+             this_echo_top_submatrix_km_asl >= min_echo_top_height_km_asl)
+        local_max_dict[GRID_POINT_ROWS_KEY][i] = (
+            local_max_dict[GRID_POINT_ROWS_KEY][i] + this_row_offset)
+        local_max_dict[GRID_POINT_COLUMNS_KEY][i] = (
+            local_max_dict[GRID_POINT_COLUMNS_KEY][i] + this_column_offset)
+
+        these_vertex_rows, these_vertex_columns = (
+            polygons.grid_points_in_poly_to_vertices(
+                local_max_dict[GRID_POINT_ROWS_KEY][i],
+                local_max_dict[GRID_POINT_COLUMNS_KEY][i]))
+
+        (local_max_dict[GRID_POINT_LATITUDES_KEY][i],
+         local_max_dict[GRID_POINT_LONGITUDES_KEY][i]) = (
+             radar_utils.rowcol_to_latlng(
+                 local_max_dict[GRID_POINT_ROWS_KEY][i],
+                 local_max_dict[GRID_POINT_COLUMNS_KEY][i],
+                 nw_grid_point_lat_deg=
+                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                 nw_grid_point_lng_deg=
+                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                 lat_spacing_deg=
+                 radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                 lng_spacing_deg=
+                 radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+
+        these_vertex_latitudes_deg, these_vertex_longitudes_deg = (
+            radar_utils.rowcol_to_latlng(
+                these_vertex_rows, these_vertex_columns,
+                nw_grid_point_lat_deg=
+                radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+                nw_grid_point_lng_deg=
+                radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+                lat_spacing_deg=
+                radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                lng_spacing_deg=
+                radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+
+        local_max_dict[POLYGON_OBJECTS_ROWCOL_KEY][i] = (
+            polygons.vertex_arrays_to_polygon_object(
+                these_vertex_columns, these_vertex_rows))
+        local_max_dict[POLYGON_OBJECTS_LATLNG_KEY][i] = (
+            polygons.vertex_arrays_to_polygon_object(
+                these_vertex_longitudes_deg, these_vertex_latitudes_deg))
+
+    return local_max_dict
+
+
 def _find_input_and_output_tracking_files(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
         tracking_scale_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
@@ -1341,6 +1500,162 @@ def run_tracking(
         storm_object_table=storm_object_table, file_dictionary=file_dictionary,
         projection_object=projection_object,
         object_area_metres2=storm_object_area_metres2)
+    return storm_object_table, file_dictionary
+
+
+def run_tracking_better_polygons(
+        top_radar_dir_name, top_tracking_dir_name, start_spc_date_string,
+        end_spc_date_string,
+        echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
+        radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
+        start_time_unix_sec=None, end_time_unix_sec=None,
+        min_echo_top_height_km_asl=DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL,
+        e_fold_radius_for_smoothing_deg_lat=
+        DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT,
+        half_width_for_max_filter_deg_lat=
+        DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT,
+        min_distance_between_maxima_metres=
+        DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
+        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
+        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
+        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS,
+        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
+    """Same as run_tracking, but with better polygon creation.
+
+    :param top_radar_dir_name: See doc for `run_tracking`.
+    :param top_tracking_dir_name: See doc for `run_tracking`.
+    :param start_spc_date_string: See doc for `run_tracking`.
+    :param end_spc_date_string: See doc for `run_tracking`.
+    :param echo_top_field_name: See doc for `run_tracking`.
+    :param radar_data_source: See doc for `run_tracking`.
+    :param start_time_unix_sec: See doc for `run_tracking`.
+    :param end_time_unix_sec: See doc for `run_tracking`.
+    :param min_echo_top_height_km_asl: See doc for `run_tracking`.
+    :param e_fold_radius_for_smoothing_deg_lat: See doc for `run_tracking`.
+    :param half_width_for_max_filter_deg_lat: See doc for `run_tracking`.
+    :param min_distance_between_maxima_metres: See doc for `run_tracking`.
+    :param max_link_time_seconds: See doc for `run_tracking`.
+    :param max_link_distance_m_s01: See doc for `run_tracking`.
+    :param min_track_duration_seconds: See doc for `run_tracking`.
+    :param num_points_back_for_velocity: See doc for `run_tracking`.
+    :return: storm_object_table: See doc for `run_tracking`.
+    :return: file_dictionary: See doc for `run_tracking`.
+    """
+
+    error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
+
+    file_dictionary = _find_radar_and_tracking_files(
+        echo_top_field_name=echo_top_field_name, data_source=radar_data_source,
+        top_radar_dir_name=top_radar_dir_name,
+        top_tracking_dir_name=top_tracking_dir_name,
+        tracking_scale_metres2=DEFAULT_STORM_OBJECT_AREA_METRES2,
+        start_spc_date_string=start_spc_date_string,
+        end_spc_date_string=end_spc_date_string,
+        start_time_unix_sec=start_time_unix_sec,
+        end_time_unix_sec=end_time_unix_sec)
+
+    input_radar_file_names = file_dictionary[RADAR_FILE_NAMES_KEY]
+    unix_times_sec = file_dictionary[VALID_TIMES_KEY]
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    time_strings = [time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+                    for t in unix_times_sec]
+
+    num_times = len(unix_times_sec)
+    local_max_dict_by_time = [{}] * num_times
+    file_dictionary[RADAR_METADATA_DICTS_KEY] = [{}] * num_times
+
+    for i in range(num_times):
+        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
+            echo_top_field_name, time_strings[i])
+
+        file_dictionary[RADAR_METADATA_DICTS_KEY][i] = (
+            myrorss_and_mrms_io.read_metadata_from_raw_file(
+                input_radar_file_names[i], data_source=radar_data_source))
+
+        this_sparse_grid_table = (
+            myrorss_and_mrms_io.read_data_from_sparse_grid_file(
+                input_radar_file_names[i],
+                field_name_orig=file_dictionary[RADAR_METADATA_DICTS_KEY][i][
+                    myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
+                data_source=radar_data_source,
+                sentinel_values=file_dictionary[RADAR_METADATA_DICTS_KEY][i][
+                    radar_utils.SENTINEL_VALUE_COLUMN]))
+
+        this_echo_top_matrix_km_asl, _, _ = radar_s2f.sparse_to_full_grid(
+            this_sparse_grid_table,
+            file_dictionary[RADAR_METADATA_DICTS_KEY][i],
+            ignore_if_below=min_echo_top_height_km_asl)
+
+        this_latitude_spacing_deg = file_dictionary[RADAR_METADATA_DICTS_KEY][
+            i][radar_utils.LAT_SPACING_COLUMN]
+        this_e_folding_radius_pixels = (
+            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
+        this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
+            this_echo_top_matrix_km_asl,
+            e_folding_radius_pixels=this_e_folding_radius_pixels)
+
+        this_half_width_in_pixels = int(numpy.round(
+            half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
+        local_max_dict_by_time[i] = _find_local_maxima(
+            this_echo_top_matrix_km_asl,
+            file_dictionary[RADAR_METADATA_DICTS_KEY][i],
+            neigh_half_width_in_pixels=this_half_width_in_pixels)
+
+        local_max_dict_by_time[i] = _remove_redundant_local_maxima(
+            local_max_dict_by_time[i], projection_object=projection_object,
+            min_distance_between_maxima_metres=
+            min_distance_between_maxima_metres)
+        local_max_dict_by_time[i].update({VALID_TIME_KEY: unix_times_sec[i]})
+
+        local_max_dict_by_time[i] = _local_maxima_to_polygons(
+            local_max_dict=local_max_dict_by_time[i],
+            echo_top_matrix_km_asl=this_echo_top_matrix_km_asl,
+            min_echo_top_height_km_asl=min_echo_top_height_km_asl,
+            radar_metadata_dict=file_dictionary[RADAR_METADATA_DICTS_KEY][i],
+            min_distance_between_maxima_metres=
+            min_distance_between_maxima_metres)
+
+        if i == 0:
+            these_current_to_prev_indices = _link_local_maxima_in_time(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=None,
+                max_link_time_seconds=max_link_time_seconds,
+                max_link_distance_m_s01=max_link_distance_m_s01)
+        else:
+            print (
+                'Linking local maxima at {0:s} with those at {1:s}...\n'.format(
+                    time_strings[i], time_strings[i - 1]))
+
+            these_current_to_prev_indices = _link_local_maxima_in_time(
+                current_local_max_dict=local_max_dict_by_time[i],
+                previous_local_max_dict=local_max_dict_by_time[i - 1],
+                max_link_time_seconds=max_link_time_seconds,
+                max_link_distance_m_s01=max_link_distance_m_s01)
+
+        local_max_dict_by_time[i].update(
+            {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
+
+    print ('Converting time series of local "{0:s}" maxima to storm '
+           'tracks...').format(echo_top_field_name)
+    storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
+
+    print 'Removing tracks with duration < {0:d} seconds...'.format(
+        int(min_track_duration_seconds))
+    storm_object_table = _remove_short_tracks(
+        storm_object_table, min_duration_seconds=min_track_duration_seconds)
+
+    print 'Computing storm age for each storm object...'
+    storm_object_table = best_tracks.recompute_attributes(
+        storm_object_table, best_track_start_time_unix_sec=unix_times_sec[0],
+        best_track_end_time_unix_sec=unix_times_sec[-1])
+
+    print 'Computing velocity for each storm object...\n'
+    storm_object_table = _get_storm_velocities(
+        storm_object_table, num_points_back=num_points_back_for_velocity)
     return storm_object_table, file_dictionary
 
 
