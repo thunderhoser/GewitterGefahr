@@ -196,6 +196,8 @@ def join_features_and_labels(
 
     label_column_names, num_wind_obs_column_names = _check_labels_in_table(
         storm_to_events_table)
+    if num_wind_obs_column_names is None:
+        num_wind_obs_column_names = []
 
     storm_to_events_table = storm_to_events_table[
         STORM_COLUMNS_TO_KEEP + label_column_names + num_wind_obs_column_names +
