@@ -9,6 +9,9 @@ import numpy
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
+DEGREES_LAT_TO_METRES = 60 * 1852
+DEGREES_TO_RADIANS = numpy.pi / 180
+
 
 def get_xy_grid_points(x_min_metres=None, y_min_metres=None,
                        x_spacing_metres=None, y_spacing_metres=None,
@@ -321,3 +324,86 @@ def latlng_field_grid_points_to_edges(
 
     return (field_matrix, grid_cell_edge_latitudes_deg,
             grid_cell_edge_longitudes_deg)
+
+
+def extract_latlng_subgrid(
+        data_matrix, grid_point_latitudes_deg, grid_point_longitudes_deg,
+        center_latitude_deg, center_longitude_deg,
+        max_distance_from_center_metres):
+    """Extracts subset of lat-long grid, centered at a given point.
+
+    M = number of rows (grid-point latitudes) in full grid
+    N = number of columns (grid-point longitudes) in full grid
+    m = number of rows (grid-point latitudes) in sub-grid
+    n = number of columns (grid-point longitudes) in sub-grid
+
+    :param data_matrix: M-by-N numpy array with data values.
+    :param grid_point_latitudes_deg: length-M numpy array of grid-point
+        latitudes (deg N).  grid_point_latitudes_deg[i] is the latitude
+        everywhere in the [i]th row of data_matrix.
+    :param grid_point_longitudes_deg: length-M numpy array of grid-point
+        latitudes (deg E).  grid_point_longitudes_deg[j] is the longitude
+        everywhere in the [j]th column of data_matrix.
+    :param center_latitude_deg: Latitude (deg N) of target point, around which
+        the sub-grid will be centered.
+    :param center_longitude_deg: Longitude (deg E) of target point, around which
+        the sub-grid will be centered.
+    :param max_distance_from_center_metres: Max distance of any grid point from
+        target point.  Values at more distant grid points will be changed to
+        NaN.
+    :return: subgrid_matrix: m-by-n numpy array with data values.
+    :return: row_offset: If this is dR, row 0 in the subgrid is row dR in the
+        full grid.
+    :return: column_offset: If this is dC, column 0 in the subgrid is column dC
+        in the full grid.
+    """
+
+    max_latitude_diff_deg = (
+        max_distance_from_center_metres / DEGREES_LAT_TO_METRES)
+
+    degrees_lng_to_metres = DEGREES_LAT_TO_METRES * numpy.cos(
+        center_latitude_deg * DEGREES_TO_RADIANS)
+    max_longitude_diff_deg = (
+        max_distance_from_center_metres / degrees_lng_to_metres)
+
+    min_latitude_deg = center_latitude_deg - max_latitude_diff_deg
+    max_latitude_deg = center_latitude_deg + max_latitude_diff_deg
+    min_longitude_deg = center_longitude_deg - max_longitude_diff_deg
+    max_longitude_deg = center_longitude_deg + max_longitude_diff_deg
+
+    valid_row_flags = numpy.logical_and(
+        grid_point_latitudes_deg >= min_latitude_deg,
+        grid_point_latitudes_deg <= max_latitude_deg)
+    valid_column_flags = numpy.logical_and(
+        grid_point_longitudes_deg >= min_longitude_deg,
+        grid_point_longitudes_deg <= max_longitude_deg)
+
+    valid_row_indices = numpy.where(valid_row_flags)[0]
+    min_valid_row_index = numpy.min(valid_row_indices)
+    max_valid_row_index = numpy.max(valid_row_indices)
+
+    valid_column_indices = numpy.where(valid_column_flags)[0]
+    min_valid_column_index = numpy.min(valid_column_indices)
+    max_valid_column_index = numpy.max(valid_column_indices)
+
+    subgrid_data_matrix = data_matrix[
+        min_valid_row_index:(max_valid_row_index + 1),
+        min_valid_column_index:(max_valid_column_index + 1)]
+
+    subgrid_point_lat_matrix, subgrid_point_lng_matrix = (
+        latlng_vectors_to_matrices(
+            grid_point_latitudes_deg[valid_row_indices],
+            grid_point_longitudes_deg[valid_column_indices]))
+    lat_distance_matrix_metres = (
+        (subgrid_point_lat_matrix - center_latitude_deg) *
+        DEGREES_LAT_TO_METRES)
+    lng_distance_matrix_metres = (
+        (subgrid_point_lng_matrix - center_longitude_deg) *
+        degrees_lng_to_metres)
+    distance_matrix_metres = numpy.sqrt(
+        lat_distance_matrix_metres ** 2 + lng_distance_matrix_metres ** 2)
+
+    bad_indices = numpy.where(
+        distance_matrix_metres > max_distance_from_center_metres)
+    subgrid_data_matrix[bad_indices] = numpy.nan
+    return subgrid_data_matrix, min_valid_row_index, min_valid_column_index

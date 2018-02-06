@@ -76,6 +76,26 @@ EXPECTED_FIELD_MATRIX_AT_EDGES = numpy.array([
     [numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan, numpy.nan,
      numpy.nan, numpy.nan, numpy.nan]])
 
+# The following constants are used to test extract_latlng_subgrid.
+FULL_DATA_MATRIX = numpy.array([[9., 1., 2., 2., 7., 8., 8., 9.],
+                                [10., 3., numpy.nan, 5., 1., 8., 1., 7.],
+                                [2., 6., 10., 10., 9., numpy.nan, 3., 4.],
+                                [10., 10., 5., 8., 10., 7., 1., 10.],
+                                [7., 10., 9., 10., 7., 2., 1., 1.]])
+
+FULL_GRID_POINT_LATITUDES_DEG = numpy.array([53.7, 53.6, 53.5, 53.4, 53.3])
+FULL_GRID_POINT_LONGITUDES_DEG = numpy.array(
+    [246.2, 246.4, 246.6, 246.8, 247., 247.2, 247.4, 247.6])
+CENTER_LATITUDE_DEG = 53.5
+CENTER_LONGITUDE_DEG = 247.3
+MAX_DISTANCE_FROM_CENTER_METRES = 20000.
+
+EXPECTED_SUBGRID_DATA_MATRIX = numpy.array([[numpy.nan, 8., 1., numpy.nan],
+                                            [9., numpy.nan, 3., 4.],
+                                            [numpy.nan, 7., 1., numpy.nan]])
+EXPECTED_ROW_OFFSET = 1
+EXPECTED_COLUMN_OFFSET = 4
+
 
 class GridsTests(unittest.TestCase):
     """Each method is a unit test for grids.py."""
@@ -201,6 +221,25 @@ class GridsTests(unittest.TestCase):
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
             this_field_matrix_at_edges, EXPECTED_FIELD_MATRIX_AT_EDGES,
+            equal_nan=True, atol=TOLERANCE))
+
+    def test_extract_latlng_subgrid(self):
+        """Ensures correct output from extract_latlng_subgrid."""
+
+        this_subgrid_data_matrix, this_row_offset, this_column_offset = (
+            grids.extract_latlng_subgrid(
+                data_matrix=FULL_DATA_MATRIX,
+                grid_point_latitudes_deg=FULL_GRID_POINT_LATITUDES_DEG,
+                grid_point_longitudes_deg=FULL_GRID_POINT_LONGITUDES_DEG,
+                center_latitude_deg=CENTER_LATITUDE_DEG,
+                center_longitude_deg=CENTER_LONGITUDE_DEG,
+                max_distance_from_center_metres=
+                MAX_DISTANCE_FROM_CENTER_METRES))
+
+        self.assertTrue(this_row_offset == EXPECTED_ROW_OFFSET)
+        self.assertTrue(this_column_offset == EXPECTED_COLUMN_OFFSET)
+        self.assertTrue(numpy.allclose(
+            this_subgrid_data_matrix, EXPECTED_SUBGRID_DATA_MATRIX,
             equal_nan=True, atol=TOLERANCE))
 
 
