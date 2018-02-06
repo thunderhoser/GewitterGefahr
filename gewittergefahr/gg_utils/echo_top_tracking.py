@@ -654,6 +654,21 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
         CENTROID_Y_COLUMN: all_centroid_y_metres
     }
 
+    if include_polygons:
+        storm_object_dict.update({
+            tracking_utils.GRID_POINT_ROW_COLUMN: all_grid_point_rows_2d_list,
+            tracking_utils.GRID_POINT_COLUMN_COLUMN:
+                all_grid_point_columns_2d_list,
+            tracking_utils.GRID_POINT_LAT_COLUMN:
+                all_grid_point_latitudes_deg_2d_list,
+            tracking_utils.GRID_POINT_LNG_COLUMN:
+                all_grid_point_longitudes_deg_2d_list,
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN:
+                all_polygon_objects_latlng,
+            tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN:
+                all_polygon_objects_rowcol
+        })
+
     return pandas.DataFrame.from_dict(storm_object_dict)
 
 
