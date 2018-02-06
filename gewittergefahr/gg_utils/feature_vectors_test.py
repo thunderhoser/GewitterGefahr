@@ -200,7 +200,7 @@ def are_feature_tables_equal(feature_table1, feature_table2):
 
 
 class FeatureVectorsTests(unittest.TestCase):
-    """Each method is a unit test for feature_vectors_test.py."""
+    """Each method is a unit test for feature_vectors.py."""
 
     def test_check_labels_in_table(self):
         """Ensures correct output from _check_labels_in_table."""
