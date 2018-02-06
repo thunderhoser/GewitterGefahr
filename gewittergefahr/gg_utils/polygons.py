@@ -836,7 +836,7 @@ def grid_points_in_poly_to_vertices(
     vertex_row_indices += first_row_index
     vertex_column_indices += first_column_index
     print vertex_row_indices
-    vertex_column_indices
+    print vertex_column_indices
     vertex_row_indices, vertex_column_indices = (
         _vertices_from_grid_points_to_edges(
             vertex_row_indices, vertex_column_indices))
