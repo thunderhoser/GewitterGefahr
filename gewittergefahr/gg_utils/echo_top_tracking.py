@@ -1115,6 +1115,9 @@ def _local_maxima_to_polygons(
         local_max_dict[GRID_POINT_COLUMNS_KEY][i] = (
             local_max_dict[GRID_POINT_COLUMNS_KEY][i] + this_column_offset)
 
+        print local_max_dict[GRID_POINT_ROWS_KEY][i]
+        print local_max_dict[GRID_POINT_COLUMNS_KEY][i]
+
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
                 local_max_dict[GRID_POINT_ROWS_KEY][i],
