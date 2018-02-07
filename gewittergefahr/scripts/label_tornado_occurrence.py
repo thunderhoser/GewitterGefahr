@@ -121,7 +121,6 @@ def _label_tornado_occurrence(
         input_storm_to_tornadoes_file_name)
     storm_to_tornadoes_table = events2storms.read_storm_to_tornadoes_table(
         input_storm_to_tornadoes_file_name)
-    print storm_to_tornadoes_table
 
     for i in range(num_lead_time_windows):
         for j in range(num_distance_windows):
@@ -139,7 +138,6 @@ def _label_tornado_occurrence(
                 max_link_distance_metres=max_link_distances_metres[j])
 
     print 'Writing tornado labels to: "{0:s}"...'.format(output_label_file_name)
-    print storm_to_tornadoes_table
     labels.write_tornado_labels(
         storm_to_tornadoes_table, output_label_file_name)
 

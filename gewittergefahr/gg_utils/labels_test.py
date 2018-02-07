@@ -1,17 +1,16 @@
-"""Unit tests for labels_new.py."""
+"""Unit tests for labels.py."""
 
-import copy
 import unittest
 import numpy
 import pandas
-from gewittergefahr.gg_utils import labels_new
+from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 
 TOLERANCE = 1e-6
 
 # The following constants are used to test
-# _remove_data_near_end_of_tracking_period.
+# _find_storms_near_end_of_tracking_period.
 MAX_LEAD_TIME_SEC = 3600
 
 THESE_END_TIMES_UNIX_SEC = numpy.array(
@@ -26,11 +25,7 @@ THIS_DICTIONARY = {
 STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD = pandas.DataFrame.from_dict(
     THIS_DICTIONARY)
 
-THESE_INVALID_ROWS = numpy.array([2, 3, 7], dtype=int)
-STORM_TO_EVENTS_TABLE_SANS_END_OF_PERIOD = (
-    STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD.drop(
-        STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD.index[THESE_INVALID_ROWS],
-        axis=0, inplace=False))
+ROWS_NEAR_END_OF_PERIOD = numpy.array([2, 3, 7], dtype=int)
 
 # The following constants are used to test get_column_name_for_regression_label,
 # get_column_name_for_num_wind_obs, and
@@ -54,31 +49,31 @@ TORNADO_LABEL_COLUMN_NAME = (
 
 # The following constants are used to test column_name_to_label_params.
 PARAM_DICT_FOR_REGRESSION_LABEL = {
-    labels_new.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
-    labels_new.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    labels_new.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    labels_new.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    labels_new.EVENT_TYPE_KEY: events2storms.WIND_EVENT_TYPE_STRING,
-    labels_new.WIND_SPEED_PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
-    labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY: None
+    labels.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    labels.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    labels.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    labels.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    labels.EVENT_TYPE_KEY: events2storms.WIND_EVENT_TYPE_STRING,
+    labels.WIND_SPEED_PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
+    labels.WIND_SPEED_CLASS_CUTOFFS_KEY: None
 }
 PARAM_DICT_FOR_WIND_CLASSIFICATION_LABEL = {
-    labels_new.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
-    labels_new.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    labels_new.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    labels_new.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    labels_new.EVENT_TYPE_KEY: events2storms.WIND_EVENT_TYPE_STRING,
-    labels_new.WIND_SPEED_PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
-    labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY: WIND_CLASS_CUTOFFS_KT
+    labels.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    labels.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    labels.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    labels.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    labels.EVENT_TYPE_KEY: events2storms.WIND_EVENT_TYPE_STRING,
+    labels.WIND_SPEED_PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
+    labels.WIND_SPEED_CLASS_CUTOFFS_KEY: WIND_CLASS_CUTOFFS_KT
 }
 PARAM_DICT_FOR_TORNADO_LABEL = {
-    labels_new.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
-    labels_new.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    labels_new.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    labels_new.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    labels_new.EVENT_TYPE_KEY: events2storms.TORNADO_EVENT_TYPE_STRING,
-    labels_new.WIND_SPEED_PERCENTILE_LEVEL_KEY: None,
-    labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY: None
+    labels.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    labels.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    labels.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    labels.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    labels.EVENT_TYPE_KEY: events2storms.TORNADO_EVENT_TYPE_STRING,
+    labels.WIND_SPEED_PERCENTILE_LEVEL_KEY: None,
+    labels.WIND_SPEED_CLASS_CUTOFFS_KEY: None
 }
 
 # The following constants are used to test get_columns_with_labels,
@@ -92,25 +87,23 @@ THIS_DICTIONARY = {
 LABEL_TABLE = pandas.DataFrame.from_dict(THIS_DICTIONARY)
 
 
-class LabelsNewTests(unittest.TestCase):
-    """Each method is a unit test for labels_new.py."""
+class LabelsTests(unittest.TestCase):
+    """Each method is a unit test for labels.py."""
 
-    def test_remove_data_near_end_of_tracking_period(self):
-        """Ensures correctness of _remove_data_near_end_of_tracking_period."""
+    def test_find_storms_near_end_of_tracking_period(self):
+        """Ensures correctness of _find_storms_near_end_of_tracking_period."""
 
-        this_orig_table = copy.deepcopy(
-            STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD)
-        this_new_table = labels_new._remove_data_near_end_of_tracking_period(
-            storm_to_events_table=this_orig_table,
+        these_invalid_rows = labels._find_storms_near_end_of_tracking_period(
+            storm_to_events_table=STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD,
             max_lead_time_sec=MAX_LEAD_TIME_SEC)
 
-        self.assertTrue(this_new_table.equals(
-            STORM_TO_EVENTS_TABLE_SANS_END_OF_PERIOD))
+        self.assertTrue(numpy.array_equal(
+            these_invalid_rows, ROWS_NEAR_END_OF_PERIOD))
 
     def test_get_column_name_for_regression_label(self):
         """Ensures correct output from get_column_name_for_regression_label."""
 
-        this_column_name = labels_new.get_column_name_for_regression_label(
+        this_column_name = labels.get_column_name_for_regression_label(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -121,7 +114,7 @@ class LabelsNewTests(unittest.TestCase):
     def test_get_column_name_for_num_wind_obs(self):
         """Ensures correct output from get_column_name_for_num_wind_obs."""
 
-        this_column_name = labels_new.get_column_name_for_num_wind_obs(
+        this_column_name = labels.get_column_name_for_num_wind_obs(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -134,7 +127,7 @@ class LabelsNewTests(unittest.TestCase):
         In this case, event type is wind speed.
         """
 
-        this_column_name = labels_new.get_column_name_for_classification_label(
+        this_column_name = labels.get_column_name_for_classification_label(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -152,7 +145,7 @@ class LabelsNewTests(unittest.TestCase):
         In this case, event type is tornado occurrence.
         """
 
-        this_column_name = labels_new.get_column_name_for_classification_label(
+        this_column_name = labels.get_column_name_for_classification_label(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -166,7 +159,7 @@ class LabelsNewTests(unittest.TestCase):
         In this case, learning goal is regression.
         """
 
-        this_parameter_dict = labels_new.column_name_to_label_params(
+        this_parameter_dict = labels.column_name_to_label_params(
             REGRESSION_LABEL_COLUMN_NAME)
         self.assertTrue(this_parameter_dict == PARAM_DICT_FOR_REGRESSION_LABEL)
 
@@ -178,17 +171,17 @@ class LabelsNewTests(unittest.TestCase):
         speed.
         """
 
-        this_parameter_dict = labels_new.column_name_to_label_params(
+        this_parameter_dict = labels.column_name_to_label_params(
             WIND_CLASSIFICATION_LABEL_COLUMN_NAME)
 
         self.assertTrue(numpy.array_equal(
-            this_parameter_dict[labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY],
+            this_parameter_dict[labels.WIND_SPEED_CLASS_CUTOFFS_KEY],
             PARAM_DICT_FOR_WIND_CLASSIFICATION_LABEL[
-                labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY]))
+                labels.WIND_SPEED_CLASS_CUTOFFS_KEY]))
 
-        this_parameter_dict.pop(labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY, None)
+        this_parameter_dict.pop(labels.WIND_SPEED_CLASS_CUTOFFS_KEY, None)
         PARAM_DICT_FOR_WIND_CLASSIFICATION_LABEL.pop(
-            labels_new.WIND_SPEED_CLASS_CUTOFFS_KEY, None)
+            labels.WIND_SPEED_CLASS_CUTOFFS_KEY, None)
 
         self.assertTrue(
             this_parameter_dict == PARAM_DICT_FOR_WIND_CLASSIFICATION_LABEL)
@@ -200,7 +193,7 @@ class LabelsNewTests(unittest.TestCase):
         occurrence.
         """
 
-        this_parameter_dict = labels_new.column_name_to_label_params(
+        this_parameter_dict = labels.column_name_to_label_params(
             TORNADO_LABEL_COLUMN_NAME)
         self.assertTrue(this_parameter_dict == PARAM_DICT_FOR_TORNADO_LABEL)
 
@@ -210,9 +203,9 @@ class LabelsNewTests(unittest.TestCase):
         In this case, learning goal is regression.
         """
 
-        these_column_names = labels_new.get_columns_with_labels(
+        these_column_names = labels.get_columns_with_labels(
             label_table=LABEL_TABLE,
-            goal_string=labels_new.REGRESSION_GOAL_STRING,
+            goal_string=labels.REGRESSION_GOAL_STRING,
             event_type_string=events2storms.WIND_EVENT_TYPE_STRING)
         self.assertTrue(these_column_names == [REGRESSION_LABEL_COLUMN_NAME])
 
@@ -223,9 +216,9 @@ class LabelsNewTests(unittest.TestCase):
         speed.
         """
 
-        these_column_names = labels_new.get_columns_with_labels(
+        these_column_names = labels.get_columns_with_labels(
             label_table=LABEL_TABLE,
-            goal_string=labels_new.CLASSIFICATION_GOAL_STRING,
+            goal_string=labels.CLASSIFICATION_GOAL_STRING,
             event_type_string=events2storms.WIND_EVENT_TYPE_STRING)
 
         self.assertTrue(
@@ -238,9 +231,9 @@ class LabelsNewTests(unittest.TestCase):
         occurrence.
         """
 
-        these_column_names = labels_new.get_columns_with_labels(
+        these_column_names = labels.get_columns_with_labels(
             label_table=LABEL_TABLE,
-            goal_string=labels_new.CLASSIFICATION_GOAL_STRING,
+            goal_string=labels.CLASSIFICATION_GOAL_STRING,
             event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING)
         self.assertTrue(these_column_names == [TORNADO_LABEL_COLUMN_NAME])
 
@@ -250,7 +243,7 @@ class LabelsNewTests(unittest.TestCase):
         In this case, learning goal is regression.
         """
 
-        these_column_names = labels_new.get_columns_with_num_wind_obs(
+        these_column_names = labels.get_columns_with_num_wind_obs(
             label_table=LABEL_TABLE,
             label_column_names=[REGRESSION_LABEL_COLUMN_NAME])
         self.assertTrue(these_column_names == [NUM_WIND_OBS_COLUMN_NAME])
@@ -261,7 +254,7 @@ class LabelsNewTests(unittest.TestCase):
         In this case, learning goal is classification.
         """
 
-        these_column_names = labels_new.get_columns_with_num_wind_obs(
+        these_column_names = labels.get_columns_with_num_wind_obs(
             label_table=LABEL_TABLE,
             label_column_names=[WIND_CLASSIFICATION_LABEL_COLUMN_NAME])
         self.assertTrue(these_column_names == [NUM_WIND_OBS_COLUMN_NAME])
