@@ -45,8 +45,8 @@ LABEL_FILE_HELP_STRING = (
     'lead-time window, and distance window; to be written by'
     '`labels.write_tornado_labels`).')
 
-DEFAULT_MIN_LEAD_TIMES_SEC = numpy.array([0, 900, 1800, 2700])
-DEFAULT_MAX_LEAD_TIMES_SEC = numpy.array([900, 1800, 2700, 86400])
+DEFAULT_MIN_LEAD_TIMES_SEC = numpy.array([0, 900, 1800, 2700, 3600, 0])
+DEFAULT_MAX_LEAD_TIMES_SEC = numpy.array([900, 1800, 2700, 3600, 5400, 7200])
 DEFAULT_MIN_LINK_DISTANCES_METRES = numpy.array([0])
 DEFAULT_MAX_LINK_DISTANCES_METRES = numpy.array([100000])
 
