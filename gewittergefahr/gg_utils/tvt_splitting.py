@@ -183,6 +183,54 @@ def split_training_validation_testing(
     return training_indices, validation_indices, testing_indices
 
 
+def split_training_testing(
+        unix_times_sec, testing_fraction=DEFAULT_TESTING_FRACTION,
+        time_separation_sec=DEFAULT_TIME_SEPARATION_SEC):
+    """Splits data into training and testing sets.
+
+    N = number of examples
+
+    :param unix_times_sec: length-N numpy array of valid times.
+    :param testing_fraction: Fraction of examples to be used for testing.
+    :param time_separation_sec: See documentation for
+        `split_training_validation_testing`.
+    :return: training_indices: 1-D numpy array with indices of training
+        examples.
+    :return: testing_indices: 1-D numpy array with indices of testing examples.
+    """
+
+    error_checking.assert_is_integer_numpy_array(unix_times_sec)
+    error_checking.assert_is_numpy_array_without_nan(unix_times_sec)
+    error_checking.assert_is_numpy_array(unix_times_sec, num_dimensions=1)
+
+    error_checking.assert_is_greater(testing_fraction, 0.)
+    error_checking.assert_is_less_than(testing_fraction, 1.)
+    error_checking.assert_is_integer(time_separation_sec)
+    error_checking.assert_is_greater(time_separation_sec, 0)
+
+    num_examples = len(unix_times_sec)
+    training_fraction = 1. - testing_fraction
+    num_training_examples = int(numpy.round(training_fraction * num_examples))
+    num_testing_examples = num_examples - num_training_examples
+
+    training_indices = numpy.linspace(
+        0, num_training_examples - 1, num=num_training_examples, dtype=int)
+    testing_indices = numpy.linspace(
+        num_training_examples, num_examples - 1, num=num_testing_examples,
+        dtype=int)
+
+    sort_indices = numpy.argsort(unix_times_sec)
+    training_indices = sort_indices[training_indices]
+    testing_indices = sort_indices[testing_indices]
+
+    training_indices, testing_indices = _apply_time_separation(
+        unix_times_sec, early_indices=training_indices,
+        late_indices=testing_indices,
+        time_separation_sec=time_separation_sec)
+
+    return training_indices, testing_indices
+
+
 def split_training_for_bias_correction(
         all_base_model_times_unix_sec=None,
         all_bias_correction_times_unix_sec=None, base_model_fraction=None,

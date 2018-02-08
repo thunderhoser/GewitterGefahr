@@ -19,9 +19,13 @@ LATE_INDICES_WITH_SEPARATION = numpy.array([1, 3, 5, 7, 9], dtype=int)
 # The following constants are used to test split_training_validation_testing.
 VALIDATION_FRACTION = 0.333333
 TESTING_FRACTION = 0.166667
-TRAINING_INDICES_NO_BIAS_CORRECTION = numpy.array([0, 2, 4, 6], dtype=int)
-VALIDATION_INDICES_NO_BIAS_CORRECTION = numpy.array([7, 9], dtype=int)
-TESTING_INDICES_NO_BIAS_CORRECTION = numpy.array([1], dtype=int)
+TRAINING_INDICES_3SETS = numpy.array([0, 2, 4, 6], dtype=int)
+VALIDATION_INDICES_3SETS = numpy.array([7, 9], dtype=int)
+TESTING_INDICES_3SETS = numpy.array([1], dtype=int)
+
+# The following constants are used to test split_training_testing.
+TRAINING_INDICES_2SETS = numpy.array([0, 2, 4, 6, 8, 10, 11, 9, 7], dtype=int)
+TESTING_INDICES_2SETS = numpy.array([1], dtype=int)
 
 # The following constants are used to test split_training_for_bias_correction.
 BASE_MODEL_TIMES_UNIX_SEC = numpy.array(
@@ -31,8 +35,8 @@ BIAS_CORRECTION_TIMES_UNIX_SEC = numpy.array(
     [0, 20000, 100, 15000, 200, 9999, 500, 8888, 750, 7777, 1000, 6666, 1500,
      5555, 2000, 4000, 2500, 3250], dtype=int)
 
-BIAS_CORRECTION_VALIDATION_INDICES = numpy.array([7, 9, 11, 13, 15], dtype=int)
-BIAS_CORRECTION_TESTING_INDICES = numpy.array([1, 3, 5], dtype=int)
+VALIDATION_INDICES_4SETS = numpy.array([7, 9, 11, 13, 15], dtype=int)
+TESTING_INDICES_4SETS = numpy.array([1, 3, 5], dtype=int)
 FIRST_NON_TRAINING_TIME_UNIX_SEC = 4000
 
 BASE_MODEL_TRAINING_FRACTION = 0.6
@@ -113,11 +117,24 @@ class TvtSplittingTests(unittest.TestCase):
                  time_separation_sec=TIME_SEPARATION_SEC))
 
         self.assertTrue(set(these_training_indices) ==
-                        set(TRAINING_INDICES_NO_BIAS_CORRECTION))
+                        set(TRAINING_INDICES_3SETS))
         self.assertTrue(set(these_validation_indices) ==
-                        set(VALIDATION_INDICES_NO_BIAS_CORRECTION))
+                        set(VALIDATION_INDICES_3SETS))
         self.assertTrue(set(these_testing_indices) ==
-                        set(TESTING_INDICES_NO_BIAS_CORRECTION))
+                        set(TESTING_INDICES_3SETS))
+
+    def test_split_training_testing(self):
+        """Ensures correct output from split_training_testing."""
+
+        these_training_indices, these_testing_indices = (
+            tvt_splitting.split_training_testing(
+                UNIX_TIMES_SEC, testing_fraction=TESTING_FRACTION,
+                time_separation_sec=TIME_SEPARATION_SEC))
+
+        self.assertTrue(set(these_training_indices) ==
+                        set(TRAINING_INDICES_2SETS))
+        self.assertTrue(set(these_testing_indices) ==
+                        set(TESTING_INDICES_2SETS))
 
     def test_split_training_for_bias_correction(self):
         """Ensures correct output from split_training_for_bias_correction."""
@@ -157,9 +174,9 @@ class TvtSplittingTests(unittest.TestCase):
         self.assertTrue(set(these_bias_correction_training_indices) ==
                         set(BIAS_CORRECTION_TRAINING_INDICES))
         self.assertTrue(set(these_validation_indices) ==
-                        set(BIAS_CORRECTION_VALIDATION_INDICES))
+                        set(VALIDATION_INDICES_4SETS))
         self.assertTrue(set(these_testing_indices) ==
-                        set(BIAS_CORRECTION_TESTING_INDICES))
+                        set(TESTING_INDICES_4SETS))
 
 
 if __name__ == '__main__':
