@@ -735,11 +735,6 @@ def apply_trained_model(
             standardization_dict_for_training_data,
             svd_dict_for_training_data=svd_dict_for_training_data))
 
-    print numpy.min(preprocessed_input_table.as_matrix(
-        columns=preprocessed_feature_names))
-    print numpy.max(preprocessed_input_table.as_matrix(
-        columns=preprocessed_feature_names))
-
     return trained_model_object.predict_proba(
         preprocessed_input_table.as_matrix(
             columns=preprocessed_feature_names))[:, 1]
