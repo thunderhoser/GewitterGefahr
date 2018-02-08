@@ -10,6 +10,7 @@ import pandas
 from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_FRACTION_OF_VARIANCE_TO_KEEP = 0.875
+MAX_NUM_STANDARD_DEVIATIONS = 10.
 
 FEATURE_NAMES_KEY = 'feature_names'
 ORIGINAL_MEANS_KEY = 'original_means'
@@ -215,8 +216,13 @@ def standardize_features(feature_table, standardization_dict=None):
              standardization_dict[ORIGINAL_MEANS_KEY][j]) /
             standardization_dict[ORIGINAL_STDEVS_KEY][j])
 
-        nan_indices = numpy.where(numpy.isnan(these_standardized_values))[0]
-        these_standardized_values[nan_indices] = 0.
+        these_standardized_values[numpy.isnan(these_standardized_values)] = 0.
+        these_standardized_values[
+            these_standardized_values > MAX_NUM_STANDARD_DEVIATIONS
+        ] = MAX_NUM_STANDARD_DEVIATIONS
+        these_standardized_values[
+            these_standardized_values < -MAX_NUM_STANDARD_DEVIATIONS
+        ] = -MAX_NUM_STANDARD_DEVIATIONS
 
         if standardized_feature_table is None:
             standardized_feature_table = pandas.DataFrame.from_dict(
