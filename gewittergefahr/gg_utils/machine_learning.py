@@ -467,8 +467,6 @@ def train_random_forest(
          fraction_of_explained_variance_for_svd=
          fraction_of_explained_variance_for_svd)
 
-    print 'DONE PRE-PROCESSING FOR RANDOM FOREST'
-
     num_features_total = len(preprocessed_feature_names)
     if num_features_per_split is None:
         num_features_per_split = int(
@@ -576,7 +574,7 @@ def train_gradient_boosted_trees(
         loss=loss_function, learning_rate=learning_rate, n_estimators=num_trees,
         max_depth=max_depth, min_samples_split=min_examples_per_split,
         min_samples_leaf=min_examples_per_leaf, subsample=subsampling_fraction,
-        max_features=num_features_per_split, verbose=1)
+        max_features=num_features_per_split, verbose=3)
 
     model_object.fit(
         preprocessed_training_table.as_matrix(
@@ -683,7 +681,7 @@ def train_neural_net(
         activation=hidden_layer_activation_function, solver=solver,
         alpha=l2_weight, batch_size=num_examples_per_batch,
         learning_rate_init=learning_rate, max_iter=max_num_epochs,
-        tol=convergence_tolerance, verbose=1,
+        tol=convergence_tolerance, verbose=3,
         early_stopping=allow_early_stopping,
         validation_fraction=early_stopping_fraction)
 
