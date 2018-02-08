@@ -489,7 +489,7 @@ def train_random_forest(
         n_estimators=num_trees, criterion=loss_function,
         max_features=num_features_per_split, max_depth=max_depth,
         min_samples_split=min_examples_per_split,
-        min_samples_leaf=min_examples_per_leaf, bootstrap=True, verbose=1)
+        min_samples_leaf=min_examples_per_leaf, bootstrap=True, verbose=3)
 
     model_object.fit(
         preprocessed_training_table.as_matrix(
