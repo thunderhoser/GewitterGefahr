@@ -724,6 +724,8 @@ def apply_trained_model(
     _check_input_data_for_learning(
         input_table=input_table, feature_names=feature_names, target_name=None)
 
+    print numpy.sum(numpy.isnan(input_table.as_matrix(columns=feature_names)))
+
     preprocessed_input_table, preprocessed_feature_names, _, _, _ = (
         _preprocess_data_for_learning(
             input_table=input_table, feature_names=feature_names,
@@ -734,6 +736,9 @@ def apply_trained_model(
             standardization_dict_for_training_data=
             standardization_dict_for_training_data,
             svd_dict_for_training_data=svd_dict_for_training_data))
+
+    print numpy.sum(numpy.isnan(preprocessed_input_table.as_matrix(
+        columns=preprocessed_feature_names)))
 
     return trained_model_object.predict_proba(
         preprocessed_input_table.as_matrix(
