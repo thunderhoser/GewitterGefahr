@@ -467,6 +467,8 @@ def train_random_forest(
          fraction_of_explained_variance_for_svd=
          fraction_of_explained_variance_for_svd)
 
+    print 'DONE PRE-PROCESSING FOR RANDOM FOREST'
+
     num_features_total = len(preprocessed_feature_names)
     if num_features_per_split is None:
         num_features_per_split = int(
