@@ -127,7 +127,7 @@ def _compute_sounding_stats(
     sounding_stat_file_names = [''] * num_lead_times
     for j in range(num_lead_times):
         sounding_stat_file_names[j] = (
-            '{0:s}/lead_time_{1:d}sec_new/sounding_stats_{2:s}.p'.format(
+            '{0:s}/lead_time_{1:d}sec/sounding_statistics_{2:s}.p'.format(
                 output_dir_name, lead_times_seconds[j], spc_date_string))
 
     print 'Writing sounding stats to output files...'
