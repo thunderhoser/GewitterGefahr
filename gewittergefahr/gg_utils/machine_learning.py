@@ -31,7 +31,7 @@ DEFAULT_MAX_DEPTH_FOR_RANDOM_FOREST = None
 DEFAULT_MIN_EXAMPLES_PER_RF_SPLIT = None
 DEFAULT_MIN_EXAMPLES_PER_RF_LEAF = 30
 
-DEFAULT_NUM_TREES_FOR_GBT = 500
+DEFAULT_NUM_TREES_FOR_GBT = 100
 DEFAULT_LOSS_FOR_GBT = 'exponential'
 DEFAULT_LEARNING_RATE_FOR_GBT = 0.1
 DEFAULT_MAX_DEPTH_FOR_GBT = None
@@ -571,7 +571,7 @@ def train_gradient_boosted_trees(
         min_examples_per_leaf=min_examples_per_leaf)
 
     model_object = sklearn.ensemble.GradientBoostingClassifier(
-        loss=loss_function, learning_rate=learning_rate, n_estimators=num_trees,
+        loss=loss_function, learning_rate=learning_rate, n_estimators=2,
         max_depth=max_depth, min_samples_split=min_examples_per_split,
         min_samples_leaf=min_examples_per_leaf, subsample=subsampling_fraction,
         max_features=num_features_per_split, verbose=3)
@@ -580,6 +580,14 @@ def train_gradient_boosted_trees(
         preprocessed_training_table.as_matrix(
             columns=preprocessed_feature_names),
         preprocessed_training_table[target_name].values)
+
+    for this_num_trees in range(3, num_trees + 1):
+        model_object.set_params(n_estimators=this_num_trees)
+        model_object.fit(
+            preprocessed_training_table.as_matrix(
+                columns=preprocessed_feature_names),
+            preprocessed_training_table[target_name].values)
+
     return model_object, replacement_dict, standardization_dict, svd_dictionary
 
 
