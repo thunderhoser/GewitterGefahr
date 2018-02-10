@@ -8,6 +8,17 @@ TOLERANCE = 1e-6
 FAKE_STATISTIC_NAME = 'foo'
 FAKE_PERCENTILE_LEVEL = -9999.
 
+# The following constants are used to test _orig_to_new_storm_ids.
+ORIG_STORM_ID_LIST = [
+    'Ricky', 'Ricky', 'Ricky', 'Julian', 'Julian', 'Ricky', 'Ricky', 'Ricky',
+    'Ricky', 'Julian', 'Bubbles', 'Julian', 'Ricky', 'Ricky', 'Bubbles',
+    'Trinity', 'Trinity', 'Trinity', 'Bubbles', 'Bubbles', 'Bubbles', 'Julian',
+    'Julian', 'Julian', 'Julian']
+UNIQUE_INDICES_FOR_NEW_LIST = numpy.array([1, 3, 3, 1, 0, 2, 0, 1, 1, 0])
+NEW_STORM_ID_LIST = [
+    'Julian', 'Trinity', 'Trinity', 'Julian', 'Ricky', 'Bubbles', 'Ricky',
+    'Julian', 'Julian', 'Ricky']
+
 # The following constants are used to test
 # radar_field_and_statistic_to_column_name,
 # radar_field_and_percentile_to_column_name, and
@@ -48,6 +59,14 @@ PERCENTILE_VALUES = numpy.array([0., 4., 20., 20., 50., 58., 60.])
 class RadarStatisticsTests(unittest.TestCase):
     """Each method is a unit test for radar_statistics.py."""
 
+    def test_orig_to_new_storm_ids(self):
+        """Ensures correct output from _orig_to_new_storm_ids."""
+
+        these_new_storm_ids = radar_stats._orig_to_new_storm_ids(
+            orig_storm_id_list=ORIG_STORM_ID_LIST,
+            unique_indices_for_new_list=UNIQUE_INDICES_FOR_NEW_LIST)
+        self.assertTrue(these_new_storm_ids == NEW_STORM_ID_LIST)
+
     def test_radar_field_and_statistic_to_column_name(self):
         """Ensures correctness of radar_field_and_statistic_to_column_name."""
 
@@ -76,6 +95,8 @@ class RadarStatisticsTests(unittest.TestCase):
         this_parameter_dict = radar_stats._column_name_to_statistic_params(
             COLUMN_NAME_FOR_PERCENTILE)
 
+        self.assertFalse(
+            this_parameter_dict[radar_stats.IS_GRIDRAD_STATISTIC_KEY])
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_FIELD_NAME_KEY] ==
                         RADAR_FIELD_NAME)
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_HEIGHT_KEY] ==
@@ -94,12 +115,34 @@ class RadarStatisticsTests(unittest.TestCase):
         this_parameter_dict = radar_stats._column_name_to_statistic_params(
             COLUMN_NAME_FOR_NON_PERCENTILE)
 
+        self.assertFalse(
+            this_parameter_dict[radar_stats.IS_GRIDRAD_STATISTIC_KEY])
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_FIELD_NAME_KEY] ==
                         RADAR_FIELD_NAME)
         self.assertTrue(this_parameter_dict[radar_stats.RADAR_HEIGHT_KEY] ==
                         RADAR_HEIGHT_M_ASL)
         self.assertTrue(this_parameter_dict[radar_stats.STATISTIC_NAME_KEY] ==
                         STATISTIC_NAME)
+        self.assertTrue(
+            this_parameter_dict[radar_stats.PERCENTILE_LEVEL_KEY] is None)
+
+    def test_column_name_to_statistic_params_gridrad(self):
+        """Ensures correct output from _column_name_to_statistic_params.
+
+        In this case, statistic is from GridRad software, not GewitterGefahr.
+        """
+
+        this_parameter_dict = radar_stats._column_name_to_statistic_params(
+            radar_stats.DIVERGENCE_AREA_NAME_GRIDRAD)
+
+        self.assertTrue(
+            this_parameter_dict[radar_stats.IS_GRIDRAD_STATISTIC_KEY])
+        self.assertTrue(
+            this_parameter_dict[radar_stats.RADAR_FIELD_NAME_KEY] is None)
+        self.assertTrue(
+            this_parameter_dict[radar_stats.RADAR_HEIGHT_KEY] is None)
+        self.assertTrue(
+            this_parameter_dict[radar_stats.STATISTIC_NAME_KEY] is None)
         self.assertTrue(
             this_parameter_dict[radar_stats.PERCENTILE_LEVEL_KEY] is None)
 
