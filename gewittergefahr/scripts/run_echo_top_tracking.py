@@ -35,12 +35,15 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_DIR_INPUT_ARG, type=str, required=True,
     help=RADAR_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
     help=TRACKING_DIR_HELP_STRING)
@@ -69,6 +72,26 @@ def _run_echo_top_tracking(
     print SEPARATOR_STRING
 
     echo_top_tracking.write_storm_objects(storm_object_table, file_dictionary)
+
+
+def add_input_arguments(argument_parser_object):
+    """Adds input args for this script to `argparse.ArgumentParser` object.
+
+    :param argument_parser_object: `argparse.ArgumentParser` object, which may
+        or may not already contain input args.
+    :return: argument_parser_object: Same as input object, but with additional
+        input args added.
+    """
+
+    argument_parser_object.add_argument(
+        '--' + RADAR_DIR_INPUT_ARG, type=str, required=True,
+        help=RADAR_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
+        help=TRACKING_DIR_HELP_STRING)
+
+    return argument_parser_object
 
 
 if __name__ == '__main__':

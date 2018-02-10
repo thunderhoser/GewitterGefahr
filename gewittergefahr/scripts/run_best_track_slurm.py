@@ -35,30 +35,18 @@ SLURM_FILE_HELP_STRING = (
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + run_best_track.FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=run_best_track.SPC_DATE_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + run_best_track.LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=run_best_track.SPC_DATE_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + run_best_track.SEGMOTION_DIR_INPUT_ARG, type=str, required=True,
-    help=run_best_track.SEGMOTION_DIR_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + run_best_track.BEST_TRACK_DIR_INPUT_ARG, type=str, required=True,
-    help=run_best_track.BEST_TRACK_DIR_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + run_best_track.TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-    default=run_best_track.DEFAULT_TRACKING_SCALE_METRES,
-    help=run_best_track.TRACKING_SCALE_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
     '--' + EMAIL_ADDRESS_INPUT_ARG, type=str, required=True,
     help=EMAIL_ADDRESS_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + PARTITION_NAME_INPUT_ARG, type=str, required=False,
     help=PARTITION_NAME_HELP_STRING, default='swat_plus')
+
 INPUT_ARG_PARSER.add_argument(
     '--' + SLURM_FILE_INPUT_ARG, type=str, required=True,
     help=SLURM_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER = run_best_track.add_input_arguments(INPUT_ARG_PARSER)
 
 
 def _write_slurm_file(

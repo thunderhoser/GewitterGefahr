@@ -54,20 +54,25 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_TO_TORNADOES_FILE_INPUT_ARG, type=str, required=True,
     help=STORM_TO_TORNADOES_FILE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LEAD_TIMES_INPUT_ARG, type=int, nargs='+', required=False,
     default=DEFAULT_MIN_LEAD_TIMES_SEC, help=MIN_LEAD_TIMES_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_LEAD_TIMES_INPUT_ARG, type=int, nargs='+', required=False,
     default=DEFAULT_MAX_LEAD_TIMES_SEC, help=MAX_LEAD_TIMES_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + MIN_LINK_DISTANCES_INPUT_ARG, type=int, nargs='+', required=False,
     default=DEFAULT_MIN_LINK_DISTANCES_METRES,
     help=MIN_LINK_DISTANCES_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_LINK_DISTANCES_INPUT_ARG, type=int, nargs='+', required=False,
     default=DEFAULT_MAX_LINK_DISTANCES_METRES,
     help=MAX_LINK_DISTANCES_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LABEL_FILE_INPUT_ARG, type=str, required=True,
     help=LABEL_FILE_HELP_STRING)

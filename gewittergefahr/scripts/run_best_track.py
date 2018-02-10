@@ -59,15 +59,19 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + SEGMOTION_DIR_INPUT_ARG, type=str, required=True,
     help=SEGMOTION_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + BEST_TRACK_DIR_INPUT_ARG, type=str, required=True,
     help=BEST_TRACK_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
     default=DEFAULT_TRACKING_SCALE_METRES, help=TRACKING_SCALE_HELP_STRING)
@@ -131,6 +135,38 @@ def _create_best_tracks(
     best_tracks.write_output_storm_objects(
         storm_object_table, input_file_names=input_file_names,
         output_file_names=output_file_names)
+
+
+def add_input_arguments(argument_parser_object):
+    """Adds input args for this script to `argparse.ArgumentParser` object.
+
+    :param argument_parser_object: `argparse.ArgumentParser` object, which may
+        or may not already contain input args.
+    :return: argument_parser_object: Same as input object, but with additional
+        input args added.
+    """
+
+    argument_parser_object.add_argument(
+        '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
+        help=SPC_DATE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
+        help=SPC_DATE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + SEGMOTION_DIR_INPUT_ARG, type=str, required=True,
+        help=SEGMOTION_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + BEST_TRACK_DIR_INPUT_ARG, type=str, required=True,
+        help=BEST_TRACK_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
+        default=DEFAULT_TRACKING_SCALE_METRES, help=TRACKING_SCALE_HELP_STRING)
+
+    return argument_parser_object
 
 
 if __name__ == '__main__':

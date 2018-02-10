@@ -111,21 +111,27 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_SOURCE_INPUT_ARG, type=str, required=True,
     help=RADAR_SOURCE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_DIRECTORY_INPUT_ARG, type=str, required=True,
     help=RADAR_DIRECTORY_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + EMAIL_ADDRESS_INPUT_ARG, type=str, required=True,
     help=EMAIL_ADDRESS_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + PARTITION_NAME_INPUT_ARG, type=str, required=False,
     help=PARTITION_NAME_HELP_STRING, default='swat_plus')
+
 INPUT_ARG_PARSER.add_argument(
     '--' + SLURM_FILE_INPUT_ARG, type=str, required=True,
     help=SLURM_FILE_HELP_STRING)

@@ -60,6 +60,7 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + GRIDRAD_DIR_INPUT_ARG, type=str, required=True,
     help=GRIDRAD_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_FIELD_INPUT_ARG, type=str, required=False,
     help=TARGET_FIELD_HELP_STRING, default=radar_utils.ECHO_TOP_40DBZ_NAME)

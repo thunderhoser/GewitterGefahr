@@ -31,12 +31,15 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + ORIG_TRACKING_DIR_INPUT_ARG, type=str, required=True,
     help=ORIG_TRACKING_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + NEW_TRACKING_DIR_INPUT_ARG, type=str, required=True,
     help=NEW_TRACKING_DIR_HELP_STRING)

@@ -65,18 +65,23 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LEAD_TIMES_INPUT_ARG, type=int, nargs='+', required=False,
     default=[0], help=LEAD_TIMES_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
     default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + RUC_DIRECTORY_INPUT_ARG, type=str, required=True,
     help=RUC_DIRECTORY_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
     help=TRACKING_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_INPUT_ARG, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
@@ -138,6 +143,38 @@ def _compute_sounding_stats(
     print (
         'Sounding stats have been written to the following files:'
         '\n{0:s}').format(sounding_stat_file_names)
+
+
+def add_input_arguments(argument_parser_object):
+    """Adds input args for this script to `argparse.ArgumentParser` object.
+
+    :param argument_parser_object: `argparse.ArgumentParser` object, which may
+        or may not already contain input args.
+    :return: argument_parser_object: Same as input object, but with additional
+        input args added.
+    """
+
+    argument_parser_object.add_argument(
+        '--' + LEAD_TIMES_INPUT_ARG, type=int, nargs='+', required=False,
+        default=[0], help=LEAD_TIMES_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
+        default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + RUC_DIRECTORY_INPUT_ARG, type=str, required=True,
+        help=RUC_DIRECTORY_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
+        help=TRACKING_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + OUTPUT_DIR_INPUT_ARG, type=str, required=True,
+        help=OUTPUT_DIR_HELP_STRING)
+
+    return argument_parser_object
 
 
 if __name__ == '__main__':

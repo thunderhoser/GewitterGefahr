@@ -45,39 +45,29 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_NUM_SIMULTANEOUS_JOBS_INPUT_ARG, type=int, required=False,
     default=50, help=MAX_NUM_SIMULTANEOUS_JOBS_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + EMAIL_ADDRESS_INPUT_ARG, type=str, required=True,
     help=EMAIL_ADDRESS_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + PARTITION_NAME_INPUT_ARG, type=str, required=False,
     help=PARTITION_NAME_HELP_STRING, default='swat_plus')
+
 INPUT_ARG_PARSER.add_argument(
     '--' + SLURM_FILE_INPUT_ARG, type=str, required=True,
     help=SLURM_FILE_HELP_STRING)
 
-INPUT_ARG_PARSER.add_argument(
-    '--' + radar_stats_from_gridrad.TRACKING_DIR_INPUT_ARG, type=str,
-    required=False, default=radar_stats_from_gridrad.DEFAULT_TRACKING_DIR_NAME,
-    help=radar_stats_from_gridrad.TRACKING_DIR_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + radar_stats_from_gridrad.TRACKING_SCALE_INPUT_ARG, type=int,
-    required=False,
-    default=radar_stats_from_gridrad.DEFAULT_TRACKING_SCALE_METRES2,
-    help=radar_stats_from_gridrad.TRACKING_SCALE_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + radar_stats_from_gridrad.GRIDRAD_DIR_INPUT_ARG, type=str,
-    required=False, default=radar_stats_from_gridrad.DEFAULT_GRIDRAD_DIR_NAME,
-    help=radar_stats_from_gridrad.GRIDRAD_DIR_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + radar_stats_from_gridrad.OUTPUT_DIR_INPUT_ARG, type=str,
-    required=False, default=radar_stats_from_gridrad.DEFAULT_OUTPUT_DIR_NAME,
-    help=radar_stats_from_gridrad.OUTPUT_DIR_HELP_STRING)
+INPUT_ARG_PARSER = radar_stats_from_gridrad.add_input_arguments(
+    INPUT_ARG_PARSER)
 
 
 def _write_slurm_file(

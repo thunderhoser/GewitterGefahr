@@ -49,15 +49,19 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_DIR_INPUT_ARG, type=str, required=False,
     default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + TORNADO_DIR_INPUT_ARG, type=str, required=False,
     default=DEFAULT_TORNADO_DIR_NAME, help=TORNADO_DIR_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LINKAGE_FILE_INPUT_ARG, type=str, required=True,
     help=LINKAGE_FILE_HELP_STRING)

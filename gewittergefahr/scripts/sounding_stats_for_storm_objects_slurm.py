@@ -46,39 +46,28 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
     help=SPC_DATE_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + MAX_NUM_SIMULTANEOUS_JOBS_INPUT_ARG, type=int, required=False,
     default=50, help=MAX_NUM_SIMULTANEOUS_JOBS_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + EMAIL_ADDRESS_INPUT_ARG, type=str, required=True,
     help=EMAIL_ADDRESS_HELP_STRING)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + PARTITION_NAME_INPUT_ARG, type=str, required=False,
     help=PARTITION_NAME_HELP_STRING, default='swat_plus')
+
 INPUT_ARG_PARSER.add_argument(
     '--' + SLURM_FILE_INPUT_ARG, type=str, required=True,
     help=SLURM_FILE_HELP_STRING)
 
-INPUT_ARG_PARSER.add_argument(
-    '--' + sounding_stats.LEAD_TIMES_INPUT_ARG, type=int, nargs='+',
-    required=False, default=sounding_stats.DEFAULT_LEAD_TIMES_SECONDS,
-    help=sounding_stats.LEAD_TIMES_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + sounding_stats.TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-    default=sounding_stats.DEFAULT_TRACKING_SCALE_METRES2,
-    help=sounding_stats.TRACKING_SCALE_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + sounding_stats.RUC_DIRECTORY_INPUT_ARG, type=str, required=True,
-    help=sounding_stats.RUC_DIRECTORY_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + sounding_stats.TRACKING_DIR_INPUT_ARG, type=str, required=True,
-    help=sounding_stats.TRACKING_DIR_HELP_STRING)
-INPUT_ARG_PARSER.add_argument(
-    '--' + sounding_stats.OUTPUT_DIR_INPUT_ARG, type=str, required=True,
-    help=sounding_stats.OUTPUT_DIR_HELP_STRING)
+INPUT_ARG_PARSER = sounding_stats.add_input_arguments(INPUT_ARG_PARSER)
 
 
 def _write_slurm_file(
