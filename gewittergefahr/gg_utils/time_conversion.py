@@ -13,6 +13,7 @@ import time
 import calendar
 import numpy
 from gewittergefahr.gg_utils import number_rounding as rounder
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 
 MONTH_FORMAT = '%Y%m'
@@ -98,6 +99,29 @@ def spc_date_string_to_unix_sec(spc_date_string):
 
     return SECONDS_INTO_SPC_DATE_DEFAULT + string_to_unix_sec(
         spc_date_string, SPC_DATE_FORMAT)
+
+
+def get_spc_dates_in_range(first_spc_date_string, last_spc_date_string):
+    """Returns list of SPC dates in range.
+
+    :param first_spc_date_string: First SPC date in range (format "yyyymmdd").
+    :param last_spc_date_string: Last SPC date in range (format "yyyymmdd").
+    :return: spc_date_strings: 1-D list of SPC dates (format "yyyymmdd").
+    """
+
+    first_spc_date_unix_sec = string_to_unix_sec(
+        first_spc_date_string, SPC_DATE_FORMAT)
+    last_spc_date_unix_sec = string_to_unix_sec(
+        last_spc_date_string, SPC_DATE_FORMAT)
+    error_checking.assert_is_geq(
+        last_spc_date_unix_sec, first_spc_date_unix_sec)
+
+    spc_dates_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_spc_date_unix_sec,
+        end_time_unix_sec=last_spc_date_unix_sec,
+        time_interval_sec=DAYS_TO_SECONDS, include_endpoint=True)
+
+    return [unix_sec_to_string(t, SPC_DATE_FORMAT) for t in spc_dates_unix_sec]
 
 
 def is_time_in_spc_date(unix_time_sec, spc_date_string):

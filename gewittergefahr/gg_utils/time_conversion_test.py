@@ -41,6 +41,12 @@ TIME_115959UTC_SPC_DATE_UNIX_SEC = 1506427199
 SPC_DATE_UNIX_SEC = 1506362400
 SPC_DATE_STRING = '20170925'
 
+FIRST_SPC_DATE_STRING = '20170925'
+LAST_SPC_DATE_STRING = '20171001'
+ALL_SPC_DATE_STRINGS = [
+    '20170925', '20170926', '20170927', '20170928', '20170929', '20170930',
+    '20171001']
+
 TIME_115959UTC_BEFORE_DATE_UNIX_SEC = 1506340799
 TIME_1200UTC_AFTER_DATE_UNIX_SEC = 1506427200
 
@@ -201,6 +207,28 @@ class TimeConversionTests(unittest.TestCase):
         this_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
             SPC_DATE_STRING)
         self.assertTrue(this_spc_date_unix_sec == SPC_DATE_UNIX_SEC)
+
+    def test_get_spc_dates_in_range_one_date(self):
+        """Ensures correct output from get_spc_dates_in_range.
+
+        In this case, there is only one date in the range.
+        """
+
+        these_spc_date_strings = time_conversion.get_spc_dates_in_range(
+            first_spc_date_string=FIRST_SPC_DATE_STRING,
+            last_spc_date_string=FIRST_SPC_DATE_STRING)
+        self.assertTrue(these_spc_date_strings == [FIRST_SPC_DATE_STRING])
+
+    def test_get_spc_dates_in_range_many_dates(self):
+        """Ensures correct output from get_spc_dates_in_range.
+
+        In this case, there are many dates in the range.
+        """
+
+        these_spc_date_strings = time_conversion.get_spc_dates_in_range(
+            first_spc_date_string=FIRST_SPC_DATE_STRING,
+            last_spc_date_string=LAST_SPC_DATE_STRING)
+        self.assertTrue(these_spc_date_strings == ALL_SPC_DATE_STRINGS)
 
     def test_is_time_in_spc_date_beginning(self):
         """Ensures correct output from is_time_in_spc_date.
