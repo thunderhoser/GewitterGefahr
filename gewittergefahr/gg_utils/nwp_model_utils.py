@@ -244,11 +244,15 @@ def get_top_online_directories(model_name, grid_id=None):
 
     if model_name == RAP_MODEL_NAME:
         if grid_id == ID_FOR_130GRID:
-            return ['https://nomads.ncdc.noaa.gov/data/rap130']
-        return ['https://nomads.ncdc.noaa.gov/data/rap252']
+            return ['https://www.ncei.noaa.gov/thredds/fileServer/rap130anl']
 
-    return ['https://nomads.ncdc.noaa.gov/data/ruc',
-            'https://nomads.ncdc.noaa.gov/data/rucanl']
+        return ['https://www.ncei.noaa.gov/thredds/fileServer/rap252anl']
+
+    if model_name == RUC_MODEL_NAME:
+        if grid_id == ID_FOR_130GRID:
+            return ['https://www.ncei.noaa.gov/thredds/fileServer/ruc130anl']
+        if grid_id == ID_FOR_252GRID:
+            return ['https://www.ncei.noaa.gov/thredds/fileServer/ruc252anl']
 
 
 def get_pressure_levels(model_name, grid_id=None):

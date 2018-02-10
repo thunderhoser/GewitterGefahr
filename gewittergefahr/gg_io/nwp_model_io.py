@@ -342,7 +342,9 @@ def download_ruc_grib_file(
     """
 
     error_checking.assert_is_boolean(raise_error_if_fails)
-    ruc_grid_ids = nwp_model_utils.RUC_GRID_IDS
+
+    ruc_grid_ids = [
+        nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
 
     for i in range(len(ruc_grid_ids)):
         this_raise_error_flag = (
