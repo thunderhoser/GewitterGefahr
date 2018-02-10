@@ -111,8 +111,8 @@ def add_input_arguments(argument_parser_object):
 
     :param argument_parser_object: `argparse.ArgumentParser` object, which may
         or may not already contain input args.
-    :return: argument_parser_object: Same as input object, but with additional
-        input args added.
+    :return: argument_parser_object: Same as input object, but with new input
+        args added.
     """
 
     argument_parser_object.add_argument(

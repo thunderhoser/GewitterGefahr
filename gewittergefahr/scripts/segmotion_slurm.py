@@ -1,6 +1,6 @@
-"""Writes Slurm file to run segmotion on radar data.
+"""Writes Slurm file to run segmotion storm-tracking algorithm on supercomputer.
 
-Radar data must be in MYRORSS format.  To convert GridRad data to MYRORSS
+Input radar data must be in MYRORSS format.  To convert GridRad data to MYRORSS
 format, see `gridrad_to_myrorss_format.py`.
 
 The resulting Slurm file will create one job for each SPC (Storm Prediction
@@ -54,24 +54,15 @@ segmotion_for_gridrad_slurm.py --radar_data_source="myrorss"
 --out_slurm_file_name="segmotion_myrorss.qsub"
 """
 
-import os.path
 import argparse
+from gewittergefahr.gg_io import slurm_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import time_periods
-from gewittergefahr.gg_utils import file_system_utils
 
-SPC_DATE_FORMAT = '%Y%m%d'
-DAYS_TO_SECONDS = 86400
-VALID_RADAR_DATA_SOURCES = [
-    radar_utils.MYRORSS_SOURCE_ID, radar_utils.GRIDRAD_SOURCE_ID]
-
-NUM_CORES_PER_SPC_DATE = 1
-NUM_NODES_PER_SPC_DATE = 1
-MEGABYTES_PER_SPC_DATE = 8000
-TIME_LIMIT_STRING = '48:00:00'
 TRACKING_FIELD_NAME = radar_utils.ECHO_TOP_40DBZ_NAME
 TRACKING_FIELD_NAME_MYRORSS = radar_utils.ECHO_TOP_40DBZ_NAME_MYRORSS
+VALID_RADAR_DATA_SOURCES = [
+    radar_utils.MYRORSS_SOURCE_ID, radar_utils.GRIDRAD_SOURCE_ID]
 
 SEGMOTION_ARG_STRING_FOR_GRIDRAD = (
     '-f "EchoTop_40" -d "4 20 1 -1" -t 0 -p "10,20,40:0:0,0,0" '
@@ -84,11 +75,6 @@ K_MEANS_FILE_NAME_ON_SCHOONER = (
 
 RADAR_SOURCE_INPUT_ARG = 'radar_data_source'
 RADAR_DIRECTORY_INPUT_ARG = 'top_radar_dir_name'
-FIRST_SPC_DATE_INPUT_ARG = 'first_spc_date_string'
-LAST_SPC_DATE_INPUT_ARG = 'last_spc_date_string'
-EMAIL_ADDRESS_INPUT_ARG = 'email_address'
-PARTITION_NAME_INPUT_ARG = 'partition_name'
-SLURM_FILE_INPUT_ARG = 'out_slurm_file_name'
 
 RADAR_SOURCE_HELP_STRING = (
     'Source of radar data.  Regardless of source, must be formatted like '
@@ -97,17 +83,11 @@ RADAR_SOURCE_HELP_STRING = (
 RADAR_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with radar data (must include "{0:s}" in '
     'MYRORSS format).').format(TRACKING_FIELD_NAME_MYRORSS)
-SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  segmotion will '
-    'be run for all dates from `{0:s}`...`{1:s}`.').format(
-        FIRST_SPC_DATE_INPUT_ARG, LAST_SPC_DATE_INPUT_ARG)
-EMAIL_ADDRESS_HELP_STRING = 'Slurm notifications will be sent here.'
-PARTITION_NAME_HELP_STRING = (
-    'Jobs will be run on this partition of the supercomputer.')
-SLURM_FILE_HELP_STRING = (
-    '[output] Path to Slurm file.  We suggest the extension ".qsub".')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
+INPUT_ARG_PARSER = slurm_io.add_input_arguments(
+    argument_parser_object=INPUT_ARG_PARSER, use_array=True, use_spc_dates=True)
+
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_SOURCE_INPUT_ARG, type=str, required=True,
     help=RADAR_SOURCE_HELP_STRING)
@@ -115,26 +95,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_DIRECTORY_INPUT_ARG, type=str, required=True,
     help=RADAR_DIRECTORY_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + EMAIL_ADDRESS_INPUT_ARG, type=str, required=True,
-    help=EMAIL_ADDRESS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + PARTITION_NAME_INPUT_ARG, type=str, required=False,
-    help=PARTITION_NAME_HELP_STRING, default='swat_plus')
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + SLURM_FILE_INPUT_ARG, type=str, required=True,
-    help=SLURM_FILE_HELP_STRING)
 
 
 def _check_radar_data_source(radar_data_source):
@@ -153,20 +113,25 @@ def _check_radar_data_source(radar_data_source):
 
 def _write_slurm_file(
         radar_data_source, top_radar_dir_name, first_spc_date_string,
-        last_spc_date_string, email_address, partition_name, slurm_file_name):
-    """Writes Slurm file to run segmotion.
+        last_spc_date_string, max_num_simultaneous_tasks, email_address,
+        partition_name, slurm_file_name):
+    """Writes Slurm file to run segmotion storm-tracking algorithm on sprcmptr.
 
     :param radar_data_source: Data source (string).
     :param top_radar_dir_name: Name of top-level directory with radar data (must
         include "EchoTop_40" in MYRORSS format).
     :param first_spc_date_string: SPC (Storm Prediction Center) date in format
-        "yyyymmdd".  segmotion will be run for all dates from
-        `first_spc_date_string`...`last_spc_date_string`.
+        "yyyymmdd".  Tracking will be run independently for each date from
+        `first_spc_date_string`...`last_spc_date_string`.  In other words, each
+        date will be one task.
     :param last_spc_date_string: See above.
-    :param email_address: Slurm notifications will be sent here.
-    :param partition_name: Jobs will be run on this partition of the
+    :param max_num_simultaneous_tasks: Max number of tasks (SPC dates) running
+        at once.
+    :param email_address: Slurm notifications will be sent to this e-mail
+        address.
+    :param partition_name: Job will be run on this partition of the
         supercomputer.
-    :param slurm_file_name: [output] Path to Slurm file.
+    :param slurm_file_name: Path to output file.
     """
 
     _check_radar_data_source(radar_data_source)
@@ -175,67 +140,39 @@ def _write_slurm_file(
     else:
         segmotion_arg_string = SEGMOTION_ARG_STRING_FOR_MYRORSS
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=slurm_file_name)
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string, last_spc_date_string)
+    num_spc_dates = len(spc_date_strings)
 
-    # Create list of SPC dates.
-    first_spc_date_unix_sec = time_conversion.string_to_unix_sec(
-        first_spc_date_string, SPC_DATE_FORMAT)
-    last_spc_date_unix_sec = time_conversion.string_to_unix_sec(
-        last_spc_date_string, SPC_DATE_FORMAT)
+    slurm_file_handle = slurm_io.write_slurm_file_header(
+        slurm_file_name=slurm_file_name, email_address=email_address,
+        partition_name=partition_name, use_array=True,
+        num_array_tasks=num_spc_dates,
+        max_num_simultaneous_tasks=max_num_simultaneous_tasks)
 
-    spc_dates_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=first_spc_date_unix_sec,
-        end_time_unix_sec=last_spc_date_unix_sec,
-        time_interval_sec=DAYS_TO_SECONDS, include_endpoint=True)
-    num_spc_dates = len(spc_dates_unix_sec)
+    slurm_io.write_spc_date_list_to_slurm_file(
+        slurm_file_handle=slurm_file_handle,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
 
-    # Create job name.
-    _, pathless_slurm_file_name = os.path.split(slurm_file_name)
-    slurm_job_name, _ = os.path.splitext(pathless_slurm_file_name)
-
-    # Write file header.
-    slurm_file_handle = open(slurm_file_name, 'w')
-    slurm_file_handle.write('#!/usr/bin/bash\n\n')
-    slurm_file_handle.write('#SBATCH --job-name="{0:s}"\n'.format(
-        slurm_job_name))
-    slurm_file_handle.write('#SBATCH --ntasks={0:d}\n'.format(
-        NUM_CORES_PER_SPC_DATE))
-    slurm_file_handle.write('#SBATCH --nodes={0:d}\n'.format(
-        NUM_NODES_PER_SPC_DATE))
-    slurm_file_handle.write('#SBATCH --mem={0:d}\n'.format(
-        MEGABYTES_PER_SPC_DATE))
-    slurm_file_handle.write('#SBATCH --mail-user="{0:s}"\n'.format(
-        email_address))
-    slurm_file_handle.write('#SBATCH --mail-type=ALL\n')
-    slurm_file_handle.write('#SBATCH -p "{0:s}"\n'.format(partition_name))
-    slurm_file_handle.write('#SBATCH -t {0:s}\n'.format(TIME_LIMIT_STRING))
-    slurm_file_handle.write('#SBATCH --array=0-{0:d}%50\n\n'.format(
-        num_spc_dates - 1))
-
-    # Write array of SPC dates.
-    spc_date_strings = [''] * num_spc_dates
-    for i in range(num_spc_dates):
-        spc_date_strings[i] = time_conversion.unix_sec_to_string(
-            spc_dates_unix_sec[i], SPC_DATE_FORMAT)
-
-    slurm_file_handle.write('SPC_DATE_STRINGS=(')
+    # Write list of SPC years to log file.
+    slurm_file_handle.write('SPC_YEAR_STRINGS=(')
     for i in range(num_spc_dates):
         if i == 0:
-            slurm_file_handle.write('"{0:s}"'.format(spc_date_strings[i]))
+            slurm_file_handle.write('"{0:s}"'.format(spc_date_strings[i][:4]))
         else:
-            slurm_file_handle.write(' "{0:s}"'.format(spc_date_strings[i]))
+            slurm_file_handle.write(' "{0:s}"'.format(spc_date_strings[i][:4]))
     slurm_file_handle.write(')\n\n')
 
-    # Find input files/directories for the given SPC date.
+    # The following statement finds input/output directories for the given task
+    # (SPC date).
     slurm_file_handle.write(
-        'this_spc_date_string=${SPC_DATE_STRINGS[$SLURM_ARRAY_TASK_ID]}\n')
-    slurm_file_handle.write(
-        'echo "Slurm array task ID = ${SLURM_ARRAY_TASK_ID}; '
-        'SPC date = ${this_spc_date_string}"\n\n')
+        'this_spc_year_string=${SPC_YEAR_STRINGS[$SLURM_ARRAY_TASK_ID]}\n')
 
     slurm_file_handle.write('this_1day_radar_dir_name="{0:s}'.format(
         top_radar_dir_name))
-    slurm_file_handle.write('/${this_spc_date_string}"\n')
+    slurm_file_handle.write(
+        '/${this_spc_year_string}/${this_spc_date_string}"\n')
 
     slurm_file_handle.write(
         'this_code_index_file_name="${this_1day_radar_dir_name}/'
@@ -245,10 +182,10 @@ def _write_slurm_file(
         'segmotion"\n')
     slurm_file_handle.write('mkdir -p "${this_1day_segmotion_dir_name}"\n\n')
 
-    # Run segmotion for the given SPC date.
     slurm_file_handle.write('cd "${this_1day_radar_dir_name}"\n')
     slurm_file_handle.write('makeIndex.pl $PWD code_index.xml\n\n')
 
+    # The following statement runs segmotion for the given task (SPC date).
     segmotion_command_string = (
         'w2segmotionll -i "${this_code_index_file_name}" -o ' +
         '"${this_1day_segmotion_dir_name}"')
@@ -257,7 +194,8 @@ def _write_slurm_file(
         K_MEANS_FILE_NAME_ON_SCHOONER)
     slurm_file_handle.write('{0:s}\n\n'.format(segmotion_command_string))
 
-    # Delete segmotion poop.
+    # The following statement deletes unnecessary output from segmotion (the
+    # vast majority of it).
     slurm_file_handle.write(
         'rm -rf "${this_1day_segmotion_dir_name}/KMeans"\n')
     slurm_file_handle.write(
@@ -276,18 +214,18 @@ def _write_slurm_file(
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    RADAR_DATA_SOURCE = getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_INPUT_ARG)
-    TOP_RADAR_DIR_NAME = getattr(INPUT_ARG_OBJECT, RADAR_DIRECTORY_INPUT_ARG)
-    FIRST_SPC_DATE_STRING = getattr(
-        INPUT_ARG_OBJECT, FIRST_SPC_DATE_INPUT_ARG)
-    LAST_SPC_DATE_STRING = getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_INPUT_ARG)
-    EMAIL_ADDRESS = getattr(INPUT_ARG_OBJECT, EMAIL_ADDRESS_INPUT_ARG)
-    PARTITION_NAME = getattr(INPUT_ARG_OBJECT, PARTITION_NAME_INPUT_ARG)
-    SLURM_FILE_NAME = getattr(INPUT_ARG_OBJECT, SLURM_FILE_INPUT_ARG)
-
     _write_slurm_file(
-        radar_data_source=RADAR_DATA_SOURCE,
-        top_radar_dir_name=TOP_RADAR_DIR_NAME,
-        first_spc_date_string=FIRST_SPC_DATE_STRING,
-        last_spc_date_string=LAST_SPC_DATE_STRING, email_address=EMAIL_ADDRESS,
-        partition_name=PARTITION_NAME, slurm_file_name=SLURM_FILE_NAME)
+        radar_data_source=getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_INPUT_ARG),
+        top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIRECTORY_INPUT_ARG),
+        first_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, slurm_io.FIRST_SPC_DATE_INPUT_ARG),
+        last_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, slurm_io.LAST_SPC_DATE_INPUT_ARG),
+        max_num_simultaneous_tasks=getattr(
+            INPUT_ARG_OBJECT, slurm_io.MAX_SIMULTANEOUS_TASKS_INPUT_ARG),
+        email_address=getattr(
+            INPUT_ARG_OBJECT, slurm_io.EMAIL_ADDRESS_INPUT_ARG),
+        partition_name=getattr(
+            INPUT_ARG_OBJECT, slurm_io.PARTITION_NAME_INPUT_ARG),
+        slurm_file_name=getattr(
+            INPUT_ARG_OBJECT, slurm_io.SLURM_FILE_INPUT_ARG))

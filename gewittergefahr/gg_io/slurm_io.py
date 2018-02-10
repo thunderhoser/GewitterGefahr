@@ -158,6 +158,8 @@ def write_slurm_file_header(
     if use_array:
         slurm_file_handle.write('#SBATCH --array=0-{0:d}%{1:d}\n\n'.format(
             num_array_tasks - 1, max_num_simultaneous_tasks))
+    else:
+        slurm_file_handle.write('\n')
 
     return slurm_file_handle
 
