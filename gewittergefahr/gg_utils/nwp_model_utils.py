@@ -185,7 +185,7 @@ def get_time_steps(model_name):
 
     check_model_name(model_name)
     if model_name == NARR_MODEL_NAME:
-        return 3, 6
+        return -1, 3
 
     return 1, 1
 
@@ -240,7 +240,7 @@ def get_top_online_directories(model_name, grid_id=None):
 
     check_grid_id(model_name, grid_id)
     if model_name == NARR_MODEL_NAME:
-        return ['https://nomads.ncdc.noaa.gov/data/narr']
+        return ['https://www.ncei.noaa.gov/thredds/fileServer/narr-a-files']
 
     if model_name == RAP_MODEL_NAME:
         if grid_id == ID_FOR_130GRID:
