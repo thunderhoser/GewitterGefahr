@@ -56,6 +56,46 @@ NEXT_INTERP_METHOD = 'next'
 SUPERLINEAR_INTERP_METHODS = ['quadratic', 'cubic']
 
 
+def _check_wind_rotation_inputs(
+        u_winds_m_s01, v_winds_m_s01, rotation_angle_cosines,
+        rotation_angle_sines):
+    """Error-checks inputs for wind-rotation method.
+
+    The equation is as follows, where alpha is the rotation angle.
+
+    u_Earth = u_grid * cos(alpha) + v_grid * sin(alpha)
+    v_Earth = v_grid * cos(alpha) - u_grid * sin(alpha)
+
+    :param u_winds_m_s01: If winds are to be rotated from grid-relative to
+        Earth-relative, this is a numpy array of x-components (metres per
+        second).  Otherwise, this is a numpy array of eastward components (still
+        metres per second).
+    :param v_winds_m_s01: Same as above, except y-components or northward
+        components.
+    :param rotation_angle_cosines: equivalent-shape numpy array with cosines of
+        rotation angles.
+    :param rotation_angle_sines: equivalent-shape numpy array with sines of
+        rotation angles.
+    """
+
+    error_checking.assert_is_real_numpy_array(u_winds_m_s01)
+    array_dimensions = numpy.asarray(u_winds_m_s01.shape)
+
+    error_checking.assert_is_real_numpy_array(v_winds_m_s01)
+    error_checking.assert_is_numpy_array(
+        v_winds_m_s01, exact_dimensions=array_dimensions)
+
+    error_checking.assert_is_geq_numpy_array(rotation_angle_cosines, -1)
+    error_checking.assert_is_leq_numpy_array(rotation_angle_cosines, 1)
+    error_checking.assert_is_numpy_array(
+        rotation_angle_cosines, exact_dimensions=array_dimensions)
+
+    error_checking.assert_is_geq_numpy_array(rotation_angle_sines, -1)
+    error_checking.assert_is_leq_numpy_array(rotation_angle_sines, 1)
+    error_checking.assert_is_numpy_array(
+        rotation_angle_sines, exact_dimensions=array_dimensions)
+
+
 def check_model_name(model_name):
     """Ensures that model name is valid.
 
@@ -778,19 +818,25 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
     return model_times_unix_sec, query_to_model_times_table
 
 
-def get_wind_rotation_angles(latitudes_deg, longitudes_deg, model_name=None):
-    """Returns wind-rotation angle for each lat-long point.
+def get_wind_rotation_angles(latitudes_deg, longitudes_deg, model_name):
+    """Computes wind-rotation angle for each lat-long point.
 
-    These angles may be used in `rotate_winds`.
+    These angles may be used in `rotate_winds_to_earth_relative` or
+    `rotate_winds_to_grid_relative`.
 
     :param latitudes_deg: numpy array of latitudes (deg N).
     :param longitudes_deg: equivalent-shape numpy array of longitudes (deg E).
-    :param model_name: Name of model.
+    :param model_name: Model name (string).  This model must use a Lambert
+        conformal grid.
     :return: rotation_angle_cosines: equivalent-shape numpy array with cosines
         of rotation angles.
     :return: rotation_angle_sines: equivalent-shape numpy array with sines of
         rotation angles.
     """
+
+    # TODO(thunderhoser): ensure that the model uses a Lambert conformal grid.
+    # For now the models allowed in GewitterGefahr are the NARR, RUC, and RAP --
+    # all of which use a Lambert conformal grid.  But this may change.
 
     error_checking.assert_is_valid_lat_numpy_array(
         latitudes_deg, allow_nan=False)
@@ -801,7 +847,7 @@ def get_wind_rotation_angles(latitudes_deg, longitudes_deg, model_name=None):
         longitudes_deg, exact_dimensions=numpy.asarray(latitudes_deg.shape))
 
     standard_latitudes_deg, central_longitude_deg = get_projection_params(
-        model_name)
+        model_name=model_name)
 
     rotation_angles = (
         numpy.sin(standard_latitudes_deg[0] * DEGREES_TO_RADIANS) * (
@@ -809,9 +855,9 @@ def get_wind_rotation_angles(latitudes_deg, longitudes_deg, model_name=None):
     return numpy.cos(rotation_angles), numpy.sin(rotation_angles)
 
 
-def rotate_winds(u_winds_grid_relative_m_s01=None,
-                 v_winds_grid_relative_m_s01=None, rotation_angle_cosines=None,
-                 rotation_angle_sines=None):
+def rotate_winds_to_earth_relative(
+        u_winds_grid_relative_m_s01, v_winds_grid_relative_m_s01,
+        rotation_angle_cosines, rotation_angle_sines):
     """Rotates wind vectors from grid-relative to Earth-relative.
 
     The equation is as follows, where alpha is the rotation angle.
@@ -819,36 +865,23 @@ def rotate_winds(u_winds_grid_relative_m_s01=None,
     u_Earth = u_grid * cos(alpha) + v_grid * sin(alpha)
     v_Earth = v_grid * cos(alpha) - u_grid * sin(alpha)
 
-    :param u_winds_grid_relative_m_s01: numpy array of grid-relative u-winds
-        (towards positive x-direction).
-    :param v_winds_grid_relative_m_s01: equivalent-shape numpy array of grid-
-        relative v-winds (towards positive y-direction).
-    :param rotation_angle_cosines: equivalent-shape numpy array with cosines of
-        rotation angles.
-    :param rotation_angle_sines: equivalent-shape numpy array with sines of
-        rotation angles.
+    :param u_winds_grid_relative_m_s01: See documentation for
+        `_check_wind_rotation_inputs`.
+    :param v_winds_grid_relative_m_s01: See doc for
+        `_check_wind_rotation_inputs`.
+    :param rotation_angle_cosines: See doc for `_check_wind_rotation_inputs`.
+    :param rotation_angle_sines: See doc for `_check_wind_rotation_inputs`.
     :return: u_winds_earth_relative_m_s01: equivalent-shape numpy array of
         Earth-relative (northward) u-winds.
     :return: v_winds_earth_relative_m_s01: equivalent-shape numpy array of
         Earth-relative (eastward) v-winds.
     """
 
-    error_checking.assert_is_real_numpy_array(u_winds_grid_relative_m_s01)
-    array_dimensions = numpy.asarray(u_winds_grid_relative_m_s01.shape)
-
-    error_checking.assert_is_real_numpy_array(v_winds_grid_relative_m_s01)
-    error_checking.assert_is_numpy_array(
-        v_winds_grid_relative_m_s01, exact_dimensions=array_dimensions)
-
-    error_checking.assert_is_geq_numpy_array(rotation_angle_cosines, -1)
-    error_checking.assert_is_leq_numpy_array(rotation_angle_cosines, 1)
-    error_checking.assert_is_numpy_array(
-        rotation_angle_cosines, exact_dimensions=array_dimensions)
-
-    error_checking.assert_is_geq_numpy_array(rotation_angle_sines, -1)
-    error_checking.assert_is_leq_numpy_array(rotation_angle_sines, 1)
-    error_checking.assert_is_numpy_array(
-        rotation_angle_sines, exact_dimensions=array_dimensions)
+    _check_wind_rotation_inputs(
+        u_winds_m_s01=u_winds_grid_relative_m_s01,
+        v_winds_m_s01=v_winds_grid_relative_m_s01,
+        rotation_angle_cosines=rotation_angle_cosines,
+        rotation_angle_sines=rotation_angle_sines)
 
     u_winds_earth_relative_m_s01 = (
         rotation_angle_cosines * u_winds_grid_relative_m_s01 +
@@ -857,3 +890,39 @@ def rotate_winds(u_winds_grid_relative_m_s01=None,
         rotation_angle_cosines * v_winds_grid_relative_m_s01 -
         rotation_angle_sines * u_winds_grid_relative_m_s01)
     return u_winds_earth_relative_m_s01, v_winds_earth_relative_m_s01
+
+
+def rotate_winds_to_grid_relative(
+        u_winds_earth_relative_m_s01, v_winds_earth_relative_m_s01,
+        rotation_angle_cosines, rotation_angle_sines):
+    """Rotates wind vectors from Earth-relative to grid-relative.
+
+    The equation is as follows, where alpha is the rotation angle.
+
+    u_grid = u_Earth * cos(alpha) - v_Earth * sin(alpha)
+    v_grid = v_Earth * cos(alpha) + u_Earth * sin(alpha)
+
+    :param u_winds_earth_relative_m_s01: See documentation for
+        `_check_wind_rotation_inputs`.
+    :param v_winds_earth_relative_m_s01: See doc for
+        `_check_wind_rotation_inputs`.
+    :param rotation_angle_cosines: See doc for `_check_wind_rotation_inputs`.
+    :param rotation_angle_sines: See doc for `_check_wind_rotation_inputs`.
+    :return: u_winds_grid_relative_m_s01: equivalent-shape numpy array with
+        grid-relative x-components of wind (metres per second).
+    :return: v_winds_grid_relative_m_s01: Same as above, but with y-components.
+    """
+
+    _check_wind_rotation_inputs(
+        u_winds_m_s01=u_winds_earth_relative_m_s01,
+        v_winds_m_s01=v_winds_earth_relative_m_s01,
+        rotation_angle_cosines=rotation_angle_cosines,
+        rotation_angle_sines=rotation_angle_sines)
+
+    u_winds_grid_relative_m_s01 = (
+        rotation_angle_cosines * u_winds_earth_relative_m_s01 -
+        rotation_angle_sines * v_winds_earth_relative_m_s01)
+    v_winds_grid_relative_m_s01 = (
+        rotation_angle_cosines * v_winds_earth_relative_m_s01 +
+        rotation_angle_sines * u_winds_earth_relative_m_s01)
+    return u_winds_grid_relative_m_s01, v_winds_grid_relative_m_s01

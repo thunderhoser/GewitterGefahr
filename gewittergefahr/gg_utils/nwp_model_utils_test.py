@@ -140,7 +140,8 @@ QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
     nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[2] = numpy.array(
         [False, False, True, True, True, True], dtype=bool)
 
-# The following constants are used to test rotate_winds.
+# The following constants are used to test rotate_winds_to_earth_relative and
+# rotate_winds_to_grid_relative.
 HALF_ROOT3 = numpy.sqrt(3) / 2
 U_WINDS_GRID_RELATIVE_M_S01 = numpy.array(
     [[0., 5., 10.],
@@ -435,21 +436,40 @@ class NwpModelUtilsTests(unittest.TestCase):
                     QUERY_TO_MODEL_TIMES_TABLE_SUPERLINEAR_INTERP[
                         this_column].values[i]))
 
-    def test_rotate_winds(self):
-        """Ensures correct output from rotate_winds."""
+    def test_rotate_winds_to_earth_relative(self):
+        """Ensures correct output from rotate_winds_to_earth_relative."""
 
         (these_u_winds_earth_relative_m_s01,
-         these_v_winds_earth_relative_m_s01) = nwp_model_utils.rotate_winds(
-             u_winds_grid_relative_m_s01=U_WINDS_GRID_RELATIVE_M_S01,
-             v_winds_grid_relative_m_s01=V_WINDS_GRID_RELATIVE_M_S01,
-             rotation_angle_cosines=ROTATION_ANGLE_COSINES,
-             rotation_angle_sines=ROTATION_ANGLE_SINES)
+         these_v_winds_earth_relative_m_s01) = (
+             nwp_model_utils.rotate_winds_to_earth_relative(
+                 u_winds_grid_relative_m_s01=U_WINDS_GRID_RELATIVE_M_S01,
+                 v_winds_grid_relative_m_s01=V_WINDS_GRID_RELATIVE_M_S01,
+                 rotation_angle_cosines=ROTATION_ANGLE_COSINES,
+                 rotation_angle_sines=ROTATION_ANGLE_SINES))
 
         self.assertTrue(numpy.allclose(
             these_u_winds_earth_relative_m_s01, U_WINDS_EARTH_RELATIVE_M_S01,
             atol=TOLERANCE))
         self.assertTrue(numpy.allclose(
             these_v_winds_earth_relative_m_s01, V_WINDS_EARTH_RELATIVE_M_S01,
+            atol=TOLERANCE))
+
+    def test_rotate_winds_to_grid_relative(self):
+        """Ensures correct output from rotate_winds_to_grid_relative."""
+
+        (these_u_winds_grid_relative_m_s01,
+         these_v_winds_grid_relative_m_s01) = (
+             nwp_model_utils.rotate_winds_to_grid_relative(
+                 u_winds_earth_relative_m_s01=U_WINDS_EARTH_RELATIVE_M_S01,
+                 v_winds_earth_relative_m_s01=V_WINDS_EARTH_RELATIVE_M_S01,
+                 rotation_angle_cosines=ROTATION_ANGLE_COSINES,
+                 rotation_angle_sines=ROTATION_ANGLE_SINES))
+
+        self.assertTrue(numpy.allclose(
+            these_u_winds_grid_relative_m_s01, U_WINDS_GRID_RELATIVE_M_S01,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_v_winds_grid_relative_m_s01, V_WINDS_GRID_RELATIVE_M_S01,
             atol=TOLERANCE))
 
     def test_projection_grid130(self):

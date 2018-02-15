@@ -906,8 +906,10 @@ def interp_nwp_from_xy_grid(
                     if grib_io.is_u_wind_field(field_names_grib1[j]):
                         (list_of_spatial_interp_arrays[t],
                          list_of_sinterp_arrays_other_wind_component[t]) = (
-                             nwp_model_utils.rotate_winds(
+                             nwp_model_utils.rotate_winds_to_earth_relative(
+                                 u_winds_grid_relative_m_s01=
                                  list_of_spatial_interp_arrays[t],
+                                 v_winds_grid_relative_m_s01=
                                  list_of_sinterp_arrays_other_wind_component[t],
                                  rotation_angle_cosines=
                                  rotation_cosine_by_query_point,
@@ -917,8 +919,10 @@ def interp_nwp_from_xy_grid(
                     if grib_io.is_v_wind_field(field_names_grib1[j]):
                         (list_of_sinterp_arrays_other_wind_component[t],
                          list_of_spatial_interp_arrays[t]) = (
-                             nwp_model_utils.rotate_winds(
+                             nwp_model_utils.rotate_winds_to_earth_relative(
+                                 u_winds_grid_relative_m_s01=
                                  list_of_sinterp_arrays_other_wind_component[t],
+                                 v_winds_grid_relative_m_s01=
                                  list_of_spatial_interp_arrays[t],
                                  rotation_angle_cosines=
                                  rotation_cosine_by_query_point,
@@ -1145,8 +1149,10 @@ def interp_ruc_all_grids(
                         print 'Rotating wind vectors...'
                         (list_of_spatial_interp_arrays[t],
                          list_of_sinterp_arrays_other_wind_component[t]) = (
-                             nwp_model_utils.rotate_winds(
+                             nwp_model_utils.rotate_winds_to_earth_relative(
+                                 u_winds_grid_relative_m_s01=
                                  list_of_spatial_interp_arrays[t],
+                                 v_winds_grid_relative_m_s01=
                                  list_of_sinterp_arrays_other_wind_component[t],
                                  rotation_angle_cosines=
                                  rotation_cosine_by_query_point[
@@ -1159,8 +1165,10 @@ def interp_ruc_all_grids(
                         print 'Rotating wind vectors...'
                         (list_of_sinterp_arrays_other_wind_component[t],
                          list_of_spatial_interp_arrays[t]) = (
-                             nwp_model_utils.rotate_winds(
+                             nwp_model_utils.rotate_winds_to_earth_relative(
+                                 u_winds_grid_relative_m_s01=
                                  list_of_sinterp_arrays_other_wind_component[t],
+                                 v_winds_grid_relative_m_s01=
                                  list_of_spatial_interp_arrays[t],
                                  rotation_angle_cosines=
                                  rotation_cosine_by_query_point[
