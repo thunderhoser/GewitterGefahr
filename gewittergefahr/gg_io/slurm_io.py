@@ -177,7 +177,7 @@ def write_spc_date_list_to_slurm_file(
         first_spc_date_string, last_spc_date_string)
     num_spc_dates = len(spc_date_strings)
 
-    # Write list of SPC dates to log file.
+    # Write list of SPC dates to file.
     slurm_file_handle.write('SPC_DATE_STRINGS=(')
     for i in range(num_spc_dates):
         if i == 0:

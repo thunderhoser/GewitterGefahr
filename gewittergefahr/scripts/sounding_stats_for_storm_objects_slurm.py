@@ -7,6 +7,8 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.scripts import \
     sounding_stats_for_storm_objects as sounding_stats
 
+HOURS_TO_SECONDS = 3600
+
 PYTHON_EXE_NAME = '/home/ralager/anaconda2/bin/python2.7'
 PYTHON_SCRIPT_NAME = (
     '/condo/swatwork/ralager/gewittergefahr_master/gewittergefahr/scripts/'
@@ -17,10 +19,30 @@ INPUT_ARG_PARSER = slurm_io.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER, use_array=True, use_spc_dates=True)
 INPUT_ARG_PARSER = sounding_stats.add_input_arguments(INPUT_ARG_PARSER)
 
+FIRST_HALF_OF_DAY_INPUT_ARG = 'first_half_of_day'
+LAST_HALF_OF_DAY_INPUT_ARG = 'last_half_of_day'
+
+FIRST_HALF_OF_DAY_HELP_STRING = (
+    'Boolean flag (0 or 1).  If 1, the resulting Slurm file will run '
+    '`sounding_stats_for_storm_objects.py` only for the first half of each SPC '
+    'date.')
+LAST_HALF_OF_DAY_HELP_STRING = (
+    'Boolean flag (0 or 1).  If 1, the resulting Slurm file will run '
+    '`sounding_stats_for_storm_objects.py` only for the last half of each SPC '
+    'date.')
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_HALF_OF_DAY_INPUT_ARG, type=int, required=False, default=0,
+    help=FIRST_HALF_OF_DAY_HELP_STRING)
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_HALF_OF_DAY_INPUT_ARG, type=int, required=False, default=0,
+    help=LAST_HALF_OF_DAY_HELP_STRING)
+
 
 def _write_slurm_file(
-        first_spc_date_string, last_spc_date_string, max_num_simultaneous_tasks,
-        email_address, partition_name, slurm_file_name, lead_times_seconds,
+        first_spc_date_string, last_spc_date_string, first_half_of_day,
+        last_half_of_day, max_num_simultaneous_tasks, email_address,
+        partition_name, slurm_file_name, lead_times_seconds,
         tracking_scale_metres2, top_ruc_directory_name, top_tracking_dir_name,
         output_dir_name):
     """Writes Slurm file to run sounding_stats_for_storm_objects.py on sprcmptr.
@@ -30,6 +52,10 @@ def _write_slurm_file(
         from `first_spc_date_string`...`last_spc_date_string`.  In other words,
         each date will be one task.
     :param last_spc_date_string: See above.
+    :param first_half_of_day: Boolean flag.  If True, the resulting Slurm file
+        will run `sounding_stats_for_storm_objects.py` only for the first half
+        of each SPC date.
+    :param last_half_of_day: See above.
     :param max_num_simultaneous_tasks: Max number of tasks (SPC dates) running
         at once.
     :param email_address: Slurm notifications will be sent to this e-mail
@@ -62,6 +88,57 @@ def _write_slurm_file(
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string, last_spc_date_string)
+    spc_dates_unix_sec = numpy.array(
+        [time_conversion.string_to_unix_sec(s, time_conversion.SPC_DATE_FORMAT)
+         for s in spc_date_strings])
+
+    # If necessary, find start/end time for each SPC date.
+    if first_half_of_day:
+        start_times_unix_sec = (
+            spc_dates_unix_sec + time_conversion.MIN_SECONDS_INTO_SPC_DATE -
+            HOURS_TO_SECONDS)
+        end_times_unix_sec = (
+            spc_dates_unix_sec + time_conversion.MIN_SECONDS_INTO_SPC_DATE +
+            12 * HOURS_TO_SECONDS - 1)
+
+        last_half_of_day = False
+
+    if last_half_of_day:
+        start_times_unix_sec = (
+            spc_dates_unix_sec + time_conversion.MIN_SECONDS_INTO_SPC_DATE +
+            12 * HOURS_TO_SECONDS)
+        end_times_unix_sec = (
+            spc_dates_unix_sec + time_conversion.MAX_SECONDS_INTO_SPC_DATE +
+            HOURS_TO_SECONDS)
+
+    # If necessary, write list of start/end times to file.
+    if first_half_of_day or last_half_of_day:
+        slurm_file_handle.write('START_TIMES_UNIX_SEC=(')
+        for i in range(num_spc_dates):
+            if i == 0:
+                slurm_file_handle.write('{0:d}'.format(start_times_unix_sec[i]))
+            else:
+                slurm_file_handle.write(' {0:d}'.format(
+                    start_times_unix_sec[i]))
+        slurm_file_handle.write(')\n')
+
+        slurm_file_handle.write('END_TIMES_UNIX_SEC=(')
+        for i in range(num_spc_dates):
+            if i == 0:
+                slurm_file_handle.write('{0:d}'.format(end_times_unix_sec[i]))
+            else:
+                slurm_file_handle.write(' {0:d}'.format(end_times_unix_sec[i]))
+        slurm_file_handle.write(')\n\n')
+
+        slurm_file_handle.write(
+            'this_start_time_unix_sec=${START_TIMES_UNIX_SEC'
+            '[$SLURM_ARRAY_TASK_ID]}\n')
+        slurm_file_handle.write(
+            'this_end_time_unix_sec=${END_TIMES_UNIX_SEC'
+            '[$SLURM_ARRAY_TASK_ID]}\n\n')
+
     # The following statement calls sounding_stats_for_storm_objects.py for the
     # given task (SPC date).
     lead_times_seconds = numpy.array(lead_times_seconds, dtype=int)
@@ -83,6 +160,16 @@ def _write_slurm_file(
             sounding_stats.RUC_DIRECTORY_INPUT_ARG, top_ruc_directory_name,
             sounding_stats.TRACKING_DIR_INPUT_ARG, top_tracking_dir_name,
             sounding_stats.OUTPUT_DIR_INPUT_ARG, output_dir_name))
+
+    if first_half_of_day or last_half_of_day:
+        slurm_file_handle.write(
+            ' --{0:s}='.format(sounding_stats.START_TIME_INPUT_ARG))
+        slurm_file_handle.write('${this_start_time_unix_sec}')
+
+        slurm_file_handle.write(
+            ' --{0:s}='.format(sounding_stats.END_TIME_INPUT_ARG))
+        slurm_file_handle.write('${this_end_time_unix_sec}')
+
     slurm_file_handle.close()
 
 
@@ -94,6 +181,10 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, slurm_io.FIRST_SPC_DATE_INPUT_ARG),
         last_spc_date_string=getattr(
             INPUT_ARG_OBJECT, slurm_io.LAST_SPC_DATE_INPUT_ARG),
+        first_half_of_day=bool(getattr(
+            INPUT_ARG_OBJECT, FIRST_HALF_OF_DAY_INPUT_ARG)),
+        last_half_of_day=bool(getattr(
+            INPUT_ARG_OBJECT, LAST_HALF_OF_DAY_INPUT_ARG)),
         max_num_simultaneous_tasks=getattr(
             INPUT_ARG_OBJECT, slurm_io.MAX_SIMULTANEOUS_TASKS_INPUT_ARG),
         email_address=getattr(
