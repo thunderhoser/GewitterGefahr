@@ -186,6 +186,8 @@ def _compute_sounding_stats(
     print start_time_unix_sec
     print end_time_unix_sec
     print time_in_range_indices
+    print file_times_unix_sec
+
     tracking_file_names = [
         tracking_file_names[i] for i in time_in_range_indices]
 
