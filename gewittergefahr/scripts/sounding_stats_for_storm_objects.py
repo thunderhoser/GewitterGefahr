@@ -181,7 +181,9 @@ def _compute_sounding_stats(
     time_in_range_flags = numpy.array(
         [start_time_unix_sec <= t <= end_time_unix_sec
          for t in file_times_unix_sec])
+    print time_in_range_flags
     time_in_range_indices = numpy.where(time_in_range_flags)[0]
+    print time_in_range_indices
 
     tracking_file_names = [
         tracking_file_names[i] for i in time_in_range_indices]
