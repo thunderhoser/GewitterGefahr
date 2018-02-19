@@ -181,6 +181,11 @@ def _compute_sounding_stats(
     time_in_range_flags = numpy.array(
         [start_time_unix_sec <= t <= end_time_unix_sec
          for t in file_times_unix_sec])
+
+    print type(file_times_unix_sec[0])
+    print type(start_time_unix_sec)
+    print type(end_time_unix_sec)
+
     print time_in_range_flags
     time_in_range_indices = numpy.where(time_in_range_flags)[0]
     print time_in_range_indices
