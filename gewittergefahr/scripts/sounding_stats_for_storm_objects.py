@@ -179,6 +179,7 @@ def _compute_sounding_stats(
     file_times_unix_sec = numpy.array(
         [tracking_io.processed_file_name_to_time(f)
          for f in tracking_file_names])
+    print type(file_times_unix_sec)
     print numpy.logical_and(
         file_times_unix_sec >= start_time_unix_sec,
         file_times_unix_sec <= end_time_unix_sec)
