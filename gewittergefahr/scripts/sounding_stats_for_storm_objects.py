@@ -176,21 +176,12 @@ def _compute_sounding_stats(
         top_processed_dir_name=top_tracking_dir_name,
         tracking_scale_metres2=tracking_scale_metres2)
 
-    file_times_unix_sec = numpy.array(
-        [tracking_io.processed_file_name_to_time(f)
-         for f in tracking_file_names])
-    print type(file_times_unix_sec)
-    print file_times_unix_sec.dtype
-    print file_times_unix_sec.shape
-    
-    time_in_range_indices = numpy.where(numpy.logical_and(
-        file_times_unix_sec >= start_time_unix_sec,
-        file_times_unix_sec <= end_time_unix_sec))[0]
-
-    print start_time_unix_sec
-    print end_time_unix_sec
-    print time_in_range_indices
-    print file_times_unix_sec
+    file_times_unix_sec = [
+        tracking_io.processed_file_name_to_time(f) for f in tracking_file_names]
+    time_in_range_flags = numpy.array(
+        [start_time_unix_sec <= t <= end_time_unix_sec
+         for t in file_times_unix_sec])
+    time_in_range_indices = numpy.where(time_in_range_flags)[0]
 
     tracking_file_names = [
         tracking_file_names[i] for i in time_in_range_indices]
