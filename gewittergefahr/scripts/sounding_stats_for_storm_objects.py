@@ -182,6 +182,10 @@ def _compute_sounding_stats(
     time_in_range_indices = numpy.where(numpy.logical_and(
         file_times_unix_sec >= start_time_unix_sec,
         file_times_unix_sec <= end_time_unix_sec))[0]
+
+    print start_time_unix_sec
+    print end_time_unix_sec
+    print time_in_range_indices
     tracking_file_names = [
         tracking_file_names[i] for i in time_in_range_indices]
 
