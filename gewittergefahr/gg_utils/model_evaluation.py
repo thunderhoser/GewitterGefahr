@@ -114,67 +114,6 @@ def _check_forecast_and_observed_labels(forecast_labels, observed_labels):
     error_checking.assert_is_leq_numpy_array(observed_labels, 1)
 
 
-def _get_binarization_thresholds(
-        threshold_arg=None, forecast_probabilities=None,
-        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
-    """Determines binarization thresholds.
-
-    To understand the role of binarization thresholds, see
-    _binarize_forecast_probs.
-
-    :param threshold_arg: Main threshold argument.  May be in one of 3 formats.
-    [1] threshold_arg = "unique_forecasts".  In this case unique forecast
-        probabilities will be used as thresholds.
-    [2] 1-D numpy array.  In this case threshold_arg will be interpreted as an
-        array of exact binarization thresholds.
-    [3] Positive integer.  In this case threshold_arg will be interpreted as the
-        number of binarization thresholds, equally spaced from 0...1.
-
-    :param forecast_probabilities: 1-D numpy array of forecast probabilities to
-        binarize.  If threshold_arg != "unique_forecasts", this will not be used
-        (so leave it as None).
-    :param unique_forecast_precision: Before taking unique forecast probs, all
-        probs will be rounded to the nearest `unique_forecast_precision`.  If
-        threshold_arg != "unique_forecasts", this will not be used (so leave it
-        as None).
-    :return: binarization_thresholds: 1-D numpy array of binarization
-        thresholds.
-    :raises: ValueError: if threshold_arg cannot be interpreted.
-    """
-
-    if isinstance(threshold_arg, str):
-        if threshold_arg != THRESHOLD_ARG_FOR_UNIQUE_FORECASTS:
-            raise ValueError(
-                'If string, threshold_arg must be "' +
-                THRESHOLD_ARG_FOR_UNIQUE_FORECASTS + '".  Instead, got "' +
-                threshold_arg + '".')
-
-        error_checking.assert_is_geq(unique_forecast_precision, 0.)
-        error_checking.assert_is_leq(unique_forecast_precision, 1.)
-
-        binarization_thresholds = numpy.unique(rounder.round_to_nearest(
-            copy.deepcopy(forecast_probabilities), unique_forecast_precision))
-
-    elif isinstance(threshold_arg, numpy.ndarray):
-        binarization_thresholds = copy.deepcopy(threshold_arg)
-
-        error_checking.assert_is_numpy_array(
-            binarization_thresholds, num_dimensions=1)
-        error_checking.assert_is_geq_numpy_array(
-            binarization_thresholds, MIN_BINARIZATION_THRESHOLD)
-        error_checking.assert_is_leq_numpy_array(
-            binarization_thresholds, MAX_BINARIZATION_THRESHOLD)
-
-    else:
-        num_thresholds = copy.deepcopy(threshold_arg)
-        error_checking.assert_is_integer(num_thresholds)
-        error_checking.assert_is_geq(num_thresholds, 2)
-
-        binarization_thresholds = numpy.linspace(0., 1., num=num_thresholds)
-
-    return _pad_binarization_thresholds(binarization_thresholds)
-
-
 def _pad_binarization_thresholds(thresholds):
     """Pads an array of binarization thresholds.
 
@@ -203,7 +142,89 @@ def _pad_binarization_thresholds(thresholds):
     return thresholds
 
 
-def _binarize_forecast_probs(forecast_probabilities, binarization_threshold):
+def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
+    """Splits forecast probabilities into bins.
+
+    N = number of forecasts
+
+    :param forecast_probabilities: length-N numpy array of forecast
+        probabilities.
+    :param num_bins: Number of bins into which forecasts will be discretized.
+    :return: bin_index_by_forecast: length-N numpy array of indices.  If
+        bin_index_by_forecast[i] = j, the [i]th forecast belongs in the [j]th
+        bin.
+    """
+
+    bin_index_by_forecast, _ = histograms.create_histogram(
+        input_values=forecast_probabilities, num_bins=num_bins, min_value=0.,
+        max_value=1.)
+    return bin_index_by_forecast
+
+
+def get_binarization_thresholds(
+        threshold_arg, forecast_probabilities=None,
+        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
+    """Returns list of binarization thresholds.
+
+    To understand the role of binarization thresholds, see
+    binarize_forecast_probs.
+
+    :param threshold_arg: Main threshold argument.  May be in one of 3 formats.
+    [1] threshold_arg = "unique_forecasts".  In this case all unique forecast
+        probabilities will become binarization thresholds.
+    [2] 1-D numpy array.  In this case threshold_arg will be treated as an array
+        of binarization thresholds.
+    [3] Positive integer.  In this case threshold_arg will be treated as the
+        number of binarization thresholds, equally spaced from 0...1.
+
+    :param forecast_probabilities:
+        [used only if threshold_arg = "unique_forecasts"]
+        1-D numpy array of forecast probabilities to binarize.
+    :param unique_forecast_precision:
+        [used only if threshold_arg = "unique_forecasts"]
+        Before computing unique forecast probabilities, they will all be rounded
+        to the nearest `unique_forecast_precision`.  This prevents the number of
+        thresholds from becoming ridiculous (millions).
+    :return: binarization_thresholds: 1-D numpy array of binarization
+        thresholds.
+    :raises: ValueError: if threshold_arg cannot be interpreted.
+    """
+
+    if isinstance(threshold_arg, str):
+        if threshold_arg != THRESHOLD_ARG_FOR_UNIQUE_FORECASTS:
+            error_string = (
+                'If string, threshold_arg must be "{0:s}".  Instead, got '
+                '"{1:s}".').format(THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
+                                   threshold_arg)
+            raise ValueError(error_string)
+
+        error_checking.assert_is_geq(unique_forecast_precision, 0.)
+        error_checking.assert_is_leq(unique_forecast_precision, 0.01)
+
+        binarization_thresholds = numpy.unique(rounder.round_to_nearest(
+            copy.deepcopy(forecast_probabilities), unique_forecast_precision))
+
+    elif isinstance(threshold_arg, numpy.ndarray):
+        binarization_thresholds = copy.deepcopy(threshold_arg)
+
+        error_checking.assert_is_numpy_array(
+            binarization_thresholds, num_dimensions=1)
+        error_checking.assert_is_geq_numpy_array(
+            binarization_thresholds, MIN_BINARIZATION_THRESHOLD)
+        error_checking.assert_is_leq_numpy_array(
+            binarization_thresholds, MAX_BINARIZATION_THRESHOLD)
+
+    else:
+        num_thresholds = copy.deepcopy(threshold_arg)
+        error_checking.assert_is_integer(num_thresholds)
+        error_checking.assert_is_geq(num_thresholds, 2)
+
+        binarization_thresholds = numpy.linspace(0., 1., num=num_thresholds)
+
+    return _pad_binarization_thresholds(binarization_thresholds)
+
+
+def binarize_forecast_probs(forecast_probabilities, binarization_threshold):
     """Binarizes probabilistic forecasts, turning them into deterministic ones.
 
     N = number of forecasts
@@ -233,25 +254,6 @@ def _binarize_forecast_probs(forecast_probabilities, binarization_threshold):
     forecast_labels[positive_label_indices] = True
 
     return forecast_labels.astype(int)
-
-
-def _split_forecast_probs_into_bins(forecast_probabilities, num_bins):
-    """Splits forecast probabilities into bins.
-
-    N = number of forecasts
-
-    :param forecast_probabilities: length-N numpy array of forecast
-        probabilities.
-    :param num_bins: Number of bins into which forecasts will be discretized.
-    :return: bin_index_by_forecast: length-N numpy array of indices.  If
-        bin_index_by_forecast[i] = j, the [i]th forecast belongs in the [j]th
-        bin.
-    """
-
-    bin_index_by_forecast, _ = histograms.create_histogram(
-        input_values=forecast_probabilities, num_bins=num_bins, min_value=0.,
-        max_value=1.)
-    return bin_index_by_forecast
 
 
 def get_contingency_table(forecast_labels, observed_labels):
@@ -588,8 +590,8 @@ def get_points_in_roc_curve(
         _check_forecast_probs_and_observed_labels.
     :param observed_labels: See doc for
         _check_forecast_probs_and_observed_labels.
-    :param threshold_arg: See documentation for _get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for _get_binarization_thresholds.
+    :param threshold_arg: See documentation for get_binarization_thresholds.
+    :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :return: pofd_by_threshold: length-T numpy array of POFD values, to be
         plotted on the x-axis.
     :return: pod_by_threshold: length-T numpy array of POD values, to be plotted
@@ -599,7 +601,7 @@ def get_points_in_roc_curve(
     _check_forecast_probs_and_observed_labels(
         forecast_probabilities, observed_labels)
 
-    binarization_thresholds = _get_binarization_thresholds(
+    binarization_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
         unique_forecast_precision=unique_forecast_precision)
@@ -609,7 +611,7 @@ def get_points_in_roc_curve(
     pod_by_threshold = numpy.full(num_thresholds, numpy.nan)
 
     for i in range(num_thresholds):
-        these_forecast_labels = _binarize_forecast_probs(
+        these_forecast_labels = binarize_forecast_probs(
             forecast_probabilities, binarization_thresholds[i])
         this_contingency_table_as_dict = get_contingency_table(
             these_forecast_labels, observed_labels)
@@ -634,8 +636,8 @@ def bootstrap_roc_curve(
         _check_forecast_probs_and_observed_labels.
     :param observed_labels: See doc for
         _check_forecast_probs_and_observed_labels.
-    :param threshold_arg: See documentation for _get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for _get_binarization_thresholds.
+    :param threshold_arg: See documentation for get_binarization_thresholds.
+    :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :param num_bootstrap_iters: Number of bootstrapping iterations (number of
         samples to draw from full set of forecast-observation pairs).
     :param confidence_level: Confidence level.  Will be used to create
@@ -655,7 +657,7 @@ def bootstrap_roc_curve(
     _check_forecast_probs_and_observed_labels(
         forecast_probabilities, observed_labels)
 
-    binarization_thresholds = _get_binarization_thresholds(
+    binarization_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
         unique_forecast_precision=unique_forecast_precision)
@@ -673,7 +675,7 @@ def bootstrap_roc_curve(
             forecast_probabilities)
 
         for i in range(num_thresholds):
-            these_forecast_labels = _binarize_forecast_probs(
+            these_forecast_labels = binarize_forecast_probs(
                 forecast_probabilities[these_sample_indices],
                 binarization_thresholds[i])
             this_contingency_table_as_dict = get_contingency_table(
@@ -738,8 +740,8 @@ def get_points_in_performance_diagram(
         _check_forecast_probs_and_observed_labels.
     :param observed_labels: See doc for
         _check_forecast_probs_and_observed_labels.
-    :param threshold_arg: See doc for _get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for _get_binarization_thresholds.
+    :param threshold_arg: See doc for get_binarization_thresholds.
+    :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :return: success_ratio_by_threshold: length-T numpy array of success ratios,
         to be plotted on the x-axis.
     :return: pod_by_threshold: length-T numpy array of POD values, to be plotted
@@ -749,7 +751,7 @@ def get_points_in_performance_diagram(
     _check_forecast_probs_and_observed_labels(
         forecast_probabilities, observed_labels)
 
-    binarization_thresholds = _get_binarization_thresholds(
+    binarization_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
         unique_forecast_precision=unique_forecast_precision)
@@ -759,7 +761,7 @@ def get_points_in_performance_diagram(
     pod_by_threshold = numpy.full(num_thresholds, numpy.nan)
 
     for i in range(num_thresholds):
-        these_forecast_labels = _binarize_forecast_probs(
+        these_forecast_labels = binarize_forecast_probs(
             forecast_probabilities, binarization_thresholds[i])
         this_contingency_table_as_dict = get_contingency_table(
             these_forecast_labels, observed_labels)
@@ -785,8 +787,8 @@ def bootstrap_performance_diagram(
         _check_forecast_probs_and_observed_labels.
     :param observed_labels: See doc for
         _check_forecast_probs_and_observed_labels.
-    :param threshold_arg: See documentation for _get_binarization_thresholds.
-    :param unique_forecast_precision: See doc for _get_binarization_thresholds.
+    :param threshold_arg: See documentation for get_binarization_thresholds.
+    :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :param num_bootstrap_iters: Number of bootstrapping iterations (number of
         samples to draw from full set of forecast-observation pairs).
     :param confidence_level: Confidence level.  Will be used to create
@@ -811,7 +813,7 @@ def bootstrap_performance_diagram(
     _check_forecast_probs_and_observed_labels(
         forecast_probabilities, observed_labels)
 
-    binarization_thresholds = _get_binarization_thresholds(
+    binarization_thresholds = get_binarization_thresholds(
         threshold_arg=threshold_arg,
         forecast_probabilities=forecast_probabilities,
         unique_forecast_precision=unique_forecast_precision)
@@ -831,7 +833,7 @@ def bootstrap_performance_diagram(
         these_csi_values = numpy.full(num_thresholds, numpy.nan)
 
         for i in range(num_thresholds):
-            these_forecast_labels = _binarize_forecast_probs(
+            these_forecast_labels = binarize_forecast_probs(
                 forecast_probabilities[these_sample_indices],
                 binarization_thresholds[i])
             this_contingency_table_as_dict = get_contingency_table(

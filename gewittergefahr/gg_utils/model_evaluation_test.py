@@ -13,7 +13,7 @@ FORECAST_PROBABILITIES = numpy.array(
     [0.0801, 0.0503, 0.1805, 0.111, 0.042, 0.803, 0.294, 0.273, 0.952, 0.951])
 OBSERVED_LABELS = numpy.array([0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=int)
 
-# The following constants are used to test _get_binarization_thresholds.
+# The following constants are used to test get_binarization_thresholds.
 THRESHOLDS_FOR_DIRECT_INPUT = numpy.array(
     [0., 0.001, 0.005, 0.01, 0.1, 0.2, 0.3, 0.5, 0.75, 0.99, 0.999, 1.])
 THRESHOLDS_FROM_DIRECT_INPUT = numpy.array(
@@ -45,7 +45,7 @@ THRESHOLDS_WITH_MINMAX_PADDING = numpy.array(
      0.1, 0.25, 0.3, 0.4, 0.55, 0.61, 0.777, 0.8, 0.9, 0.95, 0.99,
      model_eval.MAX_BINARIZATION_THRESHOLD])
 
-# The following constants are used to test _binarize_forecast_probs.
+# The following constants are used to test binarize_forecast_probs.
 BINARIZATION_THRESHOLD_HALF = 0.5
 FORECAST_LABELS_THRESHOLD_HALF = numpy.array(
     [0, 0, 0, 0, 0, 1, 0, 0, 1, 1], dtype=int)
@@ -183,35 +183,35 @@ class ModelEvaluationTests(unittest.TestCase):
     """Each method is a unit test for model_evaluation.py."""
 
     def test_get_binarization_thresholds_direct_input(self):
-        """Ensures correct output from _get_binarization_thresholds.
+        """Ensures correct output from get_binarization_thresholds.
 
         In this case, desired thresholds are input directly.
         """
 
-        these_thresholds = model_eval._get_binarization_thresholds(
+        these_thresholds = model_eval.get_binarization_thresholds(
             threshold_arg=THRESHOLDS_FROM_DIRECT_INPUT)
         self.assertTrue(numpy.allclose(
             these_thresholds, THRESHOLDS_FROM_DIRECT_INPUT, atol=TOLERANCE))
 
     def test_get_binarization_thresholds_from_number(self):
-        """Ensures correct output from _get_binarization_thresholds.
+        """Ensures correct output from get_binarization_thresholds.
 
         In this case, only number of thresholds is input directly.
         """
 
-        these_thresholds = model_eval._get_binarization_thresholds(
+        these_thresholds = model_eval.get_binarization_thresholds(
             threshold_arg=NUM_THRESHOLDS_FOR_INPUT)
         self.assertTrue(numpy.allclose(
             these_thresholds, THRESHOLDS_FROM_NUMBER, atol=TOLERANCE))
 
     def test_get_binarization_thresholds_from_unique_forecasts(self):
-        """Ensures correct output from _get_binarization_thresholds.
+        """Ensures correct output from get_binarization_thresholds.
 
         In this case, binarization thresholds are determined from unique
         forecasts.
         """
 
-        these_thresholds = model_eval._get_binarization_thresholds(
+        these_thresholds = model_eval.get_binarization_thresholds(
             threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
             forecast_probabilities=FORECAST_PROBS_FOR_THRESHOLDS,
             unique_forecast_precision=UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS)
@@ -220,13 +220,13 @@ class ModelEvaluationTests(unittest.TestCase):
             these_thresholds, THRESHOLDS_FROM_UNIQUE_FORECASTS, atol=TOLERANCE))
 
     def test_get_binarization_thresholds_bad_input(self):
-        """Ensures correct output from _get_binarization_thresholds.
+        """Ensures correct output from get_binarization_thresholds.
 
         In this case, input `threshold_arg` is invalid.
         """
 
         with self.assertRaises(ValueError):
-            these_thresholds = model_eval._get_binarization_thresholds(
+            model_eval.get_binarization_thresholds(
                 threshold_arg=FAKE_THRESHOLD_ARG)
 
     def test_pad_binarization_thresholds_input_no_padding(self):
@@ -274,9 +274,9 @@ class ModelEvaluationTests(unittest.TestCase):
             these_thresholds, THRESHOLDS_WITH_MINMAX_PADDING, atol=TOLERANCE))
 
     def test_binarize_forecast_probs(self):
-        """Ensures correct output from _binarize_forecast_probs."""
+        """Ensures correct output from binarize_forecast_probs."""
 
-        these_forecast_labels = model_eval._binarize_forecast_probs(
+        these_forecast_labels = model_eval.binarize_forecast_probs(
             FORECAST_PROBABILITIES, BINARIZATION_THRESHOLD_HALF)
         self.assertTrue(numpy.array_equal(
             these_forecast_labels, FORECAST_LABELS_THRESHOLD_HALF))
