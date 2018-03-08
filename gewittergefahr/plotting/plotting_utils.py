@@ -426,7 +426,8 @@ def add_colour_bar(
 
     return pyplot.colorbar(
         ax=axes_object, mappable=scalar_mappable_object,
-        orientation=orientation, pad=this_padding, extend=extend_argument)
+        orientation=orientation, pad=this_padding, extend=extend_argument,
+        shrink=0.8)
 
 
 def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
@@ -455,4 +456,4 @@ def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
     return add_colour_bar(
         axes_object, values_to_colour=values_to_colour, colour_map=colour_map,
         colour_norm_object=colour_norm_object, orientation=orientation,
-        extend_min=extend_min, extend_max=extend_max)
+        extend_min=extend_min, extend_max=extend_max, shrink=0.8)
