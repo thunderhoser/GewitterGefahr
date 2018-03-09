@@ -385,7 +385,7 @@ def plot_meridians(basemap_object=None, axes_object=None,
 def add_colour_bar(
         axes_object, values_to_colour=None, colour_map=None,
         colour_norm_object=None, orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
-        extend_min=True, extend_max=True):
+        extend_min=True, extend_max=True, fraction_of_axis_length=1.):
     """Adds colour bar to existing plot.
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
@@ -398,6 +398,9 @@ def add_colour_bar(
         bottom end of colour bar.  Otherwise, bottom of colour bar will be
         rectangular.
     :param extend_max: Same as extend_min, but for upper end of colour bar.
+    :param fraction_of_axis_length: The colour bar will have this fraction of
+        the length of the axis that it parallels.  For example, if the colour
+        bar is vertical, it will have this fraction of the y-axis length.
     :return: colour_bar_object: Instance of `matplotlib.pyplot.colorbar` created
         by this method.
     """
@@ -405,6 +408,8 @@ def add_colour_bar(
     error_checking.assert_is_real_numpy_array(values_to_colour)
     error_checking.assert_is_boolean(extend_min)
     error_checking.assert_is_boolean(extend_max)
+    error_checking.assert_is_greater(fraction_of_axis_length, 0.)
+    error_checking.assert_is_less_than(fraction_of_axis_length, 1.)
 
     scalar_mappable_object = pyplot.cm.ScalarMappable(
         cmap=colour_map, norm=colour_norm_object)
@@ -427,7 +432,7 @@ def add_colour_bar(
     return pyplot.colorbar(
         ax=axes_object, mappable=scalar_mappable_object,
         orientation=orientation, pad=this_padding, extend=extend_argument,
-        shrink=0.7)
+        shrink=fraction_of_axis_length)
 
 
 def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
