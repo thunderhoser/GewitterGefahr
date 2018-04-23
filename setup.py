@@ -4,11 +4,11 @@ from setuptools import setup
 
 PACKAGE_NAMES = [
     'gewittergefahr', 'gewittergefahr.gg_io', 'gewittergefahr.gg_utils',
-    'gewittergefahr.plotting', 'gewittergefahr.scripts',
-    'gewittergefahr.feature_selection_example']
+    'gewittergefahr.deep_learning', 'gewittergefahr.plotting',
+    'gewittergefahr.scripts', 'gewittergefahr.feature_selection_example']
 KEYWORDS = [
-    'machine learning', 'artificial intelligence', 'data mining', 'weather',
-    'meteorology', 'thunderstorm', 'straight-line wind']
+    'machine learning', 'deep learning', 'artificial intelligence',
+    'data mining', 'weather', 'meteorology', 'thunderstorm', 'wind', 'tornado']
 SHORT_DESCRIPTION = (
     'Object-based machine learning to predict thunderstorm hazards')
 LONG_DESCRIPTION = (

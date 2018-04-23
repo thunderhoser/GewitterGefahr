@@ -61,7 +61,7 @@ UNZIPPED_FILE_EXTENSION = '.netcdf'
 
 AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
-RADAR_FILE_NAME_LIST_KEY = 'radar_file_name_2d_list'
+RADAR_FILE_NAMES_KEY = 'radar_file_name_matrix'
 UNIQUE_TIMES_KEY = 'unique_times_unix_sec'
 SPC_DATES_AT_UNIQUE_TIMES_KEY = 'spc_dates_at_unique_times_unix_sec'
 FIELD_NAME_BY_PAIR_KEY = 'field_name_by_pair'
@@ -421,8 +421,8 @@ def find_many_raw_files(
     :param max_time_offset_for_non_shear_sec: Max time offset (between desired
         and actual valid time) for non-azimuthal-shear fields.
     :return: file_dictionary: Dictionary with the following keys.
-    file_dictionary['radar_file_name_2d_list']: T-by-F list of paths to raw
-        files.
+    file_dictionary['radar_file_name_matrix']: T-by-F numpy array of paths to
+        raw files.
     file_dictionary['unique_times_unix_sec']: length-T numpy array of unique
         valid times.
     file_dictionary['spc_date_strings_for_unique_times']: length-T numpy array
@@ -461,7 +461,8 @@ def find_many_raw_files(
     spc_dates_at_unique_times_unix_sec = unique_time_matrix[:, 1]
 
     num_unique_times = len(unique_times_unix_sec)
-    radar_file_names_2d_list = [[''] * num_fields] * num_unique_times
+    radar_file_name_matrix = numpy.full(
+        (num_unique_times, num_fields), '', dtype=object)
 
     for i in range(num_unique_times):
         this_spc_date_string = time_conversion.time_to_spc_date_string(
@@ -476,7 +477,7 @@ def find_many_raw_files(
                 this_raise_error_flag = True
 
             if this_max_time_offset_sec == 0:
-                radar_file_names_2d_list[i][j] = find_raw_file(
+                radar_file_name_matrix[i, j] = find_raw_file(
                     unix_time_sec=unique_times_unix_sec[i],
                     spc_date_string=this_spc_date_string,
                     field_name=field_name_by_pair[j], data_source=data_source,
@@ -484,7 +485,7 @@ def find_many_raw_files(
                     height_m_asl=height_by_pair_m_asl[j],
                     raise_error_if_missing=this_raise_error_flag)
             else:
-                radar_file_names_2d_list[i][j] = find_raw_file_inexact_time(
+                radar_file_name_matrix[i, j] = find_raw_file_inexact_time(
                     desired_time_unix_sec=unique_times_unix_sec[i],
                     spc_date_string=this_spc_date_string,
                     field_name=field_name_by_pair[j], data_source=data_source,
@@ -493,7 +494,7 @@ def find_many_raw_files(
                     max_time_offset_sec=this_max_time_offset_sec,
                     raise_error_if_missing=this_raise_error_flag)
 
-            if radar_file_names_2d_list[i][j] is None:
+            if radar_file_name_matrix[i, j] is None:
                 this_time_string = time_conversion.unix_sec_to_string(
                     unique_times_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
 
@@ -505,7 +506,7 @@ def find_many_raw_files(
                 warnings.warn(warning_string)
 
     return {
-        RADAR_FILE_NAME_LIST_KEY: radar_file_names_2d_list,
+        RADAR_FILE_NAMES_KEY: radar_file_name_matrix,
         UNIQUE_TIMES_KEY: unique_times_unix_sec,
         SPC_DATES_AT_UNIQUE_TIMES_KEY: spc_dates_at_unique_times_unix_sec,
         FIELD_NAME_BY_PAIR_KEY: field_name_by_pair,

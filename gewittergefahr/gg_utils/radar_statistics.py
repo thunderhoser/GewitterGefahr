@@ -571,8 +571,8 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
         field_names=radar_field_names, top_directory_name=top_radar_dir_name,
         reflectivity_heights_m_asl=reflectivity_heights_m_asl)
 
-    radar_file_names_2d_list = file_dictionary[
-        myrorss_and_mrms_io.RADAR_FILE_NAME_LIST_KEY]
+    radar_file_name_matrix = file_dictionary[
+        myrorss_and_mrms_io.RADAR_FILE_NAMES_KEY]
     valid_times_unix_sec = file_dictionary[myrorss_and_mrms_io.UNIQUE_TIMES_KEY]
     valid_spc_dates_unix_sec = file_dictionary[
         myrorss_and_mrms_io.SPC_DATES_AT_UNIQUE_TIMES_KEY]
@@ -601,7 +601,7 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
         metadata_dict_this_field_height = None
 
         for i in range(num_valid_times):
-            if radar_file_names_2d_list[i][j] is None:
+            if radar_file_name_matrix[i, j] is None:
                 continue
 
             print (
@@ -617,8 +617,7 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
                 # field/height pair.
                 metadata_dict_this_field_height = (
                     myrorss_and_mrms_io.read_metadata_from_raw_file(
-                        radar_file_names_2d_list[i][j],
-                        data_source=radar_source))
+                        radar_file_name_matrix[i, j], data_source=radar_source))
 
                 storm_to_grid_pts_table_this_field_height = (
                     get_grid_points_in_storm_objects(
@@ -629,7 +628,7 @@ def get_storm_based_radar_stats_myrorss_or_mrms(
             # Read data for [j]th field/height pair at [i]th time step.
             sparse_grid_table_this_field_height = (
                 myrorss_and_mrms_io.read_data_from_sparse_grid_file(
-                    radar_file_names_2d_list[i][j],
+                    radar_file_name_matrix[i, j],
                     field_name_orig=metadata_dict_this_field_height[
                         myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
                     data_source=radar_source,
