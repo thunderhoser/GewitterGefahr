@@ -781,3 +781,47 @@ def join_storm_images_and_labels(
     return _check_storm_to_events_table(
         storm_ids=storm_ids, unix_time_sec=unix_time_sec,
         storm_to_events_table=storm_to_events_table)
+
+
+def extract_label_values(
+        storm_ids, storm_to_events_table, min_lead_time_sec, max_lead_time_sec,
+        min_link_distance_metres, max_link_distance_metres, event_type_string,
+        wind_speed_percentile_level=None, wind_speed_class_cutoffs_kt=None):
+    """Extracts values of one label for each storm object.
+
+    K = number of storm objects
+
+    :param storm_ids: length-K list of storm IDs (strings).
+    :param storm_to_events_table: pandas DataFrame created by
+        `join_storm_images_and_labels`.
+    :param min_lead_time_sec: Determines which label to extract (see doc for
+        `labels.get_column_name_for_classification_label`).
+    :param max_lead_time_sec: Same.
+    :param min_link_distance_metres: Same.
+    :param max_link_distance_metres: Same.
+    :param event_type_string: Same.
+    :param wind_speed_percentile_level: Same.
+    :param wind_speed_class_cutoffs_kt: Same.
+    :return: label_values: length-K numpy array of integers, indicating the
+        class for each storm object.
+    """
+
+    _check_storm_to_events_table(
+        storm_to_events_table=storm_to_events_table, storm_ids=storm_ids,
+        unix_time_sec=
+        storm_to_events_table[tracking_utils.TIME_COLUMN].values[0])
+
+    label_name = labels.get_column_name_for_classification_label(
+        min_lead_time_sec=min_lead_time_sec,
+        max_lead_time_sec=max_lead_time_sec,
+        min_link_distance_metres=min_link_distance_metres,
+        max_link_distance_metres=max_link_distance_metres,
+        event_type_string=event_type_string,
+        wind_speed_percentile_level=wind_speed_percentile_level,
+        wind_speed_class_cutoffs_kt=wind_speed_class_cutoffs_kt)
+
+    storm_ids_in_table = storm_to_events_table[
+        tracking_utils.STORM_ID_COLUMN].values.tolist()
+    sort_indices = numpy.array([storm_ids_in_table.index(s) for s in storm_ids])
+
+    return storm_to_events_table[label_name].values[sort_indices]
