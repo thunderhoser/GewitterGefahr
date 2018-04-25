@@ -5,22 +5,31 @@ other words, the center of the image is the centroid of the storm object).
 """
 
 import os
+import copy
+import glob
 import pickle
 import numpy
 from gewittergefahr.gg_io import gridrad_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import gridrad_utils
+from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 PADDING_VALUE = 0
+
+DAYS_TO_SECONDS = 86400
+GRIDRAD_TIME_INTERVAL_SEC = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+TIME_FORMAT_REGEX = (
+    '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]')
 
 FIRST_STORM_ROW_KEY = 'first_storm_image_row'
 LAST_STORM_ROW_KEY = 'last_storm_image_row'
@@ -256,6 +265,107 @@ def _check_storm_to_events_table(
     return storm_to_events_table
 
 
+def _find_many_files_one_spc_date(
+        top_directory_name, start_time_unix_sec, end_time_unix_sec,
+        spc_date_string, radar_source, radar_field_names,
+        reflectivity_heights_m_asl=None, raise_error_if_missing=True):
+    """Finds many files containing storm images with MYRORSS or MRMS data.
+
+    N = number of time steps
+    P = number of field/height pairs
+
+    :param top_directory_name: Name of top-level directory with storm-image
+        files.
+    :param start_time_unix_sec: Start time.  This method will find all files
+        with the given params from `start_time_unix_sec`...`end_time_unix_sec`.
+    :param end_time_unix_sec: See above.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param radar_source: Data source (either "myrorss" or "mrms").
+    :param radar_field_names: See doc for
+        `extract_storm_images_myrorss_or_mrms`.
+    :param reflectivity_heights_m_asl: See doc for
+        `extract_storm_images_myrorss_or_mrms`.
+    :param raise_error_if_missing: Boolean flag.  If True and no files are
+        found, this method will error out.
+    :return: image_file_name_matrix: N-by-P numpy array of file paths.
+    :return: unix_times_sec: length-N numpy array of valid times.
+    :return: field_name_by_pair: length-P list with names of radar fields.
+    :return: height_by_pair_m_asl: length-P numpy array of radar heights (metres
+        above sea level).
+    :raises: ValueError: if no files are found and raise_error_if_missing =
+        True.
+    """
+
+    field_name_by_pair, height_by_pair_m_asl = (
+        myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
+            field_names=radar_field_names, data_source=radar_source,
+            refl_heights_m_asl=reflectivity_heights_m_asl))
+
+    num_field_height_pairs = len(field_name_by_pair)
+    image_file_name_matrix = None
+    unix_times_sec = None
+
+    for j in range(num_field_height_pairs):
+        if j == 0:
+            this_file_pattern = (
+                '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:05d}_metres_asl/'
+                'storm_images_{6:s}.p').format(
+                    top_directory_name, radar_source, spc_date_string[:4],
+                    spc_date_string, field_name_by_pair[j],
+                    numpy.round(int(height_by_pair_m_asl[j])),
+                    TIME_FORMAT_REGEX)
+
+            these_file_names = glob.glob(this_file_pattern)
+            image_file_names = []
+            unix_times_sec = []
+
+            for this_file_name in these_file_names:
+                _, this_pathless_file_name = os.path.split(this_file_name)
+                this_extensionless_file_name, _ = os.path.splitext(
+                    this_pathless_file_name)
+
+                this_time_string = this_extensionless_file_name.split('_')[-1]
+                this_time_unix_sec = time_conversion.string_to_unix_sec(
+                    this_time_string, TIME_FORMAT)
+
+                if (start_time_unix_sec <= this_time_unix_sec <=
+                        end_time_unix_sec):
+                    image_file_names.append(this_file_name)
+                    unix_times_sec.append(this_time_unix_sec)
+
+            num_times = len(image_file_names)
+            if num_times == 0:
+                if raise_error_if_missing:
+                    error_string = (
+                        'Cannot find any files on SPC date "{0:s}" for "{1:s}" '
+                        'at {2:d} metres ASL.').format(
+                            spc_date_string, field_name_by_pair[j],
+                            numpy.round(int(height_by_pair_m_asl[j])))
+                    raise ValueError(error_string)
+
+                return None, None, field_name_by_pair, height_by_pair_m_asl
+
+            unix_times_sec = numpy.array(unix_times_sec, dtype=int)
+            image_file_name_matrix = numpy.full(
+                (num_times, num_field_height_pairs), '', dtype=object)
+            image_file_name_matrix[:, j] = numpy.array(
+                image_file_names, dtype=object)
+
+        else:
+            for i in range(len(unix_times_sec)):
+                image_file_name_matrix[i, j] = find_storm_image_file(
+                    top_directory_name=top_directory_name,
+                    unix_time_sec=unix_times_sec[i],
+                    spc_date_string=spc_date_string,
+                    radar_source=radar_source,
+                    radar_field_name=field_name_by_pair[j],
+                    radar_height_m_asl=height_by_pair_m_asl[j],
+                    raise_error_if_missing=True)
+
+    return (image_file_name_matrix, unix_times_sec, field_name_by_pair,
+            height_by_pair_m_asl)
+
+
 def extract_storm_image(
         full_radar_matrix, center_row, center_column,
         num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
@@ -353,7 +463,7 @@ def extract_storm_images_myrorss_or_mrms(
     :param top_radar_dir_name: [input] Name of top-level directory with radar
         data from the given source.
     :param top_output_dir_name: [output] Name of top-level output directory for
-        storm-centered radar images from the given source.
+        storm-centered radar images.
     :param num_storm_image_rows: Number of rows (unique grid-point latitudes) in
         each storm image.
     :param num_storm_image_columns: Number of columns (unique grid-point
@@ -478,7 +588,7 @@ def extract_storm_images_myrorss_or_mrms(
             image_file_name_matrix[i, j] = find_storm_image_file(
                 top_directory_name=top_output_dir_name,
                 unix_time_sec=valid_times_unix_sec[i],
-                spc_date_string=spc_date_strings[i],
+                spc_date_string=spc_date_strings[i], radar_source=radar_source,
                 radar_field_name=radar_field_name_by_pair[j],
                 radar_height_m_asl=radar_height_by_pair_m_asl[j],
                 raise_error_if_missing=False)
@@ -633,6 +743,7 @@ def extract_storm_images_gridrad(
                     unix_time_sec=valid_times_unix_sec[i],
                     spc_date_string=time_conversion.time_to_spc_date_string(
                         valid_times_unix_sec[i]),
+                    radar_source=radar_utils.GRIDRAD_SOURCE_ID,
                     radar_field_name=radar_field_names[j],
                     radar_height_m_asl=radar_heights_m_asl[k],
                     raise_error_if_missing=False)
@@ -651,33 +762,38 @@ def extract_storm_images_gridrad(
 
 
 def find_storm_image_file(
-        top_directory_name, unix_time_sec, spc_date_string, radar_field_name,
-        radar_height_m_asl, raise_error_if_missing=True):
+        top_directory_name, unix_time_sec, spc_date_string, radar_source,
+        radar_field_name, radar_height_m_asl, raise_error_if_missing=True):
     """Finds file with storm imgs (e.g., those created by extract_storm_image).
 
-    :param top_directory_name: Name of top-level directory containing files with
-        storm-centered radar images.
+    :param top_directory_name: Name of top-level directory with storm-image
+        files.
     :param unix_time_sec: Valid time.
     :param spc_date_string: SPC date (format "yyyymmdd").
+    :param radar_source: Data source (must be accepted by
+        `radar_utils.check_data_source`).
     :param radar_field_name: Name of radar field (string).
     :param radar_height_m_asl: Height (metres above sea level) of radar field.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will error out.
     :return: storm_image_file_name: Path to image file.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
+    :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
     error_checking.assert_is_string(top_directory_name)
     _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    radar_utils.check_data_source(radar_source)
     error_checking.assert_is_string(radar_field_name)
     error_checking.assert_is_greater(radar_height_m_asl, 0)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     storm_image_file_name = (
-        '{0:s}/{1:s}/{2:s}/{3:s}/{4:05d}_metres_asl/'
-        'storm_images_{5:s}.p').format(
-            top_directory_name, spc_date_string[:4], spc_date_string,
-            radar_field_name, numpy.round(int(radar_height_m_asl)),
+        '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:05d}_metres_asl/'
+        'storm_images_{6:s}.p').format(
+            top_directory_name, radar_source, spc_date_string[:4],
+            spc_date_string, radar_field_name,
+            numpy.round(int(radar_height_m_asl)),
             time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
 
     if raise_error_if_missing and not os.path.isfile(storm_image_file_name):
@@ -687,6 +803,182 @@ def find_storm_image_file(
         raise ValueError(error_string)
 
     return storm_image_file_name
+
+
+def find_many_files_myrorss_or_mrms(
+        top_directory_name, start_time_unix_sec, end_time_unix_sec,
+        radar_source, radar_field_names, reflectivity_heights_m_asl=None,
+        raise_error_if_missing=True):
+    """Finds many files containing storm images with MYRORSS or MRMS data.
+
+    :param top_directory_name: See documentation for
+        `find_many_files_one_spc_date`.
+    :param start_time_unix_sec: Same.
+    :param end_time_unix_sec: Same.
+    :param radar_source: Same.
+    :param radar_field_names: Same.
+    :param reflectivity_heights_m_asl: Same.
+    :param raise_error_if_missing: Same.
+    :return: image_file_name_matrix: Same.
+    :return: unix_times_sec: Same.
+    :return: field_name_by_pair: Same.
+    :return: height_by_pair_m_asl: Same.
+    :raises: ValueError: if no files are found and raise_error_if_missing =
+        True.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_integer(start_time_unix_sec)
+    error_checking.assert_is_integer(end_time_unix_sec)
+    error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=time_conversion.time_to_spc_date_string(
+            start_time_unix_sec),
+        last_spc_date_string=time_conversion.time_to_spc_date_string(
+            end_time_unix_sec))
+    num_spc_dates = len(spc_date_strings)
+
+    image_file_name_matrix = None
+    unix_times_sec = None
+    field_name_by_pair = None
+    height_by_pair_m_asl = None
+
+    for i in range(num_spc_dates):
+        (this_file_name_matrix,
+         these_times_unix_sec,
+         field_name_by_pair,
+         height_by_pair_m_asl) = _find_many_files_one_spc_date(
+             top_directory_name=top_directory_name,
+             start_time_unix_sec=start_time_unix_sec,
+             end_time_unix_sec=end_time_unix_sec,
+             spc_date_string=spc_date_strings[i], radar_source=radar_source,
+             radar_field_names=radar_field_names,
+             reflectivity_heights_m_asl=reflectivity_heights_m_asl,
+             raise_error_if_missing=False)
+
+        if this_file_name_matrix is None:
+            continue
+
+        if image_file_name_matrix is None:
+            image_file_name_matrix = copy.deepcopy(this_file_name_matrix)
+            unix_times_sec = copy.deepcopy(these_times_unix_sec)
+        else:
+            image_file_name_matrix = numpy.concatenate(
+                (image_file_name_matrix, this_file_name_matrix), axis=0)
+            unix_times_sec = numpy.concatenate((
+                unix_times_sec, these_times_unix_sec))
+
+    if raise_error_if_missing and image_file_name_matrix is None:
+        start_time_string = time_conversion.unix_sec_to_string(
+            start_time_unix_sec, TIME_FORMAT)
+        end_time_string = time_conversion.unix_sec_to_string(
+            end_time_unix_sec, TIME_FORMAT)
+        error_string = 'Cannot find any files from {0:s} to {1:s}.'.format(
+            start_time_string, end_time_string)
+        raise ValueError(error_string)
+
+    return (image_file_name_matrix, unix_times_sec, field_name_by_pair,
+            height_by_pair_m_asl)
+
+
+def find_many_files_gridrad(
+        top_directory_name, start_time_unix_sec, end_time_unix_sec,
+        radar_field_names, radar_heights_m_asl, raise_error_if_missing=True):
+    """Finds many files containing storm images with GridRad data.
+
+    N = number of time steps
+    F = number of radar fields
+    H = number of radar heights
+
+    :param top_directory_name: Name of top-level directory with storm-image
+        files.
+    :param start_time_unix_sec: Start time.  This method will find all files
+        with the given params from `start_time_unix_sec`...`end_time_unix_sec`.
+    :param end_time_unix_sec: See above.
+    :param radar_field_names: length-F list with names of radar fields.
+    :param radar_heights_m_asl: length-H numpy array of radar heights (metres
+        above sea level).
+    :param raise_error_if_missing: Boolean flag.  If True and no files are
+        found, this method will error out.
+    :return: image_file_name_matrix: N-by-F-by-H numpy array of file paths.
+    :return: unix_times_sec: length-N numpy array of valid times.
+    :raises: ValueError: if no files are found and raise_error_if_missing =
+        True.
+    """
+
+    _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
+        field_names=radar_field_names, heights_m_asl=radar_heights_m_asl)
+
+    all_times_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=start_time_unix_sec,
+        end_time_unix_sec=end_time_unix_sec,
+        time_interval_sec=GRIDRAD_TIME_INTERVAL_SEC, include_endpoint=True)
+
+    image_file_name_matrix = None
+    unix_times_sec = None
+    num_fields = len(radar_field_names)
+    num_heights = len(radar_heights_m_asl)
+
+    for j in range(num_fields):
+        for k in range(num_heights):
+            if j == 0 and k == 0:
+                image_file_names = []
+                unix_times_sec = []
+
+                for this_time_unix_sec in all_times_unix_sec:
+                    this_file_name = find_storm_image_file(
+                        top_directory_name=top_directory_name,
+                        unix_time_sec=this_time_unix_sec,
+                        spc_date_string=time_conversion.time_to_spc_date_string(
+                            this_time_unix_sec),
+                        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+                        radar_field_name=radar_field_names[j],
+                        radar_height_m_asl=radar_heights_m_asl[k],
+                        raise_error_if_missing=False)
+
+                    if not os.path.isfile(this_file_name):
+                        continue
+
+                    unix_times_sec.append(this_time_unix_sec)
+                    image_file_names.append(this_file_name)
+
+                num_times = len(image_file_names)
+                if num_times == 0:
+                    if raise_error_if_missing:
+                        start_time_string = (
+                            time_conversion.unix_sec_to_string(
+                                start_time_unix_sec, TIME_FORMAT))
+                        end_time_string = (
+                            time_conversion.unix_sec_to_string(
+                                end_time_unix_sec, TIME_FORMAT))
+                        error_string = (
+                            'Cannot find any files from {0:s} to {1:s}.'
+                        ).format(start_time_string, end_time_string)
+                        raise ValueError(error_string)
+
+                    return None, None
+
+                unix_times_sec = numpy.array(unix_times_sec, dtype=int)
+                image_file_name_matrix = numpy.full(
+                    (num_times, num_fields, num_heights), '', dtype=object)
+                image_file_name_matrix[:, j, k] = numpy.array(
+                    image_file_names, dtype=object)
+
+            else:
+                for i in range(len(unix_times_sec)):
+                    image_file_name_matrix[i, j, k] = find_storm_image_file(
+                        top_directory_name=top_directory_name,
+                        unix_time_sec=unix_times_sec[i],
+                        spc_date_string=time_conversion.time_to_spc_date_string(
+                            unix_times_sec[i]),
+                        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+                        radar_field_name=radar_field_names[j],
+                        radar_height_m_asl=radar_heights_m_asl[k],
+                        raise_error_if_missing=True)
+
+    return image_file_name_matrix, unix_times_sec
 
 
 def write_storm_images(
