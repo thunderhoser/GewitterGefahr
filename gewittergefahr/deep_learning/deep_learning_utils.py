@@ -9,9 +9,12 @@ N = number of pixel columns per image
 P = number of channels (predictor variables) per image
 """
 
+import copy
 import numpy
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
+
+TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
 
 DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION = 1.
 MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION = 5.
@@ -57,6 +60,78 @@ def _check_predictor_matrix(
     num_dimensions = len(predictor_matrix.shape)
     error_checking.assert_is_geq(num_dimensions, min_num_dimensions)
     error_checking.assert_is_leq(num_dimensions, max_num_dimensions)
+
+
+def _check_target_values(target_values, num_dimensions, num_classes):
+    """Checks array of target values for errors.
+
+    :param target_values: numpy array of target values.  This may be in one of
+        two formats.
+    [1] length-E numpy array of target values.  These are integers from
+        0...(K - 1), where K = number of classes.
+    [2] E-by-K numpy array of flags (all 0 or 1, but technically the type is
+        "float64").  If target_matrix[i, k] = 1, the [k]th class is the outcome
+        for the [i]th example.  The sum across each row is 1 (classes are
+        mutually exclusive and collectively exhaustive).
+
+    :param num_dimensions: Number of dimensions expected in `target_values`
+        (either 1 or 2).
+    :param num_classes: Number of classes expected in `target_values`.
+    """
+
+    error_checking.assert_is_integer(num_dimensions)
+    error_checking.assert_is_geq(num_dimensions, 1)
+    error_checking.assert_is_leq(num_dimensions, 2)
+
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+
+    error_checking.assert_is_geq_numpy_array(target_values, 0)
+    num_examples = target_values.shape[0]
+
+    if num_dimensions == 1:
+        error_checking.assert_is_numpy_array(
+            target_values, exact_dimensions=numpy.array([num_examples]))
+
+        error_checking.assert_is_integer_numpy_array(target_values)
+        error_checking.assert_is_less_than_numpy_array(
+            target_values, num_classes)
+    else:
+        error_checking.assert_is_numpy_array(
+            target_values,
+            exact_dimensions=numpy.array([num_examples, num_classes]))
+
+        error_checking.assert_is_leq_numpy_array(target_values, 1)
+
+
+def _class_fractions_to_num_points(class_fractions, num_points_to_sample):
+    """For each class, converts fraction of points to number of points.
+
+    :param class_fractions: length-K numpy array, where the [k]th element is the
+        desired fraction of data points for the [k]th class.
+    :param num_points_to_sample: Number of points to sample.
+    :return: num_points_by_class: length-K numpy array, where the [k]th element
+        is the number of points to sample for the [k]th class.
+    """
+
+    num_classes = len(class_fractions)
+    num_points_by_class = numpy.full(num_classes, -1, dtype=int)
+
+    for k in range(num_classes - 1):
+        num_points_by_class[k] = int(
+            numpy.round(class_fractions[k] * num_points_to_sample))
+        num_points_by_class[k] = max([num_points_by_class[k], 1])
+
+        num_points_left = num_points_to_sample - numpy.sum(
+            num_points_by_class[:k])
+        num_classes_left = num_classes - 1 - k
+        num_points_by_class[k] = min(
+            [num_points_by_class[k], num_points_left - num_classes_left])
+
+    num_points_by_class[-1] = num_points_to_sample - numpy.sum(
+        num_points_by_class[:-1])
+
+    return num_points_by_class
 
 
 def stack_predictor_variables(tuple_of_3d_predictor_matrices):
@@ -155,3 +230,78 @@ def normalize_predictor_matrix(
                 (this_max_value - this_min_value))
 
     return predictor_matrix
+
+
+def sample_points_by_class(
+        target_values, class_fractions, num_points_to_sample, test_mode=False):
+    """Samples data points to achieve desired class balance.
+
+    If any class is missing from `target_values`, this method will return None.
+
+    In other words, this method allows "oversampling" and "undersampling" of
+    different classes.
+
+    :param target_values: length-E numpy array of target values.  These are
+        integers from 0...(K - 1), where K = number of classes.
+    :param class_fractions: length-K numpy array of desired class fractions.
+    :param num_points_to_sample: Number of data points to keep.
+    :param test_mode: Boolean flag.  Always leave this False.
+    :return: indices_to_keep: 1-D numpy array with indices of data points to
+        keep.  These are indices into `target_values`.
+    :raises: ValueError: if sum(class_fractions) != 1.
+    """
+
+    error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(class_fractions, 0.)
+    error_checking.assert_is_leq_numpy_array(class_fractions, 1.)
+
+    sum_of_class_fractions = numpy.sum(class_fractions)
+    absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
+    if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
+        error_string = (
+            '\n\n{0:s}\nSum of class fractions (shown above) should be 1.  '
+            'Instead, got {1:.4f}.').format(str(class_fractions),
+                                            sum_of_class_fractions)
+        raise ValueError(error_string)
+
+    num_classes = len(class_fractions)
+    _check_target_values(
+        target_values, num_dimensions=1, num_classes=num_classes)
+
+    error_checking.assert_is_integer(num_points_to_sample)
+    error_checking.assert_is_geq(num_points_to_sample, num_classes)
+
+    indices_by_class = [
+        numpy.where(target_values == k)[0] for k in range(num_classes)]
+    num_avail_points_by_class = numpy.array(
+        [len(indices_by_class[k]) for k in range(num_classes)])
+    if numpy.any(num_avail_points_by_class == 0):
+        return None
+
+    num_desired_points_by_class = _class_fractions_to_num_points(
+        class_fractions=class_fractions,
+        num_points_to_sample=num_points_to_sample)
+
+    if numpy.any(num_avail_points_by_class < num_desired_points_by_class):
+        avail_to_desired_ratio_by_class = num_avail_points_by_class.astype(
+            float) / num_desired_points_by_class
+        num_points_to_sample = int(numpy.floor(
+            num_points_to_sample * numpy.min(avail_to_desired_ratio_by_class)))
+
+        num_desired_points_by_class = _class_fractions_to_num_points(
+            class_fractions=class_fractions,
+            num_points_to_sample=num_points_to_sample)
+
+    for k in range(num_classes):
+        if not test_mode:
+            numpy.random.shuffle(indices_by_class[k])
+
+        indices_by_class[k] = indices_by_class[
+            k][:num_desired_points_by_class[k]]
+
+    indices_to_keep = copy.deepcopy(indices_by_class[0])
+    for k in range(1, num_classes):
+        indices_to_keep = numpy.concatenate((
+            indices_to_keep, indices_by_class[k]))
+
+    return indices_to_keep
