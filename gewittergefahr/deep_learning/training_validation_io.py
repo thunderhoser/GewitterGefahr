@@ -23,14 +23,15 @@ from gewittergefahr.gg_utils import error_checking
 def storm_image_generator(
         top_directory_name, radar_source, radar_field_names,
         num_examples_per_batch, num_examples_per_image_time,
-        first_image_time_unix_sec, last_image_time_unix_sec, min_lead_time_sec,
-        max_lead_time_sec, min_target_distance_metres,
+        first_image_time_unix_sec, last_image_time_unix_sec,
+        min_lead_time_sec, max_lead_time_sec, min_target_distance_metres,
         max_target_distance_metres, event_type_string, radar_heights_m_asl=None,
         reflectivity_heights_m_asl=None, wind_speed_percentile_level=None,
         wind_speed_class_cutoffs_kt=None, normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
-        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION):
+        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
+        class_fractions_to_sample=None):
     """Generates training examples with storm-centered radar images.
 
     F = number of radar fields
@@ -66,6 +67,10 @@ def storm_image_generator(
         `deep_learning_utils.normalize_predictor_matrix`).
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
+    :param class_fractions_to_sample: length-K numpy array with fraction of data
+        points (examples) to keep from each class.  This can be used to achieve
+        the desired class balance.  If you don't care about class balance, leave
+        this as None.
     :return: predictor_matrix: E-by-M-by-N-by-P numpy array of storm-centered
         radar images.
     :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
@@ -195,6 +200,16 @@ def storm_image_generator(
                 tuple_of_predictor_matrices)
             full_predictor_matrix = numpy.concatenate(
                 (full_predictor_matrix, this_predictor_matrix), axis=0)
+
+        if class_fractions_to_sample is not None:
+            batch_indices = dl_utils.sample_points_by_class(
+                target_values=all_target_values,
+                class_fractions=class_fractions_to_sample,
+                num_points_to_sample=num_examples_per_batch)
+
+            full_predictor_matrix = full_predictor_matrix[
+                batch_indices, ...].astype('float32')
+            all_target_values = all_target_values[batch_indices]
 
         if normalize_by_batch:  # Normalize radar images.
             full_predictor_matrix = dl_utils.normalize_predictor_matrix(
