@@ -457,3 +457,22 @@ def train_2d_cnn(
                 percentile_offset_for_normalization,
                 class_fractions_to_sample=class_fractions_to_sample),
             validation_steps=num_validation_batches_per_epoch)
+
+
+def apply_2d_cnn(model_object, predictor_matrix):
+    """Applies 2-D CNN (one that performs 2-D convolution) to new examples.
+
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param predictor_matrix: E-by-M-by-N-by-P numpy array of storm-centered
+        radar images.
+    :return: class_probability_matrix: E-by-K numpy array of forecast
+        probabilities.  class_probability_matrix[i, k] is the forecast
+        probability the [i]th example belongs to the [k]th class.
+    """
+
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=predictor_matrix, min_num_dimensions=4,
+        max_num_dimensions=4)
+
+    num_examples = predictor_matrix.shape[0]
+    return model_object.predict(predictor_matrix, batch_size=num_examples)

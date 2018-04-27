@@ -9,7 +9,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _check_predictor_matrix.
+# The following constants are used to test check_predictor_matrix.
 PREDICTOR_MATRIX_1D = numpy.array([1, 2, 3, 4], dtype=numpy.float32)
 PREDICTOR_MATRIX_2D = numpy.array([[1, 2, 3, 4],
                                    [5, 6, 7, 8],
@@ -23,7 +23,7 @@ TUPLE_OF_3D_PREDICTOR_MATRICES = (
     PREDICTOR_MATRIX_3D, PREDICTOR_MATRIX_3D, PREDICTOR_MATRIX_3D)
 PREDICTOR_MATRIX_4D = numpy.stack(TUPLE_OF_3D_PREDICTOR_MATRICES, axis=-1)
 
-# The following constants are used to test _check_target_values.
+# The following constants are used to test check_target_values.
 TOY_TARGET_VALUES_1D_BINARY = numpy.array(
     [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], dtype=int)
 TOY_TARGET_VALUES_1D_MULTICLASS = numpy.array(
@@ -120,141 +120,141 @@ class DeepLearningUtilsTests(unittest.TestCase):
     """Each method is a unit test for deep_learning_utils.py."""
 
     def test_check_predictor_matrix_1d(self):
-        """Ensures correct output from _check_predictor_matrix.
+        """Ensures correct output from check_predictor_matrix.
 
         In this case, input matrix is 1-D (bad).
         """
 
         with self.assertRaises(ValueError):
-            dl_utils._check_predictor_matrix(PREDICTOR_MATRIX_1D)
+            dl_utils.check_predictor_matrix(PREDICTOR_MATRIX_1D)
 
     def test_check_predictor_matrix_2d(self):
-        """Ensures correct output from _check_predictor_matrix.
+        """Ensures correct output from check_predictor_matrix.
 
         In this case, input matrix is 2-D (bad).
         """
 
         with self.assertRaises(ValueError):
-            dl_utils._check_predictor_matrix(PREDICTOR_MATRIX_2D)
+            dl_utils.check_predictor_matrix(PREDICTOR_MATRIX_2D)
 
     def test_check_predictor_matrix_3d(self):
-        """Ensures correct output from _check_predictor_matrix.
+        """Ensures correct output from check_predictor_matrix.
 
         In this case, input matrix is 3-D (good).
         """
 
-        dl_utils._check_predictor_matrix(PREDICTOR_MATRIX_3D)
+        dl_utils.check_predictor_matrix(PREDICTOR_MATRIX_3D)
 
     def test_check_predictor_matrix_4d(self):
-        """Ensures correct output from _check_predictor_matrix.
+        """Ensures correct output from check_predictor_matrix.
 
         In this case, input matrix is 4-D (good).
         """
 
-        dl_utils._check_predictor_matrix(PREDICTOR_MATRIX_4D)
+        dl_utils.check_predictor_matrix(PREDICTOR_MATRIX_4D)
 
     def test_check_target_values_1d_2classes_good(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, input array is 1-D and two-class, as expected.
         """
 
-        dl_utils._check_target_values(
+        dl_utils.check_target_values(
             TOY_TARGET_VALUES_1D_BINARY, num_dimensions=1, num_classes=2)
 
     def test_check_target_values_1d_bad_dim(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, 2-D input array is expected and 1-D array is passed.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils._check_target_values(
+            dl_utils.check_target_values(
                 TOY_TARGET_VALUES_1D_BINARY, num_dimensions=2, num_classes=2)
 
     def test_check_target_values_1d_2classes_bad_class_num(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, multiclass input array is expected and two-class input
         array is passed.  However, there is no way to ascertain that the two-
         class array is wrong (maybe higher classes just never occur).
         """
 
-        dl_utils._check_target_values(
+        dl_utils.check_target_values(
             TOY_TARGET_VALUES_1D_BINARY, num_dimensions=1,
             num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
 
     def test_check_target_values_1d_multiclass_good(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, input array is 1-D and multiclass, as expected.
         """
 
-        dl_utils._check_target_values(
+        dl_utils.check_target_values(
             TOY_TARGET_VALUES_1D_MULTICLASS, num_dimensions=1,
             num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
 
     def test_check_target_values_1d_multiclass_bad_class_num(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, two-class input array is expected and multiclass array is
         passed.
         """
 
         with self.assertRaises(ValueError):
-            dl_utils._check_target_values(
+            dl_utils.check_target_values(
                 TOY_TARGET_VALUES_1D_MULTICLASS, num_dimensions=1, num_classes=2)
 
     def test_check_target_values_2d_2classes_good(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, input array is 2-D and two-class, as expected.
         """
 
-        dl_utils._check_target_values(
+        dl_utils.check_target_values(
             TOY_TARGET_MATRIX_BINARY, num_dimensions=2, num_classes=2)
 
     def test_check_target_values_2d_bad_dim(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, 1-D input array is expected and 2-D array is passed.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils._check_target_values(
+            dl_utils.check_target_values(
                 TOY_TARGET_MATRIX_BINARY, num_dimensions=1, num_classes=2)
 
     def test_check_target_values_2d_2classes_bad_class_num(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, multiclass input matrix is expected and two-class matrix
         is passed.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils._check_target_values(
+            dl_utils.check_target_values(
                 TOY_TARGET_MATRIX_BINARY, num_dimensions=2,
                 num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
 
     def test_check_target_values_2d_multiclass_good(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, input array is 2-D and multiclass, as expected.
         """
 
-        dl_utils._check_target_values(
+        dl_utils.check_target_values(
             TOY_TARGET_MATRIX_MULTICLASS, num_dimensions=2,
             num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
 
     def test_check_target_values_2d_multiclass_bad_class_num(self):
-        """Ensures correct output from _check_target_values.
+        """Ensures correct output from check_target_values.
 
         In this case, two-class input matrix is expected and multiclass matrix
         is passed.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils._check_target_values(
+            dl_utils.check_target_values(
                 TOY_TARGET_MATRIX_MULTICLASS, num_dimensions=2, num_classes=2)
 
     def test_class_fractions_to_num_points_binary_large(self):

@@ -43,7 +43,37 @@ DEFAULT_NORMALIZATION_DICT = {
 }
 
 
-def _check_predictor_matrix(
+def _class_fractions_to_num_points(class_fractions, num_points_to_sample):
+    """For each class, converts fraction of points to number of points.
+
+    :param class_fractions: length-K numpy array, where the [k]th element is the
+        desired fraction of data points for the [k]th class.
+    :param num_points_to_sample: Number of points to sample.
+    :return: num_points_by_class: length-K numpy array, where the [k]th element
+        is the number of points to sample for the [k]th class.
+    """
+
+    num_classes = len(class_fractions)
+    num_points_by_class = numpy.full(num_classes, -1, dtype=int)
+
+    for k in range(num_classes - 1):
+        num_points_by_class[k] = int(
+            numpy.round(class_fractions[k] * num_points_to_sample))
+        num_points_by_class[k] = max([num_points_by_class[k], 1])
+
+        num_points_left = num_points_to_sample - numpy.sum(
+            num_points_by_class[:k])
+        num_classes_left = num_classes - 1 - k
+        num_points_by_class[k] = min(
+            [num_points_by_class[k], num_points_left - num_classes_left])
+
+    num_points_by_class[-1] = num_points_to_sample - numpy.sum(
+        num_points_by_class[:-1])
+
+    return num_points_by_class
+
+
+def check_predictor_matrix(
         predictor_matrix, min_num_dimensions=3, max_num_dimensions=4):
     """Checks predictor matrix for errors.
 
@@ -62,7 +92,7 @@ def _check_predictor_matrix(
     error_checking.assert_is_leq(num_dimensions, max_num_dimensions)
 
 
-def _check_target_values(target_values, num_dimensions, num_classes):
+def check_target_values(target_values, num_dimensions, num_classes):
     """Checks array of target values for errors.
 
     :param target_values: numpy array of target values.  This may be in one of
@@ -104,36 +134,6 @@ def _check_target_values(target_values, num_dimensions, num_classes):
         error_checking.assert_is_leq_numpy_array(target_values, 1)
 
 
-def _class_fractions_to_num_points(class_fractions, num_points_to_sample):
-    """For each class, converts fraction of points to number of points.
-
-    :param class_fractions: length-K numpy array, where the [k]th element is the
-        desired fraction of data points for the [k]th class.
-    :param num_points_to_sample: Number of points to sample.
-    :return: num_points_by_class: length-K numpy array, where the [k]th element
-        is the number of points to sample for the [k]th class.
-    """
-
-    num_classes = len(class_fractions)
-    num_points_by_class = numpy.full(num_classes, -1, dtype=int)
-
-    for k in range(num_classes - 1):
-        num_points_by_class[k] = int(
-            numpy.round(class_fractions[k] * num_points_to_sample))
-        num_points_by_class[k] = max([num_points_by_class[k], 1])
-
-        num_points_left = num_points_to_sample - numpy.sum(
-            num_points_by_class[:k])
-        num_classes_left = num_classes - 1 - k
-        num_points_by_class[k] = min(
-            [num_points_by_class[k], num_points_left - num_classes_left])
-
-    num_points_by_class[-1] = num_points_to_sample - numpy.sum(
-        num_points_by_class[:-1])
-
-    return num_points_by_class
-
-
 def stack_predictor_variables(tuple_of_3d_predictor_matrices):
     """Stacks images with different predictor variables.
 
@@ -146,7 +146,7 @@ def stack_predictor_variables(tuple_of_3d_predictor_matrices):
     """
 
     predictor_matrix = numpy.stack(tuple_of_3d_predictor_matrices, axis=-1)
-    _check_predictor_matrix(
+    check_predictor_matrix(
         predictor_matrix=predictor_matrix, min_num_dimensions=4,
         max_num_dimensions=4)
 
@@ -193,7 +193,7 @@ def normalize_predictor_matrix(
         same.
     """
 
-    _check_predictor_matrix(
+    check_predictor_matrix(
         predictor_matrix, min_num_dimensions=4, max_num_dimensions=4)
     num_predictors = predictor_matrix.shape[-1]
 
@@ -265,7 +265,7 @@ def sample_points_by_class(
         raise ValueError(error_string)
 
     num_classes = len(class_fractions)
-    _check_target_values(
+    check_target_values(
         target_values, num_dimensions=1, num_classes=num_classes)
 
     error_checking.assert_is_integer(num_points_to_sample)
