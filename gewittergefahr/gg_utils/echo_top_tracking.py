@@ -9,6 +9,11 @@ algorithm does not provide the bounding polygons.
 
 --- REFERENCES ---
 
+Haberlie, A. and W. Ashley, 2018: "A method for identifying midlatitude
+    mesoscale convective systems in radar mosaics, part II: Tracking". Journal
+    of Applied Meteorology and Climatology, in press,
+    doi:10.1175/JAMC-D-17-0294.1.
+
 Homeyer, C.R., and J.D. McAuliffe, and K.M. Bedka, 2017: "On the development of
     above-anvil cirrus plumes in extratropical convection". Journal of the
     Atmospheric Sciences, 74 (5), 1617-1633.
@@ -37,6 +42,8 @@ from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
+DUMMY_TIME_UNIX_SEC = -10000
+
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -94,6 +101,13 @@ GRID_POINT_LATITUDES_KEY = 'list_of_grid_point_latitudes_deg'
 GRID_POINT_LONGITUDES_KEY = 'list_of_grid_point_longitudes_deg'
 POLYGON_OBJECTS_ROWCOL_KEY = 'polygon_objects_rowcol'
 POLYGON_OBJECTS_LATLNG_KEY = 'polygon_objects_latlng'
+
+START_TIME_COLUMN = 'start_time_unix_sec'
+END_TIME_COLUMN = 'end_time_unix_sec'
+START_LATITUDE_COLUMN = 'start_latitude_deg'
+END_LATITUDE_COLUMN = 'end_latitude_deg'
+START_LONGITUDE_COLUMN = 'start_longitude_deg'
+END_LONGITUDE_COLUMN = 'end_longitude_deg'
 
 DEFAULT_EAST_VELOCITY_M_S01 = 5.
 DEFAULT_NORTH_VELOCITY_M_S01 = 10.
@@ -1183,6 +1197,195 @@ def _join_tracks_between_periods(
             value=this_new_current_storm_id, inplace=True)
 
     return late_storm_object_table
+
+
+def _storm_objects_to_tracks(
+        storm_object_table, storm_track_table=None, recompute_for_id=None):
+    """Converts table of storm objects to table of storm tracks.
+
+    If the input arg `storm_track_table` is None, `storm_track_table` will be
+    computed from scratch.  Otherwise, only one row of `storm_track_table` will
+    be recomputed.
+
+    :param storm_object_table: pandas DataFrame with the following columns.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+
+    :param storm_track_table: pandas DataFrame with the following columns.
+    storm_track_table.storm_id: String ID for storm cell.
+    storm_track_table.start_time_unix_sec: Start time.
+    storm_track_table.end_time_unix_sec: End time.
+    storm_track_table.start_latitude_deg: Start latitude (deg N).
+    storm_track_table.end_latitude_deg: End latitude (deg N).
+    storm_track_table.start_longitude_deg: Start longitude (deg E).
+    storm_track_table.end_longitude_deg: End longitude (deg E).
+
+    :param recompute_for_id: [used only if storm_track_table is not None]
+        Track data will be recomputed only for this storm ID.
+
+    :return: storm_track_table: See input documentation.
+    """
+
+    if storm_track_table is None:
+        storm_id_by_track = numpy.unique(
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values).tolist()
+
+        num_tracks = len(storm_id_by_track)
+        track_start_times_unix_sec = numpy.full(num_tracks, -1, dtype=int)
+        track_end_times_unix_sec = numpy.full(num_tracks, -1, dtype=int)
+        track_start_latitudes_deg = numpy.full(num_tracks, numpy.nan)
+        track_start_longitudes_deg = numpy.full(num_tracks, numpy.nan)
+        track_end_latitudes_deg = numpy.full(num_tracks, numpy.nan)
+        track_end_longitudes_deg = numpy.full(num_tracks, numpy.nan)
+
+        storm_track_dict = {
+            tracking_utils.STORM_ID_COLUMN: storm_id_by_track,
+            START_TIME_COLUMN: track_start_times_unix_sec,
+            END_TIME_COLUMN: track_end_times_unix_sec,
+            START_LATITUDE_COLUMN: track_start_latitudes_deg,
+            END_LATITUDE_COLUMN: track_start_longitudes_deg,
+            START_LONGITUDE_COLUMN: track_end_latitudes_deg,
+            END_LONGITUDE_COLUMN: track_end_longitudes_deg
+        }
+
+        storm_track_table = pandas.DataFrame.from_dict(storm_track_dict)
+        recompute_for_ids = copy.deepcopy(storm_id_by_track)
+
+    else:
+        recompute_for_ids = [recompute_for_id]
+
+    for this_id in recompute_for_ids:
+        these_object_indices = numpy.where(
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values ==
+            this_id)[0]
+
+        these_times_unix_sec = storm_object_table[
+            tracking_utils.TIME_COLUMN].values[these_object_indices]
+        these_latitudes_deg = storm_object_table[
+            tracking_utils.CENTROID_LAT_COLUMN].values[these_object_indices]
+        these_longitudes_deg = storm_object_table[
+            tracking_utils.CENTROID_LNG_COLUMN].values[these_object_indices]
+
+        this_row = numpy.where(
+            storm_track_table[tracking_utils.STORM_ID_COLUMN].values == this_id
+        )[0][0]
+
+        storm_track_table[START_TIME_COLUMN].values[this_row] = numpy.min(
+            these_times_unix_sec)
+        storm_track_table[END_TIME_COLUMN].values[this_row] = numpy.max(
+            these_times_unix_sec)
+        storm_track_table[START_LATITUDE_COLUMN].values[
+            this_row] = these_latitudes_deg[numpy.argmin(these_times_unix_sec)]
+        storm_track_table[START_LONGITUDE_COLUMN].values[
+            this_row] = these_longitudes_deg[numpy.argmin(these_times_unix_sec)]
+        storm_track_table[END_LATITUDE_COLUMN].values[
+            this_row] = these_latitudes_deg[numpy.argmax(these_times_unix_sec)]
+        storm_track_table[END_LONGITUDE_COLUMN].values[
+            this_row] = these_longitudes_deg[numpy.argmax(these_times_unix_sec)]
+
+    return storm_track_table
+
+
+def join_nearby_tracks(
+        storm_object_table, max_join_time_sec, max_join_distance_m_s01):
+    """Joins pairs of tracks that are spatiotemporally nearby.
+
+    This method is similar to the "reanalysis" discussed in Haberlie and Ashley
+    (2018).
+
+    :param storm_object_table: pandas DataFrame with the following columns.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+
+    :param max_join_time_sec: Max time gap between two tracks (i.e., between the
+        end of the early track and beginning of the late track).  If time
+        elapsed > `max_join_time_sec`, the tracks cannot be joined.
+    :param max_join_distance_m_s01: Max distance between two tracks (i.e.,
+        between the end of the early track and beginning of the late track).  If
+        distance > time elapsed * `max_join_distance_m_s01`, the tracks cannot
+        be joined.
+    :return: storm_object_table: Same as input, except that some storm IDs may
+        have changed.
+    """
+
+    # Convert table of storm objects to table of storm tracks.
+    storm_track_table = _storm_objects_to_tracks(storm_object_table)
+
+    # Initialize variables.
+    track_removed_ids = []
+    num_storm_tracks = len(storm_track_table.index)
+
+    for i in range(num_storm_tracks):
+
+        # If this track has been removed (joined with another), skip it.
+        this_storm_id = storm_track_table[
+            tracking_utils.STORM_ID_COLUMN].values[i]
+        if this_storm_id in track_removed_ids:
+            continue
+
+        failed_to_join = False
+        while not failed_to_join:
+            failed_to_join = True
+
+            # Precompute start point for the [i]th track.
+            this_start_point = (
+                storm_track_table[START_LATITUDE_COLUMN].values[i],
+                storm_track_table[START_LONGITUDE_COLUMN].values[i])
+
+            # Find other tracks that end shortly before the [i]th track starts.
+            these_time_diffs_sec = (
+                storm_track_table[START_TIME_COLUMN].values[i] -
+                storm_track_table[END_TIME_COLUMN].values)
+            these_time_diffs_sec[
+                these_time_diffs_sec <= 0] = max_join_time_sec + 1
+            these_other_track_indices = numpy.where(
+                these_time_diffs_sec <= max_join_time_sec)[0]
+
+            for j in these_other_track_indices:
+
+                # Compute distance between start point of [i]th track and end
+                # point of [j]th track.
+                this_end_point = (
+                    storm_track_table[END_LATITUDE_COLUMN].values[j],
+                    storm_track_table[END_LONGITUDE_COLUMN].values[j])
+                this_distance_metres = vincenty(
+                    this_start_point, this_end_point).meters
+
+                # Compare this distance to the max allowed distance.
+                this_max_distance_metres = max_join_distance_m_s01 * (
+                    storm_track_table[START_TIME_COLUMN].values[i] -
+                    storm_track_table[END_TIME_COLUMN].values[j])
+                if this_distance_metres > this_max_distance_metres:
+                    continue
+
+                # Assign each storm object from [j]th track to [i]th track.
+                this_other_storm_id = storm_track_table[
+                    tracking_utils.STORM_ID_COLUMN].values[j]
+                this_replacement_dict = {
+                    tracking_utils.STORM_ID_COLUMN: {
+                        this_other_storm_id: this_storm_id
+                    }
+                }
+                storm_object_table.replace(
+                    to_replace=this_replacement_dict, inplace=True)
+
+                # Housekeeping.
+                track_removed_ids.append(this_other_storm_id)
+                storm_track_table[END_TIME_COLUMN].values[
+                    j] = DUMMY_TIME_UNIX_SEC
+                storm_track_table = _storm_objects_to_tracks(
+                    storm_object_table=storm_object_table,
+                    storm_track_table=storm_track_table,
+                    recompute_for_id=this_storm_id)
+
+                failed_to_join = False
+                break
+
+    return storm_object_table
 
 
 def run_tracking(

@@ -272,6 +272,77 @@ THIS_DICT = {
     tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG}
 JOINED_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
+# The following constants are used to test _storm_objects_to_tracks.
+THESE_STORM_IDS = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'E', 'E']
+THESE_TIMES_UNIX_SEC = numpy.array([6, 7, 3, 4, 0, 1, 0, 1, 4, 5], dtype=int)
+THESE_LATITUDES_DEG = numpy.array(
+    [53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 53.5, 47.6, 47.6])
+THESE_LONGITUDES_DEG = numpy.array(
+    [113.5, 113.6, 113.2, 113.3, 112.9, 113., 113.2, 113.3, 307.3, 307.3])
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
+}
+STORM_OBJECT_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
+
+THESE_STORM_IDS = ['A', 'B', 'C', 'D', 'E']
+THESE_START_TIMES_UNIX_SEC = numpy.array([6, 3, 0, 0, 4], dtype=int)
+THESE_END_TIMES_UNIX_SEC = numpy.array([7, 4, 1, 1, 5], dtype=int)
+THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
+THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 53.5, 53.5, 47.6])
+THESE_START_LONGITUDES_DEG = numpy.array([113.5, 113.2, 112.9, 113.2, 307.3])
+THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 113., 113.3, 307.3])
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    echo_top_tracking.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    echo_top_tracking.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    echo_top_tracking.START_LATITUDE_COLUMN: THESE_START_LATITUDES_DEG,
+    echo_top_tracking.END_LATITUDE_COLUMN: THESE_END_LATITUDES_DEG,
+    echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
+    echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
+}
+STORM_TRACK_TABLE_BEFORE_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
+
+STORM_TRACK_TABLE_TAMPERED = copy.deepcopy(STORM_TRACK_TABLE_BEFORE_REANALYSIS)
+STORM_TRACK_TABLE_TAMPERED[echo_top_tracking.START_TIME_COLUMN].values[2] = -1
+STORM_ID_TAMPERED = 'C'
+
+# The following constants are used to test join_nearby_tracks.
+MAX_JOIN_TIME_SECONDS = 2
+MAX_JOIN_DISTANCE_M_S01 = 1e4
+
+THESE_STORM_IDS = ['A', 'A', 'A', 'A', 'A', 'A', 'D', 'D', 'E', 'E']
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CENTROID_LAT_COLUMN: THESE_LATITUDES_DEG,
+    tracking_utils.CENTROID_LNG_COLUMN: THESE_LONGITUDES_DEG
+}
+STORM_OBJECT_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
+
+THESE_STORM_IDS = ['A', 'D', 'E']
+THESE_START_TIMES_UNIX_SEC = numpy.array([0, 0, 4], dtype=int)
+THESE_END_TIMES_UNIX_SEC = numpy.array([7, 1, 5], dtype=int)
+THESE_START_LATITUDES_DEG = numpy.array([53.5, 53.5, 47.6])
+THESE_END_LATITUDES_DEG = numpy.array([53.5, 53.5, 47.6])
+THESE_START_LONGITUDES_DEG = numpy.array([112.9, 113.2, 307.3])
+THESE_END_LONGITUDES_DEG = numpy.array([113.6, 113.3, 307.3])
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    echo_top_tracking.START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    echo_top_tracking.END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    echo_top_tracking.START_LATITUDE_COLUMN: THESE_START_LATITUDES_DEG,
+    echo_top_tracking.END_LATITUDE_COLUMN: THESE_END_LATITUDES_DEG,
+    echo_top_tracking.START_LONGITUDE_COLUMN: THESE_START_LONGITUDES_DEG,
+    echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
+}
+STORM_TRACK_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
+
 
 class EchoTopTrackingTests(unittest.TestCase):
     """Each method is a unit test for echo_top_tracking.py."""
@@ -597,6 +668,45 @@ class EchoTopTrackingTests(unittest.TestCase):
 
         self.assertTrue(this_joined_storm_object_table.equals(
             JOINED_STORM_OBJECT_TABLE))
+
+    def test_storm_objects_to_tracks_from_scratch(self):
+        """Ensures correct output from _storm_objects_to_tracks.
+
+        In this case, the table of storm tracks is created from scratch.
+        """
+
+        this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
+            storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
+        self.assertTrue(this_storm_track_table.equals(
+            STORM_TRACK_TABLE_BEFORE_REANALYSIS))
+
+    def test_storm_objects_to_tracks_recompute_row(self):
+        """Ensures correct output from _storm_objects_to_tracks.
+
+        In this case, only one row of storm_track_table is recomputed.
+        """
+
+        this_storm_track_table = copy.deepcopy(STORM_TRACK_TABLE_TAMPERED)
+        this_storm_track_table = echo_top_tracking._storm_objects_to_tracks(
+            storm_object_table=STORM_OBJECT_TABLE_BEFORE_REANALYSIS,
+            storm_track_table=this_storm_track_table,
+            recompute_for_id=STORM_ID_TAMPERED)
+
+        self.assertTrue(this_storm_track_table.equals(
+            STORM_TRACK_TABLE_BEFORE_REANALYSIS))
+
+    def test_join_nearby_tracks(self):
+        """Ensures correct output from join_nearby_tracks."""
+
+        this_storm_object_table = copy.deepcopy(
+            STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
+        this_storm_object_table = echo_top_tracking.join_nearby_tracks(
+            storm_object_table=this_storm_object_table,
+            max_join_time_sec=MAX_JOIN_TIME_SECONDS,
+            max_join_distance_m_s01=MAX_JOIN_DISTANCE_M_S01)
+
+        self.assertTrue(this_storm_object_table.equals(
+            STORM_OBJECT_TABLE_AFTER_REANALYSIS))
 
 
 if __name__ == '__main__':
