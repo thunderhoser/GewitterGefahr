@@ -17,8 +17,6 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import gridrad_utils
-from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import error_checking
 
 
 def create_storm_images_with_targets(
@@ -108,7 +106,7 @@ def create_storm_images_with_targets(
         if j == 0:
             (this_predictor_matrix, these_storm_ids, _, _, _,
              this_storm_to_events_table) = (
-                storm_images.read_storm_images(image_file_names[j]))
+                 storm_images.read_storm_images(image_file_names[j]))
 
             target_values = storm_images.extract_label_values(
                 storm_ids=these_storm_ids,
