@@ -11,6 +11,7 @@ N = number of pixel columns per image
 P = number of channels (predictor variables) per image
 """
 
+import copy
 import numpy
 import keras
 from gewittergefahr.deep_learning import storm_images
@@ -176,8 +177,12 @@ def storm_image_generator(
                         else:
                             num_classes = len(wind_speed_class_cutoffs_kt) + 1
 
-                    all_target_values = numpy.concatenate((
-                        all_target_values, these_target_values))
+                    if all_target_values is None:
+                        all_target_values = copy.deepcopy(these_target_values)
+                    else:
+                        all_target_values = numpy.concatenate((
+                            all_target_values, these_target_values))
+
                 else:
 
                     # Read radar images for the [j]th predictor at the [i]th
@@ -198,8 +203,12 @@ def storm_image_generator(
             # full_predictor_matrix, which contains radar images for all times.
             this_predictor_matrix = dl_utils.stack_predictor_variables(
                 tuple_of_predictor_matrices)
-            full_predictor_matrix = numpy.concatenate(
-                (full_predictor_matrix, this_predictor_matrix), axis=0)
+
+            if full_predictor_matrix is None:
+                full_predictor_matrix = copy.deepcopy(this_predictor_matrix)
+            else:
+                full_predictor_matrix = numpy.concatenate(
+                    (full_predictor_matrix, this_predictor_matrix), axis=0)
 
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
