@@ -18,17 +18,16 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import gridrad_utils
+from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
 
 def storm_image_generator(
         top_directory_name, radar_source, radar_field_names,
         num_examples_per_batch, num_examples_per_image_time,
-        first_image_time_unix_sec, last_image_time_unix_sec,
-        min_lead_time_sec, max_lead_time_sec, min_target_distance_metres,
-        max_target_distance_metres, event_type_string, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, wind_speed_percentile_level=None,
-        wind_speed_class_cutoffs_kt=None, normalize_by_batch=False,
+        first_image_time_unix_sec, last_image_time_unix_sec, target_name,
+        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
+        normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
@@ -49,12 +48,7 @@ def storm_image_generator(
         created for random times in `first_image_time_unix_sec`...
         `last_image_time_unix_sec`.
     :param last_image_time_unix_sec: See above.
-    :param min_lead_time_sec: Used to select target variable (see doc for
-        `labels.get_column_name_for_classification_label`).
-    :param max_lead_time_sec: Same.
-    :param min_target_distance_metres: Same.
-    :param max_target_distance_metres: Same.
-    :param event_type_string: Same.
+    :param target_name: Name of target variable.
     :param radar_heights_m_asl: [used only if radar_source = "gridrad"]
         1-D numpy array of radar heights (metres above sea level).  These apply
         to each field.
@@ -62,8 +56,6 @@ def storm_image_generator(
         1-D numpy array of heights (metres above sea level) for
         "reflectivity_dbz".  If "reflectivity_dbz" is not in the list
         `radar_field_names`, you can leave this as None.
-    :param wind_speed_percentile_level: Same.
-    :param wind_speed_class_cutoffs_kt: Same.
     :param normalize_by_batch: Used to normalize predictor values (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
     :param normalization_dict: Same.
@@ -163,15 +155,14 @@ def storm_image_generator(
                     these_target_values = storm_images.extract_label_values(
                         storm_ids=these_storm_ids,
                         storm_to_events_table=this_storm_to_events_table,
-                        min_lead_time_sec=min_lead_time_sec,
-                        max_lead_time_sec=max_lead_time_sec,
-                        min_link_distance_metres=min_target_distance_metres,
-                        max_link_distance_metres=max_target_distance_metres,
-                        event_type_string=event_type_string,
-                        wind_speed_percentile_level=wind_speed_percentile_level,
-                        wind_speed_class_cutoffs_kt=wind_speed_class_cutoffs_kt)
+                        label_column=target_name)
 
                     if num_classes is None:
+                        target_param_dict = labels.column_name_to_label_params(
+                            target_name)
+                        wind_speed_class_cutoffs_kt = target_param_dict[
+                            labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
+
                         if wind_speed_class_cutoffs_kt is None:
                             num_classes = 2
                         else:

@@ -12,9 +12,10 @@ D = number of pixel depths per image
 C = number of channels (predictor variables) per image
 """
 
+import pickle
 import keras.losses
 import keras.optimizers
-from keras.models import Sequential
+from keras.models import Sequential, load_model
 from keras.callbacks import ModelCheckpoint
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import cnn_utils
@@ -42,6 +43,35 @@ LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
     keras_metrics.binary_pod, keras_metrics.binary_pofd,
     keras_metrics.binary_success_ratio, keras_metrics.binary_focn]
+
+NUM_EPOCHS_KEY = 'num_epochs'
+NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+NUM_EXAMPLES_PER_TIME_KEY = 'num_examples_per_time'
+NUM_TRAINING_BATCHES_PER_EPOCH_KEY = 'num_training_batches_per_epoch'
+FIRST_TRAINING_TIME_KEY = 'first_train_time_unix_sec'
+LAST_TRAINING_TIME_KEY = 'last_train_time_unix_sec'
+NUM_VALIDATION_BATCHES_PER_EPOCH_KEY = 'num_validation_batches_per_epoch'
+FIRST_VALIDATION_TIME_KEY = 'first_validn_time_unix_sec'
+LAST_VALIDATION_TIME_KEY = 'last_validn_time_unix_sec'
+RADAR_SOURCE_KEY = 'radar_source'
+RADAR_FIELD_NAMES_KEY = 'radar_field_names'
+RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
+REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
+TARGET_NAME_KEY = 'target_name'
+NORMALIZE_BY_BATCH_KEY = 'normalize_by_batch'
+NORMALIZATION_DICT_KEY = 'normalization_dict'
+PERCENTILE_OFFSET_KEY = 'percentile_offset_for_normalization'
+CLASS_FRACTIONS_KEY = 'class_fractions'
+
+MODEL_METADATA_KEYS = [
+    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_TIME_KEY,
+    NUM_TRAINING_BATCHES_PER_EPOCH_KEY, FIRST_TRAINING_TIME_KEY,
+    LAST_TRAINING_TIME_KEY, NUM_VALIDATION_BATCHES_PER_EPOCH_KEY,
+    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, RADAR_SOURCE_KEY,
+    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY,
+    TARGET_NAME_KEY, NORMALIZE_BY_BATCH_KEY, NORMALIZATION_DICT_KEY,
+    PERCENTILE_OFFSET_KEY, CLASS_FRACTIONS_KEY
+]
 
 # TODO(thunderhoser): should play with Adam optimizer, per DJ Gagne.
 
@@ -209,15 +239,112 @@ def get_swirlnet_architecture(num_classes, num_input_channels=3):
     return model_object
 
 
+def read_model(hdf5_file_name):
+    """Reads model from HDF5 file.
+
+    :param hdf5_file_name: Path to input file.
+    :return: model_object: Instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_file_exists(hdf5_file_name)
+    return load_model(
+        hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
+
+
+def write_model_metadata(
+        num_epochs, num_examples_per_batch, num_examples_per_time,
+        num_training_batches_per_epoch, first_train_time_unix_sec,
+        last_train_time_unix_sec, num_validation_batches_per_epoch,
+        first_validn_time_unix_sec, last_validn_time_unix_sec,
+        radar_source, radar_field_names, radar_heights_m_asl,
+        reflectivity_heights_m_asl, target_name, normalize_by_batch,
+        normalization_dict, percentile_offset_for_normalization,
+        class_fractions, pickle_file_name):
+    """Writes metadata to Pickle file.
+
+    :param num_epochs: See documentation for `train_2d_cnn`.
+    :param num_examples_per_batch: Same.
+    :param num_examples_per_time: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param first_train_time_unix_sec: Same.
+    :param last_train_time_unix_sec: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param first_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec: Same.
+    :param radar_source: Same.
+    :param radar_field_names: Same.
+    :param radar_heights_m_asl: Same.
+    :param reflectivity_heights_m_asl: Same.
+    :param target_name: Same.
+    :param normalize_by_batch: Same.
+    :param normalization_dict: Same.
+    :param percentile_offset_for_normalization: Same.
+    :param class_fractions: Same.
+    :param pickle_file_name: Path to output file.
+    """
+
+    model_metadata_dict = {
+        NUM_EPOCHS_KEY: num_epochs,
+        NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        NUM_EXAMPLES_PER_TIME_KEY: num_examples_per_time,
+        NUM_TRAINING_BATCHES_PER_EPOCH_KEY: num_training_batches_per_epoch,
+        FIRST_TRAINING_TIME_KEY: first_train_time_unix_sec,
+        LAST_TRAINING_TIME_KEY: last_train_time_unix_sec,
+        NUM_VALIDATION_BATCHES_PER_EPOCH_KEY: num_validation_batches_per_epoch,
+        FIRST_VALIDATION_TIME_KEY: first_validn_time_unix_sec,
+        LAST_VALIDATION_TIME_KEY: last_validn_time_unix_sec,
+        RADAR_SOURCE_KEY: radar_source,
+        RADAR_FIELD_NAMES_KEY: radar_field_names,
+        RADAR_HEIGHTS_KEY: radar_heights_m_asl,
+        REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
+        TARGET_NAME_KEY: target_name,
+        NORMALIZE_BY_BATCH_KEY: normalize_by_batch,
+        NORMALIZATION_DICT_KEY: normalization_dict,
+        PERCENTILE_OFFSET_KEY: percentile_offset_for_normalization,
+        CLASS_FRACTIONS_KEY: class_fractions
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(model_metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_model_metadata(pickle_file_name):
+    """Reads metadata from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: model_metadata_dict: Dictionary with all keys in the list
+        `MODEL_METADATA_KEYS`.
+    :raises: ValueError: if dictionary does not contain all keys in the list
+        `MODEL_METADATA_KEYS`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    model_metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    expected_keys_as_set = set(MODEL_METADATA_KEYS)
+    actual_keys_as_set = set(model_metadata_dict.keys())
+    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+        error_string = (
+            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
+            '("{1:s}") are listed below.  Some expected keys were not found.'
+            '\n{2:s}\n').format(MODEL_METADATA_KEYS, pickle_file_name,
+                                model_metadata_dict.keys())
+
+        raise ValueError(error_string)
+
+    return model_metadata_dict
+
+
 def train_2d_cnn(
         model_object, output_file_name, num_epochs,
         num_training_batches_per_epoch, top_input_dir_name, radar_source,
         radar_field_names, num_examples_per_batch, num_examples_per_time,
-        first_train_time_unix_sec, last_train_time_unix_sec, min_lead_time_sec,
-        max_lead_time_sec, min_target_distance_metres,
-        max_target_distance_metres, event_type_string, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, wind_speed_percentile_level=None,
-        wind_speed_class_cutoffs_kt=None, normalize_by_batch=False,
+        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
+        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
+        normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
@@ -240,16 +367,10 @@ def train_2d_cnn(
         Examples will be created for random times in
         `first_train_time_unix_sec`...`last_train_time_unix_sec`.
     :param last_train_time_unix_sec: See above.
-    :param min_lead_time_sec: See doc for
+    :param target_name: See doc for
         `training_validation_io.storm_image_generator`.
-    :param max_lead_time_sec: Same.
-    :param min_target_distance_metres: Same.
-    :param max_target_distance_metres: Same.
-    :param event_type_string: Same.
     :param radar_heights_m_asl: Same.
     :param reflectivity_heights_m_asl: Same.
-    :param wind_speed_percentile_level: Same.
-    :param wind_speed_class_cutoffs_kt: Same.
     :param normalize_by_batch: Same.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
@@ -283,15 +404,9 @@ def train_2d_cnn(
                 num_examples_per_image_time=num_examples_per_time,
                 first_image_time_unix_sec=first_train_time_unix_sec,
                 last_image_time_unix_sec=last_train_time_unix_sec,
-                min_lead_time_sec=min_lead_time_sec,
-                max_lead_time_sec=max_lead_time_sec,
-                min_target_distance_metres=min_target_distance_metres,
-                max_target_distance_metres=max_target_distance_metres,
-                event_type_string=event_type_string,
+                target_name=target_name,
                 radar_heights_m_asl=radar_heights_m_asl,
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-                wind_speed_percentile_level=wind_speed_percentile_level,
-                wind_speed_class_cutoffs_kt=wind_speed_class_cutoffs_kt,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -316,15 +431,9 @@ def train_2d_cnn(
                 num_examples_per_image_time=num_examples_per_time,
                 first_image_time_unix_sec=first_train_time_unix_sec,
                 last_image_time_unix_sec=last_train_time_unix_sec,
-                min_lead_time_sec=min_lead_time_sec,
-                max_lead_time_sec=max_lead_time_sec,
-                min_target_distance_metres=min_target_distance_metres,
-                max_target_distance_metres=max_target_distance_metres,
-                event_type_string=event_type_string,
+                target_name=target_name,
                 radar_heights_m_asl=radar_heights_m_asl,
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-                wind_speed_percentile_level=wind_speed_percentile_level,
-                wind_speed_class_cutoffs_kt=wind_speed_class_cutoffs_kt,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -339,15 +448,9 @@ def train_2d_cnn(
                 num_examples_per_image_time=num_examples_per_time,
                 first_image_time_unix_sec=first_validn_time_unix_sec,
                 last_image_time_unix_sec=last_validn_time_unix_sec,
-                min_lead_time_sec=min_lead_time_sec,
-                max_lead_time_sec=max_lead_time_sec,
-                min_target_distance_metres=min_target_distance_metres,
-                max_target_distance_metres=max_target_distance_metres,
-                event_type_string=event_type_string,
+                target_name=target_name,
                 radar_heights_m_asl=radar_heights_m_asl,
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-                wind_speed_percentile_level=wind_speed_percentile_level,
-                wind_speed_class_cutoffs_kt=wind_speed_class_cutoffs_kt,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
