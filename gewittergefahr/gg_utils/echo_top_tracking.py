@@ -1028,7 +1028,8 @@ def _local_maxima_to_polygons(
 
 def _find_input_and_output_tracking_files(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        tracking_scale_metres2, top_output_dir_name=None):
+        tracking_scale_metres2, top_output_dir_name, start_time_unix_sec=None,
+        end_time_unix_sec=None):
     """Finds input and output tracking files.
 
     These files will be used by `join_tracks_across_spc_dates`.
@@ -1042,7 +1043,12 @@ def _find_input_and_output_tracking_files(
     :param tracking_scale_metres2: Tracking scale (minimum storm area).  This
         will be used to find files.
     :param top_output_dir_name: Name of top-level directory for new tracking
-        files (after joining across SPC dates).
+        files (after joining).
+    :param start_time_unix_sec: Start time.  If None, defaults to beginning of
+        `first_spc_date_string`.
+    :param end_time_unix_sec: End time.  If None, defaults to end of
+        `last_spc_date_string`.
+
     :return: tracking_file_dict: Dictionary with the following keys.
     tracking_file_dict['spc_date_strings']: length-N list of SPC dates (format
         "yyyymmdd").
@@ -1053,20 +1059,43 @@ def _find_input_and_output_tracking_files(
     tracking_file_dict['times_by_date_unix_sec']: length-N list, where the
         [i]th element is a 1-D numpy array of valid times for the [i]th SPC
         date.
+
+    :raises: ValueError: if `start_time_unix_sec` not in `first_spc_date_string`
+        or `end_time_unix_sec` not in `last_spc_date_string`.
     """
 
-    first_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        first_spc_date_string)
-    last_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        last_spc_date_string)
+    if start_time_unix_sec is None:
+        start_time_unix_sec = time_conversion.get_start_of_spc_date(
+            first_spc_date_string)
 
-    num_spc_dates = 1 + int(
-        (last_spc_date_unix_sec - first_spc_date_unix_sec) / DAYS_TO_SECONDS)
-    spc_dates_unix_sec = numpy.linspace(
-        first_spc_date_unix_sec, last_spc_date_unix_sec, num=num_spc_dates,
-        dtype=int)
-    spc_date_strings = [time_conversion.time_to_spc_date_string(t)
-                        for t in spc_dates_unix_sec]
+    if end_time_unix_sec is None:
+        end_time_unix_sec = time_conversion.get_end_of_spc_date(
+            last_spc_date_string)
+
+    this_valid_flag = time_conversion.is_time_in_spc_date(
+        unix_time_sec=start_time_unix_sec,
+        spc_date_string=first_spc_date_string)
+    if not this_valid_flag:
+        start_time_string = time_conversion.unix_sec_to_string(
+            start_time_unix_sec, TIME_FORMAT)
+        error_string = 'Start time ({0:s}) is not in SPC date "{1:s}".'.format(
+            start_time_string, first_spc_date_string)
+        raise ValueError(error_string)
+
+    this_valid_flag = time_conversion.is_time_in_spc_date(
+        unix_time_sec=end_time_unix_sec,
+        spc_date_string=last_spc_date_string)
+    if not this_valid_flag:
+        end_time_string = time_conversion.unix_sec_to_string(
+            end_time_unix_sec, TIME_FORMAT)
+        error_string = 'End time ({0:s}) is not in SPC date "{1:s}".'.format(
+            end_time_string, last_spc_date_string)
+        raise ValueError(error_string)
+
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
+    num_spc_dates = len(spc_date_strings)
 
     tracking_file_dict = {
         SPC_DATE_STRINGS_KEY: spc_date_strings,
@@ -1085,6 +1114,20 @@ def _find_input_and_output_tracking_files(
         these_times_unix_sec = numpy.array(
             [tracking_io.processed_file_name_to_time(f)
              for f in these_input_file_names], dtype=int)
+
+        if i == 0:
+            these_valid_indices = numpy.where(
+                these_times_unix_sec >= start_time_unix_sec)[0]
+            these_times_unix_sec = these_times_unix_sec[these_valid_indices]
+            these_input_file_names = [
+                these_input_file_names[k] for k in these_valid_indices]
+
+        if i == num_spc_dates - 1:
+            these_valid_indices = numpy.where(
+                these_times_unix_sec <= end_time_unix_sec)[0]
+            these_times_unix_sec = these_times_unix_sec[these_valid_indices]
+            these_input_file_names = [
+                these_input_file_names[k] for k in these_valid_indices]
 
         sort_indices = numpy.argsort(these_times_unix_sec)
         these_times_unix_sec = these_times_unix_sec[sort_indices]
@@ -1647,7 +1690,7 @@ def run_tracking(
 
 def join_tracks_across_spc_dates(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        top_output_dir_name=None,
+        top_output_dir_name, start_time_unix_sec=None, end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
@@ -1670,9 +1713,11 @@ def join_tracks_across_spc_dates(
     :param top_input_dir_name: Name of top-level directory with original
         tracking files (before joining across SPC dates).
     :param top_output_dir_name: Name of top-level directory for new tracking
-        files (after joining across SPC dates).  Default is
-        `top_input_dir_name`, in which case the original files will be
-        overwritten.
+        files (after joining).
+    :param start_time_unix_sec: Start time.  If None, defaults to beginning of
+        `first_spc_date_string`.
+    :param end_time_unix_sec: End time.  If None, defaults to end of
+        `last_spc_date_string`.
     :param max_link_time_seconds: See documentation for
         `_link_local_maxima_in_time`.
     :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
@@ -1689,12 +1734,11 @@ def join_tracks_across_spc_dates(
     """
 
     # Find input files, desired locations for output files.
-    if top_output_dir_name is None:
-        top_output_dir_name = copy.deepcopy(top_input_dir_name)
-
     tracking_file_dict = _find_input_and_output_tracking_files(
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
+        start_time_unix_sec=start_time_unix_sec,
+        end_time_unix_sec=end_time_unix_sec,
         top_input_dir_name=top_input_dir_name,
         tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
         top_output_dir_name=top_output_dir_name)

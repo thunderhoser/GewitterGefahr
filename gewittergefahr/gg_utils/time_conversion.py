@@ -124,6 +124,28 @@ def get_spc_dates_in_range(first_spc_date_string, last_spc_date_string):
     return [unix_sec_to_string(t, SPC_DATE_FORMAT) for t in spc_dates_unix_sec]
 
 
+def get_start_of_spc_date(spc_date_string):
+    """Returns time at beginning of SPC date.
+
+    :param spc_date_string: SPC date in format "yyyymmdd".
+    :return: start_time_unix_sec: Start time.
+    """
+
+    return MIN_SECONDS_INTO_SPC_DATE + string_to_unix_sec(
+        spc_date_string, SPC_DATE_FORMAT)
+
+
+def get_end_of_spc_date(spc_date_string):
+    """Returns time at end of SPC date.
+
+    :param spc_date_string: SPC date in format "yyyymmdd".
+    :return: end_time_unix_sec: End time.
+    """
+
+    return MAX_SECONDS_INTO_SPC_DATE + string_to_unix_sec(
+        spc_date_string, SPC_DATE_FORMAT)
+
+
 def is_time_in_spc_date(unix_time_sec, spc_date_string):
     """Determines whether or not time is in SPC date.
 
@@ -132,10 +154,8 @@ def is_time_in_spc_date(unix_time_sec, spc_date_string):
     :return: time_in_spc_date_flag: Boolean flag.
     """
 
-    min_time_unix_sec = MIN_SECONDS_INTO_SPC_DATE + string_to_unix_sec(
-        spc_date_string, SPC_DATE_FORMAT)
-    max_time_unix_sec = MAX_SECONDS_INTO_SPC_DATE + string_to_unix_sec(
-        spc_date_string, SPC_DATE_FORMAT)
+    min_time_unix_sec = get_start_of_spc_date(spc_date_string)
+    max_time_unix_sec = get_end_of_spc_date(spc_date_string)
 
     error_checking.assert_is_integer(unix_time_sec)
     error_checking.assert_is_not_nan(unix_time_sec)
