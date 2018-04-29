@@ -65,7 +65,7 @@ DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL = 4.
 DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
 DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
-DEFAULT_MAX_LINK_TIME_SECONDS = 300
+DEFAULT_MAX_LINK_TIME_SECONDS = 305
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
 
@@ -1441,9 +1441,7 @@ def reanalyze_tracks(
         if this_storm_id in track_removed_ids:
             continue
 
-        failed_to_join = False
-        while not failed_to_join:
-            failed_to_join = True
+        while True:
 
             # Find other tracks that end shortly before the [i]th track starts.
             these_nearby_indices = _find_nearby_tracks(
@@ -1475,8 +1473,6 @@ def reanalyze_tracks(
                 storm_object_table=storm_object_table,
                 storm_track_table=storm_track_table,
                 recompute_for_id=this_storm_id)
-
-            failed_to_join = False
 
     return storm_object_table
 

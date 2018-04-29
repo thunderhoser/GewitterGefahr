@@ -7,10 +7,6 @@ details, see `echo_top_tracking.join_tracks_across_spc_dates`.
 import argparse
 from gewittergefahr.gg_utils import echo_top_tracking
 
-# TODO(thunderhoser): All input args to
-# `echo_top_tracking.join_tracks_across_spc_dates` should be input args to this
-# script.
-
 FIRST_SPC_DATE_INPUT_ARG = 'first_spc_date_string'
 LAST_SPC_DATE_INPUT_ARG = 'last_spc_date_string'
 ORIG_TRACKING_DIR_INPUT_ARG = 'orig_tracking_dir_name'
