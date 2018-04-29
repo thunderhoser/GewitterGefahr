@@ -1,6 +1,7 @@
 """Finds gaps (temporal discontinuities) between storm-tracking files."""
 
 import argparse
+import os.path
 import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import time_conversion
@@ -8,6 +9,7 @@ from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+FILE_SIZE_WITHOUT_STORMS_BYTES = 2765
 
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
@@ -99,6 +101,14 @@ def _find_tracking_gaps(
         tracking_file_names += these_file_names
         unix_times_sec = numpy.concatenate((
             unix_times_sec, these_unix_times_sec))
+        
+    tracking_file_sizes_bytes = numpy.array(
+        [os.path.getsize(f) for f in tracking_file_names], dtype=int)
+    valid_indices = numpy.where(
+        tracking_file_sizes_bytes > FILE_SIZE_WITHOUT_STORMS_BYTES)[0]
+
+    tracking_file_names = [tracking_file_names[k] for k in valid_indices]
+    unix_times_sec = unix_times_sec[valid_indices]
 
     time_diffs_seconds = numpy.diff(unix_times_sec)
     time_gap_indices = numpy.where(
