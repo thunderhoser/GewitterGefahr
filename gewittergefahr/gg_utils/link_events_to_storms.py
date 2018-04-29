@@ -642,7 +642,7 @@ def _find_nearest_storms(
                 event_y_coords_metres=event_table[EVENT_Y_COLUMN].values[
                     these_wind_rows],
                 max_link_distance_metres=max_link_distance_metres))
-        print these_nearest_storm_ids
+        # print these_nearest_storm_ids
 
         linkage_distances_metres[these_wind_rows] = these_link_distances_metres
         for j in range(len(these_wind_rows)):
@@ -673,7 +673,7 @@ def _create_storm_to_winds_table(storm_object_table, wind_to_storm_table):
     wind_to_storm_table.linkage_distance_metres: Distance to nearest storm
         cell.  If event was not linked to a storm cell, this is NaN.
 
-    :return: storm_to_wind_table: Same as input `storm_object_table`, but with
+    :return: storm_to_winds_table: Same as input `storm_object_table`, but with
         extra columns listed below.
     storm_to_winds_table.wind_station_ids: length-K list of station IDs
         (strings).
@@ -1070,6 +1070,164 @@ def _read_tornado_reports(
     return tornado_table
 
 
+def _share_linkages_between_periods(
+        early_storm_to_events_table, late_storm_to_events_table,
+        event_type_string):
+    """Shares linkage info between two periods.
+
+    For the motivation behind this, see documentation for
+    `share_linkages_across_spc_dates`.
+
+    :param early_storm_to_events_table: pandas DataFrame created by either
+        `_create_storm_to_winds_table` or `_create_storm_to_tornadoes_table`.
+    :param late_storm_to_events_table: Same.
+    :param event_type_string: Either "wind" or "tornado".
+    :return: early_storm_to_events_table: Same as input, except maybe with new
+        linkages.
+    :return: late_storm_to_events_table: Same as input, except maybe with new
+        linkages.
+    """
+
+    unique_early_storm_ids = numpy.unique(
+        early_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+    ).tolist()
+    unique_late_storm_ids = numpy.unique(
+        late_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+    ).tolist()
+
+    shared_storm_ids = [
+        s for s in unique_early_storm_ids if s in unique_late_storm_ids]
+
+    for this_storm_id in shared_storm_ids:
+        i = numpy.where(
+            early_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id)[0][0]
+
+        these_early_latitudes_deg = early_storm_to_events_table[
+            EVENT_LATITUDES_COLUMN].values[i]
+        these_early_longitudes_deg = early_storm_to_events_table[
+            EVENT_LONGITUDES_COLUMN].values[i]
+        these_early_link_dist_metres = early_storm_to_events_table[
+            LINKAGE_DISTANCES_COLUMN].values[i]
+        these_early_times_unix_sec = (
+            early_storm_to_events_table[tracking_utils.TIME_COLUMN].values[i] +
+            early_storm_to_events_table[RELATIVE_EVENT_TIMES_COLUMN].values[i])
+
+        if event_type_string == WIND_EVENT_TYPE_STRING:
+            these_early_station_ids = early_storm_to_events_table[
+                WIND_STATION_IDS_COLUMN].values[i]
+            these_early_u_winds_m_s01 = early_storm_to_events_table[
+                U_WINDS_COLUMN].values[i]
+            these_early_v_winds_m_s01 = early_storm_to_events_table[
+                V_WINDS_COLUMN].values[i]
+        else:
+            these_early_fujita_ratings = early_storm_to_events_table[
+                FUJITA_RATINGS_COLUMN].values[i]
+
+        these_late_indices = numpy.where(
+            late_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id)[0]
+
+        for j in these_late_indices:
+            late_storm_to_events_table[
+                EVENT_LATITUDES_COLUMN
+            ].values[j] = numpy.concatenate((
+                late_storm_to_events_table[EVENT_LATITUDES_COLUMN].values[j],
+                these_early_latitudes_deg))
+
+            late_storm_to_events_table[
+                EVENT_LONGITUDES_COLUMN
+            ].values[j] = numpy.concatenate((
+                late_storm_to_events_table[EVENT_LONGITUDES_COLUMN].values[j],
+                these_early_longitudes_deg))
+
+            late_storm_to_events_table[
+                LINKAGE_DISTANCES_COLUMN
+            ].values[j] = numpy.concatenate((
+                late_storm_to_events_table[LINKAGE_DISTANCES_COLUMN].values[j],
+                these_early_link_dist_metres))
+
+            these_relative_times_sec = (
+                these_early_times_unix_sec - late_storm_to_events_table[
+                    tracking_utils.TIME_COLUMN].values[j])
+            late_storm_to_events_table[
+                RELATIVE_EVENT_TIMES_COLUMN
+            ].values[j] = numpy.concatenate((
+                late_storm_to_events_table[
+                    RELATIVE_EVENT_TIMES_COLUMN].values[j],
+                these_relative_times_sec))
+
+            if event_type_string == WIND_EVENT_TYPE_STRING:
+                late_storm_to_events_table[
+                    WIND_STATION_IDS_COLUMN
+                ].values[j] = numpy.concatenate((
+                    late_storm_to_events_table[
+                        WIND_STATION_IDS_COLUMN].values[j],
+                    these_early_station_ids))
+
+                late_storm_to_events_table[
+                    U_WINDS_COLUMN
+                ].values[j] = numpy.concatenate((
+                    late_storm_to_events_table[U_WINDS_COLUMN].values[j],
+                    these_early_u_winds_m_s01))
+
+                late_storm_to_events_table[
+                    V_WINDS_COLUMN
+                ].values[j] = numpy.concatenate((
+                    late_storm_to_events_table[V_WINDS_COLUMN].values[j],
+                    these_early_v_winds_m_s01))
+            else:
+                late_storm_to_events_table[
+                    FUJITA_RATINGS_COLUMN
+                ].values[j] = numpy.concatenate((
+                    late_storm_to_events_table[FUJITA_RATINGS_COLUMN].values[j],
+                    these_early_fujita_ratings))
+
+        j = numpy.where(
+            late_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id)[0][0]
+        event_times_unix_sec = (
+            late_storm_to_events_table[tracking_utils.TIME_COLUMN].values[j] +
+            late_storm_to_events_table[RELATIVE_EVENT_TIMES_COLUMN].values[j])
+
+        these_early_indices = numpy.where(
+            early_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id)[0]
+
+        for i in these_early_indices:
+            early_storm_to_events_table[EVENT_LATITUDES_COLUMN].values[
+                i
+            ] = late_storm_to_events_table[EVENT_LATITUDES_COLUMN].values[j]
+            early_storm_to_events_table[EVENT_LONGITUDES_COLUMN].values[
+                i
+            ] = late_storm_to_events_table[EVENT_LONGITUDES_COLUMN].values[j]
+            early_storm_to_events_table[LINKAGE_DISTANCES_COLUMN].values[
+                i
+            ] = late_storm_to_events_table[LINKAGE_DISTANCES_COLUMN].values[j]
+
+            early_storm_to_events_table[
+                RELATIVE_EVENT_TIMES_COLUMN
+            ].values[i] = event_times_unix_sec - early_storm_to_events_table[
+                tracking_utils.TIME_COLUMN].values[i]
+
+            if event_type_string == WIND_EVENT_TYPE_STRING:
+                early_storm_to_events_table[WIND_STATION_IDS_COLUMN].values[
+                    i] = late_storm_to_events_table[
+                        WIND_STATION_IDS_COLUMN].values[j]
+
+                early_storm_to_events_table[U_WINDS_COLUMN].values[
+                    i] = late_storm_to_events_table[U_WINDS_COLUMN].values[j]
+
+                early_storm_to_events_table[V_WINDS_COLUMN].values[
+                    i] = late_storm_to_events_table[V_WINDS_COLUMN].values[j]
+            else:
+                early_storm_to_events_table[FUJITA_RATINGS_COLUMN].values[
+                    i] = late_storm_to_events_table[
+                        FUJITA_RATINGS_COLUMN].values[j]
+
+    return early_storm_to_events_table, late_storm_to_events_table
+
+
 def check_event_type(event_type_string):
     """Ensures that event type is recognized.
 
@@ -1150,12 +1308,18 @@ def link_each_storm_to_winds(
     storm_object_table = _read_storm_objects(tracking_file_names)
     print SEPARATOR_STRING
 
+    # wind_table = _read_wind_observations(
+    #     top_directory_name=top_wind_directory_name,
+    #     storm_times_unix_sec=storm_object_table[
+    #         tracking_utils.TIME_COLUMN].values,
+    #     max_time_before_storm_start_sec=max_time_before_storm_start_sec,
+    #     max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+
     wind_table = _read_wind_observations(
         top_directory_name=top_wind_directory_name,
         storm_times_unix_sec=storm_object_table[
             tracking_utils.TIME_COLUMN].values,
-        max_time_before_storm_start_sec=max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+        max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=0)
     print SEPARATOR_STRING
 
     global_centroid_lat_deg, global_centroid_lng_deg = (
@@ -1227,12 +1391,18 @@ def link_each_storm_to_tornadoes(
     storm_object_table = _read_storm_objects(tracking_file_names)
     print SEPARATOR_STRING
 
+    # tornado_table = _read_tornado_reports(
+    #     input_directory_name=tornado_directory_name,
+    #     storm_times_unix_sec=storm_object_table[
+    #         tracking_utils.TIME_COLUMN].values,
+    #     max_time_before_storm_start_sec=max_time_before_storm_start_sec,
+    #     max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+
     tornado_table = _read_tornado_reports(
         input_directory_name=tornado_directory_name,
         storm_times_unix_sec=storm_object_table[
             tracking_utils.TIME_COLUMN].values,
-        max_time_before_storm_start_sec=max_time_before_storm_start_sec,
-        max_time_after_storm_end_sec=max_time_after_storm_end_sec)
+        max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=0)
     print SEPARATOR_STRING
 
     global_centroid_lat_deg, global_centroid_lng_deg = (
@@ -1269,20 +1439,138 @@ def link_each_storm_to_tornadoes(
         storm_object_table, tornado_to_storm_table)
 
 
-def find_storm_to_events_file(
-        top_directory_name, unix_time_sec, event_type_string,
-        raise_error_if_missing=True):
-    """Finds file with storm-to-wind or storm-to-tornado linkages for one time.
+def share_linkages_across_spc_dates(
+        first_spc_date_string, last_spc_date_string, top_input_dir_name,
+        top_output_dir_name, event_type_string):
+    """Shares linkage info across SPC dates.
 
-    This file should be one created by `write_storm_to_winds_table` or
-    `write_storm_to_tornadoes_table`.
+    This is important because linkage is usually done for one SPC date at a
+    time, using either `link_each_storm_to_winds` or
+    `link_each_storm_to_tornadoes`, which have no way of sharing info with the
+    next or previous SPC dates.  Thus, if event E is linked to storm cell S on
+    date D, the files for dates D - 1 and D + 1 will not contain this linkage,
+    even if storm cell S exists on date D - 1 or D + 1.
 
-    :param top_directory_name: Name of top-level directory with storm-to-event
+    N = number of SPC dates considered
+
+    :param first_spc_date_string: First SPC date (format "yyyymmdd").  This
+        method will share linkage info among all dates from
+        `first_spc_date_string`...`last_spc_date_string`.
+    :param last_spc_date_string: Same.
+    :param top_input_dir_name: Name of top-level directory with original linkage
+        files (before sharing info across SPC dates).
+    :param top_output_dir_name: Name of top-level directory for new linkage
+        files (after sharing across SPC dates).
+    :param event_type_string: Either "wind" or "tornado".
+    :return: new_storm_to_events_file_names: length-N list of paths to output
         files.
-    :param unix_time_sec: Valid time.
+    """
+
+    # Find input files, desired locations for output files.
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
+
+    num_spc_dates = len(spc_date_strings)
+    orig_linkage_file_names = [''] * num_spc_dates
+    new_linkage_file_names = [''] * num_spc_dates
+
+    for i in range(num_spc_dates):
+        orig_linkage_file_names[i] = find_storm_to_events_file(
+            top_directory_name=top_input_dir_name,
+            event_type_string=event_type_string, raise_error_if_missing=True,
+            spc_date_string=spc_date_strings[i])
+        new_linkage_file_names[i] = find_storm_to_events_file(
+            top_directory_name=top_output_dir_name,
+            event_type_string=event_type_string, raise_error_if_missing=False,
+            spc_date_string=spc_date_strings[i])
+
+    # Main loop.
+    storm_to_events_table_by_date = [pandas.DataFrame()] * num_spc_dates
+
+    for i in range(num_spc_dates + 1):
+        if i == num_spc_dates:
+
+            # Write new linkage tables for the last two SPC dates.
+            for j in [num_spc_dates - 2, num_spc_dates - 1]:
+                print 'Writing new linkages to: "{0:s}"...'.format(
+                    new_linkage_file_names[j])
+
+                if event_type_string == WIND_EVENT_TYPE_STRING:
+                    write_storm_to_winds_table(
+                        storm_to_winds_table=storm_to_events_table_by_date[j],
+                        pickle_file_name=new_linkage_file_names[j])
+                else:
+                    write_storm_to_tornadoes_table(
+                        storm_to_tornadoes_table=
+                        storm_to_events_table_by_date[j],
+                        pickle_file_name=new_linkage_file_names[j])
+
+            break
+
+        # Write and clear new linkage tables for the [i - 2]th SPC date.
+        if i >= 2:
+            print 'Writing new linkages to: "{0:s}"...'.format(
+                new_linkage_file_names[i - 2])
+
+            if event_type_string == WIND_EVENT_TYPE_STRING:
+                write_storm_to_winds_table(
+                    storm_to_winds_table=storm_to_events_table_by_date[i - 2],
+                    pickle_file_name=new_linkage_file_names[i - 2])
+            else:
+                write_storm_to_tornadoes_table(
+                    storm_to_tornadoes_table=
+                    storm_to_events_table_by_date[i - 2],
+                    pickle_file_name=new_linkage_file_names[i - 2])
+
+            storm_to_events_table_by_date[i - 2] = pandas.DataFrame()
+
+        # Read original linkage tables for SPC dates {i - 1, i, i + 1}.
+        for j in [i - 1, i, i + 1]:
+            if j < 0 or j >= num_spc_dates:
+                continue
+            if not storm_to_events_table_by_date[j].empty:
+                continue
+
+            print 'Reading original linkages from: "{0:s}"...'.format(
+                orig_linkage_file_names[j])
+
+            if event_type_string == WIND_EVENT_TYPE_STRING:
+                storm_to_events_table_by_date[j] = read_storm_to_winds_table(
+                    orig_linkage_file_names[j])
+            else:
+                storm_to_events_table_by_date[j] = (
+                    read_storm_to_tornadoes_table(orig_linkage_file_names[j]))
+
+        # Share linkage info between [i]th and [i + 1]th SPC dates.
+        if i != num_spc_dates - 1:
+            (storm_to_events_table_by_date[i],
+             storm_to_events_table_by_date[i + 1]
+            ) = _share_linkages_between_periods(
+                early_storm_to_events_table=storm_to_events_table_by_date[i],
+                late_storm_to_events_table=storm_to_events_table_by_date[i + 1],
+                event_type_string=event_type_string)
+
+            print SEPARATOR_STRING
+
+    return new_linkage_file_names
+
+
+def find_storm_to_events_file(
+        top_directory_name, event_type_string, raise_error_if_missing=True,
+        unix_time_sec=None, spc_date_string=None):
+    """Finds linkage file for either one time step or one SPC date.
+
+    In other words, the file should be one written by
+    `write_storm_to_winds_table` or `write_storm_to_tornadoes_table`.
+
+    :param top_directory_name: Name of top-level directory with linkage files.
     :param event_type_string: Either "wind" or "tornado".
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         raise_error_if_missing = True, this method will error out.
+    :param unix_time_sec: Valid time.
+    :param spc_date_string: [used only if unix_time_sec is None]
+        SPC date (format "yyyymmdd").
     :return: storm_to_events_file_name: File path.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
@@ -1293,17 +1581,34 @@ def find_storm_to_events_file(
     check_event_type(event_type_string)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
+    if unix_time_sec is None:
+        time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
-    if event_type_string == WIND_EVENT_TYPE_STRING:
-        storm_to_events_file_name = '{0:s}/{1:s}/storm_to_winds_{2:s}.p'.format(
-            top_directory_name, spc_date_string,
-            time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+        if event_type_string == WIND_EVENT_TYPE_STRING:
+            storm_to_events_file_name = (
+                '{0:s}/{1:s}/storm_to_winds_{2:s}.p'
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string)
+        else:
+            storm_to_events_file_name = (
+                '{0:s}/{1:s}/storm_to_tornadoes_{2:s}.p'
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string)
     else:
-        storm_to_events_file_name = (
-            '{0:s}/{1:s}/storm_to_tornadoes_{2:s}.p'.format(
-                top_directory_name, spc_date_string,
-                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT)))
+        spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
+
+        if event_type_string == WIND_EVENT_TYPE_STRING:
+            storm_to_events_file_name = (
+                '{0:s}/{1:s}/{2:s}/storm_to_winds_{3:s}.p'
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+        else:
+            storm_to_events_file_name = (
+                '{0:s}/{1:s}/{2:s}/storm_to_tornadoes_{3:s}.p'
+            ).format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
 
     if raise_error_if_missing and not os.path.isfile(storm_to_events_file_name):
         error_string = (

@@ -397,19 +397,208 @@ STORM_TO_WINDS_TABLE[events2storms.RELATIVE_EVENT_TIMES_COLUMN].values[
 STORM_TO_WINDS_TABLE[events2storms.RELATIVE_EVENT_TIMES_COLUMN].values[
     5] = numpy.array([0, 0, 0])
 
-# The following constants are used to find find_storm_to_events_file.
+# The following constants are used to test _share_linkages_between_periods.
+THESE_EARLY_STORM_IDS = ['A', 'C', 'A', 'B', 'C']
+THESE_EARLY_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 1, 1], dtype=int)
+THESE_EVENT_LATITUDES_DEG = [
+    numpy.array([53., 53.]), numpy.array([55., 55.]),
+    numpy.array([53., 53.]), numpy.array([54., 54.]), numpy.array([55., 55.])]
+THESE_EVENT_LONGITUDES_DEG = [
+    numpy.array([246., 247.]), numpy.array([246., 247.]),
+    numpy.array([246., 247.]), numpy.array([246., 247.]),
+    numpy.array([246., 247.])]
+THESE_LINK_DIST_METRES = [
+    numpy.array([1000., 2000.]), numpy.array([0., 0.]),
+    numpy.array([1000., 2000.]), numpy.array([5000., 10000.]),
+    numpy.array([0., 0.])]
+THESE_RELATIVE_TIMES_UNIX_SEC = [
+    numpy.array([1, 2], dtype=int), numpy.array([5, 6], dtype=int),
+    numpy.array([0, 1], dtype=int), numpy.array([2, 3], dtype=int),
+    numpy.array([4, 5], dtype=int)]
+THESE_FUJITA_RATINGS = [
+    ['F0', 'F1'], ['EF4', 'EF5'],
+    ['F0', 'F1'], ['EF2', 'EF3'], ['EF4', 'EF5']]
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_EARLY_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_EARLY_TIMES_UNIX_SEC,
+    events2storms.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
+    events2storms.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
+    events2storms.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
+    events2storms.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
+    events2storms.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
+}
+EARLY_STORM_TO_TORNADOES_TABLE_SANS_SHARING = pandas.DataFrame.from_dict(
+    THIS_DICT)
+
+THESE_LATE_STORM_IDS = ['B', 'C', 'D', 'C', 'D']
+THESE_LATE_TIMES_UNIX_SEC = numpy.array([2, 2, 2, 3, 3], dtype=int)
+THESE_EVENT_LATITUDES_DEG = [
+    numpy.array([53.5, 53.5]), numpy.array([54.5, 54.5]),
+    numpy.array([70., 70.]), numpy.array([54.5, 54.5]), numpy.array([70., 70.])]
+THESE_EVENT_LONGITUDES_DEG = [
+    numpy.array([246., 247.]), numpy.array([246., 247.]),
+    numpy.array([246., 247.]), numpy.array([246., 247.]),
+    numpy.array([246., 247.])]
+THESE_LINK_DIST_METRES = [
+    numpy.array([333., 666.]), numpy.array([0., 1.]), numpy.array([2., 3.]),
+    numpy.array([0., 1.]), numpy.array([2., 3.])]
+THESE_RELATIVE_TIMES_UNIX_SEC = [
+    numpy.array([0, 2], dtype=int), numpy.array([2, 4], dtype=int),
+    numpy.array([4, 6], dtype=int), numpy.array([1, 3], dtype=int),
+    numpy.array([3, 5], dtype=int)]
+THESE_FUJITA_RATINGS = [
+    ['f0', 'f1'], ['ef2', 'ef3'], ['ef4', 'ef5'],
+    ['ef2', 'ef3'], ['ef4', 'ef5']]
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_LATE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_LATE_TIMES_UNIX_SEC,
+    events2storms.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
+    events2storms.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
+    events2storms.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
+    events2storms.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
+    events2storms.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
+}
+LATE_STORM_TO_TORNADOES_TABLE_SANS_SHARING = pandas.DataFrame.from_dict(
+    THIS_DICT)
+
+THESE_EVENT_LATITUDES_DEG = [
+    numpy.array([53., 53.]), numpy.array([54.5, 54.5, 55., 55.]),
+    numpy.array([53., 53.]), numpy.array([53.5, 53.5, 54., 54.]),
+    numpy.array([54.5, 54.5, 55., 55.])]
+THESE_EVENT_LONGITUDES_DEG = [
+    numpy.array([246., 247.]), numpy.array([246., 247., 246., 247.]),
+    numpy.array([246., 247.]), numpy.array([246., 247., 246., 247.]),
+    numpy.array([246., 247., 246., 247.])]
+THESE_LINK_DIST_METRES = [
+    numpy.array([1000., 2000.]), numpy.array([0., 1., 0., 0.]),
+    numpy.array([1000., 2000.]), numpy.array([333., 666., 5000., 10000.]),
+    numpy.array([0., 1., 0., 0.])]
+THESE_RELATIVE_TIMES_UNIX_SEC = [
+    numpy.array([1, 2], dtype=int), numpy.array([4, 6, 5, 6], dtype=int),
+    numpy.array([0, 1], dtype=int), numpy.array([1, 3, 2, 3], dtype=int),
+    numpy.array([3, 5, 4, 5], dtype=int)]
+THESE_FUJITA_RATINGS = [
+    ['F0', 'F1'], ['ef2', 'ef3', 'EF4', 'EF5'],
+    ['F0', 'F1'], ['f0', 'f1', 'EF2', 'EF3'], ['ef2', 'ef3', 'EF4', 'EF5']]
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_EARLY_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_EARLY_TIMES_UNIX_SEC,
+    events2storms.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
+    events2storms.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
+    events2storms.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
+    events2storms.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
+    events2storms.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
+}
+EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING = pandas.DataFrame.from_dict(
+    THIS_DICT)
+
+THESE_EVENT_LATITUDES_DEG = [
+    numpy.array([53.5, 53.5, 54., 54.]), numpy.array([54.5, 54.5, 55., 55.]),
+    numpy.array([70., 70.]), numpy.array([54.5, 54.5, 55., 55.]),
+    numpy.array([70., 70.])]
+THESE_EVENT_LONGITUDES_DEG = [
+    numpy.array([246., 247., 246., 247.]),
+    numpy.array([246., 247., 246., 247.]), numpy.array([246., 247.]),
+    numpy.array([246., 247., 246., 247.]), numpy.array([246., 247.])]
+THESE_LINK_DIST_METRES = [
+    numpy.array([333., 666., 5000., 10000.]), numpy.array([0., 1., 0., 0.]),
+    numpy.array([2., 3.]), numpy.array([0., 1., 0., 0.]), numpy.array([2., 3.])]
+THESE_RELATIVE_TIMES_UNIX_SEC = [
+    numpy.array([0, 2, 1, 2], dtype=int), numpy.array([2, 4, 3, 4], dtype=int),
+    numpy.array([4, 6], dtype=int), numpy.array([1, 3, 2, 3], dtype=int),
+    numpy.array([3, 5], dtype=int)]
+THESE_FUJITA_RATINGS = [
+    ['f0', 'f1', 'EF2', 'EF3'], ['ef2', 'ef3', 'EF4', 'EF5'], ['ef4', 'ef5'],
+    ['ef2', 'ef3', 'EF4', 'EF5'], ['ef4', 'ef5']]
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_LATE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_LATE_TIMES_UNIX_SEC,
+    events2storms.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
+    events2storms.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
+    events2storms.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
+    events2storms.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
+    events2storms.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
+}
+LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING = pandas.DataFrame.from_dict(
+    THIS_DICT)
+
+STRING_COLUMNS = [tracking_utils.STORM_ID_COLUMN]
+NON_FLOAT_ARRAY_COLUMNS = [
+    events2storms.RELATIVE_EVENT_TIMES_COLUMN,
+    events2storms.FUJITA_RATINGS_COLUMN]
+FLOAT_ARRAY_COLUMNS = [
+    events2storms.EVENT_LATITUDES_COLUMN, events2storms.EVENT_LONGITUDES_COLUMN,
+    events2storms.LINKAGE_DISTANCES_COLUMN]
+
+# The following constants are used to test find_storm_to_events_file.
 TOP_DIRECTORY_NAME = 'storm_to_events'
 FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
-STORM_TO_WINDS_FILE_NAME = (
-    'storm_to_events/20180201/storm_to_winds_2018-02-01-222631.p')
-STORM_TO_TORNADOES_FILE_NAME = (
-    'storm_to_events/20180201/storm_to_tornadoes_2018-02-01-222631.p')
+FILE_SPC_DATE_STRING = '20180201'
+
+STORM_TO_WINDS_ONE_TIME_FILE_NAME = (
+    'storm_to_events/2018/20180201/storm_to_winds_2018-02-01-222631.p')
+STORM_TO_WINDS_SPC_DATE_FILE_NAME = (
+    'storm_to_events/2018/storm_to_winds_20180201.p')
+STORM_TO_TORNADOES_ONE_TIME_FILE_NAME = (
+    'storm_to_events/2018/20180201/storm_to_tornadoes_2018-02-01-222631.p')
+STORM_TO_TORNADOES_SPC_DATE_FILE_NAME = (
+    'storm_to_events/2018/storm_to_tornadoes_20180201.p')
+
+
+def _compare_tables(expected_table, actual_table):
+    """Determines whether or not two pandas DataFrames are equal.
+
+    :param expected_table: expected pandas DataFrame.
+    :param actual_table: actual pandas DataFrame.
+    :return: tables_equal_flag: Boolean flag.
+    """
+
+    expected_num_rows = len(expected_table.index)
+    actual_num_rows = len(actual_table.index)
+    if expected_num_rows != actual_num_rows:
+        return False
+
+    expected_column_names = list(expected_table)
+    actual_column_names = list(actual_table)
+    if set(expected_column_names) != set(actual_column_names):
+        return False
+
+    for i in range(expected_num_rows):
+        for this_column_name in expected_column_names:
+            if this_column_name in STRING_COLUMNS:
+                are_entries_equal = (
+                    expected_table[this_column_name].values[i] ==
+                    actual_table[this_column_name].values[i])
+
+            elif this_column_name in NON_FLOAT_ARRAY_COLUMNS:
+                are_entries_equal = numpy.array_equal(
+                    expected_table[this_column_name].values[i],
+                    actual_table[this_column_name].values[i])
+
+            elif this_column_name in FLOAT_ARRAY_COLUMNS:
+                are_entries_equal = numpy.allclose(
+                    expected_table[this_column_name].values[i],
+                    actual_table[this_column_name].values[i], atol=TOLERANCE)
+
+            else:
+                are_entries_equal = numpy.isclose(
+                    expected_table[this_column_name].values[i],
+                    actual_table[this_column_name].values[i], atol=TOLERANCE)
+
+            if not are_entries_equal:
+                return False
+
+    return True
 
 
 class LinkEventsToStormsTests(unittest.TestCase):
     """Each method is a unit test for link_events_to_storms.py."""
 
-    def tes__get_bounding_box_of_storms(self):
+    def test_get_bounding_box_of_storms(self):
         """Ensures correct output from _get_bounding_box_of_storms."""
 
         these_x_limits_metres, these_y_limits_metres = (
@@ -556,7 +745,7 @@ class LinkEventsToStormsTests(unittest.TestCase):
             max_time_after_storm_end_sec=MAX_TIME_AFTER_STORM_END_SEC,
             max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
             interp_time_resolution_sec=
-            events2storms.DEFAULT_INTERP_TIME_RESOLUTION_SEC)
+            events2storms.DEFAULT_INTERP_TIME_RESOLUTION_FOR_WIND_SEC)
 
         self.assertTrue(this_wind_to_storm_table.equals(
             EVENT_TO_STORM_TABLE_SIMPLE))
@@ -590,31 +779,76 @@ class LinkEventsToStormsTests(unittest.TestCase):
                         STORM_TO_WINDS_TABLE[this_column_name].values[i],
                         atol=TOLERANCE))
 
-    def test_find_storm_to_events_file_wind(self):
+    def test_share_linkages_between_periods(self):
+        """Ensures correct output from _share_linkages_between_periods."""
+
+        this_early_table = copy.deepcopy(
+            EARLY_STORM_TO_TORNADOES_TABLE_SANS_SHARING)
+        this_late_table = copy.deepcopy(
+            LATE_STORM_TO_TORNADOES_TABLE_SANS_SHARING)
+
+        this_early_table, this_late_table = (
+            events2storms._share_linkages_between_periods(
+                early_storm_to_events_table=this_early_table,
+                late_storm_to_events_table=this_late_table,
+                event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING))
+
+        self.assertTrue(_compare_tables(
+            this_early_table, EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING))
+        self.assertTrue(_compare_tables(
+            this_late_table, LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING))
+
+    def test_find_storm_to_events_file_one_time_wind(self):
         """Ensures correct output from find_storm_to_events_file.
 
-        In this case, event type is damaging straight-line wind.
+        In this case, event type is damaging wind and file contains data for one
+        time step.
         """
 
         this_file_name = events2storms.find_storm_to_events_file(
             top_directory_name=TOP_DIRECTORY_NAME,
-            unix_time_sec=FILE_TIME_UNIX_SEC,
             event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
-            raise_error_if_missing=False)
-        self.assertTrue(this_file_name == STORM_TO_WINDS_FILE_NAME)
+            raise_error_if_missing=False, unix_time_sec=FILE_TIME_UNIX_SEC)
+        self.assertTrue(this_file_name == STORM_TO_WINDS_ONE_TIME_FILE_NAME)
 
-    def test_find_storm_to_events_file_tornado(self):
+    def test_find_storm_to_events_file_one_time_tornado(self):
         """Ensures correct output from find_storm_to_events_file.
 
-        In this case, event type is tornado.
+        In this case, event type is tornado and file contains data for one time
+        step.
         """
 
         this_file_name = events2storms.find_storm_to_events_file(
             top_directory_name=TOP_DIRECTORY_NAME,
-            unix_time_sec=FILE_TIME_UNIX_SEC,
             event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
-            raise_error_if_missing=False)
-        self.assertTrue(this_file_name == STORM_TO_TORNADOES_FILE_NAME)
+            raise_error_if_missing=False, unix_time_sec=FILE_TIME_UNIX_SEC)
+        self.assertTrue(this_file_name == STORM_TO_TORNADOES_ONE_TIME_FILE_NAME)
+
+    def test_find_storm_to_events_file_spc_date_wind(self):
+        """Ensures correct output from find_storm_to_events_file.
+
+        In this case, event type is damaging wind and file contains data for one
+        SPC date.
+        """
+
+        this_file_name = events2storms.find_storm_to_events_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
+            raise_error_if_missing=False, spc_date_string=FILE_SPC_DATE_STRING)
+        self.assertTrue(this_file_name == STORM_TO_WINDS_SPC_DATE_FILE_NAME)
+
+    def test_find_storm_to_events_file_spc_date_tornado(self):
+        """Ensures correct output from find_storm_to_events_file.
+
+        In this case, event type is tornado and file contains data for one SPC
+        date.
+        """
+
+        this_file_name = events2storms.find_storm_to_events_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
+            raise_error_if_missing=False, spc_date_string=FILE_SPC_DATE_STRING)
+        self.assertTrue(this_file_name == STORM_TO_TORNADOES_SPC_DATE_FILE_NAME)
 
 
 if __name__ == '__main__':
