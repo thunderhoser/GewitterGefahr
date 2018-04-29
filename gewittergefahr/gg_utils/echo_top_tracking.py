@@ -1425,13 +1425,13 @@ def _find_nearby_tracks(
         if time_diffs_seconds[j] > max_time_diff_seconds:
             continue
 
-        this_latitude_diff_deg = numpy.absolute(
-            storm_track_table[START_LATITUDE_COLUMN].values[late_track_index] -
-            storm_track_table[END_LATITUDE_COLUMN].values[j])
-        this_latitude_diff_m_s01 = this_latitude_diff_deg * (
-            DEGREES_LAT_TO_METRES / time_diffs_seconds[j])
-        if this_latitude_diff_m_s01 > max_extrap_error_m_s01:
-            continue
+        # this_latitude_diff_deg = numpy.absolute(
+        #     storm_track_table[START_LATITUDE_COLUMN].values[late_track_index] -
+        #     storm_track_table[END_LATITUDE_COLUMN].values[j])
+        # this_latitude_diff_m_s01 = this_latitude_diff_deg * (
+        #     DEGREES_LAT_TO_METRES / time_diffs_seconds[j])
+        # if this_latitude_diff_m_s01 > max_extrap_error_m_s01:
+        #     continue
 
         extrap_errors_metres[j] = _get_extrapolation_error(
             storm_track_table=storm_track_table, late_track_id=late_track_id,
