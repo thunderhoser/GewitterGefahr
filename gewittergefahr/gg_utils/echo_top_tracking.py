@@ -1690,7 +1690,9 @@ def run_tracking(
 
 def join_tracks_across_spc_dates(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        top_output_dir_name, start_time_unix_sec=None, end_time_unix_sec=None,
+        top_output_dir_name, tracking_start_time_unix_sec,
+        tracking_end_time_unix_sec, start_time_unix_sec=None,
+        end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
@@ -1714,6 +1716,8 @@ def join_tracks_across_spc_dates(
         tracking files (before joining across SPC dates).
     :param top_output_dir_name: Name of top-level directory for new tracking
         files (after joining).
+    :param tracking_start_time_unix_sec: Beginning of tracking period.
+    :param tracking_end_time_unix_sec: End of tracking period.
     :param start_time_unix_sec: Start time.  If None, defaults to beginning of
         `first_spc_date_string`.
     :param end_time_unix_sec: End time.  If None, defaults to end of
@@ -1732,6 +1736,13 @@ def join_tracks_across_spc_dates(
     :raises: ValueError: if storm_object_table for SPC date "yyyymmdd" contains
         any SPC dates other than "yyyymmdd".
     """
+
+    # Check input args.
+    time_conversion.unix_sec_to_string(
+        tracking_start_time_unix_sec, TIME_FORMAT)
+    time_conversion.unix_sec_to_string(tracking_end_time_unix_sec, TIME_FORMAT)
+    error_checking.assert_is_greater(
+        tracking_end_time_unix_sec, tracking_start_time_unix_sec)
 
     # Find input files, desired locations for output files.
     tracking_file_dict = _find_input_and_output_tracking_files(
@@ -1759,17 +1770,6 @@ def join_tracks_across_spc_dates(
     spc_dates_unix_sec = numpy.array(
         [time_conversion.spc_date_string_to_unix_sec(s)
          for s in spc_date_strings])
-
-    # Find start/end times of tracking period.
-    first_storm_object_table = tracking_io.read_processed_file(
-        input_file_names_by_spc_date[0][0])
-    tracking_start_time_unix_sec = first_storm_object_table[
-        tracking_utils.TRACKING_START_TIME_COLUMN].values[0]
-
-    last_storm_object_table = tracking_io.read_processed_file(
-        input_file_names_by_spc_date[-1][-1])
-    tracking_end_time_unix_sec = last_storm_object_table[
-        tracking_utils.TRACKING_END_TIME_COLUMN].values[0]
 
     # Initialize equidistant projection.
     projection_object = projections.init_azimuthal_equidistant_projection(

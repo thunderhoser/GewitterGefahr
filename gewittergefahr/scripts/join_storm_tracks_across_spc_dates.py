@@ -8,6 +8,9 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import echo_top_tracking
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+TRACKING_END_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
+    '2012-01-01-000813', TIME_FORMAT)
+TRACKING_START_TIME_UNIX_SEC = 0
 
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
@@ -84,5 +87,7 @@ if __name__ == '__main__':
         last_spc_date_string=LAST_SPC_DATE_STRING,
         top_input_dir_name=TOP_INPUT_DIR_NAME,
         top_output_dir_name=TOP_OUTPUT_DIR_NAME,
+        tracking_start_time_unix_sec=TRACKING_START_TIME_UNIX_SEC,
+        tracking_end_time_unix_sec=TRACKING_END_TIME_UNIX_SEC,
         start_time_unix_sec=START_TIME_UNIX_SEC,
         end_time_unix_sec=END_TIME_UNIX_SEC)
