@@ -35,7 +35,7 @@ LINKAGE_DIR_HELP_STRING = (
     'be created here, for the whole SPC date.')
 
 TOP_TORNADO_DIR_NAME_DEFAULT = (
-    '/condo/swatwork/ralager/tornado_observations')
+    '/condo/swatwork/ralager/tornado_observations/processed')
 DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
     echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
