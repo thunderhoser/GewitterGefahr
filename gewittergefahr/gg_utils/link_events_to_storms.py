@@ -42,7 +42,7 @@ WIND_DATA_SOURCE = raw_wind_io.MERGED_DATA_SOURCE
 
 DEFAULT_MAX_TIME_BEFORE_STORM_SEC = 300
 DEFAULT_MAX_TIME_AFTER_STORM_SEC = 300
-DEFAULT_PADDING_FOR_BOUNDING_BOX_METRES = 50000.
+DEFAULT_PADDING_FOR_BOUNDING_BOX_METRES = 1e5
 DEFAULT_INTERP_TIME_RESOLUTION_FOR_WIND_SEC = 10
 DEFAULT_INTERP_TIME_RESOLUTION_FOR_TORNADOES_SEC = 1
 DEFAULT_MAX_LINK_DISTANCE_FOR_WIND_METRES = 30000.
@@ -987,8 +987,8 @@ def _read_wind_observations(
     wind_table = pandas.concat(list_of_wind_tables, axis=0, ignore_index=True)
 
     wind_speeds_m_s01 = numpy.sqrt(
-        wind_table[raw_wind_io.U_WIND_COLUMN] ** 2 +
-        wind_table[raw_wind_io.V_WIND_COLUMN] ** 2)
+        wind_table[raw_wind_io.U_WIND_COLUMN].values ** 2 +
+        wind_table[raw_wind_io.V_WIND_COLUMN].values ** 2)
     invalid_rows = raw_wind_io.check_wind_speeds(
         wind_speeds_m_s01, one_component=False)
     wind_table.drop(wind_table.index[invalid_rows], axis=0, inplace=True)

@@ -7,6 +7,10 @@ import argparse
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import echo_top_tracking
 
+# TODO(thunderhoser): All input args to
+# `echo_top_tracking.join_tracks_across_spc_dates` should be input args to this
+# script.
+
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 TRACKING_END_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
     '2012-01-01-000813', TIME_FORMAT)
