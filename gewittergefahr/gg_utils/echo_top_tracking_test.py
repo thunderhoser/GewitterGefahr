@@ -4,6 +4,7 @@ import copy
 import unittest
 import numpy
 import pandas
+from geopy.distance import vincenty
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import projections
@@ -311,9 +312,23 @@ STORM_TRACK_TABLE_TAMPERED = copy.deepcopy(STORM_TRACK_TABLE_BEFORE_REANALYSIS)
 STORM_TRACK_TABLE_TAMPERED[echo_top_tracking.START_TIME_COLUMN].values[2] = -1
 STORM_ID_TAMPERED = 'C'
 
-# The following constants are used to test join_nearby_tracks.
+# The following constants are used to test _get_extrapolation_error.
+DIST_TOLERANCE_METRES = 1.
+EXTRAP_ERROR_B_TO_A_METRES = 0.
+EXTRAP_ERROR_C_TO_A_METRES = 0.
+EXTRAP_ERROR_D_TO_A_METRES = vincenty((53.5, 113.8), (53.5, 113.5)).meters
+EXTRAP_ERROR_E_TO_A_METRES = vincenty((47.6, 307.3), (53.5, 113.5)).meters
+
+# The following constants are used to test _find_nearby_tracks and
+# reanalyze_tracks.
 MAX_JOIN_TIME_SECONDS = 2
-MAX_JOIN_DISTANCE_M_S01 = 1e4
+MAX_EXTRAP_ERROR_M_S01 = 1000.
+
+NEARBY_IDS_FOR_A = ['B']
+NEARBY_IDS_FOR_B = ['C']
+NEARBY_IDS_FOR_C = []
+NEARBY_IDS_FOR_D = []
+NEARBY_IDS_FOR_E = []
 
 THESE_STORM_IDS = ['A', 'A', 'A', 'A', 'A', 'A', 'D', 'D', 'E', 'E']
 THIS_DICT = {
@@ -695,15 +710,152 @@ class EchoTopTrackingTests(unittest.TestCase):
         self.assertTrue(this_storm_track_table.equals(
             STORM_TRACK_TABLE_BEFORE_REANALYSIS))
 
-    def test_join_nearby_tracks(self):
-        """Ensures correct output from join_nearby_tracks."""
+    def test_get_extrapolation_error_b_to_a(self):
+        """Ensures correct output from _get_extrapolation_error.
+
+        In this case, extrapolating track B to start of track A.
+        """
+
+        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            early_track_id='B', late_track_id='A')
+        self.assertTrue(numpy.isclose(
+            this_extrap_error_metres, EXTRAP_ERROR_B_TO_A_METRES,
+            atol=DIST_TOLERANCE_METRES))
+
+    def test_get_extrapolation_error_c_to_a(self):
+        """Ensures correct output from _get_extrapolation_error.
+
+        In this case, extrapolating track C to start of track A.
+        """
+
+        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            early_track_id='C', late_track_id='A')
+        self.assertTrue(numpy.isclose(
+            this_extrap_error_metres, EXTRAP_ERROR_C_TO_A_METRES,
+            atol=DIST_TOLERANCE_METRES))
+
+    def test_get_extrapolation_error_d_to_a(self):
+        """Ensures correct output from _get_extrapolation_error.
+
+        In this case, extrapolating track D to start of track A.
+        """
+
+        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            early_track_id='D', late_track_id='A')
+        self.assertTrue(numpy.isclose(
+            this_extrap_error_metres, EXTRAP_ERROR_D_TO_A_METRES,
+            atol=DIST_TOLERANCE_METRES))
+
+    def test_get_extrapolation_error_e_to_a(self):
+        """Ensures correct output from _get_extrapolation_error.
+
+        In this case, extrapolating track E to start of track A.
+        """
+
+        this_extrap_error_metres = echo_top_tracking._get_extrapolation_error(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            early_track_id='E', late_track_id='A')
+        self.assertTrue(numpy.isclose(
+            this_extrap_error_metres, EXTRAP_ERROR_E_TO_A_METRES,
+            atol=DIST_TOLERANCE_METRES))
+
+    def test_find_nearby_tracks_for_a(self):
+        """Ensures correct output from _find_nearby_tracks; late track is A."""
+
+        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            late_track_id='A', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
+            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+
+        if these_nearby_indices is None:
+            these_nearby_ids = []
+        else:
+            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
+                tracking_utils.STORM_ID_COLUMN
+            ].values[these_nearby_indices].tolist()
+
+        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_A)
+
+    def test_find_nearby_tracks_for_b(self):
+        """Ensures correct output from _find_nearby_tracks; late track is B."""
+
+        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            late_track_id='B', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
+            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+
+        if these_nearby_indices is None:
+            these_nearby_ids = []
+        else:
+            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
+                tracking_utils.STORM_ID_COLUMN
+            ].values[these_nearby_indices].tolist()
+
+        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_B)
+
+    def test_find_nearby_tracks_for_c(self):
+        """Ensures correct output from _find_nearby_tracks; late track is C."""
+
+        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            late_track_id='C', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
+            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+
+        if these_nearby_indices is None:
+            these_nearby_ids = []
+        else:
+            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
+                tracking_utils.STORM_ID_COLUMN
+            ].values[these_nearby_indices].tolist()
+
+        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_C)
+
+    def test_find_nearby_tracks_for_d(self):
+        """Ensures correct output from _find_nearby_tracks; late track is D."""
+
+        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            late_track_id='D', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
+            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+
+        if these_nearby_indices is None:
+            these_nearby_ids = []
+        else:
+            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
+                tracking_utils.STORM_ID_COLUMN
+            ].values[these_nearby_indices].tolist()
+
+        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_D)
+
+    def test_find_nearby_tracks_for_e(self):
+        """Ensures correct output from _find_nearby_tracks; late track is E."""
+
+        these_nearby_indices = echo_top_tracking._find_nearby_tracks(
+            storm_track_table=STORM_TRACK_TABLE_BEFORE_REANALYSIS,
+            late_track_id='E', max_time_diff_seconds=MAX_JOIN_TIME_SECONDS,
+            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
+
+        if these_nearby_indices is None:
+            these_nearby_ids = []
+        else:
+            these_nearby_ids = STORM_TRACK_TABLE_BEFORE_REANALYSIS[
+                tracking_utils.STORM_ID_COLUMN
+            ].values[these_nearby_indices].tolist()
+
+        self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_E)
+
+    def test_reanalyze_tracks(self):
+        """Ensures correct output from reanalyze_tracks."""
 
         this_storm_object_table = copy.deepcopy(
             STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
-        this_storm_object_table = echo_top_tracking.join_nearby_tracks(
+        this_storm_object_table = echo_top_tracking.reanalyze_tracks(
             storm_object_table=this_storm_object_table,
             max_join_time_sec=MAX_JOIN_TIME_SECONDS,
-            max_join_distance_m_s01=MAX_JOIN_DISTANCE_M_S01)
+            max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
 
         self.assertTrue(this_storm_object_table.equals(
             STORM_OBJECT_TABLE_AFTER_REANALYSIS))
