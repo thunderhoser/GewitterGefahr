@@ -61,8 +61,7 @@ DEFAULT_GRIDRAD_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
     radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME]
 
-DEFAULT_GRIDRAD_HEIGHTS_M_ASL = numpy.array(
-    [1000, 2000, 3000, 4000, 5000, 8000, 10000, 12000], dtype=int)
+DEFAULT_GRIDRAD_HEIGHTS_M_ASL = numpy.linspace(1000, 10000, num=10, dtype=int)
 
 
 def _centroids_latlng_to_rowcol(
