@@ -678,7 +678,7 @@ def extract_storm_images_gridrad(
 
             # Read data for [j]th field at [i]th valid time.
             print 'Reading "{0:s}" from file: "{1:s}"...'.format(
-                radar_field_names[j], radar_field_names[i])
+                radar_field_names[j], radar_file_names[i])
 
             this_field_radar_matrix, these_grid_point_heights_m_asl, _, _ = (
                 gridrad_io.read_field_from_full_grid_file(
