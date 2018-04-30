@@ -1698,8 +1698,8 @@ def run_tracking(
 
 def join_tracks_across_spc_dates(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        top_output_dir_name, tracking_start_time_unix_sec,
-        tracking_end_time_unix_sec, start_time_unix_sec=None,
+        top_output_dir_name, tracking_start_time_unix_sec=None,
+        tracking_end_time_unix_sec=None, start_time_unix_sec=None,
         end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
@@ -1740,17 +1740,11 @@ def join_tracks_across_spc_dates(
         `_get_velocities_one_storm_track`.
     :return: tracking_file_dict: Dictionary created by
         `_find_input_and_output_tracking_files`.
-    :raises: ValueError: if number of SPC dates = 1.
     :raises: ValueError: if storm_object_table for SPC date "yyyymmdd" contains
         any SPC dates other than "yyyymmdd".
     """
 
-    # Check input args.
-    time_conversion.unix_sec_to_string(
-        tracking_start_time_unix_sec, TIME_FORMAT)
-    time_conversion.unix_sec_to_string(tracking_end_time_unix_sec, TIME_FORMAT)
-    error_checking.assert_is_greater(
-        tracking_end_time_unix_sec, tracking_start_time_unix_sec)
+    # TODO(thunderhoser): Clean up this method!
 
     # Find input files, desired locations for output files.
     tracking_file_dict = _find_input_and_output_tracking_files(
@@ -1765,8 +1759,6 @@ def join_tracks_across_spc_dates(
     # Find SPC dates.
     spc_date_strings = tracking_file_dict[SPC_DATE_STRINGS_KEY]
     num_spc_dates = len(spc_date_strings)
-    if num_spc_dates == 1:
-        raise ValueError('Number of SPC dates must be > 1.')
 
     # Separate input files, output files, and valid times by SPC date.
     input_file_names_by_spc_date = tracking_file_dict[
@@ -1779,10 +1771,60 @@ def join_tracks_across_spc_dates(
         [time_conversion.spc_date_string_to_unix_sec(s)
          for s in spc_date_strings])
 
+    # Find start/end of tracking period.
+    if (tracking_start_time_unix_sec is None
+            or tracking_end_time_unix_sec is None):
+        tracking_start_time_unix_sec = numpy.min(times_by_spc_date_unix_sec[0])
+        tracking_end_time_unix_sec = numpy.max(times_by_spc_date_unix_sec[-1])
+
+    else:
+        time_conversion.unix_sec_to_string(
+            tracking_start_time_unix_sec, TIME_FORMAT)
+        time_conversion.unix_sec_to_string(
+            tracking_end_time_unix_sec, TIME_FORMAT)
+        error_checking.assert_is_greater(
+            tracking_end_time_unix_sec, tracking_start_time_unix_sec)
+
     # Initialize equidistant projection.
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    if num_spc_dates == 1:
+        storm_object_table = tracking_io.read_many_processed_files(
+            input_file_names_by_spc_date[0])
+        print LINE_OF_STARS
+
+        print 'Reanalyzing tracks for SPC date "{0:s}"...'.format(
+            spc_date_strings[0])
+
+        storm_object_table = reanalyze_tracks(
+            storm_object_table=storm_object_table,
+            max_join_time_sec=max_reanal_join_time_sec,
+            max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
+        print LINE_OF_STARS
+
+        print 'Removing tracks with duration < {0:d} seconds...'.format(
+            int(min_track_duration_seconds))
+        storm_object_table = _remove_short_tracks(
+            storm_object_table, min_duration_seconds=min_track_duration_seconds)
+
+        print 'Recomputing storm age for each storm object...'
+        storm_object_table = best_tracks.recompute_attributes(
+            storm_object_table,
+            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
+            best_track_end_time_unix_sec=tracking_end_time_unix_sec)
+
+        print 'Recomputing velocity for each storm object...'
+        storm_object_table = _get_storm_velocities(
+            storm_object_table, num_points_back=num_points_back_for_velocity)
+        print LINE_OF_STARS
+
+        this_file_dictionary = {
+            VALID_TIMES_KEY: times_by_spc_date_unix_sec[0],
+            TRACKING_FILE_NAMES_KEY: output_file_names_by_spc_date[0]}
+        write_storm_objects(storm_object_table, this_file_dictionary)
+        return
 
     # Main loop.
     storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
