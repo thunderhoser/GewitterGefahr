@@ -729,7 +729,7 @@ def extract_storm_images_gridrad(
 
                 for m in range(this_num_storms):
                     this_storm_image_matrix[m, :, :] = extract_storm_image(
-                        full_radar_matrix=this_field_radar_matrix,
+                        full_radar_matrix=this_field_radar_matrix[k, ...],
                         center_row=these_center_rows[m],
                         center_column=these_center_columns[m],
                         num_storm_image_rows=num_storm_image_rows,
