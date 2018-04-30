@@ -28,6 +28,12 @@ class GridradIoTests(unittest.TestCase):
             UNIX_TIME_SEC)
         self.assertTrue(this_pathless_file_name == PATHLESS_FILE_NAME)
 
+    def test_file_name_to_time(self):
+        """Ensures correct output from file_name_to_time."""
+
+        this_time_unix_sec = gridrad_io.file_name_to_time(FULL_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == UNIX_TIME_SEC)
+
     def test_find_file(self):
         """Ensures correct output from find_file."""
 

@@ -59,6 +59,20 @@ def _get_pathless_file_name(unix_time_sec):
         FILE_EXTENSION)
 
 
+def file_name_to_time(gridrad_file_name):
+    """Parses valid time from name of GridRad file.
+
+    :param gridrad_file_name: Path to GridRad file.
+    :return: unix_time_sec: Valid time.
+    """
+
+    _, pathless_file_name = os.path.split(gridrad_file_name)
+    extensionless_file_name, _ = os.path.splitext(pathless_file_name)
+    time_string = extensionless_file_name.split('_')[-1]
+    return time_conversion.string_to_unix_sec(
+        time_string, TIME_FORMAT_IN_FILE_NAMES)
+
+
 def find_file(unix_time_sec, top_directory_name, raise_error_if_missing=True):
     """Finds GridRad file on local machine.
 
