@@ -6,6 +6,7 @@ K = number of classes (possible values of target variable)
 E = number of examples
 M = number of pixel rows per image
 N = number of pixel columns per image
+D = number of pixel depths per image
 P = number of channels (predictor variables) per image
 """
 
@@ -74,7 +75,7 @@ def _class_fractions_to_num_points(class_fractions, num_points_to_sample):
 
 
 def check_predictor_matrix(
-        predictor_matrix, min_num_dimensions=3, max_num_dimensions=4):
+        predictor_matrix, min_num_dimensions=3, max_num_dimensions=5):
     """Checks predictor matrix for errors.
 
     :param predictor_matrix: numpy array of predictor images.  Dimensions may be
@@ -84,6 +85,15 @@ def check_predictor_matrix(
     :param max_num_dimensions: Max number of dimensions expected in
         `predictor_matrix`.
     """
+
+    error_checking.assert_is_integer(min_num_dimensions)
+    error_checking.assert_is_geq(min_num_dimensions, 3)
+    error_checking.assert_is_leq(min_num_dimensions, 5)
+
+    error_checking.assert_is_integer(max_num_dimensions)
+    error_checking.assert_is_geq(max_num_dimensions, 3)
+    error_checking.assert_is_leq(max_num_dimensions, 5)
+    error_checking.assert_is_geq(max_num_dimensions, min_num_dimensions)
 
     error_checking.assert_is_numpy_array_without_nan(predictor_matrix)
 
@@ -153,6 +163,25 @@ def stack_predictor_variables(tuple_of_3d_predictor_matrices):
     return predictor_matrix
 
 
+def stack_heights(tuple_of_4d_predictor_matrices):
+    """Stacks predictor images from different heights.
+
+    D = number of heights
+
+    :param tuple_of_4d_predictor_matrices: length-D tuple, where each element is
+        an E-by-M-by-N-by-C numpy array of predictor images.
+    :return: predictor_matrix: E-by-M-by-N-by-D-by-C numpy array of predictor
+        images.
+    """
+
+    predictor_matrix = numpy.stack(tuple_of_4d_predictor_matrices, axis=-2)
+    check_predictor_matrix(
+        predictor_matrix=predictor_matrix, min_num_dimensions=5,
+        max_num_dimensions=5)
+
+    return predictor_matrix
+
+
 def normalize_predictor_matrix(
         predictor_matrix, normalize_by_batch=False, predictor_names=None,
         normalization_dict=DEFAULT_NORMALIZATION_DICT, percentile_offset=1.):
@@ -174,8 +203,8 @@ def normalize_predictor_matrix(
     x_min = climatological minimum for x (taken from normalization_dict)
     x_max = climatological max for x (taken from normalization_dict)
 
-    :param predictor_matrix: numpy array of predictor images.  Dimensions must
-        be E x M x N x C.
+    :param predictor_matrix: numpy array of predictor images.  Dimensions may be
+        E x M x N x C or E x M x N x T x C.
     :param normalize_by_batch: Boolean flag.  If True, x_min and x_max are based
         on the batch.  If False, x_min and x_max are based on climatology.
     :param predictor_names: [used only if normalize_by_batch = False]
@@ -194,7 +223,7 @@ def normalize_predictor_matrix(
     """
 
     check_predictor_matrix(
-        predictor_matrix, min_num_dimensions=4, max_num_dimensions=4)
+        predictor_matrix, min_num_dimensions=4, max_num_dimensions=5)
     num_predictors = predictor_matrix.shape[-1]
 
     error_checking.assert_is_boolean(normalize_by_batch)
@@ -204,17 +233,14 @@ def normalize_predictor_matrix(
         error_checking.assert_is_leq(
             percentile_offset, MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION)
 
-        num_examples = predictor_matrix.shape[0]
-        for i in range(num_examples):
-            for m in range(num_predictors):
-                this_min_value = numpy.nanpercentile(
-                    predictor_matrix[i, ..., m], percentile_offset)
-                this_max_value = numpy.nanpercentile(
-                    predictor_matrix[i, ..., m], 100. - percentile_offset)
-
-                predictor_matrix[i, ..., m] = (
-                    (predictor_matrix[i, ..., m] - this_min_value) /
-                    (this_max_value - this_min_value))
+        for m in range(num_predictors):
+            this_min_value = numpy.nanpercentile(
+                predictor_matrix[..., m], percentile_offset)
+            this_max_value = numpy.nanpercentile(
+                predictor_matrix[..., m], 100. - percentile_offset)
+            predictor_matrix[..., m] = (
+                (predictor_matrix[..., m] - this_min_value) /
+                (this_max_value - this_min_value))
 
     else:
         error_checking.assert_is_string_list(predictor_names)

@@ -23,6 +23,11 @@ TUPLE_OF_3D_PREDICTOR_MATRICES = (
     PREDICTOR_MATRIX_3D, PREDICTOR_MATRIX_3D, PREDICTOR_MATRIX_3D)
 PREDICTOR_MATRIX_4D = numpy.stack(TUPLE_OF_3D_PREDICTOR_MATRICES, axis=-1)
 
+TUPLE_OF_4D_PREDICTOR_MATRICES = (
+    PREDICTOR_MATRIX_4D, PREDICTOR_MATRIX_4D, PREDICTOR_MATRIX_4D,
+    PREDICTOR_MATRIX_4D, PREDICTOR_MATRIX_4D)
+PREDICTOR_MATRIX_5D = numpy.stack(TUPLE_OF_4D_PREDICTOR_MATRICES, axis=-2)
+
 # The following constants are used to test check_target_values.
 TOY_TARGET_VALUES_1D_BINARY = numpy.array(
     [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], dtype=int)
@@ -59,39 +64,142 @@ NUM_POINTS_BY_CLASS_TERNARY_XSMALL = numpy.array([1, 1, 1], dtype=int)
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
 PREDICTOR_NAMES = [radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME]
 PREDICTOR_NORMALIZATION_DICT = {
-    radar_utils.DIFFERENTIAL_REFL_NAME: numpy.array([-10., 10.]),
+    radar_utils.DIFFERENTIAL_REFL_NAME: numpy.array([-8., 8.]),
     radar_utils.REFL_NAME: numpy.array([1., 10.])
 }
 
-REFL_MATRIX = numpy.array(
+REFL_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array(
     [[0, 1, 2, 3],
      [4, 5, 6, 7]], dtype=numpy.float32)
-DIFFERENTIAL_REFL_MATRIX = numpy.array(
+REFL_MATRIX_EXAMPLE1_HEIGHT2 = numpy.array(
     [[2, 4, 6, 8],
-     [-1, -3, -5, -7]], dtype=numpy.float32)
+     [10, 12, 14, 16]], dtype=numpy.float32)
+REFL_MATRIX_EXAMPLE1_HEIGHT3 = numpy.array(
+    [[-5, 2, 0, 5],
+     [3, -3, 11, 10]], dtype=numpy.float32)
 
-THIS_SINGLE_EXAMPLE_MATRIX = numpy.stack(
-    (REFL_MATRIX, DIFFERENTIAL_REFL_MATRIX), axis=-1)
-PREDICTOR_MATRIX_UNNORMALIZED = numpy.stack(
-    (THIS_SINGLE_EXAMPLE_MATRIX, THIS_SINGLE_EXAMPLE_MATRIX), axis=0)
+REFL_MATRIX_EXAMPLE2_HEIGHT1 = numpy.array(
+    [[3, 2, 1, 2],
+     [6, 10, 16, -6]], dtype=numpy.float32)
+REFL_MATRIX_EXAMPLE2_HEIGHT2 = numpy.array(
+    [[0, 0, 0, 0],
+     [0, 1, 1, 2]], dtype=numpy.float32)
+REFL_MATRIX_EXAMPLE2_HEIGHT3 = numpy.array(
+    [[17, 7, 0, 3],
+     [6, 7, 8, 4]], dtype=numpy.float32)
 
-REFL_MATRIX_NORMALIZED_BY_BATCH = (REFL_MATRIX + 0) / 7
-DIFF_REFL_MATRIX_NORMALIZED_BY_BATCH = (DIFFERENTIAL_REFL_MATRIX + 7) / 15
+DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 = -1 * REFL_MATRIX_EXAMPLE1_HEIGHT1
+DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 = -1 * REFL_MATRIX_EXAMPLE1_HEIGHT2
+DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 = -1 * REFL_MATRIX_EXAMPLE1_HEIGHT3
+DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 = -1 * REFL_MATRIX_EXAMPLE2_HEIGHT1
+DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 = -1 * REFL_MATRIX_EXAMPLE2_HEIGHT2
+DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 = -1 * REFL_MATRIX_EXAMPLE2_HEIGHT3
 
-THIS_SINGLE_EXAMPLE_MATRIX = numpy.stack(
-    (REFL_MATRIX_NORMALIZED_BY_BATCH, DIFF_REFL_MATRIX_NORMALIZED_BY_BATCH),
-    axis=-1)
-PREDICTOR_MATRIX_NORMALIZED_BY_BATCH = numpy.stack(
-    (THIS_SINGLE_EXAMPLE_MATRIX, THIS_SINGLE_EXAMPLE_MATRIX), axis=0)
+EXAMPLE1_HEIGHT1_MATRIX_UNNORMALIZED = numpy.stack(
+    (REFL_MATRIX_EXAMPLE1_HEIGHT1, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1), axis=-1)
+EXAMPLE2_HEIGHT1_MATRIX_UNNORMALIZED = numpy.stack(
+    (REFL_MATRIX_EXAMPLE2_HEIGHT1, DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1), axis=-1)
+PREDICTOR_MATRIX_4D_UNNORMALIZED = numpy.stack(
+    (EXAMPLE1_HEIGHT1_MATRIX_UNNORMALIZED,
+     EXAMPLE2_HEIGHT1_MATRIX_UNNORMALIZED), axis=0)
 
-REFL_MATRIX_NORMALIZED_BY_CLIMO = (REFL_MATRIX - 1) / 9
-DIFF_REFL_MATRIX_NORMALIZED_BY_CLIMO = (DIFFERENTIAL_REFL_MATRIX + 10) / 20
+EXAMPLE1_HEIGHT1_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT1 + 6) / 22,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 16) / 22), axis=-1)
+EXAMPLE2_HEIGHT1_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT1 + 6) / 22,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 16) / 22), axis=-1)
+PREDICTOR_MATRIX_4D_NORM_BY_BATCH = numpy.stack(
+    (EXAMPLE1_HEIGHT1_MATRIX_NORM_BY_BATCH,
+     EXAMPLE2_HEIGHT1_MATRIX_NORM_BY_BATCH), axis=0)
 
-THIS_SINGLE_EXAMPLE_MATRIX = numpy.stack(
-    (REFL_MATRIX_NORMALIZED_BY_CLIMO, DIFF_REFL_MATRIX_NORMALIZED_BY_CLIMO),
-    axis=-1)
-PREDICTOR_MATRIX_NORMALIZED_BY_CLIMO = numpy.stack(
-    (THIS_SINGLE_EXAMPLE_MATRIX, THIS_SINGLE_EXAMPLE_MATRIX), axis=0)
+EXAMPLE1_HEIGHT1_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT1 - 1) / 9,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 8) / 16), axis=-1)
+EXAMPLE2_HEIGHT1_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT1 - 1) / 9,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 8) / 16), axis=-1)
+PREDICTOR_MATRIX_4D_NORM_BY_CLIMO = numpy.stack(
+    (EXAMPLE1_HEIGHT1_MATRIX_NORM_BY_CLIMO,
+     EXAMPLE2_HEIGHT1_MATRIX_NORM_BY_CLIMO), axis=0)
+
+EXAMPLE1_HEIGHT2_MATRIX_UNNORMALIZED = numpy.stack(
+    (REFL_MATRIX_EXAMPLE1_HEIGHT2, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2), axis=-1)
+EXAMPLE2_HEIGHT2_MATRIX_UNNORMALIZED = numpy.stack(
+    (REFL_MATRIX_EXAMPLE2_HEIGHT2, DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2), axis=-1)
+HEIGHT2_MATRIX_UNNORMALIZED = numpy.stack(
+    (EXAMPLE1_HEIGHT2_MATRIX_UNNORMALIZED,
+     EXAMPLE2_HEIGHT2_MATRIX_UNNORMALIZED), axis=0)
+
+EXAMPLE1_HEIGHT3_MATRIX_UNNORMALIZED = numpy.stack(
+    (REFL_MATRIX_EXAMPLE1_HEIGHT3, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3), axis=-1)
+EXAMPLE2_HEIGHT3_MATRIX_UNNORMALIZED = numpy.stack(
+    (REFL_MATRIX_EXAMPLE2_HEIGHT3, DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3), axis=-1)
+HEIGHT3_MATRIX_UNNORMALIZED = numpy.stack(
+    (EXAMPLE1_HEIGHT3_MATRIX_UNNORMALIZED,
+     EXAMPLE2_HEIGHT3_MATRIX_UNNORMALIZED), axis=0)
+
+PREDICTOR_MATRIX_5D_UNNORMALIZED = numpy.stack(
+    (PREDICTOR_MATRIX_4D_UNNORMALIZED, HEIGHT2_MATRIX_UNNORMALIZED,
+     HEIGHT3_MATRIX_UNNORMALIZED), axis=-2)
+
+EXAMPLE1_HEIGHT1_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT1 + 6) / 23,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 17) / 23), axis=-1)
+EXAMPLE2_HEIGHT1_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT1 + 6) / 23,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 17) / 23), axis=-1)
+HEIGHT1_MATRIX_NORM_BY_BATCH = numpy.stack(
+    (EXAMPLE1_HEIGHT1_MATRIX_NORM_BY_BATCH,
+     EXAMPLE2_HEIGHT1_MATRIX_NORM_BY_BATCH), axis=0)
+
+EXAMPLE1_HEIGHT2_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT2 + 6) / 23,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 + 17) / 23), axis=-1)
+EXAMPLE2_HEIGHT2_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT2 + 6) / 23,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 + 17) / 23), axis=-1)
+HEIGHT2_MATRIX_NORM_BY_BATCH = numpy.stack(
+    (EXAMPLE1_HEIGHT2_MATRIX_NORM_BY_BATCH,
+     EXAMPLE2_HEIGHT2_MATRIX_NORM_BY_BATCH), axis=0)
+
+EXAMPLE1_HEIGHT3_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT3 + 6) / 23,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 + 17) / 23), axis=-1)
+EXAMPLE2_HEIGHT3_MATRIX_NORM_BY_BATCH = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT3 + 6) / 23,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 + 17) / 23), axis=-1)
+HEIGHT3_MATRIX_NORM_BY_BATCH = numpy.stack(
+    (EXAMPLE1_HEIGHT3_MATRIX_NORM_BY_BATCH,
+     EXAMPLE2_HEIGHT3_MATRIX_NORM_BY_BATCH), axis=0)
+
+PREDICTOR_MATRIX_5D_NORM_BY_BATCH = numpy.stack(
+    (HEIGHT1_MATRIX_NORM_BY_BATCH, HEIGHT2_MATRIX_NORM_BY_BATCH,
+     HEIGHT3_MATRIX_NORM_BY_BATCH), axis=-2)
+
+EXAMPLE1_HEIGHT2_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT2 - 1) / 9,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 + 8) / 16), axis=-1)
+EXAMPLE2_HEIGHT2_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT2 - 1) / 9,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 + 8) / 16), axis=-1)
+HEIGHT2_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    (EXAMPLE1_HEIGHT2_MATRIX_NORM_BY_CLIMO,
+     EXAMPLE2_HEIGHT2_MATRIX_NORM_BY_CLIMO), axis=0)
+
+EXAMPLE1_HEIGHT3_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE1_HEIGHT3 - 1) / 9,
+     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 + 8) / 16), axis=-1)
+EXAMPLE2_HEIGHT3_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    ((REFL_MATRIX_EXAMPLE2_HEIGHT3 - 1) / 9,
+     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 + 8) / 16), axis=-1)
+HEIGHT3_MATRIX_NORM_BY_CLIMO = numpy.stack(
+    (EXAMPLE1_HEIGHT3_MATRIX_NORM_BY_CLIMO,
+     EXAMPLE2_HEIGHT3_MATRIX_NORM_BY_CLIMO), axis=0)
+
+PREDICTOR_MATRIX_5D_NORM_BY_CLIMO = numpy.stack(
+    (PREDICTOR_MATRIX_4D_NORM_BY_CLIMO, HEIGHT2_MATRIX_NORM_BY_CLIMO,
+     HEIGHT3_MATRIX_NORM_BY_CLIMO), axis=-2)
 
 # The following constants are used to test sample_points_by_class.
 TARGET_VALUES_TO_SAMPLE_BINARY = numpy.array(
@@ -369,35 +477,66 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, PREDICTOR_MATRIX_4D, atol=TOLERANCE, equal_nan=True))
 
-    def test_normalize_predictor_matrix_by_batch(self):
+    def test_normalize_predictor_matrix_4d_by_batch(self):
         """Ensures correct output from normalize_predictor_matrix.
 
-        In this case, normalize_by_batch = True.
+        In this case, predictor matrix is 4-D and normalize_by_batch = True.
         """
 
-        this_predictor_matrix = copy.deepcopy(PREDICTOR_MATRIX_UNNORMALIZED)
+        this_predictor_matrix = copy.deepcopy(PREDICTOR_MATRIX_4D_UNNORMALIZED)
         this_predictor_matrix = dl_utils.normalize_predictor_matrix(
             predictor_matrix=this_predictor_matrix, normalize_by_batch=True,
             percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
 
         self.assertTrue(numpy.allclose(
-            this_predictor_matrix, PREDICTOR_MATRIX_NORMALIZED_BY_BATCH,
+            this_predictor_matrix, PREDICTOR_MATRIX_4D_NORM_BY_BATCH,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_normalize_predictor_matrix_by_climo(self):
+    def test_normalize_predictor_matrix_4d_by_climo(self):
         """Ensures correct output from normalize_predictor_matrix.
 
-        In this case, normalize_by_batch = False.
+        In this case, predictor matrix is 4-D and normalize_by_batch = False.
         """
 
-        this_predictor_matrix = copy.deepcopy(PREDICTOR_MATRIX_UNNORMALIZED)
+        this_predictor_matrix = copy.deepcopy(PREDICTOR_MATRIX_4D_UNNORMALIZED)
         this_predictor_matrix = dl_utils.normalize_predictor_matrix(
             predictor_matrix=this_predictor_matrix, normalize_by_batch=False,
             predictor_names=PREDICTOR_NAMES,
             normalization_dict=PREDICTOR_NORMALIZATION_DICT)
 
         self.assertTrue(numpy.allclose(
-            this_predictor_matrix, PREDICTOR_MATRIX_NORMALIZED_BY_CLIMO,
+            this_predictor_matrix, PREDICTOR_MATRIX_4D_NORM_BY_CLIMO,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_normalize_predictor_matrix_5d_by_batch(self):
+        """Ensures correct output from normalize_predictor_matrix.
+
+        In this case, predictor matrix is 5-D and normalize_by_batch = True.
+        """
+
+        this_predictor_matrix = copy.deepcopy(PREDICTOR_MATRIX_5D_UNNORMALIZED)
+        this_predictor_matrix = dl_utils.normalize_predictor_matrix(
+            predictor_matrix=this_predictor_matrix, normalize_by_batch=True,
+            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_5D_NORM_BY_BATCH,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_normalize_predictor_matrix_5d_by_climo(self):
+        """Ensures correct output from normalize_predictor_matrix.
+
+        In this case, predictor matrix is 5-D and normalize_by_batch = False.
+        """
+
+        this_predictor_matrix = copy.deepcopy(PREDICTOR_MATRIX_5D_UNNORMALIZED)
+        this_predictor_matrix = dl_utils.normalize_predictor_matrix(
+            predictor_matrix=this_predictor_matrix, normalize_by_batch=False,
+            predictor_names=PREDICTOR_NAMES,
+            normalization_dict=PREDICTOR_NORMALIZATION_DICT)
+
+        self.assertTrue(numpy.allclose(
+            this_predictor_matrix, PREDICTOR_MATRIX_5D_NORM_BY_CLIMO,
             atol=TOLERANCE, equal_nan=True))
 
     def test_sample_points_by_class_binary(self):
