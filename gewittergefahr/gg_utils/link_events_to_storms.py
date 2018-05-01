@@ -1576,7 +1576,6 @@ def find_storm_to_events_file(
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
-    # Error-checking.
     error_checking.assert_is_string(top_directory_name)
     check_event_type(event_type_string)
     error_checking.assert_is_boolean(raise_error_if_missing)

@@ -11,6 +11,8 @@ from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 # `link_events_to_storms.link_each_storm_to_winds` should be input args to this
 # script.
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 SPC_DATE_ARG_NAME = 'spc_date_string'
 WIND_DIR_ARG_NAME = 'input_wind_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
@@ -83,6 +85,7 @@ def _link_winds_to_storms(
     storm_to_winds_table = events2storms.link_each_storm_to_winds(
         tracking_file_names=tracking_file_names,
         top_wind_directory_name=top_wind_dir_name)
+    print SEPARATOR_STRING
 
     linkage_file_name = events2storms.find_storm_to_events_file(
         top_directory_name=top_linkage_dir_name,
