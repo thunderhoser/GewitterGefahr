@@ -80,7 +80,7 @@ DEFAULT_MIN_LEAD_TIMES_SEC = numpy.array(
 DEFAULT_MAX_LEAD_TIMES_SEC = numpy.array(
     [900, 1800, 2700, 3600, 5400, 7200, 7200], dtype=int)
 DEFAULT_MIN_LINK_DISTANCES_METRES = numpy.array(
-    [0, 1, 5000, 10000], dtype=int)
+    [0, 1, 5000, 0], dtype=int)
 DEFAULT_MAX_LINK_DISTANCES_METRES = numpy.array(
     [0, 5000, 10000, 30000], dtype=int)
 DEFAULT_WIND_SPEED_PERCENTILE_LEVEL = 100.
@@ -192,8 +192,9 @@ def _create_labels(
                 'Creating {0:s} label for each storm object with {1:d}--{2:d}'
                 '-second lead time and {3:d}--{4:d}-metre distance buffer...'
             ).format(event_type_string, min_lead_times_sec[i],
-                     max_lead_times_sec[i], min_link_distances_metres[j],
-                     max_link_distances_metres[j])
+                     max_lead_times_sec[i],
+                     int(numpy.round(min_link_distances_metres[j])),
+                     int(numpy.round(max_link_distances_metres[j])))
 
             if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
                 storm_to_events_table = labels.label_tornado_occurrence(
@@ -203,14 +204,15 @@ def _create_labels(
                     min_link_distance_metres=min_link_distances_metres[j],
                     max_link_distance_metres=max_link_distances_metres[j])
             else:
-                storm_to_events_table = labels.label_wind_speed_for_classification(
-                    storm_to_winds_table=storm_to_events_table,
-                    min_lead_time_sec=min_lead_times_sec[i],
-                    max_lead_time_sec=max_lead_times_sec[i],
-                    min_link_distance_metres=min_link_distances_metres[j],
-                    max_link_distance_metres=max_link_distances_metres[j],
-                    percentile_level=wind_speed_percentile_level,
-                    class_cutoffs_kt=class_cutoffs_kt)
+                storm_to_events_table = (
+                    labels.label_wind_speed_for_classification(
+                        storm_to_winds_table=storm_to_events_table,
+                        min_lead_time_sec=min_lead_times_sec[i],
+                        max_lead_time_sec=max_lead_times_sec[i],
+                        min_link_distance_metres=min_link_distances_metres[j],
+                        max_link_distance_metres=max_link_distances_metres[j],
+                        percentile_level=wind_speed_percentile_level,
+                        class_cutoffs_kt=class_cutoffs_kt))
 
     label_file_name = labels.find_label_file(
         top_directory_name=top_label_dir_name,
