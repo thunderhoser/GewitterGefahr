@@ -145,7 +145,6 @@ def storm_image_generator_2d(
 
     full_predictor_matrix = None
     all_target_values = None
-    stopping_criterion = False
 
     if class_fractions_to_sample is None:
         num_examples_per_batch_by_class = None
@@ -158,6 +157,7 @@ def storm_image_generator_2d(
         num_classes = len(class_fractions_to_sample)
 
     while True:
+        stopping_criterion = False
 
         # While more files need to be read...
         while not stopping_criterion:
