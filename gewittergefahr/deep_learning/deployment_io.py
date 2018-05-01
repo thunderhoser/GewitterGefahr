@@ -94,14 +94,18 @@ def create_storm_images_with_targets(
         print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
 
         if j == 0:
-            (this_predictor_matrix, these_storm_ids, _, _, _,
-             this_storm_to_winds_table, this_storm_to_tornadoes_table
-            ) = storm_images.read_storm_images(image_file_names[j])
+            this_storm_image_dict = storm_images.read_storm_images(
+                image_file_names[j])
+            this_predictor_matrix = this_storm_image_dict[
+                storm_images.STORM_IMAGE_MATRIX_KEY]
 
             target_values = storm_images.extract_one_label_per_storm(
-                storm_ids=these_storm_ids, label_name=target_name,
-                storm_to_winds_table=this_storm_to_winds_table,
-                storm_to_tornadoes_table=this_storm_to_tornadoes_table)
+                storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
+                label_name=target_name,
+                storm_to_winds_table=this_storm_image_dict[
+                    storm_images.STORM_TO_WINDS_TABLE_KEY],
+                storm_to_tornadoes_table=this_storm_image_dict[
+                    storm_images.STORM_TO_TORNADOES_TABLE_KEY])
 
             if num_classes is None:
                 target_param_dict = labels.column_name_to_label_params(
@@ -115,8 +119,10 @@ def create_storm_images_with_targets(
                     num_classes = len(wind_speed_class_cutoffs_kt) + 1
 
         else:
-            this_predictor_matrix, _, _, _, _, _, _ = (
-                storm_images.read_storm_images(image_file_names[j]))
+            this_storm_image_dict = storm_images.read_storm_images(
+                image_file_names[j])
+            this_predictor_matrix = this_storm_image_dict[
+                storm_images.STORM_IMAGE_MATRIX_KEY]
 
         tuple_of_predictor_matrices += (this_predictor_matrix,)
 
@@ -189,9 +195,10 @@ def create_storm_images_sans_targets(
     for j in range(num_predictors):
         print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
 
-        this_predictor_matrix, _, _, _, _, _, _ = (
-            storm_images.read_storm_images(image_file_names[j]))
-        tuple_of_predictor_matrices += (this_predictor_matrix,)
+        this_storm_image_dict = storm_images.read_storm_images(
+            image_file_names[j])
+        tuple_of_predictor_matrices += (
+            this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
     predictor_matrix = dl_utils.stack_predictor_variables(
         tuple_of_predictor_matrices).astype('float32')

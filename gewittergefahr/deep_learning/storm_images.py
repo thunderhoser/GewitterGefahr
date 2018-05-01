@@ -41,6 +41,14 @@ NUM_BOTTOM_PADDING_ROWS_KEY = 'num_padding_rows_at_bottom'
 NUM_LEFT_PADDING_COLS_KEY = 'num_padding_columns_at_left'
 NUM_RIGHT_PADDING_COLS_KEY = 'num_padding_columns_at_right'
 
+STORM_IMAGE_MATRIX_KEY = 'storm_image_matrix'
+STORM_IDS_KEY = 'storm_ids'
+VALID_TIME_KEY = 'unix_time_sec'
+RADAR_FIELD_NAME_KEY = 'radar_field_name'
+RADAR_HEIGHT_KEY = 'radar_height_m_asl'
+STORM_TO_WINDS_TABLE_KEY = 'storm_to_winds_table'
+STORM_TO_TORNADOES_TABLE_KEY = 'storm_to_tornadoes_table'
+
 DEFAULT_NUM_IMAGE_ROWS = 32
 DEFAULT_NUM_IMAGE_COLUMNS = 32
 # MIN_NUM_IMAGE_ROWS = 8
@@ -1043,13 +1051,16 @@ def read_storm_images(pickle_file_name):
     """Reads storm imgs (e.g., created by extract_storm_image) from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: storm_image_matrix: See documentation for `_check_storm_images`.
-    :return: storm_ids: See doc for `_check_storm_images`.
-    :return: unix_time_sec: Valid time.
-    :return: radar_field_name: See doc for `_check_storm_images`.
-    :return: radar_height_m_asl: See doc for `_check_storm_images`.
-    :return: storm_to_winds_table: See doc for `_check_storm_labels`.
-    :return: storm_to_tornadoes_table: See doc for `_check_storm_labels`.
+    :return: storm_image_dict: Dictionary with the following keys.
+    storm_image_dict['storm_image_matrix']: See documentation for
+        `_check_storm_images`.
+    storm_image_dict['storm_ids']: See doc for `_check_storm_images`.
+    storm_image_dict['unix_time_sec']: Valid time.
+    storm_image_dict['radar_field_name']: See doc for `_check_storm_images`.
+    storm_image_dict['radar_height_m_asl']: See doc for `_check_storm_images`.
+    storm_image_dict['storm_to_winds_table']: See doc for `_check_storm_labels`.
+    storm_image_dict['storm_to_tornadoes_table']: See doc for
+        `_check_storm_labels`.
     """
 
     # TODO(thunderhoser): This method should return a dictionary.
@@ -1074,8 +1085,15 @@ def read_storm_images(pickle_file_name):
         storm_to_winds_table=storm_to_winds_table,
         storm_to_tornadoes_table=storm_to_tornadoes_table)
 
-    return (storm_image_matrix, storm_ids, unix_time_sec, radar_field_name,
-            radar_height_m_asl, storm_to_winds_table, storm_to_tornadoes_table)
+    return {
+        STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
+        STORM_IDS_KEY: storm_ids,
+        VALID_TIME_KEY: unix_time_sec,
+        RADAR_FIELD_NAME_KEY: radar_field_name,
+        RADAR_HEIGHT_KEY: radar_height_m_asl,
+        STORM_TO_WINDS_TABLE_KEY: storm_to_winds_table,
+        STORM_TO_TORNADOES_TABLE_KEY: storm_to_tornadoes_table
+    }
 
 
 def extract_storm_labels(
@@ -1146,3 +1164,62 @@ def extract_one_label_per_storm(
     if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
         return storm_to_tornadoes_table[label_name].values[sort_indices]
     return storm_to_winds_table[label_name].values[sort_indices]
+
+
+def attach_labels_to_storm_images(
+        image_file_name_matrix, storm_to_winds_table=None,
+        storm_to_tornadoes_table=None):
+    """Attaches labels (target variables) to each storm-centered radar image.
+
+    N = number of time steps
+    P = number of radar variables (field/height pairs)
+
+    :param image_file_name_matrix: N-by-P numpy array of paths to image files.
+    :param storm_to_winds_table: pandas DataFrame created by
+        `labels.label_wind_speed_for_classification`.  This may be None.
+    :param storm_to_tornadoes_table: pandas DataFrame created by
+        `labels.label_tornado_occurrence`.  This may be None.
+    :raises: ValueError: if `storm_to_winds_table` and
+        `storm_to_tornadoes_table` are both None.
+    """
+
+    if storm_to_winds_table is None and storm_to_tornadoes_table is None:
+        raise ValueError(
+            'At least one of storm_to_winds_table and storm_to_tornadoes_table '
+            'must be given (cannot both be None).')
+
+    error_checking.assert_is_numpy_array(
+        image_file_name_matrix, num_dimensions=2)
+
+    num_times = image_file_name_matrix.shape[0]
+    num_field_height_pairs = image_file_name_matrix.shape[1]
+
+    for i in range(num_times):
+        for j in range(num_field_height_pairs):
+            print 'Reading storm-centered radar images from: "{0:s}"...'.format(
+                image_file_name_matrix[i, j])
+
+            this_storm_image_dict = read_storm_images(
+                image_file_name_matrix[i, j])
+
+            print 'Attaching labels to storm images...'
+            this_storm_to_winds_table, this_storm_to_tornadoes_table = (
+                extract_storm_labels(
+                    storm_ids=this_storm_image_dict[STORM_IDS_KEY],
+                    unix_time_sec=this_storm_image_dict[VALID_TIME_KEY],
+                    storm_to_winds_table=storm_to_winds_table,
+                    storm_to_tornadoes_table=storm_to_tornadoes_table))
+
+            print (
+                'Writing storm images and labels back to: "{0:s}"...\n'
+            ).format(image_file_name_matrix[i, j])
+            write_storm_images(
+                pickle_file_name=image_file_name_matrix[i, j],
+                storm_image_matrix=
+                this_storm_image_dict[STORM_IMAGE_MATRIX_KEY],
+                storm_ids=this_storm_image_dict[STORM_IDS_KEY],
+                unix_time_sec=this_storm_image_dict[VALID_TIME_KEY],
+                radar_field_name=this_storm_image_dict[RADAR_FIELD_NAME_KEY],
+                radar_height_m_asl=this_storm_image_dict[RADAR_HEIGHT_KEY],
+                storm_to_winds_table=this_storm_to_winds_table,
+                storm_to_tornadoes_table=this_storm_to_tornadoes_table)
