@@ -1065,16 +1065,20 @@ def read_storm_images(pickle_file_name):
         `_check_storm_labels`.
     """
 
-    # TODO(thunderhoser): This method should return a dictionary.
-
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_image_matrix = pickle.load(pickle_file_handle)
     storm_ids = pickle.load(pickle_file_handle)
     unix_time_sec = pickle.load(pickle_file_handle)
     radar_field_name = pickle.load(pickle_file_handle)
     radar_height_m_asl = pickle.load(pickle_file_handle)
-    storm_to_winds_table = pickle.load(pickle_file_handle)
-    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
+
+    try:
+        storm_to_winds_table = pickle.load(pickle_file_handle)
+        storm_to_tornadoes_table = pickle.load(pickle_file_handle)
+    except EOFError:
+        storm_to_winds_table = None
+        storm_to_tornadoes_table = None
+
     pickle_file_handle.close()
 
     _check_storm_images(
