@@ -9,6 +9,8 @@ from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import storm_images
 
+EMPTY_STRING = 'None'
+
 SPC_DATE_ARG_NAME = 'spc_date_string'
 STORM_IMAGE_DIR_ARG_NAME = 'inout_storm_image_dir_name'
 WIND_LABEL_DIR_ARG_NAME = 'input_wind_label_dir_name'
@@ -46,12 +48,12 @@ INPUT_ARG_PARSER.add_argument(
     help=STORM_IMAGE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + WIND_LABEL_DIR_ARG_NAME, type=str, required=False, default='',
-    help=WIND_LABEL_DIR_HELP_STRING)
+    '--' + WIND_LABEL_DIR_ARG_NAME, type=str, required=False,
+    default=EMPTY_STRING, help=WIND_LABEL_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TORNADO_LABEL_DIR_ARG_NAME, type=str, required=False, default='',
-    help=TORNADO_LABEL_DIR_HELP_STRING)
+    '--' + TORNADO_LABEL_DIR_ARG_NAME, type=str, required=False,
+    default=EMPTY_STRING, help=TORNADO_LABEL_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_SOURCE_ARG_NAME, type=str, required=True,
@@ -105,7 +107,7 @@ def _run_attach_labels(
                 radar_field_names=storm_images.DEFAULT_MYRORSS_MRMS_FIELD_NAMES,
                 raise_error_if_missing=True))
 
-    if top_wind_label_dir_name == '':
+    if top_wind_label_dir_name == EMPTY_STRING:
         storm_to_winds_table = None
     else:
         wind_label_file_name = labels.find_label_file(
@@ -117,7 +119,7 @@ def _run_attach_labels(
         storm_to_winds_table = labels.read_wind_speed_labels(
             wind_label_file_name)
 
-    if top_tornado_label_dir_name == '':
+    if top_tornado_label_dir_name == EMPTY_STRING:
         storm_to_tornadoes_table = None
     else:
         tornado_label_file_name = labels.find_label_file(
