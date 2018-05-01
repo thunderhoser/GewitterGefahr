@@ -203,7 +203,7 @@ def storm_image_generator_2d(
 
                     if class_fractions_to_sample is None:
                         num_examples_per_batch_by_class = numpy.full(
-                            0, num_classes, dtype=int)
+                            num_classes, 0, dtype=int)
 
                     if all_target_values is None:
                         all_target_values = copy.deepcopy(these_target_values)
