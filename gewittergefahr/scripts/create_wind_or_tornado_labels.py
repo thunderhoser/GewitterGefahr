@@ -118,7 +118,7 @@ INPUT_ARG_PARSER.add_argument(
     help=EVENT_TYPE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + PERCENTILE_LEVEL_ARG_NAME, type=str, required=False,
+    '--' + PERCENTILE_LEVEL_ARG_NAME, type=float, required=False,
     default=DEFAULT_WIND_SPEED_PERCENTILE_LEVEL,
     help=PERCENTILE_LEVEL_HELP_STRING)
 
