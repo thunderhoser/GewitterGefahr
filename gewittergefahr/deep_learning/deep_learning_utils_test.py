@@ -40,7 +40,7 @@ TOY_TARGET_MATRIX_MULTICLASS = keras.utils.to_categorical(
     TOY_TARGET_VALUES_1D_MULTICLASS,
     numpy.max(TOY_TARGET_VALUES_1D_MULTICLASS) + 1)
 
-# The following constants are used to test _class_fractions_to_num_points.
+# The following constants are used to test class_fractions_to_num_points.
 TOY_CLASS_FRACTIONS_BINARY = numpy.array([0.1, 0.9])
 TOY_CLASS_FRACTIONS_TERNARY = numpy.array([0.1, 0.2, 0.7])
 
@@ -366,12 +366,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
                 TOY_TARGET_MATRIX_MULTICLASS, num_dimensions=2, num_classes=2)
 
     def test_class_fractions_to_num_points_binary_large(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 2 classes and number of points is large.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_BINARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
@@ -379,12 +379,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_LARGE))
 
     def test_class_fractions_to_num_points_ternary_large(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 3 classes and number of points is large.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
@@ -392,12 +392,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_LARGE))
 
     def test_class_fractions_to_num_points_binary_medium(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 2 classes and number of points is medium.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_BINARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
@@ -405,12 +405,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_MEDIUM))
 
     def test_class_fractions_to_num_points_ternary_medium(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 3 classes and number of points is medium.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
@@ -418,12 +418,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_MEDIUM))
 
     def test_class_fractions_to_num_points_binary_small(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 2 classes and number of points is small.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_BINARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
@@ -431,12 +431,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_SMALL))
 
     def test_class_fractions_to_num_points_ternary_small(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 3 classes and number of points is small.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
@@ -444,12 +444,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_SMALL))
 
     def test_class_fractions_to_num_points_binary_xsmall(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 2 classes and number of points is extra small.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_BINARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 
@@ -457,12 +457,12 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_XSMALL))
 
     def test_class_fractions_to_num_points_ternary_xsmall(self):
-        """Ensures correct output from _class_fractions_to_num_points.
+        """Ensures correct output from class_fractions_to_num_points.
 
         In this case, there are 3 classes and number of points is extra small.
         """
 
-        this_num_points_by_class = dl_utils._class_fractions_to_num_points(
+        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
             class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 

@@ -44,7 +44,7 @@ DEFAULT_NORMALIZATION_DICT = {
 }
 
 
-def _class_fractions_to_num_points(class_fractions, num_points_to_sample):
+def class_fractions_to_num_points(class_fractions, num_points_to_sample):
     """For each class, converts fraction of points to number of points.
 
     :param class_fractions: length-K numpy array, where the [k]th element is the
@@ -52,9 +52,26 @@ def _class_fractions_to_num_points(class_fractions, num_points_to_sample):
     :param num_points_to_sample: Number of points to sample.
     :return: num_points_by_class: length-K numpy array, where the [k]th element
         is the number of points to sample for the [k]th class.
+    :raises: ValueError: if sum(class_fractions) != 1.
     """
 
+    error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(class_fractions, 0.)
+    error_checking.assert_is_leq_numpy_array(class_fractions, 1.)
+
+    sum_of_class_fractions = numpy.sum(class_fractions)
+    absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
+    if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
+        error_string = (
+            '\n\n{0:s}\nSum of class fractions (shown above) should be 1.  '
+            'Instead, got {1:.4f}.').format(str(class_fractions),
+                                            sum_of_class_fractions)
+        raise ValueError(error_string)
+
     num_classes = len(class_fractions)
+    error_checking.assert_is_integer(num_points_to_sample)
+    error_checking.assert_is_geq(num_points_to_sample, num_classes)
+
     num_points_by_class = numpy.full(num_classes, -1, dtype=int)
 
     for k in range(num_classes - 1):
@@ -274,28 +291,15 @@ def sample_points_by_class(
     :param test_mode: Boolean flag.  Always leave this False.
     :return: indices_to_keep: 1-D numpy array with indices of data points to
         keep.  These are indices into `target_values`.
-    :raises: ValueError: if sum(class_fractions) != 1.
     """
 
-    error_checking.assert_is_numpy_array(class_fractions, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(class_fractions, 0.)
-    error_checking.assert_is_leq_numpy_array(class_fractions, 1.)
-
-    sum_of_class_fractions = numpy.sum(class_fractions)
-    absolute_diff = numpy.absolute(sum_of_class_fractions - 1.)
-    if absolute_diff > TOLERANCE_FOR_FREQUENCY_SUM:
-        error_string = (
-            '\n\n{0:s}\nSum of class fractions (shown above) should be 1.  '
-            'Instead, got {1:.4f}.').format(str(class_fractions),
-                                            sum_of_class_fractions)
-        raise ValueError(error_string)
+    num_desired_points_by_class = class_fractions_to_num_points(
+        class_fractions=class_fractions,
+        num_points_to_sample=num_points_to_sample)
 
     num_classes = len(class_fractions)
     check_target_values(
         target_values, num_dimensions=1, num_classes=num_classes)
-
-    error_checking.assert_is_integer(num_points_to_sample)
-    error_checking.assert_is_geq(num_points_to_sample, num_classes)
 
     indices_by_class = [
         numpy.where(target_values == k)[0] for k in range(num_classes)]
@@ -304,17 +308,13 @@ def sample_points_by_class(
     if numpy.any(num_avail_points_by_class == 0):
         return None
 
-    num_desired_points_by_class = _class_fractions_to_num_points(
-        class_fractions=class_fractions,
-        num_points_to_sample=num_points_to_sample)
-
     if numpy.any(num_avail_points_by_class < num_desired_points_by_class):
         avail_to_desired_ratio_by_class = num_avail_points_by_class.astype(
             float) / num_desired_points_by_class
         num_points_to_sample = int(numpy.floor(
             num_points_to_sample * numpy.min(avail_to_desired_ratio_by_class)))
 
-        num_desired_points_by_class = _class_fractions_to_num_points(
+        num_desired_points_by_class = class_fractions_to_num_points(
             class_fractions=class_fractions,
             num_points_to_sample=num_points_to_sample)
 
