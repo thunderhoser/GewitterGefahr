@@ -86,6 +86,18 @@ THIS_DICTIONARY = {
 }
 LABEL_TABLE = pandas.DataFrame.from_dict(THIS_DICTIONARY)
 
+# The following constants are used to test find_label_file.
+TOP_DIRECTORY_NAME = 'labels'
+FILE_TIME_UNIX_SEC = 1517523991  # 222631 1 Feb 2018
+FILE_SPC_DATE_STRING = '20180201'
+
+WIND_LABELS_ONE_TIME_FILE_NAME = (
+    'labels/2018/20180201/wind_labels_2018-02-01-222631.p')
+WIND_LABELS_SPC_DATE_FILE_NAME = 'labels/2018/wind_labels_20180201.p'
+TORNADO_LABELS_ONE_TIME_FILE_NAME = (
+    'labels/2018/20180201/tornado_labels_2018-02-01-222631.p')
+TORNADO_LABELS_SPC_DATE_FILE_NAME = 'labels/2018/tornado_labels_20180201.p'
+
 
 class LabelsTests(unittest.TestCase):
     """Each method is a unit test for labels.py."""
@@ -258,6 +270,58 @@ class LabelsTests(unittest.TestCase):
             label_table=LABEL_TABLE,
             label_column_names=[WIND_CLASSIFICATION_LABEL_COLUMN_NAME])
         self.assertTrue(these_column_names == [NUM_WIND_OBS_COLUMN_NAME])
+
+    def test_find_label_file_one_time_wind(self):
+        """Ensures correct output from find_label_file.
+
+        In this case, event type is damaging wind and file contains data for one
+        time step.
+        """
+
+        this_file_name = labels.find_label_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
+            raise_error_if_missing=False, unix_time_sec=FILE_TIME_UNIX_SEC)
+        self.assertTrue(this_file_name == WIND_LABELS_ONE_TIME_FILE_NAME)
+
+    def test_find_label_file_one_time_tornado(self):
+        """Ensures correct output from find_label_file.
+
+        In this case, event type is tornado and file contains data for one time
+        step.
+        """
+
+        this_file_name = labels.find_label_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
+            raise_error_if_missing=False, unix_time_sec=FILE_TIME_UNIX_SEC)
+        self.assertTrue(this_file_name == TORNADO_LABELS_ONE_TIME_FILE_NAME)
+
+    def test_find_label_file_spc_date_wind(self):
+        """Ensures correct output from find_label_file.
+
+        In this case, event type is damaging wind and file contains data for one
+        SPC date.
+        """
+
+        this_file_name = labels.find_label_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
+            raise_error_if_missing=False, spc_date_string=FILE_SPC_DATE_STRING)
+        self.assertTrue(this_file_name == WIND_LABELS_SPC_DATE_FILE_NAME)
+
+    def test_find_label_file_spc_date_tornado(self):
+        """Ensures correct output from find_label_file.
+
+        In this case, event type is tornado and file contains data for one SPC
+        date.
+        """
+
+        this_file_name = labels.find_label_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
+            raise_error_if_missing=False, spc_date_string=FILE_SPC_DATE_STRING)
+        self.assertTrue(this_file_name == TORNADO_LABELS_SPC_DATE_FILE_NAME)
 
 
 if __name__ == '__main__':

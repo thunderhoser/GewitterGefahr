@@ -6,14 +6,17 @@ max wind speed and tornado occurrence.
 """
 
 import pickle
+import os.path
 import numpy
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import classification_utils as classifn_utils
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
 REQUIRED_STORM_INPUT_COLUMNS = [
@@ -908,6 +911,59 @@ def label_tornado_occurrence(
 
     return storm_to_tornadoes_table.assign(
         **{label_column_name: tornado_classes})
+
+
+def find_label_file(
+        top_directory_name, event_type_string, raise_error_if_missing=True,
+        unix_time_sec=None, spc_date_string=None):
+    """Finds label file for either one time step or one SPC date.
+
+    In other words, the file should be one written by `write_wind_speed_labels`
+    or `write_tornado_labels`.
+
+    :param top_directory_name: Name of top-level directory with label files.
+    :param event_type_string: Either "wind" or "tornado".
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.
+    :param unix_time_sec: Valid time.
+    :param spc_date_string: [used only if unix_time_sec is None]
+        SPC date (format "yyyymmdd").
+    :return: label_file_name: File path.  If file is missing and
+        raise_error_if_missing = False, this is the *expected* path.
+    :raises: ValueError: if file is missing and raise_error_if_missing = True.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    events2storms.check_event_type(event_type_string)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if unix_time_sec is None:
+        time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+
+        if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
+            label_file_name = '{0:s}/{1:s}/wind_labels_{2:s}.p'.format(
+                top_directory_name, spc_date_string[:4], spc_date_string)
+        else:
+            label_file_name = '{0:s}/{1:s}/tornado_labels_{2:s}.p'.format(
+                top_directory_name, spc_date_string[:4], spc_date_string)
+    else:
+        spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
+
+        if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
+            label_file_name = '{0:s}/{1:s}/{2:s}/wind_labels_{3:s}.p'.format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+        else:
+            label_file_name = '{0:s}/{1:s}/{2:s}/tornado_labels_{3:s}.p'.format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+
+    if raise_error_if_missing and not os.path.isfile(label_file_name):
+        error_string = 'Cannot find label file.  Expected at: "{0:s}"'.format(
+            label_file_name)
+        raise ValueError(error_string)
+
+    return label_file_name
 
 
 def write_wind_speed_labels(storm_to_winds_table, pickle_file_name):
