@@ -75,9 +75,9 @@ def _check_input_args_for_conv_layer(
     error_checking.assert_is_integer(num_output_filters)
     error_checking.assert_is_geq(num_output_filters, 2)
     error_checking.assert_is_integer(num_kernel_rows)
-    error_checking.assert_is_geq(num_kernel_rows, 3)
+    error_checking.assert_is_geq(num_kernel_rows, 2)
     error_checking.assert_is_integer(num_kernel_columns)
-    error_checking.assert_is_geq(num_kernel_columns, 3)
+    error_checking.assert_is_geq(num_kernel_columns, 2)
 
     error_checking.assert_is_integer(num_rows_per_stride)
     error_checking.assert_is_greater(num_rows_per_stride, 0)
@@ -100,7 +100,7 @@ def _check_input_args_for_conv_layer(
     else:
         num_dimensions = 3
         error_checking.assert_is_integer(num_kernel_depths)
-        error_checking.assert_is_geq(num_kernel_depths, 3)
+        error_checking.assert_is_geq(num_kernel_depths, 2)
 
         error_checking.assert_is_integer(num_depths_per_stride)
         error_checking.assert_is_greater(num_depths_per_stride, 0)
@@ -143,9 +143,9 @@ def _check_input_args_for_pooling_layer(
     """
 
     error_checking.assert_is_integer(num_rows_in_window)
-    error_checking.assert_is_geq(num_rows_in_window, 2)
+    error_checking.assert_is_geq(num_rows_in_window, 1)
     error_checking.assert_is_integer(num_columns_in_window)
-    error_checking.assert_is_geq(num_columns_in_window, 2)
+    error_checking.assert_is_geq(num_columns_in_window, 1)
 
     error_checking.assert_is_string(pooling_type)
     if pooling_type not in VALID_POOLING_TYPES:
@@ -159,7 +159,7 @@ def _check_input_args_for_pooling_layer(
     else:
         num_dimensions = 3
         error_checking.assert_is_integer(num_depths_in_window)
-        error_checking.assert_is_geq(num_depths_in_window, 2)
+        error_checking.assert_is_geq(num_depths_in_window, 1)
 
     if (num_rows_per_stride is None or num_columns_per_stride is None or
             num_depths_per_stride is None):

@@ -7,7 +7,7 @@ E = number of examples
 M = number of pixel rows per image
 N = number of pixel columns per image
 D = number of pixel depths per image
-P = number of channels (predictor variables) per image
+C = number of channels (predictor variables) per image
 """
 
 import copy
@@ -147,7 +147,7 @@ def check_target_values(target_values, num_dimensions, num_classes):
 def stack_predictor_variables(tuple_of_3d_predictor_matrices):
     """Stacks images with different predictor variables.
 
-    P = number of channels (predictor variables)
+    C = number of channels (predictor variables)
 
     :param tuple_of_3d_predictor_matrices: length-C tuple, where each element is
         an E-by-M-by-N numpy array of predictor images.
@@ -204,7 +204,7 @@ def normalize_predictor_matrix(
     x_max = climatological max for x (taken from normalization_dict)
 
     :param predictor_matrix: numpy array of predictor images.  Dimensions may be
-        E x M x N x C or E x M x N x T x C.
+        E x M x N x C or E x M x N x D x C.
     :param normalize_by_batch: Boolean flag.  If True, x_min and x_max are based
         on the batch.  If False, x_min and x_max are based on climatology.
     :param predictor_names: [used only if normalize_by_batch = False]

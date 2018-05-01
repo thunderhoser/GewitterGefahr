@@ -9,7 +9,7 @@ E = number of examples
 M = number of pixel rows per image
 N = number of pixel columns per image
 D = number of pixel depths per image
-P = number of channels (predictor variables) per image
+C = number of channels (predictor variables) per image
 """
 
 import copy
@@ -55,7 +55,7 @@ def storm_image_generator_2d(
     """Generates examples with 2-D storm-centered radar images.
 
     F = number of radar fields
-    P = number of channels = num predictor variables = num field/height pairs
+    C = number of channels = num predictor variables = num field/height pairs
 
     :param top_directory_name: Name of top-level directory with storm-centered
         radar images.
@@ -84,7 +84,7 @@ def storm_image_generator_2d(
         points (examples) to keep from each class.  This can be used to achieve
         the desired class balance.  If you don't care about class balance, leave
         this as None.
-    :return: predictor_matrix: E-by-M-by-N-by-P numpy array of storm-centered
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
     :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
         technically the type is "float64").  If target_matrix[i, k] = 1, the
@@ -157,19 +157,21 @@ def storm_image_generator_2d(
             tuple_of_predictor_matrices = ()
 
             for j in range(num_predictors):
+
+                # Read radar images for the [j]th predictor at the [i]th
+                # time (where i = image_time_index).
                 print 'Reading data from: "{0:s}"...'.format(
                     image_file_name_matrix[image_time_index, j])
 
+                this_storm_image_dict = storm_images.read_storm_images(
+                    image_file_name_matrix[image_time_index, j])
+                this_field_predictor_matrix = this_storm_image_dict[
+                    storm_images.STORM_IMAGE_MATRIX_KEY]
+
                 if j == 0:
 
-                    # Read radar images for the [j]th predictor at the [i]th
-                    # time and target values for the [i]th time (where i =
+                    # Read target values for the [i]th time (where i =
                     # image_time_index).
-                    this_storm_image_dict = storm_images.read_storm_images(
-                        image_file_name_matrix[image_time_index, j])
-                    this_field_predictor_matrix = this_storm_image_dict[
-                        storm_images.STORM_IMAGE_MATRIX_KEY]
-
                     these_target_values = (
                         storm_images.extract_one_label_per_storm(
                             storm_ids=this_storm_image_dict[
@@ -196,15 +198,6 @@ def storm_image_generator_2d(
                     else:
                         all_target_values = numpy.concatenate((
                             all_target_values, these_target_values))
-
-                else:
-
-                    # Read radar images for the [j]th predictor at the [i]th
-                    # time (where i = image_time_index).
-                    this_storm_image_dict = storm_images.read_storm_images(
-                        image_file_name_matrix[image_time_index, j])
-                    this_field_predictor_matrix = this_storm_image_dict[
-                        storm_images.STORM_IMAGE_MATRIX_KEY]
 
                 tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
@@ -288,7 +281,7 @@ def storm_image_generator_3d(
     """Generates examples with 3-D storm-centered radar images.
 
     F = number of radar fields
-    P = number of channels = num predictor variables = num field/height pairs
+    C = number of channels = num predictor variables = num field/height pairs
 
     :param top_directory_name: See documentation for `storm_image_generator_3d`.
     :param radar_source: Same.
@@ -307,7 +300,7 @@ def storm_image_generator_3d(
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
     :param class_fractions_to_sample: Same.
-    :return: predictor_matrix: E-by-M-by-N-by-D-by-P numpy array of
+    :return: predictor_matrix: E-by-M-by-N-by-D-by-C numpy array of
         storm-centered radar images.
     :return: target_matrix: See doc for `storm_image_generator_3d`.
     """
@@ -382,16 +375,17 @@ def storm_image_generator_3d(
                     print 'Reading data from: "{0:s}"...'.format(
                         image_file_name_matrix[image_time_index, j, k])
 
+                    # Read images for the [j]th predictor at the [k]th height
+                    # and [i]th time (where i = image_time_index).
+                    this_storm_image_dict = storm_images.read_storm_images(
+                        image_file_name_matrix[image_time_index, j, k])
+                    this_3d_predictor_matrix = this_storm_image_dict[
+                        storm_images.STORM_IMAGE_MATRIX_KEY]
+
                     if j == k == 0:
 
-                        # Read images for the [j]th predictor at the [k]th
-                        # height and [i]th time, as well as target values for
-                        # the [i]th time (where i = image_time_index).
-                        this_storm_image_dict = storm_images.read_storm_images(
-                            image_file_name_matrix[image_time_index, j, k])
-                        this_3d_predictor_matrix = this_storm_image_dict[
-                            storm_images.STORM_IMAGE_MATRIX_KEY]
-
+                        # Read target values for the [i]th time (where i =
+                        # image_time_index).
                         these_target_values = (
                             storm_images.extract_one_label_per_storm(
                                 storm_ids=this_storm_image_dict[
@@ -420,15 +414,6 @@ def storm_image_generator_3d(
                         else:
                             all_target_values = numpy.concatenate((
                                 all_target_values, these_target_values))
-
-                    else:
-
-                        # Read images for the [j]th predictor at the [k]th
-                        # height and [i]th time (where i = image_time_index).
-                        this_storm_image_dict = storm_images.read_storm_images(
-                            image_file_name_matrix[image_time_index, j, k])
-                        this_3d_predictor_matrix = this_storm_image_dict[
-                            storm_images.STORM_IMAGE_MATRIX_KEY]
 
                     tuple_of_3d_predictor_matrices += (
                         this_3d_predictor_matrix,)

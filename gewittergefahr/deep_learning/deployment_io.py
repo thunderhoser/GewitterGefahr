@@ -8,7 +8,8 @@ K = number of classes (possible values of target variable)
 E = number of examples
 M = number of pixel rows per image
 N = number of pixel columns per image
-P = number of channels (predictor variables) per image
+D = number of pixel depths per image
+C = number of channels (predictor variables) per image
 """
 
 import numpy
@@ -20,18 +21,22 @@ from gewittergefahr.gg_utils import gridrad_utils
 from gewittergefahr.gg_utils import labels
 
 
-def create_storm_images_with_targets(
+def create_2d_storm_images_one_time(
         top_directory_name, image_time_unix_sec, radar_source,
-        radar_field_names, target_name, radar_heights_m_asl=None,
+        radar_field_names, target_name=None, radar_heights_m_asl=None,
         reflectivity_heights_m_asl=None,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT):
     """Creates examples for a single image time.
 
-    Each example consists of storm-centered radar images (predictors) and one
-    target value.
+    Each example consists of the following:
+
+    - Predictors: 2-D storm-centered radar images.  One for each storm object
+      and predictor variable (field/height pair).  The two dimensions are x and
+      y (longitude and latitude).
+    - Targets (optional): One target value for each storm object.
 
     F = number of radar fields
-    P = number of channels = num predictor variables = num field/height pairs
+    C = num image channels = num predictor variables = num field/height pairs
 
     :param top_directory_name: Name of top-level directory with storm-centered
         radar images.
@@ -39,17 +44,17 @@ def create_storm_images_with_targets(
     :param radar_source: Data source (must be accepted by
         `radar_utils.check_data_source`).
     :param radar_field_names: length-F list with names of radar fields.
-    :param target_name: Name of target variable.
+    :param target_name: Name of target variable.  If None, this method will
+        return only predictors, not targets.
     :param radar_heights_m_asl: [used only if radar_source = "gridrad"]
         1-D numpy array of radar heights (metres above sea level).  These apply
         to each field.
     :param reflectivity_heights_m_asl: [used only if radar_source != "gridrad"]
         1-D numpy array of heights (metres above sea level) for
-        "reflectivity_dbz".  If "reflectivity_dbz" is not in the list
-        `radar_field_names`, you can leave this as None.
+        "reflectivity_dbz".
     :param normalization_dict: Used to normalize predictor values (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
-    :return: predictor_matrix: E-by-M-by-N-by-P numpy array of storm-centered
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
     :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
         technically the type is "float64").  If target_matrix[i, k] = 1, the
@@ -93,12 +98,12 @@ def create_storm_images_with_targets(
     for j in range(num_predictors):
         print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
 
-        if j == 0:
-            this_storm_image_dict = storm_images.read_storm_images(
-                image_file_names[j])
-            this_predictor_matrix = this_storm_image_dict[
-                storm_images.STORM_IMAGE_MATRIX_KEY]
+        this_storm_image_dict = storm_images.read_storm_images(
+            image_file_names[j])
+        this_predictor_matrix = this_storm_image_dict[
+            storm_images.STORM_IMAGE_MATRIX_KEY]
 
+        if j == 0 and target_name is not None:
             target_values = storm_images.extract_one_label_per_storm(
                 storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
                 label_name=target_name,
@@ -118,12 +123,6 @@ def create_storm_images_with_targets(
                 else:
                     num_classes = len(wind_speed_class_cutoffs_kt) + 1
 
-        else:
-            this_storm_image_dict = storm_images.read_storm_images(
-                image_file_names[j])
-            this_predictor_matrix = this_storm_image_dict[
-                storm_images.STORM_IMAGE_MATRIX_KEY]
-
         tuple_of_predictor_matrices += (this_predictor_matrix,)
 
     predictor_matrix = dl_utils.stack_predictor_variables(
@@ -133,36 +132,49 @@ def create_storm_images_with_targets(
         predictor_names=field_name_by_predictor,
         normalization_dict=normalization_dict)
 
-    target_matrix = keras.utils.to_categorical(target_values, num_classes)
-    class_fractions = numpy.mean(target_matrix, axis=0)
-    print 'Fraction of target values in each class:\n{0:s}\n'.format(
-        str(class_fractions))
+    if target_name is None:
+        target_matrix = None
+    else:
+        target_matrix = keras.utils.to_categorical(target_values, num_classes)
+        class_fractions = numpy.mean(target_matrix, axis=0)
+        print 'Fraction of target values in each class:\n{0:s}\n'.format(
+            str(class_fractions))
 
     return predictor_matrix, target_matrix
 
 
-def create_storm_images_sans_targets(
+def create_3d_storm_images_one_time(
         top_directory_name, image_time_unix_sec, radar_source,
-        radar_field_names, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None,
+        radar_field_names, radar_heights_m_asl, target_name=None,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT):
     """Creates examples for a single image time.
 
-    Each example consists only of storm-centered radar images (predictors), with
-    no target value.
+    Each example consists of the following:
 
-    :param top_directory_name: See documentation for
-        `create_storm_images_with_targets`.
-    :param image_time_unix_sec: Same.
-    :param radar_source: Same.
-    :param radar_field_names: Same.
-    :param radar_heights_m_asl: Same.
-    :param reflectivity_heights_m_asl: Same.
-    :param normalization_dict: Same.
-    :return: predictor_matrix: Same.
+    - Predictors: 3-D storm-centered radar images.  One for each storm object,
+      radar field, and radar height.  The three dimensions are x, y, and z
+      (longitude, latitude, height).
+    - Targets (optional): One target value for each storm object.
+
+    C = number of radar fields
+    D = number of radar heights
+
+    :param top_directory_name: Name of top-level directory with storm-centered
+        radar images.
+    :param image_time_unix_sec: Image time.
+    :param radar_source: Data source (must be accepted by
+        `radar_utils.check_data_source`).
+    :param radar_field_names: length-C list with names of radar fields.
+    :param radar_heights_m_asl: length-D numpy array of radar heights (metres
+        above sea level).  These apply to each field.
+    :param target_name: Name of target variable.
+    :param normalization_dict: Used to normalize predictor values (see doc for
+        `deep_learning_utils.normalize_predictor_matrix`).
+    :return: predictor_matrix: E-by-M-by-N-by-D-by-C numpy array of
+        storm-centered radar images.
+    :return: target_matrix: See documentation for
+        `create_3d_storm_images_one_time`.
     """
-
-    radar_utils.check_data_source(radar_source)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
@@ -173,38 +185,81 @@ def create_storm_images_sans_targets(
             radar_heights_m_asl=radar_heights_m_asl,
             raise_error_if_missing=True)
 
-        field_name_by_predictor, _ = (
-            gridrad_utils.fields_and_refl_heights_to_pairs(
-                field_names=radar_field_names,
-                heights_m_asl=radar_heights_m_asl))
+        image_file_name_matrix = image_file_name_matrix[0, ...]
 
     else:
-        image_file_name_matrix, _, field_name_by_predictor, _ = (
+        radar_field_names = [radar_utils.REFL_NAME]
+
+        image_file_name_matrix, _, _, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_directory_name,
                 start_time_unix_sec=image_time_unix_sec,
                 end_time_unix_sec=image_time_unix_sec,
                 radar_source=radar_source, radar_field_names=radar_field_names,
-                reflectivity_heights_m_asl=reflectivity_heights_m_asl,
+                reflectivity_heights_m_asl=radar_heights_m_asl,
                 raise_error_if_missing=True))
 
-    num_predictors = len(field_name_by_predictor)
-    image_file_names = numpy.reshape(image_file_name_matrix, num_predictors)
-    tuple_of_predictor_matrices = ()
+        num_heights = len(radar_heights_m_asl)
+        image_file_name_matrix = numpy.reshape(
+            image_file_name_matrix[0, ...], (1, num_heights))
 
-    for j in range(num_predictors):
-        print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
+    num_fields = len(radar_field_names)
+    num_heights = len(radar_heights_m_asl)
 
-        this_storm_image_dict = storm_images.read_storm_images(
-            image_file_names[j])
-        tuple_of_predictor_matrices += (
-            this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
+    num_classes = None
+    target_values = None
+    tuple_of_4d_predictor_matrices = ()
 
-    predictor_matrix = dl_utils.stack_predictor_variables(
-        tuple_of_predictor_matrices).astype('float32')
+    for k in range(num_heights):
+        tuple_of_3d_predictor_matrices = ()
+
+        for j in range(num_fields):
+            print 'Reading data from: "{0:s}"...'.format(
+                image_file_name_matrix[j, k])
+
+            this_storm_image_dict = storm_images.read_storm_images(
+                image_file_name_matrix[j, k])
+            this_predictor_matrix = this_storm_image_dict[
+                storm_images.STORM_IMAGE_MATRIX_KEY]
+
+            if j == k == 0 and target_name is not None:
+                target_values = storm_images.extract_one_label_per_storm(
+                    storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
+                    label_name=target_name,
+                    storm_to_winds_table=this_storm_image_dict[
+                        storm_images.STORM_TO_WINDS_TABLE_KEY],
+                    storm_to_tornadoes_table=this_storm_image_dict[
+                        storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+
+                if num_classes is None:
+                    target_param_dict = labels.column_name_to_label_params(
+                        target_name)
+                    wind_speed_class_cutoffs_kt = target_param_dict[
+                        labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
+
+                    if wind_speed_class_cutoffs_kt is None:
+                        num_classes = 2
+                    else:
+                        num_classes = len(wind_speed_class_cutoffs_kt) + 1
+
+            tuple_of_3d_predictor_matrices += (this_predictor_matrix,)
+
+        tuple_of_4d_predictor_matrices += (dl_utils.stack_predictor_variables(
+            tuple_of_3d_predictor_matrices),)
+
+    predictor_matrix = dl_utils.stack_heights(
+        tuple_of_4d_predictor_matrices).astype('float32')
     predictor_matrix = dl_utils.normalize_predictor_matrix(
         predictor_matrix=predictor_matrix, normalize_by_batch=False,
-        predictor_names=field_name_by_predictor,
+        predictor_names=radar_field_names,
         normalization_dict=normalization_dict)
 
-    return predictor_matrix
+    if target_name is not None:
+        target_matrix = None
+    else:
+        target_matrix = keras.utils.to_categorical(target_values, num_classes)
+        class_fractions = numpy.mean(target_matrix, axis=0)
+        print 'Fraction of target values in each class:\n{0:s}\n'.format(
+            str(class_fractions))
+
+    return predictor_matrix, target_matrix
