@@ -1498,6 +1498,9 @@ def share_linkages_across_spc_dates(
 
         print 'Copying file from "{0:s}" to "{1:s}"...'.format(
             orig_linkage_file_names[0], new_linkage_file_names[0])
+
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=new_linkage_file_names[0])
         shutil.copyfile(orig_linkage_file_names[0], new_linkage_file_names[0])
         return new_linkage_file_names
 
