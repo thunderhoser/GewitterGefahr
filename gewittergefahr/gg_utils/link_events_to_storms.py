@@ -14,7 +14,9 @@ a storm object.
 
 import copy
 import os.path
+import shutil
 import pickle
+import warnings
 import numpy
 import pandas
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
@@ -1484,6 +1486,20 @@ def share_linkages_across_spc_dates(
             top_directory_name=top_output_dir_name,
             event_type_string=event_type_string, raise_error_if_missing=False,
             spc_date_string=spc_date_strings[i])
+
+    if num_spc_dates == 1:
+        warning_string = (
+            'There is only one SPC date ("{0:s}"), so nothing to do.'
+        ).format(spc_date_strings[0])
+        warnings.warn(warning_string)
+
+        if orig_linkage_file_names[0] == new_linkage_file_names[0]:
+            return new_linkage_file_names
+
+        print 'Copying file from "{0:s}" to "{1:s}"...'.format(
+            orig_linkage_file_names[0], new_linkage_file_names[0])
+        shutil.copyfile(orig_linkage_file_names[0], new_linkage_file_names[0])
+        return new_linkage_file_names
 
     # Main loop.
     storm_to_events_table_by_date = [pandas.DataFrame()] * num_spc_dates
