@@ -16,6 +16,7 @@ from gewittergefahr.gg_utils import gridrad_utils
 from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
+from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import time_conversion
@@ -209,22 +210,25 @@ def _check_storm_images(
              storm_image_matrix.shape[2]]))
 
 
-def _check_storm_to_events_table(
-        storm_ids, unix_time_sec, storm_to_events_table):
-    """Checks storm images and associated events (hazard labels) for errors.
+def _check_storm_labels(
+        storm_ids, unix_time_sec, storm_to_winds_table,
+        storm_to_tornadoes_table):
+    """Checks storm labels (target variables) for errors.
 
     :param storm_ids: 1-D list of storm IDs (strings).
     :param unix_time_sec: Valid time.
-    :param storm_to_events_table: pandas DataFrame created by
-        `labels.label_wind_speed_for_regression`,
-        `labels.label_wind_speed_for_classification`, or
-        `labels.label_tornado_occurrence`.
-    :return: storm_to_events_table: Same as input, but containing only storms
-        with ID belonging to `storm_ids` and valid time = `unix_time_sec`.
-    :raises: TypeError: if `storm_to_events_table` contains neither wind-speed
-        nor tornado labels.
-    :raises: ValueError: if any storm object is not found in
-        `storm_to_events_table`.
+    :param storm_to_winds_table: pandas DataFrame created by
+        `labels.label_wind_speed_for_classification`.  This may be None.
+    :param storm_to_tornadoes_table: pandas DataFrame created by
+        `labels.label_tornado_occurrence`.  This may be None.
+    :return: relevant_storm_to_winds_table: Same as input, but containing only
+        the given storm objects (with ID belonging to `storm_ids` and valid time
+        of `unix_time_sec`).  If input is None, this is None.
+    :return: relevant_storm_to_tornadoes_table: See above.
+    :raises: ValueError: if `storm_to_winds_table` is not None and is missing a
+        storm object.
+    :raises: ValueError: if `storm_to_tornadoes_table` is not None and is
+        missing a storm object.
     """
 
     error_checking.assert_is_string_list(storm_ids)
@@ -232,36 +236,53 @@ def _check_storm_to_events_table(
         numpy.array(storm_ids), num_dimensions=1)
     error_checking.assert_is_integer(unix_time_sec)
 
-    try:
-        labels.check_wind_speed_label_table(storm_to_events_table)
-        has_wind_speeds = True
-    except TypeError:
-        has_wind_speeds = False
-
-    try:
-        labels.check_tornado_label_table(storm_to_events_table)
-        has_tornadoes = True
-    except TypeError:
-        has_tornadoes = False
-
-    if not (has_wind_speeds or has_tornadoes):
-        raise TypeError('storm_to_events_table contains neither wind-speed nor '
-                        'tornado labels.')
-
-    storm_to_events_table = storm_to_events_table.loc[
-        storm_to_events_table[tracking_utils.TIME_COLUMN] == unix_time_sec &
-        storm_to_events_table[tracking_utils.STORM_ID_COLUMN].isin(storm_ids)]
-
     num_storm_objects = len(storm_ids)
-    num_labeled_storm_objects = len(storm_to_events_table.index)
-    if num_storm_objects != num_labeled_storm_objects:
-        error_string = (
-            'Found only {0:d} of {1:d} desired storm objects in '
-            'storm_to_events_table.').format(num_labeled_storm_objects,
-                                             num_storm_objects)
-        raise ValueError(error_string)
 
-    return storm_to_events_table
+    if storm_to_winds_table is None:
+        relevant_storm_to_winds_table = None
+    else:
+        labels.check_wind_speed_label_table(storm_to_winds_table)
+
+        relevant_storm_to_winds_table = storm_to_winds_table.loc[
+            storm_to_winds_table[tracking_utils.TIME_COLUMN] == unix_time_sec]
+        relevant_storm_to_winds_table = relevant_storm_to_winds_table.loc[
+            relevant_storm_to_winds_table[tracking_utils.STORM_ID_COLUMN].isin(
+                storm_ids)]
+
+        num_labeled_objects = len(relevant_storm_to_winds_table.index)
+        if num_labeled_objects < num_storm_objects:
+            time_string = time_conversion.unix_sec_to_string(
+                unix_time_sec, TIME_FORMAT)
+            error_string = (
+                'Expected {0:d} storm objects in wind-linkage table for {1:s}.'
+                '  Instead, got {2:d} storm objects.'
+            ).format(num_storm_objects, time_string, num_labeled_objects)
+            raise ValueError(error_string)
+
+    if storm_to_tornadoes_table is None:
+        relevant_storm_to_tornadoes_table = None
+    else:
+        labels.check_tornado_label_table(storm_to_tornadoes_table)
+
+        relevant_storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+            storm_to_tornadoes_table[tracking_utils.TIME_COLUMN] ==
+            unix_time_sec]
+        relevant_storm_to_tornadoes_table = (
+            relevant_storm_to_tornadoes_table.loc[
+                relevant_storm_to_tornadoes_table[
+                    tracking_utils.STORM_ID_COLUMN].isin(storm_ids)])
+
+        num_labeled_objects = len(relevant_storm_to_tornadoes_table.index)
+        if num_labeled_objects < num_storm_objects:
+            time_string = time_conversion.unix_sec_to_string(
+                unix_time_sec, TIME_FORMAT)
+            error_string = (
+                'Expected {0:d} storm objects in tornado-linkage table for '
+                '{1:s}.  Instead, got {2:d} storm objects.'
+            ).format(num_storm_objects, time_string, num_labeled_objects)
+            raise ValueError(error_string)
+
+    return relevant_storm_to_winds_table, relevant_storm_to_tornadoes_table
 
 
 def _find_many_files_one_spc_date(
@@ -982,7 +1003,8 @@ def find_many_files_gridrad(
 
 def write_storm_images(
         pickle_file_name, storm_image_matrix, storm_ids, unix_time_sec,
-        radar_field_name, radar_height_m_asl, storm_to_events_table=None):
+        radar_field_name, radar_height_m_asl, storm_to_winds_table=None,
+        storm_to_tornadoes_table=None):
     """Writes storm imgs (e.g., created by extract_storm_image) to Pickle file.
 
     :param pickle_file_name: Path to output file.
@@ -991,11 +1013,8 @@ def write_storm_images(
     :param unix_time_sec: Valid time.
     :param radar_field_name: See doc for `_check_storm_images`.
     :param radar_height_m_asl: See doc for `_check_storm_images`.
-    :param storm_to_events_table: pandas DataFrame (created by
-        `labels.label_wind_speed_for_regression`,
-        `labels.label_wind_speed_for_classification`, or
-        `labels.label_tornado_occurrence`), containing only storms with ID
-        belonging to `storm_ids` and valid time = `unix_time_sec`.
+    :param storm_to_winds_table: See doc for `_check_storm_labels`.
+    :param storm_to_tornadoes_table: See doc for `_check_storm_labels`.
     """
 
     _check_storm_images(
@@ -1003,10 +1022,10 @@ def write_storm_images(
         unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
         radar_height_m_asl=radar_height_m_asl)
 
-    if storm_to_events_table is not None:
-        _check_storm_to_events_table(
-            storm_ids=storm_ids, unix_time_sec=unix_time_sec,
-            storm_to_events_table=storm_to_events_table)
+    _check_storm_labels(
+        storm_ids=storm_ids, unix_time_sec=unix_time_sec,
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
@@ -1015,7 +1034,8 @@ def write_storm_images(
     pickle.dump(unix_time_sec, pickle_file_handle)
     pickle.dump(radar_field_name, pickle_file_handle)
     pickle.dump(radar_height_m_asl, pickle_file_handle)
-    pickle.dump(storm_to_events_table, pickle_file_handle)
+    pickle.dump(storm_to_winds_table, pickle_file_handle)
+    pickle.dump(storm_to_tornadoes_table, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -1028,9 +1048,11 @@ def read_storm_images(pickle_file_name):
     :return: unix_time_sec: Valid time.
     :return: radar_field_name: See doc for `_check_storm_images`.
     :return: radar_height_m_asl: See doc for `_check_storm_images`.
-    :return: storm_to_events_table: See doc for `write_storm_images`.  This may
-        be None.
+    :return: storm_to_winds_table: See doc for `_check_storm_labels`.
+    :return: storm_to_tornadoes_table: See doc for `_check_storm_labels`.
     """
+
+    # TODO(thunderhoser): This method should return a dictionary.
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_image_matrix = pickle.load(pickle_file_handle)
@@ -1038,7 +1060,8 @@ def read_storm_images(pickle_file_name):
     unix_time_sec = pickle.load(pickle_file_handle)
     radar_field_name = pickle.load(pickle_file_handle)
     radar_height_m_asl = pickle.load(pickle_file_handle)
-    storm_to_events_table = pickle.load(pickle_file_handle)
+    storm_to_winds_table = pickle.load(pickle_file_handle)
+    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
     _check_storm_images(
@@ -1046,55 +1069,80 @@ def read_storm_images(pickle_file_name):
         unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
         radar_height_m_asl=radar_height_m_asl)
 
-    if storm_to_events_table is not None:
-        _check_storm_to_events_table(
-            storm_ids=storm_ids, unix_time_sec=unix_time_sec,
-            storm_to_events_table=storm_to_events_table)
+    _check_storm_labels(
+        storm_ids=storm_ids, unix_time_sec=unix_time_sec,
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
 
     return (storm_image_matrix, storm_ids, unix_time_sec, radar_field_name,
-            radar_height_m_asl, storm_to_events_table)
+            radar_height_m_asl, storm_to_winds_table, storm_to_tornadoes_table)
 
 
-def join_storm_images_and_labels(
-        storm_ids, unix_time_sec, storm_to_events_table):
-    """Joins storm images (predictors) with labels (target variables).
+def extract_storm_labels(
+        storm_ids, unix_time_sec, storm_to_winds_table=None,
+        storm_to_tornadoes_table=None):
+    """Extracts all labels (target variables) for each storm object.
 
-    :param storm_ids: 1-D list of storm IDs (strings).
-    :param unix_time_sec: Valid time.
-    :param storm_to_events_table: pandas DataFrame created by
-        `labels.label_wind_speed_for_regression`,
-        `labels.label_wind_speed_for_classification`, or
-        `labels.label_tornado_occurrence`.
-    :return: storm_to_events_table: Same as input, but containing only storms
-        with ID belonging to `storm_ids` and valid time = `unix_time_sec`.
+    :param storm_ids: See documentation for `_check_storm_labels`.
+    :param unix_time_sec: Same.
+    :param storm_to_winds_table: Same.
+    :param storm_to_tornadoes_table: Same.
+    :return: relevant_storm_to_winds_table: Same.
+    :return: relevant_storm_to_tornadoes_table: Same.
+    :raises: ValueError: if `storm_to_winds_table` and
+        `storm_to_tornadoes_table` are both None.
     """
 
-    return _check_storm_to_events_table(
+    if storm_to_winds_table is None and storm_to_tornadoes_table is None:
+        raise ValueError(
+            'At least one of storm_to_winds_table and storm_to_tornadoes_table '
+            'must be given (cannot both be None).')
+
+    return _check_storm_labels(
         storm_ids=storm_ids, unix_time_sec=unix_time_sec,
-        storm_to_events_table=storm_to_events_table)
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
 
 
-def extract_label_values(storm_ids, storm_to_events_table, label_column):
-    """Extracts values of one label for each storm object.
+def extract_one_label_per_storm(
+        storm_ids, label_name, storm_to_winds_table=None,
+        storm_to_tornadoes_table=None):
+    """Extracts one label (target variable) for each storm object.
 
     K = number of storm objects
 
     :param storm_ids: length-K list of storm IDs (strings).
-    :param storm_to_events_table: pandas DataFrame created by
-        `join_storm_images_and_labels`.
-    :param label_column: Name of column (in storm_to_events_table) with the
-        desired label.
-    :return: label_values: length-K numpy array of integers, indicating the
-        class for each storm object.
+    :param label_name: Name of target variable.  This must be a column in
+        `storm_to_winds_table` or `storm_to_tornadoes_table`.
+    :param storm_to_winds_table: pandas DataFrame created by
+        `extract_storm_labels`.
+    :param storm_to_tornadoes_table: pandas DataFrame created by
+        `extract_storm_labels`.
+    :return: label_values: length-K numpy array of integers.  label_values[k] is
+        the class for the [k]th storm object.
     """
 
-    _check_storm_to_events_table(
-        storm_to_events_table=storm_to_events_table, storm_ids=storm_ids,
-        unix_time_sec=
-        storm_to_events_table[tracking_utils.TIME_COLUMN].values[0])
+    label_parameter_dict = labels.column_name_to_label_params(label_name)
+    event_type_string = label_parameter_dict[labels.EVENT_TYPE_KEY]
 
-    storm_ids_in_table = storm_to_events_table[
-        tracking_utils.STORM_ID_COLUMN].values.tolist()
+    if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
+        dummy_time_unix_sec = storm_to_tornadoes_table[
+            tracking_utils.TIME_COLUMN].values[0]
+        storm_ids_in_table = storm_to_tornadoes_table[
+            tracking_utils.STORM_ID_COLUMN].values.tolist()
+    else:
+        dummy_time_unix_sec = storm_to_winds_table[
+            tracking_utils.TIME_COLUMN].values[0]
+        storm_ids_in_table = storm_to_winds_table[
+            tracking_utils.STORM_ID_COLUMN].values.tolist()
+
+    _check_storm_labels(
+        storm_ids=storm_ids, unix_time_sec=dummy_time_unix_sec,
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
     sort_indices = numpy.array([storm_ids_in_table.index(s) for s in storm_ids])
 
-    return storm_to_events_table[label_column].values[sort_indices]
+    if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
+        return storm_to_tornadoes_table[label_name].values[sort_indices]
+    return storm_to_winds_table[label_name].values[sort_indices]

@@ -166,14 +166,16 @@ def storm_image_generator_2d(
                     # time and target values for the [i]th time (where i =
                     # image_time_index).
                     (this_field_predictor_matrix, these_storm_ids, _, _, _,
-                     this_storm_to_events_table) = (
-                         storm_images.read_storm_images(
-                             image_file_name_matrix[image_time_index, j]))
+                     this_storm_to_winds_table, this_storm_to_tornadoes_table
+                    ) = storm_images.read_storm_images(
+                        image_file_name_matrix[image_time_index, j])
 
-                    these_target_values = storm_images.extract_label_values(
-                        storm_ids=these_storm_ids,
-                        storm_to_events_table=this_storm_to_events_table,
-                        label_column=target_name)
+                    these_target_values = (
+                        storm_images.extract_one_label_per_storm(
+                            storm_ids=these_storm_ids, label_name=target_name,
+                            storm_to_winds_table=this_storm_to_winds_table,
+                            storm_to_tornadoes_table=
+                            this_storm_to_tornadoes_table))
 
                     if num_classes is None:
                         target_param_dict = labels.column_name_to_label_params(
@@ -196,7 +198,7 @@ def storm_image_generator_2d(
 
                     # Read radar images for the [j]th predictor at the [i]th
                     # time (where i = image_time_index).
-                    this_field_predictor_matrix, _, _, _, _, _ = (
+                    this_field_predictor_matrix, _, _, _, _, _, _ = (
                         storm_images.read_storm_images(
                             image_file_name_matrix[image_time_index, j]))
 
@@ -382,14 +384,18 @@ def storm_image_generator_3d(
                         # height and [i]th time, as well as target values for
                         # the [i]th time (where i = image_time_index).
                         (this_3d_predictor_matrix, these_storm_ids, _, _, _,
-                         this_storm_to_events_table
+                         this_storm_to_winds_table,
+                         this_storm_to_tornadoes_table
                         ) = storm_images.read_storm_images(
                             image_file_name_matrix[image_time_index, j, k])
 
-                        these_target_values = storm_images.extract_label_values(
-                            storm_ids=these_storm_ids,
-                            storm_to_events_table=this_storm_to_events_table,
-                            label_column=target_name)
+                        these_target_values = (
+                            storm_images.extract_one_label_per_storm(
+                                storm_ids=these_storm_ids,
+                                label_name=target_name,
+                                storm_to_winds_table=this_storm_to_winds_table,
+                                storm_to_tornadoes_table=
+                                this_storm_to_tornadoes_table))
 
                         if num_classes is None:
                             target_param_dict = (
@@ -414,7 +420,7 @@ def storm_image_generator_3d(
 
                         # Read images for the [j]th predictor at the [k]th
                         # height and [i]th time (where i = image_time_index).
-                        (this_3d_predictor_matrix, _, _, _, _, _
+                        (this_3d_predictor_matrix, _, _, _, _, _, _
                         ) = storm_images.read_storm_images(
                             image_file_name_matrix[image_time_index, j, k])
 

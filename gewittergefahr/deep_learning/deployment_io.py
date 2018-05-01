@@ -95,13 +95,13 @@ def create_storm_images_with_targets(
 
         if j == 0:
             (this_predictor_matrix, these_storm_ids, _, _, _,
-             this_storm_to_events_table) = (
-                 storm_images.read_storm_images(image_file_names[j]))
+             this_storm_to_winds_table, this_storm_to_tornadoes_table
+            ) = storm_images.read_storm_images(image_file_names[j])
 
-            target_values = storm_images.extract_label_values(
-                storm_ids=these_storm_ids,
-                storm_to_events_table=this_storm_to_events_table,
-                label_column=target_name)
+            target_values = storm_images.extract_one_label_per_storm(
+                storm_ids=these_storm_ids, label_name=target_name,
+                storm_to_winds_table=this_storm_to_winds_table,
+                storm_to_tornadoes_table=this_storm_to_tornadoes_table)
 
             if num_classes is None:
                 target_param_dict = labels.column_name_to_label_params(
@@ -115,7 +115,7 @@ def create_storm_images_with_targets(
                     num_classes = len(wind_speed_class_cutoffs_kt) + 1
 
         else:
-            this_predictor_matrix, _, _, _, _, _ = (
+            this_predictor_matrix, _, _, _, _, _, _ = (
                 storm_images.read_storm_images(image_file_names[j]))
 
         tuple_of_predictor_matrices += (this_predictor_matrix,)
@@ -189,7 +189,7 @@ def create_storm_images_sans_targets(
     for j in range(num_predictors):
         print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
 
-        this_predictor_matrix, _, _, _, _, _ = (
+        this_predictor_matrix, _, _, _, _, _, _ = (
             storm_images.read_storm_images(image_file_names[j]))
         tuple_of_predictor_matrices += (this_predictor_matrix,)
 
