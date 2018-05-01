@@ -72,9 +72,6 @@ def _run_attach_labels(
     :param radar_source: Same.
     """
 
-    print top_wind_label_dir_name
-    print top_tornado_label_dir_name
-
     radar_utils.check_data_source(radar_source)
     start_time_unix_sec = time_conversion.get_start_of_spc_date(spc_date_string)
     end_time_unix_sec = time_conversion.get_end_of_spc_date(spc_date_string)
@@ -123,7 +120,7 @@ def _run_attach_labels(
         storm_to_tornadoes_table = None
     else:
         tornado_label_file_name = labels.find_label_file(
-            top_directory_name=top_wind_label_dir_name,
+            top_directory_name=top_tornado_label_dir_name,
             event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
             spc_date_string=spc_date_string, raise_error_if_missing=True)
 
