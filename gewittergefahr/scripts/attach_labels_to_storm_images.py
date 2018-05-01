@@ -6,6 +6,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import gridrad_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
+from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import storm_images
 
@@ -75,6 +76,8 @@ def _run_attach_labels(
     radar_utils.check_data_source(radar_source)
     start_time_unix_sec = time_conversion.get_start_of_spc_date(spc_date_string)
     end_time_unix_sec = time_conversion.get_end_of_spc_date(spc_date_string)
+    end_time_unix_sec = rounder.floor_to_nearest(
+        end_time_unix_sec, storm_images.GRIDRAD_TIME_INTERVAL_SEC)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
