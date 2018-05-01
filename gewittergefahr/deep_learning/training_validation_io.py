@@ -234,6 +234,9 @@ def storm_image_generator_2d(
             num_examples_by_class = numpy.array(
                 [numpy.sum(all_target_values == k) for k in range(num_classes)],
                 dtype=int)
+            print 'Number of examples by class: {0:s}'.format(
+                str(num_examples_by_class))
+            
             stopping_criterion = (
                 num_image_times_in_memory >= num_image_times_per_batch and
                 full_predictor_matrix.shape[0] >= num_examples_per_batch and
@@ -477,6 +480,9 @@ def storm_image_generator_3d(
             num_examples_by_class = numpy.array(
                 [numpy.sum(all_target_values == k) for k in range(num_classes)],
                 dtype=int)
+            print 'Number of examples by class: {0:s}'.format(
+                str(num_examples_by_class))
+
             stopping_criterion = (
                 num_image_times_in_memory >= num_image_times_per_batch and
                 full_predictor_matrix.shape[0] >= num_examples_per_batch and
