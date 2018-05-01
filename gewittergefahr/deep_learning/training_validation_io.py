@@ -234,7 +234,6 @@ def storm_image_generator_2d(
             num_examples_by_class = numpy.array(
                 [numpy.sum(all_target_values == k) for k in range(num_classes)],
                 dtype=int)
-            print num_examples_by_class
             stopping_criterion = (
                 num_image_times_in_memory >= num_image_times_per_batch and
                 full_predictor_matrix.shape[0] >= num_examples_per_batch and
@@ -380,14 +379,22 @@ def storm_image_generator_3d(
 
     full_predictor_matrix = None
     all_target_values = None
-    num_classes = None
+
+    if class_fractions_to_sample is None:
+        num_examples_per_batch_by_class = None
+        num_classes = None
+    else:
+        num_examples_per_batch_by_class = (
+            dl_utils.class_fractions_to_num_points(
+                class_fractions=class_fractions_to_sample,
+                num_points_to_sample=num_examples_per_batch))
+        num_classes = len(class_fractions_to_sample)
 
     while True:
+        stopping_criterion = False
 
         # While more files need to be read...
-        while (num_image_times_in_memory < num_image_times_per_batch or
-               full_predictor_matrix is None or
-               full_predictor_matrix.shape[0] < num_examples_per_batch):
+        while not stopping_criterion:
             print '\n'
             tuple_of_4d_predictor_matrices = ()
 
@@ -431,6 +438,10 @@ def storm_image_generator_3d(
                                 num_classes = 1 + len(
                                     wind_speed_class_cutoffs_kt)
 
+                        if class_fractions_to_sample is None:
+                            num_examples_per_batch_by_class = numpy.full(
+                                num_classes, 0, dtype=int)
+
                         if all_target_values is None:
                             all_target_values = copy.deepcopy(
                                 these_target_values)
@@ -461,6 +472,16 @@ def storm_image_generator_3d(
             else:
                 full_predictor_matrix = numpy.concatenate(
                     (full_predictor_matrix, this_predictor_matrix), axis=0)
+
+            # Determine stopping criterion.
+            num_examples_by_class = numpy.array(
+                [numpy.sum(all_target_values == k) for k in range(num_classes)],
+                dtype=int)
+            stopping_criterion = (
+                num_image_times_in_memory >= num_image_times_per_batch and
+                full_predictor_matrix.shape[0] >= num_examples_per_batch and
+                numpy.all(num_examples_by_class >=
+                          num_examples_per_batch_by_class))
 
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
