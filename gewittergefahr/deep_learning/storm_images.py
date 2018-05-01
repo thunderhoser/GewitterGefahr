@@ -936,6 +936,8 @@ def find_many_files_gridrad(
         True.
     """
 
+    # TODO(thunderhoser): Also need `raise_error_if_any_missing`.
+
     _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
         field_names=radar_field_names, heights_m_asl=radar_heights_m_asl)
 
