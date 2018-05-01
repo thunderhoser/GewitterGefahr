@@ -199,6 +199,9 @@ def storm_image_generator_2d(
                     num_classes, 0, dtype=int)
 
             if len(numpy.unique(these_target_values)) == 1:
+                image_time_index += 1
+                if image_time_index >= num_image_times:
+                    image_time_index = 0
                 continue
 
             if all_target_values is None:
