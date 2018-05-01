@@ -967,7 +967,6 @@ def find_many_files_gridrad(
                         radar_field_name=radar_field_names[j],
                         radar_height_m_asl=radar_heights_m_asl[k],
                         raise_error_if_missing=False)
-                    print this_file_name
 
                     if not os.path.isfile(this_file_name):
                         continue

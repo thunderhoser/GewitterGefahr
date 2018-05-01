@@ -70,6 +70,9 @@ def _run_attach_labels(
     :param radar_source: Same.
     """
 
+    print top_wind_label_dir_name
+    print top_tornado_label_dir_name
+
     radar_utils.check_data_source(radar_source)
     start_time_unix_sec = time_conversion.get_start_of_spc_date(spc_date_string)
     end_time_unix_sec = time_conversion.get_end_of_spc_date(spc_date_string)
@@ -102,7 +105,9 @@ def _run_attach_labels(
                 radar_field_names=storm_images.DEFAULT_MYRORSS_MRMS_FIELD_NAMES,
                 raise_error_if_missing=True))
 
-    if top_wind_label_dir_name:
+    if top_wind_label_dir_name == '':
+        storm_to_winds_table = None
+    else:
         wind_label_file_name = labels.find_label_file(
             top_directory_name=top_wind_label_dir_name,
             event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
@@ -111,10 +116,10 @@ def _run_attach_labels(
         print 'Reading labels from: "{0:s}"...'.format(wind_label_file_name)
         storm_to_winds_table = labels.read_wind_speed_labels(
             wind_label_file_name)
-    else:
-        storm_to_winds_table = None
 
-    if top_tornado_label_dir_name:
+    if top_tornado_label_dir_name == '':
+        storm_to_tornadoes_table = None
+    else:
         tornado_label_file_name = labels.find_label_file(
             top_directory_name=top_wind_label_dir_name,
             event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING,
@@ -123,8 +128,6 @@ def _run_attach_labels(
         print 'Reading labels from: "{0:s}"...'.format(tornado_label_file_name)
         storm_to_tornadoes_table = labels.read_tornado_labels(
             tornado_label_file_name)
-    else:
-        storm_to_tornadoes_table = None
 
     storm_images.attach_labels_to_storm_images(
         image_file_name_matrix, storm_to_winds_table=storm_to_winds_table,
