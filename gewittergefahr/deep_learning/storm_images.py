@@ -25,6 +25,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 PADDING_VALUE = 0
+GRID_SPACING_TOLERANCE_DEG = 1e-4
+AZ_SHEAR_GRID_SPACING_MULTIPLIER = 2
 
 DAYS_TO_SECONDS = 86400
 GRIDRAD_TIME_INTERVAL_SEC = 300
@@ -525,6 +527,7 @@ def extract_storm_images_myrorss_or_mrms(
         this as None.
     :return: image_file_name_matrix: T-by-P numpy array of paths to output
         files.
+    :raises: ValueError: if grid spacing is not uniform across all files.
     """
 
     # Find radar files.
@@ -559,6 +562,9 @@ def extract_storm_images_myrorss_or_mrms(
     num_valid_times = len(valid_times_unix_sec)
     image_file_name_matrix = numpy.full(
         (num_valid_times, num_field_height_pairs), '', dtype=object)
+
+    latitude_spacing_deg = None
+    longitude_spacing_deg = None
 
     for i in range(num_valid_times):
 
@@ -606,6 +612,40 @@ def extract_storm_images_myrorss_or_mrms(
             this_radar_matrix, _, _ = radar_s2f.sparse_to_full_grid(
                 this_sparse_grid_table, this_metadata_dict)
             this_radar_matrix[numpy.isnan(this_radar_matrix)] = 0.
+
+            if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
+                this_radar_matrix = this_radar_matrix[
+                    ::AZ_SHEAR_GRID_SPACING_MULTIPLIER,
+                    ::AZ_SHEAR_GRID_SPACING_MULTIPLIER]
+                this_metadata_dict[
+                    radar_utils.LAT_SPACING_COLUMN
+                ] *= AZ_SHEAR_GRID_SPACING_MULTIPLIER
+                this_metadata_dict[
+                    radar_utils.LNG_SPACING_COLUMN
+                ] *= AZ_SHEAR_GRID_SPACING_MULTIPLIER
+
+            this_lat_spacing_deg = rounder.round_to_nearest(
+                this_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+                GRID_SPACING_TOLERANCE_DEG)
+            this_lng_spacing_deg = rounder.round_to_nearest(
+                this_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+                GRID_SPACING_TOLERANCE_DEG)
+
+            if latitude_spacing_deg is None:
+                latitude_spacing_deg = this_lat_spacing_deg + 0.
+                longitude_spacing_deg = this_lng_spacing_deg + 0.
+
+            if (latitude_spacing_deg != this_lat_spacing_deg or
+                    longitude_spacing_deg != this_lng_spacing_deg):
+                error_string = (
+                    'First file has grid spacing of {0:.4f} deg lat, {1:.4f} '
+                    'deg long.  This file ("{2:s}")  has grid spacing of '
+                    '{3:.4f} deg lat, {4:.4f} deg long.  Grid spacing should be'
+                    ' uniform across all files.'
+                ).format(latitude_spacing_deg, longitude_spacing_deg,
+                         radar_file_name_matrix[i, j], this_lat_spacing_deg,
+                         this_lng_spacing_deg)
+                raise ValueError(error_string)
 
             # Extract storm images for [j]th field/height pair at [i]th time
             # step.
@@ -684,6 +724,7 @@ def extract_storm_images_gridrad(
         above sea level).
     :return: image_file_name_matrix: T-by-F-by-H numpy array of paths to output
         files.
+    :raises: ValueError: if grid spacing is not uniform across all files.
     """
 
     _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
@@ -711,11 +752,37 @@ def extract_storm_images_gridrad(
     image_file_name_matrix = numpy.full(
         (num_valid_times, num_fields, num_heights), '', dtype=object)
 
+    latitude_spacing_deg = None
+    longitude_spacing_deg = None
+
     for i in range(num_valid_times):
 
         # Read metadata for [i]th valid time.
         this_metadata_dict = gridrad_io.read_metadata_from_full_grid_file(
             radar_file_names[i])
+
+        this_lat_spacing_deg = rounder.round_to_nearest(
+            this_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            GRID_SPACING_TOLERANCE_DEG)
+        this_lng_spacing_deg = rounder.round_to_nearest(
+            this_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+            GRID_SPACING_TOLERANCE_DEG)
+
+        if latitude_spacing_deg is None:
+            latitude_spacing_deg = this_lat_spacing_deg + 0.
+            longitude_spacing_deg = this_lng_spacing_deg + 0.
+
+        if (latitude_spacing_deg != this_lat_spacing_deg or
+                longitude_spacing_deg != this_lng_spacing_deg):
+            error_string = (
+                'First file ("{0:s}") has grid spacing of {1:.4f} deg lat, '
+                '{2:.4f} deg long.  {3:d}th file ("{4:s}")  has grid spacing of'
+                ' {5:.4f} deg lat, {6:.4f} deg long.  Grid spacing should be '
+                'uniform across all files.'
+            ).format(radar_file_names[0], latitude_spacing_deg,
+                     longitude_spacing_deg, i, radar_file_names[i],
+                     this_lat_spacing_deg, this_lng_spacing_deg)
+            raise ValueError(error_string)
 
         # Find storm objects at [i]th valid time.
         these_storm_indices = numpy.where(
