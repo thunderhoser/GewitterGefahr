@@ -1222,8 +1222,6 @@ def attach_labels_to_storm_images(
 
     num_times = image_file_name_matrix.shape[0]
     num_field_height_pairs = image_file_name_matrix.shape[1]
-    print image_file_name_matrix
-    print image_file_name_matrix.shape
 
     for i in range(num_times):
         for j in range(num_field_height_pairs):
