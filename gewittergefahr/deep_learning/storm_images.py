@@ -68,12 +68,9 @@ DEFAULT_MYRORSS_MRMS_FIELD_NAMES = [
 AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
-# TODO(thunderhoser): Deal with dual-pol variables in GridRad and the fact that
-# they might be missing.
 DEFAULT_GRIDRAD_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
     radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME]
-
 DEFAULT_GRIDRAD_HEIGHTS_M_ASL = numpy.linspace(1000, 10000, num=10, dtype=int)
 
 
