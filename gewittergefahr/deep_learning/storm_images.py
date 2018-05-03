@@ -339,12 +339,14 @@ def _find_many_files_one_spc_date(
         [this_field_name in AZIMUTHAL_SHEAR_FIELD_NAMES
          for this_field_name in field_name_by_pair])
     is_any_field_az_shear = numpy.any(is_field_az_shear)
+    glob_index = -1
 
     for j in range(num_field_height_pairs):
         glob_now = (field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES
                     or not is_any_field_az_shear)
         if not glob_now:
             continue
+        glob_index = j + 0
 
         this_file_pattern = (
             '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:05d}_metres_asl/'
@@ -394,9 +396,7 @@ def _find_many_files_one_spc_date(
         break
 
     for j in range(num_field_height_pairs):
-        glob_now = (field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES
-                    or not is_any_field_az_shear)
-        if glob_now:
+        if j == glob_index:
             continue
 
         for i in range(len(unix_times_sec)):
