@@ -63,6 +63,8 @@ DEFAULT_MYRORSS_MRMS_FIELD_NAMES = [
     radar_utils.REFL_0CELSIUS_NAME, radar_utils.REFL_M10CELSIUS_NAME,
     radar_utils.REFL_M20CELSIUS_NAME, radar_utils.REFL_LOWEST_ALTITUDE_NAME,
     radar_utils.SHI_NAME, radar_utils.VIL_NAME]
+AZIMUTHAL_SHEAR_FIELD_NAMES = [
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
 # TODO(thunderhoser): Deal with dual-pol variables in GridRad and the fact that
 # they might be missing.
@@ -333,62 +335,82 @@ def _find_many_files_one_spc_date(
     image_file_name_matrix = None
     unix_times_sec = None
 
+    is_field_az_shear = numpy.array(
+        [this_field_name in AZIMUTHAL_SHEAR_FIELD_NAMES
+         for this_field_name in field_name_by_pair])
+    is_any_field_az_shear = numpy.any(is_field_az_shear)
+
     for j in range(num_field_height_pairs):
-        if j == 0:
-            this_file_pattern = (
-                '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:05d}_metres_asl/'
-                'storm_images_{6:s}.p').format(
-                    top_directory_name, radar_source, spc_date_string[:4],
+        glob_now = (field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES
+                    or not is_any_field_az_shear)
+        if not glob_now:
+            continue
+
+        this_file_pattern = (
+            '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:05d}_metres_asl/'
+            'storm_images_{6:s}.p'
+        ).format(
+            top_directory_name, radar_source, spc_date_string[:4],
+            spc_date_string, field_name_by_pair[j],
+            numpy.round(int(height_by_pair_m_asl[j])),
+            TIME_FORMAT_REGEX)
+
+        these_file_names = glob.glob(this_file_pattern)
+        image_file_names = []
+        unix_times_sec = []
+
+        for this_file_name in these_file_names:
+            _, this_pathless_file_name = os.path.split(this_file_name)
+            this_extensionless_file_name, _ = os.path.splitext(
+                this_pathless_file_name)
+
+            this_time_string = this_extensionless_file_name.split('_')[-1]
+            this_time_unix_sec = time_conversion.string_to_unix_sec(
+                this_time_string, TIME_FORMAT)
+
+            if start_time_unix_sec <= this_time_unix_sec <= end_time_unix_sec:
+                image_file_names.append(this_file_name)
+                unix_times_sec.append(this_time_unix_sec)
+
+        num_times = len(image_file_names)
+        if num_times == 0:
+            if raise_error_if_missing:
+                error_string = (
+                    'Cannot find any files on SPC date "{0:s}" for "{1:s}" '
+                    'at {2:d} metres ASL.'
+                ).format(
                     spc_date_string, field_name_by_pair[j],
-                    numpy.round(int(height_by_pair_m_asl[j])),
-                    TIME_FORMAT_REGEX)
+                    numpy.round(int(height_by_pair_m_asl[j])))
+                raise ValueError(error_string)
 
-            these_file_names = glob.glob(this_file_pattern)
-            image_file_names = []
-            unix_times_sec = []
+            return None, None, field_name_by_pair, height_by_pair_m_asl
 
-            for this_file_name in these_file_names:
-                _, this_pathless_file_name = os.path.split(this_file_name)
-                this_extensionless_file_name, _ = os.path.splitext(
-                    this_pathless_file_name)
+        unix_times_sec = numpy.array(unix_times_sec, dtype=int)
+        image_file_name_matrix = numpy.full(
+            (num_times, num_field_height_pairs), '', dtype=object)
+        image_file_name_matrix[:, j] = numpy.array(
+            image_file_names, dtype=object)
 
-                this_time_string = this_extensionless_file_name.split('_')[-1]
-                this_time_unix_sec = time_conversion.string_to_unix_sec(
-                    this_time_string, TIME_FORMAT)
+        break
 
-                if (start_time_unix_sec <= this_time_unix_sec <=
-                        end_time_unix_sec):
-                    image_file_names.append(this_file_name)
-                    unix_times_sec.append(this_time_unix_sec)
+    for j in range(num_field_height_pairs):
+        glob_now = (field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES
+                    or not is_any_field_az_shear)
+        if glob_now:
+            continue
 
-            num_times = len(image_file_names)
-            if num_times == 0:
-                if raise_error_if_missing:
-                    error_string = (
-                        'Cannot find any files on SPC date "{0:s}" for "{1:s}" '
-                        'at {2:d} metres ASL.').format(
-                            spc_date_string, field_name_by_pair[j],
-                            numpy.round(int(height_by_pair_m_asl[j])))
-                    raise ValueError(error_string)
+        for i in range(len(unix_times_sec)):
+            image_file_name_matrix[i, j] = find_storm_image_file(
+                top_directory_name=top_directory_name,
+                unix_time_sec=unix_times_sec[i],
+                spc_date_string=spc_date_string, radar_source=radar_source,
+                radar_field_name=field_name_by_pair[j],
+                radar_height_m_asl=height_by_pair_m_asl[j],
+                raise_error_if_missing=
+                field_name_by_pair[j] not in AZIMUTHAL_SHEAR_FIELD_NAMES)
 
-                return None, None, field_name_by_pair, height_by_pair_m_asl
-
-            unix_times_sec = numpy.array(unix_times_sec, dtype=int)
-            image_file_name_matrix = numpy.full(
-                (num_times, num_field_height_pairs), '', dtype=object)
-            image_file_name_matrix[:, j] = numpy.array(
-                image_file_names, dtype=object)
-
-        else:
-            for i in range(len(unix_times_sec)):
-                image_file_name_matrix[i, j] = find_storm_image_file(
-                    top_directory_name=top_directory_name,
-                    unix_time_sec=unix_times_sec[i],
-                    spc_date_string=spc_date_string,
-                    radar_source=radar_source,
-                    radar_field_name=field_name_by_pair[j],
-                    radar_height_m_asl=height_by_pair_m_asl[j],
-                    raise_error_if_missing=True)
+            if not os.path.isfile(image_file_name_matrix[i, j]):
+                image_file_name_matrix[i, j] = ''
 
     return (image_file_name_matrix, unix_times_sec, field_name_by_pair,
             height_by_pair_m_asl)
@@ -1203,9 +1225,11 @@ def attach_labels_to_storm_images(
 
     for i in range(num_times):
         for j in range(num_field_height_pairs):
+            if image_file_name_matrix[i, j] == '':
+                continue
+
             print 'Reading storm-centered radar images from: "{0:s}"...'.format(
                 image_file_name_matrix[i, j])
-
             this_storm_image_dict = read_storm_images(
                 image_file_name_matrix[i, j])
 

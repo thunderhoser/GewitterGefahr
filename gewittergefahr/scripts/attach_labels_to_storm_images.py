@@ -1,5 +1,6 @@
 """Attaches labels (target variables) to storm-centered radar images."""
 
+import copy
 import argparse
 import numpy
 from gewittergefahr.gg_utils import radar_utils
@@ -99,12 +100,17 @@ def _run_attach_labels(
             image_file_name_matrix, (num_times, num_predictors))
 
     else:
+        radar_field_names = copy.deepcopy(
+            storm_images.DEFAULT_MYRORSS_MRMS_FIELD_NAMES)
+        radar_field_names.remove(radar_utils.LOW_LEVEL_SHEAR_NAME)
+        radar_field_names.remove(radar_utils.MID_LEVEL_SHEAR_NAME)
+
         image_file_name_matrix, _, _, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_storm_image_dir_name,
                 start_time_unix_sec=start_time_unix_sec,
                 end_time_unix_sec=end_time_unix_sec, radar_source=radar_source,
-                radar_field_names=storm_images.DEFAULT_MYRORSS_MRMS_FIELD_NAMES,
+                radar_field_names=radar_field_names,
                 raise_error_if_missing=True))
 
     if top_wind_label_dir_name == EMPTY_STRING:

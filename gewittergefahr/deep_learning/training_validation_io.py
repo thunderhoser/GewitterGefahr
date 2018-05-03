@@ -128,6 +128,11 @@ def storm_image_generator_2d(
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 raise_error_if_missing=True))
 
+    time_missing_indices = numpy.unique(
+        numpy.where(image_file_name_matrix == '')[0])
+    image_file_name_matrix = numpy.delete(
+        image_file_name_matrix, time_missing_indices, axis=0)
+
     num_image_times = image_file_name_matrix.shape[0]
     num_predictors = len(field_name_by_predictor)
 
@@ -372,6 +377,11 @@ def storm_image_generator_3d(
         num_image_times = image_file_name_matrix.shape[0]
         image_file_name_matrix = numpy.reshape(
             image_file_name_matrix, (num_image_times, 1, num_heights))
+
+    time_missing_indices = numpy.unique(
+        numpy.where(image_file_name_matrix == '')[0])
+    image_file_name_matrix = numpy.delete(
+        image_file_name_matrix, time_missing_indices, axis=0)
 
     num_image_times = image_file_name_matrix.shape[0]
     num_fields = len(radar_field_names)

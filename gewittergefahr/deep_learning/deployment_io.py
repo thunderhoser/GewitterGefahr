@@ -62,6 +62,8 @@ def create_2d_storm_images_one_time(
         row is 1 (classes are mutually exclusive and collectively exhaustive).
     """
 
+    # TODO(thunderhoser): Handle missing storm-image files.
+
     radar_utils.check_data_source(radar_source)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
@@ -175,6 +177,8 @@ def create_3d_storm_images_one_time(
     :return: target_matrix: See documentation for
         `create_3d_storm_images_one_time`.
     """
+
+    # TODO(thunderhoser): Handle missing storm-image files.
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
