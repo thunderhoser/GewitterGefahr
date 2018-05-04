@@ -1181,6 +1181,10 @@ def _join_tracks_between_periods(
         may be changed.
     """
 
+    if (len(early_storm_object_table.index) == 0 or
+            len(late_storm_object_table.index) == 0):
+        return late_storm_object_table
+
     last_early_time_unix_sec = numpy.max(
         early_storm_object_table[tracking_utils.TIME_COLUMN].values)
     previous_indices = numpy.where(
@@ -1862,8 +1866,6 @@ def join_tracks_across_spc_dates(
             if not storm_object_table_by_date[j].empty:
                 continue
 
-            print spc_date_strings[j]
-            print input_file_names_by_spc_date[j]
             storm_object_table_by_date[j] = (
                 tracking_io.read_many_processed_files(
                     input_file_names_by_spc_date[j]))
