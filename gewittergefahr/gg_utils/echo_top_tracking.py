@@ -1862,6 +1862,8 @@ def join_tracks_across_spc_dates(
             if not storm_object_table_by_date[j].empty:
                 continue
 
+            print spc_date_strings[j]
+            print input_file_names_by_spc_date[j]
             storm_object_table_by_date[j] = (
                 tracking_io.read_many_processed_files(
                     input_file_names_by_spc_date[j]))
