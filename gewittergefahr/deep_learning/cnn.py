@@ -561,7 +561,7 @@ def train_2d_cnn(
         this_layer.name.startswith('conv')]
 
     tensorboard_object = keras.callbacks.TensorBoard(
-        log_dir=tensorboard_dir_name, histogram_freq=1,
+        log_dir=tensorboard_dir_name, histogram_freq=0,
         batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
@@ -697,7 +697,7 @@ def train_3d_cnn(
         this_layer.name.startswith('conv')]
 
     tensorboard_object = keras.callbacks.TensorBoard(
-        log_dir=tensorboard_dir_name, histogram_freq=1,
+        log_dir=tensorboard_dir_name, histogram_freq=0,
         batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
