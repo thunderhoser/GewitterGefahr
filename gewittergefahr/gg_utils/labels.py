@@ -883,9 +883,6 @@ def label_tornado_occurrence(
     tornado_classes = numpy.full(num_storm_objects, -1, dtype=int)
 
     for i in range(num_storm_objects):
-        if i in invalid_storm_indices:
-            continue
-
         these_relative_tornado_times_sec = storm_to_tornadoes_table[
             events2storms.RELATIVE_EVENT_TIMES_COLUMN].values[i]
         these_link_distance_metres = storm_to_tornadoes_table[
@@ -901,6 +898,8 @@ def label_tornado_occurrence(
             these_valid_time_flags, these_valid_distance_flags)
 
         tornado_classes[i] = numpy.any(these_valid_tornado_flags)
+        if i in invalid_storm_indices and tornado_classes[i] == 0:
+            tornado_classes[i] = -1
 
     label_column_name = get_column_name_for_classification_label(
         min_lead_time_sec=min_lead_time_sec,
