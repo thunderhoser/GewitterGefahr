@@ -44,14 +44,11 @@ DEFAULT_NORMALIZATION_DICT = {
 }
 
 
-def class_fractions_to_num_points(class_fractions, num_points_to_sample):
-    """For each class, converts fraction of points to number of points.
+def _check_class_fractions(class_fractions):
+    """Checks class fractions for errors.
 
     :param class_fractions: length-K numpy array, where the [k]th element is the
         desired fraction of data points for the [k]th class.
-    :param num_points_to_sample: Number of points to sample.
-    :return: num_points_by_class: length-K numpy array, where the [k]th element
-        is the number of points to sample for the [k]th class.
     :raises: ValueError: if sum(class_fractions) != 1.
     """
 
@@ -68,6 +65,18 @@ def class_fractions_to_num_points(class_fractions, num_points_to_sample):
                                             sum_of_class_fractions)
         raise ValueError(error_string)
 
+
+def class_fractions_to_num_points(class_fractions, num_points_to_sample):
+    """For each class, converts fraction of points to number of points.
+
+    :param class_fractions: See documentation for `_check_class_fractions`.
+    :param num_points_to_sample: Number of points to sample.
+    :return: num_points_by_class: length-K numpy array, where the [k]th element
+        is the number of points to sample for the [k]th class.
+    :raises: ValueError: if sum(class_fractions) != 1.
+    """
+
+    _check_class_fractions(class_fractions)
     num_classes = len(class_fractions)
     error_checking.assert_is_integer(num_points_to_sample)
     error_checking.assert_is_geq(num_points_to_sample, num_classes)
@@ -89,6 +98,25 @@ def class_fractions_to_num_points(class_fractions, num_points_to_sample):
         num_points_by_class[:-1])
 
     return num_points_by_class
+
+
+def class_fractions_to_weights(class_fractions):
+    """Creates dictionary of class weights.
+
+    This dictionary may be used to weight the loss function for a Keras model.
+
+    :param class_fractions: See documentation for `_check_class_fractions`.
+    :return: class_weight_dict: Dictionary, where each key is an integer from
+        0...(K - 1) and each value is the corresponding weight.
+    """
+
+    class_weights = 1. / class_fractions
+    class_weights = class_weights / numpy.sum(class_weights)
+    class_weight_dict = {}
+
+    for k in range(len(class_weights)):
+        class_weight_dict.update({k: class_weights[k]})
+    return class_weight_dict
 
 
 def check_predictor_matrix(

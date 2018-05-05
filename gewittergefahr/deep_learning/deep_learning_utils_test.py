@@ -8,6 +8,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
+TOLERANCE_FOR_CLASS_WEIGHT = 1e-3
 
 # The following constants are used to test check_predictor_matrix.
 PREDICTOR_MATRIX_1D = numpy.array([1, 2, 3, 4], dtype=numpy.float32)
@@ -59,6 +60,10 @@ NUM_POINTS_BY_CLASS_TERNARY_SMALL = numpy.array([1, 1, 2], dtype=int)
 NUM_POINTS_TO_SAMPLE_XSMALL = 3
 NUM_POINTS_BY_CLASS_BINARY_XSMALL = numpy.array([1, 2], dtype=int)
 NUM_POINTS_BY_CLASS_TERNARY_XSMALL = numpy.array([1, 1, 1], dtype=int)
+
+# The following constants are used to test class_fractions_to_weights.
+TOY_CLASS_WEIGHT_DICT_BINARY = {0: 0.9, 1: 0.1}
+TOY_CLASS_WEIGHT_DICT_TERNARY = {0: 0.6087, 1: 0.3043, 2: 0.0870}
 
 # The following constants are used to test normalize_predictor_matrix.
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
@@ -468,6 +473,42 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_XSMALL))
+
+    def test_class_fractions_to_weights_binary(self):
+        """Ensures correct output from class_fractions_to_weights.
+
+        In this case, input contains 2 classes.
+        """
+
+        this_class_weight_dict = dl_utils.class_fractions_to_weights(
+            TOY_CLASS_FRACTIONS_BINARY)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(TOY_CLASS_WEIGHT_DICT_BINARY.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                TOY_CLASS_WEIGHT_DICT_BINARY[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
+
+    def test_class_fractions_to_weights_ternary(self):
+        """Ensures correct output from class_fractions_to_weights.
+
+        In this case, input contains 3 classes.
+        """
+
+        this_class_weight_dict = dl_utils.class_fractions_to_weights(
+            TOY_CLASS_FRACTIONS_TERNARY)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(TOY_CLASS_WEIGHT_DICT_TERNARY.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                TOY_CLASS_WEIGHT_DICT_TERNARY[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
     def test_stack_predictor_variables(self):
         """Ensures correct output from stack_predictor_variables."""

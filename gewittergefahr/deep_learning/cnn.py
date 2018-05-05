@@ -16,7 +16,7 @@ import pickle
 import keras.losses
 import keras.optimizers
 from keras.models import Sequential, load_model
-from keras.callbacks import ModelCheckpoint
+import keras.callbacks
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import keras_metrics
@@ -26,7 +26,7 @@ from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_NUM_INPUT_ROWS = 32
 DEFAULT_NUM_INPUT_COLUMNS = 32
-DEFAULT_NUM_INPUT_DEPTHS = 8
+DEFAULT_NUM_INPUT_DEPTHS = 12
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
@@ -71,10 +71,60 @@ MODEL_METADATA_KEYS = [
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, RADAR_SOURCE_KEY,
     RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY,
     TARGET_NAME_KEY, NORMALIZE_BY_BATCH_KEY, NORMALIZATION_DICT_KEY,
-    PERCENTILE_OFFSET_KEY, CLASS_FRACTIONS_KEY
-]
+    PERCENTILE_OFFSET_KEY, CLASS_FRACTIONS_KEY]
+
 
 # TODO(thunderhoser): should play with Adam optimizer, per DJ Gagne.
+
+
+def _check_training_args(
+        num_epochs, num_training_batches_per_epoch,
+        num_validation_batches_per_epoch, weight_loss_function,
+        class_fractions_to_sample, model_file_name, history_file_name,
+        tensorboard_dir_name):
+    """Error-checks input arguments for training method.
+
+    :param num_epochs: Number of training epochs.
+    :param num_training_batches_per_epoch: Number of training batches per epoch.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
+    :param weight_loss_function: Boolean flag.  If False, classes will be
+        weighted equally in the loss function.  If True, classes will be
+        weighted differently in the loss function (inversely proportional with
+        `class_fractions_to_sample`).
+    :param class_fractions_to_sample: See documentation for
+        `training_validation_io.storm_image_generator_2d`.
+    :param model_file_name: Path to output file (HDF5 format).  The model will
+        be saved here after every epoch.
+    :param history_file_name: Path to output file (CSV format).  Training
+        history will be saved here after every epoch.
+    :param tensorboard_dir_name: Path to output directory for TensorBoard log
+        files.
+    :return: class_weight_dict: See doc for
+        `dl_utils.class_fractions_to_weights`.
+    """
+
+    error_checking.assert_is_integer(num_epochs)
+    error_checking.assert_is_geq(num_epochs, 1)
+    error_checking.assert_is_integer(num_training_batches_per_epoch)
+    error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
+    if num_validation_batches_per_epoch is not None:
+        error_checking.assert_is_integer(num_validation_batches_per_epoch)
+        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
+
+    error_checking.assert_is_boolean(weight_loss_function)
+    if weight_loss_function:
+        class_weight_dict = dl_utils.class_fractions_to_weights(
+            class_fractions_to_sample)
+    else:
+        class_weight_dict = None
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=history_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=tensorboard_dir_name)
+
+    return class_weight_dict
 
 
 def get_mnist_architecture(num_classes, num_input_channels=3):
@@ -263,11 +313,12 @@ def get_3d_swirlnet_architecture(num_classes, num_input_channels=3):
     regularizer_object = cnn_utils.get_weight_regularizer(
         l1_penalty=0, l2_penalty=0.01)
 
-    # Input to this layer is E x 32 x 32 x 8 x C.
+    # Input to this layer is E x 32 x 32 x 12 x C.
     layer_object = cnn_utils.get_3d_conv_layer(
-        num_output_filters=24, num_kernel_rows=5, num_kernel_columns=5,
-        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=8*num_input_channels, num_kernel_rows=5,
+        num_kernel_columns=5, num_kernel_depths=3, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu', is_first_layer=True,
         num_input_rows=DEFAULT_NUM_INPUT_ROWS,
@@ -276,62 +327,64 @@ def get_3d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_input_channels=num_input_channels)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 32 x 32 x 8 x 24.
+    # Input to this layer is E x 32 x 32 x 12 x 8C.
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 32 x 32 x 8 x 24.
+    # Input to this layer is E x 32 x 32 x 12 x 8C.
     layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
         num_columns_per_stride=2, num_depths_per_stride=2)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 16 x 16 x 4 x 24.
+    # Input to this layer is E x 16 x 16 x 6 x 8C.
     layer_object = cnn_utils.get_3d_conv_layer(
-        num_output_filters=48, num_kernel_rows=5, num_kernel_columns=5,
-        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=16*num_input_channels, num_kernel_rows=5,
+        num_kernel_columns=5, num_kernel_depths=3, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')
     model_object.add(layer_object)
 
-    # Input to this layer is E x 16 x 16 x 4 x 48.
+    # Input to this layer is E x 16 x 16 x 6 x 16C.
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 16 x 16 x 4 x 48.
+    # Input to this layer is E x 16 x 16 x 6 x 16C.
     layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
         num_columns_per_stride=2, num_depths_per_stride=2)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 8 x 8 x 2 x 48.
+    # Input to this layer is E x 8 x 8 x 3 x 16C.
     layer_object = cnn_utils.get_3d_conv_layer(
-        num_output_filters=96, num_kernel_rows=3, num_kernel_columns=3,
-        num_kernel_depths=2, num_rows_per_stride=1, num_columns_per_stride=1,
-        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=32*num_input_channels, num_kernel_rows=3,
+        num_kernel_columns=3, num_kernel_depths=3, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')
     model_object.add(layer_object)
 
-    # Input to this layer is E x 8 x 8 x 2 x 96.
+    # Input to this layer is E x 8 x 8 x 3 x 32C.
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 8 x 8 x 2 x 96.
+    # Input to this layer is E x 8 x 8 x 3 x 32C.
     layer_object = cnn_utils.get_3d_pooling_layer(
-        num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=2,
+        num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=3,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2, num_depths_per_stride=2)
+        num_columns_per_stride=2, num_depths_per_stride=3)
     model_object.add(layer_object)
 
-    # Input to this layer is E x 4 x 4 x 1 x 96.
+    # Input to this layer is E x 4 x 4 x 1 x 32C.
     layer_object = cnn_utils.get_flattening_layer()
     model_object.add(layer_object)
 
-    # Input to this layer is length-1536.
+    # Input to this layer is length-512C.
     layer_object = cnn_utils.get_fully_connected_layer(
         num_output_units=num_classes, activation_function='softmax')
     model_object.add(layer_object)
@@ -444,25 +497,27 @@ def read_model_metadata(pickle_file_name):
 
 
 def train_2d_cnn(
-        model_object, output_file_name, num_epochs,
-        num_training_batches_per_epoch, top_input_dir_name, radar_source,
-        radar_field_names, num_examples_per_batch, num_examples_per_time,
-        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
-        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
-        normalize_by_batch=False,
+        model_object, model_file_name, history_file_name, tensorboard_dir_name,
+        num_epochs, num_training_batches_per_epoch, top_input_dir_name,
+        radar_source, radar_field_names, num_examples_per_batch,
+        num_examples_per_time, first_train_time_unix_sec,
+        last_train_time_unix_sec, target_name, radar_heights_m_asl=None,
+        reflectivity_heights_m_asl=None, normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
-        class_fractions_to_sample=None, num_validation_batches_per_epoch=None,
-        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+        weight_loss_function=False, class_fractions_to_sample=None,
+        num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
+        last_validn_time_unix_sec=None):
     """Trains 2-D CNN (one that performs 2-D convolution).
 
     :param model_object: Instance of `keras.models.Sequential`.
-    :param output_file_name: Path to output file (HDF5 format).  The model will
-        be saved here after every epoch.
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param top_input_dir_name: See documentation for
+    :param model_file_name: See documentation for `_check_training_args`.
+    :param history_file_name: Same.
+    :param tensorboard_dir_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param top_input_dir_name: See doc for
         `training_validation_io.storm_image_generator_2d`.
     :param radar_source: Same.
     :param radar_field_names: Same.
@@ -479,27 +534,35 @@ def train_2d_cnn(
     :param normalize_by_batch: Same.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
+    :param weight_loss_function: See doc for `_check_training_args`.
     :param class_fractions_to_sample: Same.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
+    :param num_validation_batches_per_epoch: Same.
     :param first_validn_time_unix_sec: First image time for validation.
         Examples will be created for random times in
         `first_validn_time_unix_sec`...`last_validn_time_unix_sec`.
     :param last_validn_time_unix_sec: See above.
     """
 
-    # TODO(thunderhoser): Allow loss function to be weighted.
+    class_weight_dict = _check_training_args(
+        num_epochs=num_epochs,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        weight_loss_function=weight_loss_function,
+        class_fractions_to_sample=class_fractions_to_sample,
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name)
 
-    error_checking.assert_is_integer(num_epochs)
-    error_checking.assert_is_geq(num_epochs, 1)
-    error_checking.assert_is_integer(num_training_batches_per_epoch)
-    error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+    tensorboard_object = keras.callbacks.TensorBoard(
+        log_dir=tensorboard_dir_name, histogram_freq=1,
+        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
+        write_images=True, embeddings_freq=1)
 
     if num_validation_batches_per_epoch is None:
-        checkpoint_object = ModelCheckpoint(
-            output_file_name, monitor='loss', verbose=1, save_best_only=False,
-            save_weights_only=False, mode='min', period=1)
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='loss', verbose=1,
+            save_best_only=False, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
             generator=training_validation_io.storm_image_generator_2d(
@@ -518,14 +581,12 @@ def train_2d_cnn(
                 percentile_offset_for_normalization,
                 class_fractions_to_sample=class_fractions_to_sample),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object])
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        error_checking.assert_is_integer(num_validation_batches_per_epoch)
-        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
-
-        checkpoint_object = ModelCheckpoint(
-            output_file_name, monitor='val_loss', verbose=1,
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
@@ -545,7 +606,8 @@ def train_2d_cnn(
                 percentile_offset_for_normalization,
                 class_fractions_to_sample=class_fractions_to_sample),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object],
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=training_validation_io.storm_image_generator_2d(
                 top_directory_name=top_input_dir_name,
                 radar_source=radar_source, radar_field_names=radar_field_names,
@@ -565,24 +627,27 @@ def train_2d_cnn(
 
 
 def train_3d_cnn(
-        model_object, output_file_name, num_epochs,
-        num_training_batches_per_epoch, top_input_dir_name, radar_source,
-        radar_field_names, radar_heights_m_asl, num_examples_per_batch,
-        num_examples_per_time, first_train_time_unix_sec,
-        last_train_time_unix_sec, target_name, normalize_by_batch=False,
+        model_object, model_file_name, history_file_name, tensorboard_dir_name,
+        num_epochs, num_training_batches_per_epoch, top_input_dir_name,
+        radar_source, radar_field_names, radar_heights_m_asl,
+        num_examples_per_batch, num_examples_per_time,
+        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
+        normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
-        class_fractions_to_sample=None, num_validation_batches_per_epoch=None,
-        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+        weight_loss_function=False, class_fractions_to_sample=None,
+        num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
+        last_validn_time_unix_sec=None):
     """Trains 3-D CNN (one that performs 3-D convolution).
 
     :param model_object: Instance of `keras.models.Sequential`.
-    :param output_file_name: Path to output file (HDF5 format).  The model will
-        be saved here after every epoch.
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param top_input_dir_name: See documentation for
+    :param model_file_name: See documentation for `_check_training_args`.
+    :param history_file_name: Same.
+    :param tensorboard_dir_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param top_input_dir_name: See doc for
         `training_validation_io.storm_image_generator_3d`.
     :param radar_source: Same.
     :param radar_field_names: Same.
@@ -593,30 +658,40 @@ def train_3d_cnn(
         Examples will be created for random times in
         `first_train_time_unix_sec`...`last_train_time_unix_sec`.
     :param last_train_time_unix_sec: See above.
-    :param target_name: See documentation for
+    :param target_name: See doc for
         `training_validation_io.storm_image_generator_3d`.
     :param normalize_by_batch: Same.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
+    :param weight_loss_function: See doc for `_check_training_args`.
     :param class_fractions_to_sample: Same.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
+    :param num_validation_batches_per_epoch: Same.
     :param first_validn_time_unix_sec: First image time for validation.
         Examples will be created for random times in
         `first_validn_time_unix_sec`...`last_validn_time_unix_sec`.
     :param last_validn_time_unix_sec: See above.
     """
 
-    error_checking.assert_is_integer(num_epochs)
-    error_checking.assert_is_geq(num_epochs, 1)
-    error_checking.assert_is_integer(num_training_batches_per_epoch)
-    error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    class_weight_dict = _check_training_args(
+        num_epochs=num_epochs,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        weight_loss_function=weight_loss_function,
+        class_fractions_to_sample=class_fractions_to_sample,
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name)
+
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+    tensorboard_object = keras.callbacks.TensorBoard(
+        log_dir=tensorboard_dir_name, histogram_freq=1,
+        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
+        write_images=True, embeddings_freq=1)
 
     if num_validation_batches_per_epoch is None:
-        checkpoint_object = ModelCheckpoint(
-            output_file_name, monitor='loss', verbose=1, save_best_only=False,
-            save_weights_only=False, mode='min', period=1)
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='loss', verbose=1,
+            save_best_only=False, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
             generator=training_validation_io.storm_image_generator_3d(
@@ -634,14 +709,12 @@ def train_3d_cnn(
                 percentile_offset_for_normalization,
                 class_fractions_to_sample=class_fractions_to_sample),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object])
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        error_checking.assert_is_integer(num_validation_batches_per_epoch)
-        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
-
-        checkpoint_object = ModelCheckpoint(
-            output_file_name, monitor='val_loss', verbose=1,
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
@@ -660,7 +733,8 @@ def train_3d_cnn(
                 percentile_offset_for_normalization,
                 class_fractions_to_sample=class_fractions_to_sample),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, callbacks=[checkpoint_object],
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=training_validation_io.storm_image_generator_3d(
                 top_directory_name=top_input_dir_name,
                 radar_source=radar_source,
