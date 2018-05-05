@@ -188,6 +188,9 @@ def storm_image_generator_2d(
                     storm_to_tornadoes_table=this_storm_image_dict[
                         storm_images.STORM_TO_TORNADOES_TABLE_KEY]))
 
+            these_valid_storm_indices = numpy.where(these_target_values >= 0)[0]
+            these_target_values = these_target_values[these_valid_storm_indices]
+
             if num_classes is None:
                 target_param_dict = labels.column_name_to_label_params(
                     target_name)
@@ -203,7 +206,7 @@ def storm_image_generator_2d(
                 num_examples_per_batch_by_class = numpy.full(
                     num_classes, 0, dtype=int)
 
-            if len(numpy.unique(these_target_values)) == 1:
+            if len(numpy.unique(these_target_values)) <= 1:
                 image_time_index += 1
                 if image_time_index >= num_image_times:
                     image_time_index = 0
@@ -225,7 +228,8 @@ def storm_image_generator_2d(
                         image_file_name_matrix[image_time_index, j])
 
                 this_field_predictor_matrix = this_storm_image_dict[
-                    storm_images.STORM_IMAGE_MATRIX_KEY]
+                    storm_images.STORM_IMAGE_MATRIX_KEY][
+                        these_valid_storm_indices, ...]
                 tuple_of_predictor_matrices += (this_field_predictor_matrix,)
 
             # Housekeeping.
@@ -421,57 +425,69 @@ def storm_image_generator_3d(
             print '\n'
             tuple_of_4d_predictor_matrices = ()
 
+            # Read images for the [0]th predictor at the [0]th height and [i]th
+            # time (where i = image_time_index).
+            print 'Reading data from: "{0:s}"...'.format(
+                image_file_name_matrix[image_time_index, 0, 0])
+            this_storm_image_dict = storm_images.read_storm_images(
+                image_file_name_matrix[image_time_index, 0, 0])
+
+            # Read target values for the [i]th time (where i =
+            # image_time_index).
+            these_target_values = storm_images.extract_one_label_per_storm(
+                storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
+                label_name=target_name,
+                storm_to_winds_table=this_storm_image_dict[
+                    storm_images.STORM_TO_WINDS_TABLE_KEY],
+                storm_to_tornadoes_table=this_storm_image_dict[
+                    storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+
+            these_valid_storm_indices = numpy.where(these_target_values >= 0)[0]
+            these_target_values = these_target_values[these_valid_storm_indices]
+
+            if num_classes is None:
+                target_param_dict = (
+                    labels.column_name_to_label_params(target_name))
+                wind_speed_class_cutoffs_kt = target_param_dict[
+                    labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
+
+                if wind_speed_class_cutoffs_kt is None:
+                    num_classes = 2
+                else:
+                    num_classes = 1 + len(wind_speed_class_cutoffs_kt)
+
+            if class_fractions_to_sample is None:
+                num_examples_per_batch_by_class = numpy.full(
+                    num_classes, 0, dtype=int)
+
+            if len(numpy.unique(these_target_values)) <= 1:
+                image_time_index += 1
+                if image_time_index >= num_image_times:
+                    image_time_index = 0
+                continue
+
+            if all_target_values is None:
+                all_target_values = copy.deepcopy(these_target_values)
+            else:
+                all_target_values = numpy.concatenate((
+                    all_target_values, these_target_values))
+
             for k in range(num_heights):
                 tuple_of_3d_predictor_matrices = ()
 
                 for j in range(num_fields):
-                    print 'Reading data from: "{0:s}"...'.format(
-                        image_file_name_matrix[image_time_index, j, k])
+                    if not j == k == 0:
 
-                    # Read images for the [j]th predictor at the [k]th height
-                    # and [i]th time (where i = image_time_index).
-                    this_storm_image_dict = storm_images.read_storm_images(
-                        image_file_name_matrix[image_time_index, j, k])
+                        # Read images for the [j]th predictor at the [k]th
+                        # height and [i]th time (where i = image_time_index).
+                        print 'Reading data from: "{0:s}"...'.format(
+                            image_file_name_matrix[image_time_index, j, k])
+                        this_storm_image_dict = storm_images.read_storm_images(
+                            image_file_name_matrix[image_time_index, j, k])
+
                     this_3d_predictor_matrix = this_storm_image_dict[
-                        storm_images.STORM_IMAGE_MATRIX_KEY]
-
-                    if j == k == 0:
-
-                        # Read target values for the [i]th time (where i =
-                        # image_time_index).
-                        these_target_values = (
-                            storm_images.extract_one_label_per_storm(
-                                storm_ids=this_storm_image_dict[
-                                    storm_images.STORM_IDS_KEY],
-                                label_name=target_name,
-                                storm_to_winds_table=this_storm_image_dict[
-                                    storm_images.STORM_TO_WINDS_TABLE_KEY],
-                                storm_to_tornadoes_table=this_storm_image_dict[
-                                    storm_images.STORM_TO_TORNADOES_TABLE_KEY]))
-
-                        if num_classes is None:
-                            target_param_dict = (
-                                labels.column_name_to_label_params(target_name))
-                            wind_speed_class_cutoffs_kt = target_param_dict[
-                                labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-
-                            if wind_speed_class_cutoffs_kt is None:
-                                num_classes = 2
-                            else:
-                                num_classes = 1 + len(
-                                    wind_speed_class_cutoffs_kt)
-
-                        if class_fractions_to_sample is None:
-                            num_examples_per_batch_by_class = numpy.full(
-                                num_classes, 0, dtype=int)
-
-                        if all_target_values is None:
-                            all_target_values = copy.deepcopy(
-                                these_target_values)
-                        else:
-                            all_target_values = numpy.concatenate((
-                                all_target_values, these_target_values))
-
+                        storm_images.STORM_IMAGE_MATRIX_KEY][
+                            these_valid_storm_indices, ...]
                     tuple_of_3d_predictor_matrices += (
                         this_3d_predictor_matrix,)
 
