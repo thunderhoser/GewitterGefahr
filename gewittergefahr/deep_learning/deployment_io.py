@@ -97,33 +97,42 @@ def create_2d_storm_images_one_time(
     target_values = None
     tuple_of_predictor_matrices = ()
 
-    for j in range(num_predictors):
-        print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
+    print 'Reading data from: "{0:s}"...'.format(image_file_names[0])
+    this_storm_image_dict = storm_images.read_storm_images(image_file_names[0])
 
-        this_storm_image_dict = storm_images.read_storm_images(
-            image_file_names[j])
+    if target_name is not None:
+        target_values = storm_images.extract_one_label_per_storm(
+            storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
+            label_name=target_name,
+            storm_to_winds_table=this_storm_image_dict[
+                storm_images.STORM_TO_WINDS_TABLE_KEY],
+            storm_to_tornadoes_table=this_storm_image_dict[
+                storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+
+        valid_storm_indices = numpy.where(target_values >= 0)[0]
+        target_values = target_values[valid_storm_indices]
+
+        if num_classes is None:
+            target_param_dict = labels.column_name_to_label_params(target_name)
+            wind_speed_class_cutoffs_kt = target_param_dict[
+                labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
+
+            if wind_speed_class_cutoffs_kt is None:
+                num_classes = 2
+            else:
+                num_classes = len(wind_speed_class_cutoffs_kt) + 1
+
+    for j in range(num_predictors):
+        if j != 0:
+            print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
+            this_storm_image_dict = storm_images.read_storm_images(
+                image_file_names[j])
+
         this_predictor_matrix = this_storm_image_dict[
             storm_images.STORM_IMAGE_MATRIX_KEY]
-
-        if j == 0 and target_name is not None:
-            target_values = storm_images.extract_one_label_per_storm(
-                storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
-                label_name=target_name,
-                storm_to_winds_table=this_storm_image_dict[
-                    storm_images.STORM_TO_WINDS_TABLE_KEY],
-                storm_to_tornadoes_table=this_storm_image_dict[
-                    storm_images.STORM_TO_TORNADOES_TABLE_KEY])
-
-            if num_classes is None:
-                target_param_dict = labels.column_name_to_label_params(
-                    target_name)
-                wind_speed_class_cutoffs_kt = target_param_dict[
-                    labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-
-                if wind_speed_class_cutoffs_kt is None:
-                    num_classes = 2
-                else:
-                    num_classes = len(wind_speed_class_cutoffs_kt) + 1
+        if target_name is not None:
+            this_predictor_matrix = this_predictor_matrix[
+                valid_storm_indices, ...]
 
         tuple_of_predictor_matrices += (this_predictor_matrix,)
 
@@ -214,37 +223,47 @@ def create_3d_storm_images_one_time(
     target_values = None
     tuple_of_4d_predictor_matrices = ()
 
+    print 'Reading data from: "{0:s}"...'.format(image_file_name_matrix[0, 0])
+    this_storm_image_dict = storm_images.read_storm_images(
+        image_file_name_matrix[0, 0])
+
+    if target_name is not None:
+        target_values = storm_images.extract_one_label_per_storm(
+            storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
+            label_name=target_name,
+            storm_to_winds_table=this_storm_image_dict[
+                storm_images.STORM_TO_WINDS_TABLE_KEY],
+            storm_to_tornadoes_table=this_storm_image_dict[
+                storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+
+        valid_storm_indices = numpy.where(target_values >= 0)[0]
+        target_values = target_values[valid_storm_indices]
+
+        if num_classes is None:
+            target_param_dict = labels.column_name_to_label_params(target_name)
+            wind_speed_class_cutoffs_kt = target_param_dict[
+                labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
+
+            if wind_speed_class_cutoffs_kt is None:
+                num_classes = 2
+            else:
+                num_classes = len(wind_speed_class_cutoffs_kt) + 1
+
     for k in range(num_heights):
         tuple_of_3d_predictor_matrices = ()
 
         for j in range(num_fields):
-            print 'Reading data from: "{0:s}"...'.format(
-                image_file_name_matrix[j, k])
+            if not j == k == 0:
+                print 'Reading data from: "{0:s}"...'.format(
+                    image_file_name_matrix[j, k])
+                this_storm_image_dict = storm_images.read_storm_images(
+                    image_file_name_matrix[j, k])
 
-            this_storm_image_dict = storm_images.read_storm_images(
-                image_file_name_matrix[j, k])
             this_predictor_matrix = this_storm_image_dict[
                 storm_images.STORM_IMAGE_MATRIX_KEY]
-
-            if j == k == 0 and target_name is not None:
-                target_values = storm_images.extract_one_label_per_storm(
-                    storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
-                    label_name=target_name,
-                    storm_to_winds_table=this_storm_image_dict[
-                        storm_images.STORM_TO_WINDS_TABLE_KEY],
-                    storm_to_tornadoes_table=this_storm_image_dict[
-                        storm_images.STORM_TO_TORNADOES_TABLE_KEY])
-
-                if num_classes is None:
-                    target_param_dict = labels.column_name_to_label_params(
-                        target_name)
-                    wind_speed_class_cutoffs_kt = target_param_dict[
-                        labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-
-                    if wind_speed_class_cutoffs_kt is None:
-                        num_classes = 2
-                    else:
-                        num_classes = len(wind_speed_class_cutoffs_kt) + 1
+            if target_name is not None:
+                this_predictor_matrix = this_predictor_matrix[
+                    valid_storm_indices, ...]
 
             tuple_of_3d_predictor_matrices += (this_predictor_matrix,)
 
