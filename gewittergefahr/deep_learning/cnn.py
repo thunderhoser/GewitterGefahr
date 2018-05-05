@@ -554,10 +554,17 @@ def train_2d_cnn(
 
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
+
+    embedding_layer_names = [
+        this_layer.name for this_layer in model_object.layers if
+        this_layer.name.startswith('dense') or
+        this_layer.name.startswith('conv')]
+
     tensorboard_object = keras.callbacks.TensorBoard(
         log_dir=tensorboard_dir_name, histogram_freq=1,
         batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
-        write_images=True, embeddings_freq=1)
+        write_images=True, embeddings_freq=1,
+        embeddings_layer_names=embedding_layer_names)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
@@ -683,10 +690,17 @@ def train_3d_cnn(
 
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
+
+    embedding_layer_names = [
+        this_layer.name for this_layer in model_object.layers if
+        this_layer.name.startswith('dense') or
+        this_layer.name.startswith('conv')]
+
     tensorboard_object = keras.callbacks.TensorBoard(
         log_dir=tensorboard_dir_name, histogram_freq=1,
         batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
-        write_images=True, embeddings_freq=1)
+        write_images=True, embeddings_freq=1,
+        embeddings_layer_names=embedding_layer_names)
 
     if num_validation_batches_per_epoch is None:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
