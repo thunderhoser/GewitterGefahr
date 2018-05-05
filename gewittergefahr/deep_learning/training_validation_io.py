@@ -497,6 +497,7 @@ def storm_image_generator_3d(
                     (full_predictor_matrix, this_predictor_matrix), axis=0)
 
             # Determine stopping criterion.
+            print all_target_values
             num_examples_by_class = numpy.array(
                 [numpy.sum(all_target_values == k) for k in range(num_classes)],
                 dtype=int)
