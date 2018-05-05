@@ -356,7 +356,6 @@ def storm_image_generator_3d(
         normalize_by_batch=normalize_by_batch)
 
     # Find input files (with storm-centered radar images).
-    print 'FOO'
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
             top_directory_name=top_directory_name,
@@ -383,7 +382,6 @@ def storm_image_generator_3d(
         image_file_name_matrix = numpy.reshape(
             image_file_name_matrix, (num_image_times, 1, num_heights))
 
-    print 'BAR'
     time_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix == '')[0])
     image_file_name_matrix = numpy.delete(
