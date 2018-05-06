@@ -766,6 +766,189 @@ def train_3d_cnn(
             validation_steps=num_validation_batches_per_epoch)
 
 
+def train_3d_cnn_incrementally(
+        model_object, model_file_name, history_file_name, tensorboard_dir_name,
+        num_epochs, num_training_batches_per_epoch, top_input_dir_name,
+        radar_source, radar_field_names, radar_heights_m_asl,
+        num_examples_per_batch, num_examples_per_time,
+        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
+        normalize_by_batch=False,
+        normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        percentile_offset_for_normalization=
+        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
+        weight_loss_function=False, class_fractions_to_sample=None,
+        num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
+        last_validn_time_unix_sec=None):
+    """Trains 3-D CNN incrementally for two epochs.
+
+    In other words, training is done with two separate calls to
+    `keras.models.Sequential.fit_generator`.
+
+    :param model_object: See documentation for `train_3d_cnn`.
+    :param model_file_name: Same.
+    :param history_file_name: Same.
+    :param tensorboard_dir_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param top_input_dir_name: Same.
+    :param radar_source: Same.
+    :param radar_field_names: Same.
+    :param radar_heights_m_asl: Same.
+    :param num_examples_per_batch: Same.
+    :param num_examples_per_time: Same.
+    :param first_train_time_unix_sec: Same.
+    :param last_train_time_unix_sec: Same.
+    :param target_name: Same.
+    :param normalize_by_batch: Same.
+    :param normalization_dict: Same.
+    :param percentile_offset_for_normalization: Same.
+    :param weight_loss_function: Same.
+    :param class_fractions_to_sample: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param first_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec: Same.
+    """
+
+    class_weight_dict = _check_training_args(
+        num_epochs=num_epochs,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        weight_loss_function=weight_loss_function,
+        class_fractions_to_sample=class_fractions_to_sample,
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name)
+
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+
+    embedding_layer_names = [
+        this_layer.name for this_layer in model_object.layers if
+        this_layer.name.startswith('dense') or
+        this_layer.name.startswith('conv')]
+
+    tensorboard_object = keras.callbacks.TensorBoard(
+        log_dir=tensorboard_dir_name, histogram_freq=0,
+        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
+        write_images=True, embeddings_freq=1,
+        embeddings_layer_names=embedding_layer_names)
+
+    if num_validation_batches_per_epoch is None:
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='loss', verbose=1,
+            save_best_only=False, save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=training_validation_io.storm_image_generator_3d(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_heights_m_asl=radar_heights_m_asl,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_image_time=num_examples_per_time,
+                first_image_time_unix_sec=first_train_time_unix_sec,
+                last_image_time_unix_sec=last_train_time_unix_sec,
+                target_name=target_name, radar_field_names=radar_field_names,
+                normalize_by_batch=normalize_by_batch,
+                normalization_dict=normalization_dict,
+                percentile_offset_for_normalization=
+                percentile_offset_for_normalization,
+                class_fractions_to_sample=class_fractions_to_sample),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=1,
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object])
+
+        model_object.fit_generator(
+            generator=training_validation_io.storm_image_generator_3d(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_heights_m_asl=radar_heights_m_asl,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_image_time=num_examples_per_time,
+                first_image_time_unix_sec=first_train_time_unix_sec,
+                last_image_time_unix_sec=last_train_time_unix_sec,
+                target_name=target_name, radar_field_names=radar_field_names,
+                normalize_by_batch=normalize_by_batch,
+                normalization_dict=normalization_dict,
+                percentile_offset_for_normalization=
+                percentile_offset_for_normalization,
+                class_fractions_to_sample=class_fractions_to_sample),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=2,
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object])
+
+    else:
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=training_validation_io.storm_image_generator_3d(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_heights_m_asl=radar_heights_m_asl,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_image_time=num_examples_per_time,
+                first_image_time_unix_sec=first_train_time_unix_sec,
+                last_image_time_unix_sec=last_train_time_unix_sec,
+                target_name=target_name, radar_field_names=radar_field_names,
+                normalize_by_batch=normalize_by_batch,
+                normalization_dict=normalization_dict,
+                percentile_offset_for_normalization=
+                percentile_offset_for_normalization,
+                class_fractions_to_sample=class_fractions_to_sample),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=1,
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object],
+            validation_data=training_validation_io.storm_image_generator_3d(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_heights_m_asl=radar_heights_m_asl,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_image_time=num_examples_per_time,
+                first_image_time_unix_sec=first_validn_time_unix_sec,
+                last_image_time_unix_sec=last_validn_time_unix_sec,
+                target_name=target_name, radar_field_names=radar_field_names,
+                normalize_by_batch=normalize_by_batch,
+                normalization_dict=normalization_dict,
+                percentile_offset_for_normalization=
+                percentile_offset_for_normalization,
+                class_fractions_to_sample=class_fractions_to_sample),
+            validation_steps=num_validation_batches_per_epoch)
+
+        model_object.fit_generator(
+            generator=training_validation_io.storm_image_generator_3d(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_heights_m_asl=radar_heights_m_asl,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_image_time=num_examples_per_time,
+                first_image_time_unix_sec=first_train_time_unix_sec,
+                last_image_time_unix_sec=last_train_time_unix_sec,
+                target_name=target_name, radar_field_names=radar_field_names,
+                normalize_by_batch=normalize_by_batch,
+                normalization_dict=normalization_dict,
+                percentile_offset_for_normalization=
+                percentile_offset_for_normalization,
+                class_fractions_to_sample=class_fractions_to_sample),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=2,
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object],
+            validation_data=training_validation_io.storm_image_generator_3d(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_heights_m_asl=radar_heights_m_asl,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_image_time=num_examples_per_time,
+                first_image_time_unix_sec=first_validn_time_unix_sec,
+                last_image_time_unix_sec=last_validn_time_unix_sec,
+                target_name=target_name, radar_field_names=radar_field_names,
+                normalize_by_batch=normalize_by_batch,
+                normalization_dict=normalization_dict,
+                percentile_offset_for_normalization=
+                percentile_offset_for_normalization,
+                class_fractions_to_sample=class_fractions_to_sample),
+            validation_steps=num_validation_batches_per_epoch)
+
+
 def apply_2d_cnn(model_object, predictor_matrix):
     """Applies 2-D CNN (one that performs 2-D convolution) to new examples.
 
