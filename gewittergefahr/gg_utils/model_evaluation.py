@@ -15,12 +15,14 @@ Lagerquist, R., McGovern, A., and Smith, T., 2017: Machine learning for real-
 """
 
 import copy
+import pickle
 import numpy
 import sklearn.metrics
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import histograms
 from gewittergefahr.gg_utils import bootstrapping
 from gewittergefahr.gg_utils import number_rounding as rounder
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): All classification metrics are currently for binary
@@ -35,6 +37,11 @@ MAX_FORECAST_PROB_FOR_XENTROPY = 1. - numpy.finfo(float).eps
 
 DEFAULT_NUM_BOOTSTRAP_ITERS = 100
 DEFAULT_BOOTSTRAP_CONFIDENCE_LEVEL = 0.95
+
+MIN_OPTIMIZATION_DIRECTION = 'min'
+MAX_OPTIMIZATION_DIRECTION = 'max'
+VALID_OPTIMIZATION_DIRECTIONS = [
+    MIN_OPTIMIZATION_DIRECTION, MAX_OPTIMIZATION_DIRECTION]
 
 NUM_TRUE_POSITIVES_KEY = 'num_true_positives'
 NUM_FALSE_POSITIVES_KEY = 'num_false_positives'
@@ -54,6 +61,28 @@ SUCCESS_RATIO_BY_THRESHOLD_KEY = 'success_ratio_by_threshold'
 MAX_CSI_KEY = 'max_csi_over_thresholds'
 MEAN_FORECAST_PROB_BY_BIN_KEY = 'mean_forecast_prob_by_bin'
 MEAN_OBSERVED_LABEL_BY_BIN_KEY = 'mean_observed_label_by_bin'
+
+FORECAST_PROBABILITIES_KEY = 'forecast_probabilities'
+OBSERVED_LABELS_KEY = 'observed_labels'
+BINARIZATION_THRESHOLD_KEY = 'binarization_threshold'
+POD_KEY = 'pod'
+POFD_KEY = 'pofd'
+SUCCESS_RATIO_KEY = 'success_ratio'
+FOCN_KEY = 'focn'
+ACCURACY_KEY = 'accuracy'
+CSI_KEY = 'csi'
+FREQUENCY_BIAS_KEY = 'frequency_bias'
+PEIRCE_SCORE_KEY = 'peirce_score'
+HEIDKE_SCORE_KEY = 'heidke_score'
+AUC_KEY = 'auc'
+SCIKIT_LEARN_AUC_KEY = 'scikit_learn_auc'
+BSS_DICTIONARY_KEY = 'bss_dict'
+
+EVALUATION_DICT_KEYS = [
+    FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BINARIZATION_THRESHOLD_KEY,
+    POD_KEY, POFD_KEY, SUCCESS_RATIO_KEY, FOCN_KEY, ACCURACY_KEY, CSI_KEY,
+    FREQUENCY_BIAS_KEY, PEIRCE_SCORE_KEY, HEIDKE_SCORE_KEY, AUC_KEY,
+    SCIKIT_LEARN_AUC_KEY, BSS_DICTIONARY_KEY]
 
 MIN_BINARIZATION_THRESHOLD = 0.
 MAX_BINARIZATION_THRESHOLD = 1. + TOLERANCE
@@ -254,6 +283,69 @@ def binarize_forecast_probs(forecast_probabilities, binarization_threshold):
     forecast_labels[positive_label_indices] = True
 
     return forecast_labels.astype(int)
+
+
+def find_best_binarization_threshold(
+        forecast_probabilities, observed_labels, threshold_arg,
+        criterion_function, optimization_direction=MAX_OPTIMIZATION_DIRECTION,
+        unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
+    """Finds the best binarization threshold.
+
+    :param forecast_probabilities: See documentation for
+        `_check_forecast_probs_and_observed_labels`.
+    :param observed_labels: See doc for
+        `_check_forecast_probs_and_observed_labels`.
+    :param threshold_arg: See doc for `get_binarization_thresholds`.
+    :param criterion_function: Criterion to be either minimized or maximized.
+        This must be a function that takes input `contingency_table_as_dict` and
+        returns a single float.  See `get_csi` in this module for an example.
+    :param optimization_direction: Direction in which criterion function is
+        optimized.  Options are "min" and "max".
+    :param unique_forecast_precision: See doc for `get_binarization_thresholds`.
+    :return: best_threshold: Best binarization threshold.
+    :return: best_criterion_value: Value of criterion function at said
+        threshold.
+    :raises: ValueError: if `optimization_direction not in
+        VALID_OPTIMIZATION_DIRECTIONS`.
+    """
+
+    error_checking.assert_is_string(optimization_direction)
+    if optimization_direction not in VALID_OPTIMIZATION_DIRECTIONS:
+        error_string = (
+            '\n\n{0:s}\nValid optimization directions (listed above) do not '
+            'include "{1:s}".').format(VALID_OPTIMIZATION_DIRECTIONS,
+                                       optimization_direction)
+        raise ValueError(error_string)
+
+    possible_thresholds = get_binarization_thresholds(
+        threshold_arg=threshold_arg,
+        forecast_probabilities=forecast_probabilities,
+        unique_forecast_precision=unique_forecast_precision)
+
+    num_thresholds = len(possible_thresholds)
+    criterion_values = numpy.full(num_thresholds, numpy.nan)
+
+    for i in range(num_thresholds):
+        these_forecast_labels = binarize_forecast_probs(
+            forecast_probabilities=forecast_probabilities,
+            binarization_threshold=possible_thresholds[i])
+
+        this_contingency_table_as_dict = get_contingency_table(
+            forecast_labels=these_forecast_labels,
+            observed_labels=observed_labels)
+
+        criterion_values[i] = criterion_function(this_contingency_table_as_dict)
+
+    if optimization_direction == MAX_OPTIMIZATION_DIRECTION:
+        best_criterion_value = numpy.nanmax(criterion_values)
+        best_probability_threshold = possible_thresholds[
+            numpy.nanargmax(criterion_values)]
+    else:
+        best_criterion_value = numpy.nanmin(criterion_values)
+        best_probability_threshold = possible_thresholds[
+            numpy.nanargmin(criterion_values)]
+
+    return best_probability_threshold, best_criterion_value
 
 
 def get_contingency_table(forecast_labels, observed_labels):
@@ -498,9 +590,9 @@ def get_brier_score(forecast_probabilities=None, observed_labels=None):
     N = number of forecasts
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :return: brier_score: Brier score.
     """
 
@@ -514,9 +606,9 @@ def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
     """Computes cross-entropy.
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :return: cross_entropy: Cross-entropy.
     """
 
@@ -587,9 +679,9 @@ def get_points_in_roc_curve(
     T = number of binarization thresholds
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param threshold_arg: See documentation for get_binarization_thresholds.
     :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :return: pofd_by_threshold: length-T numpy array of POFD values, to be
@@ -633,9 +725,9 @@ def bootstrap_roc_curve(
         confidence interval).
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param threshold_arg: See documentation for get_binarization_thresholds.
     :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :param num_bootstrap_iters: Number of bootstrapping iterations (number of
@@ -737,9 +829,9 @@ def get_points_in_performance_diagram(
     T = number of binarization thresholds
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param threshold_arg: See doc for get_binarization_thresholds.
     :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :return: success_ratio_by_threshold: length-T numpy array of success ratios,
@@ -784,9 +876,9 @@ def bootstrap_performance_diagram(
         confidence interval).
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param threshold_arg: See documentation for get_binarization_thresholds.
     :param unique_forecast_precision: See doc for get_binarization_thresholds.
     :param num_bootstrap_iters: Number of bootstrapping iterations (number of
@@ -978,9 +1070,9 @@ def get_points_in_reliability_curve(
     B = number of forecast bins
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param num_forecast_bins: Number of bins in which to discretize forecast
         probabilities.
     :return: mean_forecast_prob_by_bin: length-B numpy array of mean forecast
@@ -1025,9 +1117,9 @@ def bootstrap_reliability_curve(
         interval).
 
     :param forecast_probabilities: See documentation for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param observed_labels: See doc for
-        _check_forecast_probs_and_observed_labels.
+        `_check_forecast_probs_and_observed_labels`.
     :param num_forecast_bins: Number of bins in which to discretize forecast
         probabilities.
     :param num_bootstrap_iters: Number of bootstrapping iterations (number of
@@ -1306,3 +1398,81 @@ def get_no_resolution_line_for_reliability_curve(mean_observed_label):
     """
 
     return numpy.array([0., 1.]), numpy.full(2, mean_observed_label)
+
+
+def write_results(
+        forecast_probabilities, observed_labels, binarization_threshold, pod,
+        pofd, success_ratio, focn, accuracy, csi, frequency_bias, peirce_score,
+        heidke_score, auc, scikit_learn_auc, bss_dict, pickle_file_name):
+    """Writes results to Pickle file.
+
+    :param forecast_probabilities: See documentation for
+        `_check_forecast_probs_and_observed_labels`.
+    :param observed_labels: See doc for
+        `_check_forecast_probs_and_observed_labels`.
+    :param binarization_threshold: See doc for `binarize_forecast_probs`.
+    :param pod: Probability of detection.
+    :param pofd: Probability of false detection.
+    :param success_ratio: Success ratio.
+    :param focn: Frequency of correct nulls.
+    :param accuracy: Accuracy.
+    :param csi: Critical success index.
+    :param frequency_bias: Frequency bias.
+    :param peirce_score: Peirce score.
+    :param heidke_score: Heidke score.
+    :param auc: Area under ROC curve (computed by GewitterGefahr).
+    :param scikit_learn_auc: AUC computed by scikit-learn.
+    :param bss_dict: Dictionary created by `get_brier_skill_score`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    evaluation_dict = {
+        FORECAST_PROBABILITIES_KEY: forecast_probabilities,
+        OBSERVED_LABELS_KEY: observed_labels,
+        BINARIZATION_THRESHOLD_KEY: binarization_threshold,
+        POD_KEY: pod,
+        POFD_KEY: pofd,
+        SUCCESS_RATIO_KEY: success_ratio,
+        FOCN_KEY: focn,
+        ACCURACY_KEY: accuracy,
+        CSI_KEY: csi,
+        FREQUENCY_BIAS_KEY: frequency_bias,
+        PEIRCE_SCORE_KEY: peirce_score,
+        HEIDKE_SCORE_KEY: heidke_score,
+        AUC_KEY: auc,
+        SCIKIT_LEARN_AUC_KEY: scikit_learn_auc,
+        BSS_DICTIONARY_KEY: bss_dict
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(evaluation_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_results(pickle_file_name):
+    """Reads results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: evaluation_dict: Dictionary with all keys in the list
+        `EVALUATION_DICT_KEYS`.
+    :raises: ValueError: if dictionary does not contain all keys in the list
+        `EVALUATION_DICT_KEYS`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    evaluation_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    expected_keys_as_set = set(EVALUATION_DICT_KEYS)
+    actual_keys_as_set = set(evaluation_dict.keys())
+    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+        error_string = (
+            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
+            '("{1:s}") are listed below.  Some expected keys were not found.'
+            '\n{2:s}\n').format(EVALUATION_DICT_KEYS, pickle_file_name,
+                                evaluation_dict.keys())
+
+        raise ValueError(error_string)
+
+    return evaluation_dict
