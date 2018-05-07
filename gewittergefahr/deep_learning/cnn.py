@@ -635,6 +635,99 @@ def train_2d_cnn(
             validation_steps=num_validation_batches_per_epoch)
 
 
+def train_2d_cnn_with_dynamic_sampling(
+        model_object, model_file_name, num_epochs,
+        num_training_batches_per_epoch, top_input_dir_name, radar_source,
+        radar_field_names, num_examples_per_batch, num_examples_per_time,
+        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
+        class_fractions_by_epoch_matrix, radar_heights_m_asl=None,
+        reflectivity_heights_m_asl=None, normalize_by_batch=False,
+        normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        percentile_offset_for_normalization=
+        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
+        weight_loss_function=True, num_validation_batches_per_epoch=None,
+        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+    """Trains 2-D CNN with dynamic class-conditional sampling.
+
+    :param model_object: See documentation for `train_2d_cnn`.
+    :param model_file_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param top_input_dir_name: Same.
+    :param radar_source: Same.
+    :param radar_field_names: Same.
+    :param num_examples_per_batch: Same.
+    :param num_examples_per_time: Same.
+    :param first_train_time_unix_sec: Same.
+    :param last_train_time_unix_sec: Same.
+    :param target_name: Same.
+    :param class_fractions_by_epoch_matrix:
+        See doc for `train_3d_cnn_with_dynamic_sampling`.
+    :param radar_heights_m_asl: See doc for `train_2d_cnn`.
+    :param reflectivity_heights_m_asl: Same.
+    :param normalize_by_batch: Same.
+    :param normalization_dict: Same.
+    :param percentile_offset_for_normalization: Same.
+    :param weight_loss_function: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param first_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec: Same.
+    """
+
+    error_checking.assert_is_integer(num_epochs)
+    error_checking.assert_is_greater(num_epochs, 0)
+
+    num_classes = class_fractions_by_epoch_matrix.shape[1]
+    error_checking.assert_is_numpy_array(
+        class_fractions_by_epoch_matrix,
+        exact_dimensions=numpy.array([num_epochs, num_classes]))
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
+    model_directory_name, _ = os.path.split(model_file_name)
+    history_file_names = [''] * num_epochs
+    tensorboard_dir_names = [''] * num_epochs
+
+    for i in range(num_epochs):
+        history_file_names[i] = '{0:s}/model_history_epoch{1:04d}.csv'.format(
+            model_directory_name, i)
+        tensorboard_dir_names[i] = '{0:s}/tensorboard_epoch{1:04d}.csv'.format(
+            model_directory_name, i)
+
+        _check_training_args(
+            num_epochs=num_epochs,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+            weight_loss_function=weight_loss_function,
+            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            model_file_name=model_file_name,
+            history_file_name=history_file_names[i],
+            tensorboard_dir_name=tensorboard_dir_names[i])
+
+    for i in range(num_epochs):
+        train_2d_cnn(
+            model_object=model_object, model_file_name=model_file_name,
+            history_file_name=history_file_names[i],
+            tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            top_input_dir_name=top_input_dir_name, radar_source=radar_source,
+            radar_field_names=radar_field_names,
+            num_examples_per_batch=num_examples_per_batch,
+            num_examples_per_time=num_examples_per_time,
+            first_train_time_unix_sec=first_train_time_unix_sec,
+            last_train_time_unix_sec=last_train_time_unix_sec,
+            target_name=target_name, radar_heights_m_asl=radar_heights_m_asl,
+            reflectivity_heights_m_asl=reflectivity_heights_m_asl,
+            normalize_by_batch=normalize_by_batch,
+            normalization_dict=normalization_dict,
+            percentile_offset_for_normalization=
+            percentile_offset_for_normalization,
+            weight_loss_function=weight_loss_function,
+            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+            first_validn_time_unix_sec=first_validn_time_unix_sec,
+            last_validn_time_unix_sec=last_validn_time_unix_sec)
+
+
 def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch, top_input_dir_name,
