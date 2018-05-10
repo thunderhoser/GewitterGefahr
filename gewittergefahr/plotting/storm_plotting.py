@@ -25,6 +25,27 @@ DEFAULT_POLY_FILL_COLOUR = numpy.array([152., 152., 152.]) / 255
 DEFAULT_POLY_FILL_OPACITY = 1.
 
 
+def get_storm_track_colours():
+    """Returns list of colours to use in plotting storm tracks.
+
+    :return: rgb_matrix: 10-by-3 numpy array.  rgb_matrix[i, 0] is the red
+        component of the [i]th colour; rgb_matrix[i, 1] is the green component
+        of the [i]th colour; rgb_matrix[i, 2] is the blue component of the [i]th
+        colour.
+    """
+
+    return numpy.array([[187, 255, 153],
+                        [129, 243, 144],
+                        [108, 232, 181],
+                        [88, 213, 221],
+                        [69, 137, 209],
+                        [52, 55, 198],
+                        [103, 37, 187],
+                        [161, 23, 175],
+                        [164, 10, 107],
+                        [153, 0, 25]], dtype=float) / 255
+
+
 def plot_storm_track(basemap_object=None, axes_object=None, latitudes_deg=None,
                      longitudes_deg=None, line_colour=DEFAULT_TRACK_COLOUR,
                      line_width=DEFAULT_TRACK_WIDTH,

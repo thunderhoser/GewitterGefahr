@@ -9,6 +9,8 @@ import copy
 import glob
 import pickle
 import numpy
+import netCDF4
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import gridrad_io
 from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
@@ -50,6 +52,12 @@ RADAR_FIELD_NAME_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_asl'
 STORM_TO_WINDS_TABLE_KEY = 'storm_to_winds_table'
 STORM_TO_TORNADOES_TABLE_KEY = 'storm_to_tornadoes_table'
+
+STORM_DIMENSION_KEY = 'storm'
+LAT_DIMENSION_KEY = 'latitude'
+LNG_DIMENSION_KEY = 'longitude'
+CHARACTER_DIMENSION_KEY = 'storm_id_character'
+MAX_CHARACTERS_IN_STORM_ID = 32
 
 DEFAULT_NUM_IMAGE_ROWS = 32
 DEFAULT_NUM_IMAGE_COLUMNS = 32
@@ -413,6 +421,136 @@ def _find_many_files_one_spc_date(
 
     return (image_file_name_matrix, unix_times_sec, field_name_by_pair,
             height_by_pair_m_asl)
+
+
+def _write_storm_images_only(
+        netcdf_file_name, storm_image_matrix, storm_ids, unix_time_sec,
+        radar_field_name, radar_height_m_asl):
+    """Writes storm imgs (e.g., created by extract_storm_image) to NetCDF file.
+
+    :param netcdf_file_name: Path to output file.
+    :param storm_image_matrix: See documentation for `_check_storm_images`.
+    :param storm_ids: See doc for `_check_storm_images`.
+    :param unix_time_sec: Valid time.
+    :param radar_field_name: See doc for `_check_storm_images`.
+    :param radar_height_m_asl: See doc for `_check_storm_images`.
+    """
+
+    _check_storm_images(
+        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
+        unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    netcdf_dataset = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    netcdf_dataset.setncattr(VALID_TIME_KEY, unix_time_sec)
+    netcdf_dataset.setncattr(RADAR_FIELD_NAME_KEY, radar_field_name)
+    netcdf_dataset.setncattr(RADAR_HEIGHT_KEY, radar_height_m_asl)
+
+    netcdf_dataset.createDimension(
+        STORM_DIMENSION_KEY, storm_image_matrix.shape[0])
+    netcdf_dataset.createDimension(
+        LAT_DIMENSION_KEY, storm_image_matrix.shape[1])
+    netcdf_dataset.createDimension(
+        LNG_DIMENSION_KEY, storm_image_matrix.shape[2])
+    netcdf_dataset.createDimension(
+        CHARACTER_DIMENSION_KEY, MAX_CHARACTERS_IN_STORM_ID)
+
+    netcdf_dataset.createVariable(
+        STORM_IDS_KEY, datatype='S1',
+        dimensions=(STORM_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
+
+    string_type = 'S{0:d}'.format(MAX_CHARACTERS_IN_STORM_ID)
+    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
+        storm_ids, dtype=string_type))
+    netcdf_dataset.variables[STORM_IDS_KEY][:] = numpy.array(
+        storm_ids_as_char_array)
+
+    chunk_size_tuple = (1,) + storm_image_matrix.shape[1:]
+    netcdf_dataset.createVariable(
+        STORM_IMAGE_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(STORM_DIMENSION_KEY, LAT_DIMENSION_KEY, LNG_DIMENSION_KEY),
+        chunksizes=chunk_size_tuple)
+
+    netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][:] = storm_image_matrix
+    netcdf_dataset.close()
+
+
+def _read_storm_images_only(netcdf_file_name):
+    """Reads storm imgs (e.g., created by extract_storm_image) from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: storm_image_dict: Dictionary with the following keys.
+    storm_image_dict['storm_image_matrix']: See documentation for
+        `_check_storm_images`.
+    storm_image_dict['storm_ids']: See doc for `_check_storm_images`.
+    storm_image_dict['unix_time_sec']: Valid time.
+    storm_image_dict['radar_field_name']: See doc for `_check_storm_images`.
+    storm_image_dict['radar_height_m_asl']: See doc for `_check_storm_images`.
+    """
+
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
+
+    unix_time_sec = getattr(netcdf_dataset, VALID_TIME_KEY)
+    radar_field_name = getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY)
+    radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
+    storm_ids_as_char_array = numpy.array(
+        netcdf_dataset.variables[STORM_IDS_KEY][:])
+    storm_image_matrix = numpy.array(
+        netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][:])
+    netcdf_dataset.close()
+
+    storm_ids = netCDF4.chartostring(storm_ids_as_char_array)
+    storm_ids = [str(s) for s in storm_ids]
+
+    _check_storm_images(
+        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
+        unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    return {
+        STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
+        STORM_IDS_KEY: storm_ids,
+        VALID_TIME_KEY: unix_time_sec,
+        RADAR_FIELD_NAME_KEY: radar_field_name,
+        RADAR_HEIGHT_KEY: radar_height_m_asl
+    }
+
+
+def _write_storm_labels_only(
+        pickle_file_name, storm_to_winds_table=None,
+        storm_to_tornadoes_table=None):
+    """Writes labels (e.g., created by extract_storm_labels) to Pickle file.
+
+    :param pickle_file_name: Path to output file.
+    :param storm_to_winds_table: See doc for `_check_storm_labels`.
+    :param storm_to_tornadoes_table: See doc for `_check_storm_labels`.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(storm_to_winds_table, pickle_file_handle)
+    pickle.dump(storm_to_tornadoes_table, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def _read_storm_labels_only(pickle_file_name):
+    """Reads labels (e.g., created by extract_storm_labels) from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_to_winds_table: See doc for `_check_storm_labels`.
+    :return: storm_to_tornadoes_table: See doc for `_check_storm_labels`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_to_winds_table = pickle.load(pickle_file_handle)
+    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return storm_to_winds_table, storm_to_tornadoes_table
 
 
 def extract_storm_image(
@@ -1158,14 +1296,8 @@ def read_storm_images(pickle_file_name):
     unix_time_sec = pickle.load(pickle_file_handle)
     radar_field_name = pickle.load(pickle_file_handle)
     radar_height_m_asl = pickle.load(pickle_file_handle)
-
-    try:
-        storm_to_winds_table = pickle.load(pickle_file_handle)
-        storm_to_tornadoes_table = pickle.load(pickle_file_handle)
-    except EOFError:
-        storm_to_winds_table = None
-        storm_to_tornadoes_table = None
-
+    storm_to_winds_table = pickle.load(pickle_file_handle)
+    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
     _check_storm_images(
@@ -1187,6 +1319,85 @@ def read_storm_images(pickle_file_name):
         STORM_TO_WINDS_TABLE_KEY: storm_to_winds_table,
         STORM_TO_TORNADOES_TABLE_KEY: storm_to_tornadoes_table
     }
+
+
+def write_storm_images_and_labels(
+        image_file_name, label_file_name, storm_image_matrix, storm_ids,
+        unix_time_sec, radar_field_name, radar_height_m_asl,
+        storm_to_winds_table=None, storm_to_tornadoes_table=None):
+    """Writes storm-centered radar images and hazard labels to files.
+
+    Images should probably be created by `extract_storm_image`.
+    Labels should probably be created by `extract_storm_labels`.
+
+    :param image_file_name: Path to NetCDF output file.
+    :param label_file_name: Path to Pickle output file.
+    :param storm_image_matrix: See documentation for `_check_storm_images`.
+    :param storm_ids: See doc for `_check_storm_images`.
+    :param unix_time_sec: Valid time.
+    :param radar_field_name: See doc for `_check_storm_images`.
+    :param radar_height_m_asl: See doc for `_check_storm_images`.
+    :param storm_to_winds_table: See doc for `_check_storm_labels`.
+    :param storm_to_tornadoes_table: See doc for `_check_storm_labels`.
+    """
+
+    _check_storm_images(
+        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
+        unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    _check_storm_labels(
+        storm_ids=storm_ids, unix_time_sec=unix_time_sec,
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
+    _write_storm_images_only(
+        netcdf_file_name=image_file_name, storm_image_matrix=storm_image_matrix,
+        storm_ids=storm_ids, unix_time_sec=unix_time_sec,
+        radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    _write_storm_labels_only(
+        pickle_file_name=label_file_name,
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
+
+def read_storm_images_and_labels(image_file_name, label_file_name):
+    """Reads storm-centered radar images and hazard labels from files.
+
+    Images should probably be created by `extract_storm_image`.
+    Labels should probably be created by `extract_storm_labels`.
+
+    :param image_file_name: Path to NetCDF input file.
+    :param label_file_name: Path to Pickle input file.
+    :return: storm_image_dict: Dictionary with the following keys.
+    storm_image_dict['storm_image_matrix']: See documentation for
+        `_check_storm_images`.
+    storm_image_dict['storm_ids']: See doc for `_check_storm_images`.
+    storm_image_dict['unix_time_sec']: Valid time.
+    storm_image_dict['radar_field_name']: See doc for `_check_storm_images`.
+    storm_image_dict['radar_height_m_asl']: See doc for `_check_storm_images`.
+    storm_image_dict['storm_to_winds_table']: See doc for `_check_storm_labels`.
+    storm_image_dict['storm_to_tornadoes_table']: See doc for
+        `_check_storm_labels`.
+    """
+
+    storm_image_dict = _read_storm_images_only(image_file_name)
+    storm_to_winds_table, storm_to_tornadoes_table = _read_storm_labels_only(
+        label_file_name)
+
+    _check_storm_labels(
+        storm_ids=storm_image_dict[STORM_IDS_KEY],
+        unix_time_sec=storm_image_dict[VALID_TIME_KEY],
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
+    storm_image_dict.update({
+        STORM_TO_WINDS_TABLE_KEY: storm_to_winds_table,
+        STORM_TO_TORNADOES_TABLE_KEY: storm_to_tornadoes_table
+    })
+    return storm_image_dict
 
 
 def extract_storm_labels(
