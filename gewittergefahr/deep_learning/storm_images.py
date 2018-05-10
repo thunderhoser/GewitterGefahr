@@ -52,6 +52,7 @@ RADAR_FIELD_NAME_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_asl'
 STORM_TO_WINDS_TABLE_KEY = 'storm_to_winds_table'
 STORM_TO_TORNADOES_TABLE_KEY = 'storm_to_tornadoes_table'
+LABEL_VALUES_KEY = 'label_values'
 
 STORM_DIMENSION_KEY = 'storm'
 LAT_DIMENSION_KEY = 'latitude'
@@ -505,14 +506,13 @@ def _read_storm_images_only(
     storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
     storm_ids = [str(s) for s in storm_ids]
 
-    storm_image_dict = {
-        STORM_IDS_KEY: storm_ids,
-        VALID_TIME_KEY: unix_time_sec,
-        RADAR_FIELD_NAME_KEY: radar_field_name,
-        RADAR_HEIGHT_KEY: radar_height_m_asl
-    }
     if not return_images:
-        return storm_image_dict
+        return {
+            STORM_IDS_KEY: storm_ids,
+            VALID_TIME_KEY: unix_time_sec,
+            RADAR_FIELD_NAME_KEY: radar_field_name,
+            RADAR_HEIGHT_KEY: radar_height_m_asl
+        }
 
     if indices_to_keep is None:
         num_storms = len(storm_ids)
@@ -531,8 +531,13 @@ def _read_storm_images_only(
         unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
         radar_height_m_asl=radar_height_m_asl)
 
-    storm_image_dict.update({STORM_IMAGE_MATRIX_KEY: storm_image_matrix})
-    return storm_image_dict
+    return {
+        STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
+        STORM_IDS_KEY: storm_ids,
+        VALID_TIME_KEY: unix_time_sec,
+        RADAR_FIELD_NAME_KEY: radar_field_name,
+        RADAR_HEIGHT_KEY: radar_height_m_asl
+    }
 
 
 def _write_storm_labels_only(
@@ -1436,6 +1441,9 @@ def read_storm_images_and_labels(
     Images should probably be created by `extract_storm_image`.
     Labels should probably be created by `extract_storm_labels`.
 
+    If `filter_by_label_name is not None` and no desired storm objects are
+    found, this method will return None.
+
     :param image_file_name: Path to NetCDF input file.
     :param label_file_name: Path to Pickle input file.
     :param filter_by_label_name: Name of label (target variable) by which storm
@@ -1448,19 +1456,24 @@ def read_storm_images_and_labels(
         variable.  num_storm_objects_by_class[k] is the number of storm objects
         in the [k]th class to keep.
 
-    :return storm_image_dict:
-        [if `filter_by_label_name is not None` and no desired storm objects were
-        found] None
-        [otherwise] Dictionary with the following keys.
+    :return storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
         `_check_storm_images`.
     storm_image_dict['storm_ids']: See doc for `_check_storm_images`.
     storm_image_dict['unix_time_sec']: Valid time.
     storm_image_dict['radar_field_name']: See doc for `_check_storm_images`.
     storm_image_dict['radar_height_m_asl']: See doc for `_check_storm_images`.
+
+    If `filter_by_label_name is None`, the following keys are included.
+
     storm_image_dict['storm_to_winds_table']: See doc for `_check_storm_labels`.
     storm_image_dict['storm_to_tornadoes_table']: See doc for
         `_check_storm_labels`.
+
+    If `filter_by_label_name is not None`, the following keys are included.
+
+    storm_image_dict['label_values']: length-L numpy array with label (target)
+        for each storm object, where L = number of storm objects.
     """
 
     storm_to_winds_table, storm_to_tornadoes_table = (
@@ -1500,10 +1513,7 @@ def read_storm_images_and_labels(
         netcdf_file_name=image_file_name, return_images=True,
         indices_to_keep=indices_to_keep)
 
-    storm_image_dict.update({
-        STORM_TO_WINDS_TABLE_KEY: storm_to_winds_table,
-        STORM_TO_TORNADOES_TABLE_KEY: storm_to_tornadoes_table
-    })
+    storm_image_dict.update({LABEL_VALUES_KEY: label_values[indices_to_keep]})
     return storm_image_dict
 
 
