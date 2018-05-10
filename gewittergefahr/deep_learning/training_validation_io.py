@@ -173,21 +173,19 @@ def storm_image_generator_2d(
             # time (where i = image_time_index).
             print 'Reading data from: "{0:s}"...'.format(
                 image_file_name_matrix[image_time_index, 0])
-            this_storm_image_dict = storm_images.read_storm_images(
-                image_file_name_matrix[image_time_index, 0])
 
-            # Read target values for the [i]th time (where
-            # i = image_time_index).
-            these_target_values = (
-                storm_images.extract_one_label_per_storm(
-                    storm_ids=this_storm_image_dict[
-                        storm_images.STORM_IDS_KEY],
-                    label_name=target_name,
-                    storm_to_winds_table=this_storm_image_dict[
-                        storm_images.STORM_TO_WINDS_TABLE_KEY],
-                    storm_to_tornadoes_table=this_storm_image_dict[
-                        storm_images.STORM_TO_TORNADOES_TABLE_KEY]))
+            this_label_file_name = storm_images.find_storm_label_file(
+                storm_image_file_name=image_file_name_matrix[
+                    image_time_index, 0], raise_error_if_missing=False)
 
+            this_storm_image_dict = storm_images.read_storm_images_and_labels(
+                image_file_name=image_file_name_matrix[image_time_index, 0],
+                label_file_name=this_label_file_name,
+                return_label_name=target_name,
+                num_storm_objects_by_class=None)
+
+            these_target_values = this_storm_image_dict[
+                storm_images.LABEL_VALUES_KEY]
             these_valid_storm_indices = numpy.where(these_target_values >= 0)[0]
             these_target_values = these_target_values[these_valid_storm_indices]
 
@@ -224,8 +222,9 @@ def storm_image_generator_2d(
                     # time (where i = image_time_index).
                     print 'Reading data from: "{0:s}"...'.format(
                         image_file_name_matrix[image_time_index, j])
-                    this_storm_image_dict = storm_images.read_storm_images(
-                        image_file_name_matrix[image_time_index, j])
+                    this_storm_image_dict = storm_images.read_storm_images_only(
+                        netcdf_file_name=image_file_name_matrix[
+                            image_time_index, j], indices_to_keep=None)
 
                 this_field_predictor_matrix = this_storm_image_dict[
                     storm_images.STORM_IMAGE_MATRIX_KEY][
@@ -429,19 +428,19 @@ def storm_image_generator_3d(
             # time (where i = image_time_index).
             print 'Reading data from: "{0:s}"...'.format(
                 image_file_name_matrix[image_time_index, 0, 0])
-            this_storm_image_dict = storm_images.read_storm_images(
-                image_file_name_matrix[image_time_index, 0, 0])
 
-            # Read target values for the [i]th time (where i =
-            # image_time_index).
-            these_target_values = storm_images.extract_one_label_per_storm(
-                storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
-                label_name=target_name,
-                storm_to_winds_table=this_storm_image_dict[
-                    storm_images.STORM_TO_WINDS_TABLE_KEY],
-                storm_to_tornadoes_table=this_storm_image_dict[
-                    storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+            this_label_file_name = storm_images.find_storm_label_file(
+                storm_image_file_name=image_file_name_matrix[
+                    image_time_index, 0, 0], raise_error_if_missing=False)
 
+            this_storm_image_dict = storm_images.read_storm_images_and_labels(
+                image_file_name=image_file_name_matrix[image_time_index, 0, 0],
+                label_file_name=this_label_file_name,
+                return_label_name=target_name,
+                num_storm_objects_by_class=None)
+
+            these_target_values = this_storm_image_dict[
+                storm_images.LABEL_VALUES_KEY]
             these_valid_storm_indices = numpy.where(these_target_values >= 0)[0]
             these_target_values = these_target_values[these_valid_storm_indices]
 
@@ -482,8 +481,11 @@ def storm_image_generator_3d(
                         # height and [i]th time (where i = image_time_index).
                         print 'Reading data from: "{0:s}"...'.format(
                             image_file_name_matrix[image_time_index, j, k])
-                        this_storm_image_dict = storm_images.read_storm_images(
-                            image_file_name_matrix[image_time_index, j, k])
+                        this_storm_image_dict = (
+                            storm_images.read_storm_images_only(
+                                netcdf_file_name=image_file_name_matrix[
+                                    image_time_index, j, k],
+                                indices_to_keep=None))
 
                     this_3d_predictor_matrix = this_storm_image_dict[
                         storm_images.STORM_IMAGE_MATRIX_KEY][

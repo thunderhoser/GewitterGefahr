@@ -98,17 +98,20 @@ def create_2d_storm_images_one_time(
     tuple_of_predictor_matrices = ()
 
     print 'Reading data from: "{0:s}"...'.format(image_file_names[0])
-    this_storm_image_dict = storm_images.read_storm_images(image_file_names[0])
 
-    if target_name is not None:
-        target_values = storm_images.extract_one_label_per_storm(
-            storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
-            label_name=target_name,
-            storm_to_winds_table=this_storm_image_dict[
-                storm_images.STORM_TO_WINDS_TABLE_KEY],
-            storm_to_tornadoes_table=this_storm_image_dict[
-                storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+    if target_name is None:
+        this_storm_image_dict = storm_images.read_storm_images_only(
+            image_file_names[0])
+    else:
+        this_label_file_name = storm_images.find_storm_label_file(
+            storm_image_file_name=image_file_names[0],
+            raise_error_if_missing=True)
 
+        this_storm_image_dict = storm_images.read_storm_images_and_labels(
+            image_file_name=image_file_names[0],
+            label_file_name=this_label_file_name, return_label_name=target_name)
+
+        target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
         valid_storm_indices = numpy.where(target_values >= 0)[0]
         target_values = target_values[valid_storm_indices]
 
@@ -125,7 +128,7 @@ def create_2d_storm_images_one_time(
     for j in range(num_predictors):
         if j != 0:
             print 'Reading data from: "{0:s}"...'.format(image_file_names[j])
-            this_storm_image_dict = storm_images.read_storm_images(
+            this_storm_image_dict = storm_images.read_storm_images_only(
                 image_file_names[j])
 
         this_predictor_matrix = this_storm_image_dict[
@@ -224,18 +227,20 @@ def create_3d_storm_images_one_time(
     tuple_of_4d_predictor_matrices = ()
 
     print 'Reading data from: "{0:s}"...'.format(image_file_name_matrix[0, 0])
-    this_storm_image_dict = storm_images.read_storm_images(
-        image_file_name_matrix[0, 0])
 
-    if target_name is not None:
-        target_values = storm_images.extract_one_label_per_storm(
-            storm_ids=this_storm_image_dict[storm_images.STORM_IDS_KEY],
-            label_name=target_name,
-            storm_to_winds_table=this_storm_image_dict[
-                storm_images.STORM_TO_WINDS_TABLE_KEY],
-            storm_to_tornadoes_table=this_storm_image_dict[
-                storm_images.STORM_TO_TORNADOES_TABLE_KEY])
+    if target_name is None:
+        this_storm_image_dict = storm_images.read_storm_images_only(
+            image_file_name_matrix[0, 0])
+    else:
+        this_label_file_name = storm_images.find_storm_label_file(
+            storm_image_file_name=image_file_name_matrix[0, 0],
+            raise_error_if_missing=True)
 
+        this_storm_image_dict = storm_images.read_storm_images_and_labels(
+            image_file_name=image_file_name_matrix[0, 0],
+            label_file_name=this_label_file_name, return_label_name=target_name)
+
+        target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
         valid_storm_indices = numpy.where(target_values >= 0)[0]
         target_values = target_values[valid_storm_indices]
 
@@ -256,7 +261,7 @@ def create_3d_storm_images_one_time(
             if not j == k == 0:
                 print 'Reading data from: "{0:s}"...'.format(
                     image_file_name_matrix[j, k])
-                this_storm_image_dict = storm_images.read_storm_images(
+                this_storm_image_dict = storm_images.read_storm_images_only(
                     image_file_name_matrix[j, k])
 
             this_predictor_matrix = this_storm_image_dict[
