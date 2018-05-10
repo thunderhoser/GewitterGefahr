@@ -180,7 +180,8 @@ STORM_IMAGE_MATRIX_MIDDLE = numpy.array([[5., 15., 25., 35.],
 STORM_IMAGE_MATRIX_EDGE = numpy.array([[75., numpy.nan, 0., 0.],
                                        [0., 0., 0., 0.]])
 
-# The following constants are used to test find_storm_image_file.
+# The following constants are used to test find_storm_image_file and
+# find_storm_label_file.
 TOP_STORM_IMAGE_DIR_NAME = 'storm_images'
 VALID_TIME_UNIX_SEC = 1516749825
 SPC_DATE_STRING = '20180123'
@@ -189,7 +190,9 @@ RADAR_FIELD_NAME = 'echo_top_40dbz_km'
 RADAR_HEIGHT_M_ASL = 250
 STORM_IMAGE_FILE_NAME = (
     'storm_images/myrorss/2018/20180123/echo_top_40dbz_km/00250_metres_asl/'
-    'storm_images_2018-01-23-232345.p')
+    'storm_images_2018-01-23-232345.nc')
+STORM_LABEL_FILE_NAME = (
+    'storm_images/myrorss/2018/20180123/storm_labels_2018-01-23-232345.p')
 
 
 class StormImagesTests(unittest.TestCase):
