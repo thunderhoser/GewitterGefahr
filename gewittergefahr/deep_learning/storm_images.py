@@ -1347,6 +1347,7 @@ def read_storm_images_only(
     storm_image_dict['radar_height_m_asl']: See doc for `_check_storm_images`.
     """
 
+    error_checking.assert_is_boolean(return_images)
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
@@ -1364,11 +1365,17 @@ def read_storm_images_only(
             RADAR_HEIGHT_KEY: radar_height_m_asl
         }
 
+    num_storms = len(storm_ids)
     if indices_to_keep is None:
-        num_storms = len(storm_ids)
         indices_to_keep = numpy.linspace(
             0, num_storms - 1, num=num_storms, dtype=int)
     else:
+        error_checking.assert_is_integer_numpy_array(indices_to_keep)
+        error_checking.assert_is_numpy_array(indices_to_keep, num_dimensions=1)
+        error_checking.assert_is_geq_numpy_array(indices_to_keep, 0)
+        error_checking.assert_is_less_than_numpy_array(
+            indices_to_keep, num_storms)
+
         storm_ids = [storm_ids[i] for i in indices_to_keep]
 
     storm_image_matrix = numpy.array(

@@ -47,7 +47,8 @@ WIND_CLASSIFICATION_LABEL_COLUMN_NAME = (
 TORNADO_LABEL_COLUMN_NAME = (
     'tornado_lead-time=0900-3600sec_distance=00001-05000m')
 
-# The following constants are used to test column_name_to_label_params.
+# The following constants are used to test column_name_to_label_params and
+# column_name_to_num_classes.
 PARAM_DICT_FOR_REGRESSION_LABEL = {
     labels.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
     labels.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
@@ -208,6 +209,38 @@ class LabelsTests(unittest.TestCase):
         this_parameter_dict = labels.column_name_to_label_params(
             TORNADO_LABEL_COLUMN_NAME)
         self.assertTrue(this_parameter_dict == PARAM_DICT_FOR_TORNADO_LABEL)
+
+    def test_column_name_to_num_classes_regression(self):
+        """Ensures correct output from column_name_to_num_classes.
+
+        In this case, learning goal is regression.
+        """
+
+        this_num_classes = labels.column_name_to_num_classes(
+            REGRESSION_LABEL_COLUMN_NAME)
+        self.assertTrue(this_num_classes is None)
+
+    def test_column_name_to_num_classes_wind_classification(self):
+        """Ensures correct output from column_name_to_num_classes.
+
+        In this case, learning goal is classification and event type is wind
+        speed.
+        """
+
+        this_num_classes = labels.column_name_to_num_classes(
+            WIND_CLASSIFICATION_LABEL_COLUMN_NAME)
+        self.assertTrue(this_num_classes == len(WIND_CLASS_CUTOFFS_KT) + 1)
+
+    def test_column_name_to_num_classes_tornado(self):
+        """Ensures correct output from column_name_to_num_classes.
+
+        In this case, learning goal is classification and event type is tornado
+        occurrence.
+        """
+
+        this_num_classes = labels.column_name_to_num_classes(
+            TORNADO_LABEL_COLUMN_NAME)
+        self.assertTrue(this_num_classes == 2)
 
     def test_get_columns_with_labels_regression(self):
         """Ensures correct output from get_columns_with_labels.
