@@ -86,7 +86,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + REFL_HEIGHTS_ARG_NAME, type=int, nargs='+', required=False,
-    default=[0], help=RADAR_HEIGHTS_HELP_STRING)
+    default=storm_images.DEFAULT_RADAR_HEIGHTS_M_ASL,
+    help=RADAR_HEIGHTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + SPC_DATE_ARG_NAME, type=str, required=True,
