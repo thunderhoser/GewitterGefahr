@@ -67,20 +67,21 @@ DEFAULT_NUM_IMAGE_COLUMNS = 32
 MIN_NUM_IMAGE_ROWS = 2
 MIN_NUM_IMAGE_COLUMNS = 2
 
+DEFAULT_RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
+
 DEFAULT_MYRORSS_MRMS_FIELD_NAMES = [
     radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME,
-    radar_utils.REFL_COLUMN_MAX_NAME, radar_utils.MESH_NAME,
+    radar_utils.REFL_NAME, radar_utils.REFL_COLUMN_MAX_NAME,
     radar_utils.REFL_0CELSIUS_NAME, radar_utils.REFL_M10CELSIUS_NAME,
     radar_utils.REFL_M20CELSIUS_NAME, radar_utils.REFL_LOWEST_ALTITUDE_NAME,
-    radar_utils.SHI_NAME, radar_utils.VIL_NAME]
+    radar_utils.MESH_NAME, radar_utils.SHI_NAME, radar_utils.VIL_NAME]
 AZIMUTHAL_SHEAR_FIELD_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME]
 
 DEFAULT_GRIDRAD_FIELD_NAMES = [
     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
     radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME]
-DEFAULT_GRIDRAD_HEIGHTS_M_ASL = numpy.linspace(1000, 10000, num=10, dtype=int)
 
 
 def _centroids_latlng_to_rowcol(
@@ -640,7 +641,7 @@ def extract_storm_images_myrorss_or_mrms(
         top_output_dir_name, num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS,
         radar_field_names=DEFAULT_MYRORSS_MRMS_FIELD_NAMES,
-        reflectivity_heights_m_asl=None):
+        reflectivity_heights_m_asl=DEFAULT_RADAR_HEIGHTS_M_ASL):
     """Extracts storm-centered radar image for each field, height, storm object.
 
     L = number of storm objects
@@ -846,7 +847,7 @@ def extract_storm_images_gridrad(
         num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS,
         radar_field_names=DEFAULT_GRIDRAD_FIELD_NAMES,
-        radar_heights_m_asl=DEFAULT_GRIDRAD_HEIGHTS_M_ASL):
+        radar_heights_m_asl=DEFAULT_RADAR_HEIGHTS_M_ASL):
     """Extracts storm-centered radar image for each field, height, storm object.
 
     L = number of storm objects
