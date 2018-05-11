@@ -159,7 +159,8 @@ def _extract_storm_images(
         myrorss_io.unzip_1day_tar_file(
             tar_file_name=non_shear_tar_file_name,
             field_names=non_shear_field_names, spc_date_string=spc_date_string,
-            top_target_directory_name=untarred_myrorss_dir_name)
+            top_target_directory_name=untarred_myrorss_dir_name,
+            refl_heights_m_asl=refl_heights_m_asl)
         print SEPARATOR_STRING
 
     # Find storm objects on the given SPC date.
@@ -190,7 +191,7 @@ def _extract_storm_images(
     myrorss_io.remove_unzipped_data_1day(
         spc_date_string=spc_date_string,
         top_directory_name=untarred_myrorss_dir_name,
-        field_names=radar_field_names)
+        field_names=radar_field_names, refl_heights_m_asl=refl_heights_m_asl)
     print SEPARATOR_STRING
 
 
