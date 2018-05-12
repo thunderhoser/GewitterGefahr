@@ -568,6 +568,14 @@ def train_2d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
+    training_file_name_matrix = training_validation_io.find_2d_input_files(
+        top_directory_name=top_input_dir_name, radar_source=radar_source,
+        radar_field_names=radar_field_names,
+        first_image_time_unix_sec=first_train_time_unix_sec,
+        last_image_time_unix_sec=last_train_time_unix_sec,
+        radar_heights_m_asl=radar_heights_m_asl,
+        reflectivity_heights_m_asl=reflectivity_heights_m_asl)
+
     if num_validation_batches_per_epoch is None:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='loss', verbose=1,
@@ -575,16 +583,10 @@ def train_2d_cnn(
 
         model_object.fit_generator(
             generator=training_validation_io.storm_image_generator_2d(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source, radar_field_names=radar_field_names,
+                image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_image_time=num_examples_per_time,
-                first_image_time_unix_sec=first_train_time_unix_sec,
-                last_image_time_unix_sec=last_train_time_unix_sec,
-                target_name=target_name,
-                radar_heights_m_asl=radar_heights_m_asl,
-                reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-                normalize_by_batch=normalize_by_batch,
+                target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
                 percentile_offset_for_normalization,
@@ -594,21 +596,26 @@ def train_2d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
+        validation_file_name_matrix = (
+            training_validation_io.find_2d_input_files(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source,
+                radar_field_names=radar_field_names,
+                first_image_time_unix_sec=first_validn_time_unix_sec,
+                last_image_time_unix_sec=last_validn_time_unix_sec,
+                radar_heights_m_asl=radar_heights_m_asl,
+                reflectivity_heights_m_asl=reflectivity_heights_m_asl))
+
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
             generator=training_validation_io.storm_image_generator_2d(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source, radar_field_names=radar_field_names,
+                image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_image_time=num_examples_per_time,
-                first_image_time_unix_sec=first_train_time_unix_sec,
-                last_image_time_unix_sec=last_train_time_unix_sec,
                 target_name=target_name,
-                radar_heights_m_asl=radar_heights_m_asl,
-                reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -618,15 +625,10 @@ def train_2d_cnn(
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=training_validation_io.storm_image_generator_2d(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source, radar_field_names=radar_field_names,
+                image_file_name_matrix=validation_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_image_time=num_examples_per_time,
-                first_image_time_unix_sec=first_validn_time_unix_sec,
-                last_image_time_unix_sec=last_validn_time_unix_sec,
                 target_name=target_name,
-                radar_heights_m_asl=radar_heights_m_asl,
-                reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -797,6 +799,13 @@ def train_3d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
+    training_file_name_matrix = training_validation_io.find_3d_input_files(
+        top_directory_name=top_input_dir_name,
+        radar_source=radar_source, radar_field_names=radar_field_names,
+        radar_heights_m_asl=radar_heights_m_asl,
+        first_image_time_unix_sec=first_train_time_unix_sec,
+        last_image_time_unix_sec=last_train_time_unix_sec)
+
     if num_validation_batches_per_epoch is None:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='loss', verbose=1,
@@ -804,15 +813,10 @@ def train_3d_cnn(
 
         model_object.fit_generator(
             generator=training_validation_io.storm_image_generator_3d(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source,
-                radar_heights_m_asl=radar_heights_m_asl,
+                image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_image_time=num_examples_per_time,
-                first_image_time_unix_sec=first_train_time_unix_sec,
-                last_image_time_unix_sec=last_train_time_unix_sec,
-                target_name=target_name, radar_field_names=radar_field_names,
-                normalize_by_batch=normalize_by_batch,
+                target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
                 percentile_offset_for_normalization,
@@ -822,21 +826,24 @@ def train_3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
+        validation_file_name_matrix = (
+            training_validation_io.find_3d_input_files(
+                top_directory_name=top_input_dir_name,
+                radar_source=radar_source, radar_field_names=radar_field_names,
+                radar_heights_m_asl=radar_heights_m_asl,
+                first_image_time_unix_sec=first_validn_time_unix_sec,
+                last_image_time_unix_sec=last_validn_time_unix_sec))
+
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
             generator=training_validation_io.storm_image_generator_3d(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source,
-                radar_heights_m_asl=radar_heights_m_asl,
+                image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_image_time=num_examples_per_time,
-                first_image_time_unix_sec=first_train_time_unix_sec,
-                last_image_time_unix_sec=last_train_time_unix_sec,
-                target_name=target_name, radar_field_names=radar_field_names,
-                normalize_by_batch=normalize_by_batch,
+                target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
                 percentile_offset_for_normalization,
@@ -845,15 +852,10 @@ def train_3d_cnn(
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=training_validation_io.storm_image_generator_3d(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source,
-                radar_heights_m_asl=radar_heights_m_asl,
+                image_file_name_matrix=validation_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_image_time=num_examples_per_time,
-                first_image_time_unix_sec=first_validn_time_unix_sec,
-                last_image_time_unix_sec=last_validn_time_unix_sec,
-                target_name=target_name, radar_field_names=radar_field_names,
-                normalize_by_batch=normalize_by_batch,
+                target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
                 percentile_offset_for_normalization,

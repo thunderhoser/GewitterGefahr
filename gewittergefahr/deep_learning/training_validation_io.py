@@ -24,17 +24,15 @@ from gewittergefahr.gg_utils import error_checking
 
 
 def _check_input_args(
-        radar_source, num_examples_per_batch, num_examples_per_image_time,
+        num_examples_per_batch, num_examples_per_image_time,
         normalize_by_batch):
     """Error-checks input arguments to generator.
 
-    :param radar_source: See documentation for `storm_image_generator_2d`.
-    :param num_examples_per_batch: Same.
+    :param num_examples_per_batch: See doc for `storm_image_generator_2d`.
     :param num_examples_per_image_time: Same.
     :param normalize_by_batch: Same.
     """
 
-    radar_utils.check_data_source(radar_source)
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
     error_checking.assert_is_integer(num_examples_per_image_time)
@@ -42,18 +40,13 @@ def _check_input_args(
     error_checking.assert_is_boolean(normalize_by_batch)
 
 
-def storm_image_generator_2d(
+def find_2d_input_files(
         top_directory_name, radar_source, radar_field_names,
-        num_examples_per_batch, num_examples_per_image_time,
-        first_image_time_unix_sec, last_image_time_unix_sec, target_name,
-        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
-        normalize_by_batch=False,
-        normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        percentile_offset_for_normalization=
-        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
-        class_fractions_to_sample=None):
-    """Generates examples with 2-D storm-centered radar images.
+        first_image_time_unix_sec, last_image_time_unix_sec,
+        radar_heights_m_asl=None, reflectivity_heights_m_asl=None):
+    """Finds input files for `storm_image_generator_2d`.
 
+    T = number of image times
     F = number of radar fields
     C = number of channels = num predictor variables = num field/height pairs
 
@@ -62,43 +55,25 @@ def storm_image_generator_2d(
     :param radar_source: Data source (must be accepted by
         `radar_utils.check_data_source`).
     :param radar_field_names: length-F list with names of radar fields.
-    :param num_examples_per_batch: Number of examples per batch.
-    :param num_examples_per_image_time: Number of examples per image time.
-    :param first_image_time_unix_sec: First image time.  Examples will be
-        created for random times in `first_image_time_unix_sec`...
+    :param first_image_time_unix_sec: First image time.  Files will be sought
+        for all time steps from `first_image_time_unix_sec`...
         `last_image_time_unix_sec`.
     :param last_image_time_unix_sec: See above.
-    :param target_name: Name of target variable.
     :param radar_heights_m_asl: [used only if radar_source = "gridrad"]
-        1-D numpy array of radar heights (metres above sea level).  These apply
-        to each field.
+        1-D numpy array of radar heights (metres above sea level).  These will
+        be applied to each field in `radar_field_names`.  In other words, if
+        there are F fields and H heights, there will be F*H predictor variables.
     :param reflectivity_heights_m_asl: [used only if radar_source != "gridrad"]
-        1-D numpy array of heights (metres above sea level) for
-        "reflectivity_dbz".  If "reflectivity_dbz" is not in the list
-        `radar_field_names`, you can leave this as None.
-    :param normalize_by_batch: Used to normalize predictor values (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
-    :param normalization_dict: Same.
-    :param percentile_offset_for_normalization: Same.
-    :param class_fractions_to_sample: length-K numpy array with fraction of data
-        points (examples) to keep from each class.  This can be used to achieve
-        the desired class balance.  If you don't care about class balance, leave
-        this as None.
-    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of storm-centered
-        radar images.
-    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
-        technically the type is "float64").  If target_matrix[i, k] = 1, the
-        [k]th class is the outcome for the [i]th example.  The sum across each
-        row is 1 (classes are mutually exclusive and collectively exhaustive).
+        1-D numpy array of radar heights (metres above sea level).  These will
+        be applied only to "reflectivity_dbz", if "reflectivity_dbz" is in
+        `radar_field_names`.  In other words, if there are F fields and H
+        heights, there will be (F + H - 1) predictor variables.
+    :return: image_file_name_matrix: T-by-C numpy array of paths to storm-image
+        files.
     """
 
-    _check_input_args(
-        radar_source=radar_source,
-        num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_image_time=num_examples_per_image_time,
-        normalize_by_batch=normalize_by_batch)
+    radar_utils.check_data_source(radar_source)
 
-    # Find input files (containing storm-centered radar images).
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
             top_directory_name=top_directory_name,
@@ -119,7 +94,7 @@ def storm_image_generator_2d(
             image_file_name_matrix, (num_image_times, num_predictors))
 
     else:
-        image_file_name_matrix, _, field_name_by_predictor, _ = (
+        image_file_name_matrix, _, _, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_directory_name,
                 start_time_unix_sec=first_image_time_unix_sec,
@@ -128,14 +103,129 @@ def storm_image_generator_2d(
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 raise_error_if_missing=True))
 
-    # Remove any time step with one or more missing files.
     time_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix == '')[0])
     image_file_name_matrix = numpy.delete(
         image_file_name_matrix, time_missing_indices, axis=0)
 
+    return image_file_name_matrix
+
+
+def find_3d_input_files(
+        top_directory_name, radar_source, radar_field_names,
+        radar_heights_m_asl, first_image_time_unix_sec,
+        last_image_time_unix_sec):
+    """Finds input files for `storm_image_generator_3d`.
+
+    T = number of image times
+    F = number of radar fields
+    D = number of radar heights
+
+    :param top_directory_name: Name of top-level directory with storm-centered
+        radar images.
+    :param radar_source: Data source (must be accepted by
+        `radar_utils.check_data_source`).
+    :param radar_field_names: length-F list with names of radar fields.
+    :param first_image_time_unix_sec: First image time.  Files will be sought
+        for all time steps from `first_image_time_unix_sec`...
+        `last_image_time_unix_sec`.
+    :param last_image_time_unix_sec: See above.
+    :param radar_heights_m_asl: length-H numpy array of radar heights (metres
+        above sea level).  These will be applied to each field in
+        `radar_field_names`.  In other words, if there are F fields and H
+        heights, there will be F*H predictor variables.
+    :return: image_file_name_matrix: T-by-F-by-H numpy array of paths to
+        storm-image files.
+    """
+
+    radar_utils.check_data_source(radar_source)
+
+    if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
+        image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
+            top_directory_name=top_directory_name,
+            start_time_unix_sec=first_image_time_unix_sec,
+            end_time_unix_sec=last_image_time_unix_sec,
+            radar_field_names=radar_field_names,
+            radar_heights_m_asl=radar_heights_m_asl,
+            raise_error_if_missing=True)
+
+    else:
+        radar_field_names = [radar_utils.REFL_NAME]
+
+        image_file_name_matrix, _, _, _ = (
+            storm_images.find_many_files_myrorss_or_mrms(
+                top_directory_name=top_directory_name,
+                start_time_unix_sec=first_image_time_unix_sec,
+                end_time_unix_sec=last_image_time_unix_sec,
+                radar_source=radar_source, radar_field_names=radar_field_names,
+                reflectivity_heights_m_asl=radar_heights_m_asl,
+                raise_error_if_missing=True))
+
+        num_heights = len(radar_heights_m_asl)
+        num_image_times = image_file_name_matrix.shape[0]
+        image_file_name_matrix = numpy.reshape(
+            image_file_name_matrix, (num_image_times, 1, num_heights))
+
+    time_missing_indices = numpy.unique(
+        numpy.where(image_file_name_matrix == '')[0])
+    image_file_name_matrix = numpy.delete(
+        image_file_name_matrix, time_missing_indices, axis=0)
+
+    return image_file_name_matrix
+
+
+def storm_image_generator_2d(
+        image_file_name_matrix, num_examples_per_batch,
+        num_examples_per_image_time, target_name, normalize_by_batch=False,
+        normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        percentile_offset_for_normalization=
+        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
+        class_fractions_to_sample=None):
+    """Generates examples with 2-D storm-centered radar images.
+
+    T = number of image times (initial times, as opposed to valid times)
+    F = number of radar fields
+    C = number of channels = num predictor variables = num field/height pairs
+
+    :param image_file_name_matrix: T-by-C numpy array of paths to input files.
+        This should be created by `find_2d_input_files`.
+    :param num_examples_per_batch: Number of examples per batch.
+    :param num_examples_per_image_time: Number of examples per image time.
+    :param target_name: Name of target variable.
+    :param normalize_by_batch: Used to normalize predictor values (see doc for
+        `deep_learning_utils.normalize_predictor_matrix`).
+    :param normalization_dict: Same.
+    :param percentile_offset_for_normalization: Same.
+    :param class_fractions_to_sample: length-K numpy array used for class-
+        conditional sampling.  class_fractions_to_sample[k] is the fraction of
+        examples from the [k]th class to be returned in each batch.
+    :return: predictor_matrix: E-by-M-by-N-by-C numpy array of storm-centered
+        radar images.
+    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
+        technically the type is "float64").  If target_matrix[i, k] = 1, the
+        [k]th class is the outcome for the [i]th example.  The sum across each
+        row is 1 (classes are mutually exclusive and collectively exhaustive).
+    """
+
+    # Check input arguments.
+    _check_input_args(
+        num_examples_per_batch=num_examples_per_batch,
+        num_examples_per_image_time=num_examples_per_image_time,
+        normalize_by_batch=normalize_by_batch)
+
+    error_checking.assert_is_numpy_array(
+        image_file_name_matrix, num_dimensions=2)
+
+    # Find names of predictor variables.
     num_image_times = image_file_name_matrix.shape[0]
-    num_predictors = len(field_name_by_predictor)
+    num_predictors = image_file_name_matrix.shape[1]
+    field_name_by_predictor = numpy.full(num_predictors, '', dtype=object)
+
+    for j in range(num_predictors):
+        this_storm_image_dict = storm_images.read_storm_images_only(
+            image_file_name_matrix[0, j])
+        field_name_by_predictor[j] = this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY]
 
     # Shuffle files by time.
     image_time_indices = numpy.linspace(
@@ -214,7 +304,6 @@ def storm_image_generator_2d(
 
             for j in range(num_predictors):
                 if j != 0:
-
                     # Read images for the [j]th predictor at the [i]th time
                     # (where i = image_time_index).
                     print 'Reading data from: "{0:s}"...'.format(
@@ -306,83 +395,58 @@ def storm_image_generator_2d(
 
 
 def storm_image_generator_3d(
-        top_directory_name, radar_source, radar_heights_m_asl,
-        num_examples_per_batch, num_examples_per_image_time,
-        first_image_time_unix_sec, last_image_time_unix_sec, target_name,
-        radar_field_names=None, normalize_by_batch=False,
+        image_file_name_matrix, num_examples_per_batch,
+        num_examples_per_image_time, target_name, normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
         class_fractions_to_sample=None):
     """Generates examples with 3-D storm-centered radar images.
 
+    T = number of image times
     F = number of radar fields
-    C = number of channels = num predictor variables = num field/height pairs
+    D = number of radar heights
 
-    :param top_directory_name: See documentation for `storm_image_generator_3d`.
-    :param radar_source: Same.
-    :param radar_heights_m_asl: 1-D numpy array of radar heights (metres above
-        sea level).  These apply to each field.
-    :param num_examples_per_batch: See doc for `storm_image_generator_3d`.
-    :param num_examples_per_image_time: Same.
-    :param first_image_time_unix_sec: Same.
-    :param last_image_time_unix_sec: Same.
-    :param target_name: Same.
-    :param radar_field_names: If radar_source = "myrorss" or "mrms", this
-        argument is not used, because the only field available for 3-D images is
-        "reflectivity_dbz".  If radar_source = "gridrad", this is a length-F
-        list with names of radar fields.
-    :param normalize_by_batch: Same.
+    :param image_file_name_matrix: T-by-F-by-H numpy array of paths to input
+        files.  This should be created by `find_3d_input_files`.
+    :param num_examples_per_batch: Number of examples per batch.
+    :param num_examples_per_image_time: Number of examples per image time.
+    :param target_name: Name of target variable.
+    :param normalize_by_batch: Used to normalize predictor values (see doc for
+        `deep_learning_utils.normalize_predictor_matrix`).
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
-    :param class_fractions_to_sample: Same.
-    :return: predictor_matrix: E-by-M-by-N-by-D-by-C numpy array of
-        storm-centered radar images.
-    :return: target_matrix: See doc for `storm_image_generator_3d`.
+    :param class_fractions_to_sample: length-K numpy array used for class-
+        conditional sampling.  class_fractions_to_sample[k] is the fraction of
+        examples from the [k]th class to be returned in each batch.
+    :return: predictor_matrix: E-by-M-by-N-by-D-by-C numpy array of storm-
+        centered radar images.
+    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
+        technically the type is "float64").  If target_matrix[i, k] = 1, the
+        [k]th class is the outcome for the [i]th example.  The sum across each
+        row is 1 (classes are mutually exclusive and collectively exhaustive).
     """
 
+    # Check input arguments.
     _check_input_args(
-        radar_source=radar_source,
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_image_time=num_examples_per_image_time,
         normalize_by_batch=normalize_by_batch)
 
-    # Find input files (containing storm-centered radar images).
-    if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
-        image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
-            top_directory_name=top_directory_name,
-            start_time_unix_sec=first_image_time_unix_sec,
-            end_time_unix_sec=last_image_time_unix_sec,
-            radar_field_names=radar_field_names,
-            radar_heights_m_asl=radar_heights_m_asl,
-            raise_error_if_missing=True)
+    error_checking.assert_is_numpy_array(
+        image_file_name_matrix, num_dimensions=3)
 
-    else:
-        radar_field_names = [radar_utils.REFL_NAME]
-
-        image_file_name_matrix, _, _, _ = (
-            storm_images.find_many_files_myrorss_or_mrms(
-                top_directory_name=top_directory_name,
-                start_time_unix_sec=first_image_time_unix_sec,
-                end_time_unix_sec=last_image_time_unix_sec,
-                radar_source=radar_source, radar_field_names=radar_field_names,
-                reflectivity_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_missing=True))
-
-        num_heights = len(radar_heights_m_asl)
-        num_image_times = image_file_name_matrix.shape[0]
-        image_file_name_matrix = numpy.reshape(
-            image_file_name_matrix, (num_image_times, 1, num_heights))
-
-    # Remove any time step with one or more missing files.
-    time_missing_indices = numpy.unique(
-        numpy.where(image_file_name_matrix == '')[0])
-    image_file_name_matrix = numpy.delete(
-        image_file_name_matrix, time_missing_indices, axis=0)
-
+    # Find names and heights of predictor variables.
     num_image_times = image_file_name_matrix.shape[0]
-    num_fields = len(radar_field_names)
-    num_heights = len(radar_heights_m_asl)
+    num_fields = image_file_name_matrix.shape[1]
+    num_heights = image_file_name_matrix.shape[2]
+    radar_field_names = numpy.full(num_fields, '', dtype=object)
+
+    for j in range(num_fields):
+        this_storm_image_dict = storm_images.read_storm_images_only(
+            image_file_name_matrix[0, j, 0])
+        radar_field_names[j] = this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY]
 
     # Shuffle files by time.
     image_time_indices = numpy.linspace(
@@ -464,7 +528,6 @@ def storm_image_generator_3d(
 
                 for j in range(num_fields):
                     if not j == k == 0:
-
                         # Read images for the [j]th predictor at the [k]th
                         # height and [i]th time (where i = image_time_index).
                         print 'Reading data from: "{0:s}"...'.format(
