@@ -13,12 +13,10 @@ C = number of channels (predictor variables) per image
 """
 
 import numpy
-import keras
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import gridrad_utils
-from gewittergefahr.gg_utils import labels
 
 
 def create_2d_storm_images_one_time(
@@ -56,10 +54,8 @@ def create_2d_storm_images_one_time(
         `deep_learning_utils.normalize_predictor_matrix`).
     :return: predictor_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
-    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
-        technically the type is "float64").  If target_matrix[i, k] = 1, the
-        [k]th class is the outcome for the [i]th example.  The sum across each
-        row is 1 (classes are mutually exclusive and collectively exhaustive).
+    :return: target_values: length-E numpy array of target values (integers).
+        If target_values[i] = k, the [i]th example belongs to the [k]th class.
     """
 
     # TODO(thunderhoser): Handle missing storm-image files.
@@ -93,7 +89,6 @@ def create_2d_storm_images_one_time(
     num_predictors = len(field_name_by_predictor)
     image_file_names = numpy.reshape(image_file_name_matrix, num_predictors)
 
-    num_classes = None
     target_values = None
     tuple_of_predictor_matrices = ()
 
@@ -114,16 +109,6 @@ def create_2d_storm_images_one_time(
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
         valid_storm_indices = numpy.where(target_values >= 0)[0]
         target_values = target_values[valid_storm_indices]
-
-        if num_classes is None:
-            target_param_dict = labels.column_name_to_label_params(target_name)
-            wind_speed_class_cutoffs_kt = target_param_dict[
-                labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-
-            if wind_speed_class_cutoffs_kt is None:
-                num_classes = 2
-            else:
-                num_classes = len(wind_speed_class_cutoffs_kt) + 1
 
     for j in range(num_predictors):
         if j != 0:
@@ -146,15 +131,7 @@ def create_2d_storm_images_one_time(
         predictor_names=field_name_by_predictor,
         normalization_dict=normalization_dict)
 
-    if target_name is None:
-        target_matrix = None
-    else:
-        target_matrix = keras.utils.to_categorical(target_values, num_classes)
-        class_fractions = numpy.mean(target_matrix, axis=0)
-        print 'Fraction of target values in each class:\n{0:s}\n'.format(
-            str(class_fractions))
-
-    return predictor_matrix, target_matrix
+    return predictor_matrix, target_values
 
 
 def create_3d_storm_images_one_time(
@@ -186,8 +163,8 @@ def create_3d_storm_images_one_time(
         `deep_learning_utils.normalize_predictor_matrix`).
     :return: predictor_matrix: E-by-M-by-N-by-D-by-C numpy array of
         storm-centered radar images.
-    :return: target_matrix: See documentation for
-        `create_3d_storm_images_one_time`.
+    :return: target_values: See documentation for
+        `create_2d_storm_images_one_time`.
     """
 
     # TODO(thunderhoser): Handle missing storm-image files.
@@ -222,7 +199,6 @@ def create_3d_storm_images_one_time(
     num_fields = len(radar_field_names)
     num_heights = len(radar_heights_m_asl)
 
-    num_classes = None
     target_values = None
     tuple_of_4d_predictor_matrices = ()
 
@@ -243,16 +219,6 @@ def create_3d_storm_images_one_time(
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
         valid_storm_indices = numpy.where(target_values >= 0)[0]
         target_values = target_values[valid_storm_indices]
-
-        if num_classes is None:
-            target_param_dict = labels.column_name_to_label_params(target_name)
-            wind_speed_class_cutoffs_kt = target_param_dict[
-                labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-
-            if wind_speed_class_cutoffs_kt is None:
-                num_classes = 2
-            else:
-                num_classes = len(wind_speed_class_cutoffs_kt) + 1
 
     for k in range(num_heights):
         tuple_of_3d_predictor_matrices = ()
@@ -282,12 +248,4 @@ def create_3d_storm_images_one_time(
         predictor_names=radar_field_names,
         normalization_dict=normalization_dict)
 
-    if target_name is not None:
-        target_matrix = None
-    else:
-        target_matrix = keras.utils.to_categorical(target_values, num_classes)
-        class_fractions = numpy.mean(target_matrix, axis=0)
-        print 'Fraction of target values in each class:\n{0:s}\n'.format(
-            str(class_fractions))
-
-    return predictor_matrix, target_matrix
+    return predictor_matrix, target_values
