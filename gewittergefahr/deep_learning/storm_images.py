@@ -1341,6 +1341,53 @@ def write_storm_images_and_labels(
         storm_to_tornadoes_table=storm_to_tornadoes_table)
 
 
+def read_storm_images_old(pickle_file_name):
+    """Reads storm imgs (e.g., created by extract_storm_image) from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_image_dict: Dictionary with the following keys.
+    storm_image_dict['storm_image_matrix']: See documentation for
+        `_check_storm_images`.
+    storm_image_dict['storm_ids']: See doc for `_check_storm_images`.
+    storm_image_dict['unix_time_sec']: Valid time.
+    storm_image_dict['radar_field_name']: See doc for `_check_storm_images`.
+    storm_image_dict['radar_height_m_asl']: See doc for `_check_storm_images`.
+    storm_image_dict['storm_to_winds_table']: See doc for `_check_storm_labels`.
+    storm_image_dict['storm_to_tornadoes_table']: See doc for
+        `_check_storm_labels`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_image_matrix = pickle.load(pickle_file_handle)
+    storm_ids = pickle.load(pickle_file_handle)
+    unix_time_sec = pickle.load(pickle_file_handle)
+    radar_field_name = pickle.load(pickle_file_handle)
+    radar_height_m_asl = pickle.load(pickle_file_handle)
+    storm_to_winds_table = pickle.load(pickle_file_handle)
+    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    _check_storm_images(
+        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
+        unix_time_sec=unix_time_sec, radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    _check_storm_labels(
+        storm_ids=storm_ids, unix_time_sec=unix_time_sec,
+        storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
+    return {
+        STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
+        STORM_IDS_KEY: storm_ids,
+        VALID_TIME_KEY: unix_time_sec,
+        RADAR_FIELD_NAME_KEY: radar_field_name,
+        RADAR_HEIGHT_KEY: radar_height_m_asl,
+        STORM_TO_WINDS_TABLE_KEY: storm_to_winds_table,
+        STORM_TO_TORNADOES_TABLE_KEY: storm_to_tornadoes_table
+    }
+
+
 def read_storm_images_only(
         netcdf_file_name, return_images=True, indices_to_keep=None):
     """Writes storm-centered radar images to NetCDF file.

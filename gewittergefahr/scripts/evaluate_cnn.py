@@ -255,6 +255,7 @@ def _create_forecast_observation_pairs(
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(metadata_file_name)
     metadata_dict = cnn.read_model_metadata(metadata_file_name)
+    print metadata_dict
 
     print 'Finding input data for CNN...\n'
     if metadata_dict[cnn.RADAR_SOURCE_KEY] == radar_utils.GRIDRAD_SOURCE_ID:
