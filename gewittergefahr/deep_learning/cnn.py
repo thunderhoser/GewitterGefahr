@@ -500,18 +500,19 @@ def read_model_metadata(pickle_file_name):
 
 def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_training_batches_per_epoch, top_input_dir_name,
-        radar_source, radar_field_names, num_examples_per_batch,
-        num_examples_per_time, first_train_time_unix_sec,
-        last_train_time_unix_sec, target_name, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, normalize_by_batch=False,
+        num_epochs, num_training_batches_per_epoch, training_file_name_matrix,
+        num_examples_per_batch, num_examples_per_time, target_name,
+        normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
         weight_loss_function=False, class_fractions_to_sample=None,
-        num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
-        last_validn_time_unix_sec=None):
+        num_validation_batches_per_epoch=None,
+        validation_file_name_matrix=None):
     """Trains 2-D CNN (one that performs 2-D convolution).
+
+    T = number of image times (initial times, as opposed to valid times)
+    C = number of channels = num predictor variables = num field/height pairs
 
     :param model_object: Instance of `keras.models.Sequential`.
     :param model_file_name: See documentation for `_check_training_args`.
@@ -519,30 +520,22 @@ def train_2d_cnn(
     :param tensorboard_dir_name: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
-    :param top_input_dir_name: See doc for
+    :param training_file_name_matrix: T-by-C numpy array of paths to training
+        files.  This should be created by
+        `training_validation_io.find_2d_input_files`.
+    :param num_examples_per_batch: See doc for
         `training_validation_io.storm_image_generator_2d`.
-    :param radar_source: Same.
-    :param radar_field_names: Same.
-    :param num_examples_per_batch: Same.
     :param num_examples_per_time: Same.
-    :param first_train_time_unix_sec: First image time for training.
-        Examples will be created for random times in
-        `first_train_time_unix_sec`...`last_train_time_unix_sec`.
-    :param last_train_time_unix_sec: See above.
-    :param target_name: See doc for
-        `training_validation_io.storm_image_generator_2d`.
-    :param radar_heights_m_asl: Same.
-    :param reflectivity_heights_m_asl: Same.
+    :param target_name: Same.
     :param normalize_by_batch: Same.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
     :param weight_loss_function: See doc for `_check_training_args`.
     :param class_fractions_to_sample: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param first_validn_time_unix_sec: First image time for validation.
-        Examples will be created for random times in
-        `first_validn_time_unix_sec`...`last_validn_time_unix_sec`.
-    :param last_validn_time_unix_sec: See above.
+    :param validation_file_name_matrix: T-by-C numpy array of paths to
+        validation files.  This should be created by
+        `training_validation_io.find_2d_input_files`.
     """
 
     class_weight_dict = _check_training_args(
@@ -568,14 +561,6 @@ def train_2d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
-    training_file_name_matrix = training_validation_io.find_2d_input_files(
-        top_directory_name=top_input_dir_name, radar_source=radar_source,
-        radar_field_names=radar_field_names,
-        first_image_time_unix_sec=first_train_time_unix_sec,
-        last_image_time_unix_sec=last_train_time_unix_sec,
-        radar_heights_m_asl=radar_heights_m_asl,
-        reflectivity_heights_m_asl=reflectivity_heights_m_asl)
-
     if num_validation_batches_per_epoch is None:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='loss', verbose=1,
@@ -596,16 +581,6 @@ def train_2d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        validation_file_name_matrix = (
-            training_validation_io.find_2d_input_files(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source,
-                radar_field_names=radar_field_names,
-                first_image_time_unix_sec=first_validn_time_unix_sec,
-                last_image_time_unix_sec=last_validn_time_unix_sec,
-                radar_heights_m_asl=radar_heights_m_asl,
-                reflectivity_heights_m_asl=reflectivity_heights_m_asl))
-
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
@@ -639,41 +614,32 @@ def train_2d_cnn(
 
 def train_2d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
-        num_training_batches_per_epoch, top_input_dir_name, radar_source,
-        radar_field_names, num_examples_per_batch, num_examples_per_time,
-        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
-        class_fractions_by_epoch_matrix, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, normalize_by_batch=False,
+        num_training_batches_per_epoch, training_file_name_matrix,
+        num_examples_per_batch, num_examples_per_time, target_name,
+        class_fractions_by_epoch_matrix, normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
-        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+        validation_file_name_matrix=None):
     """Trains 2-D CNN with dynamic class-conditional sampling.
 
     :param model_object: See documentation for `train_2d_cnn`.
     :param model_file_name: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
-    :param top_input_dir_name: Same.
-    :param radar_source: Same.
-    :param radar_field_names: Same.
+    :param training_file_name_matrix: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_time: Same.
-    :param first_train_time_unix_sec: Same.
-    :param last_train_time_unix_sec: Same.
     :param target_name: Same.
-    :param class_fractions_by_epoch_matrix:
-        See doc for `train_3d_cnn_with_dynamic_sampling`.
-    :param radar_heights_m_asl: See doc for `train_2d_cnn`.
-    :param reflectivity_heights_m_asl: Same.
-    :param normalize_by_batch: Same.
+    :param class_fractions_by_epoch_matrix: See doc for
+        `train_3d_cnn_with_dynamic_sampling`.
+    :param normalize_by_batch: See doc for `train_2d_cnn`.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
     :param weight_loss_function: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param first_validn_time_unix_sec: Same.
-    :param last_validn_time_unix_sec: Same.
+    :param validation_file_name_matrix: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -711,39 +677,35 @@ def train_2d_cnn_with_dynamic_sampling(
             history_file_name=history_file_names[i],
             tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
             num_training_batches_per_epoch=num_training_batches_per_epoch,
-            top_input_dir_name=top_input_dir_name, radar_source=radar_source,
-            radar_field_names=radar_field_names,
+            training_file_name_matrix=training_file_name_matrix,
             num_examples_per_batch=num_examples_per_batch,
             num_examples_per_time=num_examples_per_time,
-            first_train_time_unix_sec=first_train_time_unix_sec,
-            last_train_time_unix_sec=last_train_time_unix_sec,
-            target_name=target_name, radar_heights_m_asl=radar_heights_m_asl,
-            reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-            normalize_by_batch=normalize_by_batch,
+            target_name=target_name, normalize_by_batch=normalize_by_batch,
             normalization_dict=normalization_dict,
             percentile_offset_for_normalization=
             percentile_offset_for_normalization,
             weight_loss_function=weight_loss_function,
             class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-            first_validn_time_unix_sec=first_validn_time_unix_sec,
-            last_validn_time_unix_sec=last_validn_time_unix_sec)
+            validation_file_name_matrix=validation_file_name_matrix)
 
 
 def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_training_batches_per_epoch, top_input_dir_name,
-        radar_source, radar_field_names, radar_heights_m_asl,
-        num_examples_per_batch, num_examples_per_time,
-        first_train_time_unix_sec, last_train_time_unix_sec, target_name,
+        num_epochs, num_training_batches_per_epoch, training_file_name_matrix,
+        num_examples_per_batch, num_examples_per_time, target_name,
         normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
         weight_loss_function=False, class_fractions_to_sample=None,
-        num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
-        last_validn_time_unix_sec=None):
+        num_validation_batches_per_epoch=None,
+        validation_file_name_matrix=None):
     """Trains 3-D CNN (one that performs 3-D convolution).
+
+    T = number of image times
+    F = number of radar fields
+    D = number of radar heights
 
     :param model_object: Instance of `keras.models.Sequential`.
     :param model_file_name: See documentation for `_check_training_args`.
@@ -751,29 +713,22 @@ def train_3d_cnn(
     :param tensorboard_dir_name: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
-    :param top_input_dir_name: See doc for
+    :param training_file_name_matrix: T-by-F-by-H numpy array of paths to
+        training files.  This should be created by
+        `training_validation_io.find_3d_input_files`.
+    :param num_examples_per_batch: See doc for
         `training_validation_io.storm_image_generator_3d`.
-    :param radar_source: Same.
-    :param radar_field_names: Same.
-    :param radar_heights_m_asl: Same.
-    :param num_examples_per_batch: Same.
     :param num_examples_per_time: Same.
-    :param first_train_time_unix_sec: First image time for training.
-        Examples will be created for random times in
-        `first_train_time_unix_sec`...`last_train_time_unix_sec`.
-    :param last_train_time_unix_sec: See above.
-    :param target_name: See doc for
-        `training_validation_io.storm_image_generator_3d`.
+    :param target_name: Same.
     :param normalize_by_batch: Same.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
     :param weight_loss_function: See doc for `_check_training_args`.
     :param class_fractions_to_sample: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param first_validn_time_unix_sec: First image time for validation.
-        Examples will be created for random times in
-        `first_validn_time_unix_sec`...`last_validn_time_unix_sec`.
-    :param last_validn_time_unix_sec: See above.
+    :param validation_file_name_matrix: T-by-F-by-H numpy array of paths to
+        validation files.  This should be created by
+        `training_validation_io.find_3d_input_files`.
     """
 
     class_weight_dict = _check_training_args(
@@ -799,13 +754,6 @@ def train_3d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
-    training_file_name_matrix = training_validation_io.find_3d_input_files(
-        top_directory_name=top_input_dir_name,
-        radar_source=radar_source, radar_field_names=radar_field_names,
-        radar_heights_m_asl=radar_heights_m_asl,
-        first_image_time_unix_sec=first_train_time_unix_sec,
-        last_image_time_unix_sec=last_train_time_unix_sec)
-
     if num_validation_batches_per_epoch is None:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='loss', verbose=1,
@@ -826,14 +774,6 @@ def train_3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        validation_file_name_matrix = (
-            training_validation_io.find_3d_input_files(
-                top_directory_name=top_input_dir_name,
-                radar_source=radar_source, radar_field_names=radar_field_names,
-                radar_heights_m_asl=radar_heights_m_asl,
-                first_image_time_unix_sec=first_validn_time_unix_sec,
-                last_image_time_unix_sec=last_validn_time_unix_sec))
-
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
@@ -865,16 +805,14 @@ def train_3d_cnn(
 
 def train_3d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
-        num_training_batches_per_epoch, top_input_dir_name, radar_source,
-        radar_field_names, radar_heights_m_asl, num_examples_per_batch,
-        num_examples_per_time, first_train_time_unix_sec,
-        last_train_time_unix_sec, target_name, class_fractions_by_epoch_matrix,
-        normalize_by_batch=False,
+        num_training_batches_per_epoch, training_file_name_matrix,
+        num_examples_per_batch, num_examples_per_time, target_name,
+        class_fractions_by_epoch_matrix, normalize_by_batch=False,
         normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         percentile_offset_for_normalization=
         dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
-        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+        validation_file_name_matrix=None):
     """Trains 3-D CNN with dynamic class-conditional sampling.
 
     K = number of classes for target variable
@@ -884,14 +822,9 @@ def train_3d_cnn_with_dynamic_sampling(
     :param model_file_name: Same.
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
-    :param top_input_dir_name: Same.
-    :param radar_source: Same.
-    :param radar_field_names: Same.
-    :param radar_heights_m_asl: Same.
+    :param training_file_name_matrix: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_time: Same.
-    :param first_train_time_unix_sec: Same.
-    :param last_train_time_unix_sec: Same.
     :param target_name: Same.
     :param class_fractions_by_epoch_matrix: L-by-K numpy array, where
         class_fractions_by_epoch_matrix[i, j] is the fraction of data points
@@ -901,8 +834,7 @@ def train_3d_cnn_with_dynamic_sampling(
     :param percentile_offset_for_normalization: Same.
     :param weight_loss_function: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param first_validn_time_unix_sec: Same.
-    :param last_validn_time_unix_sec: Same.
+    :param validation_file_name_matrix: Same.
     """
 
     error_checking.assert_is_integer(num_epochs)
@@ -940,13 +872,9 @@ def train_3d_cnn_with_dynamic_sampling(
             history_file_name=history_file_names[i],
             tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
             num_training_batches_per_epoch=num_training_batches_per_epoch,
-            top_input_dir_name=top_input_dir_name, radar_source=radar_source,
-            radar_field_names=radar_field_names,
-            radar_heights_m_asl=radar_heights_m_asl,
+            training_file_name_matrix=training_file_name_matrix,
             num_examples_per_batch=num_examples_per_batch,
             num_examples_per_time=num_examples_per_time,
-            first_train_time_unix_sec=first_train_time_unix_sec,
-            last_train_time_unix_sec=last_train_time_unix_sec,
             target_name=target_name, normalize_by_batch=normalize_by_batch,
             normalization_dict=normalization_dict,
             percentile_offset_for_normalization=
@@ -954,8 +882,7 @@ def train_3d_cnn_with_dynamic_sampling(
             weight_loss_function=weight_loss_function,
             class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-            first_validn_time_unix_sec=first_validn_time_unix_sec,
-            last_validn_time_unix_sec=last_validn_time_unix_sec)
+            validation_file_name_matrix=validation_file_name_matrix)
 
 
 def apply_2d_cnn(model_object, predictor_matrix):
