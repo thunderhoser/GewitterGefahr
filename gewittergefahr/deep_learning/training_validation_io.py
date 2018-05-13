@@ -219,7 +219,7 @@ def storm_image_generator_2d(
     # Find names of predictor variables.
     num_image_times = image_file_name_matrix.shape[0]
     num_predictors = image_file_name_matrix.shape[1]
-    field_name_by_predictor = numpy.full(num_predictors, '', dtype=object)
+    field_name_by_predictor = [''] * num_predictors
 
     for j in range(num_predictors):
         this_storm_image_dict = storm_images.read_storm_images_only(
@@ -279,8 +279,7 @@ def storm_image_generator_2d(
                                             num_examples_in_memory_by_class)
             num_examples_needed_by_class[num_examples_needed_by_class < 0] = 0
             if numpy.sum(num_examples_needed_by_class) == 0:
-                num_examples_needed_by_class = numpy.full(
-                    num_classes, 1e10, dtype=int)
+                num_examples_needed_by_class = None
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[image_time_index, 0],
@@ -443,7 +442,7 @@ def storm_image_generator_3d(
     num_image_times = image_file_name_matrix.shape[0]
     num_fields = image_file_name_matrix.shape[1]
     num_heights = image_file_name_matrix.shape[2]
-    radar_field_names = numpy.full(num_fields, '', dtype=object)
+    radar_field_names = [''] * num_fields
 
     for j in range(num_fields):
         this_storm_image_dict = storm_images.read_storm_images_only(
@@ -503,8 +502,7 @@ def storm_image_generator_3d(
                                             num_examples_in_memory_by_class)
             num_examples_needed_by_class[num_examples_needed_by_class < 0] = 0
             if numpy.sum(num_examples_needed_by_class) == 0:
-                num_examples_needed_by_class = numpy.full(
-                    num_classes, 1e10, dtype=int)
+                num_examples_needed_by_class = None
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[image_time_index, 0, 0],
