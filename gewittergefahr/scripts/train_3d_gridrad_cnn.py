@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import gridrad_utils
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import training_validation_io
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.scripts import deep_learning as dl_script_helper
 
@@ -119,27 +120,45 @@ def _train_3d_gridrad_cnn(
     model_object = cnn.get_3d_swirlnet_architecture(
         num_classes=num_classes, num_input_channels=len(radar_field_names))
 
+    print '\nFinding training files...'
+    training_file_name_matrix = training_validation_io.find_3d_input_files(
+        top_directory_name=input_storm_image_dir_name,
+        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+        radar_field_names=radar_field_names,
+        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+        first_image_time_unix_sec=first_train_time_unix_sec,
+        last_image_time_unix_sec=last_train_time_unix_sec)
+
+    if num_validation_batches_per_epoch is None:
+        validation_file_name_matrix = None
+    else:
+        print 'Finding validation files...'
+        validation_file_name_matrix = (
+            training_validation_io.find_3d_input_files(
+                top_directory_name=input_storm_image_dir_name,
+                radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+                radar_field_names=radar_field_names,
+                radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+                first_image_time_unix_sec=first_validn_time_unix_sec,
+                last_image_time_unix_sec=last_validn_time_unix_sec))
+
+    print SEPARATOR_STRING
+
     # Train model.
     cnn.train_3d_cnn(
         model_object=model_object, model_file_name=model_file_name,
         history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        top_input_dir_name=input_storm_image_dir_name,
-        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
-        radar_field_names=radar_field_names,
-        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+        training_file_name_matrix=training_file_name_matrix,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_time=num_examples_per_time,
-        first_train_time_unix_sec=first_train_time_unix_sec,
-        last_train_time_unix_sec=last_train_time_unix_sec,
-        target_name=target_name, normalize_by_batch=NORMALIZE_BY_BATCH,
+        num_examples_per_time=num_examples_per_time, target_name=target_name,
+        normalize_by_batch=NORMALIZE_BY_BATCH,
         normalization_dict=NORMALIZATION_DICT,
         weight_loss_function=weight_loss_function,
         class_fractions_to_sample=class_fractions_to_sample,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        first_validn_time_unix_sec=first_validn_time_unix_sec,
-        last_validn_time_unix_sec=last_validn_time_unix_sec)
+        validation_file_name_matrix=validation_file_name_matrix)
 
 
 if __name__ == '__main__':
