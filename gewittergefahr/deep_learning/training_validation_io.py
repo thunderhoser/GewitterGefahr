@@ -278,6 +278,9 @@ def storm_image_generator_2d(
             num_examples_needed_by_class = (num_examples_per_batch_by_class -
                                             num_examples_in_memory_by_class)
             num_examples_needed_by_class[num_examples_needed_by_class < 0] = 0
+            if numpy.sum(num_examples_needed_by_class) == 0:
+                num_examples_needed_by_class = numpy.full(
+                    num_classes, 1e10, dtype=int)
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[image_time_index, 0],
@@ -499,6 +502,9 @@ def storm_image_generator_3d(
             num_examples_needed_by_class = (num_examples_per_batch_by_class -
                                             num_examples_in_memory_by_class)
             num_examples_needed_by_class[num_examples_needed_by_class < 0] = 0
+            if numpy.sum(num_examples_needed_by_class) == 0:
+                num_examples_needed_by_class = numpy.full(
+                    num_classes, 1e10, dtype=int)
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[image_time_index, 0, 0],
