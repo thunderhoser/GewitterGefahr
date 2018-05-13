@@ -255,9 +255,8 @@ def _create_forecast_observation_pairs(
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(metadata_file_name)
     metadata_dict = cnn.read_model_metadata(metadata_file_name)
-    print metadata_dict
 
-    print 'Finding input data for CNN...\n'
+    print 'Finding input data for CNN...'
     if metadata_dict[cnn.RADAR_SOURCE_KEY] == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, image_times_unix_sec = (
             storm_images.find_many_files_gridrad(
@@ -294,7 +293,7 @@ def _create_forecast_observation_pairs(
     observed_labels = numpy.array([], dtype=int)
 
     for i in range(num_times):
-        print 'Creating forecast-observation pairs for {0:s}...'.format(
+        print '\nCreating forecast-observation pairs for {0:s}...'.format(
             image_time_strings[i])
 
         this_predictor_matrix, these_observed_labels = (
@@ -307,9 +306,9 @@ def _create_forecast_observation_pairs(
                 target_name=metadata_dict[cnn.TARGET_NAME_KEY],
                 normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
+        print this_predictor_matrix.shape
         this_probability_matrix = cnn.apply_3d_cnn(
             model_object=model_object, predictor_matrix=this_predictor_matrix)
-        print this_probability_matrix.shape
 
         observed_labels = numpy.concatenate((
             observed_labels, these_observed_labels))
