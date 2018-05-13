@@ -275,10 +275,18 @@ def storm_image_generator_2d(
                 image_file_name_matrix[image_time_index, 0],
                 raise_error_if_missing=True)
 
-            num_examples_needed_by_class = (num_examples_per_batch_by_class -
-                                            num_examples_in_memory_by_class)
-            num_examples_needed_by_class[num_examples_needed_by_class < 0] = 0
-            if numpy.sum(num_examples_needed_by_class) == 0:
+            downsampling_criterion = (
+                num_image_times_in_memory >= num_image_times_per_batch and
+                full_predictor_matrix is not None and
+                full_predictor_matrix.shape[0] >= num_examples_per_batch)
+
+            if downsampling_criterion:
+                num_examples_needed_by_class = (
+                    num_examples_per_batch_by_class -
+                    num_examples_in_memory_by_class)
+                num_examples_needed_by_class[
+                    num_examples_needed_by_class < 0] = 0
+            else:
                 num_examples_needed_by_class = None
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
@@ -498,10 +506,18 @@ def storm_image_generator_3d(
                 image_file_name_matrix[image_time_index, 0, 0],
                 raise_error_if_missing=True)
 
-            num_examples_needed_by_class = (num_examples_per_batch_by_class -
-                                            num_examples_in_memory_by_class)
-            num_examples_needed_by_class[num_examples_needed_by_class < 0] = 0
-            if numpy.sum(num_examples_needed_by_class) == 0:
+            downsampling_criterion = (
+                num_image_times_in_memory >= num_image_times_per_batch and
+                full_predictor_matrix is not None and
+                full_predictor_matrix.shape[0] >= num_examples_per_batch)
+
+            if downsampling_criterion:
+                num_examples_needed_by_class = (
+                    num_examples_per_batch_by_class -
+                    num_examples_in_memory_by_class)
+                num_examples_needed_by_class[
+                    num_examples_needed_by_class < 0] = 0
+            else:
                 num_examples_needed_by_class = None
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
