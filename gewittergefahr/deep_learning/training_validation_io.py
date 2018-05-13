@@ -224,8 +224,8 @@ def storm_image_generator_2d(
     for j in range(num_predictors):
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, j])
-        field_name_by_predictor[j] = this_storm_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        field_name_by_predictor[j] = str(this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY])
 
     # Shuffle files by time.
     image_time_indices = numpy.linspace(
@@ -447,8 +447,8 @@ def storm_image_generator_3d(
     for j in range(num_fields):
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, j, 0])
-        radar_field_names[j] = this_storm_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        radar_field_names[j] = str(this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY])
 
     # Shuffle files by time.
     image_time_indices = numpy.linspace(
