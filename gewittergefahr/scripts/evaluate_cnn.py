@@ -36,7 +36,7 @@ FIGURE_HEIGHT_INCHES = 15
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
 LAST_EVAL_TIME_ARG_NAME = 'last_eval_time_string'
-NUM_EVAL_TIMES_ARG_NAME = 'num_evaluation_times'
+NUM_STORM_OBJECTS_ARG_NAME = 'num_storm_objects'
 STORM_IMAGE_DIR_ARG_NAME = 'input_storm_image_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -48,8 +48,8 @@ EVAL_TIME_HELP_STRING = (
     'randomly from `{0:s}`...`{1:s}`.  At each time drawn, all storm objects '
     'will be used.  A forecast-observation pair will be created for each storm '
     'object.').format(FIRST_EVAL_TIME_ARG_NAME, LAST_EVAL_TIME_ARG_NAME)
-NUM_EVAL_TIMES_HELP_STRING = (
-    'Number of evaluation times to draw randomly from `{0:s}`...`{1:s}`.'
+NUM_STORM_OBJECTS_HELP_STRING = (
+    'Number of storm objects to draw randomly from `{0:s}`...`{1:s}`.'
 ).format(FIRST_EVAL_TIME_ARG_NAME, LAST_EVAL_TIME_ARG_NAME)
 STORM_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images (CNN input).'
@@ -72,8 +72,8 @@ INPUT_ARG_PARSER.add_argument(
     help=EVAL_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EVAL_TIMES_ARG_NAME, type=int, required=True,
-    help=NUM_EVAL_TIMES_HELP_STRING)
+    '--' + NUM_STORM_OBJECTS_ARG_NAME, type=int, required=True,
+    help=NUM_STORM_OBJECTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_IMAGE_DIR_ARG_NAME, type=str, required=True,
@@ -227,13 +227,13 @@ def _create_attributes_diagram(
 
 def _create_forecast_observation_pairs(
         model_file_name, first_eval_time_string, last_eval_time_string,
-        num_evaluation_times, top_storm_image_dir_name):
+        num_storm_objects, top_storm_image_dir_name):
     """Creates forecast-observation pairs.
 
     :param model_file_name: See documentation at top of file.
     :param first_eval_time_string: Same.
     :param last_eval_time_string: Same.
-    :param num_evaluation_times: Same.
+    :param num_storm_objects: Same.
     :param top_storm_image_dir_name: Same.
     :return: forecast_probabilities: length-N numpy array with forecast
         probabilities of some event (e.g., tornado).
@@ -280,7 +280,6 @@ def _create_forecast_observation_pairs(
     time_not_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix != '')[0])
     numpy.random.shuffle(time_not_missing_indices)
-    time_not_missing_indices = time_not_missing_indices[:num_evaluation_times]
 
     image_times_unix_sec = image_times_unix_sec[time_not_missing_indices]
     image_time_strings = [
@@ -293,6 +292,9 @@ def _create_forecast_observation_pairs(
     observed_labels = numpy.array([], dtype=int)
 
     for i in range(num_times):
+        if len(observed_labels) > num_storm_objects:
+            break
+        
         print '\nCreating forecast-observation pairs for {0:s}...'.format(
             image_time_strings[i])
 
@@ -306,8 +308,8 @@ def _create_forecast_observation_pairs(
                 target_name=metadata_dict[cnn.TARGET_NAME_KEY],
                 normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
-        this_num_storms = this_predictor_matrix.shape[0]
-        if this_num_storms == 0:
+        this_num_storm_objects = this_predictor_matrix.shape[0]
+        if this_num_storm_objects == 0:
             continue
 
         this_probability_matrix = cnn.apply_3d_cnn(
@@ -318,18 +320,22 @@ def _create_forecast_observation_pairs(
         forecast_probabilities = numpy.concatenate((
             forecast_probabilities, this_probability_matrix[:, 1]))
 
+    if len(observed_labels) > num_storm_objects:
+        forecast_probabilities = forecast_probabilities[:num_storm_objects]
+        observed_labels = observed_labels[:num_storm_objects]
+
     return forecast_probabilities, observed_labels
 
 
 def _evaluate_model(
         model_file_name, first_eval_time_string, last_eval_time_string,
-        num_evaluation_times, top_storm_image_dir_name, output_dir_name):
+        num_storm_objects, top_storm_image_dir_name, output_dir_name):
     """Evaluates predictions from a convolutional neural net (CNN).
 
     :param model_file_name: See documentation at top of file.
     :param first_eval_time_string: Same.
     :param last_eval_time_string: Same.
-    :param num_evaluation_times: Same.
+    :param num_storm_objects: Same.
     :param top_storm_image_dir_name: Same.
     :param output_dir_name: Same.
     """
@@ -342,7 +348,7 @@ def _evaluate_model(
             model_file_name=model_file_name,
             first_eval_time_string=first_eval_time_string,
             last_eval_time_string=last_eval_time_string,
-            num_evaluation_times=num_evaluation_times,
+            num_storm_objects=num_storm_objects,
             top_storm_image_dir_name=top_storm_image_dir_name))
     print SEPARATOR_STRING
 
@@ -420,7 +426,7 @@ if __name__ == '__main__':
     MODEL_FILE_NAME = getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME)
     FIRST_EVAL_TIME_STRING = getattr(INPUT_ARG_OBJECT, FIRST_EVAL_TIME_ARG_NAME)
     LAST_EVAL_TIME_STRING = getattr(INPUT_ARG_OBJECT, LAST_EVAL_TIME_ARG_NAME)
-    NUM_EVALUATION_TIMES = getattr(INPUT_ARG_OBJECT, NUM_EVAL_TIMES_ARG_NAME)
+    NUM_STORM_OBJECTS = getattr(INPUT_ARG_OBJECT, NUM_STORM_OBJECTS_ARG_NAME)
     TOP_STORM_IMAGE_DIR_NAME = getattr(
         INPUT_ARG_OBJECT, STORM_IMAGE_DIR_ARG_NAME)
     OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
@@ -429,6 +435,6 @@ if __name__ == '__main__':
         model_file_name=MODEL_FILE_NAME,
         first_eval_time_string=FIRST_EVAL_TIME_STRING,
         last_eval_time_string=LAST_EVAL_TIME_STRING,
-        num_evaluation_times=NUM_EVALUATION_TIMES,
+        num_storm_objects=NUM_STORM_OBJECTS,
         top_storm_image_dir_name=TOP_STORM_IMAGE_DIR_NAME,
         output_dir_name=OUTPUT_DIR_NAME)
