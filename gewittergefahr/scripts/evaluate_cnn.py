@@ -306,7 +306,10 @@ def _create_forecast_observation_pairs(
                 target_name=metadata_dict[cnn.TARGET_NAME_KEY],
                 normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
-        print this_predictor_matrix.shape
+        this_num_storms = this_predictor_matrix.shape[0]
+        if this_num_storms == 0:
+            continue
+
         this_probability_matrix = cnn.apply_3d_cnn(
             model_object=model_object, predictor_matrix=this_predictor_matrix)
 
