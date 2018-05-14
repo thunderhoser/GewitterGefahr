@@ -1,5 +1,6 @@
 """Methods for computing sounding statistics."""
 
+import copy
 import os.path
 import numpy
 import pandas
@@ -1505,6 +1506,9 @@ def write_sounding_statistics(
     :param verbose: Boolean flag.  If True, will print log message.
     """
 
+    # TODO(thunderhoser): apply adaptive character limit to files with storm
+    # images.
+
     netcdf_file_name = find_sounding_statistic_file(
         top_directory_name=top_directory_name,
         init_time_unix_sec=init_time_unix_sec, lead_time_sec=lead_time_sec,
@@ -1624,7 +1628,8 @@ def write_sounding_statistics_many_times(
                 verbose=True)
 
 
-def read_sounding_statistics(netcdf_file_name):
+def read_sounding_statistics(
+        netcdf_file_name, storm_ids_to_keep=None, statistic_names_to_keep=None):
     """Reads sounding statistics for storm objects from NetCDF file.
 
     This file should be written by `write_sounding_statistics`.
@@ -1633,6 +1638,11 @@ def read_sounding_statistics(netcdf_file_name):
     V = number of sounding statistics
 
     :param netcdf_file_name: Path to input file.
+    :param storm_ids_to_keep: 1-D list of storm IDs to keep (strings).  If None,
+        will keep all storm objects.
+    :param statistic_names_to_keep: 1-D list with names of statistics to keep.
+        If None, will keep all statistics.
+
     :return: sounding_statistic_dict: Dictionary with the following keys.
     sounding_statistic_dict['init_time_unix_sec']: Initial time.
     sounding_statistic_dict['lead_time_sec']: Lead time.
@@ -1653,12 +1663,38 @@ def read_sounding_statistics(netcdf_file_name):
     storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
     statistic_names = netCDF4.chartostring(
         netcdf_dataset.variables[STATISTIC_NAMES_KEY][:])
-    sounding_statistic_matrix = numpy.array(
-        netcdf_dataset.variables[STATISTIC_MATRIX_KEY][:])
-    netcdf_dataset.close()
 
     storm_ids = [str(s) for s in storm_ids]
     statistic_names = [str(s) for s in statistic_names]
+
+    if storm_ids_to_keep is None:
+        sounding_statistic_matrix = numpy.array(
+            netcdf_dataset.variables[STATISTIC_MATRIX_KEY][:])
+    else:
+        error_checking.assert_is_string_list(storm_ids_to_keep)
+        error_checking.assert_is_numpy_array(
+            numpy.array(storm_ids_to_keep), num_dimensions=1)
+
+        storm_indices_to_keep = numpy.array(
+            [storm_ids.index(s) for s in storm_ids_to_keep], dtype=int)
+        storm_ids = copy.deepcopy(storm_ids_to_keep)
+        sounding_statistic_matrix = numpy.array(
+            netcdf_dataset.variables[STATISTIC_MATRIX_KEY][
+                storm_indices_to_keep, ...])
+
+    netcdf_dataset.close()
+
+    if statistic_names_to_keep is not None:
+        error_checking.assert_is_string_list(statistic_names_to_keep)
+        error_checking.assert_is_numpy_array(
+            numpy.array(statistic_names_to_keep), num_dimensions=1)
+
+        stat_indices_to_keep = numpy.array(
+            [statistic_names.index(s) for s in statistic_names_to_keep],
+            dtype=int)
+        statistic_names = copy.deepcopy(statistic_names_to_keep)
+        sounding_statistic_matrix = sounding_statistic_matrix[
+            ..., stat_indices_to_keep]
 
     return {
         INIT_TIME_KEY: init_time_unix_sec, LEAD_TIME_KEY: lead_time_sec,

@@ -463,6 +463,15 @@ THIS_DICT = {
 }
 SOUNDING_STATISTIC_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
+# The following constants are used to test find_sounding_statistic_file.
+TOP_DIRECTORY_NAME = 'poop'
+INIT_TIME_UNIX_SEC = 1526335354  # 220234 UTC 14 May 2018
+LEAD_TIME_SEC = 3600
+SPC_DATE_STRING = '20180514'
+SOUNDING_STATISTIC_FILE_NAME = (
+    'poop/2018/20180514/sounding_statistics_2018-05-14-220234_'
+    'lead-time-3600sec.nc')
+
 
 class SoundingsTests(unittest.TestCase):
     """Each method is a unit test for soundings.py."""
@@ -848,6 +857,15 @@ class SoundingsTests(unittest.TestCase):
                 this_sounding_stat_table[this_column].values,
                 SOUNDING_STATISTIC_TABLE[this_column].values, atol=TOLERANCE,
                 equal_nan=True))
+
+    def test_find_sounding_statistic_file(self):
+        """Ensures correct output from find_sounding_statistic_file."""
+
+        this_file_name = soundings.find_sounding_statistic_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            init_time_unix_sec=INIT_TIME_UNIX_SEC, lead_time_sec=LEAD_TIME_SEC,
+            spc_date_string=SPC_DATE_STRING, raise_error_if_missing=False)
+        self.assertTrue(this_file_name == SOUNDING_STATISTIC_FILE_NAME)
 
 
 if __name__ == '__main__':
