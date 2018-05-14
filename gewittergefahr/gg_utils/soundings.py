@@ -1,9 +1,9 @@
 """Methods for computing sounding statistics."""
 
 import os.path
-import pickle
 import numpy
 import pandas
+import netCDF4
 import scipy.interpolate
 from sharppy.sharptab import params as sharppy_params
 from sharppy.sharptab import winds as sharppy_winds
@@ -11,16 +11,20 @@ from sharppy.sharptab import interp as sharppy_interp
 from sharppy.sharptab import profile as sharppy_profile
 from sharppy.sharptab import utils as sharppy_utils
 from gewittergefahr.gg_io import grib_io
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import interp
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 LEAD_TIME_COLUMN = 'lead_time_seconds'
+DEFAULT_LEAD_TIMES_SEC = numpy.array([0], dtype=int)
 
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
@@ -39,6 +43,17 @@ PASCALS_TO_MB = 0.01
 MB_TO_PASCALS = 100
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
+
+INIT_TIME_KEY = 'init_time_unix_sec'
+LEAD_TIME_KEY = 'lead_time_sec'
+SPC_DATE_KEY = 'spc_date_string'
+STORM_DIMENSION_KEY = 'storm'
+STATISTIC_DIMENSION_KEY = 'statistic'
+STATISTIC_CHAR_DIMENSION_KEY = 'statistic_name_char'
+STORM_ID_CHAR_DIMENSION_KEY = 'storm_id_char'
+STATISTIC_NAMES_KEY = 'statistic_names'
+STORM_IDS_KEY = 'storm_ids'
+STATISTIC_MATRIX_KEY = 'sounding_statistic_matrix'
 
 PRESSURE_COLUMN_FOR_SHARPPY_INPUT = 'pressure_mb'
 HEIGHT_COLUMN_FOR_SHARPPY_INPUT = 'geopotential_height_metres'
@@ -84,23 +99,15 @@ COLUMN_TYPE_DICT_FOR_METADATA = {
     IN_MUPCL_OBJECT_COLUMN_FOR_METADATA: bool}
 
 
-def _remove_bad_sounding_rows(sounding_table):
-    """Removes bad rows from sounding table.
+def _remove_bad_pressure_levels(sounding_table):
+    """Removes bad pressure levels from sounding.
 
-    A "bad row" is one for which any non-humidity value is NaN.
+    A "bad pressure level" is for one which any non-humidity value is NaN.
 
-    :param sounding_table: pandas DataFrame with the following columns (must
-        contain either relative_humidity_percent or specific_humidity; does not
-        need both).
-    sounding_table.pressure_mb: Pressure (millibars).
-    sounding_table.temperature_kelvins: Temperature.
-    sounding_table.relative_humidity_percent: [optional] Relative humidity.
-    sounding_table.specific_humidity: [optional] Specific humidity (unitless).
-    sounding_table.geopotential_height_metres: Geopotential height.
-    sounding_table.u_wind_m_s01: u-wind (metres per second).
-    sounding_table.v_wind_m_s01: v-wind (metres per second).
+    If not enough good pressure levels are left, this method returns None.
 
-    :return: sounding_table: Same as input but without bad rows.
+    :param sounding_table: See input doc for `sounding_to_sharppy_units`.
+    :return: sounding_table: Same as input, but without bad pressure levels.
     """
 
     columns_to_check = list(sounding_table)
@@ -117,11 +124,13 @@ def _remove_bad_sounding_rows(sounding_table):
     return sounding_table
 
 
-def _fill_missing_humidity_values(sounding_table):
-    """Fills missing humidity values in sounding table.
+def _fill_missing_humidity(sounding_table):
+    """Fills missing humidity values (by interpolation) in missing.
 
-    :param sounding_table: See documentation for _remove_bad_sounding_rows.
-    :return: sounding_table: Same as input but without missing humidity values.
+    If there are < 2 non-missing humidity values, this method returns None.
+
+    :param sounding_table: See input doc for `sounding_to_sharppy_units`.
+    :return: sounding_table: Same as input, but without missing humidity values.
     """
 
     if nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES in list(sounding_table):
@@ -129,129 +138,138 @@ def _fill_missing_humidity_values(sounding_table):
     else:
         humidity_column = nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES
 
-    missing_value_flags = numpy.isnan(sounding_table[humidity_column].values)
-    if not numpy.any(missing_value_flags):
+    humidity_missing_flags = numpy.isnan(sounding_table[humidity_column].values)
+    if not numpy.any(humidity_missing_flags):
         return sounding_table
 
-    real_value_indices = numpy.where(numpy.invert(missing_value_flags))[0]
-    if len(real_value_indices) < 2:
+    humidity_not_missing_indices = numpy.where(
+        numpy.invert(humidity_missing_flags))[0]
+    if len(humidity_not_missing_indices) < 2:
         return None
 
-    heights_to_interp_m_asl = sounding_table[
-        nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES].values[
-            real_value_indices]
+    control_heights_m_asl = sounding_table[
+        nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES
+    ].values[humidity_not_missing_indices]
 
     if humidity_column == nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
-        spfc_humidities_to_interp_kg_kg01 = sounding_table[
-            humidity_column].values[real_value_indices]
+        control_specific_humidities_kg_kg01 = sounding_table[
+            humidity_column].values[humidity_not_missing_indices]
     else:
-        dewpoints_to_interp_kelvins = (
-            moisture_conversions.relative_humidity_to_dewpoint(
-                sounding_table[humidity_column].values[real_value_indices] *
-                PERCENT_TO_UNITLESS,
-                sounding_table[
-                    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
-                ].values[real_value_indices],
-                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                    real_value_indices] * MB_TO_PASCALS))
+        control_relative_humidities = (
+            sounding_table[humidity_column].values[humidity_not_missing_indices]
+            * PERCENT_TO_UNITLESS)
+        control_temperatures_kelvins = sounding_table[
+            nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values[
+                humidity_not_missing_indices]
+        control_pressures_pascals = (
+            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                humidity_not_missing_indices] * MB_TO_PASCALS)
 
-        spfc_humidities_to_interp_kg_kg01 = (
+        control_dewpoints_kelvins = (
+            moisture_conversions.relative_humidity_to_dewpoint(
+                relative_humidities=control_relative_humidities,
+                temperatures_kelvins=control_temperatures_kelvins,
+                total_pressures_pascals=control_pressures_pascals))
+
+        control_specific_humidities_kg_kg01 = (
             moisture_conversions.dewpoint_to_specific_humidity(
-                dewpoints_to_interp_kelvins,
-                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                    real_value_indices] * MB_TO_PASCALS))
+                dewpoints_kelvins=control_dewpoints_kelvins,
+                total_pressures_pascals=control_pressures_pascals))
 
     interp_object = scipy.interpolate.interp1d(
-        heights_to_interp_m_asl, spfc_humidities_to_interp_kg_kg01,
+        control_heights_m_asl, control_specific_humidities_kg_kg01,
         kind='linear', bounds_error=False, fill_value='extrapolate')
 
-    missing_value_indices = numpy.where(missing_value_flags)[0]
+    humidity_missing_indices = numpy.where(humidity_missing_flags)[0]
     query_heights_m_asl = sounding_table[
         nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES].values[
-            missing_value_indices]
-    query_spfc_humidities_kg_kg01 = interp_object(query_heights_m_asl)
+            humidity_missing_indices]
+    query_specific_humidities_kg_kg01 = interp_object(query_heights_m_asl)
 
     if humidity_column == nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES:
         sounding_table[humidity_column].values[
-            missing_value_indices] = query_spfc_humidities_kg_kg01
+            humidity_missing_indices] = query_specific_humidities_kg_kg01
     else:
+        query_pressures_pascals = (
+            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+                humidity_missing_indices] * MB_TO_PASCALS)
+        query_temperatures_kelvins = sounding_table[
+            nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values[
+                humidity_missing_indices]
+
         query_dewpoints_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
-                query_spfc_humidities_kg_kg01,
-                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                    missing_value_indices] * MB_TO_PASCALS))
+                specific_humidities_kg_kg01=query_specific_humidities_kg_kg01,
+                total_pressures_pascals=query_pressures_pascals))
 
-        query_relative_humidities = (
+        query_relative_humidities_percent = UNITLESS_TO_PERCENT * (
             moisture_conversions.dewpoint_to_relative_humidity(
-                query_dewpoints_kelvins,
-                sounding_table[
-                    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
-                ].values[missing_value_indices],
-                sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                    missing_value_indices] * MB_TO_PASCALS))
+                dewpoints_kelvins=query_dewpoints_kelvins,
+                temperatures_kelvins=query_temperatures_kelvins,
+                total_pressures_pascals=query_pressures_pascals))
 
-        sounding_table[humidity_column].values[missing_value_indices] = (
-            query_relative_humidities * UNITLESS_TO_PERCENT)
+        sounding_table[humidity_column].values[
+            humidity_missing_indices] = query_relative_humidities_percent
 
     return sounding_table
 
 
-def _get_empty_sharppy_stat_table(eastward_motion_m_s01,
-                                  northward_motion_m_s01):
-    """Creates pandas DataFrame where all SHARPpy statistics are NaN.
+def _get_dummy_sharppy_statistic_table(
+        u_motion_m_s01, v_motion_m_s01, metadata_table):
+    """Creates dummy table with SHARPpy sounding statistics.
 
-    :param eastward_motion_m_s01: u-component of storm motion (metres per
+    In this "dummy table," all statistics except storm motion are NaN.
+
+    :param u_motion_m_s01: Eastward component of storm motion (metres per
         second).
-    :param northward_motion_m_s01: v-component of storm motion (metres per
+    :param v_motion_m_s01: Northward component of storm motion (metres per
         second).
-    :return: empty_sharppy_stat_table: pandas DataFrame, where column names are
-        SHARPpy names for sounding statistics and all values (except storm
-        motion) are NaN.
+    :param metadata_table: pandas DataFrame created by
+        `read_metadata_for_statistics`.
+    :return: statistic_table_sharppy: pandas DataFrame, with the same columns as
+        one created by `_compute_sounding_statistics`.
     """
 
-    metadata_table = read_metadata_for_sounding_stats()
-    vector_stat_flags = numpy.array(
+    vector_flags = numpy.array(
         metadata_table[IS_VECTOR_COLUMN_FOR_METADATA].values)
-    vector_stat_indices = numpy.where(vector_stat_flags)[0]
-    scalar_stat_indices = numpy.where(numpy.invert(vector_stat_flags))[0]
+    vector_indices = numpy.where(vector_flags)[0]
+    scalar_indices = numpy.where(numpy.invert(vector_flags))[0]
 
-    empty_sharppy_stat_dict = {}
-    for this_index in scalar_stat_indices:
-        this_sharppy_stat_name = metadata_table[
+    dummy_dict = {}
+    for this_index in scalar_indices:
+        this_statistic_name = metadata_table[
             SHARPPY_NAME_COLUMN_FOR_METADATA].values[this_index]
-        empty_sharppy_stat_dict.update(
-            {this_sharppy_stat_name: numpy.full(1, numpy.nan)})
+        dummy_dict.update({this_statistic_name: numpy.full(1, numpy.nan)})
 
-    empty_sharppy_stat_table = pandas.DataFrame.from_dict(
-        empty_sharppy_stat_dict)
+    statistic_table_sharppy = pandas.DataFrame.from_dict(dummy_dict)
 
-    first_statistic_name = list(empty_sharppy_stat_table)[0]
-    nested_array = empty_sharppy_stat_table[[
+    first_statistic_name = list(statistic_table_sharppy)[0]
+    nested_array = statistic_table_sharppy[[
         first_statistic_name, first_statistic_name]].values.tolist()
 
-    for this_index in vector_stat_indices:
-        this_sharppy_stat_name = metadata_table[
+    for this_index in vector_indices:
+        this_statistic_name = metadata_table[
             SHARPPY_NAME_COLUMN_FOR_METADATA].values[this_index]
-        empty_sharppy_stat_table = empty_sharppy_stat_table.assign(
-            **{this_sharppy_stat_name: nested_array})
+        statistic_table_sharppy = statistic_table_sharppy.assign(
+            **{this_statistic_name: nested_array})
 
-        if this_sharppy_stat_name == STORM_VELOCITY_NAME_SHARPPY:
-            empty_sharppy_stat_table[this_sharppy_stat_name].values[0] = (
-                numpy.array([eastward_motion_m_s01, northward_motion_m_s01]))
+        if this_statistic_name == STORM_VELOCITY_NAME_SHARPPY:
+            statistic_table_sharppy[this_statistic_name].values[
+                0] = numpy.array([u_motion_m_s01, v_motion_m_s01])
         else:
-            empty_sharppy_stat_table[this_sharppy_stat_name].values[
+            statistic_table_sharppy[this_statistic_name].values[
                 0] = numpy.full(2, numpy.nan)
 
-    return empty_sharppy_stat_table
+    return statistic_table_sharppy
 
 
-def _column_name_to_sounding_stat(column_name, valid_statistic_names):
-    """Determines sounding statistic from column name.
+def _column_name_to_statistic_name(column_name, valid_statistic_names):
+    """Finds statistic name in column name.
 
-    This column should be in a pandas DataFrame created by
-    convert_sounding_indices_from_sharppy.
+    This "column name" should be in a pandas DataFrame created by
+    `convert_sounding_indices_from_sharppy`.
 
-    :param column_name: Name of column.
+    :param column_name: Column name.
     :param valid_statistic_names: 1-D list with names of valid sounding
         statistics (in GewitterGefahr format, not SHARPpy format).
     :return: statistic_name: Name of sounding statistic.
@@ -274,119 +292,113 @@ def _column_name_to_sounding_stat(column_name, valid_statistic_names):
     return None
 
 
-def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
-                                return_dict=False):
+def _get_nwp_fields_for_sounding(
+        model_name, minimum_pressure_mb=0., return_dict=False):
     """Returns list of NWP fields needed to create sounding.
 
-    Each field is one variable at one pressure level (e.g., 500-mb height,
-    600-mb specific humidity, 700-mb temperature, etc.).
+    Each field is one variable at one pressure level.
 
-    N = number of sounding fields
+    N = number of fields
     P = number of pressure levels
 
-    :param model_name: Name of model.
-    :param minimum_pressure_mb: Minimum pressure (millibars).  All fields from a
-        lower pressure will be ignored.
-    :param return_dict: Boolean flag.  If True, this method returns
-        `sounding_table_to_fields_dict` and `pressure_levels_mb`.  If False,
-        returns `sounding_field_names` and `sounding_field_names_grib1`.
-    :return: sounding_field_names: length-N list of field names in
-        GewitterGefahr format.
-    :return: sounding_field_names_grib1: length-N list of field names in grib1
-        format.
-    :return: sounding_table_to_fields_dict: Dictionary with the following keys.
-    sounding_table_to_fields_dict['geopotential_height_metres']: length-P list
-        of height fields in `sounding_field_names`.
-    sounding_table_to_fields_dict['temperature_kelvins']: length-P list of
-        temperature fields in `sounding_field_names`.
-    sounding_table_to_fields_dict['humidity']: length-P list of humidity fields
-        in `sounding_field_names`.
-    sounding_table_to_fields_dict['u_wind_m_s01']: length-P list of u-wind
-        fields in `sounding_field_names`.
-    sounding_table_to_fields_dict['v_wind_m_s01']: length-P list of v-wind
-        fields in `sounding_field_names`.
+    :param model_name: Model name (string).  This must be accepted by
+        `nwp_model_utils.check_model_name`.
+    :param minimum_pressure_mb: Minimum pressure (millibars).
+    :param return_dict: Boolean flag.  Determines output variables (see below).
 
-    :return: pressure_levels_mb: length-P numpy array of pressure levels
-        (millibars).
+    :return: sounding_field_names: [only if return_dict = False]
+        length-N list of field names (GewitterGefahr format).
+    :return: sounding_field_names_grib1: [only if return_dict = False]
+        length-N list of field names (grib1 format).
+
+    :return: sounding_field_dict: [only if return_dict = True]
+        Dictionary with the following keys.
+    sounding_field_dict['geopotential_height_metres']: length-P list with names
+        of height fields.
+    sounding_field_dict['temperature_kelvins']: Same but for temperature fields.
+    sounding_field_dict['humidity']: Same but for humidity fields.
+    sounding_field_dict['u_wind_m_s01']: Same but for u-wind fields.
+    sounding_field_dict['v_wind_m_s01']: Same but for v-wind fields.
+
+    :return: pressure_levels_mb: [only if return_dict = True]
+        length-P numpy array of pressure fields (millibars).
     """
 
     nwp_model_utils.check_model_name(model_name)
-    error_checking.assert_is_geq(minimum_pressure_mb, 0)
+    error_checking.assert_is_geq(minimum_pressure_mb, 0.)
     error_checking.assert_is_boolean(return_dict)
 
     pressure_levels_mb = nwp_model_utils.get_pressure_levels(
-        model_name, grid_id=nwp_model_utils.ID_FOR_130GRID)
+        model_name=model_name, grid_id=nwp_model_utils.ID_FOR_130GRID)
     pressure_levels_mb = pressure_levels_mb[
         pressure_levels_mb >= minimum_pressure_mb]
     num_pressure_levels = len(pressure_levels_mb)
 
-    sounding_table_columns, sounding_table_columns_grib1 = (
+    basic_field_names, basic_field_names_grib1 = (
         nwp_model_utils.get_columns_in_sounding_table(model_name))
-    num_sounding_table_columns = len(sounding_table_columns)
+    num_basic_fields = len(basic_field_names)
 
     if return_dict:
-        sounding_table_to_fields_dict = {}
-        for j in range(num_sounding_table_columns):
-            sounding_table_to_fields_dict.update(
-                {sounding_table_columns[j]: []})
+        sounding_field_dict = {}
+        for j in range(num_basic_fields):
+            sounding_field_dict.update({basic_field_names[j]: []})
+
     else:
         sounding_field_names = []
         sounding_field_names_grib1 = []
 
-    for j in range(num_sounding_table_columns):
+    for j in range(num_basic_fields):
         for k in range(num_pressure_levels):
             this_field_name = '{0:s}_{1:d}mb'.format(
-                sounding_table_columns[j], int(pressure_levels_mb[k]))
+                basic_field_names[j], int(pressure_levels_mb[k]))
 
             if return_dict:
-                sounding_table_to_fields_dict[sounding_table_columns[j]].append(
+                sounding_field_dict[basic_field_names[j]].append(
                     this_field_name)
             else:
                 sounding_field_names.append(this_field_name)
                 sounding_field_names_grib1.append('{0:s}:{1:d} mb'.format(
-                    sounding_table_columns_grib1[j],
-                    int(pressure_levels_mb[k])))
+                    basic_field_names_grib1[j], int(pressure_levels_mb[k])))
 
-        if (sounding_table_columns[j] ==
+        if (basic_field_names[j] ==
                 nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES):
 
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_temperature_name(model_name))
 
-        elif sounding_table_columns[j] in [
+        elif basic_field_names[j] in [
                 nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
                 nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES]:
 
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_humidity_name(model_name))
 
-        elif (sounding_table_columns[j] ==
+        elif (basic_field_names[j] ==
               nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES):
 
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_height_name(model_name))
 
-        elif (sounding_table_columns[j] ==
+        elif (basic_field_names[j] ==
               nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES):
 
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_u_wind_name(model_name))
 
-        elif (sounding_table_columns[j] ==
+        elif (basic_field_names[j] ==
               nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES):
 
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_v_wind_name(model_name))
 
         if return_dict:
-            sounding_table_to_fields_dict[sounding_table_columns[j]].append(
-                this_field_name)
+            sounding_field_dict[basic_field_names[j]].append(this_field_name)
         else:
             sounding_field_names.append(this_field_name)
             sounding_field_names_grib1.append(this_field_name_grib1)
 
     if return_dict:
-        return sounding_table_to_fields_dict, pressure_levels_mb
+        return sounding_field_dict, pressure_levels_mb
 
     this_field_name, this_field_name_grib1 = (
         nwp_model_utils.get_lowest_pressure_name(model_name))
@@ -396,137 +408,132 @@ def _get_nwp_fields_in_sounding(model_name, minimum_pressure_mb=0.,
     return sounding_field_names, sounding_field_names_grib1
 
 
-def _remove_subsurface_sounding_data(sounding_table, delete_rows=None):
-    """Removes sounding data from levels below the surface.
+def _remove_subsurface_pressure_levels(sounding_table_sharppy, delete_rows):
+    """Removes subsurface pressure levels from sounding.
 
-    :param sounding_table: See documentation for
-        get_sounding_stats_from_sharppy.
+    :param sounding_table_sharppy: See input doc for
+        `_compute_sounding_statistics`.
     :param delete_rows: Boolean flag.  If True, will delete all subsurface rows
-        except 1000 mb.  If False, will set values at subsurface rows (except
-        height and pressure) to sentinel value.
-    :return: sounding_table: Same as input, except for the following.
-        [1] Some rows may have been removed.
-        [2] Some values may have been replaced with sentinel value.
+        except 1000 mb.  If False, will replace all subsurface data with
+        sentinel values.
+    :return: sounding_table_sharppy: Same as input, but maybe with fewer rows or
+        with sentinel values.
     """
 
-    surface_flags = sounding_table[IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
+    surface_flags = sounding_table_sharppy[
+        IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
     if not numpy.any(surface_flags):
-        return sounding_table
+        return sounding_table_sharppy
 
-    surface_row = numpy.where(surface_flags)[0][0]
-    surface_height_m_asl = sounding_table[
-        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[surface_row]
+    surface_index = numpy.where(surface_flags)[0][0]
+    surface_height_m_asl = sounding_table_sharppy[
+        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[surface_index]
 
-    subsurface_flags = (sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
-                        surface_height_m_asl)
-    subsurface_rows = numpy.where(subsurface_flags)[0]
+    subsurface_flags = (
+        sounding_table_sharppy[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
+        surface_height_m_asl)
+    subsurface_indices = numpy.where(subsurface_flags)[0]
 
     if delete_rows:
         pressure_1000mb_flags = (
-            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values == 1000)
-        bad_flags = numpy.logical_and(
-            subsurface_flags, numpy.invert(pressure_1000mb_flags))
+            sounding_table_sharppy[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values ==
+            1000)
+        bad_row_indices = numpy.where(numpy.logical_and(
+            subsurface_flags, numpy.invert(pressure_1000mb_flags)))[0]
 
-        bad_rows = numpy.where(bad_flags)[0]
-        sounding_table = sounding_table.drop(
-            sounding_table.index[bad_rows], axis=0, inplace=False).reset_index(
-                drop=True)
+        sounding_table_sharppy = sounding_table_sharppy.drop(
+            sounding_table_sharppy.index[bad_row_indices], axis=0, inplace=False
+        ).reset_index(drop=True)
 
         subsurface_flags = (
-            sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
+            sounding_table_sharppy[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
             surface_height_m_asl)
-        subsurface_rows = numpy.where(subsurface_flags)[0]
+        subsurface_indices = numpy.where(subsurface_flags)[0]
 
-    sounding_table[TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values[
-        subsurface_rows] = SENTINEL_VALUE_FOR_SHARPPY
-    sounding_table[DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values[
-        subsurface_rows] = SENTINEL_VALUE_FOR_SHARPPY
-    sounding_table[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
-        subsurface_rows] = SENTINEL_VALUE_FOR_SHARPPY
-    sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
-        subsurface_rows] = SENTINEL_VALUE_FOR_SHARPPY
+    sounding_table_sharppy[TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values[
+        subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
+    sounding_table_sharppy[DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values[
+        subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
+    sounding_table_sharppy[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
+        subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
+    sounding_table_sharppy[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
+        subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
 
-    return sounding_table
+    return sounding_table_sharppy
 
 
-def _sort_sounding_by_height(sounding_table):
-    """Sorts rows in sounding table by increasing height.
+def _sort_sounding_by_height(sounding_table_sharppy):
+    """Sorts sounding levels by increasing height.
 
-    :param sounding_table: See documentation for
-        get_sounding_stats_from_sharppy.
-    :return: sounding_table: Same as input, except row order.
+    :param sounding_table_sharppy: See input doc for
+        `_compute_sounding_statistics`.
+    :return: sounding_table_sharppy: Same as input, but maybe sorted
+        differently.
     """
 
-    return sounding_table.sort_values(
+    return sounding_table_sharppy.sort_values(
         HEIGHT_COLUMN_FOR_SHARPPY_INPUT, axis=0, ascending=True, inplace=False)
 
 
-def _remove_redundant_sounding_data(sorted_sounding_table):
-    """If surface is very close to an adjacent level, removes adjacent level.
+def _remove_redundant_pressure_levels(sounding_table_sharppy_sorted):
+    """Removes pressure levels very close to the surface.
 
-    :param sorted_sounding_table: See documentation for
-        _sort_sounding_by_height.
-    :return: sorted_sounding_table: Same as input, except maybe with fewer rows.
+    :param sounding_table_sharppy_sorted: pandas DataFrame created by
+        `_sort_sounding_by_height`.
+    :return: sounding_table_sharppy_sorted: Same as input, but maybe with fewer
+        rows.
     """
 
-    surface_flags = sorted_sounding_table[
+    surface_flags = sounding_table_sharppy_sorted[
         IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
     if not numpy.any(surface_flags):
-        return sorted_sounding_table
+        return sounding_table_sharppy_sorted
 
-    surface_row = numpy.where(surface_flags)[0][0]
-    bad_rows = []
+    surface_index = numpy.where(surface_flags)[0][0]
+    bad_indices = []
 
-    if surface_row != len(surface_flags) - 1:
+    heights_m_asl = sounding_table_sharppy_sorted[
+        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values
+    pressures_mb = sounding_table_sharppy_sorted[
+        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values
+
+    if surface_index != len(surface_flags) - 1:
         height_diff_metres = numpy.absolute(
-            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row + 1] -
-            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row])
+            heights_m_asl[surface_index + 1] - heights_m_asl[surface_index])
         pressure_diff_mb = numpy.absolute(
-            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row + 1] -
-            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row])
+            pressures_mb[surface_index + 1] - pressures_mb[surface_index])
 
         if (height_diff_metres < REDUNDANT_HEIGHT_TOLERANCE_METRES or
                 pressure_diff_mb < REDUNDANT_PRESSURE_TOLERANCE_MB):
-            bad_rows.append(surface_row + 1)
+            bad_indices.append(surface_index + 1)
 
-    if surface_row != 0:
+    if surface_index != 0:
         height_diff_metres = numpy.absolute(
-            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row - 1] -
-            sorted_sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row])
+            heights_m_asl[surface_index - 1] - heights_m_asl[surface_index])
         pressure_diff_mb = numpy.absolute(
-            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row - 1] -
-            sorted_sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-                surface_row])
+            pressures_mb[surface_index - 1] - pressures_mb[surface_index])
 
         if (height_diff_metres < REDUNDANT_HEIGHT_TOLERANCE_METRES or
                 pressure_diff_mb < REDUNDANT_PRESSURE_TOLERANCE_MB):
-            bad_rows.append(surface_row - 1)
+            bad_indices.append(surface_index + 1)
 
-    if not bad_rows:
-        return sorted_sounding_table
+    if not len(bad_indices):
+        return sounding_table_sharppy_sorted
 
-    bad_rows = numpy.array(bad_rows, dtype=int)
-    return sorted_sounding_table.drop(
-        sorted_sounding_table.index[bad_rows], axis=0,
-        inplace=False).reset_index(drop=True)
+    bad_indices = numpy.array(bad_indices, dtype=int)
+    return sounding_table_sharppy_sorted.drop(
+        sounding_table_sharppy_sorted.index[bad_indices], axis=0, inplace=False
+    ).reset_index(drop=True)
 
 
-def _adjust_srw_for_storm_motion(profile_object, eastward_motion_kt=None,
-                                 northward_motion_kt=None):
+def _adjust_srw_for_storm_motion(profile_object, u_motion_kt, v_motion_kt):
     """Adjusts storm-relative winds to account for storm motion.
 
     :param profile_object: Instance of `sharppy.sharptab.Profile`.
-    :param eastward_motion_kt: u-component of storm motion (knots).
-    :param northward_motion_kt: v-component of storm motion (knots).
-    :return: profile_object: Same as input, but with different storm-relative
-        winds.
+    :param u_motion_kt: Eastward component of storm motion (knots).
+    :param v_motion_kt: Northward component of storm motion (knots).
+    :return: profile_object: Same as input, but maybe with different storm-
+        relative winds.
     """
 
     surface_pressure_mb = profile_object.pres[profile_object.sfc]
@@ -556,76 +563,69 @@ def _adjust_srw_for_storm_motion(profile_object, eastward_motion_kt=None,
 
     profile_object.srw_1km = sharppy_winds.sr_wind(
         profile_object, pbot=surface_pressure_mb, ptop=pressure_at_1km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_0_2km = sharppy_winds.sr_wind(
         profile_object, pbot=surface_pressure_mb, ptop=pressure_at_2km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_3km = sharppy_winds.sr_wind(
         profile_object, pbot=surface_pressure_mb, ptop=pressure_at_3km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_6km = sharppy_winds.sr_wind(
         profile_object, pbot=surface_pressure_mb, ptop=pressure_at_6km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_8km = sharppy_winds.sr_wind(
         profile_object, pbot=surface_pressure_mb, ptop=pressure_at_8km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_4_5km = sharppy_winds.sr_wind(
         profile_object, pbot=pressure_at_4km_mb, ptop=pressure_at_5km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_4_6km = sharppy_winds.sr_wind(
         profile_object, pbot=pressure_at_4km_mb, ptop=pressure_at_6km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_9_11km = sharppy_winds.sr_wind(
         profile_object, pbot=pressure_at_9km_mb, ptop=pressure_at_11km_mb,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_ebw = sharppy_winds.sr_wind(
         profile_object, pbot=profile_object.ebottom,
-        ptop=effective_bulk_layer_top_mb, stu=eastward_motion_kt,
-        stv=northward_motion_kt)
+        ptop=effective_bulk_layer_top_mb, stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_eff = sharppy_winds.sr_wind(
         profile_object, pbot=profile_object.ebottom, ptop=profile_object.etop,
-        stu=eastward_motion_kt, stv=northward_motion_kt)
+        stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srw_lcl_el = sharppy_winds.sr_wind(
         profile_object, pbot=profile_object.mupcl.lclpres,
-        ptop=profile_object.mupcl.elpres, stu=eastward_motion_kt,
-        stv=northward_motion_kt)
+        ptop=profile_object.mupcl.elpres, stu=u_motion_kt, stv=v_motion_kt)
 
     return profile_object
 
 
-def _adjust_stats_for_storm_motion(profile_object, eastward_motion_kt=None,
-                                   northward_motion_kt=None):
+def _adjust_stats_for_storm_motion(profile_object, u_motion_kt, v_motion_kt):
     """Adjusts sounding statistics to account for storm motion.
 
     :param profile_object: Instance of `sharppy.sharptab.Profile`.
-    :param eastward_motion_kt: u-component of storm motion (knots).
-    :param northward_motion_kt: v-component of storm motion (knots).
-    :return: profile_object: Same as input, except for stats that depend on
-        storm motion.
+    :param u_motion_kt: Eastward component of storm motion (knots).
+    :param v_motion_kt: Northward component of storm motion (knots).
+    :return: profile_object: Same as input, but maybe with different statistics.
     """
 
     profile_object = _adjust_srw_for_storm_motion(
-        profile_object, eastward_motion_kt=eastward_motion_kt,
-        northward_motion_kt=northward_motion_kt)
+        profile_object, u_motion_kt=u_motion_kt, v_motion_kt=v_motion_kt)
 
     profile_object.critical_angle = sharppy_winds.critical_angle(
-        profile_object, stu=eastward_motion_kt, stv=northward_motion_kt)
+        profile_object, stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srh1km = sharppy_winds.helicity(
-        profile_object, 0., 1000., stu=eastward_motion_kt,
-        stv=northward_motion_kt)
+        profile_object, 0., 1000., stu=u_motion_kt, stv=v_motion_kt)
     profile_object.srh3km = sharppy_winds.helicity(
-        profile_object, 0., 3000., stu=eastward_motion_kt,
-        stv=northward_motion_kt)
+        profile_object, 0., 3000., stu=u_motion_kt, stv=v_motion_kt)
     profile_object.ehi1km = sharppy_params.ehi(
-        profile_object, profile_object.mupcl, 0., 1000., stu=eastward_motion_kt,
-        stv=northward_motion_kt)
+        profile_object, profile_object.mupcl, 0., 1000., stu=u_motion_kt,
+        stv=v_motion_kt)
     profile_object.ehi3km = sharppy_params.ehi(
-        profile_object, profile_object.mupcl, 0., 3000., stu=eastward_motion_kt,
-        stv=northward_motion_kt)
+        profile_object, profile_object.mupcl, 0., 3000., stu=u_motion_kt,
+        stv=v_motion_kt)
 
     effective_layer_srh_j_kg01 = sharppy_winds.helicity(
         profile_object, profile_object.ebotm, profile_object.etopm,
-        stu=eastward_motion_kt, stv=northward_motion_kt)[1]
+        stu=u_motion_kt, stv=v_motion_kt)[1]
     profile_object.stp_cin = sharppy_params.stp_cin(
         profile_object.mlpcl.bplus, effective_layer_srh_j_kg01,
         profile_object.ebwspd * KT_TO_METRES_PER_SECOND,
@@ -645,12 +645,8 @@ def _adjust_stats_for_storm_motion(profile_object, eastward_motion_kt=None,
 def _fix_sharppy_wind_vector(sharppy_wind_vector):
     """Converts wind vector from SHARPpy format to new format.
 
-    SHARPpy format = masked array with direction/magnitude
+    SHARPpy format = masked array with direction and magnitude
     New format = normal numpy array with u- and v-components
-
-    SHARPpy creates masked arrays only for mean wind from 0-1 km AGL,
-    0-3 km AGL, 0-6 km AGL, 0-8 km AGL, and lifting condensation level
-    - equilibrium level.  Why??
 
     :param sharppy_wind_vector: Wind vector in SHARPpy format.
     :return: wind_vector: Wind vector in new format.
@@ -663,10 +659,10 @@ def _fix_sharppy_wind_vector(sharppy_wind_vector):
         sharppy_wind_vector[0], sharppy_wind_vector[1]))
 
 
-def _fix_sharppy_wind_vectors(profile_object):
-    """Converts all wind vectors in profile from SHARPpy format to new format.
+def _fix_all_sharppy_wind_vectors(profile_object):
+    """Converts all wind vectors in SHARPpy profile to new format.
 
-    See _fix_sharppy_wind_vector for definitions of the two formats.
+    See `_fix_sharppy_wind_vector` for definitions of the two formats.
 
     :param profile_object: Instance of `sharppy.sharptab.Profile`.
     :return: profile_object: Same as input, but with all wind vectors in new
@@ -680,15 +676,15 @@ def _fix_sharppy_wind_vectors(profile_object):
     return profile_object
 
 
-def _sharppy_profile_to_table(profile_object, metadata_table):
-    """Converts SHARPpy profile to pandas DataFrame.
+def _extract_stats_from_sharppy_profile(profile_object, metadata_table):
+    """Extracts sounding statistics from SHARPpy profile.
 
     :param profile_object: Instance of `sharppy.sharptab.Profile`.
     :param metadata_table: pandas DataFrame created by
-        read_metadata_for_sounding_stats.
-    :return: sounding_stat_table_sharppy: pandas DataFrame with sounding
-        statistics in SHARPpy format.  Column names are SHARPpy names for
-        sounding stats, and values are in SHARPpy units.
+        `read_metadata_for_statistics`.
+    :return: statistic_table_sharppy: pandas DataFrame with sounding statistics
+        in SHARPpy format.  In other words, both column names and units are in
+        SHARPpy format.
     """
 
     profile_object.mupcl.brndenom = profile_object.mupcl.brnshear
@@ -696,52 +692,47 @@ def _sharppy_profile_to_table(profile_object, metadata_table):
         [profile_object.mupcl.brnu, profile_object.mupcl.brnv])
 
     is_vector_flags = metadata_table[IS_VECTOR_COLUMN_FOR_METADATA].values
-    vector_rows = numpy.where(is_vector_flags)[0]
-    scalar_rows = numpy.where(numpy.invert(is_vector_flags))[0]
-
-    nan_array = numpy.array([numpy.nan])
+    vector_indices = numpy.where(is_vector_flags)[0]
+    scalar_indices = numpy.where(numpy.invert(is_vector_flags))[0]
     statistic_names_sharppy = metadata_table[
         SHARPPY_NAME_COLUMN_FOR_METADATA].values
 
-    sounding_stat_dict_sharppy = {}
-    for this_row in scalar_rows:
-        sounding_stat_dict_sharppy.update(
-            {statistic_names_sharppy[this_row]: nan_array})
-    sounding_stat_table_sharppy = pandas.DataFrame.from_dict(
-        sounding_stat_dict_sharppy)
+    statistic_dict_sharppy = {}
+    for this_index in scalar_indices:
+        statistic_dict_sharppy.update({
+            statistic_names_sharppy[this_index]: numpy.array([numpy.nan])
+        })
+    statistic_table_sharppy = pandas.DataFrame.from_dict(statistic_dict_sharppy)
 
-    first_statistic_name = list(sounding_stat_table_sharppy)[0]
-    nested_array = sounding_stat_table_sharppy[[
+    first_statistic_name = list(statistic_table_sharppy)[0]
+    nested_array = statistic_table_sharppy[[
         first_statistic_name, first_statistic_name]].values.tolist()
 
     argument_dict = {}
-    for this_row in vector_rows:
-        argument_dict.update({statistic_names_sharppy[this_row]: nested_array})
-    sounding_stat_table_sharppy = sounding_stat_table_sharppy.assign(
-        **argument_dict)
+    for this_index in vector_indices:
+        argument_dict.update(
+            {statistic_names_sharppy[this_index]: nested_array})
+    statistic_table_sharppy = statistic_table_sharppy.assign(**argument_dict)
 
     num_statistics = len(statistic_names_sharppy)
     for j in range(num_statistics):
         if statistic_names_sharppy[j] in HELICITY_NAMES_SHARPPY:
-            this_vector = getattr(
-                profile_object, statistic_names_sharppy[j])
-            sounding_stat_table_sharppy[
+            this_vector = getattr(profile_object, statistic_names_sharppy[j])
+            statistic_table_sharppy[
                 statistic_names_sharppy[j]].values[0] = this_vector[1]
 
         elif metadata_table[IN_MUPCL_OBJECT_COLUMN_FOR_METADATA].values[j]:
-            sounding_stat_table_sharppy[
-                statistic_names_sharppy[j]].values[0] = getattr(
-                    profile_object.mupcl, statistic_names_sharppy[j])
+            statistic_table_sharppy[statistic_names_sharppy[j]].values[
+                0] = getattr(profile_object.mupcl, statistic_names_sharppy[j])
         else:
-            sounding_stat_table_sharppy[
-                statistic_names_sharppy[j]].values[0] = getattr(
-                    profile_object, statistic_names_sharppy[j])
+            statistic_table_sharppy[statistic_names_sharppy[j]].values[
+                0] = getattr(profile_object, statistic_names_sharppy[j])
 
-    return sounding_stat_table_sharppy
+    return statistic_table_sharppy
 
 
 def _split_vector_column(input_table, conversion_factor=1.):
-    """Splits column of 2-D vectors into 5 columns, listed below.
+    """Splits array of 2-D vectors into 5 arrays, listed below.
 
     - x-component
     - y-component
@@ -755,14 +746,14 @@ def _split_vector_column(input_table, conversion_factor=1.):
         2-D vector.
     :param conversion_factor: Both x- and y-components will be multiplied by
         this factor.
-    :return: vector_dict: Dictionary with the following keys (if the original
-        column name is "foo").
-    vector_dict["foo_x"]: length-N numpy array of x-components.
-    vector_dict["foo_y"]: length-N numpy array of y-components.
-    vector_dict["foo_magnitude"]: length-N numpy array of magnitudes.
-    vector_dict["foo_cos"]: length-N numpy array with cosines of vector
+    :return: vector_dict: Dictionary with the following keys (assuming that the
+        original column name is "foo").
+    vector_dict['foo_x']: length-N numpy array of x-components.
+    vector_dict['foo_y']: length-N numpy array of y-components.
+    vector_dict['foo_magnitude']: length-N numpy array of magnitudes.
+    vector_dict['foo_cos']: length-N numpy array with cosines of vector
         directions.
-    vector_dict["foo_sin"]: length-N numpy array with sines of vector
+    vector_dict['foo_sin']: length-N numpy array with sines of vector
         directions.
     """
 
@@ -786,56 +777,70 @@ def _split_vector_column(input_table, conversion_factor=1.):
         '{0:s}_{1:s}'.format(input_column, Y_COMPONENT_SUFFIX): y_components,
         '{0:s}_{1:s}'.format(input_column, MAGNITUDE_SUFFIX): magnitudes,
         '{0:s}_{1:s}'.format(input_column, COSINE_SUFFIX): cosines,
-        '{0:s}_{1:s}'.format(input_column, SINE_SUFFIX): sines}
+        '{0:s}_{1:s}'.format(input_column, SINE_SUFFIX): sines
+    }
 
 
 def _sounding_to_sharppy_units(sounding_table):
-    """Converts sounding from GewitterGefahr units to SHARPpy units.
+    """Converts sounding table from GewitterGefahr units to SHARPpy units.
 
-    :param sounding_table: pandas DataFrame with the following columns (must
-        contain either relative_humidity_percent or specific_humidity; does not
-        need both).
+    This method overwrites the input table (does not create a new copy).
+
+    :param sounding_table: pandas DataFrame with the following columns.  Must
+        contain *either* relative or specific humidity.  Each row is one
+        pressure level.
     sounding_table.pressure_mb: Pressure (millibars).
     sounding_table.temperature_kelvins: Temperature.
     sounding_table.relative_humidity_percent: [optional] Relative humidity.
-    sounding_table.specific_humidity: [optional] Specific humidity (unitless).
+    sounding_table.specific_humidity: [optional] Specific humidity.
     sounding_table.geopotential_height_metres: Geopotential height.
     sounding_table.u_wind_m_s01: u-wind (metres per second).
     sounding_table.v_wind_m_s01: v-wind (metres per second).
-    :return: sounding_table: pandas DataFrame required by
-        get_sounding_stats_from_sharppy.
+
+    :return: sounding_table_sharppy: pandas DataFrame with the following
+        columns. Each row is one pressure level.
+    sounding_table_sharppy.pressure_mb: Pressure (millibars).
+    sounding_table_sharppy.geopotential_height_metres: Geopotential height.
+    sounding_table_sharppy.temperature_deg_c: Temperature.
+    sounding_table_sharppy.dewpoint_deg_c: Dewpoint.
+    sounding_table_sharppy.u_wind_kt: Eastward wind component (knots).
+    sounding_table_sharppy.v_wind_kt: Northward wind component (knots).
     """
 
-    columns_to_drop = [nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
-                       nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
-                       nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES]
+    columns_to_drop = [
+        nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
+        nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
+        nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
+    ]
 
     if nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES in sounding_table:
         columns_to_drop.append(nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
 
         dewpoints_kelvins = moisture_conversions.specific_humidity_to_dewpoint(
-            sounding_table[
+            specific_humidities_kg_kg01=sounding_table[
                 nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES].values,
-            sounding_table[
-                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values * MB_TO_PASCALS)
+            total_pressures_pascals=MB_TO_PASCALS * sounding_table[
+                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values)
+
     else:
         columns_to_drop.append(nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
 
-        these_rh_percent = sounding_table[
+        relative_humidities_percent = sounding_table[
             nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES].values
-        these_rh_percent[
-            these_rh_percent < MIN_RELATIVE_HUMIDITY_PERCENT
+        relative_humidities_percent[
+            relative_humidities_percent < MIN_RELATIVE_HUMIDITY_PERCENT
         ] = MIN_RELATIVE_HUMIDITY_PERCENT
         sounding_table = sounding_table.assign(
-            **{nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES: these_rh_percent})
+            **{nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES:
+                   relative_humidities_percent})
 
         dewpoints_kelvins = moisture_conversions.relative_humidity_to_dewpoint(
-            PERCENT_TO_UNITLESS * sounding_table[
+            relative_humidities=PERCENT_TO_UNITLESS * sounding_table[
                 nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES].values,
-            sounding_table[
+            temperatures_kelvins=sounding_table[
                 nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values,
-            sounding_table[
-                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values * MB_TO_PASCALS)
+            total_pressures_pascals=MB_TO_PASCALS * sounding_table[
+                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values)
 
     dewpoints_deg_c = temperature_conversions.kelvins_to_celsius(
         dewpoints_kelvins)
@@ -847,55 +852,56 @@ def _sounding_to_sharppy_units(sounding_table):
     v_winds_kt = METRES_PER_SECOND_TO_KT * sounding_table[
         nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES].values
 
-    argument_dict = {DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: dewpoints_deg_c,
-                     TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: temperatures_deg_c,
-                     U_WIND_COLUMN_FOR_SHARPPY_INPUT: u_winds_kt,
-                     V_WIND_COLUMN_FOR_SHARPPY_INPUT: v_winds_kt}
+    argument_dict = {
+        DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: dewpoints_deg_c,
+        TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: temperatures_deg_c,
+        U_WIND_COLUMN_FOR_SHARPPY_INPUT: u_winds_kt,
+        V_WIND_COLUMN_FOR_SHARPPY_INPUT: v_winds_kt
+    }
     sounding_table = sounding_table.assign(**argument_dict)
     return sounding_table.drop(columns_to_drop, axis=1)
 
 
-def _create_query_point_table(storm_object_table, lead_times_seconds):
-    """Creates table of query points for interpolation.
+def _create_query_points(storm_object_table, lead_times_sec):
+    """Creates set of query points for interpolation.
 
     Each query point consists of (latitude, longitude, time).
 
     T = number of lead times
 
     :param storm_object_table: pandas DataFrame with columns documented in
-        `storm_tracking_io.write_processed_file`.  May contain additional
-        columns.
-    :param lead_times_seconds: length-T numpy array of lead times.  For each
-        lead time t, each storm object will be extrapolated t seconds into the
-        future, given its motion estimate at the valid time.
+        `storm_tracking_io.write_processed_file`.
+    :param lead_times_sec: length-T numpy array of lead times.  For each lead
+        time t, each storm object will be extrapolated t seconds into the
+        future, along its estimated motion vector at the initial time.
     :return: query_point_table: pandas DataFrame with the following columns,
-        where each row is an extrapolated storm object.
+        where each row is one extrapolated storm object.
     query_point_table.centroid_lat_deg: Latitude (deg N) of extrapolated
         centroid.
     query_point_table.centroid_lng_deg: Longitude (deg E) of extrapolated
         centroid.
-    query_point_table.unix_time_sec: Time to which position has been
-        extrapolated.
-    query_point_table.lead_time_seconds: Lead time.
-    query_point_table.east_velocity_m_s01: Eastward component of storm motion
-        (metres per second).
-    query_point_table.north_velocity_m_s01: Northward component of storm motion
-        (metres per second).
+    query_point_table.unix_time_sec: Time of extrapolated point.
+    query_point_table.lead_time_seconds: Lead time (amount of time over which
+        storm object was extrapolated).
+    query_point_table.east_velocity_m_s01: u-component of storm motion (metres
+        per second).
+    query_point_table.north_velocity_m_s01: v-component of storm motion (metres
+        per second).
     """
 
-    if numpy.any(lead_times_seconds > 0):
+    if numpy.any(lead_times_sec > 0):
         storm_speeds_m_s01, geodetic_bearings_deg = (
             geodetic_utils.xy_components_to_displacements_and_bearings(
                 storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
-                storm_object_table[
-                    tracking_utils.NORTH_VELOCITY_COLUMN].values))
+                storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values
+            ))
 
     num_storm_objects = len(storm_object_table.index)
-    num_lead_times = len(lead_times_seconds)
+    num_lead_times = len(lead_times_sec)
     list_of_query_point_tables = [None] * num_lead_times
 
     for i in range(num_lead_times):
-        if lead_times_seconds[i] == 0:
+        if lead_times_sec[i] == 0:
             list_of_query_point_tables[i] = storm_object_table[[
                 tracking_utils.CENTROID_LAT_COLUMN,
                 tracking_utils.CENTROID_LNG_COLUMN, tracking_utils.TIME_COLUMN,
@@ -905,32 +911,30 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
             argument_dict = {
                 LEAD_TIME_COLUMN: numpy.full(num_storm_objects, 0, dtype=int)}
             list_of_query_point_tables[i] = (
-                list_of_query_point_tables[i].assign(
-                    **argument_dict))
+                list_of_query_point_tables[i].assign(**argument_dict))
 
         else:
-            these_extrap_lats_deg, these_extrap_lngs_deg = (
+            these_extrap_latitudes_deg, these_extrap_longitudes_deg = (
                 geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
-                    start_latitudes_deg=
-                    storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
-                    start_longitudes_deg=
-                    storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values,
-                    displacements_metres=
-                    storm_speeds_m_s01 * lead_times_seconds[i],
+                    start_latitudes_deg=storm_object_table[
+                        tracking_utils.CENTROID_LAT_COLUMN].values,
+                    start_longitudes_deg=storm_object_table[
+                        tracking_utils.CENTROID_LNG_COLUMN].values,
+                    displacements_metres=storm_speeds_m_s01 * lead_times_sec[i],
                     geodetic_bearings_deg=geodetic_bearings_deg))
 
             this_dict = {
-                tracking_utils.CENTROID_LAT_COLUMN: these_extrap_lats_deg,
-                tracking_utils.CENTROID_LNG_COLUMN: these_extrap_lngs_deg,
+                tracking_utils.CENTROID_LAT_COLUMN: these_extrap_latitudes_deg,
+                tracking_utils.CENTROID_LNG_COLUMN: these_extrap_longitudes_deg,
                 tracking_utils.TIME_COLUMN:
                     (storm_object_table[tracking_utils.TIME_COLUMN].values +
-                     lead_times_seconds[i]),
+                     lead_times_sec[i]),
                 tracking_utils.EAST_VELOCITY_COLUMN: storm_object_table[
                     tracking_utils.EAST_VELOCITY_COLUMN].values,
                 tracking_utils.NORTH_VELOCITY_COLUMN: storm_object_table[
                     tracking_utils.NORTH_VELOCITY_COLUMN].values,
                 LEAD_TIME_COLUMN: numpy.full(
-                    num_storm_objects, lead_times_seconds[i], dtype=int)
+                    num_storm_objects, lead_times_sec[i], dtype=int)
             }
             list_of_query_point_tables[i] = pandas.DataFrame.from_dict(
                 this_dict)
@@ -944,126 +948,8 @@ def _create_query_point_table(storm_object_table, lead_times_seconds):
     return pandas.concat(list_of_query_point_tables, axis=0, ignore_index=True)
 
 
-def _get_unique_storm_soundings(
-        list_of_sounding_tables, eastward_motions_m_s01=None,
-        northward_motions_m_s01=None):
-    """Finds unique storm soundings (pairs of sounding and motion vector).
-
-    N = number of storm soundings
-    U = number of unique storm soundings
-
-    :param list_of_sounding_tables: length-N list of pandas DataFrames.  Some
-        entries may be None.
-    :param eastward_motions_m_s01: length-N numpy array with eastward components
-        of storm motion.
-    :param northward_motions_m_s01: length-N numpy array with northward
-        components of storm motion.
-    :return: unique_indices: length-U numpy array with array indices of unique
-        storm soundings.  If unique_indices[i] = j, the [i]th unique storm
-        sounding is the [j]th original storm sounding.
-    :return: orig_to_unique_indices: length-N numpy array.  If
-        orig_to_unique_indices[j] = i, the [j]th original storm sounding is an
-        instance of the [i]th unique storm sounding.
-    """
-
-    num_soundings = len(list_of_sounding_tables)
-    sounding_strings = [''] * num_soundings
-
-    for i in range(num_soundings):
-        if list_of_sounding_tables[i] is None:
-            sounding_strings[i] = 'None'
-        else:
-            sounding_strings[i] = '{0:s}_{1:.4f}_{2:.4f}'.format(
-                list_of_sounding_tables[i].to_string, eastward_motions_m_s01[i],
-                northward_motions_m_s01[i])
-
-    _, unique_indices, orig_to_unique_indices = numpy.unique(
-        numpy.asarray(sounding_strings), return_index=True, return_inverse=True)
-    return unique_indices, orig_to_unique_indices
-
-
-def get_sounding_stat_columns(sounding_stat_table):
-    """Returns names of columns with sounding statistics.
-
-    :param sounding_stat_table: pandas DataFrame.
-    :return: statistic_column_names: 1-D list containing names of columns with
-        sounding stats.  If there are no columns with sounding stats, this is
-        None.
-    """
-
-    metadata_table = read_metadata_for_sounding_stats()
-    valid_statistic_names = metadata_table[STAT_NAME_COLUMN_FOR_METADATA].values
-
-    column_names = list(sounding_stat_table)
-    statistic_column_names = None
-
-    for this_column_name in column_names:
-        this_statistic_name = _column_name_to_sounding_stat(
-            this_column_name, valid_statistic_names)
-        if this_statistic_name is None:
-            continue
-
-        if statistic_column_names is None:
-            statistic_column_names = [this_column_name]
-        else:
-            statistic_column_names.append(this_column_name)
-
-    return statistic_column_names
-
-
-def check_sounding_stat_table(sounding_stat_table, require_storm_objects=True):
-    """Ensures that pandas DataFrame contains sounding statistics.
-
-    :param sounding_stat_table: pandas DataFrame.
-    :param require_storm_objects: Boolean flag.  If True, sounding_stat_table
-        must have columns "storm_id" and "unix_time_sec".  If False,
-        sounding_stat_table does not need these columns.
-    :return: statistic_column_names: 1-D list containing names of columns with
-        sounding statistics.
-    :raises: ValueError: if sounding_stat_table has no columns with sounding
-        statistics.
-    """
-
-    statistic_column_names = get_sounding_stat_columns(sounding_stat_table)
-    if statistic_column_names is None:
-        raise ValueError(
-            'sounding_stat_table has no columns with sounding statistics.')
-
-    if require_storm_objects:
-        error_checking.assert_columns_in_dataframe(
-            sounding_stat_table, STORM_COLUMNS_TO_KEEP)
-
-    return statistic_column_names
-
-
-def read_metadata_for_sounding_stats():
-    """Reads metadata for sounding statistics.
-
-    :return: metadata_table: pandas DataFrame with the following columns.
-    metadata_table.statistic_name: Name of sounding statistic in GewitterGefahr
-        format.
-    metadata_table.statistic_name_sharppy: Name of sounding statistic in SHARPpy
-        format.
-    metadata_table.conversion_factor: Multiplier from SHARPpy units to
-        GewitterGefahr units.
-    metadata_table.is_vector: Boolean flag.  If True, the corresponding
-        statistic is a 2-D vector.  If False, the corresponding stat is a
-        scalar.
-    metadata_table.in_mupcl_object: Boolean flag.  If True, the
-        corresponding statistic is an attribute of profile_object.mupcl, where
-        profile_object is an instance of `sharppy.sharptab.Profile`.  If False,
-        the corresponding stat is an attribute of just profile_object.
-    """
-
-    error_checking.assert_file_exists(METAFILE_NAME)
-    return pandas.read_csv(
-        METAFILE_NAME, header=0, usecols=METADATA_COLUMNS,
-        dtype=COLUMN_TYPE_DICT_FOR_METADATA)
-
-
-def interp_soundings_from_nwp(
-        query_point_table, model_name=None, grid_id=None,
-        top_grib_directory_name=None,
+def _interp_soundings_from_nwp(
+        query_point_table, model_name, top_grib_directory_name, grid_id=None,
         wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
@@ -1071,27 +957,27 @@ def interp_soundings_from_nwp(
 
     Each query point consists of (latitude, longitude, time).
 
-    :param query_point_table: pandas DataFrame in format specified by
-        `interp.interp_nwp_from_xy_grid`.
-    :param model_name: Name of model.
+    :param query_point_table: pandas DataFrame created by
+        `_create_query_points`.
+    :param model_name: Name of NWP model.
+    :param top_grib_directory_name: Name of top-level directory with grib data
+        from said model.
     :param grid_id: String ID for model grid.
-    :param top_grib_directory_name: Name of top-level directory with grib files
-        for said model.
     :param wgrib_exe_name: Path to wgrib executable.
     :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: See documentation for
         `interp.interp_nwp_from_xy_grid`.
     :return: interp_table: pandas DataFrame, where each column is one field and
         each row is one query point.  Column names are given by the list
-        sounding_field_names returned by `_get_nwp_fields_in_sounding`.
+        `sounding_field_names` returned by `_get_nwp_fields_for_sounding`.
     """
 
     sounding_field_names, sounding_field_names_grib1 = (
-        _get_nwp_fields_in_sounding(model_name, return_dict=False))
+        _get_nwp_fields_for_sounding(model_name=model_name, return_dict=False))
 
     return interp.interp_nwp_from_xy_grid(
-        query_point_table, model_name=model_name, grid_id=grid_id,
-        field_names=sounding_field_names,
+        query_point_table=query_point_table, model_name=model_name,
+        grid_id=grid_id, field_names=sounding_field_names,
         field_names_grib1=sounding_field_names_grib1,
         top_grib_directory_name=top_grib_directory_name,
         temporal_interp_method=TEMPORAL_INTERP_METHOD,
@@ -1100,24 +986,27 @@ def interp_soundings_from_nwp(
         raise_error_if_missing=raise_error_if_missing)
 
 
-def interp_soundings_from_ruc_all_grids(
-        query_point_table, top_grib_directory_name=None,
+def _interp_soundings_from_ruc(
+        query_point_table, top_grib_directory_name,
         wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
-    """Interpolates RUC soundings from one or more grids to query points.
+    """Interpolates soundings from RUC model to query points.
 
-    :param query_point_table: See documentation for interp_soundings_from_nwp.
-    :param top_grib_directory_name: See doc for interp_soundings_from_nwp.
-    :param wgrib_exe_name: See doc for interp_soundings_from_nwp.
-    :param wgrib2_exe_name: See doc for interp_soundings_from_nwp.
-    :param raise_error_if_missing: See doc for interp_soundings_from_nwp.
-    :return: interp_table: See doc for interp_soundings_from_nwp.
+    This method may interpolate from different RUC grids at different time
+    steps.
+
+    :param query_point_table: See doc for `_interp_soundings_from_nwp`.
+    :param top_grib_directory_name: Same.
+    :param wgrib_exe_name: Same.
+    :param wgrib2_exe_name: Same.
+    :param raise_error_if_missing: Same.
+    :return: interp_table: Same.
     """
 
     sounding_field_names, sounding_field_names_grib1 = (
-        _get_nwp_fields_in_sounding(
-            nwp_model_utils.RUC_MODEL_NAME, return_dict=False))
+        _get_nwp_fields_for_sounding(
+            model_name=nwp_model_utils.RUC_MODEL_NAME, return_dict=False))
 
     return interp.interp_ruc_all_grids(
         query_point_table, field_names=sounding_field_names,
@@ -1129,28 +1018,24 @@ def interp_soundings_from_ruc_all_grids(
         raise_error_if_missing=raise_error_if_missing)
 
 
-def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
-    """Converts each row of interp_table to a sounding table in SHARPpy format.
+def _create_sharppy_sounding_tables(interp_table, model_name):
+    """Converts each input table to a sounding table in SHARPpy format.
 
     N = number of soundings
-    P = number of pressure levels in each sounding
 
     :param interp_table: N-row pandas DataFrame created by
-        `interp.interp_nwp_from_xy_grid`, where each column is one model
-        field (e.g., 500-mb height or 600-mb temperature).
-    :param model_name: Name of NWP model used to create interp_table.
-    :return: list_of_sounding_tables: length-N list of sounding tables.  Each
-        table is a pandas DataFrame in the format required by
-        get_sounding_stats_from_sharppy.
+        `_interp_soundings_from_nwp` or `_interp_soundings_from_ruc`.  Each
+        column is one NWP field (one variable at one pressure level).
+    :param model_name: Name of NWP model used to create `interp_table`.
+    :return: list_of_sharppy_sounding_tables: length-N list of sounding tables.
+        Each table contains columns listed in input documentation for
+        `_compute_sounding_statistics`.
     """
 
-    # TODO(thunderhoser): Might be able to produce one output table and convert
-    # units faster?
-
-    sounding_table_to_field_dict, pressure_levels_mb = (
-        _get_nwp_fields_in_sounding(model_name, return_dict=True))
-    sounding_table_columns = sounding_table_to_field_dict.keys()
-    num_sounding_table_columns = len(sounding_table_columns)
+    sounding_field_dict, pressure_levels_mb = _get_nwp_fields_for_sounding(
+        model_name=model_name, return_dict=True)
+    basic_field_names = sounding_field_dict.keys()
+    num_basic_fields = len(basic_field_names)
 
     lowest_pressure_name, _ = nwp_model_utils.get_lowest_pressure_name(
         model_name)
@@ -1160,103 +1045,110 @@ def interp_table_to_sharppy_sounding_tables(interp_table, model_name):
     is_surface_flags = numpy.full(len(pressure_levels_mb), False, dtype=int)
     is_surface_flags[-1] = True
 
-    base_sounding_dict = {
+    generic_sounding_dict = {
         PRESSURE_COLUMN_FOR_SHARPPY_INPUT: pressure_levels_mb,
         IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: is_surface_flags}
-    base_sounding_table = pandas.DataFrame.from_dict(base_sounding_dict)
+    generic_sounding_table = pandas.DataFrame.from_dict(generic_sounding_dict)
 
     num_soundings = len(interp_table.index)
-    list_of_sounding_tables = [base_sounding_table] * num_soundings
+    list_of_sharppy_sounding_tables = [generic_sounding_table] * num_soundings
 
     for i in range(num_soundings):
-        for j in range(num_sounding_table_columns):
-            these_sounding_field_names = sounding_table_to_field_dict[
-                sounding_table_columns[j]]
+        for j in range(num_basic_fields):
+            these_sounding_field_names = sounding_field_dict[
+                basic_field_names[j]]
 
             argument_dict = {
-                sounding_table_columns[j]:
+                basic_field_names[j]:
                     interp_table[these_sounding_field_names].values[i]}
-            list_of_sounding_tables[i] = list_of_sounding_tables[i].assign(
-                **argument_dict)
+            list_of_sharppy_sounding_tables[i] = (
+                list_of_sharppy_sounding_tables[i].assign(**argument_dict))
 
-        list_of_sounding_tables[i][PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
-            -1] = PASCALS_TO_MB * interp_table[lowest_pressure_name].values[i]
-        list_of_sounding_tables[i] = _remove_bad_sounding_rows(
-            list_of_sounding_tables[i])
-        if list_of_sounding_tables[i] is None:
+        list_of_sharppy_sounding_tables[i][
+            PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[-1] = (
+                PASCALS_TO_MB * interp_table[lowest_pressure_name].values[i])
+
+        list_of_sharppy_sounding_tables[i] = _remove_bad_pressure_levels(
+            list_of_sharppy_sounding_tables[i])
+        if list_of_sharppy_sounding_tables[i] is None:
             continue
 
-        list_of_sounding_tables[i] = _fill_missing_humidity_values(
-            list_of_sounding_tables[i])
-        if list_of_sounding_tables[i] is None:
+        list_of_sharppy_sounding_tables[i] = _fill_missing_humidity(
+            list_of_sharppy_sounding_tables[i])
+        if list_of_sharppy_sounding_tables[i] is None:
             continue
 
-        list_of_sounding_tables[i] = _sounding_to_sharppy_units(
-            list_of_sounding_tables[i])
+        list_of_sharppy_sounding_tables[i] = _sounding_to_sharppy_units(
+            list_of_sharppy_sounding_tables[i])
 
-    return list_of_sounding_tables
+    return list_of_sharppy_sounding_tables
 
 
-def get_sounding_stats_from_sharppy(
-        sounding_table, eastward_motion_m_s01=None, northward_motion_m_s01=None,
-        metadata_table=None):
-    """Uses SHARPpy to compute sounding statistics.
+def _compute_sounding_statistics(
+        sounding_table_sharppy, u_motion_m_s01, v_motion_m_s01, metadata_table):
+    """Uses SHARPpy to compute statistics for a single sounding.
 
-    This method works on a single sounding.
+    :param sounding_table_sharppy: pandas DataFrame with the following columns.
+        Each row is one pressure level.
+    sounding_table_sharppy.pressure_mb: Pressure (millibars).
+    sounding_table_sharppy.geopotential_height_metres: Geopotential height.
+    sounding_table_sharppy.temperature_deg_c: Temperature.
+    sounding_table_sharppy.dewpoint_deg_c: Dewpoint.
+    sounding_table_sharppy.u_wind_kt: Eastward wind component (knots).
+    sounding_table_sharppy.v_wind_kt: Northward wind component (knots).
+    sounding_table_sharppy.is_surface: Boolean flag, indicating which row is the
+        surface level.
 
-    :param sounding_table: pandas DataFrame with the following columns.
-    sounding_table.pressure_mb: Pressure (millibars).
-    sounding_table.geopotential_height_metres: Geopotential height.
-    sounding_table.temperature_deg_c: Temperature.
-    sounding_table.dewpoint_deg_c: Temperature.
-    sounding_table.u_wind_kt: u-wind (knots).
-    sounding_table.v_wind_kt: v-wind (knots).
-    sounding_table.is_surface: Boolean flag, indicating which row is the surface
-        level.
-    :param eastward_motion_m_s01: u-component of storm motion (metres per
-        second).
-    :param northward_motion_m_s01: v-component of storm motion (metres per
-        second).
+    :param u_motion_m_s01: Eastward component of storm motion (knots).
+    :param v_motion_m_s01: Northward component of storm motion (knots).
     :param metadata_table: pandas DataFrame created by
-        read_metadata_for_sounding_stats.
-    :return: sounding_stat_table_sharppy: pandas DataFrame with sounding
-        statistics in SHARPpy format.  Column names are SHARPpy names for
-        sounding stats, and values are in SHARPpy units.
+        `read_metadata_for_statistics`.
+    :return: statistic_table_sharpy: pandas DataFrame with sounding
+        statistics in SHARPpy format.  In other words, both column names and
+        units are in SHARPpy format.
     """
 
-    error_checking.assert_is_not_nan(eastward_motion_m_s01)
-    error_checking.assert_is_not_nan(northward_motion_m_s01)
+    error_checking.assert_is_not_nan(u_motion_m_s01)
+    error_checking.assert_is_not_nan(v_motion_m_s01)
 
-    sounding_table = _remove_subsurface_sounding_data(
-        sounding_table, delete_rows=False)
-    sounding_table = _sort_sounding_by_height(sounding_table)
-    sounding_table = _remove_redundant_sounding_data(sounding_table)
+    sounding_table_sharppy = _remove_subsurface_pressure_levels(
+        sounding_table_sharppy=sounding_table_sharppy, delete_rows=False)
+    sounding_table_sharppy = _sort_sounding_by_height(sounding_table_sharppy)
+    sounding_table_sharppy = _remove_redundant_pressure_levels(
+        sounding_table_sharppy)
 
     try:
         profile_object = sharppy_profile.create_profile(
             profile='convective',
-            pres=sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values,
-            hght=sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values,
-            tmpc=sounding_table[TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values,
-            dwpc=sounding_table[DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values,
-            u=sounding_table[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
-            v=sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
+            pres=sounding_table_sharppy[
+                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values,
+            hght=sounding_table_sharppy[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values,
+            tmpc=sounding_table_sharppy[
+                TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values,
+            dwpc=sounding_table_sharppy[
+                DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values,
+            u=sounding_table_sharppy[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
+            v=sounding_table_sharppy[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
 
     except:
-        sounding_table = _remove_subsurface_sounding_data(
-            sounding_table, delete_rows=True)
+        sounding_table_sharppy = _remove_subsurface_pressure_levels(
+            sounding_table_sharppy=sounding_table_sharppy, delete_rows=True)
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
-            pres=sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values,
-            hght=sounding_table[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values,
-            tmpc=sounding_table[TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values,
-            dwpc=sounding_table[DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values,
-            u=sounding_table[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
-            v=sounding_table[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
+            pres=sounding_table_sharppy[
+                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values,
+            hght=sounding_table_sharppy[
+                HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values,
+            tmpc=sounding_table_sharppy[
+                TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values,
+            dwpc=sounding_table_sharppy[
+                DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values,
+            u=sounding_table_sharppy[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
+            v=sounding_table_sharppy[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
 
     setattr(profile_object, STORM_VELOCITY_NAME_SHARPPY,
-            numpy.array([eastward_motion_m_s01, northward_motion_m_s01]))
+            numpy.array([u_motion_m_s01, v_motion_m_s01]))
 
     profile_object.right_esrh = sharppy_winds.helicity(
         profile_object, profile_object.ebotm, profile_object.etopm,
@@ -1293,32 +1185,31 @@ def get_sounding_stats_from_sharppy(
     profile_object.edepthm = profile_object.etopm - profile_object.ebotm
 
     profile_object = _adjust_stats_for_storm_motion(
-        profile_object,
-        eastward_motion_kt=METRES_PER_SECOND_TO_KT * eastward_motion_m_s01,
-        northward_motion_kt=METRES_PER_SECOND_TO_KT * northward_motion_m_s01)
-    profile_object = _fix_sharppy_wind_vectors(profile_object)
-    return _sharppy_profile_to_table(profile_object, metadata_table)
+        profile_object=profile_object,
+        u_motion_kt=METRES_PER_SECOND_TO_KT * u_motion_m_s01,
+        v_motion_kt=METRES_PER_SECOND_TO_KT * v_motion_m_s01)
+    profile_object = _fix_all_sharppy_wind_vectors(profile_object)
+    return _extract_stats_from_sharppy_profile(
+        profile_object=profile_object, metadata_table=metadata_table)
 
 
-def convert_sounding_stats_from_sharppy(sounding_stat_table_sharppy,
-                                        metadata_table):
-    """Converts names and units of sounding statistics.
+def _convert_sounding_statistics(statistic_table_sharppy, metadata_table):
+    """Converts sounding statistics from SHARPpy to GewitterGefahr format.
 
-    :param sounding_stat_table_sharppy: pandas DataFrame with columns generated
-        by get_sounding_stats_from_sharppy.  Each row is one sounding.
+    :param statistic_table_sharppy: pandas DataFrame created by
+        `_compute_sounding_statistics`.
     :param metadata_table: pandas DataFrame created by
-        read_metadata_for_sounding_stats.
-    :return: sounding_stat_table: pandas DataFrame with sounding
-        statistics in GewitterGefahr format.  Column names are GewitterGefahr
-        names for sounding stats, and values are in GewitterGefahr units.
-        Vectors are split into components, so each column is either a scalar
-        sounding statistic or one component of a vector.
+        `read_metadata_for_statistics`.
+    :return: sounding_statistic_table: pandas DataFrame with sounding statistics
+        in GewitterGefahr format.  In other words, both column names and units
+        are in GewitterGefahr format.  Also, vectors are split into one column
+        per component.
     """
 
-    orig_column_names = list(sounding_stat_table_sharppy)
-    sounding_stat_table = None
+    sharppy_column_names = list(statistic_table_sharppy)
+    sounding_statistic_table = None
 
-    for this_orig_name in orig_column_names:
+    for this_orig_name in sharppy_column_names:
         match_flags = [s == this_orig_name for s in metadata_table[
             SHARPPY_NAME_COLUMN_FOR_METADATA].values]
         match_index = numpy.where(match_flags)[0][0]
@@ -1331,32 +1222,115 @@ def convert_sounding_stats_from_sharppy(sounding_stat_table_sharppy,
             match_index]
 
         if this_vector_flag:
-            this_column_as_table = sounding_stat_table_sharppy[[this_orig_name]]
+            this_column_as_table = statistic_table_sharppy[[this_orig_name]]
             this_column_as_table.rename(
                 columns={this_orig_name: this_new_name}, inplace=True)
             argument_dict = _split_vector_column(
-                this_column_as_table, this_conversion_factor)
+                input_table=this_column_as_table,
+                conversion_factor=this_conversion_factor)
         else:
             argument_dict = {
-                this_new_name:
-                    this_conversion_factor * sounding_stat_table_sharppy[
-                        this_orig_name].values}
+                this_new_name: (
+                    this_conversion_factor *
+                    statistic_table_sharppy[this_orig_name].values)
+            }
 
-        if sounding_stat_table is None:
-            sounding_stat_table = pandas.DataFrame.from_dict(argument_dict)
+        if sounding_statistic_table is None:
+            sounding_statistic_table = pandas.DataFrame.from_dict(argument_dict)
         else:
-            sounding_stat_table = sounding_stat_table.assign(**argument_dict)
+            sounding_statistic_table = sounding_statistic_table.assign(
+                **argument_dict)
 
     temperatures_kelvins = temperature_conversions.fahrenheit_to_kelvins(
-        sounding_stat_table[CONVECTIVE_TEMPERATURE_NAME].values)
+        sounding_statistic_table[CONVECTIVE_TEMPERATURE_NAME].values)
     argument_dict = {CONVECTIVE_TEMPERATURE_NAME: temperatures_kelvins}
-    return sounding_stat_table.assign(**argument_dict)
+    return sounding_statistic_table.assign(**argument_dict)
+
+
+def check_sounding_statistic_table(
+        sounding_statistic_table, require_storm_objects=True):
+    """Ensures that table contains sounding statistics.
+
+    :param sounding_statistic_table: pandas DataFrame.
+    :param require_storm_objects: Boolean flag.  If True, the table must contain
+        columns "storm_id" and "unix_time_sec".
+    :return: statistic_column_names: 1-D list with names of columns containing
+        sounding statistics.  If there are no such columns, this is None.
+    :raises: ValueError: `sounding_statistic_table` contains no columns with
+        sounding statistics.
+    """
+
+    error_checking.assert_is_boolean(require_storm_objects)
+
+    statistic_column_names = get_statistic_columns(sounding_statistic_table)
+    if statistic_column_names is None:
+        raise ValueError('Table contains no columns with sounding statistics.')
+
+    if require_storm_objects:
+        error_checking.assert_columns_in_dataframe(
+            sounding_statistic_table, STORM_COLUMNS_TO_KEEP)
+
+    return statistic_column_names
+
+
+def get_statistic_columns(sounding_statistic_table):
+    """Returns names of columns with sounding statistics.
+
+    :param sounding_statistic_table: pandas DataFrame.
+    :return: statistic_column_names: 1-D list with names of columns containing
+        sounding statistics.  If there are no such columns, this is None.
+    """
+
+    metadata_table = read_metadata_for_statistics()
+    valid_statistic_names = metadata_table[STAT_NAME_COLUMN_FOR_METADATA].values
+
+    column_names = list(sounding_statistic_table)
+    statistic_column_names = []
+
+    for this_column_name in column_names:
+        this_statistic_name = _column_name_to_statistic_name(
+            column_name=this_column_name,
+            valid_statistic_names=valid_statistic_names)
+        if this_statistic_name is None:
+            continue
+
+        statistic_column_names.append(this_column_name)
+
+    if not len(statistic_column_names):
+        return None
+
+    return statistic_column_names
+
+
+def read_metadata_for_statistics():
+    """Reads metadata for sounding statistics.
+
+    :return: metadata_table: pandas DataFrame with the following columns.  Each
+        row is one sounding statistic.
+    metadata_table.statistic_name: Name of sounding statistic (GewitterGefahr
+        format).
+    metadata_table.statistic_name_sharppy: Name of sounding statistic (SHARPpy
+        format).
+    metadata_table.conversion_factor: Multiplier from SHARPpy units to
+        GewitterGefahr units.
+    metadata_table.is_vector: Boolean flag.  If True, the statistic is a 2-D
+        vector.  If False, it is a scalar.
+    metadata_table.in_mupcl_object: Boolean flag.  If True, the statistic is an
+        attribute of `profile_object.mupcl`, where `profile_object` is an
+        instance of `sharppy.sharptab.Profile`.  If False, the statistic is just
+        an attribute of `profile_object`.
+    """
+
+    error_checking.assert_file_exists(METAFILE_NAME)
+    return pandas.read_csv(
+        METAFILE_NAME, header=0, usecols=METADATA_COLUMNS,
+        dtype=COLUMN_TYPE_DICT_FOR_METADATA)
 
 
 def get_sounding_stats_for_storm_objects(
-        storm_object_table, lead_times_seconds=numpy.array([0]),
-        all_ruc_grids=False, model_name=None, grid_id=None,
-        top_grib_directory_name=None,
+        storm_object_table, top_grib_directory_name,
+        lead_times_sec=DEFAULT_LEAD_TIMES_SEC, all_ruc_grids=True,
+        model_name=None, grid_id=None,
         wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
@@ -1364,45 +1338,46 @@ def get_sounding_stats_for_storm_objects(
 
     N = number of storm objects
     T = number of lead times
-    K = number of sounding indices, after decomposing vectors into scalars.
+    K = number of sounding stats (after decomposing vectors into scalars)
 
     :param storm_object_table: pandas DataFrame with columns documented in
         `storm_tracking_io.write_processed_file`.
-    :param lead_times_seconds: length-T numpy array of lead times.  For each
-        lead time t, each storm object will be extrapolated t seconds into the
-        future, given its motion estimate at the valid time.
-    :param all_ruc_grids: Boolean flag.  If True, this method will use
-        `interp_soundings_from_ruc_all_grids` to interpolate soundings to storm
-        objects.  If False, will use `interp_soundings_from_nwp`.
-    :param model_name: Soundings will be interpolated from this NWP model.
-        If all_ruc_grids = True, you can leave this as None.
-    :param grid_id: String ID for model grid.  If all_ruc_grids = True, you can
-        leave this as None.
     :param top_grib_directory_name: Name of top-level directory with grib files
-        for said model.
+        from the NWP model.
+    :param lead_times_sec: length-T numpy array of lead times.  For each lead
+        time t, each storm object will be extrapolated t seconds into the
+        future, along its estimated motion vector at the initial time.
+    :param all_ruc_grids: Boolean flag.  If True, will use the method
+        `_interp_soundings_from_ruc` to interpolate soundings to storm objects.
+        If False, will use `_interp_soundings_from_nwp`.
+    :param model_name: [used only if `all_ruc_grids = False`]
+        Soundings will be interpolated from this NWP model.
+    :param grid_id: [used only if `all_ruc_grids = False`]
+        String ID for model grid.
     :param wgrib_exe_name: Path to wgrib executable.
     :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param raise_error_if_missing: See documentation for
-        interp_soundings_from_nwp.
-    :return: sounding_stat_table_for_storms: pandas DataFrame with N*T rows and
-        3 + K columns.  The first 3 columns are listed below.  The last K
-        columns are sounding statistics.  Names of the last K columns are from
-        the column "statistic_name" of the table returned by
-        read_metadata_for_sounding_stats.
-    sounding_stat_table_for_storms.storm_id: String ID for storm cell.  Same as
-        input column `storm_object_table.storm_id`.
-    sounding_stat_table_for_storms.unix_time_sec: Valid time.  Same as input
-        column `storm_object_table.unix_time_sec`.
-    sounding_stat_table_for_storms.lead_time_seconds: Lead time.
+    :param raise_error_if_missing: Boolean flag.  If a grib file with NWP data
+        is missing and `raise_error_if_missing` = True, this method will error
+        out.  If a grib file is missing and `raise_error_if_missing` = False,
+        this method will skip the corresponding time step.
+    :return: sounding_statistic_table: pandas DataFrame with N*T rows (one for
+        each storm object and lead time) and 3 + K columns.  The first 3 columns
+        are listed below.  The other K column names can be found by running the
+        table through `get_statistic_columns`.
+    sounding_statistic_table.storm_id: String ID for storm cell.
+    sounding_statistic_table.unix_time_sec: Valid time for storm object.
+    sounding_statistic_table.lead_time_seconds: Lead time for sounding
+        statistics.  Valid time of sounding statistics is `unix_time_sec +
+        lead_time_seconds`.
     """
 
-    error_checking.assert_is_integer_numpy_array(lead_times_seconds)
-    error_checking.assert_is_numpy_array(lead_times_seconds, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(lead_times_seconds, 0)
+    error_checking.assert_is_integer_numpy_array(lead_times_sec)
+    error_checking.assert_is_numpy_array(lead_times_sec, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(lead_times_sec, 0)
     error_checking.assert_is_boolean(all_ruc_grids)
 
-    query_point_table = _create_query_point_table(
-        storm_object_table, lead_times_seconds)
+    query_point_table = _create_query_points(
+        storm_object_table=storm_object_table, lead_times_sec=lead_times_sec)
 
     column_dict_old_to_new = {
         tracking_utils.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
@@ -1412,126 +1387,284 @@ def get_sounding_stats_for_storm_objects(
 
     if all_ruc_grids:
         model_name = nwp_model_utils.RUC_MODEL_NAME
-        interp_table = interp_soundings_from_ruc_all_grids(
-            query_point_table, top_grib_directory_name=top_grib_directory_name,
-            wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
-            raise_error_if_missing=raise_error_if_missing)
-    else:
-        interp_table = interp_soundings_from_nwp(
-            query_point_table, model_name=model_name, grid_id=grid_id,
+        interp_table = _interp_soundings_from_ruc(
+            query_point_table=query_point_table,
             top_grib_directory_name=top_grib_directory_name,
             wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
             raise_error_if_missing=raise_error_if_missing)
+    else:
+        interp_table = _interp_soundings_from_nwp(
+            query_point_table=query_point_table, model_name=model_name,
+            top_grib_directory_name=top_grib_directory_name, grid_id=grid_id,
+            wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+            raise_error_if_missing=raise_error_if_missing)
 
-    list_of_sounding_tables = interp_table_to_sharppy_sounding_tables(
-        interp_table, model_name)
-    num_soundings = len(list_of_sounding_tables)
-    list_of_sharppy_stat_tables = [None] * num_soundings
-    metadata_table = read_metadata_for_sounding_stats()
+    list_of_sharppy_sounding_tables = _create_sharppy_sounding_tables(
+        interp_table=interp_table, model_name=model_name)
+
+    num_soundings = len(list_of_sharppy_sounding_tables)
+    list_of_sharppy_statistic_tables = [None] * num_soundings
+    metadata_table = read_metadata_for_statistics()
 
     for i in range(num_soundings):
-        print 'Computing stats for sounding {0:d}/{1:d}...'.format(
+        print 'Computing statistics for {0:d}th of {1:d} soundings...'.format(
             i + 1, num_soundings)
 
-        if list_of_sounding_tables[i] is None:
-            list_of_sharppy_stat_tables[i] = _get_empty_sharppy_stat_table(
-                query_point_table[
-                    tracking_utils.EAST_VELOCITY_COLUMN].values[i],
-                query_point_table[
-                    tracking_utils.NORTH_VELOCITY_COLUMN].values[i])
+        if list_of_sharppy_sounding_tables[i] is None:
+            list_of_sharppy_statistic_tables[i] = (
+                _get_dummy_sharppy_statistic_table(
+                    u_motion_m_s01=query_point_table[
+                        tracking_utils.EAST_VELOCITY_COLUMN].values[i],
+                    v_motion_m_s01=query_point_table[
+                        tracking_utils.NORTH_VELOCITY_COLUMN].values[i],
+                    metadata_table=metadata_table))
+
         else:
-            try:
-                list_of_sharppy_stat_tables[i] = (
-                    get_sounding_stats_from_sharppy(
-                        list_of_sounding_tables[i],
-                        eastward_motion_m_s01=query_point_table[
-                            tracking_utils.EAST_VELOCITY_COLUMN].values[i],
-                        northward_motion_m_s01=query_point_table[
-                            tracking_utils.NORTH_VELOCITY_COLUMN].values[i],
-                        metadata_table=metadata_table))
-            except:
-                print list_of_sounding_tables[i]
-                print list_of_sounding_tables[i][
-                    DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values
-                print storm_object_table[tracking_utils.TIME_COLUMN].values[i]
-                raise
+            list_of_sharppy_statistic_tables[i] = _compute_sounding_statistics(
+                sounding_table_sharppy=list_of_sharppy_sounding_tables[i],
+                u_motion_m_s01=query_point_table[
+                    tracking_utils.EAST_VELOCITY_COLUMN].values[i],
+                v_motion_m_s01=query_point_table[
+                    tracking_utils.NORTH_VELOCITY_COLUMN].values[i],
+                metadata_table=metadata_table)
 
         if i == 0:
             continue
 
-        list_of_sharppy_stat_tables[i], _ = (
-            list_of_sharppy_stat_tables[i].align(
-                list_of_sharppy_stat_tables[0], axis=1))
+        list_of_sharppy_statistic_tables[i], _ = (
+            list_of_sharppy_statistic_tables[i].align(
+                list_of_sharppy_statistic_tables[0], axis=1))
 
-    sounding_stat_table_sharppy = pandas.concat(
-        list_of_sharppy_stat_tables, axis=0, ignore_index=True)
-    sounding_stat_table_for_storms = convert_sounding_stats_from_sharppy(
-        sounding_stat_table_sharppy, metadata_table)
-    sounding_stat_table_for_storms = pandas.concat(
+    statistic_table_sharppy = pandas.concat(
+        list_of_sharppy_statistic_tables, axis=0, ignore_index=True)
+    sounding_statistic_table = _convert_sounding_statistics(
+        statistic_table_sharppy=statistic_table_sharppy,
+        metadata_table=metadata_table)
+    sounding_statistic_table = pandas.concat(
         [storm_object_table[STORM_COLUMNS_TO_KEEP],
-         sounding_stat_table_for_storms], axis=1)
+         sounding_statistic_table], axis=1)
 
     argument_dict = {
         LEAD_TIME_COLUMN: query_point_table[LEAD_TIME_COLUMN].values}
-    return sounding_stat_table_for_storms.assign(**argument_dict)
+    return sounding_statistic_table.assign(**argument_dict)
 
 
-def write_sounding_stats_for_storm_objects(
-        sounding_stat_table_for_storms, lead_times_seconds=None,
-        pickle_file_names=None):
-    """Writes sounding stats for storm objects to Pickle files.
+def find_sounding_statistic_file(
+        top_directory_name, init_time_unix_sec, lead_time_sec, spc_date_string,
+        raise_error_if_missing=True):
+    """Locates file with sounding statistics for storm objects.
 
-    T = number of lead times
+    This file should be written by `write_sounding_statistics`.
 
-    :param sounding_stat_table_for_storms: pandas DataFrame created by
-        get_sounding_stats_for_storm_objects.  This method will write columns
-        "storm_id", "unix_time_sec", and sounding statistics.
-    :param lead_times_seconds: length-T numpy array of lead times.
-    :param pickle_file_names: length-T list of paths to output files (one per
-        lead time).
+    :param top_directory_name: Name of top-level directory with files containing
+        sounding stats.
+    :param init_time_unix_sec: Initial time.
+    :param lead_time_sec: Lead time for sounding stats.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param raise_error_if_missing: Boolean flag.  If `raise_error_if_missing`
+        and file is missing, this method will error out.
+    :return: sounding_statistic_file_name: Path to file with sounding stats.  If
+        file is missing and `raise_error_if_missing = False`, this will be the
+        *expected* path.
+    :raises: ValueError: if `raise_error_if_missing` and file is not found.
     """
 
-    statistic_column_names = check_sounding_stat_table(
-        sounding_stat_table_for_storms, require_storm_objects=True)
-    error_checking.assert_columns_in_dataframe(
-        sounding_stat_table_for_storms, [LEAD_TIME_COLUMN])
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_integer(lead_time_sec)
+    time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
-    error_checking.assert_is_integer_numpy_array(lead_times_seconds)
-    error_checking.assert_is_numpy_array(lead_times_seconds, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(lead_times_seconds, 0)
-    num_lead_times = len(lead_times_seconds)
+    init_time_string = time_conversion.unix_sec_to_string(
+        init_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES)
 
-    error_checking.assert_is_string_list(pickle_file_names)
-    error_checking.assert_is_numpy_array(
-        numpy.asarray(pickle_file_names),
-        exact_dimensions=numpy.array([num_lead_times]))
+    sounding_statistic_file_name = (
+        '{0:s}/{1:s}/{2:s}/sounding_statistics_{3:s}_lead-time-{4:04d}sec.nc'
+    ).format(top_directory_name, spc_date_string[:4], spc_date_string,
+             init_time_string, lead_time_sec)
 
-    columns_to_write = STORM_COLUMNS_TO_KEEP + statistic_column_names
-    for i in range(num_lead_times):
-        file_system_utils.mkdir_recursive_if_necessary(
-            file_name=pickle_file_names[i])
+    if raise_error_if_missing and not os.path.isfile(
+            sounding_statistic_file_name):
+        error_string = (
+            'Cannot find file with sounding stats for storm objects.  Expected '
+            'at: {0:s}').format(sounding_statistic_file_name)
+        raise ValueError(error_string)
 
-        this_file_handle = open(pickle_file_names[i], 'wb')
-        pickle.dump(
-            sounding_stat_table_for_storms.loc[
-                sounding_stat_table_for_storms[LEAD_TIME_COLUMN] ==
-                lead_times_seconds[i]][columns_to_write],
-            this_file_handle)
-        this_file_handle.close()
+    return sounding_statistic_file_name
 
 
-def read_sounding_stats_for_storm_objects(pickle_file_name):
-    """Reads sounding statistics for storm objects from a Pickle file.
+def write_sounding_statistics(
+        top_directory_name, init_time_unix_sec, lead_time_sec, spc_date_string,
+        sounding_statistic_table, verbose=False):
+    """Writes sounding statistics for storm objects to NetCDF file.
 
-    :param pickle_file_name: Path to input file.
-    :return: sounding_stat_table_for_storms: pandas DataFrame with columns
-        documented in write_sounding_stats_for_storm_objects.
+    :param top_directory_name: See documentation for
+        `find_sounding_statistic_file`.
+    :param init_time_unix_sec: Same.
+    :param lead_time_sec: Same.
+    :param spc_date_string: Same.
+    :param sounding_statistic_table: See output doc for
+        `_convert_sounding_statistics`.
+    :param verbose: Boolean flag.  If True, will print log message.
     """
 
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    sounding_stat_table_for_storms = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
+    netcdf_file_name = find_sounding_statistic_file(
+        top_directory_name=top_directory_name,
+        init_time_unix_sec=init_time_unix_sec, lead_time_sec=lead_time_sec,
+        spc_date_string=spc_date_string, raise_error_if_missing=False)
 
-    check_sounding_stat_table(
-        sounding_stat_table_for_storms, require_storm_objects=True)
-    return sounding_stat_table_for_storms
+    error_checking.assert_is_boolean(verbose)
+    if verbose:
+        print 'Writing sounding statistics to: "{0:s}"...'.format(
+            netcdf_file_name)
+
+    statistic_names = check_sounding_statistic_table(
+        sounding_statistic_table, require_storm_objects=True)
+
+    error_checking.assert_equals_numpy_array(
+        sounding_statistic_table[tracking_utils.TIME_COLUMN].values,
+        init_time_unix_sec)
+    error_checking.assert_equals_numpy_array(
+        sounding_statistic_table[LEAD_TIME_COLUMN].values, lead_time_sec)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    netcdf_dataset = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    netcdf_dataset.setncattr(INIT_TIME_KEY, init_time_unix_sec)
+    netcdf_dataset.setncattr(LEAD_TIME_KEY, lead_time_sec)
+    netcdf_dataset.setncattr(SPC_DATE_KEY, spc_date_string)
+
+    num_storm_objects = len(sounding_statistic_table.index)
+    num_statistics = len(statistic_names)
+    num_statistic_chars = 0
+    for j in range(num_statistics):
+        num_statistic_chars = max(
+            [num_statistic_chars, len(statistic_names[j])])
+
+    storm_ids = sounding_statistic_table[tracking_utils.STORM_ID_COLUMN].values
+    num_storm_id_chars = 0
+    for i in range(num_storm_objects):
+        num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
+
+    netcdf_dataset.createDimension(STORM_DIMENSION_KEY, num_storm_objects)
+    netcdf_dataset.createDimension(STATISTIC_DIMENSION_KEY, num_statistics)
+    netcdf_dataset.createDimension(
+        STATISTIC_CHAR_DIMENSION_KEY, num_statistic_chars)
+    netcdf_dataset.createDimension(
+        STORM_ID_CHAR_DIMENSION_KEY, num_storm_id_chars)
+
+    netcdf_dataset.createVariable(
+        STATISTIC_NAMES_KEY, datatype='S1',
+        dimensions=(STATISTIC_DIMENSION_KEY, STATISTIC_CHAR_DIMENSION_KEY))
+
+    string_type = 'S{0:d}'.format(num_statistic_chars)
+    statistic_names_as_char_array = netCDF4.stringtochar(numpy.array(
+        statistic_names, dtype=string_type))
+    netcdf_dataset.variables[STATISTIC_NAMES_KEY][:] = numpy.array(
+        statistic_names_as_char_array)
+
+    netcdf_dataset.createVariable(
+        STORM_IDS_KEY, datatype='S1',
+        dimensions=(STORM_DIMENSION_KEY, STORM_ID_CHAR_DIMENSION_KEY))
+
+    string_type = 'S{0:d}'.format(num_storm_id_chars)
+    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
+        storm_ids, dtype=string_type))
+    netcdf_dataset.variables[STORM_IDS_KEY][:] = numpy.array(
+        storm_ids_as_char_array)
+
+    chunk_size_tuple = (1, num_statistics)
+    netcdf_dataset.createVariable(
+        STATISTIC_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(STORM_DIMENSION_KEY, STATISTIC_DIMENSION_KEY),
+        chunksizes=chunk_size_tuple)
+
+    sounding_statistic_matrix = sounding_statistic_table.as_matrix(
+        columns=statistic_names)
+    netcdf_dataset.variables[
+        STATISTIC_MATRIX_KEY][:] = sounding_statistic_matrix
+    netcdf_dataset.close()
+
+
+def write_sounding_statistics_many_times(
+        top_directory_name, sounding_statistic_table):
+    """Writes sounding statistics for storm objects to multiple NetCDF files.
+
+    Specifically, this method writes one NetCDF file for each initial time and
+    lead time.
+
+    :param top_directory_name: Name of top-level directory with files containing
+        sounding stats.
+    :param sounding_statistic_table: pandas DataFrame created by
+        `get_sounding_stats_for_storm_objects`.
+    """
+
+    init_times_unix_sec = numpy.unique(
+        sounding_statistic_table[tracking_utils.TIME_COLUMN].values)
+    lead_times_sec = numpy.unique(
+        sounding_statistic_table[LEAD_TIME_COLUMN].values)
+
+    num_init_times = len(init_times_unix_sec)
+    num_lead_times = len(lead_times_sec)
+
+    for i in range(num_init_times):
+        for j in range(num_lead_times):
+            these_indices = numpy.where(numpy.logical_and(
+                sounding_statistic_table[tracking_utils.TIME_COLUMN].values ==
+                init_times_unix_sec[i],
+                sounding_statistic_table[LEAD_TIME_COLUMN].values ==
+                lead_times_sec[j]))[0]
+
+            write_sounding_statistics(
+                top_directory_name=top_directory_name,
+                init_time_unix_sec=init_times_unix_sec[i],
+                lead_time_sec=lead_times_sec[j],
+                spc_date_string=time_conversion.time_to_spc_date_string(
+                    init_times_unix_sec[i]),
+                sounding_statistic_table=sounding_statistic_table.iloc[
+                    these_indices],
+                verbose=True)
+
+
+def read_sounding_statistics(netcdf_file_name):
+    """Reads sounding statistics for storm objects from NetCDF file.
+
+    This file should be written by `write_sounding_statistics`.
+
+    N = number of storm objects
+    V = number of sounding statistics
+
+    :param netcdf_file_name: Path to input file.
+    :return: sounding_statistic_dict: Dictionary with the following keys.
+    sounding_statistic_dict['init_time_unix_sec']: Initial time.
+    sounding_statistic_dict['lead_time_sec']: Lead time.
+    sounding_statistic_dict['spc_date_string']: SPC date (format "yyyymmdd").
+    sounding_statistic_dict['storm_ids']: length-N list of storm IDs (strings).
+    sounding_statistic_dict['statistic_names']: length-V list of statistic names
+        (strings).
+    sounding_statistic_dict['sounding_statistic_matrix']: N-by-V numpy array of
+        sounding stats.
+    """
+
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
+
+    init_time_unix_sec = getattr(netcdf_dataset, INIT_TIME_KEY)
+    lead_time_sec = getattr(netcdf_dataset, LEAD_TIME_KEY)
+    spc_date_string = str(getattr(netcdf_dataset, SPC_DATE_KEY))
+    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
+    statistic_names = netCDF4.chartostring(
+        netcdf_dataset.variables[STATISTIC_NAMES_KEY][:])
+    sounding_statistic_matrix = numpy.array(
+        netcdf_dataset.variables[STATISTIC_MATRIX_KEY][:])
+    netcdf_dataset.close()
+
+    storm_ids = [str(s) for s in storm_ids]
+    statistic_names = [str(s) for s in statistic_names]
+
+    return {
+        INIT_TIME_KEY: init_time_unix_sec, LEAD_TIME_KEY: lead_time_sec,
+        SPC_DATE_KEY: spc_date_string, STORM_IDS_KEY: storm_ids,
+        STATISTIC_NAMES_KEY: statistic_names,
+        STATISTIC_MATRIX_KEY: sounding_statistic_matrix
+    }

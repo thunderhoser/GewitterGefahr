@@ -105,8 +105,7 @@ def check_feature_table(feature_table):
         else:
             feature_column_names = shape_stat_column_names
 
-    sounding_stat_column_names = soundings.get_sounding_stat_columns(
-        feature_table)
+    sounding_stat_column_names = soundings.get_statistic_columns(feature_table)
     if sounding_stat_column_names:
         if feature_column_names:
             feature_column_names += sounding_stat_column_names
@@ -178,7 +177,7 @@ def join_features_and_labels(
                 shape_statistic_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
     if sounding_statistic_table is not None:
-        sounding_stat_column_names = soundings.check_sounding_stat_table(
+        sounding_stat_column_names = soundings.check_sounding_statistic_table(
             sounding_statistic_table, require_storm_objects=True)
         sounding_statistic_table = sounding_statistic_table[
             COLUMNS_TO_MERGE_ON + sounding_stat_column_names]
