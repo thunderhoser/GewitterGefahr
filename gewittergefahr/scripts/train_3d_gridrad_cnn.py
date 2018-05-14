@@ -121,7 +121,7 @@ def _train_3d_gridrad_cnn(
         num_classes=num_classes, num_input_channels=len(radar_field_names))
 
     print '\nFinding training files...'
-    training_file_name_matrix = training_validation_io.find_3d_input_files(
+    training_file_name_matrix, _ = training_validation_io.find_3d_input_files(
         top_directory_name=input_storm_image_dir_name,
         radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         radar_field_names=radar_field_names,
@@ -133,7 +133,7 @@ def _train_3d_gridrad_cnn(
         validation_file_name_matrix = None
     else:
         print 'Finding validation files...'
-        validation_file_name_matrix = (
+        validation_file_name_matrix, _ = (
             training_validation_io.find_3d_input_files(
                 top_directory_name=input_storm_image_dir_name,
                 radar_source=radar_utils.GRIDRAD_SOURCE_ID,
