@@ -57,11 +57,13 @@ def _check_input_args(
     error_checking.assert_is_geq(num_examples_per_init_time, 2)
     error_checking.assert_is_boolean(normalize_by_batch)
 
-    error_checking.assert_is_numpy_array(
-        image_file_name_matrix, num_dimensions=2)
-    num_init_times = image_file_name_matrix.shape[0]
+    error_checking.assert_is_numpy_array(image_file_name_matrix)
+    num_dimensions = image_file_name_matrix.shape
+    error_checking.assert_is_geq(num_dimensions, 2)
+    error_checking.assert_is_leq(num_dimensions, 2)
 
     if sounding_statistic_file_names is not None:
+        num_init_times = image_file_name_matrix.shape[0]
         error_checking.assert_is_numpy_array(
             numpy.array(sounding_statistic_file_names),
             exact_dimensions=numpy.array([num_init_times]))
