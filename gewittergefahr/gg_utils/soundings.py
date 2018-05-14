@@ -55,13 +55,13 @@ STATISTIC_NAMES_KEY = 'statistic_names'
 STORM_IDS_KEY = 'storm_ids'
 STATISTIC_MATRIX_KEY = 'sounding_statistic_matrix'
 
-PRESSURE_COLUMN_FOR_SHARPPY_INPUT = 'pressure_mb'
-HEIGHT_COLUMN_FOR_SHARPPY_INPUT = 'geopotential_height_metres'
-TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT = 'temperature_deg_c'
-DEWPOINT_COLUMN_FOR_SHARPPY_INPUT = 'dewpoint_deg_c'
-U_WIND_COLUMN_FOR_SHARPPY_INPUT = 'u_wind_kt'
-V_WIND_COLUMN_FOR_SHARPPY_INPUT = 'v_wind_kt'
-IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT = 'is_surface'
+PRESSURE_COLUMN_IN_SHARPPY_SOUNDING = 'pressure_mb'
+HEIGHT_COLUMN_IN_SHARPPY_SOUNDING = 'geopotential_height_metres'
+TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING = 'temperature_deg_c'
+DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING = 'dewpoint_deg_c'
+U_WIND_COLUMN_IN_SHARPPY_SOUNDING = 'u_wind_kt'
+V_WIND_COLUMN_IN_SHARPPY_SOUNDING = 'v_wind_kt'
+SURFACE_COLUMN_IN_SHARPPY_SOUNDING = 'is_surface'
 
 CONVECTIVE_TEMPERATURE_NAME = 'convective_temperature_kelvins'
 HELICITY_NAMES_SHARPPY = ['srh1km', 'srh3km', 'left_esrh', 'right_esrh']
@@ -78,25 +78,24 @@ VECTOR_SUFFIXES = [
     X_COMPONENT_SUFFIX, Y_COMPONENT_SUFFIX, MAGNITUDE_SUFFIX, COSINE_SUFFIX,
     SINE_SUFFIX]
 
-# The following constants are used to read metadata for sounding stats.
-STAT_NAME_COLUMN_FOR_METADATA = 'statistic_name'
-SHARPPY_NAME_COLUMN_FOR_METADATA = 'statistic_name_sharppy'
-CONVERSION_FACTOR_COLUMN_FOR_METADATA = 'conversion_factor'
-IS_VECTOR_COLUMN_FOR_METADATA = 'is_vector'
-IN_MUPCL_OBJECT_COLUMN_FOR_METADATA = 'in_mupcl_object'
+STATISTIC_NAME_COLUMN = 'statistic_name'
+SHARPPY_STATISTIC_NAME_COLUMN = 'statistic_name_sharppy'
+CONVERSION_FACTOR_COLUMN = 'conversion_factor'
+IS_VECTOR_COLUMN = 'is_vector'
+IN_MUPCL_COLUMN = 'in_mupcl_object'
 
 METAFILE_NAME = os.path.join(
     os.path.dirname(__file__), 'metadata_for_sounding_stats.csv')
 METADATA_COLUMNS = [
-    STAT_NAME_COLUMN_FOR_METADATA, SHARPPY_NAME_COLUMN_FOR_METADATA,
-    CONVERSION_FACTOR_COLUMN_FOR_METADATA, IS_VECTOR_COLUMN_FOR_METADATA,
-    IN_MUPCL_OBJECT_COLUMN_FOR_METADATA]
+    STATISTIC_NAME_COLUMN, SHARPPY_STATISTIC_NAME_COLUMN,
+    CONVERSION_FACTOR_COLUMN, IS_VECTOR_COLUMN, IN_MUPCL_COLUMN]
 COLUMN_TYPE_DICT_FOR_METADATA = {
-    STAT_NAME_COLUMN_FOR_METADATA: str,
-    SHARPPY_NAME_COLUMN_FOR_METADATA: str,
-    CONVERSION_FACTOR_COLUMN_FOR_METADATA: numpy.float64,
-    IS_VECTOR_COLUMN_FOR_METADATA: bool,
-    IN_MUPCL_OBJECT_COLUMN_FOR_METADATA: bool}
+    STATISTIC_NAME_COLUMN: str,
+    SHARPPY_STATISTIC_NAME_COLUMN: str,
+    CONVERSION_FACTOR_COLUMN: numpy.float64,
+    IS_VECTOR_COLUMN: bool,
+    IN_MUPCL_COLUMN: bool
+}
 
 
 def _remove_bad_pressure_levels(sounding_table):
@@ -162,7 +161,7 @@ def _fill_missing_humidity(sounding_table):
             nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values[
                 humidity_not_missing_indices]
         control_pressures_pascals = (
-            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+            sounding_table[PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values[
                 humidity_not_missing_indices] * MB_TO_PASCALS)
 
         control_dewpoints_kelvins = (
@@ -191,7 +190,7 @@ def _fill_missing_humidity(sounding_table):
             humidity_missing_indices] = query_specific_humidities_kg_kg01
     else:
         query_pressures_pascals = (
-            sounding_table[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[
+            sounding_table[PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values[
                 humidity_missing_indices] * MB_TO_PASCALS)
         query_temperatures_kelvins = sounding_table[
             nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values[
@@ -231,14 +230,14 @@ def _get_dummy_sharppy_statistic_table(
     """
 
     vector_flags = numpy.array(
-        metadata_table[IS_VECTOR_COLUMN_FOR_METADATA].values)
+        metadata_table[IS_VECTOR_COLUMN].values)
     vector_indices = numpy.where(vector_flags)[0]
     scalar_indices = numpy.where(numpy.invert(vector_flags))[0]
 
     dummy_dict = {}
     for this_index in scalar_indices:
         this_statistic_name = metadata_table[
-            SHARPPY_NAME_COLUMN_FOR_METADATA].values[this_index]
+            SHARPPY_STATISTIC_NAME_COLUMN].values[this_index]
         dummy_dict.update({this_statistic_name: numpy.full(1, numpy.nan)})
 
     statistic_table_sharppy = pandas.DataFrame.from_dict(dummy_dict)
@@ -249,7 +248,7 @@ def _get_dummy_sharppy_statistic_table(
 
     for this_index in vector_indices:
         this_statistic_name = metadata_table[
-            SHARPPY_NAME_COLUMN_FOR_METADATA].values[this_index]
+            SHARPPY_STATISTIC_NAME_COLUMN].values[this_index]
         statistic_table_sharppy = statistic_table_sharppy.assign(
             **{this_statistic_name: nested_array})
 
@@ -421,22 +420,22 @@ def _remove_subsurface_pressure_levels(sounding_table_sharppy, delete_rows):
     """
 
     surface_flags = sounding_table_sharppy[
-        IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
+        SURFACE_COLUMN_IN_SHARPPY_SOUNDING].values
     if not numpy.any(surface_flags):
         return sounding_table_sharppy
 
     surface_index = numpy.where(surface_flags)[0][0]
     surface_height_m_asl = sounding_table_sharppy[
-        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values[surface_index]
+        HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values[surface_index]
 
     subsurface_flags = (
-        sounding_table_sharppy[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
+        sounding_table_sharppy[HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values <
         surface_height_m_asl)
     subsurface_indices = numpy.where(subsurface_flags)[0]
 
     if delete_rows:
         pressure_1000mb_flags = (
-            sounding_table_sharppy[PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values ==
+            sounding_table_sharppy[PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values ==
             1000)
         bad_row_indices = numpy.where(numpy.logical_and(
             subsurface_flags, numpy.invert(pressure_1000mb_flags)))[0]
@@ -446,17 +445,17 @@ def _remove_subsurface_pressure_levels(sounding_table_sharppy, delete_rows):
         ).reset_index(drop=True)
 
         subsurface_flags = (
-            sounding_table_sharppy[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values <
+            sounding_table_sharppy[HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values <
             surface_height_m_asl)
         subsurface_indices = numpy.where(subsurface_flags)[0]
 
-    sounding_table_sharppy[TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values[
+    sounding_table_sharppy[TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING].values[
         subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
-    sounding_table_sharppy[DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values[
+    sounding_table_sharppy[DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING].values[
         subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
-    sounding_table_sharppy[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
+    sounding_table_sharppy[U_WIND_COLUMN_IN_SHARPPY_SOUNDING].values[
         subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
-    sounding_table_sharppy[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values[
+    sounding_table_sharppy[V_WIND_COLUMN_IN_SHARPPY_SOUNDING].values[
         subsurface_indices] = SENTINEL_VALUE_FOR_SHARPPY
 
     return sounding_table_sharppy
@@ -472,7 +471,7 @@ def _sort_sounding_by_height(sounding_table_sharppy):
     """
 
     return sounding_table_sharppy.sort_values(
-        HEIGHT_COLUMN_FOR_SHARPPY_INPUT, axis=0, ascending=True, inplace=False)
+        HEIGHT_COLUMN_IN_SHARPPY_SOUNDING, axis=0, ascending=True, inplace=False)
 
 
 def _remove_redundant_pressure_levels(sounding_table_sharppy_sorted):
@@ -485,7 +484,7 @@ def _remove_redundant_pressure_levels(sounding_table_sharppy_sorted):
     """
 
     surface_flags = sounding_table_sharppy_sorted[
-        IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT].values
+        SURFACE_COLUMN_IN_SHARPPY_SOUNDING].values
     if not numpy.any(surface_flags):
         return sounding_table_sharppy_sorted
 
@@ -493,9 +492,9 @@ def _remove_redundant_pressure_levels(sounding_table_sharppy_sorted):
     bad_indices = []
 
     heights_m_asl = sounding_table_sharppy_sorted[
-        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values
+        HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values
     pressures_mb = sounding_table_sharppy_sorted[
-        HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values
+        HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values
 
     if surface_index != len(surface_flags) - 1:
         height_diff_metres = numpy.absolute(
@@ -691,11 +690,11 @@ def _extract_stats_from_sharppy_profile(profile_object, metadata_table):
     profile_object.mupcl.brnshear = numpy.array(
         [profile_object.mupcl.brnu, profile_object.mupcl.brnv])
 
-    is_vector_flags = metadata_table[IS_VECTOR_COLUMN_FOR_METADATA].values
+    is_vector_flags = metadata_table[IS_VECTOR_COLUMN].values
     vector_indices = numpy.where(is_vector_flags)[0]
     scalar_indices = numpy.where(numpy.invert(is_vector_flags))[0]
     statistic_names_sharppy = metadata_table[
-        SHARPPY_NAME_COLUMN_FOR_METADATA].values
+        SHARPPY_STATISTIC_NAME_COLUMN].values
 
     statistic_dict_sharppy = {}
     for this_index in scalar_indices:
@@ -721,7 +720,7 @@ def _extract_stats_from_sharppy_profile(profile_object, metadata_table):
             statistic_table_sharppy[
                 statistic_names_sharppy[j]].values[0] = this_vector[1]
 
-        elif metadata_table[IN_MUPCL_OBJECT_COLUMN_FOR_METADATA].values[j]:
+        elif metadata_table[IN_MUPCL_COLUMN].values[j]:
             statistic_table_sharppy[statistic_names_sharppy[j]].values[
                 0] = getattr(profile_object.mupcl, statistic_names_sharppy[j])
         else:
@@ -820,7 +819,7 @@ def _sounding_to_sharppy_units(sounding_table):
             specific_humidities_kg_kg01=sounding_table[
                 nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES].values,
             total_pressures_pascals=MB_TO_PASCALS * sounding_table[
-                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values)
+                PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values)
 
     else:
         columns_to_drop.append(nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
@@ -840,7 +839,7 @@ def _sounding_to_sharppy_units(sounding_table):
             temperatures_kelvins=sounding_table[
                 nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES].values,
             total_pressures_pascals=MB_TO_PASCALS * sounding_table[
-                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values)
+                PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values)
 
     dewpoints_deg_c = temperature_conversions.kelvins_to_celsius(
         dewpoints_kelvins)
@@ -853,10 +852,10 @@ def _sounding_to_sharppy_units(sounding_table):
         nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES].values
 
     argument_dict = {
-        DEWPOINT_COLUMN_FOR_SHARPPY_INPUT: dewpoints_deg_c,
-        TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT: temperatures_deg_c,
-        U_WIND_COLUMN_FOR_SHARPPY_INPUT: u_winds_kt,
-        V_WIND_COLUMN_FOR_SHARPPY_INPUT: v_winds_kt
+        DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING: dewpoints_deg_c,
+        TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING: temperatures_deg_c,
+        U_WIND_COLUMN_IN_SHARPPY_SOUNDING: u_winds_kt,
+        V_WIND_COLUMN_IN_SHARPPY_SOUNDING: v_winds_kt
     }
     sounding_table = sounding_table.assign(**argument_dict)
     return sounding_table.drop(columns_to_drop, axis=1)
@@ -1046,8 +1045,8 @@ def _create_sharppy_sounding_tables(interp_table, model_name):
     is_surface_flags[-1] = True
 
     generic_sounding_dict = {
-        PRESSURE_COLUMN_FOR_SHARPPY_INPUT: pressure_levels_mb,
-        IS_SURFACE_COLUMN_FOR_SHARPPY_INPUT: is_surface_flags}
+        PRESSURE_COLUMN_IN_SHARPPY_SOUNDING: pressure_levels_mb,
+        SURFACE_COLUMN_IN_SHARPPY_SOUNDING: is_surface_flags}
     generic_sounding_table = pandas.DataFrame.from_dict(generic_sounding_dict)
 
     num_soundings = len(interp_table.index)
@@ -1065,7 +1064,7 @@ def _create_sharppy_sounding_tables(interp_table, model_name):
                 list_of_sharppy_sounding_tables[i].assign(**argument_dict))
 
         list_of_sharppy_sounding_tables[i][
-            PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values[-1] = (
+            PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values[-1] = (
                 PASCALS_TO_MB * interp_table[lowest_pressure_name].values[i])
 
         list_of_sharppy_sounding_tables[i] = _remove_bad_pressure_levels(
@@ -1121,14 +1120,14 @@ def _compute_sounding_statistics(
         profile_object = sharppy_profile.create_profile(
             profile='convective',
             pres=sounding_table_sharppy[
-                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values,
-            hght=sounding_table_sharppy[HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values,
+                PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values,
+            hght=sounding_table_sharppy[HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values,
             tmpc=sounding_table_sharppy[
-                TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values,
+                TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING].values,
             dwpc=sounding_table_sharppy[
-                DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values,
-            u=sounding_table_sharppy[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
-            v=sounding_table_sharppy[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
+                DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING].values,
+            u=sounding_table_sharppy[U_WIND_COLUMN_IN_SHARPPY_SOUNDING].values,
+            v=sounding_table_sharppy[V_WIND_COLUMN_IN_SHARPPY_SOUNDING].values)
 
     except:
         sounding_table_sharppy = _remove_subsurface_pressure_levels(
@@ -1137,15 +1136,15 @@ def _compute_sounding_statistics(
         profile_object = sharppy_profile.create_profile(
             profile='convective',
             pres=sounding_table_sharppy[
-                PRESSURE_COLUMN_FOR_SHARPPY_INPUT].values,
+                PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values,
             hght=sounding_table_sharppy[
-                HEIGHT_COLUMN_FOR_SHARPPY_INPUT].values,
+                HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values,
             tmpc=sounding_table_sharppy[
-                TEMPERATURE_COLUMN_FOR_SHARPPY_INPUT].values,
+                TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING].values,
             dwpc=sounding_table_sharppy[
-                DEWPOINT_COLUMN_FOR_SHARPPY_INPUT].values,
-            u=sounding_table_sharppy[U_WIND_COLUMN_FOR_SHARPPY_INPUT].values,
-            v=sounding_table_sharppy[V_WIND_COLUMN_FOR_SHARPPY_INPUT].values)
+                DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING].values,
+            u=sounding_table_sharppy[U_WIND_COLUMN_IN_SHARPPY_SOUNDING].values,
+            v=sounding_table_sharppy[V_WIND_COLUMN_IN_SHARPPY_SOUNDING].values)
 
     setattr(profile_object, STORM_VELOCITY_NAME_SHARPPY,
             numpy.array([u_motion_m_s01, v_motion_m_s01]))
@@ -1211,15 +1210,14 @@ def _convert_sounding_statistics(statistic_table_sharppy, metadata_table):
 
     for this_orig_name in sharppy_column_names:
         match_flags = [s == this_orig_name for s in metadata_table[
-            SHARPPY_NAME_COLUMN_FOR_METADATA].values]
+            SHARPPY_STATISTIC_NAME_COLUMN].values]
         match_index = numpy.where(match_flags)[0][0]
 
-        this_new_name = metadata_table[STAT_NAME_COLUMN_FOR_METADATA].values[
+        this_new_name = metadata_table[STATISTIC_NAME_COLUMN].values[
             match_index]
         this_conversion_factor = metadata_table[
-            CONVERSION_FACTOR_COLUMN_FOR_METADATA].values[match_index]
-        this_vector_flag = metadata_table[IS_VECTOR_COLUMN_FOR_METADATA].values[
-            match_index]
+            CONVERSION_FACTOR_COLUMN].values[match_index]
+        this_vector_flag = metadata_table[IS_VECTOR_COLUMN].values[match_index]
 
         if this_vector_flag:
             this_column_as_table = statistic_table_sharppy[[this_orig_name]]
@@ -1282,7 +1280,7 @@ def get_statistic_columns(sounding_statistic_table):
     """
 
     metadata_table = read_metadata_for_statistics()
-    valid_statistic_names = metadata_table[STAT_NAME_COLUMN_FOR_METADATA].values
+    valid_statistic_names = metadata_table[STATISTIC_NAME_COLUMN].values
 
     column_names = list(sounding_statistic_table)
     statistic_column_names = []
