@@ -370,6 +370,38 @@ def assert_is_numpy_array_without_nan(input_variable):
         raise ValueError("Input array contains one or more NaN's.")
 
 
+def assert_equals(input_variable, base_value, allow_nan=False):
+    """Input variable must equal some real number.
+
+    :param input_variable: Input variable.
+    :param base_value: Input variable must == this number.
+    :param allow_nan: Boolean flag.  If True, input variable is allowed to be
+        NaN.
+    """
+
+    assert_is_leq(input_variable=input_variable, base_value=base_value,
+                  allow_nan=allow_nan)
+    assert_is_geq(input_variable=input_variable, base_value=base_value,
+                  allow_nan=allow_nan)
+
+
+def assert_equals_numpy_array(input_variable, base_value, allow_nan=False):
+    """Input variable must be numpy array with all elements == some real number.
+
+    :param input_variable: Input variable.
+    :param base_value: All elements must == this number.
+    :param allow_nan: Boolean flag.  If True, array elements are allowed to be
+        NaN.
+    """
+
+    assert_is_leq_numpy_array(
+        input_variable=input_variable, base_value=base_value,
+        allow_nan=allow_nan)
+    assert_is_geq_numpy_array(
+        input_variable=input_variable, base_value=base_value,
+        allow_nan=allow_nan)
+
+
 def assert_is_greater(input_variable, base_value, allow_nan=False):
     """Input variable must be real number > some value.
 
