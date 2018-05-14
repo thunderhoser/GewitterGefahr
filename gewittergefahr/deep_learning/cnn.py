@@ -570,7 +570,7 @@ def train_2d_cnn(
             generator=training_validation_io.storm_image_generator_2d(
                 image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_image_time=num_examples_per_time,
+                num_examples_per_init_time=num_examples_per_time,
                 target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -589,7 +589,7 @@ def train_2d_cnn(
             generator=training_validation_io.storm_image_generator_2d(
                 image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_image_time=num_examples_per_time,
+                num_examples_per_init_time=num_examples_per_time,
                 target_name=target_name,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
@@ -602,7 +602,7 @@ def train_2d_cnn(
             validation_data=training_validation_io.storm_image_generator_2d(
                 image_file_name_matrix=validation_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_image_time=num_examples_per_time,
+                num_examples_per_init_time=num_examples_per_time,
                 target_name=target_name,
                 normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
@@ -763,7 +763,7 @@ def train_3d_cnn(
             generator=training_validation_io.storm_image_generator_3d(
                 image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_image_time=num_examples_per_time,
+                num_examples_per_init_time=num_examples_per_time,
                 target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -782,7 +782,7 @@ def train_3d_cnn(
             generator=training_validation_io.storm_image_generator_3d(
                 image_file_name_matrix=training_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_image_time=num_examples_per_time,
+                num_examples_per_init_time=num_examples_per_time,
                 target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
@@ -794,7 +794,7 @@ def train_3d_cnn(
             validation_data=training_validation_io.storm_image_generator_3d(
                 image_file_name_matrix=validation_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_image_time=num_examples_per_time,
+                num_examples_per_init_time=num_examples_per_time,
                 target_name=target_name, normalize_by_batch=normalize_by_batch,
                 normalization_dict=normalization_dict,
                 percentile_offset_for_normalization=
