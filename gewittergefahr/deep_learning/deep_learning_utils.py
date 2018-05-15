@@ -12,6 +12,7 @@ C = number of channels (predictor variables) per image
 
 import copy
 import numpy
+import pandas
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import error_checking
@@ -352,9 +353,15 @@ def normalize_sounding_statistics(
     """
 
     error_checking.assert_is_numpy_array(sounding_stat_matrix, num_dimensions=2)
-    error_checking.assert_is_boolean(normalize_by_batch)
-
     num_statistics = sounding_stat_matrix.shape[1]
+
+    error_checking.assert_is_boolean(normalize_by_batch)
+    if normalize_by_batch:
+        error_checking.assert_is_geq(percentile_offset, 0.)
+        error_checking.assert_is_leq(
+            percentile_offset, MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION)
+
+    error_checking.assert_is_string_list(statistic_names)
     error_checking.assert_is_numpy_array(
         numpy.array(statistic_names),
         exact_dimensions=numpy.array([num_statistics]))
@@ -367,10 +374,8 @@ def normalize_sounding_statistics(
                 statistic_name=statistic_names[j],
                 metadata_table=metadata_table))
 
-    if normalize_by_batch:
-        error_checking.assert_is_geq(percentile_offset, 0.)
-        error_checking.assert_is_leq(
-            percentile_offset, MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION)
+    sounding_stat_table = pandas.DataFrame(
+        sounding_stat_matrix, columns=statistic_names)
 
     for j in range(num_statistics):
         if vector_suffixes[j] in VECTOR_SUFFIXES_TO_NOT_NORMALIZE:
@@ -378,9 +383,11 @@ def normalize_sounding_statistics(
 
         if normalize_by_batch:
             this_min_value = numpy.nanpercentile(
-                sounding_stat_matrix[..., j], percentile_offset)
+                sounding_stat_table[statistic_names[j]].values,
+                percentile_offset)
             this_max_value = numpy.nanpercentile(
-                sounding_stat_matrix[..., j], 100. - percentile_offset)
+                sounding_stat_table[statistic_names[j]].values,
+                100. - percentile_offset)
         else:
             this_row = numpy.where(
                 metadata_table[soundings.STATISTIC_NAME_COLUMN].values ==
@@ -397,8 +404,8 @@ def normalize_sounding_statistics(
                 this_max_value = metadata_table[
                     soundings.MAX_VALUES_FOR_NORM_COLUMN].values[this_row][0]
 
-        sounding_stat_matrix[..., j] = (
-            (sounding_stat_matrix[..., j] - this_min_value) /
+        sounding_stat_table[statistic_names[j]] = (
+            (sounding_stat_table[statistic_names[j]] - this_min_value) /
             (this_max_value - this_min_value))
 
     for j in range(num_statistics):
@@ -421,32 +428,27 @@ def normalize_sounding_statistics(
             basic_statistic_name=basic_statistic_names[j],
             vector_suffix=soundings.MAGNITUDE_SUFFIX)
 
-        this_x_component_index = statistic_names.index(this_x_component_name)
-        this_y_component_index = statistic_names.index(this_y_component_name)
-        this_sine_index = statistic_names.index(this_sine_name)
-        this_cosine_index = statistic_names.index(this_cosine_name)
-        this_magnitude_index = statistic_names.index(this_magnitude_name)
-
-        sounding_stat_matrix[..., this_magnitude_index] = numpy.sqrt(
-            sounding_stat_matrix[..., this_x_component_index] ** 2 +
-            sounding_stat_matrix[..., this_y_component_index] ** 2)
-        sounding_stat_matrix[..., this_sine_index] = (
-            sounding_stat_matrix[..., this_y_component_index] /
-            sounding_stat_matrix[..., this_magnitude_index])
-        sounding_stat_matrix[..., this_cosine_index] = (
-            sounding_stat_matrix[..., this_x_component_index] /
-            sounding_stat_matrix[..., this_magnitude_index])
+        sounding_stat_table[this_magnitude_name] = numpy.sqrt(
+            sounding_stat_table[this_x_component_name].values ** 2 +
+            sounding_stat_table[this_y_component_name].values ** 2)
+        sounding_stat_table[this_sine_name] = (
+            sounding_stat_table[this_y_component_name].values /
+            sounding_stat_table[this_magnitude_name].values)
+        sounding_stat_table[this_cosine_name] = (
+            sounding_stat_table[this_x_component_name].values /
+            sounding_stat_table[this_magnitude_name].values)
 
         bad_indices = numpy.where(
-            sounding_stat_matrix[..., this_magnitude_index] > 1.)[0]
-        sounding_stat_matrix[bad_indices, this_magnitude_index] = 1.
-        sounding_stat_matrix[bad_indices, this_x_component_index] = (
-            sounding_stat_matrix[bad_indices, this_cosine_index] *
-            sounding_stat_matrix[bad_indices, this_magnitude_index])
-        sounding_stat_matrix[bad_indices, this_y_component_index] = (
-            sounding_stat_matrix[bad_indices, this_sine_index] *
-            sounding_stat_matrix[bad_indices, this_magnitude_index])
+            sounding_stat_table[this_magnitude_name].values > 1.)[0]
+        sounding_stat_table[this_magnitude_name].values[bad_indices] = 1.
+        sounding_stat_table[this_x_component_name].values[bad_indices] = (
+            sounding_stat_table[this_cosine_name].values[bad_indices] *
+            sounding_stat_table[this_magnitude_name].values[bad_indices])
+        sounding_stat_table[this_y_component_name].values[bad_indices] = (
+            sounding_stat_table[this_sine_name].values[bad_indices] *
+            sounding_stat_table[this_magnitude_name].values[bad_indices])
 
+    sounding_stat_matrix = sounding_stat_table.as_matrix()
     sounding_stat_matrix[sounding_stat_matrix < 0.] = 0.
     sounding_stat_matrix[sounding_stat_matrix > 1.] = 1.
     sounding_stat_matrix[numpy.isnan(sounding_stat_matrix)] = 0.5
