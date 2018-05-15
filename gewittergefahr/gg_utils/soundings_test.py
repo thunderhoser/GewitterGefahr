@@ -82,7 +82,8 @@ SOUNDING_TABLE_RH_FILLED = SOUNDING_TABLE_RH_FILLED_BAD_ROWS.drop(
     SOUNDING_TABLE_RH_FILLED_BAD_ROWS.index[THESE_BAD_ROWS], axis=0,
     inplace=False)
 
-# The following constants are used to test _column_name_to_statistic_name.
+# The following constants are used to test check_statistic_name,
+# remove_vector_suffix_from_stat_name, and add_vector_suffix_to_stat_name.
 STORM_VELOCITY_X_NAME = 'storm_velocity_m_s01_x'
 STORM_VELOCITY_Y_NAME = 'storm_velocity_m_s01_y'
 STORM_VELOCITY_COS_NAME = 'storm_velocity_m_s01_cos'
@@ -383,7 +384,7 @@ THIS_VECTOR_COMPONENT_DICT = {
 VECTOR_COMPONENT_TABLE_CONV_FACTOR10 = pandas.DataFrame.from_dict(
     THIS_VECTOR_COMPONENT_DICT)
 
-# The following constants are used to test _convert_sounding_statistics.
+# The following constants are used to test _sentinels_to_nan.
 CONVECTIVE_TEMPERATURE_NAME = 'convective_temperature_kelvins'
 MEAN_WIND_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01'
 SURFACE_RH_NAME = 'relative_humidity_surface'
@@ -419,16 +420,68 @@ THIS_DICT = {
     DERECHO_COMPOSITE_NAME_SHARPPY: DERECHO_COMPOSITE_PARAMS
 }
 STATISTIC_TABLE_SHARPPY = pandas.DataFrame.from_dict(THIS_DICT)
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS = pandas.DataFrame.from_dict(THIS_DICT)
+STATISTIC_TABLE_SHARPPY_WITH_NANS = pandas.DataFrame.from_dict(THIS_DICT)
 
 THIS_NESTED_ARRAY = STATISTIC_TABLE_SHARPPY[[
     SURFACE_RH_NAME_SHARPPY, SURFACE_RH_NAME_SHARPPY]].values.tolist()
 STATISTIC_TABLE_SHARPPY = STATISTIC_TABLE_SHARPPY.assign(
     **{MEAN_WIND_0TO1KM_NAME_SHARPPY: THIS_NESTED_ARRAY})
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS = (
+    STATISTIC_TABLE_SHARPPY_WITH_SENTINELS.assign(
+        **{MEAN_WIND_0TO1KM_NAME_SHARPPY: THIS_NESTED_ARRAY}))
+STATISTIC_TABLE_SHARPPY_WITH_NANS = (
+    STATISTIC_TABLE_SHARPPY_WITH_NANS.assign(
+        **{MEAN_WIND_0TO1KM_NAME_SHARPPY: THIS_NESTED_ARRAY}))
 
 for k in range(len(U_WINDS_0TO1KM_AGL_KT)):
-    STATISTIC_TABLE_SHARPPY[MEAN_WIND_0TO1KM_NAME_SHARPPY].values[k] = (
-        numpy.array([U_WINDS_0TO1KM_AGL_KT[k], V_WINDS_0TO1KM_AGL_KT[k]]))
+    this_wind_vector = numpy.array(
+        [U_WINDS_0TO1KM_AGL_KT[k], V_WINDS_0TO1KM_AGL_KT[k]])
 
+    STATISTIC_TABLE_SHARPPY[MEAN_WIND_0TO1KM_NAME_SHARPPY].values[
+        k] = copy.deepcopy(this_wind_vector)
+    STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+        MEAN_WIND_0TO1KM_NAME_SHARPPY
+    ].values[k] = copy.deepcopy(this_wind_vector)
+    STATISTIC_TABLE_SHARPPY_WITH_NANS[MEAN_WIND_0TO1KM_NAME_SHARPPY].values[
+        k] = copy.deepcopy(this_wind_vector)
+
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    CONVECTIVE_TEMPERATURE_NAME_SHARPPY
+].values[0] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    SURFACE_RH_NAME_SHARPPY
+].values[1] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    DERECHO_COMPOSITE_NAME_SHARPPY
+].values[2] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY
+].values[3][0] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY
+].values[4][1] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY
+].values[5][0] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+STATISTIC_TABLE_SHARPPY_WITH_SENTINELS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY
+].values[5][1] = soundings.SENTINEL_VALUE_FOR_SHARPPY
+
+STATISTIC_TABLE_SHARPPY_WITH_NANS[
+    CONVECTIVE_TEMPERATURE_NAME_SHARPPY].values[0] = numpy.nan
+STATISTIC_TABLE_SHARPPY_WITH_NANS[
+    SURFACE_RH_NAME_SHARPPY].values[1] = numpy.nan
+STATISTIC_TABLE_SHARPPY_WITH_NANS[
+    DERECHO_COMPOSITE_NAME_SHARPPY].values[2] = numpy.nan
+STATISTIC_TABLE_SHARPPY_WITH_NANS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY].values[3] = numpy.full(2, numpy.nan)
+STATISTIC_TABLE_SHARPPY_WITH_NANS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY].values[4] = numpy.full(2, numpy.nan)
+STATISTIC_TABLE_SHARPPY_WITH_NANS[
+    MEAN_WIND_0TO1KM_NAME_SHARPPY].values[5] = numpy.full(2, numpy.nan)
+
+# The following constants are used to test _convert_sounding_statistics.
 TEN_KT_IN_MPS = 5.144444
 ROOT200_KT_IN_MPS = 7.275343
 U_WIND_0TO1KM_NAME = 'wind_mean_0to1km_agl_m_s01_x'
@@ -592,75 +645,120 @@ class SoundingsTests(unittest.TestCase):
                 this_sounding_table[this_column].values,
                 SOUNDING_TABLE_RH_FILLED[this_column].values, equal_nan=True))
 
-    def test_column_name_to_statistic_name_x_component(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_x(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is the x-component of a vector.
+        In this case, statistic is the x-component of a vector.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            STORM_VELOCITY_X_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
+        soundings.check_statistic_name(
+            statistic_name=STORM_VELOCITY_X_NAME, metadata_table=METADATA_TABLE)
 
-    def test_column_name_to_statistic_name_y_component(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_y(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is the y-component of a vector.
+        In this case, statistic is the y-component of a vector.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            STORM_VELOCITY_Y_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
+        soundings.check_statistic_name(
+            statistic_name=STORM_VELOCITY_Y_NAME, metadata_table=METADATA_TABLE)
 
-    def test_column_name_to_statistic_name_magnitude(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_magnitude(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is the magnitude of a vector.
+        In this case, statistic is the magnitude of a vector.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            STORM_VELOCITY_MAGNITUDE_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
+        soundings.check_statistic_name(
+            statistic_name=STORM_VELOCITY_MAGNITUDE_NAME,
+            metadata_table=METADATA_TABLE)
 
-    def test_column_name_to_statistic_name_cos(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_sin(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is the cosine of a vector.
+        In this case, statistic is the sine of a vector.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            STORM_VELOCITY_COS_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
+        soundings.check_statistic_name(
+            statistic_name=STORM_VELOCITY_SIN_NAME,
+            metadata_table=METADATA_TABLE)
 
-    def test_column_name_to_statistic_name_sin(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_cos(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is the sine of a vector.
+        In this case, statistic is the cosine of a vector.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            STORM_VELOCITY_SIN_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
+        soundings.check_statistic_name(
+            statistic_name=STORM_VELOCITY_COS_NAME,
+            metadata_table=METADATA_TABLE)
 
-    def test_column_name_to_statistic_name_scalar(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_scalar(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is a scalar.
+        In this case, statistic is not a vector component.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            STORM_VELOCITY_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name == STORM_VELOCITY_NAME)
+        soundings.check_statistic_name(
+            statistic_name=STORM_VELOCITY_NAME, metadata_table=METADATA_TABLE)
 
-    def test_column_name_to_statistic_name_fake(self):
-        """Ensures correct output from _column_name_to_statistic_name.
+    def test_check_statistic_name_fake(self):
+        """Ensures correct output from check_statistic_name.
 
-        In this case, column is a fake sounding statistic.
+        In this case, statistic name is invalid.
         """
 
-        this_sounding_stat_name = soundings._column_name_to_statistic_name(
-            FAKE_SOUNDING_STAT_NAME, VALID_SOUNDING_STAT_NAMES)
-        self.assertTrue(this_sounding_stat_name is None)
+        with self.assertRaises(ValueError):
+            soundings.check_statistic_name(
+                statistic_name=FAKE_SOUNDING_STAT_NAME,
+                metadata_table=METADATA_TABLE)
+
+    def test_remove_vector_suffix_from_stat_name_x(self):
+        """Ensures correct output from remove_vector_suffix_from_stat_name.
+
+        In this case, statistic is the x-component of a vector.
+        """
+
+        this_basic_stat_name, this_vector_suffix = (
+            soundings.remove_vector_suffix_from_stat_name(
+                statistic_name=STORM_VELOCITY_X_NAME,
+                metadata_table=METADATA_TABLE))
+
+        self.assertTrue(this_basic_stat_name == STORM_VELOCITY_NAME)
+        self.assertTrue(this_vector_suffix == soundings.X_COMPONENT_SUFFIX)
+
+    def test_remove_vector_suffix_from_stat_name_scalar(self):
+        """Ensures correct output from remove_vector_suffix_from_stat_name.
+
+        In this case, statistic is not a vector component.
+        """
+
+        this_basic_stat_name, this_vector_suffix = (
+            soundings.remove_vector_suffix_from_stat_name(
+                statistic_name=STORM_VELOCITY_NAME,
+                metadata_table=METADATA_TABLE))
+
+        self.assertTrue(this_basic_stat_name == STORM_VELOCITY_NAME)
+        self.assertTrue(this_vector_suffix is None)
+
+    def test_remove_vector_suffix_from_stat_name_fake(self):
+        """Ensures correct output from remove_vector_suffix_from_stat_name.
+
+        In this case, statistic name is invalid.
+        """
+
+        with self.assertRaises(ValueError):
+            soundings.remove_vector_suffix_from_stat_name(
+                statistic_name=FAKE_SOUNDING_STAT_NAME,
+                metadata_table=METADATA_TABLE)
+
+    def test_add_vector_suffix_to_stat_name(self):
+        """Ensures correct output from add_vector_suffix_to_stat_name."""
+
+        this_stat_name = soundings.add_vector_suffix_to_stat_name(
+            basic_statistic_name=STORM_VELOCITY_NAME,
+            vector_suffix=soundings.X_COMPONENT_SUFFIX)
+        self.assertTrue(this_stat_name == STORM_VELOCITY_X_NAME)
 
     def test_get_nwp_fields_for_sounding_rap_no_dict(self):
         """Ensures correct output from _get_nwp_fields_for_sounding.
@@ -842,7 +940,34 @@ class SoundingsTests(unittest.TestCase):
                 SOUNDING_TABLE_SHARPPY_ORIG[this_column].values,
                 atol=TOLERANCE))
 
-    def test__convert_sounding_statistics(self):
+    def test_sentinels_to_nan(self):
+        """Ensures correct output from _sentinels_to_nan."""
+
+        this_table = copy.deepcopy(STATISTIC_TABLE_SHARPPY_WITH_SENTINELS)
+        this_table = soundings._sentinels_to_nan(
+            statistic_table_sharppy=this_table, metadata_table=METADATA_TABLE)
+        this_num_soundings = len(this_table.index)
+
+        expected_column_names = list(STATISTIC_TABLE_SHARPPY_WITH_NANS)
+        actual_column_names = list(this_table)
+        self.assertTrue(set(expected_column_names) == set(actual_column_names))
+
+        for this_column in actual_column_names:
+            if this_column == MEAN_WIND_0TO1KM_NAME_SHARPPY:
+                for i in range(this_num_soundings):
+                    self.assertTrue(numpy.allclose(
+                        this_table[this_column].values[i],
+                        STATISTIC_TABLE_SHARPPY_WITH_NANS[
+                            this_column].values[i],
+                        atol=TOLERANCE, equal_nan=True))
+
+            else:
+                self.assertTrue(numpy.allclose(
+                    this_table[this_column].values,
+                    STATISTIC_TABLE_SHARPPY_WITH_NANS[this_column].values,
+                    atol=TOLERANCE, equal_nan=True))
+
+    def test_convert_sounding_statistics(self):
         """Ensures correct output from _convert_sounding_statistics."""
 
         this_sounding_stat_table = (

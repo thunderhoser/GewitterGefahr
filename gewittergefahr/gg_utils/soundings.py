@@ -1,6 +1,7 @@
 """Methods for computing sounding statistics."""
 
 import copy
+import pickle
 import os.path
 import numpy
 import pandas
@@ -34,6 +35,7 @@ STORM_COLUMNS_TO_KEEP = [
 
 MIN_RELATIVE_HUMIDITY_PERCENT = 1.
 SENTINEL_VALUE_FOR_SHARPPY = -9999.
+SENTINEL_VALUE_TOLERANCE = 1e-3
 REDUNDANT_PRESSURE_TOLERANCE_MB = 1e-3
 REDUNDANT_HEIGHT_TOLERANCE_METRES = 1e-3
 MIN_PRESSURE_LEVELS_IN_SOUNDING = 15
@@ -84,19 +86,16 @@ SHARPPY_STATISTIC_NAME_COLUMN = 'statistic_name_sharppy'
 CONVERSION_FACTOR_COLUMN = 'conversion_factor'
 IS_VECTOR_COLUMN = 'is_vector'
 IN_MUPCL_COLUMN = 'in_mupcl_object'
+MIN_VALUES_FOR_NORM_COLUMN = 'min_values_for_normalization'
+MAX_VALUES_FOR_NORM_COLUMN = 'max_values_for_normalization'
 
 METAFILE_NAME = os.path.join(
-    os.path.dirname(__file__), 'metadata_for_sounding_stats.csv')
+    os.path.dirname(__file__), 'metadata_for_sounding_stats.p')
 METADATA_COLUMNS = [
     STATISTIC_NAME_COLUMN, SHARPPY_STATISTIC_NAME_COLUMN,
-    CONVERSION_FACTOR_COLUMN, IS_VECTOR_COLUMN, IN_MUPCL_COLUMN]
-COLUMN_TYPE_DICT_FOR_METADATA = {
-    STATISTIC_NAME_COLUMN: str,
-    SHARPPY_STATISTIC_NAME_COLUMN: str,
-    CONVERSION_FACTOR_COLUMN: numpy.float64,
-    IS_VECTOR_COLUMN: bool,
-    IN_MUPCL_COLUMN: bool
-}
+    CONVERSION_FACTOR_COLUMN, IS_VECTOR_COLUMN, IN_MUPCL_COLUMN,
+    MIN_VALUES_FOR_NORM_COLUMN, MAX_VALUES_FOR_NORM_COLUMN
+]
 
 
 def _remove_bad_pressure_levels(sounding_table):
@@ -261,35 +260,6 @@ def _get_dummy_sharppy_statistic_table(
                 0] = numpy.full(2, numpy.nan)
 
     return statistic_table_sharppy
-
-
-def _column_name_to_statistic_name(column_name, valid_statistic_names):
-    """Finds statistic name in column name.
-
-    This "column name" should be in a pandas DataFrame created by
-    `convert_sounding_indices_from_sharppy`.
-
-    :param column_name: Column name.
-    :param valid_statistic_names: 1-D list with names of valid sounding
-        statistics (in GewitterGefahr format, not SHARPpy format).
-    :return: statistic_name: Name of sounding statistic.
-    """
-
-    if column_name in valid_statistic_names:
-        return column_name
-
-    column_name_parts = column_name.split('_')
-    if len(column_name_parts) < 2:
-        return None
-
-    if column_name_parts[-1] not in VECTOR_SUFFIXES:
-        return None
-
-    statistic_name = '_'.join(column_name_parts[:-1])
-    if statistic_name in valid_statistic_names:
-        return statistic_name
-
-    return None
 
 
 def _get_nwp_fields_for_sounding(
@@ -772,12 +742,20 @@ def _split_vector_column(input_table, conversion_factor=1.):
     cosines = x_components / magnitudes
     sines = y_components / magnitudes
 
+    x_component_name = add_vector_suffix_to_stat_name(
+        basic_statistic_name=input_column, vector_suffix=X_COMPONENT_SUFFIX)
+    y_component_name = add_vector_suffix_to_stat_name(
+        basic_statistic_name=input_column, vector_suffix=Y_COMPONENT_SUFFIX)
+    magnitude_name = add_vector_suffix_to_stat_name(
+        basic_statistic_name=input_column, vector_suffix=MAGNITUDE_SUFFIX)
+    cosine_name = add_vector_suffix_to_stat_name(
+        basic_statistic_name=input_column, vector_suffix=COSINE_SUFFIX)
+    sine_name = add_vector_suffix_to_stat_name(
+        basic_statistic_name=input_column, vector_suffix=SINE_SUFFIX)
+
     return {
-        '{0:s}_{1:s}'.format(input_column, X_COMPONENT_SUFFIX): x_components,
-        '{0:s}_{1:s}'.format(input_column, Y_COMPONENT_SUFFIX): y_components,
-        '{0:s}_{1:s}'.format(input_column, MAGNITUDE_SUFFIX): magnitudes,
-        '{0:s}_{1:s}'.format(input_column, COSINE_SUFFIX): cosines,
-        '{0:s}_{1:s}'.format(input_column, SINE_SUFFIX): sines
+        x_component_name: x_components, y_component_name: y_components,
+        magnitude_name: magnitudes, cosine_name: cosines, sine_name: sines
     }
 
 
@@ -1193,6 +1171,48 @@ def _compute_sounding_statistics(
         profile_object=profile_object, metadata_table=metadata_table)
 
 
+def _sentinels_to_nan(statistic_table_sharppy, metadata_table):
+    """Replaces sentinel values with NaN.
+
+    :param statistic_table_sharppy: pandas DataFrame created by
+        `_compute_sounding_statistics`.
+    :param metadata_table: pandas DataFrame created by
+        `read_metadata_for_statistics`.
+    :return: statistic_table_sharppy: Same as input, but sentinel values have
+        been replaced with NaN.
+    """
+
+    statistic_names_sharppy = metadata_table[
+        SHARPPY_STATISTIC_NAME_COLUMN].values.tolist()
+    num_soundings = len(statistic_table_sharppy.index)
+
+    for this_name in list(statistic_table_sharppy):
+        if this_name not in statistic_names_sharppy:
+            continue
+
+        this_index = statistic_names_sharppy.index(this_name)
+        this_vector_flag = metadata_table[IS_VECTOR_COLUMN].values[this_index]
+
+        if this_vector_flag:
+            for i in range(num_soundings):
+                these_sentinel_flags = numpy.isclose(
+                    statistic_table_sharppy[this_name].values[i],
+                    SENTINEL_VALUE_FOR_SHARPPY, atol=SENTINEL_VALUE_TOLERANCE)
+                if numpy.any(these_sentinel_flags):
+                    statistic_table_sharppy[this_name].values[i] = numpy.full(
+                        2, numpy.nan)
+
+        else:
+            these_sentinel_flags = numpy.isclose(
+                statistic_table_sharppy[this_name].values,
+                SENTINEL_VALUE_FOR_SHARPPY, atol=SENTINEL_VALUE_TOLERANCE)
+            these_sentinel_indices = numpy.where(these_sentinel_flags)[0]
+            statistic_table_sharppy[this_name].values[
+                these_sentinel_indices] = numpy.nan
+
+    return statistic_table_sharppy
+
+
 def _convert_sounding_statistics(statistic_table_sharppy, metadata_table):
     """Converts sounding statistics from SHARPpy to GewitterGefahr format.
 
@@ -1246,6 +1266,81 @@ def _convert_sounding_statistics(statistic_table_sharppy, metadata_table):
     return sounding_statistic_table.assign(**argument_dict)
 
 
+def check_statistic_name(statistic_name, metadata_table):
+    """Ensures that statistic name is valid.
+
+    :param statistic_name: Statistic name in GewitterGefahr format.
+    :param metadata_table: pandas DataFrame created by
+        `read_metadata_for_statistics`.
+    :raises: ValueError: if `statistic_name` is invalid.
+    """
+
+    error_checking.assert_is_string(statistic_name)
+    error_string = '"{0:s}" is not a valid statistic.'.format(statistic_name)
+
+    all_basic_stat_names = metadata_table[STATISTIC_NAME_COLUMN].values
+    if statistic_name in all_basic_stat_names:
+        return
+
+    statistic_name_parts = statistic_name.split('_')
+    if len(statistic_name_parts) < 2:
+        raise ValueError(error_string)
+
+    if statistic_name_parts[-1] not in VECTOR_SUFFIXES:
+        raise ValueError(error_string)
+
+    basic_statistic_name = '_'.join(statistic_name_parts[:-1])
+    if basic_statistic_name not in all_basic_stat_names:
+        raise ValueError(error_string)
+
+
+def remove_vector_suffix_from_stat_name(statistic_name, metadata_table):
+    """Removes vector suffix from statistic name.
+
+    :param statistic_name: Statistic name (in GewitterGefahr format).
+    :param metadata_table: pandas DataFrame created by
+        `read_metadata_for_statistics`.
+    :return: basic_statistic_name: Name without vector suffix.  If
+        `statistic_name` has no vector suffix, this will be equal to
+        `statistic_name`.
+    :return: vector_suffix: Vector suffix.  If `statistic_name` has no vector
+        suffix, this will be None.
+    """
+
+    check_statistic_name(
+        statistic_name=statistic_name, metadata_table=metadata_table)
+
+    all_basic_stat_names = metadata_table[STATISTIC_NAME_COLUMN].values
+    if statistic_name in all_basic_stat_names:
+        return statistic_name, None
+
+    name_parts = statistic_name.split('_')
+    return '_'.join(name_parts[:-1]), name_parts[-1]
+
+
+def add_vector_suffix_to_stat_name(basic_statistic_name, vector_suffix):
+    """Adds vector suffix to statistic name.
+
+    :param basic_statistic_name: Statistic name without vector suffix (in
+        GewitterGefahr format).
+    :param vector_suffix: Vector suffix (must be in list `VECTOR_SUFFIXES`)
+    :return: statistic_name: Statistic name with vector suffix.
+    :raises: ValueError: if `vector_suffix not in VECTOR_SUFFIXES`.
+    """
+
+    error_checking.assert_is_string(vector_suffix)
+    error_checking.assert_is_string(basic_statistic_name)
+
+    if vector_suffix not in VECTOR_SUFFIXES:
+        error_string = (
+            '\n\n{0:s}\nValid vector suffixes (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VECTOR_SUFFIXES), vector_suffix)
+        raise ValueError(error_string)
+
+    return '{0:s}_{1:s}'.format(basic_statistic_name, vector_suffix)
+
+
 def check_sounding_statistic_table(
         sounding_statistic_table, require_storm_objects=True):
     """Ensures that table contains sounding statistics.
@@ -1281,19 +1376,16 @@ def get_statistic_columns(sounding_statistic_table):
     """
 
     metadata_table = read_metadata_for_statistics()
-    valid_statistic_names = metadata_table[STATISTIC_NAME_COLUMN].values
-
     column_names = list(sounding_statistic_table)
     statistic_column_names = []
 
     for this_column_name in column_names:
-        this_statistic_name = _column_name_to_statistic_name(
-            column_name=this_column_name,
-            valid_statistic_names=valid_statistic_names)
-        if this_statistic_name is None:
-            continue
-
-        statistic_column_names.append(this_column_name)
+        try:
+            check_statistic_name(
+                statistic_name=this_column_name, metadata_table=metadata_table)
+            statistic_column_names.append(this_column_name)
+        except ValueError:
+            pass
 
     if not len(statistic_column_names):
         return None
@@ -1318,12 +1410,23 @@ def read_metadata_for_statistics():
         attribute of `profile_object.mupcl`, where `profile_object` is an
         instance of `sharppy.sharptab.Profile`.  If False, the statistic is just
         an attribute of `profile_object`.
+    metadata_table.min_values_for_normalization: 1-D numpy array with minimum
+        values for normalization (to be used in
+        `deep_learning_utils.normalize_sounding_statistics`).  For scalar
+        statistics, the array has length 1.  For vector statistics, the array
+        has length 2, with minimum values for the x- and y-components
+        respectively.
+    metadata_table.max_values_for_normalization: Same as above, except for max
+        values.
     """
 
     error_checking.assert_file_exists(METAFILE_NAME)
-    return pandas.read_csv(
-        METAFILE_NAME, header=0, usecols=METADATA_COLUMNS,
-        dtype=COLUMN_TYPE_DICT_FOR_METADATA)
+    pickle_file_handle = open(METAFILE_NAME, 'rb')
+    metadata_table = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    error_checking.assert_columns_in_dataframe(metadata_table, METADATA_COLUMNS)
+    return metadata_table
 
 
 def get_sounding_stats_for_storm_objects(
@@ -1436,6 +1539,9 @@ def get_sounding_stats_for_storm_objects(
 
     statistic_table_sharppy = pandas.concat(
         list_of_sharppy_statistic_tables, axis=0, ignore_index=True)
+    statistic_table_sharppy = _sentinels_to_nan(
+        statistic_table_sharppy=statistic_table_sharppy,
+        metadata_table=metadata_table)
     sounding_statistic_table = _convert_sounding_statistics(
         statistic_table_sharppy=statistic_table_sharppy,
         metadata_table=metadata_table)
