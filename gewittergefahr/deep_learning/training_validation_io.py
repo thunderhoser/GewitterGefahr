@@ -10,6 +10,7 @@ M = number of pixel rows per image
 N = number of pixel columns per image
 D = number of pixel depths per image
 C = number of channels (predictor variables) per image
+S = number of sounding statistics
 """
 
 import copy
@@ -502,12 +503,9 @@ def find_sounding_statistic_files(
 def storm_image_generator_2d(
         image_file_name_matrix, num_examples_per_batch,
         num_examples_per_init_time, target_name,
-        sounding_statistic_file_names=None, sounding_statistic_names=None,
-        normalize_by_batch=False,
-        normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        percentile_offset_for_normalization=
-        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
-        class_fractions_to_sample=None):
+        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        class_fractions_to_sample=None, sounding_statistic_file_names=None,
+        sounding_statistic_names=None, sounding_stat_metadata_table=None):
     """Generates examples with 2-D radar images.
 
     Each example consists of a 2-D radar image, and possibly sounding
@@ -516,35 +514,32 @@ def storm_image_generator_2d(
     T = number of storm times (initial times, not valid times)
     F = number of radar fields
     C = number of channels = num predictor variables = num field/height pairs
-    S = number of sounding statistics
 
     :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
         files.  This should be created by `find_2d_input_files`.
-    :param num_examples_per_batch: See documentation for `_check_input_args`.
+    :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_init_time: Same.
     :param target_name: Name of target variable.
+    :param radar_normalization_dict: Used to normalize radar images (see doc for
+        `deep_learning_utils.normalize_predictor_matrix`).
+    :param class_fractions_to_sample: length-K numpy array for class-conditional
+        sampling.  class_fractions_to_sample[k] is the fraction of examples in
+        class k to be included in each batch.
     :param sounding_statistic_file_names: See doc for `_check_input_args`.
     :param sounding_statistic_names: Same.
-    :param normalize_by_batch: Used to normalize predictor values (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
-    :param normalization_dict: Same.
-    :param percentile_offset_for_normalization: Same.
-    :param class_fractions_to_sample: length-K numpy array used for class-
-        conditional sampling.  class_fractions_to_sample[k] is the fraction of
-        examples from the [k]th class to be returned in each batch.
+    :param sounding_stat_metadata_table: Used to normalize sounding stats (see
+        doc for `deep_learning_utils.normalize_sounding_statistics`).
 
-    If `sounding_statistic_file_names is None`, this method returns the
-    following.
+    If `sounding_statistic_file_names is None`, this method returns...
 
     :return: image_matrix: E-by-M-by-N-by-C numpy array of storm-centered radar
         images.
     :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
-        technically the type is "float64").  If target_matrix[i, k] = 1, the
-        [k]th class is the outcome for the [i]th example.  The sum across each
-        row is 1 (classes are mutually exclusive and collectively exhaustive).
+        the array type is "float64").  If target_matrix[i, k] = 1, the [k]th
+        class is the outcome for the [i]th example.  Classes are mutually
+        exclusive and collectively exhaustive, so the sum across each row is 1.
 
-    If `sounding_statistic_file_names is not None`, this method returns the
-    following.
+    If `sounding_statistic_file_names is not None`, this method returns...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = image_matrix: See documentation above.
@@ -556,8 +551,7 @@ def storm_image_generator_2d(
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
-        normalize_by_batch=normalize_by_batch,
-        image_file_name_matrix=image_file_name_matrix,
+        normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
@@ -710,16 +704,23 @@ def storm_image_generator_2d(
                 class_fractions=class_fractions_to_sample,
                 num_points_to_sample=num_examples_per_batch)
 
-            full_image_matrix = full_image_matrix[batch_indices, ...].astype(
-                'float32')
+            full_image_matrix = full_image_matrix[batch_indices, ...]
             all_target_values = all_target_values[batch_indices]
+            if sounding_statistic_file_names is not None:
+                full_sounding_stat_matrix = full_sounding_stat_matrix[
+                    batch_indices, ...]
 
         full_image_matrix = dl_utils.normalize_predictor_matrix(
             predictor_matrix=full_image_matrix,
-            normalize_by_batch=normalize_by_batch,
-            predictor_names=field_name_by_channel,
-            normalization_dict=normalization_dict,
-            percentile_offset=percentile_offset_for_normalization)
+            normalize_by_batch=False, predictor_names=field_name_by_channel,
+            normalization_dict=radar_normalization_dict)
+
+        if sounding_statistic_file_names is not None:
+            full_sounding_stat_matrix = dl_utils.normalize_sounding_statistics(
+                sounding_stat_matrix=full_sounding_stat_matrix,
+                statistic_names=sounding_statistic_names,
+                metadata_table=sounding_stat_metadata_table,
+                normalize_by_batch=False)
 
         image_matrix, sounding_stat_matrix, target_matrix = _select_batch(
             image_matrix_in_memory=full_image_matrix,
@@ -744,12 +745,9 @@ def storm_image_generator_2d(
 def storm_image_generator_3d(
         image_file_name_matrix, num_examples_per_batch,
         num_examples_per_init_time, target_name,
-        sounding_statistic_file_names=None, sounding_statistic_names=None,
-        normalize_by_batch=False,
-        normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        percentile_offset_for_normalization=
-        dl_utils.DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION,
-        class_fractions_to_sample=None):
+        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        class_fractions_to_sample=None, sounding_statistic_file_names=None,
+        sounding_statistic_names=None, sounding_stat_metadata_table=None):
     """Generates examples with 3-D radar images.
 
     Each example consists of a 3-D radar image, and possibly sounding
@@ -758,35 +756,25 @@ def storm_image_generator_3d(
     T = number of storm times (initial times, not valid times)
     F = number of radar fields
     D = number of radar heights
-    S = number of sounding statistics
 
     :param image_file_name_matrix: T-by-F-by-H numpy array of paths to radar-
         image files.  This should be created by `find_3d_input_files`.
-    :param num_examples_per_batch: See documentation for `_check_input_args`.
+    :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_init_time: Same.
     :param target_name: Name of target variable.
-    :param sounding_statistic_file_names: See doc for `_check_input_args`.
+    :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
+    :param class_fractions_to_sample: Same.
+    :param sounding_statistic_file_names: Same.
     :param sounding_statistic_names: Same.
-    :param normalize_by_batch: Used to normalize predictor values (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
-    :param normalization_dict: Same.
-    :param percentile_offset_for_normalization: Same.
-    :param class_fractions_to_sample: length-K numpy array used for class-
-        conditional sampling.  class_fractions_to_sample[k] is the fraction of
-        examples from the [k]th class to be returned in each batch.
+    :param sounding_stat_metadata_table: Same.
 
-    If `sounding_statistic_file_names is None`, this method returns the
-    following.
+    If `sounding_statistic_file_names is None`, this method returns...
 
     :return: image_matrix: E-by-M-by-N-by-D-by-C numpy array of storm-centered
         radar images.
-    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
-        technically the type is "float64").  If target_matrix[i, k] = 1, the
-        [k]th class is the outcome for the [i]th example.  The sum across each
-        row is 1 (classes are mutually exclusive and collectively exhaustive).
+    :return: target_matrix: See doc for `storm_image_generator_2d`.
 
-    If `sounding_statistic_file_names is not None`, this method returns the
-    following.
+    If `sounding_statistic_file_names is not None`, this method returns...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = image_matrix: See documentation above.
@@ -798,8 +786,7 @@ def storm_image_generator_3d(
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
-        normalize_by_batch=normalize_by_batch,
-        image_file_name_matrix=image_file_name_matrix,
+        normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
@@ -961,16 +948,23 @@ def storm_image_generator_3d(
                 class_fractions=class_fractions_to_sample,
                 num_points_to_sample=num_examples_per_batch)
 
-            full_image_matrix = full_image_matrix[batch_indices, ...].astype(
-                'float32')
+            full_image_matrix = full_image_matrix[batch_indices, ...]
             all_target_values = all_target_values[batch_indices]
+            if sounding_statistic_file_names is not None:
+                full_sounding_stat_matrix = full_sounding_stat_matrix[
+                    batch_indices, ...]
 
         full_image_matrix = dl_utils.normalize_predictor_matrix(
             predictor_matrix=full_image_matrix,
-            normalize_by_batch=normalize_by_batch,
-            predictor_names=radar_field_names,
-            normalization_dict=normalization_dict,
-            percentile_offset=percentile_offset_for_normalization)
+            normalize_by_batch=False, predictor_names=radar_field_names,
+            normalization_dict=radar_normalization_dict)
+
+        if sounding_statistic_file_names is not None:
+            full_sounding_stat_matrix = dl_utils.normalize_sounding_statistics(
+                sounding_stat_matrix=full_sounding_stat_matrix,
+                statistic_names=sounding_statistic_names,
+                metadata_table=sounding_stat_metadata_table,
+                normalize_by_batch=False)
 
         image_matrix, sounding_stat_matrix, target_matrix = _select_batch(
             image_matrix_in_memory=full_image_matrix,
