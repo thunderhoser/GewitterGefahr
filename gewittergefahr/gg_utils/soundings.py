@@ -1612,9 +1612,6 @@ def write_sounding_statistics(
     :param verbose: Boolean flag.  If True, will print log message.
     """
 
-    # TODO(thunderhoser): apply adaptive character limit to files with storm
-    # images.
-
     netcdf_file_name = find_sounding_statistic_file(
         top_directory_name=top_directory_name,
         init_time_unix_sec=init_time_unix_sec, lead_time_sec=lead_time_sec,
