@@ -13,6 +13,7 @@ C = number of channels (predictor variables) per image
 import copy
 import numpy
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
@@ -42,6 +43,11 @@ DEFAULT_NORMALIZATION_DICT = {
     radar_utils.VORTICITY_NAME: numpy.array([-0.0075, 0.0075]),  # s^-1
     radar_utils.DIVERGENCE_NAME: numpy.array([-0.0075, 0.0075])  # s^-1
 }
+
+VECTOR_SUFFIXES_TO_NORMALIZE = [
+    soundings.X_COMPONENT_SUFFIX, soundings.Y_COMPONENT_SUFFIX]
+VECTOR_SUFFIXES_TO_NOT_NORMALIZE = [
+    soundings.SINE_SUFFIX, soundings.COSINE_SUFFIX, soundings.MAGNITUDE_SUFFIX]
 
 
 def _check_class_fractions(class_fractions):
@@ -301,6 +307,150 @@ def normalize_predictor_matrix(
                 (this_max_value - this_min_value))
 
     return predictor_matrix
+
+
+def normalize_sounding_statistics(
+        sounding_stat_matrix, statistic_names, metadata_table,
+        normalize_by_batch=False, percentile_offset=1.):
+    """Normalizes sounding statistics.
+
+    For each scalar statistic c and example i, the normalization is as follows.
+
+    c_new(i) = [c_old(i) - c_min] / [c_max - c_min]
+
+    For each vector statistic and example i, the x- and y-components are
+    normalized as shown below.  Then the sine, cosine, and magnitude are
+    computed accordingly.
+
+    x_new(i) = [x_old(i) - x_min] / [x_max - x_min]
+    y_new(i) = [y_old(i) - y_min] / [y_max - y_min]
+
+    If normalize_by_batch = True, sounding_stat_matrix is treated as a batch and
+    variables have the following meanings.
+
+    c_min = minimum (or small percentile) of all c-values in the batch
+    c_max = max (or large percentile) of all c-values in the batch
+
+    If normalize_by_batch = False, variables have the following meanings.
+
+    c_min = climatological minimum for c (taken from metadata_table)
+    c_max = climatological max for c (taken from metadata_table)
+
+    --- DEFINITIONS ---
+
+    S = number of statistics
+
+    :param sounding_stat_matrix: E-by-S numpy array of sounding stats.
+    :param statistic_names: length-S list with names of sounding stats.
+    :param metadata_table: pandas DataFrame created by
+        `soundings.read_metadata_for_statistics`.
+    :param normalize_by_batch: See discussion above.
+    :param percentile_offset: [used only if normalize_by_batch = True]
+        See doc for `normalize_predictor_matrix`.
+    :return: sounding_stat_matrix: Normalized version of input.  Dimensions are
+        the same.
+    """
+
+    error_checking.assert_is_numpy_array(sounding_stat_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(normalize_by_batch)
+
+    num_statistics = sounding_stat_matrix.shape[1]
+    error_checking.assert_is_numpy_array(
+        numpy.array(statistic_names),
+        exact_dimensions=numpy.array([num_statistics]))
+
+    basic_statistic_names = [''] * num_statistics
+    vector_suffixes = [''] * num_statistics
+    for j in range(num_statistics):
+        basic_statistic_names[j], vector_suffixes[j] = (
+            soundings.remove_vector_suffix_from_stat_name(
+                statistic_name=statistic_names[j],
+                metadata_table=metadata_table))
+
+    if normalize_by_batch:
+        error_checking.assert_is_geq(percentile_offset, 0.)
+        error_checking.assert_is_leq(
+            percentile_offset, MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION)
+
+    for j in range(num_statistics):
+        if vector_suffixes[j] in VECTOR_SUFFIXES_TO_NOT_NORMALIZE:
+            continue
+
+        if normalize_by_batch:
+            this_min_value = numpy.nanpercentile(
+                sounding_stat_matrix[..., j], percentile_offset)
+            this_max_value = numpy.nanpercentile(
+                sounding_stat_matrix[..., j], 100. - percentile_offset)
+        else:
+            this_row = numpy.where(
+                metadata_table[soundings.STATISTIC_NAME_COLUMN].values ==
+                basic_statistic_names[j])[0][0]
+
+            if vector_suffixes[j] == soundings.Y_COMPONENT_SUFFIX:
+                this_min_value = metadata_table[
+                    soundings.MIN_VALUES_FOR_NORM_COLUMN].values[this_row][1]
+                this_max_value = metadata_table[
+                    soundings.MAX_VALUES_FOR_NORM_COLUMN].values[this_row][1]
+            else:
+                this_min_value = metadata_table[
+                    soundings.MIN_VALUES_FOR_NORM_COLUMN].values[this_row][0]
+                this_max_value = metadata_table[
+                    soundings.MAX_VALUES_FOR_NORM_COLUMN].values[this_row][0]
+
+        sounding_stat_matrix[..., j] = (
+            (sounding_stat_matrix[..., j] - this_min_value) /
+            (this_max_value - this_min_value))
+
+    for j in range(num_statistics):
+        if vector_suffixes[j] != soundings.X_COMPONENT_SUFFIX:
+            continue
+
+        this_x_component_name = soundings.add_vector_suffix_to_stat_name(
+            basic_statistic_name=basic_statistic_names[j],
+            vector_suffix=soundings.X_COMPONENT_SUFFIX)
+        this_y_component_name = soundings.add_vector_suffix_to_stat_name(
+            basic_statistic_name=basic_statistic_names[j],
+            vector_suffix=soundings.Y_COMPONENT_SUFFIX)
+        this_sine_name = soundings.add_vector_suffix_to_stat_name(
+            basic_statistic_name=basic_statistic_names[j],
+            vector_suffix=soundings.SINE_SUFFIX)
+        this_cosine_name = soundings.add_vector_suffix_to_stat_name(
+            basic_statistic_name=basic_statistic_names[j],
+            vector_suffix=soundings.COSINE_SUFFIX)
+        this_magnitude_name = soundings.add_vector_suffix_to_stat_name(
+            basic_statistic_name=basic_statistic_names[j],
+            vector_suffix=soundings.MAGNITUDE_SUFFIX)
+
+        this_x_component_index = statistic_names.index(this_x_component_name)
+        this_y_component_index = statistic_names.index(this_y_component_name)
+        this_sine_index = statistic_names.index(this_sine_name)
+        this_cosine_index = statistic_names.index(this_cosine_name)
+        this_magnitude_index = statistic_names.index(this_magnitude_name)
+
+        sounding_stat_matrix[..., this_magnitude_index] = numpy.sqrt(
+            sounding_stat_matrix[..., this_x_component_index] ** 2 +
+            sounding_stat_matrix[..., this_y_component_index] ** 2)
+        sounding_stat_matrix[..., this_sine_index] = (
+            sounding_stat_matrix[..., this_y_component_index] /
+            sounding_stat_matrix[..., this_magnitude_index])
+        sounding_stat_matrix[..., this_cosine_index] = (
+            sounding_stat_matrix[..., this_x_component_index] /
+            sounding_stat_matrix[..., this_magnitude_index])
+
+        bad_indices = numpy.where(
+            sounding_stat_matrix[..., this_magnitude_index] > 1.)[0]
+        sounding_stat_matrix[bad_indices, this_magnitude_index] = 1.
+        sounding_stat_matrix[bad_indices, this_x_component_index] = (
+            sounding_stat_matrix[bad_indices, this_cosine_index] *
+            sounding_stat_matrix[bad_indices, this_magnitude_index])
+        sounding_stat_matrix[bad_indices, this_y_component_index] = (
+            sounding_stat_matrix[bad_indices, this_sine_index] *
+            sounding_stat_matrix[bad_indices, this_magnitude_index])
+
+    sounding_stat_matrix[sounding_stat_matrix < 0.] = 0.
+    sounding_stat_matrix[sounding_stat_matrix > 1.] = 1.
+    sounding_stat_matrix[numpy.isnan(sounding_stat_matrix)] = 0.5
+    return sounding_stat_matrix
 
 
 def sample_points_by_class(

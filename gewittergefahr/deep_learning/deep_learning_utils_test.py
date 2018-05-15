@@ -3,8 +3,10 @@
 import copy
 import unittest
 import numpy
+import pandas
 import keras
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
@@ -205,6 +207,67 @@ HEIGHT3_MATRIX_NORM_BY_CLIMO = numpy.stack(
 PREDICTOR_MATRIX_5D_NORM_BY_CLIMO = numpy.stack(
     (PREDICTOR_MATRIX_4D_NORM_BY_CLIMO, HEIGHT2_MATRIX_NORM_BY_CLIMO,
      HEIGHT3_MATRIX_NORM_BY_CLIMO), axis=-2)
+
+# The following constants are used to test normalize_sounding_statistics.
+SOUNDING_STAT_MATRIX_UNNORMALIZED = numpy.array(
+    [[numpy.nan, 4, numpy.nan, 10, -5, 0, 0, 0],
+     [numpy.nan, numpy.nan, numpy.nan, 11, 5, 0, 0, 0],
+     [numpy.nan, 6, 9, 12, 15, 0, 0, 0]],
+    dtype=float)
+
+SOUNDING_STAT_NAMES = [
+    'foo', 'bar', 'moo', 'hal_x', 'hal_y', 'hal_cos', 'hal_sin',
+    'hal_magnitude']
+BASIC_SOUNDING_STAT_NAMES = ['foo', 'bar', 'moo', 'hal']
+
+THIS_DICT = {soundings.STATISTIC_NAME_COLUMN: BASIC_SOUNDING_STAT_NAMES}
+SOUNDING_METADATA_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+NESTED_ARRAY = SOUNDING_METADATA_TABLE[[
+    soundings.STATISTIC_NAME_COLUMN, soundings.STATISTIC_NAME_COLUMN
+]].values.tolist()
+THIS_DICT = {
+    soundings.MIN_VALUES_FOR_NORM_COLUMN: NESTED_ARRAY,
+    soundings.MAX_VALUES_FOR_NORM_COLUMN: NESTED_ARRAY
+}
+SOUNDING_METADATA_TABLE = SOUNDING_METADATA_TABLE.assign(**THIS_DICT)
+
+SOUNDING_METADATA_TABLE[soundings.MIN_VALUES_FOR_NORM_COLUMN].values[
+    0] = numpy.array([0.])
+SOUNDING_METADATA_TABLE[soundings.MAX_VALUES_FOR_NORM_COLUMN].values[
+    0] = numpy.array([10.])
+SOUNDING_METADATA_TABLE[soundings.MIN_VALUES_FOR_NORM_COLUMN].values[
+    1] = numpy.array([2.])
+SOUNDING_METADATA_TABLE[soundings.MAX_VALUES_FOR_NORM_COLUMN].values[
+    1] = numpy.array([4.])
+SOUNDING_METADATA_TABLE[soundings.MIN_VALUES_FOR_NORM_COLUMN].values[
+    2] = numpy.array([-5.])
+SOUNDING_METADATA_TABLE[soundings.MAX_VALUES_FOR_NORM_COLUMN].values[
+    2] = numpy.array([15.])
+SOUNDING_METADATA_TABLE[soundings.MIN_VALUES_FOR_NORM_COLUMN].values[
+    3] = numpy.array([0., -10.])
+SOUNDING_METADATA_TABLE[soundings.MAX_VALUES_FOR_NORM_COLUMN].values[
+    3] = numpy.array([20., 10.])
+
+SQRT_HALF = numpy.sqrt(0.5)
+SOUNDING_STAT_MATRIX_NORMALIZED_BY_BATCH = numpy.array(
+    [[0.5, 0.0, 0.5, 0.0, 0.0, 0.5, 0.5, 0.0],
+     [0.5, 0.5, 0.5, 0.5, 0.5, SQRT_HALF, SQRT_HALF, SQRT_HALF],
+     [0.5, 1.0, 0.5, SQRT_HALF, SQRT_HALF, SQRT_HALF, SQRT_HALF, 1.0]])
+
+FIRST_MAGNITUDE = numpy.sqrt(0.5 ** 2 + 0.25 ** 2)
+SECOND_MAGNITUDE = numpy.sqrt(0.55 ** 2 + 0.75 ** 2)
+
+THIRD_MAGNITUDE_TEMP = numpy.sqrt(0.6 ** 2 + 1.25 ** 2)
+THIRD_COSINE = 0.6 / THIRD_MAGNITUDE_TEMP
+THIRD_SINE = 1.25 / THIRD_MAGNITUDE_TEMP
+
+SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO = numpy.array(
+    [[0.5, 1., 0.5, 0.5, 0.25,
+      0.5 / FIRST_MAGNITUDE, 0.25 / FIRST_MAGNITUDE, FIRST_MAGNITUDE],
+     [0.5, 0.5, 0.5, 0.55, 0.75,
+      0.55 / SECOND_MAGNITUDE, 0.75 / SECOND_MAGNITUDE, SECOND_MAGNITUDE],
+     [0.5, 1., 0.7, THIRD_COSINE, THIRD_SINE, THIRD_COSINE, THIRD_SINE, 1.]])
 
 # The following constants are used to test sample_points_by_class.
 TARGET_VALUES_TO_SAMPLE_BINARY = numpy.array(
@@ -579,6 +642,40 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_predictor_matrix, PREDICTOR_MATRIX_5D_NORM_BY_CLIMO,
             atol=TOLERANCE, equal_nan=True))
+
+    def test_normalize_sounding_stats_by_batch(self):
+        """Ensures correct output from normalize_sounding_statistics.
+
+        In this case, normalize_by_batch = True.
+        """
+
+        this_input_matrix = copy.deepcopy(SOUNDING_STAT_MATRIX_UNNORMALIZED)
+        this_normalized_matrix = dl_utils.normalize_sounding_statistics(
+            sounding_stat_matrix=this_input_matrix,
+            statistic_names=SOUNDING_STAT_NAMES,
+            metadata_table=SOUNDING_METADATA_TABLE, normalize_by_batch=True,
+            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
+
+        self.assertTrue(numpy.allclose(
+            this_normalized_matrix, SOUNDING_STAT_MATRIX_NORMALIZED_BY_BATCH,
+            atol=TOLERANCE))
+
+    def test_normalize_sounding_stats_by_climo(self):
+        """Ensures correct output from normalize_sounding_statistics.
+
+        In this case, normalize_by_batch = False.
+        """
+
+        this_input_matrix = copy.deepcopy(SOUNDING_STAT_MATRIX_UNNORMALIZED)
+        this_normalized_matrix = dl_utils.normalize_sounding_statistics(
+            sounding_stat_matrix=this_input_matrix,
+            statistic_names=SOUNDING_STAT_NAMES,
+            metadata_table=SOUNDING_METADATA_TABLE, normalize_by_batch=False,
+            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
+
+        self.assertTrue(numpy.allclose(
+            this_normalized_matrix, SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO,
+            atol=TOLERANCE))
 
     def test_sample_points_by_class_binary(self):
         """Ensures correct output from sample_points_by_class.
