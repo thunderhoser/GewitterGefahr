@@ -25,6 +25,10 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
+LARGE_INTEGER = 1e10
+
+# TODO(thunderhoser) Do better job of handling missing files.
+
 
 def _check_input_args(
         num_examples_per_batch, num_examples_per_init_time, normalize_by_batch,
@@ -71,6 +75,211 @@ def _check_input_args(
         if sounding_statistic_file_names is not None:
             error_checking.assert_is_numpy_array(
                 numpy.array(sounding_statistic_names), num_dimensions=1)
+
+
+def _shuffle_times(image_file_name_matrix, sounding_statistic_file_names=None):
+    """Shuffles file arrays by time.
+
+    :param image_file_name_matrix: See doc for `_check_input_args`.
+    :param sounding_statistic_file_names: Same.
+    :return: image_file_name_matrix: Same as input, but shuffled by time (along
+        first axis).
+    :return: sounding_statistic_file_names: Same as input, but shuffled by time
+        (along only axis).
+    """
+
+    num_init_times = image_file_name_matrix.shape[0]
+    init_time_indices = numpy.linspace(
+        0, num_init_times - 1, num=num_init_times, dtype=int)
+    numpy.random.shuffle(init_time_indices)
+
+    image_file_name_matrix = image_file_name_matrix[init_time_indices, ...]
+    if sounding_statistic_file_names is not None:
+        sounding_statistic_file_names = [
+            sounding_statistic_file_names[i] for i in init_time_indices]
+
+    return image_file_name_matrix, sounding_statistic_file_names
+
+
+def _remove_storms_with_undef_target(storm_image_dict):
+    """Removes storm objects with undefined target value (-1).
+
+    E = number of valid storm objects
+
+    :param storm_image_dict: Dictionary created by
+        `storm_images.read_storm_images_and_labels`.
+    :return: storm_image_dict: Same as input, but maybe with fewer storm
+        objects.
+    :return: valid_storm_indices: length-E numpy array with indices of valid
+        storm objects.  These are indices into the original dictionary, used to
+        obtain the new dictionary.
+    """
+
+    valid_storm_indices = numpy.where(
+        storm_image_dict[storm_images.LABEL_VALUES_KEY] >= 0)[0]
+
+    keys_to_change = [
+        storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
+        storm_images.LABEL_VALUES_KEY]
+    for this_key in keys_to_change:
+        if this_key == storm_images.STORM_IDS_KEY:
+            storm_image_dict[this_key] = [
+                storm_image_dict[this_key][i] for i in valid_storm_indices]
+        else:
+            storm_image_dict[this_key] = storm_image_dict[this_key][
+                valid_storm_indices, ...]
+
+    return storm_image_dict, valid_storm_indices
+
+
+def _get_num_examples_per_batch_by_class(
+        num_examples_per_batch, target_name, class_fractions_to_sample):
+    """Returns number of examples needed per batch for each class.
+
+    K = number of classes
+
+    :param num_examples_per_batch: Number of examples needed per batch.
+    :param target_name: Name of target variable.
+    :param class_fractions_to_sample: See doc for `storm_image_generator_2d` or
+        `storm_image_generator_3d`.
+    :return: num_examples_per_batch_by_class: length-K numpy array with number
+        of examples in each class needed per batch.
+    """
+
+    num_classes = labels.column_name_to_num_classes(target_name)
+    if class_fractions_to_sample is None:
+        num_examples_per_batch_by_class = numpy.full(
+            num_classes, LARGE_INTEGER, dtype=int)
+    else:
+        num_examples_per_batch_by_class = (
+            dl_utils.class_fractions_to_num_points(
+                class_fractions=class_fractions_to_sample,
+                num_points_to_sample=num_examples_per_batch))
+
+        error_checking.assert_is_numpy_array(
+            num_examples_per_batch_by_class,
+            exact_dimensions=numpy.array([num_classes]))
+
+    return num_examples_per_batch_by_class
+
+
+def _get_num_examples_remaining_by_class(
+        num_examples_per_batch, num_init_times_per_batch,
+        num_examples_per_batch_by_class, num_examples_in_memory,
+        num_init_times_in_memory, num_examples_in_memory_by_class):
+    """Returns number of examples still needed for each class.
+
+    K = number of classes
+
+    :param num_examples_per_batch: Number of examples needed per batch.
+    :param num_init_times_per_batch: Number of initial times needed per batch.
+    :param num_examples_per_batch_by_class: length-K numpy array with number of
+        examples in each class needed per batch.
+    :param num_examples_in_memory: Number of examples currently in memory.
+    :param num_init_times_in_memory: Number of initial times currently in
+        memory.
+    :param num_examples_in_memory_by_class: length-K numpy array with number of
+        examples in each class currently in memory.
+    :return: num_examples_remaining_by_class: length-K numpy array with number
+        of remaining examples needed in each class.
+    """
+
+    downsample = (
+        num_init_times_in_memory >= num_init_times_per_batch and
+        num_examples_in_memory >= num_examples_per_batch)
+
+    if downsample:
+        num_examples_remaining_by_class = (
+            num_examples_per_batch_by_class - num_examples_in_memory_by_class)
+        num_examples_remaining_by_class[num_examples_remaining_by_class < 0] = 0
+    else:
+        num_examples_remaining_by_class = None
+
+    return num_examples_remaining_by_class
+
+
+def _determine_stopping_criterion(
+        num_examples_per_batch, num_init_times_per_batch,
+        num_examples_per_batch_by_class, num_init_times_in_memory,
+        class_fractions_to_sample, target_values_in_memory):
+    """Determines whether or not to stop generating examples.
+
+    K = number of classes
+
+    :param num_examples_per_batch: Number of examples needed per batch.
+    :param num_init_times_per_batch: Number of initial times needed per batch.
+    :param num_examples_per_batch_by_class: length-K numpy array with number of
+        examples in each class needed per batch.
+    :param num_init_times_in_memory: Number of initial times currently in
+        memory.
+    :param class_fractions_to_sample: See doc for `storm_image_generator_2d` or
+        `storm_image_generator_3d`.
+    :param target_values_in_memory: 1-D numpy array with all target values
+        currently in memory.
+    :return: num_examples_in_memory_by_class: length-K numpy array with number of
+        examples in each class currently in memory.
+    :return: stopping_criterion: Boolean flag.
+    """
+
+    num_classes = len(num_examples_per_batch_by_class)
+    num_examples_in_memory_by_class = numpy.array(
+        [numpy.sum(target_values_in_memory == k) for k in range(num_classes)],
+        dtype=int)
+    print 'Number of examples in memory by class: {0:s}'.format(
+        str(num_examples_in_memory_by_class))
+
+    num_examples_in_memory = len(target_values_in_memory)
+    stopping_criterion = (
+        num_init_times_in_memory >= num_init_times_per_batch and
+        num_examples_in_memory >= num_examples_per_batch and
+        (class_fractions_to_sample is None or numpy.all(
+            num_examples_in_memory_by_class >=
+            num_examples_per_batch_by_class)))
+
+    return num_examples_in_memory_by_class, stopping_criterion
+
+
+def _select_batch(
+        image_matrix_in_memory, sounding_stat_matrix_in_memory,
+        target_values_in_memory, num_examples_per_batch, num_classes):
+    """Selects batch randomly from examples in memory.
+
+    E_m = number of examples in memory
+    E_b = number of examples in batch
+
+    :param image_matrix_in_memory: numpy array of storm-centered radar images,
+        where the first axis has length E_m.
+    :param sounding_stat_matrix_in_memory: numpy array of sounding statistics
+        (first axis has length E_m).
+    :param target_values_in_memory: numpy array of target values (length E_m).
+    :param num_examples_per_batch: Number of examples needed per batch.
+    :param num_classes: Number of classes for target value.
+    :return: image_matrix: Same as input, but first axis has length E_b.
+    :return: sounding_stat_matrix: Same as input, but first axis has length E_b.
+    :return: target_matrix: See output doc for `storm_image_generator_2d` or
+        `storm_image_generator_3d`.
+    """
+
+    num_examples_in_memory = image_matrix_in_memory.shape[0]
+    example_indices = numpy.linspace(
+        0, num_examples_in_memory - 1, num=num_examples_in_memory, dtype=int)
+    batch_indices = numpy.random.choice(
+        example_indices, size=num_examples_per_batch, replace=False)
+
+    image_matrix = image_matrix_in_memory[batch_indices, ...].astype('float32')
+    if sounding_stat_matrix_in_memory is None:
+        sounding_stat_matrix = None
+    else:
+        sounding_stat_matrix = sounding_stat_matrix_in_memory[
+            batch_indices, ...].astype('float32')
+
+    target_matrix = keras.utils.to_categorical(
+        target_values_in_memory[batch_indices], num_classes)
+    class_fractions = numpy.mean(target_matrix, axis=0)
+    print 'Fraction of target values in each class:\n{0:s}\n'.format(
+        str(class_fractions))
+
+    return image_matrix, sounding_stat_matrix, target_matrix
 
 
 def find_2d_input_files(
@@ -245,9 +454,6 @@ def find_sounding_statistic_files(
     :raises: ValueError: if no sounding-statistic files are found.
     """
 
-    # TODO(thunderhoser): Add `raise_error_if_any_missing` to methods that find
-    # image files.
-
     error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
     error_checking.assert_is_numpy_array(image_times_unix_sec, num_dimensions=1)
     error_checking.assert_is_boolean(raise_error_if_any_missing)
@@ -347,7 +553,6 @@ def storm_image_generator_2d(
     :return: target_matrix: See documentation above.
     """
 
-    # Check input arguments.
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
@@ -356,43 +561,25 @@ def storm_image_generator_2d(
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
-    # Find names of radar fields.
     num_channels = image_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
-
     for j in range(num_channels):
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, j])
         field_name_by_channel[j] = str(
             this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
 
-    # Shuffle files by time.
+    image_file_name_matrix, sounding_statistic_file_names = _shuffle_times(
+        image_file_name_matrix=image_file_name_matrix,
+        sounding_statistic_file_names=sounding_statistic_file_names)
     num_init_times = image_file_name_matrix.shape[0]
-    init_time_indices = numpy.linspace(
-        0, num_init_times - 1, num=num_init_times, dtype=int)
-    numpy.random.shuffle(init_time_indices)
 
-    image_file_name_matrix = image_file_name_matrix[init_time_indices, ...]
-    if sounding_statistic_file_names is not None:
-        sounding_statistic_file_names = [
-            sounding_statistic_file_names[i] for i in init_time_indices]
+    num_examples_per_batch_by_class = _get_num_examples_per_batch_by_class(
+        num_examples_per_batch=num_examples_per_batch, target_name=target_name,
+        class_fractions_to_sample=class_fractions_to_sample)
+    num_classes = len(num_examples_per_batch_by_class)
 
-    # Determine number of examples needed per class.
-    num_classes = labels.column_name_to_num_classes(target_name)
-    if class_fractions_to_sample is None:
-        num_examples_per_batch_by_class = numpy.full(
-            num_classes, 1e10, dtype=int)
-    else:
-        num_examples_per_batch_by_class = (
-            dl_utils.class_fractions_to_num_points(
-                class_fractions=class_fractions_to_sample,
-                num_points_to_sample=num_examples_per_batch))
-
-        error_checking.assert_is_numpy_array(
-            num_examples_per_batch_by_class,
-            exact_dimensions=numpy.array([num_classes]))
-
-    # Initialize variables.
+    # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
     num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
@@ -400,8 +587,8 @@ def storm_image_generator_2d(
         float(num_examples_per_batch) / num_examples_per_init_time))
 
     full_image_matrix = None
-    all_target_values = None
     full_sounding_stat_matrix = None
+    all_target_values = None
 
     while True:
         stopping_criterion = False
@@ -410,8 +597,6 @@ def storm_image_generator_2d(
             print '\n'
             tuple_of_image_matrices = ()
 
-            # Read images for the [0]th channel at the [i]th time (where i =
-            # init_time_index).
             print 'Reading data from: "{0:s}"...'.format(
                 image_file_name_matrix[init_time_index, 0])
 
@@ -420,49 +605,54 @@ def storm_image_generator_2d(
                     init_time_index, 0],
                 raise_error_if_missing=True)
 
-            downsampling_criterion = (
-                num_init_times_in_memory >= num_init_times_per_batch and
-                full_image_matrix is not None and
-                full_image_matrix.shape[0] >= num_examples_per_batch)
-
-            if downsampling_criterion:
-                num_examples_needed_by_class = (
-                    num_examples_per_batch_by_class -
-                    num_examples_in_memory_by_class)
-                num_examples_needed_by_class[
-                    num_examples_needed_by_class < 0] = 0
+            if all_target_values is None:
+                num_examples_in_memory = 0
             else:
-                num_examples_needed_by_class = None
+                num_examples_in_memory = len(all_target_values)
+
+            num_examples_remaining_by_class = (
+                _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_examples_per_batch_by_class=
+                    num_examples_per_batch_by_class,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=num_init_times_in_memory,
+                    num_examples_in_memory_by_class=
+                    num_examples_in_memory_by_class))
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0],
                 label_file_name=this_label_file_name,
                 return_label_name=target_name,
-                num_storm_objects_by_class=num_examples_needed_by_class)
+                num_storm_objects_by_class=num_examples_remaining_by_class)
 
             if this_storm_image_dict is None:
-                init_time_index += 1
-                if init_time_index >= num_init_times:
-                    init_time_index = 0
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
-            these_target_values = this_storm_image_dict[
-                storm_images.LABEL_VALUES_KEY]
-            these_valid_storm_indices = numpy.where(these_target_values >= 0)[0]
-            these_target_values = these_target_values[these_valid_storm_indices]
+            this_storm_image_dict, these_valid_storm_indices = (
+                _remove_storms_with_undef_target(this_storm_image_dict))
+            if not len(these_valid_storm_indices):
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
+                continue
+
+            these_valid_storm_ids = this_storm_image_dict[
+                storm_images.STORM_IDS_KEY]
 
             if all_target_values is None:
-                all_target_values = copy.deepcopy(these_target_values)
+                all_target_values = this_storm_image_dict[
+                    storm_images.LABEL_VALUES_KEY]
             else:
                 all_target_values = numpy.concatenate((
-                    all_target_values, these_target_values))
+                    all_target_values,
+                    this_storm_image_dict[storm_images.LABEL_VALUES_KEY]))
 
             if sounding_statistic_file_names is not None:
                 this_sounding_stat_dict = soundings.read_sounding_statistics(
                     netcdf_file_name=sounding_statistic_file_names[
                         init_time_index],
-                    storm_ids_to_keep=this_storm_image_dict[
-                        storm_images.STORM_IDS_KEY],
+                    storm_ids_to_keep=these_valid_storm_ids,
                     statistic_names_to_keep=sounding_statistic_names)
 
                 if sounding_statistic_names is None:
@@ -481,52 +671,39 @@ def storm_image_generator_2d(
 
             for j in range(num_channels):
                 if j != 0:
-                    # Read images for the [j]th channel at the [i]th time (where
-                    # i = init_time_index).
                     print 'Reading data from: "{0:s}"...'.format(
                         image_file_name_matrix[init_time_index, j])
                     this_storm_image_dict = storm_images.read_storm_images_only(
                         netcdf_file_name=image_file_name_matrix[
                             init_time_index, j],
-                        indices_to_keep=None)
+                        indices_to_keep=these_valid_storm_indices)
 
                 this_field_image_matrix = this_storm_image_dict[
-                    storm_images.STORM_IMAGE_MATRIX_KEY
-                ][these_valid_storm_indices, ...]
+                    storm_images.STORM_IMAGE_MATRIX_KEY]
                 tuple_of_image_matrices += (this_field_image_matrix,)
 
-            # Housekeeping.
+            # Update housekeeping variables.
             num_init_times_in_memory += 1
-            init_time_index += 1
-            if init_time_index >= num_init_times:
-                init_time_index = 0
+            init_time_index = numpy.mod(init_time_index + 1, num_init_times)
 
-            # Add images from [i]th time (where i = init_time_index) to
-            # full_image_matrix, which contains radar images for all times.
             this_image_matrix = dl_utils.stack_predictor_variables(
                 tuple_of_image_matrices)
-
             if full_image_matrix is None:
                 full_image_matrix = copy.deepcopy(this_image_matrix)
             else:
                 full_image_matrix = numpy.concatenate(
                     (full_image_matrix, this_image_matrix), axis=0)
 
-            # Determine stopping criterion.
-            num_examples_in_memory_by_class = numpy.array(
-                [numpy.sum(all_target_values == k) for k in range(num_classes)],
-                dtype=int)
-            print 'Number of examples by class: {0:s}'.format(
-                str(num_examples_in_memory_by_class))
+            num_examples_in_memory_by_class, stopping_criterion = (
+                _determine_stopping_criterion(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_examples_per_batch_by_class=
+                    num_examples_per_batch_by_class,
+                    num_init_times_in_memory=num_init_times_in_memory,
+                    class_fractions_to_sample=class_fractions_to_sample,
+                    target_values_in_memory=all_target_values))
 
-            stopping_criterion = (
-                num_init_times_in_memory >= num_init_times_per_batch and
-                full_image_matrix.shape[0] >= num_examples_per_batch and
-                (class_fractions_to_sample is None or numpy.all(
-                    num_examples_in_memory_by_class >=
-                    num_examples_per_batch_by_class)))
-
-        # Downsample data.
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
                 target_values=all_target_values,
@@ -537,7 +714,6 @@ def storm_image_generator_2d(
                 'float32')
             all_target_values = all_target_values[batch_indices]
 
-        # Normalize images.
         full_image_matrix = dl_utils.normalize_predictor_matrix(
             predictor_matrix=full_image_matrix,
             normalize_by_batch=normalize_by_batch,
@@ -545,31 +721,19 @@ def storm_image_generator_2d(
             normalization_dict=normalization_dict,
             percentile_offset=percentile_offset_for_normalization)
 
-        # Randomly select E examples (where E = num_examples_per_batch).
-        num_examples = full_image_matrix.shape[0]
-        example_indices = numpy.linspace(
-            0, num_examples - 1, num=num_examples, dtype=int)
-        batch_indices = numpy.random.choice(
-            example_indices, size=num_examples_per_batch, replace=False)
+        image_matrix, sounding_stat_matrix, target_matrix = _select_batch(
+            image_matrix_in_memory=full_image_matrix,
+            sounding_stat_matrix_in_memory=full_sounding_stat_matrix,
+            target_values_in_memory=all_target_values,
+            num_examples_per_batch=num_examples_per_batch,
+            num_classes=num_classes)
 
-        image_matrix = full_image_matrix[batch_indices, ...].astype('float32')
-        target_values = all_target_values[batch_indices]
-        if sounding_statistic_file_names is not None:
-            sounding_stat_matrix = full_sounding_stat_matrix[
-                batch_indices, ...].astype('float32')
-
-        # Housekeeping.
+        # Update housekeeping variables.
         full_image_matrix = None
         all_target_values = None
         full_sounding_stat_matrix = None
         num_init_times_in_memory = 0
         num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
-
-        # Turn 1-D array of target values into 2-D Boolean matrix.
-        target_matrix = keras.utils.to_categorical(target_values, num_classes)
-        class_fractions = numpy.mean(target_matrix, axis=0)
-        print 'Fraction of target values in each class:\n{0:s}\n'.format(
-            str(class_fractions))
 
         if sounding_statistic_file_names is None:
             yield (image_matrix, target_matrix)
@@ -631,7 +795,6 @@ def storm_image_generator_3d(
     :return: target_matrix: See documentation above.
     """
 
-    # Check input arguments.
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
@@ -640,44 +803,26 @@ def storm_image_generator_3d(
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
-    # Find names of radar fields.
     num_fields = image_file_name_matrix.shape[1]
     num_heights = image_file_name_matrix.shape[2]
     radar_field_names = [''] * num_fields
-
     for j in range(num_fields):
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, j, 0])
         radar_field_names[j] = str(
             this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
 
-    # Shuffle files by time.
+    image_file_name_matrix, sounding_statistic_file_names = _shuffle_times(
+        image_file_name_matrix=image_file_name_matrix,
+        sounding_statistic_file_names=sounding_statistic_file_names)
     num_init_times = image_file_name_matrix.shape[0]
-    init_time_indices = numpy.linspace(
-        0, num_init_times - 1, num=num_init_times, dtype=int)
-    numpy.random.shuffle(init_time_indices)
 
-    image_file_name_matrix = image_file_name_matrix[init_time_indices, ...]
-    if sounding_statistic_file_names is not None:
-        sounding_statistic_file_names = [
-            sounding_statistic_file_names[i] for i in init_time_indices]
+    num_examples_per_batch_by_class = _get_num_examples_per_batch_by_class(
+        num_examples_per_batch=num_examples_per_batch, target_name=target_name,
+        class_fractions_to_sample=class_fractions_to_sample)
+    num_classes = len(num_examples_per_batch_by_class)
 
-    # Determine number of examples needed per class.
-    num_classes = labels.column_name_to_num_classes(target_name)
-    if class_fractions_to_sample is None:
-        num_examples_per_batch_by_class = numpy.full(
-            num_classes, 1e10, dtype=int)
-    else:
-        num_examples_per_batch_by_class = (
-            dl_utils.class_fractions_to_num_points(
-                class_fractions=class_fractions_to_sample,
-                num_points_to_sample=num_examples_per_batch))
-
-        error_checking.assert_is_numpy_array(
-            num_examples_per_batch_by_class,
-            exact_dimensions=numpy.array([num_classes]))
-
-    # Initialize variables.
+    # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
     num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
@@ -695,8 +840,6 @@ def storm_image_generator_3d(
             print '\n'
             tuple_of_4d_image_matrices = ()
 
-            # Read images for the [0]th field at the [0]th height and [i]th time
-            # (where i = init_time_index).
             print 'Reading data from: "{0:s}"...'.format(
                 image_file_name_matrix[init_time_index, 0, 0])
 
@@ -705,49 +848,54 @@ def storm_image_generator_3d(
                     init_time_index, 0, 0],
                 raise_error_if_missing=True)
 
-            downsampling_criterion = (
-                num_init_times_in_memory >= num_init_times_per_batch and
-                full_image_matrix is not None and
-                full_image_matrix.shape[0] >= num_examples_per_batch)
-
-            if downsampling_criterion:
-                num_examples_needed_by_class = (
-                    num_examples_per_batch_by_class -
-                    num_examples_in_memory_by_class)
-                num_examples_needed_by_class[
-                    num_examples_needed_by_class < 0] = 0
+            if full_image_matrix is None:
+                num_examples_in_memory = 0
             else:
-                num_examples_needed_by_class = None
+                num_examples_in_memory = full_image_matrix.shape[0]
+
+            num_examples_remaining_by_class = (
+                _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_examples_per_batch_by_class=
+                    num_examples_per_batch_by_class,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=num_init_times_in_memory,
+                    num_examples_in_memory_by_class=
+                    num_examples_in_memory_by_class))
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0, 0],
                 label_file_name=this_label_file_name,
                 return_label_name=target_name,
-                num_storm_objects_by_class=num_examples_needed_by_class)
+                num_storm_objects_by_class=num_examples_remaining_by_class)
 
             if this_storm_image_dict is None:
-                init_time_index += 1
-                if init_time_index >= num_init_times:
-                    init_time_index = 0
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
-            these_target_values = this_storm_image_dict[
-                storm_images.LABEL_VALUES_KEY]
-            these_valid_storm_indices = numpy.where(these_target_values >= 0)[0]
-            these_target_values = these_target_values[these_valid_storm_indices]
+            this_storm_image_dict, these_valid_storm_indices = (
+                _remove_storms_with_undef_target(this_storm_image_dict))
+            if not len(these_valid_storm_indices):
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
+                continue
+
+            these_valid_storm_ids = this_storm_image_dict[
+                storm_images.STORM_IDS_KEY]
 
             if all_target_values is None:
-                all_target_values = copy.deepcopy(these_target_values)
+                all_target_values = this_storm_image_dict[
+                    storm_images.LABEL_VALUES_KEY]
             else:
                 all_target_values = numpy.concatenate((
-                    all_target_values, these_target_values))
+                    all_target_values,
+                    this_storm_image_dict[storm_images.LABEL_VALUES_KEY]))
 
             if sounding_statistic_file_names is not None:
                 this_sounding_stat_dict = soundings.read_sounding_statistics(
                     netcdf_file_name=sounding_statistic_file_names[
                         init_time_index],
-                    storm_ids_to_keep=this_storm_image_dict[
-                        storm_images.STORM_IDS_KEY],
+                    storm_ids_to_keep=these_valid_storm_ids,
                     statistic_names_to_keep=sounding_statistic_names)
 
                 if sounding_statistic_names is None:
@@ -769,57 +917,44 @@ def storm_image_generator_3d(
 
                 for j in range(num_fields):
                     if not j == k == 0:
-                        # Read images for the [j]th field at the [k]th height
-                        # and [i]th time (where i = init_time_index).
                         print 'Reading data from: "{0:s}"...'.format(
                             image_file_name_matrix[init_time_index, j, k])
                         this_storm_image_dict = (
                             storm_images.read_storm_images_only(
                                 netcdf_file_name=
                                 image_file_name_matrix[init_time_index, j, k],
-                                indices_to_keep=None))
+                                indices_to_keep=these_valid_storm_indices))
 
                     this_3d_image_matrix = this_storm_image_dict[
-                        storm_images.STORM_IMAGE_MATRIX_KEY][
-                            these_valid_storm_indices, ...]
+                        storm_images.STORM_IMAGE_MATRIX_KEY]
                     tuple_of_3d_image_matrices += (this_3d_image_matrix,)
 
                 tuple_of_4d_image_matrices += (
                     dl_utils.stack_predictor_variables(
                         tuple_of_3d_image_matrices),)
 
-            # Housekeeping.
+            # Update housekeeping variables.
             num_init_times_in_memory += 1
-            init_time_index += 1
-            if init_time_index >= num_init_times:
-                init_time_index = 0
+            init_time_index = numpy.mod(init_time_index + 1, num_init_times)
 
-            # Add images from [i]th time (where i = init_time_index) to
-            # full_image_matrix, which contains radar images for all times.
             this_image_matrix = dl_utils.stack_heights(
                 tuple_of_4d_image_matrices)
-
             if full_image_matrix is None:
                 full_image_matrix = copy.deepcopy(this_image_matrix)
             else:
                 full_image_matrix = numpy.concatenate(
                     (full_image_matrix, this_image_matrix), axis=0)
 
-            # Determine stopping criterion.
-            num_examples_in_memory_by_class = numpy.array(
-                [numpy.sum(all_target_values == k) for k in range(num_classes)],
-                dtype=int)
-            print 'Number of examples by class: {0:s}'.format(
-                str(num_examples_in_memory_by_class))
+            num_examples_in_memory_by_class, stopping_criterion = (
+                _determine_stopping_criterion(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_examples_per_batch_by_class=
+                    num_examples_per_batch_by_class,
+                    num_init_times_in_memory=num_init_times_in_memory,
+                    class_fractions_to_sample=class_fractions_to_sample,
+                    target_values_in_memory=all_target_values))
 
-            stopping_criterion = (
-                num_init_times_in_memory >= num_init_times_per_batch and
-                full_image_matrix.shape[0] >= num_examples_per_batch and
-                (class_fractions_to_sample is None or numpy.all(
-                    num_examples_in_memory_by_class >=
-                    num_examples_per_batch_by_class)))
-
-        # Downsample data.
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
                 target_values=all_target_values,
@@ -830,7 +965,6 @@ def storm_image_generator_3d(
                 'float32')
             all_target_values = all_target_values[batch_indices]
 
-        # Normalize images.
         full_image_matrix = dl_utils.normalize_predictor_matrix(
             predictor_matrix=full_image_matrix,
             normalize_by_batch=normalize_by_batch,
@@ -838,31 +972,19 @@ def storm_image_generator_3d(
             normalization_dict=normalization_dict,
             percentile_offset=percentile_offset_for_normalization)
 
-        # Randomly select E examples (where E = num_examples_per_batch).
-        num_examples = full_image_matrix.shape[0]
-        example_indices = numpy.linspace(
-            0, num_examples - 1, num=num_examples, dtype=int)
-        batch_indices = numpy.random.choice(
-            example_indices, size=num_examples_per_batch, replace=False)
+        image_matrix, sounding_stat_matrix, target_matrix = _select_batch(
+            image_matrix_in_memory=full_image_matrix,
+            sounding_stat_matrix_in_memory=full_sounding_stat_matrix,
+            target_values_in_memory=all_target_values,
+            num_examples_per_batch=num_examples_per_batch,
+            num_classes=num_classes)
 
-        image_matrix = full_image_matrix[batch_indices, ...].astype('float32')
-        target_values = all_target_values[batch_indices]
-        if sounding_statistic_file_names is not None:
-            sounding_stat_matrix = full_sounding_stat_matrix[
-                batch_indices, ...].astype('float32')
-
-        # Housekeeping.
+        # Update housekeeping variables.
         full_image_matrix = None
         all_target_values = None
         full_sounding_stat_matrix = None
         num_init_times_in_memory = 0
         num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
-
-        # Turn 1-D array of target values into 2-D Boolean matrix.
-        target_matrix = keras.utils.to_categorical(target_values, num_classes)
-        class_fractions = numpy.mean(target_matrix, axis=0)
-        print 'Fraction of target values in each class:\n{0:s}\n'.format(
-            str(class_fractions))
 
         if sounding_statistic_file_names is None:
             yield (image_matrix, target_matrix)
