@@ -154,6 +154,23 @@ def check_predictor_matrix(
     error_checking.assert_is_leq(num_dimensions, max_num_dimensions)
 
 
+def check_sounding_stat_matrix(sounding_stat_matrix, num_examples=None):
+    """Checks matrix of sounding statistics for errors.
+
+    :param sounding_stat_matrix: E-by-S numpy array of sounding statistics.
+    :param num_examples: Number of examples expected.
+    """
+
+    error_checking.assert_is_real_numpy_array(sounding_stat_matrix)
+    error_checking.assert_is_numpy_array(sounding_stat_matrix, num_dimensions=2)
+    if num_examples is None:
+        return
+
+    expected_dimensions = (num_examples, sounding_stat_matrix.shape[1])
+    error_checking.assert_is_numpy_array(
+        sounding_stat_matrix, exact_dimensions=expected_dimensions)
+
+
 def check_target_values(target_values, num_dimensions, num_classes):
     """Checks array of target values for errors.
 
