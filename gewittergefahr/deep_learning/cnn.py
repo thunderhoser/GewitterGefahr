@@ -17,7 +17,7 @@ import pickle
 import numpy
 import keras.losses
 import keras.optimizers
-from keras.models import Sequential, load_model
+import keras.models
 import keras.callbacks
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import cnn_utils
@@ -147,7 +147,7 @@ def get_mnist_architecture(num_classes, num_input_channels=3):
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
 
-    model_object = Sequential()
+    model_object = keras.models.Sequential()
 
     layer_object = cnn_utils.get_2d_conv_layer(
         num_output_filters=32, num_kernel_rows=3, num_kernel_columns=3,
@@ -195,7 +195,8 @@ def get_mnist_architecture(num_classes, num_input_channels=3):
     return model_object
 
 
-def get_2d_swirlnet_architecture(num_classes, num_input_channels=3):
+def get_2d_swirlnet_architecture(
+        num_classes, num_input_channels=3, num_sounding_stats=0):
     """Creates 2-D CNN (one that performs 2-D convolution).
 
     Architecture is similar to the following example:
@@ -205,16 +206,22 @@ def get_2d_swirlnet_architecture(num_classes, num_input_channels=3):
 
     :param num_classes: Number of target classes.
     :param num_input_channels: Number of input channels (predictor variables).
+    :param num_sounding_stats: Number of sounding statistics.  If the model is
+        not being trained with sounding statistics, leave this as 0.
     :return: model_object: Instance of `keras.models.Sequential` with the
         aforementioned architecture.
     """
 
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_integer(num_sounding_stats)
+    error_checking.assert_is_geq(num_sounding_stats, 0)
 
-    model_object = Sequential()
     regularizer_object = cnn_utils.get_weight_regularizer(
         l1_penalty=0, l2_penalty=0.01)
+
+    radar_input_layer_object = keras.layers.Input(shape=(
+        DEFAULT_NUM_INPUT_ROWS, DEFAULT_NUM_INPUT_COLUMNS, num_input_channels))
 
     # Input to this layer is E x 32 x 32 x C.
     layer_object = cnn_utils.get_2d_conv_layer(
@@ -222,22 +229,18 @@ def get_2d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_rows_per_stride=1, num_columns_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
-        activation_function='relu', is_first_layer=True,
-        num_input_rows=DEFAULT_NUM_INPUT_ROWS,
-        num_input_columns=DEFAULT_NUM_INPUT_COLUMNS,
-        num_input_channels=num_input_channels)
-    model_object.add(layer_object)
+        activation_function='relu', is_first_layer=False)(
+            radar_input_layer_object)
 
     # Input to this layer is E x 32 x 32 x 16.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
 
     # Input to this layer is E x 32 x 32 x 16.
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
+        num_columns_per_stride=2)(layer_object)
 
     # Input to this layer is E x 16 x 16 x 16.
     layer_object = cnn_utils.get_2d_conv_layer(
@@ -245,19 +248,17 @@ def get_2d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_rows_per_stride=1, num_columns_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
-        activation_function='relu')
-    model_object.add(layer_object)
+        activation_function='relu')(layer_object)
 
     # Input to this layer is E x 16 x 16 x 32.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
 
     # Input to this layer is E x 16 x 16 x 32.
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
+        num_columns_per_stride=2)(layer_object)
 
     # Input to this layer is E x 8 x 8 x 32.
     layer_object = cnn_utils.get_2d_conv_layer(
@@ -265,28 +266,39 @@ def get_2d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_rows_per_stride=1, num_columns_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
-        activation_function='relu')
-    model_object.add(layer_object)
+        activation_function='relu')(layer_object)
 
     # Input to this layer is E x 8 x 8 x 64.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
 
     # Input to this layer is E x 8 x 8 x 64.
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2)
-    model_object.add(layer_object)
+        num_columns_per_stride=2)(layer_object)
 
     # Input to this layer is E x 4 x 4 x 64.
-    layer_object = cnn_utils.get_flattening_layer()
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_flattening_layer()(layer_object)
 
-    # Input to this layer is length-1024.
+    if num_sounding_stats > 0:
+        sounding_input_layer_object = keras.layers.Input(
+            shape=(num_sounding_stats,))
+        layer_object = keras.layers.concatenate(
+            [layer_object, sounding_input_layer_object])
+
+    # Input to this layer is E x (1024 + num_sounding_stats).
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax')
-    model_object.add(layer_object)
+        num_output_units=num_classes, activation_function='softmax')(
+            layer_object)
+
+    if num_sounding_stats > 0:
+        model_object = keras.models.Model(
+            inputs=[radar_input_layer_object, sounding_input_layer_object],
+            outputs=layer_object)
+    else:
+        model_object = keras.models.Model(
+            inputs=radar_input_layer_object, outputs=layer_object)
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
@@ -296,26 +308,32 @@ def get_2d_swirlnet_architecture(num_classes, num_input_channels=3):
     return model_object
 
 
-def get_3d_swirlnet_architecture(num_classes, num_input_channels=3):
-    """Creates 3-D CNN (one that performs 3-D convolution).
+def get_3d_swirlnet_architecture(
+        num_classes, num_input_channels=3, num_sounding_stats=0):
+    """Creates 2-D CNN (one that performs 2-D convolution).
 
     Architecture is similar to the following example:
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
     deep_swirl_tutorial.ipynb
 
-    :param num_classes: Number of target classes.
-    :param num_input_channels: Number of input channels (predictor variables).
-    :return: model_object: Instance of `keras.models.Sequential` with the
-        aforementioned architecture.
+    :param num_classes: See doc for `get_2d_swirlnet_architecture`.
+    :param num_input_channels: Same.
+    :param num_sounding_stats: Same.
+    :return: model_object: Same.
     """
 
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_integer(num_sounding_stats)
+    error_checking.assert_is_geq(num_sounding_stats, 0)
 
-    model_object = Sequential()
     regularizer_object = cnn_utils.get_weight_regularizer(
         l1_penalty=0, l2_penalty=0.01)
+
+    radar_input_layer_object = keras.layers.Input(shape=(
+        DEFAULT_NUM_INPUT_ROWS, DEFAULT_NUM_INPUT_COLUMNS,
+        DEFAULT_NUM_INPUT_DEPTHS, num_input_channels))
 
     # Input to this layer is E x 32 x 32 x 12 x C.
     layer_object = cnn_utils.get_3d_conv_layer(
@@ -324,23 +342,18 @@ def get_3d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_columns_per_stride=1, num_depths_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
-        activation_function='relu', is_first_layer=True,
-        num_input_rows=DEFAULT_NUM_INPUT_ROWS,
-        num_input_columns=DEFAULT_NUM_INPUT_COLUMNS,
-        num_input_depths=DEFAULT_NUM_INPUT_DEPTHS,
-        num_input_channels=num_input_channels)
-    model_object.add(layer_object)
+        activation_function='relu', is_first_layer=False)(
+            radar_input_layer_object)
 
     # Input to this layer is E x 32 x 32 x 12 x 8C.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
 
     # Input to this layer is E x 32 x 32 x 12 x 8C.
     layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2, num_depths_per_stride=2)
-    model_object.add(layer_object)
+        num_columns_per_stride=2, num_depths_per_stride=2)(layer_object)
 
     # Input to this layer is E x 16 x 16 x 6 x 8C.
     layer_object = cnn_utils.get_3d_conv_layer(
@@ -349,19 +362,17 @@ def get_3d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_columns_per_stride=1, num_depths_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
-        activation_function='relu')
-    model_object.add(layer_object)
+        activation_function='relu')(layer_object)
 
     # Input to this layer is E x 16 x 16 x 6 x 16C.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
 
     # Input to this layer is E x 16 x 16 x 6 x 16C.
     layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2, num_depths_per_stride=2)
-    model_object.add(layer_object)
+        num_columns_per_stride=2, num_depths_per_stride=2)(layer_object)
 
     # Input to this layer is E x 8 x 8 x 3 x 16C.
     layer_object = cnn_utils.get_3d_conv_layer(
@@ -370,28 +381,39 @@ def get_3d_swirlnet_architecture(num_classes, num_input_channels=3):
         num_columns_per_stride=1, num_depths_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
-        activation_function='relu')
-    model_object.add(layer_object)
+        activation_function='relu')(layer_object)
 
     # Input to this layer is E x 8 x 8 x 3 x 32C.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
 
     # Input to this layer is E x 8 x 8 x 3 x 32C.
     layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2, num_depths_in_window=3,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
-        num_columns_per_stride=2, num_depths_per_stride=3)
-    model_object.add(layer_object)
+        num_columns_per_stride=2, num_depths_per_stride=3)(layer_object)
 
     # Input to this layer is E x 4 x 4 x 1 x 32C.
-    layer_object = cnn_utils.get_flattening_layer()
-    model_object.add(layer_object)
+    layer_object = cnn_utils.get_flattening_layer()(layer_object)
+
+    if num_sounding_stats > 0:
+        sounding_input_layer_object = keras.layers.Input(
+            shape=(num_sounding_stats,))
+        layer_object = keras.layers.concatenate(
+            [layer_object, sounding_input_layer_object])
 
     # Input to this layer is length-512C.
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax')
-    model_object.add(layer_object)
+        num_output_units=num_classes, activation_function='softmax')(
+            layer_object)
+
+    if num_sounding_stats > 0:
+        model_object = keras.models.Model(
+            inputs=[radar_input_layer_object, sounding_input_layer_object],
+            outputs=layer_object)
+    else:
+        model_object = keras.models.Model(
+            inputs=radar_input_layer_object, outputs=layer_object)
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
@@ -409,7 +431,7 @@ def read_model(hdf5_file_name):
     """
 
     error_checking.assert_file_exists(hdf5_file_name)
-    return load_model(
+    return keras.models.load_model(
         hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
 
 
