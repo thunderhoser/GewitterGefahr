@@ -90,7 +90,7 @@ def _train_3d_gridrad_cnn(
 
     cnn.write_model_metadata(
         num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_time=num_examples_per_time,
+        num_examples_per_init_time=num_examples_per_time,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         first_train_time_unix_sec=first_train_time_unix_sec,
         last_train_time_unix_sec=last_train_time_unix_sec,
@@ -104,8 +104,8 @@ def _train_3d_gridrad_cnn(
         normalize_by_batch=NORMALIZE_BY_BATCH,
         normalization_dict=NORMALIZATION_DICT,
         percentile_offset_for_normalization=None,
-        class_fractions=class_fractions_to_sample,
-        pickle_file_name=metadata_file_name)
+        class_fractions_to_sample=class_fractions_to_sample,
+        sounding_statistic_names=None, pickle_file_name=metadata_file_name)
 
     # Determine number of classes.
     target_param_dict = labels.column_name_to_label_params(target_name)
@@ -150,15 +150,13 @@ def _train_3d_gridrad_cnn(
         history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        training_file_name_matrix=training_file_name_matrix,
+        train_image_file_name_matrix=training_file_name_matrix,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_time=num_examples_per_time, target_name=target_name,
-        normalize_by_batch=NORMALIZE_BY_BATCH,
-        normalization_dict=NORMALIZATION_DICT,
-        weight_loss_function=weight_loss_function,
+        num_examples_per_init_time=num_examples_per_time,
+        target_name=target_name, weight_loss_function=weight_loss_function,
         class_fractions_to_sample=class_fractions_to_sample,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validation_file_name_matrix=validation_file_name_matrix)
+        validn_image_file_name_matrix=validation_file_name_matrix)
 
 
 if __name__ == '__main__':
