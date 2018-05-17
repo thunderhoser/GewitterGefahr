@@ -358,13 +358,12 @@ def _find_many_files_one_spc_date(
 
         this_file_pattern = (
             '{0:s}/{1:s}/{2:s}/{3:s}/{4:s}/{5:05d}_metres_asl/'
-            'storm_images_{6:s}.p'
+            'storm_images_{6:s}.nc'
         ).format(
             top_directory_name, radar_source, spc_date_string[:4],
             spc_date_string, field_name_by_pair[j],
             numpy.round(int(height_by_pair_m_asl[j])),
             TIME_FORMAT_REGEX)
-        print this_file_pattern
 
         these_file_names = glob.glob(this_file_pattern)
         image_file_names = []
