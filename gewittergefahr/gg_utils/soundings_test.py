@@ -516,6 +516,53 @@ THIS_DICT = {
 }
 SOUNDING_STATISTIC_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
+# The following constants are used to test _get_unique_storm_soundings.
+THIS_SOUNDING_DICT1 = {
+    soundings.PRESSURE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([1., 2., 3.]),
+    soundings.HEIGHT_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([4., 5., 6.]),
+    soundings.TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([7., 8., 9.]),
+    soundings.DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([10., 11., 12.]),
+    soundings.U_WIND_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([13., 14., 15.]),
+    soundings.V_WIND_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([16., 17., 18.]),
+    soundings.SURFACE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([19., 20., 21.])
+}
+THIS_SOUNDING_TABLE1 = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT1)
+
+THIS_SOUNDING_DICT2 = {
+    soundings.PRESSURE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([3., 2., 1.]),
+    soundings.HEIGHT_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([4., 5., 6.]),
+    soundings.TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([7., 8., 9.]),
+    soundings.DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([10., 11., 12.]),
+    soundings.U_WIND_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([13., 14., 15.]),
+    soundings.V_WIND_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([16., 17., 18.]),
+    soundings.SURFACE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([19., 20., 21.])
+}
+THIS_SOUNDING_TABLE2 = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT2)
+
+THIS_SOUNDING_DICT3 = {
+    soundings.PRESSURE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([3., 2., 1.]),
+    soundings.HEIGHT_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([6., 5., 4.]),
+    soundings.TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([7., 8., 9.]),
+    soundings.DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([10., 11., 12.]),
+    soundings.U_WIND_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([13., 14., 15.]),
+    soundings.V_WIND_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([16., 17., 18.]),
+    soundings.SURFACE_COLUMN_IN_SHARPPY_SOUNDING: numpy.array([19., 20., 21.])
+}
+THIS_SOUNDING_TABLE3 = pandas.DataFrame.from_dict(THIS_SOUNDING_DICT3)
+
+LIST_OF_SOUNDING_TABLES = [
+    None, THIS_SOUNDING_TABLE1, None, THIS_SOUNDING_TABLE2, None,
+    THIS_SOUNDING_TABLE3, None, THIS_SOUNDING_TABLE3, None,
+    THIS_SOUNDING_TABLE2, None, THIS_SOUNDING_TABLE1]
+
+U_MOTIONS_M_S01 = numpy.array(
+    [0., 5., 10., 15., 20., 25., 30., 27.5, 20., 15., 10., 5.])
+V_MOTIONS_M_S01 = numpy.full(len(U_MOTIONS_M_S01), 0.)
+
+UNIQUE_INDICES = numpy.array([3, 5, 7, 1, 0], dtype=int)
+ORIG_TO_UNIQUE_INDICES = numpy.array(
+    [4, 3, 4, 0, 4, 1, 4, 2, 4, 0, 4, 3], dtype=int)
+
 # The following constants are used to test find_sounding_statistic_file.
 TOP_DIRECTORY_NAME = 'poop'
 INIT_TIME_UNIX_SEC = 1526335354  # 220234 UTC 14 May 2018
@@ -982,6 +1029,18 @@ class SoundingsTests(unittest.TestCase):
                 this_sounding_stat_table[this_column].values,
                 SOUNDING_STATISTIC_TABLE[this_column].values, atol=TOLERANCE,
                 equal_nan=True))
+
+    def test_get_unique_storm_soundings(self):
+        """Ensures correct output from _get_unique_storm_soundings."""
+
+        these_unique_indices, these_indices_orig_to_unique = (
+            soundings._get_unique_storm_soundings(
+                LIST_OF_SOUNDING_TABLES, u_motions_m_s01=U_MOTIONS_M_S01,
+                v_motions_m_s01=V_MOTIONS_M_S01))
+
+        self.assertTrue(numpy.array_equal(these_unique_indices, UNIQUE_INDICES))
+        self.assertTrue(numpy.array_equal(
+            these_indices_orig_to_unique, ORIG_TO_UNIQUE_INDICES))
 
     def test_find_sounding_statistic_file(self):
         """Ensures correct output from find_sounding_statistic_file."""
