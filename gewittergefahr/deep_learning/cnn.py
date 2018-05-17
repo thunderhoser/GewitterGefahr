@@ -1352,3 +1352,45 @@ def apply_3d_cnn(model_object, image_matrix, sounding_stat_matrix=None):
         sounding_stat_matrix=sounding_stat_matrix, num_examples=num_examples)
     return model_object.predict(
         [image_matrix, sounding_stat_matrix], batch_size=num_examples)
+
+
+def apply_2d3d_cnn_to_myrorss(
+        model_object, reflectivity_image_matrix_dbz, az_shear_image_matrix_s01):
+    """Applies hybrid 2D/3D CNN to MYRORSS data.
+
+    m = number of pixel rows per reflectivity image
+    n = number of pixel columns per reflectivity image
+    D = number of pixel heights (depths) per reflectivity image
+    M = number of pixel rows per azimuthal-shear image
+    N = number of pixel columns per azimuthal-shear image
+    F = number of azimuthal-shear fields
+
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param reflectivity_image_matrix_dbz: E-by-m-by-n-by-D-by-1 numpy array of
+        storm-centered reflectivity images.
+    :param az_shear_image_matrix_s01: E-by-M-by-N-by-F numpy array of storm-
+        centered azimuthal-shear images.
+    :return: class_probability_matrix: E-by-K numpy array of forecast
+        probabilities.  class_probability_matrix[i, k] is the forecast
+        probability the [i]th example belongs to the [k]th class.
+    """
+
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
+        max_num_dimensions=5)
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=az_shear_image_matrix_s01, min_num_dimensions=4,
+        max_num_dimensions=4)
+
+    expected_dimensions = reflectivity_image_matrix_dbz.shape[:-1] + (1,)
+    error_checking.assert_is_numpy_array(
+        reflectivity_image_matrix_dbz, exact_dimensions=expected_dimensions)
+
+    num_examples = reflectivity_image_matrix_dbz.shape[0]
+    expected_dimensions = (num_examples,) + az_shear_image_matrix_s01[1:]
+    error_checking.assert_is_numpy_array(
+        az_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
+
+    return model_object.predict(
+        [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01],
+        batch_size=num_examples)

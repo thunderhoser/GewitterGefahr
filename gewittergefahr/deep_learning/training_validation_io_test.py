@@ -9,7 +9,7 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _remove_storms_with_undef_target.
+# The following constants are used to test remove_storms_with_undef_target.
 THESE_STORM_IDS = ['A', 'B', 'C', 'D']
 THIS_IMAGE_MATRIX = numpy.reshape(numpy.linspace(1., 24., num=24), (4, 3, 2))
 THESE_TARGET_VALUES = numpy.array([-1, 0, -3, 1], dtype=int)
@@ -63,7 +63,7 @@ NUM_EXAMPLES_IN_MEMORY_BY_CLASS_200ZEROS = numpy.array([200, 0], dtype=int)
 NUM_EXAMPLES_IN_MEMORY_BY_CLASS_ENOUGH_ONES = numpy.array([170, 30], dtype=int)
 
 # The following constants are used to test
-# _separate_input_files_for_2d3d_myrorss.
+# separate_input_files_for_2d3d_myrorss.
 IMAGE_FILE_NAME_MATRIX = numpy.array([['A', 'B', 'C', 'D', 'E'],
                                       ['F', 'G', 'H', 'I', 'J']], dtype=object)
 FIELD_NAME_BY_PAIR = [
@@ -88,10 +88,10 @@ class TrainingValidationIoTests(unittest.TestCase):
     """Each method is a unit test for training_validation_io.py."""
 
     def test_remove_storms_with_undef_target(self):
-        """Ensures correct output from _remove_storms_with_undef_target."""
+        """Ensures correct output from remove_storms_with_undef_target."""
 
         this_input_dict = copy.deepcopy(STORM_IMAGE_DICT_WITH_UNDEF_TARGETS)
-        this_storm_image_dict, _ = trainval_io._remove_storms_with_undef_target(
+        this_storm_image_dict, _ = trainval_io.remove_storms_with_undef_target(
             this_input_dict)
 
         actual_keys = this_storm_image_dict.keys()
@@ -370,13 +370,13 @@ class TrainingValidationIoTests(unittest.TestCase):
         self.assertTrue(this_stopping_criterion)
 
     def test_separate_input_files_no_refl(self):
-        """Ensures correctness of _separate_input_files_for_2d3d_myrorss.
+        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
 
         In this case, there are no reflectivity files.
         """
 
         with self.assertRaises(ValueError):
-            trainval_io._separate_input_files_for_2d3d_myrorss(
+            trainval_io.separate_input_files_for_2d3d_myrorss(
                 image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
                     ..., NON_REFLECTIVITY_INDICES],
                 test_mode=True,
@@ -386,13 +386,13 @@ class TrainingValidationIoTests(unittest.TestCase):
                     NON_REFLECTIVITY_INDICES])
 
     def test_separate_input_files_no_az_shear(self):
-        """Ensures correctness of _separate_input_files_for_2d3d_myrorss.
+        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
 
         In this case, there are no azimuthal-shear files.
         """
 
         with self.assertRaises(ValueError):
-            trainval_io._separate_input_files_for_2d3d_myrorss(
+            trainval_io.separate_input_files_for_2d3d_myrorss(
                 image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
                     ..., NON_AZIMUTHAL_SHEAR_INDICES],
                 test_mode=True,
@@ -402,14 +402,14 @@ class TrainingValidationIoTests(unittest.TestCase):
                     NON_AZIMUTHAL_SHEAR_INDICES])
 
     def test_separate_input_files_bad_fields(self):
-        """Ensures correctness of _separate_input_files_for_2d3d_myrorss.
+        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
 
         In this case, one of the radar fields is neither reflectivity nor
         azimuthal shear.
         """
 
         with self.assertRaises(ValueError):
-            trainval_io._separate_input_files_for_2d3d_myrorss(
+            trainval_io.separate_input_files_for_2d3d_myrorss(
                 image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
                     ..., MESH_INDICES],
                 test_mode=True,
@@ -418,13 +418,13 @@ class TrainingValidationIoTests(unittest.TestCase):
                 height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[MESH_INDICES])
 
     def test_separate_input_files_all_good(self):
-        """Ensures correctness of _separate_input_files_for_2d3d_myrorss.
+        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
 
         In this case, all input files are valid.
         """
 
         this_refl_file_name_matrix, this_az_shear_file_name_matrix = (
-            trainval_io._separate_input_files_for_2d3d_myrorss(
+            trainval_io.separate_input_files_for_2d3d_myrorss(
                 image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
                     ..., NON_MESH_INDICES],
                 test_mode=True,

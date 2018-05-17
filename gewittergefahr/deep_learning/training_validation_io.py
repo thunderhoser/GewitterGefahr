@@ -106,37 +106,6 @@ def _shuffle_times(image_file_name_matrix, sounding_statistic_file_names=None):
     return image_file_name_matrix, sounding_statistic_file_names
 
 
-def _remove_storms_with_undef_target(storm_image_dict):
-    """Removes storm objects with undefined target value (-1).
-
-    E = number of valid storm objects
-
-    :param storm_image_dict: Dictionary created by
-        `storm_images.read_storm_images_and_labels`.
-    :return: storm_image_dict: Same as input, but maybe with fewer storm
-        objects.
-    :return: valid_storm_indices: length-E numpy array with indices of valid
-        storm objects.  These are indices into the original dictionary, used to
-        obtain the new dictionary.
-    """
-
-    valid_storm_indices = numpy.where(
-        storm_image_dict[storm_images.LABEL_VALUES_KEY] >= 0)[0]
-
-    keys_to_change = [
-        storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
-        storm_images.LABEL_VALUES_KEY]
-    for this_key in keys_to_change:
-        if this_key == storm_images.STORM_IDS_KEY:
-            storm_image_dict[this_key] = [
-                storm_image_dict[this_key][i] for i in valid_storm_indices]
-        else:
-            storm_image_dict[this_key] = storm_image_dict[this_key][
-                valid_storm_indices, ...]
-
-    return storm_image_dict, valid_storm_indices
-
-
 def _get_num_examples_per_batch_by_class(
         num_examples_per_batch, target_name, class_fractions_to_sample):
     """Returns number of examples needed per batch for each class.
@@ -285,7 +254,38 @@ def _select_batch(
     return list_of_image_matrices, target_matrix
 
 
-def _separate_input_files_for_2d3d_myrorss(
+def remove_storms_with_undef_target(storm_image_dict):
+    """Removes storm objects with undefined target value (-1).
+
+    E = number of valid storm objects
+
+    :param storm_image_dict: Dictionary created by
+        `storm_images.read_storm_images_and_labels`.
+    :return: storm_image_dict: Same as input, but maybe with fewer storm
+        objects.
+    :return: valid_storm_indices: length-E numpy array with indices of valid
+        storm objects.  These are indices into the original dictionary, used to
+        obtain the new dictionary.
+    """
+
+    valid_storm_indices = numpy.where(
+        storm_image_dict[storm_images.LABEL_VALUES_KEY] >= 0)[0]
+
+    keys_to_change = [
+        storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
+        storm_images.LABEL_VALUES_KEY]
+    for this_key in keys_to_change:
+        if this_key == storm_images.STORM_IDS_KEY:
+            storm_image_dict[this_key] = [
+                storm_image_dict[this_key][i] for i in valid_storm_indices]
+        else:
+            storm_image_dict[this_key] = storm_image_dict[this_key][
+                valid_storm_indices, ...]
+
+    return storm_image_dict, valid_storm_indices
+
+
+def separate_input_files_for_2d3d_myrorss(
         image_file_name_matrix, test_mode=False, field_name_by_pair=None,
         height_by_pair_m_asl=None):
     """Separates input files into reflectivity and azimuthal shear.
@@ -364,13 +364,13 @@ def _separate_input_files_for_2d3d_myrorss(
     sort_indices = numpy.argsort(height_by_pair_m_asl[reflectivity_indices])
     reflectivity_indices = reflectivity_indices[sort_indices]
     reflectivity_file_name_matrix = image_file_name_matrix[
-        :, reflectivity_indices]
+        ..., reflectivity_indices]
 
     sort_indices = numpy.argsort(
         numpy.array(field_name_by_pair)[azimuthal_shear_indices])
     azimuthal_shear_indices = azimuthal_shear_indices[sort_indices]
     az_shear_file_name_matrix = image_file_name_matrix[
-        :, azimuthal_shear_indices]
+        ..., azimuthal_shear_indices]
 
     return reflectivity_file_name_matrix, az_shear_file_name_matrix
 
@@ -723,7 +723,7 @@ def storm_image_generator_2d(
                 continue
 
             this_storm_image_dict, these_valid_storm_indices = (
-                _remove_storms_with_undef_target(this_storm_image_dict))
+                remove_storms_with_undef_target(this_storm_image_dict))
             if not len(these_valid_storm_indices):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -883,7 +883,7 @@ def storm_image_generator_2d3d_myrorss(
 
     image_file_name_matrix, _ = _shuffle_times(image_file_name_matrix)
     reflectivity_file_name_matrix, az_shear_file_name_matrix = (
-        _separate_input_files_for_2d3d_myrorss(image_file_name_matrix))
+        separate_input_files_for_2d3d_myrorss(image_file_name_matrix))
 
     num_init_times = reflectivity_file_name_matrix.shape[0]
     num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]
@@ -956,7 +956,7 @@ def storm_image_generator_2d3d_myrorss(
                 continue
 
             this_storm_image_dict, these_valid_storm_indices = (
-                _remove_storms_with_undef_target(this_storm_image_dict))
+                remove_storms_with_undef_target(this_storm_image_dict))
             if not len(these_valid_storm_indices):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -978,11 +978,10 @@ def storm_image_generator_2d3d_myrorss(
                             init_time_index, j],
                         indices_to_keep=these_valid_storm_indices)
 
-                this_reflectivity_matrix_dbz = (
-                    dl_utils.stack_predictor_variables(
-                        (this_storm_image_dict[
-                            storm_images.STORM_IMAGE_MATRIX_KEY],)))
-                tuple_of_4d_refl_matrices += (this_reflectivity_matrix_dbz,)
+                this_4d_matrix = dl_utils.stack_predictor_variables((
+                    this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
+                ))
+                tuple_of_4d_refl_matrices += (this_4d_matrix,)
 
             for j in range(num_az_shear_fields):
                 print 'Reading data from: "{0:s}"...'.format(
@@ -1192,7 +1191,7 @@ def storm_image_generator_3d(
                 continue
 
             this_storm_image_dict, these_valid_storm_indices = (
-                _remove_storms_with_undef_target(this_storm_image_dict))
+                remove_storms_with_undef_target(this_storm_image_dict))
             if not len(these_valid_storm_indices):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
