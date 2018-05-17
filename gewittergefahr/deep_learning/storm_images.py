@@ -757,17 +757,6 @@ def extract_storm_images_myrorss_or_mrms(
                 this_sparse_grid_table, this_metadata_dict)
             this_radar_matrix[numpy.isnan(this_radar_matrix)] = 0.
 
-            this_lat_spacing_deg = rounder.round_to_nearest(
-                this_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-                GRID_SPACING_TOLERANCE_DEG)
-            this_lng_spacing_deg = rounder.round_to_nearest(
-                this_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-                GRID_SPACING_TOLERANCE_DEG)
-
-            if latitude_spacing_deg is None:
-                latitude_spacing_deg = this_lat_spacing_deg + 0.
-                longitude_spacing_deg = this_lng_spacing_deg + 0.
-
             if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
                 this_num_image_rows = (
                     num_storm_image_rows * AZ_SHEAR_GRID_SPACING_MULTIPLIER)
