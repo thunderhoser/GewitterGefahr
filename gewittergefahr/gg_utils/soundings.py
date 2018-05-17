@@ -1118,6 +1118,7 @@ def _compute_sounding_statistics(
     except:
         sounding_table_sharppy = _remove_subsurface_pressure_levels(
             sounding_table_sharppy=sounding_table_sharppy, delete_rows=True)
+        print sounding_table_sharppy
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
