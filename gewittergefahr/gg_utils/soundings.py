@@ -908,11 +908,11 @@ def _create_query_points(storm_object_table, lead_times_sec):
                     displacements_metres=storm_speeds_m_s01 * lead_times_sec[i],
                     geodetic_bearings_deg=geodetic_bearings_deg))
 
-            print numpy.max(these_extrap_latitudes_deg - storm_object_table[
+            print numpy.mean(these_extrap_latitudes_deg - storm_object_table[
                 tracking_utils.CENTROID_LAT_COLUMN].values)
-            print numpy.max(these_extrap_longitudes_deg - storm_object_table[
+            print numpy.mean(these_extrap_longitudes_deg - storm_object_table[
                 tracking_utils.CENTROID_LNG_COLUMN].values)
-
+            
             this_dict = {
                 tracking_utils.CENTROID_LAT_COLUMN: these_extrap_latitudes_deg,
                 tracking_utils.CENTROID_LNG_COLUMN: these_extrap_longitudes_deg,
