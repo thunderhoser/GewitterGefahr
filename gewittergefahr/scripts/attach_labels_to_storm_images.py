@@ -171,10 +171,15 @@ if __name__ == '__main__':
             RADAR_FIELD_NAMES = copy.deepcopy(
                 storm_images.DEFAULT_MYRORSS_MRMS_FIELD_NAMES)
 
+    RADAR_HEIGHTS_M_ASL = numpy.array(
+        getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int)
+    if not len(RADAR_HEIGHTS_M_ASL):
+        RADAR_HEIGHTS_M_ASL = copy.deepcopy(
+            storm_images.DEFAULT_RADAR_HEIGHTS_M_ASL)
+
     _run_attach_labels(
         radar_source=RADAR_SOURCE, radar_field_names=RADAR_FIELD_NAMES,
-        radar_heights_m_asl=numpy.array(
-            getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int),
+        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
         top_storm_image_dir_name=getattr(
             INPUT_ARG_OBJECT, STORM_IMAGE_DIR_ARG_NAME),
