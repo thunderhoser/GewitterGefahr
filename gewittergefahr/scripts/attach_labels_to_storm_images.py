@@ -12,6 +12,7 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import storm_images
 
 EMPTY_STRING = 'None'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 RADAR_SOURCE_ARG_NAME = 'radar_source'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
@@ -126,6 +127,8 @@ def _run_attach_labels(
                 radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=radar_heights_m_asl,
                 raise_error_if_missing=True))
+
+    print SEPARATOR_STRING
 
     if top_wind_label_dir_name == EMPTY_STRING:
         storm_to_winds_table = None

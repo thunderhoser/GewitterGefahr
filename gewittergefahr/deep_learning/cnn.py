@@ -27,9 +27,11 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-DEFAULT_NUM_INPUT_ROWS = 32
-DEFAULT_NUM_INPUT_COLUMNS = 32
-DEFAULT_NUM_INPUT_DEPTHS = 12
+NUM_INPUT_ROWS = 32
+NUM_INPUT_COLUMNS = 32
+NUM_INPUT_DEPTHS = 12
+NUM_INPUT_ROWS_FOR_AZ_SHEAR = 64
+NUM_INPUT_COLUMNS_FOR_AZ_SHEAR = 64
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
@@ -67,6 +69,7 @@ NORMALIZATION_DICT_KEY = 'normalization_dict'
 PERCENTILE_OFFSET_KEY = 'percentile_offset_for_normalization'
 CLASS_FRACTIONS_KEY = 'class_fractions'
 SOUNDING_STAT_NAMES_KEY = 'sounding_statistic_names'
+USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
 
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_INIT_TIME_KEY,
@@ -75,7 +78,9 @@ MODEL_METADATA_KEYS = [
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, RADAR_SOURCE_KEY,
     RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY,
     TARGET_NAME_KEY, NORMALIZE_BY_BATCH_KEY, NORMALIZATION_DICT_KEY,
-    PERCENTILE_OFFSET_KEY, CLASS_FRACTIONS_KEY, SOUNDING_STAT_NAMES_KEY]
+    PERCENTILE_OFFSET_KEY, CLASS_FRACTIONS_KEY, SOUNDING_STAT_NAMES_KEY,
+    USE_2D3D_CONVOLUTION_KEY
+]
 
 
 # TODO(thunderhoser): should play with Adam optimizer, per DJ Gagne.
@@ -153,8 +158,8 @@ def get_mnist_architecture(num_classes, num_input_channels=3):
         num_output_filters=32, num_kernel_rows=3, num_kernel_columns=3,
         num_rows_per_stride=1, num_columns_per_stride=1,
         padding_type=cnn_utils.NO_PADDING_TYPE, activation_function='relu',
-        is_first_layer=True, num_input_rows=DEFAULT_NUM_INPUT_ROWS,
-        num_input_columns=DEFAULT_NUM_INPUT_COLUMNS,
+        is_first_layer=True, num_input_rows=NUM_INPUT_ROWS,
+        num_input_columns=NUM_INPUT_COLUMNS,
         num_input_channels=num_input_channels)
     model_object.add(layer_object)
 
@@ -221,7 +226,7 @@ def get_2d_swirlnet_architecture(
         l1_penalty=0, l2_penalty=0.01)
 
     radar_input_layer_object = keras.layers.Input(shape=(
-        DEFAULT_NUM_INPUT_ROWS, DEFAULT_NUM_INPUT_COLUMNS, num_input_channels))
+        NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, num_input_channels))
 
     # Input to this layer is E x 32 x 32 x C.
     layer_object = cnn_utils.get_2d_conv_layer(
@@ -332,8 +337,8 @@ def get_3d_swirlnet_architecture(
         l1_penalty=0, l2_penalty=0.01)
 
     radar_input_layer_object = keras.layers.Input(shape=(
-        DEFAULT_NUM_INPUT_ROWS, DEFAULT_NUM_INPUT_COLUMNS,
-        DEFAULT_NUM_INPUT_DEPTHS, num_input_channels))
+        NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, NUM_INPUT_DEPTHS, num_input_channels
+    ))
 
     # Input to this layer is E x 32 x 32 x 12 x C.
     layer_object = cnn_utils.get_3d_conv_layer(
@@ -423,6 +428,195 @@ def get_3d_swirlnet_architecture(
     return model_object
 
 
+def get_architecture_for_2d3d_myrorss(
+        num_classes, num_azimuthal_shear_fields=2):
+    """Creates hybrid 2D-3D CNN for MYRORSS data.
+
+    This CNN will perform 3-D convolution over reflectivity fields and 2-D
+    convolution over azimuthal-shear fields.
+
+    F = number of azimuthal-shear fields
+
+    :param num_classes: Number of target classes.
+    :param num_azimuthal_shear_fields: Number of azimuthal-shear fields.
+    :return: model_object: Instance of `keras.models.Sequential` with the
+        aforementioned architecture.
+    """
+
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_integer(num_azimuthal_shear_fields)
+    error_checking.assert_is_geq(num_azimuthal_shear_fields, 1)
+
+    regularizer_object = cnn_utils.get_weight_regularizer(
+        l1_penalty=0, l2_penalty=0.01)
+
+    reflectivity_input_layer_object = keras.layers.Input(shape=(
+        NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, NUM_INPUT_DEPTHS, 1))
+    az_shear_input_layer_object = keras.layers.Input(shape=(
+        NUM_INPUT_ROWS_FOR_AZ_SHEAR, NUM_INPUT_COLUMNS_FOR_AZ_SHEAR,
+        num_azimuthal_shear_fields))
+
+    # Input to this layer is E x 32 x 32 x 12 x 1.
+    reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
+        num_output_filters=8, num_kernel_rows=5, num_kernel_columns=5,
+        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu', is_first_layer=False)(
+            reflectivity_input_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 12 x 8.
+    reflectivity_layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=0.1)(reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 12 x 8.
+    reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
+        num_rows_in_window=1, num_columns_in_window=1, num_depths_in_window=2,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=2)(
+            reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 6 x 8.
+    reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
+        num_output_filters=16, num_kernel_rows=5, num_kernel_columns=5,
+        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu')(reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 6 x 16.
+    reflectivity_layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=0.1)(reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 6 x 16.
+    reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
+        num_rows_in_window=1, num_columns_in_window=1, num_depths_in_window=2,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=2)(
+            reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 3 x 16.
+    reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
+        num_output_filters=32, num_kernel_rows=5, num_kernel_columns=5,
+        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu')(reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 3 x 32.
+    reflectivity_layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=0.1)(reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 3 x 32.
+    reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
+        num_rows_in_window=1, num_columns_in_window=1, num_depths_in_window=3,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=3)(
+            reflectivity_layer_object)
+
+    # Input to this layer is E x 32 x 32 x 1 x 32.  Output is 32 x 32 x 32.
+    reflectivity_layer_object = keras.layers.Reshape(
+        target_shape=(NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, 32))(
+            reflectivity_layer_object)
+
+    # Input to this layer is E x 64 x 64 x F.
+    az_shear_layer_object = cnn_utils.get_2d_conv_layer(
+        num_output_filters=16, num_kernel_rows=5, num_kernel_columns=5,
+        num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu', is_first_layer=False)(
+            az_shear_input_layer_object)
+
+    # Input to this layer is E x 64 x 64 x 16.
+    az_shear_layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        az_shear_layer_object)
+
+    # Input to this layer is E x 64 x 64 x 16.  Output is E x 32 x 32 x 16.
+    az_shear_layer_object = cnn_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+        num_columns_per_stride=2)(az_shear_layer_object)
+
+    # Output of this layer is E x 32 x 32 x 48.
+    layer_object = keras.layers.concatenate(
+        [reflectivity_layer_object, az_shear_layer_object], axis=-1)
+
+    # Input to this layer is E x 32 x 32 x 48.
+    layer_object = cnn_utils.get_2d_conv_layer(
+        num_output_filters=96, num_kernel_rows=5, num_kernel_columns=5,
+        num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu')(layer_object)
+
+    # Input to this layer is E x 32 x 32 x 96.
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
+
+    # Input to this layer is E x 32 x 32 x 96.
+    layer_object = cnn_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+        num_columns_per_stride=2)(layer_object)
+
+    # Input to this layer is E x 16 x 16 x 96.
+    layer_object = cnn_utils.get_2d_conv_layer(
+        num_output_filters=192, num_kernel_rows=5, num_kernel_columns=5,
+        num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu')(layer_object)
+
+    # Input to this layer is E x 16 x 16 x 192.
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
+
+    # Input to this layer is E x 16 x 16 x 192.
+    layer_object = cnn_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+        num_columns_per_stride=2)(layer_object)
+
+    # Input to this layer is E x 8 x 8 x 192.
+    layer_object = cnn_utils.get_2d_conv_layer(
+        num_output_filters=384, num_kernel_rows=5, num_kernel_columns=5,
+        num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object,
+        activation_function='relu')(layer_object)
+
+    # Input to this layer is E x 8 x 8 x 384.
+    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
+        layer_object)
+
+    # Input to this layer is E x 8 x 8 x 384.
+    layer_object = cnn_utils.get_2d_pooling_layer(
+        num_rows_in_window=2, num_columns_in_window=2,
+        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+        num_columns_per_stride=2)(layer_object)
+
+    # Input to this layer is E x 4 x 4 x 384.
+    layer_object = cnn_utils.get_flattening_layer()(layer_object)
+
+    # Input to this layer is E x 6144.
+    layer_object = cnn_utils.get_fully_connected_layer(
+        num_output_units=num_classes, activation_function='softmax')(
+            layer_object)
+
+    model_object = keras.models.Model(
+        inputs=[reflectivity_input_layer_object, az_shear_input_layer_object],
+        outputs=layer_object)
+
+    model_object.compile(
+        loss=keras.losses.categorical_crossentropy,
+        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
+
+    model_object.summary()
+    return model_object
+
+
 def read_model(hdf5_file_name):
     """Reads model from HDF5 file.
 
@@ -443,7 +637,8 @@ def write_model_metadata(
         radar_source, radar_field_names, radar_heights_m_asl,
         reflectivity_heights_m_asl, target_name, normalize_by_batch,
         normalization_dict, percentile_offset_for_normalization,
-        class_fractions_to_sample, sounding_statistic_names, pickle_file_name):
+        class_fractions_to_sample, sounding_statistic_names,
+        use_2d3d_convolution, pickle_file_name):
     """Writes metadata to Pickle file.
 
     :param num_epochs: See documentation for `train_2d_cnn` or `train_3d_cnn`.
@@ -472,6 +667,8 @@ def write_model_metadata(
     :param percentile_offset_for_normalization: Same.
     :param class_fractions_to_sample: Same.
     :param sounding_statistic_names: Same.
+    :param use_2d3d_convolution: Boolean flag.  If True, the model convolves
+        over both 3-D reflectivity and 2-D azimuthal-shear fields.
     :param pickle_file_name: Path to output file.
     """
 
@@ -494,7 +691,8 @@ def write_model_metadata(
         NORMALIZATION_DICT_KEY: normalization_dict,
         PERCENTILE_OFFSET_KEY: percentile_offset_for_normalization,
         CLASS_FRACTIONS_KEY: class_fractions_to_sample,
-        SOUNDING_STAT_NAMES_KEY: sounding_statistic_names
+        SOUNDING_STAT_NAMES_KEY: sounding_statistic_names,
+        USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -519,6 +717,8 @@ def read_model_metadata(pickle_file_name):
 
     if SOUNDING_STAT_NAMES_KEY not in model_metadata_dict:
         model_metadata_dict.update({SOUNDING_STAT_NAMES_KEY: None})
+    if USE_2D3D_CONVOLUTION_KEY not in model_metadata_dict:
+        model_metadata_dict.update({USE_2D3D_CONVOLUTION_KEY: False})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
@@ -733,6 +933,176 @@ def train_2d_cnn_with_dynamic_sampling(
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             validn_image_file_name_matrix=validn_image_file_name_matrix,
             validn_sounding_stat_file_names=validn_sounding_stat_file_names)
+
+
+def train_2d3d_cnn_with_myrorss(
+        model_object, model_file_name, history_file_name, tensorboard_dir_name,
+        num_epochs, num_training_batches_per_epoch,
+        train_image_file_name_matrix, num_examples_per_batch,
+        num_examples_per_init_time, target_name, weight_loss_function=False,
+        class_fractions_to_sample=None, num_validation_batches_per_epoch=None,
+        validn_image_file_name_matrix=None):
+    """Trains hybrid 2D/3D CNN with MYRORSS data.
+
+    T = number of storm times (initial times) for training
+    V = number of storm times for validation
+    D = number of reflectivity heights
+    F = number of azimuthal-shear fields
+
+    :param model_object: See documentation for `train_2d_cnn`.
+    :param model_file_name: Same.
+    :param history_file_name: Same.
+    :param tensorboard_dir_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param train_image_file_name_matrix: T-by-(F + D) numpy array of paths to
+        training files with radar images.  This array should be created by
+        `training_validation_io.find_2d_input_files`.
+    :param num_examples_per_batch: See doc for `train_2d_cnn`.
+    :param num_examples_per_init_time: Same.
+    :param target_name: Same.
+    :param weight_loss_function: Same.
+    :param class_fractions_to_sample: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param validn_image_file_name_matrix: V-by-(F + D) numpy array of paths to
+        validation files with radar images.  This array should be created by
+        `training_validation_io.find_2d_input_files`.
+    """
+
+    class_weight_dict = _check_training_args(
+        num_epochs=num_epochs,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        weight_loss_function=weight_loss_function,
+        class_fractions_to_sample=class_fractions_to_sample,
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name)
+
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+
+    embedding_layer_names = [
+        this_layer.name for this_layer in model_object.layers if
+        this_layer.name.startswith('dense') or
+        this_layer.name.startswith('conv')]
+
+    tensorboard_object = keras.callbacks.TensorBoard(
+        log_dir=tensorboard_dir_name, histogram_freq=0,
+        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
+        write_images=True, embeddings_freq=1,
+        embeddings_layer_names=embedding_layer_names)
+
+    if num_validation_batches_per_epoch is None:
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='loss', verbose=1,
+            save_best_only=False, save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=training_validation_io.storm_image_generator_2d3d_myrorss(
+                image_file_name_matrix=train_image_file_name_matrix,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_init_time=num_examples_per_init_time,
+                target_name=target_name,
+                class_fractions_to_sample=class_fractions_to_sample),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object])
+
+    else:
+        checkpoint_object = keras.callbacks.ModelCheckpoint(
+            filepath=model_file_name, monitor='val_loss', verbose=1,
+            save_best_only=True, save_weights_only=False, mode='min', period=1)
+
+        model_object.fit_generator(
+            generator=training_validation_io.storm_image_generator_2d3d_myrorss(
+                image_file_name_matrix=train_image_file_name_matrix,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_init_time=num_examples_per_init_time,
+                target_name=target_name,
+                class_fractions_to_sample=class_fractions_to_sample),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_weight_dict,
+            callbacks=[checkpoint_object, history_object, tensorboard_object],
+            validation_data=
+            training_validation_io.storm_image_generator_2d3d_myrorss(
+                image_file_name_matrix=validn_image_file_name_matrix,
+                num_examples_per_batch=num_examples_per_batch,
+                num_examples_per_init_time=num_examples_per_init_time,
+                target_name=target_name,
+                class_fractions_to_sample=class_fractions_to_sample),
+            validation_steps=num_validation_batches_per_epoch)
+
+
+def train_2d3d_cnn_with_dynamic_sampling(
+        model_object, model_file_name, num_epochs,
+        num_training_batches_per_epoch, train_image_file_name_matrix,
+        num_examples_per_batch, num_examples_per_init_time, target_name,
+        class_fractions_by_epoch_matrix, weight_loss_function=True,
+        num_validation_batches_per_epoch=None,
+        validn_image_file_name_matrix=None):
+    """Trains hybrid 2D/3D CNN with dynamic class-conditional sampling.
+
+    K = number of classes
+    L = number of epochs
+
+    :param model_object: See documentation for `train_2d3d_cnn_with_myrorss`.
+    :param model_file_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param train_image_file_name_matrix: Same.
+    :param num_examples_per_batch: Same.
+    :param num_examples_per_init_time: Same.
+    :param target_name: Same.
+    :param class_fractions_by_epoch_matrix: L-by-K numpy array, where
+        class_fractions_by_epoch_matrix[i, k] is the fraction of data points in
+        the [k]th class to use at the [i]th epoch.
+    :param weight_loss_function: See doc for `train_2d3d_cnn_with_myrorss`.
+    :param num_validation_batches_per_epoch: Same.
+    :param validn_image_file_name_matrix: Same.
+    """
+
+    error_checking.assert_is_integer(num_epochs)
+    error_checking.assert_is_greater(num_epochs, 0)
+
+    num_classes = class_fractions_by_epoch_matrix.shape[1]
+    error_checking.assert_is_numpy_array(
+        class_fractions_by_epoch_matrix,
+        exact_dimensions=numpy.array([num_epochs, num_classes]))
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
+    model_directory_name, _ = os.path.split(model_file_name)
+    history_file_names = [''] * num_epochs
+    tensorboard_dir_names = [''] * num_epochs
+
+    for i in range(num_epochs):
+        history_file_names[i] = '{0:s}/model_history_epoch{1:04d}.csv'.format(
+            model_directory_name, i)
+        tensorboard_dir_names[i] = '{0:s}/tensorboard_epoch{1:04d}.csv'.format(
+            model_directory_name, i)
+
+        _check_training_args(
+            num_epochs=num_epochs,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+            weight_loss_function=weight_loss_function,
+            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            model_file_name=model_file_name,
+            history_file_name=history_file_names[i],
+            tensorboard_dir_name=tensorboard_dir_names[i])
+
+    for i in range(num_epochs):
+        train_2d3d_cnn_with_myrorss(
+            model_object=model_object, model_file_name=model_file_name,
+            history_file_name=history_file_names[i],
+            tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
+            num_training_batches_per_epoch=num_training_batches_per_epoch,
+            train_image_file_name_matrix=train_image_file_name_matrix,
+            num_examples_per_batch=num_examples_per_batch,
+            num_examples_per_init_time=num_examples_per_init_time,
+            target_name=target_name, weight_loss_function=weight_loss_function,
+            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+            validn_image_file_name_matrix=validn_image_file_name_matrix)
 
 
 def train_3d_cnn(

@@ -26,8 +26,9 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+FORECAST_PRECISION_FOR_THRESHOLDS = 1e-4
 
 DOTS_PER_INCH = 300
 FIGURE_WIDTH_INCHES = 15
@@ -276,6 +277,8 @@ def _create_forecast_observation_pairs(
                 radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
                 reflectivity_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
                 raise_error_if_missing=True))
+
+    print SEPARATOR_STRING
 
     time_not_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix != '')[0])

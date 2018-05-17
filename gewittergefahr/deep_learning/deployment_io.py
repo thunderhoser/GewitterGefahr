@@ -22,6 +22,8 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 
 # TODO(thunderhoser): Handle missing files in this module.
 
@@ -155,6 +157,8 @@ def create_2d_storm_images_one_time(
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 raise_error_if_missing=True))
 
+    print SEPARATOR_STRING
+
     num_channels = len(field_name_by_channel)
     image_file_names = numpy.reshape(image_file_name_matrix, num_channels)
     print 'Reading data from: "{0:s}"...'.format(image_file_names[0])
@@ -280,6 +284,8 @@ def create_3d_storm_images_one_time(
         num_heights = len(radar_heights_m_asl)
         image_file_name_matrix = numpy.reshape(
             image_file_name_matrix[0, ...], (1, num_heights))
+
+    print SEPARATOR_STRING
 
     num_fields = len(radar_field_names)
     num_heights = len(radar_heights_m_asl)

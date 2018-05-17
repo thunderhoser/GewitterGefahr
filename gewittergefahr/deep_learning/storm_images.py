@@ -1159,6 +1159,9 @@ def find_many_files_myrorss_or_mrms(
     height_by_pair_m_asl = None
 
     for i in range(num_spc_dates):
+        print 'Finding storm-image files for SPC date "{0:s}"...'.format(
+            spc_date_strings[i])
+
         (this_file_name_matrix,
          these_times_unix_sec,
          field_name_by_pair,
@@ -1238,6 +1241,11 @@ def find_many_files_gridrad(
 
     for j in range(num_fields):
         for k in range(num_heights):
+            print (
+                'Finding storm-image files for "{0:s}" at {1:d} metres ASL...'
+            ).format(radar_field_names[j],
+                     int(numpy.round(radar_heights_m_asl[k])))
+
             if j == 0 and k == 0:
                 image_file_names = []
                 unix_times_sec = []
