@@ -732,10 +732,6 @@ def extract_storm_images_myrorss_or_mrms(
             if radar_file_name_matrix[i, j] is None:
                 continue
 
-            this_storm_image_matrix = numpy.full(
-                (this_num_storms, num_storm_image_rows,
-                 num_storm_image_columns), numpy.nan)
-
             print (
                 'Extracting storm images for "{0:s}" at {1:d} metres ASL and '
                 '{2:s}...').format(
@@ -772,25 +768,31 @@ def extract_storm_images_myrorss_or_mrms(
                 latitude_spacing_deg = this_lat_spacing_deg + 0.
                 longitude_spacing_deg = this_lng_spacing_deg + 0.
 
-            if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES and (
-                    latitude_spacing_deg != this_lat_spacing_deg or
-                    longitude_spacing_deg != this_lng_spacing_deg):
-                this_radar_matrix = this_radar_matrix[
-                    ::AZ_SHEAR_GRID_SPACING_MULTIPLIER,
-                    ::AZ_SHEAR_GRID_SPACING_MULTIPLIER]
-                this_metadata_dict[
-                    radar_utils.LAT_SPACING_COLUMN
-                ] *= AZ_SHEAR_GRID_SPACING_MULTIPLIER
-                this_metadata_dict[
-                    radar_utils.LNG_SPACING_COLUMN
-                ] *= AZ_SHEAR_GRID_SPACING_MULTIPLIER
+            if radar_field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
+                this_num_image_rows = (
+                    num_storm_image_rows * AZ_SHEAR_GRID_SPACING_MULTIPLIER)
+                this_num_image_columns = (
+                    num_storm_image_columns * AZ_SHEAR_GRID_SPACING_MULTIPLIER)
+
+                this_lat_spacing_deg = (
+                    AZ_SHEAR_GRID_SPACING_MULTIPLIER *
+                    this_metadata_dict[radar_utils.LAT_SPACING_COLUMN])
+                this_lng_spacing_deg = (
+                    AZ_SHEAR_GRID_SPACING_MULTIPLIER *
+                    this_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
+            else:
+                this_num_image_rows = num_storm_image_rows + 0
+                this_num_image_columns = num_storm_image_columns + 0
+
+                this_lat_spacing_deg = this_metadata_dict[
+                    radar_utils.LAT_SPACING_COLUMN]
+                this_lng_spacing_deg = this_metadata_dict[
+                    radar_utils.LNG_SPACING_COLUMN]
 
             this_lat_spacing_deg = rounder.round_to_nearest(
-                this_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-                GRID_SPACING_TOLERANCE_DEG)
+                this_lat_spacing_deg, GRID_SPACING_TOLERANCE_DEG)
             this_lng_spacing_deg = rounder.round_to_nearest(
-                this_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-                GRID_SPACING_TOLERANCE_DEG)
+                this_lng_spacing_deg, GRID_SPACING_TOLERANCE_DEG)
 
             if latitude_spacing_deg is None:
                 latitude_spacing_deg = this_lat_spacing_deg + 0.
@@ -807,6 +809,10 @@ def extract_storm_images_myrorss_or_mrms(
                          radar_file_name_matrix[i, j], this_lat_spacing_deg,
                          this_lng_spacing_deg)
                 raise ValueError(error_string)
+
+            this_storm_image_matrix = numpy.full(
+                (this_num_storms, this_num_image_rows, this_num_image_columns),
+                numpy.nan)
 
             # Extract storm images for [j]th field/height pair at [i]th time
             # step.
@@ -832,8 +838,8 @@ def extract_storm_images_myrorss_or_mrms(
                     full_radar_matrix=this_radar_matrix,
                     center_row=these_center_rows[k],
                     center_column=these_center_columns[k],
-                    num_storm_image_rows=num_storm_image_rows,
-                    num_storm_image_columns=num_storm_image_columns)
+                    num_storm_image_rows=this_num_image_rows,
+                    num_storm_image_columns=this_num_image_columns)
 
             # Write storm images for [j]th field/height pair at [i]th time step.
             image_file_name_matrix[i, j] = find_storm_image_file(
@@ -1626,3 +1632,7 @@ def attach_labels_to_storm_images(
                 pickle_file_name=this_label_file_name,
                 storm_to_winds_table=this_storm_to_winds_table,
                 storm_to_tornadoes_table=this_storm_to_tornadoes_table)
+
+            # TODO(thunderhoser): This is a HACK.  I need to just write a nicer
+            # for-loop.
+            break
