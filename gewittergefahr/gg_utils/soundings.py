@@ -1119,12 +1119,10 @@ def _compute_sounding_statistics(
         sounding_table_sharppy = _remove_subsurface_pressure_levels(
             sounding_table_sharppy=sounding_table_sharppy, delete_rows=True)
 
-        print sounding_table_sharppy[PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values
-        print sounding_table_sharppy[HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values
-        print sounding_table_sharppy[TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING].values
-        print sounding_table_sharppy[DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING].values
-        print sounding_table_sharppy[U_WIND_COLUMN_IN_SHARPPY_SOUNDING].values
-        print sounding_table_sharppy[V_WIND_COLUMN_IN_SHARPPY_SOUNDING].values
+        pickle_file_handle = open(
+            '/condo/swatwork/ralager/sounding_table_sharppy.p', 'wb')
+        pickle.dump(sounding_table_sharppy, pickle_file_handle)
+        pickle_file_handle.close()
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
