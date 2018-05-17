@@ -33,8 +33,8 @@ LARGE_INTEGER = 1e10
 
 def _check_input_args(
         num_examples_per_batch, num_examples_per_init_time, normalize_by_batch,
-        image_file_name_matrix, sounding_statistic_file_names=None,
-        sounding_statistic_names=None):
+        image_file_name_matrix, num_image_dimensions,
+        sounding_statistic_file_names=None, sounding_statistic_names=None):
     """Error-checks input arguments to generator.
 
     T = number of storm times (initial times, not valid times)
@@ -47,6 +47,8 @@ def _check_input_args(
     :param image_file_name_matrix: numpy array of paths to radar-image files.
         This should be created by `find_2d_input_files` or
         `find_3d_input_files`.  Length of the first axis should be T.
+    :param num_image_dimensions: Number of image dimensions.  This should be the
+        number of dimensions in `image_file_name_matrix`.
     :param sounding_statistic_file_names: [optional] length-T list of paths to
         sounding-statistic files.  This should be created by
         `find_sounding_statistic_files`.
@@ -62,10 +64,11 @@ def _check_input_args(
     error_checking.assert_is_geq(num_examples_per_init_time, 2)
     error_checking.assert_is_boolean(normalize_by_batch)
 
-    error_checking.assert_is_numpy_array(image_file_name_matrix)
-    num_dimensions = len(image_file_name_matrix.shape)
-    error_checking.assert_is_geq(num_dimensions, 2)
-    error_checking.assert_is_leq(num_dimensions, 3)
+    error_checking.assert_is_integer(num_image_dimensions)
+    error_checking.assert_is_geq(num_image_dimensions, 2)
+    error_checking.assert_is_leq(num_image_dimensions, 3)
+    error_checking.assert_is_numpy_array(
+        image_file_name_matrix, num_dimensions=num_image_dimensions)
 
     if sounding_statistic_file_names is not None:
         num_init_times = image_file_name_matrix.shape[0]
@@ -73,7 +76,7 @@ def _check_input_args(
             numpy.array(sounding_statistic_file_names),
             exact_dimensions=numpy.array([num_init_times]))
 
-        if sounding_statistic_file_names is not None:
+        if sounding_statistic_names is not None:
             error_checking.assert_is_numpy_array(
                 numpy.array(sounding_statistic_names), num_dimensions=1)
 
@@ -241,46 +244,134 @@ def _determine_stopping_criterion(
 
 
 def _select_batch(
-        image_matrix_in_memory, sounding_stat_matrix_in_memory,
-        target_values_in_memory, num_examples_per_batch, num_classes):
+        list_of_image_matrices, target_values, num_examples_per_batch,
+        num_classes):
     """Selects batch randomly from examples in memory.
 
     E_m = number of examples in memory
     E_b = number of examples in batch
 
-    :param image_matrix_in_memory: numpy array of storm-centered radar images,
-        where the first axis has length E_m.
-    :param sounding_stat_matrix_in_memory: numpy array of sounding statistics
-        (first axis has length E_m).
-    :param target_values_in_memory: numpy array of target values (length E_m).
+    :param list_of_image_matrices: 1-D list, where each item is a numpy array of
+        storm-centered radar images, where the first axis has length E_m.
+    :param target_values: numpy array of target values (length E_m).
     :param num_examples_per_batch: Number of examples needed per batch.
     :param num_classes: Number of classes for target value.
-    :return: image_matrix: Same as input, but first axis has length E_b.
-    :return: sounding_stat_matrix: Same as input, but first axis has length E_b.
+    :return: list_of_image_matrices: Same as input, except that the first axis
+        of each array now has length E_b.
     :return: target_matrix: See output doc for `storm_image_generator_2d` or
         `storm_image_generator_3d`.
     """
 
-    num_examples_in_memory = image_matrix_in_memory.shape[0]
+    num_examples_in_memory = len(target_values)
     example_indices = numpy.linspace(
         0, num_examples_in_memory - 1, num=num_examples_in_memory, dtype=int)
     batch_indices = numpy.random.choice(
         example_indices, size=num_examples_per_batch, replace=False)
 
-    image_matrix = image_matrix_in_memory[batch_indices, ...].astype('float32')
-    if sounding_stat_matrix_in_memory is None:
-        sounding_stat_matrix = None
-    else:
-        sounding_stat_matrix = sounding_stat_matrix_in_memory[
-            batch_indices, ...].astype('float32')
+    for i in range(len(list_of_image_matrices)):
+        if list_of_image_matrices[i] is None:
+            continue
+
+        list_of_image_matrices[i] = list_of_image_matrices[
+            i][batch_indices, ...].astype('float32')
 
     target_matrix = keras.utils.to_categorical(
-        target_values_in_memory[batch_indices], num_classes)
+        target_values[batch_indices], num_classes)
     class_fractions = numpy.mean(target_matrix, axis=0)
     print 'Fraction of target values in each class:\n{0:s}\n'.format(
         str(class_fractions))
 
-    return image_matrix, sounding_stat_matrix, target_matrix
+    return list_of_image_matrices, target_matrix
+
+
+def _separate_input_files_for_2d3d_myrorss(
+        image_file_name_matrix, test_mode=False, field_name_by_pair=None,
+        height_by_pair_m_asl=None):
+    """Separates input files into reflectivity and azimuthal shear.
+
+    These should be input files for `storm_image_generator_2d3d_myrorss`.
+
+    T = number of storm times (initial times, not valid times)
+    F = number of azimuthal-shear fields
+    D = number of pixel heights (depths) per reflectivity image
+
+    :param image_file_name_matrix: T-by-(D + F) numpy array of paths to image
+        files.  This should be created by `find_2d_input_files`.
+    :param test_mode: Leave this False.
+    :param field_name_by_pair: Leave this empty.
+    :param height_by_pair_m_asl: Leave this empty.
+    :return: reflectivity_file_name_matrix: T-by-D numpy array of paths to
+        reflectivity files.
+    :return: az_shear_file_name_matrix: T-by-F numpy array of paths to
+        azimuthal-shear files.
+    :raises: ValueError: if `image_file_name_matrix` does not contain
+        reflectivity files.
+    :raises: ValueError: if `image_file_name_matrix` does not contain azimuthal-
+        shear files.
+    :raises: ValueError: if `image_file_name_matrix` contains files with any
+        other field other than reflectivity or azimuthal shear.
+    """
+
+    error_checking.assert_is_numpy_array(
+        image_file_name_matrix, num_dimensions=2)
+    error_checking.assert_is_boolean(test_mode)
+    num_field_height_pairs = image_file_name_matrix.shape[1]
+
+    if not test_mode:
+        field_name_by_pair = [''] * num_field_height_pairs
+        height_by_pair_m_asl = numpy.full(num_field_height_pairs, -1, dtype=int)
+
+        for j in range(num_field_height_pairs):
+            this_storm_image_dict = storm_images.read_storm_images_only(
+                image_file_name_matrix[0, j])
+            field_name_by_pair[j] = str(
+                this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
+            height_by_pair_m_asl[j] = str(
+                this_storm_image_dict[storm_images.RADAR_HEIGHT_KEY])
+
+    reflectivity_indices = numpy.where(numpy.array(
+        [s == radar_utils.REFL_NAME for s in field_name_by_pair]))[0]
+    if not len(reflectivity_indices):
+        error_string = (
+            '\n\n{0:s}\nRadar fields in `image_file_name_matrix` (listed above)'
+            ' do not include "{1:s}".'
+        ).format(str(field_name_by_pair), radar_utils.REFL_NAME)
+        raise ValueError(error_string)
+
+    azimuthal_shear_indices = numpy.where(numpy.array(
+        [s in radar_utils.SHEAR_NAMES for s in field_name_by_pair]))[0]
+    if not len(azimuthal_shear_indices):
+        error_string = (
+            '\n\n{0:s}\nRadar fields in `image_file_name_matrix` (listed above)'
+            ' do not include azimuthal shear.'
+        ).format(str(field_name_by_pair))
+        raise ValueError(error_string)
+
+    other_field_flags = numpy.full(num_field_height_pairs, True, dtype=bool)
+    other_field_flags[reflectivity_indices] = False
+    other_field_flags[azimuthal_shear_indices] = False
+    if numpy.any(other_field_flags):
+        other_field_indices = numpy.where(other_field_flags)[0]
+        other_field_names = [field_name_by_pair[i] for i in other_field_indices]
+
+        error_string = (
+            '\n\n{0:s}\n`image_file_name_matrix` includes fields other than '
+            'reflectivity and azimuthal shear (listed above).'
+        ).format(str(other_field_names))
+        raise ValueError(error_string)
+
+    sort_indices = numpy.argsort(height_by_pair_m_asl[reflectivity_indices])
+    reflectivity_indices = reflectivity_indices[sort_indices]
+    reflectivity_file_name_matrix = image_file_name_matrix[
+        :, reflectivity_indices]
+
+    sort_indices = numpy.argsort(
+        numpy.array(field_name_by_pair)[azimuthal_shear_indices])
+    azimuthal_shear_indices = azimuthal_shear_indices[sort_indices]
+    az_shear_file_name_matrix = image_file_name_matrix[
+        :, azimuthal_shear_indices]
+
+    return reflectivity_file_name_matrix, az_shear_file_name_matrix
 
 
 def find_2d_input_files(
@@ -552,6 +643,7 @@ def storm_image_generator_2d(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
+        num_image_dimensions=2,
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
@@ -722,12 +814,15 @@ def storm_image_generator_2d(
                 metadata_table=sounding_stat_metadata_table,
                 normalize_by_batch=False)
 
-        image_matrix, sounding_stat_matrix, target_matrix = _select_batch(
-            image_matrix_in_memory=full_image_matrix,
-            sounding_stat_matrix_in_memory=full_sounding_stat_matrix,
-            target_values_in_memory=all_target_values,
+        list_of_image_matrices, target_matrix = _select_batch(
+            list_of_image_matrices=[
+                full_image_matrix, full_sounding_stat_matrix],
+            target_values=all_target_values,
             num_examples_per_batch=num_examples_per_batch,
             num_classes=num_classes)
+
+        image_matrix = list_of_image_matrices[0]
+        sounding_stat_matrix = list_of_image_matrices[1]
 
         # Update housekeeping variables.
         full_image_matrix = None
@@ -740,6 +835,235 @@ def storm_image_generator_2d(
             yield (image_matrix, target_matrix)
         else:
             yield ([image_matrix, sounding_stat_matrix], target_matrix)
+
+
+def storm_image_generator_2d3d_myrorss(
+        image_file_name_matrix, num_examples_per_batch,
+        num_examples_per_init_time, target_name,
+        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        class_fractions_to_sample=None):
+    """Generates examples with both 2-D and 3-D radar images.
+
+    Each example consists of a 3-D reflectivity image and one or more 2-D
+    azimuthal-shear images.
+
+    T = number of storm times (initial times, not valid times)
+    F = number of azimuthal-shear fields
+    m = number of pixel rows per reflectivity image
+    n = number of pixel columns per reflectivity image
+    D = number of pixel heights (depths) per reflectivity image
+    M = number of pixel rows per az-shear image
+    N = number of pixel columns per az-shear image
+
+    :param image_file_name_matrix: T-by-(D + F) numpy array of paths to image
+        files.  This should be created by `find_2d_input_files`.
+    :param num_examples_per_batch: See doc for `_check_input_args`.
+    :param num_examples_per_init_time: Same.
+    :param target_name: Name of target variable.
+    :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
+    :param class_fractions_to_sample: Same.
+    :return: predictor_list: List with the following items.
+    predictor_list[0] = reflectivity_image_matrix: E-by-m-by-n-by-D-by-1 numpy
+        array of storm-centered reflectivity images.
+    predictor_list[1] = azimuthal_shear_image_matrix: E-by-M-by-N-by-F numpy
+        array of storm-centered az-shear images.
+    :return: target_matrix: See doc for `storm_image_generator_2d`.
+    """
+
+    _check_input_args(
+        num_examples_per_batch=num_examples_per_batch,
+        num_examples_per_init_time=num_examples_per_init_time,
+        normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
+        num_image_dimensions=2)
+
+    image_file_name_matrix, _ = _shuffle_times(image_file_name_matrix)
+    reflectivity_file_name_matrix, az_shear_file_name_matrix = (
+        _separate_input_files_for_2d3d_myrorss(image_file_name_matrix))
+
+    num_init_times = reflectivity_file_name_matrix.shape[0]
+    num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]
+    num_az_shear_fields = az_shear_file_name_matrix.shape[1]
+
+    az_shear_field_names = [''] * num_az_shear_fields
+    for j in range(num_az_shear_fields):
+        this_storm_image_dict = storm_images.read_storm_images_only(
+            az_shear_file_name_matrix[0, j])
+        az_shear_field_names[j] = str(
+            this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
+
+    num_examples_per_batch_by_class = _get_num_examples_per_batch_by_class(
+        num_examples_per_batch=num_examples_per_batch, target_name=target_name,
+        class_fractions_to_sample=class_fractions_to_sample)
+    num_classes = len(num_examples_per_batch_by_class)
+
+    # Initialize housekeeping variables.
+    init_time_index = 0
+    num_init_times_in_memory = 0
+    num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+    num_init_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_init_time))
+
+    full_reflectivity_matrix_dbz = None
+    full_az_shear_matrix_s01 = None
+    all_target_values = None
+
+    while True:
+        stopping_criterion = False
+
+        while not stopping_criterion:
+            print '\n'
+            tuple_of_4d_refl_matrices = ()
+            tuple_of_3d_az_shear_matrices = ()
+
+            print 'Reading data from: "{0:s}"...'.format(
+                reflectivity_file_name_matrix[init_time_index, 0])
+
+            this_label_file_name = storm_images.find_storm_label_file(
+                storm_image_file_name=reflectivity_file_name_matrix[
+                    init_time_index, 0],
+                raise_error_if_missing=True)
+
+            if all_target_values is None:
+                num_examples_in_memory = 0
+            else:
+                num_examples_in_memory = len(all_target_values)
+
+            num_examples_remaining_by_class = (
+                _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_examples_per_batch_by_class=
+                    num_examples_per_batch_by_class,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=num_init_times_in_memory,
+                    num_examples_in_memory_by_class=
+                    num_examples_in_memory_by_class))
+
+            this_storm_image_dict = storm_images.read_storm_images_and_labels(
+                image_file_name=reflectivity_file_name_matrix[
+                    init_time_index, 0],
+                label_file_name=this_label_file_name,
+                return_label_name=target_name,
+                num_storm_objects_by_class=num_examples_remaining_by_class)
+
+            if this_storm_image_dict is None:
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
+                continue
+
+            this_storm_image_dict, these_valid_storm_indices = (
+                _remove_storms_with_undef_target(this_storm_image_dict))
+            if not len(these_valid_storm_indices):
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
+                continue
+
+            if all_target_values is None:
+                all_target_values = this_storm_image_dict[
+                    storm_images.LABEL_VALUES_KEY]
+            else:
+                all_target_values = numpy.concatenate((
+                    all_target_values,
+                    this_storm_image_dict[storm_images.LABEL_VALUES_KEY]))
+
+            for j in range(num_reflectivity_heights):
+                if j != 0:
+                    print 'Reading data from: "{0:s}"...'.format(
+                        reflectivity_file_name_matrix[init_time_index, j])
+                    this_storm_image_dict = storm_images.read_storm_images_only(
+                        netcdf_file_name=reflectivity_file_name_matrix[
+                            init_time_index, j],
+                        indices_to_keep=these_valid_storm_indices)
+
+                this_reflectivity_matrix_dbz = (
+                    dl_utils.stack_predictor_variables(
+                        (this_storm_image_dict[
+                            storm_images.STORM_IMAGE_MATRIX_KEY],)))
+                tuple_of_4d_refl_matrices += (this_reflectivity_matrix_dbz,)
+
+            for j in range(num_az_shear_fields):
+                print 'Reading data from: "{0:s}"...'.format(
+                    az_shear_file_name_matrix[init_time_index, j])
+                this_storm_image_dict = storm_images.read_storm_images_only(
+                    netcdf_file_name=az_shear_file_name_matrix[
+                        init_time_index, j],
+                    indices_to_keep=these_valid_storm_indices)
+
+                tuple_of_3d_az_shear_matrices += (
+                    this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
+
+            # Update housekeeping variables.
+            num_init_times_in_memory += 1
+            init_time_index = numpy.mod(init_time_index + 1, num_init_times)
+
+            this_reflectivity_matrix_dbz = dl_utils.stack_heights(
+                tuple_of_4d_refl_matrices)
+            this_az_shear_matrix_s01 = dl_utils.stack_predictor_variables(
+                tuple_of_3d_az_shear_matrices)
+
+            if full_reflectivity_matrix_dbz is None:
+                full_reflectivity_matrix_dbz = copy.deepcopy(
+                    this_reflectivity_matrix_dbz)
+                full_az_shear_matrix_s01 = copy.deepcopy(
+                    this_az_shear_matrix_s01)
+            else:
+                full_reflectivity_matrix_dbz = numpy.concatenate(
+                    (full_reflectivity_matrix_dbz,
+                     this_reflectivity_matrix_dbz),
+                    axis=0)
+                full_az_shear_matrix_s01 = numpy.concatenate(
+                    (full_az_shear_matrix_s01, this_az_shear_matrix_s01),
+                    axis=0)
+
+            num_examples_in_memory_by_class, stopping_criterion = (
+                _determine_stopping_criterion(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_examples_per_batch_by_class=
+                    num_examples_per_batch_by_class,
+                    num_init_times_in_memory=num_init_times_in_memory,
+                    class_fractions_to_sample=class_fractions_to_sample,
+                    target_values_in_memory=all_target_values))
+
+        if class_fractions_to_sample is not None:
+            batch_indices = dl_utils.sample_points_by_class(
+                target_values=all_target_values,
+                class_fractions=class_fractions_to_sample,
+                num_points_to_sample=num_examples_per_batch)
+
+            full_reflectivity_matrix_dbz = full_reflectivity_matrix_dbz[
+                batch_indices, ...]
+            full_az_shear_matrix_s01 = full_az_shear_matrix_s01[
+                batch_indices, ...]
+            all_target_values = all_target_values[batch_indices]
+
+        full_reflectivity_matrix_dbz = dl_utils.normalize_predictor_matrix(
+            predictor_matrix=full_reflectivity_matrix_dbz,
+            normalize_by_batch=False, predictor_names=[radar_utils.REFL_NAME],
+            normalization_dict=radar_normalization_dict)
+
+        full_az_shear_matrix_s01 = dl_utils.normalize_predictor_matrix(
+            predictor_matrix=full_az_shear_matrix_s01, normalize_by_batch=False,
+            predictor_names=az_shear_field_names,
+            normalization_dict=radar_normalization_dict)
+
+        list_of_image_matrices, target_matrix = _select_batch(
+            list_of_image_matrices=[
+                full_reflectivity_matrix_dbz, full_az_shear_matrix_s01],
+            target_values=all_target_values,
+            num_examples_per_batch=num_examples_per_batch,
+            num_classes=num_classes)
+
+        reflectivity_matrix_dbz = list_of_image_matrices[0]
+        azimuthal_shear_matrix_s01 = list_of_image_matrices[1]
+
+        # Update housekeeping variables.
+        full_reflectivity_matrix_dbz = None
+        full_az_shear_matrix_s01 = None
+        all_target_values = None
+        num_init_times_in_memory = 0
+        num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+
+        yield ([reflectivity_matrix_dbz, azimuthal_shear_matrix_s01],
+               target_matrix)
 
 
 def storm_image_generator_3d(
@@ -787,6 +1111,7 @@ def storm_image_generator_3d(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
+        num_image_dimensions=3,
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
@@ -966,12 +1291,15 @@ def storm_image_generator_3d(
                 metadata_table=sounding_stat_metadata_table,
                 normalize_by_batch=False)
 
-        image_matrix, sounding_stat_matrix, target_matrix = _select_batch(
-            image_matrix_in_memory=full_image_matrix,
-            sounding_stat_matrix_in_memory=full_sounding_stat_matrix,
-            target_values_in_memory=all_target_values,
+        list_of_image_matrices, target_matrix = _select_batch(
+            list_of_image_matrices=[
+                full_image_matrix, full_sounding_stat_matrix],
+            target_values=all_target_values,
             num_examples_per_batch=num_examples_per_batch,
             num_classes=num_classes)
+
+        image_matrix = list_of_image_matrices[0]
+        sounding_stat_matrix = list_of_image_matrices[1]
 
         # Update housekeeping variables.
         full_image_matrix = None
