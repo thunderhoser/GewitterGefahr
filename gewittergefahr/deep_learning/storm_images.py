@@ -334,6 +334,13 @@ def _find_many_files_one_spc_date(
         True.
     """
 
+    print top_directory_name
+    print time_conversion.unix_sec_to_string(start_time_unix_sec, TIME_FORMAT)
+    print time_conversion.unix_sec_to_string(end_time_unix_sec, TIME_FORMAT)
+    print spc_date_string
+    print radar_field_names
+    print reflectivity_heights_m_asl
+
     field_name_by_pair, height_by_pair_m_asl = (
         myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
             field_names=radar_field_names, data_source=radar_source,

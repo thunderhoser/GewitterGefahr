@@ -93,12 +93,6 @@ def _run_attach_labels(
     :param spc_date_string: Same.
     """
 
-    print top_storm_image_dir_name
-    print top_wind_label_dir_name
-    print top_tornado_label_dir_name
-    print radar_field_names
-    print radar_heights_m_asl
-
     start_time_unix_sec = time_conversion.get_start_of_spc_date(spc_date_string)
     end_time_unix_sec = time_conversion.get_end_of_spc_date(spc_date_string)
     end_time_unix_sec = int(rounder.floor_to_nearest(
