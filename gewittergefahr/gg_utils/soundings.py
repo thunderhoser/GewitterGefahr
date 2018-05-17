@@ -908,11 +908,6 @@ def _create_query_points(storm_object_table, lead_times_sec):
                     displacements_metres=storm_speeds_m_s01 * lead_times_sec[i],
                     geodetic_bearings_deg=geodetic_bearings_deg))
 
-            print numpy.mean(these_extrap_latitudes_deg - storm_object_table[
-                tracking_utils.CENTROID_LAT_COLUMN].values)
-            print numpy.mean(these_extrap_longitudes_deg - storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values)
-            
             this_dict = {
                 tracking_utils.CENTROID_LAT_COLUMN: these_extrap_latitudes_deg,
                 tracking_utils.CENTROID_LNG_COLUMN: these_extrap_longitudes_deg,
@@ -1123,6 +1118,13 @@ def _compute_sounding_statistics(
     except:
         sounding_table_sharppy = _remove_subsurface_pressure_levels(
             sounding_table_sharppy=sounding_table_sharppy, delete_rows=True)
+
+        print sounding_table_sharppy[PRESSURE_COLUMN_IN_SHARPPY_SOUNDING].values
+        print sounding_table_sharppy[HEIGHT_COLUMN_IN_SHARPPY_SOUNDING].values
+        print sounding_table_sharppy[TEMPERATURE_COLUMN_IN_SHARPPY_SOUNDING].values
+        print sounding_table_sharppy[DEWPOINT_COLUMN_IN_SHARPPY_SOUNDING].values
+        print sounding_table_sharppy[U_WIND_COLUMN_IN_SHARPPY_SOUNDING].values
+        print sounding_table_sharppy[V_WIND_COLUMN_IN_SHARPPY_SOUNDING].values
 
         profile_object = sharppy_profile.create_profile(
             profile='convective',
