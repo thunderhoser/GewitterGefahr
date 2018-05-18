@@ -1575,7 +1575,7 @@ def get_sounding_stats_for_storm_objects(
     for i in range(num_unique_soundings):
         print (
             'Computing statistics for {0:d}th of {1:d} unique soundings...'
-        ).format(i + 1, num_soundings)
+        ).format(i + 1, num_unique_soundings)
 
         j = unique_indices[i]
         if list_of_sharppy_sounding_tables[j] is None:

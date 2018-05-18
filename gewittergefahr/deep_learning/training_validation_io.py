@@ -27,7 +27,6 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
 LARGE_INTEGER = 1e10
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 # TODO(thunderhoser) Do better job of handling missing files.
 
@@ -440,8 +439,6 @@ def find_2d_input_files(
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 raise_error_if_missing=True))
 
-    print SEPARATOR_STRING
-
     time_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix == '')[0])
     image_file_name_matrix = numpy.delete(
@@ -507,8 +504,6 @@ def find_3d_input_files(
         num_heights = len(radar_heights_m_asl)
         image_file_name_matrix = numpy.reshape(
             image_file_name_matrix, (num_image_times, 1, num_heights))
-
-    print SEPARATOR_STRING
 
     time_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix == '')[0])
