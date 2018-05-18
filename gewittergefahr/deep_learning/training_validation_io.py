@@ -327,8 +327,8 @@ def separate_input_files_for_2d3d_myrorss(
                 image_file_name_matrix[0, j])
             field_name_by_pair[j] = str(
                 this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
-            height_by_pair_m_asl[j] = str(
-                this_storm_image_dict[storm_images.RADAR_HEIGHT_KEY])
+            height_by_pair_m_asl[j] = this_storm_image_dict[
+                storm_images.RADAR_HEIGHT_KEY]
 
     reflectivity_indices = numpy.where(numpy.array(
         [s == radar_utils.REFL_NAME for s in field_name_by_pair]))[0]
