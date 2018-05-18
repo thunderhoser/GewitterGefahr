@@ -33,6 +33,7 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import error_checking
 
 LINKAGE_DIR_ARG_NAME = 'input_linkage_dir_name'
@@ -50,11 +51,12 @@ LINKAGE_DIR_HELP_STRING = (
     'Name of top-level directory with linkage files (one per SPC date, readable'
     ' by `link_events_to_storms.read_storm_to_tornadoes_table`).')
 SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Tornado labels '
-    'will created for each storm object on this date, each lead-time window, '
-    'and each distance buffer.')
+    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Labels will be '
+    'created for each storm object on this date, each lead-time window, each '
+    'distance buffer, and [if applicable] each set of class cutoffs for wind '
+    'speed.')
 MIN_LEAD_TIMES_HELP_STRING = 'List of minimum lead times (one for each window).'
-MAX_LEAD_TIMES_HELP_STRING = 'List of max lead times (one for each window).'
+MAX_LEAD_TIMES_HELP_STRING = 'List of maximum lead times (one for each window).'
 MIN_LINK_DISTANCES_HELP_STRING = (
     'List of minimum distances (one for each buffer).')
 MAX_LINK_DISTANCES_HELP_STRING = (
@@ -68,9 +70,13 @@ PERCENTILE_LEVEL_HELP_STRING = (
 ).format(PERCENTILE_LEVEL_ARG_NAME)
 CLASS_CUTOFFS_HELP_STRING = (
     'List of cutoffs for wind-speed classes.  Units are kt (nautical miles per '
-    'hour).  The lowest class will always begin at 0 kt, and the highest class '
-    'will begin at infinity, so do not bother with these values.  For example, '
-    'if the inputs are 30 and 50, the classes will 0-30, 30-50, and 50+ kt.')
+    'hour).  The lowest class will always begin at 0 kt, and the highest will '
+    'end at infinity, so do not include these values.  For example, if the '
+    'inputs are 30 and 50, the classes will be 0-30, 30-50, and 50+ kt.  For '
+    'multiple sets of cutoffs, use NaN as a separator.  For example, if the '
+    'inputs are [30, 50, NaN, 40], two sets of classes will be created.  In the'
+    ' first set, classes will be 0-30, 30-50, and 50+ kt.  In the second, '
+    'classes will be 0-40 and 40+ kt.')
 LABEL_DIR_HELP_STRING = (
     'Name of top-level directory for tornado labels.  One file will be created '
     'here, for the whole SPC date, by `labels.write_tornado_labels`.')
@@ -182,37 +188,56 @@ def _create_labels(
     if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
         storm_to_events_table = events2storms.read_storm_to_tornadoes_table(
             linkage_file_name)
+        num_cutoff_sets = 1
     else:
         storm_to_events_table = events2storms.read_storm_to_winds_table(
             linkage_file_name)
+        list_of_class_cutoff_arrays_kt = general_utils.split_array_by_nan(
+            class_cutoffs_kt)
+        num_cutoff_sets = len(list_of_class_cutoff_arrays_kt)
 
     for i in range(num_lead_time_windows):
         for j in range(num_distance_buffers):
-            print (
-                'Creating {0:s} label for each storm object with {1:d}--{2:d}'
-                '-second lead time and {3:d}--{4:d}-metre distance buffer...'
-            ).format(event_type_string, min_lead_times_sec[i],
-                     max_lead_times_sec[i],
-                     int(numpy.round(min_link_distances_metres[j])),
-                     int(numpy.round(max_link_distances_metres[j])))
+            for k in range(num_cutoff_sets):
+                if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
+                    print (
+                        'Creating {0:s} label for each storm object with '
+                        '{1:d}--{2:d}-second lead time and {3:d}--{4:d}-metre '
+                        'distance buffer...'
+                    ).format(event_type_string, min_lead_times_sec[i],
+                             max_lead_times_sec[i],
+                             int(numpy.round(min_link_distances_metres[j])),
+                             int(numpy.round(max_link_distances_metres[j])))
 
-            if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
-                storm_to_events_table = labels.label_tornado_occurrence(
-                    storm_to_tornadoes_table=storm_to_events_table,
-                    min_lead_time_sec=min_lead_times_sec[i],
-                    max_lead_time_sec=max_lead_times_sec[i],
-                    min_link_distance_metres=min_link_distances_metres[j],
-                    max_link_distance_metres=max_link_distances_metres[j])
-            else:
-                storm_to_events_table = (
-                    labels.label_wind_speed_for_classification(
-                        storm_to_winds_table=storm_to_events_table,
+                    storm_to_events_table = labels.label_tornado_occurrence(
+                        storm_to_tornadoes_table=storm_to_events_table,
                         min_lead_time_sec=min_lead_times_sec[i],
                         max_lead_time_sec=max_lead_times_sec[i],
                         min_link_distance_metres=min_link_distances_metres[j],
-                        max_link_distance_metres=max_link_distances_metres[j],
-                        percentile_level=wind_speed_percentile_level,
-                        class_cutoffs_kt=class_cutoffs_kt))
+                        max_link_distance_metres=max_link_distances_metres[j])
+
+                else:
+                    print (
+                        'Creating {0:s} label for each storm object with '
+                        '{1:d}--{2:d}-second lead time, {3:d}--{4:d}-metre '
+                        'distance buffer, and cutoffs of {5:s} kt...'
+                    ).format(event_type_string, min_lead_times_sec[i],
+                             max_lead_times_sec[i],
+                             int(numpy.round(min_link_distances_metres[j])),
+                             int(numpy.round(max_link_distances_metres[j])),
+                             str(list_of_class_cutoff_arrays_kt[k]))
+
+                    storm_to_events_table = (
+                        labels.label_wind_speed_for_classification(
+                            storm_to_winds_table=storm_to_events_table,
+                            min_lead_time_sec=min_lead_times_sec[i],
+                            max_lead_time_sec=max_lead_times_sec[i],
+                            min_link_distance_metres=
+                            min_link_distances_metres[j],
+                            max_link_distance_metres=
+                            max_link_distances_metres[j],
+                            percentile_level=wind_speed_percentile_level,
+                            class_cutoffs_kt=list_of_class_cutoff_arrays_kt[k]))
 
     label_file_name = labels.find_label_file(
         top_directory_name=top_label_dir_name,
