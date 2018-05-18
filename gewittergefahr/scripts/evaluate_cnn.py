@@ -266,7 +266,7 @@ def _create_forecast_observation_pairs(
                 end_time_unix_sec=last_eval_time_unix_sec,
                 radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
                 radar_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True))
     else:
         image_file_name_matrix, image_times_unix_sec, _, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
@@ -276,7 +276,8 @@ def _create_forecast_observation_pairs(
                 radar_source=metadata_dict[cnn.RADAR_SOURCE_KEY],
                 radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
                 reflectivity_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True,
+                raise_error_if_any_missing=False))
 
     print SEPARATOR_STRING
 
@@ -297,26 +298,27 @@ def _create_forecast_observation_pairs(
     for i in range(num_times):
         if len(observed_labels) > num_storm_objects:
             break
-        
+
         print '\nCreating forecast-observation pairs for {0:s}...'.format(
             image_time_strings[i])
 
-        this_predictor_matrix, these_observed_labels = (
+        this_predictor_matrix, _, these_observed_labels = (
             deployment_io.create_3d_storm_images_one_time(
-                top_directory_name=top_storm_image_dir_name,
-                image_time_unix_sec=image_times_unix_sec[i],
+                top_storm_image_dir_name=top_storm_image_dir_name,
+                init_time_unix_sec=image_times_unix_sec[i],
                 radar_source=metadata_dict[cnn.RADAR_SOURCE_KEY],
                 radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
                 radar_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
                 target_name=metadata_dict[cnn.TARGET_NAME_KEY],
-                normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
+                return_target=True,
+                radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
         this_num_storm_objects = this_predictor_matrix.shape[0]
         if this_num_storm_objects == 0:
             continue
 
         this_probability_matrix = cnn.apply_3d_cnn(
-            model_object=model_object, predictor_matrix=this_predictor_matrix)
+            model_object=model_object, image_matrix=this_predictor_matrix)
 
         observed_labels = numpy.concatenate((
             observed_labels, these_observed_labels))

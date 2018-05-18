@@ -106,7 +106,7 @@ def _run_attach_labels(
             end_time_unix_sec=end_time_unix_sec,
             radar_field_names=radar_field_names,
             radar_heights_m_asl=radar_heights_m_asl,
-            raise_error_if_missing=True)
+            raise_error_if_all_missing=True)
 
         field_name_by_predictor, _ = (
             gridrad_utils.fields_and_refl_heights_to_pairs(
@@ -126,7 +126,8 @@ def _run_attach_labels(
                 end_time_unix_sec=end_time_unix_sec, radar_source=radar_source,
                 radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True,
+                raise_error_if_any_missing=False))
 
     print SEPARATOR_STRING
 

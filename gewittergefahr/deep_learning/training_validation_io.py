@@ -28,8 +28,6 @@ from gewittergefahr.gg_utils import error_checking
 
 LARGE_INTEGER = 1e10
 
-# TODO(thunderhoser) Do better job of handling missing files.
-
 
 def _check_input_args(
         num_examples_per_batch, num_examples_per_init_time, normalize_by_batch,
@@ -417,7 +415,7 @@ def find_2d_input_files(
                 end_time_unix_sec=last_image_time_unix_sec,
                 radar_field_names=radar_field_names,
                 radar_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True))
 
         field_name_by_channel, _ = (
             gridrad_utils.fields_and_refl_heights_to_pairs(
@@ -437,7 +435,8 @@ def find_2d_input_files(
                 end_time_unix_sec=last_image_time_unix_sec,
                 radar_source=radar_source, radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True,
+                raise_error_if_any_missing=False))
 
     time_missing_indices = numpy.unique(
         numpy.where(image_file_name_matrix == '')[0])
@@ -486,7 +485,7 @@ def find_3d_input_files(
                 end_time_unix_sec=last_image_time_unix_sec,
                 radar_field_names=radar_field_names,
                 radar_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True))
 
     else:
         radar_field_names = [radar_utils.REFL_NAME]
@@ -498,7 +497,8 @@ def find_3d_input_files(
                 end_time_unix_sec=last_image_time_unix_sec,
                 radar_source=radar_source, radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True,
+                raise_error_if_any_missing=False))
 
         num_image_times = len(image_times_unix_sec)
         num_heights = len(radar_heights_m_asl)
@@ -683,13 +683,15 @@ def storm_image_generator_2d(
             print '\n'
             tuple_of_image_matrices = ()
 
-            print 'Reading data from: "{0:s}"...'.format(
-                image_file_name_matrix[init_time_index, 0])
-
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[
                     init_time_index, 0],
-                raise_error_if_missing=True)
+                raise_error_if_missing=False, warn_if_missing=True)
+            if not os.path.isfile(this_label_file_name):
+                continue
+
+            print 'Reading data from: "{0:s}"...'.format(
+                image_file_name_matrix[init_time_index, 0])
 
             if all_target_values is None:
                 num_examples_in_memory = 0
@@ -915,13 +917,15 @@ def storm_image_generator_2d3d_myrorss(
             tuple_of_4d_refl_matrices = ()
             tuple_of_3d_az_shear_matrices = ()
 
-            print 'Reading data from: "{0:s}"...'.format(
-                reflectivity_file_name_matrix[init_time_index, 0])
-
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=reflectivity_file_name_matrix[
                     init_time_index, 0],
-                raise_error_if_missing=True)
+                raise_error_if_missing=False, warn_if_missing=True)
+            if not os.path.isfile(this_label_file_name):
+                continue
+
+            print 'Reading data from: "{0:s}"...'.format(
+                reflectivity_file_name_matrix[init_time_index, 0])
 
             if all_target_values is None:
                 num_examples_in_memory = 0
@@ -1151,13 +1155,15 @@ def storm_image_generator_3d(
             print '\n'
             tuple_of_4d_image_matrices = ()
 
-            print 'Reading data from: "{0:s}"...'.format(
-                image_file_name_matrix[init_time_index, 0, 0])
-
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[
                     init_time_index, 0, 0],
-                raise_error_if_missing=True)
+                raise_error_if_missing=False, warn_if_missing=True)
+            if not os.path.isfile(this_label_file_name):
+                continue
+
+            print 'Reading data from: "{0:s}"...'.format(
+                image_file_name_matrix[init_time_index, 0, 0])
 
             if full_image_matrix is None:
                 num_examples_in_memory = 0

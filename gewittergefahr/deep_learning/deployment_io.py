@@ -23,8 +23,7 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
-
-# TODO(thunderhoser): Handle missing files in this module.
+# TODO(thunderhoser): Do better job of handling missing files.
 
 
 def _read_sounding_statistics(
@@ -139,7 +138,7 @@ def create_2d_storm_images_one_time(
             end_time_unix_sec=init_time_unix_sec,
             radar_field_names=radar_field_names,
             radar_heights_m_asl=radar_heights_m_asl,
-            raise_error_if_missing=True)
+            raise_error_if_all_missing=True)
 
         field_name_by_channel, _ = (
             gridrad_utils.fields_and_refl_heights_to_pairs(
@@ -154,7 +153,8 @@ def create_2d_storm_images_one_time(
                 end_time_unix_sec=init_time_unix_sec,
                 radar_source=radar_source, radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True,
+                raise_error_if_any_missing=True))
 
     num_channels = len(field_name_by_channel)
     image_file_names = numpy.reshape(image_file_name_matrix, num_channels)
@@ -261,7 +261,7 @@ def create_2d3d_storm_images_one_time(
             radar_field_names=
             azimuthal_shear_field_names + [radar_utils.REFL_NAME],
             reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-            raise_error_if_missing=True))
+            raise_error_if_all_missing=True, raise_error_if_any_missing=True))
 
     reflectivity_file_name_matrix, az_shear_file_name_matrix = (
         trainval_io.separate_input_files_for_2d3d_myrorss(
@@ -378,7 +378,7 @@ def create_3d_storm_images_one_time(
             end_time_unix_sec=init_time_unix_sec,
             radar_field_names=radar_field_names,
             radar_heights_m_asl=radar_heights_m_asl,
-            raise_error_if_missing=True)
+            raise_error_if_all_missing=True)
 
         image_file_name_matrix = image_file_name_matrix[0, ...]
 
@@ -392,7 +392,8 @@ def create_3d_storm_images_one_time(
                 end_time_unix_sec=init_time_unix_sec,
                 radar_source=radar_source, radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_missing=True))
+                raise_error_if_all_missing=True,
+                raise_error_if_any_missing=True))
 
         num_heights = len(radar_heights_m_asl)
         image_file_name_matrix = numpy.reshape(

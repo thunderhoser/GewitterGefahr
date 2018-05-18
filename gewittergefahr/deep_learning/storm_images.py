@@ -8,6 +8,7 @@ import os
 import copy
 import glob
 import pickle
+import warnings
 import numpy
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
@@ -306,7 +307,8 @@ def _check_storm_labels(
 def _find_many_files_one_spc_date(
         top_directory_name, start_time_unix_sec, end_time_unix_sec,
         spc_date_string, radar_source, radar_field_names,
-        reflectivity_heights_m_asl=None, raise_error_if_missing=True):
+        reflectivity_heights_m_asl=None, raise_error_if_all_missing=True,
+        raise_error_if_any_missing=False):
     """Finds many files containing storm images with MYRORSS or MRMS data.
 
     N = number of time steps
@@ -323,16 +325,23 @@ def _find_many_files_one_spc_date(
         `extract_storm_images_myrorss_or_mrms`.
     :param reflectivity_heights_m_asl: See doc for
         `extract_storm_images_myrorss_or_mrms`.
-    :param raise_error_if_missing: Boolean flag.  If True and no files are
-        found, this method will error out.
+    :param raise_error_if_all_missing: Boolean flag.  If no files are found and
+        `raise_error_if_all_missing` = True, this method will error out.
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing
+        (i.e., if one radar field/height is found at time t and others are not)
+        and `raise_error_if_any_missing` = True, this method will error out.
     :return: image_file_name_matrix: N-by-P numpy array of file paths.
     :return: unix_times_sec: length-N numpy array of valid times.
     :return: field_name_by_pair: length-P list with names of radar fields.
     :return: height_by_pair_m_asl: length-P numpy array of radar heights (metres
         above sea level).
-    :raises: ValueError: if no files are found and raise_error_if_missing =
-        True.
+    :raises: ValueError: If no files are found and `raise_error_if_all_missing`
+        = True.
     """
+
+    # TODO(thunderhoser): Maybe this method should glob for all radar
+    # field/height pairs, instead of just one.  Globbing for only one
+    # field/height causes some files to be missed.
 
     field_name_by_pair, height_by_pair_m_asl = (
         myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
@@ -384,7 +393,7 @@ def _find_many_files_one_spc_date(
 
         num_times = len(image_file_names)
         if num_times == 0:
-            if raise_error_if_missing:
+            if raise_error_if_all_missing:
                 error_string = (
                     'Cannot find any files on SPC date "{0:s}" for "{1:s}" '
                     'at {2:d} metres ASL.'
@@ -414,8 +423,7 @@ def _find_many_files_one_spc_date(
                 spc_date_string=spc_date_string, radar_source=radar_source,
                 radar_field_name=field_name_by_pair[j],
                 radar_height_m_asl=height_by_pair_m_asl[j],
-                raise_error_if_missing=
-                field_name_by_pair[j] not in AZIMUTHAL_SHEAR_FIELD_NAMES)
+                raise_error_if_missing=raise_error_if_any_missing)
 
             if not os.path.isfile(image_file_name_matrix[i, j]):
                 image_file_name_matrix[i, j] = ''
@@ -1081,7 +1089,9 @@ def find_storm_image_file(
     return storm_image_file_name
 
 
-def find_storm_label_file(storm_image_file_name, raise_error_if_missing=True):
+def find_storm_label_file(
+        storm_image_file_name, raise_error_if_missing=True,
+        warn_if_missing=True):
     """Finds file with storm-hazard labels.
 
     This file should be written by `_write_storm_labels_only`.
@@ -1091,12 +1101,21 @@ def find_storm_label_file(storm_image_file_name, raise_error_if_missing=True):
         label file.
     :param raise_error_if_missing: Boolean flag.  If True and file is missing,
         this method will error out.
+    :param warn_if_missing: Boolean flag.  If file is missing,
+        `raise_error_if_missing` = False, and `warn_if_missing` = True, will
+        print warning message.
     :return: storm_label_file_name: Path to label file.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
     error_checking.assert_is_string(storm_image_file_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+    if raise_error_if_missing:
+        warn_if_missing = False
+    else:
+        error_checking.assert_is_boolean(warn_if_missing)
+
     storm_image_dir_name, pathless_image_file_name = os.path.split(
         storm_image_file_name)
     dir_name_parts = storm_image_dir_name.split('/')[:-2]
@@ -1109,11 +1128,16 @@ def find_storm_label_file(storm_image_file_name, raise_error_if_missing=True):
     storm_label_file_name = '{0:s}/{1:s}.p'.format(
         storm_label_dir_name, extensionless_label_file_name)
 
-    if raise_error_if_missing and not os.path.isfile(storm_label_file_name):
+    if not os.path.isfile(storm_label_file_name):
         error_string = (
             'Cannot find file with storm-hazard labels.  Expected at: {0:s}'
         ).format(storm_label_file_name)
-        raise ValueError(error_string)
+
+        if raise_error_if_missing:
+            raise ValueError(error_string)
+
+        if warn_if_missing:
+            warnings.warn(error_string)
 
     return storm_label_file_name
 
@@ -1121,30 +1145,32 @@ def find_storm_label_file(storm_image_file_name, raise_error_if_missing=True):
 def find_many_files_myrorss_or_mrms(
         top_directory_name, start_time_unix_sec, end_time_unix_sec,
         radar_source, radar_field_names, reflectivity_heights_m_asl=None,
-        raise_error_if_missing=True):
+        raise_error_if_all_missing=True, raise_error_if_any_missing=False):
     """Finds many files containing storm images with MYRORSS or MRMS data.
 
     :param top_directory_name: See documentation for
-        `find_many_files_one_spc_date`.
+        `_find_many_files_one_spc_date`.
     :param start_time_unix_sec: Same.
     :param end_time_unix_sec: Same.
     :param radar_source: Same.
     :param radar_field_names: Same.
     :param reflectivity_heights_m_asl: Same.
-    :param raise_error_if_missing: Same.
+    :param raise_error_if_all_missing: Boolean flag.  If no files are found and
+        `raise_error_if_all_missing` = True, this method will error out.
+    :param raise_error_if_any_missing: Boolean flag.  If any file is missing
+        (i.e., if one radar field/height is found at time t and others are not)
+        and `raise_error_if_any_missing` = True, this method will error out.
     :return: image_file_name_matrix: Same.
     :return: unix_times_sec: Same.
     :return: field_name_by_pair: Same.
     :return: height_by_pair_m_asl: Same.
-    :raises: ValueError: if no files are found and raise_error_if_missing =
-        True.
+    :raises: ValueError: If no files are found and `raise_error_if_all_missing`
+        = True.
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_integer(start_time_unix_sec)
-    error_checking.assert_is_integer(end_time_unix_sec)
-    error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
-    error_checking.assert_is_boolean(raise_error_if_missing)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+    error_checking.assert_is_boolean(raise_error_if_any_missing)
 
     spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=time_conversion.time_to_spc_date_string(
@@ -1172,7 +1198,8 @@ def find_many_files_myrorss_or_mrms(
              spc_date_string=spc_date_strings[i], radar_source=radar_source,
              radar_field_names=radar_field_names,
              reflectivity_heights_m_asl=reflectivity_heights_m_asl,
-             raise_error_if_missing=False)
+             raise_error_if_all_missing=False,
+             raise_error_if_any_missing=raise_error_if_any_missing)
 
         if this_file_name_matrix is None:
             continue
@@ -1186,7 +1213,7 @@ def find_many_files_myrorss_or_mrms(
             unix_times_sec = numpy.concatenate((
                 unix_times_sec, these_times_unix_sec))
 
-    if raise_error_if_missing and image_file_name_matrix is None:
+    if raise_error_if_all_missing and image_file_name_matrix is None:
         start_time_string = time_conversion.unix_sec_to_string(
             start_time_unix_sec, TIME_FORMAT)
         end_time_string = time_conversion.unix_sec_to_string(
@@ -1201,7 +1228,8 @@ def find_many_files_myrorss_or_mrms(
 
 def find_many_files_gridrad(
         top_directory_name, start_time_unix_sec, end_time_unix_sec,
-        radar_field_names, radar_heights_m_asl, raise_error_if_missing=True):
+        radar_field_names, radar_heights_m_asl,
+        raise_error_if_all_missing=True):
     """Finds many files containing storm images with GridRad data.
 
     N = number of time steps
@@ -1216,15 +1244,13 @@ def find_many_files_gridrad(
     :param radar_field_names: length-F list with names of radar fields.
     :param radar_heights_m_asl: length-H numpy array of radar heights (metres
         above sea level).
-    :param raise_error_if_missing: Boolean flag.  If True and no files are
-        found, this method will error out.
+    :param raise_error_if_all_missing: Boolean flag.  If no files are found and
+        `raise_error_if_all_missing` = True, this method will error out.
     :return: image_file_name_matrix: N-by-F-by-H numpy array of file paths.
     :return: unix_times_sec: length-N numpy array of valid times.
-    :raises: ValueError: if no files are found and raise_error_if_missing =
-        True.
+    :raises: ValueError: If no files are found and `raise_error_if_all_missing`
+        = True.
     """
-
-    # TODO(thunderhoser): Also need `raise_error_if_any_missing`.
 
     _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
         field_names=radar_field_names, heights_m_asl=radar_heights_m_asl)
@@ -1269,7 +1295,7 @@ def find_many_files_gridrad(
 
                 num_times = len(image_file_names)
                 if num_times == 0:
-                    if raise_error_if_missing:
+                    if raise_error_if_all_missing:
                         start_time_string = (
                             time_conversion.unix_sec_to_string(
                                 start_time_unix_sec, TIME_FORMAT))
