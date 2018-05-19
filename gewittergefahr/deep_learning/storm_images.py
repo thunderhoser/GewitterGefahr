@@ -8,7 +8,6 @@ import os
 import copy
 import glob
 import pickle
-import warnings
 import numpy
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
@@ -1130,14 +1129,15 @@ def find_storm_label_file(
 
     if not os.path.isfile(storm_label_file_name):
         error_string = (
-            'Cannot find file with storm-hazard labels.  Expected at: {0:s}'
+            'PROBLEM.  Cannot find file with storm-hazard labels.  Expected at:'
+            ' {0:s}'
         ).format(storm_label_file_name)
 
         if raise_error_if_missing:
             raise ValueError(error_string)
 
         if warn_if_missing:
-            warnings.warn(error_string)
+            print error_string
 
     return storm_label_file_name
 
