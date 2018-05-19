@@ -701,6 +701,7 @@ def storm_image_generator_2d(
                     init_time_index, 0],
                 raise_error_if_missing=False, warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
             print 'Reading data from: "{0:s}"...'.format(
@@ -936,6 +937,7 @@ def storm_image_generator_2d3d_myrorss(
                     init_time_index, 0],
                 raise_error_if_missing=False, warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
             print 'Reading data from: "{0:s}"...'.format(
@@ -1175,6 +1177,7 @@ def storm_image_generator_3d(
                     init_time_index, 0, 0],
                 raise_error_if_missing=False, warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
+                init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
             print 'Reading data from: "{0:s}"...'.format(
