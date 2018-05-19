@@ -430,7 +430,8 @@ def get_3d_swirlnet_architecture(
 
 
 def get_architecture_for_2d3d_myrorss(
-        num_classes, num_azimuthal_shear_fields=2):
+        num_classes, dropout_fraction, first_num_reflectivity_filters,
+        num_azimuthal_shear_fields=2):
     """Creates hybrid 2D-3D CNN for MYRORSS data.
 
     This CNN will perform 3-D convolution over reflectivity fields and 2-D
@@ -438,7 +439,11 @@ def get_architecture_for_2d3d_myrorss(
 
     F = number of azimuthal-shear fields
 
-    :param num_classes: Number of target classes.
+    :param num_classes: Number of output classes.
+    :param dropout_fraction: Dropout fraction.  This will be applied to each
+        dropout layer, of which there is one after each conv layer.
+    :param first_num_reflectivity_filters: Number of reflectivity filters in
+        first layer.
     :param num_azimuthal_shear_fields: Number of azimuthal-shear fields.
     :return: model_object: Instance of `keras.models.Sequential` with the
         aforementioned architecture.
@@ -446,6 +451,10 @@ def get_architecture_for_2d3d_myrorss(
 
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_greater(dropout_fraction, 0.)
+    error_checking.assert_is_less_than(dropout_fraction, 1.)
+    error_checking.assert_is_integer(first_num_reflectivity_filters)
+    error_checking.assert_is_geq(first_num_reflectivity_filters, 2)
     error_checking.assert_is_integer(num_azimuthal_shear_fields)
     error_checking.assert_is_geq(num_azimuthal_shear_fields, 1)
 
@@ -460,66 +469,80 @@ def get_architecture_for_2d3d_myrorss(
 
     # Input to this layer is E x 32 x 32 x 12 x 1.
     reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
-        num_output_filters=8, num_kernel_rows=5, num_kernel_columns=5,
-        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=first_num_reflectivity_filters, num_kernel_rows=5,
+        num_kernel_columns=5, num_kernel_depths=3, num_rows_per_stride=1,
+        num_columns_per_stride=1, num_depths_per_stride=1,
+        padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu', is_first_layer=False)(
             reflectivity_input_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 12 x 8.
+    # Input to this layer is E x 32 x 32 x 12 x
+    # `first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_dropout_layer(
-        dropout_fraction=0.1)(reflectivity_layer_object)
+        dropout_fraction=dropout_fraction)(reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 12 x 8.
+    # Input to this layer is E x 32 x 32 x 12 x
+    # `first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=1, num_columns_in_window=1, num_depths_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
         num_columns_per_stride=1, num_depths_per_stride=2)(
             reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 6 x 8.
+    # Input to this layer is E x 32 x 32 x 6 x
+    # `first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
-        num_output_filters=16, num_kernel_rows=5, num_kernel_columns=5,
-        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        num_output_filters=2 * first_num_reflectivity_filters,
+        num_kernel_rows=5, num_kernel_columns=5, num_kernel_depths=3,
+        num_rows_per_stride=1, num_columns_per_stride=1,
         num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')(reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 6 x 16.
+    # Input to this layer is E x 32 x 32 x 6 x
+    # `2 * first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_dropout_layer(
-        dropout_fraction=0.1)(reflectivity_layer_object)
+        dropout_fraction=dropout_fraction)(reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 6 x 16.
+    # Input to this layer is E x 32 x 32 x 6 x
+    # `2 * first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=1, num_columns_in_window=1, num_depths_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
         num_columns_per_stride=1, num_depths_per_stride=2)(
             reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 3 x 16.
+    # Input to this layer is E x 32 x 32 x 3 x
+    # `2 * first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
-        num_output_filters=32, num_kernel_rows=5, num_kernel_columns=5,
-        num_kernel_depths=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        num_output_filters=4 * first_num_reflectivity_filters,
+        num_kernel_rows=5, num_kernel_columns=5, num_kernel_depths=3,
+        num_rows_per_stride=1, num_columns_per_stride=1,
         num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')(reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 3 x 32.
+    # Input to this layer is E x 32 x 32 x 3 x
+    # `4 * first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_dropout_layer(
-        dropout_fraction=0.1)(reflectivity_layer_object)
+        dropout_fraction=dropout_fraction)(reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 3 x 32.
+    # Input to this layer is E x 32 x 32 x 3 x
+    # `4 * first_num_reflectivity_filters`.
     reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
         num_rows_in_window=1, num_columns_in_window=1, num_depths_in_window=3,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
         num_columns_per_stride=1, num_depths_per_stride=3)(
             reflectivity_layer_object)
 
-    # Input to this layer is E x 32 x 32 x 1 x 32.  Output is 32 x 32 x 32.
+    # Input to this layer is E x 32 x 32 x 1 x
+    # `4 * first_num_reflectivity_filters`.  Output is E x 32 x 32 x
+    # `4 * first_num_reflectivity_filters`.
+    this_target_shape = (
+        NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, 4 * first_num_reflectivity_filters)
     reflectivity_layer_object = keras.layers.Reshape(
-        target_shape=(NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, 32))(
-            reflectivity_layer_object)
+        target_shape=this_target_shape)(reflectivity_layer_object)
 
     # Input to this layer is E x 64 x 64 x F.
     az_shear_layer_object = cnn_utils.get_2d_conv_layer(
@@ -531,8 +554,8 @@ def get_architecture_for_2d3d_myrorss(
             az_shear_input_layer_object)
 
     # Input to this layer is E x 64 x 64 x 16.
-    az_shear_layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        az_shear_layer_object)
+    az_shear_layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(az_shear_layer_object)
 
     # Input to this layer is E x 64 x 64 x 16.  Output is E x 32 x 32 x 16.
     az_shear_layer_object = cnn_utils.get_2d_pooling_layer(
@@ -540,68 +563,79 @@ def get_architecture_for_2d3d_myrorss(
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
         num_columns_per_stride=2)(az_shear_layer_object)
 
-    # Output of this layer is E x 32 x 32 x 48.
+    # Output of this layer is E x 32 x 32 x
+    # `16 + 4 * first_num_reflectivity_filters`.
     layer_object = keras.layers.concatenate(
         [reflectivity_layer_object, az_shear_layer_object], axis=-1)
 
-    # Input to this layer is E x 32 x 32 x 48.
+    # Input to this layer is E x 32 x 32 x
+    # `16 + 4 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=96, num_kernel_rows=5, num_kernel_columns=5,
-        num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=32 + 8 * first_num_reflectivity_filters,
+        num_kernel_rows=5, num_kernel_columns=5, num_rows_per_stride=1,
+        num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')(layer_object)
 
-    # Input to this layer is E x 32 x 32 x 96.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    # Input to this layer is E x 32 x 32 x
+    # `32 + 8 * first_num_reflectivity_filters`.
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
-    # Input to this layer is E x 32 x 32 x 96.
+    # Input to this layer is E x 32 x 32 x
+    # `32 + 8 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
         num_columns_per_stride=2)(layer_object)
 
-    # Input to this layer is E x 16 x 16 x 96.
+    # Input to this layer is E x 16 x 16 x
+    # `32 + 8 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=192, num_kernel_rows=5, num_kernel_columns=5,
-        num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=64 + 16 * first_num_reflectivity_filters,
+        num_kernel_rows=5, num_kernel_columns=5, num_rows_per_stride=1,
+        num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')(layer_object)
 
-    # Input to this layer is E x 16 x 16 x 192.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    # Input to this layer is E x 16 x 16 x
+    # `64 + 16 * first_num_reflectivity_filters`.
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
-    # Input to this layer is E x 16 x 16 x 192.
+    # Input to this layer is E x 16 x 16 x
+    # `64 + 16 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
         num_columns_per_stride=2)(layer_object)
 
-    # Input to this layer is E x 8 x 8 x 192.
+    # Input to this layer is E x 8 x 8 x
+    # `64 + 16 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=384, num_kernel_rows=5, num_kernel_columns=5,
-        num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=128 + 32 * first_num_reflectivity_filters,
+        num_kernel_rows=5, num_kernel_columns=5, num_rows_per_stride=1,
+        num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu')(layer_object)
 
-    # Input to this layer is E x 8 x 8 x 384.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    # Input to this layer is E x 8 x 8 x
+    # `128 + 32 * first_num_reflectivity_filters`.
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
-    # Input to this layer is E x 8 x 8 x 384.
+    # Input to this layer is E x 8 x 8 x
+    # `128 + 32 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
         pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
         num_columns_per_stride=2)(layer_object)
 
-    # Input to this layer is E x 4 x 4 x 384.
+    # Input to this layer is E x 4 x 4 x
+    # `128 + 32 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_flattening_layer()(layer_object)
 
-    # Input to this layer is E x 6144.
+    # Input to this layer is E x `2048 + 512 * first_num_reflectivity_filters`.
     layer_object = cnn_utils.get_fully_connected_layer(
         num_output_units=num_classes, activation_function='softmax')(
             layer_object)
