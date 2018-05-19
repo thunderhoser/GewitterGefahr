@@ -31,7 +31,7 @@ LARGE_INTEGER = 1e10
 
 def _check_input_args(
         num_examples_per_batch, num_examples_per_init_time, normalize_by_batch,
-        image_file_name_matrix, num_image_dimensions,
+        image_file_name_matrix, num_image_dimensions, binarize_target,
         sounding_statistic_file_names=None, sounding_statistic_names=None):
     """Error-checks input arguments to generator.
 
@@ -47,6 +47,7 @@ def _check_input_args(
         `find_3d_input_files`.  Length of the first axis should be T.
     :param num_image_dimensions: Number of image dimensions.  This should be the
         number of dimensions in `image_file_name_matrix`.
+    :param binarize_target: See documentation for `_select_batch`.
     :param sounding_statistic_file_names: [optional] length-T list of paths to
         sounding-statistic files.  This should be created by
         `find_sounding_statistic_files`.
@@ -67,6 +68,8 @@ def _check_input_args(
     error_checking.assert_is_leq(num_image_dimensions, 3)
     error_checking.assert_is_numpy_array(
         image_file_name_matrix, num_dimensions=num_image_dimensions)
+
+    error_checking.assert_is_boolean(binarize_target)
 
     if sounding_statistic_file_names is not None:
         num_init_times = image_file_name_matrix.shape[0]
@@ -212,7 +215,7 @@ def _determine_stopping_criterion(
 
 def _select_batch(
         list_of_image_matrices, target_values, num_examples_per_batch,
-        num_classes):
+        binarize_target=False, num_classes=None):
     """Selects batch randomly from examples in memory.
 
     E_m = number of examples in memory
@@ -222,6 +225,9 @@ def _select_batch(
         storm-centered radar images, where the first axis has length E_m.
     :param target_values: numpy array of target values (length E_m).
     :param num_examples_per_batch: Number of examples needed per batch.
+    :param binarize_target: Boolean flag.  If True, will binarize target
+        variable, so that the highest class is 1 (positive) and all other
+        classes are 0 (negative).
     :param num_classes: Number of classes for target value.
     :return: list_of_image_matrices: Same as input, except that the first axis
         of each array now has length E_b.
@@ -242,8 +248,14 @@ def _select_batch(
         list_of_image_matrices[i] = list_of_image_matrices[
             i][batch_indices, ...].astype('float32')
 
-    target_matrix = keras.utils.to_categorical(
-        target_values[batch_indices], num_classes)
+    if binarize_target:
+        target_values = (target_values == num_classes - 1).astype(int)
+        target_matrix = keras.utils.to_categorical(
+            target_values[batch_indices], 2)
+    else:
+        target_matrix = keras.utils.to_categorical(
+            target_values[batch_indices], num_classes)
+
     class_fractions = numpy.mean(target_matrix, axis=0)
     print 'Fraction of target values in each class:\n{0:s}\n'.format(
         str(class_fractions))
@@ -593,7 +605,7 @@ def find_sounding_statistic_files(
 
 def storm_image_generator_2d(
         image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name,
+        num_examples_per_init_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fractions_to_sample=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
@@ -611,6 +623,7 @@ def storm_image_generator_2d(
     :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_init_time: Same.
     :param target_name: Name of target variable.
+    :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
     :param class_fractions_to_sample: length-K numpy array for class-conditional
@@ -643,7 +656,7 @@ def storm_image_generator_2d(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
-        num_image_dimensions=2,
+        num_image_dimensions=2, binarize_target=binarize_target,
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
@@ -821,7 +834,7 @@ def storm_image_generator_2d(
                 full_image_matrix, full_sounding_stat_matrix],
             target_values=all_target_values,
             num_examples_per_batch=num_examples_per_batch,
-            num_classes=num_classes)
+            binarize_target=binarize_target, num_classes=num_classes)
 
         image_matrix = list_of_image_matrices[0]
         sounding_stat_matrix = list_of_image_matrices[1]
@@ -841,7 +854,7 @@ def storm_image_generator_2d(
 
 def storm_image_generator_2d3d_myrorss(
         image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name,
+        num_examples_per_init_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fractions_to_sample=None):
     """Generates examples with both 2-D and 3-D radar images.
@@ -862,6 +875,7 @@ def storm_image_generator_2d3d_myrorss(
     :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_init_time: Same.
     :param target_name: Name of target variable.
+    :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
     :param class_fractions_to_sample: Same.
     :return: predictor_list: List with the following items.
@@ -876,7 +890,7 @@ def storm_image_generator_2d3d_myrorss(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
-        num_image_dimensions=2)
+        num_image_dimensions=2, binarize_target=binarize_target)
 
     image_file_name_matrix, _ = _shuffle_times(image_file_name_matrix)
     reflectivity_file_name_matrix, az_shear_file_name_matrix = (
@@ -1053,7 +1067,7 @@ def storm_image_generator_2d3d_myrorss(
                 full_reflectivity_matrix_dbz, full_az_shear_matrix_s01],
             target_values=all_target_values,
             num_examples_per_batch=num_examples_per_batch,
-            num_classes=num_classes)
+            binarize_target=binarize_target, num_classes=num_classes)
 
         reflectivity_matrix_dbz = list_of_image_matrices[0]
         azimuthal_shear_matrix_s01 = list_of_image_matrices[1]
@@ -1071,7 +1085,7 @@ def storm_image_generator_2d3d_myrorss(
 
 def storm_image_generator_3d(
         image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name,
+        num_examples_per_init_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fractions_to_sample=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
@@ -1089,6 +1103,7 @@ def storm_image_generator_3d(
     :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_init_time: Same.
     :param target_name: Name of target variable.
+    :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
     :param class_fractions_to_sample: Same.
     :param sounding_statistic_file_names: Same.
@@ -1114,7 +1129,7 @@ def storm_image_generator_3d(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_init_time=num_examples_per_init_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
-        num_image_dimensions=3,
+        num_image_dimensions=3, binarize_target=binarize_target,
         sounding_statistic_file_names=sounding_statistic_file_names,
         sounding_statistic_names=sounding_statistic_names)
 
@@ -1301,7 +1316,7 @@ def storm_image_generator_3d(
                 full_image_matrix, full_sounding_stat_matrix],
             target_values=all_target_values,
             num_examples_per_batch=num_examples_per_batch,
-            num_classes=num_classes)
+            binarize_target=binarize_target, num_classes=num_classes)
 
         image_matrix = list_of_image_matrices[0]
         sounding_stat_matrix = list_of_image_matrices[1]

@@ -105,7 +105,8 @@ def _train_3d_gridrad_cnn(
         normalization_dict=NORMALIZATION_DICT,
         percentile_offset_for_normalization=None,
         class_fractions_to_sample=class_fractions_to_sample,
-        sounding_statistic_names=None, pickle_file_name=metadata_file_name)
+        sounding_statistic_names=None, binarize_target=False,
+        use_2d3d_convolution=False, pickle_file_name=metadata_file_name)
 
     # Determine number of classes.
     target_param_dict = labels.column_name_to_label_params(target_name)

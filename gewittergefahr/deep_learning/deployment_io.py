@@ -75,7 +75,8 @@ def _read_sounding_statistics(
 def create_2d_storm_images_one_time(
         top_storm_image_dir_name, init_time_unix_sec, radar_source,
         radar_field_names, target_name, return_target=True,
-        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
+        binarize_target=False, radar_heights_m_asl=None,
+        reflectivity_heights_m_asl=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         top_sounding_stat_dir_name=None, sounding_stat_names=None,
         sounding_stat_metadata_table=None):
@@ -101,6 +102,9 @@ def create_2d_storm_images_one_time(
     :param target_name: Name of target variable.
     :param return_target: Boolean flag.  If True, will return target values and
         predictors.  If False, will return only predictors.
+    :param binarize_target: Boolean flag.  If True, will binarize target
+        variable, so that the highest class is 1 (positive) and all other
+        classes are 0 (negative).
     :param radar_heights_m_asl: [used only if radar_source == "gridrad"]
         1-D numpy array of radar heights (metres above sea level).  These will
         apply to each field.
@@ -130,6 +134,7 @@ def create_2d_storm_images_one_time(
 
     radar_utils.check_data_source(radar_source)
     error_checking.assert_is_boolean(return_target)
+    error_checking.assert_is_boolean(binarize_target)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
@@ -173,6 +178,10 @@ def create_2d_storm_images_one_time(
             trainval_io.remove_storms_with_undef_target(this_storm_image_dict))
         valid_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
+
+        if binarize_target:
+            num_classes = labels.column_name_to_num_classes(target_name)
+            target_values = (target_values == num_classes - 1).astype(int)
     else:
         this_storm_image_dict = storm_images.read_storm_images_only(
             netcdf_file_name=image_file_names[0])
@@ -216,7 +225,7 @@ def create_2d_storm_images_one_time(
 def create_2d3d_storm_images_one_time(
         top_storm_image_dir_name, init_time_unix_sec,
         azimuthal_shear_field_names, reflectivity_heights_m_asl,
-        return_target=True, target_name=None,
+        return_target=True, binarize_target=False, target_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT):
     """Creates examples for all storm objects at one time.
 
@@ -241,8 +250,8 @@ def create_2d3d_storm_images_one_time(
         shear fields.
     :param reflectivity_heights_m_asl: length-D numpy array of reflectivity
         heights (metres above sea level).
-    :param return_target: See doc for
-        `create_2d_storm_images_one_time`.
+    :param return_target: See doc for `create_2d_storm_images_one_time`.
+    :param binarize_target: Same.
     :param target_name: Same.
     :param radar_normalization_dict: Same.
     :return: reflectivity_image_matrix_dbz: E-by-m-by-n-by-D-by-1 numpy array of
@@ -251,6 +260,9 @@ def create_2d3d_storm_images_one_time(
         centered azimuthal-shear images.
     :return: target_values: See doc for `create_2d_storm_images_one_time`.
     """
+
+    error_checking.assert_is_boolean(return_target)
+    error_checking.assert_is_boolean(binarize_target)
 
     image_file_name_matrix, _, _, _ = (
         storm_images.find_many_files_myrorss_or_mrms(
@@ -285,6 +297,10 @@ def create_2d3d_storm_images_one_time(
         this_storm_image_dict, valid_storm_indices = (
             trainval_io.remove_storms_with_undef_target(this_storm_image_dict))
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
+
+        if binarize_target:
+            num_classes = labels.column_name_to_num_classes(target_name)
+            target_values = (target_values == num_classes - 1).astype(int)
     else:
         this_storm_image_dict = storm_images.read_storm_images_only(
             reflectivity_file_names[0])
@@ -337,6 +353,7 @@ def create_2d3d_storm_images_one_time(
 def create_3d_storm_images_one_time(
         top_storm_image_dir_name, init_time_unix_sec, radar_source,
         radar_field_names, radar_heights_m_asl, target_name, return_target=True,
+        binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         top_sounding_stat_dir_name=None, sounding_stat_names=None,
         sounding_stat_metadata_table=None):
@@ -354,9 +371,9 @@ def create_3d_storm_images_one_time(
     :param radar_field_names: Same.
     :param radar_heights_m_asl: length-D numpy array of radar heights (metres
         above sea level).  These will apply to each field.
-    :param target_name: See doc for
-        `create_2d_storm_images_one_time`.
+    :param target_name: See doc for `create_2d_storm_images_one_time`.
     :param return_target: Same.
+    :param binarize_target: Same.
     :param radar_normalization_dict: Same.
     :param top_sounding_stat_dir_name: Same.
     :param sounding_stat_names: Same.
@@ -370,6 +387,7 @@ def create_3d_storm_images_one_time(
 
     radar_utils.check_data_source(radar_source)
     error_checking.assert_is_boolean(return_target)
+    error_checking.assert_is_boolean(binarize_target)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
@@ -416,6 +434,10 @@ def create_3d_storm_images_one_time(
             trainval_io.remove_storms_with_undef_target(this_storm_image_dict))
         valid_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
+
+        if binarize_target:
+            num_classes = labels.column_name_to_num_classes(target_name)
+            target_values = (target_values == num_classes - 1).astype(int)
     else:
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, 0])
