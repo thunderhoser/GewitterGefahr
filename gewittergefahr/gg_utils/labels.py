@@ -19,6 +19,9 @@ from gewittergefahr.gg_utils import error_checking
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 KT_TO_METRES_PER_SECOND = 1.852 / 3.6
 
+INVALID_STORM_INTEGER = -1
+DEAD_STORM_INTEGER = -2
+
 REQUIRED_STORM_INPUT_COLUMNS = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
     tracking_utils.TRACKING_END_TIME_COLUMN]
@@ -162,6 +165,27 @@ def _find_storms_near_end_of_tracking_period(
 
     return numpy.where(
         times_before_end_of_tracking_sec < max_lead_time_sec)[0]
+
+
+def _find_dead_storms(storm_to_events_table, min_lead_time_sec):
+    """Finds "dead storms" (those that do not persist beyond minimum lead time).
+
+    :param storm_to_events_table: pandas DataFrame with at least the following
+        columns.  Each row is one storm object.
+    storm_to_events_table.unix_time_sec: Valid time for storm object.
+    storm_to_events_table.cell_end_time_unix_sec: End time of storm cell (last
+        time in track).
+
+    :param min_lead_time_sec: Minimum lead time.
+    :return: dead_indices: 1-D numpy array with indices of dead storm objects.
+        These are row indices into `storm_to_events_table`.
+    """
+
+    remaining_lifetimes_sec = (
+        storm_to_events_table[tracking_utils.CELL_END_TIME_COLUMN] -
+        storm_to_events_table[tracking_utils.TIME_COLUMN])
+
+    return numpy.where(remaining_lifetimes_sec < min_lead_time_sec)[0]
 
 
 def check_label_params(
@@ -731,15 +755,21 @@ def label_wind_speed_for_regression(
     max_link_distance_metres = parameter_dict[MAX_LINKAGE_DISTANCE_KEY]
     percentile_level = parameter_dict[WIND_SPEED_PERCENTILE_LEVEL_KEY]
 
-    invalid_storm_indices = _find_storms_near_end_of_tracking_period(
-        storm_to_winds_table, max_lead_time_sec)
+    invalid_storm_object_indices = _find_storms_near_end_of_tracking_period(
+        storm_to_events_table=storm_to_winds_table,
+        max_lead_time_sec=max_lead_time_sec)
+    dead_storm_object_indices = _find_dead_storms(
+        storm_to_events_table=storm_to_winds_table,
+        min_lead_time_sec=min_lead_time_sec)
 
     num_storm_objects = len(storm_to_winds_table.index)
     labels_m_s01 = numpy.full(num_storm_objects, numpy.nan)
+    labels_m_s01[invalid_storm_object_indices] = INVALID_STORM_INTEGER
+    labels_m_s01[dead_storm_object_indices] = DEAD_STORM_INTEGER
     numbers_of_wind_obs = numpy.full(num_storm_objects, -1, dtype=int)
 
     for i in range(num_storm_objects):
-        if i in invalid_storm_indices:
+        if i in invalid_storm_object_indices or i in dead_storm_object_indices:
             continue
 
         these_relative_wind_times_sec = storm_to_winds_table[
@@ -843,13 +873,19 @@ def label_wind_speed_for_classification(
 
     regression_labels_m_s01 = storm_to_winds_table[
         regression_label_column_name].values
-    invalid_storm_indices = numpy.where(numpy.isnan(regression_labels_m_s01))[0]
-    regression_labels_m_s01[invalid_storm_indices] = 0.
+
+    invalid_storm_object_indices = numpy.where(
+        regression_labels_m_s01 == INVALID_STORM_INTEGER)[0]
+    regression_labels_m_s01[invalid_storm_object_indices] = 0.
+    dead_storm_object_indices = numpy.where(
+        regression_labels_m_s01 == DEAD_STORM_INTEGER)[0]
+    regression_labels_m_s01[dead_storm_object_indices] = 0.
 
     storm_classes = classifn_utils.classify_values(
         regression_labels_m_s01, class_cutoffs=class_cutoffs_m_s01,
         non_negative_only=True)
-    storm_classes[invalid_storm_indices] = -1
+    storm_classes[invalid_storm_object_indices] = INVALID_STORM_INTEGER
+    storm_classes[dead_storm_object_indices] = DEAD_STORM_INTEGER
 
     classification_label_column_name = get_column_name_for_classification_label(
         min_lead_time_sec=min_lead_time_sec,
@@ -897,7 +933,7 @@ def label_tornado_occurrence(
     min_link_distance_metres = parameter_dict[MIN_LINKAGE_DISTANCE_KEY]
     max_link_distance_metres = parameter_dict[MAX_LINKAGE_DISTANCE_KEY]
 
-    invalid_storm_indices = _find_storms_near_end_of_tracking_period(
+    invalid_storm_object_indices = _find_storms_near_end_of_tracking_period(
         storm_to_tornadoes_table, max_lead_time_sec)
 
     num_storm_objects = len(storm_to_tornadoes_table.index)
@@ -919,8 +955,8 @@ def label_tornado_occurrence(
             these_valid_time_flags, these_valid_distance_flags)
 
         tornado_classes[i] = numpy.any(these_valid_tornado_flags)
-        if i in invalid_storm_indices and tornado_classes[i] == 0:
-            tornado_classes[i] = -1
+        if i in invalid_storm_object_indices and tornado_classes[i] == 0:
+            tornado_classes[i] = INVALID_STORM_INTEGER
 
     label_column_name = get_column_name_for_classification_label(
         min_lead_time_sec=min_lead_time_sec,

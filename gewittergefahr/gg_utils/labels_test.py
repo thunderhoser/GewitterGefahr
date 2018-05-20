@@ -25,7 +25,24 @@ THIS_DICTIONARY = {
 STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD = pandas.DataFrame.from_dict(
     THIS_DICTIONARY)
 
-ROWS_NEAR_END_OF_PERIOD = numpy.array([2, 3, 7], dtype=int)
+INVALID_STORM_OBJECT_INDICES = numpy.array([2, 3, 7], dtype=int)
+
+# The following constants are used to test _find_dead_storms.
+MIN_LEAD_TIME_FOR_DEAD_SEC = 3600
+
+THESE_END_TIMES_UNIX_SEC = numpy.array(
+    [10000, 10000, 10000, 10000, 20000, 20000, 20000, 20000], dtype=int)
+THESE_VALID_TIMES_UNIX_SEC = numpy.array(
+    [2500, 5000, 7500, 10000, 12500, 15000, 16400, 17500], dtype=int)
+
+THIS_DICTIONARY = {
+    tracking_utils.CELL_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    tracking_utils.TIME_COLUMN: THESE_VALID_TIMES_UNIX_SEC
+}
+STORM_TO_EVENTS_TABLE_WITH_DEAD_STORMS = pandas.DataFrame.from_dict(
+    THIS_DICTIONARY)
+
+DEAD_STORM_OBJECT_INDICES = numpy.array([2, 3, 7], dtype=int)
 
 # The following constants are used to test get_column_name_for_regression_label,
 # get_column_name_for_num_wind_obs, and
@@ -106,12 +123,22 @@ class LabelsTests(unittest.TestCase):
     def test_find_storms_near_end_of_tracking_period(self):
         """Ensures correctness of _find_storms_near_end_of_tracking_period."""
 
-        these_invalid_rows = labels._find_storms_near_end_of_tracking_period(
+        these_indices = labels._find_storms_near_end_of_tracking_period(
             storm_to_events_table=STORM_TO_EVENTS_TABLE_WITH_END_OF_PERIOD,
             max_lead_time_sec=MAX_LEAD_TIME_SEC)
 
         self.assertTrue(numpy.array_equal(
-            these_invalid_rows, ROWS_NEAR_END_OF_PERIOD))
+            these_indices, INVALID_STORM_OBJECT_INDICES))
+
+    def test_find_dead_storms(self):
+        """Ensures correct output from _find_dead_storms."""
+
+        these_indices = labels._find_dead_storms(
+            storm_to_events_table=STORM_TO_EVENTS_TABLE_WITH_DEAD_STORMS,
+            min_lead_time_sec=MIN_LEAD_TIME_FOR_DEAD_SEC)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, DEAD_STORM_OBJECT_INDICES))
 
     def test_get_column_name_for_regression_label(self):
         """Ensures correct output from get_column_name_for_regression_label."""
