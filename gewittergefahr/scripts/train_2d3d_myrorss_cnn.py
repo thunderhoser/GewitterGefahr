@@ -15,7 +15,7 @@ from gewittergefahr.scripts import deep_learning as dl_script_helper
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-BINARIZE_TARGET = True
+BINARIZE_TARGET = False
 NORMALIZE_BY_BATCH = False
 NORMALIZATION_DICT = copy.deepcopy(dl_utils.DEFAULT_NORMALIZATION_DICT)
 
