@@ -13,6 +13,8 @@ C = number of channels (predictor variables) per image
 import copy
 import numpy
 import pandas
+from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import error_checking
@@ -191,11 +193,9 @@ def check_target_values(target_values, num_dimensions, num_classes):
     error_checking.assert_is_integer(num_dimensions)
     error_checking.assert_is_geq(num_dimensions, 1)
     error_checking.assert_is_leq(num_dimensions, 2)
-
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
 
-    error_checking.assert_is_geq_numpy_array(target_values, 0)
     num_examples = target_values.shape[0]
 
     if num_dimensions == 1:
@@ -203,6 +203,11 @@ def check_target_values(target_values, num_dimensions, num_classes):
             target_values, exact_dimensions=numpy.array([num_examples]))
 
         error_checking.assert_is_integer_numpy_array(target_values)
+
+        live_storm_object_indices = numpy.where(
+            target_values != labels.DEAD_STORM_INTEGER)[0]
+        error_checking.assert_is_geq_numpy_array(
+            target_values[live_storm_object_indices], 0)
         error_checking.assert_is_less_than_numpy_array(
             target_values, num_classes)
     else:
@@ -473,7 +478,8 @@ def normalize_sounding_statistics(
 
 
 def sample_points_by_class(
-        target_values, class_fractions, num_points_to_sample, test_mode=False):
+        target_values, target_name, class_fractions, num_points_to_sample,
+        test_mode=False):
     """Samples data points to achieve desired class balance.
 
     If any class is missing from `target_values`, this method will return None.
@@ -482,7 +488,9 @@ def sample_points_by_class(
     different classes.
 
     :param target_values: length-E numpy array of target values.  These are
-        integers from 0...(K - 1), where K = number of classes.
+        integers from 0...(K - 1), where K = number of classes.  If the target
+        variable is based on wind speed, some values may be -2 ("dead storm").
+    :param target_name: Name of target variable.
     :param class_fractions: length-K numpy array of desired class fractions.
     :param num_points_to_sample: Number of data points to keep.
     :param test_mode: Boolean flag.  Always leave this False.
@@ -494,14 +502,33 @@ def sample_points_by_class(
         class_fractions=class_fractions,
         num_points_to_sample=num_points_to_sample)
 
-    num_classes = len(class_fractions)
+    target_param_dict = labels.column_name_to_label_params(target_name)
+    include_dead_storms = (
+        target_param_dict[labels.EVENT_TYPE_KEY] ==
+        events2storms.WIND_EVENT_TYPE_STRING)
+
+    num_classes = labels.column_name_to_num_classes(target_name)
+    num_classes_with_dead_storms = num_classes + int(include_dead_storms)
+    if num_classes_with_dead_storms != len(class_fractions):
+        error_string = (
+            'Target variable "{0:s}" has {1:d} classes, but `class_fractions` '
+            'has {2:d} entries.  These numbers should be equal.'
+        ).format(target_name, num_classes_with_dead_storms,
+                 len(class_fractions))
+        raise ValueError(error_string)
+
     check_target_values(
         target_values, num_dimensions=1, num_classes=num_classes)
 
     indices_by_class = [
         numpy.where(target_values == k)[0] for k in range(num_classes)]
+    if include_dead_storms:
+        dead_storm_indices = numpy.where(
+            target_values == labels.DEAD_STORM_INTEGER)[0]
+        indices_by_class = [dead_storm_indices] + indices_by_class
+
     num_avail_points_by_class = numpy.array(
-        [len(indices_by_class[k]) for k in range(num_classes)])
+        [len(indices_by_class[k]) for k in range(num_classes_with_dead_storms)])
     if numpy.any(num_avail_points_by_class == 0):
         return None
 
@@ -515,7 +542,7 @@ def sample_points_by_class(
             class_fractions=class_fractions,
             num_points_to_sample=num_points_to_sample)
 
-    for k in range(num_classes):
+    for k in range(num_classes_with_dead_storms):
         if not test_mode:
             numpy.random.shuffle(indices_by_class[k])
 
@@ -523,7 +550,7 @@ def sample_points_by_class(
             k][:num_desired_points_by_class[k]]
 
     indices_to_keep = copy.deepcopy(indices_by_class[0])
-    for k in range(1, num_classes):
+    for k in range(1, num_classes_with_dead_storms):
         indices_to_keep = numpy.concatenate((
             indices_to_keep, indices_by_class[k]))
 

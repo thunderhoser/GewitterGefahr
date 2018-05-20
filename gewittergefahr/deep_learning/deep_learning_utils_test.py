@@ -44,8 +44,8 @@ TOY_TARGET_MATRIX_MULTICLASS = keras.utils.to_categorical(
     numpy.max(TOY_TARGET_VALUES_1D_MULTICLASS) + 1)
 
 # The following constants are used to test class_fractions_to_num_points.
-TOY_CLASS_FRACTIONS_BINARY = numpy.array([0.1, 0.9])
-TOY_CLASS_FRACTIONS_TERNARY = numpy.array([0.1, 0.2, 0.7])
+TOY_TORNADO_CLASS_FRACTIONS = numpy.array([0.1, 0.9])
+TOY_WIND_CLASS_FRACTIONS = numpy.array([0.1, 0.2, 0.7])
 
 NUM_POINTS_TO_SAMPLE_LARGE = 17
 NUM_POINTS_BY_CLASS_BINARY_LARGE = numpy.array([2, 15], dtype=int)
@@ -270,26 +270,30 @@ SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO = numpy.array(
      [0.5, 1., 0.7, THIRD_COSINE, THIRD_SINE, THIRD_COSINE, THIRD_SINE, 1.]])
 
 # The following constants are used to test sample_points_by_class.
-TARGET_VALUES_TO_SAMPLE_BINARY = numpy.array(
+TORNADO_LABELS_TO_SAMPLE = numpy.array(
     [0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0,
      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
     dtype=int)
+TORNADO_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 NUM_POINTS_TO_SAMPLE = 30
-CLASS_FRACTIONS_BINARY = numpy.array([0.5, 0.5])
-INDICES_TO_KEEP_BINARY = numpy.array(
+TORNADO_CLASS_FRACTIONS = numpy.array([0.5, 0.5])
+TORNADO_INDICES_TO_KEEP = numpy.array(
     [0, 1, 2, 4, 7, 8, 9, 10, 11, 13, 3, 5, 6, 12, 15, 16, 19, 25, 45, 48],
     dtype=int)
 
-TARGET_VALUES_TO_SAMPLE_TERNARY = numpy.array(
-    [2, 2, 2, 2, 2, 0, 2, 1, 2, 0, 0, 2, 1, 0, 2, 2, 2, 0, 0, 1, 2, 0, 1, 2, 0,
-     2, 0, 1, 1, 1, 0, 2, 1, 2, 1, 0, 0, 1, 0, 0, 1, 0, 2, 2, 2, 0, 1, 1, 2, 2],
-    dtype=int)
+WIND_LABELS_TO_SAMPLE = numpy.array(
+    [2, 1, 1, 2, 0, -2, -2, 1, -2, 2, 2, 1, 2, 1, 0, 0, 2, 1, 1, 0, 0, -2, 0, 1,
+     2, 2, 2, 0, -2, 0, 0, 2, -2, 2, -2, 0, -2, 0, 1, -2, 2, -2, 2, 1, 1, 1, 0,
+     0, 0, 1], dtype=int)
+WIND_TARGET_NAME = (
+    'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00000-10000m'
+    '_cutoffs=30-50kt')
 
-CLASS_FRACTIONS_TERNARY = numpy.array([0.1, 0.6, 0.3])
-INDICES_TO_KEEP_TERNARY = numpy.array(
-    [5, 9, 7, 12, 19, 22, 27, 28, 29, 32, 34, 37, 40, 46, 47, 0, 1, 2, 3, 4, 6],
-    dtype=int)
+WIND_CLASS_FRACTIONS = numpy.array([0.2, 0.1, 0.4, 0.3])
+WIND_INDICES_TO_KEEP = numpy.array(
+    [5, 6, 8, 21, 28, 32, 4, 14, 15, 1, 2, 7, 11, 13, 17, 18, 23, 38, 43, 44,
+     45, 0, 3, 9, 10, 12, 16, 24, 25, 26], dtype=int)
 
 
 class DeepLearningUtilsTests(unittest.TestCase):
@@ -440,7 +444,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_BINARY,
+            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
         self.assertTrue(numpy.array_equal(
@@ -453,7 +457,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
+            class_fractions=TOY_WIND_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
         self.assertTrue(numpy.array_equal(
@@ -466,7 +470,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_BINARY,
+            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
         self.assertTrue(numpy.array_equal(
@@ -479,7 +483,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
+            class_fractions=TOY_WIND_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
         self.assertTrue(numpy.array_equal(
@@ -492,7 +496,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_BINARY,
+            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
         self.assertTrue(numpy.array_equal(
@@ -505,7 +509,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
+            class_fractions=TOY_WIND_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
         self.assertTrue(numpy.array_equal(
@@ -518,7 +522,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_BINARY,
+            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 
         self.assertTrue(numpy.array_equal(
@@ -531,7 +535,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_CLASS_FRACTIONS_TERNARY,
+            class_fractions=TOY_WIND_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 
         self.assertTrue(numpy.array_equal(
@@ -544,7 +548,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TOY_CLASS_FRACTIONS_BINARY)
+            TOY_TORNADO_CLASS_FRACTIONS)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(TOY_CLASS_WEIGHT_DICT_BINARY.keys()))
@@ -562,7 +566,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TOY_CLASS_FRACTIONS_TERNARY)
+            TOY_WIND_CLASS_FRACTIONS)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(TOY_CLASS_WEIGHT_DICT_TERNARY.keys()))
@@ -684,12 +688,13 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         these_indices = dl_utils.sample_points_by_class(
-            target_values=TARGET_VALUES_TO_SAMPLE_BINARY,
-            class_fractions=CLASS_FRACTIONS_BINARY,
+            target_values=TORNADO_LABELS_TO_SAMPLE,
+            target_name=TORNADO_TARGET_NAME,
+            class_fractions=TORNADO_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices, INDICES_TO_KEEP_BINARY))
+            these_indices, TORNADO_INDICES_TO_KEEP))
 
     def test_sample_points_by_class_ternary(self):
         """Ensures correct output from sample_points_by_class.
@@ -698,12 +703,13 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         these_indices = dl_utils.sample_points_by_class(
-            target_values=TARGET_VALUES_TO_SAMPLE_TERNARY,
-            class_fractions=CLASS_FRACTIONS_TERNARY,
+            target_values=WIND_LABELS_TO_SAMPLE,
+            target_name=WIND_TARGET_NAME,
+            class_fractions=WIND_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
-            these_indices, INDICES_TO_KEEP_TERNARY))
+            these_indices, WIND_INDICES_TO_KEEP))
 
 
 if __name__ == '__main__':
