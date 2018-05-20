@@ -108,16 +108,8 @@ def _train_3d_gridrad_cnn(
         sounding_statistic_names=None, binarize_target=False,
         use_2d3d_convolution=False, pickle_file_name=metadata_file_name)
 
-    # Determine number of classes.
-    target_param_dict = labels.column_name_to_label_params(target_name)
-    wind_speed_class_cutoffs_kt = target_param_dict[
-        labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-    if wind_speed_class_cutoffs_kt is None:
-        num_classes = 2
-    else:
-        num_classes = len(wind_speed_class_cutoffs_kt) + 1
-
-    # Create model architecture.
+    # Set up model architecture.
+    num_classes = labels.column_name_to_num_classes(target_name)
     model_object = cnn.get_3d_swirlnet_architecture(
         num_classes=num_classes, num_input_channels=len(radar_field_names))
 

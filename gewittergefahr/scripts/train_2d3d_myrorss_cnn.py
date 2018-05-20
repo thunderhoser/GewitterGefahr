@@ -132,15 +132,8 @@ def _train_2d3d_myrorss_cnn(
         sounding_statistic_names=None, binarize_target=BINARIZE_TARGET,
         use_2d3d_convolution=True, pickle_file_name=metadata_file_name)
 
-    # Determine number of classes.
-    target_param_dict = labels.column_name_to_label_params(target_name)
-    wind_speed_class_cutoffs_kt = target_param_dict[
-        labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-    if wind_speed_class_cutoffs_kt is None:
-        num_classes = 2
-    else:
-        num_classes = len(wind_speed_class_cutoffs_kt) + 1
-
+    # Set up model architecture.
+    num_classes = labels.column_name_to_num_classes(target_name)
     model_object = cnn.get_architecture_for_2d3d_myrorss(
         num_classes=num_classes, dropout_fraction=dropout_fraction,
         first_num_reflectivity_filters=first_num_reflectivity_filters,
