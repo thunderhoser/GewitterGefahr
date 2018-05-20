@@ -697,30 +697,53 @@ def _remove_short_tracks(
         _local_maxima_to_storm_tracks.
     :param min_duration_seconds: Minimum storm duration.  Any track with
         duration < `min_duration_seconds` will be dropped.
-    :return: storm_object_table: Same as input, except maybe with fewer rows.
+    :return storm_object_table: Same as input, except [1] maybe with fewer rows
+        and [2] with the following additional columns.
+    storm_object_table.cell_start_time_unix_sec: Start time of storm cell (first
+        time in track).
+    storm_object_table.cell_end_time_unix_sec: End time of storm cell (last time
+        in track).
     """
 
-    all_storm_ids = numpy.array(
+    storm_id_by_object = numpy.array(
         storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
-    unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
-        all_storm_ids, return_inverse=True)
-    rows_to_remove = numpy.array([], dtype=int)
+    storm_id_by_cell, orig_to_unique_indices = numpy.unique(
+        storm_id_by_object, return_inverse=True)
 
-    for i in range(len(unique_storm_ids)):
-        these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
+    num_storm_objects = len(storm_id_by_object)
+    num_storm_cells = len(storm_id_by_cell)
+
+    start_time_by_object_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
+    end_time_by_object_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
+    object_indices_to_remove = numpy.array([], dtype=int)
+
+    for i in range(num_storm_cells):
+        these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
         these_times_unix_sec = storm_object_table[
             tracking_utils.TIME_COLUMN].values[these_object_indices]
+
+        start_time_by_object_unix_sec[these_object_indices] = numpy.min(
+            these_times_unix_sec)
+        end_time_by_object_unix_sec[these_object_indices] = numpy.max(
+            these_times_unix_sec)
 
         this_duration_seconds = (
             numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec))
         if this_duration_seconds >= min_duration_seconds:
             continue
 
-        rows_to_remove = numpy.concatenate((
-            rows_to_remove, these_object_indices))
+        object_indices_to_remove = numpy.concatenate((
+            object_indices_to_remove, these_object_indices))
+
+    argument_dict = {
+        tracking_utils.CELL_START_TIME_COLUMN: start_time_by_object_unix_sec,
+        tracking_utils.CELL_END_TIME_COLUMN: end_time_by_object_unix_sec
+    }
+    storm_object_table = storm_object_table.assign(**argument_dict)
 
     return storm_object_table.drop(
-        storm_object_table.index[rows_to_remove], axis=0, inplace=False)
+        storm_object_table.index[object_indices_to_remove], axis=0,
+        inplace=False)
 
 
 def _get_velocities_one_storm_track(
@@ -1703,8 +1726,7 @@ def run_tracking(
 def join_tracks_across_spc_dates(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
         top_output_dir_name, tracking_start_time_unix_sec=None,
-        tracking_end_time_unix_sec=None, start_time_unix_sec=None,
-        end_time_unix_sec=None,
+        tracking_end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
@@ -1713,69 +1735,58 @@ def join_tracks_across_spc_dates(
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
     """Joins storm tracks across SPC dates.
 
-    This method assumes that the initial tracking (performed by `run_tracking`)
-    was done for each SPC date individually.  This leads to artificial
-    truncations at 1200 UTC (the cutoff between SPC dates).  This method fixes
-    said truncations by joining tracks from adjacent SPC dates.
-
-    T = number of time steps
+    This method assumes that the initial tracks were created separately for each
+    SPC date (period of 1200-1200 UTC).  This leads to artificial truncations at
+    1200 UTC, where storm objects on date k could not be linked with objects on
+    date (k + 1).  This method fixes said truncations by joining tracks from
+    each consecutive pair of SPC dates.
 
     :param first_spc_date_string: First SPC date (format "yyyymmdd").  This
-        method will join tracks for all SPC dates from `first_spc_date_string`
-        ...`last_spc_date_string`.
-    :param last_spc_date_string: See above.
-    :param top_input_dir_name: Name of top-level directory with original
-        tracking files (before joining across SPC dates).
-    :param top_output_dir_name: Name of top-level directory for new tracking
-        files (after joining).
-    :param tracking_start_time_unix_sec: Beginning of tracking period.
-    :param tracking_end_time_unix_sec: End of tracking period.
-    :param start_time_unix_sec: Start time.  If None, defaults to beginning of
-        `first_spc_date_string`.
-    :param end_time_unix_sec: End time.  If None, defaults to end of
+        method joins tracks for all SPC dates from `first_spc_date_string`...
         `last_spc_date_string`.
+    :param last_spc_date_string: See above.
+    :param top_input_dir_name: Name of top-level input directory (with original
+        tracking files).
+    :param top_output_dir_name: Name of top-level output directory (for new
+        tracking files).
+    :param tracking_start_time_unix_sec: Start of tracking period.
+    :param tracking_end_time_unix_sec: End of tracking period.
     :param max_link_time_seconds: See documentation for
         `_link_local_maxima_in_time`.
-    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
-    :param max_reanal_join_time_sec: See doc for `reanalyze_tracks`.
-    :param max_reanal_extrap_error_m_s01: See doc for `reanalyze_tracks`.
-    :param min_track_duration_seconds: See doc for `_remove_short_tracks`.
-    :param num_points_back_for_velocity: See doc for
+    :param max_link_distance_m_s01: Same.
+    :param max_reanal_join_time_sec: See documentation for `reanalyze_tracks`.
+    :param max_reanal_extrap_error_m_s01: Same.
+    :param min_track_duration_seconds: See documentation for
+        `_remove_short_tracks`.
+    :param num_points_back_for_velocity: See documentation for
         `_get_velocities_one_storm_track`.
     :return: tracking_file_dict: Dictionary created by
         `_find_input_and_output_tracking_files`.
-    :raises: ValueError: if storm_object_table for SPC date "yyyymmdd" contains
-        any SPC dates other than "yyyymmdd".
+    :raises: ValueError: if `storm_object_table` for SPC date k contains any SPC
+        dates other than k.
     """
 
-    # TODO(thunderhoser): Clean up this method!
-
-    # Find input files, desired locations for output files.
+    # Find input files and target locations for output files.
     tracking_file_dict = _find_input_and_output_tracking_files(
         first_spc_date_string=first_spc_date_string,
         last_spc_date_string=last_spc_date_string,
-        start_time_unix_sec=start_time_unix_sec,
-        end_time_unix_sec=end_time_unix_sec,
         top_input_dir_name=top_input_dir_name,
         tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
         top_output_dir_name=top_output_dir_name)
 
-    # Find SPC dates.
     spc_date_strings = tracking_file_dict[SPC_DATE_STRINGS_KEY]
+    spc_dates_unix_sec = numpy.array(
+        [time_conversion.spc_date_string_to_unix_sec(s)
+         for s in spc_date_strings])
     num_spc_dates = len(spc_date_strings)
 
-    # Separate input files, output files, and valid times by SPC date.
     input_file_names_by_spc_date = tracking_file_dict[
         INPUT_FILE_NAMES_BY_DATE_KEY]
     output_file_names_by_spc_date = tracking_file_dict[
         OUTPUT_FILE_NAMES_BY_DATE_KEY]
     times_by_spc_date_unix_sec = tracking_file_dict[VALID_TIMES_BY_DATE_KEY]
 
-    spc_dates_unix_sec = numpy.array(
-        [time_conversion.spc_date_string_to_unix_sec(s)
-         for s in spc_date_strings])
-
-    # Find start/end of tracking period.
+    # Find or verify tracking period.
     if (tracking_start_time_unix_sec is None
             or tracking_end_time_unix_sec is None):
         tracking_start_time_unix_sec = numpy.min(times_by_spc_date_unix_sec[0])
@@ -1883,8 +1894,8 @@ def join_tracks_across_spc_dates(
 
                 error_string = (
                     'storm_object_table for SPC date "{0:s}" contains other SPC'
-                    ' dates (shown below).\n\n{1:s}').format(
-                        spc_date_strings[i], these_spc_date_strings)
+                    ' dates (shown below).\n\n{1:s}'
+                ).format(spc_date_strings[i], these_spc_date_strings)
                 raise ValueError(error_string)
 
         # Join tracks between [i]th and [i + 1]th SPC dates.

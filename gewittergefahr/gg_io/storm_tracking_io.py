@@ -32,6 +32,8 @@ MANDATORY_COLUMNS = [
     tracking_utils.TRACKING_END_TIME_COLUMN]
 
 BEST_TRACK_COLUMNS = [tracking_utils.ORIG_STORM_ID_COLUMN]
+CELL_TIME_COLUMNS = [
+    tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN]
 
 
 def _get_pathless_processed_file_name(unix_time_sec, data_source):
@@ -218,6 +220,10 @@ def write_processed_file(storm_object_table, pickle_file_name):
     storm_object_table.tracking_start_time_unix_sec: Start time for tracking
         period.
     storm_object_table.tracking_end_time_unix_sec: End time for tracking period.
+    storm_object_table.cell_start_time_unix_sec: [optional] Start time of storm
+        cell (first time in track).
+    storm_object_table.cell_end_time_unix_sec: [optional] End time of storm cell
+        (last time in track).
     storm_object_table.age_sec: Age of storm cell (seconds).
     storm_object_table.east_velocity_m_s01: Eastward velocity of storm cell
         (metres per second).
@@ -249,10 +255,17 @@ def write_processed_file(storm_object_table, pickle_file_name):
         distance_buffer_column_names = []
 
     columns_to_write = MANDATORY_COLUMNS + distance_buffer_column_names
-    best_track_column_present_flags = numpy.array(
+
+    found_best_track_flags = numpy.array(
         [c in list(storm_object_table) for c in BEST_TRACK_COLUMNS])
-    if numpy.all(best_track_column_present_flags):
+    if numpy.all(found_best_track_flags):
         columns_to_write += BEST_TRACK_COLUMNS
+
+    # TODO(thunderhoser): Eventually make these columns mandatory.
+    found_cell_time_flags = numpy.array(
+        [c in list(storm_object_table) for c in CELL_TIME_COLUMNS])
+    if numpy.all(found_cell_time_flags):
+        columns_to_write += CELL_TIME_COLUMNS
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')

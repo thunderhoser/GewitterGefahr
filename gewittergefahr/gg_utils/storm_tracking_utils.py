@@ -29,6 +29,8 @@ POLYGON_OBJECT_LATLNG_COLUMN = 'polygon_object_latlng'
 POLYGON_OBJECT_ROWCOL_COLUMN = 'polygon_object_rowcol'
 TRACKING_START_TIME_COLUMN = 'tracking_start_time_unix_sec'
 TRACKING_END_TIME_COLUMN = 'tracking_end_time_unix_sec'
+CELL_START_TIME_COLUMN = 'cell_start_time_unix_sec'
+CELL_END_TIME_COLUMN = 'cell_end_time_unix_sec'
 
 BUFFER_POLYGON_COLUMN_PREFIX = 'polygon_object_latlng_buffer'
 ORIG_STORM_ID_COLUMN = 'original_storm_id'
