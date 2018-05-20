@@ -53,8 +53,9 @@ DEFAULT_MAX_LINK_DISTANCE_FOR_TORNADOES_METRES = 30000.
 REQUIRED_STORM_COLUMNS = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
     tracking_utils.TRACKING_START_TIME_COLUMN,
-    tracking_utils.TRACKING_END_TIME_COLUMN, tracking_utils.CENTROID_LAT_COLUMN,
-    tracking_utils.CENTROID_LNG_COLUMN,
+    tracking_utils.TRACKING_END_TIME_COLUMN,
+    tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN,
+    tracking_utils.CENTROID_LAT_COLUMN, tracking_utils.CENTROID_LNG_COLUMN,
     tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN]
 
 REQUIRED_WIND_COLUMNS = [
@@ -66,19 +67,11 @@ REQUIRED_TORNADO_COLUMNS = [
     tornado_io.START_TIME_COLUMN, tornado_io.START_LAT_COLUMN,
     tornado_io.START_LNG_COLUMN, tornado_io.FUJITA_RATING_COLUMN]
 
-# REQUIRED_TORNADO_COLUMNS = [
-#     tornado_io.START_TIME_COLUMN, tornado_io.END_TIME_COLUMN,
-#     tornado_io.START_LAT_COLUMN, tornado_io.END_LAT_COLUMN,
-#     tornado_io.START_LNG_COLUMN, tornado_io.END_LNG_COLUMN,
-#     tornado_io.FUJITA_RATING_COLUMN]
-
 FILE_INDEX_COLUMN = 'file_index'
 STORM_CENTROID_X_COLUMN = 'centroid_x_metres'
 STORM_CENTROID_Y_COLUMN = 'centroid_y_metres'
 STORM_VERTICES_X_COLUMN = 'vertices_x_metres'
 STORM_VERTICES_Y_COLUMN = 'vertices_y_metres'
-STORM_START_TIME_COLUMN = 'start_time_unix_sec'
-STORM_END_TIME_COLUMN = 'end_time_unix_sec'
 
 EVENT_TIME_COLUMN = 'unix_time_sec'
 EVENT_LATITUDE_COLUMN = 'latitude_deg'
@@ -102,15 +95,13 @@ U_WINDS_COLUMN = 'u_winds_m_s01'
 V_WINDS_COLUMN = 'v_winds_m_s01'
 
 REQUIRED_STORM_TO_WINDS_COLUMNS = REQUIRED_STORM_COLUMNS + [
-    STORM_START_TIME_COLUMN, STORM_END_TIME_COLUMN, LINKAGE_DISTANCES_COLUMN,
-    RELATIVE_EVENT_TIMES_COLUMN, EVENT_LATITUDES_COLUMN,
-    EVENT_LONGITUDES_COLUMN, WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN,
-    V_WINDS_COLUMN]
+    LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
+    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, WIND_STATION_IDS_COLUMN,
+    U_WINDS_COLUMN, V_WINDS_COLUMN]
 
 REQUIRED_STORM_TO_TORNADOES_COLUMNS = REQUIRED_STORM_COLUMNS + [
-    STORM_START_TIME_COLUMN, STORM_END_TIME_COLUMN, LINKAGE_DISTANCES_COLUMN,
-    RELATIVE_EVENT_TIMES_COLUMN, EVENT_LATITUDES_COLUMN,
-    EVENT_LONGITUDES_COLUMN, FUJITA_RATINGS_COLUMN]
+    LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN,
+    EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN, FUJITA_RATINGS_COLUMN]
 
 
 def _check_linkage_params(
@@ -299,43 +290,6 @@ def _filter_events_by_location(event_table, x_limits_metres, y_limits_metres):
         event_table.index[invalid_rows], axis=0, inplace=False)
 
 
-def _find_start_end_times_of_storms(storm_object_table):
-    """Finds start/end time for each storm cell.
-
-    :param storm_object_table: pandas DataFrame created by
-        `_project_storms_latlng_to_xy`.  Each row is one storm object.
-    :return: storm_object_table: Same as input, but with extra columns listed
-        below.
-    storm_object_table.start_time_unix_sec: Start time of corresponding cell
-        (first time with the same storm ID).
-    storm_object_table.end_time_unix_sec: End time of corresponding cell (last
-        time with the same storm ID).
-    """
-
-    unique_storm_ids, storm_ids_orig_to_unique = numpy.unique(
-        numpy.array(storm_object_table[tracking_utils.STORM_ID_COLUMN].values),
-        return_inverse=True)
-
-    num_storm_cells = len(unique_storm_ids)
-    num_storm_objects = len(storm_object_table.index)
-    start_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
-    end_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
-
-    for j in range(num_storm_cells):
-        these_storm_object_indices = numpy.where(
-            storm_ids_orig_to_unique == j)[0]
-        start_times_unix_sec[these_storm_object_indices] = numpy.min(
-            storm_object_table[tracking_utils.TIME_COLUMN].values[
-                these_storm_object_indices])
-        end_times_unix_sec[these_storm_object_indices] = numpy.max(
-            storm_object_table[tracking_utils.TIME_COLUMN].values[
-                these_storm_object_indices])
-
-    argument_dict = {STORM_START_TIME_COLUMN: start_times_unix_sec,
-                     STORM_END_TIME_COLUMN: end_times_unix_sec}
-    return storm_object_table.assign(**argument_dict)
-
-
 def _filter_storms_by_time(
         storm_object_table, max_start_time_unix_sec, min_end_time_unix_sec):
     """Filters storm cells by time.
@@ -346,17 +300,22 @@ def _filter_storms_by_time(
     For any storm cell S with end time < `min_end_time_unix_sec`, all storm
     objects will be removed.
 
-    :param storm_object_table: pandas DataFrame created by
-        `_find_start_end_times_of_storms`.
+    :param storm_object_table: pandas DataFrame, where each row is one storm
+        object.  Must contain at least the following columns.
+    storm_object_table.cell_start_time_unix_sec: Start time of storm cell (first
+        time in track).
+    storm_object_table.cell_end_time_unix_sec: End time of storm cell (last time
+        in track).
+
     :param max_start_time_unix_sec: Latest allowed start time.
     :param min_end_time_unix_sec: Earliest allowed end time.
     :return: storm_object_table: Same as input, but maybe with fewer rows.
     """
 
     invalid_flags = numpy.invert(numpy.logical_and(
-        storm_object_table[STORM_START_TIME_COLUMN].values <=
+        storm_object_table[tracking_utils.CELL_START_TIME_COLUMN].values <=
         max_start_time_unix_sec,
-        storm_object_table[STORM_END_TIME_COLUMN].values >=
+        storm_object_table[tracking_utils.CELL_END_TIME_COLUMN].values >=
         min_end_time_unix_sec))
 
     return storm_object_table.drop(
@@ -1343,7 +1302,6 @@ def link_each_storm_to_winds(
         event_table=wind_table, x_limits_metres=wind_x_limits_metres,
         y_limits_metres=wind_y_limits_metres)
 
-    storm_object_table = _find_start_end_times_of_storms(storm_object_table)
     wind_to_storm_table = _find_nearest_storms(
         storm_object_table=storm_object_table, event_table=wind_table,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
@@ -1428,7 +1386,6 @@ def link_each_storm_to_tornadoes(
         event_table=tornado_table, x_limits_metres=tornado_x_limits_metres,
         y_limits_metres=tornado_y_limits_metres)
 
-    storm_object_table = _find_start_end_times_of_storms(storm_object_table)
     tornado_to_storm_table = _find_nearest_storms(
         storm_object_table=storm_object_table, event_table=tornado_table,
         max_time_before_storm_start_sec=max_time_before_storm_start_sec,
