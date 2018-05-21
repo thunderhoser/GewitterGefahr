@@ -178,6 +178,7 @@ def create_2d_storm_images_one_time(
             trainval_io.remove_storms_with_undef_target(this_storm_image_dict))
         valid_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
+        target_values[target_values < 0] = 0
 
         if binarize_target:
             num_classes = labels.column_name_to_num_classes(target_name)
@@ -297,6 +298,7 @@ def create_2d3d_storm_images_one_time(
         this_storm_image_dict, valid_storm_indices = (
             trainval_io.remove_storms_with_undef_target(this_storm_image_dict))
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
+        target_values[target_values < 0] = 0
 
         if binarize_target:
             num_classes = labels.column_name_to_num_classes(target_name)
@@ -434,6 +436,7 @@ def create_3d_storm_images_one_time(
             trainval_io.remove_storms_with_undef_target(this_storm_image_dict))
         valid_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
         target_values = this_storm_image_dict[storm_images.LABEL_VALUES_KEY]
+        target_values[target_values < 0] = 0
 
         if binarize_target:
             num_classes = labels.column_name_to_num_classes(target_name)

@@ -145,9 +145,9 @@ WIND_LABEL_NAME = (
     'wind-speed_percentile=100.0_lead-time=0000-3600sec_'
     'distance=00000-10000m_cutoffs=10-20-30-40-50kt')
 
-NUM_OBJECTS_BY_WIND_CLASS_NONZERO = numpy.array(
+NUM_OBJECTS_BY_WIND_XCLASS_NONZERO = numpy.array(
     [5, 1, 2, 3, 4, 25, 100], dtype=int)
-NUM_OBJECTS_BY_WIND_CLASS_SOME_ZERO = numpy.array(
+NUM_OBJECTS_BY_WIND_XCLASS_SOME_ZERO = numpy.array(
     [0, 1, 0, 3, 0, 25, 0], dtype=int)
 
 INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
@@ -307,7 +307,7 @@ class StormImagesTests(unittest.TestCase):
         these_indices = storm_images._filter_storm_objects_by_label(
             label_values=TORNADO_LABELS_TO_FILTER,
             label_name=TORNADO_LABEL_NAME,
-            num_storm_objects_by_class=NUM_OBJECTS_BY_TORNADO_CLASS_NONZERO,
+            num_storm_objects_by_xclass=NUM_OBJECTS_BY_TORNADO_CLASS_NONZERO,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
@@ -323,7 +323,7 @@ class StormImagesTests(unittest.TestCase):
         these_indices = storm_images._filter_storm_objects_by_label(
             label_values=TORNADO_LABELS_TO_FILTER,
             label_name=TORNADO_LABEL_NAME,
-            num_storm_objects_by_class=NUM_OBJECTS_BY_TORNADO_CLASS_ONE_ZERO,
+            num_storm_objects_by_xclass=NUM_OBJECTS_BY_TORNADO_CLASS_ONE_ZERO,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
@@ -338,7 +338,7 @@ class StormImagesTests(unittest.TestCase):
 
         these_indices = storm_images._filter_storm_objects_by_label(
             label_values=WIND_LABELS_TO_FILTER, label_name=WIND_LABEL_NAME,
-            num_storm_objects_by_class=NUM_OBJECTS_BY_WIND_CLASS_NONZERO,
+            num_storm_objects_by_xclass=NUM_OBJECTS_BY_WIND_XCLASS_NONZERO,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(
@@ -353,7 +353,7 @@ class StormImagesTests(unittest.TestCase):
 
         these_indices = storm_images._filter_storm_objects_by_label(
             label_values=WIND_LABELS_TO_FILTER, label_name=WIND_LABEL_NAME,
-            num_storm_objects_by_class=NUM_OBJECTS_BY_WIND_CLASS_SOME_ZERO,
+            num_storm_objects_by_xclass=NUM_OBJECTS_BY_WIND_XCLASS_SOME_ZERO,
             test_mode=True)
 
         self.assertTrue(numpy.array_equal(

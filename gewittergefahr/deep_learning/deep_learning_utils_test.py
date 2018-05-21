@@ -269,7 +269,7 @@ SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO = numpy.array(
       0.55 / SECOND_MAGNITUDE, 0.75 / SECOND_MAGNITUDE, SECOND_MAGNITUDE],
      [0.5, 1., 0.7, THIRD_COSINE, THIRD_SINE, THIRD_COSINE, THIRD_SINE, 1.]])
 
-# The following constants are used to test sample_points_by_class.
+# The following constants are used to test sample_points_by_extended_class.
 TORNADO_LABELS_TO_SAMPLE = numpy.array(
     [0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0,
      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
@@ -681,31 +681,31 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_normalized_matrix, SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO,
             atol=TOLERANCE))
 
-    def test_sample_points_by_class_binary(self):
-        """Ensures correct output from sample_points_by_class.
+    def test_sample_points_by_extended_class_binary(self):
+        """Ensures correct output from sample_points_by_extended_class.
 
         In this case there are 2 classes.
         """
 
-        these_indices = dl_utils.sample_points_by_class(
+        these_indices = dl_utils.sample_points_by_extended_class(
             target_values=TORNADO_LABELS_TO_SAMPLE,
             target_name=TORNADO_TARGET_NAME,
-            class_fractions=TORNADO_CLASS_FRACTIONS,
+            extended_class_fractions=TORNADO_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, TORNADO_INDICES_TO_KEEP))
 
-    def test_sample_points_by_class_ternary(self):
-        """Ensures correct output from sample_points_by_class.
+    def test_sample_points_by_extended_class_ternary(self):
+        """Ensures correct output from sample_points_by_extended_class.
 
         In this case there are 3 classes.
         """
 
-        these_indices = dl_utils.sample_points_by_class(
+        these_indices = dl_utils.sample_points_by_extended_class(
             target_values=WIND_LABELS_TO_SAMPLE,
             target_name=WIND_TARGET_NAME,
-            class_fractions=WIND_CLASS_FRACTIONS,
+            extended_class_fractions=WIND_CLASS_FRACTIONS,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
