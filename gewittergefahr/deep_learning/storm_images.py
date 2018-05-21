@@ -540,26 +540,33 @@ def _filter_storm_objects_by_label(
         keep.
     """
 
-    label_parameter_dict = labels.column_name_to_label_params(label_name)
-    wind_speed_class_cutoffs_kt = label_parameter_dict[
-        labels.WIND_SPEED_CLASS_CUTOFFS_KEY]
-    if wind_speed_class_cutoffs_kt is None:
-        num_classes = 2
-    else:
-        num_classes = 1 + len(wind_speed_class_cutoffs_kt)
+    num_classes = labels.column_name_to_num_classes(
+        column_name=label_name, include_dead_storms=False)
+    num_classes_with_dead_storms = labels.column_name_to_num_classes(
+        column_name=label_name, include_dead_storms=True)
+    include_dead_storms = num_classes_with_dead_storms > num_classes
 
     error_checking.assert_is_numpy_array(
-        num_storm_objects_by_class, exact_dimensions=numpy.array([num_classes]))
+        num_storm_objects_by_class,
+        exact_dimensions=numpy.array([num_classes_with_dead_storms]))
     error_checking.assert_is_integer_numpy_array(num_storm_objects_by_class)
     error_checking.assert_is_geq_numpy_array(num_storm_objects_by_class, 0)
     error_checking.assert_is_greater(numpy.sum(num_storm_objects_by_class), 0)
 
     indices_to_keep = numpy.array([], dtype=int)
-    for k in range(num_classes):
+    for k in range(num_classes_with_dead_storms):
         if num_storm_objects_by_class[k] == 0:
             continue
 
-        these_indices = numpy.where(label_values == k)[0]
+        if include_dead_storms:
+            if k == 0:
+                these_indices = numpy.where(
+                    label_values == labels.DEAD_STORM_INTEGER)[0]
+            else:
+                these_indices = numpy.where(label_values == k - 1)[0]
+        else:
+            these_indices = numpy.where(label_values == k)[0]
+
         if len(these_indices) > num_storm_objects_by_class[k]:
             if test_mode:
                 these_indices = these_indices[:num_storm_objects_by_class[k]]

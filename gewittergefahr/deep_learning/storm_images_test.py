@@ -139,21 +139,21 @@ INDICES_TO_KEEP_FOR_TORNADO_NONZERO = numpy.array([0, 1, 2, 4, 6], dtype=int)
 INDICES_TO_KEEP_FOR_TORNADO_ONE_ZERO = numpy.array([2, 4, 6], dtype=int)
 
 WIND_LABELS_TO_FILTER = numpy.array(
-    [0, 1, 2, 1, 3, 3, 4, 0, 0, 0, 1, 0, 2, 0, 0, 2, 2, 0, 0, 0, 0, 4, 0, 5, 0,
-     5, 3, 0, 1, 0], dtype=int)
+    [0, -2, 0, 5, 2, 1, 3, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 2, -2, 0, 1,
+     3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0], dtype=int)
 WIND_LABEL_NAME = (
     'wind-speed_percentile=100.0_lead-time=0000-3600sec_'
     'distance=00000-10000m_cutoffs=10-20-30-40-50kt')
 
 NUM_OBJECTS_BY_WIND_CLASS_NONZERO = numpy.array(
-    [1, 2, 3, 4, 25, 100], dtype=int)
+    [5, 1, 2, 3, 4, 25, 100], dtype=int)
 NUM_OBJECTS_BY_WIND_CLASS_SOME_ZERO = numpy.array(
-    [1, 0, 3, 0, 25, 0], dtype=int)
+    [0, 1, 0, 3, 0, 25, 0], dtype=int)
 
 INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
-    [0, 1, 3, 2, 12, 15, 4, 5, 26, 6, 21, 23, 25], dtype=int)
+    [1, 21, 33, 35, 38, 0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3], dtype=int)
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
-    [0, 2, 12, 15, 6, 21], dtype=int)
+    [0, 4, 13, 20, 26, 34], dtype=int)
 
 # The following constants are used to test extract_one_label_per_storm.
 WIND_SPEED_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)

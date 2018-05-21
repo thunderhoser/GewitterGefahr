@@ -120,10 +120,12 @@ def _get_num_examples_per_batch_by_class(
         of examples in each class needed per batch.
     """
 
-    num_classes = labels.column_name_to_num_classes(target_name)
+    num_classes_with_dead_storms = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=True)
+
     if class_fractions_to_sample is None:
         num_examples_per_batch_by_class = numpy.full(
-            num_classes, LARGE_INTEGER, dtype=int)
+            num_classes_with_dead_storms, LARGE_INTEGER, dtype=int)
     else:
         num_examples_per_batch_by_class = (
             dl_utils.class_fractions_to_num_points(
@@ -132,7 +134,7 @@ def _get_num_examples_per_batch_by_class(
 
         error_checking.assert_is_numpy_array(
             num_examples_per_batch_by_class,
-            exact_dimensions=numpy.array([num_classes]))
+            exact_dimensions=numpy.array([num_classes_with_dead_storms]))
 
     return num_examples_per_batch_by_class
 
@@ -175,7 +177,7 @@ def _get_num_examples_remaining_by_class(
 def _determine_stopping_criterion(
         num_examples_per_batch, num_init_times_per_batch,
         num_examples_per_batch_by_class, num_init_times_in_memory,
-        class_fractions_to_sample, target_values_in_memory):
+        class_fractions_to_sample, target_values_in_memory, target_name):
     """Determines whether or not to stop generating examples.
 
     K = number of classes
@@ -190,15 +192,28 @@ def _determine_stopping_criterion(
         `storm_image_generator_3d`.
     :param target_values_in_memory: 1-D numpy array with all target values
         currently in memory.
-    :return: num_examples_in_memory_by_class: length-K numpy array with number of
-        examples in each class currently in memory.
+    :param target_name: Name of target variable.
+    :return: num_examples_in_memory_by_class: length-K numpy array with number
+        of examples in each class currently in memory.
     :return: stopping_criterion: Boolean flag.
     """
 
-    num_classes = len(num_examples_per_batch_by_class)
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+    num_classes_with_dead_storms = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=True)
+    include_dead_storms = num_classes_with_dead_storms > num_classes
+
+    num_examples_in_memory_by_class = [
+        numpy.sum(target_values_in_memory == k) for k in range(num_classes)]
+    if include_dead_storms:
+        num_dead_storms = numpy.sum(
+            target_values_in_memory == labels.DEAD_STORM_INTEGER)
+        num_examples_in_memory_by_class = (
+            [num_dead_storms] + num_examples_in_memory_by_class)
+
     num_examples_in_memory_by_class = numpy.array(
-        [numpy.sum(target_values_in_memory == k) for k in range(num_classes)],
-        dtype=int)
+        num_examples_in_memory_by_class, dtype=int)
     print 'Number of examples in memory by class: {0:s}'.format(
         str(num_examples_in_memory_by_class))
 
@@ -248,6 +263,8 @@ def _select_batch(
         list_of_image_matrices[i] = list_of_image_matrices[
             i][batch_indices, ...].astype('float32')
 
+    target_values[target_values == labels.DEAD_STORM_INTEGER] = 0
+
     if binarize_target:
         target_values = (target_values == num_classes - 1).astype(int)
         target_matrix = keras.utils.to_categorical(
@@ -278,7 +295,8 @@ def remove_storms_with_undef_target(storm_image_dict):
     """
 
     valid_storm_indices = numpy.where(
-        storm_image_dict[storm_images.LABEL_VALUES_KEY] >= 0)[0]
+        storm_image_dict[storm_images.LABEL_VALUES_KEY] !=
+        labels.INVALID_STORM_INTEGER)[0]
 
     keys_to_change = [
         storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
@@ -676,12 +694,17 @@ def storm_image_generator_2d(
     num_examples_per_batch_by_class = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_fractions_to_sample=class_fractions_to_sample)
-    num_classes = len(num_examples_per_batch_by_class)
+
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+    num_classes_with_dead_storms = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=True)
 
     # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
-    num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+    num_examples_in_memory_by_class = numpy.full(
+        num_classes_with_dead_storms, 0, dtype=int)
     num_init_times_per_batch = int(numpy.ceil(
         float(num_examples_per_batch) / num_examples_per_init_time))
 
@@ -804,11 +827,12 @@ def storm_image_generator_2d(
                     num_examples_per_batch_by_class,
                     num_init_times_in_memory=num_init_times_in_memory,
                     class_fractions_to_sample=class_fractions_to_sample,
-                    target_values_in_memory=all_target_values))
+                    target_values_in_memory=all_target_values,
+                    target_name=target_name))
 
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
-                target_values=all_target_values,
+                target_values=all_target_values, target_name=target_name,
                 class_fractions=class_fractions_to_sample,
                 num_points_to_sample=num_examples_per_batch)
 
@@ -845,7 +869,8 @@ def storm_image_generator_2d(
         all_target_values = None
         full_sounding_stat_matrix = None
         num_init_times_in_memory = 0
-        num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+        num_examples_in_memory_by_class = numpy.full(
+            num_classes_with_dead_storms, 0, dtype=int)
 
         if sounding_statistic_file_names is None:
             yield (image_matrix, target_matrix)
@@ -911,12 +936,17 @@ def storm_image_generator_2d3d_myrorss(
     num_examples_per_batch_by_class = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_fractions_to_sample=class_fractions_to_sample)
-    num_classes = len(num_examples_per_batch_by_class)
+
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+    num_classes_with_dead_storms = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=True)
 
     # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
-    num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+    num_examples_in_memory_by_class = numpy.full(
+        num_classes_with_dead_storms, 0, dtype=int)
     num_init_times_per_batch = int(numpy.ceil(
         float(num_examples_per_batch) / num_examples_per_init_time))
 
@@ -1040,11 +1070,12 @@ def storm_image_generator_2d3d_myrorss(
                     num_examples_per_batch_by_class,
                     num_init_times_in_memory=num_init_times_in_memory,
                     class_fractions_to_sample=class_fractions_to_sample,
-                    target_values_in_memory=all_target_values))
+                    target_values_in_memory=all_target_values,
+                    target_name=target_name))
 
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
-                target_values=all_target_values,
+                target_values=all_target_values, target_name=target_name,
                 class_fractions=class_fractions_to_sample,
                 num_points_to_sample=num_examples_per_batch)
 
@@ -1079,7 +1110,8 @@ def storm_image_generator_2d3d_myrorss(
         full_az_shear_matrix_s01 = None
         all_target_values = None
         num_init_times_in_memory = 0
-        num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+        num_examples_in_memory_by_class = numpy.full(
+            num_classes_with_dead_storms, 0, dtype=int)
 
         yield ([reflectivity_matrix_dbz, azimuthal_shear_matrix_s01],
                target_matrix)
@@ -1152,12 +1184,17 @@ def storm_image_generator_3d(
     num_examples_per_batch_by_class = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_fractions_to_sample=class_fractions_to_sample)
-    num_classes = len(num_examples_per_batch_by_class)
+
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+    num_classes_with_dead_storms = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=True)
 
     # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
-    num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+    num_examples_in_memory_by_class = numpy.full(
+        num_classes_with_dead_storms, 0, dtype=int)
     num_init_times_per_batch = int(numpy.ceil(
         float(num_examples_per_batch) / num_examples_per_init_time))
 
@@ -1288,11 +1325,12 @@ def storm_image_generator_3d(
                     num_examples_per_batch_by_class,
                     num_init_times_in_memory=num_init_times_in_memory,
                     class_fractions_to_sample=class_fractions_to_sample,
-                    target_values_in_memory=all_target_values))
+                    target_values_in_memory=all_target_values,
+                    target_name=target_name))
 
         if class_fractions_to_sample is not None:
             batch_indices = dl_utils.sample_points_by_class(
-                target_values=all_target_values,
+                target_values=all_target_values, target_name=target_name,
                 class_fractions=class_fractions_to_sample,
                 num_points_to_sample=num_examples_per_batch)
 
@@ -1329,7 +1367,8 @@ def storm_image_generator_3d(
         all_target_values = None
         full_sounding_stat_matrix = None
         num_init_times_in_memory = 0
-        num_examples_in_memory_by_class = numpy.full(num_classes, 0, dtype=int)
+        num_examples_in_memory_by_class = numpy.full(
+            num_classes_with_dead_storms, 0, dtype=int)
 
         if sounding_statistic_file_names is None:
             yield (image_matrix, target_matrix)

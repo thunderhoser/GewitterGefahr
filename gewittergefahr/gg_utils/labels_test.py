@@ -247,15 +247,26 @@ class LabelsTests(unittest.TestCase):
             REGRESSION_LABEL_COLUMN_NAME)
         self.assertTrue(this_num_classes is None)
 
-    def test_column_name_to_num_classes_wind_classification(self):
+    def test_column_name_to_num_classes_wind_with_dead_storms(self):
         """Ensures correct output from column_name_to_num_classes.
 
-        In this case, learning goal is classification and event type is wind
-        speed.
+        In this case, learning goal is classification; event type is wind speed;
+        and the "dead storm" label is included in the number of classes.
         """
 
         this_num_classes = labels.column_name_to_num_classes(
-            WIND_CLASSIFICATION_LABEL_COLUMN_NAME)
+            WIND_CLASSIFICATION_LABEL_COLUMN_NAME, include_dead_storms=True)
+        self.assertTrue(this_num_classes == len(WIND_CLASS_CUTOFFS_KT) + 2)
+
+    def test_column_name_to_num_classes_wind_sans_dead_storms(self):
+        """Ensures correct output from column_name_to_num_classes.
+
+        In this case, learning goal is classification; event type is wind speed;
+        and the "dead storm" label is *not* included in the number of classes.
+        """
+
+        this_num_classes = labels.column_name_to_num_classes(
+            WIND_CLASSIFICATION_LABEL_COLUMN_NAME, include_dead_storms=False)
         self.assertTrue(this_num_classes == len(WIND_CLASS_CUTOFFS_KT) + 1)
 
     def test_column_name_to_num_classes_tornado(self):
