@@ -313,8 +313,7 @@ def _create_forecast_observation_pairs(
                 return_target=True,
                 radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
-        this_num_storm_objects = this_predictor_matrix.shape[0]
-        if this_num_storm_objects == 0:
+        if this_predictor_matrix is None:
             continue
 
         this_probability_matrix = cnn.apply_3d_cnn(
