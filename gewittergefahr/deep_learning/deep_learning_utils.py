@@ -10,7 +10,6 @@ D = number of pixel depths per image
 C = number of channels (predictor variables) per image
 """
 
-import copy
 import numpy
 import pandas
 from gewittergefahr.gg_utils import labels
@@ -74,38 +73,45 @@ def _check_class_fractions(class_fractions):
         raise ValueError(error_string)
 
 
-def class_fractions_to_num_points(class_fractions, num_points_to_sample):
+def class_fractions_to_num_points(class_fraction_dict, num_points_to_sample):
     """For each class, converts fraction of points to number of points.
 
-    :param class_fractions: See documentation for `_check_class_fractions`.
+    :param class_fraction_dict: Dictionary, where each key is a class integer
+        (-2 for dead storms) and each value is the corresponding fraction of
+        examples to include in each batch.
     :param num_points_to_sample: Number of points to sample.
-    :return: num_points_by_class: length-K numpy array, where the [k]th element
-        is the number of points to sample for the [k]th class.
-    :raises: ValueError: if sum(class_fractions) != 1.
+    :return: num_points_class_dict: Dictionary, where each key is a class
+        integer (-2 for dead storms) and each value is the corresponding number
+        of examples to include in each batch.
     """
 
-    _check_class_fractions(class_fractions)
-    num_classes = len(class_fractions)
+    _check_class_fractions(numpy.array(class_fraction_dict.values()))
+    num_classes = len(class_fraction_dict.keys())
     error_checking.assert_is_integer(num_points_to_sample)
     error_checking.assert_is_geq(num_points_to_sample, num_classes)
 
-    num_points_by_class = numpy.full(num_classes, -1, dtype=int)
+    num_points_class_dict = {}
+    num_points_used = 0
+    num_classes_used = 0
 
-    for k in range(num_classes - 1):
-        num_points_by_class[k] = int(
-            numpy.round(class_fractions[k] * num_points_to_sample))
-        num_points_by_class[k] = max([num_points_by_class[k], 1])
+    for this_key in class_fraction_dict.keys()[:-1]:
+        this_num_points = int(numpy.round(
+            class_fraction_dict[this_key] * num_points_to_sample))
+        this_num_points = max([this_num_points, 1])
 
-        num_points_left = num_points_to_sample - numpy.sum(
-            num_points_by_class[:k])
-        num_classes_left = num_classes - 1 - k
-        num_points_by_class[k] = min(
-            [num_points_by_class[k], num_points_left - num_classes_left])
+        num_classes_used += 1
+        num_classes_left = num_classes - num_classes_used
+        this_num_points = min(
+            [this_num_points,
+             num_points_to_sample - num_points_used - num_classes_left])
 
-    num_points_by_class[-1] = num_points_to_sample - numpy.sum(
-        num_points_by_class[:-1])
+        num_points_class_dict.update({this_key: this_num_points})
+        num_points_used += this_num_points
 
-    return num_points_by_class
+    this_key = class_fraction_dict.keys()[-1]
+    this_num_points = num_points_to_sample - num_points_used
+    num_points_class_dict.update({this_key: this_num_points})
+    return num_points_class_dict
 
 
 def class_fractions_to_weights(class_fractions):
@@ -476,9 +482,9 @@ def normalize_sounding_statistics(
     return sounding_stat_matrix
 
 
-def sample_points_by_extended_class(
-        target_values, target_name, extended_class_fractions,
-        num_points_to_sample, test_mode=False):
+def sample_points_by_class(
+        target_values, target_name, class_fraction_dict, num_points_to_sample,
+        test_mode=False):
     """Samples data points to achieve desired class balance.
 
     If any class is missing from `target_values`, this method will return None.
@@ -486,75 +492,75 @@ def sample_points_by_extended_class(
     In other words, this method allows "oversampling" and "undersampling" of
     different classes.
 
-    K_x = number of extended classes
-
     :param target_values: length-E numpy array of target values.  These are
         integers from 0...(K - 1), where K = number of classes.  If the target
         variable is based on wind speed, some values may be -2 ("dead storm").
     :param target_name: Name of target variable.
-    :param extended_class_fractions: numpy array (length K_x) of desired class
-        fractions.
+    :param class_fraction_dict: Dictionary, where each key is a class integer
+        (-2 for dead storms) and each value is the corresponding fraction of
+        examples to include in each batch.
     :param num_points_to_sample: Number of data points to keep.
     :param test_mode: Boolean flag.  Always leave this False.
     :return: indices_to_keep: 1-D numpy array with indices of data points to
         keep.  These are indices into `target_values`.
     """
 
-    num_desired_points_by_xclass = class_fractions_to_num_points(
-        class_fractions=extended_class_fractions,
+    num_desired_points_class_dict = class_fractions_to_num_points(
+        class_fraction_dict=class_fraction_dict,
         num_points_to_sample=num_points_to_sample)
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
     num_extended_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=True)
-    include_dead_storms = num_extended_classes > num_classes
 
-    if num_extended_classes != len(extended_class_fractions):
+    if num_extended_classes != len(num_desired_points_class_dict.keys()):
         error_string = (
-            'Target variable ("{0:s}") has {1:d} extended class, but '
-            '`extended_class_fractions` has {2:d} entries.'
+            'Target variable ("{0:s}") has {1:d} extended classes, but '
+            '`num_desired_points_class_dict` has {2:d} entries.'
         ).format(target_name, num_extended_classes,
-                 len(extended_class_fractions))
+                 num_desired_points_class_dict.keys())
         raise ValueError(error_string)
 
     check_target_values(
         target_values, num_dimensions=1, num_classes=num_classes)
 
-    indices_by_extended_class = [
-        numpy.where(target_values == k)[0] for k in range(num_classes)]
-    if include_dead_storms:
-        dead_storm_indices = numpy.where(
-            target_values == labels.DEAD_STORM_INTEGER)[0]
-        indices_by_extended_class = (
-            [dead_storm_indices] + indices_by_extended_class)
+    indices_by_class_dict = {}
+    num_desired_points_by_class = []
+    num_avail_points_by_class = []
 
-    num_avail_points_by_xclass = numpy.array(
-        [len(indices_by_extended_class[k])
-         for k in range(num_extended_classes)])
-    if numpy.any(num_avail_points_by_xclass == 0):
-        return None
+    for this_key in num_desired_points_class_dict.keys():
+        these_values = numpy.where(target_values == this_key)[0]
+        num_desired_points_by_class.append(
+            num_desired_points_class_dict[this_key])
+        num_avail_points_by_class.append(len(these_values))
 
-    if numpy.any(num_avail_points_by_xclass < num_desired_points_by_xclass):
-        avail_to_desired_ratio_by_xclass = num_avail_points_by_xclass.astype(
-            float) / num_desired_points_by_xclass
+        if (num_desired_points_by_class[-1] > 0 and
+                num_avail_points_by_class[-1] == 0):
+            return None
+
+        indices_by_class_dict.update({this_key: these_values})
+
+    num_desired_points_by_class = numpy.array(num_desired_points_by_class)
+    num_avail_points_by_class = numpy.array(num_avail_points_by_class)
+
+    if numpy.any(num_avail_points_by_class < num_desired_points_by_class):
+        avail_to_desired_ratio_by_class = num_avail_points_by_class.astype(
+            float) / num_desired_points_by_class
         num_points_to_sample = int(numpy.floor(
-            num_points_to_sample * numpy.min(avail_to_desired_ratio_by_xclass)))
+            num_points_to_sample * numpy.min(avail_to_desired_ratio_by_class)))
 
-        num_desired_points_by_xclass = class_fractions_to_num_points(
-            class_fractions=extended_class_fractions,
+        num_desired_points_class_dict = class_fractions_to_num_points(
+            class_fraction_dict=class_fraction_dict,
             num_points_to_sample=num_points_to_sample)
 
-    for k in range(num_extended_classes):
+    indices_to_keep = numpy.array([], dtype=int)
+    for this_key in indices_by_class_dict.keys():
         if not test_mode:
-            numpy.random.shuffle(indices_by_extended_class[k])
+            numpy.random.shuffle(indices_by_class_dict[this_key])
 
-        indices_by_extended_class[k] = indices_by_extended_class[
-            k][:num_desired_points_by_xclass[k]]
-
-    indices_to_keep = copy.deepcopy(indices_by_extended_class[0])
-    for k in range(1, num_extended_classes):
+        this_num_points = num_desired_points_class_dict[this_key]
         indices_to_keep = numpy.concatenate((
-            indices_to_keep, indices_by_extended_class[k]))
+            indices_to_keep, indices_by_class_dict[this_key][:this_num_points]))
 
     return indices_to_keep

@@ -32,40 +32,41 @@ TUPLE_OF_4D_PREDICTOR_MATRICES = (
 PREDICTOR_MATRIX_5D = numpy.stack(TUPLE_OF_4D_PREDICTOR_MATRICES, axis=-2)
 
 # The following constants are used to test check_target_values.
-TOY_TARGET_VALUES_1D_BINARY = numpy.array(
+TARGET_VALUES_1D_TORNADO = numpy.array(
     [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], dtype=int)
-TOY_TARGET_VALUES_1D_MULTICLASS = numpy.array(
+TARGET_VALUES_1D_WIND = numpy.array(
     [1, 2, 3, 4, 0, 2, 0, 1, 1, 5, 2], dtype=int)
 
-TOY_TARGET_MATRIX_BINARY = keras.utils.to_categorical(
-    TOY_TARGET_VALUES_1D_BINARY, 2)
-TOY_TARGET_MATRIX_MULTICLASS = keras.utils.to_categorical(
-    TOY_TARGET_VALUES_1D_MULTICLASS,
-    numpy.max(TOY_TARGET_VALUES_1D_MULTICLASS) + 1)
+TARGET_MATRIX_TORNADO = keras.utils.to_categorical(TARGET_VALUES_1D_TORNADO, 2)
+TARGET_MATRIX_WIND = keras.utils.to_categorical(
+    TARGET_VALUES_1D_WIND, numpy.max(TARGET_VALUES_1D_WIND) + 1)
 
 # The following constants are used to test class_fractions_to_num_points.
-TOY_TORNADO_CLASS_FRACTIONS = numpy.array([0.1, 0.9])
-TOY_WIND_CLASS_FRACTIONS = numpy.array([0.1, 0.2, 0.7])
+TOY_TORNADO_CLASS_FRACTION_DICT = {0: 0.1, 1: 0.9}
+TOY_WIND_CLASS_FRACTION_DICT = {-2: 0.1, 0: 0.2, 1: 0.7}
 
 NUM_POINTS_TO_SAMPLE_LARGE = 17
-NUM_POINTS_BY_CLASS_BINARY_LARGE = numpy.array([2, 15], dtype=int)
-NUM_POINTS_BY_CLASS_TERNARY_LARGE = numpy.array([2, 3, 12], dtype=int)
+NUM_POINTS_TORNADO_CLASS_DICT_LARGE = {0: 2, 1: 15}
+NUM_POINTS_WIND_CLASS_DICT_LARGE = {-2: 2, 0: 3, 1: 12}
 
 NUM_POINTS_TO_SAMPLE_MEDIUM = 8
-NUM_POINTS_BY_CLASS_BINARY_MEDIUM = numpy.array([1, 7], dtype=int)
-NUM_POINTS_BY_CLASS_TERNARY_MEDIUM = numpy.array([1, 2, 5], dtype=int)
+NUM_POINTS_TORNADO_CLASS_DICT_MEDIUM = {0: 1, 1: 7}
+NUM_POINTS_WIND_CLASS_DICT_MEDIUM = {-2: 1, 0: 2, 1: 5}
 
 NUM_POINTS_TO_SAMPLE_SMALL = 4
-NUM_POINTS_BY_CLASS_BINARY_SMALL = numpy.array([1, 3], dtype=int)
-NUM_POINTS_BY_CLASS_TERNARY_SMALL = numpy.array([1, 1, 2], dtype=int)
+NUM_POINTS_TORNADO_CLASS_DICT_SMALL = {0: 1, 1: 3}
+NUM_POINTS_WIND_CLASS_DICT_SMALL = {-2: 1, 0: 1, 1: 2}
 
 NUM_POINTS_TO_SAMPLE_XSMALL = 3
-NUM_POINTS_BY_CLASS_BINARY_XSMALL = numpy.array([1, 2], dtype=int)
-NUM_POINTS_BY_CLASS_TERNARY_XSMALL = numpy.array([1, 1, 1], dtype=int)
+NUM_POINTS_TORNADO_CLASS_DICT_XSMALL = {0: 1, 1: 2}
+NUM_POINTS_WIND_CLASS_DICT_XSMALL = {-2: 1, 0: 1, 1: 1}
 
 # The following constants are used to test class_fractions_to_weights.
-TOY_CLASS_WEIGHT_DICT_BINARY = {0: 0.9, 1: 0.1}
-TOY_CLASS_WEIGHT_DICT_TERNARY = {0: 0.6087, 1: 0.3043, 2: 0.0870}
+TORNADO_CLASS_FRACTIONS = numpy.array([0.1, 0.9])
+WIND_CLASS_FRACTIONS = numpy.array([0.1, 0.2, 0.7])
+
+TORNADO_CLASS_WEIGHT_DICT = {0: 0.9, 1: 0.1}
+WIND_CLASS_WEIGHT_DICT = {0: 0.6087, 1: 0.3043, 2: 0.0870}
 
 # The following constants are used to test normalize_predictor_matrix.
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
@@ -269,7 +270,7 @@ SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO = numpy.array(
       0.55 / SECOND_MAGNITUDE, 0.75 / SECOND_MAGNITUDE, SECOND_MAGNITUDE],
      [0.5, 1., 0.7, THIRD_COSINE, THIRD_SINE, THIRD_COSINE, THIRD_SINE, 1.]])
 
-# The following constants are used to test sample_points_by_extended_class.
+# The following constants are used to test sample_points_by_class.
 TORNADO_LABELS_TO_SAMPLE = numpy.array(
     [0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0,
      1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0],
@@ -277,7 +278,7 @@ TORNADO_LABELS_TO_SAMPLE = numpy.array(
 TORNADO_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 NUM_POINTS_TO_SAMPLE = 30
-TORNADO_CLASS_FRACTIONS = numpy.array([0.5, 0.5])
+TORNADO_CLASS_FRACTION_DICT = {0: 0.5, 1: 0.5}
 TORNADO_INDICES_TO_KEEP = numpy.array(
     [0, 1, 2, 4, 7, 8, 9, 10, 11, 13, 3, 5, 6, 12, 15, 16, 19, 25, 45, 48],
     dtype=int)
@@ -290,10 +291,10 @@ WIND_TARGET_NAME = (
     'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00000-10000m'
     '_cutoffs=30-50kt')
 
-WIND_CLASS_FRACTIONS = numpy.array([0.2, 0.1, 0.4, 0.3])
+WIND_CLASS_FRACTION_DICT = {-2: 0.2, 0: 0.1, 1: 0.4, 2: 0.3}
 WIND_INDICES_TO_KEEP = numpy.array(
-    [5, 6, 8, 21, 28, 32, 4, 14, 15, 1, 2, 7, 11, 13, 17, 18, 23, 38, 43, 44,
-     45, 0, 3, 9, 10, 12, 16, 24, 25, 26], dtype=int)
+    [4, 14, 15, 1, 2, 7, 11, 13, 17, 18, 23, 38, 43, 44, 45, 0, 3, 9, 10, 12,
+     16, 24, 25, 26, 5, 6, 8, 21, 28, 32], dtype=int)
 
 
 class DeepLearningUtilsTests(unittest.TestCase):
@@ -340,7 +341,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         dl_utils.check_target_values(
-            TOY_TARGET_VALUES_1D_BINARY, num_dimensions=1, num_classes=2)
+            TARGET_VALUES_1D_TORNADO, num_dimensions=1, num_classes=2)
 
     def test_check_target_values_1d_bad_dim(self):
         """Ensures correct output from check_target_values.
@@ -350,7 +351,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             dl_utils.check_target_values(
-                TOY_TARGET_VALUES_1D_BINARY, num_dimensions=2, num_classes=2)
+                TARGET_VALUES_1D_TORNADO, num_dimensions=2, num_classes=2)
 
     def test_check_target_values_1d_2classes_bad_class_num(self):
         """Ensures correct output from check_target_values.
@@ -361,8 +362,8 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         dl_utils.check_target_values(
-            TOY_TARGET_VALUES_1D_BINARY, num_dimensions=1,
-            num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
+            TARGET_VALUES_1D_TORNADO, num_dimensions=1,
+            num_classes=TARGET_MATRIX_WIND.shape[1])
 
     def test_check_target_values_1d_multiclass_good(self):
         """Ensures correct output from check_target_values.
@@ -371,8 +372,8 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         dl_utils.check_target_values(
-            TOY_TARGET_VALUES_1D_MULTICLASS, num_dimensions=1,
-            num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
+            TARGET_VALUES_1D_WIND, num_dimensions=1,
+            num_classes=TARGET_MATRIX_WIND.shape[1])
 
     def test_check_target_values_1d_multiclass_bad_class_num(self):
         """Ensures correct output from check_target_values.
@@ -383,7 +384,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             dl_utils.check_target_values(
-                TOY_TARGET_VALUES_1D_MULTICLASS, num_dimensions=1, num_classes=2)
+                TARGET_VALUES_1D_WIND, num_dimensions=1, num_classes=2)
 
     def test_check_target_values_2d_2classes_good(self):
         """Ensures correct output from check_target_values.
@@ -392,7 +393,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         dl_utils.check_target_values(
-            TOY_TARGET_MATRIX_BINARY, num_dimensions=2, num_classes=2)
+            TARGET_MATRIX_TORNADO, num_dimensions=2, num_classes=2)
 
     def test_check_target_values_2d_bad_dim(self):
         """Ensures correct output from check_target_values.
@@ -402,7 +403,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             dl_utils.check_target_values(
-                TOY_TARGET_MATRIX_BINARY, num_dimensions=1, num_classes=2)
+                TARGET_MATRIX_TORNADO, num_dimensions=1, num_classes=2)
 
     def test_check_target_values_2d_2classes_bad_class_num(self):
         """Ensures correct output from check_target_values.
@@ -413,8 +414,8 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             dl_utils.check_target_values(
-                TOY_TARGET_MATRIX_BINARY, num_dimensions=2,
-                num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
+                TARGET_MATRIX_TORNADO, num_dimensions=2,
+                num_classes=TARGET_MATRIX_WIND.shape[1])
 
     def test_check_target_values_2d_multiclass_good(self):
         """Ensures correct output from check_target_values.
@@ -423,8 +424,8 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         dl_utils.check_target_values(
-            TOY_TARGET_MATRIX_MULTICLASS, num_dimensions=2,
-            num_classes=TOY_TARGET_MATRIX_MULTICLASS.shape[1])
+            TARGET_MATRIX_WIND, num_dimensions=2,
+            num_classes=TARGET_MATRIX_WIND.shape[1])
 
     def test_check_target_values_2d_multiclass_bad_class_num(self):
         """Ensures correct output from check_target_values.
@@ -435,146 +436,146 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             dl_utils.check_target_values(
-                TOY_TARGET_MATRIX_MULTICLASS, num_dimensions=2, num_classes=2)
+                TARGET_MATRIX_WIND, num_dimensions=2, num_classes=2)
 
-    def test_class_fractions_to_num_points_binary_large(self):
+    def test_class_fractions_to_num_points_tornado_large(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 2 classes and number of points is large.
+        In this case, target variable = tornado occurrence and num points is
+        large.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_TORNADO_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_LARGE))
+        self.assertTrue(this_dict == NUM_POINTS_TORNADO_CLASS_DICT_LARGE)
 
-    def test_class_fractions_to_num_points_ternary_large(self):
+    def test_class_fractions_to_num_points_wind_large(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 3 classes and number of points is large.
+        In this case, target variable = wind-speed category and num points is
+        large.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_WIND_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_LARGE))
+        self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_LARGE)
 
-    def test_class_fractions_to_num_points_binary_medium(self):
+    def test_class_fractions_to_num_points_tornado_medium(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 2 classes and number of points is medium.
+        In this case, target variable = tornado occurrence and num points is
+        medium.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_TORNADO_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_MEDIUM))
+        self.assertTrue(this_dict == NUM_POINTS_TORNADO_CLASS_DICT_MEDIUM)
 
-    def test_class_fractions_to_num_points_ternary_medium(self):
+    def test_class_fractions_to_num_points_wind_medium(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 3 classes and number of points is medium.
+        In this case, target variable = wind-speed category and num points is
+        medium.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_WIND_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_MEDIUM))
+        self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_MEDIUM)
 
-    def test_class_fractions_to_num_points_binary_small(self):
+    def test_class_fractions_to_num_points_tornado_small(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 2 classes and number of points is small.
+        In this case, target variable = tornado occurrence and num points is
+        small.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_TORNADO_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_SMALL))
+        self.assertTrue(this_dict == NUM_POINTS_TORNADO_CLASS_DICT_SMALL)
 
-    def test_class_fractions_to_num_points_ternary_small(self):
+    def test_class_fractions_to_num_points_wind_small(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 3 classes and number of points is small.
+        In this case, target variable = wind-speed category and num points is
+        small.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_WIND_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_SMALL))
+        self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_SMALL)
 
-    def test_class_fractions_to_num_points_binary_xsmall(self):
+    def test_class_fractions_to_num_points_tornado_xsmall(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 2 classes and number of points is extra small.
+        In this case, target variable = tornado occurrence and num points is
+        extra small.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_TORNADO_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_TORNADO_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_BINARY_XSMALL))
+        self.assertTrue(this_dict == NUM_POINTS_TORNADO_CLASS_DICT_XSMALL)
 
-    def test_class_fractions_to_num_points_ternary_xsmall(self):
+    def test_class_fractions_to_num_points_wind_xsmall(self):
         """Ensures correct output from class_fractions_to_num_points.
 
-        In this case, there are 3 classes and number of points is extra small.
+        In this case, target variable = wind-speed category and num points is
+        extra small.
         """
 
-        this_num_points_by_class = dl_utils.class_fractions_to_num_points(
-            class_fractions=TOY_WIND_CLASS_FRACTIONS,
+        this_dict = dl_utils.class_fractions_to_num_points(
+            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_points_by_class, NUM_POINTS_BY_CLASS_TERNARY_XSMALL))
+        self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_XSMALL)
 
-    def test_class_fractions_to_weights_binary(self):
+    def test_class_fractions_to_weights_tornado(self):
         """Ensures correct output from class_fractions_to_weights.
 
-        In this case, input contains 2 classes.
+        In this case, target variable = tornado occurrence.
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TOY_TORNADO_CLASS_FRACTIONS)
+            TORNADO_CLASS_FRACTIONS)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
-                        set(TOY_CLASS_WEIGHT_DICT_BINARY.keys()))
+                        set(TORNADO_CLASS_WEIGHT_DICT.keys()))
 
         for this_key in this_class_weight_dict.keys():
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
-                TOY_CLASS_WEIGHT_DICT_BINARY[this_key],
+                TORNADO_CLASS_WEIGHT_DICT[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
-    def test_class_fractions_to_weights_ternary(self):
+    def test_class_fractions_to_weights_wind(self):
         """Ensures correct output from class_fractions_to_weights.
 
-        In this case, input contains 3 classes.
+        In this case, target variable = wind-speed category.
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TOY_WIND_CLASS_FRACTIONS)
+            WIND_CLASS_FRACTIONS)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
-                        set(TOY_CLASS_WEIGHT_DICT_TERNARY.keys()))
+                        set(WIND_CLASS_WEIGHT_DICT.keys()))
 
         for this_key in this_class_weight_dict.keys():
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
-                TOY_CLASS_WEIGHT_DICT_TERNARY[this_key],
+                WIND_CLASS_WEIGHT_DICT[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
     def test_stack_predictor_variables(self):
@@ -681,35 +682,33 @@ class DeepLearningUtilsTests(unittest.TestCase):
             this_normalized_matrix, SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO,
             atol=TOLERANCE))
 
-    def test_sample_points_by_extended_class_binary(self):
-        """Ensures correct output from sample_points_by_extended_class.
+    def test_sample_points_by_class_tornado(self):
+        """Ensures correct output from sample_points_by_class.
 
-        In this case there are 2 classes.
+        In this case, target variable = tornado occurrence.
         """
 
-        these_indices = dl_utils.sample_points_by_extended_class(
+        these_indices = dl_utils.sample_points_by_class(
             target_values=TORNADO_LABELS_TO_SAMPLE,
             target_name=TORNADO_TARGET_NAME,
-            extended_class_fractions=TORNADO_CLASS_FRACTIONS,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, TORNADO_INDICES_TO_KEEP))
 
-    def test_sample_points_by_extended_class_ternary(self):
-        """Ensures correct output from sample_points_by_extended_class.
+    def test_sample_points_by_class_wind(self):
+        """Ensures correct output from sample_points_by_class.
 
-        In this case there are 3 classes.
+        In this case, target variable = wind-speed category.
         """
 
-        these_indices = dl_utils.sample_points_by_extended_class(
-            target_values=WIND_LABELS_TO_SAMPLE,
-            target_name=WIND_TARGET_NAME,
-            extended_class_fractions=WIND_CLASS_FRACTIONS,
+        these_indices = dl_utils.sample_points_by_class(
+            target_values=WIND_LABELS_TO_SAMPLE, target_name=WIND_TARGET_NAME,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE, test_mode=True)
 
-        self.assertTrue(numpy.array_equal(
-            these_indices, WIND_INDICES_TO_KEEP))
+        self.assertTrue(numpy.array_equal(these_indices, WIND_INDICES_TO_KEEP))
 
 
 if __name__ == '__main__':

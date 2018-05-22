@@ -130,28 +130,23 @@ STORM_TO_TORNADOES_TABLE_CB_TIME1 = STORM_TO_TORNADOES_TABLE.iloc[[4, 5]]
 # The following constants are used to test _filter_storm_objects_by_label.
 TORNADO_LABELS_TO_FILTER = numpy.array(
     [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int)
-TORNADO_LABEL_NAME = (
-    'tornado_lead-time=0000-3600sec_distance=00000-10000m')
 
-NUM_OBJECTS_BY_TORNADO_CLASS_NONZERO = numpy.array([2, 50], dtype=int)
-NUM_OBJECTS_BY_TORNADO_CLASS_ONE_ZERO = numpy.array([0, 50], dtype=int)
+NUM_OBJECTS_BY_TORNADO_CLASS_DICT_NONZERO = {0: 2, 1: 50}
+NUM_OBJECTS_BY_TORNADO_CLASS_DICT_ONE_ZERO = {0: 0, 1: 50}
 INDICES_TO_KEEP_FOR_TORNADO_NONZERO = numpy.array([0, 1, 2, 4, 6], dtype=int)
 INDICES_TO_KEEP_FOR_TORNADO_ONE_ZERO = numpy.array([2, 4, 6], dtype=int)
 
 WIND_LABELS_TO_FILTER = numpy.array(
     [0, -2, 0, 5, 2, 1, 3, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 2, -2, 0, 1,
      3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0], dtype=int)
-WIND_LABEL_NAME = (
-    'wind-speed_percentile=100.0_lead-time=0000-3600sec_'
-    'distance=00000-10000m_cutoffs=10-20-30-40-50kt')
 
-NUM_OBJECTS_BY_WIND_XCLASS_NONZERO = numpy.array(
-    [5, 1, 2, 3, 4, 25, 100], dtype=int)
-NUM_OBJECTS_BY_WIND_XCLASS_SOME_ZERO = numpy.array(
-    [0, 1, 0, 3, 0, 25, 0], dtype=int)
+NUM_OBJECTS_BY_WIND_CLASS_DICT_NONZERO = {
+    -2: 5, 0: 1, 1: 2, 2: 3, 3: 4, 4: 25, 5: 100}
+NUM_OBJECTS_BY_WIND_CLASS_DICT_SOME_ZERO = {
+    -2: 0, 0: 1, 1: 0, 2: 3, 3: 0, 4: 25, 5: 0}
 
 INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
-    [1, 21, 33, 35, 38, 0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3], dtype=int)
+    [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int)
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
     [0, 4, 13, 20, 26, 34], dtype=int)
 
@@ -306,9 +301,8 @@ class StormImagesTests(unittest.TestCase):
 
         these_indices = storm_images._filter_storm_objects_by_label(
             label_values=TORNADO_LABELS_TO_FILTER,
-            label_name=TORNADO_LABEL_NAME,
-            num_storm_objects_by_xclass=NUM_OBJECTS_BY_TORNADO_CLASS_NONZERO,
-            test_mode=True)
+            num_storm_objects_class_dict=
+            NUM_OBJECTS_BY_TORNADO_CLASS_DICT_NONZERO, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_TORNADO_NONZERO))
@@ -322,9 +316,8 @@ class StormImagesTests(unittest.TestCase):
 
         these_indices = storm_images._filter_storm_objects_by_label(
             label_values=TORNADO_LABELS_TO_FILTER,
-            label_name=TORNADO_LABEL_NAME,
-            num_storm_objects_by_xclass=NUM_OBJECTS_BY_TORNADO_CLASS_ONE_ZERO,
-            test_mode=True)
+            num_storm_objects_class_dict=
+            NUM_OBJECTS_BY_TORNADO_CLASS_DICT_ONE_ZERO, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_TORNADO_ONE_ZERO))
@@ -337,9 +330,9 @@ class StormImagesTests(unittest.TestCase):
         """
 
         these_indices = storm_images._filter_storm_objects_by_label(
-            label_values=WIND_LABELS_TO_FILTER, label_name=WIND_LABEL_NAME,
-            num_storm_objects_by_xclass=NUM_OBJECTS_BY_WIND_XCLASS_NONZERO,
-            test_mode=True)
+            label_values=WIND_LABELS_TO_FILTER,
+            num_storm_objects_class_dict=
+            NUM_OBJECTS_BY_WIND_CLASS_DICT_NONZERO, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_NONZERO))
@@ -352,9 +345,9 @@ class StormImagesTests(unittest.TestCase):
         """
 
         these_indices = storm_images._filter_storm_objects_by_label(
-            label_values=WIND_LABELS_TO_FILTER, label_name=WIND_LABEL_NAME,
-            num_storm_objects_by_xclass=NUM_OBJECTS_BY_WIND_XCLASS_SOME_ZERO,
-            test_mode=True)
+            label_values=WIND_LABELS_TO_FILTER,
+            num_storm_objects_class_dict=
+            NUM_OBJECTS_BY_WIND_CLASS_DICT_SOME_ZERO, test_mode=True)
 
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))

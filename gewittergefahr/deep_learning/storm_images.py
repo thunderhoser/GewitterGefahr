@@ -524,7 +524,7 @@ def _read_storm_labels_only(pickle_file_name):
 
 
 def _filter_storm_objects_by_label(
-        label_values, label_name, num_storm_objects_by_xclass, test_mode=False):
+        label_values, num_storm_objects_class_dict, test_mode=False):
     """Filters storm objects by label (target variable).
 
     L = number of storm objects
@@ -532,49 +532,27 @@ def _filter_storm_objects_by_label(
 
     :param label_values: length-L numpy array of integers.  label_values[i] is
         the class for the [i]th storm object.
-    :param label_name: Name of label (target variable).
-    :param num_storm_objects_by_xclass: numpy array (length K_x), where
-        num_storm_objects_by_xclass[k] is the number of storm objects in the
-        [k]th extended class to keep.
+    :param num_storm_objects_class_dict: Dictionary, where each key is a class
+        integer (-2 for dead storms) and each value is the corresponding number
+        of storm objects to return.
     :param test_mode: Boolean flag.  Leave this False.
     :return: indices_to_keep: 1-D numpy array with indices of storm objects to
         keep.
     """
 
-    num_classes = labels.column_name_to_num_classes(
-        column_name=label_name, include_dead_storms=False)
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=label_name, include_dead_storms=True)
-    include_dead_storms = num_extended_classes > num_classes
-
-    error_checking.assert_is_numpy_array(
-        num_storm_objects_by_xclass,
-        exact_dimensions=numpy.array([num_extended_classes]))
-    error_checking.assert_is_integer_numpy_array(num_storm_objects_by_xclass)
-    error_checking.assert_is_geq_numpy_array(num_storm_objects_by_xclass, 0)
-    error_checking.assert_is_greater(numpy.sum(num_storm_objects_by_xclass), 0)
-
     indices_to_keep = numpy.array([], dtype=int)
-    for k in range(num_extended_classes):
-        if num_storm_objects_by_xclass[k] == 0:
+    for this_class_integer in num_storm_objects_class_dict.keys():
+        this_num_storm_objects = num_storm_objects_class_dict[
+            this_class_integer]
+        if this_num_storm_objects == 0:
             continue
 
-        if include_dead_storms:
-            if k == 0:
-                these_indices = numpy.where(
-                    label_values == labels.DEAD_STORM_INTEGER)[0]
-            else:
-                these_indices = numpy.where(label_values == k - 1)[0]
+        these_indices = numpy.where(label_values == this_class_integer)[0]
+        if test_mode:
+            these_indices = these_indices[:this_num_storm_objects]
         else:
-            these_indices = numpy.where(label_values == k)[0]
-
-        if len(these_indices) > num_storm_objects_by_xclass[k]:
-            if test_mode:
-                these_indices = these_indices[:num_storm_objects_by_xclass[k]]
-            else:
-                these_indices = numpy.random.choice(
-                    these_indices, size=num_storm_objects_by_xclass[k],
-                    replace=False)
+            these_indices = numpy.random.choice(
+                these_indices, size=this_num_storm_objects, replace=False)
 
         indices_to_keep = numpy.concatenate((indices_to_keep, these_indices))
 
@@ -1452,7 +1430,7 @@ def read_storm_images_only(
 
 def read_storm_images_and_labels(
         image_file_name, label_file_name, return_label_name=None,
-        num_storm_objects_by_xclass=None):
+        num_storm_objects_class_dict=None):
     """Reads storm-centered radar images and hazard labels from files.
 
     Both files should be written by `write_storm_images_and_labels`.
@@ -1467,10 +1445,10 @@ def read_storm_images_and_labels(
     :param return_label_name: Name of label (target variable) to return for each
         storm object.  Must be a column in `storm_to_winds_table` or
         `storm_to_tornadoes_table`.
-    :param num_storm_objects_by_xclass:
+    :param num_storm_objects_class_dict:
         [used only if `return_label_name is not None`]
-        numpy array (length K_x), where num_storm_objects_by_xclass[k] is the
-        number of storm objects in the [k]th extended class to keep.
+        Dictionary, where each key is a class integer (-2 for dead storms) and
+        each value is the corresponding number of storm objects to return.
 
     :return storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
@@ -1519,13 +1497,13 @@ def read_storm_images_and_labels(
         storm_to_winds_table=storm_to_winds_table,
         storm_to_tornadoes_table=storm_to_tornadoes_table)
 
-    if num_storm_objects_by_xclass is None:
+    if num_storm_objects_class_dict is None:
         storm_image_dict = read_storm_images_only(
             netcdf_file_name=image_file_name, return_images=True)
     else:
         indices_to_keep = _filter_storm_objects_by_label(
-            label_values=label_values, label_name=return_label_name,
-            num_storm_objects_by_xclass=num_storm_objects_by_xclass)
+            label_values=label_values,
+            num_storm_objects_class_dict=num_storm_objects_class_dict)
         if not len(indices_to_keep):
             return None
 

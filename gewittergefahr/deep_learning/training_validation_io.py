@@ -106,127 +106,124 @@ def _shuffle_times(image_file_name_matrix, sounding_statistic_file_names=None):
     return image_file_name_matrix, sounding_statistic_file_names
 
 
-def _get_num_examples_per_batch_by_xclass(
-        num_examples_per_batch, target_name, xclass_fractions_to_sample):
-    """Returns number of examples needed per batch for each extended class.
-
-    K_x = number of extended classes
+def _get_num_examples_per_batch_by_class(
+        num_examples_per_batch, target_name, class_fraction_dict):
+    """Returns number of examples needed per batch for each class.
 
     :param num_examples_per_batch: Number of examples needed per batch.
     :param target_name: Name of target variable.
-    :param xclass_fractions_to_sample: See doc for `storm_image_generator_2d` or
+    :param class_fraction_dict: See doc for `storm_image_generator_2d` or
         `storm_image_generator_3d`.
-    :return: num_examples_per_batch_by_xclass: numpy array (length K_x) with
-        number of examples needed per batch in each extended class.
+    :return: num_examples_per_batch_class_dict: Dictionary, where each key is a
+        class integer (-2 for dead storms) and each value is the corresponding
+        number of examples needed per batch.
     """
 
     num_extended_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=True)
 
-    if xclass_fractions_to_sample is None:
-        num_examples_per_batch_by_xclass = numpy.full(
-            num_extended_classes, LARGE_INTEGER, dtype=int)
-    else:
-        num_examples_per_batch_by_xclass = (
-            dl_utils.class_fractions_to_num_points(
-                class_fractions=xclass_fractions_to_sample,
-                num_points_to_sample=num_examples_per_batch))
+    if class_fraction_dict is None:
+        num_classes = labels.column_name_to_num_classes(
+            column_name=target_name, include_dead_storms=False)
+        include_dead_storms = num_extended_classes > num_classes
 
-        error_checking.assert_is_numpy_array(
-            num_examples_per_batch_by_xclass,
-            exact_dimensions=numpy.array([num_extended_classes]))
+        if include_dead_storms:
+            first_keys = numpy.array([labels.DEAD_STORM_INTEGER], dtype=int)
+            second_keys = numpy.linspace(
+                0, num_classes - 1, num=num_classes, dtype=int)
+            keys = numpy.concatenate((first_keys, second_keys))
+        else:
+            keys = numpy.linspace(
+                0, num_extended_classes - 1, num=num_extended_classes,
+                dtype=int)
 
-    return num_examples_per_batch_by_xclass
+        values = numpy.full(num_extended_classes, LARGE_INTEGER, dtype=int)
+        return dict(zip(keys, values))
+
+    return dl_utils.class_fractions_to_num_points(
+        class_fraction_dict=class_fraction_dict,
+        num_points_to_sample=num_examples_per_batch)
 
 
-def _get_num_examples_remaining_by_xclass(
+def _get_num_examples_remaining_by_class(
         num_examples_per_batch, num_init_times_per_batch,
-        num_examples_per_batch_by_xclass, num_examples_in_memory,
-        num_init_times_in_memory, num_examples_in_memory_by_xclass):
-    """Returns number of examples still needed for each extended class.
-
-    K_x = number of extended classes
+        num_examples_per_batch_class_dict, num_examples_in_memory,
+        num_init_times_in_memory, num_examples_in_memory_class_dict):
+    """Returns number of examples still needed for each class.
 
     :param num_examples_per_batch: Number of examples needed per batch.
     :param num_init_times_per_batch: Number of initial times needed per batch.
-    :param num_examples_per_batch_by_xclass: numpy array (length K_x) with
-        number of examples needed per batch in each extended class.
+    :param num_examples_per_batch_class_dict: Dictionary created by
+        `_get_num_examples_per_batch_by_class`.
     :param num_examples_in_memory: Number of examples currently in memory.
     :param num_init_times_in_memory: Number of initial times currently in
         memory.
-    :param num_examples_in_memory_by_xclass: numpy array (length K_x) with
-        number of examples currently in memory for each extended class.
-    :return: num_examples_remaining_by_xclass: numpy array (length K_x) with
-        number of remaining examples needed for each extended class.
+    :param num_examples_in_memory_class_dict: Dictionary created by
+        `_determine_stopping_criterion`.
+    :return: num_examples_remaining_class_dict: Dictionary, where each key is a
+        class integer (-2 for dead storms) and each value is the corresponding
+        number of examples still needed.
     """
 
     downsample = (
         num_init_times_in_memory >= num_init_times_per_batch and
         num_examples_in_memory >= num_examples_per_batch)
 
-    if downsample:
-        num_examples_remaining_by_xclass = (
-            num_examples_per_batch_by_xclass - num_examples_in_memory_by_xclass)
-        num_examples_remaining_by_xclass[
-            num_examples_remaining_by_xclass < 0] = 0
-    else:
-        num_examples_remaining_by_xclass = None
+    if not downsample:
+        return None
 
-    return num_examples_remaining_by_xclass
+    num_examples_remaining_class_dict = {}
+    for this_key in num_examples_per_batch_class_dict.keys():
+        this_value = (num_examples_per_batch_class_dict[this_key] -
+                      num_examples_in_memory_class_dict[this_key])
+        this_value = max([this_value, 0])
+        num_examples_remaining_class_dict.update({this_key: this_value})
+
+    return num_examples_remaining_class_dict
 
 
 def _determine_stopping_criterion(
         num_examples_per_batch, num_init_times_per_batch,
-        num_examples_per_batch_by_xclass, num_init_times_in_memory,
-        xclass_fractions_to_sample, target_values_in_memory, target_name):
+        num_examples_per_batch_class_dict, num_init_times_in_memory,
+        class_fraction_dict, target_values_in_memory):
     """Determines whether or not to stop generating examples.
-
-    K_x = number of extended classes
 
     :param num_examples_per_batch: Number of examples needed per batch.
     :param num_init_times_per_batch: Number of initial times needed per batch.
-    :param num_examples_per_batch_by_xclass: numpy array (length K_x) with
-        number of examples needed per batch in each extended class.
+    :param num_examples_per_batch_class_dict: Dictionary created by
+        `_get_num_examples_per_batch_by_class`.
     :param num_init_times_in_memory: Number of initial times currently in
         memory.
-    :param xclass_fractions_to_sample: See doc for `storm_image_generator_2d` or
+    :param class_fraction_dict: See doc for `storm_image_generator_2d` or
         `storm_image_generator_3d`.
     :param target_values_in_memory: 1-D numpy array with all target values
         currently in memory.
-    :param target_name: Name of target variable.
-    :return: num_examples_in_memory_by_xclass: numpy array (length K_x) with
-        number of examples currently in memory for each extended class.
+    :return: num_examples_in_memory_class_dict: Dictionary, where each key is a
+        class integer (-2 for dead storms) and each value is the corresponding
+        number of examples in memory.
     :return: stopping_criterion: Boolean flag.
     """
 
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=True)
-    include_dead_storms = num_extended_classes > num_classes
+    num_examples_in_memory_class_dict = {}
+    for this_key in num_examples_per_batch_class_dict.keys():
+        this_value = numpy.sum(target_values_in_memory == this_key)
+        num_examples_in_memory_class_dict.update({this_key: this_value})
 
-    num_examples_in_memory_by_xclass = [
-        numpy.sum(target_values_in_memory == k) for k in range(num_classes)]
-    if include_dead_storms:
-        num_dead_storms = numpy.sum(
-            target_values_in_memory == labels.DEAD_STORM_INTEGER)
-        num_examples_in_memory_by_xclass = (
-            [num_dead_storms] + num_examples_in_memory_by_xclass)
-
-    num_examples_in_memory_by_xclass = numpy.array(
-        num_examples_in_memory_by_xclass, dtype=int)
     print 'Number of examples in memory by extended class: {0:s}'.format(
-        str(num_examples_in_memory_by_xclass))
+        str(num_examples_in_memory_class_dict))
 
     num_examples_in_memory = len(target_values_in_memory)
     stopping_criterion = (
         num_init_times_in_memory >= num_init_times_per_batch and
-        num_examples_in_memory >= num_examples_per_batch and
-        (xclass_fractions_to_sample is None or numpy.all(
-            num_examples_in_memory_by_xclass >=
-            num_examples_per_batch_by_xclass)))
+        num_examples_in_memory >= num_examples_per_batch)
 
-    return num_examples_in_memory_by_xclass, stopping_criterion
+    if stopping_criterion and class_fraction_dict is not None:
+        for this_key in num_examples_per_batch_class_dict.keys():
+            stopping_criterion = (stopping_criterion and
+                                  num_examples_in_memory_class_dict[this_key] >=
+                                  num_examples_per_batch_class_dict[this_key])
+
+    return num_examples_in_memory_class_dict, stopping_criterion
 
 
 def _select_batch(
@@ -626,7 +623,7 @@ def storm_image_generator_2d(
         image_file_name_matrix, num_examples_per_batch,
         num_examples_per_init_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        xclass_fractions_to_sample=None, sounding_statistic_file_names=None,
+        class_fraction_dict=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
     """Generates examples with 2-D radar images.
 
@@ -636,7 +633,6 @@ def storm_image_generator_2d(
     T = number of storm times (initial times, not valid times)
     F = number of radar fields
     C = number of channels = num predictor variables = num field/height pairs
-    K_x = number of extended classes
 
     :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
         files.  This should be created by `find_2d_input_files`.
@@ -646,9 +642,9 @@ def storm_image_generator_2d(
     :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
-    :param xclass_fractions_to_sample: numpy array (length K_x) for class-
-        conditional sampling.  xclass_fractions_to_sample[k] is the fraction of
-        examples in the [k]th extended class to be included in each batch.
+    :param class_fraction_dict: Dictionary, where each key is a class integer
+        (-2 for dead storms) and each value is the corresponding fraction of
+        examples to include in each batch.
     :param sounding_statistic_file_names: See doc for `_check_input_args`.
     :param sounding_statistic_names: Same.
     :param sounding_stat_metadata_table: Used to normalize sounding stats (see
@@ -693,23 +689,25 @@ def storm_image_generator_2d(
         sounding_statistic_file_names=sounding_statistic_file_names)
     num_init_times = image_file_name_matrix.shape[0]
 
-    num_examples_per_batch_by_xclass = _get_num_examples_per_batch_by_xclass(
+    num_examples_per_batch_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
-        xclass_fractions_to_sample=xclass_fractions_to_sample)
+        class_fraction_dict=class_fraction_dict)
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=True)
+    num_init_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_init_time))
+
+    num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
+        num_examples_per_batch=num_examples_per_batch,
+        num_init_times_per_batch=num_init_times_per_batch,
+        num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
+        num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
+        target_values_in_memory=numpy.array([]))
 
     # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
-    num_examples_in_memory_by_xclass = numpy.full(
-        num_extended_classes, 0, dtype=int)
-    num_init_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_init_time))
-
     full_image_matrix = None
     full_sounding_stat_matrix = None
     all_target_values = None
@@ -737,22 +735,22 @@ def storm_image_generator_2d(
             else:
                 num_examples_in_memory = len(all_target_values)
 
-            num_examples_remaining_by_xclass = (
-                _get_num_examples_remaining_by_xclass(
+            num_examples_remaining_class_dict = (
+                _get_num_examples_remaining_by_class(
                     num_examples_per_batch=num_examples_per_batch,
                     num_init_times_per_batch=num_init_times_per_batch,
-                    num_examples_per_batch_by_xclass=
-                    num_examples_per_batch_by_xclass,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
                     num_examples_in_memory=num_examples_in_memory,
                     num_init_times_in_memory=num_init_times_in_memory,
-                    num_examples_in_memory_by_xclass=
-                    num_examples_in_memory_by_xclass))
+                    num_examples_in_memory_class_dict=
+                    num_examples_in_memory_class_dict))
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0],
                 label_file_name=this_label_file_name,
                 return_label_name=target_name,
-                num_storm_objects_by_xclass=num_examples_remaining_by_xclass)
+                num_storm_objects_class_dict=num_examples_remaining_class_dict)
 
             if this_storm_image_dict is None:
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
@@ -821,21 +819,20 @@ def storm_image_generator_2d(
                 full_image_matrix = numpy.concatenate(
                     (full_image_matrix, this_image_matrix), axis=0)
 
-            num_examples_in_memory_by_xclass, stopping_criterion = (
+            num_examples_in_memory_class_dict, stopping_criterion = (
                 _determine_stopping_criterion(
                     num_examples_per_batch=num_examples_per_batch,
                     num_init_times_per_batch=num_init_times_per_batch,
-                    num_examples_per_batch_by_xclass=
-                    num_examples_per_batch_by_xclass,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
-                    xclass_fractions_to_sample=xclass_fractions_to_sample,
-                    target_values_in_memory=all_target_values,
-                    target_name=target_name))
+                    class_fraction_dict=class_fraction_dict,
+                    target_values_in_memory=numpy.array([])))
 
-        if xclass_fractions_to_sample is not None:
-            batch_indices = dl_utils.sample_points_by_extended_class(
+        if class_fraction_dict is not None:
+            batch_indices = dl_utils.sample_points_by_class(
                 target_values=all_target_values, target_name=target_name,
-                extended_class_fractions=xclass_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 num_points_to_sample=num_examples_per_batch)
 
             full_image_matrix = full_image_matrix[batch_indices, ...]
@@ -867,12 +864,13 @@ def storm_image_generator_2d(
         sounding_stat_matrix = list_of_image_matrices[1]
 
         # Update housekeeping variables.
-        full_image_matrix = None
-        all_target_values = None
-        full_sounding_stat_matrix = None
         num_init_times_in_memory = 0
-        num_examples_in_memory_by_xclass = numpy.full(
-            num_extended_classes, 0, dtype=int)
+        full_image_matrix = None
+        full_sounding_stat_matrix = None
+        all_target_values = None
+
+        for this_key in num_examples_in_memory_class_dict.keys():
+            num_examples_in_memory_class_dict[this_key] = 0
 
         if sounding_statistic_file_names is None:
             yield (image_matrix, target_matrix)
@@ -884,7 +882,7 @@ def storm_image_generator_2d3d_myrorss(
         image_file_name_matrix, num_examples_per_batch,
         num_examples_per_init_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        xclass_fractions_to_sample=None):
+        class_fraction_dict=None):
     """Generates examples with both 2-D and 3-D radar images.
 
     Each example consists of a 3-D reflectivity image and one or more 2-D
@@ -905,7 +903,7 @@ def storm_image_generator_2d3d_myrorss(
     :param target_name: Name of target variable.
     :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
-    :param xclass_fractions_to_sample: Same.
+    :param class_fraction_dict: Same.
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix: E-by-m-by-n-by-D-by-1 numpy
         array of storm-centered reflectivity images.
@@ -935,23 +933,25 @@ def storm_image_generator_2d3d_myrorss(
         az_shear_field_names[j] = str(
             this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
 
-    num_examples_per_batch_by_xclass = _get_num_examples_per_batch_by_xclass(
+    num_examples_per_batch_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
-        xclass_fractions_to_sample=xclass_fractions_to_sample)
+        class_fraction_dict=class_fraction_dict)
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=True)
+    num_init_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_init_time))
+
+    num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
+        num_examples_per_batch=num_examples_per_batch,
+        num_init_times_per_batch=num_init_times_per_batch,
+        num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
+        num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
+        target_values_in_memory=numpy.array([]))
 
     # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
-    num_examples_in_memory_by_xclass = numpy.full(
-        num_extended_classes, 0, dtype=int)
-    num_init_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_init_time))
-
     full_reflectivity_matrix_dbz = None
     full_az_shear_matrix_s01 = None
     all_target_values = None
@@ -980,23 +980,23 @@ def storm_image_generator_2d3d_myrorss(
             else:
                 num_examples_in_memory = len(all_target_values)
 
-            num_examples_remaining_by_xclass = (
-                _get_num_examples_remaining_by_xclass(
+            num_examples_remaining_class_dict = (
+                _get_num_examples_remaining_by_class(
                     num_examples_per_batch=num_examples_per_batch,
                     num_init_times_per_batch=num_init_times_per_batch,
-                    num_examples_per_batch_by_xclass=
-                    num_examples_per_batch_by_xclass,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
                     num_examples_in_memory=num_examples_in_memory,
                     num_init_times_in_memory=num_init_times_in_memory,
-                    num_examples_in_memory_by_xclass=
-                    num_examples_in_memory_by_xclass))
+                    num_examples_in_memory_class_dict=
+                    num_examples_in_memory_class_dict))
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=reflectivity_file_name_matrix[
                     init_time_index, 0],
                 label_file_name=this_label_file_name,
                 return_label_name=target_name,
-                num_storm_objects_by_xclass=num_examples_remaining_by_xclass)
+                num_storm_objects_class_dict=num_examples_remaining_class_dict)
 
             if this_storm_image_dict is None:
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
@@ -1064,21 +1064,20 @@ def storm_image_generator_2d3d_myrorss(
                     (full_az_shear_matrix_s01, this_az_shear_matrix_s01),
                     axis=0)
 
-            num_examples_in_memory_by_xclass, stopping_criterion = (
+            num_examples_in_memory_class_dict, stopping_criterion = (
                 _determine_stopping_criterion(
                     num_examples_per_batch=num_examples_per_batch,
                     num_init_times_per_batch=num_init_times_per_batch,
-                    num_examples_per_batch_by_xclass=
-                    num_examples_per_batch_by_xclass,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
-                    xclass_fractions_to_sample=xclass_fractions_to_sample,
-                    target_values_in_memory=all_target_values,
-                    target_name=target_name))
+                    class_fraction_dict=class_fraction_dict,
+                    target_values_in_memory=numpy.array([])))
 
-        if xclass_fractions_to_sample is not None:
-            batch_indices = dl_utils.sample_points_by_extended_class(
+        if class_fraction_dict is not None:
+            batch_indices = dl_utils.sample_points_by_class(
                 target_values=all_target_values, target_name=target_name,
-                extended_class_fractions=xclass_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 num_points_to_sample=num_examples_per_batch)
 
             full_reflectivity_matrix_dbz = full_reflectivity_matrix_dbz[
@@ -1108,12 +1107,13 @@ def storm_image_generator_2d3d_myrorss(
         azimuthal_shear_matrix_s01 = list_of_image_matrices[1]
 
         # Update housekeeping variables.
+        num_init_times_in_memory = 0
         full_reflectivity_matrix_dbz = None
         full_az_shear_matrix_s01 = None
         all_target_values = None
-        num_init_times_in_memory = 0
-        num_examples_in_memory_by_xclass = numpy.full(
-            num_extended_classes, 0, dtype=int)
+
+        for this_key in num_examples_in_memory_class_dict.keys():
+            num_examples_in_memory_class_dict[this_key] = 0
 
         yield ([reflectivity_matrix_dbz, azimuthal_shear_matrix_s01],
                target_matrix)
@@ -1123,7 +1123,7 @@ def storm_image_generator_3d(
         image_file_name_matrix, num_examples_per_batch,
         num_examples_per_init_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        xclass_fractions_to_sample=None, sounding_statistic_file_names=None,
+        class_fraction_dict=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
     """Generates examples with 3-D radar images.
 
@@ -1141,7 +1141,7 @@ def storm_image_generator_3d(
     :param target_name: Name of target variable.
     :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
-    :param xclass_fractions_to_sample: Same.
+    :param class_fraction_dict: Same.
     :param sounding_statistic_file_names: Same.
     :param sounding_statistic_names: Same.
     :param sounding_stat_metadata_table: Same.
@@ -1183,23 +1183,25 @@ def storm_image_generator_3d(
         sounding_statistic_file_names=sounding_statistic_file_names)
     num_init_times = image_file_name_matrix.shape[0]
 
-    num_examples_per_batch_by_xclass = _get_num_examples_per_batch_by_xclass(
+    num_examples_per_batch_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
-        xclass_fractions_to_sample=xclass_fractions_to_sample)
+        class_fraction_dict=class_fraction_dict)
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=True)
+    num_init_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_init_time))
+
+    num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
+        num_examples_per_batch=num_examples_per_batch,
+        num_init_times_per_batch=num_init_times_per_batch,
+        num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
+        num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
+        target_values_in_memory=numpy.array([]))
 
     # Initialize housekeeping variables.
     init_time_index = 0
     num_init_times_in_memory = 0
-    num_examples_in_memory_by_xclass = numpy.full(
-        num_extended_classes, 0, dtype=int)
-    num_init_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_init_time))
-
     full_image_matrix = None
     all_target_values = None
     full_sounding_stat_matrix = None
@@ -1227,22 +1229,22 @@ def storm_image_generator_3d(
             else:
                 num_examples_in_memory = full_image_matrix.shape[0]
 
-            num_examples_remaining_by_xclass = (
-                _get_num_examples_remaining_by_xclass(
+            num_examples_remaining_class_dict = (
+                _get_num_examples_remaining_by_class(
                     num_examples_per_batch=num_examples_per_batch,
                     num_init_times_per_batch=num_init_times_per_batch,
-                    num_examples_per_batch_by_xclass=
-                    num_examples_per_batch_by_xclass,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
                     num_examples_in_memory=num_examples_in_memory,
                     num_init_times_in_memory=num_init_times_in_memory,
-                    num_examples_in_memory_by_xclass=
-                    num_examples_in_memory_by_xclass))
+                    num_examples_in_memory_class_dict=
+                    num_examples_in_memory_class_dict))
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0, 0],
                 label_file_name=this_label_file_name,
                 return_label_name=target_name,
-                num_storm_objects_by_xclass=num_examples_remaining_by_xclass)
+                num_storm_objects_class_dict=num_examples_remaining_class_dict)
 
             if this_storm_image_dict is None:
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
@@ -1319,21 +1321,20 @@ def storm_image_generator_3d(
                 full_image_matrix = numpy.concatenate(
                     (full_image_matrix, this_image_matrix), axis=0)
 
-            num_examples_in_memory_by_xclass, stopping_criterion = (
+            num_examples_in_memory_class_dict, stopping_criterion = (
                 _determine_stopping_criterion(
                     num_examples_per_batch=num_examples_per_batch,
                     num_init_times_per_batch=num_init_times_per_batch,
-                    num_examples_per_batch_by_xclass=
-                    num_examples_per_batch_by_xclass,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
-                    xclass_fractions_to_sample=xclass_fractions_to_sample,
-                    target_values_in_memory=all_target_values,
-                    target_name=target_name))
+                    class_fraction_dict=class_fraction_dict,
+                    target_values_in_memory=numpy.array([])))
 
-        if xclass_fractions_to_sample is not None:
-            batch_indices = dl_utils.sample_points_by_extended_class(
+        if class_fraction_dict is not None:
+            batch_indices = dl_utils.sample_points_by_class(
                 target_values=all_target_values, target_name=target_name,
-                extended_class_fractions=xclass_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 num_points_to_sample=num_examples_per_batch)
 
             full_image_matrix = full_image_matrix[batch_indices, ...]
@@ -1365,12 +1366,13 @@ def storm_image_generator_3d(
         sounding_stat_matrix = list_of_image_matrices[1]
 
         # Update housekeeping variables.
+        num_init_times_in_memory = 0
         full_image_matrix = None
         all_target_values = None
         full_sounding_stat_matrix = None
-        num_init_times_in_memory = 0
-        num_examples_in_memory_by_xclass = numpy.full(
-            num_extended_classes, 0, dtype=int)
+
+        for this_key in num_examples_in_memory_class_dict.keys():
+            num_examples_in_memory_class_dict[this_key] = 0
 
         if sounding_statistic_file_names is None:
             yield (image_matrix, target_matrix)

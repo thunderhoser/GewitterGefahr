@@ -29,28 +29,26 @@ STORM_IMAGE_DICT_NO_UNDEF_TARGETS = {
     storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
 }
 
-# The following constants are used to test
-# _get_num_examples_per_batch_by_xclass.
+# The following constants are used to test _get_num_examples_per_batch_by_class.
 NUM_EXAMPLES_PER_BATCH = 100
 TORNADO_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00001-05000m'
-TORNADO_CLASS_FRACTIONS_TO_SAMPLE = numpy.array([0.8, 0.2])
-NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS = numpy.array([80, 20], dtype=int)
+TORNADO_CLASS_FRACTION_DICT = {0: 0.8, 1: 0.2}
+NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT = {0: 80, 1: 20}
+INF_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT = {
+    0: trainval_io.LARGE_INTEGER, 1: trainval_io.LARGE_INTEGER}
 
 WIND_TARGET_NAME = (
     'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00001-05000m'
     '_cutoffs=30-50kt')
-WIND_CLASS_FRACTIONS_TO_SAMPLE = numpy.array(
-    [0.3, 0.4, 0.2, 0.1])
-NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS = numpy.array([30, 40, 20, 10], dtype=int)
+WIND_CLASS_FRACTION_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
+NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
 
-# The following constants are used to test _get_num_examples_remaining_by_xclass.
+# The following constants are used to test _get_num_examples_remaining_by_class.
 NUM_INIT_TIMES_PER_BATCH = 20
-NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS = numpy.array([1000, 10], dtype=int)
-NUM_EXAMPLES_REMAINING_BY_TOR_CLASS = numpy.array([0, 10], dtype=int)
-
-NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS = numpy.array(
-    [500, 1000, 18, 5], dtype=int)
-NUM_EXAMPLES_REMAINING_BY_WIND_CLASS = numpy.array([0, 0, 2, 5], dtype=int)
+NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT = {0: 1000, 1: 10}
+NUM_EXAMPLES_REMAINING_TORNADO_CLASS_DICT = {0: 0, 1: 10}
+NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT = {-2: 500, 0: 1000, 1: 18, 2: 5}
+NUM_EXAMPLES_REMAINING_WIND_CLASS_DICT = {-2: 0, 0: 0, 1: 2, 2: 5}
 
 # The following constants are used to test _determine_stopping_criterion.
 TARGET_VALUES_50ZEROS = numpy.full(50, 0, dtype=int)
@@ -68,17 +66,13 @@ WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[:30]] = 2
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[30:70]] = 1
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[70:]] = -2
 
-NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_50ZEROS = numpy.array([50, 0], dtype=int)
-NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_200ZEROS = numpy.array([200, 0], dtype=int)
-NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_ENOUGH_ONES = numpy.array(
-    [170, 30], dtype=int)
+NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_50ZEROS = {0: 50, 1: 0}
+NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_200ZEROS = {0: 200, 1: 0}
+NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_ENOUGH_ONES = {0: 170, 1: 30}
 
-NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_50ZEROS = numpy.array(
-    [0, 50, 0, 0], dtype=int)
-NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_200ZEROS = numpy.array(
-    [0, 200, 0, 0], dtype=int)
-NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_ENOUGH = numpy.array(
-    [50, 80, 40, 30], dtype=int)
+NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS = {-2: 0, 0: 50, 1: 0, 2: 0}
+NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS = {-2: 0, 0: 200, 1: 0, 2: 0}
+NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH = {-2: 50, 0: 80, 1: 40, 2: 30}
 
 # The following constants are used to test
 # separate_input_files_for_2d3d_myrorss.
@@ -128,169 +122,139 @@ class TrainingValidationIoTests(unittest.TestCase):
             this_storm_image_dict[storm_images.LABEL_VALUES_KEY],
             STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.LABEL_VALUES_KEY]))
 
-    def test_get_num_examples_per_batch_by_xclass_tornado(self):
-        """Ensures correct output from _get_num_examples_per_batch_by_xclass.
+    def test_get_num_examples_per_batch_by_class_tornado(self):
+        """Ensures correct output from _get_num_examples_per_batch_by_class.
 
         In this case, the target variable is tornado occurrence.
         """
 
-        this_num_examples_per_batch_by_xclass = (
-            trainval_io._get_num_examples_per_batch_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                target_name=TORNADO_TARGET_NAME,
-                xclass_fractions_to_sample=TORNADO_CLASS_FRACTIONS_TO_SAMPLE))
+        this_dict = trainval_io._get_num_examples_per_batch_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            target_name=TORNADO_TARGET_NAME,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_per_batch_by_xclass,
-            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS))
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
 
-    def test_get_num_examples_per_batch_by_xclass_wind(self):
-        """Ensures correct output from _get_num_examples_per_batch_by_xclass.
+    def test_get_num_examples_per_batch_by_class_wind(self):
+        """Ensures correct output from _get_num_examples_per_batch_by_class.
 
         In this case, the target variable is wind-speed category.
         """
 
-        this_num_examples_per_batch_by_xclass = (
-            trainval_io._get_num_examples_per_batch_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                target_name=WIND_TARGET_NAME,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE))
+        this_dict = trainval_io._get_num_examples_per_batch_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            target_name=WIND_TARGET_NAME,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_per_batch_by_xclass,
-            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS))
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT)
 
-    def test_get_num_examples_per_batch_by_xclass_mismatch(self):
-        """Ensures correct output from _get_num_examples_per_batch_by_xclass.
-
-        In this case, the input arguments `target_name` and
-        `class_fractions_to_sample` are mismatched.
-        """
-
-        with self.assertRaises(TypeError):
-            trainval_io._get_num_examples_per_batch_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                target_name=TORNADO_TARGET_NAME,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE)
-
-    def test_get_num_examples_per_batch_by_xclass_no_fractions(self):
-        """Ensures correct output from _get_num_examples_per_batch_by_xclass.
+    def test_get_num_examples_per_batch_by_class_no_fractions(self):
+        """Ensures correct output from _get_num_examples_per_batch_by_class.
 
         In this case, the input argument `class_fractions_to_sample` is empty,
         which means that there will be no downsampling.
         """
 
-        this_num_examples_per_batch_by_xclass = (
-            trainval_io._get_num_examples_per_batch_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                target_name=WIND_TARGET_NAME, xclass_fractions_to_sample=None))
+        this_dict = trainval_io._get_num_examples_per_batch_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            target_name=TORNADO_TARGET_NAME, class_fraction_dict=None)
 
-        self.assertTrue(numpy.all(
-            this_num_examples_per_batch_by_xclass == trainval_io.LARGE_INTEGER))
+        self.assertTrue(this_dict == INF_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_tor_need_times_and_examples(self):
-        """Ensures correct output from _get_num_examples_remaining_by_xclass.
+        """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
         are not yet enough initial times or examples in memory.
         """
 
-        this_num_examples_remaining_by_xclass = (
-            trainval_io._get_num_examples_remaining_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
-                num_examples_in_memory_by_xclass=
-                NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS
-            ))
-        self.assertTrue(this_num_examples_remaining_by_xclass is None)
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict is None)
 
     def test_get_num_examples_remaining_by_tor_need_times(self):
-        """Ensures correct output from _get_num_examples_remaining_by_xclass.
+        """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
         are not yet enough initial times in memory.
         """
 
-        this_num_examples_remaining_by_xclass = (
-            trainval_io._get_num_examples_remaining_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
-                num_examples_in_memory_by_xclass=
-                NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS
-            ))
-        self.assertTrue(this_num_examples_remaining_by_xclass is None)
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict is None)
 
     def test_get_num_examples_remaining_by_tor_need_examples(self):
-        """Ensures correct output from _get_num_examples_remaining_by_xclass.
+        """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
         are not yet enough examples in memory.
         """
 
-        this_num_examples_remaining_by_xclass = (
-            trainval_io._get_num_examples_remaining_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                num_examples_in_memory_by_xclass=
-                NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS
-            ))
-        self.assertTrue(this_num_examples_remaining_by_xclass is None)
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict is None)
 
     def test_get_num_examples_remaining_by_tor_downsampling(self):
-        """Ensures correct output from _get_num_examples_remaining_by_xclass.
+        """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  Will downsample, because there
         are already enough initial times and examples in memory.
         """
 
-        this_num_examples_remaining_by_xclass = (
-            trainval_io._get_num_examples_remaining_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                num_examples_in_memory_by_xclass=
-                NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS
-            ))
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_remaining_by_xclass,
-            NUM_EXAMPLES_REMAINING_BY_TOR_CLASS))
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict == NUM_EXAMPLES_REMAINING_TORNADO_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_wind_downsampling(self):
-        """Ensures correct output from _get_num_examples_remaining_by_xclass.
+        """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = wind class.  Will downsample, because there are
         already enough initial times and examples in memory.
         """
 
-        this_num_examples_remaining_by_xclass = (
-            trainval_io._get_num_examples_remaining_by_xclass(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                num_examples_in_memory_by_xclass=
-                NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS
-            ))
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_remaining_by_xclass,
-            NUM_EXAMPLES_REMAINING_BY_WIND_CLASS))
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT)
+
+        self.assertTrue(this_dict == NUM_EXAMPLES_REMAINING_WIND_CLASS_DICT)
 
     def test_determine_stopping_tor_need_times_and_examples(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -299,21 +263,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         False, as there are not yet enough initial times or examples in memory.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
-                xclass_fractions_to_sample=TORNADO_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TARGET_VALUES_50ZEROS,
-                target_name=TORNADO_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            target_values_in_memory=TARGET_VALUES_50ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_50ZEROS))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_50ZEROS)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_times_and_examples(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -322,21 +283,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         there are not yet enough initial times or examples in memory.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TARGET_VALUES_50ZEROS,
-                target_name=WIND_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            target_values_in_memory=TARGET_VALUES_50ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_50ZEROS))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_need_times(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -345,21 +303,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         False, as there are not yet enough initial times in memory.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
-                xclass_fractions_to_sample=TORNADO_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES,
-                target_name=TORNADO_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_ENOUGH_ONES))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_ENOUGH_ONES)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_times(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -368,21 +323,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         there are not yet enough initial times in memory.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=WIND_TARGET_VALUES_ENOUGH,
-                target_name=WIND_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_ENOUGH))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_need_examples(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -391,21 +343,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         False, as there are not yet enough examples in memory.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=TORNADO_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TARGET_VALUES_50ZEROS,
-                target_name=TORNADO_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            target_values_in_memory=TARGET_VALUES_50ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_50ZEROS))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_50ZEROS)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_examples(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -414,21 +363,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         there are not yet enough examples in memory.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TARGET_VALUES_50ZEROS,
-                target_name=WIND_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            target_values_in_memory=TARGET_VALUES_50ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_50ZEROS))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_no_downsampling(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -439,21 +385,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         should be True.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=None,
-                target_values_in_memory=TARGET_VALUES_200ZEROS,
-                target_name=TORNADO_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=None,
+            target_values_in_memory=TARGET_VALUES_200ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_200ZEROS))
-        self.assertTrue(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_200ZEROS)
+        self.assertTrue(this_flag)
 
     def test_determine_stopping_wind_no_downsampling(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -464,21 +407,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         should be True.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=None,
-                target_values_in_memory=TARGET_VALUES_200ZEROS,
-                target_name=WIND_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=None,
+            target_values_in_memory=TARGET_VALUES_200ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_200ZEROS))
-        self.assertTrue(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS)
+        self.assertTrue(this_flag)
 
     def test_determine_stopping_tor_need_ones(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -489,21 +429,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         should be False.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=TORNADO_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TARGET_VALUES_200ZEROS,
-                target_name=TORNADO_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            target_values_in_memory=TARGET_VALUES_200ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_200ZEROS))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_200ZEROS)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_nonzero(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -514,21 +451,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         should be False.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TARGET_VALUES_200ZEROS,
-                target_name=WIND_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            target_values_in_memory=TARGET_VALUES_200ZEROS)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_200ZEROS))
-        self.assertFalse(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS)
+        self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_enough_ones(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -538,21 +472,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         criterion should be True.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=TORNADO_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES,
-                target_name=TORNADO_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_ENOUGH_ONES))
-        self.assertTrue(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_ENOUGH_ONES)
+        self.assertTrue(this_flag)
 
     def test_determine_stopping_wind_enough_per_class(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -562,21 +493,18 @@ class TrainingValidationIoTests(unittest.TestCase):
         should be True.
         """
 
-        this_num_examples_in_memory_by_xclass, this_stopping_criterion = (
-            trainval_io._determine_stopping_criterion(
-                num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-                num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
-                num_examples_per_batch_by_xclass=
-                NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS,
-                num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
-                xclass_fractions_to_sample=WIND_CLASS_FRACTIONS_TO_SAMPLE,
-                target_values_in_memory=WIND_TARGET_VALUES_ENOUGH,
-                target_name=WIND_TARGET_NAME))
+        this_dict, this_flag = trainval_io._determine_stopping_criterion(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
-        self.assertTrue(numpy.array_equal(
-            this_num_examples_in_memory_by_xclass,
-            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_ENOUGH))
-        self.assertTrue(this_stopping_criterion)
+        self.assertTrue(
+            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH)
+        self.assertTrue(this_flag)
 
     def test_separate_input_files_no_refl(self):
         """Ensures correctness of separate_input_files_for_2d3d_myrorss.
