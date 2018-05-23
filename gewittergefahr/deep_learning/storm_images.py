@@ -1669,7 +1669,7 @@ def read_storm_images_only(
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
-    radar_field_name = getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY)
+    radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
     radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
     storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
     storm_ids = [str(s) for s in storm_ids]
