@@ -116,7 +116,7 @@ THIS_DICT = {
 }
 STORM_TO_WINDS_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 STORM_TO_WINDS_TABLE_AB_TIME0 = STORM_TO_WINDS_TABLE.iloc[[0, 1]]
-STORM_TO_WINDS_TABLE_CB_TIME1 = STORM_TO_WINDS_TABLE.iloc[[4, 5]]
+STORM_TO_WINDS_TABLE_CB_TIME1 = STORM_TO_WINDS_TABLE.iloc[[5, 4]]
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: STORM_IDS,
@@ -125,7 +125,7 @@ THIS_DICT = {
 }
 STORM_TO_TORNADOES_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 STORM_TO_TORNADOES_TABLE_AB_TIME0 = STORM_TO_TORNADOES_TABLE.iloc[[0, 1]]
-STORM_TO_TORNADOES_TABLE_CB_TIME1 = STORM_TO_TORNADOES_TABLE.iloc[[4, 5]]
+STORM_TO_TORNADOES_TABLE_CB_TIME1 = STORM_TO_TORNADOES_TABLE.iloc[[5, 4]]
 
 # The following constants are used to test _filter_storm_objects_by_label.
 TORNADO_LABELS_TO_FILTER = numpy.array(
@@ -183,11 +183,18 @@ SPC_DATE_STRING = '20180123'
 RADAR_SOURCE_NAME = radar_utils.MYRORSS_SOURCE_ID
 RADAR_FIELD_NAME = 'echo_top_40dbz_km'
 RADAR_HEIGHT_M_ASL = 250
-STORM_IMAGE_FILE_NAME = (
+
+STORM_IMAGE_FILE_NAME_ONE_TIME = (
     'storm_images/myrorss/2018/20180123/echo_top_40dbz_km/00250_metres_asl/'
     'storm_images_2018-01-23-232345.nc')
-STORM_LABEL_FILE_NAME = (
+STORM_LABEL_FILE_NAME_ONE_TIME = (
     'storm_images/myrorss/2018/20180123/storm_labels_2018-01-23-232345.p')
+
+STORM_IMAGE_FILE_NAME_ONE_SPC_DATE = (
+    'storm_images/myrorss/2018/echo_top_40dbz_km/00250_metres_asl/'
+    'storm_images_20180123.nc')
+STORM_LABEL_FILE_NAME_ONE_SPC_DATE = (
+    'storm_images/myrorss/2018/storm_labels_20180123.p')
 
 
 class StormImagesTests(unittest.TestCase):
@@ -266,7 +273,8 @@ class StormImagesTests(unittest.TestCase):
 
         this_storm_to_winds_table, storm_to_tornadoes_table = (
             storm_images._check_storm_labels(
-                storm_ids=['A', 'B'], unix_time_sec=0,
+                storm_ids=['A', 'B'],
+                valid_times_unix_sec=numpy.full(2, 0, dtype=int),
                 storm_to_winds_table=STORM_TO_WINDS_TABLE,
                 storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE))
 
@@ -281,15 +289,16 @@ class StormImagesTests(unittest.TestCase):
         In this case, input storm objects are B and C at time 1.
         """
 
-        this_storm_to_winds_table, storm_to_tornadoes_table = (
+        this_storm_to_winds_table, this_storm_to_tornadoes_table = (
             storm_images._check_storm_labels(
-                storm_ids=['C', 'B'], unix_time_sec=1,
+                storm_ids=['C', 'B'],
+                valid_times_unix_sec=numpy.full(2, 1, dtype=int),
                 storm_to_winds_table=STORM_TO_WINDS_TABLE,
                 storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE))
 
         self.assertTrue(this_storm_to_winds_table.equals(
             STORM_TO_WINDS_TABLE_CB_TIME1))
-        self.assertTrue(storm_to_tornadoes_table.equals(
+        self.assertTrue(this_storm_to_tornadoes_table.equals(
             STORM_TO_TORNADOES_TABLE_CB_TIME1))
 
     def test_filter_storm_objects_by_label_tornado_nonzero(self):
@@ -386,8 +395,11 @@ class StormImagesTests(unittest.TestCase):
             this_storm_image_matrix, STORM_IMAGE_MATRIX_EDGE, atol=TOLERANCE,
             equal_nan=True))
 
-    def test_find_storm_image_file(self):
-        """Ensures correct output from find_storm_image_file."""
+    def test_find_storm_image_file_one_time(self):
+        """Ensures correct output from find_storm_image_file.
+
+        In this case, file name is for one time step.
+        """
 
         this_file_name = storm_images.find_storm_image_file(
             top_directory_name=TOP_STORM_IMAGE_DIR_NAME,
@@ -395,52 +407,96 @@ class StormImagesTests(unittest.TestCase):
             radar_source=RADAR_SOURCE_NAME, radar_field_name=RADAR_FIELD_NAME,
             radar_height_m_asl=RADAR_HEIGHT_M_ASL, raise_error_if_missing=False)
 
-        self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME)
+        self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME_ONE_TIME)
 
-    def test_extract_one_label_per_storm_wind_ab_time0(self):
-        """Ensures correct output from extract_one_label_per_storm.
+    def test_find_storm_image_file_one_spc_date(self):
+        """Ensures correct output from find_storm_image_file.
+
+        In this case, file name is for one SPC date.
+        """
+
+        this_file_name = storm_images.find_storm_image_file(
+            top_directory_name=TOP_STORM_IMAGE_DIR_NAME,
+            spc_date_string=SPC_DATE_STRING, radar_source=RADAR_SOURCE_NAME,
+            radar_field_name=RADAR_FIELD_NAME,
+            radar_height_m_asl=RADAR_HEIGHT_M_ASL, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
+
+    def test_find_storm_label_file_one_time(self):
+        """Ensures correct output from find_storm_label_file.
+
+        In this case, file name is for one time step.
+        """
+
+        this_file_name = storm_images.find_storm_label_file(
+            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
+            raise_error_if_missing=False, warn_if_missing=False)
+        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
+
+    def test_find_storm_label_file_one_spc_date(self):
+        """Ensures correct output from find_storm_label_file.
+
+        In this case, file name is for one SPC date.
+        """
+
+        this_file_name = storm_images.find_storm_label_file(
+            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
+            raise_error_if_missing=False, warn_if_missing=False)
+        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
+
+    def test_extract_storm_labels_with_name_wind_ab_time0(self):
+        """Ensures correct output from extract_storm_labels_with_name.
 
         In this case, extracting wind labels for storms A and B at time 0.
         """
 
-        these_labels = storm_images.extract_one_label_per_storm(
-            storm_ids=['A', 'B'], label_name=WIND_SPEED_LABEL_COLUMN,
+        these_labels = storm_images.extract_storm_labels_with_name(
+            storm_ids=['A', 'B'],
+            valid_times_unix_sec=numpy.full(2, 0, dtype=int),
+            label_name=WIND_SPEED_LABEL_COLUMN,
             storm_to_winds_table=STORM_TO_WINDS_TABLE_AB_TIME0)
         self.assertTrue(numpy.array_equal(
             these_labels, WIND_SPEED_LABELS_AB_TIME0))
 
-    def test_extract_one_label_per_storm_tornado_ab_time0(self):
-        """Ensures correct output from extract_one_label_per_storm.
+    def test_extract_storm_labels_with_name_tornado_ab_time0(self):
+        """Ensures correct output from extract_storm_labels_with_name.
 
         In this case, extracting tornado labels for storms A and B at time 0.
         """
 
-        these_labels = storm_images.extract_one_label_per_storm(
-            storm_ids=['A', 'B'], label_name=TORNADO_LABEL_COLUMN,
+        these_labels = storm_images.extract_storm_labels_with_name(
+            storm_ids=['A', 'B'],
+            valid_times_unix_sec=numpy.full(2, 0, dtype=int),
+            label_name=TORNADO_LABEL_COLUMN,
             storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE_AB_TIME0)
         self.assertTrue(numpy.array_equal(
             these_labels, TORNADO_LABELS_AB_TIME0))
 
-    def test_extract_one_label_per_storm_wind_cb_time1(self):
-        """Ensures correct output from extract_one_label_per_storm.
+    def test_extract_storm_labels_with_name_wind_cb_time1(self):
+        """Ensures correct output from extract_storm_labels_with_name.
 
         In this case, extracting wind labels for storms C and B at time 1.
         """
 
-        these_labels = storm_images.extract_one_label_per_storm(
-            storm_ids=['C', 'B'], label_name=WIND_SPEED_LABEL_COLUMN,
+        these_labels = storm_images.extract_storm_labels_with_name(
+            storm_ids=['C', 'B'],
+            valid_times_unix_sec=numpy.full(2, 1, dtype=int),
+            label_name=WIND_SPEED_LABEL_COLUMN,
             storm_to_winds_table=STORM_TO_WINDS_TABLE_CB_TIME1)
         self.assertTrue(numpy.array_equal(
             these_labels, WIND_SPEED_LABELS_CB_TIME1))
 
-    def test_extract_one_label_per_storm_tornado_cb_time1(self):
-        """Ensures correct output from extract_one_label_per_storm.
+    def test_extract_storm_labels_with_name_tornado_cb_time1(self):
+        """Ensures correct output from extract_storm_labels_with_name.
 
         In this case, extracting tornado labels for storms C and B at time 1.
         """
 
-        these_labels = storm_images.extract_one_label_per_storm(
-            storm_ids=['C', 'B'], label_name=TORNADO_LABEL_COLUMN,
+        these_labels = storm_images.extract_storm_labels_with_name(
+            storm_ids=['C', 'B'],
+            valid_times_unix_sec=numpy.full(2, 1, dtype=int),
+            label_name=TORNADO_LABEL_COLUMN,
             storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE_CB_TIME1)
         self.assertTrue(numpy.array_equal(
             these_labels, TORNADO_LABELS_CB_TIME1))

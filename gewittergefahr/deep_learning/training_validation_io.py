@@ -30,7 +30,7 @@ LARGE_INTEGER = 1e10
 
 
 def _check_input_args(
-        num_examples_per_batch, num_examples_per_init_time, normalize_by_batch,
+        num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
         image_file_name_matrix, num_image_dimensions, binarize_target,
         sounding_statistic_file_names=None, sounding_statistic_names=None):
     """Error-checks input arguments to generator.
@@ -38,8 +38,8 @@ def _check_input_args(
     T = number of storm times (initial times, not valid times)
 
     :param num_examples_per_batch: Number of examples (storm objects) per batch.
-    :param num_examples_per_init_time: Number of examples (storm objects) per
-        initial time.
+    :param num_examples_per_file_time: Number of examples (storm objects) per
+        file time.
     :param normalize_by_batch: Used to normalize predictor values (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
     :param image_file_name_matrix: numpy array of paths to radar-image files.
@@ -59,8 +59,8 @@ def _check_input_args(
 
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
-    error_checking.assert_is_integer(num_examples_per_init_time)
-    error_checking.assert_is_geq(num_examples_per_init_time, 2)
+    error_checking.assert_is_integer(num_examples_per_file_time)
+    error_checking.assert_is_geq(num_examples_per_file_time, 2)
     error_checking.assert_is_boolean(normalize_by_batch)
 
     error_checking.assert_is_integer(num_image_dimensions)
@@ -146,13 +146,13 @@ def _get_num_examples_per_batch_by_class(
 
 
 def _get_num_examples_remaining_by_class(
-        num_examples_per_batch, num_init_times_per_batch,
+        num_examples_per_batch, num_file_times_per_batch,
         num_examples_per_batch_class_dict, num_examples_in_memory,
         num_init_times_in_memory, num_examples_in_memory_class_dict):
     """Returns number of examples still needed for each class.
 
     :param num_examples_per_batch: Number of examples needed per batch.
-    :param num_init_times_per_batch: Number of initial times needed per batch.
+    :param num_file_times_per_batch: Number of file times needed per batch.
     :param num_examples_per_batch_class_dict: Dictionary created by
         `_get_num_examples_per_batch_by_class`.
     :param num_examples_in_memory: Number of examples currently in memory.
@@ -166,7 +166,7 @@ def _get_num_examples_remaining_by_class(
     """
 
     downsample = (
-        num_init_times_in_memory >= num_init_times_per_batch and
+        num_init_times_in_memory >= num_file_times_per_batch and
         num_examples_in_memory >= num_examples_per_batch)
 
     if not downsample:
@@ -183,13 +183,13 @@ def _get_num_examples_remaining_by_class(
 
 
 def _determine_stopping_criterion(
-        num_examples_per_batch, num_init_times_per_batch,
+        num_examples_per_batch, num_file_times_per_batch,
         num_examples_per_batch_class_dict, num_init_times_in_memory,
         class_fraction_dict, target_values_in_memory):
     """Determines whether or not to stop generating examples.
 
     :param num_examples_per_batch: Number of examples needed per batch.
-    :param num_init_times_per_batch: Number of initial times needed per batch.
+    :param num_file_times_per_batch: Number of file times needed per batch.
     :param num_examples_per_batch_class_dict: Dictionary created by
         `_get_num_examples_per_batch_by_class`.
     :param num_init_times_in_memory: Number of initial times currently in
@@ -214,7 +214,7 @@ def _determine_stopping_criterion(
 
     num_examples_in_memory = len(target_values_in_memory)
     stopping_criterion = (
-        num_init_times_in_memory >= num_init_times_per_batch and
+        num_init_times_in_memory >= num_file_times_per_batch and
         num_examples_in_memory >= num_examples_per_batch)
 
     if stopping_criterion and class_fraction_dict is not None:
@@ -298,7 +298,7 @@ def remove_storms_with_undef_target(storm_image_dict):
 
     keys_to_change = [
         storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
-        storm_images.LABEL_VALUES_KEY]
+        storm_images.VALID_TIMES_KEY, storm_images.LABEL_VALUES_KEY]
     for this_key in keys_to_change:
         if this_key == storm_images.STORM_IDS_KEY:
             storm_image_dict[this_key] = [
@@ -403,31 +403,34 @@ def separate_input_files_for_2d3d_myrorss(
 def find_2d_input_files(
         top_directory_name, radar_source, radar_field_names,
         first_image_time_unix_sec, last_image_time_unix_sec,
-        radar_heights_m_asl=None, reflectivity_heights_m_asl=None):
+        one_file_per_time_step, radar_heights_m_asl=None,
+        reflectivity_heights_m_asl=None):
     """Finds input files for `storm_image_generator_2d`.
 
-    T = number of image times
-    F = number of radar fields
+    If `one_file_per_time_step = True`, this method will look for files with one
+    time step each.  Otherwise, will look for files with one SPC date each.
+
+    T = number of time steps or SPC dates (in general, number of values along
+        the time dimension)
     C = number of channels = num predictor variables = num field/height pairs
 
-    :param top_directory_name: Name of top-level directory with storm-centered
-        radar images.
-    :param radar_source: Data source (must be accepted by
+    :param top_directory_name: Name of top-level directory with storm-image
+        files.
+    :param radar_source: Source (must be accepted by
         `radar_utils.check_data_source`).
-    :param radar_field_names: length-F list with names of radar fields.
-    :param first_image_time_unix_sec: First image time.  Files will be sought
-        for all time steps from `first_image_time_unix_sec`...
-        `last_image_time_unix_sec`.
-    :param last_image_time_unix_sec: See above.
+    :param radar_field_names: 1-D list with names of radar fields.
+    :param first_image_time_unix_sec: Start time.  This method will find all
+        files from `first_image_time_unix_sec`...`last_image_time_unix_sec`.  If
+        `one_file_per_time_step is False`, this can be any time on the first SPC
+        date.
+    :param last_image_time_unix_sec: End time.  If
+        `one_file_per_time_step is False`, this can be any time on the last SPC
+        date.
+    :param one_file_per_time_step: See general discussion above.
     :param radar_heights_m_asl: [used only if radar_source = "gridrad"]
-        1-D numpy array of radar heights (metres above sea level).  These will
-        be applied to each field in `radar_field_names`.  In other words, if
-        there are F fields and H heights, there will be F*H predictor variables.
+        1-D numpy array of radar heights (metres above sea level).
     :param reflectivity_heights_m_asl: [used only if radar_source != "gridrad"]
-        1-D numpy array of radar heights (metres above sea level).  These will
-        be applied only to "reflectivity_dbz", if "reflectivity_dbz" is in
-        `radar_field_names`.  In other words, if there are F fields and H
-        heights, there will be (F + H - 1) predictor variables.
+        1-D numpy array of heights for field "reflectivity_dbz".
     :return: image_file_name_matrix: T-by-C numpy array of paths to storm-image
         files.
     :return: image_times_unix_sec: length-T numpy array of image times.
@@ -439,10 +442,11 @@ def find_2d_input_files(
         image_file_name_matrix, image_times_unix_sec = (
             storm_images.find_many_files_gridrad(
                 top_directory_name=top_directory_name,
-                start_time_unix_sec=first_image_time_unix_sec,
-                end_time_unix_sec=last_image_time_unix_sec,
                 radar_field_names=radar_field_names,
                 radar_heights_m_asl=radar_heights_m_asl,
+                start_time_unix_sec=first_image_time_unix_sec,
+                end_time_unix_sec=last_image_time_unix_sec,
+                one_file_per_time_step=one_file_per_time_step,
                 raise_error_if_all_missing=True))
 
         field_name_by_channel, _ = (
@@ -456,12 +460,14 @@ def find_2d_input_files(
             image_file_name_matrix, (num_image_times, num_channels))
 
     else:
-        image_file_name_matrix, image_times_unix_sec, _, _ = (
+        image_file_name_matrix, image_times_unix_sec = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_directory_name,
+                radar_source=radar_source,
+                radar_field_names=radar_field_names,
                 start_time_unix_sec=first_image_time_unix_sec,
                 end_time_unix_sec=last_image_time_unix_sec,
-                radar_source=radar_source, radar_field_names=radar_field_names,
+                one_file_per_time_step=one_file_per_time_step,
                 reflectivity_heights_m_asl=reflectivity_heights_m_asl,
                 raise_error_if_all_missing=True,
                 raise_error_if_any_missing=False))
@@ -479,28 +485,27 @@ def find_2d_input_files(
 def find_3d_input_files(
         top_directory_name, radar_source, radar_field_names,
         radar_heights_m_asl, first_image_time_unix_sec,
-        last_image_time_unix_sec):
+        last_image_time_unix_sec, one_file_per_time_step):
     """Finds input files for `storm_image_generator_3d`.
 
-    T = number of image times
-    F = number of radar fields
-    D = number of radar heights
+    If `one_file_per_time_step = True`, this method will look for files with one
+    time step each.  Otherwise, will look for files with one SPC date each.
 
-    :param top_directory_name: Name of top-level directory with storm-centered
-        radar images.
-    :param radar_source: Data source (must be accepted by
-        `radar_utils.check_data_source`).
-    :param radar_field_names: length-F list with names of radar fields.
-    :param first_image_time_unix_sec: First image time.  Files will be sought
-        for all time steps from `first_image_time_unix_sec`...
-        `last_image_time_unix_sec`.
-    :param last_image_time_unix_sec: See above.
-    :param radar_heights_m_asl: length-H numpy array of radar heights (metres
-        above sea level).  These will be applied to each field in
-        `radar_field_names`.  In other words, if there are F fields and H
-        heights, there will be F*H predictor variables.
-    :return: image_file_name_matrix: T-by-F-by-H numpy array of paths to
-        storm-image files.
+    T = number of time steps or SPC dates (in general, number of values along
+        the time dimension)
+    F = number of radar fields
+    H = number of radar heights
+
+    :param top_directory_name: See documentation for `find_2d_input_files`.
+    :param radar_source: Same.
+    :param radar_field_names: Same.
+    :param radar_heights_m_asl: Same.
+    :param first_image_time_unix_sec: Same.
+    :param last_image_time_unix_sec: Same.
+    :param one_file_per_time_step: Same.
+    :return: image_file_name_matrix: T-by-F-by-H numpy array of paths to storm-
+        image files.
+    :return: image_times_unix_sec: length-T numpy array of image times.
     """
 
     radar_utils.check_data_source(radar_source)
@@ -509,21 +514,23 @@ def find_3d_input_files(
         image_file_name_matrix, image_times_unix_sec = (
             storm_images.find_many_files_gridrad(
                 top_directory_name=top_directory_name,
-                start_time_unix_sec=first_image_time_unix_sec,
-                end_time_unix_sec=last_image_time_unix_sec,
                 radar_field_names=radar_field_names,
                 radar_heights_m_asl=radar_heights_m_asl,
+                start_time_unix_sec=first_image_time_unix_sec,
+                end_time_unix_sec=last_image_time_unix_sec,
+                one_file_per_time_step=one_file_per_time_step,
                 raise_error_if_all_missing=True))
-
     else:
         radar_field_names = [radar_utils.REFL_NAME]
 
-        image_file_name_matrix, image_times_unix_sec, _, _ = (
+        image_file_name_matrix, image_times_unix_sec = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_directory_name,
+                radar_source=radar_source,
+                radar_field_names=radar_field_names,
                 start_time_unix_sec=first_image_time_unix_sec,
                 end_time_unix_sec=last_image_time_unix_sec,
-                radar_source=radar_source, radar_field_names=radar_field_names,
+                one_file_per_time_step=one_file_per_time_step,
                 reflectivity_heights_m_asl=radar_heights_m_asl,
                 raise_error_if_all_missing=True,
                 raise_error_if_any_missing=False))
@@ -551,7 +558,7 @@ def find_sounding_statistic_files(
     These files may be used as input for `storm_image_generator_2d` or
     `storm_image_generator_3d`.
 
-    T = number of time steps in output
+    T = number of time steps.  Each file should contain only one time step.
 
     :param image_file_name_matrix: numpy array of paths to storm-image files,
         created by either `find_2d_input_files` or `find_3d_input_files`.
@@ -573,6 +580,9 @@ def find_sounding_statistic_files(
         steps.  The length of the first axis is T.
     :raises: ValueError: if no sounding-statistic files are found.
     """
+
+    # TODO(thunderhoser): This method should handle one file per SPC date as
+    # well.
 
     error_checking.assert_is_integer_numpy_array(image_times_unix_sec)
     error_checking.assert_is_numpy_array(image_times_unix_sec, num_dimensions=1)
@@ -621,7 +631,7 @@ def find_sounding_statistic_files(
 
 def storm_image_generator_2d(
         image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name, binarize_target=False,
+        num_examples_per_file_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fraction_dict=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
@@ -637,7 +647,7 @@ def storm_image_generator_2d(
     :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
         files.  This should be created by `find_2d_input_files`.
     :param num_examples_per_batch: See doc for `_check_input_args`.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
     :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
@@ -670,7 +680,7 @@ def storm_image_generator_2d(
 
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_init_time=num_examples_per_init_time,
+        num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
         num_image_dimensions=2, binarize_target=binarize_target,
         sounding_statistic_file_names=sounding_statistic_file_names,
@@ -695,12 +705,12 @@ def storm_image_generator_2d(
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    num_init_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_init_time))
+    num_file_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_file_time))
 
     num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
         num_examples_per_batch=num_examples_per_batch,
-        num_init_times_per_batch=num_init_times_per_batch,
+        num_file_times_per_batch=num_file_times_per_batch,
         num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
         num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
         target_values_in_memory=numpy.array([]))
@@ -738,7 +748,7 @@ def storm_image_generator_2d(
             num_examples_remaining_class_dict = (
                 _get_num_examples_remaining_by_class(
                     num_examples_per_batch=num_examples_per_batch,
-                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
                     num_examples_in_memory=num_examples_in_memory,
@@ -822,7 +832,7 @@ def storm_image_generator_2d(
             num_examples_in_memory_class_dict, stopping_criterion = (
                 _determine_stopping_criterion(
                     num_examples_per_batch=num_examples_per_batch,
-                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
@@ -880,7 +890,7 @@ def storm_image_generator_2d(
 
 def storm_image_generator_2d3d_myrorss(
         image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name, binarize_target=False,
+        num_examples_per_file_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fraction_dict=None):
     """Generates examples with both 2-D and 3-D radar images.
@@ -899,7 +909,7 @@ def storm_image_generator_2d3d_myrorss(
     :param image_file_name_matrix: T-by-(D + F) numpy array of paths to image
         files.  This should be created by `find_2d_input_files`.
     :param num_examples_per_batch: See doc for `_check_input_args`.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
     :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
@@ -914,7 +924,7 @@ def storm_image_generator_2d3d_myrorss(
 
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_init_time=num_examples_per_init_time,
+        num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
         num_image_dimensions=2, binarize_target=binarize_target)
 
@@ -939,12 +949,12 @@ def storm_image_generator_2d3d_myrorss(
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    num_init_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_init_time))
+    num_file_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_file_time))
 
     num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
         num_examples_per_batch=num_examples_per_batch,
-        num_init_times_per_batch=num_init_times_per_batch,
+        num_file_times_per_batch=num_file_times_per_batch,
         num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
         num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
         target_values_in_memory=numpy.array([]))
@@ -983,7 +993,7 @@ def storm_image_generator_2d3d_myrorss(
             num_examples_remaining_class_dict = (
                 _get_num_examples_remaining_by_class(
                     num_examples_per_batch=num_examples_per_batch,
-                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
                     num_examples_in_memory=num_examples_in_memory,
@@ -1067,7 +1077,7 @@ def storm_image_generator_2d3d_myrorss(
             num_examples_in_memory_class_dict, stopping_criterion = (
                 _determine_stopping_criterion(
                     num_examples_per_batch=num_examples_per_batch,
-                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
@@ -1121,7 +1131,7 @@ def storm_image_generator_2d3d_myrorss(
 
 def storm_image_generator_3d(
         image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name, binarize_target=False,
+        num_examples_per_file_time, target_name, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fraction_dict=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
@@ -1137,7 +1147,7 @@ def storm_image_generator_3d(
     :param image_file_name_matrix: T-by-F-by-H numpy array of paths to radar-
         image files.  This should be created by `find_3d_input_files`.
     :param num_examples_per_batch: See doc for `_check_input_args`.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
     :param binarize_target: See documentation for `_select_batch`.
     :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
@@ -1163,7 +1173,7 @@ def storm_image_generator_3d(
 
     _check_input_args(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_init_time=num_examples_per_init_time,
+        num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, image_file_name_matrix=image_file_name_matrix,
         num_image_dimensions=3, binarize_target=binarize_target,
         sounding_statistic_file_names=sounding_statistic_file_names,
@@ -1189,12 +1199,12 @@ def storm_image_generator_3d(
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    num_init_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_init_time))
+    num_file_times_per_batch = int(numpy.ceil(
+        float(num_examples_per_batch) / num_examples_per_file_time))
 
     num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
         num_examples_per_batch=num_examples_per_batch,
-        num_init_times_per_batch=num_init_times_per_batch,
+        num_file_times_per_batch=num_file_times_per_batch,
         num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
         num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
         target_values_in_memory=numpy.array([]))
@@ -1232,7 +1242,7 @@ def storm_image_generator_3d(
             num_examples_remaining_class_dict = (
                 _get_num_examples_remaining_by_class(
                     num_examples_per_batch=num_examples_per_batch,
-                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
                     num_examples_in_memory=num_examples_in_memory,
@@ -1324,7 +1334,7 @@ def storm_image_generator_3d(
             num_examples_in_memory_class_dict, stopping_criterion = (
                 _determine_stopping_criterion(
                     num_examples_per_batch=num_examples_per_batch,
-                    num_init_times_per_batch=num_init_times_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,

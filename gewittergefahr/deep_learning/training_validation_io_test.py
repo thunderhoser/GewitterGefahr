@@ -13,9 +13,11 @@ TOLERANCE = 1e-6
 THESE_STORM_IDS = ['A', 'B', 'C', 'D']
 THIS_IMAGE_MATRIX = numpy.reshape(numpy.linspace(1., 24., num=24), (4, 3, 2))
 THESE_TARGET_VALUES = numpy.array([-1, 0, -1, -2], dtype=int)
+THESE_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
 
 STORM_IMAGE_DICT_WITH_UNDEF_TARGETS = {
     storm_images.STORM_IDS_KEY: THESE_STORM_IDS,
+    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
     storm_images.STORM_IMAGE_MATRIX_KEY: THIS_IMAGE_MATRIX,
     storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES,
 }
@@ -24,6 +26,7 @@ THESE_VALID_INDICES = numpy.array([1, 3], dtype=int)
 STORM_IMAGE_DICT_NO_UNDEF_TARGETS = {
     storm_images.STORM_IDS_KEY:
         [THESE_STORM_IDS[i] for i in THESE_VALID_INDICES],
+    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC[THESE_VALID_INDICES],
     storm_images.STORM_IMAGE_MATRIX_KEY:
         THIS_IMAGE_MATRIX[THESE_VALID_INDICES, :],
     storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
@@ -44,7 +47,7 @@ WIND_CLASS_FRACTION_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
 NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
 
 # The following constants are used to test _get_num_examples_remaining_by_class.
-NUM_INIT_TIMES_PER_BATCH = 20
+NUM_FILE_TIMES_PER_BATCH = 20
 NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT = {0: 1000, 1: 10}
 NUM_EXAMPLES_REMAINING_TORNADO_CLASS_DICT = {0: 0, 1: 10}
 NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT = {-2: 500, 0: 1000, 1: 18, 2: 5}
@@ -165,16 +168,16 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
-        are not yet enough initial times or examples in memory.
+        are not yet enough file times or examples in memory.
         """
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
 
@@ -184,16 +187,16 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
-        are not yet enough initial times in memory.
+        are not yet enough file times in memory.
         """
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
 
@@ -208,11 +211,11 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
 
@@ -222,16 +225,16 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = tornado occurrence.  Will downsample, because there
-        are already enough initial times and examples in memory.
+        are already enough file times and examples in memory.
         """
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
 
@@ -241,16 +244,16 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _get_num_examples_remaining_by_class.
 
         Target variable = wind class.  Will downsample, because there are
-        already enough initial times and examples in memory.
+        already enough file times and examples in memory.
         """
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT)
 
@@ -260,15 +263,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _determine_stopping_criterion.
 
         Target variable = tornado occurrence.  Stopping criterion should be
-        False, as there are not yet enough initial times or examples in memory.
+        False, as there are not yet enough file times or examples in memory.
         """
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
             class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
@@ -280,15 +283,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _determine_stopping_criterion.
 
         Target variable = wind class.  Stopping criterion should be False, as
-        there are not yet enough initial times or examples in memory.
+        there are not yet enough file times or examples in memory.
         """
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
             class_fraction_dict=WIND_CLASS_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
@@ -300,15 +303,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _determine_stopping_criterion.
 
         Target variable = tornado occurrence.  Stopping criterion should be
-        False, as there are not yet enough initial times in memory.
+        False, as there are not yet enough file times in memory.
         """
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
             class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
             target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
@@ -320,15 +323,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         """Ensures correct output from _determine_stopping_criterion.
 
         Target variable = wind class.  Stopping criterion should be False, as
-        there are not yet enough initial times in memory.
+        there are not yet enough file times in memory.
         """
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
             class_fraction_dict=WIND_CLASS_FRACTION_DICT,
             target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
@@ -345,10 +348,10 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
@@ -365,10 +368,10 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=WIND_CLASS_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
@@ -379,7 +382,7 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_determine_stopping_tor_no_downsampling(self):
         """Ensures correct output from _determine_stopping_criterion.
 
-        Target variable = tornado occurrence.  There are enough initial times
+        Target variable = tornado occurrence.  There are enough file times
         and examples in memory.  All examples have target = 0, but this doesn't
         matter, because no oversampling is desired.  Thus, stopping criterion
         should be True.
@@ -387,10 +390,10 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=None,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -401,7 +404,7 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_determine_stopping_wind_no_downsampling(self):
         """Ensures correct output from _determine_stopping_criterion.
 
-        Target variable = wind class.  There are enough initial times and
+        Target variable = wind class.  There are enough file times and
         examples in memory.  All examples have target = 0, but this doesn't
         matter, because no oversampling is desired.  Thus, stopping criterion
         should be True.
@@ -409,10 +412,10 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=None,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -423,7 +426,7 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_determine_stopping_tor_need_ones(self):
         """Ensures correct output from _determine_stopping_criterion.
 
-        Target variable = tornado occurrence.  There are enough initial times
+        Target variable = tornado occurrence.  There are enough file times
         and examples in memory.  However, all examples have target = 0, which
         matters because oversampling is desired.  Thus, stopping criterion
         should be False.
@@ -431,10 +434,10 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -445,7 +448,7 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_determine_stopping_wind_need_nonzero(self):
         """Ensures correct output from _determine_stopping_criterion.
 
-        Target variable = wind class.  There are enough initial times and
+        Target variable = wind class.  There are enough file times and
         examples in memory.  However, all examples have target = 0, which
         matters because oversampling is desired.  Thus, stopping criterion
         should be False.
@@ -453,10 +456,10 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=WIND_CLASS_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -467,17 +470,17 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_determine_stopping_tor_enough_ones(self):
         """Ensures correct output from _determine_stopping_criterion.
 
-        Target variable = tornado occurrence.  There are enough initial times,
+        Target variable = tornado occurrence.  There are enough file times,
         negative examples, and positive examples in memory.  Thus, stopping
         criterion should be True.
         """
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
             target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
@@ -488,17 +491,17 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_determine_stopping_wind_enough_per_class(self):
         """Ensures correct output from _determine_stopping_criterion.
 
-        Target variable = wind class.  There are enough initial times, and
+        Target variable = wind class.  There are enough file times, and
         enough examples of each class, in memory.  Thus, stopping criterion
         should be True.
         """
 
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            num_init_times_per_batch=NUM_INIT_TIMES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_INIT_TIMES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             class_fraction_dict=WIND_CLASS_FRACTION_DICT,
             target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
