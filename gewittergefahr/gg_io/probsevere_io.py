@@ -1,5 +1,6 @@
 """IO methods for probSevere storm-tracking."""
 
+import glob
 import json
 import os.path
 import numpy
@@ -24,8 +25,9 @@ VALID_RAW_FILE_EXTENSIONS = [JSON_FILE_EXTENSION, ASCII_FILE_EXTENSION]
 
 MONTH_FORMAT = '%Y%m'
 DATE_FORMAT = '%Y%m%d'
-TIME_FORMAT_IN_JSON_FILES = '%Y%m%d_%H%M%S UTC'
-TIME_FORMAT_IN_RAW_FILE_NAMES = '%Y%m%d_%H%M%S'
+RAW_FILE_TIME_FORMAT = '%Y%m%d_%H%M%S'
+RAW_FILE_TIME_FORMAT_REGEX = (
+    '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]_[0-2][0-9][0-5][0-9][0-5][0-9]')
 
 TIME_KEY_IN_JSON_FILES = 'validTime'
 FEATURES_KEY_IN_JSON_FILES = 'features'
@@ -86,7 +88,7 @@ def _get_pathless_raw_file_name(unix_time_sec, file_extension):
     return '{0:s}_{1:s}{2:s}'.format(
         RAW_FILE_NAME_PREFIX,
         time_conversion.unix_sec_to_string(
-            unix_time_sec, TIME_FORMAT_IN_RAW_FILE_NAMES),
+            unix_time_sec, RAW_FILE_TIME_FORMAT),
         file_extension)
 
 
@@ -142,6 +144,50 @@ def find_raw_file(top_directory_name, unix_time_sec, file_extension,
     return raw_file_name
 
 
+def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
+                           raise_error_if_all_missing=True):
+    """Finds all raw (ASCII or JSON) files for one day.
+
+    :param top_directory_name: Name of top-level directory with raw probSevere
+        files.
+    :param unix_time_sec: Valid time (any time on the given day).
+    :param file_extension: File type (either ".json" or ".ascii").
+    :param raise_error_if_all_missing: Boolean flag.  If no files are found and
+        raise_error_if_all_missing = True, this method will error out.  If no
+        files are found and raise_error_if_all_missing = False, will return
+        None.
+    :return: raw_file_names: [may be None] 1-D list of paths to raw files.
+    :raises: ValueError: if no files are found and raise_error_if_all_missing =
+        True.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_all_missing)
+
+    dummy_pathless_file_name = _get_pathless_raw_file_name(
+        unix_time_sec=unix_time_sec, file_extension=file_extension)
+    time_string = time_conversion.unix_sec_to_string(
+        unix_time_sec, RAW_FILE_TIME_FORMAT)
+    pathless_file_name_pattern = dummy_pathless_file_name.replace(
+        time_string, RAW_FILE_TIME_FORMAT_REGEX)
+
+    raw_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_directory_name,
+        time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
+        time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
+        pathless_file_name_pattern)
+    raw_file_names = glob.glob(raw_file_pattern)
+
+    if len(raw_file_names):
+        return raw_file_names
+    if not raise_error_if_all_missing:
+        return None
+
+    error_string = 'Cannot find any files with pattern: "{0:s}"'.format(
+        raw_file_pattern)
+    raise ValueError(error_string)
+
+
 def raw_file_name_to_time(raw_file_name):
     """Parses valid time from name of raw (either ASCII or JSON) file.
 
@@ -155,7 +201,7 @@ def raw_file_name_to_time(raw_file_name):
 
     return time_conversion.string_to_unix_sec(
         extensionless_file_name.replace(RAW_FILE_NAME_PREFIX + '_', ''),
-        TIME_FORMAT_IN_RAW_FILE_NAMES)
+        RAW_FILE_TIME_FORMAT)
 
 
 def read_raw_file(raw_file_name):
