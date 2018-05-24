@@ -106,6 +106,9 @@ def _append_spc_date_to_storm_ids(storm_ids_orig, spc_date_string):
     :return: storm_ids: Same as input, except with date appended to each ID.
     """
 
+    # TODO(thunderhoser): Put this method somewhere more general and use it for
+    # probSevere IDs.
+
     return ['{0:s}_{1:s}'.format(s, spc_date_string) for s in storm_ids_orig]
 
 

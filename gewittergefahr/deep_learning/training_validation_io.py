@@ -350,8 +350,8 @@ def separate_input_files_for_2d3d_myrorss(
         for j in range(num_field_height_pairs):
             this_storm_image_dict = storm_images.read_storm_images_only(
                 image_file_name_matrix[0, j])
-            field_name_by_pair[j] = str(
-                this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
+            field_name_by_pair[j] = this_storm_image_dict[
+                storm_images.RADAR_FIELD_NAME_KEY]
             height_by_pair_m_asl[j] = this_storm_image_dict[
                 storm_images.RADAR_HEIGHT_KEY]
 
@@ -691,8 +691,8 @@ def storm_image_generator_2d(
     for j in range(num_channels):
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, j])
-        field_name_by_channel[j] = str(
-            this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
+        field_name_by_channel[j] = this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY]
 
     image_file_name_matrix, sounding_statistic_file_names = _shuffle_times(
         image_file_name_matrix=image_file_name_matrix,
@@ -772,8 +772,10 @@ def storm_image_generator_2d(
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
-            these_valid_storm_ids = this_storm_image_dict[
+            these_storm_ids_to_keep = this_storm_image_dict[
                 storm_images.STORM_IDS_KEY]
+            these_valid_times_to_keep_unix_sec = this_storm_image_dict[
+                storm_images.VALID_TIMES_KEY]
 
             if all_target_values is None:
                 all_target_values = this_storm_image_dict[
@@ -787,7 +789,7 @@ def storm_image_generator_2d(
                 this_sounding_stat_dict = soundings.read_sounding_statistics(
                     netcdf_file_name=sounding_statistic_file_names[
                         init_time_index],
-                    storm_ids_to_keep=these_valid_storm_ids,
+                    storm_ids_to_keep=these_storm_ids_to_keep,
                     statistic_names_to_keep=sounding_statistic_names)
 
                 if sounding_statistic_names is None:
@@ -811,7 +813,9 @@ def storm_image_generator_2d(
                     this_storm_image_dict = storm_images.read_storm_images_only(
                         netcdf_file_name=image_file_name_matrix[
                             init_time_index, j],
-                        indices_to_keep=these_valid_storm_indices)
+                        storm_ids_to_keep=these_storm_ids_to_keep,
+                        valid_times_to_keep_unix_sec=
+                        these_valid_times_to_keep_unix_sec)
 
                 this_field_image_matrix = this_storm_image_dict[
                     storm_images.STORM_IMAGE_MATRIX_KEY]
@@ -940,8 +944,8 @@ def storm_image_generator_2d3d_myrorss(
     for j in range(num_az_shear_fields):
         this_storm_image_dict = storm_images.read_storm_images_only(
             az_shear_file_name_matrix[0, j])
-        az_shear_field_names[j] = str(
-            this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
+        az_shear_field_names[j] = this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY]
 
     num_examples_per_batch_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -1018,6 +1022,11 @@ def storm_image_generator_2d3d_myrorss(
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
+            these_storm_ids_to_keep = this_storm_image_dict[
+                storm_images.STORM_IDS_KEY]
+            these_valid_times_to_keep_unix_sec = this_storm_image_dict[
+                storm_images.VALID_TIMES_KEY]
+
             if all_target_values is None:
                 all_target_values = this_storm_image_dict[
                     storm_images.LABEL_VALUES_KEY]
@@ -1033,7 +1042,9 @@ def storm_image_generator_2d3d_myrorss(
                     this_storm_image_dict = storm_images.read_storm_images_only(
                         netcdf_file_name=reflectivity_file_name_matrix[
                             init_time_index, j],
-                        indices_to_keep=these_valid_storm_indices)
+                        storm_ids_to_keep=these_storm_ids_to_keep,
+                        valid_times_to_keep_unix_sec=
+                        these_valid_times_to_keep_unix_sec)
 
                 this_4d_matrix = dl_utils.stack_predictor_variables((
                     this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
@@ -1046,7 +1057,9 @@ def storm_image_generator_2d3d_myrorss(
                 this_storm_image_dict = storm_images.read_storm_images_only(
                     netcdf_file_name=az_shear_file_name_matrix[
                         init_time_index, j],
-                    indices_to_keep=these_valid_storm_indices)
+                    storm_ids_to_keep=these_storm_ids_to_keep,
+                    valid_times_to_keep_unix_sec=
+                    these_valid_times_to_keep_unix_sec)
 
                 tuple_of_3d_az_shear_matrices += (
                     this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -1185,8 +1198,8 @@ def storm_image_generator_3d(
     for j in range(num_fields):
         this_storm_image_dict = storm_images.read_storm_images_only(
             image_file_name_matrix[0, j, 0])
-        radar_field_names[j] = str(
-            this_storm_image_dict[storm_images.RADAR_FIELD_NAME_KEY])
+        radar_field_names[j] = this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY]
 
     image_file_name_matrix, sounding_statistic_file_names = _shuffle_times(
         image_file_name_matrix=image_file_name_matrix,
@@ -1266,8 +1279,10 @@ def storm_image_generator_3d(
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
-            these_valid_storm_ids = this_storm_image_dict[
+            these_storm_ids_to_keep = this_storm_image_dict[
                 storm_images.STORM_IDS_KEY]
+            these_valid_times_to_keep_unix_sec = this_storm_image_dict[
+                storm_images.VALID_TIMES_KEY]
 
             if all_target_values is None:
                 all_target_values = this_storm_image_dict[
@@ -1281,7 +1296,7 @@ def storm_image_generator_3d(
                 this_sounding_stat_dict = soundings.read_sounding_statistics(
                     netcdf_file_name=sounding_statistic_file_names[
                         init_time_index],
-                    storm_ids_to_keep=these_valid_storm_ids,
+                    storm_ids_to_keep=these_storm_ids_to_keep,
                     statistic_names_to_keep=sounding_statistic_names)
 
                 if sounding_statistic_names is None:
@@ -1309,7 +1324,9 @@ def storm_image_generator_3d(
                             storm_images.read_storm_images_only(
                                 netcdf_file_name=
                                 image_file_name_matrix[init_time_index, j, k],
-                                indices_to_keep=these_valid_storm_indices))
+                                storm_ids_to_keep=these_storm_ids_to_keep,
+                                valid_times_to_keep_unix_sec=
+                                these_valid_times_to_keep_unix_sec))
 
                     this_3d_image_matrix = this_storm_image_dict[
                         storm_images.STORM_IMAGE_MATRIX_KEY]
