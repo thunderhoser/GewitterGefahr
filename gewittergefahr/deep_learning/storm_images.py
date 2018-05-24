@@ -1700,7 +1700,7 @@ def read_storm_images_only(
 
     try:
         valid_times_unix_sec = numpy.array(
-            getattr(netcdf_dataset, VALID_TIMES_KEY), dtype=int)
+            netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
     except:
         valid_times_unix_sec = numpy.full(
             len(storm_ids), getattr(netcdf_dataset, 'unix_time_sec'), dtype=int)
