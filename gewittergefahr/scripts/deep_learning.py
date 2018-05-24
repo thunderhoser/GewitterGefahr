@@ -8,12 +8,13 @@ NUM_TRAIN_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 STORM_IMAGE_DIR_ARG_NAME = 'input_storm_image_dir_name'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
-NUM_EXAMPLES_PER_TIME_ARG_NAME = 'num_examples_per_time'
+NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME = 'num_examples_per_file_time'
 TRAINING_START_TIME_ARG_NAME = 'training_start_time_string'
 TRAINING_END_TIME_ARG_NAME = 'training_end_time_string'
 TARGET_NAME_ARG_NAME = 'target_name'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
-CLASS_FRACTIONS_ARG_NAME = 'class_fractions_to_sample'
+CLASS_FRACTION_DICT_KEYS_ARG_NAME = 'class_fraction_dict_keys'
+CLASS_FRACTION_DICT_VALUES_ARG_NAME = 'class_fraction_dict_values'
 NUM_VALIDN_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
 VALIDATION_START_TIME_ARG_NAME = 'validation_start_time_string'
 VALIDATION_END_TIME_ARG_NAME = 'validation_end_time_string'
@@ -21,7 +22,7 @@ VALIDATION_END_TIME_ARG_NAME = 'validation_end_time_string'
 DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH = 32
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 512
-DEFAULT_NUM_EXAMPLES_PER_TIME = 8
+DEFAULT_NUM_EXAMPLES_PER_FILE_TIME = 64
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH = 16
 
@@ -40,8 +41,9 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     ' `training_validation_io.storm_image_generator_3d`.')
 NUM_EXAMPLES_PER_BATCH_HELP_STRING = (
     'Number of examples per (training or validation) batch.')
-NUM_EXAMPLES_PER_TIME_HELP_STRING = (
-    'Number of examples (storm objects) per radar time.')
+NUM_EXAMPLES_PER_FILE_TIME_HELP_STRING = (
+    'Number of examples (storm objects) per file time, which may be either one '
+    'time step or one SPC date.')
 TRAINING_TIME_HELP_STRING = (
     'Time (format "yyyy-mm-dd-HHMMSS").  Training examples will be drawn '
     'randomly from `{0:s}`...`{1:s}`.'
@@ -51,11 +53,17 @@ WEIGHT_LOSS_HELP_STRING = (
     'Boolean flag.  If 0, classes will be weighted equally in the loss function'
     '.  If 1, classes will be weighted differently in the loss function '
     '(inversely proportional with `{0:s}`).'
-).format(CLASS_FRACTIONS_ARG_NAME)
-CLASS_FRACTIONS_HELP_STRING = (
-    '1-D list with fraction of data points (storm objects) in each class.  '
-    'These are used for class-conditional sampling.  If you do not care about '
-    'class balance, leave this alone.')
+).format(CLASS_FRACTION_DICT_VALUES_ARG_NAME)
+CLASS_FRACTION_DICT_KEYS_HELP_STRING = (
+    '1-D list of class IDs (integers).  These and `{0:s}` will be used to '
+    'create `class_fraction_dict`, which is used to oversample or undersample '
+    'different classes.'
+).format(CLASS_FRACTION_DICT_VALUES_ARG_NAME)
+CLASS_FRACTION_DICT_VALUES_HELP_STRING = (
+    '1-D list of class fractions.  These and `{0:s}` will be used to create '
+    '`class_fraction_dict`, which is used to oversample or undersample '
+    'different classes.'
+).format(CLASS_FRACTION_DICT_KEYS_ARG_NAME)
 NUM_VALIDN_BATCHES_HELP_STRING = (
     'Number of validation batches per epoch.  If you do not want on-the-fly '
     'validation, make this 0.')
@@ -101,9 +109,9 @@ def add_input_arguments(argument_parser_object):
         help=NUM_EXAMPLES_PER_BATCH_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + NUM_EXAMPLES_PER_TIME_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_EXAMPLES_PER_TIME,
-        help=NUM_EXAMPLES_PER_TIME_HELP_STRING)
+        '--' + NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_EXAMPLES_PER_FILE_TIME,
+        help=NUM_EXAMPLES_PER_FILE_TIME_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + TRAINING_START_TIME_ARG_NAME, type=str, required=True,
@@ -122,8 +130,13 @@ def add_input_arguments(argument_parser_object):
         default=DEFAULT_WEIGHT_LOSS_FLAG, help=WEIGHT_LOSS_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + CLASS_FRACTIONS_ARG_NAME, type=float, nargs='+', required=False,
-        default=[0.], help=CLASS_FRACTIONS_HELP_STRING)
+        '--' + CLASS_FRACTION_DICT_KEYS_ARG_NAME, type=int, nargs='+',
+        required=False, default=[0], help=CLASS_FRACTION_DICT_KEYS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + CLASS_FRACTION_DICT_VALUES_ARG_NAME, type=float, nargs='+',
+        required=False, default=[0.],
+        help=CLASS_FRACTION_DICT_VALUES_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NUM_VALIDN_BATCHES_ARG_NAME, type=int, required=False,

@@ -27,10 +27,11 @@ INPUT_ARG_PARSER = dl_script_helper.add_input_arguments(
 def _train_3d_gridrad_cnn(
         output_model_dir_name, num_epochs, num_training_batches_per_epoch,
         input_storm_image_dir_name, radar_field_names, num_examples_per_batch,
-        num_examples_per_time, training_start_time_string,
+        num_examples_per_file_time, training_start_time_string,
         training_end_time_string, target_name, weight_loss_function,
-        class_fractions_to_sample, num_validation_batches_per_epoch,
-        validation_start_time_string, validation_end_time_string):
+        class_fraction_dict_keys, class_fraction_dict_values,
+        num_validation_batches_per_epoch, validation_start_time_string,
+        validation_end_time_string):
     """Trains 3-D CNN (one that performs 3-D convolution) with GridRad data.
 
     :param output_model_dir_name: See documentation at the top of
@@ -40,12 +41,13 @@ def _train_3d_gridrad_cnn(
     :param input_storm_image_dir_name: Same.
     :param radar_field_names: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_time: Same.
+    :param num_examples_per_file_time: Same.
     :param training_start_time_string: Same.
     :param training_end_time_string: Same.
     :param target_name: Same.
     :param weight_loss_function: Same.
-    :param class_fractions_to_sample: Same.
+    :param class_fraction_dict_keys: Same.
+    :param class_fraction_dict_values: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_start_time_string: Same.
     :param validation_end_time_string: Same.
@@ -64,9 +66,11 @@ def _train_3d_gridrad_cnn(
         field_names=radar_field_names, heights_m_asl=RADAR_HEIGHTS_M_ASL)
 
     # Verify and convert other inputs.
-    class_fractions_to_sample = numpy.array(class_fractions_to_sample)
-    if len(class_fractions_to_sample) == 1:
-        class_fractions_to_sample = None
+    class_fraction_dict_keys = numpy.array(class_fraction_dict_keys, dtype=int)
+    class_fraction_dict_values = numpy.array(
+        class_fraction_dict_values, dtype=int)
+    class_fraction_dict = dict(zip(
+        class_fraction_dict_keys, class_fraction_dict_values))
 
     first_train_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, dl_script_helper.INPUT_TIME_FORMAT)
@@ -90,7 +94,7 @@ def _train_3d_gridrad_cnn(
 
     cnn.write_model_metadata(
         num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_init_time=num_examples_per_time,
+        num_examples_per_file_time=num_examples_per_file_time,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         first_train_time_unix_sec=first_train_time_unix_sec,
         last_train_time_unix_sec=last_train_time_unix_sec,
@@ -104,9 +108,9 @@ def _train_3d_gridrad_cnn(
         normalize_by_batch=NORMALIZE_BY_BATCH,
         normalization_dict=NORMALIZATION_DICT,
         percentile_offset_for_normalization=None,
-        class_fractions_to_sample=class_fractions_to_sample,
-        sounding_statistic_names=None, binarize_target=False,
-        use_2d3d_convolution=False, pickle_file_name=metadata_file_name)
+        class_fraction_dict=class_fraction_dict, sounding_statistic_names=None,
+        binarize_target=False, use_2d3d_convolution=False,
+        pickle_file_name=metadata_file_name)
 
     # Set up model architecture.
     num_classes = labels.column_name_to_num_classes(target_name)
@@ -120,7 +124,8 @@ def _train_3d_gridrad_cnn(
         radar_field_names=radar_field_names,
         radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
         first_image_time_unix_sec=first_train_time_unix_sec,
-        last_image_time_unix_sec=last_train_time_unix_sec)
+        last_image_time_unix_sec=last_train_time_unix_sec,
+        one_file_per_time_step=False)
 
     if num_validation_batches_per_epoch is None:
         validation_file_name_matrix = None
@@ -133,7 +138,8 @@ def _train_3d_gridrad_cnn(
                 radar_field_names=radar_field_names,
                 radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
                 first_image_time_unix_sec=first_validn_time_unix_sec,
-                last_image_time_unix_sec=last_validn_time_unix_sec))
+                last_image_time_unix_sec=last_validn_time_unix_sec,
+                one_file_per_time_step=False))
 
     print SEPARATOR_STRING
 
@@ -145,9 +151,9 @@ def _train_3d_gridrad_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         train_image_file_name_matrix=training_file_name_matrix,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_init_time=num_examples_per_time,
+        num_examples_per_file_time=num_examples_per_file_time,
         target_name=target_name, weight_loss_function=weight_loss_function,
-        class_fractions_to_sample=class_fractions_to_sample,
+        class_fraction_dict=class_fraction_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validn_image_file_name_matrix=validation_file_name_matrix)
 
@@ -168,8 +174,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_script_helper.RADAR_FIELD_NAMES_ARG_NAME),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
-        num_examples_per_time=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_TIME_ARG_NAME),
+        num_examples_per_file_time=getattr(
+            INPUT_ARG_OBJECT,
+            dl_script_helper.NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME),
         training_start_time_string=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.TRAINING_START_TIME_ARG_NAME),
         training_end_time_string=getattr(
@@ -178,8 +185,12 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_script_helper.TARGET_NAME_ARG_NAME),
         weight_loss_function=bool(getattr(
             INPUT_ARG_OBJECT, dl_script_helper.WEIGHT_LOSS_ARG_NAME)),
-        class_fractions_to_sample=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.CLASS_FRACTIONS_ARG_NAME),
+        class_fraction_dict_keys=getattr(
+            INPUT_ARG_OBJECT,
+            dl_script_helper.CLASS_FRACTION_DICT_KEYS_ARG_NAME),
+        class_fraction_dict_values=getattr(
+            INPUT_ARG_OBJECT,
+            dl_script_helper.CLASS_FRACTION_DICT_VALUES_ARG_NAME),
         num_validation_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.NUM_VALIDN_BATCHES_ARG_NAME),
         validation_start_time_string=getattr(
