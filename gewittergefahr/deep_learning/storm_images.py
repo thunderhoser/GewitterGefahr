@@ -266,26 +266,13 @@ def _check_storm_labels(
     else:
         labels.check_wind_speed_label_table(storm_to_winds_table)
 
-        relevant_indices = []
-        for i in range(num_storm_objects):
-            these_indices = numpy.where(numpy.logical_and(
-                storm_to_winds_table[tracking_utils.STORM_ID_COLUMN] ==
-                storm_ids[i],
-                storm_to_winds_table[tracking_utils.TIME_COLUMN] ==
-                valid_times_unix_sec[i]))[0]
-
-            if len(these_indices) != 1:
-                this_time_string = time_conversion.unix_sec_to_string(
-                    valid_times_unix_sec[i], TIME_FORMAT)
-                error_string = (
-                    'Expected storm ID "{0:s}" at {1:s} once in '
-                    '`storm_to_winds_table`.  Found {2:d} instances.'
-                ).format(storm_ids[i], this_time_string, len(these_indices))
-                raise ValueError(error_string)
-
-            relevant_indices.append(these_indices[0])
-
-        relevant_indices = numpy.array(relevant_indices, dtype=int)
+        relevant_indices = _find_storm_objects(
+            all_storm_ids=storm_to_winds_table[
+                tracking_utils.STORM_ID_COLUMN].values,
+            all_valid_times_unix_sec=storm_to_winds_table[
+                tracking_utils.TIME_COLUMN].values,
+            storm_ids_to_keep=storm_ids,
+            valid_times_to_keep_unix_sec=valid_times_unix_sec)
         relevant_storm_to_winds_table = storm_to_winds_table.iloc[
             relevant_indices]
 
@@ -294,26 +281,13 @@ def _check_storm_labels(
     else:
         labels.check_tornado_label_table(storm_to_tornadoes_table)
 
-        relevant_indices = []
-        for i in range(num_storm_objects):
-            these_indices = numpy.where(numpy.logical_and(
-                storm_to_tornadoes_table[tracking_utils.STORM_ID_COLUMN] ==
-                storm_ids[i],
-                storm_to_tornadoes_table[tracking_utils.TIME_COLUMN] ==
-                valid_times_unix_sec[i]))[0]
-
-            if len(these_indices) != 1:
-                this_time_string = time_conversion.unix_sec_to_string(
-                    valid_times_unix_sec[i], TIME_FORMAT)
-                error_string = (
-                    'Expected storm ID "{0:s}" at {1:s} once in '
-                    '`storm_to_tornadoes_table`.  Found {2:d} instances.'
-                ).format(storm_ids[i], this_time_string, len(these_indices))
-                raise ValueError(error_string)
-
-            relevant_indices.append(these_indices[0])
-
-        relevant_indices = numpy.array(relevant_indices, dtype=int)
+        relevant_indices = _find_storm_objects(
+            all_storm_ids=storm_to_tornadoes_table[
+                tracking_utils.STORM_ID_COLUMN].values,
+            all_valid_times_unix_sec=storm_to_tornadoes_table[
+                tracking_utils.TIME_COLUMN].values,
+            storm_ids_to_keep=storm_ids,
+            valid_times_to_keep_unix_sec=valid_times_unix_sec)
         relevant_storm_to_tornadoes_table = storm_to_tornadoes_table.iloc[
             relevant_indices]
 
@@ -567,6 +541,54 @@ def _filter_storm_objects_by_label(
         indices_to_keep = numpy.concatenate((indices_to_keep, these_indices))
 
     return indices_to_keep
+
+
+def _find_storm_objects(
+        all_storm_ids, all_valid_times_unix_sec, storm_ids_to_keep,
+        valid_times_to_keep_unix_sec):
+    """Finds storm objects.
+
+    P = total number of storm objects
+    p = number of storm objects to keep
+
+    :param all_storm_ids: length-P list of storm IDs (strings).
+    :param all_valid_times_unix_sec: length-P list of valid times.
+    :param storm_ids_to_keep: length-p list of storm IDs (strings).
+    :param valid_times_to_keep_unix_sec: length-p list of valid times.
+    :return: relevant_indices: length-p numpy array with indices desired storm
+        objects in the large arrays.
+    :raises: ValueError: if any storm object (pair of storm ID and valid time)
+        is non-unique.
+    """
+
+    num_storm_objects_total = len(all_storm_ids)
+    num_storm_objects_to_keep = len(storm_ids_to_keep)
+
+    all_storm_object_ids = [
+        '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
+        for i in range(num_storm_objects_total)]
+    storm_object_ids_to_keep = [
+        '{0:s}_{1:d}'.format(storm_ids_to_keep[i],
+                             valid_times_to_keep_unix_sec[i])
+        for i in range(num_storm_objects_to_keep)]
+
+    this_num_unique = len(set(all_storm_object_ids))
+    if this_num_unique != len(all_storm_object_ids):
+        error_string = (
+            'Only {0:d} of {1:d} original storm objects are unique.'
+        ).format(this_num_unique, len(all_storm_object_ids))
+        raise ValueError(error_string)
+
+    this_num_unique = len(set(storm_object_ids_to_keep))
+    if this_num_unique != len(storm_object_ids_to_keep):
+        error_string = (
+            'Only {0:d} of {1:d} desired storm objects are unique.'
+        ).format(this_num_unique, len(storm_object_ids_to_keep))
+        raise ValueError(error_string)
+
+    return numpy.array(
+        [all_storm_object_ids.index(s) for s in storm_object_ids_to_keep],
+        dtype=int)
 
 
 def extract_storm_image(
@@ -1648,14 +1670,22 @@ def write_storm_images_and_labels(
 
 
 def read_storm_images_only(
-        netcdf_file_name, return_images=True, indices_to_keep=None):
+        netcdf_file_name, return_images=True, storm_ids_to_keep=None,
+        valid_times_to_keep_unix_sec=None):
     """Reads storm-centered radar images from NetCDF file.
+
+    p = number of storm objects to keep
+
+    If `storm_ids_to_keep is None` or `valid_times_to_keep_unix_sec is None`,
+    will keep all storm objects.
 
     :param netcdf_file_name: Path to input file.
     :param return_images: Boolean flag.  If True, will return storm images +
         metadata.  If False, will return only metadata.
-    :param indices_to_keep: 1-D numpy array with indices of storm objects to
-        keep.  If None, will keep all storm objects.
+    :param storm_ids_to_keep: length-p list with string IDs of storm objects to
+        keep.
+    :param valid_times_to_keep_unix_sec: length-p numpy array with valid times
+        of storm objects to keep.
     :return: storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
         `_check_storm_images`.
@@ -1690,15 +1720,27 @@ def read_storm_images_only(
         }
 
     num_storm_objects = len(storm_ids)
-    if indices_to_keep is None:
+
+    if storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None:
         indices_to_keep = numpy.linspace(
             0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
     else:
-        error_checking.assert_is_integer_numpy_array(indices_to_keep)
-        error_checking.assert_is_numpy_array(indices_to_keep, num_dimensions=1)
-        error_checking.assert_is_geq_numpy_array(indices_to_keep, 0)
-        error_checking.assert_is_less_than_numpy_array(
-            indices_to_keep, num_storm_objects)
+        error_checking.assert_is_string_list(storm_ids_to_keep)
+        error_checking.assert_is_numpy_array(
+            numpy.array(storm_ids_to_keep), num_dimensions=1)
+        num_storm_objects_to_keep = len(storm_ids_to_keep)
+
+        error_checking.assert_is_integer_numpy_array(
+            valid_times_to_keep_unix_sec)
+        error_checking.assert_is_numpy_array(
+            valid_times_to_keep_unix_sec,
+            exact_dimensions=numpy.array([num_storm_objects_to_keep]))
+
+        indices_to_keep = _find_storm_objects(
+            all_storm_ids=storm_ids,
+            all_valid_times_unix_sec=valid_times_unix_sec,
+            storm_ids_to_keep=storm_ids_to_keep,
+            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
 
         storm_ids = [storm_ids[i] for i in indices_to_keep]
         valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
@@ -1799,9 +1841,15 @@ def read_storm_images_and_labels(
         if not len(indices_to_keep):
             return None
 
+        storm_ids_to_keep = [
+            storm_image_dict[STORM_IDS_KEY][i] for i in indices_to_keep]
+        valid_times_to_keep_unix_sec = storm_image_dict[
+            VALID_TIMES_KEY][indices_to_keep]
+
         storm_image_dict = read_storm_images_only(
             netcdf_file_name=image_file_name, return_images=True,
-            indices_to_keep=indices_to_keep)
+            storm_ids_to_keep=storm_ids_to_keep,
+            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
         label_values = label_values[indices_to_keep]
 
     storm_image_dict.update({LABEL_VALUES_KEY: label_values})

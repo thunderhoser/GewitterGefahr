@@ -150,6 +150,13 @@ INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
     [0, 4, 13, 20, 26, 34], dtype=int)
 
+# The following constants are used to test _find_storm_objects.
+ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
+ALL_VALID_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
+STORM_IDS_TO_KEEP = ['a', 'c', 'a', 'e', 'e']
+VALID_TIMES_TO_KEEP_UNIX_SEC = numpy.array([0, 0, 1, 1, 2], dtype=int)
+RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
+
 # The following constants are used to test extract_one_label_per_storm.
 WIND_SPEED_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
 TORNADO_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
@@ -360,6 +367,16 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
+
+    def test_find_storm_objects(self):
+        """Ensures correct output from _find_storm_objects."""
+
+        these_indices = storm_images._find_storm_objects(
+            all_storm_ids=ALL_STORM_IDS,
+            all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
+            storm_ids_to_keep=STORM_IDS_TO_KEEP,
+            valid_times_to_keep_unix_sec=VALID_TIMES_TO_KEEP_UNIX_SEC)
+        self.assertTrue(numpy.array_equal(these_indices, RELEVANT_INDICES))
 
     def test_extract_storm_image_middle(self):
         """Ensures correct output from extract_storm_image.
