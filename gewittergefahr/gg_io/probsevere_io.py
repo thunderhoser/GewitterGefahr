@@ -178,6 +178,13 @@ def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
         pathless_file_name_pattern)
     raw_file_names = glob.glob(raw_file_pattern)
 
+    # TODO(thunderhoser): This is a HACK, because I am tired and sick of
+    # probSevere's inconsistent file-naming.  Need to fix.
+    if not len(raw_file_names):
+        raw_file_pattern = raw_file_pattern.replace(
+            RAW_FILE_NAME_PREFIX, 'SSEC_AWIPS_CONVECTPROB')
+        raw_file_names = glob.glob(raw_file_pattern)
+
     if len(raw_file_names):
         return raw_file_names
     if not raise_error_if_all_missing:
