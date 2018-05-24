@@ -841,7 +841,7 @@ def storm_image_generator_2d(
                     num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
                     class_fraction_dict=class_fraction_dict,
-                    target_values_in_memory=numpy.array([])))
+                    target_values_in_memory=all_target_values))
 
         if class_fraction_dict is not None:
             batch_indices = dl_utils.sample_points_by_class(
@@ -1095,7 +1095,7 @@ def storm_image_generator_2d3d_myrorss(
                     num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
                     class_fraction_dict=class_fraction_dict,
-                    target_values_in_memory=numpy.array([])))
+                    target_values_in_memory=all_target_values))
 
         if class_fraction_dict is not None:
             batch_indices = dl_utils.sample_points_by_class(
@@ -1356,7 +1356,7 @@ def storm_image_generator_3d(
                     num_examples_per_batch_class_dict,
                     num_init_times_in_memory=num_init_times_in_memory,
                     class_fraction_dict=class_fraction_dict,
-                    target_values_in_memory=numpy.array([])))
+                    target_values_in_memory=all_target_values))
 
         if class_fraction_dict is not None:
             batch_indices = dl_utils.sample_points_by_class(

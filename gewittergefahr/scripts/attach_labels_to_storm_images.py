@@ -106,6 +106,7 @@ def _run_attach_labels(
             end_time_unix_sec=end_time_unix_sec,
             radar_field_names=radar_field_names,
             radar_heights_m_asl=radar_heights_m_asl,
+            one_file_per_time_step=False,
             raise_error_if_all_missing=True)
 
         field_name_by_predictor, _ = (
@@ -113,20 +114,20 @@ def _run_attach_labels(
                 field_names=radar_field_names,
                 heights_m_asl=radar_heights_m_asl))
 
-        num_times = image_file_name_matrix.shape[0]
+        num_spc_dates = image_file_name_matrix.shape[0]
         num_predictors = len(field_name_by_predictor)
         image_file_name_matrix = numpy.reshape(
-            image_file_name_matrix, (num_times, num_predictors))
+            image_file_name_matrix, (num_spc_dates, num_predictors))
 
     else:
-        image_file_name_matrix, _, _, _ = (
+        image_file_name_matrix, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_storm_image_dir_name,
                 start_time_unix_sec=start_time_unix_sec,
                 end_time_unix_sec=end_time_unix_sec, radar_source=radar_source,
                 radar_field_names=radar_field_names,
                 reflectivity_heights_m_asl=radar_heights_m_asl,
-                raise_error_if_all_missing=True,
+                one_file_per_time_step=False, raise_error_if_all_missing=True,
                 raise_error_if_any_missing=False))
 
     print SEPARATOR_STRING
@@ -156,7 +157,8 @@ def _run_attach_labels(
             tornado_label_file_name)
 
     storm_images.attach_labels_to_storm_images(
-        image_file_name_matrix, storm_to_winds_table=storm_to_winds_table,
+        image_file_name_matrix=image_file_name_matrix,
+        storm_to_winds_table=storm_to_winds_table,
         storm_to_tornadoes_table=storm_to_tornadoes_table)
 
 

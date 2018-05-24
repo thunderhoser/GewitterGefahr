@@ -152,7 +152,7 @@ def _train_2d3d_myrorss_cnn(
         first_image_time_unix_sec=first_train_time_unix_sec,
         last_image_time_unix_sec=last_train_time_unix_sec,
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-        one_file_per_time_step=True)
+        one_file_per_time_step=False)
 
     if num_validation_batches_per_epoch is None:
         validation_file_name_matrix = None
@@ -166,7 +166,7 @@ def _train_2d3d_myrorss_cnn(
                 first_image_time_unix_sec=first_validn_time_unix_sec,
                 last_image_time_unix_sec=last_validn_time_unix_sec,
                 reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-                one_file_per_time_step=True))
+                one_file_per_time_step=False))
 
     print SEPARATOR_STRING
 
