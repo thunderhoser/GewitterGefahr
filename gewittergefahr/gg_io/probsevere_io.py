@@ -12,13 +12,13 @@ from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): add file-management code (will include transferring
-# raw files from NSSL machine to local machine).
+# TODO(thunderhoser): Add code to transfer raw files from NSSL to local machine.
 
 TRACKING_START_TIME_UNIX_SEC = 0
 TRACKING_END_TIME_UNIX_SEC = int(3e9)
 
 RAW_FILE_NAME_PREFIX = 'SSEC_AWIPS_PROBSEVERE'
+ALT_RAW_FILE_NAME_PREFIX = 'SSEC_AWIPS_CONVECTPROB'
 JSON_FILE_EXTENSION = '.json'
 ASCII_FILE_EXTENSION = '.ascii'
 VALID_RAW_FILE_EXTENSIONS = [JSON_FILE_EXTENSION, ASCII_FILE_EXTENSION]
@@ -128,20 +128,31 @@ def find_raw_file(top_directory_name, unix_time_sec, file_extension,
     _check_raw_file_extension(file_extension)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
+    pathless_file_name = _get_pathless_raw_file_name(
+        unix_time_sec=unix_time_sec, file_extension=file_extension)
+
     raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
         top_directory_name,
         time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
-        _get_pathless_raw_file_name(
-            unix_time_sec=unix_time_sec, file_extension=file_extension))
+        pathless_file_name)
+    if os.path.isfile(raw_file_name) or not raise_error_if_missing:
+        return raw_file_name
 
-    if raise_error_if_missing and not os.path.isfile(raw_file_name):
-        error_string = (
-            'Cannot find raw probSevere file.  Expected at: {0:s}'
-        ).format(raw_file_name)
-        raise ValueError(error_string)
+    pathless_file_name = pathless_file_name.replace(
+        RAW_FILE_NAME_PREFIX, ALT_RAW_FILE_NAME_PREFIX)
+    alt_raw_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_directory_name,
+        time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
+        time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
+        pathless_file_name)
+    if os.path.isfile(alt_raw_file_name):
+        return alt_raw_file_name
 
-    return raw_file_name
+    error_string = (
+        'Cannot find raw probSevere file.  Expected at: {0:s}'
+    ).format(raw_file_name)
+    raise ValueError(error_string)
 
 
 def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
@@ -177,13 +188,17 @@ def find_raw_files_one_day(top_directory_name, unix_time_sec, file_extension,
         time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
         pathless_file_name_pattern)
     raw_file_names = glob.glob(raw_file_pattern)
+    if len(raw_file_names):
+        return raw_file_names
 
-    # TODO(thunderhoser): This is a HACK, because I am tired and sick of
-    # probSevere's inconsistent file-naming.  Need to fix.
-    if not len(raw_file_names):
-        raw_file_pattern = raw_file_pattern.replace(
-            RAW_FILE_NAME_PREFIX, 'SSEC_AWIPS_CONVECTPROB')
-        raw_file_names = glob.glob(raw_file_pattern)
+    pathless_file_name_pattern = pathless_file_name_pattern.replace(
+        RAW_FILE_NAME_PREFIX, ALT_RAW_FILE_NAME_PREFIX)
+    raw_file_pattern = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
+        top_directory_name,
+        time_conversion.unix_sec_to_string(unix_time_sec, MONTH_FORMAT),
+        time_conversion.unix_sec_to_string(unix_time_sec, DATE_FORMAT),
+        pathless_file_name_pattern)
+    raw_file_names = glob.glob(raw_file_pattern)
 
     if len(raw_file_names):
         return raw_file_names
@@ -206,9 +221,10 @@ def raw_file_name_to_time(raw_file_name):
     _, pathless_file_name = os.path.split(raw_file_name)
     extensionless_file_name, _ = os.path.splitext(pathless_file_name)
 
-    return time_conversion.string_to_unix_sec(
-        extensionless_file_name.replace(RAW_FILE_NAME_PREFIX + '_', ''),
-        RAW_FILE_TIME_FORMAT)
+    time_string = extensionless_file_name.replace(
+        RAW_FILE_NAME_PREFIX + '_', '')
+    time_string = time_string.replace(ALT_RAW_FILE_NAME_PREFIX + '_', '')
+    return time_conversion.string_to_unix_sec(time_string, RAW_FILE_TIME_FORMAT)
 
 
 def read_raw_file(raw_file_name):

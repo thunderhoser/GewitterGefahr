@@ -14,6 +14,11 @@ JSON_FILE_NAME = (
     'foo/201710/20171005/SSEC_AWIPS_PROBSEVERE_20171005_052627.json')
 ASCII_FILE_NAME = (
     'foo/201710/20171005/SSEC_AWIPS_PROBSEVERE_20171005_052627.ascii')
+ALTERNATIVE_JSON_FILE_NAME = (
+    'foo/201710/20171005/SSEC_AWIPS_CONVECTPROB_20171005_052627.json')
+ALTERNATIVE_ASCII_FILE_NAME = (
+    'foo/201710/20171005/SSEC_AWIPS_CONVECTPROB_20171005_052627.ascii')
+
 JSON_FILE_NAME_ON_FTP = 'bar/SSEC_AWIPS_PROBSEVERE_20171005_052627.json'
 
 
@@ -75,6 +80,49 @@ class ProbsevereIoTests(unittest.TestCase):
             file_extension=probsevere_io.ASCII_FILE_EXTENSION,
             raise_error_if_missing=False)
         self.assertTrue(this_file_name == ASCII_FILE_NAME)
+
+    def test_raw_file_name_to_time_json(self):
+        """Ensures correct output from raw_file_name_to_time.
+
+        In this case, the file type is JSON and file name does *not* include the
+        alternative prefix.
+        """
+
+        this_time_unix_sec = probsevere_io.raw_file_name_to_time(JSON_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == VALID_TIME_UNIX_SEC)
+
+    def test_raw_file_name_to_time_json_alternative(self):
+        """Ensures correct output from raw_file_name_to_time.
+
+        In this case, the file type is JSON and file name includes the
+        alternative prefix.
+        """
+
+        this_time_unix_sec = probsevere_io.raw_file_name_to_time(
+            ALTERNATIVE_JSON_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == VALID_TIME_UNIX_SEC)
+
+    def test_raw_file_name_to_time_ascii(self):
+        """Ensures correct output from raw_file_name_to_time.
+
+        In this case, the file type is ASCII and file name does *not* include the
+        alternative prefix.
+        """
+
+        this_time_unix_sec = probsevere_io.raw_file_name_to_time(
+            ASCII_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == VALID_TIME_UNIX_SEC)
+
+    def test_raw_file_name_to_time_ascii_alternative(self):
+        """Ensures correct output from raw_file_name_to_time.
+
+        In this case, the file type is ASCII and file name includes the
+        alternative prefix.
+        """
+
+        this_time_unix_sec = probsevere_io.raw_file_name_to_time(
+            ALTERNATIVE_ASCII_FILE_NAME)
+        self.assertTrue(this_time_unix_sec == VALID_TIME_UNIX_SEC)
 
 
 if __name__ == '__main__':
