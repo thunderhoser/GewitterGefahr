@@ -266,7 +266,7 @@ def _create_forecast_observation_pairs(
                 end_time_unix_sec=last_eval_time_unix_sec,
                 radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
                 radar_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-                raise_error_if_all_missing=True))
+                one_file_per_time_step=False, raise_error_if_all_missing=True))
     else:
         image_file_name_matrix, image_times_unix_sec, _, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
@@ -276,20 +276,24 @@ def _create_forecast_observation_pairs(
                 radar_source=metadata_dict[cnn.RADAR_SOURCE_KEY],
                 radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
                 reflectivity_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-                raise_error_if_all_missing=True,
+                one_file_per_time_step=False, raise_error_if_all_missing=True,
                 raise_error_if_any_missing=False))
 
     print SEPARATOR_STRING
 
-    time_not_missing_indices = numpy.unique(
-        numpy.where(image_file_name_matrix != '')[0])
-    numpy.random.shuffle(time_not_missing_indices)
+    time_missing_indices = numpy.unique(
+        numpy.where(image_file_name_matrix == '')[0])
+    image_file_name_matrix = numpy.delete(
+        image_file_name_matrix, time_missing_indices, axis=0)
+    image_times_unix_sec = numpy.delete(
+        image_times_unix_sec, time_missing_indices)
 
-    image_times_unix_sec = image_times_unix_sec[time_not_missing_indices]
-    image_time_strings = [
-        time_conversion.unix_sec_to_string(t, INPUT_TIME_FORMAT)
-        for t in image_times_unix_sec]
     num_times = len(image_times_unix_sec)
+    time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=int)
+    numpy.random.shuffle(time_indices)
+
+    image_times_unix_sec = image_times_unix_sec[time_indices]
+    image_file_name_matrix = image_file_name_matrix[time_indices, ...]
 
     # Create forecast-observation pairs.
     forecast_probabilities = numpy.array([])
@@ -299,18 +303,12 @@ def _create_forecast_observation_pairs(
         if len(observed_labels) > num_storm_objects:
             break
 
-        print '\nCreating forecast-observation pairs for {0:s}...'.format(
-            image_time_strings[i])
-
         this_predictor_matrix, _, these_observed_labels = (
-            deployment_io.create_3d_storm_images_one_time(
-                top_storm_image_dir_name=top_storm_image_dir_name,
-                init_time_unix_sec=image_times_unix_sec[i],
-                radar_source=metadata_dict[cnn.RADAR_SOURCE_KEY],
-                radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
-                radar_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+            deployment_io.create_3d_storm_images(
+                image_file_name_matrix=image_file_name_matrix[i, ...],
                 target_name=metadata_dict[cnn.TARGET_NAME_KEY],
                 return_target=True,
+                binarize_target=metadata_dict[cnn.BINARIZE_TARGET_KEY],
                 radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
         if this_predictor_matrix is None:

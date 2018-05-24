@@ -218,6 +218,9 @@ def create_2d_storm_images(
             image_matrix = numpy.concatenate(
                 (image_matrix, this_image_matrix), axis=0)
 
+    if image_matrix is None:
+        return image_matrix, sounding_stat_matrix, target_values
+
     image_matrix = dl_utils.normalize_predictor_matrix(
         predictor_matrix=image_matrix, normalize_by_batch=False,
         predictor_names=field_name_by_channel,
@@ -265,6 +268,8 @@ def create_2d3d_storm_images(
         array of storm-centered reflectivity images.
     :return: azimuthal_shear_image_matrix_s01: E-by-M-by-N-by-F numpy
         array of storm-centered az-shear images.
+    :return: target_values: [may be None] length-E numpy array of target values.
+        If target_values[i] = k, the [i]th example belongs to the [k]th class.
     """
 
     _check_input_args(
@@ -385,6 +390,10 @@ def create_2d3d_storm_images(
                 (azimuthal_shear_image_matrix_s01, this_az_shear_matrix_s01),
                 axis=0)
 
+    if reflectivity_image_matrix_dbz is None:
+        return (reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+                target_values)
+
     reflectivity_image_matrix_dbz = dl_utils.normalize_predictor_matrix(
         predictor_matrix=reflectivity_image_matrix_dbz,
         normalize_by_batch=False, predictor_names=[radar_utils.REFL_NAME],
@@ -394,7 +403,8 @@ def create_2d3d_storm_images(
         normalize_by_batch=False, predictor_names=az_shear_field_names,
         normalization_dict=radar_normalization_dict).astype('float32')
 
-    return reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01
+    return (reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+            target_values)
 
 
 def create_3d_storm_images(
@@ -551,6 +561,9 @@ def create_3d_storm_images(
         else:
             image_matrix = numpy.concatenate(
                 (image_matrix, this_image_matrix), axis=0)
+
+    if image_matrix is None:
+        return image_matrix, sounding_stat_matrix, target_values
 
     image_matrix = dl_utils.normalize_predictor_matrix(
         predictor_matrix=image_matrix, normalize_by_batch=False,

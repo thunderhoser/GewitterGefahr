@@ -180,7 +180,7 @@ def _extract_storm_images(
         storm_object_table=storm_object_table,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         top_radar_dir_name=untarred_myrorss_dir_name,
-        top_output_dir_name=output_dir_name,
+        top_output_dir_name=output_dir_name, one_file_per_time_step=False,
         num_storm_image_rows=num_image_rows,
         num_storm_image_columns=num_image_columns,
         radar_field_names=radar_field_names,

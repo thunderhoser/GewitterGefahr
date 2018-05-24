@@ -72,7 +72,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_HEIGHTS_ARG_NAME, type=int, nargs='+', required=False,
-    default=storm_images.DEFAULT_GRIDRAD_HEIGHTS_M_ASL,
+    default=storm_images.DEFAULT_RADAR_HEIGHTS_M_ASL,
     help=RADAR_HEIGHTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -129,7 +129,7 @@ def _extract_storm_images(
     storm_images.extract_storm_images_gridrad(
         storm_object_table=storm_object_table,
         top_radar_dir_name=radar_dir_name, top_output_dir_name=output_dir_name,
-        num_storm_image_rows=num_image_rows,
+        one_file_per_time_step=False, num_storm_image_rows=num_image_rows,
         num_storm_image_columns=num_image_columns,
         radar_field_names=radar_field_names,
         radar_heights_m_asl=radar_heights_m_asl)
