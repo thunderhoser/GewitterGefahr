@@ -10,6 +10,7 @@ D = number of pixel depths per image
 C = number of channels (predictor variables) per image
 """
 
+import copy
 import numpy
 import pandas
 from gewittergefahr.gg_utils import labels
@@ -114,23 +115,25 @@ def class_fractions_to_num_points(class_fraction_dict, num_points_to_sample):
     return num_points_class_dict
 
 
-def class_fractions_to_weights(class_fractions):
-    """Creates dictionary of class weights.
+def class_fractions_to_weights(class_fraction_dict):
+    """Converts class fractions to weights (for the loss function).
 
-    This dictionary may be used to weight the loss function for a Keras model.
-
-    :param class_fractions: See documentation for `_check_class_fractions`.
-    :return: class_weight_dict: Dictionary, where each key is an integer from
-        0...(K - 1) and each value is the corresponding weight.
+    :param class_fraction_dict: Dictionary, where each key is a class integer
+        (-2 for dead storms) and each value is the corresponding fraction of
+        examples to include in each batch.
+    :return: class_weight_dict: Dictionary, where each key is a class integer
+        (no negatives) and each value is the corresponding weights.
     """
 
-    class_weights = 1. / class_fractions
-    class_weights = class_weights / numpy.sum(class_weights)
-    class_weight_dict = {}
+    # TODO(thunderhoser): Need to account for binarization of target variable.
 
-    for k in range(len(class_weights)):
-        class_weight_dict.update({k: class_weights[k]})
-    return class_weight_dict
+    this_class_fraction_dict = copy.deepcopy(class_fraction_dict)
+    if labels.DEAD_STORM_INTEGER in this_class_fraction_dict.keys():
+        del this_class_fraction_dict[labels.DEAD_STORM_INTEGER]
+
+    class_weights = 1. / numpy.array(this_class_fraction_dict.values())
+    class_weights = class_weights / numpy.sum(class_weights)
+    return dict(zip(this_class_fraction_dict.keys(), class_weights))
 
 
 def check_predictor_matrix(

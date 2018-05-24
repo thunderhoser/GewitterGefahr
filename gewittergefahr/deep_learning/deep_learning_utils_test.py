@@ -62,11 +62,8 @@ NUM_POINTS_TORNADO_CLASS_DICT_XSMALL = {0: 1, 1: 2}
 NUM_POINTS_WIND_CLASS_DICT_XSMALL = {-2: 1, 0: 1, 1: 1}
 
 # The following constants are used to test class_fractions_to_weights.
-TORNADO_CLASS_FRACTIONS = numpy.array([0.1, 0.9])
-WIND_CLASS_FRACTIONS = numpy.array([0.1, 0.2, 0.7])
-
-TORNADO_CLASS_WEIGHT_DICT = {0: 0.9, 1: 0.1}
-WIND_CLASS_WEIGHT_DICT = {0: 0.6087, 1: 0.3043, 2: 0.0870}
+TOY_TORNADO_CLASS_WEIGHT_DICT = {0: 0.9, 1: 0.1}
+TOY_WIND_CLASS_WEIGHT_DICT = {0: 7. / 9, 1: 2. / 9}
 
 # The following constants are used to test normalize_predictor_matrix.
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
@@ -549,15 +546,15 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TORNADO_CLASS_FRACTIONS)
+            TOY_TORNADO_CLASS_FRACTION_DICT)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
-                        set(TORNADO_CLASS_WEIGHT_DICT.keys()))
+                        set(TOY_TORNADO_CLASS_WEIGHT_DICT.keys()))
 
         for this_key in this_class_weight_dict.keys():
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
-                TORNADO_CLASS_WEIGHT_DICT[this_key],
+                TOY_TORNADO_CLASS_WEIGHT_DICT[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
     def test_class_fractions_to_weights_wind(self):
@@ -567,15 +564,15 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            WIND_CLASS_FRACTIONS)
+            TOY_WIND_CLASS_FRACTION_DICT)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
-                        set(WIND_CLASS_WEIGHT_DICT.keys()))
+                        set(TOY_WIND_CLASS_WEIGHT_DICT.keys()))
 
         for this_key in this_class_weight_dict.keys():
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
-                WIND_CLASS_WEIGHT_DICT[this_key],
+                TOY_WIND_CLASS_WEIGHT_DICT[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
     def test_stack_predictor_variables(self):

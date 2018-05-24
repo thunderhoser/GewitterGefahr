@@ -14,7 +14,6 @@ C = number of channels (predictor variables) per image
 
 import os.path
 import pickle
-import numpy
 import keras.losses
 import keras.optimizers
 import keras.models
@@ -22,7 +21,7 @@ import keras.callbacks
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import keras_metrics
-from gewittergefahr.deep_learning import training_validation_io
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -52,7 +51,7 @@ LIST_OF_METRIC_FUNCTIONS = [
 
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
-NUM_EXAMPLES_PER_INIT_TIME_KEY = 'num_examples_per_time'
+NUM_EXAMPLES_PER_FILE_TIME_KEY = 'num_examples_per_time'
 NUM_TRAINING_BATCHES_PER_EPOCH_KEY = 'num_training_batches_per_epoch'
 FIRST_TRAINING_TIME_KEY = 'first_train_time_unix_sec'
 LAST_TRAINING_TIME_KEY = 'last_train_time_unix_sec'
@@ -67,19 +66,19 @@ TARGET_NAME_KEY = 'target_name'
 NORMALIZE_BY_BATCH_KEY = 'normalize_by_batch'
 NORMALIZATION_DICT_KEY = 'normalization_dict'
 PERCENTILE_OFFSET_KEY = 'percentile_offset_for_normalization'
-CLASS_FRACTIONS_KEY = 'class_fractions'
+CLASS_FRACTION_DICT_KEY = 'class_fraction_dict'
 SOUNDING_STAT_NAMES_KEY = 'sounding_statistic_names'
 BINARIZE_TARGET_KEY = 'binarize_target'
 USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
 
 MODEL_METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_INIT_TIME_KEY,
+    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
     NUM_TRAINING_BATCHES_PER_EPOCH_KEY, FIRST_TRAINING_TIME_KEY,
     LAST_TRAINING_TIME_KEY, NUM_VALIDATION_BATCHES_PER_EPOCH_KEY,
     FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY, RADAR_SOURCE_KEY,
     RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY,
     TARGET_NAME_KEY, NORMALIZE_BY_BATCH_KEY, NORMALIZATION_DICT_KEY,
-    PERCENTILE_OFFSET_KEY, CLASS_FRACTIONS_KEY, SOUNDING_STAT_NAMES_KEY,
+    PERCENTILE_OFFSET_KEY, CLASS_FRACTION_DICT_KEY, SOUNDING_STAT_NAMES_KEY,
     BINARIZE_TARGET_KEY, USE_2D3D_CONVOLUTION_KEY
 ]
 
@@ -90,7 +89,7 @@ MODEL_METADATA_KEYS = [
 def _check_training_args(
         num_epochs, num_training_batches_per_epoch,
         num_validation_batches_per_epoch, weight_loss_function,
-        class_fractions_to_sample, model_file_name, history_file_name,
+        class_fraction_dict, model_file_name, history_file_name,
         tensorboard_dir_name):
     """Error-checks input arguments for training method.
 
@@ -101,8 +100,8 @@ def _check_training_args(
     :param weight_loss_function: Boolean flag.  If False, classes will be
         weighted equally in the loss function.  If True, classes will be
         weighted differently in the loss function (inversely proportional with
-        `class_fractions_to_sample`).
-    :param class_fractions_to_sample: See documentation for
+        `class_fraction_dict`).
+    :param class_fraction_dict: See documentation for
         `training_validation_io.storm_image_generator_2d`.
     :param model_file_name: Path to output file (HDF5 format).  The model will
         be saved here after every epoch.
@@ -125,7 +124,7 @@ def _check_training_args(
     error_checking.assert_is_boolean(weight_loss_function)
     if weight_loss_function:
         class_weight_dict = dl_utils.class_fractions_to_weights(
-            class_fractions_to_sample)
+            class_fraction_dict)
     else:
         class_weight_dict = None
 
@@ -665,20 +664,20 @@ def read_model(hdf5_file_name):
 
 
 def write_model_metadata(
-        num_epochs, num_examples_per_batch, num_examples_per_init_time,
+        num_epochs, num_examples_per_batch, num_examples_per_file_time,
         num_training_batches_per_epoch, first_train_time_unix_sec,
         last_train_time_unix_sec, num_validation_batches_per_epoch,
         first_validn_time_unix_sec, last_validn_time_unix_sec,
         radar_source, radar_field_names, radar_heights_m_asl,
         reflectivity_heights_m_asl, target_name, normalize_by_batch,
         normalization_dict, percentile_offset_for_normalization,
-        class_fractions_to_sample, sounding_statistic_names,
+        class_fraction_dict, sounding_statistic_names,
         binarize_target, use_2d3d_convolution, pickle_file_name):
     """Writes metadata to Pickle file.
 
     :param num_epochs: See documentation for `train_2d_cnn` or `train_3d_cnn`.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param num_training_batches_per_epoch: Same.
     :param first_train_time_unix_sec: See doc for
         `training_validation_io.find_2d_input_files` or
@@ -700,7 +699,7 @@ def write_model_metadata(
     :param normalize_by_batch: Same.
     :param normalization_dict: Same.
     :param percentile_offset_for_normalization: Same.
-    :param class_fractions_to_sample: Same.
+    :param class_fraction_dict: Same.
     :param sounding_statistic_names: Same.
     :param binarize_target: Same.
     :param use_2d3d_convolution: Boolean flag.  If True, the model convolves
@@ -711,7 +710,7 @@ def write_model_metadata(
     model_metadata_dict = {
         NUM_EPOCHS_KEY: num_epochs,
         NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        NUM_EXAMPLES_PER_INIT_TIME_KEY: num_examples_per_init_time,
+        NUM_EXAMPLES_PER_FILE_TIME_KEY: num_examples_per_file_time,
         NUM_TRAINING_BATCHES_PER_EPOCH_KEY: num_training_batches_per_epoch,
         FIRST_TRAINING_TIME_KEY: first_train_time_unix_sec,
         LAST_TRAINING_TIME_KEY: last_train_time_unix_sec,
@@ -726,7 +725,7 @@ def write_model_metadata(
         NORMALIZE_BY_BATCH_KEY: normalize_by_batch,
         NORMALIZATION_DICT_KEY: normalization_dict,
         PERCENTILE_OFFSET_KEY: percentile_offset_for_normalization,
-        CLASS_FRACTIONS_KEY: class_fractions_to_sample,
+        CLASS_FRACTION_DICT_KEY: class_fraction_dict,
         SOUNDING_STAT_NAMES_KEY: sounding_statistic_names,
         BINARIZE_TARGET_KEY: binarize_target,
         USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution
@@ -758,6 +757,8 @@ def read_model_metadata(pickle_file_name):
         model_metadata_dict.update({BINARIZE_TARGET_KEY: False})
     if USE_2D3D_CONVOLUTION_KEY not in model_metadata_dict:
         model_metadata_dict.update({USE_2D3D_CONVOLUTION_KEY: False})
+    if CLASS_FRACTION_DICT_KEY not in model_metadata_dict:
+        model_metadata_dict.update({CLASS_FRACTION_DICT_KEY: None})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
@@ -777,9 +778,9 @@ def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch,
         train_image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name, binarize_target=False,
+        num_examples_per_file_time, target_name, binarize_target=False,
         sounding_statistic_names=None, train_sounding_stat_file_names=None,
-        weight_loss_function=False, class_fractions_to_sample=None,
+        weight_loss_function=False, class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validn_sounding_stat_file_names=None):
@@ -800,7 +801,7 @@ def train_2d_cnn(
         `training_validation_io.find_2d_input_files`.
     :param num_examples_per_batch: See doc for
         `training_validation_io.storm_image_generator_2d`.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Same.
     :param binarize_target: Same.
     :param sounding_statistic_names: Same.
@@ -808,7 +809,7 @@ def train_2d_cnn(
         files with sounding statistics.  This list should be created by
         `training_validation_io.find_sounding_statistic_files`.
     :param weight_loss_function: See doc for `_check_training_args`.
-    :param class_fractions_to_sample: Same.
+    :param class_fraction_dict: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validn_image_file_name_matrix: V-by-C numpy array of paths to
         validation files with radar images.  This array should be created by
@@ -823,7 +824,7 @@ def train_2d_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         weight_loss_function=weight_loss_function,
-        class_fractions_to_sample=class_fractions_to_sample,
+        class_fraction_dict=class_fraction_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
 
@@ -852,12 +853,12 @@ def train_2d_cnn(
             save_best_only=False, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=training_validation_io.storm_image_generator_2d(
+            generator=trainval_io.storm_image_generator_2d(
                 image_file_name_matrix=train_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 sounding_statistic_file_names=train_sounding_stat_file_names,
                 sounding_statistic_names=sounding_statistic_names,
                 sounding_stat_metadata_table=sounding_stat_metadata_table),
@@ -871,24 +872,24 @@ def train_2d_cnn(
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=training_validation_io.storm_image_generator_2d(
+            generator=trainval_io.storm_image_generator_2d(
                 image_file_name_matrix=train_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 sounding_statistic_file_names=train_sounding_stat_file_names,
                 sounding_statistic_names=sounding_statistic_names,
                 sounding_stat_metadata_table=sounding_stat_metadata_table),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
-            validation_data=training_validation_io.storm_image_generator_2d(
+            validation_data=trainval_io.storm_image_generator_2d(
                 image_file_name_matrix=validn_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 sounding_statistic_file_names=validn_sounding_stat_file_names,
                 sounding_statistic_names=sounding_statistic_names,
                 sounding_stat_metadata_table=sounding_stat_metadata_table),
@@ -898,15 +899,14 @@ def train_2d_cnn(
 def train_2d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
         num_training_batches_per_epoch, train_image_file_name_matrix,
-        num_examples_per_batch, num_examples_per_init_time, target_name,
-        class_fractions_by_epoch_matrix, binarize_target=False,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        class_fraction_dict_by_epoch, binarize_target=False,
         sounding_statistic_names=None, train_sounding_stat_file_names=None,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validn_sounding_stat_file_names=None):
     """Trains 2-D CNN with dynamic class-conditional sampling.
 
-    K = number of classes
     L = number of epochs
 
     :param model_object: See documentation for `train_2d_cnn`.
@@ -915,11 +915,12 @@ def train_2d_cnn_with_dynamic_sampling(
     :param num_training_batches_per_epoch: Same.
     :param train_image_file_name_matrix: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Same.
-    :param class_fractions_by_epoch_matrix: L-by-K numpy array, where
-        class_fractions_by_epoch_matrix[i, k] is the fraction of data points in
-        the [k]th class to use at the [i]th epoch.
+    :param class_fraction_dict_by_epoch: length-L numpy array, where the [i]th
+        item is a dictionary of sampling frequencies for the [i]th epoch
+        (following the specification for `class_fraction_dict` in
+        `train_2d_cnn`).
     :param binarize_target: See documentation for `train_2d_cnn`.
     :param sounding_statistic_names: See doc for `train_2d_cnn`.
     :param train_sounding_stat_file_names: Same.
@@ -931,11 +932,8 @@ def train_2d_cnn_with_dynamic_sampling(
 
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_greater(num_epochs, 0)
-
-    num_classes = class_fractions_by_epoch_matrix.shape[1]
-    error_checking.assert_is_numpy_array(
-        class_fractions_by_epoch_matrix,
-        exact_dimensions=numpy.array([num_epochs, num_classes]))
+    error_checking.assert_is_geq(len(class_fraction_dict_by_epoch), num_epochs)
+    error_checking.assert_is_leq(len(class_fraction_dict_by_epoch), num_epochs)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
     model_directory_name, _ = os.path.split(model_file_name)
@@ -953,7 +951,7 @@ def train_2d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             weight_loss_function=weight_loss_function,
-            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            class_fraction_dict=class_fraction_dict_by_epoch[i],
             model_file_name=model_file_name,
             history_file_name=history_file_names[i],
             tensorboard_dir_name=tensorboard_dir_names[i])
@@ -966,12 +964,12 @@ def train_2d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             train_image_file_name_matrix=train_image_file_name_matrix,
             num_examples_per_batch=num_examples_per_batch,
-            num_examples_per_init_time=num_examples_per_init_time,
+            num_examples_per_file_time=num_examples_per_file_time,
             target_name=target_name, binarize_target=binarize_target,
             sounding_statistic_names=sounding_statistic_names,
             train_sounding_stat_file_names=train_sounding_stat_file_names,
             weight_loss_function=weight_loss_function,
-            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            class_fraction_dict=class_fraction_dict_by_epoch[i],
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             validn_image_file_name_matrix=validn_image_file_name_matrix,
             validn_sounding_stat_file_names=validn_sounding_stat_file_names)
@@ -981,8 +979,8 @@ def train_2d3d_cnn_with_myrorss(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch,
         train_image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name, binarize_target=False,
-        weight_loss_function=False, class_fractions_to_sample=None,
+        num_examples_per_file_time, target_name, binarize_target=False,
+        weight_loss_function=False, class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None):
     """Trains hybrid 2D/3D CNN with MYRORSS data.
@@ -1002,11 +1000,11 @@ def train_2d3d_cnn_with_myrorss(
         training files with radar images.  This array should be created by
         `training_validation_io.find_2d_input_files`.
     :param num_examples_per_batch: See doc for `train_2d_cnn`.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Same.
     :param binarize_target: Same.
     :param weight_loss_function: Same.
-    :param class_fractions_to_sample: Same.
+    :param class_fraction_dict: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validn_image_file_name_matrix: V-by-(F + D) numpy array of paths to
         validation files with radar images.  This array should be created by
@@ -1018,7 +1016,7 @@ def train_2d3d_cnn_with_myrorss(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         weight_loss_function=weight_loss_function,
-        class_fractions_to_sample=class_fractions_to_sample,
+        class_fraction_dict=class_fraction_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
 
@@ -1042,12 +1040,12 @@ def train_2d3d_cnn_with_myrorss(
             save_best_only=False, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=training_validation_io.storm_image_generator_2d3d_myrorss(
+            generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 image_file_name_matrix=train_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample),
+                class_fraction_dict=class_fraction_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
@@ -1058,35 +1056,34 @@ def train_2d3d_cnn_with_myrorss(
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=training_validation_io.storm_image_generator_2d3d_myrorss(
+            generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 image_file_name_matrix=train_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample),
+                class_fraction_dict=class_fraction_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=
-            training_validation_io.storm_image_generator_2d3d_myrorss(
+            trainval_io.storm_image_generator_2d3d_myrorss(
                 image_file_name_matrix=validn_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample),
+                class_fraction_dict=class_fraction_dict),
             validation_steps=num_validation_batches_per_epoch)
 
 
 def train_2d3d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
         num_training_batches_per_epoch, train_image_file_name_matrix,
-        num_examples_per_batch, num_examples_per_init_time, target_name,
-        class_fractions_by_epoch_matrix, binarize_target=False,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        class_fraction_dict_by_epoch, binarize_target=False,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None):
     """Trains hybrid 2D/3D CNN with dynamic class-conditional sampling.
 
-    K = number of classes
     L = number of epochs
 
     :param model_object: See documentation for `train_2d3d_cnn_with_myrorss`.
@@ -1095,11 +1092,12 @@ def train_2d3d_cnn_with_dynamic_sampling(
     :param num_training_batches_per_epoch: Same.
     :param train_image_file_name_matrix: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Same.
-    :param class_fractions_by_epoch_matrix: L-by-K numpy array, where
-        class_fractions_by_epoch_matrix[i, k] is the fraction of data points in
-        the [k]th class to use at the [i]th epoch.
+    :param class_fraction_dict_by_epoch: length-L numpy array, where the [i]th
+        item is a dictionary of sampling frequencies for the [i]th epoch
+        (following the specification for `class_fraction_dict` in
+        `train_2d3d_cnn_with_myrorss`).
     :param binarize_target: See documentation for `train_2d3d_cnn_with_myrorss`.
     :param weight_loss_function: See doc for `train_2d3d_cnn_with_myrorss`.
     :param num_validation_batches_per_epoch: Same.
@@ -1108,11 +1106,8 @@ def train_2d3d_cnn_with_dynamic_sampling(
 
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_greater(num_epochs, 0)
-
-    num_classes = class_fractions_by_epoch_matrix.shape[1]
-    error_checking.assert_is_numpy_array(
-        class_fractions_by_epoch_matrix,
-        exact_dimensions=numpy.array([num_epochs, num_classes]))
+    error_checking.assert_is_geq(len(class_fraction_dict_by_epoch), num_epochs)
+    error_checking.assert_is_leq(len(class_fraction_dict_by_epoch), num_epochs)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
     model_directory_name, _ = os.path.split(model_file_name)
@@ -1130,7 +1125,7 @@ def train_2d3d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             weight_loss_function=weight_loss_function,
-            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            class_fraction_dict=class_fraction_dict_by_epoch[i],
             model_file_name=model_file_name,
             history_file_name=history_file_names[i],
             tensorboard_dir_name=tensorboard_dir_names[i])
@@ -1143,10 +1138,10 @@ def train_2d3d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             train_image_file_name_matrix=train_image_file_name_matrix,
             num_examples_per_batch=num_examples_per_batch,
-            num_examples_per_init_time=num_examples_per_init_time,
+            num_examples_per_file_time=num_examples_per_file_time,
             target_name=target_name, binarize_target=binarize_target,
             weight_loss_function=weight_loss_function,
-            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            class_fraction_dict=class_fraction_dict_by_epoch[i],
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             validn_image_file_name_matrix=validn_image_file_name_matrix)
 
@@ -1155,9 +1150,9 @@ def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch,
         train_image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_init_time, target_name, binarize_target=False,
+        num_examples_per_file_time, target_name, binarize_target=False,
         sounding_statistic_names=None, train_sounding_stat_file_names=None,
-        weight_loss_function=False, class_fractions_to_sample=None,
+        weight_loss_function=False, class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validn_sounding_stat_file_names=None):
@@ -1178,13 +1173,13 @@ def train_3d_cnn(
         training files with radar images.  This array should be created by
         `training_validation_io.find_3d_input_files`.
     :param num_examples_per_batch: See doc for `train_2d_cnn`.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Same.
     :param binarize_target: Same.
     :param sounding_statistic_names: Same.
     :param train_sounding_stat_file_names: Same.
     :param weight_loss_function: Same.
-    :param class_fractions_to_sample: Same.
+    :param class_fraction_dict: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validn_image_file_name_matrix: V-by-F-by-D numpy array of paths to
         validation files with radar images.  This array should be created by
@@ -1197,7 +1192,7 @@ def train_3d_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         weight_loss_function=weight_loss_function,
-        class_fractions_to_sample=class_fractions_to_sample,
+        class_fraction_dict=class_fraction_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
 
@@ -1226,12 +1221,12 @@ def train_3d_cnn(
             save_best_only=False, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=training_validation_io.storm_image_generator_3d(
+            generator=trainval_io.storm_image_generator_3d(
                 image_file_name_matrix=train_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 sounding_statistic_file_names=train_sounding_stat_file_names,
                 sounding_statistic_names=sounding_statistic_names,
                 sounding_stat_metadata_table=sounding_stat_metadata_table),
@@ -1245,24 +1240,24 @@ def train_3d_cnn(
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
         model_object.fit_generator(
-            generator=training_validation_io.storm_image_generator_3d(
+            generator=trainval_io.storm_image_generator_3d(
                 image_file_name_matrix=train_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 sounding_statistic_file_names=train_sounding_stat_file_names,
                 sounding_statistic_names=sounding_statistic_names,
                 sounding_stat_metadata_table=sounding_stat_metadata_table),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_weight_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
-            validation_data=training_validation_io.storm_image_generator_3d(
+            validation_data=trainval_io.storm_image_generator_3d(
                 image_file_name_matrix=validn_image_file_name_matrix,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_init_time=num_examples_per_init_time,
+                num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
-                class_fractions_to_sample=class_fractions_to_sample,
+                class_fraction_dict=class_fraction_dict,
                 sounding_statistic_file_names=validn_sounding_stat_file_names,
                 sounding_statistic_names=sounding_statistic_names,
                 sounding_stat_metadata_table=sounding_stat_metadata_table),
@@ -1272,15 +1267,14 @@ def train_3d_cnn(
 def train_3d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
         num_training_batches_per_epoch, train_image_file_name_matrix,
-        num_examples_per_batch, num_examples_per_init_time, target_name,
-        class_fractions_by_epoch_matrix, binarize_target=False,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        class_fraction_dict_by_epoch, binarize_target=False,
         sounding_statistic_names=None, train_sounding_stat_file_names=None,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validn_sounding_stat_file_names=None):
     """Trains 3-D CNN with dynamic class-conditional sampling.
 
-    K = number of classes
     L = number of epochs
 
     :param model_object: See documentation for `train_3d_cnn`.
@@ -1289,11 +1283,12 @@ def train_3d_cnn_with_dynamic_sampling(
     :param num_training_batches_per_epoch: Same.
     :param train_image_file_name_matrix: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_init_time: Same.
+    :param num_examples_per_file_time: Same.
     :param target_name: Same.
-    :param class_fractions_by_epoch_matrix: L-by-K numpy array, where
-        class_fractions_by_epoch_matrix[i, k] is the fraction of data points in
-        the [k]th class to use at the [i]th epoch.
+    :param class_fraction_dict_by_epoch: length-L numpy array, where the [i]th
+        item is a dictionary of sampling frequencies for the [i]th epoch
+        (following the specification for `class_fraction_dict` in
+        `train_2d3d_cnn_with_myrorss`).
     :param binarize_target: See doc for `train_3d_cnn`.
     :param sounding_statistic_names: Same.
     :param train_sounding_stat_file_names: Same.
@@ -1305,11 +1300,8 @@ def train_3d_cnn_with_dynamic_sampling(
 
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_greater(num_epochs, 0)
-
-    num_classes = class_fractions_by_epoch_matrix.shape[1]
-    error_checking.assert_is_numpy_array(
-        class_fractions_by_epoch_matrix,
-        exact_dimensions=numpy.array([num_epochs, num_classes]))
+    error_checking.assert_is_geq(len(class_fraction_dict_by_epoch), num_epochs)
+    error_checking.assert_is_leq(len(class_fraction_dict_by_epoch), num_epochs)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
     model_directory_name, _ = os.path.split(model_file_name)
@@ -1327,7 +1319,7 @@ def train_3d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             weight_loss_function=weight_loss_function,
-            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            class_fraction_dict=class_fraction_dict_by_epoch[i],
             model_file_name=model_file_name,
             history_file_name=history_file_names[i],
             tensorboard_dir_name=tensorboard_dir_names[i])
@@ -1340,12 +1332,12 @@ def train_3d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             train_image_file_name_matrix=train_image_file_name_matrix,
             num_examples_per_batch=num_examples_per_batch,
-            num_examples_per_init_time=num_examples_per_init_time,
+            num_examples_per_file_time=num_examples_per_file_time,
             target_name=target_name, binarize_target=binarize_target,
             sounding_statistic_names=sounding_statistic_names,
             train_sounding_stat_file_names=train_sounding_stat_file_names,
             weight_loss_function=weight_loss_function,
-            class_fractions_to_sample=class_fractions_by_epoch_matrix[i, :],
+            class_fraction_dict=class_fraction_dict_by_epoch[i],
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             validn_image_file_name_matrix=validn_image_file_name_matrix,
             validn_sounding_stat_file_names=validn_sounding_stat_file_names)
