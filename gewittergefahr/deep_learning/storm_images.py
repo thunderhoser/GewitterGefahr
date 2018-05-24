@@ -1335,9 +1335,6 @@ def find_many_files_myrorss_or_mrms(
     :return: valid_times_unix_sec: length-T numpy array of valid times.  If
         `one_file_per_time_step is False`, valid_times_unix_sec[i] is just a
         time on the [i]th SPC date.
-    :return: field_name_by_pair: length-C list with names of radar fields.
-    :return: height_by_pair_m_asl: length-C numpy array with heights (metres
-        above sea level) of radar fields.
     :raises: ValueError: If no files are found and `raise_error_if_all_missing`
         = True.
     """
@@ -1401,8 +1398,7 @@ def find_many_files_myrorss_or_mrms(
                 start_time_string, end_time_string)
             raise ValueError(error_string)
 
-        return (image_file_name_matrix, valid_times_unix_sec,
-                field_name_by_pair, height_by_pair_m_asl)
+        return image_file_name_matrix, valid_times_unix_sec
 
     image_file_name_matrix = None
     valid_spc_date_strings = None
@@ -1443,8 +1439,7 @@ def find_many_files_myrorss_or_mrms(
                              all_spc_date_strings[-1])
                     raise ValueError(error_string)
 
-                return (None, None,
-                        field_name_by_pair, height_by_pair_m_asl)
+                return None, None
 
             image_file_name_matrix = numpy.full(
                 (num_times, num_field_height_pairs), '', dtype=object)
@@ -1468,8 +1463,7 @@ def find_many_files_myrorss_or_mrms(
                 if not os.path.isfile(image_file_name_matrix[i, j]):
                     image_file_name_matrix[i, j] = ''
 
-    return (image_file_name_matrix, valid_times_unix_sec,
-            field_name_by_pair, height_by_pair_m_asl)
+    return image_file_name_matrix, valid_times_unix_sec
 
 
 def find_many_files_gridrad(
