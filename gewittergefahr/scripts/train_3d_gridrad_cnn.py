@@ -68,9 +68,10 @@ def _train_3d_gridrad_cnn(
     # Verify and convert other inputs.
     class_fraction_dict_keys = numpy.array(class_fraction_dict_keys, dtype=int)
     class_fraction_dict_values = numpy.array(
-        class_fraction_dict_values, dtype=int)
+        class_fraction_dict_values, dtype=float)
     class_fraction_dict = dict(zip(
         class_fraction_dict_keys, class_fraction_dict_values))
+    print class_fraction_dict
 
     first_train_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, dl_script_helper.INPUT_TIME_FORMAT)
