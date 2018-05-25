@@ -11,9 +11,7 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
     American Meteorological Society.
 """
 
-import os
 import argparse
-from gewittergefahr.gg_utils import best_tracks
 from gewittergefahr.gg_utils import best_tracks_smart_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import time_conversion
