@@ -100,8 +100,7 @@ def _get_relative_processed_directory(
     if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
         date_string = spc_date_string
     else:
-        date_string = time_conversion.unix_sec_to_string(
-            unix_time_sec, DATE_FORMAT)
+        date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
 
     return '{0:s}/{1:s}/scale_{2:d}m2'.format(
         date_string[:4], date_string, int(numpy.round(tracking_scale_metres2)))
@@ -135,7 +134,7 @@ def find_processed_file(
     # Verification.
     tracking_utils.check_data_source(data_source)
     if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
-        _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+        time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
     error_checking.assert_is_string(top_processed_dir_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
