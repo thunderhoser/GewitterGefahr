@@ -5,6 +5,7 @@ import glob
 import pickle
 import numpy
 import pandas
+from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -34,6 +35,31 @@ MANDATORY_COLUMNS = [
 BEST_TRACK_COLUMNS = [tracking_utils.ORIG_STORM_ID_COLUMN]
 CELL_TIME_COLUMNS = [
     tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN]
+
+LATITUDE_COLUMN_IN_AMY_FILES = 'Latitude'
+LONGITUDE_COLUMN_IN_AMY_FILES = 'Longitude'
+AGE_COLUMN_IN_AMY_FILES = 'Age'
+EAST_VELOCITY_COLUMN_IN_AMY_FILES = 'MotionEast'
+SOUTH_VELOCITY_COLUMN_IN_AMY_FILES = 'MotionSouth'
+ORIG_ID_COLUMN_IN_AMY_FILES = 'RowName'
+AREA_COLUMN_IN_AMY_FILES = 'Size'
+SPEED_COLUMN_IN_AMY_FILES = 'Speed'
+VALID_TIME_COLUMN_IN_AMY_FILES = 'ValidTime'
+CELL_START_TIME_COLUMN_IN_AMY_FILES = 'StartTime'
+CELL_END_TIME_COLUMN_IN_AMY_FILES = 'EndTime'
+STORM_ID_COLUMN_IN_AMY_FILES = 'RowName2'
+
+COLUMNS_FOR_AMY = [
+    LATITUDE_COLUMN_IN_AMY_FILES, LONGITUDE_COLUMN_IN_AMY_FILES,
+    AGE_COLUMN_IN_AMY_FILES, EAST_VELOCITY_COLUMN_IN_AMY_FILES,
+    SOUTH_VELOCITY_COLUMN_IN_AMY_FILES, ORIG_ID_COLUMN_IN_AMY_FILES,
+    AREA_COLUMN_IN_AMY_FILES, SPEED_COLUMN_IN_AMY_FILES,
+    VALID_TIME_COLUMN_IN_AMY_FILES, CELL_START_TIME_COLUMN_IN_AMY_FILES,
+    CELL_END_TIME_COLUMN_IN_AMY_FILES, STORM_ID_COLUMN_IN_AMY_FILES
+]
+
+TIME_FORMAT_IN_AMY_FILES = '%Y-%m-%d-%H%M%SZ'
+METRES2_TO_KM2 = 1e-6
 
 
 def _get_pathless_processed_file_name(unix_time_sec, data_source):
@@ -200,6 +226,65 @@ def processed_file_name_to_time(processed_file_name):
     extensionless_file_name_parts = extensionless_file_name.split('_')
     return time_conversion.string_to_unix_sec(
         extensionless_file_name_parts[-1], TIME_FORMAT)
+
+
+def write_csv_file_for_amy(storm_object_table, csv_file_name):
+    """Writes tracking data to CSV file for Amy.
+
+    :param storm_object_table: See documentation for `write_processed_file`.
+    :param csv_file_name: Path to output file.
+    """
+
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
+        t in storm_object_table[tracking_utils.TIME_COLUMN].values]
+    cell_start_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
+        t in storm_object_table[tracking_utils.CELL_START_TIME_COLUMN].values]
+    cell_end_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
+        t in storm_object_table[tracking_utils.CELL_END_TIME_COLUMN].values]
+
+    south_velocities_m_s01 = -1 * storm_object_table[
+        tracking_utils.NORTH_VELOCITY_COLUMN].values
+    speeds_m_s01 = numpy.sqrt(
+        storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values ** 2 +
+        storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values ** 2)
+    storm_areas_km2 = METRES2_TO_KM2 * numpy.array([
+        polygons.project_latlng_to_xy(p)[0].area for p in storm_object_table[
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values
+    ])
+
+    columns_to_drop = [
+        tracking_utils.TIME_COLUMN, tracking_utils.CELL_START_TIME_COLUMN,
+        tracking_utils.CELL_END_TIME_COLUMN,
+        tracking_utils.NORTH_VELOCITY_COLUMN
+    ]
+    storm_object_table.drop(columns_to_drop, axis=1, inplace=True)
+
+    argument_dict = {
+        VALID_TIME_COLUMN_IN_AMY_FILES: valid_time_strings,
+        CELL_START_TIME_COLUMN_IN_AMY_FILES: cell_start_time_strings,
+        CELL_END_TIME_COLUMN_IN_AMY_FILES: cell_end_time_strings,
+        SOUTH_VELOCITY_COLUMN_IN_AMY_FILES: south_velocities_m_s01,
+        SPEED_COLUMN_IN_AMY_FILES: speeds_m_s01,
+        AREA_COLUMN_IN_AMY_FILES: storm_areas_km2,
+    }
+    storm_object_table = storm_object_table.assign(**argument_dict)
+
+    column_dict_old_to_new = {
+        tracking_utils.CENTROID_LAT_COLUMN: LATITUDE_COLUMN_IN_AMY_FILES,
+        tracking_utils.CENTROID_LNG_COLUMN: LONGITUDE_COLUMN_IN_AMY_FILES,
+        tracking_utils.AGE_COLUMN: AGE_COLUMN_IN_AMY_FILES,
+        tracking_utils.EAST_VELOCITY_COLUMN: EAST_VELOCITY_COLUMN_IN_AMY_FILES,
+        tracking_utils.ORIG_STORM_ID_COLUMN: ORIG_ID_COLUMN_IN_AMY_FILES,
+        tracking_utils.STORM_ID_COLUMN: STORM_ID_COLUMN_IN_AMY_FILES
+    }
+    storm_object_table.rename(columns=column_dict_old_to_new, inplace=True)
+    print storm_object_table
+
+    storm_object_table.to_csv(
+        csv_file_name, header=True, columns=COLUMNS_FOR_AMY, index=False)
 
 
 def write_processed_file(storm_object_table, pickle_file_name):
