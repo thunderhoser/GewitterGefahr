@@ -61,14 +61,18 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 
 def init_lambert_conformal_map(
-        standard_latitudes_deg=None, central_longitude_deg=None,
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, standard_latitudes_deg=DEFAULT_LCC_STANDARD_LATS_DEG,
+        central_longitude_deg=DEFAULT_LCC_CENTRAL_LNG_DEG,
         fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         fig_height_inches=DEFAULT_FIG_HEIGHT_INCHES,
-        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING,
-        min_latitude_deg=None, max_latitude_deg=None, min_longitude_deg=None,
-        max_longitude_deg=None):
+        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING):
     """Initializes map with LCC (Lambert conformal conic) projection.
 
+    :param min_latitude_deg: Latitude at bottom-left corner (deg N).
+    :param max_latitude_deg: Latitude at upper-right corner (deg N).
+    :param min_longitude_deg: Longitude at bottom-left corner (deg E).
+    :param max_longitude_deg: Longitude at upper-right corner (deg E).
     :param standard_latitudes_deg: length-2 numpy array of standard parallels
         (deg N).  standard_latitudes_deg[i] is the (i + 1)th standard parallel.
     :param central_longitude_deg: Central meridian (deg E).
@@ -78,10 +82,6 @@ def init_lambert_conformal_map(
         political borders).  Options are "c" for crude, "l" for low, "i" for
         intermediate, "h" for high, and "f" for full.  Keep in mind that higher-
         resolution boundaries take much longer to draw.
-    :param min_latitude_deg: Latitude at bottom-left corner (deg N).
-    :param max_latitude_deg: Latitude at upper-right corner (deg N).
-    :param min_longitude_deg: Longitude at bottom-left corner (deg E).
-    :param max_longitude_deg: Longitude at upper-right corner (deg E).
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
