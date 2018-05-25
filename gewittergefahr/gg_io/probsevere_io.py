@@ -5,17 +5,23 @@ import json
 import os.path
 import numpy
 import pandas
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Add code to transfer raw files from NSSL to local machine.
 
-TRACKING_START_TIME_UNIX_SEC = 0
-TRACKING_END_TIME_UNIX_SEC = int(3e9)
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+DAYS_TO_SECONDS = 86400
+DUMMY_TRACKING_START_TIME_UNIX_SEC = 0
+DUMMY_TRACKING_END_TIME_UNIX_SEC = int(3e9)
+DUMMY_TRACKING_SCALE_METRES2 = int(numpy.round(numpy.pi * 1e8))
 
 RAW_FILE_NAME_PREFIX = 'SSEC_AWIPS_PROBSEVERE'
 ALT_RAW_FILE_NAME_PREFIX = 'SSEC_AWIPS_CONVECTPROB'
@@ -60,6 +66,8 @@ GRID_LNG_SPACING_DEG = 0.01
 NUM_GRID_ROWS = 3501
 NUM_GRID_COLUMNS = 7001
 
+DATE_INDEX_KEY = 'date_index'
+
 
 def _check_raw_file_extension(file_extension):
     """Error-checks extension for raw file.
@@ -90,6 +98,262 @@ def _get_pathless_raw_file_name(unix_time_sec, file_extension):
         time_conversion.unix_sec_to_string(
             unix_time_sec, RAW_FILE_TIME_FORMAT),
         file_extension)
+
+
+def _find_io_files_for_renaming(
+        top_input_dir_name, first_date_unix_sec, last_date_unix_sec,
+        top_output_dir_name):
+    """Finds input and output files for renaming storms.
+
+    N = number of dates
+
+    :param top_input_dir_name: See documentation for `rename_storms.`
+    :param first_date_unix_sec: Same.
+    :param last_date_unix_sec: Same.
+    :param top_output_dir_name: Same.
+    :return: input_file_names_by_date: length-N list, where the [i]th item is a
+        numpy array of paths to input files for the [i]th date.
+    :return: output_file_names_by_date: Same as above, but for output files.
+    :return: valid_times_by_date_unix_sec: Same as above, but for valid times.
+        All 3 arrays for the [i]th date have the same length.
+    """
+
+    dates_unix_sec = time_periods.range_and_interval_to_list(
+        start_time_unix_sec=first_date_unix_sec,
+        end_time_unix_sec=last_date_unix_sec, time_interval_sec=DAYS_TO_SECONDS,
+        include_endpoint=True)
+    date_strings = [time_conversion.unix_sec_to_string(t, DATE_FORMAT)
+                    for t in dates_unix_sec]
+
+    num_dates = len(date_strings)
+    input_file_names_by_date = [numpy.array([], dtype=object)] * num_dates
+    output_file_names_by_date = [numpy.array([], dtype=object)] * num_dates
+    valid_times_by_date_unix_sec = [numpy.array([], dtype=int)] * num_dates
+
+    for i in range(num_dates):
+        print 'Finding input files for date {0:s}...'.format(date_strings[i])
+
+        these_input_file_names = tracking_io.find_processed_files_one_spc_date(
+            spc_date_string=date_strings[i],
+            data_source=tracking_utils.PROBSEVERE_SOURCE_ID,
+            top_processed_dir_name=top_input_dir_name,
+            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+            raise_error_if_missing=True)
+
+        these_input_file_names.sort()
+        these_valid_times_unix_sec = numpy.array(
+            [tracking_io.processed_file_name_to_time(f)
+             for f in these_input_file_names], dtype=int)
+
+        these_output_file_names = []
+        for t in these_valid_times_unix_sec:
+            these_output_file_names.append(tracking_io.find_processed_file(
+                unix_time_sec=t,
+                data_source=tracking_utils.PROBSEVERE_SOURCE_ID,
+                top_processed_dir_name=top_output_dir_name,
+                tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+                raise_error_if_missing=False))
+
+        input_file_names_by_date[i] = numpy.array(
+            these_input_file_names, dtype=object)
+        output_file_names_by_date[i] = numpy.array(
+            these_output_file_names, dtype=object)
+        valid_times_by_date_unix_sec[i] = these_valid_times_unix_sec
+
+    print SEPARATOR_STRING
+    return (input_file_names_by_date, output_file_names_by_date,
+            valid_times_by_date_unix_sec)
+
+
+def _get_dates_needed_for_renaming_storms(
+        working_date_index, num_dates_in_period):
+    """Returns dates needed for renaming storms.
+
+    For more details on renaming storms, see the public method `rename_storms`.
+
+    :param working_date_index: Index of working date.
+    :param num_dates_in_period: Number of dates in period.
+    :return: date_needed_indices: 1-D numpy array with indices of dates needed.
+    """
+
+    date_needed_indices = [working_date_index]
+    if working_date_index != 0:
+        date_needed_indices.append(working_date_index - 1)
+    if working_date_index != num_dates_in_period - 1:
+        date_needed_indices.append(working_date_index + 1)
+
+    return numpy.sort(numpy.array(date_needed_indices, dtype=int))
+
+
+def _shuffle_io_for_renaming(
+        input_file_names_by_date, output_file_names_by_date,
+        valid_times_by_date_unix_sec, storm_object_table_by_date,
+        working_date_index):
+    """Shuffles data into and out of memory for renaming storms.
+
+    For more on renaming storms, see doc for `rename_storms`.
+
+    N = number of dates
+
+    :param input_file_names_by_date: length-N list created by
+        `_find_io_files_for_renaming`.
+    :param output_file_names_by_date: Same.
+    :param valid_times_by_date_unix_sec: Same.
+    :param storm_object_table_by_date: length-N list, where the [i]th element is
+        a pandas DataFrame with tracking data for the [i]th date.  At any given
+        time, all but 3 items should be None.  Each table has columns documented
+        in `storm_tracking_io.write_processed_file`, plus the following column.
+    storm_object_table_by_date.date_index: Array index.  If date_index[i] = j,
+        the [i]th row (storm object) comes from the [j]th date.
+    :param working_date_index: Index of date currently being processed.  Only
+        dates (working_date_index - 1)...(working_date_index + 1) need to be in
+        memory.  If None, this method will write/clear all data currently in
+        memory, without reading new data.
+    :return: storm_object_table_by_date: Same as input, except that different
+        items are filled and different items are None.
+    """
+
+    num_dates = len(input_file_names_by_date)
+
+    if working_date_index is None:
+        date_needed_indices = numpy.array([-1], dtype=int)
+    else:
+        date_needed_indices = _get_dates_needed_for_renaming_storms(
+            working_date_index=working_date_index, num_dates_in_period=num_dates)
+
+    for j in range(num_dates):
+        if j in date_needed_indices and storm_object_table_by_date[j] is None:
+            storm_object_table_by_date[j] = (
+                tracking_io.read_many_processed_files(
+                    input_file_names_by_date[j].tolist()))
+            print SEPARATOR_STRING
+
+            this_num_storm_objects = len(storm_object_table_by_date[j].index)
+            these_date_indices = numpy.full(this_num_storm_objects, j, dtype=int)
+            argument_dict = {DATE_INDEX_KEY: these_date_indices}
+            storm_object_table_by_date[j] = storm_object_table_by_date[
+                j].assign(**argument_dict)
+
+        if j not in date_needed_indices:
+            if storm_object_table_by_date[j] is not None:
+                these_output_file_names = output_file_names_by_date[j]
+                these_valid_times_unix_sec = valid_times_by_date_unix_sec[j]
+
+                for k in range(len(these_valid_times_unix_sec)):
+                    print 'Writing new data to "{0:s}"...'.format(
+                        these_output_file_names[k])
+
+                    these_indices = numpy.where(
+                        storm_object_table_by_date[j][
+                            tracking_utils.TIME_COLUMN].values ==
+                        these_valid_times_unix_sec[k])[0]
+                    tracking_io.write_processed_file(
+                        storm_object_table=
+                        storm_object_table_by_date[j].iloc[these_indices],
+                        pickle_file_name=these_output_file_names[k])
+
+                print SEPARATOR_STRING
+
+            storm_object_table_by_date[j] = None
+
+    if working_date_index is None:
+        return storm_object_table_by_date
+
+    for j in date_needed_indices[1:]:
+        storm_object_table_by_date[j], _ = storm_object_table_by_date[j].align(
+            storm_object_table_by_date[j - 1], axis=1)
+
+    return storm_object_table_by_date
+
+
+def _rename_storms_one_table(
+        storm_object_table, next_id_number, max_dropout_time_seconds):
+    """Renames storms in one table.
+
+    For more details on renaming storms, see the public method `rename_storms`.
+
+    :param storm_object_table: pandas DataFrame with columns documented in
+        `storm_tracking_io.write_processed_file`.
+    :param next_id_number: Will start with this ID.
+    :param max_dropout_time_seconds: See documentation for `rename_storms`.
+    :return: storm_object_table: Same as input, but maybe with new storm IDs.
+    :return: next_id_number: Same as input, but maybe incremented.
+    """
+
+    storm_object_ids = storm_object_table[
+        tracking_utils.STORM_ID_COLUMN].values
+    storm_cell_ids = numpy.unique(storm_object_ids).tolist()
+    num_storm_cells = len(storm_cell_ids)
+
+    for j in range(num_storm_cells):
+        if numpy.mod(j, 1000) == 0:
+            print (
+                'Have renamed {0:d} of {1:d} original storm cells (next ID = '
+                '{2:d})...'
+            ).format(j, num_storm_cells, next_id_number)
+
+        these_object_indices = numpy.where(
+            storm_object_table[tracking_utils.STORM_ID_COLUMN].values ==
+            storm_cell_ids[j])[0]
+        these_valid_times_unix_sec = storm_object_table[
+            tracking_utils.TIME_COLUMN].values[these_object_indices]
+
+        these_sort_indices = numpy.argsort(these_valid_times_unix_sec)
+        these_object_indices = these_object_indices[these_sort_indices]
+        these_valid_times_unix_sec = these_valid_times_unix_sec[
+            these_sort_indices]
+
+        these_storm_object_ids, next_id_number = _rename_storms_one_original_id(
+            valid_times_unix_sec=these_valid_times_unix_sec,
+            next_id_number=next_id_number,
+            max_dropout_time_seconds=max_dropout_time_seconds)
+
+        storm_object_table[tracking_utils.STORM_ID_COLUMN].values[
+            these_object_indices] = numpy.array(these_storm_object_ids)
+
+    print SEPARATOR_STRING
+    return storm_object_table, next_id_number
+
+
+def _rename_storms_one_original_id(
+        valid_times_unix_sec, next_id_number, max_dropout_time_seconds):
+    """Renames storm objects with the same original ID.
+
+    N = number of storm objects
+
+    :param valid_times_unix_sec: length-N numpy array of valid times.
+    :param next_id_number: Will start with this ID.
+    :param max_dropout_time_seconds: See documentation for `rename_storms`.
+    :return: storm_object_ids: length-N list of new IDs.
+    :return: next_id_number: Same as input, but maybe incremented.
+    """
+
+    time_differences_sec = numpy.diff(valid_times_unix_sec)
+    dropout_indices = numpy.where(
+        time_differences_sec > max_dropout_time_seconds)[0]
+
+    num_storm_objects = len(valid_times_unix_sec)
+    storm_cell_start_indices = numpy.concatenate((
+        numpy.array([0]), dropout_indices + 1
+    )).astype(int)
+    storm_cell_end_indices = numpy.concatenate((
+        dropout_indices, numpy.array([num_storm_objects - 1])
+    )).astype(int)
+
+    num_storm_cells = len(storm_cell_start_indices)
+    storm_object_ids = [''] * num_storm_objects
+    for j in range(num_storm_cells):
+        these_object_indices = numpy.linspace(
+            storm_cell_start_indices[j], storm_cell_end_indices[j],
+            num=storm_cell_end_indices[j] - storm_cell_start_indices[j] + 1,
+            dtype=int)
+
+        for k in these_object_indices:
+            storm_object_ids[k] = '{0:d}_probSevere'.format(next_id_number)
+
+        next_id_number += 1
+
+    return storm_object_ids, next_id_number
 
 
 def get_json_file_name_on_ftp(unix_time_sec, ftp_directory_name):
@@ -315,9 +579,9 @@ def read_raw_file(raw_file_name):
     unix_times_sec = numpy.full(num_storms, unix_time_sec, dtype=int)
     spc_dates_unix_sec = numpy.full(num_storms, spc_date_unix_sec, dtype=int)
     tracking_start_times_unix_sec = numpy.full(
-        num_storms, TRACKING_START_TIME_UNIX_SEC, dtype=int)
+        num_storms, DUMMY_TRACKING_START_TIME_UNIX_SEC, dtype=int)
     tracking_end_times_unix_sec = numpy.full(
-        num_storms, TRACKING_END_TIME_UNIX_SEC, dtype=int)
+        num_storms, DUMMY_TRACKING_END_TIME_UNIX_SEC, dtype=int)
 
     storm_object_dict = {
         tracking_utils.STORM_ID_COLUMN: storm_ids,
@@ -405,3 +669,73 @@ def read_raw_file(raw_file_name):
             these_vertex_latitudes_deg, these_vertex_longitudes_deg)
 
     return storm_object_table
+
+
+def rename_storms(
+        top_input_dir_name, first_date_unix_sec, last_date_unix_sec,
+        first_id_number, max_dropout_time_seconds, top_output_dir_name):
+    """Renames storms.  This ensures that all storm IDs are unique.
+
+    :param top_input_dir_name: Name of top-level directory with input files
+        (processed probSevere files, readable by
+        `storm_tracking_io.read_processed_file`).
+    :param first_date_unix_sec: First date in time period.  This method will fix
+        IDs for all dates from `first_date_unix_sec`...`last_date_unix_sec`.
+    :param last_date_unix_sec: See above.
+    :param first_id_number: Will start with this ID.
+    :param max_dropout_time_seconds: Max dropout time.  For each storm ID "s"
+        found in the original data, this method will find all periods where "s"
+        appears in consecutive time steps with no dropout longer than
+        `max_dropout_time_seconds`.  Each such period will get a new, unique
+        storm ID.
+    :param top_output_dir_name: Name of top-level directory for output files
+        (files with new IDs, to be written by
+        `storm_tracking_io.write_processed_file`).
+    """
+
+    error_checking.assert_is_integer(first_id_number)
+    error_checking.assert_is_geq(first_id_number, 0)
+    error_checking.assert_is_integer(max_dropout_time_seconds)
+    error_checking.assert_is_greater(max_dropout_time_seconds, 0)
+
+    (input_file_names_by_date, output_file_names_by_date,
+     valid_times_by_date_unix_sec) = _find_io_files_for_renaming(
+         top_input_dir_name=top_input_dir_name,
+         first_date_unix_sec=first_date_unix_sec,
+         last_date_unix_sec=last_date_unix_sec,
+         top_output_dir_name=top_output_dir_name)
+
+    num_dates = len(input_file_names_by_date)
+    storm_object_table_by_date = [None] * num_dates
+    next_id_number = first_id_number + 0
+
+    for i in range(num_dates):
+        date_needed_indices = _get_dates_needed_for_renaming_storms(
+            working_date_index=i, num_dates_in_period=num_dates)
+
+        storm_object_table_by_date = _shuffle_io_for_renaming(
+            input_file_names_by_date=input_file_names_by_date,
+            output_file_names_by_date=output_file_names_by_date,
+            valid_times_by_date_unix_sec=valid_times_by_date_unix_sec,
+            storm_object_table_by_date=storm_object_table_by_date,
+            working_date_index=i)
+
+        concat_storm_object_table = pandas.concat(
+            [storm_object_table_by_date[j] for j in date_needed_indices],
+            axis=0, ignore_index=True)
+
+        concat_storm_object_table, next_id_number = _rename_storms_one_table(
+            storm_object_table=concat_storm_object_table,
+            next_id_number=next_id_number,
+            max_dropout_time_seconds=max_dropout_time_seconds)
+
+        for j in date_needed_indices:
+            storm_object_table_by_date[j] = concat_storm_object_table.loc[
+                concat_storm_object_table[DATE_INDEX_KEY] == j]
+
+    _shuffle_io_for_renaming(
+        input_file_names_by_date=input_file_names_by_date,
+        output_file_names_by_date=output_file_names_by_date,
+        valid_times_by_date_unix_sec=valid_times_by_date_unix_sec,
+        storm_object_table_by_date=storm_object_table_by_date,
+        working_date_index=None)

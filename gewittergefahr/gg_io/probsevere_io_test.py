@@ -1,7 +1,11 @@
 """Unit tests for probsevere_io.py."""
 
+import copy
 import unittest
+import numpy
+import pandas
 from gewittergefahr.gg_io import probsevere_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOP_DIRECTORY_NAME = 'foo'
 FTP_DIRECTORY_NAME = 'bar'
@@ -20,6 +24,56 @@ ALTERNATIVE_ASCII_FILE_NAME = (
     'foo/201710/20171005/SSEC_AWIPS_CONVECTPROB_20171005_052627.ascii')
 
 JSON_FILE_NAME_ON_FTP = 'bar/SSEC_AWIPS_PROBSEVERE_20171005_052627.json'
+
+# The following constants are used to test
+# _get_dates_needed_for_renaming_storms.
+NUM_DATES_IN_PERIOD = 20
+WORKING_DATE_INDEX_MIDDLE = 10
+
+DATE_NEEDED_INDICES_START = numpy.array([0, 1], dtype=int)
+DATE_NEEDED_INDICES_END = numpy.array([18, 19], dtype=int)
+DATE_NEEDED_INDICES_MIDDLE = numpy.array([9, 10, 11], dtype=int)
+
+# The following constants are used to test _rename_storms_one_original_id.
+STORM_OBJECT_TIMES_UNIX_SEC = numpy.array(
+    [0, 1, 2, 3, 6, 7, 8, 9, 12, 15], dtype=int)
+NEXT_ID_NUMBER = 5
+MAX_DROPOUT_TIME_SECONDS = 2
+
+STORM_OBJECT_IDS = [
+    '5_probSevere', '5_probSevere', '5_probSevere', '5_probSevere',
+    '6_probSevere', '6_probSevere', '6_probSevere', '6_probSevere',
+    '7_probSevere', '8_probSevere']
+NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID = 9
+
+# The following constants are used to test _rename_storms_one_table.
+THESE_STORM_IDS = [
+    'a', 'b', 'c',
+    'b', 'd',
+    'a', 'b', 'd',
+    'a', 'b', 'c'
+]
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3], dtype=int)
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC
+}
+STORM_OBJECT_TABLE_ORIGINAL_IDS = pandas.DataFrame.from_dict(THIS_DICT)
+
+THESE_STORM_IDS = [
+    '5_probSevere', '6_probSevere', '7_probSevere',
+    '6_probSevere', '9_probSevere',
+    '5_probSevere', '6_probSevere', '9_probSevere',
+    '5_probSevere', '6_probSevere', '8_probSevere'
+]
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC
+}
+STORM_OBJECT_TABLE_NEW_IDS = pandas.DataFrame.from_dict(THIS_DICT)
+NEXT_ID_NUMBER_AFTER_ONE_TABLE = 10
 
 
 class ProbsevereIoTests(unittest.TestCase):
@@ -123,6 +177,65 @@ class ProbsevereIoTests(unittest.TestCase):
         this_time_unix_sec = probsevere_io.raw_file_name_to_time(
             ALTERNATIVE_ASCII_FILE_NAME)
         self.assertTrue(this_time_unix_sec == VALID_TIME_UNIX_SEC)
+
+    def test_get_dates_needed_for_renaming_storms_start(self):
+        """Ensures correct output from _get_dates_needed_for_renaming_storms.
+
+        In this case, working date is the first.
+        """
+
+        these_indices = probsevere_io._get_dates_needed_for_renaming_storms(
+            working_date_index=0, num_dates_in_period=NUM_DATES_IN_PERIOD)
+        self.assertTrue(numpy.array_equal(
+            these_indices, DATE_NEEDED_INDICES_START))
+
+    def test_get_dates_needed_for_renaming_storms_end(self):
+        """Ensures correct output from _get_dates_needed_for_renaming_storms.
+
+        In this case, working date is the last.
+        """
+
+        these_indices = probsevere_io._get_dates_needed_for_renaming_storms(
+            working_date_index=NUM_DATES_IN_PERIOD - 1,
+            num_dates_in_period=NUM_DATES_IN_PERIOD)
+        self.assertTrue(numpy.array_equal(
+            these_indices, DATE_NEEDED_INDICES_END))
+
+    def test_get_dates_needed_for_renaming_storms_middle(self):
+        """Ensures correct output from _get_dates_needed_for_renaming_storms.
+
+        In this case, working date is the middle one.
+        """
+
+        these_indices = probsevere_io._get_dates_needed_for_renaming_storms(
+            working_date_index=WORKING_DATE_INDEX_MIDDLE,
+            num_dates_in_period=NUM_DATES_IN_PERIOD)
+        self.assertTrue(numpy.array_equal(
+            these_indices, DATE_NEEDED_INDICES_MIDDLE))
+
+    def test_rename_storms_one_original_id(self):
+        """Ensures correct output from _rename_storms_one_original_id."""
+
+        this_id_number = copy.deepcopy(NEXT_ID_NUMBER)
+        these_object_ids, this_id_number = (
+            probsevere_io._rename_storms_one_original_id(
+                valid_times_unix_sec=STORM_OBJECT_TIMES_UNIX_SEC,
+                next_id_number=this_id_number,
+                max_dropout_time_seconds=MAX_DROPOUT_TIME_SECONDS))
+
+        self.assertTrue(these_object_ids == STORM_OBJECT_IDS)
+        self.assertTrue(this_id_number == NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID)
+
+    def test_rename_storms_one_table(self):
+        """Ensures correct output from _rename_storms_one_table."""
+
+        this_input_table = copy.deepcopy(STORM_OBJECT_TABLE_ORIGINAL_IDS)
+        this_new_table, this_id_number = probsevere_io._rename_storms_one_table(
+            storm_object_table=this_input_table, next_id_number=NEXT_ID_NUMBER,
+            max_dropout_time_seconds=MAX_DROPOUT_TIME_SECONDS)
+
+        self.assertTrue(this_new_table.equals(STORM_OBJECT_TABLE_NEW_IDS))
+        self.assertTrue(this_id_number == NEXT_ID_NUMBER_AFTER_ONE_TABLE)
 
 
 if __name__ == '__main__':
