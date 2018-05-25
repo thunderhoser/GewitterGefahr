@@ -53,6 +53,7 @@ def _read_intermediate_results(temp_file_name):
 
     pickle_file_handle = open(temp_file_name, 'rb')
     storm_object_table = pickle.load(pickle_file_handle)
+    print storm_object_table
     pickle_file_handle.close()
 
     error_checking.assert_columns_in_dataframe(
@@ -178,7 +179,6 @@ def _shuffle_data_with_smart_io(
 
             this_storm_object_table = _read_intermediate_results(
                 this_temp_file_name)
-            print len(this_storm_object_table.index)
 
         else:
             this_storm_object_table = best_tracks.read_input_storm_objects(
