@@ -42,7 +42,8 @@ USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG = True
 
 DEFAULT_NUM_MAIN_ITERS = 5
 DEFAULT_NUM_BREAKUP_ITERS = 3
-DEFAULT_MIN_OBJECTS_IN_TRACK = 2
+# DEFAULT_MIN_OBJECTS_IN_TRACK = 3
+DEFAULT_MIN_OBJECTS_IN_TRACK = 1
 MIN_OBJECTS_IN_TRACK_FOR_THEA = 1
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
@@ -1234,7 +1235,7 @@ def recompute_attributes(
 
 
 def run_best_track(
-        storm_object_table=None,
+        storm_object_table,
         max_extrap_time_for_breakup_sec=DEFAULT_MAX_EXTRAP_TIME_SEC,
         max_prediction_error_for_breakup_metres=
         DEFAULT_MAX_PREDICTION_ERROR_METRES,
