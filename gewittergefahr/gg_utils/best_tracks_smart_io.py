@@ -280,7 +280,7 @@ def find_files_for_smart_io(
     :raises: ValueError: if end_time_unix_sec is not part of the last SPC date
         (determined by end_spc_date_unix_sec).
     """
-    
+
     # if not time_conversion.is_time_in_spc_date(
     #         start_time_unix_sec, start_spc_date_string):
     #     start_time_string = time_conversion.unix_sec_to_string(
