@@ -9,7 +9,7 @@ from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-FILE_SIZE_WITHOUT_STORMS_BYTES = 2765
+FILE_SIZE_WITHOUT_STORMS_BYTES = 0
 
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
@@ -82,10 +82,11 @@ def _find_tracking_gaps(
 
         these_file_names = tracking_io.find_processed_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            data_source=tracking_utils.PROBSEVERE_SOURCE_ID,
             top_processed_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=tracking_scale_metres2,
             raise_error_if_missing=False)
+        print len(these_file_names)
 
         if not len(these_file_names):
             continue
@@ -107,7 +108,7 @@ def _find_tracking_gaps(
     valid_indices = numpy.where(
         tracking_file_sizes_bytes > FILE_SIZE_WITHOUT_STORMS_BYTES)[0]
 
-    tracking_file_names = [tracking_file_names[k] for k in valid_indices]
+    # tracking_file_names = [tracking_file_names[k] for k in valid_indices]
     unix_times_sec = unix_times_sec[valid_indices]
 
     time_diffs_seconds = numpy.diff(unix_times_sec)

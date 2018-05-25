@@ -634,7 +634,8 @@ def read_raw_file(raw_file_name):
 
         these_vertex_rows, these_vertex_columns = (
             polygons.fix_probsevere_vertices(
-                these_vertex_rows, these_vertex_columns))
+                row_indices_orig=these_vertex_rows,
+                column_indices_orig=these_vertex_columns))
 
         these_vertex_latitudes_deg, these_vertex_longitudes_deg = (
             radar_utils.rowcol_to_latlng(
@@ -647,13 +648,15 @@ def read_raw_file(raw_file_name):
         (storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
          storm_object_table[tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i]
         ) = polygons.simple_polygon_to_grid_points(
-            these_vertex_rows, these_vertex_columns)
+            vertex_row_indices=these_vertex_rows,
+            vertex_column_indices=these_vertex_columns)
 
         (storm_object_table[tracking_utils.GRID_POINT_LAT_COLUMN].values[i],
          storm_object_table[tracking_utils.GRID_POINT_LNG_COLUMN].values[i]
         ) = radar_utils.rowcol_to_latlng(
-            storm_object_table[tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
-            storm_object_table[
+            grid_rows=storm_object_table[
+                tracking_utils.GRID_POINT_ROW_COLUMN].values[i],
+            grid_columns=storm_object_table[
                 tracking_utils.GRID_POINT_COLUMN_COLUMN].values[i],
             nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
             nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
@@ -663,17 +666,20 @@ def read_raw_file(raw_file_name):
         (storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
          storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]
         ) = geodetic_utils.get_latlng_centroid(
-            these_vertex_latitudes_deg, these_vertex_longitudes_deg)
+            latitudes_deg=these_vertex_latitudes_deg,
+            longitudes_deg=these_vertex_longitudes_deg)
 
         storm_object_table[
             tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN
         ].values[i] = polygons.vertex_arrays_to_polygon_object(
-            these_vertex_columns, these_vertex_rows)
+            exterior_x_coords=these_vertex_columns,
+            exterior_y_coords=these_vertex_rows)
 
         storm_object_table[
             tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
         ].values[i] = polygons.vertex_arrays_to_polygon_object(
-            these_vertex_latitudes_deg, these_vertex_longitudes_deg)
+            exterior_x_coords=these_vertex_longitudes_deg,
+            exterior_y_coords=these_vertex_latitudes_deg)
 
     return storm_object_table
 
