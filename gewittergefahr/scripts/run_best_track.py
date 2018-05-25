@@ -88,17 +88,10 @@ def _create_best_tracks(
         start_time_string, INPUT_TIME_FORMAT)
     end_time_unix_sec = time_conversion.string_to_unix_sec(
         end_time_string, INPUT_TIME_FORMAT)
-
-    if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
-        first_date_string = time_conversion.time_to_spc_date_string(
-            start_time_unix_sec)
-        last_date_string = time_conversion.time_to_spc_date_string(
-            end_time_unix_sec)
-    else:
-        first_date_string = time_conversion.unix_sec_to_string(
-            start_time_unix_sec, time_conversion.SPC_DATE_FORMAT)
-        last_date_string = time_conversion.unix_sec_to_string(
-            end_time_unix_sec, time_conversion.SPC_DATE_FORMAT)
+    first_date_string = time_conversion.time_to_spc_date_string(
+        start_time_unix_sec)
+    last_date_string = time_conversion.time_to_spc_date_string(
+        end_time_unix_sec)
 
     file_dictionary = best_tracks_smart_io.find_files_for_smart_io(
         start_time_unix_sec=start_time_unix_sec,
