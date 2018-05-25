@@ -123,12 +123,11 @@ def init_lambert_conformal_map(
 
 
 def init_map_with_nwp_projection(
-        model_name=None, grid_id=None,
+        model_name, min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, grid_id=None,
         fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         fig_height_inches=DEFAULT_FIG_HEIGHT_INCHES,
-        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING,
-        min_latitude_deg=None, max_latitude_deg=None, min_longitude_deg=None,
-        max_longitude_deg=None):
+        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING):
     """Initializes map with NWP (numerical weather prediction)-model projection.
 
     If min_latitude_deg = max_latitude_deg = min_longitude_deg =
@@ -136,14 +135,14 @@ def init_map_with_nwp_projection(
     grid.
 
     :param model_name: Name of NWP model.
-    :param grid_id: String ID for model grid.
-    :param fig_width_inches: Figure width.
-    :param fig_height_inches: Figure height.
-    :param resolution_string: See documentation for init_lambert_conformal_map.
     :param min_latitude_deg: Latitude at bottom-left corner (deg N) of map.
     :param max_latitude_deg: Latitude at upper-right corner (deg N) of map.
     :param min_longitude_deg: Longitude at bottom-left corner (deg E) of map.
     :param max_longitude_deg: Longitude at upper-right corner (deg E) of map.
+    :param grid_id: String ID for model grid.
+    :param fig_width_inches: Figure width.
+    :param fig_height_inches: Figure height.
+    :param resolution_string: See documentation for init_lambert_conformal_map.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -186,20 +185,19 @@ def init_map_with_nwp_projection(
 
 
 def init_equidistant_cylindrical_map(
-        fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, fig_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         fig_height_inches=DEFAULT_FIG_HEIGHT_INCHES,
-        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING,
-        min_latitude_deg=None, max_latitude_deg=None, min_longitude_deg=None,
-        max_longitude_deg=None):
+        resolution_string=DEFAULT_BOUNDARY_RESOLUTION_STRING):
     """Initializes map with equidistant cylindrical projection.
 
-    :param fig_width_inches: Figure width.
-    :param fig_height_inches: Figure height.
-    :param resolution_string: See documentation for init_lambert_conformal_map.
     :param min_latitude_deg: Latitude at bottom-left corner (deg N).
     :param max_latitude_deg: Latitude at upper-right corner (deg N).
     :param min_longitude_deg: Longitude at bottom-left corner (deg E).
     :param max_longitude_deg: Longitude at upper-right corner (deg E).
+    :param fig_width_inches: Figure width.
+    :param fig_height_inches: Figure height.
+    :param resolution_string: See documentation for init_lambert_conformal_map.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :return: basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -229,9 +227,9 @@ def init_equidistant_cylindrical_map(
     return figure_object, axes_object, basemap_object
 
 
-def plot_countries(basemap_object=None, axes_object=None,
-                   line_width=DEFAULT_COUNTRY_WIDTH,
-                   line_colour=DEFAULT_COUNTRY_COLOUR):
+def plot_countries(
+        basemap_object, axes_object, line_width=DEFAULT_COUNTRY_WIDTH,
+        line_colour=DEFAULT_COUNTRY_COLOUR):
     """Plots national borders.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -245,9 +243,9 @@ def plot_countries(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_COUNTRIES)
 
 
-def plot_states_and_provinces(basemap_object=None, axes_object=None,
-                              line_width=DEFAULT_STATE_PROVINCE_WIDTH,
-                              line_colour=DEFAULT_STATE_PROVINCE_COLOUR):
+def plot_states_and_provinces(
+        basemap_object, axes_object, line_width=DEFAULT_STATE_PROVINCE_WIDTH,
+        line_colour=DEFAULT_STATE_PROVINCE_COLOUR):
     """Plots state and provincial borders.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -261,9 +259,9 @@ def plot_states_and_provinces(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_STATES_AND_PROVINCES)
 
 
-def plot_counties(basemap_object=None, axes_object=None,
-                  line_width=DEFAULT_COUNTY_WIDTH,
-                  line_colour=DEFAULT_COUNTY_COLOUR):
+def plot_counties(
+        basemap_object, axes_object, line_width=DEFAULT_COUNTY_WIDTH,
+        line_colour=DEFAULT_COUNTY_COLOUR):
     """Plots county borders.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -277,9 +275,9 @@ def plot_counties(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_COUNTIES)
 
 
-def plot_coastlines(basemap_object=None, axes_object=None,
-                    line_width=DEFAULT_COAST_WIDTH,
-                    line_colour=DEFAULT_COAST_COLOUR):
+def plot_coastlines(
+        basemap_object, axes_object, line_width=DEFAULT_COAST_WIDTH,
+        line_colour=DEFAULT_COAST_COLOUR):
     """Plots coastlines (with oceans and lakes).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -293,9 +291,9 @@ def plot_coastlines(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_COAST)
 
 
-def plot_rivers(basemap_object=None, axes_object=None,
-                line_width=DEFAULT_RIVER_WIDTH,
-                line_colour=DEFAULT_RIVER_COLOUR):
+def plot_rivers(
+        basemap_object, axes_object, line_width=DEFAULT_RIVER_WIDTH,
+        line_colour=DEFAULT_RIVER_COLOUR):
     """Plots rivers.
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -309,11 +307,11 @@ def plot_rivers(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_RIVERS)
 
 
-def plot_parallels(basemap_object=None, axes_object=None,
-                   bottom_left_lat_deg=None, upper_right_lat_deg=None,
-                   parallel_spacing_deg=DEFAULT_PARALLEL_SPACING_DEG,
-                   line_width=DEFAULT_PARALLEL_MERIDIAN_WIDTH,
-                   line_colour=DEFAULT_PARALLEL_MERIDIAN_COLOUR):
+def plot_parallels(
+        basemap_object, axes_object, bottom_left_lat_deg, upper_right_lat_deg,
+        parallel_spacing_deg=DEFAULT_PARALLEL_SPACING_DEG,
+        line_width=DEFAULT_PARALLEL_MERIDIAN_WIDTH,
+        line_colour=DEFAULT_PARALLEL_MERIDIAN_COLOUR):
     """Draws parallels (lines of equal latitude).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -344,11 +342,11 @@ def plot_parallels(basemap_object=None, axes_object=None,
         zorder=Z_ORDER_MERIDIANS_AND_PARALLELS)
 
 
-def plot_meridians(basemap_object=None, axes_object=None,
-                   bottom_left_lng_deg=None, upper_right_lng_deg=None,
-                   meridian_spacing_deg=DEFAULT_MERIDIAN_SPACING_DEG,
-                   line_width=DEFAULT_PARALLEL_MERIDIAN_WIDTH,
-                   line_colour=DEFAULT_PARALLEL_MERIDIAN_COLOUR):
+def plot_meridians(
+        basemap_object, axes_object, bottom_left_lng_deg, upper_right_lng_deg,
+        meridian_spacing_deg=DEFAULT_MERIDIAN_SPACING_DEG,
+        line_width=DEFAULT_PARALLEL_MERIDIAN_WIDTH,
+        line_colour=DEFAULT_PARALLEL_MERIDIAN_COLOUR):
     """Draws meridians (lines of equal longitude).
 
     :param basemap_object: Instance of `mpl_toolkits.basemap.Basemap`.
@@ -383,9 +381,9 @@ def plot_meridians(basemap_object=None, axes_object=None,
 
 
 def add_colour_bar(
-        axes_object, values_to_colour=None, colour_map=None,
-        colour_norm_object=None, orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
-        extend_min=True, extend_max=True, fraction_of_axis_length=1.):
+        axes_object, values_to_colour, colour_map, colour_norm_object,
+        orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
+        extend_max=True, fraction_of_axis_length=1.):
     """Adds colour bar to existing plot.
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
@@ -435,10 +433,10 @@ def add_colour_bar(
         shrink=fraction_of_axis_length)
 
 
-def add_linear_colour_bar(axes_object, values_to_colour=None, colour_map=None,
-                          colour_min=None, colour_max=None,
-                          orientation=DEFAULT_COLOUR_BAR_ORIENTATION,
-                          extend_min=True, extend_max=True):
+def add_linear_colour_bar(
+        axes_object, values_to_colour, colour_map, colour_min, colour_max,
+        orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
+        extend_max=True):
     """Adds linear colour bar to existing plot.
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
