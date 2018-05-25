@@ -1,14 +1,5 @@
 """Runs the best-track algorithm with default parameters.
 
-Best-track corrects storm tracks produced by segmotion.
-
---- DEFINITIONS ---
-
-segmotion = a storm-tracking algorithm in WDSS-II (Lakshmanan and Smith 2010)
-
-WDSS-II = the Warning Decision Support System with Integrated Information
-(Lakshmanan et. al 2007)
-
 --- REFERENCES ---
 
 Lakshmanan, V., T. Smith, G. Stumpf, and K. Hondl, 2007: "The Warning Decision
@@ -30,86 +21,90 @@ from gewittergefahr.gg_utils import time_conversion
 # TODO(thunderhoser): All input args to `best_tracks.run_best_track` should also
 # be input args to this script.
 
-# TODO(thunderhoser): Add option to use best_tracks_smart_io.py for long time
-# periods.
-
+INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-DEFAULT_TRACKING_SCALE_METRES = int(4e7)
 
-FIRST_SPC_DATE_INPUT_ARG = 'first_spc_date_string'
-LAST_SPC_DATE_INPUT_ARG = 'last_spc_date_string'
-SEGMOTION_DIR_INPUT_ARG = 'input_segmotion_dir_name'
-BEST_TRACK_DIR_INPUT_ARG = 'output_best_track_dir_name'
-TRACKING_SCALE_INPUT_ARG = 'tracking_scale_metres2'
+START_TIME_ARG_NAME = 'start_time_string'
+END_TIME_ARG_NAME = 'end_time_string'
+INPUT_DIR_ARG_NAME = 'input_tracking_dir_name'
+DATA_SOURCE_ARG_NAME = 'data_source'
+OUTPUT_DIR_ARG_NAME = 'output_tracking_dir_name'
+TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
 
-SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Best-track will '
-    'be run for all dates from `{0:s}`...`{1:s}`.').format(
-        FIRST_SPC_DATE_INPUT_ARG, LAST_SPC_DATE_INPUT_ARG)
-SEGMOTION_DIR_HELP_STRING = (
-    'Name of top-level directory with segmotion tracks (which will be corrected'
-    ' by best-track).')
-BEST_TRACK_DIR_HELP_STRING = (
-    'Name of top-level directory for best-track results.')
+TIME_HELP_STRING = (
+    'Time in format "yyyy-mm-dd-HHMMSS".  Best-track will be run for all time '
+    'steps from `{0:s}`...`{1:s}`.'
+).format(START_TIME_ARG_NAME, END_TIME_ARG_NAME)
+INPUT_DIR_HELP_STRING = (
+    'Name of top-level directory with input tracks (files readable by '
+    '`storm_tracking_io.read_processed_file`), which will be corrected by '
+    'best-track.')
+DATA_SOURCE_HELP_STRING = (
+    'Data source (must be accepted by '
+    '`storm_tracking_utils.check_data_source`).')
+OUTPUT_DIR_HELP_STRING = (
+    'Name of top-level directory for output tracks (files to be written by '
+    '`storm_tracking_io.write_processed_file`), after best-track correction.')
 TRACKING_SCALE_HELP_STRING = (
-    'Tracking scale (minimum storm area) for segmotion.  Used only to find '
-    'input files.')
+    'Tracking scale (minimum storm area).  Used only to find input files.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
+    '--' + START_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
+    '--' + END_TIME_ARG_NAME, type=str, required=True, help=TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SEGMOTION_DIR_INPUT_ARG, type=str, required=True,
-    help=SEGMOTION_DIR_HELP_STRING)
+    '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
+    help=INPUT_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + BEST_TRACK_DIR_INPUT_ARG, type=str, required=True,
-    help=BEST_TRACK_DIR_HELP_STRING)
+    '--' + DATA_SOURCE_ARG_NAME, type=str, required=True,
+    help=DATA_SOURCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-    default=DEFAULT_TRACKING_SCALE_METRES, help=TRACKING_SCALE_HELP_STRING)
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + TRACKING_SCALE_ARG_NAME, type=int, required=True,
+    help=TRACKING_SCALE_HELP_STRING)
 
 
 def _create_best_tracks(
-        first_spc_date_string, last_spc_date_string, top_segmotion_dir_name,
-        top_best_track_dir_name, tracking_scale_metres2):
+        start_time_string, end_time_string, top_input_dir_name, data_source,
+        top_output_dir_name, tracking_scale_metres2):
     """Runs the best-track algorithm with default parameters.
 
-    :param first_spc_date_string: SPC (Storm Prediction Center) date in format
-        "yyyymmdd".  Best-track will be run for all dates from
-        `first_spc_date_string`...`last_spc_date_string`.
-    :param last_spc_date_string: See above.
-    :param top_segmotion_dir_name: [input] Name of top-level directory with
-        segmotion tracks (which will be corrected by best-track)
-    :param top_best_track_dir_name: [output] Name of top-level directory for
-        best-track results.
-    :param tracking_scale_metres2: Tracking scale (minimum storm area) for
-        segmotion.  Used only to find input files.
+    :param start_time_string: See documentation at top of file.
+    :param end_time_string: Same.
+    :param top_input_dir_name: Same.
+    :param data_source: Same.
+    :param top_output_dir_name: Same.
+    :param tracking_scale_metres2: Same.
     """
 
-    start_time_unix_sec = time_conversion.MIN_SECONDS_INTO_SPC_DATE + (
-        time_conversion.string_to_unix_sec(
-            first_spc_date_string, time_conversion.SPC_DATE_FORMAT))
-    end_time_unix_sec = time_conversion.MAX_SECONDS_INTO_SPC_DATE + (
-        time_conversion.string_to_unix_sec(
-            last_spc_date_string, time_conversion.SPC_DATE_FORMAT))
+    tracking_utils.check_data_source(data_source)
+
+    start_time_unix_sec = time_conversion.string_to_unix_sec(
+        start_time_string, INPUT_TIME_FORMAT)
+    end_time_unix_sec = time_conversion.string_to_unix_sec(
+        end_time_string, INPUT_TIME_FORMAT)
+
+    first_spc_date_string = time_conversion.time_to_spc_date_string(
+        start_time_unix_sec)
+    last_spc_date_string = time_conversion.time_to_spc_date_string(
+        end_time_unix_sec)
 
     file_dictionary = best_tracks_smart_io.find_files_for_smart_io(
         start_time_unix_sec=start_time_unix_sec,
         start_spc_date_string=first_spc_date_string,
         end_time_unix_sec=end_time_unix_sec,
-        end_spc_date_string=last_spc_date_string,
-        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+        end_spc_date_string=last_spc_date_string, data_source=data_source,
         tracking_scale_metres2=tracking_scale_metres2,
-        top_input_dir_name=top_segmotion_dir_name,
-        top_output_dir_name=top_best_track_dir_name)
+        top_input_dir_name=top_input_dir_name,
+        top_output_dir_name=top_output_dir_name)
 
     num_spc_dates = len(file_dictionary[best_tracks_smart_io.SPC_DATES_KEY])
     input_file_names = []
@@ -147,24 +142,28 @@ def add_input_arguments(argument_parser_object):
     """
 
     argument_parser_object.add_argument(
-        '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
-        help=SPC_DATE_HELP_STRING)
+        '--' + START_TIME_ARG_NAME, type=str, required=True,
+        help=TIME_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
-        help=SPC_DATE_HELP_STRING)
+        '--' + END_TIME_ARG_NAME, type=str, required=True,
+        help=TIME_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + SEGMOTION_DIR_INPUT_ARG, type=str, required=True,
-        help=SEGMOTION_DIR_HELP_STRING)
+        '--' + INPUT_DIR_ARG_NAME, type=str, required=True,
+        help=INPUT_DIR_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + BEST_TRACK_DIR_INPUT_ARG, type=str, required=True,
-        help=BEST_TRACK_DIR_HELP_STRING)
+        '--' + DATA_SOURCE_ARG_NAME, type=str, required=True,
+        help=DATA_SOURCE_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + TRACKING_SCALE_INPUT_ARG, type=int, required=False,
-        default=DEFAULT_TRACKING_SCALE_METRES, help=TRACKING_SCALE_HELP_STRING)
+        '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+        help=OUTPUT_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + TRACKING_SCALE_ARG_NAME, type=int, required=True,
+        help=TRACKING_SCALE_HELP_STRING)
 
     return argument_parser_object
 
@@ -172,17 +171,11 @@ def add_input_arguments(argument_parser_object):
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    FIRST_SPC_DATE_STRING = getattr(
-        INPUT_ARG_OBJECT, FIRST_SPC_DATE_INPUT_ARG)
-    LAST_SPC_DATE_STRING = getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_INPUT_ARG)
-    TOP_SEGMOTION_DIR_NAME = getattr(INPUT_ARG_OBJECT, SEGMOTION_DIR_INPUT_ARG)
-    TOP_BEST_TRACK_DIR_NAME = getattr(
-        INPUT_ARG_OBJECT, BEST_TRACK_DIR_INPUT_ARG)
-    TRACKING_SCALE_METRES2 = getattr(INPUT_ARG_OBJECT, TRACKING_SCALE_INPUT_ARG)
-
     _create_best_tracks(
-        first_spc_date_string=FIRST_SPC_DATE_STRING,
-        last_spc_date_string=LAST_SPC_DATE_STRING,
-        top_segmotion_dir_name=TOP_SEGMOTION_DIR_NAME,
-        top_best_track_dir_name=TOP_BEST_TRACK_DIR_NAME,
-        tracking_scale_metres2=TRACKING_SCALE_METRES2)
+        start_time_string=getattr(INPUT_ARG_OBJECT, START_TIME_ARG_NAME),
+        end_time_string=getattr(INPUT_ARG_OBJECT, END_TIME_ARG_NAME),
+        top_input_dir_name=getattr(INPUT_ARG_OBJECT, INPUT_DIR_ARG_NAME),
+        data_source=getattr(INPUT_ARG_OBJECT, DATA_SOURCE_ARG_NAME),
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
+        tracking_scale_metres2=getattr(
+            INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME))
