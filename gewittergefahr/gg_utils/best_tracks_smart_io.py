@@ -288,14 +288,14 @@ def find_files_for_smart_io(
     #     raise ValueError(
     #         'Start time (' + start_time_string + ') is not in first SPC date ('
     #         + start_spc_date_string + ').')
-
-    if not time_conversion.is_time_in_spc_date(
-            end_time_unix_sec, end_spc_date_string):
-        end_time_string = time_conversion.unix_sec_to_string(
-            end_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
-        raise ValueError(
-            'End time (' + end_time_string + ') is not in last SPC date (' +
-            end_spc_date_string + ').')
+    #
+    # if not time_conversion.is_time_in_spc_date(
+    #         end_time_unix_sec, end_spc_date_string):
+    #     end_time_string = time_conversion.unix_sec_to_string(
+    #         end_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
+    #     raise ValueError(
+    #         'End time (' + end_time_string + ') is not in last SPC date (' +
+    #         end_spc_date_string + ').')
 
     error_checking.assert_is_greater(
         end_time_unix_sec, start_time_unix_sec)
