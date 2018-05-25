@@ -108,6 +108,7 @@ def _create_best_tracks(
         tracking_scale_metres2=tracking_scale_metres2,
         top_input_dir_name=top_input_dir_name,
         top_output_dir_name=top_output_dir_name)
+    print file_dictionary
 
     best_tracks_smart_io.run_best_track(smart_file_dict=file_dictionary)
 
