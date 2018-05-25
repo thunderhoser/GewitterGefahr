@@ -445,6 +445,7 @@ def run_best_track(
                     storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                     spc_dates_unix_sec[k])[0]
 
+                print len(storm_object_table.index)
                 storm_object_table, storm_track_table = (
                     best_tracks.break_storm_tracks(
                         storm_object_table=storm_object_table,
@@ -456,6 +457,7 @@ def run_best_track(
                         max_prediction_error_for_breakup_metres,
                         use_extra_criteria=use_extra_breakup_criteria,
                         min_objects_in_track=min_objects_in_track))
+                print len(storm_object_table.index)
 
         for k in range(num_spc_dates):
             storm_object_table = _shuffle_data_with_smart_io(
