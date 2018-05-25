@@ -219,7 +219,8 @@ def _shuffle_io_for_renaming(
         date_needed_indices = numpy.array([-1], dtype=int)
     else:
         date_needed_indices = _get_dates_needed_for_renaming_storms(
-            working_date_index=working_date_index, num_dates_in_period=num_dates)
+            working_date_index=working_date_index,
+            num_dates_in_period=num_dates)
 
     for j in range(num_dates):
         if j in date_needed_indices and storm_object_table_by_date[j] is None:
@@ -229,7 +230,8 @@ def _shuffle_io_for_renaming(
             print SEPARATOR_STRING
 
             this_num_storm_objects = len(storm_object_table_by_date[j].index)
-            these_date_indices = numpy.full(this_num_storm_objects, j, dtype=int)
+            these_date_indices = numpy.full(
+                this_num_storm_objects, j, dtype=int)
             argument_dict = {DATE_INDEX_KEY: these_date_indices}
             storm_object_table_by_date[j] = storm_object_table_by_date[
                 j].assign(**argument_dict)
@@ -267,7 +269,8 @@ def _shuffle_io_for_renaming(
 
 
 def _rename_storms_one_table(
-        storm_object_table, next_id_number, max_dropout_time_seconds):
+        storm_object_table, next_id_number, max_dropout_time_seconds,
+        working_date_index):
     """Renames storms in one table.
 
     For more details on renaming storms, see the public method `rename_storms`.
@@ -276,12 +279,16 @@ def _rename_storms_one_table(
         `storm_tracking_io.write_processed_file`.
     :param next_id_number: Will start with this ID.
     :param max_dropout_time_seconds: See documentation for `rename_storms`.
+    :param working_date_index: Index of working date.
     :return: storm_object_table: Same as input, but maybe with new storm IDs.
     :return: next_id_number: Same as input, but maybe incremented.
     """
 
+    working_object_indices = numpy.where(
+        storm_object_table[DATE_INDEX_KEY].values == working_date_index)[0]
     storm_object_ids = storm_object_table[
-        tracking_utils.STORM_ID_COLUMN].values
+        tracking_utils.STORM_ID_COLUMN].values[working_object_indices]
+
     storm_cell_ids = numpy.unique(storm_object_ids).tolist()
     num_storm_cells = len(storm_cell_ids)
 
@@ -727,7 +734,8 @@ def rename_storms(
         concat_storm_object_table, next_id_number = _rename_storms_one_table(
             storm_object_table=concat_storm_object_table,
             next_id_number=next_id_number,
-            max_dropout_time_seconds=max_dropout_time_seconds)
+            max_dropout_time_seconds=max_dropout_time_seconds,
+            working_date_index=i)
 
         for j in date_needed_indices:
             storm_object_table_by_date[j] = concat_storm_object_table.loc[

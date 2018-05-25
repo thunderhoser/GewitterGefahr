@@ -47,6 +47,8 @@ STORM_OBJECT_IDS = [
 NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID = 9
 
 # The following constants are used to test _rename_storms_one_table.
+WORKING_DATE_INDEX_FOR_TABLE = 1
+
 THESE_STORM_IDS = [
     'a', 'b', 'c',
     'b', 'd',
@@ -54,12 +56,15 @@ THESE_STORM_IDS = [
     'a', 'b', 'c'
 ]
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 2, 2, 2, 3, 3, 3], dtype=int)
+THESE_DATE_INDICES = numpy.full(
+    THESE_TIMES_UNIX_SEC.shape, WORKING_DATE_INDEX_FOR_TABLE, dtype=int)
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
 }
-STORM_OBJECT_TABLE_ORIGINAL_IDS = pandas.DataFrame.from_dict(THIS_DICT)
+STORM_OBJECT_TABLE_ORIG_IDS_1DAY = pandas.DataFrame.from_dict(THIS_DICT)
 
 THESE_STORM_IDS = [
     '5_probSevere', '6_probSevere', '7_probSevere',
@@ -67,13 +72,39 @@ THESE_STORM_IDS = [
     '5_probSevere', '6_probSevere', '9_probSevere',
     '5_probSevere', '6_probSevere', '8_probSevere'
 ]
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
+}
+STORM_OBJECT_TABLE_NEW_IDS_1DAY = pandas.DataFrame.from_dict(THIS_DICT)
+NEXT_ID_NUMBER_AFTER_1DAY = 10
+
+THESE_STORM_IDS = ['a', 'b', 'c',
+                   'a', 'b', 'c',
+                   'a', 'c', 'd']
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 1, 2, 2, 2], dtype=int)
+THESE_DATE_INDICES = numpy.array([0, 0, 0, 0, 0, 0, 1, 1, 1], dtype=int)
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
 }
-STORM_OBJECT_TABLE_NEW_IDS = pandas.DataFrame.from_dict(THIS_DICT)
-NEXT_ID_NUMBER_AFTER_ONE_TABLE = 10
+STORM_OBJECT_TABLE_ORIG_IDS_2DAYS = pandas.DataFrame.from_dict(THIS_DICT)
+
+THESE_STORM_IDS = [
+    '5_probSevere', 'b', '6_probSevere',
+    '5_probSevere', 'b', '6_probSevere',
+    '5_probSevere', '6_probSevere', '7_probSevere'
+]
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    probsevere_io.DATE_INDEX_KEY: THESE_DATE_INDICES
+}
+STORM_OBJECT_TABLE_NEW_IDS_2DAYS = pandas.DataFrame.from_dict(THIS_DICT)
+NEXT_ID_NUMBER_AFTER_2DAYS = 8
 
 
 class ProbsevereIoTests(unittest.TestCase):
@@ -226,16 +257,37 @@ class ProbsevereIoTests(unittest.TestCase):
         self.assertTrue(these_object_ids == STORM_OBJECT_IDS)
         self.assertTrue(this_id_number == NEXT_ID_NUMBER_AFTER_ONE_ORIG_ID)
 
-    def test_rename_storms_one_table(self):
-        """Ensures correct output from _rename_storms_one_table."""
+    def test_rename_storms_one_table_1day(self):
+        """Ensures correct output from _rename_storms_one_table.
 
-        this_input_table = copy.deepcopy(STORM_OBJECT_TABLE_ORIGINAL_IDS)
+        In this case, the input table contains data from one day.
+        """
+
+        this_input_table = copy.deepcopy(STORM_OBJECT_TABLE_ORIG_IDS_1DAY)
         this_new_table, this_id_number = probsevere_io._rename_storms_one_table(
             storm_object_table=this_input_table, next_id_number=NEXT_ID_NUMBER,
-            max_dropout_time_seconds=MAX_DROPOUT_TIME_SECONDS)
+            max_dropout_time_seconds=MAX_DROPOUT_TIME_SECONDS,
+            working_date_index=WORKING_DATE_INDEX_FOR_TABLE)
 
-        self.assertTrue(this_new_table.equals(STORM_OBJECT_TABLE_NEW_IDS))
-        self.assertTrue(this_id_number == NEXT_ID_NUMBER_AFTER_ONE_TABLE)
+        self.assertTrue(this_new_table.equals(STORM_OBJECT_TABLE_NEW_IDS_1DAY))
+        self.assertTrue(this_id_number == NEXT_ID_NUMBER_AFTER_1DAY)
+
+    def test_rename_storms_one_table_2days(self):
+        """Ensures correct output from _rename_storms_one_table.
+
+        In this case, the input table contains data from two days.
+        """
+
+        this_input_table = copy.deepcopy(STORM_OBJECT_TABLE_ORIG_IDS_2DAYS)
+        this_new_table, this_id_number = probsevere_io._rename_storms_one_table(
+            storm_object_table=this_input_table, next_id_number=NEXT_ID_NUMBER,
+            max_dropout_time_seconds=MAX_DROPOUT_TIME_SECONDS,
+            working_date_index=WORKING_DATE_INDEX_FOR_TABLE)
+
+        self.assertTrue(
+            this_new_table.equals(STORM_OBJECT_TABLE_NEW_IDS_2DAYS))
+        self.assertTrue(
+            this_id_number == NEXT_ID_NUMBER_AFTER_2DAYS)
 
 
 if __name__ == '__main__':
