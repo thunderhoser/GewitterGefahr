@@ -689,20 +689,14 @@ def _local_maxima_to_storm_tracks(local_max_dict_by_time):
     return pandas.DataFrame.from_dict(storm_object_dict)
 
 
-def _remove_short_tracks(
-        storm_object_table, min_duration_seconds):
+def _remove_short_tracks(storm_object_table, min_duration_seconds):
     """Removes short-lived storm tracks.
 
     :param storm_object_table: pandas DataFrame created by
         _local_maxima_to_storm_tracks.
     :param min_duration_seconds: Minimum storm duration.  Any track with
         duration < `min_duration_seconds` will be dropped.
-    :return storm_object_table: Same as input, except [1] maybe with fewer rows
-        and [2] with the following additional columns.
-    storm_object_table.cell_start_time_unix_sec: Start time of storm cell (first
-        time in track).
-    storm_object_table.cell_end_time_unix_sec: End time of storm cell (last time
-        in track).
+    :return storm_object_table: Same as input, except maybe with fewer rows.
     """
 
     storm_id_by_object = numpy.array(
@@ -710,22 +704,13 @@ def _remove_short_tracks(
     storm_id_by_cell, orig_to_unique_indices = numpy.unique(
         storm_id_by_object, return_inverse=True)
 
-    num_storm_objects = len(storm_id_by_object)
     num_storm_cells = len(storm_id_by_cell)
-
-    start_time_by_object_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
-    end_time_by_object_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
     object_indices_to_remove = numpy.array([], dtype=int)
 
     for i in range(num_storm_cells):
         these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
         these_times_unix_sec = storm_object_table[
             tracking_utils.TIME_COLUMN].values[these_object_indices]
-
-        start_time_by_object_unix_sec[these_object_indices] = numpy.min(
-            these_times_unix_sec)
-        end_time_by_object_unix_sec[these_object_indices] = numpy.max(
-            these_times_unix_sec)
 
         this_duration_seconds = (
             numpy.max(these_times_unix_sec) - numpy.min(these_times_unix_sec))
@@ -734,12 +719,6 @@ def _remove_short_tracks(
 
         object_indices_to_remove = numpy.concatenate((
             object_indices_to_remove, these_object_indices))
-
-    argument_dict = {
-        tracking_utils.CELL_START_TIME_COLUMN: start_time_by_object_unix_sec,
-        tracking_utils.CELL_END_TIME_COLUMN: end_time_by_object_unix_sec
-    }
-    storm_object_table = storm_object_table.assign(**argument_dict)
 
     return storm_object_table.drop(
         storm_object_table.index[object_indices_to_remove], axis=0,

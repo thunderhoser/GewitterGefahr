@@ -202,14 +202,6 @@ STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(STORM_OBJECT_DICT)
 SMALL_THRESHOLD_DURATION_SEC = 100
 LARGE_THRESHOLD_DURATION_SEC = 1000
 
-THIS_DICT = {
-    tracking_utils.CELL_START_TIME_COLUMN:
-        numpy.full(4, PREVIOUS_TIME_UNIX_SEC, dtype=int),
-    tracking_utils.CELL_END_TIME_COLUMN:
-        numpy.full(4, CURRENT_TIME_UNIX_SEC, dtype=int)
-}
-STORM_OBJECT_TABLE_WITH_CELL_INFO = STORM_OBJECT_TABLE.assign(**THIS_DICT)
-
 # The following constants are used to test _get_velocities_one_storm_track.
 CENTROID_LATS_FOR_VELOCITY_DEG = numpy.array([40., 40., 41., 41., 40., 40.])
 CENTROID_LNGS_FOR_VELOCITY_DEG = numpy.array(
@@ -606,8 +598,7 @@ class EchoTopTrackingTests(unittest.TestCase):
             this_storm_object_table,
             min_duration_seconds=SMALL_THRESHOLD_DURATION_SEC)
 
-        self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_WITH_CELL_INFO))
+        self.assertTrue(this_storm_object_table.equals(STORM_OBJECT_TABLE))
 
     def test_remove_short_tracks_long_threshold(self):
         """Ensures correct output from _remove_short_tracks.

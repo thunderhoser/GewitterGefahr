@@ -80,6 +80,7 @@ OUTPUT_COLUMNS_FROM_BEST_TRACK = [
     tracking_utils.TIME_COLUMN, tracking_utils.AGE_COLUMN,
     tracking_utils.TRACKING_START_TIME_COLUMN,
     tracking_utils.TRACKING_END_TIME_COLUMN,
+    tracking_utils.CELL_START_TIME_COLUMN, tracking_utils.CELL_END_TIME_COLUMN,
     tracking_utils.GRID_POINT_LAT_COLUMN, tracking_utils.GRID_POINT_LNG_COLUMN,
     tracking_utils.GRID_POINT_ROW_COLUMN,
     tracking_utils.GRID_POINT_COLUMN_COLUMN]
@@ -1170,8 +1171,8 @@ def remove_short_tracks(
 
 
 def recompute_attributes(
-        storm_object_table, best_track_start_time_unix_sec=None,
-        best_track_end_time_unix_sec=None):
+        storm_object_table, best_track_start_time_unix_sec,
+        best_track_end_time_unix_sec):
     """Recomputes the following storm attributes, using new tracks.
 
     - age of storm track
@@ -1190,6 +1191,10 @@ def recompute_attributes(
     storm_object_table.age_sec: Age of storm cell.
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
+    storm_object_table.cell_start_time_unix_sec: Start time of storm cell (first
+        time in track).
+    storm_object_table.cell_end_time_unix_sec: End time of storm cell (last time
+        in track).
     """
 
     # TODO(thunderhoser): This method should be moved, since it is now being
@@ -1207,6 +1212,8 @@ def recompute_attributes(
         num_storm_objects, best_track_end_time_unix_sec, dtype=int)
     track_ages_sec = numpy.full(
         num_storm_objects, EMPTY_TRACK_AGE_SEC, dtype=int)
+    cell_start_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
+    cell_end_times_unix_sec = numpy.full(num_storm_objects, -1, dtype=int)
 
     storm_id_by_object = numpy.asarray(
         storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
@@ -1218,6 +1225,13 @@ def recompute_attributes(
         this_start_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.TIME_COLUMN].values[
                 these_object_indices])
+        this_end_time_unix_sec = numpy.max(
+            storm_object_table[tracking_utils.TIME_COLUMN].values[
+                these_object_indices])
+
+        cell_start_times_unix_sec[
+            these_object_indices] = this_start_time_unix_sec
+        cell_end_times_unix_sec[these_object_indices] = this_end_time_unix_sec
         if this_start_time_unix_sec == best_track_start_time_unix_sec:
             continue
 
@@ -1229,7 +1243,9 @@ def recompute_attributes(
         tracking_utils.TRACKING_START_TIME_COLUMN:
             tracking_start_times_unix_sec,
         tracking_utils.TRACKING_END_TIME_COLUMN: tracking_end_times_unix_sec,
-        tracking_utils.AGE_COLUMN: track_ages_sec
+        tracking_utils.AGE_COLUMN: track_ages_sec,
+        tracking_utils.CELL_START_TIME_COLUMN: cell_start_times_unix_sec,
+        tracking_utils.CELL_END_TIME_COLUMN: cell_end_times_unix_sec
     }
     return storm_object_table.assign(**argument_dict)
 
@@ -1422,6 +1438,10 @@ def write_output_storm_objects(
     storm_object_table.age_sec: Age of storm cell (seconds).
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
+    storm_object_table.cell_start_time_unix_sec: Start time of storm cell (first
+        time in track).
+    storm_object_table.cell_end_time_unix_sec: End time of storm cell (last time
+        in track).
     storm_object_table.grid_point_latitudes_deg: length-P numpy array with
         latitudes (deg N) of grid points in storm object.
     storm_object_table.grid_point_longitudes_deg: length-P numpy array with

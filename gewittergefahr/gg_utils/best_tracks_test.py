@@ -253,13 +253,15 @@ STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3 = MAIN_STORM_OBJECT_TABLE.drop(
 # The following constants are used to test recompute_attributes.
 BEST_TRACK_START_TIME_UNIX_SEC = 0
 BEST_TRACK_END_TIME_UNIX_SEC = 600
+
 TRACKING_START_TIME_BY_OBJECT_UNIX_SEC = numpy.full(10, 0, dtype=int)
 TRACKING_END_TIME_BY_OBJECT_UNIX_SEC = numpy.full(10, 600, dtype=int)
-EMPTY_TRACK_AGE_SEC = best_tracks.EMPTY_TRACK_AGE_SEC
 TRACK_AGE_BY_OBJECT_SEC = numpy.array(
-    [EMPTY_TRACK_AGE_SEC, EMPTY_TRACK_AGE_SEC, EMPTY_TRACK_AGE_SEC,
-     EMPTY_TRACK_AGE_SEC, EMPTY_TRACK_AGE_SEC, 0, 0, EMPTY_TRACK_AGE_SEC,
-     300, 300])
+    [-1, -1, -1, -1, -1, 0, 0, -1, 300, 300], dtype=int)
+CELL_START_TIME_BY_OBJECT_UNIX_SEC = numpy.array(
+    [0, 0, 0, 0, 0, 300, 300, 0, 300, 300], dtype=int)
+CELL_END_TIME_BY_OBJECT_UNIX_SEC = numpy.array(
+    [600, 300, 0, 600, 300, 600, 600, 600, 600, 600], dtype=int)
 
 
 class BestTracksTests(unittest.TestCase):
@@ -607,6 +609,13 @@ class BestTracksTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.AGE_COLUMN].values,
             TRACK_AGE_BY_OBJECT_SEC))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[
+                tracking_utils.CELL_START_TIME_COLUMN].values,
+            CELL_START_TIME_BY_OBJECT_UNIX_SEC))
+        self.assertTrue(numpy.array_equal(
+            this_storm_object_table[tracking_utils.CELL_END_TIME_COLUMN].values,
+            CELL_END_TIME_BY_OBJECT_UNIX_SEC))
 
 
 if __name__ == '__main__':
