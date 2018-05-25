@@ -22,7 +22,6 @@ from gewittergefahr.gg_utils import time_conversion
 # be input args to this script.
 
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 START_TIME_ARG_NAME = 'start_time_string'
 END_TIME_ARG_NAME = 'end_time_string'
@@ -106,30 +105,7 @@ def _create_best_tracks(
         top_input_dir_name=top_input_dir_name,
         top_output_dir_name=top_output_dir_name)
 
-    num_spc_dates = len(file_dictionary[best_tracks_smart_io.SPC_DATES_KEY])
-    input_file_names = []
-    output_file_names = []
-
-    for i in range(num_spc_dates):
-        input_file_names += file_dictionary[
-            best_tracks_smart_io.INPUT_FILE_NAMES_KEY][i]
-        output_file_names += file_dictionary[
-            best_tracks_smart_io.OUTPUT_FILE_NAMES_KEY][i]
-
-    temp_file_names = file_dictionary[best_tracks_smart_io.TEMP_FILE_NAMES_KEY]
-    for this_temp_file_name in temp_file_names:
-        os.remove(this_temp_file_name)
-
-    storm_object_table = best_tracks.read_input_storm_objects(input_file_names)
-    print SEPARATOR_STRING
-
-    storm_object_table = best_tracks.run_best_track(
-        storm_object_table=storm_object_table)
-    print SEPARATOR_STRING
-
-    best_tracks.write_output_storm_objects(
-        storm_object_table, input_file_names=input_file_names,
-        output_file_names=output_file_names)
+    best_tracks_smart_io.run_best_track(smart_file_dict=file_dictionary)
 
 
 def add_input_arguments(argument_parser_object):
