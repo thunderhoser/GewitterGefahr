@@ -89,16 +89,22 @@ def _create_best_tracks(
     end_time_unix_sec = time_conversion.string_to_unix_sec(
         end_time_string, INPUT_TIME_FORMAT)
 
-    first_spc_date_string = time_conversion.time_to_spc_date_string(
-        start_time_unix_sec)
-    last_spc_date_string = time_conversion.time_to_spc_date_string(
-        end_time_unix_sec)
+    if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
+        first_date_string = time_conversion.time_to_spc_date_string(
+            start_time_unix_sec)
+        last_date_string = time_conversion.time_to_spc_date_string(
+            end_time_unix_sec)
+    else:
+        first_date_string = time_conversion.unix_sec_to_string(
+            start_time_unix_sec, time_conversion.SPC_DATE_FORMAT)
+        last_date_string = time_conversion.unix_sec_to_string(
+            end_time_unix_sec, time_conversion.SPC_DATE_FORMAT)
 
     file_dictionary = best_tracks_smart_io.find_files_for_smart_io(
         start_time_unix_sec=start_time_unix_sec,
-        start_spc_date_string=first_spc_date_string,
+        start_spc_date_string=first_date_string,
         end_time_unix_sec=end_time_unix_sec,
-        end_spc_date_string=last_spc_date_string, data_source=data_source,
+        end_spc_date_string=last_date_string, data_source=data_source,
         tracking_scale_metres2=tracking_scale_metres2,
         top_input_dir_name=top_input_dir_name,
         top_output_dir_name=top_output_dir_name)
