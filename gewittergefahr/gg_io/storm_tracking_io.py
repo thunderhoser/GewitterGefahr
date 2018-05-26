@@ -234,6 +234,9 @@ def write_csv_file_for_amy(storm_object_table, csv_file_name):
     :param csv_file_name: Path to output file.
     """
 
+    storm_object_table = storm_object_table.loc[
+        storm_object_table[tracking_utils.AGE_COLUMN] != -1]
+
     valid_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
         t in storm_object_table[tracking_utils.TIME_COLUMN].values]
