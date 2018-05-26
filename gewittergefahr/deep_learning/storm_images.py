@@ -528,12 +528,12 @@ def _filter_storm_objects_by_label(
     for this_class_integer in num_storm_objects_class_dict.keys():
         this_num_storm_objects = num_storm_objects_class_dict[
             this_class_integer]
-        if this_num_storm_objects == 0:
-            continue
 
         these_indices = numpy.where(label_values == this_class_integer)[0]
         this_num_storm_objects = min(
             [this_num_storm_objects, len(these_indices)])
+        if this_num_storm_objects == 0:
+            continue
 
         if test_mode:
             these_indices = these_indices[:this_num_storm_objects]
