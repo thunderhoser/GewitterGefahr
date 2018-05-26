@@ -280,7 +280,6 @@ def write_csv_file_for_amy(storm_object_table, csv_file_name):
         tracking_utils.STORM_ID_COLUMN: STORM_ID_COLUMN_IN_AMY_FILES
     }
     storm_object_table.rename(columns=column_dict_old_to_new, inplace=True)
-    print storm_object_table
 
     storm_object_table.to_csv(
         csv_file_name, header=True, columns=COLUMNS_FOR_AMY, index=False)

@@ -53,7 +53,6 @@ def _read_intermediate_results(temp_file_name):
 
     pickle_file_handle = open(temp_file_name, 'rb')
     storm_object_table = pickle.load(pickle_file_handle)
-    print storm_object_table
     pickle_file_handle.close()
 
     error_checking.assert_columns_in_dataframe(
