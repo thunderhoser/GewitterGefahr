@@ -194,7 +194,7 @@ def get_mnist_architecture(num_classes, num_input_channels=3):
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -307,7 +307,7 @@ def get_2d_swirlnet_architecture(
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -422,7 +422,7 @@ def get_3d_swirlnet_architecture(
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -645,7 +645,7 @@ def get_architecture_for_2d3d_myrorss(
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adadelta(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
