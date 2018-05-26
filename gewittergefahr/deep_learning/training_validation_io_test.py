@@ -164,15 +164,77 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(this_dict == INF_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
 
-    def test_get_num_examples_remaining_by_tor_downsampling(self):
+    def test_get_num_examples_remaining_by_tor_need_times_and_examples(self):
         """Ensures correct output from _get_num_examples_remaining_by_class.
 
-        In this case, target variable = tornado occurrence.
+        Target variable = tornado occurrence.  No downsampling, because there
+        are not yet enough file times or examples in memory.
         """
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+
+    def test_get_num_examples_remaining_by_tor_need_times(self):
+        """Ensures correct output from _get_num_examples_remaining_by_class.
+
+        Target variable = tornado occurrence.  No downsampling, because there
+        are not yet enough file times in memory.
+        """
+
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+
+    def test_get_num_examples_remaining_by_tor_need_examples(self):
+        """Ensures correct output from _get_num_examples_remaining_by_class.
+
+        Target variable = tornado occurrence.  No downsampling, because there
+        are not yet enough examples in memory.
+        """
+
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+
+    def test_get_num_examples_remaining_by_tor_downsampling(self):
+        """Ensures correct output from _get_num_examples_remaining_by_class.
+
+        Target variable = tornado occurrence.  Will downsample, because there
+        are already enough file times and examples in memory.
+        """
+
+        this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
+            num_examples_per_batch_class_dict=
+            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
 
@@ -181,12 +243,17 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_get_num_examples_remaining_by_wind_downsampling(self):
         """Ensures correct output from _get_num_examples_remaining_by_class.
 
-        In this case, target variable = wind class.
+        Target variable = wind class.  Will downsample, because there are
+        already enough file times and examples in memory.
         """
 
         this_dict = trainval_io._get_num_examples_remaining_by_class(
+            num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
+            num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
             num_examples_per_batch_class_dict=
             NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
+            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
             num_examples_in_memory_class_dict=
             NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT)
 

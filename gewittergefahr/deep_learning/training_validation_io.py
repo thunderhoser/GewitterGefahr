@@ -145,17 +145,31 @@ def _get_num_examples_per_batch_by_class(
 
 
 def _get_num_examples_remaining_by_class(
-        num_examples_per_batch_class_dict, num_examples_in_memory_class_dict):
+        num_examples_per_batch, num_file_times_per_batch,
+        num_examples_per_batch_class_dict, num_examples_in_memory,
+        num_init_times_in_memory, num_examples_in_memory_class_dict):
     """Returns number of examples still needed for each class.
 
+    :param num_examples_per_batch: Number of examples needed per batch.
+    :param num_file_times_per_batch: Number of file times needed per batch.
     :param num_examples_per_batch_class_dict: Dictionary created by
         `_get_num_examples_per_batch_by_class`.
+    :param num_examples_in_memory: Number of examples currently in memory.
+    :param num_init_times_in_memory: Number of initial times currently in
+        memory.
     :param num_examples_in_memory_class_dict: Dictionary created by
         `_determine_stopping_criterion`.
     :return: num_examples_remaining_class_dict: Dictionary, where each key is a
         class integer (-2 for dead storms) and each value is the corresponding
         number of examples still needed.
     """
+
+    downsample = (
+        num_init_times_in_memory >= num_file_times_per_batch and
+        num_examples_in_memory >= num_examples_per_batch)
+
+    if not downsample:
+        return copy.deepcopy(num_examples_per_batch_class_dict)
 
     num_examples_remaining_class_dict = {}
     for this_key in num_examples_per_batch_class_dict.keys():
@@ -725,10 +739,19 @@ def storm_image_generator_2d(
             print 'Reading data from: "{0:s}"...'.format(
                 image_file_name_matrix[init_time_index, 0])
 
+            if all_target_values is None:
+                num_examples_in_memory = 0
+            else:
+                num_examples_in_memory = len(all_target_values)
+
             num_examples_remaining_class_dict = (
                 _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=num_init_times_in_memory,
                     num_examples_in_memory_class_dict=
                     num_examples_in_memory_class_dict))
 
@@ -965,10 +988,19 @@ def storm_image_generator_2d3d_myrorss(
             print 'Reading data from: "{0:s}"...'.format(
                 reflectivity_file_name_matrix[init_time_index, 0])
 
+            if all_target_values is None:
+                num_examples_in_memory = 0
+            else:
+                num_examples_in_memory = len(all_target_values)
+
             num_examples_remaining_class_dict = (
                 _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=num_init_times_in_memory,
                     num_examples_in_memory_class_dict=
                     num_examples_in_memory_class_dict))
 
@@ -1214,17 +1246,21 @@ def storm_image_generator_3d(
             print 'Reading data from: "{0:s}"...'.format(
                 image_file_name_matrix[init_time_index, 0, 0])
 
+            if full_image_matrix is None:
+                num_examples_in_memory = 0
+            else:
+                num_examples_in_memory = full_image_matrix.shape[0]
+
             num_examples_remaining_class_dict = (
                 _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_file_times_per_batch=num_file_times_per_batch,
                     num_examples_per_batch_class_dict=
                     num_examples_per_batch_class_dict,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=num_init_times_in_memory,
                     num_examples_in_memory_class_dict=
                     num_examples_in_memory_class_dict))
-
-            print num_examples_per_batch_class_dict
-            print num_examples_in_memory_class_dict
-            print num_examples_remaining_class_dict
-            print '\n\n'
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0, 0],
