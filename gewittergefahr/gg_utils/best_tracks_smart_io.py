@@ -316,7 +316,10 @@ def find_files_for_smart_io(
     output_file_names_by_spc_date = [['']] * num_spc_dates
 
     for i in range(num_spc_dates):
-        temp_file_names[i] = tempfile.NamedTemporaryFile(delete=False).name
+
+        # TODO(thunderhoser): Allow temp directory to be changed.
+        temp_file_names[i] = tempfile.NamedTemporaryFile(
+            dir='/scratch/ralager', delete=False).name
 
         # spc_dates_unix_sec[i] = time_conversion.time_to_spc_date_unix_sec(
         #     spc_dates_unix_sec[i])
