@@ -1691,10 +1691,13 @@ def run_tracking(
     storm_object_table = _remove_short_tracks(
         storm_object_table, min_duration_seconds=min_track_duration_seconds)
 
-    print 'Computing storm age for each storm object...'
-    storm_object_table = best_tracks.recompute_attributes(
-        storm_object_table, best_track_start_time_unix_sec=unix_times_sec[0],
-        best_track_end_time_unix_sec=unix_times_sec[-1])
+    print 'Computing storm ages...'
+    storm_object_table = best_tracks.get_storm_ages(
+        storm_object_table=storm_object_table,
+        best_track_start_time_unix_sec=unix_times_sec[0],
+        best_track_end_time_unix_sec=unix_times_sec[-1],
+        max_extrap_time_for_breakup_sec=max_link_time_seconds,
+        max_join_time_sec=max_link_time_seconds)
 
     print 'Computing velocity for each storm object...\n'
     storm_object_table = _get_storm_velocities(
@@ -1803,11 +1806,13 @@ def join_tracks_across_spc_dates(
         storm_object_table = _remove_short_tracks(
             storm_object_table, min_duration_seconds=min_track_duration_seconds)
 
-        print 'Recomputing storm age for each storm object...'
-        storm_object_table = best_tracks.recompute_attributes(
-            storm_object_table,
+        print 'Recomputing storm ages...'
+        storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=storm_object_table,
             best_track_start_time_unix_sec=tracking_start_time_unix_sec,
-            best_track_end_time_unix_sec=tracking_end_time_unix_sec)
+            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
+            max_extrap_time_for_breakup_sec=max_link_time_seconds,
+            max_join_time_sec=max_reanal_join_time_sec)
 
         print 'Recomputing velocity for each storm object...'
         storm_object_table = _get_storm_velocities(
@@ -1930,11 +1935,13 @@ def join_tracks_across_spc_dates(
             concat_storm_object_table,
             min_duration_seconds=min_track_duration_seconds)
 
-        print 'Recomputing storm age for each storm object...'
-        concat_storm_object_table = best_tracks.recompute_attributes(
-            concat_storm_object_table,
+        print 'Recomputing storm ages...'
+        concat_storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=concat_storm_object_table,
             best_track_start_time_unix_sec=tracking_start_time_unix_sec,
-            best_track_end_time_unix_sec=tracking_end_time_unix_sec)
+            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
+            max_extrap_time_for_breakup_sec=max_link_time_seconds,
+            max_join_time_sec=max_reanal_join_time_sec)
 
         print 'Recomputing velocity for each storm object...'
         concat_storm_object_table = _get_storm_velocities(

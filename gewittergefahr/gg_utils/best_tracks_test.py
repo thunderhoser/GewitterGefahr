@@ -250,18 +250,57 @@ STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3 = MAIN_STORM_OBJECT_TABLE.drop(
     MAIN_STORM_OBJECT_TABLE.index[ROWS_WITH_TRACK_LENGTH_LESS_THAN3], axis=0,
     inplace=False)
 
-# The following constants are used to test recompute_attributes.
+# The following constants are used to test get_storm_ages.
+THESE_STORM_IDS = [
+    'a', 'b', 'c',
+    'd', 'b', 'a', best_tracks.EMPTY_STORM_ID,
+    best_tracks.EMPTY_STORM_ID, 'a'
+]
+THESE_TIMES_UNIX_SEC = numpy.array(
+    [0, 0, 0,
+     300, 300, 300, 300,
+     600, 600], dtype=int)
+
 BEST_TRACK_START_TIME_UNIX_SEC = 0
 BEST_TRACK_END_TIME_UNIX_SEC = 600
+MAX_EXTRAP_TIME_LARGE_SECONDS = 200
+MAX_EXTRAP_TIME_SMALL_SECONDS = 1
+MAX_JOIN_TIME_LARGE_SECONDS = 301
+MAX_JOIN_TIME_SMALL_SECONDS = 1
 
-TRACKING_START_TIME_BY_OBJECT_UNIX_SEC = numpy.full(10, 0, dtype=int)
-TRACKING_END_TIME_BY_OBJECT_UNIX_SEC = numpy.full(10, 600, dtype=int)
-TRACK_AGE_BY_OBJECT_SEC = numpy.array(
-    [-1, -1, -1, -1, -1, 0, 0, -1, 300, 300], dtype=int)
-CELL_START_TIME_BY_OBJECT_UNIX_SEC = numpy.array(
-    [0, 0, 0, 0, 0, 300, 300, 0, 300, 300], dtype=int)
-CELL_END_TIME_BY_OBJECT_UNIX_SEC = numpy.array(
-    [600, 300, 0, 600, 300, 600, 600, 600, 600, 600], dtype=int)
+THESE_TRACKING_START_TIMES_UNIX_SEC = numpy.full(9, 0, dtype=int)
+THESE_TRACKING_END_TIMES_UNIX_SEC = numpy.full(9, 600, dtype=int)
+THESE_AGES_SECONDS = numpy.array(
+    [-1, -1, -1, 0, -1, -1, -1, -1, -1], dtype=int)
+THESE_CELL_START_TIMES_UNIX_SEC = numpy.array(
+    [0, 0, 0, 300, 0, 0, 300, 300, 0], dtype=int)
+THESE_CELL_END_TIMES_UNIX_SEC = numpy.array(
+    [600, 300, 0, 300, 300, 600, 600, 600, 600], dtype=int)
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC
+}
+STORM_OBJECT_TABLE_NO_AGES = pandas.DataFrame.from_dict(THIS_DICT)
+
+THIS_DICT = {
+    tracking_utils.TRACKING_START_TIME_COLUMN:
+        THESE_TRACKING_START_TIMES_UNIX_SEC,
+    tracking_utils.TRACKING_END_TIME_COLUMN: THESE_TRACKING_END_TIMES_UNIX_SEC,
+    tracking_utils.AGE_COLUMN: THESE_AGES_SECONDS,
+    tracking_utils.CELL_START_TIME_COLUMN: THESE_CELL_START_TIMES_UNIX_SEC,
+    tracking_utils.CELL_END_TIME_COLUMN: THESE_CELL_END_TIMES_UNIX_SEC
+}
+STORM_OBJECT_TABLE_SOME_VALID_AGES = copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES)
+STORM_OBJECT_TABLE_SOME_VALID_AGES = STORM_OBJECT_TABLE_SOME_VALID_AGES.assign(
+    **THIS_DICT)
+
+THESE_AGES_SECONDS[:] = -1
+THIS_DICT = {tracking_utils.AGE_COLUMN: THESE_AGES_SECONDS}
+STORM_OBJECT_TABLE_INVALID_AGES = copy.deepcopy(
+    STORM_OBJECT_TABLE_SOME_VALID_AGES)
+STORM_OBJECT_TABLE_INVALID_AGES = (
+    STORM_OBJECT_TABLE_INVALID_AGES.assign(**THIS_DICT))
 
 
 class BestTracksTests(unittest.TestCase):
@@ -590,32 +629,41 @@ class BestTracksTests(unittest.TestCase):
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3[
                 tracking_utils.TIME_COLUMN].values))
 
-    def test_recompute_attributes(self):
-        """Ensures correct output from recompute_attributes."""
+    def test_get_storm_ages_invalid(self):
+        """Ensures correct output from get_storm_ages.
 
-        this_storm_object_table = best_tracks.recompute_attributes(
-            MAIN_STORM_OBJECT_TABLE,
+        In this case all storm ages are invalid ("-1 seconds"), because all
+        storms either start near the beginning of the tracking period or end
+        near the end of the tracking period.
+        """
+
+        input_table = copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES)
+        this_storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=input_table,
             best_track_start_time_unix_sec=BEST_TRACK_START_TIME_UNIX_SEC,
-            best_track_end_time_unix_sec=BEST_TRACK_END_TIME_UNIX_SEC)
+            best_track_end_time_unix_sec=BEST_TRACK_END_TIME_UNIX_SEC,
+            max_extrap_time_for_breakup_sec=MAX_EXTRAP_TIME_LARGE_SECONDS,
+            max_join_time_sec=MAX_JOIN_TIME_LARGE_SECONDS)
 
-        self.assertTrue(numpy.array_equal(
-            this_storm_object_table[
-                tracking_utils.TRACKING_START_TIME_COLUMN].values,
-            TRACKING_START_TIME_BY_OBJECT_UNIX_SEC))
-        self.assertTrue(numpy.array_equal(
-            this_storm_object_table[
-                tracking_utils.TRACKING_END_TIME_COLUMN].values,
-            TRACKING_END_TIME_BY_OBJECT_UNIX_SEC))
-        self.assertTrue(numpy.array_equal(
-            this_storm_object_table[tracking_utils.AGE_COLUMN].values,
-            TRACK_AGE_BY_OBJECT_SEC))
-        self.assertTrue(numpy.array_equal(
-            this_storm_object_table[
-                tracking_utils.CELL_START_TIME_COLUMN].values,
-            CELL_START_TIME_BY_OBJECT_UNIX_SEC))
-        self.assertTrue(numpy.array_equal(
-            this_storm_object_table[tracking_utils.CELL_END_TIME_COLUMN].values,
-            CELL_END_TIME_BY_OBJECT_UNIX_SEC))
+        self.assertTrue(
+            this_storm_object_table.equals(STORM_OBJECT_TABLE_INVALID_AGES))
+
+    def test_get_storm_ages_some_valid(self):
+        """Ensures correct output from get_storm_ages.
+
+        In this case some storm ages are valid (not "-1 seconds").
+        """
+
+        input_table = copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES)
+        this_storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=input_table,
+            best_track_start_time_unix_sec=BEST_TRACK_START_TIME_UNIX_SEC,
+            best_track_end_time_unix_sec=BEST_TRACK_END_TIME_UNIX_SEC,
+            max_extrap_time_for_breakup_sec=MAX_EXTRAP_TIME_SMALL_SECONDS,
+            max_join_time_sec=MAX_JOIN_TIME_SMALL_SECONDS)
+
+        self.assertTrue(
+            this_storm_object_table.equals(STORM_OBJECT_TABLE_SOME_VALID_AGES))
 
 
 if __name__ == '__main__':

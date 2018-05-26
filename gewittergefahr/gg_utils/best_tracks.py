@@ -1170,24 +1170,24 @@ def remove_short_tracks(
         inplace=False)
 
 
-def recompute_attributes(
+def get_storm_ages(
         storm_object_table, best_track_start_time_unix_sec,
-        best_track_end_time_unix_sec):
-    """Recomputes the following storm attributes, using new tracks.
+        best_track_end_time_unix_sec, max_extrap_time_for_breakup_sec,
+        max_join_time_sec):
+    """For each storm object, computes age of corresponding storm cell.
 
-    - age of storm track
-    - start time of tracking period
-    - end time of tracking period
-
-    :param storm_object_table: pandas DataFrame with the following columns.
-        Each row is one storm object.
+    :param storm_object_table: pandas DataFrame with at least the following
+        columns.
     storm_object_table.storm_id: String ID for storm cell.
     storm_object_table.unix_time_sec: Valid time.
 
     :param best_track_start_time_unix_sec: Start of tracking period.
     :param best_track_end_time_unix_sec: End of tracking period.
-    :return: storm_object_table: Same as input, but with new columns listed
-        below.
+    :param max_extrap_time_for_breakup_sec: See documentation for
+        `break_storm_tracks`.
+    :param max_join_time_sec: See documentation for `merge_storm_tracks`.
+    :return: storm_object_table: Same as input, but with the following extra
+        columns.
     storm_object_table.age_sec: Age of storm cell.
     storm_object_table.tracking_start_time_unix_sec: Start of tracking period.
     storm_object_table.tracking_end_time_unix_sec: End of tracking period.
@@ -1197,13 +1197,16 @@ def recompute_attributes(
         in track).
     """
 
-    # TODO(thunderhoser): This method should be moved, since it is now being
-    # used by echo_top_tracking.py.
+    # TODO(thunderhoser): Move this method to somewhere more general.
 
     error_checking.assert_is_integer(best_track_start_time_unix_sec)
     error_checking.assert_is_integer(best_track_end_time_unix_sec)
     error_checking.assert_is_greater(
         best_track_end_time_unix_sec, best_track_start_time_unix_sec)
+
+    check_best_track_params(
+        max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
+        max_join_time_sec=max_join_time_sec)
 
     num_storm_objects = len(storm_object_table.index)
     tracking_start_times_unix_sec = numpy.full(
@@ -1217,11 +1220,19 @@ def recompute_attributes(
 
     storm_id_by_object = numpy.asarray(
         storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
-    unique_storm_ids, storm_ids_object_to_unique = numpy.unique(
+    storm_id_by_cell, storm_ids_object_to_unique = numpy.unique(
         storm_id_by_object, return_inverse=True)
 
-    for i in range(len(unique_storm_ids)):
-        these_object_indices = numpy.where(storm_ids_object_to_unique == i)[0]
+    num_storm_cells = len(storm_id_by_cell)
+    max_time_offset_sec = max(
+        [max_extrap_time_for_breakup_sec, max_join_time_sec])
+    age_invalid_before_unix_sec = (
+        best_track_start_time_unix_sec + max_time_offset_sec)
+    age_invalid_after_unix_sec = (
+        best_track_end_time_unix_sec - max_time_offset_sec)
+
+    for j in range(num_storm_cells):
+        these_object_indices = numpy.where(storm_ids_object_to_unique == j)[0]
         this_start_time_unix_sec = numpy.min(
             storm_object_table[tracking_utils.TIME_COLUMN].values[
                 these_object_indices])
@@ -1232,7 +1243,10 @@ def recompute_attributes(
         cell_start_times_unix_sec[
             these_object_indices] = this_start_time_unix_sec
         cell_end_times_unix_sec[these_object_indices] = this_end_time_unix_sec
-        if this_start_time_unix_sec == best_track_start_time_unix_sec:
+
+        if this_start_time_unix_sec < age_invalid_before_unix_sec:
+            continue
+        if this_end_time_unix_sec > age_invalid_after_unix_sec:
             continue
 
         track_ages_sec[these_object_indices] = (
@@ -1339,11 +1353,13 @@ def run_best_track(
     storm_object_table = remove_short_tracks(
         storm_object_table, min_objects_in_track=min_objects_in_track)
 
-    print 'Recomputing storm attributes...'
-    return recompute_attributes(
-        storm_object_table,
+    print 'Computing storm ages...'
+    return get_storm_ages(
+        storm_object_table=storm_object_table,
         best_track_start_time_unix_sec=best_track_start_time_unix_sec,
-        best_track_end_time_unix_sec=best_track_end_time_unix_sec)
+        best_track_end_time_unix_sec=best_track_end_time_unix_sec,
+        max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
+        max_join_time_sec=max_join_time_sec)
 
 
 def read_input_storm_objects(input_file_names, keep_spc_date=False):

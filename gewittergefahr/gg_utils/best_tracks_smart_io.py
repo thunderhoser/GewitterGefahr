@@ -25,6 +25,9 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): I should allow this to be changed.
+TEMPORARY_DIR_NAME = '/condo/swatwork/ralager/best_track_temp'
+
 DAYS_TO_SECONDS = 86400
 TIME_FORMAT_FOR_MESSAGES = '%Y-%m-%d-%H%M%S'
 PROJECTION_OBJECT = projections.init_azimuthal_equidistant_projection(35., 265.)
@@ -281,21 +284,23 @@ def find_files_for_smart_io(
         (determined by end_spc_date_unix_sec).
     """
 
-    # if not time_conversion.is_time_in_spc_date(
-    #         start_time_unix_sec, start_spc_date_string):
-    #     start_time_string = time_conversion.unix_sec_to_string(
-    #         start_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
-    #     raise ValueError(
-    #         'Start time (' + start_time_string + ') is not in first SPC date ('
-    #         + start_spc_date_string + ').')
-    #
-    # if not time_conversion.is_time_in_spc_date(
-    #         end_time_unix_sec, end_spc_date_string):
-    #     end_time_string = time_conversion.unix_sec_to_string(
-    #         end_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
-    #     raise ValueError(
-    #         'End time (' + end_time_string + ') is not in last SPC date (' +
-    #         end_spc_date_string + ').')
+    if not time_conversion.is_time_in_spc_date(
+            start_time_unix_sec, start_spc_date_string):
+        start_time_string = time_conversion.unix_sec_to_string(
+            start_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
+        error_string = (
+            'Start time ({0:s}) is not in first SPC date ({1:s}).'
+        ).format(start_time_string, start_spc_date_string)
+        raise ValueError(error_string)
+
+    if not time_conversion.is_time_in_spc_date(
+            end_time_unix_sec, end_spc_date_string):
+        end_time_string = time_conversion.unix_sec_to_string(
+            end_time_unix_sec, TIME_FORMAT_FOR_MESSAGES)
+        error_string = (
+            'End time ({0:s}) is not in last SPC date ({1:s}).'
+        ).format(end_time_string, end_spc_date_string)
+        raise ValueError(error_string)
 
     error_checking.assert_is_greater(
         end_time_unix_sec, start_time_unix_sec)
@@ -316,10 +321,8 @@ def find_files_for_smart_io(
     output_file_names_by_spc_date = [['']] * num_spc_dates
 
     for i in range(num_spc_dates):
-
-        # TODO(thunderhoser): Allow temp directory to be changed.
         temp_file_names[i] = tempfile.NamedTemporaryFile(
-            dir='/scratch/ralager', delete=False).name
+            dir=TEMPORARY_DIR_NAME, delete=False).name
 
         # spc_dates_unix_sec[i] = time_conversion.time_to_spc_date_unix_sec(
         #     spc_dates_unix_sec[i])
@@ -516,11 +519,13 @@ def run_best_track(
         storm_object_table = best_tracks.remove_short_tracks(
             storm_object_table, min_objects_in_track=min_objects_in_track)
 
-        print 'Recomputing storm attributes...'
-        storm_object_table = best_tracks.recompute_attributes(
-            storm_object_table,
+        print 'Computing storm ages...'
+        storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=storm_object_table,
             best_track_start_time_unix_sec=best_track_start_time_unix_sec,
-            best_track_end_time_unix_sec=best_track_end_time_unix_sec)
+            best_track_end_time_unix_sec=best_track_end_time_unix_sec,
+            max_extrap_time_for_breakup_sec=max_extrap_time_for_breakup_sec,
+            max_join_time_sec=max_join_time_sec)
 
         this_spc_date_indices = numpy.where(
             storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
