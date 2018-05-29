@@ -18,6 +18,10 @@ TEMPERATURES_KELVINS = numpy.array([273.15, 278.15, 283.15, 288.15, 298.15])
 RELATIVE_HUMIDITIES = numpy.array(
     [0.025610, 0.180807, 0.647675, 0.938892, 1.004473])
 
+DENOMINATORS = numpy.array(
+    [0.999939225, 0.999392579, 0.996970258, 0.993958819, 0.987990192])
+VIRTUAL_TEMPERATURES_KELVINS = TEMPERATURES_KELVINS / DENOMINATORS
+
 
 class MoistureConversionsTests(unittest.TestCase):
     """Each method is a unit test for moisture_conversions.py."""
@@ -112,6 +116,18 @@ class MoistureConversionsTests(unittest.TestCase):
                 TOTAL_PRESSURES_PASCALS))
         self.assertTrue(numpy.allclose(
             these_relative_humidities, RELATIVE_HUMIDITIES, atol=TOLERANCE))
+
+    def test_temperature_to_virtual_temperature(self):
+        """Ensures correct output from temperature_to_virtual_temperature."""
+
+        these_virtual_temps_kelvins = (
+            moisture_conversions.temperature_to_virtual_temperature(
+                temperatures_kelvins=TEMPERATURES_KELVINS,
+                total_pressures_pascals=TOTAL_PRESSURES_PASCALS,
+                vapour_pressures_pascals=VAPOUR_PRESSURES_PASCALS))
+        self.assertTrue(numpy.allclose(
+            these_virtual_temps_kelvins, VIRTUAL_TEMPERATURES_KELVINS,
+            atol=TOLERANCE))
 
 
 if __name__ == '__main__':

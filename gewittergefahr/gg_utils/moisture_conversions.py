@@ -205,3 +205,32 @@ def dewpoint_to_relative_humidity(dewpoints_kelvins, temperatures_kelvins,
     saturated_mixing_ratios_kg_kg01 = vapour_pressure_to_mixing_ratio(
         saturated_vapour_pressures_pascals, total_pressures_pascals)
     return mixing_ratios_kg_kg01 / saturated_mixing_ratios_kg_kg01
+
+
+def temperature_to_virtual_temperature(
+        temperatures_kelvins, total_pressures_pascals,
+        vapour_pressures_pascals):
+    """Converts one or more temperatures to virtual temperatures.
+
+    :param temperatures_kelvins: numpy array of air temperatures (K).
+    :param total_pressures_pascals: equivalent-size numpy array of total air
+        pressures (Pa).
+    :param vapour_pressures_pascals: equivalent-size numpy array of vapour
+        pressures (Pa).
+    :return: virtual_temperatures_kelvins: equivalent-size numpy array of
+        virtual air temperatures (K).
+    """
+
+    error_checking.assert_is_real_numpy_array(temperatures_kelvins)
+    error_checking.assert_is_real_numpy_array(total_pressures_pascals)
+    error_checking.assert_is_real_numpy_array(vapour_pressures_pascals)
+
+    temperature_dimensions = numpy.asarray(temperatures_kelvins.shape)
+    error_checking.assert_is_numpy_array(
+        total_pressures_pascals, exact_dimensions=temperature_dimensions)
+    error_checking.assert_is_numpy_array(
+        vapour_pressures_pascals, exact_dimensions=temperature_dimensions)
+
+    denominator_values = 1. - (
+        (vapour_pressures_pascals / total_pressures_pascals) * (1. - EPSILON))
+    return temperatures_kelvins / denominator_values
