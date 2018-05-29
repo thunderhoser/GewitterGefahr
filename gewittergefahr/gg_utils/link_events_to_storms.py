@@ -1703,6 +1703,11 @@ def read_storm_to_winds_table(pickle_file_name):
     storm_to_winds_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
+    # TODO(thunderhoser): This is a HACK to deal with duplicates of the column
+    # "cell_end_time_unix_sec".
+    unique_column_names = list(set(list(storm_to_winds_table)))
+    storm_to_winds_table = storm_to_winds_table[unique_column_names]
+
     error_checking.assert_columns_in_dataframe(
         storm_to_winds_table, REQUIRED_STORM_TO_WINDS_COLUMNS)
     return storm_to_winds_table
@@ -1762,6 +1767,11 @@ def read_storm_to_tornadoes_table(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     storm_to_tornadoes_table = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    # TODO(thunderhoser): This is a HACK to deal with duplicates of the column
+    # "cell_end_time_unix_sec".
+    unique_column_names = list(set(list(storm_to_tornadoes_table)))
+    storm_to_winds_table = storm_to_tornadoes_table[unique_column_names]
 
     error_checking.assert_columns_in_dataframe(
         storm_to_tornadoes_table, REQUIRED_STORM_TO_TORNADOES_COLUMNS)
