@@ -1705,8 +1705,8 @@ def read_storm_to_winds_table(pickle_file_name):
 
     # TODO(thunderhoser): This is a HACK to deal with duplicates of the column
     # "cell_end_time_unix_sec".
-    unique_column_names = list(set(list(storm_to_winds_table)))
-    storm_to_winds_table = storm_to_winds_table[unique_column_names]
+    storm_to_winds_table = storm_to_winds_table.loc[
+        :, ~storm_to_winds_table.columns.duplicated()]
 
     error_checking.assert_columns_in_dataframe(
         storm_to_winds_table, REQUIRED_STORM_TO_WINDS_COLUMNS)
@@ -1770,8 +1770,8 @@ def read_storm_to_tornadoes_table(pickle_file_name):
 
     # TODO(thunderhoser): This is a HACK to deal with duplicates of the column
     # "cell_end_time_unix_sec".
-    unique_column_names = list(set(list(storm_to_tornadoes_table)))
-    storm_to_winds_table = storm_to_tornadoes_table[unique_column_names]
+    storm_to_tornadoes_table = storm_to_tornadoes_table.loc[
+        :, ~storm_to_tornadoes_table.columns.duplicated()]
 
     error_checking.assert_columns_in_dataframe(
         storm_to_tornadoes_table, REQUIRED_STORM_TO_TORNADOES_COLUMNS)
