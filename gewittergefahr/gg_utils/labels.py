@@ -181,6 +181,7 @@ def _find_dead_storms(storm_to_events_table, min_lead_time_sec):
         These are row indices into `storm_to_events_table`.
     """
 
+    print list(storm_to_events_table)
     remaining_lifetimes_sec = (
         storm_to_events_table[tracking_utils.CELL_END_TIME_COLUMN] -
         storm_to_events_table[tracking_utils.TIME_COLUMN])
