@@ -1004,6 +1004,7 @@ def storm_image_generator_2d3d_myrorss(
                     num_examples_in_memory_class_dict=
                     num_examples_in_memory_class_dict))
 
+            print num_examples_remaining_class_dict
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=reflectivity_file_name_matrix[
                     init_time_index, 0],
