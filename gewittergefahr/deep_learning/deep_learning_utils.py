@@ -115,25 +115,41 @@ def class_fractions_to_num_points(class_fraction_dict, num_points_to_sample):
     return num_points_class_dict
 
 
-def class_fractions_to_weights(class_fraction_dict):
-    """Converts class fractions to weights (for the loss function).
+def class_fractions_to_weights(class_fraction_dict, binarize_target):
+    """Converts sampling fractions to loss-function weights.
 
     :param class_fraction_dict: Dictionary, where each key is a class integer
         (-2 for dead storms) and each value is the corresponding fraction of
         examples to include in each batch.
+    :param binarize_target: Boolean flag.  If True, the target variable will be
+        binarized, so that the highest class = 1 and all other classes = 0.
+        Otherwise, the target variable will retain the original number of
+        classes (except the dead-storm class, which will be mapped from -2 to
+        0).
     :return: class_weight_dict: Dictionary, where each key is a class integer
-        (no negatives) and each value is the corresponding weights.
+        (no dead storms) and each value is the corresponding weight.
     """
 
-    # TODO(thunderhoser): Need to account for binarization of target variable.
+    error_checking.assert_is_boolean(binarize_target)
 
-    this_class_fraction_dict = copy.deepcopy(class_fraction_dict)
-    if labels.DEAD_STORM_INTEGER in this_class_fraction_dict.keys():
-        del this_class_fraction_dict[labels.DEAD_STORM_INTEGER]
+    if binarize_target:
+        max_key = numpy.max(numpy.array(class_fraction_dict.keys()))
+        positive_fraction = class_fraction_dict[max_key]
+        negative_fraction = 1. - positive_fraction
+        new_class_fraction_dict = {0: negative_fraction, 1: positive_fraction}
 
-    class_weights = 1. / numpy.array(this_class_fraction_dict.values())
+    else:
+        new_class_fraction_dict = copy.deepcopy(class_fraction_dict)
+
+        if labels.DEAD_STORM_INTEGER in class_fraction_dict.keys():
+            new_class_fraction_dict[0] = (
+                new_class_fraction_dict[0] +
+                new_class_fraction_dict[labels.DEAD_STORM_INTEGER])
+            del new_class_fraction_dict[labels.DEAD_STORM_INTEGER]
+
+    class_weights = 1. / numpy.array(new_class_fraction_dict.values())
     class_weights = class_weights / numpy.sum(class_weights)
-    return dict(zip(this_class_fraction_dict.keys(), class_weights))
+    return dict(zip(new_class_fraction_dict.keys(), class_weights))
 
 
 def check_predictor_matrix(

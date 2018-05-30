@@ -43,7 +43,9 @@ TARGET_MATRIX_WIND = keras.utils.to_categorical(
 
 # The following constants are used to test class_fractions_to_num_points.
 TOY_TORNADO_CLASS_FRACTION_DICT = {0: 0.1, 1: 0.9}
-TOY_WIND_CLASS_FRACTION_DICT = {-2: 0.1, 0: 0.2, 1: 0.7}
+WIND_3CLASS_FRACTION_DICT = {-2: 0.1, 0: 0.2, 1: 0.7}
+WIND_7CLASS_FRACTION_DICT = {
+    -2: 0.1, 0: 0.4, 1: 0.2, 2: 0.1, 3: 0.05, 4: 0.05, 5: 0.1}
 
 NUM_POINTS_TO_SAMPLE_LARGE = 17
 NUM_POINTS_TORNADO_CLASS_DICT_LARGE = {0: 2, 1: 15}
@@ -63,7 +65,10 @@ NUM_POINTS_WIND_CLASS_DICT_XSMALL = {-2: 1, 0: 1, 1: 1}
 
 # The following constants are used to test class_fractions_to_weights.
 TOY_TORNADO_CLASS_WEIGHT_DICT = {0: 0.9, 1: 0.1}
-TOY_WIND_CLASS_WEIGHT_DICT = {0: 7. / 9, 1: 2. / 9}
+WIND_3CLASS_WEIGHT_DICT = {0: 0.7, 1: 0.3}
+WIND_7CLASS_WEIGHT_DICT = {
+    0: 2. / 67, 1: 5. / 67, 2: 10. / 67, 3: 20. / 67, 4: 20. / 67, 5: 10. / 67}
+WIND_7CLASS_WEIGHT_DICT_BINARIZED = {0: 0.1, 1: 0.9}
 
 # The following constants are used to test normalize_predictor_matrix.
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
@@ -456,7 +461,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_dict = dl_utils.class_fractions_to_num_points(
-            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
+            class_fraction_dict=WIND_3CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_LARGE)
 
         self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_LARGE)
@@ -482,7 +487,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_dict = dl_utils.class_fractions_to_num_points(
-            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
+            class_fraction_dict=WIND_3CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_MEDIUM)
 
         self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_MEDIUM)
@@ -508,7 +513,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_dict = dl_utils.class_fractions_to_num_points(
-            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
+            class_fraction_dict=WIND_3CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_SMALL)
 
         self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_SMALL)
@@ -534,19 +539,21 @@ class DeepLearningUtilsTests(unittest.TestCase):
         """
 
         this_dict = dl_utils.class_fractions_to_num_points(
-            class_fraction_dict=TOY_WIND_CLASS_FRACTION_DICT,
+            class_fraction_dict=WIND_3CLASS_FRACTION_DICT,
             num_points_to_sample=NUM_POINTS_TO_SAMPLE_XSMALL)
 
         self.assertTrue(this_dict == NUM_POINTS_WIND_CLASS_DICT_XSMALL)
 
-    def test_class_fractions_to_weights_tornado(self):
+    def test_class_fractions_to_weights_tornado_nonbinarized(self):
         """Ensures correct output from class_fractions_to_weights.
 
-        In this case, target variable = tornado occurrence.
+        In this case, target variable is tornado occurrence and is *not*
+        binarized.
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TOY_TORNADO_CLASS_FRACTION_DICT)
+            class_fraction_dict=TOY_TORNADO_CLASS_FRACTION_DICT,
+            binarize_target=False)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
                         set(TOY_TORNADO_CLASS_WEIGHT_DICT.keys()))
@@ -557,22 +564,99 @@ class DeepLearningUtilsTests(unittest.TestCase):
                 TOY_TORNADO_CLASS_WEIGHT_DICT[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
-    def test_class_fractions_to_weights_wind(self):
+    def test_class_fractions_to_weights_tornado_binarized(self):
         """Ensures correct output from class_fractions_to_weights.
 
-        In this case, target variable = wind-speed category.
+        In this case, target variable is tornado occurrence and is binarized.
         """
 
         this_class_weight_dict = dl_utils.class_fractions_to_weights(
-            TOY_WIND_CLASS_FRACTION_DICT)
+            class_fraction_dict=TOY_TORNADO_CLASS_FRACTION_DICT,
+            binarize_target=True)
 
         self.assertTrue(set(this_class_weight_dict.keys()) ==
-                        set(TOY_WIND_CLASS_WEIGHT_DICT.keys()))
+                        set(TOY_TORNADO_CLASS_WEIGHT_DICT.keys()))
 
         for this_key in this_class_weight_dict.keys():
             self.assertTrue(numpy.isclose(
                 this_class_weight_dict[this_key],
-                TOY_WIND_CLASS_WEIGHT_DICT[this_key],
+                TOY_TORNADO_CLASS_WEIGHT_DICT[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
+
+    def test_class_fractions_to_weights_wind_3class_nonbinarized(self):
+        """Ensures correct output from class_fractions_to_weights.
+
+        In this case, target variable is 3-class wind speed and is *not*
+        binarized.
+        """
+
+        this_class_weight_dict = dl_utils.class_fractions_to_weights(
+            class_fraction_dict=WIND_3CLASS_FRACTION_DICT,
+            binarize_target=False)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(WIND_3CLASS_WEIGHT_DICT.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                WIND_3CLASS_WEIGHT_DICT[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
+
+    def test_class_fractions_to_weights_wind_3class_binarized(self):
+        """Ensures correct output from class_fractions_to_weights.
+
+        In this case, target variable is 3-class wind speed and is binarized.
+        """
+
+        this_class_weight_dict = dl_utils.class_fractions_to_weights(
+            class_fraction_dict=WIND_3CLASS_FRACTION_DICT, binarize_target=True)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(WIND_3CLASS_WEIGHT_DICT.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                WIND_3CLASS_WEIGHT_DICT[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
+
+    def test_class_fractions_to_weights_wind_7class_nonbinarized(self):
+        """Ensures correct output from class_fractions_to_weights.
+
+        In this case, target variable is 7-class wind speed and is *not*
+        binarized.
+        """
+
+        this_class_weight_dict = dl_utils.class_fractions_to_weights(
+            class_fraction_dict=WIND_7CLASS_FRACTION_DICT,
+            binarize_target=False)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(WIND_7CLASS_WEIGHT_DICT.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                WIND_7CLASS_WEIGHT_DICT[this_key],
+                atol=TOLERANCE_FOR_CLASS_WEIGHT))
+
+    def test_class_fractions_to_weights_wind_7class_binarized(self):
+        """Ensures correct output from class_fractions_to_weights.
+
+        In this case, target variable is 7-class wind speed and is binarized.
+        """
+
+        this_class_weight_dict = dl_utils.class_fractions_to_weights(
+            class_fraction_dict=WIND_7CLASS_FRACTION_DICT, binarize_target=True)
+
+        self.assertTrue(set(this_class_weight_dict.keys()) ==
+                        set(WIND_7CLASS_WEIGHT_DICT_BINARIZED.keys()))
+
+        for this_key in this_class_weight_dict.keys():
+            self.assertTrue(numpy.isclose(
+                this_class_weight_dict[this_key],
+                WIND_7CLASS_WEIGHT_DICT_BINARIZED[this_key],
                 atol=TOLERANCE_FOR_CLASS_WEIGHT))
 
     def test_stack_predictor_variables(self):

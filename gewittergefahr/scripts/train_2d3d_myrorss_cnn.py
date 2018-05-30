@@ -15,7 +15,6 @@ from gewittergefahr.scripts import deep_learning as dl_script_helper
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-BINARIZE_TARGET = False
 NORMALIZE_BY_BATCH = False
 NORMALIZATION_DICT = copy.deepcopy(dl_utils.DEFAULT_NORMALIZATION_DICT)
 
@@ -27,19 +26,11 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = dl_script_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER)
 
-DROPOUT_FRACTION_ARG_NAME = 'dropout_fraction'
 FIRST_NUM_REFL_FILTERS_ARG_NAME = 'first_num_reflectivity_filters'
-
-DROPOUT_FRACTION_HELP_STRING = (
-    'Dropout fraction.  This will be applied to each dropout layer, of which '
-    'there is one after each convolution layer.')
 FIRST_NUM_REFL_FILTERS_HELP_STRING = (
     'Number of reflectivity filters in first convolution layer.  For more '
     'details, see `cnn.get_architecture_for_2d3d_myrorss`.')
 
-INPUT_ARG_PARSER.add_argument(
-    '--' + DROPOUT_FRACTION_ARG_NAME, type=float, required=True,
-    help=DROPOUT_FRACTION_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_NUM_REFL_FILTERS_ARG_NAME, type=int, required=True,
     help=FIRST_NUM_REFL_FILTERS_HELP_STRING)
@@ -50,9 +41,9 @@ def _train_2d3d_myrorss_cnn(
         input_storm_image_dir_name, num_examples_per_batch,
         num_examples_per_file_time, training_start_time_string,
         training_end_time_string, target_name, weight_loss_function,
-        class_fraction_dict_keys, class_fraction_dict_values,
+        binarize_target, class_fraction_dict_keys, class_fraction_dict_values,
         num_validation_batches_per_epoch, validation_start_time_string,
-        validation_end_time_string, dropout_fraction,
+        validation_end_time_string, dropout_fraction, l2_weight,
         first_num_reflectivity_filters):
     """Trains hybrid 2D/3D convolutional neural net with MYRORSS data.
 
@@ -67,12 +58,14 @@ def _train_2d3d_myrorss_cnn(
     :param training_end_time_string: Same.
     :param target_name: Same.
     :param weight_loss_function: Same.
+    :param binarize_target: Same.
     :param class_fraction_dict_keys: Same.
     :param class_fraction_dict_values: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_start_time_string: Same.
     :param validation_end_time_string: Same.
-    :param dropout_fraction: See documentation at the top of this file.
+    :param dropout_fraction: Same.
+    :param l2_weight: Same.
     :param first_num_reflectivity_filters: Same.
     """
 
@@ -96,7 +89,8 @@ def _train_2d3d_myrorss_cnn(
         class_fraction_dict_values, dtype=float)
     class_fraction_dict = dict(zip(
         class_fraction_dict_keys, class_fraction_dict_values))
-    print class_fraction_dict
+    print 'Class fractions for sampling = {0:s}'.format(
+        str(class_fraction_dict))
 
     first_train_time_unix_sec = time_conversion.string_to_unix_sec(
         training_start_time_string, dl_script_helper.INPUT_TIME_FORMAT)
@@ -134,7 +128,7 @@ def _train_2d3d_myrorss_cnn(
         normalization_dict=NORMALIZATION_DICT,
         percentile_offset_for_normalization=None,
         class_fraction_dict=class_fraction_dict,
-        sounding_statistic_names=None, binarize_target=BINARIZE_TARGET,
+        sounding_statistic_names=None, binarize_target=binarize_target,
         use_2d3d_convolution=True, pickle_file_name=metadata_file_name)
 
     # Set up model architecture.
@@ -142,7 +136,8 @@ def _train_2d3d_myrorss_cnn(
     model_object = cnn.get_architecture_for_2d3d_myrorss(
         num_classes=num_classes, dropout_fraction=dropout_fraction,
         first_num_reflectivity_filters=first_num_reflectivity_filters,
-        num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES))
+        num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
+        l2_weight=l2_weight)
 
     print '\nFinding training files...'
     training_file_name_matrix, _ = training_validation_io.find_2d_input_files(
@@ -178,11 +173,12 @@ def _train_2d3d_myrorss_cnn(
         train_image_file_name_matrix=training_file_name_matrix,
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
-        target_name=target_name, binarize_target=BINARIZE_TARGET,
+        target_name=target_name, binarize_target=binarize_target,
         weight_loss_function=weight_loss_function,
-        class_fraction_dict=class_fraction_dict,
+        training_class_fraction_dict=class_fraction_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validn_image_file_name_matrix=validation_file_name_matrix)
+        validn_image_file_name_matrix=validation_file_name_matrix,
+        validation_class_fraction_dict=class_fraction_dict)
 
 
 if __name__ == '__main__':
@@ -210,6 +206,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_script_helper.TARGET_NAME_ARG_NAME),
         weight_loss_function=bool(getattr(
             INPUT_ARG_OBJECT, dl_script_helper.WEIGHT_LOSS_ARG_NAME)),
+        binarize_target=bool(getattr(
+            INPUT_ARG_OBJECT, dl_script_helper.BINARIZE_TARGET_ARG_NAME)),
         class_fraction_dict_keys=getattr(
             INPUT_ARG_OBJECT,
             dl_script_helper.CLASS_FRACTION_DICT_KEYS_ARG_NAME),
@@ -222,6 +220,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_script_helper.VALIDATION_START_TIME_ARG_NAME),
         validation_end_time_string=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.VALIDATION_END_TIME_ARG_NAME),
-        dropout_fraction=getattr(INPUT_ARG_OBJECT, DROPOUT_FRACTION_ARG_NAME),
+        dropout_fraction=getattr(
+            INPUT_ARG_OBJECT, dl_script_helper.DROPOUT_FRACTION_ARG_NAME),
+        l2_weight=getattr(
+            INPUT_ARG_OBJECT, dl_script_helper.L2_WEIGHT_ARG_NAME),
         first_num_reflectivity_filters=getattr(
             INPUT_ARG_OBJECT, FIRST_NUM_REFL_FILTERS_ARG_NAME))

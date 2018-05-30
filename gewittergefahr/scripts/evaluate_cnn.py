@@ -259,16 +259,15 @@ def _create_forecast_observation_pairs(
 
     print 'Finding input data for CNN...'
     if metadata_dict[cnn.RADAR_SOURCE_KEY] == radar_utils.GRIDRAD_SOURCE_ID:
-        image_file_name_matrix, image_times_unix_sec = (
-            storm_images.find_many_files_gridrad(
-                top_directory_name=top_storm_image_dir_name,
-                start_time_unix_sec=first_eval_time_unix_sec,
-                end_time_unix_sec=last_eval_time_unix_sec,
-                radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
-                radar_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-                one_file_per_time_step=False, raise_error_if_all_missing=True))
+        image_file_name_matrix, _ = storm_images.find_many_files_gridrad(
+            top_directory_name=top_storm_image_dir_name,
+            start_time_unix_sec=first_eval_time_unix_sec,
+            end_time_unix_sec=last_eval_time_unix_sec,
+            radar_field_names=metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
+            radar_heights_m_asl=metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+            one_file_per_time_step=False, raise_error_if_all_missing=True)
     else:
-        image_file_name_matrix, image_times_unix_sec, _, _ = (
+        image_file_name_matrix, _ = (
             storm_images.find_many_files_myrorss_or_mrms(
                 top_directory_name=top_storm_image_dir_name,
                 start_time_unix_sec=first_eval_time_unix_sec,
@@ -285,14 +284,10 @@ def _create_forecast_observation_pairs(
         numpy.where(image_file_name_matrix == '')[0])
     image_file_name_matrix = numpy.delete(
         image_file_name_matrix, time_missing_indices, axis=0)
-    image_times_unix_sec = numpy.delete(
-        image_times_unix_sec, time_missing_indices)
 
-    num_times = len(image_times_unix_sec)
+    num_times = image_file_name_matrix.shape[0]
     time_indices = numpy.linspace(0, num_times - 1, num=num_times, dtype=int)
     numpy.random.shuffle(time_indices)
-
-    image_times_unix_sec = image_times_unix_sec[time_indices]
     image_file_name_matrix = image_file_name_matrix[time_indices, ...]
 
     # Create forecast-observation pairs.

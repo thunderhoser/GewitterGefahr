@@ -13,6 +13,9 @@ TRAINING_START_TIME_ARG_NAME = 'training_start_time_string'
 TRAINING_END_TIME_ARG_NAME = 'training_end_time_string'
 TARGET_NAME_ARG_NAME = 'target_name'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
+BINARIZE_TARGET_ARG_NAME = 'binarize_target'
+DROPOUT_FRACTION_ARG_NAME = 'dropout_fraction'
+L2_WEIGHT_ARG_NAME = 'l2_weight'
 CLASS_FRACTION_DICT_KEYS_ARG_NAME = 'class_fraction_dict_keys'
 CLASS_FRACTION_DICT_VALUES_ARG_NAME = 'class_fraction_dict_values'
 NUM_VALIDN_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
@@ -24,6 +27,9 @@ DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH = 32
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 512
 DEFAULT_NUM_EXAMPLES_PER_FILE_TIME = 64
 DEFAULT_WEIGHT_LOSS_FLAG = 0
+DEFAULT_BINARIZE_TARGET_FLAG = 0
+DEFAULT_DROPOUT_FRACTION = 0.25
+DEFAULT_L2_WEIGHT = 1e-3
 DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH = 16
 
 MODEL_DIRECTORY_HELP_STRING = (
@@ -54,6 +60,17 @@ WEIGHT_LOSS_HELP_STRING = (
     '.  If 1, classes will be weighted differently in the loss function '
     '(inversely proportional with `{0:s}`).'
 ).format(CLASS_FRACTION_DICT_VALUES_ARG_NAME)
+BINARIZE_TARGET_HELP_STRING = (
+    'Boolean flag.  If 0, the model will be trained to predict all classes of '
+    'the target variable.  If 1, the highest class will be taken as the '
+    'positive class and all other classes will be taken as negative, turning '
+    'the problem into binary classification.')
+DROPOUT_FRACTION_HELP_STRING = (
+    'Dropout fraction.  This will be used for all dropout layers, of which '
+    'there is one after each conv layer.')
+L2_WEIGHT_HELP_STRING = (
+    'L2-regularization weight.  This will be used for all convolutional '
+    'layers.')
 CLASS_FRACTION_DICT_KEYS_HELP_STRING = (
     '1-D list of class IDs (integers).  These and `{0:s}` will be used to '
     'create `class_fraction_dict`, which is used to oversample or undersample '
@@ -128,6 +145,18 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
         default=DEFAULT_WEIGHT_LOSS_FLAG, help=WEIGHT_LOSS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + BINARIZE_TARGET_ARG_NAME, type=int, required=False,
+        default=DEFAULT_BINARIZE_TARGET_FLAG, help=BINARIZE_TARGET_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + DROPOUT_FRACTION_ARG_NAME, type=float, required=False,
+        default=DEFAULT_DROPOUT_FRACTION, help=DROPOUT_FRACTION_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + L2_WEIGHT_ARG_NAME, type=float, required=False,
+        default=DEFAULT_L2_WEIGHT, help=L2_WEIGHT_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + CLASS_FRACTION_DICT_KEYS_ARG_NAME, type=int, nargs='+',

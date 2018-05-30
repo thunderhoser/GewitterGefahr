@@ -31,6 +31,7 @@ NUM_INPUT_COLUMNS = 32
 NUM_INPUT_DEPTHS = 12
 NUM_INPUT_ROWS_FOR_AZ_SHEAR = 64
 NUM_INPUT_COLUMNS_FOR_AZ_SHEAR = 64
+DEFAULT_L2_WEIGHT = 1e-3
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
@@ -83,9 +84,39 @@ MODEL_METADATA_KEYS = [
 ]
 
 
+def _check_architecture_args(
+        num_classes, num_input_channels, num_sounding_stats,
+        dropout_fraction=None, l2_weight=None):
+    """Error-checks input arguments for architecture-creation method.
+
+    :param num_classes: Number of classes for target variable.
+    :param num_input_channels: Number of input channels (predictor variables).
+    :param num_sounding_stats: Number of sounding statistics.  If the model does
+        not take sounding statistics as input, set this to 0.
+    :param dropout_fraction: Dropout fraction.  This will be applied to each
+        dropout layer, of which there is one after each convolutional layer.
+    :param l2_weight: L2-regularization weight.  This will be used for each
+        convolutional layer.
+    """
+
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_integer(num_input_channels)
+    error_checking.assert_is_geq(num_input_channels, 1)
+    error_checking.assert_is_integer(num_sounding_stats)
+    error_checking.assert_is_geq(num_sounding_stats, 0)
+
+    if dropout_fraction is not None:
+        error_checking.assert_is_greater(dropout_fraction, 0.)
+        error_checking.assert_is_less_than(dropout_fraction, 1.)
+
+    if l2_weight is not None:
+        error_checking.assert_is_greater(l2_weight, 0.)
+
+
 def _check_training_args(
         num_epochs, num_training_batches_per_epoch,
-        num_validation_batches_per_epoch, weight_loss_function,
+        num_validation_batches_per_epoch, weight_loss_function, binarize_target,
         training_class_fraction_dict, model_file_name, history_file_name,
         tensorboard_dir_name):
     """Error-checks input arguments for training method.
@@ -98,6 +129,10 @@ def _check_training_args(
         weighted equally in the loss function.  If True, classes will be
         weighted differently in the loss function (inversely proportional with
         `class_fraction_dict`).
+    :param binarize_target: Boolean flag.  If 0, the model will be trained to
+        predict all classes of the target variable.  If 1, the highest class
+        will be taken as the positive class and all other classes will be taken
+        as negative, turning the problem into binary classification.
     :param training_class_fraction_dict: Dictionary, where each key is a
         class integer (-2 for dead storms) and each value is the corresponding
         sampling fraction for training data.
@@ -120,9 +155,11 @@ def _check_training_args(
         error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
 
     error_checking.assert_is_boolean(weight_loss_function)
+    error_checking.assert_is_boolean(binarize_target)
     if weight_loss_function:
         class_weight_dict = dl_utils.class_fractions_to_weights(
-            training_class_fraction_dict)
+            class_fraction_dict=training_class_fraction_dict,
+            binarize_target=binarize_target)
     else:
         class_weight_dict = None
 
@@ -147,11 +184,11 @@ def get_mnist_architecture(num_classes, num_input_channels=3):
         aforementioned architecture.
     """
 
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
+    _check_architecture_args(
+        num_classes=num_classes, num_input_channels=num_input_channels,
+        num_sounding_stats=0)
 
     model_object = keras.models.Sequential()
-
     layer_object = cnn_utils.get_2d_conv_layer(
         num_output_filters=32, num_kernel_rows=3, num_kernel_columns=3,
         num_rows_per_stride=1, num_columns_per_stride=1,
@@ -199,7 +236,8 @@ def get_mnist_architecture(num_classes, num_input_channels=3):
 
 
 def get_2d_swirlnet_architecture(
-        num_classes, num_input_channels=3, num_sounding_stats=0):
+        num_classes, dropout_fraction, num_input_channels=3,
+        num_sounding_stats=0, l2_weight=DEFAULT_L2_WEIGHT):
     """Creates 2-D CNN (one that performs 2-D convolution).
 
     Architecture is similar to the following example:
@@ -208,20 +246,24 @@ def get_2d_swirlnet_architecture(
     deep_swirl_tutorial.ipynb
 
     :param num_classes: Number of target classes.
+    :param dropout_fraction: Dropout fraction.  This will be applied to each
+        dropout layer, of which there is one after each conv layer.
     :param num_input_channels: Number of input channels (predictor variables).
     :param num_sounding_stats: Number of sounding statistics.  If the model is
         not being trained with sounding statistics, leave this as 0.
+    :param l2_weight: L2-regularization weight.  This will be used for all
+        convolutional layers.
     :return: model_object: Instance of `keras.models.Sequential` with the
         aforementioned architecture.
     """
 
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-    error_checking.assert_is_integer(num_sounding_stats)
-    error_checking.assert_is_geq(num_sounding_stats, 0)
+    _check_architecture_args(
+        num_classes=num_classes, num_input_channels=num_input_channels,
+        num_sounding_stats=num_sounding_stats,
+        dropout_fraction=dropout_fraction, l2_weight=l2_weight)
 
     regularizer_object = cnn_utils.get_weight_regularizer(
-        l1_penalty=0, l2_penalty=0.01)
+        l1_penalty=0, l2_penalty=l2_weight)
 
     radar_input_layer_object = keras.layers.Input(shape=(
         NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, num_input_channels))
@@ -236,8 +278,8 @@ def get_2d_swirlnet_architecture(
             radar_input_layer_object)
 
     # Input to this layer is E x 32 x 32 x 16.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
     # Input to this layer is E x 32 x 32 x 16.
     layer_object = cnn_utils.get_2d_pooling_layer(
@@ -254,8 +296,8 @@ def get_2d_swirlnet_architecture(
         activation_function='relu')(layer_object)
 
     # Input to this layer is E x 16 x 16 x 32.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
     # Input to this layer is E x 16 x 16 x 32.
     layer_object = cnn_utils.get_2d_pooling_layer(
@@ -272,8 +314,8 @@ def get_2d_swirlnet_architecture(
         activation_function='relu')(layer_object)
 
     # Input to this layer is E x 8 x 8 x 64.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
     # Input to this layer is E x 8 x 8 x 64.
     layer_object = cnn_utils.get_2d_pooling_layer(
@@ -312,7 +354,8 @@ def get_2d_swirlnet_architecture(
 
 
 def get_3d_swirlnet_architecture(
-        num_classes, num_input_channels=3, num_sounding_stats=0):
+        num_classes, dropout_fraction, num_input_channels=3,
+        num_sounding_stats=0, l2_weight=DEFAULT_L2_WEIGHT):
     """Creates 2-D CNN (one that performs 2-D convolution).
 
     Architecture is similar to the following example:
@@ -321,18 +364,20 @@ def get_3d_swirlnet_architecture(
     deep_swirl_tutorial.ipynb
 
     :param num_classes: See doc for `get_2d_swirlnet_architecture`.
+    :param dropout_fraction: Same.
     :param num_input_channels: Same.
     :param num_sounding_stats: Same.
+    :param l2_weight: Same.
     :return: model_object: Same.
     """
 
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-    error_checking.assert_is_integer(num_sounding_stats)
-    error_checking.assert_is_geq(num_sounding_stats, 0)
+    _check_architecture_args(
+        num_classes=num_classes, num_input_channels=num_input_channels,
+        num_sounding_stats=num_sounding_stats,
+        dropout_fraction=dropout_fraction, l2_weight=l2_weight)
 
     regularizer_object = cnn_utils.get_weight_regularizer(
-        l1_penalty=0, l2_penalty=0.01)
+        l1_penalty=0, l2_penalty=l2_weight)
 
     radar_input_layer_object = keras.layers.Input(shape=(
         NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, NUM_INPUT_DEPTHS, num_input_channels
@@ -349,8 +394,8 @@ def get_3d_swirlnet_architecture(
             radar_input_layer_object)
 
     # Input to this layer is E x 32 x 32 x 12 x 8C.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
     # Input to this layer is E x 32 x 32 x 12 x 8C.
     layer_object = cnn_utils.get_3d_pooling_layer(
@@ -368,8 +413,8 @@ def get_3d_swirlnet_architecture(
         activation_function='relu')(layer_object)
 
     # Input to this layer is E x 16 x 16 x 6 x 16C.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
     # Input to this layer is E x 16 x 16 x 6 x 16C.
     layer_object = cnn_utils.get_3d_pooling_layer(
@@ -387,8 +432,8 @@ def get_3d_swirlnet_architecture(
         activation_function='relu')(layer_object)
 
     # Input to this layer is E x 8 x 8 x 3 x 32C.
-    layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.1)(
-        layer_object)
+    layer_object = cnn_utils.get_dropout_layer(
+        dropout_fraction=dropout_fraction)(layer_object)
 
     # Input to this layer is E x 8 x 8 x 3 x 32C.
     layer_object = cnn_utils.get_3d_pooling_layer(
@@ -428,7 +473,7 @@ def get_3d_swirlnet_architecture(
 
 def get_architecture_for_2d3d_myrorss(
         num_classes, dropout_fraction, first_num_reflectivity_filters,
-        num_azimuthal_shear_fields=2):
+        num_azimuthal_shear_fields=2, l2_weight=DEFAULT_L2_WEIGHT):
     """Creates hybrid 2D-3D CNN for MYRORSS data.
 
     This CNN will perform 3-D convolution over reflectivity fields and 2-D
@@ -442,21 +487,23 @@ def get_architecture_for_2d3d_myrorss(
     :param first_num_reflectivity_filters: Number of reflectivity filters in
         first layer.
     :param num_azimuthal_shear_fields: Number of azimuthal-shear fields.
+    :param l2_weight: L2-regularization weight.  This will be used for all
+        convolutional layers.
     :return: model_object: Instance of `keras.models.Sequential` with the
         aforementioned architecture.
     """
 
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
-    error_checking.assert_is_greater(dropout_fraction, 0.)
-    error_checking.assert_is_less_than(dropout_fraction, 1.)
+    _check_architecture_args(
+        num_classes=num_classes, num_input_channels=2, num_sounding_stats=0,
+        dropout_fraction=dropout_fraction, l2_weight=l2_weight)
+
     error_checking.assert_is_integer(first_num_reflectivity_filters)
     error_checking.assert_is_geq(first_num_reflectivity_filters, 2)
     error_checking.assert_is_integer(num_azimuthal_shear_fields)
     error_checking.assert_is_geq(num_azimuthal_shear_fields, 1)
 
     regularizer_object = cnn_utils.get_weight_regularizer(
-        l1_penalty=0, l2_penalty=0.01)
+        l1_penalty=0, l2_penalty=l2_weight)
 
     reflectivity_input_layer_object = keras.layers.Input(shape=(
         NUM_INPUT_ROWS, NUM_INPUT_COLUMNS, NUM_INPUT_DEPTHS, 1))
@@ -705,6 +752,9 @@ def write_model_metadata(
     :param pickle_file_name: Path to output file.
     """
 
+    # TODO(thunderhoser): This needs to be updated.  I have more hyperparams
+    # now.
+
     model_metadata_dict = {
         NUM_EPOCHS_KEY: num_epochs,
         NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
@@ -824,6 +874,7 @@ def train_2d_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         weight_loss_function=weight_loss_function,
+        binarize_target=binarize_target,
         training_class_fraction_dict=training_class_fraction_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
@@ -962,6 +1013,7 @@ def train_2d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             weight_loss_function=weight_loss_function,
+            binarize_target=binarize_target,
             training_class_fraction_dict=train_class_fraction_dict_by_epoch[i],
             model_file_name=model_file_name,
             history_file_name=history_file_names[i],
@@ -1031,6 +1083,7 @@ def train_2d3d_cnn_with_myrorss(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         weight_loss_function=weight_loss_function,
+        binarize_target=binarize_target,
         training_class_fraction_dict=training_class_fraction_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
@@ -1151,6 +1204,7 @@ def train_2d3d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             weight_loss_function=weight_loss_function,
+            binarize_target=binarize_target,
             training_class_fraction_dict=train_class_fraction_dict_by_epoch[i],
             model_file_name=model_file_name,
             history_file_name=history_file_names[i],
@@ -1222,6 +1276,7 @@ def train_3d_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         weight_loss_function=weight_loss_function,
+        binarize_target=binarize_target,
         training_class_fraction_dict=training_class_fraction_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
@@ -1360,6 +1415,7 @@ def train_3d_cnn_with_dynamic_sampling(
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             num_validation_batches_per_epoch=num_validation_batches_per_epoch,
             weight_loss_function=weight_loss_function,
+            binarize_target=binarize_target,
             training_class_fraction_dict=train_class_fraction_dict_by_epoch[i],
             model_file_name=model_file_name,
             history_file_name=history_file_names[i],
