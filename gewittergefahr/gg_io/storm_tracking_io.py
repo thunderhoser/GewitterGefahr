@@ -227,12 +227,28 @@ def processed_file_name_to_time(processed_file_name):
         extensionless_file_name_parts[-1], TIME_FORMAT)
 
 
-def write_csv_file_for_amy(storm_object_table, csv_file_name):
-    """Writes tracking data to CSV file for Amy.
+def write_csv_file_for_amy(
+        storm_object_table, probsevere_storm_object_table,
+        csv_file_name):
+    """Writes best-track data to CSV file for Amy.
 
-    :param storm_object_table: See documentation for `write_processed_file`.
+    :param storm_object_table: See doc for `best_track_storm_object_table` in
+        `storm_tracking_utils.get_original_probsevere_ids`.
+    :param probsevere_storm_object_table: See doc for
+        `probsevere_storm_object_table` in
+        `storm_tracking_utils.get_original_probsevere_ids`.
     :param csv_file_name: Path to output file.
     """
+
+    print (
+        'Matching best-track storm objects with original probSevere objects...')
+    orig_probsevere_ids = tracking_utils.get_original_probsevere_ids(
+        best_track_storm_object_table=storm_object_table,
+        probsevere_storm_object_table=probsevere_storm_object_table)
+
+    argument_dict = {tracking_utils.ORIG_STORM_ID_COLUMN: orig_probsevere_ids}
+    storm_object_table = storm_object_table.assign(
+        **argument_dict)
 
     orig_num_storm_objects = len(storm_object_table.index)
     storm_object_table = storm_object_table.loc[
