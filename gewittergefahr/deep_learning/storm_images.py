@@ -7,7 +7,6 @@ other words, the center of the image is the centroid of the storm object).
 import os
 import copy
 import glob
-import pickle
 import numpy
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
@@ -409,104 +408,6 @@ def _find_many_files_one_spc_date(
     return image_file_name_matrix, valid_times_unix_sec
 
 
-def _write_storm_images_only(
-        netcdf_file_name, storm_image_matrix, storm_ids, valid_times_unix_sec,
-        radar_field_name, radar_height_m_asl):
-    """Writes storm-centered radar images to NetCDF file.
-
-    These images should be created by `extract_storm_image`.
-
-    :param netcdf_file_name: Path to output file.
-    :param storm_image_matrix: See documentation for `_check_storm_images`.
-    :param storm_ids: Same.
-    :param valid_times_unix_sec: Same.
-    :param radar_field_name: Same.
-    :param radar_height_m_asl: Same.
-    """
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
-    netcdf_dataset = netCDF4.Dataset(
-        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
-
-    netcdf_dataset.setncattr(RADAR_FIELD_NAME_KEY, radar_field_name)
-    netcdf_dataset.setncattr(RADAR_HEIGHT_KEY, radar_height_m_asl)
-
-    num_storm_objects = storm_image_matrix.shape[0]
-    num_storm_id_chars = 0
-    for i in range(num_storm_objects):
-        num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
-
-    netcdf_dataset.createDimension(
-        STORM_OBJECT_DIMENSION_KEY, num_storm_objects)
-    netcdf_dataset.createDimension(
-        LAT_DIMENSION_KEY, storm_image_matrix.shape[1])
-    netcdf_dataset.createDimension(
-        LNG_DIMENSION_KEY, storm_image_matrix.shape[2])
-    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_storm_id_chars)
-
-    netcdf_dataset.createVariable(
-        STORM_IDS_KEY, datatype='S1',
-        dimensions=(STORM_OBJECT_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
-
-    string_type = 'S{0:d}'.format(num_storm_id_chars)
-    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
-        storm_ids, dtype=string_type))
-    netcdf_dataset.variables[STORM_IDS_KEY][:] = numpy.array(
-        storm_ids_as_char_array)
-
-    netcdf_dataset.createVariable(
-        VALID_TIMES_KEY, datatype=numpy.int32,
-        dimensions=STORM_OBJECT_DIMENSION_KEY)
-    netcdf_dataset.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
-
-    chunk_size_tuple = (1,) + storm_image_matrix.shape[1:]
-    netcdf_dataset.createVariable(
-        STORM_IMAGE_MATRIX_KEY, datatype=numpy.float32,
-        dimensions=(
-            STORM_OBJECT_DIMENSION_KEY, LAT_DIMENSION_KEY, LNG_DIMENSION_KEY),
-        chunksizes=chunk_size_tuple)
-
-    netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][:] = storm_image_matrix
-    netcdf_dataset.close()
-
-
-def _write_storm_labels_only(
-        pickle_file_name, storm_to_winds_table=None,
-        storm_to_tornadoes_table=None):
-    """Writes storm-hazard labels to Pickle file.
-
-    The input tables should be created by `extract_storm_labels`.
-
-    :param pickle_file_name: Path to output file.
-    :param storm_to_winds_table: See doc for `_check_storm_labels`.
-    :param storm_to_tornadoes_table: See doc for `_check_storm_labels`.
-    """
-
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(storm_to_winds_table, pickle_file_handle)
-    pickle.dump(storm_to_tornadoes_table, pickle_file_handle)
-    pickle_file_handle.close()
-
-
-def _read_storm_labels_only(pickle_file_name):
-    """Reads storm-hazard labels from Pickle file.
-
-    This file should be written by `_write_storm_labels_only`.
-
-    :param pickle_file_name: Path to input file.
-    :return: storm_to_winds_table: See doc for `_check_storm_labels`.
-    :return: storm_to_tornadoes_table: See doc for `_check_storm_labels`.
-    """
-
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    storm_to_winds_table = pickle.load(pickle_file_handle)
-    storm_to_tornadoes_table = pickle.load(pickle_file_handle)
-    pickle_file_handle.close()
-
-    return storm_to_winds_table, storm_to_tornadoes_table
-
-
 def _filter_storm_objects_by_label(
         label_values, num_storm_objects_class_dict, test_mode=False):
     """Filters storm objects by label (target variable).
@@ -904,7 +805,7 @@ def extract_storm_images_myrorss_or_mrms(
 
                     print 'Writing storm images to "{0:s}"...\n'.format(
                         image_file_name_matrix[i, j])
-                    _write_storm_images_only(
+                    write_storm_images(
                         netcdf_file_name=image_file_name_matrix[i, j],
                         storm_image_matrix=this_storm_image_matrix,
                         storm_ids=these_storm_ids,
@@ -935,7 +836,7 @@ def extract_storm_images_myrorss_or_mrms(
 
             print 'Writing storm images to "{0:s}"...\n'.format(
                 image_file_name_matrix[q, j])
-            _write_storm_images_only(
+            write_storm_images(
                 netcdf_file_name=image_file_name_matrix[q, j],
                 storm_image_matrix=this_date_storm_image_matrix,
                 storm_ids=this_date_storm_ids,
@@ -1150,7 +1051,7 @@ def extract_storm_images_gridrad(
 
                         print 'Writing storm images to "{0:s}"...\n'.format(
                             image_file_name_matrix[i, j, k])
-                        _write_storm_images_only(
+                        write_storm_images(
                             netcdf_file_name=image_file_name_matrix[i, j, k],
                             storm_image_matrix=this_storm_image_matrix,
                             storm_ids=these_storm_ids,
@@ -1183,7 +1084,7 @@ def extract_storm_images_gridrad(
 
                 print 'Writing storm images to "{0:s}"...\n'.format(
                     image_file_name_matrix[q, j, k])
-                _write_storm_images_only(
+                write_storm_images(
                     netcdf_file_name=image_file_name_matrix[q, j, k],
                     storm_image_matrix=this_date_storm_image_matrix,
                     storm_ids=this_date_storm_ids,
@@ -1194,6 +1095,232 @@ def extract_storm_images_gridrad(
     return image_file_name_matrix
 
 
+def write_storm_images(
+        netcdf_file_name, storm_image_matrix, storm_ids, valid_times_unix_sec,
+        radar_field_name, radar_height_m_asl):
+    """Writes storm-centered radar images to NetCDF file.
+
+    These images should be created by `extract_storm_image`.
+
+    :param netcdf_file_name: Path to output file.
+    :param storm_image_matrix: See documentation for `_check_storm_images`.
+    :param storm_ids: Same.
+    :param valid_times_unix_sec: Same.
+    :param radar_field_name: Same.
+    :param radar_height_m_asl: Same.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    netcdf_dataset = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    netcdf_dataset.setncattr(RADAR_FIELD_NAME_KEY, radar_field_name)
+    netcdf_dataset.setncattr(RADAR_HEIGHT_KEY, radar_height_m_asl)
+
+    num_storm_objects = storm_image_matrix.shape[0]
+    num_storm_id_chars = 0
+    for i in range(num_storm_objects):
+        num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
+
+    netcdf_dataset.createDimension(
+        STORM_OBJECT_DIMENSION_KEY, num_storm_objects)
+    netcdf_dataset.createDimension(
+        LAT_DIMENSION_KEY, storm_image_matrix.shape[1])
+    netcdf_dataset.createDimension(
+        LNG_DIMENSION_KEY, storm_image_matrix.shape[2])
+    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_storm_id_chars)
+
+    netcdf_dataset.createVariable(
+        STORM_IDS_KEY, datatype='S1',
+        dimensions=(STORM_OBJECT_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
+
+    string_type = 'S{0:d}'.format(num_storm_id_chars)
+    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
+        storm_ids, dtype=string_type))
+    netcdf_dataset.variables[STORM_IDS_KEY][:] = numpy.array(
+        storm_ids_as_char_array)
+
+    netcdf_dataset.createVariable(
+        VALID_TIMES_KEY, datatype=numpy.int32,
+        dimensions=STORM_OBJECT_DIMENSION_KEY)
+    netcdf_dataset.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
+
+    chunk_size_tuple = (1,) + storm_image_matrix.shape[1:]
+    netcdf_dataset.createVariable(
+        STORM_IMAGE_MATRIX_KEY, datatype=numpy.float32,
+        dimensions=(
+            STORM_OBJECT_DIMENSION_KEY, LAT_DIMENSION_KEY, LNG_DIMENSION_KEY),
+        chunksizes=chunk_size_tuple)
+
+    netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][:] = storm_image_matrix
+    netcdf_dataset.close()
+
+
+def read_storm_images(
+        netcdf_file_name, return_images=True, storm_ids_to_keep=None,
+        valid_times_to_keep_unix_sec=None):
+    """Reads storm-centered radar images from NetCDF file.
+
+    p = number of storm objects to keep
+
+    If `storm_ids_to_keep is None` or `valid_times_to_keep_unix_sec is None`,
+    will keep all storm objects.
+
+    :param netcdf_file_name: Path to input file.
+    :param return_images: Boolean flag.  If True, will return storm images +
+        metadata.  If False, will return only metadata.
+    :param storm_ids_to_keep: length-p list with string IDs of storm objects to
+        keep.
+    :param valid_times_to_keep_unix_sec: length-p numpy array with valid times
+        of storm objects to keep.
+    :return: storm_image_dict: Dictionary with the following keys.
+    storm_image_dict['storm_image_matrix']: See documentation for
+        `_check_storm_images`.
+    storm_image_dict['storm_ids']: Same.
+    storm_image_dict['valid_times_unix_sec']: Same.
+    storm_image_dict['radar_field_name']: Same.
+    storm_image_dict['radar_height_m_asl']: Same.
+    """
+
+    error_checking.assert_is_boolean(return_images)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
+
+    radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
+    radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
+    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
+    storm_ids = [str(s) for s in storm_ids]
+
+    try:
+        valid_times_unix_sec = numpy.array(
+            netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
+    except:
+        valid_times_unix_sec = numpy.full(
+            len(storm_ids), getattr(netcdf_dataset, 'unix_time_sec'), dtype=int)
+
+    if not return_images:
+        return {
+            STORM_IDS_KEY: storm_ids,
+            VALID_TIMES_KEY: valid_times_unix_sec,
+            RADAR_FIELD_NAME_KEY: radar_field_name,
+            RADAR_HEIGHT_KEY: radar_height_m_asl
+        }
+
+    num_storm_objects = len(storm_ids)
+
+    if storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None:
+        indices_to_keep = numpy.linspace(
+            0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
+    else:
+        error_checking.assert_is_string_list(storm_ids_to_keep)
+        error_checking.assert_is_numpy_array(
+            numpy.array(storm_ids_to_keep), num_dimensions=1)
+        num_storm_objects_to_keep = len(storm_ids_to_keep)
+
+        error_checking.assert_is_integer_numpy_array(
+            valid_times_to_keep_unix_sec)
+        error_checking.assert_is_numpy_array(
+            valid_times_to_keep_unix_sec,
+            exact_dimensions=numpy.array([num_storm_objects_to_keep]))
+
+        indices_to_keep = _find_storm_objects(
+            all_storm_ids=storm_ids,
+            all_valid_times_unix_sec=valid_times_unix_sec,
+            storm_ids_to_keep=storm_ids_to_keep,
+            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
+
+        storm_ids = [storm_ids[i] for i in indices_to_keep]
+        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
+
+    storm_image_matrix = numpy.array(
+        netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
+            indices_to_keep, ...])
+    netcdf_dataset.close()
+
+    _check_storm_images(
+        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
+        valid_times_unix_sec=valid_times_unix_sec,
+        radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    return {
+        STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
+        STORM_IDS_KEY: storm_ids,
+        VALID_TIMES_KEY: valid_times_unix_sec,
+        RADAR_FIELD_NAME_KEY: radar_field_name,
+        RADAR_HEIGHT_KEY: radar_height_m_asl
+    }
+
+
+def read_storm_images_and_labels(
+        image_file_name, label_file_name, label_name,
+        num_storm_objects_class_dict=None):
+    """Reads storm-centered radar images and corresponding hazard labels.
+
+    If `num_storm_objects_class_dict is not None` and no desired storm objects
+    are found, this method will return None.
+
+    :param image_file_name: Path to storm-image file (readable by
+        `read_storm_images`).
+    :param label_file_name: Path to storm-label file (readable by
+        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
+    :param label_name: Will return values for this label only.
+    :param num_storm_objects_class_dict: Dictionary, where each key is a class
+        integer (-2 for dead storms) and each value is the corresponding number
+        of storm objects to return.
+    :return storm_image_dict: Dictionary with the following keys.
+    storm_image_dict['storm_image_matrix']: See documentation for
+        `_check_storm_images`.
+    storm_image_dict['storm_ids']: Same.
+    storm_image_dict['valid_times_unix_sec']: Same.
+    storm_image_dict['radar_field_name']: Same.
+    storm_image_dict['radar_height_m_asl']: Same.
+    storm_image_dict['label_values']: 1-D numpy array with label for each storm
+        object.
+    """
+
+    parameter_dict = labels.column_name_to_label_params(label_name)
+    event_type_string = parameter_dict[labels.EVENT_TYPE_KEY]
+    if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
+        storm_to_winds_table = labels.read_wind_speed_labels(label_file_name)
+        storm_to_tornadoes_table = None
+    else:
+        storm_to_tornadoes_table = labels.read_tornado_labels(label_file_name)
+        storm_to_winds_table = None
+
+    storm_image_dict = read_storm_images(
+        netcdf_file_name=image_file_name, return_images=False)
+    label_values = extract_storm_labels_with_name(
+        storm_ids=storm_image_dict[STORM_IDS_KEY],
+        valid_times_unix_sec=storm_image_dict[VALID_TIMES_KEY],
+        label_name=label_name, storm_to_winds_table=storm_to_winds_table,
+        storm_to_tornadoes_table=storm_to_tornadoes_table)
+
+    if num_storm_objects_class_dict is None:
+        storm_image_dict = read_storm_images(
+            netcdf_file_name=image_file_name, return_images=True)
+    else:
+        indices_to_keep = _filter_storm_objects_by_label(
+            label_values=label_values,
+            num_storm_objects_class_dict=num_storm_objects_class_dict)
+        if not len(indices_to_keep):
+            return None
+
+        storm_ids_to_keep = [
+            storm_image_dict[STORM_IDS_KEY][i] for i in indices_to_keep]
+        valid_times_to_keep_unix_sec = storm_image_dict[
+            VALID_TIMES_KEY][indices_to_keep]
+
+        storm_image_dict = read_storm_images(
+            netcdf_file_name=image_file_name, return_images=True,
+            storm_ids_to_keep=storm_ids_to_keep,
+            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
+        label_values = label_values[indices_to_keep]
+
+    storm_image_dict.update({LABEL_VALUES_KEY: label_values})
+    return storm_image_dict
+
+
 def find_storm_image_file(
         top_directory_name, spc_date_string, radar_source, radar_field_name,
         radar_height_m_asl, unix_time_sec=None, raise_error_if_missing=True):
@@ -1202,7 +1329,7 @@ def find_storm_image_file(
     If `unix_time_sec is None`, this method finds a file with images for one SPC
     date.  Otherwise, finds a file with images for one time step.
 
-    Both file types should be written by `_write_storm_images_only`.
+    Both file types should be written by `write_storm_images`.
 
     :param top_directory_name: Name of top-level directory with storm-image
         files.
@@ -1252,58 +1379,61 @@ def find_storm_image_file(
     return storm_image_file_name
 
 
+def image_file_name_to_time(storm_image_file_name):
+    """Parses time from name of storm-image file.
+
+    This file should be written by `write_storm_images`.
+
+    :param storm_image_file_name: Path to input file.
+    :return: unix_time_sec: Valid time.  If the file contains data for one SPC
+        date (rather than one time step), this will be None.
+    :return: spc_date_string: SPC date (format "yyyymmdd").
+    """
+
+    directory_name, pathless_file_name = os.path.split(storm_image_file_name)
+    extensionless_file_name, _ = os.path.splitext(pathless_file_name)
+    time_string = extensionless_file_name.split('_')[-1]
+
+    try:
+        time_conversion.spc_date_string_to_unix_sec(time_string)
+        return None, time_string
+    except:
+        pass
+
+    unix_time_sec = time_conversion.string_to_unix_sec(time_string, TIME_FORMAT)
+    spc_date_string = directory_name.split('/')[-3]
+    time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+
+    return unix_time_sec, spc_date_string
+
+
 def find_storm_label_file(
-        storm_image_file_name, raise_error_if_missing=True,
-        warn_if_missing=True):
+        storm_image_file_name, top_label_directory_name, label_name,
+        raise_error_if_missing=True):
     """Finds file with storm-hazard labels.
 
-    This file should be written by `_write_storm_labels_only`.
+    This file should be written by `labels.write_wind_speed_labels` or
+    `labels.write_tornado_labels`.
 
-    :param storm_image_file_name: Path to storm-image file (should be written by
-        `_write_storm_images_only`).  This method will find the corresponding
-        label file.
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will error out.
-    :param warn_if_missing: Boolean flag.  If file is missing,
-        `raise_error_if_missing` = False, and `warn_if_missing` = True, will
-        print warning message.
+    :param storm_image_file_name: Path to file with storm-centered radar images.
+    :param top_label_directory_name: Name of top-level directory with label file.
+    :param label_name: Name of label.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.
     :return: storm_label_file_name: Path to label file.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
-    error_checking.assert_is_string(storm_image_file_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
-    if raise_error_if_missing:
-        warn_if_missing = False
-    else:
-        error_checking.assert_is_boolean(warn_if_missing)
-
-    storm_image_dir_name, pathless_image_file_name = os.path.split(
+    unix_time_sec, spc_date_string = image_file_name_to_time(
         storm_image_file_name)
-    dir_name_parts = storm_image_dir_name.split('/')[:-2]
-    storm_label_dir_name = '/'.join(dir_name_parts)
 
-    extensionless_image_file_name, _ = os.path.splitext(
-        pathless_image_file_name)
-    extensionless_label_file_name = extensionless_image_file_name.replace(
-        'images', 'labels')
-    storm_label_file_name = '{0:s}/{1:s}.p'.format(
-        storm_label_dir_name, extensionless_label_file_name)
-
-    if not os.path.isfile(storm_label_file_name):
-        error_string = (
-            'PROBLEM.  Cannot find file with storm-hazard labels.  Expected at:'
-            ' {0:s}'
-        ).format(storm_label_file_name)
-
-        if raise_error_if_missing:
-            raise ValueError(error_string)
-
-        if warn_if_missing:
-            print error_string
-
-    return storm_label_file_name
+    parameter_dict = labels.column_name_to_label_params(label_name)
+    return labels.find_label_file(
+        top_directory_name=top_label_directory_name,
+        event_type_string=parameter_dict[labels.EVENT_TYPE_KEY],
+        raise_error_if_missing=raise_error_if_missing,
+        unix_time_sec=unix_time_sec, spc_date_string=spc_date_string)
 
 
 def find_many_files_myrorss_or_mrms(
@@ -1623,261 +1753,6 @@ def find_many_files_gridrad(
     return image_file_name_matrix, valid_times_unix_sec
 
 
-def write_storm_images_and_labels(
-        image_file_name, label_file_name, storm_image_matrix, storm_ids,
-        valid_times_unix_sec, radar_field_name, radar_height_m_asl,
-        storm_to_winds_table=None, storm_to_tornadoes_table=None):
-    """Writes storm-centered radar images and hazard labels to files.
-
-    Images should be created by `extract_storm_image`.
-    Labels should be created by `extract_storm_labels`.
-
-    :param image_file_name: Path to NetCDF output file.
-    :param label_file_name: Path to Pickle output file.
-    :param storm_image_matrix: See documentation for `_check_storm_images`.
-    :param storm_ids: Same.
-    :param valid_times_unix_sec: Same.
-    :param radar_field_name: Same.
-    :param radar_height_m_asl: Same.
-    :param storm_to_winds_table: See doc for `_check_storm_labels`.
-    :param storm_to_tornadoes_table: Same.
-    """
-
-    _check_storm_images(
-        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
-        valid_times_unix_sec=valid_times_unix_sec,
-        radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl)
-
-    _check_storm_labels(
-        storm_ids=storm_ids, valid_times_unix_sec=valid_times_unix_sec,
-        storm_to_winds_table=storm_to_winds_table,
-        storm_to_tornadoes_table=storm_to_tornadoes_table)
-
-    _write_storm_images_only(
-        netcdf_file_name=image_file_name, storm_image_matrix=storm_image_matrix,
-        storm_ids=storm_ids, valid_times_unix_sec=valid_times_unix_sec,
-        radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl)
-
-    _write_storm_labels_only(
-        pickle_file_name=label_file_name,
-        storm_to_winds_table=storm_to_winds_table,
-        storm_to_tornadoes_table=storm_to_tornadoes_table)
-
-
-def read_storm_images_only(
-        netcdf_file_name, return_images=True, storm_ids_to_keep=None,
-        valid_times_to_keep_unix_sec=None):
-    """Reads storm-centered radar images from NetCDF file.
-
-    p = number of storm objects to keep
-
-    If `storm_ids_to_keep is None` or `valid_times_to_keep_unix_sec is None`,
-    will keep all storm objects.
-
-    :param netcdf_file_name: Path to input file.
-    :param return_images: Boolean flag.  If True, will return storm images +
-        metadata.  If False, will return only metadata.
-    :param storm_ids_to_keep: length-p list with string IDs of storm objects to
-        keep.
-    :param valid_times_to_keep_unix_sec: length-p numpy array with valid times
-        of storm objects to keep.
-    :return: storm_image_dict: Dictionary with the following keys.
-    storm_image_dict['storm_image_matrix']: See documentation for
-        `_check_storm_images`.
-    storm_image_dict['storm_ids']: Same.
-    storm_image_dict['valid_times_unix_sec']: Same.
-    storm_image_dict['radar_field_name']: Same.
-    storm_image_dict['radar_height_m_asl']: Same.
-    """
-
-    error_checking.assert_is_boolean(return_images)
-    netcdf_dataset = netcdf_io.open_netcdf(
-        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
-
-    radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
-    radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
-    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
-    storm_ids = [str(s) for s in storm_ids]
-
-    try:
-        valid_times_unix_sec = numpy.array(
-            netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
-    except:
-        valid_times_unix_sec = numpy.full(
-            len(storm_ids), getattr(netcdf_dataset, 'unix_time_sec'), dtype=int)
-
-    if not return_images:
-        return {
-            STORM_IDS_KEY: storm_ids,
-            VALID_TIMES_KEY: valid_times_unix_sec,
-            RADAR_FIELD_NAME_KEY: radar_field_name,
-            RADAR_HEIGHT_KEY: radar_height_m_asl
-        }
-
-    num_storm_objects = len(storm_ids)
-
-    if storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None:
-        indices_to_keep = numpy.linspace(
-            0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
-    else:
-        error_checking.assert_is_string_list(storm_ids_to_keep)
-        error_checking.assert_is_numpy_array(
-            numpy.array(storm_ids_to_keep), num_dimensions=1)
-        num_storm_objects_to_keep = len(storm_ids_to_keep)
-
-        error_checking.assert_is_integer_numpy_array(
-            valid_times_to_keep_unix_sec)
-        error_checking.assert_is_numpy_array(
-            valid_times_to_keep_unix_sec,
-            exact_dimensions=numpy.array([num_storm_objects_to_keep]))
-
-        indices_to_keep = _find_storm_objects(
-            all_storm_ids=storm_ids,
-            all_valid_times_unix_sec=valid_times_unix_sec,
-            storm_ids_to_keep=storm_ids_to_keep,
-            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
-
-        storm_ids = [storm_ids[i] for i in indices_to_keep]
-        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
-
-    storm_image_matrix = numpy.array(
-        netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
-            indices_to_keep, ...])
-    netcdf_dataset.close()
-
-    _check_storm_images(
-        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
-        valid_times_unix_sec=valid_times_unix_sec,
-        radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl)
-
-    return {
-        STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
-        STORM_IDS_KEY: storm_ids,
-        VALID_TIMES_KEY: valid_times_unix_sec,
-        RADAR_FIELD_NAME_KEY: radar_field_name,
-        RADAR_HEIGHT_KEY: radar_height_m_asl
-    }
-
-
-def read_storm_images_and_labels(
-        image_file_name, label_file_name, return_label_name=None,
-        num_storm_objects_class_dict=None):
-    """Reads storm-centered radar images and hazard labels from files.
-
-    Both files should be written by `write_storm_images_and_labels`.
-
-    If `num_storm_objects_class_dict is not None` and no desired storm objects
-    are found, this method will return None.
-
-    :param image_file_name: Path to NetCDF input file.
-    :param label_file_name: Path to Pickle input file.
-    :param return_label_name: Name of label (target variable) to return for each
-        storm object.  Must be a column in `storm_to_winds_table` or
-        `storm_to_tornadoes_table`.
-    :param num_storm_objects_class_dict:
-        [used only if `return_label_name is not None`]
-        Dictionary, where each key is a class integer (-2 for dead storms) and
-        each value is the corresponding number of storm objects to return.
-
-    :return storm_image_dict: Dictionary with the following keys.
-    storm_image_dict['storm_image_matrix']: See documentation for
-        `_check_storm_images`.
-    storm_image_dict['storm_ids']: Same.
-    storm_image_dict['valid_times_unix_sec']: Same.
-    storm_image_dict['radar_field_name']: Same.
-    storm_image_dict['radar_height_m_asl']: Same.
-
-    If `return_label_name is None`, the following keys are included.
-
-    storm_image_dict['storm_to_winds_table']: See doc for `_check_storm_labels`.
-    storm_image_dict['storm_to_tornadoes_table']: Same.
-
-    If `return_label_name is not None`, the following keys are included.
-
-    storm_image_dict['label_values']: length-L numpy array with label (target)
-        for each storm object, where L = number of storm objects.
-    """
-
-    storm_to_winds_table, storm_to_tornadoes_table = (
-        _read_storm_labels_only(label_file_name))
-
-    if return_label_name is None:
-        storm_image_dict = read_storm_images_only(
-            netcdf_file_name=image_file_name, return_images=True)
-
-        _check_storm_labels(
-            storm_ids=storm_image_dict[STORM_IDS_KEY],
-            valid_times_unix_sec=storm_image_dict[VALID_TIMES_KEY],
-            storm_to_winds_table=storm_to_winds_table,
-            storm_to_tornadoes_table=storm_to_tornadoes_table)
-
-        storm_image_dict.update({
-            STORM_TO_WINDS_TABLE_KEY: storm_to_winds_table,
-            STORM_TO_TORNADOES_TABLE_KEY: storm_to_tornadoes_table
-        })
-        return storm_image_dict
-
-    storm_image_dict = read_storm_images_only(
-        netcdf_file_name=image_file_name, return_images=False)
-    label_values = extract_storm_labels_with_name(
-        storm_ids=storm_image_dict[STORM_IDS_KEY],
-        valid_times_unix_sec=storm_image_dict[VALID_TIMES_KEY],
-        label_name=return_label_name, storm_to_winds_table=storm_to_winds_table,
-        storm_to_tornadoes_table=storm_to_tornadoes_table)
-
-    if num_storm_objects_class_dict is None:
-        storm_image_dict = read_storm_images_only(
-            netcdf_file_name=image_file_name, return_images=True)
-    else:
-        indices_to_keep = _filter_storm_objects_by_label(
-            label_values=label_values,
-            num_storm_objects_class_dict=num_storm_objects_class_dict)
-        if not len(indices_to_keep):
-            return None
-
-        storm_ids_to_keep = [
-            storm_image_dict[STORM_IDS_KEY][i] for i in indices_to_keep]
-        valid_times_to_keep_unix_sec = storm_image_dict[
-            VALID_TIMES_KEY][indices_to_keep]
-
-        storm_image_dict = read_storm_images_only(
-            netcdf_file_name=image_file_name, return_images=True,
-            storm_ids_to_keep=storm_ids_to_keep,
-            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
-        label_values = label_values[indices_to_keep]
-
-    storm_image_dict.update({LABEL_VALUES_KEY: label_values})
-    return storm_image_dict
-
-
-def extract_storm_labels(
-        storm_ids, valid_times_unix_sec, storm_to_winds_table=None,
-        storm_to_tornadoes_table=None):
-    """Extracts all labels (target variables) for each storm object.
-
-    :param storm_ids: See documentation for `_check_storm_labels`.
-    :param valid_times_unix_sec: Same.
-    :param storm_to_winds_table: Same.
-    :param storm_to_tornadoes_table: Same.
-    :return: relevant_storm_to_winds_table: Same.
-    :return: relevant_storm_to_tornadoes_table: Same.
-    :raises: ValueError: if `storm_to_winds_table` and
-        `storm_to_tornadoes_table` are both None.
-    """
-
-    if storm_to_winds_table is None and storm_to_tornadoes_table is None:
-        raise ValueError('`storm_to_winds_table` and `storm_to_tornadoes_table`'
-                         ' cannot both be None.')
-
-    return _check_storm_labels(
-        storm_ids=storm_ids, valid_times_unix_sec=valid_times_unix_sec,
-        storm_to_winds_table=storm_to_winds_table,
-        storm_to_tornadoes_table=storm_to_tornadoes_table)
-
-
 def extract_storm_labels_with_name(
         storm_ids, valid_times_unix_sec, label_name, storm_to_winds_table=None,
         storm_to_tornadoes_table=None):
@@ -1910,54 +1785,3 @@ def extract_storm_labels_with_name(
         storm_to_winds_table=storm_to_winds_table,
         storm_to_tornadoes_table=None)
     return relevant_storm_to_winds_table[label_name].values
-
-
-def attach_labels_to_storm_images(
-        image_file_name_matrix, storm_to_winds_table=None,
-        storm_to_tornadoes_table=None):
-    """Attaches labels (target variables) to each storm-centered radar image.
-
-    T = number of time steps
-    C = number of radar variables (field/height pairs)
-
-    :param image_file_name_matrix: T-by-C numpy array of paths to storm-image
-        files (should be written by `_write_storm_images_only`).
-    :param storm_to_winds_table: See documentation for `extract_storm_labels`.
-    :param storm_to_tornadoes_table: Same.
-    """
-
-    error_checking.assert_is_numpy_array(
-        image_file_name_matrix, num_dimensions=2)
-    num_times = image_file_name_matrix.shape[0]
-    num_field_height_pairs = image_file_name_matrix.shape[1]
-
-    for i in range(num_times):
-        for j in range(num_field_height_pairs):
-            if image_file_name_matrix[i, j] == '':
-                continue
-
-            print 'Reading storm-centered radar images from: "{0:s}"...'.format(
-                image_file_name_matrix[i, j])
-            this_storm_image_dict = read_storm_images_only(
-                netcdf_file_name=image_file_name_matrix[i, j])
-
-            print 'Attaching labels to storm images...'
-            this_storm_to_winds_table, this_storm_to_tornadoes_table = (
-                extract_storm_labels(
-                    storm_ids=this_storm_image_dict[STORM_IDS_KEY],
-                    valid_times_unix_sec=this_storm_image_dict[VALID_TIMES_KEY],
-                    storm_to_winds_table=storm_to_winds_table,
-                    storm_to_tornadoes_table=storm_to_tornadoes_table))
-
-            this_label_file_name = find_storm_label_file(
-                storm_image_file_name=image_file_name_matrix[i, j],
-                raise_error_if_missing=False)
-
-            print 'Writing storm-hazard labels to: "{0:s}"...\n'.format(
-                this_label_file_name)
-            _write_storm_labels_only(
-                pickle_file_name=this_label_file_name,
-                storm_to_winds_table=this_storm_to_winds_table,
-                storm_to_tornadoes_table=this_storm_to_tornadoes_table)
-
-            break

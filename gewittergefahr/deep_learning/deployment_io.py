@@ -63,7 +63,7 @@ def _check_input_args(
 
 def create_2d_storm_images(
         image_file_name_matrix, target_name, return_target=True,
-        binarize_target=False,
+        binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         sounding_statistic_file_names=None, sounding_statistic_names=None,
         sounding_stat_metadata_table=None):
@@ -87,7 +87,9 @@ def create_2d_storm_images(
     :param return_target: Boolean flag.  If True (False), will (not) return
         target values.
     :param binarize_target: Boolean flag.  If True (False), will (not) binarize
-        target values.
+        target values:
+    :param top_target_directory_name: Name of top-level directory with target
+        files.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
     :param sounding_statistic_file_names: length-T list of files with sounding
@@ -116,8 +118,8 @@ def create_2d_storm_images(
     field_name_by_channel = [''] * num_channels
 
     for j in range(num_channels):
-        this_storm_image_dict = storm_images.read_storm_images_only(
-            image_file_name_matrix[0, j])
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=image_file_name_matrix[0, j])
         field_name_by_channel[j] = this_storm_image_dict[
             storm_images.RADAR_FIELD_NAME_KEY]
 
@@ -129,8 +131,12 @@ def create_2d_storm_images(
         if return_target:
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[i, 0],
-                raise_error_if_missing=False, warn_if_missing=True)
+                top_label_directory_name=top_target_directory_name,
+                label_name=target_name, raise_error_if_missing=False)
             if not os.path.isfile(this_label_file_name):
+                print (
+                    'PROBLEM.  Cannot find label file.  Expected at: "{0:s}"'
+                ).format(this_label_file_name)
                 continue
 
             print (
@@ -140,8 +146,7 @@ def create_2d_storm_images(
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[i, 0],
-                label_file_name=this_label_file_name,
-                return_label_name=target_name)
+                label_file_name=this_label_file_name, label_name=target_name)
             these_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
             if not len(these_storm_ids):
                 continue
@@ -167,7 +172,7 @@ def create_2d_storm_images(
             print 'Reading storm-centered radar images from "{0:s}"...'.format(
                 image_file_name_matrix[i, 0])
 
-            this_storm_image_dict = storm_images.read_storm_images_only(
+            this_storm_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=image_file_name_matrix[i, 0])
             these_storm_ids_to_keep = None
             these_valid_times_to_keep_unix_sec = None
@@ -201,7 +206,7 @@ def create_2d_storm_images(
                     'Reading storm-centered radar images from "{0:s}"...'
                 ).format(image_file_name_matrix[i, j])
 
-                this_storm_image_dict = storm_images.read_storm_images_only(
+                this_storm_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=image_file_name_matrix[i, j],
                     storm_ids_to_keep=these_storm_ids_to_keep,
                     valid_times_to_keep_unix_sec=
@@ -238,7 +243,7 @@ def create_2d_storm_images(
 
 def create_2d3d_storm_images(
         image_file_name_matrix, target_name, return_target=True,
-        binarize_target=False,
+        binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT):
     """Creates examples with 2-D and 3-D radar images.
 
@@ -263,6 +268,8 @@ def create_2d3d_storm_images(
     :param target_name: See documentation for `create_2d_storm_images`.
     :param return_target: Same.
     :param binarize_target: Same.
+    :param top_target_directory_name: Name of top-level directory with target
+        files.
     :param radar_normalization_dict: Same.
     :return: reflectivity_image_matrix_dbz: E-by-m-by-n-by-D-by-1 numpy
         array of storm-centered reflectivity images.
@@ -286,8 +293,8 @@ def create_2d3d_storm_images(
 
     az_shear_field_names = [''] * num_az_shear_fields
     for j in range(num_az_shear_fields):
-        this_storm_image_dict = storm_images.read_storm_images_only(
-            az_shear_file_name_matrix[0, j])
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=az_shear_file_name_matrix[0, j])
         az_shear_field_names[j] = this_storm_image_dict[
             storm_images.RADAR_FIELD_NAME_KEY]
 
@@ -299,8 +306,12 @@ def create_2d3d_storm_images(
         if return_target:
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=reflectivity_file_name_matrix[i, 0],
-                raise_error_if_missing=False, warn_if_missing=True)
+                top_label_directory_name=top_target_directory_name,
+                label_name=target_name, raise_error_if_missing=False)
             if not os.path.isfile(this_label_file_name):
+                print (
+                    'PROBLEM.  Cannot find label file.  Expected at: "{0:s}"'
+                ).format(this_label_file_name)
                 continue
 
             print (
@@ -310,8 +321,7 @@ def create_2d3d_storm_images(
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=reflectivity_file_name_matrix[i, 0],
-                label_file_name=this_label_file_name,
-                return_label_name=target_name)
+                label_file_name=this_label_file_name, label_name=target_name)
             these_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
             if not len(these_storm_ids):
                 continue
@@ -337,7 +347,7 @@ def create_2d3d_storm_images(
             print 'Reading storm-centered radar images from "{0:s}"...'.format(
                 reflectivity_file_name_matrix[i, 0])
 
-            this_storm_image_dict = storm_images.read_storm_images_only(
+            this_storm_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=reflectivity_file_name_matrix[i, 0])
             these_storm_ids_to_keep = None
             these_valid_times_to_keep_unix_sec = None
@@ -349,7 +359,7 @@ def create_2d3d_storm_images(
                     'Reading storm-centered radar images from "{0:s}"...'
                 ).format(reflectivity_file_name_matrix[i, k])
 
-                this_storm_image_dict = storm_images.read_storm_images_only(
+                this_storm_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=reflectivity_file_name_matrix[i, k],
                     storm_ids_to_keep=these_storm_ids_to_keep,
                     valid_times_to_keep_unix_sec=
@@ -372,7 +382,7 @@ def create_2d3d_storm_images(
                 'Reading storm-centered radar images from "{0:s}"...'
             ).format(az_shear_file_name_matrix[i, j])
 
-            this_storm_image_dict = storm_images.read_storm_images_only(
+            this_storm_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=az_shear_file_name_matrix[i, j],
                 storm_ids_to_keep=these_storm_ids_to_keep,
                 valid_times_to_keep_unix_sec=
@@ -409,7 +419,7 @@ def create_2d3d_storm_images(
 
 def create_3d_storm_images(
         image_file_name_matrix, target_name, return_target=True,
-        binarize_target=False,
+        binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         sounding_statistic_file_names=None, sounding_statistic_names=None,
         sounding_stat_metadata_table=None):
@@ -432,6 +442,8 @@ def create_3d_storm_images(
     :param target_name: See documentation for `create_2d_storm_images`.
     :param return_target: Same.
     :param binarize_target: Same.
+    :param top_target_directory_name: Name of top-level directory with target
+        files.
     :param radar_normalization_dict: Same.
     :param sounding_statistic_file_names: Same.
     :param sounding_statistic_names: Same.
@@ -456,8 +468,8 @@ def create_3d_storm_images(
     radar_field_names = [''] * num_fields
 
     for j in range(num_fields):
-        this_storm_image_dict = storm_images.read_storm_images_only(
-            image_file_name_matrix[0, j, 0])
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=image_file_name_matrix[0, j, 0])
         radar_field_names[j] = this_storm_image_dict[
             storm_images.RADAR_FIELD_NAME_KEY]
 
@@ -469,8 +481,12 @@ def create_3d_storm_images(
         if return_target:
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[i, 0, 0],
-                raise_error_if_missing=False, warn_if_missing=True)
+                top_label_directory_name=top_target_directory_name,
+                label_name=target_name, raise_error_if_missing=False)
             if not os.path.isfile(this_label_file_name):
+                print (
+                    'PROBLEM.  Cannot find label file.  Expected at: "{0:s}"'
+                ).format(this_label_file_name)
                 continue
 
             print (
@@ -480,8 +496,7 @@ def create_3d_storm_images(
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[i, 0, 0],
-                label_file_name=this_label_file_name,
-                return_label_name=target_name)
+                label_file_name=this_label_file_name, label_name=target_name)
             these_storm_ids = this_storm_image_dict[storm_images.STORM_IDS_KEY]
             if not len(these_storm_ids):
                 continue
@@ -507,7 +522,7 @@ def create_3d_storm_images(
             print 'Reading storm-centered radar images from "{0:s}"...'.format(
                 image_file_name_matrix[i, 0, 0])
 
-            this_storm_image_dict = storm_images.read_storm_images_only(
+            this_storm_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=image_file_name_matrix[i, 0, 0])
             these_storm_ids_to_keep = None
             these_valid_times_to_keep_unix_sec = None
@@ -543,7 +558,7 @@ def create_3d_storm_images(
                     print (
                         'Reading storm-centered radar images from "{0:s}"...'
                     ).format(image_file_name_matrix[i, j, k])
-                    this_storm_image_dict = storm_images.read_storm_images_only(
+                    this_storm_image_dict = storm_images.read_storm_images(
                         netcdf_file_name=image_file_name_matrix[i, j, k],
                         storm_ids_to_keep=these_storm_ids_to_keep,
                         valid_times_to_keep_unix_sec=

@@ -347,8 +347,8 @@ def separate_input_files_for_2d3d_myrorss(
         height_by_pair_m_asl = numpy.full(num_field_height_pairs, -1, dtype=int)
 
         for j in range(num_field_height_pairs):
-            this_storm_image_dict = storm_images.read_storm_images_only(
-                image_file_name_matrix[0, j])
+            this_storm_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=image_file_name_matrix[0, j])
             field_name_by_pair[j] = this_storm_image_dict[
                 storm_images.RADAR_FIELD_NAME_KEY]
             height_by_pair_m_asl[j] = this_storm_image_dict[
@@ -629,8 +629,9 @@ def find_sounding_statistic_files(
 
 
 def storm_image_generator_2d(
-        image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_file_time, target_name, binarize_target=False,
+        image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fraction_dict=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
@@ -645,6 +646,8 @@ def storm_image_generator_2d(
 
     :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
         files.  This should be created by `find_2d_input_files`.
+    :param top_target_directory_name: Name of top-level directory with target
+        values (storm-hazard labels).
     :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
@@ -688,8 +691,8 @@ def storm_image_generator_2d(
     num_channels = image_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
     for j in range(num_channels):
-        this_storm_image_dict = storm_images.read_storm_images_only(
-            image_file_name_matrix[0, j])
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=image_file_name_matrix[0, j])
         field_name_by_channel[j] = this_storm_image_dict[
             storm_images.RADAR_FIELD_NAME_KEY]
 
@@ -731,7 +734,8 @@ def storm_image_generator_2d(
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[
                     init_time_index, 0],
-                raise_error_if_missing=False, warn_if_missing=True)
+                top_label_directory_name=top_target_directory_name,
+                label_name=target_name, raise_error_if_missing=False)
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -757,8 +761,7 @@ def storm_image_generator_2d(
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0],
-                label_file_name=this_label_file_name,
-                return_label_name=target_name,
+                label_file_name=this_label_file_name, label_name=target_name,
                 num_storm_objects_class_dict=num_examples_remaining_class_dict)
 
             if this_storm_image_dict is None:
@@ -809,7 +812,7 @@ def storm_image_generator_2d(
                 if j != 0:
                     print 'Reading data from: "{0:s}"...'.format(
                         image_file_name_matrix[init_time_index, j])
-                    this_storm_image_dict = storm_images.read_storm_images_only(
+                    this_storm_image_dict = storm_images.read_storm_images(
                         netcdf_file_name=image_file_name_matrix[
                             init_time_index, j],
                         storm_ids_to_keep=these_storm_ids_to_keep,
@@ -892,8 +895,9 @@ def storm_image_generator_2d(
 
 
 def storm_image_generator_2d3d_myrorss(
-        image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_file_time, target_name, binarize_target=False,
+        image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fraction_dict=None):
     """Generates examples with both 2-D and 3-D radar images.
@@ -911,6 +915,8 @@ def storm_image_generator_2d3d_myrorss(
 
     :param image_file_name_matrix: T-by-(D + F) numpy array of paths to image
         files.  This should be created by `find_2d_input_files`.
+    :param top_target_directory_name: Name of top-level directory with target
+        values (storm-hazard labels).
     :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
@@ -941,8 +947,8 @@ def storm_image_generator_2d3d_myrorss(
 
     az_shear_field_names = [''] * num_az_shear_fields
     for j in range(num_az_shear_fields):
-        this_storm_image_dict = storm_images.read_storm_images_only(
-            az_shear_file_name_matrix[0, j])
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=az_shear_file_name_matrix[0, j])
         az_shear_field_names[j] = this_storm_image_dict[
             storm_images.RADAR_FIELD_NAME_KEY]
 
@@ -980,7 +986,8 @@ def storm_image_generator_2d3d_myrorss(
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=reflectivity_file_name_matrix[
                     init_time_index, 0],
-                raise_error_if_missing=False, warn_if_missing=True)
+                top_label_directory_name=top_target_directory_name,
+                label_name=target_name, raise_error_if_missing=False)
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -1008,8 +1015,7 @@ def storm_image_generator_2d3d_myrorss(
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=reflectivity_file_name_matrix[
                     init_time_index, 0],
-                label_file_name=this_label_file_name,
-                return_label_name=target_name,
+                label_file_name=this_label_file_name, label_name=target_name,
                 num_storm_objects_class_dict=num_examples_remaining_class_dict)
 
             if this_storm_image_dict is None:
@@ -1039,7 +1045,7 @@ def storm_image_generator_2d3d_myrorss(
                 if j != 0:
                     print 'Reading data from: "{0:s}"...'.format(
                         reflectivity_file_name_matrix[init_time_index, j])
-                    this_storm_image_dict = storm_images.read_storm_images_only(
+                    this_storm_image_dict = storm_images.read_storm_images(
                         netcdf_file_name=reflectivity_file_name_matrix[
                             init_time_index, j],
                         storm_ids_to_keep=these_storm_ids_to_keep,
@@ -1054,7 +1060,7 @@ def storm_image_generator_2d3d_myrorss(
             for j in range(num_az_shear_fields):
                 print 'Reading data from: "{0:s}"...'.format(
                     az_shear_file_name_matrix[init_time_index, j])
-                this_storm_image_dict = storm_images.read_storm_images_only(
+                this_storm_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=az_shear_file_name_matrix[
                         init_time_index, j],
                     storm_ids_to_keep=these_storm_ids_to_keep,
@@ -1143,8 +1149,9 @@ def storm_image_generator_2d3d_myrorss(
 
 
 def storm_image_generator_3d(
-        image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_file_time, target_name, binarize_target=False,
+        image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         class_fraction_dict=None, sounding_statistic_file_names=None,
         sounding_statistic_names=None, sounding_stat_metadata_table=None):
@@ -1159,6 +1166,8 @@ def storm_image_generator_3d(
 
     :param image_file_name_matrix: T-by-F-by-H numpy array of paths to radar-
         image files.  This should be created by `find_3d_input_files`.
+    :param top_target_directory_name: Name of top-level directory with target
+        values (storm-hazard labels).
     :param num_examples_per_batch: See doc for `_check_input_args`.
     :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
@@ -1196,8 +1205,8 @@ def storm_image_generator_3d(
     num_heights = image_file_name_matrix.shape[2]
     radar_field_names = [''] * num_fields
     for j in range(num_fields):
-        this_storm_image_dict = storm_images.read_storm_images_only(
-            image_file_name_matrix[0, j, 0])
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=image_file_name_matrix[0, j, 0])
         radar_field_names[j] = this_storm_image_dict[
             storm_images.RADAR_FIELD_NAME_KEY]
 
@@ -1239,7 +1248,8 @@ def storm_image_generator_3d(
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[
                     init_time_index, 0, 0],
-                raise_error_if_missing=False, warn_if_missing=True)
+                top_label_directory_name=top_target_directory_name,
+                label_name=target_name, raise_error_if_missing=False)
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -1265,8 +1275,7 @@ def storm_image_generator_3d(
 
             this_storm_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=image_file_name_matrix[init_time_index, 0, 0],
-                label_file_name=this_label_file_name,
-                return_label_name=target_name,
+                label_file_name=this_label_file_name, label_name=target_name,
                 num_storm_objects_class_dict=num_examples_remaining_class_dict)
 
             if this_storm_image_dict is None:
@@ -1321,7 +1330,7 @@ def storm_image_generator_3d(
                         print 'Reading data from: "{0:s}"...'.format(
                             image_file_name_matrix[init_time_index, j, k])
                         this_storm_image_dict = (
-                            storm_images.read_storm_images_only(
+                            storm_images.read_storm_images(
                                 netcdf_file_name=
                                 image_file_name_matrix[init_time_index, j, k],
                                 storm_ids_to_keep=these_storm_ids_to_keep,

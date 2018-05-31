@@ -182,8 +182,8 @@ STORM_IMAGE_MATRIX_MIDDLE = numpy.array([[5., 15., 25., 35.],
 STORM_IMAGE_MATRIX_EDGE = numpy.array([[75., numpy.nan, 0., 0.],
                                        [0., 0., 0., 0.]])
 
-# The following constants are used to test find_storm_image_file and
-# find_storm_label_file.
+# The following constants are used to test find_storm_image_file,
+# image_file_name_to_time, and find_storm_label_file.
 TOP_STORM_IMAGE_DIR_NAME = 'storm_images'
 VALID_TIME_UNIX_SEC = 1516749825
 SPC_DATE_STRING = '20180123'
@@ -194,14 +194,18 @@ RADAR_HEIGHT_M_ASL = 250
 STORM_IMAGE_FILE_NAME_ONE_TIME = (
     'storm_images/myrorss/2018/20180123/echo_top_40dbz_km/00250_metres_asl/'
     'storm_images_2018-01-23-232345.nc')
-STORM_LABEL_FILE_NAME_ONE_TIME = (
-    'storm_images/myrorss/2018/20180123/storm_labels_2018-01-23-232345.p')
-
 STORM_IMAGE_FILE_NAME_ONE_SPC_DATE = (
     'storm_images/myrorss/2018/echo_top_40dbz_km/00250_metres_asl/'
     'storm_images_20180123.nc')
-STORM_LABEL_FILE_NAME_ONE_SPC_DATE = (
-    'storm_images/myrorss/2018/storm_labels_20180123.p')
+
+TOP_LABEL_DIRECTORY_NAME = 'labels'
+LABEL_NAME = (
+    'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00000-10000m_'
+    'cutoffs=10-20-30-40-50kt')
+
+STORM_LABEL_FILE_NAME_ONE_TIME = (
+    'labels/2018/20180123/wind_labels_2018-01-23-232345.p')
+STORM_LABEL_FILE_NAME_ONE_SPC_DATE = 'labels/2018/wind_labels_20180123.p'
 
 
 class StormImagesTests(unittest.TestCase):
@@ -440,6 +444,31 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
 
+    def test_image_file_name_to_time_one_time(self):
+        """Ensures correct output from image_file_name_to_time.
+
+        In this case, file name is for one time step.
+        """
+
+        (this_time_unix_sec, this_spc_date_string
+        ) = storm_images.image_file_name_to_time(STORM_IMAGE_FILE_NAME_ONE_TIME)
+
+        self.assertTrue(this_time_unix_sec == VALID_TIME_UNIX_SEC)
+        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
+
+    def test_image_file_name_to_time_one_spc_date(self):
+        """Ensures correct output from image_file_name_to_time.
+
+        In this case, file name is for one SPC date.
+        """
+
+        (this_time_unix_sec, this_spc_date_string
+        ) = storm_images.image_file_name_to_time(
+            STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
+
+        self.assertTrue(this_time_unix_sec is None)
+        self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
+
     def test_find_storm_label_file_one_time(self):
         """Ensures correct output from find_storm_label_file.
 
@@ -448,7 +477,9 @@ class StormImagesTests(unittest.TestCase):
 
         this_file_name = storm_images.find_storm_label_file(
             storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
-            raise_error_if_missing=False, warn_if_missing=False)
+            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
+            label_name=LABEL_NAME, raise_error_if_missing=False)
+
         self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
 
     def test_find_storm_label_file_one_spc_date(self):
@@ -458,9 +489,11 @@ class StormImagesTests(unittest.TestCase):
         """
 
         this_file_name = storm_images.find_storm_label_file(
-            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
-            raise_error_if_missing=False, warn_if_missing=False)
-        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
+            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
+            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
+            label_name=LABEL_NAME, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
 
     def test_extract_storm_labels_with_name_wind_ab_time0(self):
         """Ensures correct output from extract_storm_labels_with_name.
