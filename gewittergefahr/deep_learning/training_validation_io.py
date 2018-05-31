@@ -735,7 +735,8 @@ def storm_image_generator_2d(
                 storm_image_file_name=image_file_name_matrix[
                     init_time_index, 0],
                 top_label_directory_name=top_target_directory_name,
-                label_name=target_name, raise_error_if_missing=False)
+                label_name=target_name, raise_error_if_missing=False,
+                warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -987,7 +988,8 @@ def storm_image_generator_2d3d_myrorss(
                 storm_image_file_name=reflectivity_file_name_matrix[
                     init_time_index, 0],
                 top_label_directory_name=top_target_directory_name,
-                label_name=target_name, raise_error_if_missing=False)
+                label_name=target_name, raise_error_if_missing=False,
+                warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
@@ -1249,7 +1251,8 @@ def storm_image_generator_3d(
                 storm_image_file_name=image_file_name_matrix[
                     init_time_index, 0, 0],
                 top_label_directory_name=top_target_directory_name,
-                label_name=target_name, raise_error_if_missing=False)
+                label_name=target_name, raise_error_if_missing=False,
+                warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue

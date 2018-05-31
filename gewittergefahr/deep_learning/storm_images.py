@@ -29,6 +29,7 @@ from gewittergefahr.gg_utils import error_checking
 PADDING_VALUE = 0
 GRID_SPACING_TOLERANCE_DEG = 1e-4
 AZ_SHEAR_GRID_SPACING_MULTIPLIER = 2
+LABEL_FILE_EXTENSION = '.nc'
 
 DAYS_TO_SECONDS = 86400
 GRIDRAD_TIME_INTERVAL_SEC = 300
@@ -1436,7 +1437,7 @@ def image_file_name_to_time(storm_image_file_name):
 
 def find_storm_label_file(
         storm_image_file_name, top_label_directory_name, label_name,
-        raise_error_if_missing=True):
+        raise_error_if_missing=True, warn_if_missing=True):
     """Finds file with storm-hazard labels.
 
     This file should be written by `labels.write_wind_speed_labels` or
@@ -1447,20 +1448,34 @@ def find_storm_label_file(
     :param label_name: Name of label.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         raise_error_if_missing = True, this method will error out.
+    :param warn_if_missing: Boolean flag.  If file is missing,
+        raise_error_if_missing = False, and warn_if_missing = True, this method
+        will print a warning message.
     :return: storm_label_file_name: Path to label file.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
+    error_checking.assert_is_boolean(warn_if_missing)
     unix_time_sec, spc_date_string = image_file_name_to_time(
         storm_image_file_name)
 
     parameter_dict = labels.column_name_to_label_params(label_name)
-    return labels.find_label_file(
+    storm_label_file_name = labels.find_label_file(
         top_directory_name=top_label_directory_name,
         event_type_string=parameter_dict[labels.EVENT_TYPE_KEY],
-        file_extension='.nc', raise_error_if_missing=raise_error_if_missing,
+        file_extension=LABEL_FILE_EXTENSION,
+        raise_error_if_missing=raise_error_if_missing,
         unix_time_sec=unix_time_sec, spc_date_string=spc_date_string)
+
+    if not os.path.isfile(storm_label_file_name) and warn_if_missing:
+        warning_string = (
+            'POTENTIAL PROBLEM.  Cannot find file with storm-hazard labels, '
+            'expected at "{0:s}".'
+        ).format(storm_label_file_name)
+        print warning_string
+
+    return storm_label_file_name
 
 
 def find_many_files_myrorss_or_mrms(

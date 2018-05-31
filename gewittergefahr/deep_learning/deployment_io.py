@@ -132,11 +132,9 @@ def create_2d_storm_images(
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[i, 0],
                 top_label_directory_name=top_target_directory_name,
-                label_name=target_name, raise_error_if_missing=False)
+                label_name=target_name, raise_error_if_missing=False,
+                warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
-                print (
-                    'PROBLEM.  Cannot find label file.  Expected at: "{0:s}"'
-                ).format(this_label_file_name)
                 continue
 
             print (
@@ -307,11 +305,9 @@ def create_2d3d_storm_images(
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=reflectivity_file_name_matrix[i, 0],
                 top_label_directory_name=top_target_directory_name,
-                label_name=target_name, raise_error_if_missing=False)
+                label_name=target_name, raise_error_if_missing=False,
+                warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
-                print (
-                    'PROBLEM.  Cannot find label file.  Expected at: "{0:s}"'
-                ).format(this_label_file_name)
                 continue
 
             print (
@@ -482,11 +478,9 @@ def create_3d_storm_images(
             this_label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=image_file_name_matrix[i, 0, 0],
                 top_label_directory_name=top_target_directory_name,
-                label_name=target_name, raise_error_if_missing=False)
+                label_name=target_name, raise_error_if_missing=False,
+                warn_if_missing=True)
             if not os.path.isfile(this_label_file_name):
-                print (
-                    'PROBLEM.  Cannot find label file.  Expected at: "{0:s}"'
-                ).format(this_label_file_name)
                 continue
 
             print (
