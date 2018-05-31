@@ -8,6 +8,7 @@ import os
 import copy
 import glob
 import numpy
+import pandas
 import netCDF4
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_io import gridrad_io
@@ -1279,14 +1280,39 @@ def read_storm_images_and_labels(
         object.
     """
 
+    error_checking.assert_is_string(label_file_name)
     parameter_dict = labels.column_name_to_label_params(label_name)
     event_type_string = parameter_dict[labels.EVENT_TYPE_KEY]
-    if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
-        storm_to_winds_table = labels.read_wind_speed_labels(label_file_name)
-        storm_to_tornadoes_table = None
+
+    storm_to_winds_table = None
+    storm_to_tornadoes_table = None
+    _, label_file_extension = os.path.splitext(label_file_name)
+
+    if label_file_extension == '.p':
+        if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
+            storm_to_winds_table = labels.read_wind_speed_labels(
+                label_file_name)
+        else:
+            storm_to_tornadoes_table = labels.read_tornado_labels(
+                label_file_name)
     else:
-        storm_to_tornadoes_table = labels.read_tornado_labels(label_file_name)
-        storm_to_winds_table = None
+        storm_label_dict = labels.read_labels_from_netcdf(
+            netcdf_file_name=label_file_name, label_name=label_name)
+
+        storm_to_events_dict = {
+            tracking_utils.STORM_ID_COLUMN:
+                storm_label_dict[labels.STORM_IDS_KEY],
+            tracking_utils.TIME_COLUMN:
+                storm_label_dict[labels.VALID_TIMES_KEY],
+            label_name: storm_label_dict[labels.LABEL_VALUES_KEY]
+        }
+
+        if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
+            storm_to_winds_table = pandas.DataFrame.from_dict(
+                storm_to_events_dict)
+        else:
+            storm_to_tornadoes_table = pandas.DataFrame.from_dict(
+                storm_to_events_dict)
 
     storm_image_dict = read_storm_images(
         netcdf_file_name=image_file_name, return_images=False)
@@ -1425,6 +1451,8 @@ def find_storm_label_file(
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
+    # TODO(thunderhoser): Generalize this to find either Pickle or NetCDF?
+
     unix_time_sec, spc_date_string = image_file_name_to_time(
         storm_image_file_name)
 
@@ -1432,7 +1460,7 @@ def find_storm_label_file(
     return labels.find_label_file(
         top_directory_name=top_label_directory_name,
         event_type_string=parameter_dict[labels.EVENT_TYPE_KEY],
-        raise_error_if_missing=raise_error_if_missing,
+        file_extension='.nc', raise_error_if_missing=raise_error_if_missing,
         unix_time_sec=unix_time_sec, spc_date_string=spc_date_string)
 
 
