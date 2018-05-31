@@ -269,7 +269,7 @@ def write_csv_file_for_amy(storm_object_table, csv_file_name):
 
         this_polygon_object_metres, _ = polygons.project_latlng_to_xy(
             storm_object_table[
-                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values)
+                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[i])
         storm_areas_km2[i] = this_polygon_object_metres.area
 
     storm_areas_km2 = METRES2_TO_KM2 * storm_areas_km2
