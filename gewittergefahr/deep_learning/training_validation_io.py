@@ -988,7 +988,6 @@ def storm_image_generator_2d3d_myrorss(
                     init_time_index, 0],
                 top_label_directory_name=top_target_directory_name,
                 label_name=target_name, raise_error_if_missing=False)
-            print this_label_file_name
             if not os.path.isfile(this_label_file_name):
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue

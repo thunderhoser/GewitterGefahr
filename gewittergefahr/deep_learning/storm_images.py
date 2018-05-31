@@ -264,7 +264,7 @@ def _check_storm_labels(
     if storm_to_winds_table is None:
         relevant_storm_to_winds_table = None
     else:
-        labels.check_wind_speed_label_table(storm_to_winds_table)
+        # labels.check_wind_speed_label_table(storm_to_winds_table)
 
         relevant_indices = _find_storm_objects(
             all_storm_ids=storm_to_winds_table[
@@ -279,7 +279,7 @@ def _check_storm_labels(
     if storm_to_tornadoes_table is None:
         relevant_storm_to_tornadoes_table = None
     else:
-        labels.check_tornado_label_table(storm_to_tornadoes_table)
+        # labels.check_tornado_label_table(storm_to_tornadoes_table)
 
         relevant_indices = _find_storm_objects(
             all_storm_ids=storm_to_tornadoes_table[
