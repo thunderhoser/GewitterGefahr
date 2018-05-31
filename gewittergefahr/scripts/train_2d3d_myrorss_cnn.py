@@ -133,9 +133,14 @@ def _train_2d3d_myrorss_cnn(
         use_2d3d_convolution=True, pickle_file_name=metadata_file_name)
 
     # Set up model architecture.
-    num_classes = labels.column_name_to_num_classes(target_name)
+    if binarize_target:
+        num_classes_to_predict = 2
+    else:
+        num_classes_to_predict = labels.column_name_to_num_classes(
+            column_name=target_name, include_dead_storms=False)
+
     model_object = cnn.get_architecture_for_2d3d_myrorss(
-        num_classes=num_classes, dropout_fraction=dropout_fraction,
+        num_classes=num_classes_to_predict, dropout_fraction=dropout_fraction,
         first_num_reflectivity_filters=first_num_reflectivity_filters,
         num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
         l2_weight=l2_weight)

@@ -1234,13 +1234,9 @@ def read_storm_images(
         storm_ids = [storm_ids[i] for i in indices_to_keep]
         valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
 
-    start_time_unix_sec = time.time()
     storm_image_matrix = numpy.array(
         netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
             indices_to_keep, ...])
-
-    elapsed_time_sec = time.time() - start_time_unix_sec
-    print '{0:.2f} seconds elapsed'.format(elapsed_time_sec)
 
     netcdf_dataset.close()
 

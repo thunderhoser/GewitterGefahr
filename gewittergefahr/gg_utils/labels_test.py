@@ -64,6 +64,10 @@ WIND_CLASSIFICATION_LABEL_COLUMN_NAME = (
 TORNADO_LABEL_COLUMN_NAME = (
     'tornado_lead-time=0900-3600sec_distance=00001-05000m')
 
+WIND_CLASSIFN_LABEL_NAME_ZERO_LEAD_TIME = (
+    'wind-speed_percentile=097.5_lead-time=0000-3600sec_distance=00001-05000m'
+    '_cutoffs=10-20-30-40-50kt')
+
 # The following constants are used to test column_name_to_label_params and
 # column_name_to_num_classes.
 PARAM_DICT_FOR_REGRESSION_LABEL = {
@@ -279,6 +283,18 @@ class LabelsTests(unittest.TestCase):
         this_num_classes = labels.column_name_to_num_classes(
             TORNADO_LABEL_COLUMN_NAME)
         self.assertTrue(this_num_classes == 2)
+
+    def test_column_name_to_num_classes_wind_zero_lead_time(self):
+        """Ensures correct output from column_name_to_num_classes.
+
+        In this case, learning goal is classification; event type is wind speed;
+        and the lead-time range includes 0 seconds, so dead storms are
+        impossible.
+        """
+
+        this_num_classes = labels.column_name_to_num_classes(
+            WIND_CLASSIFN_LABEL_NAME_ZERO_LEAD_TIME, include_dead_storms=True)
+        self.assertTrue(this_num_classes == len(WIND_CLASS_CUTOFFS_KT) + 1)
 
     def test_get_columns_with_labels_regression(self):
         """Ensures correct output from get_columns_with_labels.

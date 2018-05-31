@@ -543,6 +543,9 @@ def column_name_to_num_classes(column_name, include_dead_storms=False):
     if wind_speed_cutoffs_kt is None:
         return None
 
+    if parameter_dict[MIN_LEAD_TIME_KEY] <= 0:
+        return len(wind_speed_cutoffs_kt) + 1
+
     return len(wind_speed_cutoffs_kt) + 1 + int(include_dead_storms)
 
 
