@@ -234,8 +234,15 @@ def write_csv_file_for_amy(storm_object_table, csv_file_name):
     :param csv_file_name: Path to output file.
     """
 
+    orig_num_storm_objects = len(storm_object_table.index)
     storm_object_table = storm_object_table.loc[
         storm_object_table[tracking_utils.AGE_COLUMN] != -1]
+    num_storm_objects = len(storm_object_table.index)
+
+    print (
+        'Number of storm objects = {0:d} ... number of objects with valid ages '
+        '= {1:d}'
+    ).format(orig_num_storm_objects, num_storm_objects)
 
     valid_time_strings = [
         time_conversion.unix_sec_to_string(t, TIME_FORMAT_IN_AMY_FILES) for
