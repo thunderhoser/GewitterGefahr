@@ -259,10 +259,20 @@ def write_csv_file_for_amy(storm_object_table, csv_file_name):
     speeds_m_s01 = numpy.sqrt(
         storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values ** 2 +
         storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values ** 2)
-    storm_areas_km2 = METRES2_TO_KM2 * numpy.array([
-        polygons.project_latlng_to_xy(p)[0].area for p in storm_object_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values
-    ])
+
+    storm_areas_km2 = numpy.full(num_storm_objects, numpy.nan)
+    for i in range(num_storm_objects):
+        if numpy.mod(i, 1000) == 0:
+            print (
+                'Have computed area for {0:d} of {1:d} storm objects...'
+            ).format(i, num_storm_objects)
+
+        this_polygon_object_metres, _ = polygons.project_latlng_to_xy(
+            storm_object_table[
+                tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values)
+        storm_areas_km2[i] = this_polygon_object_metres.area
+
+    storm_areas_km2 = METRES2_TO_KM2 * storm_areas_km2
 
     columns_to_drop = [
         tracking_utils.TIME_COLUMN, tracking_utils.CELL_START_TIME_COLUMN,
@@ -291,6 +301,7 @@ def write_csv_file_for_amy(storm_object_table, csv_file_name):
     }
     storm_object_table.rename(columns=column_dict_old_to_new, inplace=True)
 
+    print 'Writing data to "{0:s}"...'.format(csv_file_name)
     storm_object_table.to_csv(
         csv_file_name, header=True, columns=COLUMNS_FOR_AMY, index=False)
 
