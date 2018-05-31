@@ -461,6 +461,18 @@ def get_original_probsevere_ids(
         these_time_indices = numpy.where(
             probsevere_storm_object_table[TIME_COLUMN].values ==
             best_track_storm_object_table[TIME_COLUMN].values[i])[0]
+
+        if not len(these_time_indices):
+            this_time_string = time_conversion.unix_sec_to_string(
+                best_track_storm_object_table[TIME_COLUMN].values[i],
+                TIME_FORMAT_FOR_LOG_MESSAGES)
+
+            error_string = (
+                'Cannot find any probSevere objects at {0:s}, even though there'
+                ' are best-track objects at this time.'
+            ).format(this_time_string)
+            raise ValueError(error_string)
+
         these_latitude_diffs_deg = numpy.absolute(
             probsevere_storm_object_table[CENTROID_LAT_COLUMN].values[
                 these_time_indices] -
