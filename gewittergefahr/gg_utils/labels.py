@@ -8,6 +8,8 @@ max wind speed and tornado occurrence.
 import pickle
 import os.path
 import numpy
+import netCDF4
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import classification_utils as classifn_utils
@@ -55,6 +57,14 @@ PREFIX_FOR_NUM_WIND_OBS_COLUMN = 'num-wind-observations'
 REGRESSION_GOAL_STRING = 'regression'
 CLASSIFICATION_GOAL_STRING = 'classification'
 VALID_GOAL_STRINGS = [REGRESSION_GOAL_STRING, CLASSIFICATION_GOAL_STRING]
+
+CHARACTER_DIMENSION_KEY = 'storm_id_character'
+STORM_OBJECT_DIMENSION_KEY = 'storm_object'
+STORM_IDS_KEY = 'storm_ids'
+VALID_TIMES_KEY = 'valid_times_unix_sec'
+LABEL_VALUES_KEY = 'label_values'
+
+VALID_FILE_EXTENSIONS = ['.p', '.nc']
 
 
 def _check_learning_goal(goal_string):
@@ -974,8 +984,8 @@ def label_tornado_occurrence(
 
 
 def find_label_file(
-        top_directory_name, event_type_string, raise_error_if_missing=True,
-        unix_time_sec=None, spc_date_string=None):
+        top_directory_name, event_type_string, file_extension='.p',
+        raise_error_if_missing=True, unix_time_sec=None, spc_date_string=None):
     """Finds label file for either one time step or one SPC date.
 
     In other words, the file should be one written by `write_wind_speed_labels`
@@ -983,6 +993,7 @@ def find_label_file(
 
     :param top_directory_name: Name of top-level directory with label files.
     :param event_type_string: Either "wind" or "tornado".
+    :param file_extension: File extension (either ".p" or ".nc").
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         raise_error_if_missing = True, this method will error out.
     :param unix_time_sec: Valid time.
@@ -991,32 +1002,47 @@ def find_label_file(
     :return: label_file_name: File path.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
+    :raises: ValueError: if `file_extension` is invalid.
     """
 
     error_checking.assert_is_string(top_directory_name)
     events2storms.check_event_type(event_type_string)
+    error_checking.assert_is_string(file_extension)
     error_checking.assert_is_boolean(raise_error_if_missing)
+
+    if file_extension not in VALID_FILE_EXTENSIONS:
+        error_string = (
+            '\n\n{0:s}\nValid file extensions (listed above) do not include'
+            ' "{1:s}".'
+        ).format(str(VALID_FILE_EXTENSIONS), file_extension)
+        raise ValueError(error_string)
 
     if unix_time_sec is None:
         time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
         if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
-            label_file_name = '{0:s}/{1:s}/wind_labels_{2:s}.p'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string)
+            label_file_name = '{0:s}/{1:s}/wind_labels_{2:s}{3:s}'.format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                file_extension)
         else:
-            label_file_name = '{0:s}/{1:s}/tornado_labels_{2:s}.p'.format(
-                top_directory_name, spc_date_string[:4], spc_date_string)
+            label_file_name = '{0:s}/{1:s}/tornado_labels_{2:s}{3:s}'.format(
+                top_directory_name, spc_date_string[:4], spc_date_string,
+                file_extension)
     else:
         spc_date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
 
         if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
-            label_file_name = '{0:s}/{1:s}/{2:s}/wind_labels_{3:s}.p'.format(
+            label_file_name = '{0:s}/{1:s}/{2:s}/wind_labels_{3:s}{4:s}'.format(
                 top_directory_name, spc_date_string[:4], spc_date_string,
-                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+                file_extension)
         else:
-            label_file_name = '{0:s}/{1:s}/{2:s}/tornado_labels_{3:s}.p'.format(
+            label_file_name = (
+                '{0:s}/{1:s}/{2:s}/tornado_labels_{3:s}{4:s}'
+            ).format(
                 top_directory_name, spc_date_string[:4], spc_date_string,
-                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT))
+                time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
+                file_extension)
 
     if raise_error_if_missing and not os.path.isfile(label_file_name):
         error_string = 'Cannot find label file.  Expected at: "{0:s}"'.format(
@@ -1064,6 +1090,102 @@ def write_tornado_labels(storm_to_tornadoes_table, pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(storm_to_tornadoes_table[columns_to_write], pickle_file_handle)
     pickle_file_handle.close()
+
+
+def write_labels_to_netcdf(
+        storm_to_events_table, label_names, netcdf_file_name):
+    """Writes labels to NetCDF file.
+
+    `storm_to_winds_table` and `storm_to_tornadoes_table` cannot both be None.
+
+    :param storm_to_events_table: pandas DataFrame created by
+        `label_wind_speed_for_regression`,
+        `label_wind_speed_for_classification`, or `label_tornado_occurrence`.
+    :param label_names: 1-D list with names of labels to write.  In addition to
+        these columns, storm ID and valid time will also be written.
+    :param netcdf_file_name: Path to output file.
+    """
+
+    # Verify input args.
+    error_checking.assert_is_string_list(label_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(label_names), num_dimensions=1)
+
+    num_label_names = len(label_names)
+    for j in range(num_label_names):
+        column_name_to_label_params(label_names[j])
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    netcdf_dataset = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    storm_ids = storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+    num_storm_objects = len(storm_ids)
+    num_storm_id_chars = 0
+    for i in range(num_storm_objects):
+        num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
+
+    netcdf_dataset.createDimension(
+        STORM_OBJECT_DIMENSION_KEY, num_storm_objects)
+    netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_storm_id_chars)
+    netcdf_dataset.createVariable(
+        STORM_IDS_KEY, datatype='S1',
+        dimensions=(STORM_OBJECT_DIMENSION_KEY, CHARACTER_DIMENSION_KEY))
+
+    string_type = 'S{0:d}'.format(num_storm_id_chars)
+    storm_ids_as_char_array = netCDF4.stringtochar(numpy.array(
+        storm_ids, dtype=string_type))
+    netcdf_dataset.variables[STORM_IDS_KEY][:] = numpy.array(
+        storm_ids_as_char_array)
+
+    netcdf_dataset.createVariable(
+        VALID_TIMES_KEY, datatype=numpy.int32,
+        dimensions=STORM_OBJECT_DIMENSION_KEY)
+    netcdf_dataset.variables[VALID_TIMES_KEY][:] = storm_to_events_table[
+        tracking_utils.TIME_COLUMN].values
+
+    for j in range(num_label_names):
+        netcdf_dataset.createVariable(
+            label_names[j], datatype=numpy.int32,
+            dimensions=STORM_OBJECT_DIMENSION_KEY)
+        netcdf_dataset.variables[label_names[j]][:] = storm_to_events_table[
+            label_names[j]].values
+
+    netcdf_dataset.close()
+
+
+def read_labels_from_netcdf(netcdf_file_name, label_name):
+    """Reads labels from NetCDF file.
+
+    N = number of storm objects
+
+    :param netcdf_file_name: Path to input file.
+    :return: storm_label_dict: Dictionary with the following keys.
+    storm_label_dict['storm_ids']: length-N list of storm IDs.
+    storm_label_dict['valid_times_unix_sec']: length-N numpy array of valid
+        times.
+    storm_label_dict['label_values']: length-N numpy array with values of the
+        given label.
+    """
+
+    error_checking.assert_is_string(label_name)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
+
+    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
+    storm_ids = [str(s) for s in storm_ids]
+    valid_times_unix_sec = numpy.array(
+        netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
+    label_values = numpy.array(
+        netcdf_dataset.variables[label_name][:], dtype=int)
+
+    netcdf_dataset.close()
+
+    return {
+        STORM_IDS_KEY: storm_ids,
+        VALID_TIMES_KEY: valid_times_unix_sec,
+        LABEL_VALUES_KEY: label_values
+    }
 
 
 def read_wind_speed_labels(pickle_file_name):
