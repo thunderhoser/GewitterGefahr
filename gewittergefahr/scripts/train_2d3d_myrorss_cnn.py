@@ -9,7 +9,7 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import training_validation_io
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.scripts import deep_learning as dl_script_helper
 
@@ -38,13 +38,13 @@ INPUT_ARG_PARSER.add_argument(
 
 def _train_2d3d_myrorss_cnn(
         output_model_dir_name, num_epochs, num_training_batches_per_epoch,
-        input_storm_image_dir_name, num_examples_per_batch,
-        num_examples_per_file_time, training_start_time_string,
-        training_end_time_string, target_name, weight_loss_function,
-        binarize_target, class_fraction_dict_keys, class_fraction_dict_values,
-        num_validation_batches_per_epoch, validation_start_time_string,
-        validation_end_time_string, dropout_fraction, l2_weight,
-        first_num_reflectivity_filters):
+        input_storm_image_dir_name, input_target_dir_name,
+        num_examples_per_batch, num_examples_per_file_time,
+        training_start_time_string, training_end_time_string, target_name,
+        weight_loss_function, binarize_target, class_fraction_dict_keys,
+        class_fraction_dict_values, num_validation_batches_per_epoch,
+        validation_start_time_string, validation_end_time_string,
+        dropout_fraction, l2_weight, first_num_reflectivity_filters):
     """Trains hybrid 2D/3D convolutional neural net with MYRORSS data.
 
     :param output_model_dir_name: See documentation at the top of
@@ -52,6 +52,7 @@ def _train_2d3d_myrorss_cnn(
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param input_storm_image_dir_name: Same.
+    :param input_target_dir_name: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param training_start_time_string: Same.
@@ -140,7 +141,7 @@ def _train_2d3d_myrorss_cnn(
         l2_weight=l2_weight)
 
     print '\nFinding training files...'
-    training_file_name_matrix, _ = training_validation_io.find_2d_input_files(
+    training_file_name_matrix, _ = trainval_io.find_2d_input_files(
         top_directory_name=input_storm_image_dir_name,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         radar_field_names=RADAR_FIELD_NAMES,
@@ -153,15 +154,14 @@ def _train_2d3d_myrorss_cnn(
         validation_file_name_matrix = None
     else:
         print 'Finding validation files...'
-        validation_file_name_matrix, _ = (
-            training_validation_io.find_2d_input_files(
-                top_directory_name=input_storm_image_dir_name,
-                radar_source=radar_utils.MYRORSS_SOURCE_ID,
-                radar_field_names=RADAR_FIELD_NAMES,
-                first_image_time_unix_sec=first_validn_time_unix_sec,
-                last_image_time_unix_sec=last_validn_time_unix_sec,
-                reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-                one_file_per_time_step=False))
+        validation_file_name_matrix, _ = trainval_io.find_2d_input_files(
+            top_directory_name=input_storm_image_dir_name,
+            radar_source=radar_utils.MYRORSS_SOURCE_ID,
+            radar_field_names=RADAR_FIELD_NAMES,
+            first_image_time_unix_sec=first_validn_time_unix_sec,
+            last_image_time_unix_sec=last_validn_time_unix_sec,
+            reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
+            one_file_per_time_step=False)
 
     print SEPARATOR_STRING
 
@@ -171,6 +171,7 @@ def _train_2d3d_myrorss_cnn(
         tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         train_image_file_name_matrix=training_file_name_matrix,
+        top_target_directory_name=input_target_dir_name,
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
         target_name=target_name, binarize_target=binarize_target,
@@ -193,6 +194,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_script_helper.NUM_TRAIN_BATCHES_ARG_NAME),
         input_storm_image_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.STORM_IMAGE_DIR_ARG_NAME),
+        input_target_dir_name=getattr(
+            INPUT_ARG_OBJECT, dl_script_helper.TARGET_DIR_ARG_NAME),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
         num_examples_per_file_time=getattr(

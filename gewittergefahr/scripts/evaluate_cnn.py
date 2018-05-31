@@ -39,6 +39,7 @@ FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
 LAST_EVAL_TIME_ARG_NAME = 'last_eval_time_string'
 NUM_STORM_OBJECTS_ARG_NAME = 'num_storm_objects'
 STORM_IMAGE_DIR_ARG_NAME = 'input_storm_image_dir_name'
+TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -56,6 +57,10 @@ STORM_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images (CNN input).'
     '  This should contain one file per time step, radar field, and height -- '
     'readable by `storm_images.read_storm_images`.')
+TARGET_DIR_HELP_STRING = (
+    'Name of top-level directory with target values (storm-hazard labels) '
+    '(readable by `labels.read_wind_speed_labels` or '
+    '`labels.read_tornado_labels`).')
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Evaluation results will be saved here.')
 
@@ -79,6 +84,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_IMAGE_DIR_ARG_NAME, type=str, required=True,
     help=STORM_IMAGE_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
+    help=TARGET_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -228,7 +237,7 @@ def _create_attributes_diagram(
 
 def _create_forecast_observation_pairs(
         model_file_name, first_eval_time_string, last_eval_time_string,
-        num_storm_objects, top_storm_image_dir_name):
+        num_storm_objects, top_storm_image_dir_name, top_target_directory_name):
     """Creates forecast-observation pairs.
 
     :param model_file_name: See documentation at top of file.
@@ -236,6 +245,7 @@ def _create_forecast_observation_pairs(
     :param last_eval_time_string: Same.
     :param num_storm_objects: Same.
     :param top_storm_image_dir_name: Same.
+    :param top_target_directory_name: Same.
     :return: forecast_probabilities: length-N numpy array with forecast
         probabilities of some event (e.g., tornado).
     :return: observed_labels: length-N integer numpy array of observed labels
@@ -304,6 +314,7 @@ def _create_forecast_observation_pairs(
                 target_name=metadata_dict[cnn.TARGET_NAME_KEY],
                 return_target=True,
                 binarize_target=metadata_dict[cnn.BINARIZE_TARGET_KEY],
+                top_target_directory_name=top_target_directory_name,
                 radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT))
 
         if this_predictor_matrix is None:
@@ -326,7 +337,8 @@ def _create_forecast_observation_pairs(
 
 def _evaluate_model(
         model_file_name, first_eval_time_string, last_eval_time_string,
-        num_storm_objects, top_storm_image_dir_name, output_dir_name):
+        num_storm_objects, top_storm_image_dir_name, top_target_directory_name,
+        output_dir_name):
     """Evaluates predictions from a convolutional neural net (CNN).
 
     :param model_file_name: See documentation at top of file.
@@ -334,6 +346,7 @@ def _evaluate_model(
     :param last_eval_time_string: Same.
     :param num_storm_objects: Same.
     :param top_storm_image_dir_name: Same.
+    :param top_target_directory_name: Same.
     :param output_dir_name: Same.
     """
 
@@ -346,7 +359,8 @@ def _evaluate_model(
             first_eval_time_string=first_eval_time_string,
             last_eval_time_string=last_eval_time_string,
             num_storm_objects=num_storm_objects,
-            top_storm_image_dir_name=top_storm_image_dir_name))
+            top_storm_image_dir_name=top_storm_image_dir_name,
+            top_target_directory_name=top_target_directory_name))
     print SEPARATOR_STRING
 
     # TODO(thunderhoser): Should allow binarization threshold to be fed in.
@@ -426,6 +440,7 @@ if __name__ == '__main__':
     NUM_STORM_OBJECTS = getattr(INPUT_ARG_OBJECT, NUM_STORM_OBJECTS_ARG_NAME)
     TOP_STORM_IMAGE_DIR_NAME = getattr(
         INPUT_ARG_OBJECT, STORM_IMAGE_DIR_ARG_NAME)
+    TOP_TARGET_DIRECTORY_NAME = getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME)
     OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
 
     _evaluate_model(
@@ -434,4 +449,5 @@ if __name__ == '__main__':
         last_eval_time_string=LAST_EVAL_TIME_STRING,
         num_storm_objects=NUM_STORM_OBJECTS,
         top_storm_image_dir_name=TOP_STORM_IMAGE_DIR_NAME,
+        top_target_directory_name=TOP_TARGET_DIRECTORY_NAME,
         output_dir_name=OUTPUT_DIR_NAME)

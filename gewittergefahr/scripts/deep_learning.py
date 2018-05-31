@@ -6,6 +6,7 @@ MODEL_DIRECTORY_ARG_NAME = 'output_model_dir_name'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_TRAIN_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 STORM_IMAGE_DIR_ARG_NAME = 'input_storm_image_dir_name'
+TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME = 'num_examples_per_file_time'
@@ -41,6 +42,10 @@ STORM_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images (one file per'
     ' training or validation time, radar field, and height) (readable by'
     ' `storm_images.read_storm_images`).')
+TARGET_DIR_HELP_STRING = (
+    'Name of top-level directory with target values (storm-hazard labels) '
+    '(readable by `labels.read_wind_speed_labels` or '
+    '`labels.read_tornado_labels`).')
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  For more details, see documentation for'
     ' `training_validation_io.storm_image_generator_2d` or'
@@ -115,6 +120,10 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + STORM_IMAGE_DIR_ARG_NAME, type=str, required=True,
         help=STORM_IMAGE_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
+        help=TARGET_DIR_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=True,

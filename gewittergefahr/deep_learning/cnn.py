@@ -825,10 +825,11 @@ def read_model_metadata(pickle_file_name):
 def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch,
-        train_image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_file_time, target_name, binarize_target=False,
-        sounding_statistic_names=None, train_sounding_stat_file_names=None,
-        weight_loss_function=False, training_class_fraction_dict=None,
+        train_image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        binarize_target=False, sounding_statistic_names=None,
+        train_sounding_stat_file_names=None, weight_loss_function=False,
+        training_class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validn_sounding_stat_file_names=None,
@@ -848,8 +849,9 @@ def train_2d_cnn(
     :param train_image_file_name_matrix: T-by-C numpy array of paths to training
         files with radar images.  This array should be created by
         `training_validation_io.find_2d_input_files`.
-    :param num_examples_per_batch: See doc for
+    :param top_target_directory_name: See doc for
         `training_validation_io.storm_image_generator_2d`.
+    :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
     :param binarize_target: Same.
@@ -906,6 +908,7 @@ def train_2d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
                 image_file_name_matrix=train_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -925,6 +928,7 @@ def train_2d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
                 image_file_name_matrix=train_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -937,6 +941,7 @@ def train_2d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d(
                 image_file_name_matrix=validn_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -950,7 +955,8 @@ def train_2d_cnn(
 def train_2d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
         num_training_batches_per_epoch, train_image_file_name_matrix,
-        num_examples_per_batch, num_examples_per_file_time, target_name,
+        top_target_directory_name, num_examples_per_batch,
+        num_examples_per_file_time, target_name,
         train_class_fraction_dict_by_epoch, binarize_target=False,
         sounding_statistic_names=None, train_sounding_stat_file_names=None,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
@@ -966,6 +972,7 @@ def train_2d_cnn_with_dynamic_sampling(
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param train_image_file_name_matrix: Same.
+    :param top_target_directory_name: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
@@ -1026,6 +1033,7 @@ def train_2d_cnn_with_dynamic_sampling(
             tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             train_image_file_name_matrix=train_image_file_name_matrix,
+            top_target_directory_name=top_target_directory_name,
             num_examples_per_batch=num_examples_per_batch,
             num_examples_per_file_time=num_examples_per_file_time,
             target_name=target_name, binarize_target=binarize_target,
@@ -1043,9 +1051,10 @@ def train_2d_cnn_with_dynamic_sampling(
 def train_2d3d_cnn_with_myrorss(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch,
-        train_image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_file_time, target_name, binarize_target=False,
-        weight_loss_function=False, training_class_fraction_dict=None,
+        train_image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        binarize_target=False, weight_loss_function=False,
+        training_class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validation_class_fraction_dict=None):
@@ -1065,7 +1074,8 @@ def train_2d3d_cnn_with_myrorss(
     :param train_image_file_name_matrix: T-by-(F + D) numpy array of paths to
         training files with radar images.  This array should be created by
         `training_validation_io.find_2d_input_files`.
-    :param num_examples_per_batch: See doc for `train_2d_cnn`.
+    :param top_target_directory_name: See doc for `train_2d_cnn`.
+    :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
     :param binarize_target: Same.
@@ -1110,6 +1120,7 @@ def train_2d3d_cnn_with_myrorss(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 image_file_name_matrix=train_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -1126,6 +1137,7 @@ def train_2d3d_cnn_with_myrorss(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 image_file_name_matrix=train_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -1136,6 +1148,7 @@ def train_2d3d_cnn_with_myrorss(
             validation_data=
             trainval_io.storm_image_generator_2d3d_myrorss(
                 image_file_name_matrix=validn_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -1146,7 +1159,8 @@ def train_2d3d_cnn_with_myrorss(
 def train_2d3d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
         num_training_batches_per_epoch, train_image_file_name_matrix,
-        num_examples_per_batch, num_examples_per_file_time, target_name,
+        top_target_directory_name, num_examples_per_batch,
+        num_examples_per_file_time, target_name,
         train_class_fraction_dict_by_epoch, binarize_target=False,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
@@ -1160,6 +1174,7 @@ def train_2d3d_cnn_with_dynamic_sampling(
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param train_image_file_name_matrix: Same.
+    :param top_target_directory_name: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
@@ -1217,6 +1232,7 @@ def train_2d3d_cnn_with_dynamic_sampling(
             tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             train_image_file_name_matrix=train_image_file_name_matrix,
+            top_target_directory_name=top_target_directory_name,
             num_examples_per_batch=num_examples_per_batch,
             num_examples_per_file_time=num_examples_per_file_time,
             target_name=target_name, binarize_target=binarize_target,
@@ -1231,10 +1247,11 @@ def train_2d3d_cnn_with_dynamic_sampling(
 def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_training_batches_per_epoch,
-        train_image_file_name_matrix, num_examples_per_batch,
-        num_examples_per_file_time, target_name, binarize_target=False,
-        sounding_statistic_names=None, train_sounding_stat_file_names=None,
-        weight_loss_function=False, training_class_fraction_dict=None,
+        train_image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, num_examples_per_file_time, target_name,
+        binarize_target=False, sounding_statistic_names=None,
+        train_sounding_stat_file_names=None, weight_loss_function=False,
+        training_class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validn_sounding_stat_file_names=None,
@@ -1255,7 +1272,8 @@ def train_3d_cnn(
     :param train_image_file_name_matrix: T-by-F-by-D numpy array of paths to
         training files with radar images.  This array should be created by
         `training_validation_io.find_3d_input_files`.
-    :param num_examples_per_batch: See doc for `train_2d_cnn`.
+    :param top_target_directory_name: See doc for `train_2d_cnn`.
+    :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
     :param binarize_target: Same.
@@ -1308,6 +1326,7 @@ def train_3d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
                 image_file_name_matrix=train_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -1327,6 +1346,7 @@ def train_3d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
                 image_file_name_matrix=train_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -1339,6 +1359,7 @@ def train_3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_3d(
                 image_file_name_matrix=validn_image_file_name_matrix,
+                top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
@@ -1352,7 +1373,8 @@ def train_3d_cnn(
 def train_3d_cnn_with_dynamic_sampling(
         model_object, model_file_name, num_epochs,
         num_training_batches_per_epoch, train_image_file_name_matrix,
-        num_examples_per_batch, num_examples_per_file_time, target_name,
+        top_target_directory_name, num_examples_per_batch,
+        num_examples_per_file_time, target_name,
         train_class_fraction_dict_by_epoch, binarize_target=False,
         sounding_statistic_names=None, train_sounding_stat_file_names=None,
         weight_loss_function=True, num_validation_batches_per_epoch=None,
@@ -1368,6 +1390,7 @@ def train_3d_cnn_with_dynamic_sampling(
     :param num_epochs: Same.
     :param num_training_batches_per_epoch: Same.
     :param train_image_file_name_matrix: Same.
+    :param top_target_directory_name: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
@@ -1428,6 +1451,7 @@ def train_3d_cnn_with_dynamic_sampling(
             tensorboard_dir_name=tensorboard_dir_names[i], num_epochs=1,
             num_training_batches_per_epoch=num_training_batches_per_epoch,
             train_image_file_name_matrix=train_image_file_name_matrix,
+            top_target_directory_name=top_target_directory_name,
             num_examples_per_batch=num_examples_per_batch,
             num_examples_per_file_time=num_examples_per_file_time,
             target_name=target_name, binarize_target=binarize_target,
