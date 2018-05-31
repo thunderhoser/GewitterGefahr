@@ -3,10 +3,14 @@
 import copy
 import numpy
 import pandas
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import error_checking
+
+TOLERANCE = 1e-6
+TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 
 SEGMOTION_SOURCE_ID = 'segmotion'
 PROBSEVERE_SOURCE_ID = 'probSevere'
@@ -429,3 +433,72 @@ def make_buffers_around_storm_objects(
                 i] = buffer_polygon_object_latlng
 
     return storm_object_table
+
+
+def get_original_probsevere_ids(
+        best_track_storm_object_table, probsevere_storm_object_table):
+    """For each best-track storm object, returns the original probSevere ID.
+
+    N = number of best-track storm objects
+
+    Each input is a pandas DataFrame with columns documented in
+    `storm_tracking_io.write_processed_file`.
+
+    :param best_track_storm_object_table: N-row pandas DataFrame with storm
+        objects *after* fixing duplicate probSevere IDs and running best-track.
+    :param probsevere_storm_object_table: pandas DataFrame with storm
+        objects *before* fixing duplicate probSevere IDs and running best-track.
+    :return: orig_probsevere_ids: length-N list of original probSevere IDs
+        (strings).
+    :raises: ValueError: if any best-track object cannot be found in the
+        original probSevere table.
+    """
+
+    num_best_track_objects = len(best_track_storm_object_table.index)
+    orig_probsevere_ids = [None] * num_best_track_objects
+
+    for i in range(num_best_track_objects):
+        these_time_indices = numpy.where(
+            probsevere_storm_object_table[TIME_COLUMN].values ==
+            best_track_storm_object_table[TIME_COLUMN].values[i])[0]
+        these_latitude_diffs_deg = numpy.absolute(
+            probsevere_storm_object_table[CENTROID_LAT_COLUMN].values[
+                these_time_indices] -
+            best_track_storm_object_table[CENTROID_LAT_COLUMN].values[i])
+        these_longitude_diffs_deg = numpy.absolute(
+            probsevere_storm_object_table[CENTROID_LNG_COLUMN].values[
+                these_time_indices] -
+            best_track_storm_object_table[CENTROID_LNG_COLUMN].values[i])
+
+        this_min_latlng_diff_deg = numpy.min(
+            these_latitude_diffs_deg + these_longitude_diffs_deg)
+        this_nearest_index = numpy.argmin(
+            these_latitude_diffs_deg + these_longitude_diffs_deg)
+        this_nearest_index = these_time_indices[this_nearest_index]
+
+        if this_min_latlng_diff_deg > TOLERANCE:
+            this_time_string = time_conversion.unix_sec_to_string(
+                best_track_storm_object_table[TIME_COLUMN].values[i],
+                TIME_FORMAT_FOR_LOG_MESSAGES)
+
+            error_string = (
+                'Cannot find original probSevere ID for best-track object '
+                '"{0:s}" at {1:s}, {2:.4f} deg N, and {3:.4f} deg E.  Nearest '
+                'probSevere object at {1:s} is at {4:.4f} deg N and {5:.4f} deg'
+                ' E.'
+            ).format(best_track_storm_object_table[STORM_ID_COLUMN].values[i],
+                     this_time_string,
+                     best_track_storm_object_table[CENTROID_LAT_COLUMN].values[
+                         i],
+                     best_track_storm_object_table[CENTROID_LNG_COLUMN].values[
+                         i],
+                     probsevere_storm_object_table[CENTROID_LAT_COLUMN].values[
+                         this_nearest_index],
+                     probsevere_storm_object_table[CENTROID_LNG_COLUMN].values[
+                         this_nearest_index])
+            raise ValueError(error_string)
+
+        orig_probsevere_ids[i] = probsevere_storm_object_table[
+            STORM_ID_COLUMN].values[this_nearest_index]
+
+    return orig_probsevere_ids
