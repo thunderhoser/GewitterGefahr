@@ -39,12 +39,13 @@ INPUT_ARG_PARSER.add_argument(
 def _train_2d3d_myrorss_cnn(
         output_model_dir_name, num_epochs, num_training_batches_per_epoch,
         input_storm_image_dir_name, input_target_dir_name,
-        num_examples_per_batch, num_examples_per_file_time,
-        training_start_time_string, training_end_time_string, target_name,
-        weight_loss_function, binarize_target, class_fraction_dict_keys,
-        class_fraction_dict_values, num_validation_batches_per_epoch,
-        validation_start_time_string, validation_end_time_string,
-        dropout_fraction, l2_weight, first_num_reflectivity_filters):
+        num_examples_per_batch, one_file_per_time_step,
+        num_examples_per_file_time, training_start_time_string,
+        training_end_time_string, target_name, weight_loss_function,
+        binarize_target, class_fraction_dict_keys, class_fraction_dict_values,
+        num_validation_batches_per_epoch, validation_start_time_string,
+        validation_end_time_string, dropout_fraction, l2_weight,
+        first_num_reflectivity_filters):
     """Trains hybrid 2D/3D convolutional neural net with MYRORSS data.
 
     :param output_model_dir_name: See documentation at the top of
@@ -54,6 +55,7 @@ def _train_2d3d_myrorss_cnn(
     :param input_storm_image_dir_name: Same.
     :param input_target_dir_name: Same.
     :param num_examples_per_batch: Same.
+    :param one_file_per_time_step: Same.
     :param num_examples_per_file_time: Same.
     :param training_start_time_string: Same.
     :param training_end_time_string: Same.
@@ -153,7 +155,7 @@ def _train_2d3d_myrorss_cnn(
         first_image_time_unix_sec=first_train_time_unix_sec,
         last_image_time_unix_sec=last_train_time_unix_sec,
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-        one_file_per_time_step=False)
+        one_file_per_time_step=one_file_per_time_step)
 
     if num_validation_batches_per_epoch is None:
         validation_file_name_matrix = None
@@ -166,7 +168,7 @@ def _train_2d3d_myrorss_cnn(
             first_image_time_unix_sec=first_validn_time_unix_sec,
             last_image_time_unix_sec=last_validn_time_unix_sec,
             reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-            one_file_per_time_step=False)
+            one_file_per_time_step=one_file_per_time_step)
 
     print SEPARATOR_STRING
 
@@ -189,6 +191,15 @@ def _train_2d3d_myrorss_cnn(
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
+    ONE_FILE_PER_TIME_STEP = bool(getattr(
+        INPUT_ARG_OBJECT, dl_script_helper.ONE_FILE_PER_TIME_STEP_ARG_NAME))
+
+    if ONE_FILE_PER_TIME_STEP:
+        NUM_EXAMPLES_PER_FILE_TIME = getattr(
+            INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_TIME_ARG_NAME)
+    else:
+        NUM_EXAMPLES_PER_FILE_TIME = getattr(
+            INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_DATE_ARG_NAME)
 
     _train_2d3d_myrorss_cnn(
         output_model_dir_name=getattr(
@@ -203,9 +214,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_script_helper.TARGET_DIR_ARG_NAME),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
-        num_examples_per_file_time=getattr(
-            INPUT_ARG_OBJECT,
-            dl_script_helper.NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME),
+        one_file_per_time_step=ONE_FILE_PER_TIME_STEP,
+        num_examples_per_file_time=NUM_EXAMPLES_PER_FILE_TIME,
         training_start_time_string=getattr(
             INPUT_ARG_OBJECT, dl_script_helper.TRAINING_START_TIME_ARG_NAME),
         training_end_time_string=getattr(

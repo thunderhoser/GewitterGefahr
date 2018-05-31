@@ -204,8 +204,8 @@ LABEL_NAME = (
     'cutoffs=10-20-30-40-50kt')
 
 STORM_LABEL_FILE_NAME_ONE_TIME = (
-    'labels/2018/20180123/wind_labels_2018-01-23-232345.p')
-STORM_LABEL_FILE_NAME_ONE_SPC_DATE = 'labels/2018/wind_labels_20180123.p'
+    'labels/2018/20180123/wind_labels_2018-01-23-232345.nc')
+STORM_LABEL_FILE_NAME_ONE_SPC_DATE = 'labels/2018/wind_labels_20180123.nc'
 
 
 class StormImagesTests(unittest.TestCase):

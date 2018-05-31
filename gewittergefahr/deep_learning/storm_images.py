@@ -5,7 +5,6 @@ other words, the center of the image is the centroid of the storm object).
 """
 
 import os
-import time
 import copy
 import glob
 import numpy
@@ -1452,8 +1451,6 @@ def find_storm_label_file(
         raise_error_if_missing = False, this is the *expected* path.
     :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
-
-    # TODO(thunderhoser): Generalize this to find either Pickle or NetCDF?
 
     unix_time_sec, spc_date_string = image_file_name_to_time(
         storm_image_file_name)
