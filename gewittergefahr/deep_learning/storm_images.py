@@ -1506,15 +1506,20 @@ def image_file_name_to_time(storm_image_file_name):
 
 def find_storm_label_file(
         storm_image_file_name, top_label_directory_name, label_name,
-        raise_error_if_missing=True, warn_if_missing=True):
+        one_file_per_spc_date=False, raise_error_if_missing=True,
+        warn_if_missing=True):
     """Finds file with storm-hazard labels.
 
     This file should be written by `labels.write_wind_speed_labels` or
     `labels.write_tornado_labels`.
 
     :param storm_image_file_name: Path to file with storm-centered radar images.
-    :param top_label_directory_name: Name of top-level directory with label file.
+    :param top_label_directory_name: Name of top-level directory with label
+        file.
     :param label_name: Name of label.
+    :param one_file_per_spc_date: Boolean flag.  If True, will find one label
+        file for the corresponding SPC date.  If False, will find one label file
+        for the corresponding time step.
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         raise_error_if_missing = True, this method will error out.
     :param warn_if_missing: Boolean flag.  If file is missing,
@@ -1522,12 +1527,22 @@ def find_storm_label_file(
         will print a warning message.
     :return: storm_label_file_name: Path to label file.  If file is missing and
         raise_error_if_missing = False, this is the *expected* path.
-    :raises: ValueError: if file is missing and raise_error_if_missing = True.
+    :raises: ValueError: if `one_file_per_spc_date` = False and
+        `storm_image_file_name` contains data for one SPC rather than one time
+        step.
     """
 
+    error_checking.assert_is_boolean(one_file_per_spc_date)
     error_checking.assert_is_boolean(warn_if_missing)
     unix_time_sec, spc_date_string = image_file_name_to_time(
         storm_image_file_name)
+    if one_file_per_spc_date:
+        unix_time_sec = None
+
+    if unix_time_sec is None and not one_file_per_spc_date:
+        raise ValueError(
+            'If one_file_per_spc_date = False, storm_image_file_name must '
+            'contain data for one time step, not one full SPC date.')
 
     parameter_dict = labels.column_name_to_label_params(label_name)
     storm_label_file_name = labels.find_label_file(

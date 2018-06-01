@@ -469,31 +469,64 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(this_time_unix_sec is None)
         self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
 
-    def test_find_storm_label_file_one_time(self):
+    def test_find_storm_label_file_one_time_to_one_time(self):
         """Ensures correct output from find_storm_label_file.
 
-        In this case, file name is for one time step.
+        In this case, the image file contains one time step and we want a label
+        file with one time step.
         """
 
         this_file_name = storm_images.find_storm_label_file(
             storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
             top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-            label_name=LABEL_NAME, raise_error_if_missing=False)
+            label_name=LABEL_NAME, one_file_per_spc_date=False,
+            raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
 
-    def test_find_storm_label_file_one_spc_date(self):
+    def test_find_storm_label_file_one_time_to_spc_date(self):
         """Ensures correct output from find_storm_label_file.
 
-        In this case, file name is for one SPC date.
+        In this case, the image file contains one time step and we want a label
+        file with one SPC date.
         """
 
         this_file_name = storm_images.find_storm_label_file(
             storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
             top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-            label_name=LABEL_NAME, raise_error_if_missing=False)
+            label_name=LABEL_NAME, one_file_per_spc_date=True,
+            raise_error_if_missing=False)
 
-        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
+        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
+
+    def test_find_storm_label_file_one_spc_date_to_spc_date(self):
+        """Ensures correct output from find_storm_label_file.
+
+        In this case, the image file contains one SPC date and we want a label
+        file with one SPC date.
+        """
+
+        this_file_name = storm_images.find_storm_label_file(
+            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
+            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
+            label_name=LABEL_NAME, one_file_per_spc_date=True,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
+
+    def test_find_storm_label_file_one_spc_date_to_time(self):
+        """Ensures correct output from find_storm_label_file.
+
+        In this case, the image file contains one SPC date and we want a label
+        file with one time step.
+        """
+
+        with self.assertRaises(ValueError):
+            storm_images.find_storm_label_file(
+                storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
+                top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
+                label_name=LABEL_NAME, one_file_per_spc_date=False,
+                raise_error_if_missing=False)
 
     def test_extract_storm_labels_with_name_wind_ab_time0(self):
         """Ensures correct output from extract_storm_labels_with_name.
