@@ -1337,7 +1337,7 @@ def read_2d_storm_images_and_labels(
             dtype=int)
 
         this_time_index = numpy.where(
-            image_times_unix_sec == unique_image_times_to_keep_unix_sec[i])[0]
+            image_times_unix_sec == unique_image_times_to_keep_unix_sec[i])[0][0]
 
         for j in range(num_field_height_pairs):
             print 'Reading {0:d} storm objects from "{1:s}"...'.format(
