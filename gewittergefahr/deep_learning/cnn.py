@@ -1053,8 +1053,8 @@ def train_2d3d_cnn_with_myrorss(
         num_epochs, num_training_batches_per_epoch,
         train_image_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
-        binarize_target=False, weight_loss_function=False,
-        training_class_fraction_dict=None,
+        use_fast_generator=False, binarize_target=False,
+        weight_loss_function=False, training_class_fraction_dict=None,
         num_validation_batches_per_epoch=None,
         validn_image_file_name_matrix=None,
         validation_class_fraction_dict=None):
@@ -1078,6 +1078,10 @@ def train_2d3d_cnn_with_myrorss(
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
+    :param use_fast_generator: Boolean flag.  If True, will use
+        `training_validation_io.storm_image_generator_2d3d_myrorss_fast`.  If
+        False, will use
+        `training_validation_io.storm_image_generator_2d3d_myrorss`.
     :param binarize_target: Same.
     :param weight_loss_function: Same.
     :param training_class_fraction_dict: Same.
@@ -1087,6 +1091,8 @@ def train_2d3d_cnn_with_myrorss(
         `training_validation_io.find_2d_input_files`.
     :param validation_class_fraction_dict: See doc for `train_2d_cnn`.
     """
+
+    error_checking.assert_is_boolean(use_fast_generator)
 
     class_weight_dict = _check_training_args(
         num_epochs=num_epochs,
@@ -1117,43 +1123,79 @@ def train_2d3d_cnn_with_myrorss(
             filepath=model_file_name, monitor='loss', verbose=1,
             save_best_only=False, save_weights_only=False, mode='min', period=1)
 
-        model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                image_file_name_matrix=train_image_file_name_matrix,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
-                target_name=target_name, binarize_target=binarize_target,
-                class_fraction_dict=training_class_fraction_dict),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object])
+        if use_fast_generator:
+            model_object.fit_generator(
+                generator=trainval_io.storm_image_generator_2d3d_myrorss_fast(
+                    image_file_name_matrix=train_image_file_name_matrix,
+                    top_target_directory_name=top_target_directory_name,
+                    num_examples_per_batch=num_examples_per_batch,
+                    target_name=target_name, binarize_target=binarize_target,
+                    class_fraction_dict=training_class_fraction_dict),
+                steps_per_epoch=num_training_batches_per_epoch,
+                epochs=num_epochs, verbose=1, class_weight=class_weight_dict,
+                callbacks=
+                [checkpoint_object, history_object, tensorboard_object])
+        else:
+            model_object.fit_generator(
+                generator=trainval_io.storm_image_generator_2d3d_myrorss(
+                    image_file_name_matrix=train_image_file_name_matrix,
+                    top_target_directory_name=top_target_directory_name,
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_examples_per_file_time=num_examples_per_file_time,
+                    target_name=target_name, binarize_target=binarize_target,
+                    class_fraction_dict=training_class_fraction_dict),
+                steps_per_epoch=num_training_batches_per_epoch,
+                epochs=num_epochs, verbose=1, class_weight=class_weight_dict,
+                callbacks=
+                [checkpoint_object, history_object, tensorboard_object])
 
     else:
         checkpoint_object = keras.callbacks.ModelCheckpoint(
             filepath=model_file_name, monitor='val_loss', verbose=1,
             save_best_only=True, save_weights_only=False, mode='min', period=1)
 
-        model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                image_file_name_matrix=train_image_file_name_matrix,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
-                target_name=target_name, binarize_target=binarize_target,
-                class_fraction_dict=training_class_fraction_dict),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=class_weight_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object],
-            validation_data=
-            trainval_io.storm_image_generator_2d3d_myrorss(
-                image_file_name_matrix=validn_image_file_name_matrix,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
-                target_name=target_name, binarize_target=binarize_target,
-                class_fraction_dict=validation_class_fraction_dict),
-            validation_steps=num_validation_batches_per_epoch)
+        if use_fast_generator:
+            model_object.fit_generator(
+                generator=trainval_io.storm_image_generator_2d3d_myrorss_fast(
+                    image_file_name_matrix=train_image_file_name_matrix,
+                    top_target_directory_name=top_target_directory_name,
+                    num_examples_per_batch=num_examples_per_batch,
+                    target_name=target_name, binarize_target=binarize_target,
+                    class_fraction_dict=training_class_fraction_dict),
+                steps_per_epoch=num_training_batches_per_epoch,
+                epochs=num_epochs, verbose=1, class_weight=class_weight_dict,
+                callbacks=
+                [checkpoint_object, history_object, tensorboard_object],
+                validation_data=
+                trainval_io.storm_image_generator_2d3d_myrorss_fast(
+                    image_file_name_matrix=validn_image_file_name_matrix,
+                    top_target_directory_name=top_target_directory_name,
+                    num_examples_per_batch=num_examples_per_batch,
+                    target_name=target_name, binarize_target=binarize_target,
+                    class_fraction_dict=validation_class_fraction_dict),
+                validation_steps=num_validation_batches_per_epoch)
+        else:
+            model_object.fit_generator(
+                generator=trainval_io.storm_image_generator_2d3d_myrorss(
+                    image_file_name_matrix=train_image_file_name_matrix,
+                    top_target_directory_name=top_target_directory_name,
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_examples_per_file_time=num_examples_per_file_time,
+                    target_name=target_name, binarize_target=binarize_target,
+                    class_fraction_dict=training_class_fraction_dict),
+                steps_per_epoch=num_training_batches_per_epoch,
+                epochs=num_epochs, verbose=1, class_weight=class_weight_dict,
+                callbacks=
+                [checkpoint_object, history_object, tensorboard_object],
+                validation_data=
+                trainval_io.storm_image_generator_2d3d_myrorss(
+                    image_file_name_matrix=validn_image_file_name_matrix,
+                    top_target_directory_name=top_target_directory_name,
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_examples_per_file_time=num_examples_per_file_time,
+                    target_name=target_name, binarize_target=binarize_target,
+                    class_fraction_dict=validation_class_fraction_dict),
+                validation_steps=num_validation_batches_per_epoch)
 
 
 def train_2d3d_cnn_with_dynamic_sampling(

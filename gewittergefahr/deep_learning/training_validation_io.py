@@ -26,6 +26,7 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
 
 
@@ -277,6 +278,298 @@ def _select_batch(
         str(class_fractions))
 
     return list_of_image_matrices, target_matrix
+
+
+def _read_2d_input_files(
+        label_file_name, image_file_name_matrix, image_times_unix_sec,
+        target_name, num_examples_remaining_class_dict):
+    """Reads 2-D radar images with class-conditional sampling.
+
+    T = number of storm times (initial times, not valid times)
+    C = number of channels = num predictor variables = num field/height pairs
+
+    :param label_file_name: Path to file with hazard labels (readable by
+        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
+    :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
+        files.  This should be created by `find_2d_input_files`.
+    :param image_times_unix_sec: length-T numpy array of initial times.
+    :param target_name: Name of target variable.
+    :param num_examples_remaining_class_dict: Dictionary created by
+        `_get_num_examples_remaining_by_class`.
+    :return: image_matrix: E-by-M-by-N-by-C numpy array of storm-centered radar
+        images.
+    :return: target_values: length-E numpy array of integer classes.
+    """
+
+    (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
+    ) = storm_images.filter_storm_objects(
+        label_file_name=label_file_name, label_name=target_name,
+        num_storm_objects_class_dict=num_examples_remaining_class_dict)
+
+    unique_times_to_keep_unix_sec = numpy.unique(image_times_to_keep_unix_sec)
+    num_unique_times = len(unique_times_to_keep_unix_sec)
+
+    image_matrix = None
+    target_values = numpy.array([], dtype=int)
+    num_field_height_pairs = image_file_name_matrix.shape[1]
+
+    for i in range(num_unique_times):
+        these_time_indices = numpy.where(
+            image_times_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        if not len(these_time_indices):
+            this_time_string = time_conversion.unix_sec_to_string(
+                unique_times_to_keep_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
+            print (
+                'POTENTIAL PROBLEM.  Found target values, but not radar images,'
+                ' for {0:s}.'
+            ).format(this_time_string)
+            continue
+
+        this_file_time_index = these_time_indices[0]
+
+        these_object_indices = numpy.where(
+            image_times_to_keep_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        these_storm_ids = [storm_ids_to_keep[k] for k in these_object_indices]
+        these_times_unix_sec = numpy.full(
+            len(these_object_indices), unique_times_to_keep_unix_sec[i],
+            dtype=int)
+
+        target_values = numpy.concatenate((
+            target_values, all_target_values[these_object_indices]))
+        tuple_of_image_matrices = ()
+
+        for j in range(num_field_height_pairs):
+            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
+                len(these_object_indices),
+                image_file_name_matrix[this_file_time_index, j])
+            this_storm_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=image_file_name_matrix[
+                    this_file_time_index, j],
+                return_images=True, storm_ids_to_keep=these_storm_ids,
+                valid_times_to_keep_unix_sec=these_times_unix_sec)
+
+            this_field_image_matrix = this_storm_image_dict[
+                storm_images.STORM_IMAGE_MATRIX_KEY]
+            tuple_of_image_matrices += (this_field_image_matrix,)
+
+        this_image_matrix = dl_utils.stack_predictor_variables(
+            tuple_of_image_matrices)
+        if image_matrix is None:
+            image_matrix = this_image_matrix + 0.
+        else:
+            image_matrix = numpy.concatenate(
+                (image_matrix, this_image_matrix), axis=0)
+
+    return image_matrix, target_values
+
+
+def _read_2d3d_input_files(
+        label_file_name, reflectivity_file_name_matrix,
+        az_shear_file_name_matrix, image_times_unix_sec, target_name,
+        num_examples_remaining_class_dict):
+    """Reads 2-D and 3-D radar images with class-conditional sampling.
+
+    T = number of storm times (initial times, not valid times)
+    F = number of azimuthal-shear fields
+    m = number of pixel rows per reflectivity image
+    n = number of pixel columns per reflectivity image
+    D = number of pixel heights (depths) per reflectivity image
+    M = number of pixel rows per az-shear image
+    N = number of pixel columns per az-shear image
+
+    :param label_file_name: Path to file with hazard labels (readable by
+        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
+    :return: reflectivity_file_name_matrix: T-by-D numpy array of paths to
+        reflectivity files.
+    :return: az_shear_file_name_matrix: T-by-F numpy array of paths to
+        azimuthal-shear files.
+    :param image_times_unix_sec: length-T numpy array of initial times.
+    :param target_name: Name of target variable.
+    :param num_examples_remaining_class_dict: Dictionary created by
+        `_get_num_examples_remaining_by_class`.
+    :return: reflectivity_image_matrix_dbz: E-by-m-by-n-by-D-by-1 numpy
+        array of storm-centered reflectivity images.
+    :return: azimuthal_shear_image_matrix_s01: E-by-M-by-N-by-F numpy
+        array of storm-centered az-shear images.
+    :return: target_values: length-E numpy array of integer classes.
+    """
+
+    (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
+    ) = storm_images.filter_storm_objects(
+        label_file_name=label_file_name, label_name=target_name,
+        num_storm_objects_class_dict=num_examples_remaining_class_dict)
+
+    unique_times_to_keep_unix_sec = numpy.unique(image_times_to_keep_unix_sec)
+    num_unique_times = len(unique_times_to_keep_unix_sec)
+    num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]
+    num_azimuthal_shear_fields = az_shear_file_name_matrix.shape[1]
+
+    reflectivity_image_matrix_dbz = None
+    azimuthal_shear_image_matrix_s01 = None
+    target_values = numpy.array([], dtype=int)
+
+    for i in range(num_unique_times):
+        these_time_indices = numpy.where(
+            image_times_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        if not len(these_time_indices):
+            this_time_string = time_conversion.unix_sec_to_string(
+                unique_times_to_keep_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
+            print (
+                'POTENTIAL PROBLEM.  Found target values, but not radar images,'
+                ' for {0:s}.'
+            ).format(this_time_string)
+            continue
+
+        this_file_time_index = these_time_indices[0]
+
+        these_object_indices = numpy.where(
+            image_times_to_keep_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        these_storm_ids = [storm_ids_to_keep[k] for k in these_object_indices]
+        these_times_unix_sec = numpy.full(
+            len(these_object_indices), unique_times_to_keep_unix_sec[i],
+            dtype=int)
+
+        target_values = numpy.concatenate((
+            target_values, all_target_values[these_object_indices]))
+
+        tuple_of_3d_az_shear_matrices = ()
+        for j in range(num_azimuthal_shear_fields):
+            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
+                len(these_object_indices),
+                az_shear_file_name_matrix[this_file_time_index, j])
+            this_storm_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=az_shear_file_name_matrix[
+                    this_file_time_index, j],
+                return_images=True, storm_ids_to_keep=these_storm_ids,
+                valid_times_to_keep_unix_sec=these_times_unix_sec)
+
+            tuple_of_3d_az_shear_matrices += (
+                this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
+
+        tuple_of_4d_refl_matrices = ()
+        for k in range(num_reflectivity_heights):
+            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
+                len(these_object_indices),
+                reflectivity_file_name_matrix[this_file_time_index, k])
+            this_storm_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=reflectivity_file_name_matrix[
+                    this_file_time_index, k],
+                return_images=True, storm_ids_to_keep=these_storm_ids,
+                valid_times_to_keep_unix_sec=these_times_unix_sec)
+
+            this_4d_matrix = dl_utils.stack_predictor_variables((
+                this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
+            ))
+            tuple_of_4d_refl_matrices += (this_4d_matrix,)
+
+        this_reflectivity_matrix_dbz = dl_utils.stack_heights(
+            tuple_of_4d_refl_matrices)
+        this_az_shear_matrix_s01 = dl_utils.stack_predictor_variables(
+            tuple_of_3d_az_shear_matrices)
+
+        if reflectivity_image_matrix_dbz is None:
+            reflectivity_image_matrix_dbz = this_reflectivity_matrix_dbz + 0.
+            azimuthal_shear_image_matrix_s01 = this_az_shear_matrix_s01 + 0.
+        else:
+            reflectivity_image_matrix_dbz = numpy.concatenate(
+                (reflectivity_image_matrix_dbz, this_reflectivity_matrix_dbz),
+                axis=0)
+            azimuthal_shear_image_matrix_s01 = numpy.concatenate(
+                (azimuthal_shear_image_matrix_s01, this_az_shear_matrix_s01),
+                axis=0)
+
+    return (reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+            target_values)
+
+
+def _read_3d_input_files(
+        label_file_name, image_file_name_matrix, image_times_unix_sec,
+        target_name, num_examples_remaining_class_dict):
+    """Reads 3-D radar images with class-conditional sampling.
+
+    T = number of storm times (initial times, not valid times)
+    F = number of radar fields
+    D = number of radar heights
+
+    :param label_file_name: Path to file with hazard labels (readable by
+        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
+    :param image_file_name_matrix: T-by-F-by-H numpy array of paths to radar-
+        image files.  This should be created by `find_3d_input_files`.
+    :param image_times_unix_sec: length-T numpy array of initial times.
+    :param target_name: Name of target variable.
+    :param num_examples_remaining_class_dict: Dictionary created by
+        `_get_num_examples_remaining_by_class`.
+    :return: image_matrix: E-by-M-by-N-by-C numpy array of storm-centered radar
+        images.
+    :return: target_values: length-E numpy array of integer classes.
+    """
+
+    (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
+    ) = storm_images.filter_storm_objects(
+        label_file_name=label_file_name, label_name=target_name,
+        num_storm_objects_class_dict=num_examples_remaining_class_dict)
+
+    unique_times_to_keep_unix_sec = numpy.unique(image_times_to_keep_unix_sec)
+    num_unique_times = len(unique_times_to_keep_unix_sec)
+
+    image_matrix = None
+    target_values = numpy.array([], dtype=int)
+    num_fields = image_file_name_matrix.shape[1]
+    num_heights = image_file_name_matrix.shape[2]
+
+    for i in range(num_unique_times):
+        these_time_indices = numpy.where(
+            image_times_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        if not len(these_time_indices):
+            this_time_string = time_conversion.unix_sec_to_string(
+                unique_times_to_keep_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
+            print (
+                'POTENTIAL PROBLEM.  Found target values, but not radar images,'
+                ' for {0:s}.'
+            ).format(this_time_string)
+            continue
+
+        this_file_time_index = these_time_indices[0]
+
+        these_object_indices = numpy.where(
+            image_times_to_keep_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        these_storm_ids = [storm_ids_to_keep[k] for k in these_object_indices]
+        these_times_unix_sec = numpy.full(
+            len(these_object_indices), unique_times_to_keep_unix_sec[i],
+            dtype=int)
+
+        target_values = numpy.concatenate((
+            target_values, all_target_values[these_object_indices]))
+        tuple_of_4d_image_matrices = ()
+
+        for k in range(num_heights):
+            tuple_of_3d_image_matrices = ()
+
+            for j in range(num_fields):
+                print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
+                    len(these_object_indices),
+                    image_file_name_matrix[this_file_time_index, j, k])
+                this_storm_image_dict = storm_images.read_storm_images(
+                    netcdf_file_name=image_file_name_matrix[
+                        this_file_time_index, j, k],
+                    return_images=True, storm_ids_to_keep=these_storm_ids,
+                    valid_times_to_keep_unix_sec=these_times_unix_sec)
+
+                this_3d_image_matrix = this_storm_image_dict[
+                    storm_images.STORM_IMAGE_MATRIX_KEY]
+                tuple_of_3d_image_matrices += (this_3d_image_matrix,)
+
+            tuple_of_4d_image_matrices += (dl_utils.stack_predictor_variables(
+                tuple_of_3d_image_matrices),)
+
+        this_image_matrix = dl_utils.stack_heights(tuple_of_4d_image_matrices)
+        if image_matrix is None:
+            image_matrix = this_image_matrix + 0.
+        else:
+            image_matrix = numpy.concatenate(
+                (image_matrix, this_image_matrix), axis=0)
+
+    return image_matrix, target_values
 
 
 def remove_storms_with_undef_target(storm_image_dict):
@@ -630,208 +923,6 @@ def find_sounding_statistic_files(
     return sounding_statistic_file_names, image_file_name_matrix
 
 
-def _read_2d_input_files(
-        label_file_name, image_file_name_matrix, image_times_unix_sec,
-        target_name, num_examples_remaining_class_dict):
-    """Reads 2-D radar images with class-conditional sampling.
-
-    T = number of storm times (initial times, not valid times)
-    C = number of channels = num predictor variables = num field/height pairs
-
-    :param label_file_name: Path to file with hazard labels (readable by
-        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
-    :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
-        files.  This should be created by `find_2d_input_files`.
-    :param image_times_unix_sec: length-T numpy array of initial times.
-    :param target_name: Name of target variable.
-    :param num_examples_remaining_class_dict: Dictionary created by
-        `_get_num_examples_remaining_by_class`.
-    :return: image_matrix: E-by-M-by-N-by-C numpy array of storm-centered radar
-        images.
-    :return: target_values: length-E numpy array of integer classes.
-    """
-
-    (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
-    ) = storm_images.filter_storm_objects(
-        label_file_name=label_file_name, label_name=target_name,
-        num_storm_objects_class_dict=num_examples_remaining_class_dict)
-
-    unique_times_to_keep_unix_sec = numpy.unique(image_times_to_keep_unix_sec)
-    num_unique_times = len(unique_times_to_keep_unix_sec)
-
-    image_matrix = None
-    target_values = numpy.array([], dtype=int)
-    num_field_height_pairs = image_file_name_matrix.shape[1]
-
-    for i in range(num_unique_times):
-        these_time_indices = numpy.where(
-            image_times_unix_sec == unique_times_to_keep_unix_sec[i])[0]
-        if not len(these_time_indices):
-            this_time_string = time_conversion.unix_sec_to_string(
-                unique_times_to_keep_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
-            print (
-                'POTENTIAL PROBLEM.  Found target values, but not radar images,'
-                ' for {0:s}.'
-            ).format(this_time_string)
-            continue
-
-        this_file_time_index = these_time_indices[0]
-
-        these_object_indices = numpy.where(
-            image_times_to_keep_unix_sec == unique_times_to_keep_unix_sec[i])[0]
-        these_storm_ids = [storm_ids_to_keep[k] for k in these_object_indices]
-        these_times_unix_sec = numpy.full(
-            len(these_object_indices), unique_times_to_keep_unix_sec[i],
-            dtype=int)
-
-        target_values = numpy.concatenate((
-            target_values, all_target_values[these_object_indices]))
-        tuple_of_image_matrices = ()
-
-        for j in range(num_field_height_pairs):
-            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
-                len(these_object_indices),
-                image_file_name_matrix[this_file_time_index, j])
-            this_storm_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=image_file_name_matrix[
-                    this_file_time_index, j],
-                return_images=True, storm_ids_to_keep=these_storm_ids,
-                valid_times_to_keep_unix_sec=these_times_unix_sec)
-
-            this_field_image_matrix = this_storm_image_dict[
-                storm_images.STORM_IMAGE_MATRIX_KEY]
-            tuple_of_image_matrices += (this_field_image_matrix,)
-
-        this_image_matrix = dl_utils.stack_predictor_variables(
-            tuple_of_image_matrices)
-        if image_matrix is None:
-            image_matrix = this_image_matrix + 0.
-        else:
-            image_matrix = numpy.concatenate(
-                (image_matrix, this_image_matrix), axis=0)
-
-    return image_matrix, target_values
-
-
-def _read_2d3d_input_files(
-        label_file_name, reflectivity_file_name_matrix,
-        az_shear_file_name_matrix, image_times_unix_sec, target_name,
-        num_examples_remaining_class_dict):
-    """Reads 2-D and 3-D radar images with class-conditional sampling.
-
-    T = number of storm times (initial times, not valid times)
-    F = number of azimuthal-shear fields
-    m = number of pixel rows per reflectivity image
-    n = number of pixel columns per reflectivity image
-    D = number of pixel heights (depths) per reflectivity image
-    M = number of pixel rows per az-shear image
-    N = number of pixel columns per az-shear image
-
-    :param label_file_name: Path to file with hazard labels (readable by
-        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
-    :return: reflectivity_file_name_matrix: T-by-D numpy array of paths to
-        reflectivity files.
-    :return: az_shear_file_name_matrix: T-by-F numpy array of paths to
-        azimuthal-shear files.
-    :param image_times_unix_sec: length-T numpy array of initial times.
-    :param target_name: Name of target variable.
-    :param num_examples_remaining_class_dict: Dictionary created by
-        `_get_num_examples_remaining_by_class`.
-    :return: reflectivity_image_matrix_dbz: E-by-m-by-n-by-D-by-1 numpy
-        array of storm-centered reflectivity images.
-    :return: azimuthal_shear_image_matrix_s01: E-by-M-by-N-by-F numpy
-        array of storm-centered az-shear images.
-    :return: target_values: length-E numpy array of integer classes.
-    """
-
-    (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
-     ) = storm_images.filter_storm_objects(
-        label_file_name=label_file_name, label_name=target_name,
-        num_storm_objects_class_dict=num_examples_remaining_class_dict)
-
-    unique_times_to_keep_unix_sec = numpy.unique(image_times_to_keep_unix_sec)
-    num_unique_times = len(unique_times_to_keep_unix_sec)
-    num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]
-    num_azimuthal_shear_fields = az_shear_file_name_matrix.shape[1]
-
-    reflectivity_image_matrix_dbz = None
-    azimuthal_shear_image_matrix_s01 = None
-    target_values = numpy.array([], dtype=int)
-
-    for i in range(num_unique_times):
-        these_time_indices = numpy.where(
-            image_times_unix_sec == unique_times_to_keep_unix_sec[i])[0]
-        if not len(these_time_indices):
-            this_time_string = time_conversion.unix_sec_to_string(
-                unique_times_to_keep_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
-            print (
-                'POTENTIAL PROBLEM.  Found target values, but not radar images,'
-                ' for {0:s}.'
-            ).format(this_time_string)
-            continue
-
-        this_file_time_index = these_time_indices[0]
-
-        these_object_indices = numpy.where(
-            image_times_to_keep_unix_sec == unique_times_to_keep_unix_sec[i])[0]
-        these_storm_ids = [storm_ids_to_keep[k] for k in these_object_indices]
-        these_times_unix_sec = numpy.full(
-            len(these_object_indices), unique_times_to_keep_unix_sec[i],
-            dtype=int)
-
-        target_values = numpy.concatenate((
-            target_values, all_target_values[these_object_indices]))
-
-        tuple_of_3d_az_shear_matrices = ()
-        for j in range(num_azimuthal_shear_fields):
-            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
-                len(these_object_indices),
-                az_shear_file_name_matrix[this_file_time_index, j])
-            this_storm_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=az_shear_file_name_matrix[
-                    this_file_time_index, j],
-                return_images=True, storm_ids_to_keep=these_storm_ids,
-                valid_times_to_keep_unix_sec=these_times_unix_sec)
-
-            tuple_of_3d_az_shear_matrices += (
-                this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
-
-        tuple_of_4d_refl_matrices = ()
-        for k in range(num_reflectivity_heights):
-            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
-                len(these_object_indices),
-                reflectivity_file_name_matrix[this_file_time_index, k])
-            this_storm_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=reflectivity_file_name_matrix[
-                    this_file_time_index, k],
-                return_images=True, storm_ids_to_keep=these_storm_ids,
-                valid_times_to_keep_unix_sec=these_times_unix_sec)
-
-            this_4d_matrix = dl_utils.stack_predictor_variables((
-                this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
-            ))
-            tuple_of_4d_refl_matrices += (this_4d_matrix,)
-
-        this_reflectivity_matrix_dbz = dl_utils.stack_heights(
-            tuple_of_4d_refl_matrices)
-        this_az_shear_matrix_s01 = dl_utils.stack_predictor_variables(
-            tuple_of_3d_az_shear_matrices)
-
-        if reflectivity_image_matrix_dbz is None:
-            reflectivity_image_matrix_dbz = this_reflectivity_matrix_dbz + 0.
-            azimuthal_shear_image_matrix_s01 = this_az_shear_matrix_s01 + 0.
-        else:
-            reflectivity_image_matrix_dbz = numpy.concatenate(
-                (reflectivity_image_matrix_dbz, this_reflectivity_matrix_dbz),
-                axis=0)
-            azimuthal_shear_image_matrix_s01 = numpy.concatenate(
-                (azimuthal_shear_image_matrix_s01, this_az_shear_matrix_s01),
-                axis=0)
-
-    return (reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
-            target_values)
-
-
 def storm_image_generator_2d(
         image_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
@@ -1097,6 +1188,200 @@ def storm_image_generator_2d(
             yield (image_matrix, target_matrix)
         else:
             yield ([image_matrix, sounding_stat_matrix], target_matrix)
+
+
+def storm_image_generator_2d3d_myrorss_fast(
+        image_file_name_matrix, top_target_directory_name,
+        num_examples_per_batch, target_name, binarize_target=False,
+        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        class_fraction_dict=None):
+    """Generates examples with both 2-D and 3-D radar images.
+
+    Each example consists of a 3-D reflectivity image and one or more 2-D
+    azimuthal-shear images.
+
+    T = number of storm times (initial times, not valid times)
+    F = number of azimuthal-shear fields
+    m = number of pixel rows per reflectivity image
+    n = number of pixel columns per reflectivity image
+    D = number of pixel heights (depths) per reflectivity image
+    M = number of pixel rows per az-shear image
+    N = number of pixel columns per az-shear image
+
+    :param image_file_name_matrix: T-by-(D + F) numpy array of paths to image
+        files.  This should be created by `find_2d_input_files`.
+    :param top_target_directory_name: Name of top-level directory with target
+        values (storm-hazard labels).
+    :param num_examples_per_batch: Number of examples (storm objects) per batch.
+    :param target_name: Name of target variable.
+    :param binarize_target: See documentation for `_select_batch`.
+    :param radar_normalization_dict: See doc for `storm_image_generator_2d`.
+    :param class_fraction_dict: Same.
+    :return: predictor_list: List with the following items.
+    predictor_list[0] = reflectivity_image_matrix: E-by-m-by-n-by-D-by-1 numpy
+        array of storm-centered reflectivity images.
+    predictor_list[1] = azimuthal_shear_image_matrix: E-by-M-by-N-by-F numpy
+        array of storm-centered az-shear images.
+    :return: target_matrix: See doc for `storm_image_generator_2d`.
+    """
+
+    _check_input_args(
+        num_examples_per_batch=num_examples_per_batch,
+        num_examples_per_file_time=2, normalize_by_batch=False,
+        image_file_name_matrix=image_file_name_matrix, num_image_dimensions=2,
+        binarize_target=binarize_target)
+
+    image_file_name_matrix, _ = _shuffle_times(image_file_name_matrix)
+    reflectivity_file_name_matrix, az_shear_file_name_matrix = (
+        separate_input_files_for_2d3d_myrorss(image_file_name_matrix))
+    image_times_unix_sec = numpy.array(
+        [storm_images.image_file_name_to_time(f)[0]
+         for f in az_shear_file_name_matrix[:, 0]], dtype=int)
+
+    num_image_times = reflectivity_file_name_matrix.shape[0]
+    num_az_shear_fields = az_shear_file_name_matrix.shape[1]
+
+    label_file_name_by_spc_date = [None] * num_image_times
+    for i in range(num_image_times):
+        label_file_name_by_spc_date[i] = storm_images.find_storm_label_file(
+            storm_image_file_name=az_shear_file_name_matrix[i, 0],
+            top_label_directory_name=top_target_directory_name,
+            label_name=target_name, one_file_per_spc_date=True,
+            raise_error_if_missing=True)
+
+    label_file_name_by_spc_date = numpy.unique(
+        numpy.array(label_file_name_by_spc_date, dtype=object))
+    numpy.random.shuffle(label_file_name_by_spc_date)
+    label_file_name_by_spc_date = label_file_name_by_spc_date.tolist()
+    num_spc_dates = len(label_file_name_by_spc_date)
+
+    az_shear_field_names = [''] * num_az_shear_fields
+    for j in range(num_az_shear_fields):
+        this_storm_image_dict = storm_images.read_storm_images(
+            netcdf_file_name=az_shear_file_name_matrix[0, j])
+        az_shear_field_names[j] = this_storm_image_dict[
+            storm_images.RADAR_FIELD_NAME_KEY]
+
+    num_examples_per_batch_class_dict = _get_num_examples_per_batch_by_class(
+        num_examples_per_batch=num_examples_per_batch, target_name=target_name,
+        class_fraction_dict=class_fraction_dict)
+
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+
+    num_examples_in_memory_class_dict, _ = _determine_stopping_criterion(
+        num_examples_per_batch=num_examples_per_batch,
+        num_file_times_per_batch=1,
+        num_examples_per_batch_class_dict=num_examples_per_batch_class_dict,
+        num_init_times_in_memory=0, class_fraction_dict=class_fraction_dict,
+        target_values_in_memory=numpy.array([]))
+
+    # Initialize housekeeping variables.
+    spc_date_index = 0
+    full_reflectivity_matrix_dbz = None
+    full_az_shear_matrix_s01 = None
+    all_target_values = None
+
+    while True:
+        stopping_criterion = False
+
+        while not stopping_criterion:
+            if all_target_values is None:
+                num_examples_in_memory = 0
+            else:
+                num_examples_in_memory = len(all_target_values)
+
+            num_examples_remaining_class_dict = (
+                _get_num_examples_remaining_by_class(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_file_times_per_batch=1,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
+                    num_examples_in_memory=num_examples_in_memory,
+                    num_init_times_in_memory=1,
+                    num_examples_in_memory_class_dict=
+                    num_examples_in_memory_class_dict))
+
+            (this_reflectivity_matrix_dbz, this_az_shear_matrix_s01,
+             these_target_values
+            ) = _read_2d3d_input_files(
+                label_file_name=label_file_name_by_spc_date[spc_date_index],
+                reflectivity_file_name_matrix=reflectivity_file_name_matrix,
+                az_shear_file_name_matrix=az_shear_file_name_matrix,
+                image_times_unix_sec=image_times_unix_sec,
+                target_name=target_name,
+                num_examples_remaining_class_dict=
+                num_examples_remaining_class_dict)
+
+            print SEPARATOR_STRING
+            spc_date_index = numpy.mod(spc_date_index + 1, num_spc_dates)
+
+            if all_target_values is None:
+                full_reflectivity_matrix_dbz = this_reflectivity_matrix_dbz + 0.
+                full_az_shear_matrix_s01 = this_az_shear_matrix_s01 + 0.
+                all_target_values = these_target_values + 0
+            else:
+                full_reflectivity_matrix_dbz = numpy.concatenate(
+                    (full_reflectivity_matrix_dbz,
+                     this_reflectivity_matrix_dbz),
+                    axis=0)
+                full_az_shear_matrix_s01 = numpy.concatenate(
+                    (full_az_shear_matrix_s01, this_az_shear_matrix_s01),
+                    axis=0)
+                all_target_values = numpy.concatenate((
+                    all_target_values, these_target_values))
+
+            num_examples_in_memory_class_dict, stopping_criterion = (
+                _determine_stopping_criterion(
+                    num_examples_per_batch=num_examples_per_batch,
+                    num_file_times_per_batch=1,
+                    num_examples_per_batch_class_dict=
+                    num_examples_per_batch_class_dict,
+                    num_init_times_in_memory=1,
+                    class_fraction_dict=class_fraction_dict,
+                    target_values_in_memory=all_target_values))
+
+        if class_fraction_dict is not None:
+            batch_indices = dl_utils.sample_points_by_class(
+                target_values=all_target_values, target_name=target_name,
+                class_fraction_dict=class_fraction_dict,
+                num_points_to_sample=num_examples_per_batch)
+
+            full_reflectivity_matrix_dbz = full_reflectivity_matrix_dbz[
+                batch_indices, ...]
+            full_az_shear_matrix_s01 = full_az_shear_matrix_s01[
+                batch_indices, ...]
+            all_target_values = all_target_values[batch_indices]
+
+        full_reflectivity_matrix_dbz = dl_utils.normalize_predictor_matrix(
+            predictor_matrix=full_reflectivity_matrix_dbz,
+            normalize_by_batch=False, predictor_names=[radar_utils.REFL_NAME],
+            normalization_dict=radar_normalization_dict)
+
+        full_az_shear_matrix_s01 = dl_utils.normalize_predictor_matrix(
+            predictor_matrix=full_az_shear_matrix_s01, normalize_by_batch=False,
+            predictor_names=az_shear_field_names,
+            normalization_dict=radar_normalization_dict)
+
+        list_of_image_matrices, target_matrix = _select_batch(
+            list_of_image_matrices=[
+                full_reflectivity_matrix_dbz, full_az_shear_matrix_s01],
+            target_values=all_target_values,
+            num_examples_per_batch=num_examples_per_batch,
+            binarize_target=binarize_target, num_classes=num_classes)
+
+        reflectivity_matrix_dbz = list_of_image_matrices[0]
+        azimuthal_shear_matrix_s01 = list_of_image_matrices[1]
+
+        # Update housekeeping variables.
+        full_reflectivity_matrix_dbz = None
+        full_az_shear_matrix_s01 = None
+        all_target_values = None
+        for this_key in num_examples_in_memory_class_dict.keys():
+            num_examples_in_memory_class_dict[this_key] = 0
+
+        yield ([reflectivity_matrix_dbz, azimuthal_shear_matrix_s01],
+               target_matrix)
 
 
 def storm_image_generator_2d3d_myrorss(
