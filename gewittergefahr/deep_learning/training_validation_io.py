@@ -26,6 +26,8 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
+TIME_FORMAT_FOR_LOG_MESSAGES = '%Y-%m-%d-%H%M%S'
+
 
 def _check_input_args(
         num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
@@ -626,6 +628,89 @@ def find_sounding_statistic_files(
     image_file_name_matrix = image_file_name_matrix[found_file_indices, ...]
 
     return sounding_statistic_file_names, image_file_name_matrix
+
+
+def _read_2d_input_files(
+        label_file_name, image_file_name_matrix, image_times_unix_sec,
+        target_name, num_examples_remaining_class_dict):
+    """Reads 2-D radar images with class-conditional sampling.
+
+    T = number of storm times (initial times, not valid times)
+    C = number of channels = num predictor variables = num field/height pairs
+
+    :param label_file_name: Path to file with hazard labels (readable by
+        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
+    :param image_file_name_matrix: T-by-C numpy array of paths to radar-image
+        files.  This should be created by `find_2d_input_files`.
+    :param image_times_unix_sec: length-T numpy array of initial times.
+    :param target_name: Name of target variable.
+    :param num_examples_remaining_class_dict: Dictionary created by
+        `_get_num_examples_remaining_by_class`.
+    :return: image_matrix: E-by-M-by-N-by-C numpy array of storm-centered radar
+        images.
+    :return: target_values: length-E numpy array of integer classes.
+    """
+
+    (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
+    ) = storm_images.filter_storm_objects(
+        label_file_name=label_file_name, label_name=target_name,
+        num_storm_objects_class_dict=num_examples_remaining_class_dict)
+
+    unique_times_to_keep_unix_sec = numpy.unique(image_times_to_keep_unix_sec)
+    num_unique_times = len(unique_times_to_keep_unix_sec)
+
+    image_matrix = None
+    target_values = numpy.array([], dtype=int)
+    num_field_height_pairs = image_file_name_matrix.shape[1]
+
+    for i in range(num_unique_times):
+        these_time_indices = numpy.where(
+            image_times_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        if not len(these_time_indices):
+            this_time_string = time_conversion.unix_sec_to_string(
+                unique_times_to_keep_unix_sec[i], TIME_FORMAT_FOR_LOG_MESSAGES)
+            print (
+                'POTENTIAL PROBLEM.  Found target values, but not radar images,'
+                ' for {0:s}.'
+            ).format(this_time_string)
+            continue
+
+        this_file_time_index = these_time_indices[0]
+
+        these_object_indices = numpy.where(
+            image_times_to_keep_unix_sec == unique_times_to_keep_unix_sec[i])[0]
+        these_storm_ids = [storm_ids_to_keep[k] for k in these_object_indices]
+        these_times_unix_sec = numpy.full(
+            len(these_object_indices), unique_times_to_keep_unix_sec[i],
+            dtype=int)
+
+        target_values = numpy.concatenate((
+            target_values, all_target_values[these_object_indices]))
+        tuple_of_image_matrices = ()
+
+        for j in range(num_field_height_pairs):
+            print 'Reading {0:d} storm objects from: "{1:s}"...'.format(
+                len(these_object_indices),
+                image_file_name_matrix[this_file_time_index, j])
+            this_storm_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=image_file_name_matrix[
+                    this_file_time_index, j],
+                return_images=True, storm_ids_to_keep=these_storm_ids,
+                valid_times_to_keep_unix_sec=these_times_unix_sec)
+
+            this_field_image_matrix = this_storm_image_dict[
+                storm_images.STORM_IMAGE_MATRIX_KEY]
+            tuple_of_image_matrices += (this_field_image_matrix,)
+
+        this_image_matrix = dl_utils.stack_predictor_variables(
+            tuple_of_image_matrices)
+        if image_matrix is None:
+            image_matrix = this_image_matrix + 0.
+        else:
+            image_matrix = numpy.concatenate(
+                (image_matrix, this_image_matrix), axis=0)
+
+    return image_matrix, target_values
 
 
 def storm_image_generator_2d(

@@ -1255,41 +1255,41 @@ def read_storm_images(
     }
 
 
-def read_2d_storm_images_and_labels(
-        image_file_name_matrix, image_times_unix_sec, label_file_name,
-        label_name, num_storm_objects_class_dict):
-    """Reads storm-centered radar images and corresponding hazard labels.
+def filter_storm_objects(
+        label_file_name, label_name, num_storm_objects_class_dict):
+    """Filters storm objects by label (target variable).
 
-    T = number of time steps
-    C = number of field/height pairs
-    E = number of storm objects sampled from files
-    M = number of pixel rows per image
-    N = number of pixel columns per image
+    N = number of storm objects to keep
 
-    :param image_file_name_matrix: T-by-C numpy array of paths to image files.
-        Each file should contain storm-centered radar images for one radar field
-        at one height and one time step.
-    :param image_times_unix_sec: length-T numpy array of valid times.
     :param label_file_name: Path to file with hazard labels (readable by
         `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
     :param label_name: Name of label (target variable).
     :param num_storm_objects_class_dict: Dictionary, where each key is a class
         integer (-2 for dead storms) and each value is the corresponding number
         of storm objects to return.
-    :return: image_matrix: E-by-M-by-N-by-C numpy array of storm-centered radar
-        images.
-    :return: target_values: length-E numpy array of target values (integer
-        classes).
+    :return: storm_ids_to_keep: length-N list with string IDs of storm objects
+        to keep.
+    :return: valid_times_to_keep_unix_sec: length-N numpy array with valid times
+        of storm objects to keep.
+    :return: label_values: length-T numpy array of label (target) values.
     """
 
-    storm_label_dict = labels.read_labels_from_netcdf(
-        netcdf_file_name=label_file_name, label_name=label_name)
-    storm_to_events_dict = {
-        tracking_utils.STORM_ID_COLUMN: storm_label_dict[labels.STORM_IDS_KEY],
-        tracking_utils.TIME_COLUMN: storm_label_dict[labels.VALID_TIMES_KEY],
-        label_name: storm_label_dict[labels.LABEL_VALUES_KEY]
-    }
-    storm_to_events_table = pandas.DataFrame.from_dict(storm_to_events_dict)
+    error_checking.assert_is_string(label_file_name)
+    _, label_file_extension = os.path.splitext(label_file_name)
+
+    if label_file_extension == '.p':
+        storm_to_events_table = labels.read_wind_speed_labels(label_file_name)
+    else:
+        storm_label_dict = labels.read_labels_from_netcdf(
+            netcdf_file_name=label_file_name, label_name=label_name)
+        storm_to_events_dict = {
+            tracking_utils.STORM_ID_COLUMN:
+                storm_label_dict[labels.STORM_IDS_KEY],
+            tracking_utils.TIME_COLUMN:
+                storm_label_dict[labels.VALID_TIMES_KEY],
+            label_name: storm_label_dict[labels.LABEL_VALUES_KEY]
+        }
+        storm_to_events_table = pandas.DataFrame.from_dict(storm_to_events_dict)
 
     parameter_dict = labels.column_name_to_label_params(label_name)
     event_type_string = parameter_dict[labels.EVENT_TYPE_KEY]
@@ -1317,39 +1317,11 @@ def read_2d_storm_images_and_labels(
     if not len(indices_to_keep):
         return None, None
 
-    storm_ids_to_keep_as_array = storm_to_events_table[
-        tracking_utils.STORM_ID_COLUMN].values[indices_to_keep]
-    image_times_to_keep_unix_sec = storm_to_events_table[
+    storm_ids_to_keep = storm_to_events_table[
+        tracking_utils.STORM_ID_COLUMN].values[indices_to_keep].tolist()
+    valid_times_to_keep_unix_sec = storm_to_events_table[
         tracking_utils.TIME_COLUMN].values[indices_to_keep].astype(int)
-
-    unique_image_times_to_keep_unix_sec = numpy.unique(
-        image_times_to_keep_unix_sec)
-    num_unique_times = len(unique_image_times_to_keep_unix_sec)
-    num_field_height_pairs = image_file_name_matrix.shape[1]
-
-    for i in range(num_unique_times):
-        these_storm_ids = storm_ids_to_keep_as_array[
-            image_times_to_keep_unix_sec ==
-            unique_image_times_to_keep_unix_sec[i]].tolist()
-        this_num_storm_objects = len(these_storm_ids)
-        these_times_unix_sec = numpy.full(
-            this_num_storm_objects, unique_image_times_to_keep_unix_sec[i],
-            dtype=int)
-
-        this_time_index = numpy.where(
-            image_times_unix_sec == unique_image_times_to_keep_unix_sec[i])[0][0]
-
-        for j in range(num_field_height_pairs):
-            print 'Reading {0:d} storm objects from "{1:s}"...'.format(
-                this_num_storm_objects,
-                image_file_name_matrix[this_time_index, j])
-
-            this_storm_image_dict = read_storm_images(
-                netcdf_file_name=image_file_name_matrix[this_time_index, j],
-                return_images=True, storm_ids_to_keep=these_storm_ids,
-                valid_times_to_keep_unix_sec=these_times_unix_sec)
-
-    return None, None
+    return storm_ids_to_keep, valid_times_to_keep_unix_sec, label_values
 
 
 def read_storm_images_and_labels(
