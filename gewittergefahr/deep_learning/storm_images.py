@@ -1311,11 +1311,9 @@ def filter_storm_objects(
             label_name=label_name, storm_to_winds_table=None,
             storm_to_tornadoes_table=storm_to_events_table)
 
-    # TODO(thunderhoser): Need to reset test_mode = False.
     indices_to_keep = _filter_storm_objects_by_label(
         label_values=label_values,
-        num_storm_objects_class_dict=num_storm_objects_class_dict,
-        test_mode=True)
+        num_storm_objects_class_dict=num_storm_objects_class_dict)
     if not len(indices_to_keep):
         return None, None
 
@@ -1323,7 +1321,8 @@ def filter_storm_objects(
         tracking_utils.STORM_ID_COLUMN].values[indices_to_keep].tolist()
     valid_times_to_keep_unix_sec = storm_to_events_table[
         tracking_utils.TIME_COLUMN].values[indices_to_keep].astype(int)
-    return storm_ids_to_keep, valid_times_to_keep_unix_sec, label_values
+    return (storm_ids_to_keep, valid_times_to_keep_unix_sec,
+            label_values[indices_to_keep])
 
 
 def read_storm_images_and_labels(
