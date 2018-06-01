@@ -1311,9 +1311,11 @@ def filter_storm_objects(
             label_name=label_name, storm_to_winds_table=None,
             storm_to_tornadoes_table=storm_to_events_table)
 
+    # TODO(thunderhoser): Need to reset test_mode = False.
     indices_to_keep = _filter_storm_objects_by_label(
         label_values=label_values,
-        num_storm_objects_class_dict=num_storm_objects_class_dict)
+        num_storm_objects_class_dict=num_storm_objects_class_dict,
+        test_mode=True)
     if not len(indices_to_keep):
         return None, None
 
