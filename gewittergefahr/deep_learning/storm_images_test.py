@@ -521,12 +521,13 @@ class StormImagesTests(unittest.TestCase):
         file with one time step.
         """
 
-        with self.assertRaises(ValueError):
-            storm_images.find_storm_label_file(
-                storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
-                top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-                label_name=LABEL_NAME, one_file_per_spc_date=False,
-                raise_error_if_missing=False)
+        this_file_name = storm_images.find_storm_label_file(
+            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
+            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
+            label_name=LABEL_NAME, one_file_per_spc_date=False,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
 
     def test_extract_storm_labels_with_name_wind_ab_time0(self):
         """Ensures correct output from extract_storm_labels_with_name.

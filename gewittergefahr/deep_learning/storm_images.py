@@ -1557,11 +1557,6 @@ def find_storm_label_file(
     if one_file_per_spc_date:
         unix_time_sec = None
 
-    if unix_time_sec is None and not one_file_per_spc_date:
-        raise ValueError(
-            'If one_file_per_spc_date = False, storm_image_file_name must '
-            'contain data for one time step, not one full SPC date.')
-
     parameter_dict = labels.column_name_to_label_params(label_name)
     storm_label_file_name = labels.find_label_file(
         top_directory_name=top_label_directory_name,
