@@ -1099,7 +1099,7 @@ def extract_storm_images_gridrad(
 
 def write_storm_images(
         netcdf_file_name, storm_image_matrix, storm_ids, valid_times_unix_sec,
-        radar_field_name, radar_height_m_asl):
+        radar_field_name, radar_height_m_asl, num_storm_objects_per_chunk=1):
     """Writes storm-centered radar images to NetCDF file.
 
     These images should be created by `extract_storm_image`.
@@ -1110,7 +1110,19 @@ def write_storm_images(
     :param valid_times_unix_sec: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
+    :param num_storm_objects_per_chunk: Number of storm objects per NetCDF
+        chunk.  To use default chunking, set this to `None`.
     """
+
+    _check_storm_images(
+        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
+        valid_times_unix_sec=valid_times_unix_sec,
+        radar_field_name=radar_field_name,
+        radar_height_m_asl=radar_height_m_asl)
+
+    if num_storm_objects_per_chunk is not None:
+        error_checking.assert_is_integer(num_storm_objects_per_chunk)
+        error_checking.assert_is_geq(num_storm_objects_per_chunk, 1)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = netCDF4.Dataset(
@@ -1147,7 +1159,12 @@ def write_storm_images(
         dimensions=STORM_OBJECT_DIMENSION_KEY)
     netcdf_dataset.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
 
-    chunk_size_tuple = (1,) + storm_image_matrix.shape[1:]
+    if num_storm_objects_per_chunk is None:
+        chunk_size_tuple = None
+    else:
+        chunk_size_tuple = (
+            (num_storm_objects_per_chunk,) + storm_image_matrix.shape[1:])
+
     netcdf_dataset.createVariable(
         STORM_IMAGE_MATRIX_KEY, datatype=numpy.float32,
         dimensions=(

@@ -394,6 +394,7 @@ def _read_2d3d_input_files(
     :return: target_values: length-E numpy array of integer classes.
     """
 
+    print 'Reading labels from: "{0:s}"...'.format(label_file_name)
     (storm_ids_to_keep, image_times_to_keep_unix_sec, all_target_values
     ) = storm_images.filter_storm_objects(
         label_file_name=label_file_name, label_name=target_name,
@@ -1036,8 +1037,9 @@ def storm_image_generator_2d(
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
-            print 'Reading data from: "{0:s}"...'.format(
-                image_file_name_matrix[init_time_index, 0])
+            print 'Reading data from: "{0:s}" and "{1:s}"...'.format(
+                image_file_name_matrix[init_time_index, 0],
+                this_label_file_name)
 
             if all_target_values is None:
                 num_examples_in_memory = 0
@@ -1483,8 +1485,9 @@ def storm_image_generator_2d3d_myrorss(
                 init_time_index = numpy.mod(init_time_index + 1, num_init_times)
                 continue
 
-            print 'Reading data from: "{0:s}"...'.format(
-                reflectivity_file_name_matrix[init_time_index, 0])
+            print 'Reading data from: "{0:s}" and "{1:s}"...'.format(
+                reflectivity_file_name_matrix[init_time_index, 0],
+                this_label_file_name)
 
             if all_target_values is None:
                 num_examples_in_memory = 0
