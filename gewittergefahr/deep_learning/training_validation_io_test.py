@@ -9,29 +9,6 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test remove_storms_with_undef_target.
-THESE_STORM_IDS = ['A', 'B', 'C', 'D']
-THIS_IMAGE_MATRIX = numpy.reshape(numpy.linspace(1., 24., num=24), (4, 3, 2))
-THESE_TARGET_VALUES = numpy.array([-1, 0, -1, -2], dtype=int)
-THESE_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
-
-STORM_IMAGE_DICT_WITH_UNDEF_TARGETS = {
-    storm_images.STORM_IDS_KEY: THESE_STORM_IDS,
-    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
-    storm_images.STORM_IMAGE_MATRIX_KEY: THIS_IMAGE_MATRIX,
-    storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES,
-}
-
-THESE_VALID_INDICES = numpy.array([1, 3], dtype=int)
-STORM_IMAGE_DICT_NO_UNDEF_TARGETS = {
-    storm_images.STORM_IDS_KEY:
-        [THESE_STORM_IDS[i] for i in THESE_VALID_INDICES],
-    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC[THESE_VALID_INDICES],
-    storm_images.STORM_IMAGE_MATRIX_KEY:
-        THIS_IMAGE_MATRIX[THESE_VALID_INDICES, :],
-    storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
-}
-
 # The following constants are used to test _get_num_examples_per_batch_by_class.
 NUM_EXAMPLES_PER_BATCH = 100
 TORNADO_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00001-05000m'
@@ -77,6 +54,29 @@ NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS = {-2: 0, 0: 50, 1: 0, 2: 0}
 NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS = {-2: 0, 0: 200, 1: 0, 2: 0}
 NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH = {-2: 50, 0: 80, 1: 40, 2: 30}
 
+# The following constants are used to test remove_storms_with_undef_target.
+THESE_STORM_IDS = ['A', 'B', 'C', 'D']
+THIS_IMAGE_MATRIX = numpy.reshape(numpy.linspace(1., 24., num=24), (4, 3, 2))
+THESE_TARGET_VALUES = numpy.array([-1, 0, -1, -2], dtype=int)
+THESE_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
+
+STORM_IMAGE_DICT_WITH_UNDEF_TARGETS = {
+    storm_images.STORM_IDS_KEY: THESE_STORM_IDS,
+    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
+    storm_images.STORM_IMAGE_MATRIX_KEY: THIS_IMAGE_MATRIX,
+    storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES,
+}
+
+THESE_VALID_INDICES = numpy.array([1, 3], dtype=int)
+STORM_IMAGE_DICT_NO_UNDEF_TARGETS = {
+    storm_images.STORM_IDS_KEY:
+        [THESE_STORM_IDS[i] for i in THESE_VALID_INDICES],
+    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC[THESE_VALID_INDICES],
+    storm_images.STORM_IMAGE_MATRIX_KEY:
+        THIS_IMAGE_MATRIX[THESE_VALID_INDICES, :],
+    storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
+}
+
 # The following constants are used to test
 # separate_input_files_for_2d3d_myrorss.
 IMAGE_FILE_NAME_MATRIX = numpy.array([['A', 'B', 'C', 'D', 'E'],
@@ -101,29 +101,6 @@ AZ_SHEAR_FILE_NAME_MATRIX = numpy.array([['E', 'D'],
 
 class TrainingValidationIoTests(unittest.TestCase):
     """Each method is a unit test for training_validation_io.py."""
-
-    def test_remove_storms_with_undef_target(self):
-        """Ensures correct output from remove_storms_with_undef_target."""
-
-        this_input_dict = copy.deepcopy(STORM_IMAGE_DICT_WITH_UNDEF_TARGETS)
-        this_storm_image_dict, _ = trainval_io.remove_storms_with_undef_target(
-            this_input_dict)
-
-        actual_keys = this_storm_image_dict.keys()
-        expected_keys = STORM_IMAGE_DICT_NO_UNDEF_TARGETS.keys()
-        self.assertTrue(set(actual_keys) == set(expected_keys))
-
-        self.assertTrue(
-            this_storm_image_dict[storm_images.STORM_IDS_KEY] ==
-            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.STORM_IDS_KEY])
-        self.assertTrue(numpy.allclose(
-            this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
-            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[
-                storm_images.STORM_IMAGE_MATRIX_KEY],
-            atol=TOLERANCE))
-        self.assertTrue(numpy.array_equal(
-            this_storm_image_dict[storm_images.LABEL_VALUES_KEY],
-            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.LABEL_VALUES_KEY]))
 
     def test_get_num_examples_per_batch_by_class_tornado(self):
         """Ensures correct output from _get_num_examples_per_batch_by_class.
@@ -154,8 +131,8 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_get_num_examples_per_batch_by_class_no_fractions(self):
         """Ensures correct output from _get_num_examples_per_batch_by_class.
 
-        In this case, the input argument `class_fractions_to_sample` is empty,
-        which means that there will be no downsampling.
+        In this case, the input argument `class_fraction_dict` is empty, which
+        means that there will be no downsampling.
         """
 
         this_dict = trainval_io._get_num_examples_per_batch_by_class(
@@ -508,6 +485,29 @@ class TrainingValidationIoTests(unittest.TestCase):
         self.assertTrue(
             this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH)
         self.assertTrue(this_flag)
+
+    def test_remove_storms_with_undef_target(self):
+        """Ensures correct output from remove_storms_with_undef_target."""
+
+        this_input_dict = copy.deepcopy(STORM_IMAGE_DICT_WITH_UNDEF_TARGETS)
+        this_storm_image_dict, _ = trainval_io.remove_storms_with_undef_target(
+            this_input_dict)
+
+        actual_keys = this_storm_image_dict.keys()
+        expected_keys = STORM_IMAGE_DICT_NO_UNDEF_TARGETS.keys()
+        self.assertTrue(set(actual_keys) == set(expected_keys))
+
+        self.assertTrue(
+            this_storm_image_dict[storm_images.STORM_IDS_KEY] ==
+            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.STORM_IDS_KEY])
+        self.assertTrue(numpy.allclose(
+            this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
+            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[
+                storm_images.STORM_IMAGE_MATRIX_KEY],
+            atol=TOLERANCE))
+        self.assertTrue(numpy.array_equal(
+            this_storm_image_dict[storm_images.LABEL_VALUES_KEY],
+            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.LABEL_VALUES_KEY]))
 
     def test_separate_input_files_no_refl(self):
         """Ensures correctness of separate_input_files_for_2d3d_myrorss.
