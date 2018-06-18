@@ -239,22 +239,39 @@ def _create_labels(
                             percentile_level=wind_speed_percentile_level,
                             class_cutoffs_kt=list_of_class_cutoff_arrays_kt[k]))
 
-    label_file_name = labels.find_label_file(
+    label_file_name_pickle = labels.find_label_file(
         top_directory_name=top_label_dir_name,
-        event_type_string=event_type_string, spc_date_string=spc_date_string,
-        raise_error_if_missing=False)
+        event_type_string=event_type_string, file_extension='.p',
+        spc_date_string=spc_date_string, raise_error_if_missing=False)
 
     print '\nWriting {0:s} labels to: "{1:s}"...'.format(
-        event_type_string, label_file_name)
+        event_type_string, label_file_name_pickle)
 
     if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
         labels.write_tornado_labels(
             storm_to_tornadoes_table=storm_to_events_table,
-            pickle_file_name=label_file_name)
+            pickle_file_name=label_file_name_pickle)
     else:
         labels.write_wind_speed_labels(
             storm_to_winds_table=storm_to_events_table,
-            pickle_file_name=label_file_name)
+            pickle_file_name=label_file_name_pickle)
+
+    label_file_name_netcdf = labels.find_label_file(
+        top_directory_name=top_label_dir_name,
+        event_type_string=event_type_string, file_extension='.nc',
+        spc_date_string=spc_date_string, raise_error_if_missing=False)
+
+    print '\nWriting {0:s} labels to: "{1:s}"...'.format(
+        event_type_string, label_file_name_netcdf)
+
+    if event_type_string == events2storms.TORNADO_EVENT_TYPE_STRING:
+        label_names = labels.check_tornado_label_table(storm_to_events_table)
+    else:
+        label_names = labels.check_wind_speed_label_table(storm_to_events_table)
+
+    labels.write_labels_to_netcdf(
+        storm_to_events_table=storm_to_events_table, label_names=label_names,
+        netcdf_file_name=label_file_name_netcdf)
 
 
 if __name__ == '__main__':
