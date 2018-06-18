@@ -1,4 +1,4 @@
-"""Converts GridRad data to MYRORSS format.
+"""Converts GridRad data into MYRORSS format.
 
 Example usage (to compute 40-dBZ echo tops):
 
