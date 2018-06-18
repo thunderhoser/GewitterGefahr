@@ -992,11 +992,9 @@ def extract_storm_images_gridrad(
                             metadata_dict=this_metadata_dict))
 
                     this_height_index = numpy.where(
-                        these_heights_m_asl == radar_heights_m_asl[k])[0]
-                    print this_field_radar_matrix.shape
+                        these_heights_m_asl == radar_heights_m_asl[k])[0][0]
                     this_field_radar_matrix = this_field_radar_matrix[
                         this_height_index, ...]
-                    print this_field_radar_matrix.shape
                     this_field_radar_matrix[
                         numpy.isnan(this_field_radar_matrix)] = 0.
 
