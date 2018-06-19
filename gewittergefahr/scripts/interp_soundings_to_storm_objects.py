@@ -7,8 +7,6 @@ from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
-# TODO(thunderhoser): Make lag time an input argument.
-
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 WGRIB_EXE_NAME = '/condo/swatwork/ralager/wgrib/wgrib'
@@ -16,6 +14,7 @@ WGRIB2_EXE_NAME = '/condo/swatwork/ralager/grib2/wgrib2/wgrib2'
 
 SPC_DATE_ARG_NAME = 'spc_date_string'
 LEAD_TIMES_ARG_NAME = 'lead_times_seconds'
+LAG_TIME_ARG_NAME = 'lag_time_for_convective_contamination_sec'
 RUC_DIRECTORY_ARG_NAME = 'input_ruc_directory_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
@@ -28,6 +27,11 @@ SPC_DATE_HELP_STRING = (
 ).format(LEAD_TIMES_ARG_NAME)
 LEAD_TIMES_HELP_STRING = 'See help string for `{0:s}`.'.format(
     SPC_DATE_ARG_NAME)
+LAG_TIME_HELP_STRING = (
+    'Lag time (used to avoid convective contamination of soundings, where the '
+    'sounding for storm S is heavily influenced by storm S).  This will be '
+    'subtracted from each lead time in `{0:s}`.'
+).format(LEAD_TIMES_ARG_NAME)
 RUC_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with grib files containing RUC (Rapid Update '
     'Cycle) data.')
@@ -54,6 +58,11 @@ INPUT_ARG_PARSER.add_argument(
     default=[0], help=LEAD_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + LAG_TIME_ARG_NAME, type=int, required=False,
+    default=soundings_only.DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
+    help=LAG_TIME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + RUC_DIRECTORY_ARG_NAME, type=str, required=True,
     help=RUC_DIRECTORY_HELP_STRING)
 
@@ -71,12 +80,14 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _interp_soundings(
-        spc_date_string, lead_times_seconds, top_ruc_directory_name,
+        spc_date_string, lead_times_seconds,
+        lag_time_for_convective_contamination_sec, top_ruc_directory_name,
         top_tracking_dir_name, tracking_scale_metres2, top_output_dir_name):
     """Interpolates NWP sounding to each storm object at each lead time.
 
     :param spc_date_string: See documentation at top of file.
     :param lead_times_seconds: Same.
+    :param lag_time_for_convective_contamination_sec: Same.
     :param top_ruc_directory_name: Same.
     :param top_tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
@@ -99,7 +110,9 @@ def _interp_soundings(
         soundings_only.interp_soundings_to_storm_objects(
             storm_object_table=storm_object_table,
             top_grib_directory_name=top_ruc_directory_name,
-            lead_times_seconds=lead_times_seconds, include_surface=False,
+            lead_times_seconds=lead_times_seconds,
+            lag_time_for_convective_contamination_sec=
+            lag_time_for_convective_contamination_sec, include_surface=False,
             all_ruc_grids=True, wgrib_exe_name=WGRIB_EXE_NAME,
             wgrib2_exe_name=WGRIB2_EXE_NAME, raise_error_if_missing=False))
     print SEPARATOR_STRING
@@ -111,13 +124,16 @@ def _interp_soundings(
         this_sounding_file_name = soundings_only.find_sounding_file(
             top_directory_name=top_output_dir_name,
             spc_date_string=spc_date_string,
-            lead_time_seconds=this_lead_time_sec, raise_error_if_missing=False)
+            lead_time_seconds=this_lead_time_sec,
+            lag_time_for_convective_contamination_sec=
+            lag_time_for_convective_contamination_sec,
+            raise_error_if_missing=False)
 
         print 'Writing soundings to: "{0:s}"...'.format(this_sounding_file_name)
         soundings_only.write_soundings(
             sounding_dict=sounding_dict_by_lead_time[k],
             lag_time_for_convective_contamination_sec=
-            soundings_only.DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
+            lag_time_for_convective_contamination_sec,
             netcdf_file_name=this_sounding_file_name)
 
 
@@ -127,6 +143,8 @@ if __name__ == '__main__':
     _interp_soundings(
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
         lead_times_seconds=getattr(INPUT_ARG_OBJECT, LEAD_TIMES_ARG_NAME),
+        lag_time_for_convective_contamination_sec=getattr(
+            INPUT_ARG_OBJECT, LAG_TIME_ARG_NAME),
         top_ruc_directory_name=getattr(
             INPUT_ARG_OBJECT, RUC_DIRECTORY_ARG_NAME),
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),

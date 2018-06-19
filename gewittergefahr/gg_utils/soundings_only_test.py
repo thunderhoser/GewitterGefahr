@@ -459,13 +459,15 @@ SOUNDING_DICT_WITHOUT_NANS = {
 TOP_DIRECTORY_NAME = 'storm_soundings'
 SPC_DATE_STRING = '20180618'
 LEAD_TIME_IN_FILES_SEC = 3600
+LAG_TIME_IN_FILES_SEC = 1800
 FILE_TIME_UNIX_SEC = 1529374673  # 021753 UTC 19 Jun 2018
 
 SOUNDING_FILE_NAME_ONE_TIME = (
     'storm_soundings/2018/20180618/'
-    'storm_soundings_2018-06-19-021753_lead-time-03600sec.nc')
+    'storm_soundings_2018-06-19-021753_lead-time-03600sec_lag-time-1800sec.nc')
 SOUNDING_FILE_NAME_ONE_SPC_DATE = (
-    'storm_soundings/2018/storm_soundings_20180618_lead-time-03600sec.nc')
+    'storm_soundings/2018/storm_soundings_20180618_lead-time-03600sec'
+    '_lag-time-1800sec.nc')
 
 
 def _compare_target_point_tables(
@@ -723,6 +725,7 @@ class SoundingsOnlyTests(unittest.TestCase):
             top_directory_name=TOP_DIRECTORY_NAME,
             spc_date_string=SPC_DATE_STRING,
             lead_time_seconds=LEAD_TIME_IN_FILES_SEC,
+            lag_time_for_convective_contamination_sec=LAG_TIME_IN_FILES_SEC,
             init_time_unix_sec=FILE_TIME_UNIX_SEC, raise_error_if_missing=False)
         self.assertTrue(this_file_name == SOUNDING_FILE_NAME_ONE_TIME)
 
@@ -735,8 +738,9 @@ class SoundingsOnlyTests(unittest.TestCase):
         this_file_name = soundings_only.find_sounding_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             spc_date_string=SPC_DATE_STRING,
-            lead_time_seconds=LEAD_TIME_IN_FILES_SEC, init_time_unix_sec=None,
-            raise_error_if_missing=False)
+            lead_time_seconds=LEAD_TIME_IN_FILES_SEC,
+            lag_time_for_convective_contamination_sec=LAG_TIME_IN_FILES_SEC,
+            init_time_unix_sec=None, raise_error_if_missing=False)
         self.assertTrue(this_file_name == SOUNDING_FILE_NAME_ONE_SPC_DATE)
 
 

@@ -1071,12 +1071,15 @@ def read_soundings(netcdf_file_name):
 
 def find_sounding_file(
         top_directory_name, spc_date_string, lead_time_seconds,
+        lag_time_for_convective_contamination_sec,
         init_time_unix_sec=None, raise_error_if_missing=True):
     """Finds file with soundings interpolated to storm objects.
 
     :param top_directory_name: Name of top-level directory with sounding files.
     :param spc_date_string: SPC date (format "yyyymmdd").
     :param lead_time_seconds: Lead time.
+    :param lag_time_for_convective_contamination_sec: See doc for
+        `interp_soundings_to_storm_objects`.
     :param init_time_unix_sec: Initial time (should be common to all storm
         objects in the file).  If `init_time_unix_sec is None`, will look for a
         file containing soundings for one SPC date, rather than one time step.
@@ -1093,16 +1096,18 @@ def find_sounding_file(
 
     if init_time_unix_sec is None:
         sounding_file_name = (
-            '{0:s}/{1:s}/storm_soundings_{2:s}_lead-time-{3:05d}sec.nc'
+            '{0:s}/{1:s}/storm_soundings_{2:s}_lead-time-{3:05d}sec'
+            '_lag-time-{4:04d}sec.nc'
         ).format(top_directory_name, spc_date_string[:4], spc_date_string,
-                 lead_time_seconds)
+                 lead_time_seconds, lag_time_for_convective_contamination_sec)
     else:
         sounding_file_name = (
-            '{0:s}/{1:s}/{2:s}/storm_soundings_{3:s}_lead-time-{4:05d}sec.nc'
+            '{0:s}/{1:s}/{2:s}/storm_soundings_{3:s}_lead-time-{4:05d}sec'
+            '_lag-time-{5:04d}sec.nc'
         ).format(top_directory_name, spc_date_string[:4], spc_date_string,
                  time_conversion.unix_sec_to_string(
                      init_time_unix_sec, TIME_FORMAT_IN_FILE_NAMES),
-                 lead_time_seconds)
+                 lead_time_seconds, lag_time_for_convective_contamination_sec)
 
     if raise_error_if_missing and not os.path.isfile(sounding_file_name):
         error_string = (
