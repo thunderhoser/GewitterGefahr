@@ -27,6 +27,7 @@ SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
 
 PRESSURE_LEVEL_KEY = 'pressure_level_mb'
 LEAD_TIME_KEY = 'lead_time_seconds'
+LAG_TIME_KEY = 'lag_time_for_convective_contamination_sec'
 INITIAL_TIME_COLUMN = 'init_time_unix_sec'
 VALID_TIME_COLUMN = 'valid_time_unix_sec'
 
@@ -56,6 +57,7 @@ PRESSURELESS_FIELDS_TO_INTERP = [
 ]
 
 DEFAULT_LEAD_TIMES_SEC = numpy.array([0], dtype=int)
+DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC = 1800
 
 
 def _get_nwp_fields_for_sounding(
@@ -748,9 +750,11 @@ def _convert_soundings(sounding_dict):
 
 def interp_soundings_to_storm_objects(
         storm_object_table, top_grib_directory_name,
-        lead_times_seconds=DEFAULT_LEAD_TIMES_SEC, include_surface=False,
-        all_ruc_grids=True, model_name=None, grid_id=None,
-        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        lead_times_seconds=DEFAULT_LEAD_TIMES_SEC,
+        lag_time_for_convective_contamination_sec=
+        DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
+        include_surface=False, all_ruc_grids=True, model_name=None,
+        grid_id=None, wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
     """Creates interpolated NWP sounding for each storm object.
@@ -769,6 +773,10 @@ def interp_soundings_to_storm_objects(
         lead time t, each storm object will be extrapolated t seconds into the
         future along its estimated motion vector.  Thus, one sounding will be
         created for each pair of storm object and lead time.
+    :param lag_time_for_convective_contamination_sec: Lag time (used to avoid
+        convective contamination of soundings, where the sounding for storm S is
+        heavily influenced by storm S).  This will be subtracted from each lead
+        time in `lead_times_seconds`.
     :param include_surface: Boolean flag.  If True, will include surface values
         in each sounding.
     :param all_ruc_grids: Boolean flag.  If True, this method will use
@@ -792,23 +800,27 @@ def interp_soundings_to_storm_objects(
         `_convert_interp_table_to_soundings`.
     """
 
-    # TODO(thunderhoser): Still need time offset to prevent convective
-    # contamination.
-
     error_checking.assert_is_integer_numpy_array(lead_times_seconds)
     error_checking.assert_is_numpy_array(lead_times_seconds, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(lead_times_seconds, 0)
+    error_checking.assert_is_integer(lag_time_for_convective_contamination_sec)
+    error_checking.assert_is_geq(lag_time_for_convective_contamination_sec, 0)
     error_checking.assert_is_boolean(include_surface)
     error_checking.assert_is_boolean(all_ruc_grids)
 
-    print (
-        'Creating target point for each storm object and lead time ({0:s} '
-        'seconds)...'
-    ).format(str(lead_times_seconds))
+    lagged_lead_times_seconds = (
+        lead_times_seconds - lag_time_for_convective_contamination_sec)
 
+    print (
+        'Lead times without lag for convective contamination: {0:s} seconds'
+    ).format(str(lead_times_seconds))
+    print 'Lead times with lag: {0:s} seconds'.format(
+        str(lagged_lead_times_seconds))
+
+    print 'Creating target point for each storm object and lead time...'
     target_point_table = _create_target_points_for_interp(
         storm_object_table=storm_object_table,
-        lead_times_seconds=lead_times_seconds)
+        lead_times_seconds=lagged_lead_times_seconds)
 
     column_dict_old_to_new = {
         tracking_utils.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
@@ -842,8 +854,10 @@ def interp_soundings_to_storm_objects(
         model_name=model_name, include_surface=include_surface)
 
     orig_num_soundings = len(sounding_dict[STORM_IDS_KEY])
+
     print 'Converting variables and units in each sounding...'
     sounding_dict = _convert_soundings(sounding_dict)
+    sounding_dict[LEAD_TIMES_KEY] += lag_time_for_convective_contamination_sec
 
     num_soundings = len(sounding_dict[STORM_IDS_KEY])
     print '{0:d} of {1:d} soundings were removed (too many NaN''s).\n'.format(
@@ -888,18 +902,24 @@ def interp_soundings_to_storm_objects(
     return sounding_dict_by_lead_time
 
 
-def write_soundings(sounding_dict, netcdf_file_name):
+def write_soundings(sounding_dict, lag_time_for_convective_contamination_sec,
+                    netcdf_file_name):
     """Writes soundings to NetCDF file.
 
     This file should contain soundings for only one lead time.
 
     :param sounding_dict: Dictionary with keys documented in
         `_convert_interp_table_to_soundings`.
+    :param lag_time_for_convective_contamination_sec: See doc for
+        `interp_soundings_to_storm_objects`.
     :param netcdf_file_name: Path to output file.
     :raises: ValueError: if `sounding_dict` contains different lead times.
     """
 
-    # Check input argument.
+    # Check input arguments.
+    error_checking.assert_is_integer(lag_time_for_convective_contamination_sec)
+    error_checking.assert_is_geq(lag_time_for_convective_contamination_sec, 0)
+
     unique_lead_time_seconds = numpy.unique(sounding_dict[LEAD_TIMES_KEY])
     if len(unique_lead_time_seconds) > 1:
         error_string = (
@@ -908,11 +928,14 @@ def write_soundings(sounding_dict, netcdf_file_name):
         ).format(str(unique_lead_time_seconds))
         raise ValueError(error_string)
 
-    # Create NetCDF file and set lead time as global attribute.
+    # Create NetCDF file and set global attributes.
     file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
     netcdf_dataset = netCDF4.Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
     netcdf_dataset.setncattr(LEAD_TIME_KEY, unique_lead_time_seconds[0])
+    netcdf_dataset.setncattr(
+        LAG_TIME_KEY, lag_time_for_convective_contamination_sec)
 
     # Create dimensions.
     num_storm_objects = len(sounding_dict[STORM_IDS_KEY])
@@ -1004,12 +1027,17 @@ def read_soundings(netcdf_file_name):
     :param netcdf_file_name: Path to input file.
     :return: sounding_dict: Dictionary with keys documented in
         `_convert_interp_table_to_soundings`.
+    :return: lag_time_for_convective_contamination_sec: See doc for
+        `interp_soundings_to_storm_objects`.
     """
 
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
     lead_time_seconds = getattr(netcdf_dataset, LEAD_TIME_KEY)
+    lag_time_for_convective_contamination_sec = int(
+        getattr(netcdf_dataset, LAG_TIME_KEY))
+
     storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
     storm_ids = [str(s) for s in storm_ids]
     pressureless_field_names = netCDF4.chartostring(
@@ -1034,7 +1062,7 @@ def read_soundings(netcdf_file_name):
     lead_times_seconds = numpy.full(
         num_storm_objects, lead_time_seconds, dtype=int)
 
-    return {
+    sounding_dict = {
         STORM_IDS_KEY: storm_ids,
         INITIAL_TIMES_KEY: init_times_unix_sec,
         LEAD_TIMES_KEY: lead_times_seconds,
@@ -1043,6 +1071,7 @@ def read_soundings(netcdf_file_name):
         VERTICAL_LEVELS_KEY: vertical_levels_mb,
         PRESSURELESS_FIELD_NAMES_KEY: pressureless_field_names
     }
+    return sounding_dict, lag_time_for_convective_contamination_sec
 
 
 def find_sounding_file(
