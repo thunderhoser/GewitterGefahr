@@ -950,7 +950,7 @@ def write_soundings(
     netcdf_dataset.createDimension(
         PRESSURELESS_FIELD_DIMENSION_KEY, num_pressureless_fields)
 
-    num_storm_id_chars = 0
+    num_storm_id_chars = 1
     for i in range(num_storm_objects):
         num_storm_id_chars = max(
             [num_storm_id_chars, len(sounding_dict[STORM_IDS_KEY][i])])
