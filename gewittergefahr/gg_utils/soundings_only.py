@@ -739,9 +739,10 @@ def _convert_soundings(sounding_dict):
         pressure_matrix_pascals=pressure_matrix_pascals)
     pressure_matrix_pascals = _get_pressures(sounding_dict)
 
-    sounding_dict, dewpoint_matrix_kelvins = _specific_to_relative_humidity(
-        sounding_dict=sounding_dict,
-        pressure_matrix_pascals=pressure_matrix_pascals)
+    if not found_relative_humidity:
+        sounding_dict, dewpoint_matrix_kelvins = _specific_to_relative_humidity(
+            sounding_dict=sounding_dict,
+            pressure_matrix_pascals=pressure_matrix_pascals)
 
     return _get_virtual_potential_temperatures(
         sounding_dict=sounding_dict,
@@ -1040,27 +1041,42 @@ def read_soundings(netcdf_file_name):
     lag_time_for_convective_contamination_sec = int(
         getattr(netcdf_dataset, LAG_TIME_KEY))
 
-    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
-    storm_ids = [str(s) for s in storm_ids]
+    vertical_levels_mb = numpy.array(
+        netcdf_dataset.variables[VERTICAL_LEVELS_KEY][:], dtype=int)
     pressureless_field_names = netCDF4.chartostring(
         netcdf_dataset.variables[PRESSURELESS_FIELD_NAMES_KEY][:])
     pressureless_field_names = [str(s) for s in pressureless_field_names]
 
-    init_times_unix_sec = numpy.array(
-        netcdf_dataset.variables[INITIAL_TIMES_KEY][:], dtype=int)
-    vertical_levels_mb = numpy.array(
-        netcdf_dataset.variables[VERTICAL_LEVELS_KEY][:], dtype=int)
-    sounding_matrix = numpy.array(netcdf_dataset.variables[SOUNDING_MATRIX_KEY])
+    num_vertical_levels = len(vertical_levels_mb)
+    num_pressureless_fields = len(pressureless_field_names)
+    num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
+
+    if num_storm_objects == 0:
+        storm_ids = []
+        init_times_unix_sec = numpy.array([], dtype=int)
+        sounding_matrix = numpy.full(
+            (num_storm_objects, num_vertical_levels, num_pressureless_fields),
+            numpy.nan)
+    else:
+        storm_ids = netCDF4.chartostring(
+            netcdf_dataset.variables[STORM_IDS_KEY][:])
+        storm_ids = [str(s) for s in storm_ids]
+
+        init_times_unix_sec = numpy.array(
+            netcdf_dataset.variables[INITIAL_TIMES_KEY][:], dtype=int)
+        sounding_matrix = numpy.array(
+            netcdf_dataset.variables[SOUNDING_MATRIX_KEY])
 
     if numpy.any(numpy.isnan(vertical_levels_mb)):
-        lowest_pressures_mb = numpy.array(
-            netcdf_dataset.variables[LOWEST_PRESSURES_KEY][:], dtype=int)
+        if num_storm_objects == 0:
+            lowest_pressures_mb = numpy.array([], dtype=int)
+        else:
+            lowest_pressures_mb = numpy.array(
+                netcdf_dataset.variables[LOWEST_PRESSURES_KEY][:], dtype=int)
     else:
         lowest_pressures_mb = None
 
     netcdf_dataset.close()
-
-    num_storm_objects = len(storm_ids)
     lead_times_seconds = numpy.full(
         num_storm_objects, lead_time_seconds, dtype=int)
 
