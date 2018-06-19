@@ -130,6 +130,7 @@ def _interp_soundings(
         print 'Writing soundings to: "{0:s}"...'.format(this_sounding_file_name)
         soundings_only.write_soundings(
             sounding_dict=sounding_dict_by_lead_time[k],
+            lead_time_seconds=lead_times_seconds[k],
             lag_time_for_convective_contamination_sec=
             lag_time_for_convective_contamination_sec,
             netcdf_file_name=this_sounding_file_name)
