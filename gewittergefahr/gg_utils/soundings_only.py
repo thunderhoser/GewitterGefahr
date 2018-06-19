@@ -7,6 +7,7 @@ import netCDF4
 import scipy.interpolate
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import netcdf_io
+from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -19,8 +20,11 @@ from gewittergefahr.gg_utils import error_checking
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
+
 PERCENT_TO_UNITLESS = 0.01
 MB_TO_PASCALS = 100
+PASCALS_TO_MB = 0.01
+METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
 SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
@@ -47,6 +51,13 @@ PRESSURELESS_FIELD_DIMENSION_KEY = 'pressureless_field'
 VERTICAL_DIMENSION_KEY = 'vertical_level'
 STORM_ID_CHAR_DIMENSION_KEY = 'storm_id_character'
 FIELD_NAME_CHAR_DIMENSION_KEY = 'pressureless_field_name_character'
+
+# Field names in skewt package.
+PRESSURE_COLUMN_SKEWT = 'pres'
+TEMPERATURE_COLUMN_SKEWT = 'temp'
+DEWPOINT_COLUMN_SKEWT = 'dwpt'
+WIND_SPEED_COLUMN_SKEWT = 'sknt'
+WIND_DIRECTION_COLUMN_SKEWT = 'drct'
 
 PRESSURELESS_FIELDS_TO_INTERP = [
     nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
@@ -907,6 +918,66 @@ def interp_soundings_to_storm_objects(
         ).format(lead_times_seconds[k], len(these_indices), num_soundings)
 
     return sounding_dict_by_lead_time
+
+
+def sounding_dict_to_skewt(sounding_dict, sounding_index):
+    """Converts sounding to format required by the skewt package.
+
+    The skewt package is used in sounding_plotting.py.
+
+    :param sounding_dict: Dictionary with keys documented in
+        `soundings_only._convert_interp_table_to_soundings`.
+    :param sounding_index: Will convert the [k]th sounding in `sounding_dict`,
+        where k = `sounding_index`.
+    :return: sounding_dict_for_skewt: Dictionary with the following keys.
+    sounding_dict_for_skewt.PRES: length-P numpy array of pressures (millibars).
+    sounding_dict_for_skewt.TEMP: length-P numpy array of temperatures
+        (Celsius).
+    sounding_dict_for_skewt.DWPT: length-P numpy array of dewpoints (Celsius).
+    sounding_dict_for_skewt.SKNT: length-P numpy array of wind speeds (knots).
+    sounding_dict_for_skewt.WDIR: length-P numpy array of wind directions
+        (direction of origin, as per meteorological convention) (degrees).
+    """
+
+    num_soundings = len(sounding_dict[STORM_IDS_KEY])
+    error_checking.assert_is_integer(sounding_index)
+    error_checking.assert_is_geq(sounding_index, 0)
+    error_checking.assert_is_less_than(sounding_index, num_soundings)
+
+    pressures_pascals = _get_pressures(sounding_dict)[sounding_index, :]
+    temperature_index = sounding_dict[
+        PRESSURELESS_FIELD_NAMES_KEY
+    ].index(nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES)
+    specific_humidity_index = sounding_dict[
+        PRESSURELESS_FIELD_NAMES_KEY
+    ].index(nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
+
+    dewpoints_kelvins = moisture_conversions.specific_humidity_to_dewpoint(
+        specific_humidities_kg_kg01=sounding_dict[
+            SOUNDING_MATRIX_KEY][sounding_index, :, specific_humidity_index],
+        total_pressures_pascals=pressures_pascals)
+
+    u_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
+        nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES)
+    v_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
+        nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES)
+    (wind_speeds_m_s01, wind_directions_deg
+    ) = raw_wind_io.uv_to_speed_and_direction(
+        u_winds_m_s01=sounding_dict[SOUNDING_MATRIX_KEY][
+            sounding_index, :, u_wind_index],
+        v_winds_m_s01=sounding_dict[SOUNDING_MATRIX_KEY][
+            sounding_index, :, v_wind_index])
+
+    return {
+        PRESSURE_COLUMN_SKEWT: PASCALS_TO_MB * pressures_pascals,
+        TEMPERATURE_COLUMN_SKEWT: temperature_conversions.kelvins_to_celsius(
+            sounding_dict[SOUNDING_MATRIX_KEY][
+                sounding_index, :, temperature_index]),
+        DEWPOINT_COLUMN_SKEWT: temperature_conversions.kelvins_to_celsius(
+            dewpoints_kelvins),
+        WIND_SPEED_COLUMN_SKEWT: METRES_PER_SECOND_TO_KT * wind_speeds_m_s01,
+        WIND_DIRECTION_COLUMN_SKEWT: wind_directions_deg
+    }
 
 
 def write_soundings(
