@@ -18,9 +18,8 @@ METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 
 def plot_wind_barbs(
-        basemap_object=None, axes_object=None,
-        latitudes_deg=None, longitudes_deg=None, u_winds_m_s01=None,
-        v_winds_m_s01=None, barb_length=DEFAULT_BARB_LENGTH,
+        basemap_object, axes_object, latitudes_deg, longitudes_deg,
+        u_winds_m_s01, v_winds_m_s01, barb_length=DEFAULT_BARB_LENGTH,
         empty_barb_radius=DEFAULT_EMPTY_BARB_RADIUS,
         fill_empty_barb=FILL_EMPTY_BARB_DEFAULT, colour_map=DEFAULT_COLOUR_MAP,
         colour_minimum_kt=DEFAULT_COLOUR_MINIMUM_KT,

@@ -686,18 +686,18 @@ def _prep_to_interp_nwp_from_xy_grid(
     }
 
     if numpy.any(rotate_wind_flags):
-        rotation_sine_by_query_point, rotation_cosine_by_query_point = (
+        rotation_cosine_by_query_point, rotation_sine_by_query_point = (
             nwp_model_utils.get_wind_rotation_angles(
                 query_point_table[QUERY_LAT_COLUMN].values,
                 query_point_table[QUERY_LNG_COLUMN].values,
                 model_name=model_name))
     else:
-        rotation_sine_by_query_point = None
         rotation_cosine_by_query_point = None
+        rotation_sine_by_query_point = None
 
     metadata_dict.update({
-        ROTATION_SINES_KEY: rotation_sine_by_query_point,
-        ROTATION_COSINES_KEY: rotation_cosine_by_query_point
+        ROTATION_COSINES_KEY: rotation_cosine_by_query_point,
+        ROTATION_SINES_KEY: rotation_sine_by_query_point
     })
 
     query_point_table.drop(
