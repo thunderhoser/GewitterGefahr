@@ -1,21 +1,19 @@
 """IO methods for grib and grib2 files.
 
-These methods use wgrib and wgrib2, which are command-line tools for parsing
-grib and grib2 files.  See README_grib (in this directory) for installation
+These methods use wgrib and wgrib2, which are command-line tools.  See
+README_grib (in the same directory as this module) for installation
 instructions.
 """
 
 import os
 import subprocess
+import tempfile
 import warnings
 import numpy
-from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): replace main method with named method.
-
-SENTINEL_TOLERANCE = 10.
+TOLERANCE_FOR_SENTINEL_VALUES = 10.
 
 GRIB1_FILE_EXTENSION = '.grb'
 GRIB1_FILE_TYPE = 'grib1'
@@ -24,47 +22,62 @@ WGRIB_EXE_NAME_DEFAULT = '/usr/bin/wgrib'
 GRIB2_FILE_EXTENSION = '.grb2'
 GRIB2_FILE_TYPE = 'grib2'
 WGRIB2_EXE_NAME_DEFAULT = '/usr/bin/wgrib2'
+VALID_FILE_TYPES = [GRIB1_FILE_TYPE, GRIB2_FILE_TYPE]
 
 U_WIND_PREFIX = 'UGRD'
 V_WIND_PREFIX = 'VGRD'
 
-# The following constants are used in the main method only.
-NARR_FILE_NAME_ONLINE = (
-    'https://nomads.ncdc.noaa.gov/data/narr/201408/20140810/'
-    'narr-a_221_20140810_1200_000.grb')
-NARR_FILE_NAME_LOCAL = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/'
-    'narr-a_221_20140810_1200_000.grb')
-NARR_H500_FILE_NAME = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/'
-    'narr_h500_20140810_1200_000.txt')
 
-RAP_FILE_NAME_ONLINE = (
-    'https://nomads.ncdc.noaa.gov/data/rap130/201708/20170822/'
-    'rap_130_20170822_0000_006.grb2')
-RAP_FILE_NAME_LOCAL = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/'
-    'rap_130_20170822_0000_006.grb2')
-RAP_H500_FILE_NAME = (
-    '/localdata/ryan.lagerquist/gewittergefahr_junk/'
-    'rap_h500_20170822_0000_006.txt')
+def _field_name_grib1_to_grib2(field_name_grib1):
+    """Converts field name from grib1 to grib2.
 
-H500_NAME_GRIB = 'HGT:500 mb'
+    :param field_name_grib1: Field name in grib1 format.
+    :return: field_name_grib2: Field name in grib2 format.
+    """
 
-NUM_ROWS_IN_NARR = 277
-NUM_COLUMNS_IN_NARR = 349
-NARR_SENTINEL_VALUE = 9.999e20
-
-NUM_ROWS_IN_RAP = 337
-NUM_COLUMNS_IN_RAP = 451
-RAP_SENTINEL_VALUE = 9.999e20
+    return field_name_grib1.replace('gnd', 'ground').replace('sfc', 'surface')
 
 
-def _get_file_type(grib_file_name):
-    """Determines whether file type is grib1 or grib2.
+def _sentinel_value_to_nan(data_matrix, sentinel_value=None):
+    """Replaces all instances of sentinel value with NaN.
+
+    :param data_matrix: numpy array (may contain sentinel values).
+    :param sentinel_value: Sentinel value (may be None).
+    :return: data_matrix: numpy array without sentinel values.
+    """
+
+    if sentinel_value is None:
+        return data_matrix
+
+    data_vector = numpy.reshape(data_matrix, data_matrix.size)
+    sentinel_flags = numpy.isclose(
+        data_vector, sentinel_value, atol=TOLERANCE_FOR_SENTINEL_VALUES)
+
+    sentinel_indices = numpy.where(sentinel_flags)[0]
+    data_vector[sentinel_indices] = numpy.nan
+    return numpy.reshape(data_vector, data_matrix.shape)
+
+
+def check_file_type(grib_file_type):
+    """Ensures that grib file type is valid.
+
+    :param grib_file_type: Either "grib1" or "grib2".
+    :raises: ValueError: if `grib_file_type not in VALID_FILE_TYPES`.
+    """
+
+    error_checking.assert_is_string(grib_file_type)
+    if grib_file_type not in VALID_FILE_TYPES:
+        error_string = (
+            '\n\n{0:s}\nValid file types (listed above) do not include "{1:s}".'
+        ).format(str(VALID_FILE_TYPES), grib_file_type)
+        raise ValueError(error_string)
+
+
+def file_name_to_type(grib_file_name):
+    """Determines file type (either grib1 or grib2) from file name.
 
     :param grib_file_name: Path to input file.
-    :return: file_type: Either "grib1" or "grib2".
+    :return: grib_file_type: Either "grib1" or "grib2".
     :raises: ValueError: if file type is neither grib1 nor grib2.
     """
 
@@ -75,122 +88,100 @@ def _get_file_type(grib_file_name):
         return GRIB2_FILE_TYPE
 
     error_string = (
-        'Expected file extension to be either "' + GRIB1_FILE_EXTENSION +
-        '" or "' + GRIB2_FILE_EXTENSION + '".  Instead, got:\n' +
-        grib_file_name)
+        'File type should be either "{0:s}" or "{1:s}".  Instead, got: "{2:s}"'
+    ).format(GRIB1_FILE_TYPE, GRIB2_FILE_TYPE, grib_file_name)
     raise ValueError(error_string)
 
 
-def _field_name_grib1_to_grib2(grib1_field_name):
-    """Converts field name from grib1 to grib2 format.
+def read_field_from_grib_file(
+        grib_file_name, field_name_grib1, num_grid_rows, num_grid_columns,
+        sentinel_value=None, temporary_dir_name=None,
+        wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT, raise_error_if_fails=True):
+    """Reads field from grib file.
 
-    :param grib1_field_name: Field name in grib1 format.
-    :return: grib2_field_name: Field name in grib2 format.
-    """
+    One field = one variable at one time step.
 
-    return grib1_field_name.replace('gnd', 'ground').replace('sfc', 'surface')
+    M = number of rows (unique y-coordinates or latitudes of grid points)
+    N = number of columns (unique x-coordinates or longitudes of grid points)
 
-
-def _replace_sentinels_with_nan(data_matrix, sentinel_value=None):
-    """Replaces all occurrences of sentinel value with NaN.
-
-    :param data_matrix: numpy array, which may contain sentinels.
-    :param sentinel_value: Sentinel value.
-    :return: data_matrix: numpy array without sentinels.
-    """
-
-    if sentinel_value is None:
-        return data_matrix
-
-    data_vector = numpy.reshape(data_matrix, data_matrix.size)
-    sentinel_flags = numpy.isclose(
-        data_vector, sentinel_value, atol=SENTINEL_TOLERANCE)
-
-    sentinel_indices = numpy.where(sentinel_flags)[0]
-    data_vector[sentinel_indices] = numpy.nan
-    return numpy.reshape(data_vector, data_matrix.shape)
-
-
-def _extract_single_field_to_file(grib_file_name, grib1_field_name=None,
-                                  output_file_name=None,
-                                  wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-                                  wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
-                                  raise_error_if_fails=True):
-    """Extracts single field from grib1 or grib2 file; writes to text file.
-
-    A "single field" is one variable at one time step and all grid cells.
-
-    :param grib_file_name: Path to input (grib1 or grib2) file.
-    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
+    :param grib_file_name: Path to input file.
+    :param field_name_grib1: Field name in grib1 format (example: 500-mb height
         is "HGT:500 mb").
-    :param output_file_name: Path to output file.
+    :param num_grid_rows: Number of rows expected in grid.
+    :param num_grid_columns: Number of columns expected in grid.
+    :param sentinel_value: Sentinel value (all instances will be replaced with
+        NaN).
+    :param temporary_dir_name: Name of temporary directory.  An intermediate
+        text file will be stored here.
     :param wgrib_exe_name: Path to wgrib executable.
     :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param raise_error_if_fails: Boolean flag.  If command fails and
-        raise_error_if_fails = True, will raise an error.
-    :return: success: Boolean flag.  If command succeeded, this is True.  If
-        command failed and raise_error_if_fails = False, this is False.
-    :raises: OSError: if command fails and raise_error_if_fails = True.
+    :param raise_error_if_fails: Boolean flag.  If the extraction fails and
+        raise_error_if_fails = True, this method will error out.  If the
+        extraction fails and raise_error_if_fails = False, this method will
+        return None.
+    :return: field_matrix: M-by-N numpy array with values of the given field.
+        If the grid is regular in x-y coordinates, x increases towards the right
+        (in the positive direction of the second axis), while y increases
+        downward (in the positive direction of the first axis).  If the grid is
+        regular in lat-long, replace "x" and "y" in the previous sentence with
+        "long" and "lat," respectively.
+    :raises: ValueError: if extraction fails and raise_error_if_fails = True.
     """
 
-    grib_file_type = _get_file_type(grib_file_name)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    # Error-checking.
+    error_checking.assert_is_string(field_name_grib1)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_greater(num_grid_rows, 0)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_greater(num_grid_columns, 0)
+    error_checking.assert_file_exists(wgrib_exe_name)
+    error_checking.assert_file_exists(wgrib2_exe_name)
+    error_checking.assert_is_boolean(raise_error_if_fails)
+    if sentinel_value is not None:
+        error_checking.assert_is_not_nan(sentinel_value)
 
+    # Housekeeping.
+    grib_file_type = file_name_to_type(grib_file_name)
+
+    if temporary_dir_name is not None:
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=temporary_dir_name)
+    temporary_file_name = tempfile.NamedTemporaryFile(
+        dir=temporary_dir_name, delete=False).name
+
+    # Extract field to temporary file.
     if grib_file_type == GRIB1_FILE_TYPE:
         command_string = (
-            '"' + wgrib_exe_name + '" "' + grib_file_name + '" -s | grep -w "' +
-            grib1_field_name + '" | "' + wgrib_exe_name + '" -i "' +
-            grib_file_name + '" -text -nh -o "' + output_file_name + '"')
+            '"{0:s}" "{1:s}" -s | grep -w "{2:s}" | "{0:s}" -i "{1:s}" '
+            '-text -nh -o "{3:s}"'
+        ).format(wgrib_exe_name, grib_file_name, field_name_grib1,
+                 temporary_file_name)
     else:
         command_string = (
-            '"' + wgrib2_exe_name + '" "' + grib_file_name + '" -s | grep -w "'
-            + _field_name_grib1_to_grib2(grib1_field_name) + '" | "' +
-            wgrib2_exe_name + '" -i "' + grib_file_name + '" -no_header -text "'
-            + output_file_name + '"')
+            '"{0:s}" "{1:s}" -s | grep -w "{2:s}" | "{0:s}" -i "{1:s}" '
+            '-no_header -text "{3:s}"'
+        ).format(wgrib_exe_name, grib_file_name,
+                 _field_name_grib1_to_grib2(field_name_grib1),
+                 temporary_file_name)
 
     try:
         subprocess.call(command_string, shell=True)
     except OSError as this_exception:
+        os.remove(temporary_file_name)
         if raise_error_if_fails:
             raise
 
-        warn_string = (
-            '\n\n' + command_string +
-            '\n\nCommand (shown above) failed (details shown below).\n\n' +
-            str(this_exception))
-        warnings.warn(warn_string)
-        return False
+        warning_string = (
+            '\n\n{0:s}\n\nCommand (shown above) failed (details shown below).'
+            '\n\n{1:s}'
+        ).format(command_string, str(this_exception))
+        warnings.warn(warning_string)
+        return None
 
-    return True
-
-
-def _read_single_field_from_file(input_file_name, num_grid_rows=None,
-                                 num_grid_columns=None, sentinel_value=None,
-                                 raise_error_if_fails=True):
-    """Reads single field from text file.
-
-    A "single field" is one variable at one time step and all grid cells.
-
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
-
-    :param input_file_name: Path to input file.  File should be in the format
-        generated by _extract_single_field_to_file.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :param sentinel_value: Sentinel value, all occurrences of which will be
-        replaced with NaN.
-    :param raise_error_if_fails: Boolean flag.  If read fails and
-        raise_error_if_fails = True, will raise an error.
-    :return: field_matrix: If read fails, this is None.  Otherwise, M-by-N numpy
-        array with values of field.  If the grid is regular in x-y, x-coordinate
-        increases towards the right and y-coordinate increases towards the
-        bottom.  If the grid is regular in lat-long, longitude increases towards
-        the right and latitude increases towards the bottom.
-    :raises: ValueError: if read fails and raise_error_if_fails = True.
-    """
-
-    field_vector = numpy.loadtxt(input_file_name)
+    # Read field from temporary file.
+    field_vector = numpy.loadtxt(temporary_file_name)
+    os.remove(temporary_file_name)
 
     try:
         field_matrix = numpy.reshape(
@@ -199,30 +190,20 @@ def _read_single_field_from_file(input_file_name, num_grid_rows=None,
         if raise_error_if_fails:
             raise
 
-        warn_string = (
-            '\n\n' + str(this_exception) + '\n\nnumpy.reshape failed (probably '
-            + 'wrong number of grid points in file -- details shown above).')
-        warnings.warn(warn_string)
+        warning_string = (
+            '\n\nnumpy.reshape failed (details shown below).\n\n{0:s}'
+        ).format(str(this_exception))
+        warnings.warn(warning_string)
         return None
 
-    return _replace_sentinels_with_nan(field_matrix, sentinel_value)
-
-
-def is_wind_field(field_name_grib1):
-    """Returns True if string is field name for a wind component.
-
-    :param field_name_grib1: Field name.
-    :return: is_wind_flag: Boolean flag.
-    """
-
-    return is_u_wind_field(field_name_grib1) or is_v_wind_field(
-        field_name_grib1)
+    return _sentinel_value_to_nan(
+        data_matrix=field_matrix, sentinel_value=sentinel_value)
 
 
 def is_u_wind_field(field_name_grib1):
-    """Returns True if string is field name for u-wind at some level.
+    """Determines whether or not field is a u-wind field.
 
-    :param field_name_grib1: Field name.
+    :param field_name_grib1: Field name in grib1 format.
     :return: is_u_wind_flag: Boolean flag.
     """
 
@@ -231,9 +212,9 @@ def is_u_wind_field(field_name_grib1):
 
 
 def is_v_wind_field(field_name_grib1):
-    """Returns True if string is field name for v-wind at some level.
+    """Determines whether or not field is a v-wind field.
 
-    :param field_name_grib1: Field name.
+    :param field_name_grib1: Field name in grib1 format.
     :return: is_v_wind_flag: Boolean flag.
     """
 
@@ -241,133 +222,46 @@ def is_v_wind_field(field_name_grib1):
     return field_name_grib1.startswith(V_WIND_PREFIX)
 
 
-def field_name_switch_u_and_v(field_name):
-    """Switches u-wind and v-wind in field name.
+def is_wind_field(field_name_grib1):
+    """Determines whether or not field is a wind field.
 
-    If string is field name for u-wind (v-wind) at some level, this method
-    returns the name for v-wind (u-wind) at the same level.
-
-    :param field_name: Field name in grib1 format.
-    :return: field_name_other_component: Field name for other wind component at
-        the same level.  If original field name is non-wind-related,
-        field_name_other_component = field_name.
+    :param field_name_grib1: Field name in grib1 format.
+    :return: is_wind_flag: Boolean flag.
     """
 
-    if not is_wind_field(field_name):
-        return field_name
-    if is_u_wind_field(field_name):
-        return field_name.replace(U_WIND_PREFIX, V_WIND_PREFIX)
-    return field_name.replace(V_WIND_PREFIX, U_WIND_PREFIX)
+    return is_u_wind_field(field_name_grib1) or is_v_wind_field(
+        field_name_grib1)
+
+
+def switch_uv_in_field_name(field_name_grib1):
+    """Switches u-wind and v-wind in field name.
+
+    In other words, if the original field is u-wind, this method converts it to
+    the equivalent v-wind field.  If the original field is v-wind, this method
+    converts to the equivalent u-wind field.
+
+    :param field_name_grib1: Field name in grib1 format.
+    :return: switched_field_name_grib1: See above discussion.
+    """
+
+    if not is_wind_field(field_name_grib1):
+        return field_name_grib1
+    if is_u_wind_field(field_name_grib1):
+        return field_name_grib1.replace(U_WIND_PREFIX, V_WIND_PREFIX)
+    return field_name_grib1.replace(V_WIND_PREFIX, U_WIND_PREFIX)
 
 
 def file_type_to_extension(grib_file_type):
-    """Converts file type to extension.
+    """Converts grib file type to file extension.
 
     :param grib_file_type: File type (either "grib1" or "grib2").
-    :return: grib_file_extension: File extension (either ".grb" or ".grb2").
-    :raises: ValueError: if file type is neither "grib1" nor "grib2".
+    :return: grib_file_extension: Expected file extension for the given type.
     """
 
-    error_checking.assert_is_string(grib_file_type)
+    check_file_type(grib_file_type)
     if grib_file_type == GRIB1_FILE_TYPE:
         return GRIB1_FILE_EXTENSION
     if grib_file_type == GRIB2_FILE_TYPE:
         return GRIB2_FILE_EXTENSION
 
-    error_string = (
-        'Expected file type to be either "' + GRIB1_FILE_TYPE + '" or "' +
-        GRIB2_FILE_TYPE + '".  Instead, got:\n' + grib_file_type)
-    raise ValueError(error_string)
-
-
-def read_field_from_grib_file(grib_file_name, grib1_field_name=None,
-                              single_field_file_name=None,
-                              wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-                              wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT,
-                              num_grid_rows=None, num_grid_columns=None,
-                              sentinel_value=None,
-                              delete_single_field_file=True,
-                              raise_error_if_fails=True):
-    """Reads single field from grib1 or grib2 file.
-
-    A "single field" is one variable at one time step and all grid cells.
-
-    :param grib_file_name: Path to input (grib1 or grib2) file.
-    :param grib1_field_name: Field name in grib1 format (example: 500-mb height
-        is "HGT:500 mb").
-    :param single_field_file_name: Single field will be extracted from grib file
-        to here.
-    :param wgrib_exe_name: Path to wgrib executable.
-    :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param num_grid_rows: Number of rows in grid.
-    :param num_grid_columns: Number of columns in grid.
-    :param sentinel_value: Sentinel value, all occurrences of which will be
-        replaced with NaN.
-    :param delete_single_field_file: Boolean flag.  If True, single-field file
-        will be deleted immediately upon reading.
-    :param raise_error_if_fails: Boolean flag.  If read fails and
-        raise_error_if_fails = True, will raise an error.
-    :return: field_matrix: See documentation for _read_single_field_from_file.
-    """
-
-    error_checking.assert_file_exists(grib_file_name)
-    error_checking.assert_is_string(grib1_field_name)
-    error_checking.assert_file_exists(wgrib_exe_name)
-    error_checking.assert_file_exists(wgrib2_exe_name)
-    error_checking.assert_is_integer(num_grid_rows)
-    error_checking.assert_is_greater(num_grid_rows, 0)
-    error_checking.assert_is_integer(num_grid_columns)
-    error_checking.assert_is_greater(num_grid_columns, 0)
-    if sentinel_value is not None:
-        error_checking.assert_is_not_nan(sentinel_value)
-
-    error_checking.assert_is_boolean(delete_single_field_file)
-    error_checking.assert_is_boolean(raise_error_if_fails)
-
-    success = _extract_single_field_to_file(
-        grib_file_name, grib1_field_name=grib1_field_name,
-        output_file_name=single_field_file_name, wgrib_exe_name=wgrib_exe_name,
-        wgrib2_exe_name=wgrib2_exe_name,
-        raise_error_if_fails=raise_error_if_fails)
-    if not success:
-        return None
-
-    field_matrix = _read_single_field_from_file(
-        single_field_file_name, num_grid_rows=num_grid_rows,
-        num_grid_columns=num_grid_columns, sentinel_value=sentinel_value,
-        raise_error_if_fails=raise_error_if_fails)
-
-    if delete_single_field_file and os.path.isfile(single_field_file_name):
-        os.remove(single_field_file_name)
-
-    return field_matrix
-
-
-if __name__ == '__main__':
-    downloads.download_files_via_http(
-        online_file_names=[NARR_FILE_NAME_ONLINE],
-        local_file_names=[NARR_FILE_NAME_LOCAL])
-    downloads.download_files_via_http(
-        online_file_names=[RAP_FILE_NAME_ONLINE],
-        local_file_names=[RAP_FILE_NAME_LOCAL])
-
-    NARR_H500_MATRIX_METRES = read_field_from_grib_file(
-        NARR_FILE_NAME_LOCAL, grib1_field_name=H500_NAME_GRIB,
-        single_field_file_name=NARR_H500_FILE_NAME,
-        wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-        wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT, num_grid_rows=NUM_ROWS_IN_NARR,
-        num_grid_columns=NUM_COLUMNS_IN_NARR,
-        sentinel_value=NARR_SENTINEL_VALUE)
-    print NARR_H500_MATRIX_METRES
-    print numpy.nanmin(NARR_H500_MATRIX_METRES)
-    print numpy.nanmax(NARR_H500_MATRIX_METRES)
-
-    RAP_H500_MATRIX_METRES = read_field_from_grib_file(
-        RAP_FILE_NAME_LOCAL, grib1_field_name=H500_NAME_GRIB,
-        single_field_file_name=RAP_H500_FILE_NAME,
-        wgrib_exe_name=WGRIB_EXE_NAME_DEFAULT,
-        wgrib2_exe_name=WGRIB2_EXE_NAME_DEFAULT, num_grid_rows=NUM_ROWS_IN_RAP,
-        num_grid_columns=NUM_COLUMNS_IN_RAP, sentinel_value=RAP_SENTINEL_VALUE)
-    print RAP_H500_MATRIX_METRES
-    print numpy.nanmin(RAP_H500_MATRIX_METRES)
-    print numpy.nanmax(RAP_H500_MATRIX_METRES)
+    return None

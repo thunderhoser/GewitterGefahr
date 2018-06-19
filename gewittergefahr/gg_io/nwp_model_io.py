@@ -1,7 +1,7 @@
 """IO methods for NWP (numerical weather prediction) data."""
 
 import os
-import tempfile
+import copy
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -11,8 +11,6 @@ from gewittergefahr.gg_utils import error_checking
 TIME_FORMAT_MONTH = '%Y%m'
 TIME_FORMAT_DATE = '%Y%m%d'
 TIME_FORMAT_HOUR = '%Y%m%d_%H00'
-
-SINGLE_FIELD_FILE_EXTENSION = '.txt'
 NARR_ID_FOR_FILE_NAMES = 'narr-a_221'
 
 
@@ -20,20 +18,21 @@ def _lead_time_to_string(lead_time_hours):
     """Converts lead time from number to string.
 
     :param lead_time_hours: Lead time (integer).
-    :return: lead_time_hour_string: Lead time as string (3 digits, with leading
-        zeros if necessary).
+    :return: lead_time_hour_string: Lead time (format "HHH").
     """
 
+    error_checking.assert_is_integer(lead_time_hours)
+    error_checking.assert_is_geq(lead_time_hours, 0)
     return '{0:03d}'.format(lead_time_hours)
 
 
-def _get_prefixes_for_pathless_file_name(model_name, grid_id=None):
-    """Returns possible prefixes for pathless file name.
+def _get_pathless_file_name_prefixes(model_name, grid_id=None):
+    """Returns possible starts of pathless file names for the given model/grid.
 
-    :param model_name: Name of model.
-    :param grid_id: String ID for grid.
-    :return: pathless_file_name_prefixes: 1-D list of possible prefixes for
-        pathless file name.
+    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param grid_id: Same.
+    :return: pathless_file_name_prefixes: 1-D list with possible starts of
+        pathless file names.
     """
 
     nwp_model_utils.check_grid_id(model_name, grid_id)
@@ -47,274 +46,211 @@ def _get_prefixes_for_pathless_file_name(model_name, grid_id=None):
 
 
 def _get_pathless_grib_file_names(
-        init_time_unix_sec, lead_time_hours=None, model_name=None,
-        grid_id=None):
-    """Returns possible pathless names for a grib file.
+        init_time_unix_sec, model_name, grid_id=None, lead_time_hours=None):
+    """Returns possible pathless file names for the given model/grid.
 
-    :param init_time_unix_sec: Initialization time.
-    :param lead_time_hours: Lead time.  If model is a reanalysis, lead time = 0
-        always, so you can leave this as None.
-    :param model_name: Name of model.
-    :param grid_id: String ID for grid.
+    :param init_time_unix_sec: Model-initialization time.
+    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param grid_id: Same.
+    :param lead_time_hours: Lead time (valid time minus init time).
     :return: pathless_file_names: 1-D list of possible pathless file names.
     """
 
-    nwp_model_utils.check_model_name(model_name)
+    pathless_file_name_prefixes = _get_pathless_file_name_prefixes(
+        model_name=model_name, grid_id=grid_id)
+
+    grib_file_types = nwp_model_utils.get_grib_types(model_name)
     if model_name == nwp_model_utils.NARR_MODEL_NAME:
         lead_time_hours = 0
 
-    pathless_file_name_prefixes = _get_prefixes_for_pathless_file_name(
-        model_name, grid_id)
-    grib_types = nwp_model_utils.get_grib_types(model_name)
-
     pathless_file_names = []
     for this_prefix in pathless_file_name_prefixes:
-        for this_grib_type in grib_types:
-            pathless_file_names.append('{0:s}_{1:s}_{2:s}{3:s}'.format(
-                this_prefix, time_conversion.unix_sec_to_string(
+        for this_file_type in grib_file_types:
+            this_pathless_file_name = '{0:s}_{1:s}_{2:s}{3:s}'.format(
+                this_prefix,
+                time_conversion.unix_sec_to_string(
                     init_time_unix_sec, TIME_FORMAT_HOUR),
                 _lead_time_to_string(lead_time_hours),
-                grib_io.file_type_to_extension(this_grib_type)
-            ))
+                grib_io.file_type_to_extension(this_file_type))
+
+            pathless_file_names.append(this_pathless_file_name)
 
     return pathless_file_names
 
 
-def _get_pathless_single_field_file_name(init_time_unix_sec,
-                                         lead_time_hours=None, model_name=None,
-                                         grid_id=None, grib1_field_name=None):
-    """Returns pathless name for file with a single field.
+def find_grib_file(
+        top_directory_name, init_time_unix_sec, model_name, grid_id=None,
+        lead_time_hours=None, raise_error_if_missing=True):
+    """Finds grib file.
 
-    "Single field" = one variable at one time step and all grid cells.
-
-    :param init_time_unix_sec: Model-initialization time (Unix format).
-    :param lead_time_hours: Lead time (valid time minus init time).  If model is
-        a reanalysis, you can leave this as None (always zero).
-    :param model_name: Name of model.
-    :param grid_id: String ID for model grid.
-    :param grib1_field_name: Field name in grib1 format.
-    :return: pathless_file_name: Expected pathless file name.
-    """
-
-    nwp_model_utils.check_model_name(model_name)
-    if model_name == nwp_model_utils.NARR_MODEL_NAME:
-        lead_time_hours = 0
-
-    return '{0:s}_{1:s}_{2:s}_{3:s}{4:s}'.format(
-        _get_prefixes_for_pathless_file_name(model_name, grid_id)[0],
-        time_conversion.unix_sec_to_string(
-            init_time_unix_sec, TIME_FORMAT_HOUR),
-        _lead_time_to_string(lead_time_hours),
-        grib1_field_name.replace(' ', ''), SINGLE_FIELD_FILE_EXTENSION)
-
-
-def find_grib_file(init_time_unix_sec, lead_time_hours=None, model_name=None,
-                   grid_id=None, top_directory_name=None,
-                   raise_error_if_missing=True):
-    """Finds grib file on local machine.
-
-    :param init_time_unix_sec: Model-initialization time (Unix format).
-    :param lead_time_hours: Lead time (valid time minus init time).  If model is
-        a reanalysis, you can leave this as None (always zero).
-    :param model_name: Name of model.
-    :param grid_id: String ID for model grid.
-    :param top_directory_name: Name of top-level directory with grib files for
-        the given model/grib combo.
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        will raise an error.
-    :return: grib_file_name: Path to grib file.  If file is missing but
+    :param top_directory_name: Name of top-level directory with grib files.
+    :param init_time_unix_sec: Model-initialization time.
+    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param grid_id: Same.
+    :param lead_time_hours: Lead time.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        raise_error_if_missing = True, this method will error out.
+    :return: grib_file_name: Path to grib file.  If file is missing and
         raise_error_if_missing = False, this will be the *expected* path.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    :raises: ValueError: if file is missing and raise_error_if_missing = True.
     """
 
     error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    nwp_model_utils.check_model_name(model_name)
-    if model_name == nwp_model_utils.NARR_MODEL_NAME:
-        lead_time_hours = 0
-
-    error_checking.assert_is_integer(lead_time_hours)
-    error_checking.assert_is_geq(lead_time_hours, 0)
-
     pathless_file_names = _get_pathless_grib_file_names(
-        init_time_unix_sec, lead_time_hours=lead_time_hours,
-        model_name=model_name, grid_id=grid_id)
+        init_time_unix_sec=init_time_unix_sec, model_name=model_name,
+        grid_id=grid_id, lead_time_hours=lead_time_hours)
 
+    possible_grib_file_names = []
     for this_pathless_file_name in pathless_file_names[::-1]:
         grib_file_name = '{0:s}/{1:s}/{2:s}'.format(
-            top_directory_name, time_conversion.unix_sec_to_string(
+            top_directory_name,
+            time_conversion.unix_sec_to_string(
                 init_time_unix_sec, TIME_FORMAT_MONTH),
             this_pathless_file_name)
+
+        possible_grib_file_names.append(grib_file_name)
         if os.path.isfile(grib_file_name):
             break
 
     if raise_error_if_missing and not os.path.isfile(grib_file_name):
-        raise ValueError(
-            'Cannot find grib file.  Expected at: ' + grib_file_name)
+        error_string = (
+            '\n\n{0:s}\nCannot find grib file.  Expected at one of the above '
+            'locations.'
+        ).format(str(possible_grib_file_names))
+        raise ValueError(error_string)
 
     return grib_file_name
 
 
-def find_ruc_grib_file(
-        init_time_unix_sec, lead_time_hours=None, top_directory_name=None,
+def find_ruc_file_any_grid(
+        top_directory_name, init_time_unix_sec, lead_time_hours,
         raise_error_if_missing=True):
-    """Finds grib file with RUC data on local machine.
+    """Finds RUC (Rapid Update Cycle) file on any grid.
 
-    Unlike find_grib_file, this method tries all 3 grids on which the RUC is
-    available (NCEP 130, 252, and 236).
-
-    :param init_time_unix_sec: Initialization time.
-    :param lead_time_hours: Lead time (valid time minus init time).
-    :param top_directory_name: Name of top-level directory with RUC grib files.
-    :param raise_error_if_missing: Boolean flag.  If True and no file can be
-        found (on any of the 3 grids), this method will raise an error.
-    :return: grib_file_name: Path to grib file.  If no file could be found but
-        raise_error_if_missing = False, this is None.
-    :raises: ValueError: if raise_error_if_missing = True and no file can be
-        found.
+    :param top_directory_name: Name of top-level directory with grib files.
+    :param init_time_unix_sec: Model-initialization time.
+    :param lead_time_hours: Lead time.
+    :param raise_error_if_missing: Boolean flag.  If no file is found and
+        raise_error_if_missing = True, this method will error out.
+    :return: grib_file_name: Path to grib file.  If no file is found and
+        raise_error_if_missing = False, this will be None.
     """
 
     error_checking.assert_is_boolean(raise_error_if_missing)
-    ruc_grid_ids = nwp_model_utils.RUC_GRID_IDS
+    grid_ids = nwp_model_utils.RUC_GRID_IDS
 
-    for i in range(len(ruc_grid_ids)):
-        this_raise_error_flag = (
-            raise_error_if_missing and i == len(ruc_grid_ids) - 1)
-
+    for i in range(len(grid_ids)):
         grib_file_name = find_grib_file(
-            init_time_unix_sec, lead_time_hours=lead_time_hours,
-            model_name=nwp_model_utils.RUC_MODEL_NAME, grid_id=ruc_grid_ids[i],
             top_directory_name=top_directory_name,
-            raise_error_if_missing=this_raise_error_flag)
+            init_time_unix_sec=init_time_unix_sec,
+            model_name=nwp_model_utils.RUC_MODEL_NAME, grid_id=grid_ids[i],
+            lead_time_hours=lead_time_hours,
+            raise_error_if_missing=(
+                raise_error_if_missing and i == len(grid_ids) - 1))
         if os.path.isfile(grib_file_name):
             return grib_file_name
 
     return None
 
 
-def find_single_field_file(init_time_unix_sec, lead_time_hours=None,
-                           model_name=None, grid_id=None, grib1_field_name=None,
-                           top_directory_name=None,
-                           raise_error_if_missing=True):
-    """Finds with single field on local machine.
+def find_rap_file_any_grid(
+        top_directory_name, init_time_unix_sec, lead_time_hours,
+        raise_error_if_missing=True):
+    """Finds RAP (Rapid Refresh) file on any grid.
 
-    "Single field" = one variable at one time step and all grid cells.
-
-    :param init_time_unix_sec: Model-initialization time (Unix format).
-    :param lead_time_hours: Lead time (valid time minus init time).  If model is
-        a reanalysis, you can leave this as None (always zero).
-    :param model_name: Name of model.
-    :param grid_id: String ID for model grid.
-    :param grib1_field_name: Field name in grib1 format.
-    :param top_directory_name: Name of top-level directory with single-field
-        files for the given model/grib combo.
-    :param raise_error_if_missing:
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        will raise an error.
-    :return: single_field_file_name: Path to single-field file.  If file is
-        missing but raise_error_if_missing = False, this will be the *expected*
-        path.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
+    :param top_directory_name: See doc for `find_ruc_file_any_grid`.
+    :param init_time_unix_sec: Same.
+    :param lead_time_hours: Same.
+    :param raise_error_if_missing: Same.
+    :return: grib_file_name: Same.
     """
 
-    error_checking.assert_is_string(grib1_field_name)
-    error_checking.assert_is_string(top_directory_name)
     error_checking.assert_is_boolean(raise_error_if_missing)
+    grid_ids = nwp_model_utils.RAP_GRID_IDS
 
-    nwp_model_utils.check_model_name(model_name)
-    if model_name == nwp_model_utils.NARR_MODEL_NAME:
-        lead_time_hours = 0
+    for i in range(len(grid_ids)):
+        grib_file_name = find_grib_file(
+            top_directory_name=top_directory_name,
+            init_time_unix_sec=init_time_unix_sec,
+            model_name=nwp_model_utils.RAP_MODEL_NAME, grid_id=grid_ids[i],
+            lead_time_hours=lead_time_hours,
+            raise_error_if_missing=(
+                raise_error_if_missing and i == len(grid_ids) - 1))
+        if os.path.isfile(grib_file_name):
+            return grib_file_name
 
-    error_checking.assert_is_integer(lead_time_hours)
-    error_checking.assert_is_geq(lead_time_hours, 0)
-
-    pathless_file_name = _get_pathless_single_field_file_name(
-        init_time_unix_sec, lead_time_hours=lead_time_hours,
-        model_name=model_name, grid_id=grid_id,
-        grib1_field_name=grib1_field_name)
-
-    single_field_file_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_directory_name, time_conversion.unix_sec_to_string(
-            init_time_unix_sec, TIME_FORMAT_MONTH),
-        pathless_file_name)
-
-    if raise_error_if_missing and not os.path.isfile(single_field_file_name):
-        raise ValueError(
-            'Cannot find single-field file.  Expected at: ' +
-            single_field_file_name)
-
-    return single_field_file_name
+    return None
 
 
-def download_grib_file(init_time_unix_sec, lead_time_hours=None,
-                       model_name=None, grid_id=None,
-                       top_local_directory_name=None,
-                       raise_error_if_fails=True):
+def download_grib_file(
+        top_local_directory_name, init_time_unix_sec, model_name, grid_id=None,
+        lead_time_hours=None, raise_error_if_fails=None):
     """Downloads grib file to local machine.
 
-    :param init_time_unix_sec: Model-initialization time (Unix format).
-    :param lead_time_hours: Lead time (valid time minus init time).  If model is
-        a reanalysis, you can leave this as None (always zero).
-    :param model_name: Name of model.
-    :param grid_id: String ID for model grid.
-    :param top_local_directory_name: Name of top local directory with grib files
-        for the given model/grib combo.  File will be saved here.
-    :param raise_error_if_fails: Boolean flag.  If True and download fails, will
-        raise an error.
+    :param top_local_directory_name: Name of top-level directory for grib files
+        on local machine.
+    :param init_time_unix_sec: Model-initialization time.
+    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param grid_id: Same.
+    :param lead_time_hours: Lead time.
+    :param raise_error_if_fails: Boolean flag.  If download fails and
+        raise_error_if_fails = True, this method will error out.
     :return: local_file_name: Path to grib file on local machine.  If download
-        failed but raise_error_if_fails = False, this will be None.
+        fails and raise_error_if_fails = False, this will be None.
     """
 
     error_checking.assert_is_boolean(raise_error_if_fails)
 
     pathless_file_names = _get_pathless_grib_file_names(
-        init_time_unix_sec, lead_time_hours=lead_time_hours,
+        init_time_unix_sec=init_time_unix_sec, model_name=model_name,
+        grid_id=grid_id, lead_time_hours=lead_time_hours)
+    top_online_dir_names = nwp_model_utils.get_top_online_directories(
         model_name=model_name, grid_id=grid_id)
-    top_online_directory_names = nwp_model_utils.get_top_online_directories(
-        model_name, grid_id)
 
     desired_local_file_name = find_grib_file(
-        init_time_unix_sec, lead_time_hours=lead_time_hours,
-        model_name=model_name, grid_id=grid_id,
         top_directory_name=top_local_directory_name,
+        init_time_unix_sec=init_time_unix_sec, model_name=model_name,
+        grid_id=grid_id, lead_time_hours=lead_time_hours,
         raise_error_if_missing=False)
 
     for i in range(len(pathless_file_names)):
-        for j in range(len(top_online_directory_names)):
+        for j in range(len(top_online_dir_names)):
             this_online_file_name = '{0:s}/{1:s}/{2:s}/{3:s}'.format(
-                top_online_directory_names[j],
+                top_online_dir_names[j],
                 time_conversion.unix_sec_to_string(
                     init_time_unix_sec, TIME_FORMAT_MONTH),
                 time_conversion.unix_sec_to_string(
                     init_time_unix_sec, TIME_FORMAT_DATE),
                 pathless_file_names[i])
 
-            this_raise_error_flag = (
+            raise_error_now = (
                 raise_error_if_fails and i == len(pathless_file_names) - 1 and
-                j == len(top_online_directory_names) - 1)
+                j == len(top_online_dir_names) - 1)
             local_file_name = downloads.download_files_via_http(
                 online_file_names=[this_online_file_name],
                 local_file_names=[desired_local_file_name],
-                raise_error_if_fails=this_raise_error_flag)[0]
+                raise_error_if_fails=raise_error_now)[0]
 
-            if local_file_name is not None:
-                extensionless_local_file_name, local_file_extension = (
-                    os.path.splitext(local_file_name))
-                if this_online_file_name.endswith(local_file_extension):
-                    break
+            if local_file_name is None:
+                continue
 
-                if local_file_extension == grib_io.GRIB1_FILE_EXTENSION:
-                    new_file_extension = grib_io.GRIB2_FILE_EXTENSION
-                else:
-                    new_file_extension = grib_io.GRIB1_FILE_EXTENSION
-
-                os.rename(
-                    local_file_name,
-                    extensionless_local_file_name + new_file_extension)
-                local_file_name = (
-                    extensionless_local_file_name + new_file_extension)
+            extensionless_local_file_name, local_file_extension = (
+                os.path.splitext(local_file_name))
+            if this_online_file_name.endswith(local_file_extension):
                 break
+
+            if local_file_extension == grib_io.GRIB1_FILE_EXTENSION:
+                new_local_file_name = '{0:s}{1:s}'.format(
+                    extensionless_local_file_name, grib_io.GRIB2_FILE_EXTENSION)
+            else:
+                new_local_file_name = '{0:s}{1:s}'.format(
+                    extensionless_local_file_name, grib_io.GRIB1_FILE_EXTENSION)
+
+            os.rename(local_file_name, new_local_file_name)
+            local_file_name = copy.deepcopy(new_local_file_name)
+            break
 
         if local_file_name is not None:
             break
@@ -322,38 +258,31 @@ def download_grib_file(init_time_unix_sec, lead_time_hours=None,
     return local_file_name
 
 
-def download_ruc_grib_file(
-        init_time_unix_sec, lead_time_hours=None, top_local_directory_name=None,
+def download_ruc_file_any_grid(
+        top_local_directory_name, init_time_unix_sec, lead_time_hours,
         raise_error_if_fails=True):
-    """Downloads grib file from RUC model to local machine.
+    """Downloads RUC (Rapid Update Cycle) file on any grid.
 
-    Unlike download_grib_file, this method tries all 3 grids on which the RUC is
-    available (NCEP 130, 252, and 236).
-
-    :param init_time_unix_sec: Initialization time.
+    :param top_local_directory_name: Name of top-level directory for grib files
+        on local machine.
+    :param init_time_unix_sec: Model-initialization time.
     :param lead_time_hours: Lead time.
-    :param top_local_directory_name: Name of top local directory with RUC grib
-        files.  Files will be downloaded to this directory.
-    :param raise_error_if_fails: Boolean flag.  If True and download fails, will
-        raise an error.
-    :return: local_file_name: Path to grib file on local machine (after
-        downloading).  If raise_error_if_fails = False and download failed, this
-        will be None.
+    :param raise_error_if_fails: See doc for `download_grib_file`.
+    :return: local_file_name: See doc for `download_grib_file`.
     """
 
     error_checking.assert_is_boolean(raise_error_if_fails)
+    # grid_ids = nwp_model_utils.RUC_GRID_IDS
+    grid_ids = [nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
 
-    ruc_grid_ids = [
-        nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
-
-    for i in range(len(ruc_grid_ids)):
-        this_raise_error_flag = (
-            raise_error_if_fails and i == len(ruc_grid_ids) - 1)
+    for i in range(len(grid_ids)):
         local_file_name = download_grib_file(
-            init_time_unix_sec, lead_time_hours=lead_time_hours,
-            model_name=nwp_model_utils.RUC_MODEL_NAME, grid_id=ruc_grid_ids[i],
             top_local_directory_name=top_local_directory_name,
-            raise_error_if_fails=this_raise_error_flag)
+            init_time_unix_sec=init_time_unix_sec,
+            model_name=nwp_model_utils.RUC_MODEL_NAME, grid_id=grid_ids[i],
+            lead_time_hours=lead_time_hours,
+            raise_error_if_fails=(
+                raise_error_if_fails and i == len(grid_ids) - 1))
 
         if local_file_name is not None:
             break
@@ -361,65 +290,65 @@ def download_ruc_grib_file(
     return local_file_name
 
 
-def read_field_from_grib_file(grib_file_name, init_time_unix_sec=None,
-                              lead_time_hours=None, model_name=None,
-                              grid_id=None, top_single_field_dir_name=None,
-                              grib1_field_name=None,
-                              wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
-                              wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
-                              delete_single_field_file=True,
-                              raise_error_if_fails=True):
-    """Reads single field from grib file.
+def download_rap_file_any_grid(
+        top_local_directory_name, init_time_unix_sec, lead_time_hours,
+        raise_error_if_fails=True):
+    """Downloads RAP (Rapid Refresh) file on any grid.
 
-    "Single field" = one variable at one time step and all grid cells.
-
-    :param grib_file_name: Path to input file.
-    :param init_time_unix_sec: Model-initialization time (Unix format).
-    :param lead_time_hours: Lead time (valid time minus init time).  If model is
-        a reanalysis, you can leave this as None (always zero).
-    :param model_name: Name of model.
-    :param grid_id: String ID for model grid.
-    :param top_single_field_dir_name: Name of top-level directory with single-
-        field files for the given model/grib combo.
-    :param grib1_field_name: Field name in grib1 format.
-    :param wgrib_exe_name: Path to wgrib executable.
-    :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param delete_single_field_file: Boolean flag.  If True, single-field file
-        will be a temp file (deleted immediately upon reading).
-    :param raise_error_if_fails: Boolean flag.  If True and field cannot be
-        read, will raise an error.  If False and field cannot be read, all
-        return variables will be None.
-    :return: field_matrix: See documentation for
-        `grib_io.read_field_from_grib_file`.
-    :return: single_field_file_name: Path to output file (containing single
-        field).  If delete_single_field_file = True, this will be None.
+    :param top_local_directory_name: Name of top-level directory for grib files
+        on local machine.
+    :param init_time_unix_sec: Model-initialization time.
+    :param lead_time_hours: Lead time.
+    :param raise_error_if_fails: See doc for `download_grib_file`.
+    :return: local_file_name: See doc for `download_grib_file`.
     """
 
-    error_checking.assert_is_boolean(delete_single_field_file)
-    if delete_single_field_file:
-        single_field_file_object = tempfile.NamedTemporaryFile(delete=False)
-        single_field_file_name = single_field_file_object.name
-    else:
-        single_field_file_name = find_single_field_file(
-            init_time_unix_sec, lead_time_hours=lead_time_hours,
-            model_name=model_name, grid_id=grid_id,
-            grib1_field_name=grib1_field_name,
-            top_directory_name=top_single_field_dir_name,
-            raise_error_if_missing=False)
+    error_checking.assert_is_boolean(raise_error_if_fails)
+    # grid_ids = nwp_model_utils.RAP_GRID_IDS
+    grid_ids = [nwp_model_utils.ID_FOR_130GRID, nwp_model_utils.ID_FOR_252GRID]
+
+    for i in range(len(grid_ids)):
+        local_file_name = download_grib_file(
+            top_local_directory_name=top_local_directory_name,
+            init_time_unix_sec=init_time_unix_sec,
+            model_name=nwp_model_utils.RAP_MODEL_NAME, grid_id=grid_ids[i],
+            lead_time_hours=lead_time_hours,
+            raise_error_if_fails=(
+                raise_error_if_fails and i == len(grid_ids) - 1))
+
+        if local_file_name is not None:
+            break
+
+    return local_file_name
+
+
+def read_field_from_grib_file(
+        grib_file_name, field_name_grib1, model_name, grid_id=None,
+        temporary_dir_name=None, wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_fails=True):
+    """Reads field from grib file.
+
+    One field = one variable at one time step.
+
+    :param grib_file_name: Path to input file.
+    :param field_name_grib1: See doc for `grib_io.read_field_from_grib_file`.
+    :param model_name: See doc for `nwp_model_utils.check_grid_id`.
+    :param grid_id: Same.
+    :param temporary_dir_name: See doc for `grib_io.read_field_from_grib_file`.
+    :param wgrib_exe_name: Same.
+    :param wgrib2_exe_name: Same.
+    :param raise_error_if_fails: Same.
+    :return: field_matrix: Same.
+    """
 
     num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-        model_name, grid_id)
-    sentinel_value = nwp_model_utils.SENTINEL_VALUE
+        model_name=model_name, grid_id=grid_id)
 
-    field_matrix = grib_io.read_field_from_grib_file(
-        grib_file_name, grib1_field_name=grib1_field_name,
-        single_field_file_name=single_field_file_name,
-        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+    return grib_io.read_field_from_grib_file(
+        grib_file_name=grib_file_name, field_name_grib1=field_name_grib1,
         num_grid_rows=num_grid_rows, num_grid_columns=num_grid_columns,
-        sentinel_value=sentinel_value,
-        delete_single_field_file=delete_single_field_file,
+        sentinel_value=nwp_model_utils.SENTINEL_VALUE,
+        temporary_dir_name=temporary_dir_name, wgrib_exe_name=wgrib_exe_name,
+        wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_fails=raise_error_if_fails)
-
-    if field_matrix is None:
-        return None, None
-    return field_matrix, single_field_file_name
