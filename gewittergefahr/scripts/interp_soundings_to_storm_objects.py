@@ -117,14 +117,12 @@ def _interp_soundings(
             wgrib2_exe_name=WGRIB2_EXE_NAME, raise_error_if_missing=False))
     print SEPARATOR_STRING
 
-    num_lead_times = len(sounding_dict_by_lead_time)
+    num_lead_times = len(lead_times_seconds)
     for k in range(num_lead_times):
-        this_lead_time_sec = sounding_dict_by_lead_time[
-            k][soundings_only.LEAD_TIMES_KEY][0]
         this_sounding_file_name = soundings_only.find_sounding_file(
             top_directory_name=top_output_dir_name,
             spc_date_string=spc_date_string,
-            lead_time_seconds=this_lead_time_sec,
+            lead_time_seconds=lead_times_seconds[k],
             lag_time_for_convective_contamination_sec=
             lag_time_for_convective_contamination_sec,
             raise_error_if_missing=False)
