@@ -7,6 +7,8 @@ from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
+# TODO(thunderhoser): Make lag time an input argument.
+
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 WGRIB_EXE_NAME = '/condo/swatwork/ralager/wgrib/wgrib'
@@ -114,6 +116,8 @@ def _interp_soundings(
         print 'Writing soundings to: "{0:s}"...'.format(this_sounding_file_name)
         soundings_only.write_soundings(
             sounding_dict=sounding_dict_by_lead_time[k],
+            lag_time_for_convective_contamination_sec=
+            soundings_only.DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
             netcdf_file_name=this_sounding_file_name)
 
 
