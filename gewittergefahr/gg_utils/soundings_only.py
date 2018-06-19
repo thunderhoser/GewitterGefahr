@@ -739,7 +739,17 @@ def _convert_soundings(sounding_dict):
         pressure_matrix_pascals=pressure_matrix_pascals)
     pressure_matrix_pascals = _get_pressures(sounding_dict)
 
-    if not found_relative_humidity:
+    if found_relative_humidity:
+        specific_humidity_index = sounding_dict[
+            PRESSURELESS_FIELD_NAMES_KEY
+        ].index(nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
+
+        dewpoint_matrix_kelvins = (
+            moisture_conversions.specific_humidity_to_dewpoint(
+                specific_humidities_kg_kg01=sounding_dict[
+                    SOUNDING_MATRIX_KEY][..., specific_humidity_index],
+                total_pressures_pascals=pressure_matrix_pascals))
+    else:
         sounding_dict, dewpoint_matrix_kelvins = _specific_to_relative_humidity(
             sounding_dict=sounding_dict,
             pressure_matrix_pascals=pressure_matrix_pascals)
