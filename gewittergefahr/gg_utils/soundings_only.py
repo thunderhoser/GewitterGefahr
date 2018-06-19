@@ -737,6 +737,7 @@ def _convert_soundings(sounding_dict):
     sounding_dict = _fill_nans_in_soundings(
         sounding_dict=sounding_dict,
         pressure_matrix_pascals=pressure_matrix_pascals)
+    pressure_matrix_pascals = _get_pressures(sounding_dict)
 
     sounding_dict, dewpoint_matrix_kelvins = _specific_to_relative_humidity(
         sounding_dict=sounding_dict,
