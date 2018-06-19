@@ -808,19 +808,16 @@ def interp_soundings_to_storm_objects(
     error_checking.assert_is_boolean(include_surface)
     error_checking.assert_is_boolean(all_ruc_grids)
 
-    lagged_lead_times_seconds = (
-        lead_times_seconds - lag_time_for_convective_contamination_sec)
-
     print (
-        'Lead times without lag for convective contamination: {0:s} seconds'
+        'Creating target point for each storm object and lead time ({0:s} '
+        'seconds)...'
     ).format(str(lead_times_seconds))
-    print 'Lead times with lag: {0:s} seconds'.format(
-        str(lagged_lead_times_seconds))
 
-    print 'Creating target point for each storm object and lead time...'
     target_point_table = _create_target_points_for_interp(
         storm_object_table=storm_object_table,
-        lead_times_seconds=lagged_lead_times_seconds)
+        lead_times_seconds=lead_times_seconds)
+    target_point_table[
+        VALID_TIME_COLUMN] -= lag_time_for_convective_contamination_sec
 
     column_dict_old_to_new = {
         tracking_utils.CENTROID_LAT_COLUMN: interp.QUERY_LAT_COLUMN,
@@ -853,13 +850,11 @@ def interp_soundings_to_storm_objects(
         interp_table=interp_table, target_point_table=target_point_table,
         model_name=model_name, include_surface=include_surface)
 
-    orig_num_soundings = len(sounding_dict[STORM_IDS_KEY])
-
     print 'Converting variables and units in each sounding...'
+    orig_num_soundings = len(sounding_dict[STORM_IDS_KEY])
     sounding_dict = _convert_soundings(sounding_dict)
-    sounding_dict[LEAD_TIMES_KEY] += lag_time_for_convective_contamination_sec
-
     num_soundings = len(sounding_dict[STORM_IDS_KEY])
+
     print '{0:d} of {1:d} soundings were removed (too many NaN''s).\n'.format(
         orig_num_soundings - num_soundings, orig_num_soundings)
 
