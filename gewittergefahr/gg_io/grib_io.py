@@ -165,8 +165,6 @@ def read_field_from_grib_file(
                  _field_name_grib1_to_grib2(field_name_grib1),
                  temporary_file_name)
 
-    print command_string
-
     try:
         subprocess.call(command_string, shell=True)
     except OSError as this_exception:

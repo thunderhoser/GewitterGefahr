@@ -279,7 +279,7 @@ def _read_nwp_for_interp(
     """
 
     missing_data = False
-    rotate_wind = field_name_other_wind_component_grib1 is not None
+    rotate_wind = field_name_other_wind_component_grib1 != ''
 
     init_time_needed_flags = query_to_model_times_row[
         nwp_model_utils.MODEL_TIMES_NEEDED_COLUMN].values[0]
