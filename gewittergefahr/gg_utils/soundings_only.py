@@ -26,8 +26,8 @@ MB_TO_PASCALS = 100
 PASCALS_TO_MB = 0.01
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
-TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
-SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
+TEMPORAL_INTERP_METHOD_STRING = interp.PREV_NEIGHBOUR_METHOD_STRING
+SPATIAL_INTERP_METHOD_STRING = interp.NEAREST_NEIGHBOUR_METHOD_STRING
 
 PRESSURE_LEVEL_KEY = 'pressure_level_mb'
 LEAD_TIME_KEY = 'lead_time_seconds'
@@ -352,12 +352,12 @@ def _interp_soundings_from_nwp(
             include_surface=include_surface))
 
     return interp.interp_nwp_from_xy_grid(
-        query_point_table=target_point_table, model_name=model_name,
-        grid_id=grid_id, field_names=sounding_field_names,
-        field_names_grib1=sounding_field_names_grib1,
-        top_grib_directory_name=top_grib_directory_name,
-        temporal_interp_method=TEMPORAL_INTERP_METHOD,
-        spatial_interp_method=SPATIAL_INTERP_METHOD,
+        query_point_table=target_point_table, field_names=sounding_field_names,
+        field_names_grib1=sounding_field_names_grib1, model_name=model_name,
+        top_grib_directory_name=top_grib_directory_name, use_all_grids=False,
+        grid_id=grid_id,
+        temporal_interp_method_string=TEMPORAL_INTERP_METHOD_STRING,
+        spatial_interp_method_string=SPATIAL_INTERP_METHOD_STRING,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
 
@@ -387,12 +387,45 @@ def _interp_soundings_from_ruc(
             model_name=nwp_model_utils.RUC_MODEL_NAME, return_table=False,
             include_surface=include_surface))
 
-    return interp.interp_ruc_all_grids(
+    return interp.interp_nwp_from_xy_grid(
         query_point_table=target_point_table, field_names=sounding_field_names,
         field_names_grib1=sounding_field_names_grib1,
-        top_grib_directory_name=top_grib_directory_name,
-        temporal_interp_method=TEMPORAL_INTERP_METHOD,
-        spatial_interp_method=SPATIAL_INTERP_METHOD,
+        model_name=nwp_model_utils.RUC_MODEL_NAME,
+        top_grib_directory_name=top_grib_directory_name, use_all_grids=True,
+        temporal_interp_method_string=TEMPORAL_INTERP_METHOD_STRING,
+        spatial_interp_method_string=SPATIAL_INTERP_METHOD_STRING,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+        raise_error_if_missing=raise_error_if_missing)
+
+
+def _interp_soundings_from_rap(
+        target_point_table, top_grib_directory_name, include_surface,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
+        raise_error_if_missing=False):
+    """Same as `_interp_soundings_from_ruc`, but for RAP model.
+
+    :param target_point_table: See doc for `_interp_soundings_from_nwp`.
+    :param top_grib_directory_name: Same.
+    :param include_surface: Same.
+    :param wgrib_exe_name: Same.
+    :param wgrib2_exe_name: Same.
+    :param raise_error_if_missing: Same.
+    :return: interp_table: Same.
+    """
+
+    sounding_field_names, sounding_field_names_grib1, _ = (
+        _get_nwp_fields_for_sounding(
+            model_name=nwp_model_utils.RAP_MODEL_NAME, return_table=False,
+            include_surface=include_surface))
+
+    return interp.interp_nwp_from_xy_grid(
+        query_point_table=target_point_table, field_names=sounding_field_names,
+        field_names_grib1=sounding_field_names_grib1,
+        model_name=nwp_model_utils.RAP_MODEL_NAME,
+        top_grib_directory_name=top_grib_directory_name, use_all_grids=True,
+        temporal_interp_method_string=TEMPORAL_INTERP_METHOD_STRING,
+        spatial_interp_method_string=SPATIAL_INTERP_METHOD_STRING,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
 

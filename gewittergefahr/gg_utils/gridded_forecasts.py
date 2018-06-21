@@ -457,11 +457,12 @@ def _interp_probabilities_to_latlng_grid(
         latlng_grid_y_matrix_metres, num_latlng_grid_points)
 
     probability_vector_latlng = interp.interp_from_xy_grid_to_points(
-        probability_matrix_xy, sorted_grid_point_x_metres=grid_points_x_metres,
+        input_matrix=probability_matrix_xy,
+        sorted_grid_point_x_metres=grid_points_x_metres,
         sorted_grid_point_y_metres=grid_points_y_metres,
-        query_x_metres=latlng_grid_x_vector_metres,
-        query_y_metres=latlng_grid_y_vector_metres,
-        method_string=interp.NEAREST_INTERP_METHOD, allow_extrap=True)
+        query_x_coords_metres=latlng_grid_x_vector_metres,
+        query_y_coords_metres=latlng_grid_y_vector_metres,
+        method_string=interp.NEAREST_NEIGHBOUR_METHOD_STRING, extrapolate=True)
 
     probability_matrix_latlng = numpy.reshape(
         probability_vector_latlng,

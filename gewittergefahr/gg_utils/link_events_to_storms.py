@@ -364,10 +364,11 @@ def _interp_one_storm_in_time(
         storm_object_table_1cell[STORM_CENTROID_Y_COLUMN].values[sort_indices]))
 
     interp_centroid_vector = interp.interp_in_time(
-        centroid_matrix, sorted_input_times_unix_sec=storm_object_table_1cell[
+        input_matrix=centroid_matrix,
+        sorted_input_times_unix_sec=storm_object_table_1cell[
             tracking_utils.TIME_COLUMN].values[sort_indices],
         query_times_unix_sec=numpy.array([target_time_unix_sec]),
-        allow_extrap=True)
+        method_string=interp.LINEAR_METHOD_STRING, extrapolate=True)
 
     absolute_time_diffs_sec = numpy.absolute(
         storm_object_table_1cell[tracking_utils.TIME_COLUMN].values -

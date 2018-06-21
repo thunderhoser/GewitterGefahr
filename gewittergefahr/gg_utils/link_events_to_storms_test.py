@@ -23,14 +23,6 @@ THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0,
                                     900, 900, 900, 900,
                                     1200, 1200, 1200, 1200,
                                     1500, 1500])
-
-THIS_DICTIONARY = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC
-}
-STORM_OBJECT_TABLE_NO_START_END_TIMES = pandas.DataFrame.from_dict(
-    THIS_DICTIONARY)
-
 THESE_START_TIMES_UNIX_SEC = numpy.array([0, 0, 0,
                                           0, 0, 0, 300,
                                           0, 0, 300, 600, 600,
@@ -45,11 +37,12 @@ THESE_END_TIMES_UNIX_SEC = numpy.array([1500, 300, 900,
                                         1500, 1500])
 
 THIS_DICTIONARY = {
-    events2storms.STORM_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    events2storms.STORM_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.CELL_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    tracking_utils.CELL_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC
 }
-STORM_OBJECT_TABLE_WITH_START_END_TIMES = (
-    STORM_OBJECT_TABLE_NO_START_END_TIMES.assign(**THIS_DICTIONARY))
+MAIN_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICTIONARY)
 
 # The following constants are used to test _filter_storms_by_time.
 EARLY_START_TIME_UNIX_SEC = 300
@@ -59,29 +52,21 @@ LATE_END_TIME_UNIX_SEC = 1200
 
 THESE_INVALID_ROWS = numpy.array(
     [1, 4, 6, 9, 10, 11, 14, 15, 17, 18, 19, 21], dtype=int)
-STORM_OBJECT_TABLE_EARLY_START_EARLY_END = (
-    STORM_OBJECT_TABLE_WITH_START_END_TIMES.drop(
-        STORM_OBJECT_TABLE_WITH_START_END_TIMES.index[THESE_INVALID_ROWS],
-        axis=0, inplace=False))
+STORM_OBJECT_TABLE_EARLY_START_EARLY_END = MAIN_STORM_OBJECT_TABLE.drop(
+    MAIN_STORM_OBJECT_TABLE.index[THESE_INVALID_ROWS], axis=0, inplace=False)
 
 THESE_INVALID_ROWS = numpy.array(
     [1, 2, 4, 5, 6, 8, 9, 13, 10, 11, 14, 15, 17, 18, 19, 21], dtype=int)
-STORM_OBJECT_TABLE_EARLY_START_LATE_END = (
-    STORM_OBJECT_TABLE_WITH_START_END_TIMES.drop(
-        STORM_OBJECT_TABLE_WITH_START_END_TIMES.index[THESE_INVALID_ROWS],
-        axis=0, inplace=False))
+STORM_OBJECT_TABLE_EARLY_START_LATE_END = MAIN_STORM_OBJECT_TABLE.drop(
+    MAIN_STORM_OBJECT_TABLE.index[THESE_INVALID_ROWS], axis=0, inplace=False)
 
 THESE_INVALID_ROWS = numpy.array([1, 4, 6, 9, 19, 21], dtype=int)
-STORM_OBJECT_TABLE_LATE_START_EARLY_END = (
-    STORM_OBJECT_TABLE_WITH_START_END_TIMES.drop(
-        STORM_OBJECT_TABLE_WITH_START_END_TIMES.index[THESE_INVALID_ROWS],
-        axis=0, inplace=False))
+STORM_OBJECT_TABLE_LATE_START_EARLY_END = MAIN_STORM_OBJECT_TABLE.drop(
+    MAIN_STORM_OBJECT_TABLE.index[THESE_INVALID_ROWS], axis=0, inplace=False)
 
 THESE_INVALID_ROWS = numpy.array([1, 2, 4, 5, 6, 8, 9, 13, 19, 21], dtype=int)
-STORM_OBJECT_TABLE_LATE_START_LATE_END = (
-    STORM_OBJECT_TABLE_WITH_START_END_TIMES.drop(
-        STORM_OBJECT_TABLE_WITH_START_END_TIMES.index[THESE_INVALID_ROWS],
-        axis=0, inplace=False))
+STORM_OBJECT_TABLE_LATE_START_LATE_END = MAIN_STORM_OBJECT_TABLE.drop(
+    MAIN_STORM_OBJECT_TABLE.index[THESE_INVALID_ROWS], axis=0, inplace=False)
 
 # The following constants are used to test _interp_one_storm_in_time.
 STORM_ID_FOR_INTERP = 'foo'
@@ -171,8 +156,8 @@ THIS_DICTIONARY = {
     tracking_utils.STORM_ID_COLUMN: THIS_STORM_ID_LIST,
     events2storms.STORM_CENTROID_X_COLUMN: THESE_CENTROIDS_X_METRES,
     events2storms.STORM_CENTROID_Y_COLUMN: THESE_CENTROIDS_Y_METRES,
-    events2storms.STORM_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    events2storms.STORM_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC
+    tracking_utils.CELL_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
+    tracking_utils.CELL_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC
 }
 STORM_OBJECT_TABLE_2CELLS = pandas.DataFrame.from_dict(THIS_DICTIONARY)
 
@@ -622,14 +607,6 @@ class LinkEventsToStormsTests(unittest.TestCase):
         self.assertTrue(
             this_filtered_event_table.equals(EVENT_TABLE_BOUNDING_BOX))
 
-    def test_find_start_end_times_of_storms(self):
-        """Ensures correct output from _find_start_end_times_of_storms."""
-
-        this_storm_object_table = events2storms._find_start_end_times_of_storms(
-            STORM_OBJECT_TABLE_NO_START_END_TIMES)
-        self.assertTrue(this_storm_object_table.equals(
-            STORM_OBJECT_TABLE_WITH_START_END_TIMES))
-
     def test_filter_storms_by_time_early_start_early_end(self):
         """Ensures correct output from _filter_storms_by_time.
 
@@ -638,7 +615,7 @@ class LinkEventsToStormsTests(unittest.TestCase):
         """
 
         this_storm_object_table = events2storms._filter_storms_by_time(
-            STORM_OBJECT_TABLE_WITH_START_END_TIMES,
+            MAIN_STORM_OBJECT_TABLE,
             max_start_time_unix_sec=EARLY_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=EARLY_END_TIME_UNIX_SEC)
         self.assertTrue(this_storm_object_table.equals(
@@ -652,7 +629,7 @@ class LinkEventsToStormsTests(unittest.TestCase):
         """
 
         this_storm_object_table = events2storms._filter_storms_by_time(
-            STORM_OBJECT_TABLE_WITH_START_END_TIMES,
+            MAIN_STORM_OBJECT_TABLE,
             max_start_time_unix_sec=EARLY_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=LATE_END_TIME_UNIX_SEC)
         self.assertTrue(this_storm_object_table.equals(
@@ -666,7 +643,7 @@ class LinkEventsToStormsTests(unittest.TestCase):
         """
 
         this_storm_object_table = events2storms._filter_storms_by_time(
-            STORM_OBJECT_TABLE_WITH_START_END_TIMES,
+            MAIN_STORM_OBJECT_TABLE,
             max_start_time_unix_sec=LATE_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=EARLY_END_TIME_UNIX_SEC)
         self.assertTrue(this_storm_object_table.equals(
@@ -680,7 +657,7 @@ class LinkEventsToStormsTests(unittest.TestCase):
         """
 
         this_storm_object_table = events2storms._filter_storms_by_time(
-            STORM_OBJECT_TABLE_WITH_START_END_TIMES,
+            MAIN_STORM_OBJECT_TABLE,
             max_start_time_unix_sec=LATE_START_TIME_UNIX_SEC,
             min_end_time_unix_sec=LATE_END_TIME_UNIX_SEC)
         self.assertTrue(this_storm_object_table.equals(

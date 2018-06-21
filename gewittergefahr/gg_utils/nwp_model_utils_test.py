@@ -282,7 +282,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=interp.PREVIOUS_INTERP_METHOD))
+                method_string=interp.PREV_NEIGHBOUR_METHOD_STRING))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec, MODEL_TIMES_PREV_INTERP_UNIX_SEC))
@@ -308,7 +308,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=interp.NEXT_INTERP_METHOD))
+                method_string=interp.NEXT_NEIGHBOUR_METHOD_STRING))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec, MODEL_TIMES_NEXT_INTERP_UNIX_SEC))
@@ -334,7 +334,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=interp.NEAREST_INTERP_METHOD))
+                method_string=interp.NEAREST_NEIGHBOUR_METHOD_STRING))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -362,7 +362,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=interp.LINEAR_INTERP_METHOD))
+                method_string=interp.LINEAR_METHOD_STRING))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -390,7 +390,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=interp.SPLINE2_INTERP_METHOD))
+                method_string=interp.SPLINE2_METHOD_STRING))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
@@ -418,7 +418,7 @@ class NwpModelUtilsTests(unittest.TestCase):
             nwp_model_utils.get_times_needed_for_interp(
                 query_times_unix_sec=QUERY_TIMES_UNIX_SEC,
                 model_time_step_hours=MODEL_TIME_STEP_HOURS,
-                method_string=interp.SPLINE3_INTERP_METHOD))
+                method_string=interp.SPLINE3_METHOD_STRING))
 
         self.assertTrue(numpy.array_equal(
             these_model_times_unix_sec,
