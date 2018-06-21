@@ -340,9 +340,6 @@ def _read_nwp_for_interp(
                 list_of_model_grids[i] = None
                 continue
 
-    if not rotate_wind:
-        list_of_model_grids_other_wind_component = None
-
     return (list_of_model_grids, list_of_model_grids_other_wind_component,
             missing_data)
 
