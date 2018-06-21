@@ -318,29 +318,24 @@ def _create_target_points_for_interp(storm_object_table, lead_times_seconds):
 
 
 def _interp_soundings_from_nwp(
-        target_point_table, top_grib_directory_name, model_name,
-        include_surface, grid_id=None,
-        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
-        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
-        raise_error_if_missing=False):
+        target_point_table, top_grib_directory_name, include_surface,
+        model_name, use_all_grids, grid_id, wgrib_exe_name, wgrib2_exe_name,
+        raise_error_if_missing):
     """Interpolates soundings from NWP model to target points.
 
     Each target point consists of (latitude, longitude, time).
 
     :param target_point_table: pandas DataFrame created by
         `_create_target_points_for_interp`.
-    :param top_grib_directory_name: Name of top-level directory with grib files
-        for the given model.
-    :param model_name: Model name (must be accepted by
-        `nwp_model_utils.check_model_name`).
-    :param include_surface: See documentation for
-        `_get_nwp_fields_for_sounding`.
-    :param grid_id: Grid ID (must be accepted by
-        `nwp_model_utils.check_grid_id`).
-    :param wgrib_exe_name: Path to wgrib executable.
-    :param wgrib2_exe_name: Path to wgrib2 executable.
-    :param raise_error_if_missing: See documentation for
+    :param top_grib_directory_name: See doc for
         `interp.interp_nwp_from_xy_grid`.
+    :param include_surface: See doc for `_get_nwp_fields_for_sounding`.
+    :param model_name: See doc for `interp.interp_nwp_from_xy_grid`.
+    :param use_all_grids: Same.
+    :param grid_id: Same.
+    :param wgrib_exe_name: Same.
+    :param wgrib2_exe_name: Same.
+    :param raise_error_if_missing: Same.
     :return: interp_table: pandas DataFrame, where each column is one field and
         each row is one target point.  Column names are from the list
         `sounding_field_names` returned by `_get_nwp_fields_for_sounding`.
@@ -354,76 +349,8 @@ def _interp_soundings_from_nwp(
     return interp.interp_nwp_from_xy_grid(
         query_point_table=target_point_table, field_names=sounding_field_names,
         field_names_grib1=sounding_field_names_grib1, model_name=model_name,
-        top_grib_directory_name=top_grib_directory_name, use_all_grids=False,
-        grid_id=grid_id,
-        temporal_interp_method_string=TEMPORAL_INTERP_METHOD_STRING,
-        spatial_interp_method_string=SPATIAL_INTERP_METHOD_STRING,
-        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
-        raise_error_if_missing=raise_error_if_missing)
-
-
-def _interp_soundings_from_ruc(
-        target_point_table, top_grib_directory_name, include_surface,
-        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
-        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
-        raise_error_if_missing=False):
-    """Interpolates soundings from RUC model to target points.
-
-    Each target point consists of (latitude, longitude, time).
-
-    This method may interpolate from different grids at different time steps.
-
-    :param target_point_table: See doc for `_interp_soundings_from_nwp`.
-    :param top_grib_directory_name: Same.
-    :param include_surface: Same.
-    :param wgrib_exe_name: Same.
-    :param wgrib2_exe_name: Same.
-    :param raise_error_if_missing: Same.
-    :return: interp_table: Same.
-    """
-
-    sounding_field_names, sounding_field_names_grib1, _ = (
-        _get_nwp_fields_for_sounding(
-            model_name=nwp_model_utils.RUC_MODEL_NAME, return_table=False,
-            include_surface=include_surface))
-
-    return interp.interp_nwp_from_xy_grid(
-        query_point_table=target_point_table, field_names=sounding_field_names,
-        field_names_grib1=sounding_field_names_grib1,
-        model_name=nwp_model_utils.RUC_MODEL_NAME,
-        top_grib_directory_name=top_grib_directory_name, use_all_grids=True,
-        temporal_interp_method_string=TEMPORAL_INTERP_METHOD_STRING,
-        spatial_interp_method_string=SPATIAL_INTERP_METHOD_STRING,
-        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
-        raise_error_if_missing=raise_error_if_missing)
-
-
-def _interp_soundings_from_rap(
-        target_point_table, top_grib_directory_name, include_surface,
-        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
-        wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
-        raise_error_if_missing=False):
-    """Same as `_interp_soundings_from_ruc`, but for RAP model.
-
-    :param target_point_table: See doc for `_interp_soundings_from_nwp`.
-    :param top_grib_directory_name: Same.
-    :param include_surface: Same.
-    :param wgrib_exe_name: Same.
-    :param wgrib2_exe_name: Same.
-    :param raise_error_if_missing: Same.
-    :return: interp_table: Same.
-    """
-
-    sounding_field_names, sounding_field_names_grib1, _ = (
-        _get_nwp_fields_for_sounding(
-            model_name=nwp_model_utils.RAP_MODEL_NAME, return_table=False,
-            include_surface=include_surface))
-
-    return interp.interp_nwp_from_xy_grid(
-        query_point_table=target_point_table, field_names=sounding_field_names,
-        field_names_grib1=sounding_field_names_grib1,
-        model_name=nwp_model_utils.RAP_MODEL_NAME,
-        top_grib_directory_name=top_grib_directory_name, use_all_grids=True,
+        top_grib_directory_name=top_grib_directory_name,
+        use_all_grids=use_all_grids, grid_id=grid_id,
         temporal_interp_method_string=TEMPORAL_INTERP_METHOD_STRING,
         spatial_interp_method_string=SPATIAL_INTERP_METHOD_STRING,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
@@ -444,7 +371,7 @@ def _convert_interp_table_to_soundings(
     K = T*N
 
     :param interp_table: K-row pandas DataFrame created by
-        `_interp_soundings_from_nwp` or `_interp_soundings_from_ruc`.
+        `_interp_soundings_from_nwp`.
     :param target_point_table: K-row pandas DataFrame created by
         `_create_target_points_for_interp`.
     :param model_name: Model name (must be accepted by
@@ -805,12 +732,12 @@ def _convert_soundings(sounding_dict):
 
 
 def interp_soundings_to_storm_objects(
-        storm_object_table, top_grib_directory_name,
+        storm_object_table, top_grib_directory_name, model_name,
         lead_times_seconds=DEFAULT_LEAD_TIMES_SEC,
         lag_time_for_convective_contamination_sec=
         DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
-        include_surface=False, all_ruc_grids=True, model_name=None,
-        grid_id=None, wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
+        include_surface=False, use_all_grids=True, grid_id=None,
+        wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT,
         raise_error_if_missing=False):
     """Creates interpolated NWP sounding for each storm object.
@@ -825,6 +752,8 @@ def interp_soundings_to_storm_objects(
         `storm_tracking_io.write_processed_file`.
     :param top_grib_directory_name: Name of top-level directory with grib files
         for the NWP model.
+    :param model_name: Name of model (must be accepted by
+        `nwp_model_utils.check_grid_id`).
     :param lead_times_seconds: length-T numpy array of lead times.  For each
         lead time t, each storm object will be extrapolated t seconds into the
         future along its estimated motion vector.  Thus, one sounding will be
@@ -835,16 +764,11 @@ def interp_soundings_to_storm_objects(
         time in `lead_times_seconds`.
     :param include_surface: Boolean flag.  If True, will include surface values
         in each sounding.
-    :param all_ruc_grids: Boolean flag.  If True, this method will use
-        `_interp_soundings_from_ruc`, which interpolates data from the highest-
-        resolution RUC grid available at each initialization time (thus,
-        different soundings may be interpolated from different grids).  If
-        False, will use `_interp_soundings_from_nwp`, which interpolates data
-        from the same grid at each initialization time.
-    :param model_name: [used only if all_ruc_grids = False]
-        Name of model (must be accepted by `nwp_model_utils.check_grid_id`).
-    :param grid_id: [used only if all_ruc_grids = False]
-        Name of grid (must be accepted by `nwp_model_utils.check_grid_id`).
+    :param use_all_grids: Boolean flag.  If True, this method will interp from
+        the highest-resolution grid available at each model-initialization time.
+        If False, will interpolate from only one grid.
+    :param grid_id: [used only if use_all_grids = False]
+        Model grid (must be accepted by `nwp_model_utils.check_grid_id`).
     :param wgrib_exe_name: Path to wgrib executable.
     :param wgrib2_exe_name: Path to wgrib2 executable.
     :param raise_error_if_missing: Boolean flag.  If any grib file is missing
@@ -862,7 +786,6 @@ def interp_soundings_to_storm_objects(
     error_checking.assert_is_integer(lag_time_for_convective_contamination_sec)
     error_checking.assert_is_geq(lag_time_for_convective_contamination_sec, 0)
     error_checking.assert_is_boolean(include_surface)
-    error_checking.assert_is_boolean(all_ruc_grids)
 
     print (
         'Creating target point for each storm object and lead time ({0:s} '
@@ -882,25 +805,15 @@ def interp_soundings_to_storm_objects(
     target_point_table.rename(columns=column_dict_old_to_new, inplace=True)
 
     print SEPARATOR_STRING
-
-    if all_ruc_grids:
-        model_name = nwp_model_utils.RUC_MODEL_NAME
-        interp_table = _interp_soundings_from_ruc(
-            target_point_table=target_point_table,
-            top_grib_directory_name=top_grib_directory_name,
-            include_surface=include_surface, wgrib_exe_name=wgrib_exe_name,
-            wgrib2_exe_name=wgrib2_exe_name,
-            raise_error_if_missing=raise_error_if_missing)
-    else:
-        interp_table = _interp_soundings_from_nwp(
-            target_point_table=target_point_table,
-            top_grib_directory_name=top_grib_directory_name,
-            include_surface=include_surface, model_name=model_name,
-            grid_id=grid_id, wgrib_exe_name=wgrib_exe_name,
-            wgrib2_exe_name=wgrib2_exe_name,
-            raise_error_if_missing=raise_error_if_missing)
-
+    interp_table = _interp_soundings_from_nwp(
+        target_point_table=target_point_table,
+        top_grib_directory_name=top_grib_directory_name,
+        include_surface=include_surface, model_name=model_name,
+        use_all_grids=use_all_grids, grid_id=grid_id,
+        wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
+        raise_error_if_missing=raise_error_if_missing)
     print SEPARATOR_STRING
+
     print 'Converting table of interpolated values to soundings...'
     sounding_dict = _convert_interp_table_to_soundings(
         interp_table=interp_table, target_point_table=target_point_table,
