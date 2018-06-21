@@ -874,9 +874,6 @@ def interp_nwp_from_xy_grid(
                         nwp_model_utils.MAX_QUERY_TIME_COLUMN].values[i]
                 ))[0]
 
-            print i
-            print query_indices_in_this_range
-
             (list_of_2d_grids, list_of_2d_grids_other_wind_component,
              missing_data
             ) = _read_nwp_for_interp_any_grid(
@@ -892,10 +889,6 @@ def interp_nwp_from_xy_grid(
                 wgrib_exe_name=wgrib_exe_name,
                 wgrib2_exe_name=wgrib2_exe_name,
                 raise_error_if_missing=raise_error_if_missing)
-
-            print list_of_2d_grids
-            print list_of_2d_grids_other_wind_component
-            print missing_data
 
             if missing_data:
                 continue
