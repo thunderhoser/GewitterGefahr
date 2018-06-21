@@ -161,7 +161,7 @@ def read_field_from_grib_file(
         command_string = (
             '"{0:s}" "{1:s}" -s | grep -w "{2:s}" | "{0:s}" -i "{1:s}" '
             '-no_header -text "{3:s}"'
-        ).format(wgrib_exe_name, grib_file_name,
+        ).format(wgrib2_exe_name, grib_file_name,
                  _field_name_grib1_to_grib2(field_name_grib1),
                  temporary_file_name)
 
