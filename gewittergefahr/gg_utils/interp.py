@@ -815,6 +815,7 @@ def interp_nwp_from_xy_grid(
     else:
         grid_ids = [grid_id]
 
+    print grid_ids
     num_grids = len(grid_ids)
     x_points_by_grid_metres = [numpy.array([])] * num_grids
     y_points_by_grid_metres = [numpy.array([])] * num_grids
