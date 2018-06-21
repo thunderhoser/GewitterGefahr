@@ -3,6 +3,7 @@
 import argparse
 import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -110,10 +111,11 @@ def _interp_soundings(
         soundings_only.interp_soundings_to_storm_objects(
             storm_object_table=storm_object_table,
             top_grib_directory_name=top_ruc_directory_name,
+            model_name=nwp_model_utils.RUC_MODEL_NAME,
             lead_times_seconds=lead_times_seconds,
             lag_time_for_convective_contamination_sec=
             lag_time_for_convective_contamination_sec, include_surface=False,
-            all_ruc_grids=True, wgrib_exe_name=WGRIB_EXE_NAME,
+            use_all_grids=True, wgrib_exe_name=WGRIB_EXE_NAME,
             wgrib2_exe_name=WGRIB2_EXE_NAME, raise_error_if_missing=False))
     print SEPARATOR_STRING
 
