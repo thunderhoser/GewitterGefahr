@@ -64,61 +64,67 @@ def fields_and_refl_heights_to_pairs(field_names, heights_m_asl):
     return field_name_by_pair, height_by_pair_m_asl
 
 
-def interp_temperature_sfc_from_nwp(
-        radar_grid_point_lats_deg=None, radar_grid_point_lngs_deg=None,
-        unix_time_sec=None, temperature_kelvins=None, model_name=None,
-        grid_id=None, top_grib_directory_name=None,
+def interp_temperature_surface_from_nwp(
+        radar_grid_point_latitudes_deg, radar_grid_point_longitudes_deg,
+        radar_time_unix_sec, critical_temperature_kelvins, model_name,
+        top_grib_directory_name, use_all_grids=True, grid_id=None,
         wgrib_exe_name=grib_io.WGRIB_EXE_NAME_DEFAULT,
         wgrib2_exe_name=grib_io.WGRIB2_EXE_NAME_DEFAULT):
-    """Interpolates temperature isosurface from NWP model.
+    """Interpolates temperature (isothermal) surface from NWP model.
 
     M = number of rows (unique grid-point latitudes) in radar grid
     N = number of columns (unique grid-point longitudes) in radar grid
 
-    :param radar_grid_point_lats_deg: length-M numpy array of grid-point
+    :param radar_grid_point_latitudes_deg: length-M numpy array of grid-point
         latitudes (deg N).
-    :param radar_grid_point_lngs_deg: length-N numpy array of grid-point
+    :param radar_grid_point_longitudes_deg: length-N numpy array of grid-point
         longitudes (deg E).
-    :param unix_time_sec: Target time.
-    :param temperature_kelvins: Target temperature.
-    :param model_name: Name of model.
-    :param grid_id: String ID for model grid.
-    :param top_grib_directory_name: Name of top-level directory with grib files
-        for the given model.
-    :param wgrib_exe_name: Path to wgrib executable.
-    :param wgrib2_exe_name: Path to wgrib2 executable.
-    :return: isosurface_height_matrix_m_asl: length-Q numpy array with heights
-        of temperature isosurface (metres above sea level).
+    :param radar_time_unix_sec: Radar time.
+    :param critical_temperature_kelvins: Temperature of isosurface.
+    :param model_name: See doc for `interp.interp_temperature_surface_from_nwp`.
+    :param top_grib_directory_name: Same.
+    :param use_all_grids: Same.
+    :param grid_id: Same.
+    :param wgrib_exe_name: Same.
+    :param wgrib2_exe_name: Same.
+    :return: isosurface_height_matrix_m_asl: M-by-N numpy array with heights of
+        temperature isosurface (metres above sea level).
     """
 
     error_checking.assert_is_numpy_array(
-        radar_grid_point_lats_deg, num_dimensions=1)
-    error_checking.assert_is_valid_lat_numpy_array(radar_grid_point_lats_deg)
+        radar_grid_point_latitudes_deg, num_dimensions=1)
+    error_checking.assert_is_valid_lat_numpy_array(
+        radar_grid_point_latitudes_deg)
 
     error_checking.assert_is_numpy_array(
-        radar_grid_point_lngs_deg, num_dimensions=1)
+        radar_grid_point_longitudes_deg, num_dimensions=1)
     lng_conversion.convert_lng_positive_in_west(
-        radar_grid_point_lngs_deg, allow_nan=False)
+        radar_grid_point_longitudes_deg, allow_nan=False)
 
-    radar_lat_matrix_deg, radar_lng_matrix_deg = (
-        grids.latlng_vectors_to_matrices(
-            radar_grid_point_lats_deg, radar_grid_point_lngs_deg))
+    (radar_latitude_matrix_deg, radar_longitude_matrix_deg
+    ) = grids.latlng_vectors_to_matrices(
+        unique_latitudes_deg=radar_grid_point_latitudes_deg,
+        unique_longitudes_deg=radar_grid_point_longitudes_deg)
 
-    num_grid_rows = len(radar_grid_point_lats_deg)
-    num_grid_columns = len(radar_grid_point_lngs_deg)
-    radar_lat_vector_deg = numpy.reshape(
-        radar_lat_matrix_deg, num_grid_rows * num_grid_columns)
-    radar_lng_vector_deg = numpy.reshape(
-        radar_lng_matrix_deg, num_grid_rows * num_grid_columns)
+    num_grid_rows = len(radar_grid_point_latitudes_deg)
+    num_grid_columns = len(radar_grid_point_longitudes_deg)
+    radar_latitude_vector_deg = numpy.reshape(
+        radar_latitude_matrix_deg, num_grid_rows * num_grid_columns)
+    radar_longitude_vector_deg = numpy.reshape(
+        radar_longitude_matrix_deg, num_grid_rows * num_grid_columns)
 
-    query_point_dict = {interp.QUERY_LAT_COLUMN: radar_lat_vector_deg,
-                        interp.QUERY_LNG_COLUMN: radar_lng_vector_deg}
+    query_point_dict = {
+        interp.QUERY_LAT_COLUMN: radar_latitude_vector_deg,
+        interp.QUERY_LNG_COLUMN: radar_longitude_vector_deg
+    }
     query_point_table = pandas.DataFrame.from_dict(query_point_dict)
 
-    isosurface_height_vector_m_asl = interp.interp_temperature_sfc_from_nwp(
-        query_point_table, unix_time_sec=unix_time_sec,
-        temperature_kelvins=temperature_kelvins, model_name=model_name,
-        grid_id=grid_id, top_grib_directory_name=top_grib_directory_name,
+    isosurface_height_vector_m_asl = interp.interp_temperature_surface_from_nwp(
+        query_point_table=query_point_table,
+        query_time_unix_sec=radar_time_unix_sec,
+        critical_temperature_kelvins=critical_temperature_kelvins,
+        model_name=model_name, top_grib_directory_name=top_grib_directory_name,
+        use_all_grids=use_all_grids, grid_id=grid_id,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=True)
 
