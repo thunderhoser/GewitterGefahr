@@ -990,8 +990,7 @@ def interp_nwp_from_xy_grid(
                     these_indices]
 
                 these_interp_values = interp_in_time(
-                    input_matrix=spatial_interp_matrix_2d[
-                        query_indices_in_this_range, :],
+                    input_matrix=spatial_interp_matrix_2d[these_indices, :],
                     sorted_input_times_unix_sec=init_times_unix_sec[
                         init_time_needed_indices],
                     query_times_unix_sec=these_unique_query_times_unix_sec[[k]],
@@ -1003,7 +1002,7 @@ def interp_nwp_from_xy_grid(
                 if other_wind_component_indices[j] != -1:
                     these_interp_values = interp_in_time(
                         input_matrix=sinterp_matrix_2d_other_wind_component[
-                            query_indices_in_this_range, :],
+                            these_indices, :],
                         sorted_input_times_unix_sec=init_times_unix_sec[
                             init_time_needed_indices],
                         query_times_unix_sec=
