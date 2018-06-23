@@ -7,6 +7,7 @@ import pandas
 import keras
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
+from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
@@ -272,6 +273,47 @@ SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO = numpy.array(
       0.55 / SECOND_MAGNITUDE, 0.75 / SECOND_MAGNITUDE, SECOND_MAGNITUDE],
      [0.5, 1., 0.7, THIRD_COSINE, THIRD_SINE, THIRD_COSINE, THIRD_SINE, 1.]])
 
+# The following constants are used to test normalize_soundings.
+PRESSURELESS_FIELD_NAMES = [
+    soundings_only.RELATIVE_HUMIDITY_KEY, soundings_only.TEMPERATURE_KEY,
+    soundings_only.U_WIND_KEY, soundings_only.V_WIND_KEY,
+    soundings_only.SPECIFIC_HUMIDITY_KEY,
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY
+]
+
+THIS_FIRST_MATRIX = numpy.array([[0.9, 300., -10., 5., 0.02, 310.],
+                                 [0.7, 285., 0., 15., 0.015, 310.],
+                                 [0.95, 270., 15., 20., 0.01, 325.],
+                                 [0.93, 260., 30., 30., 0.007, 341.]])
+THIS_SECOND_MATRIX = numpy.array([[0.7, 305., 5., 10., 0.015, 312.5],
+                                  [0.5, 290., 15., 12.5, 0.015, 310.],
+                                  [0.8, 273., 25., 15., 0.012, 333.],
+                                  [0.9, 262., 40., 20., 0.008, 345.]])
+SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+
+SOUNDING_NORMALIZATION_DICT = {
+    soundings_only.RELATIVE_HUMIDITY_KEY: numpy.array([0., 1.]),
+    soundings_only.TEMPERATURE_KEY: numpy.array([250., 300.]),
+    soundings_only.WIND_SPEED_KEY: numpy.array([0., 50.]),
+    soundings_only.SPECIFIC_HUMIDITY_KEY: numpy.array([0., 0.02]),
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY:
+        numpy.array([300., 350.])
+}
+
+THIS_FIRST_MATRIX = numpy.array([[0.9, 1., -0.2, 0.1, 1., 0.2],
+                                 [0.7, 0.7, 0., 0.3, 0.75, 0.2],
+                                 [0.95, 0.4, 0.3, 0.4, 0.5, 0.5],
+                                 [0.93, 0.2, 0.6, 0.6, 0.35, 0.82]])
+
+THIS_SECOND_MATRIX = numpy.array([[0.7, 1.1, 0.1, 0.2, 0.75, 0.25],
+                                  [0.5, 0.8, 0.3, 0.25, 0.75, 0.2],
+                                  [0.8, 0.46, 0.5, 0.3, 0.6, 0.66],
+                                  [0.9, 0.24, 0.8, 0.4, 0.4, 0.9]])
+
+SOUNDING_MATRIX_NORMALIZED = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+
 # The following constants are used to test sample_points_by_class.
 TORNADO_LABELS_TO_SAMPLE = numpy.array(
     [0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 0, 0, 0,
@@ -290,7 +332,7 @@ WIND_LABELS_TO_SAMPLE = numpy.array(
      2, 2, 2, 0, -2, 0, 0, 2, -2, 2, -2, 0, -2, 0, 1, -2, 2, -2, 2, 1, 1, 1, 0,
      0, 0, 1], dtype=int)
 WIND_TARGET_NAME = (
-    'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00000-10000m'
+    'wind-speed_percentile=100.0_lead-time=1800-3600sec_distance=00000-10000m'
     '_cutoffs=30-50kt')
 
 WIND_CLASS_FRACTION_DICT = {-2: 0.2, 0: 0.1, 1: 0.4, 2: 0.3}
@@ -762,6 +804,18 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_normalized_matrix, SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO,
             atol=TOLERANCE))
+
+    def test_normalize_soundings(self):
+        """Ensures correct output from normalize_soundings."""
+
+        this_input_matrix = copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED)
+        this_normalized_matrix = dl_utils.normalize_soundings(
+            sounding_matrix=this_input_matrix,
+            pressureless_field_names=PRESSURELESS_FIELD_NAMES,
+            normalization_dict=SOUNDING_NORMALIZATION_DICT)
+
+        self.assertTrue(numpy.allclose(
+            this_normalized_matrix, SOUNDING_MATRIX_NORMALIZED, atol=TOLERANCE))
 
     def test_sample_points_by_class_tornado(self):
         """Ensures correct output from sample_points_by_class.

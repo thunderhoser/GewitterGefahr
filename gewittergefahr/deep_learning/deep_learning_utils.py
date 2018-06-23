@@ -16,6 +16,7 @@ import pandas
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
+from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
@@ -46,10 +47,22 @@ DEFAULT_NORMALIZATION_DICT = {
     radar_utils.DIVERGENCE_NAME: numpy.array([-0.0075, 0.0075])  # s^-1
 }
 
+DEFAULT_SOUNDING_NORMALIZATION_DICT = {
+    soundings_only.RELATIVE_HUMIDITY_KEY: numpy.array([0., 1.]),  # unitless
+    soundings_only.TEMPERATURE_KEY: numpy.array([197.4, 311.8]),  # Kelvins
+    soundings_only.WIND_SPEED_KEY: numpy.array([0., 64.1]),  # m s^-1
+    soundings_only.SPECIFIC_HUMIDITY_KEY: numpy.array([0., 0.0223]),  # kg kg^-1
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY:
+        numpy.array([285.2, 421.6])  # Kelvins
+}
+
 VECTOR_SUFFIXES_TO_NORMALIZE = [
     soundings.X_COMPONENT_SUFFIX, soundings.Y_COMPONENT_SUFFIX]
 VECTOR_SUFFIXES_TO_NOT_NORMALIZE = [
     soundings.SINE_SUFFIX, soundings.COSINE_SUFFIX, soundings.MAGNITUDE_SUFFIX]
+
+# TODO(thunderhoser): Stop using the word "predictor" to mean "radar image".
+# There are many different kinds of predictors.
 
 
 def _check_class_fractions(class_fractions):
@@ -195,6 +208,44 @@ def check_sounding_stat_matrix(sounding_stat_matrix, num_examples=None):
     expected_dimensions = (num_examples, sounding_stat_matrix.shape[1])
     error_checking.assert_is_numpy_array(
         sounding_stat_matrix, exact_dimensions=expected_dimensions)
+
+
+def check_sounding_matrix(
+        sounding_matrix, num_examples=None, num_vertical_levels=None,
+        num_pressureless_fields=None):
+    """Checks sounding matrix for errors.
+
+    E = number of examples
+    H = number of vertical levels
+    V = number of sounding variables (pressureless fields)
+
+    :param sounding_matrix: E-by-H-by-V numpy array of soundings.
+    :param num_examples: Expected number of examples (E).
+    :param num_vertical_levels: Expected number of vertical levels (H).
+    :param num_pressureless_fields: Expected number of pressureless fields (V).
+    """
+
+    error_checking.assert_is_real_numpy_array(sounding_matrix)
+    error_checking.assert_is_numpy_array(sounding_matrix, num_dimensions=3)
+
+    expected_dimensions = []
+    if num_examples is None:
+        expected_dimensions += [sounding_matrix.shape[0]]
+    else:
+        expected_dimensions += [num_examples]
+
+    if num_vertical_levels is None:
+        expected_dimensions += [sounding_matrix.shape[1]]
+    else:
+        expected_dimensions += [num_vertical_levels]
+
+    if num_pressureless_fields is None:
+        expected_dimensions += [sounding_matrix.shape[2]]
+    else:
+        expected_dimensions += [num_pressureless_fields]
+
+    error_checking.assert_is_numpy_array(
+        sounding_matrix, exact_dimensions=numpy.array(expected_dimensions))
 
 
 def check_target_values(target_values, num_dimensions, num_classes):
@@ -499,6 +550,96 @@ def normalize_sounding_statistics(
     sounding_stat_matrix[sounding_stat_matrix > 1.] = 1.
     sounding_stat_matrix[numpy.isnan(sounding_stat_matrix)] = 0.5
     return sounding_stat_matrix
+
+
+def normalize_soundings(
+        sounding_matrix, pressureless_field_names,
+        normalization_dict=DEFAULT_SOUNDING_NORMALIZATION_DICT):
+    """Normalizes soundings.
+
+    E = number of examples
+    H = number of vertical levels
+    V = number of sounding variables (pressureless fields)
+
+    For the wind vector at each pixel (i, j), the normalization is done as
+    follows.
+
+    normalized_wind_speed(i, j) = [wind_speed(i, j) - min_wind_speed] /
+                                  [max_wind_speed - min_wind_speed]
+    normalization_ratio = normalized_wind_speed(i, j) / wind_speed(i, j)
+    normalized_u_wind(i, j) = u_wind(i, j) * normalization_ratio
+    normalized_v_wind(i, j) = v_wind(i, j) * normalization_ratio
+
+    For each pressureless field x (other than wind) and each pixel (i, j), the
+    normalization is done as follows.
+
+    x_normalized(i, j) = [x(i, j) - x_min] / [x_max - x_min]
+
+    x_min, x_max, min_wind_speed, and max_wind_speed come from the input
+    argument `normalization_dict`.
+
+    :param sounding_matrix: E-by-H-by-V numpy array of soundings.
+    :param pressureless_field_names: length-V numpy array with names of
+        pressureless fields.
+    :param normalization_dict: Dictionary, where each key is the name of a
+        pressureless field and each value is a length-2 numpy array with
+        (x_min, x_max).
+    :return: sounding_matrix: Normalized version of input.  Dimensions are the
+        same.
+    """
+
+    error_checking.assert_is_string_list(pressureless_field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(pressureless_field_names), num_dimensions=1)
+
+    num_pressureless_fields = len(pressureless_field_names)
+    check_sounding_matrix(
+        sounding_matrix=sounding_matrix,
+        num_pressureless_fields=num_pressureless_fields)
+
+    done_wind_speed = False
+
+    for k in range(num_pressureless_fields):
+        if pressureless_field_names[k] in [soundings_only.U_WIND_KEY,
+                                           soundings_only.V_WIND_KEY]:
+            if done_wind_speed:
+                continue
+
+            u_wind_index = pressureless_field_names.index(
+                soundings_only.U_WIND_KEY)
+            v_wind_index = pressureless_field_names.index(
+                soundings_only.V_WIND_KEY)
+            wind_speeds_m_s01 = numpy.sqrt(
+                sounding_matrix[..., u_wind_index] ** 2 +
+                sounding_matrix[..., v_wind_index] ** 2)
+
+            min_wind_speed_m_s01 = normalization_dict[
+                soundings_only.WIND_SPEED_KEY][0]
+            max_wind_speed_m_s01 = normalization_dict[
+                soundings_only.WIND_SPEED_KEY][1]
+            normalized_wind_speeds_m_s01 = (
+                (wind_speeds_m_s01 - min_wind_speed_m_s01) /
+                (max_wind_speed_m_s01 - min_wind_speed_m_s01)
+            )
+
+            normalization_ratios = (
+                normalized_wind_speeds_m_s01 / wind_speeds_m_s01)
+            sounding_matrix[..., u_wind_index] = (
+                sounding_matrix[..., u_wind_index] * normalization_ratios)
+            sounding_matrix[..., v_wind_index] = (
+                sounding_matrix[..., v_wind_index] * normalization_ratios)
+
+            done_wind_speed = True
+            continue
+
+        this_min_value = normalization_dict[pressureless_field_names[k]][0]
+        this_max_value = normalization_dict[pressureless_field_names[k]][1]
+        sounding_matrix[..., k] = (
+            (sounding_matrix[..., k] - this_min_value) /
+            (this_max_value - this_min_value)
+        )
+
+    return sounding_matrix
 
 
 def sample_points_by_class(
