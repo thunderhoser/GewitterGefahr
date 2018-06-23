@@ -43,8 +43,18 @@ LOWEST_PRESSURES_KEY = 'lowest_pressures_mb'
 VERTICAL_LEVELS_KEY = 'vertical_levels_mb'
 PRESSURELESS_FIELD_NAMES_KEY = 'pressureless_field_names'
 
+GEOPOTENTIAL_HEIGHT_KEY = nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES
 RELATIVE_HUMIDITY_KEY = 'relative_humidity_unitless'
+TEMPERATURE_KEY = nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
+U_WIND_KEY = nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES
+V_WIND_KEY = nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
+WIND_SPEED_KEY = 'wind_speed_m_s01'
+SPECIFIC_HUMIDITY_KEY = nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
 VIRTUAL_POTENTIAL_TEMPERATURE_KEY = 'virtual_potential_temperature_kelvins'
+
+PRESSURELESS_FIELDS_TO_INTERP = [
+    GEOPOTENTIAL_HEIGHT_KEY, U_WIND_KEY, V_WIND_KEY, TEMPERATURE_KEY,
+    SPECIFIC_HUMIDITY_KEY]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 PRESSURELESS_FIELD_DIMENSION_KEY = 'pressureless_field'
@@ -58,14 +68,6 @@ TEMPERATURE_COLUMN_SKEWT = 'temp'
 DEWPOINT_COLUMN_SKEWT = 'dwpt'
 WIND_SPEED_COLUMN_SKEWT = 'sknt'
 WIND_DIRECTION_COLUMN_SKEWT = 'drct'
-
-PRESSURELESS_FIELDS_TO_INTERP = [
-    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
-    nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
-]
 
 DEFAULT_LEAD_TIMES_SEC = numpy.array([0], dtype=int)
 DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC = 1800
@@ -169,29 +171,25 @@ def _get_nwp_fields_for_sounding(
         if not include_surface:
             continue
 
-        if (pressureless_field_names[j] ==
-                nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES):
+        if pressureless_field_names[j] == GEOPOTENTIAL_HEIGHT_KEY:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_height_name(model_name))
 
-        if (pressureless_field_names[j] ==
-                nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES):
+        if pressureless_field_names[j] == TEMPERATURE_KEY:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_temperature_name(model_name))
 
         if pressureless_field_names[j] in [
                 nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
-                nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES]:
+                SPECIFIC_HUMIDITY_KEY]:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_humidity_name(model_name))
 
-        if (pressureless_field_names[j] ==
-                nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES):
+        if pressureless_field_names[j] == U_WIND_KEY:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_u_wind_name(model_name))
 
-        if (pressureless_field_names[j] ==
-                nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES):
+        if pressureless_field_names[j] == V_WIND_KEY:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_v_wind_name(model_name))
 
@@ -478,8 +476,7 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
 
     pressureless_field_names = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-    temperature_index = pressureless_field_names.index(
-        nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES)
+    temperature_index = pressureless_field_names.index(TEMPERATURE_KEY)
 
     relative_humidity_index = pressureless_field_names.index(
         nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
@@ -501,8 +498,7 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
         spec_humidity_matrix_kg_kg01,
         spec_humidity_matrix_kg_kg01.shape + (1,))
 
-    pressureless_field_names.append(
-        nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
+    pressureless_field_names.append(SPECIFIC_HUMIDITY_KEY)
     sounding_matrix = numpy.concatenate(
         (sounding_matrix, spec_humidity_matrix_kg_kg01), axis=-1)
 
@@ -528,9 +524,8 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
 
     specific_humidity_index = pressureless_field_names.index(
-        nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
-    temperature_index = pressureless_field_names.index(
-        nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES)
+        SPECIFIC_HUMIDITY_KEY)
+    temperature_index = pressureless_field_names.index(TEMPERATURE_KEY)
 
     dewpoint_matrix_kelvins = (
         moisture_conversions.specific_humidity_to_dewpoint(
@@ -572,8 +567,7 @@ def _get_virtual_potential_temperatures(
 
     pressureless_field_names = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-    temperature_index = pressureless_field_names.index(
-        nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES)
+    temperature_index = pressureless_field_names.index(TEMPERATURE_KEY)
 
     vapour_pressure_matrix_pascals = (
         moisture_conversions.dewpoint_to_vapour_pressure(
@@ -619,8 +613,7 @@ def _fill_nans_in_soundings(
 
     pressureless_field_names = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-    height_index = pressureless_field_names.index(
-        nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES)
+    height_index = pressureless_field_names.index(GEOPOTENTIAL_HEIGHT_KEY)
 
     num_soundings = sounding_matrix.shape[0]
     keep_sounding_flags = numpy.full(num_soundings, True, dtype=bool)
@@ -642,8 +635,7 @@ def _fill_nans_in_soundings(
             these_real_level_indices = numpy.where(
                 numpy.invert(these_nan_level_flags))[0]
 
-            if (this_field_name ==
-                    nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES):
+            if this_field_name == GEOPOTENTIAL_HEIGHT_KEY:
                 interp_object = scipy.interpolate.interp1d(
                     x=numpy.log(
                         pressure_matrix_pascals[i, these_real_level_indices]),
@@ -712,8 +704,7 @@ def _convert_soundings(sounding_dict):
 
     if found_relative_humidity:
         specific_humidity_index = sounding_dict[
-            PRESSURELESS_FIELD_NAMES_KEY
-        ].index(nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
+            PRESSURELESS_FIELD_NAMES_KEY].index(SPECIFIC_HUMIDITY_KEY)
 
         dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
@@ -891,22 +882,18 @@ def sounding_dict_to_skewt(sounding_dict, sounding_index):
     error_checking.assert_is_less_than(sounding_index, num_soundings)
 
     pressures_pascals = _get_pressures(sounding_dict)[sounding_index, :]
-    temperature_index = sounding_dict[
-        PRESSURELESS_FIELD_NAMES_KEY
-    ].index(nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES)
+    temperature_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
+        TEMPERATURE_KEY)
     specific_humidity_index = sounding_dict[
-        PRESSURELESS_FIELD_NAMES_KEY
-    ].index(nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES)
+        PRESSURELESS_FIELD_NAMES_KEY].index(SPECIFIC_HUMIDITY_KEY)
 
     dewpoints_kelvins = moisture_conversions.specific_humidity_to_dewpoint(
         specific_humidities_kg_kg01=sounding_dict[
             SOUNDING_MATRIX_KEY][sounding_index, :, specific_humidity_index],
         total_pressures_pascals=pressures_pascals)
 
-    u_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
-        nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES)
-    v_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
-        nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES)
+    u_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(U_WIND_KEY)
+    v_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(V_WIND_KEY)
     (wind_speeds_m_s01, wind_directions_deg
     ) = raw_wind_io.uv_to_speed_and_direction(
         u_winds_m_s01=sounding_dict[SOUNDING_MATRIX_KEY][
