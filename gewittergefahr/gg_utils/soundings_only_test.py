@@ -301,7 +301,7 @@ THIS_SOUNDING_MATRIX[..., 1] = THIS_SOUNDING_MATRIX[..., 1] / 100
 
 THESE_PRESSURELESS_FIELD_NAMES = [
     nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES,
-    soundings_only.RELATIVE_HUMIDITY_KEY,
+    soundings_only.RELATIVE_HUMIDITY_NAME,
     nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES,
     nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES,
     nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES,
@@ -338,7 +338,7 @@ THIS_NEW_MATRIX = numpy.reshape(RELATIVE_HUMIDITIES_UNITLESS, (1, 5, 1))
 THIS_SOUNDING_MATRIX = numpy.concatenate(
     (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1)
 NEW_PRESSURELESS_FIELD_NAMES = THESE_PRESSURELESS_FIELD_NAMES + [
-    soundings_only.RELATIVE_HUMIDITY_KEY]
+    soundings_only.RELATIVE_HUMIDITY_NAME]
 
 SOUNDING_DICT_SPFH_AND_RH = {
     soundings_only.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
@@ -363,8 +363,8 @@ THIS_SOUNDING_MATRIX = numpy.concatenate(
     (THIS_SOUNDING_MATRIX, THIS_NEW_MATRIX), axis=-1)
 
 NEW_PRESSURELESS_FIELD_NAMES = THESE_PRESSURELESS_FIELD_NAMES + [
-    soundings_only.RELATIVE_HUMIDITY_KEY,
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY
+    soundings_only.RELATIVE_HUMIDITY_NAME,
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 
 SOUNDING_DICT_WITH_THETA_V = {
@@ -389,7 +389,7 @@ THESE_SPECIFIC_HUMIDITIES_KG_KG01 = numpy.array(
     [0.001, 0.002, numpy.nan, numpy.nan, 0.005, numpy.nan, numpy.nan])
 
 THESE_DIMENSIONS = (len(THESE_VERTICAL_LEVELS_MB),
-                    len(soundings_only.PRESSURELESS_FIELDS_TO_INTERP))
+                    len(soundings_only.PRESSURELESS_FIELD_TO_INTERP_NAMES))
 
 THIS_FIRST_MATRIX = numpy.full(THESE_DIMENSIONS, numpy.nan)
 THIS_FIRST_MATRIX[:, 0] = THESE_HEIGHTS_METRES
@@ -422,7 +422,7 @@ SOUNDING_DICT_WITH_NANS = {
     soundings_only.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
     soundings_only.VERTICAL_LEVELS_KEY: THESE_VERTICAL_LEVELS_MB,
     soundings_only.PRESSURELESS_FIELD_NAMES_KEY:
-        soundings_only.PRESSURELESS_FIELDS_TO_INTERP,
+        soundings_only.PRESSURELESS_FIELD_TO_INTERP_NAMES,
     soundings_only.LOWEST_PRESSURES_KEY: THESE_LOWEST_PRESSURES_MB
 }
 
@@ -453,7 +453,7 @@ SOUNDING_DICT_WITHOUT_NANS = {
     soundings_only.SOUNDING_MATRIX_KEY: THIS_SOUNDING_MATRIX,
     soundings_only.VERTICAL_LEVELS_KEY: THESE_VERTICAL_LEVELS_MB,
     soundings_only.PRESSURELESS_FIELD_NAMES_KEY:
-        soundings_only.PRESSURELESS_FIELDS_TO_INTERP,
+        soundings_only.PRESSURELESS_FIELD_TO_INTERP_NAMES,
     soundings_only.LOWEST_PRESSURES_KEY: THESE_LOWEST_PRESSURES_MB[[0]]
 }
 
@@ -736,6 +736,25 @@ class SoundingsOnlyTests(unittest.TestCase):
 
         self.assertTrue(_compare_sounding_dictionaries(
             this_sounding_dict, SOUNDING_DICT_WITHOUT_NANS))
+
+    def test_check_pressureless_field_name_valid(self):
+        """Ensures correct output from check_pressureless_field_name.
+
+        In this case, field name is valid.
+        """
+
+        soundings_only.check_pressureless_field_name(
+            soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+
+    def test_check_pressureless_field_name_invalid(self):
+        """Ensures correct output from check_pressureless_field_name.
+
+        In this case, field name is *not* valid.
+        """
+
+        with self.assertRaises(ValueError):
+            soundings_only.check_pressureless_field_name(
+                soundings_only.WIND_SPEED_KEY)
 
     def test_sounding_dict_to_skewt(self):
         """Ensures correct output from sounding_dict_to_skewt."""

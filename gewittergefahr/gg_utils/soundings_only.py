@@ -43,18 +43,24 @@ LOWEST_PRESSURES_KEY = 'lowest_pressures_mb'
 VERTICAL_LEVELS_KEY = 'vertical_levels_mb'
 PRESSURELESS_FIELD_NAMES_KEY = 'pressureless_field_names'
 
-GEOPOTENTIAL_HEIGHT_KEY = nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES
-RELATIVE_HUMIDITY_KEY = 'relative_humidity_unitless'
-TEMPERATURE_KEY = nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
-U_WIND_KEY = nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES
-V_WIND_KEY = nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
 WIND_SPEED_KEY = 'wind_speed_m_s01'
-SPECIFIC_HUMIDITY_KEY = nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
-VIRTUAL_POTENTIAL_TEMPERATURE_KEY = 'virtual_potential_temperature_kelvins'
 
-PRESSURELESS_FIELDS_TO_INTERP = [
-    GEOPOTENTIAL_HEIGHT_KEY, U_WIND_KEY, V_WIND_KEY, TEMPERATURE_KEY,
-    SPECIFIC_HUMIDITY_KEY]
+GEOPOTENTIAL_HEIGHT_NAME = nwp_model_utils.HEIGHT_COLUMN_FOR_SOUNDING_TABLES
+RELATIVE_HUMIDITY_NAME = 'relative_humidity_unitless'
+TEMPERATURE_NAME = nwp_model_utils.TEMPERATURE_COLUMN_FOR_SOUNDING_TABLES
+U_WIND_NAME = nwp_model_utils.U_WIND_COLUMN_FOR_SOUNDING_TABLES
+V_WIND_NAME = nwp_model_utils.V_WIND_COLUMN_FOR_SOUNDING_TABLES
+SPECIFIC_HUMIDITY_NAME = nwp_model_utils.SPFH_COLUMN_FOR_SOUNDING_TABLES
+VIRTUAL_POTENTIAL_TEMPERATURE_NAME = 'virtual_potential_temperature_kelvins'
+
+VALID_PRESSURELESS_FIELD_NAMES = [
+    GEOPOTENTIAL_HEIGHT_NAME, RELATIVE_HUMIDITY_NAME, TEMPERATURE_NAME,
+    U_WIND_NAME, V_WIND_NAME, SPECIFIC_HUMIDITY_NAME,
+    VIRTUAL_POTENTIAL_TEMPERATURE_NAME]
+
+PRESSURELESS_FIELD_TO_INTERP_NAMES = [
+    GEOPOTENTIAL_HEIGHT_NAME, U_WIND_NAME, V_WIND_NAME, TEMPERATURE_NAME,
+    SPECIFIC_HUMIDITY_NAME]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 PRESSURELESS_FIELD_DIMENSION_KEY = 'pressureless_field'
@@ -171,25 +177,25 @@ def _get_nwp_fields_for_sounding(
         if not include_surface:
             continue
 
-        if pressureless_field_names[j] == GEOPOTENTIAL_HEIGHT_KEY:
+        if pressureless_field_names[j] == GEOPOTENTIAL_HEIGHT_NAME:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_height_name(model_name))
 
-        if pressureless_field_names[j] == TEMPERATURE_KEY:
+        if pressureless_field_names[j] == TEMPERATURE_NAME:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_temperature_name(model_name))
 
         if pressureless_field_names[j] in [
                 nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES,
-                SPECIFIC_HUMIDITY_KEY]:
+                SPECIFIC_HUMIDITY_NAME]:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_humidity_name(model_name))
 
-        if pressureless_field_names[j] == U_WIND_KEY:
+        if pressureless_field_names[j] == U_WIND_NAME:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_u_wind_name(model_name))
 
-        if pressureless_field_names[j] == V_WIND_KEY:
+        if pressureless_field_names[j] == V_WIND_NAME:
             this_field_name, this_field_name_grib1 = (
                 nwp_model_utils.get_lowest_v_wind_name(model_name))
 
@@ -476,13 +482,13 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
 
     pressureless_field_names = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-    temperature_index = pressureless_field_names.index(TEMPERATURE_KEY)
+    temperature_index = pressureless_field_names.index(TEMPERATURE_NAME)
 
     relative_humidity_index = pressureless_field_names.index(
         nwp_model_utils.RH_COLUMN_FOR_SOUNDING_TABLES)
     sounding_matrix[..., relative_humidity_index] = (
         PERCENT_TO_UNITLESS * sounding_matrix[..., relative_humidity_index])
-    pressureless_field_names[relative_humidity_index] = RELATIVE_HUMIDITY_KEY
+    pressureless_field_names[relative_humidity_index] = RELATIVE_HUMIDITY_NAME
 
     dewpoint_matrix_kelvins = (
         moisture_conversions.relative_humidity_to_dewpoint(
@@ -498,7 +504,7 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
         spec_humidity_matrix_kg_kg01,
         spec_humidity_matrix_kg_kg01.shape + (1,))
 
-    pressureless_field_names.append(SPECIFIC_HUMIDITY_KEY)
+    pressureless_field_names.append(SPECIFIC_HUMIDITY_NAME)
     sounding_matrix = numpy.concatenate(
         (sounding_matrix, spec_humidity_matrix_kg_kg01), axis=-1)
 
@@ -524,8 +530,8 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
 
     specific_humidity_index = pressureless_field_names.index(
-        SPECIFIC_HUMIDITY_KEY)
-    temperature_index = pressureless_field_names.index(TEMPERATURE_KEY)
+        SPECIFIC_HUMIDITY_NAME)
+    temperature_index = pressureless_field_names.index(TEMPERATURE_NAME)
 
     dewpoint_matrix_kelvins = (
         moisture_conversions.specific_humidity_to_dewpoint(
@@ -541,7 +547,7 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
     relative_humidity_matrix = numpy.reshape(
         relative_humidity_matrix, relative_humidity_matrix.shape + (1,))
 
-    pressureless_field_names.append(RELATIVE_HUMIDITY_KEY)
+    pressureless_field_names.append(RELATIVE_HUMIDITY_NAME)
     sounding_matrix = numpy.concatenate(
         (sounding_matrix, relative_humidity_matrix), axis=-1)
 
@@ -567,7 +573,7 @@ def _get_virtual_potential_temperatures(
 
     pressureless_field_names = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-    temperature_index = pressureless_field_names.index(TEMPERATURE_KEY)
+    temperature_index = pressureless_field_names.index(TEMPERATURE_NAME)
 
     vapour_pressure_matrix_pascals = (
         moisture_conversions.dewpoint_to_vapour_pressure(
@@ -586,7 +592,7 @@ def _get_virtual_potential_temperatures(
     theta_v_matrix_kelvins = numpy.reshape(
         theta_v_matrix_kelvins, theta_v_matrix_kelvins.shape + (1,))
 
-    pressureless_field_names.append(VIRTUAL_POTENTIAL_TEMPERATURE_KEY)
+    pressureless_field_names.append(VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
     sounding_matrix = numpy.concatenate(
         (sounding_matrix, theta_v_matrix_kelvins), axis=-1)
 
@@ -613,13 +619,13 @@ def _fill_nans_in_soundings(
 
     pressureless_field_names = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-    height_index = pressureless_field_names.index(GEOPOTENTIAL_HEIGHT_KEY)
+    height_index = pressureless_field_names.index(GEOPOTENTIAL_HEIGHT_NAME)
 
     num_soundings = sounding_matrix.shape[0]
     keep_sounding_flags = numpy.full(num_soundings, True, dtype=bool)
 
     for i in range(num_soundings):
-        for this_field_name in PRESSURELESS_FIELDS_TO_INTERP:
+        for this_field_name in PRESSURELESS_FIELD_TO_INTERP_NAMES:
             this_field_index = pressureless_field_names.index(this_field_name)
             these_nan_level_flags = numpy.isnan(
                 sounding_matrix[i, :, this_field_index])
@@ -635,7 +641,7 @@ def _fill_nans_in_soundings(
             these_real_level_indices = numpy.where(
                 numpy.invert(these_nan_level_flags))[0]
 
-            if this_field_name == GEOPOTENTIAL_HEIGHT_KEY:
+            if this_field_name == GEOPOTENTIAL_HEIGHT_NAME:
                 interp_object = scipy.interpolate.interp1d(
                     x=numpy.log(
                         pressure_matrix_pascals[i, these_real_level_indices]),
@@ -704,7 +710,7 @@ def _convert_soundings(sounding_dict):
 
     if found_relative_humidity:
         specific_humidity_index = sounding_dict[
-            PRESSURELESS_FIELD_NAMES_KEY].index(SPECIFIC_HUMIDITY_KEY)
+            PRESSURELESS_FIELD_NAMES_KEY].index(SPECIFIC_HUMIDITY_NAME)
 
         dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
@@ -720,6 +726,23 @@ def _convert_soundings(sounding_dict):
         sounding_dict=sounding_dict,
         pressure_matrix_pascals=pressure_matrix_pascals,
         dewpoint_matrix_kelvins=dewpoint_matrix_kelvins)
+
+
+def check_pressureless_field_name(pressureless_field_name):
+    """Error-checks name of pressureless field.
+
+    :param pressureless_field_name: Name of pressureless field.
+    :raises: ValueError: if
+        `pressureless_field_name not in VALID_PRESSURELESS_FIELD_NAMES`.
+    """
+
+    error_checking.assert_is_string(pressureless_field_name)
+    if pressureless_field_name not in VALID_PRESSURELESS_FIELD_NAMES:
+        error_string = (
+            '\n\n{0:s}\nValid pressureless field names (listed above) do not '
+            'include "{1:s}".'
+        ).format(VALID_PRESSURELESS_FIELD_NAMES, pressureless_field_name)
+        raise ValueError(error_string)
 
 
 def interp_soundings_to_storm_objects(
@@ -883,17 +906,19 @@ def sounding_dict_to_skewt(sounding_dict, sounding_index):
 
     pressures_pascals = _get_pressures(sounding_dict)[sounding_index, :]
     temperature_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
-        TEMPERATURE_KEY)
+        TEMPERATURE_NAME)
     specific_humidity_index = sounding_dict[
-        PRESSURELESS_FIELD_NAMES_KEY].index(SPECIFIC_HUMIDITY_KEY)
+        PRESSURELESS_FIELD_NAMES_KEY].index(SPECIFIC_HUMIDITY_NAME)
 
     dewpoints_kelvins = moisture_conversions.specific_humidity_to_dewpoint(
         specific_humidities_kg_kg01=sounding_dict[
             SOUNDING_MATRIX_KEY][sounding_index, :, specific_humidity_index],
         total_pressures_pascals=pressures_pascals)
 
-    u_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(U_WIND_KEY)
-    v_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(V_WIND_KEY)
+    u_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
+        U_WIND_NAME)
+    v_wind_index = sounding_dict[PRESSURELESS_FIELD_NAMES_KEY].index(
+        V_WIND_NAME)
     (wind_speeds_m_s01, wind_directions_deg
     ) = raw_wind_io.uv_to_speed_and_direction(
         u_winds_m_s01=sounding_dict[SOUNDING_MATRIX_KEY][
@@ -1038,10 +1063,22 @@ def write_soundings(
     netcdf_dataset.close()
 
 
-def read_soundings(netcdf_file_name):
+def read_soundings(
+        netcdf_file_name, pressureless_field_names_to_keep=None,
+        storm_ids_to_keep=None, init_times_to_keep_unix_sec=None):
     """Reads soundings from NetCDF file.
 
+    N = number of storm objects to keep
+
     :param netcdf_file_name: Path to input file.
+    :param pressureless_field_names_to_keep: 1-D list with names of pressureless
+        fields to keep.  If None, will keep all pressureless fields.
+    :param storm_ids_to_keep: length-N with string IDs of storm objects to keep.
+        If None, will keep all storm objects.
+    :param init_times_to_keep_unix_sec:
+        [required if `storm_ids_to_keep is not None`]
+        length-N numpy array with times of storm objects to keep.
+
     :return: sounding_dict: Dictionary with keys documented in
         `_convert_interp_table_to_soundings`.
     :return: lag_time_for_convective_contamination_sec: See doc for
@@ -1061,9 +1098,24 @@ def read_soundings(netcdf_file_name):
         netcdf_dataset.variables[PRESSURELESS_FIELD_NAMES_KEY][:])
     pressureless_field_names = [str(s) for s in pressureless_field_names]
 
+    if pressureless_field_names_to_keep is None:
+        field_indices_to_keep = numpy.linspace(
+            0, len(pressureless_field_names) - 1,
+            num=len(pressureless_field_names), dtype=int)
+    else:
+        error_checking.assert_is_numpy_array(
+            numpy.array(pressureless_field_names_to_keep), num_dimensions=1)
+        for this_field_name in pressureless_field_names_to_keep:
+            check_pressureless_field_name(this_field_name)
+
+        field_indices_to_keep = numpy.array(
+            [pressureless_field_names.index(f)
+             for f in pressureless_field_names_to_keep], dtype=int)
+        pressureless_field_names = pressureless_field_names_to_keep + []
+
+    num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
     num_vertical_levels = len(vertical_levels_mb)
     num_pressureless_fields = len(pressureless_field_names)
-    num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
 
     if num_storm_objects == 0:
         storm_ids = []
@@ -1079,7 +1131,8 @@ def read_soundings(netcdf_file_name):
         init_times_unix_sec = numpy.array(
             netcdf_dataset.variables[INITIAL_TIMES_KEY][:], dtype=int)
         sounding_matrix = numpy.array(
-            netcdf_dataset.variables[SOUNDING_MATRIX_KEY])
+            netcdf_dataset.variables[SOUNDING_MATRIX_KEY][
+                ..., field_indices_to_keep])
 
     if numpy.any(numpy.isnan(vertical_levels_mb)):
         if num_storm_objects == 0:
@@ -1091,6 +1144,44 @@ def read_soundings(netcdf_file_name):
         lowest_pressures_mb = None
 
     netcdf_dataset.close()
+
+    if storm_ids_to_keep is not None and num_storm_objects != 0:
+        error_checking.assert_is_string_list(storm_ids_to_keep)
+        error_checking.assert_is_numpy_array(
+            numpy.array(storm_ids_to_keep), num_dimensions=1)
+        num_storm_objects_to_keep = len(storm_ids_to_keep)
+
+        error_checking.assert_is_integer_numpy_array(
+            init_times_to_keep_unix_sec)
+        error_checking.assert_is_numpy_array(
+            init_times_to_keep_unix_sec,
+            exact_dimensions=numpy.array([num_storm_objects_to_keep]))
+
+        storm_ids_as_numpy_array = numpy.array(storm_ids)
+        storm_object_indices_to_keep = []
+
+        for i in range(num_storm_objects_to_keep):
+            these_indices = numpy.where(
+                numpy.logical_and(
+                    storm_ids_as_numpy_array == storm_ids_to_keep[i],
+                    init_times_unix_sec == init_times_to_keep_unix_sec[i])
+            )[0]
+
+            if len(these_indices):
+                storm_object_indices_to_keep.append(these_indices[0])
+
+        storm_object_indices_to_keep = numpy.array(
+            storm_object_indices_to_keep, dtype=int)
+
+        storm_ids = [storm_ids[i] for i in storm_object_indices_to_keep]
+        init_times_unix_sec = init_times_unix_sec[storm_object_indices_to_keep]
+        sounding_matrix = sounding_matrix[storm_object_indices_to_keep, ...]
+
+        if lowest_pressures_mb is not None:
+            lowest_pressures_mb = lowest_pressures_mb[
+                storm_object_indices_to_keep]
+
+    num_storm_objects = len(storm_ids)
     lead_times_seconds = numpy.full(
         num_storm_objects, lead_time_seconds, dtype=int)
 
