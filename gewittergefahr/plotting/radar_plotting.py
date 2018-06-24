@@ -23,7 +23,7 @@ MESH_PLOTTING_UNITS = 'mm'
 SHI_PLOTTING_UNITS = ''
 VIL_PLOTTING_UNITS = 'mm'
 
-KM_TO_KFT = 3.2808  # kilometres to kilofeet 
+KM_TO_KFT = 3.2808  # kilometres to kilofeet
 
 
 def _get_modern_colour_list():
