@@ -12,23 +12,25 @@ TOLERANCE = 1e-6
 # The following constants are used to test _get_num_examples_per_batch_by_class.
 NUM_EXAMPLES_PER_BATCH = 100
 TORNADO_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00001-05000m'
-TORNADO_CLASS_FRACTION_DICT = {0: 0.8, 1: 0.2}
-NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT = {0: 80, 1: 20}
-INF_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT = {
-    0: NUM_EXAMPLES_PER_BATCH, 1: NUM_EXAMPLES_PER_BATCH}
+
+SAMPLING_FRACTION_BY_TOR_CLASS_DICT = {0: 0.8, 1: 0.2}
+NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT = {0: 80, 1: 20}
+MANY_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT = {
+    0: NUM_EXAMPLES_PER_BATCH, 1: NUM_EXAMPLES_PER_BATCH
+}
 
 WIND_TARGET_NAME = (
     'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00001-05000m'
     '_cutoffs=30-50kt')
-WIND_CLASS_FRACTION_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
-NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
+SAMPLING_FRACTION_BY_WIND_CLASS_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
+NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
 
-# The following constants are used to test _get_num_examples_remaining_by_class.
+# The following constants are used to test _get_num_examples_left_by_class.
 NUM_FILE_TIMES_PER_BATCH = 20
-NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT = {0: 1000, 1: 10}
-NUM_EXAMPLES_REMAINING_TORNADO_CLASS_DICT = {0: 0, 1: 10}
-NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT = {-2: 500, 0: 1000, 1: 18, 2: 5}
-NUM_EXAMPLES_REMAINING_WIND_CLASS_DICT = {-2: 0, 0: 0, 1: 2, 2: 5}
+NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT = {0: 1000, 1: 10}
+NUM_EXAMPLES_LEFT_BY_TOR_CLASS_DICT = {0: 0, 1: 10}
+NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT = {-2: 500, 0: 1000, 1: 18, 2: 5}
+NUM_EXAMPLES_LEFT_BY_WIND_CLASS_DICT = {-2: 0, 0: 0, 1: 2, 2: 5}
 
 # The following constants are used to test _determine_stopping_criterion.
 TARGET_VALUES_50ZEROS = numpy.full(50, 0, dtype=int)
@@ -46,21 +48,21 @@ WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[:30]] = 2
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[30:70]] = 1
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[70:]] = -2
 
-NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_50ZEROS = {0: 50, 1: 0}
-NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_200ZEROS = {0: 200, 1: 0}
-NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_ENOUGH_ONES = {0: 170, 1: 30}
+NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_50ZEROS = {0: 50, 1: 0}
+NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_200ZEROS = {0: 200, 1: 0}
+NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_ENOUGH_ONES = {0: 170, 1: 30}
 
-NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS = {-2: 0, 0: 50, 1: 0, 2: 0}
-NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS = {-2: 0, 0: 200, 1: 0, 2: 0}
-NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH = {-2: 50, 0: 80, 1: 40, 2: 30}
+NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_50ZEROS = {-2: 0, 0: 50, 1: 0, 2: 0}
+NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_200ZEROS = {-2: 0, 0: 200, 1: 0, 2: 0}
+NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_ENOUGH = {-2: 50, 0: 80, 1: 40, 2: 30}
 
-# The following constants are used to test remove_storms_with_undef_target.
+# The following constants are used to test remove_storms_with_undefined_target.
 THESE_STORM_IDS = ['A', 'B', 'C', 'D']
 THIS_IMAGE_MATRIX = numpy.reshape(numpy.linspace(1., 24., num=24), (4, 3, 2))
 THESE_TARGET_VALUES = numpy.array([-1, 0, -1, -2], dtype=int)
 THESE_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
 
-STORM_IMAGE_DICT_WITH_UNDEF_TARGETS = {
+RADAR_IMAGE_DICT_WITH_UNDEF_TARGETS = {
     storm_images.STORM_IDS_KEY: THESE_STORM_IDS,
     storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
     storm_images.STORM_IMAGE_MATRIX_KEY: THIS_IMAGE_MATRIX,
@@ -68,7 +70,7 @@ STORM_IMAGE_DICT_WITH_UNDEF_TARGETS = {
 }
 
 THESE_VALID_INDICES = numpy.array([1, 3], dtype=int)
-STORM_IMAGE_DICT_NO_UNDEF_TARGETS = {
+RADAR_IMAGE_DICT_NO_UNDEF_TARGETS = {
     storm_images.STORM_IDS_KEY:
         [THESE_STORM_IDS[i] for i in THESE_VALID_INDICES],
     storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC[THESE_VALID_INDICES],
@@ -77,13 +79,13 @@ STORM_IMAGE_DICT_NO_UNDEF_TARGETS = {
     storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
 }
 
-# The following constants are used to test
-# separate_input_files_for_2d3d_myrorss.
-IMAGE_FILE_NAME_MATRIX = numpy.array([['A', 'B', 'C', 'D', 'E'],
+# The following constants are used to test separate_radar_files_2d3d.
+RADAR_FILE_NAME_MATRIX = numpy.array([['A', 'B', 'C', 'D', 'E'],
                                       ['F', 'G', 'H', 'I', 'J']], dtype=object)
 FIELD_NAME_BY_PAIR = [
     radar_utils.MESH_NAME, radar_utils.REFL_NAME, radar_utils.REFL_NAME,
-    radar_utils.MID_LEVEL_SHEAR_NAME, radar_utils.LOW_LEVEL_SHEAR_NAME]
+    radar_utils.MID_LEVEL_SHEAR_NAME, radar_utils.LOW_LEVEL_SHEAR_NAME
+]
 HEIGHT_BY_PAIR_M_ASL = numpy.array([250, 5000, 1000, 250, 250], dtype=int)
 
 REFLECTIVITY_INDICES = numpy.array([1, 2], dtype=int)
@@ -111,9 +113,9 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict = trainval_io._get_num_examples_per_batch_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             target_name=TORNADO_TARGET_NAME,
-            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT)
+            sampling_fraction_by_class_dict=SAMPLING_FRACTION_BY_TOR_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
     def test_get_num_examples_per_batch_by_class_wind(self):
         """Ensures correct output from _get_num_examples_per_batch_by_class.
@@ -124,117 +126,119 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict = trainval_io._get_num_examples_per_batch_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             target_name=WIND_TARGET_NAME,
-            class_fraction_dict=WIND_CLASS_FRACTION_DICT)
+            sampling_fraction_by_class_dict=
+            SAMPLING_FRACTION_BY_WIND_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT)
 
     def test_get_num_examples_per_batch_by_class_no_fractions(self):
         """Ensures correct output from _get_num_examples_per_batch_by_class.
 
-        In this case, the input argument `class_fraction_dict` is empty, which
-        means that there will be no downsampling.
+        In this case, `sampling_fraction_by_class_dict` is empty, which means
+        that there will be no downsampling.
         """
 
         this_dict = trainval_io._get_num_examples_per_batch_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            target_name=TORNADO_TARGET_NAME, class_fraction_dict=None)
+            target_name=TORNADO_TARGET_NAME,
+            sampling_fraction_by_class_dict=None)
 
-        self.assertTrue(this_dict == INF_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+        self.assertTrue(this_dict == MANY_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_tor_need_times_and_examples(self):
-        """Ensures correct output from _get_num_examples_remaining_by_class.
+        """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
         are not yet enough file times or examples in memory.
         """
 
-        this_dict = trainval_io._get_num_examples_remaining_by_class(
+        this_dict = trainval_io._get_num_examples_left_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
-            num_examples_in_memory_class_dict=
-            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            num_examples_in_memory_by_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_tor_need_times(self):
-        """Ensures correct output from _get_num_examples_remaining_by_class.
+        """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
         are not yet enough file times in memory.
         """
 
-        this_dict = trainval_io._get_num_examples_remaining_by_class(
+        this_dict = trainval_io._get_num_examples_left_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
-            num_examples_in_memory_class_dict=
-            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            num_examples_in_memory_by_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_tor_need_examples(self):
-        """Ensures correct output from _get_num_examples_remaining_by_class.
+        """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
         are not yet enough examples in memory.
         """
 
-        this_dict = trainval_io._get_num_examples_remaining_by_class(
+        this_dict = trainval_io._get_num_examples_left_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH - 1,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            num_examples_in_memory_class_dict=
-            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_by_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_tor_downsampling(self):
-        """Ensures correct output from _get_num_examples_remaining_by_class.
+        """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  Will downsample, because there
         are already enough file times and examples in memory.
         """
 
-        this_dict = trainval_io._get_num_examples_remaining_by_class(
+        this_dict = trainval_io._get_num_examples_left_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            num_examples_in_memory_class_dict=
-            NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT)
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_by_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_REMAINING_TORNADO_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_LEFT_BY_TOR_CLASS_DICT)
 
     def test_get_num_examples_remaining_by_wind_downsampling(self):
-        """Ensures correct output from _get_num_examples_remaining_by_class.
+        """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = wind class.  Will downsample, because there are
         already enough file times and examples in memory.
         """
 
-        this_dict = trainval_io._get_num_examples_remaining_by_class(
+        this_dict = trainval_io._get_num_examples_left_by_class(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
             num_examples_in_memory=NUM_EXAMPLES_PER_BATCH + 1,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            num_examples_in_memory_class_dict=
-            NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT)
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            num_examples_in_memory_by_class_dict=
+            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT)
 
-        self.assertTrue(this_dict == NUM_EXAMPLES_REMAINING_WIND_CLASS_DICT)
+        self.assertTrue(this_dict == NUM_EXAMPLES_LEFT_BY_WIND_CLASS_DICT)
 
     def test_determine_stopping_tor_need_times_and_examples(self):
         """Ensures correct output from _determine_stopping_criterion.
@@ -246,14 +250,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
-            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            sampling_fraction_by_class_dict=SAMPLING_FRACTION_BY_TOR_CLASS_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_50ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_50ZEROS)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_times_and_examples(self):
@@ -266,14 +270,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
-            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            sampling_fraction_by_class_dict=
+            SAMPLING_FRACTION_BY_WIND_CLASS_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_50ZEROS)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_need_times(self):
@@ -286,14 +291,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
-            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            sampling_fraction_by_class_dict=SAMPLING_FRACTION_BY_TOR_CLASS_DICT,
             target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_ENOUGH_ONES)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_ENOUGH_ONES)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_times(self):
@@ -306,14 +311,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
-            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH - 1,
+            sampling_fraction_by_class_dict=
+            SAMPLING_FRACTION_BY_WIND_CLASS_DICT,
             target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_ENOUGH)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_need_examples(self):
@@ -326,14 +332,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=SAMPLING_FRACTION_BY_TOR_CLASS_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_50ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_50ZEROS)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_examples(self):
@@ -346,14 +352,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=
+            SAMPLING_FRACTION_BY_WIND_CLASS_DICT,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_50ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_50ZEROS)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_no_downsampling(self):
@@ -368,14 +375,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=None,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=None,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_200ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_200ZEROS)
         self.assertTrue(this_flag)
 
     def test_determine_stopping_wind_no_downsampling(self):
@@ -390,14 +397,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=None,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=None,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_200ZEROS)
         self.assertTrue(this_flag)
 
     def test_determine_stopping_tor_need_ones(self):
@@ -412,14 +419,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=SAMPLING_FRACTION_BY_TOR_CLASS_DICT,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_200ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_200ZEROS)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_wind_need_nonzero(self):
@@ -434,14 +441,15 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=
+            SAMPLING_FRACTION_BY_WIND_CLASS_DICT,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_200ZEROS)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_200ZEROS)
         self.assertFalse(this_flag)
 
     def test_determine_stopping_tor_enough_ones(self):
@@ -455,14 +463,14 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_TORNADO_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=TORNADO_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=SAMPLING_FRACTION_BY_TOR_CLASS_DICT,
             target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_TORNADO_CLASS_DICT_ENOUGH_ONES)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT_ENOUGH_ONES)
         self.assertTrue(this_flag)
 
     def test_determine_stopping_wind_enough_per_class(self):
@@ -476,100 +484,101 @@ class TrainingValidationIoTests(unittest.TestCase):
         this_dict, this_flag = trainval_io._determine_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
             num_file_times_per_batch=NUM_FILE_TIMES_PER_BATCH,
-            num_examples_per_batch_class_dict=
-            NUM_EXAMPLES_PER_BATCH_WIND_CLASS_DICT,
-            num_init_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
-            class_fraction_dict=WIND_CLASS_FRACTION_DICT,
+            num_examples_per_batch_by_class_dict=
+            NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT,
+            num_file_times_in_memory=NUM_FILE_TIMES_PER_BATCH + 1,
+            sampling_fraction_by_class_dict=
+            SAMPLING_FRACTION_BY_WIND_CLASS_DICT,
             target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
         self.assertTrue(
-            this_dict == NUM_EXAMPLES_IN_MEMORY_WIND_CLASS_DICT_ENOUGH)
+            this_dict == NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT_ENOUGH)
         self.assertTrue(this_flag)
 
-    def test_remove_storms_with_undef_target(self):
-        """Ensures correct output from remove_storms_with_undef_target."""
+    def test_remove_storms_with_undefined_target(self):
+        """Ensures correct output from remove_storms_with_undefined_target."""
 
-        this_input_dict = copy.deepcopy(STORM_IMAGE_DICT_WITH_UNDEF_TARGETS)
-        this_storm_image_dict, _ = trainval_io.remove_storms_with_undef_target(
+        this_input_dict = copy.deepcopy(RADAR_IMAGE_DICT_WITH_UNDEF_TARGETS)
+        this_radar_image_dict = trainval_io.remove_storms_with_undefined_target(
             this_input_dict)
 
-        actual_keys = this_storm_image_dict.keys()
-        expected_keys = STORM_IMAGE_DICT_NO_UNDEF_TARGETS.keys()
+        actual_keys = this_radar_image_dict.keys()
+        expected_keys = RADAR_IMAGE_DICT_NO_UNDEF_TARGETS.keys()
         self.assertTrue(set(actual_keys) == set(expected_keys))
 
         self.assertTrue(
-            this_storm_image_dict[storm_images.STORM_IDS_KEY] ==
-            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.STORM_IDS_KEY])
+            this_radar_image_dict[storm_images.STORM_IDS_KEY] ==
+            RADAR_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.STORM_IDS_KEY])
         self.assertTrue(numpy.allclose(
-            this_storm_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
-            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[
+            this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
+            RADAR_IMAGE_DICT_NO_UNDEF_TARGETS[
                 storm_images.STORM_IMAGE_MATRIX_KEY],
             atol=TOLERANCE))
         self.assertTrue(numpy.array_equal(
-            this_storm_image_dict[storm_images.LABEL_VALUES_KEY],
-            STORM_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.LABEL_VALUES_KEY]))
+            this_radar_image_dict[storm_images.LABEL_VALUES_KEY],
+            RADAR_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.LABEL_VALUES_KEY]))
 
-    def test_separate_input_files_no_refl(self):
-        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
+    def test_separate_radar_files_2d3d_no_refl(self):
+        """Ensures correctness of separate_radar_files_2d3d.
 
         In this case, there are no reflectivity files.
         """
 
         with self.assertRaises(ValueError):
-            trainval_io.separate_input_files_for_2d3d_myrorss(
-                image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
+            trainval_io.separate_radar_files_2d3d(
+                radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
                     ..., NON_REFLECTIVITY_INDICES],
                 test_mode=True,
-                field_name_by_pair=
-                [FIELD_NAME_BY_PAIR[k] for k in NON_REFLECTIVITY_INDICES],
+                field_name_by_pair=[
+                    FIELD_NAME_BY_PAIR[k] for k in NON_REFLECTIVITY_INDICES],
                 height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[
                     NON_REFLECTIVITY_INDICES])
 
-    def test_separate_input_files_no_az_shear(self):
-        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
+    def test_separate_radar_files_2d3d_no_az_shear(self):
+        """Ensures correctness of separate_radar_files_2d3d.
 
         In this case, there are no azimuthal-shear files.
         """
 
         with self.assertRaises(ValueError):
-            trainval_io.separate_input_files_for_2d3d_myrorss(
-                image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
+            trainval_io.separate_radar_files_2d3d(
+                radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
                     ..., NON_AZIMUTHAL_SHEAR_INDICES],
                 test_mode=True,
-                field_name_by_pair=
-                [FIELD_NAME_BY_PAIR[k] for k in NON_AZIMUTHAL_SHEAR_INDICES],
+                field_name_by_pair=[
+                    FIELD_NAME_BY_PAIR[k] for k in NON_AZIMUTHAL_SHEAR_INDICES],
                 height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[
                     NON_AZIMUTHAL_SHEAR_INDICES])
 
-    def test_separate_input_files_bad_fields(self):
-        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
+    def test_separate_radar_files_2d3d_bad_fields(self):
+        """Ensures correctness of separate_radar_files_2d3d.
 
         In this case, one of the radar fields is neither reflectivity nor
         azimuthal shear.
         """
 
         with self.assertRaises(ValueError):
-            trainval_io.separate_input_files_for_2d3d_myrorss(
-                image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
+            trainval_io.separate_radar_files_2d3d(
+                radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
                     ..., MESH_INDICES],
                 test_mode=True,
-                field_name_by_pair=
-                [FIELD_NAME_BY_PAIR[k] for k in MESH_INDICES],
+                field_name_by_pair=[
+                    FIELD_NAME_BY_PAIR[k] for k in MESH_INDICES],
                 height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[MESH_INDICES])
 
-    def test_separate_input_files_all_good(self):
-        """Ensures correctness of separate_input_files_for_2d3d_myrorss.
+    def test_separate_radar_files_2d3d_all_good(self):
+        """Ensures correctness of separate_radar_files_2d3d.
 
         In this case, all input files are valid.
         """
 
         this_refl_file_name_matrix, this_az_shear_file_name_matrix = (
-            trainval_io.separate_input_files_for_2d3d_myrorss(
-                image_file_name_matrix=IMAGE_FILE_NAME_MATRIX[
+            trainval_io.separate_radar_files_2d3d(
+                radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
                     ..., NON_MESH_INDICES],
                 test_mode=True,
-                field_name_by_pair=
-                [FIELD_NAME_BY_PAIR[k] for k in NON_MESH_INDICES],
+                field_name_by_pair=[
+                    FIELD_NAME_BY_PAIR[k] for k in NON_MESH_INDICES],
                 height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[NON_MESH_INDICES]))
 
         self.assertTrue(numpy.array_equal(
