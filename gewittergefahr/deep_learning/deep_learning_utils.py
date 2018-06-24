@@ -48,11 +48,11 @@ DEFAULT_NORMALIZATION_DICT = {
 }
 
 DEFAULT_SOUNDING_NORMALIZATION_DICT = {
-    soundings_only.RELATIVE_HUMIDITY_KEY: numpy.array([0., 1.]),  # unitless
-    soundings_only.TEMPERATURE_KEY: numpy.array([197.4, 311.8]),  # Kelvins
+    soundings_only.RELATIVE_HUMIDITY_NAME: numpy.array([0., 1.]),  # unitless
+    soundings_only.TEMPERATURE_NAME: numpy.array([197.4, 311.8]),  # Kelvins
     soundings_only.WIND_SPEED_KEY: numpy.array([0., 64.1]),  # m s^-1
-    soundings_only.SPECIFIC_HUMIDITY_KEY: numpy.array([0., 0.0223]),  # kg kg^-1
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY:
+    soundings_only.SPECIFIC_HUMIDITY_NAME: numpy.array([0., 0.0223]),  # kg kg^-1
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
         numpy.array([285.2, 421.6])  # Kelvins
 }
 
@@ -600,15 +600,15 @@ def normalize_soundings(
     done_wind_speed = False
 
     for k in range(num_pressureless_fields):
-        if pressureless_field_names[k] in [soundings_only.U_WIND_KEY,
-                                           soundings_only.V_WIND_KEY]:
+        if pressureless_field_names[k] in [soundings_only.U_WIND_NAME,
+                                           soundings_only.V_WIND_NAME]:
             if done_wind_speed:
                 continue
 
             u_wind_index = pressureless_field_names.index(
-                soundings_only.U_WIND_KEY)
+                soundings_only.U_WIND_NAME)
             v_wind_index = pressureless_field_names.index(
-                soundings_only.V_WIND_KEY)
+                soundings_only.V_WIND_NAME)
             wind_speeds_m_s01 = numpy.sqrt(
                 sounding_matrix[..., u_wind_index] ** 2 +
                 sounding_matrix[..., v_wind_index] ** 2)

@@ -275,10 +275,10 @@ SOUNDING_STAT_MATRIX_NORMALIZED_BY_CLIMO = numpy.array(
 
 # The following constants are used to test normalize_soundings.
 PRESSURELESS_FIELD_NAMES = [
-    soundings_only.RELATIVE_HUMIDITY_KEY, soundings_only.TEMPERATURE_KEY,
-    soundings_only.U_WIND_KEY, soundings_only.V_WIND_KEY,
-    soundings_only.SPECIFIC_HUMIDITY_KEY,
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY
+    soundings_only.RELATIVE_HUMIDITY_NAME, soundings_only.TEMPERATURE_NAME,
+    soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
+    soundings_only.SPECIFIC_HUMIDITY_NAME,
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 
 THIS_FIRST_MATRIX = numpy.array([[0.9, 300., -10., 5., 0.02, 310.],
@@ -293,11 +293,11 @@ SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
 SOUNDING_NORMALIZATION_DICT = {
-    soundings_only.RELATIVE_HUMIDITY_KEY: numpy.array([0., 1.]),
-    soundings_only.TEMPERATURE_KEY: numpy.array([250., 300.]),
+    soundings_only.RELATIVE_HUMIDITY_NAME: numpy.array([0., 1.]),
+    soundings_only.TEMPERATURE_NAME: numpy.array([250., 300.]),
     soundings_only.WIND_SPEED_KEY: numpy.array([0., 50.]),
-    soundings_only.SPECIFIC_HUMIDITY_KEY: numpy.array([0., 0.02]),
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_KEY:
+    soundings_only.SPECIFIC_HUMIDITY_NAME: numpy.array([0., 0.02]),
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
         numpy.array([300., 350.])
 }
 
