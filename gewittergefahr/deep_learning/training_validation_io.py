@@ -1,4 +1,4 @@
-"""IO methods for training or validation of a deep-learning model.
+"""IO methods for training and on-the-fly validation of a deep-learning model.
 
 --- NOTATION ---
 
@@ -41,63 +41,10 @@ STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 
 
-def _check_input_args(
-        num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
-        radar_file_name_matrix, num_radar_dimensions, binarize_target,
-        sounding_file_names=None, sounding_field_names=None):
-    """Error-checking of input arguments to generator.
-
-    T = number of storm times (initial times, not valid times)
-
-    :param num_examples_per_batch: Number of examples (storm objects) per batch.
-    :param num_examples_per_file_time: Number of examples (storm objects) per
-        file.  If each file contains one time step (SPC date), this will be
-        number of examples per time step (SPC date).
-    :param normalize_by_batch: Used to normalize radar images (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
-    :param radar_file_name_matrix: numpy array of paths to radar files.
-        Should be created by `find_2d_input_files` or `find_3d_input_files`, and
-        the length of the first axis should be T.
-    :param num_radar_dimensions: Number of radar dimensions.  This should be the
-        number of dimensions in `radar_file_name_matrix`.
-    :param binarize_target: See doc for `_select_batch`.
-    :param sounding_file_names: [optional]
-        length-T list of paths to sounding files.  Should be created by
-        `find_sounding_files`.
-    :param sounding_field_names:
-        [used only if `sounding_file_names is not None`]
-        1-D list with names of sounding fields (pressureless fields) to use.  If
-        `sounding_field_names is None`, will use all sounding fields.
-    """
-
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 10)
-    error_checking.assert_is_integer(num_examples_per_file_time)
-    error_checking.assert_is_geq(num_examples_per_file_time, 2)
-    error_checking.assert_is_boolean(normalize_by_batch)
-    error_checking.assert_is_boolean(binarize_target)
-
-    error_checking.assert_is_integer(num_radar_dimensions)
-    error_checking.assert_is_geq(num_radar_dimensions, 2)
-    error_checking.assert_is_leq(num_radar_dimensions, 3)
-    error_checking.assert_is_numpy_array(
-        radar_file_name_matrix, num_dimensions=num_radar_dimensions)
-
-    if sounding_file_names is not None:
-        num_init_times = radar_file_name_matrix.shape[0]
-        error_checking.assert_is_numpy_array(
-            numpy.array(sounding_file_names),
-            exact_dimensions=numpy.array([num_init_times]))
-
-        if sounding_field_names is not None:
-            error_checking.assert_is_numpy_array(
-                numpy.array(sounding_field_names), num_dimensions=1)
-
-
 def _shuffle_times(radar_file_name_matrix, sounding_file_names=None):
     """Shuffles file arrays by time.
 
-    :param radar_file_name_matrix: See doc for `_check_input_args`.
+    :param radar_file_name_matrix: See doc for `check_input_args`.
     :param sounding_file_names: Same.
     :return: radar_file_name_matrix: Same as input, but shuffled by time (along
         the first axis).
@@ -297,64 +244,6 @@ def _select_batch(
     return list_of_predictor_matrices, target_matrix
 
 
-def _read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
-    """Reads storm-centered soundings to match with storm-centered radar images.
-
-    :param sounding_file_name: See doc for `_read_input_files_2d`.
-    :param sounding_field_names: Same.
-    :param radar_image_dict: Dictionary created by
-        `storm_images.read_storm_images_and_labels`, for the same file time as
-        the sounding file.
-    :return: example_dict: Dictionary with the following keys.
-    example_dict['storm_ids']: length-E list of storm IDs.
-    example_dict['storm_times_unix_sec']: length-E numpy array of storm times.
-    example_dict['target_values']: length-E numpy array of target values (class
-        integers).
-    example_dict['sounding_matrix']: numpy array (E x H_s x F_s) of soundings.
-    example_dict['sounding_field_names']: list (length F_s) with names of
-        sounding fields.
-    """
-
-    sounding_dict, _ = soundings_only.read_soundings(
-        netcdf_file_name=sounding_file_name,
-        pressureless_field_names_to_keep=sounding_field_names,
-        storm_ids_to_keep=radar_image_dict[storm_images.STORM_IDS_KEY],
-        init_times_to_keep_unix_sec=radar_image_dict[
-            storm_images.VALID_TIMES_KEY])
-
-    storm_ids = sounding_dict[soundings_only.STORM_IDS_KEY]
-    num_storm_objects = len(storm_ids)
-    if num_storm_objects == 0:
-        return None
-
-    storm_times_unix_sec = sounding_dict[
-        soundings_only.INITIAL_TIMES_KEY]
-    sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
-    if sounding_field_names is None:
-        sounding_field_names = sounding_dict[
-            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
-
-    radar_image_dict[storm_images.STORM_IDS_KEY] = numpy.array(
-        radar_image_dict[storm_images.STORM_IDS_KEY])
-    target_values = numpy.full(num_storm_objects, -1, dtype=int)
-
-    for i in range(num_storm_objects):
-        this_index = numpy.where(
-            numpy.logical_and(
-                radar_image_dict[storm_images.STORM_IDS_KEY] == storm_ids[i],
-                radar_image_dict[storm_images.VALID_TIMES_KEY] ==
-                storm_times_unix_sec[i])
-        )[0][0]
-        target_values[i] = radar_image_dict[
-            storm_images.LABEL_VALUES_KEY][this_index]
-
-    return {
-        STORM_IDS_KEY: storm_ids, STORM_TIMES_KEY: storm_times_unix_sec,
-        TARGET_VALUES_KEY: target_values, SOUNDING_MATRIX_KEY: sounding_matrix,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names
-    }
-
-
 def _read_input_files_2d(
         radar_file_names, top_target_directory_name, target_name,
         num_examples_left_by_class_dict, sounding_file_name=None,
@@ -419,7 +308,7 @@ def _read_input_files_2d(
         storm_times_to_keep_unix_sec = this_radar_image_dict[
             storm_images.VALID_TIMES_KEY]
     else:
-        sounding_dict = _read_soundings(
+        sounding_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
@@ -508,7 +397,7 @@ def _read_input_files_3d(
         storm_times_to_keep_unix_sec = this_radar_image_dict[
             storm_images.VALID_TIMES_KEY]
     else:
-        sounding_dict = _read_soundings(
+        sounding_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
@@ -617,7 +506,7 @@ def _read_input_files_2d3d(
         storm_times_to_keep_unix_sec = this_radar_image_dict[
             storm_images.VALID_TIMES_KEY]
     else:
-        sounding_dict = _read_soundings(
+        sounding_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
@@ -667,6 +556,59 @@ def _read_input_files_2d3d(
         SOUNDING_MATRIX_KEY: sounding_matrix,
         SOUNDING_FIELD_NAMES_KEY: sounding_field_names
     }
+
+
+def check_input_args(
+        num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
+        radar_file_name_matrix, num_radar_dimensions, binarize_target,
+        sounding_file_names=None, sounding_field_names=None):
+    """Error-checking of input arguments to generator.
+
+    T = number of storm times (initial times, not valid times)
+
+    :param num_examples_per_batch: Number of examples (storm objects) per batch.
+    :param num_examples_per_file_time: Number of examples (storm objects) per
+        file.  If each file contains one time step (SPC date), this will be
+        number of examples per time step (SPC date).
+    :param normalize_by_batch: Used to normalize radar images (see doc for
+        `deep_learning_utils.normalize_predictor_matrix`).
+    :param radar_file_name_matrix: numpy array of paths to radar files.
+        Should be created by `find_2d_input_files` or `find_3d_input_files`, and
+        the length of the first axis should be T.
+    :param num_radar_dimensions: Number of radar dimensions.  This should be the
+        number of dimensions in `radar_file_name_matrix`.
+    :param binarize_target: See doc for `_select_batch`.
+    :param sounding_file_names: [optional]
+        length-T list of paths to sounding files.  Should be created by
+        `find_sounding_files`.
+    :param sounding_field_names:
+        [used only if `sounding_file_names is not None`]
+        1-D list with names of sounding fields (pressureless fields) to use.  If
+        `sounding_field_names is None`, will use all sounding fields.
+    """
+
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 10)
+    error_checking.assert_is_integer(num_examples_per_file_time)
+    error_checking.assert_is_geq(num_examples_per_file_time, 2)
+    error_checking.assert_is_boolean(normalize_by_batch)
+    error_checking.assert_is_boolean(binarize_target)
+
+    error_checking.assert_is_integer(num_radar_dimensions)
+    error_checking.assert_is_geq(num_radar_dimensions, 2)
+    error_checking.assert_is_leq(num_radar_dimensions, 3)
+    error_checking.assert_is_numpy_array(
+        radar_file_name_matrix, num_dimensions=num_radar_dimensions)
+
+    if sounding_file_names is not None:
+        num_init_times = radar_file_name_matrix.shape[0]
+        error_checking.assert_is_numpy_array(
+            numpy.array(sounding_file_names),
+            exact_dimensions=numpy.array([num_init_times]))
+
+        if sounding_field_names is not None:
+            error_checking.assert_is_numpy_array(
+                numpy.array(sounding_field_names), num_dimensions=1)
 
 
 def remove_storms_with_undefined_target(storm_image_dict):
@@ -925,6 +867,72 @@ def find_radar_files_3d(
     return radar_file_name_matrix, image_times_unix_sec
 
 
+def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
+    """Reads storm-centered soundings to match with storm-centered radar images.
+
+    :param sounding_file_name: See doc for `_read_input_files_2d`.
+    :param sounding_field_names: Same.
+    :param radar_image_dict: Dictionary created by
+        `storm_images.read_storm_images_and_labels`, for the same file time as
+        the sounding file.
+    :return: example_dict: Dictionary with the following keys.
+    example_dict['storm_ids']: length-E list of storm IDs.
+    example_dict['storm_times_unix_sec']: length-E numpy array of storm times.
+    example_dict['target_values']: length-E numpy array of target values (class
+        integers).
+    example_dict['sounding_matrix']: numpy array (E x H_s x F_s) of soundings.
+    example_dict['sounding_field_names']: list (length F_s) with names of
+        sounding fields.
+    """
+
+    print 'Reading data from: "{0:s}"...'.format(sounding_file_name)
+    sounding_dict, _ = soundings_only.read_soundings(
+        netcdf_file_name=sounding_file_name,
+        pressureless_field_names_to_keep=sounding_field_names,
+        storm_ids_to_keep=radar_image_dict[storm_images.STORM_IDS_KEY],
+        init_times_to_keep_unix_sec=radar_image_dict[
+            storm_images.VALID_TIMES_KEY])
+
+    storm_ids = sounding_dict[soundings_only.STORM_IDS_KEY]
+    num_storm_objects = len(storm_ids)
+    if num_storm_objects == 0:
+        return None
+
+    storm_times_unix_sec = sounding_dict[
+        soundings_only.INITIAL_TIMES_KEY]
+    sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
+    if sounding_field_names is None:
+        sounding_field_names = sounding_dict[
+            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+
+    radar_image_dict[storm_images.STORM_IDS_KEY] = numpy.array(
+        radar_image_dict[storm_images.STORM_IDS_KEY])
+
+    return_target = storm_images.LABEL_VALUES_KEY in radar_image_dict
+    if return_target:
+        target_values = numpy.full(num_storm_objects, -1, dtype=int)
+    else:
+        target_values = None
+
+    for i in range(num_storm_objects):
+        this_index = numpy.where(
+            numpy.logical_and(
+                radar_image_dict[storm_images.STORM_IDS_KEY] == storm_ids[i],
+                radar_image_dict[storm_images.VALID_TIMES_KEY] ==
+                storm_times_unix_sec[i])
+        )[0][0]
+
+        if return_target:
+            target_values[i] = radar_image_dict[
+                storm_images.LABEL_VALUES_KEY][this_index]
+
+    return {
+        STORM_IDS_KEY: storm_ids, STORM_TIMES_KEY: storm_times_unix_sec,
+        TARGET_VALUES_KEY: target_values, SOUNDING_MATRIX_KEY: sounding_matrix,
+        SOUNDING_FIELD_NAMES_KEY: sounding_field_names
+    }
+
+
 def storm_image_generator_2d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
@@ -944,7 +952,7 @@ def storm_image_generator_2d(
     :param top_target_directory_name: Name of top-level directory with target
         values (storm-hazard labels).  Files within this directory should be
         findable by `labels.find_label_file`.
-    :param num_examples_per_batch: See doc for `_check_input_args`.
+    :param num_examples_per_batch: See doc for `check_input_args`.
     :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
     :param binarize_target: See doc for `_select_batch`.
@@ -980,7 +988,7 @@ def storm_image_generator_2d(
     :return: target_matrix: See documentation above.
     """
 
-    _check_input_args(
+    check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False,
@@ -1188,7 +1196,7 @@ def storm_image_generator_3d(
     :return: target_matrix: See documentation above.
     """
 
-    _check_input_args(
+    check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False,
@@ -1408,7 +1416,7 @@ def storm_image_generator_2d3d_myrorss(
     :return: target_matrix: See output doc for `storm_image_generator_2d`.
     """
 
-    _check_input_args(
+    check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False,
