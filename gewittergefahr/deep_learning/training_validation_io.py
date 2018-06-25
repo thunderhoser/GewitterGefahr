@@ -1402,6 +1402,9 @@ def storm_image_generator_3d(
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:
+            if numpy.any(numpy.isnan(full_sounding_matrix)):
+                print ('BIG PROBLEM.  Found NaN in sounding matrix before '
+                       'normalization.')
             full_sounding_matrix = dl_utils.normalize_soundings(
                 sounding_matrix=full_sounding_matrix,
                 pressureless_field_names=sounding_field_names,
