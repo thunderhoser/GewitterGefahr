@@ -624,6 +624,8 @@ def normalize_soundings(
 
             normalization_ratios = (
                 normalized_wind_speeds_m_s01 / wind_speeds_m_s01)
+            normalization_ratios[numpy.isnan(normalization_ratios)] = 0.
+
             sounding_matrix[..., u_wind_index] = (
                 sounding_matrix[..., u_wind_index] * normalization_ratios)
             sounding_matrix[..., v_wind_index] = (
