@@ -948,6 +948,10 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     if not len(sounding_dict[soundings_only.STORM_IDS_KEY]):
         return None, None
 
+    if numpy.any(numpy.isnan(sounding_dict[soundings_only.SOUNDING_MATRIX_KEY])):
+        print 'BIG PROBLEM.  Found NaN in sounding matrix from "{0:s}".'.format(
+            sounding_file_name)
+
     orig_storm_ids_as_numpy_array = numpy.array(
         radar_image_dict[storm_images.STORM_IDS_KEY])
     orig_storm_times_unix_sec = radar_image_dict[
