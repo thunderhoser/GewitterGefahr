@@ -433,8 +433,13 @@ def _read_input_files_3d(
             tuple_of_3d_image_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
-        tuple_of_4d_image_matrices += (
-            dl_utils.stack_predictor_variables(tuple_of_3d_image_matrices),)
+        try:
+            tuple_of_4d_image_matrices += (
+                dl_utils.stack_predictor_variables(tuple_of_3d_image_matrices),)
+        except:
+            for this_matrix in tuple_of_3d_image_matrices:
+                print this_matrix.shape
+            raise
 
     return {
         RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_heights(
