@@ -407,6 +407,12 @@ def _read_input_files_3d(
         sounding_field_names = sounding_dict[
             soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
 
+        if numpy.any(numpy.isnan(sounding_matrix)):
+            print (
+                'BIG PROBLEM.  Found NaN in sounding matrix before '
+                'normalization (file = "{0:s}").'
+            ).format(sounding_file_name)
+
     target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
     storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
     storm_times_to_keep_unix_sec = this_radar_image_dict[
@@ -431,13 +437,8 @@ def _read_input_files_3d(
             tuple_of_3d_image_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
-        try:
-            tuple_of_4d_image_matrices += (
-                dl_utils.stack_predictor_variables(tuple_of_3d_image_matrices),)
-        except:
-            for this_matrix in tuple_of_3d_image_matrices:
-                print this_matrix.shape
-            raise
+        tuple_of_4d_image_matrices += (
+            dl_utils.stack_predictor_variables(tuple_of_3d_image_matrices),)
 
     return {
         RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_heights(
@@ -948,10 +949,6 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     if not len(sounding_dict[soundings_only.STORM_IDS_KEY]):
         return None, None
 
-    if numpy.any(numpy.isnan(sounding_dict[soundings_only.SOUNDING_MATRIX_KEY])):
-        print 'BIG PROBLEM.  Found NaN in sounding matrix from "{0:s}".'.format(
-            sounding_file_name)
-
     orig_storm_ids_as_numpy_array = numpy.array(
         radar_image_dict[storm_images.STORM_IDS_KEY])
     orig_storm_times_unix_sec = radar_image_dict[
@@ -1409,6 +1406,9 @@ def storm_image_generator_3d(
                 sounding_matrix=full_sounding_matrix,
                 pressureless_field_names=sounding_field_names,
                 normalization_dict=sounding_normalization_dict)
+            if numpy.any(numpy.isnan(full_sounding_matrix)):
+                print ('BIG PROBLEM.  Found NaN in sounding matrix after '
+                       'normalization.')
 
         list_of_predictor_matrices, target_matrix = _select_batch(
             list_of_predictor_matrices=[
@@ -1419,6 +1419,11 @@ def storm_image_generator_3d(
 
         radar_image_matrix = list_of_predictor_matrices[0]
         sounding_matrix = list_of_predictor_matrices[1]
+
+        if sounding_file_names is not None:
+            if numpy.any(numpy.isnan(sounding_matrix)):
+                print ('BIG PROBLEM.  Found NaN in sounding matrix after '
+                       'batch selection.')
 
         # Update housekeeping variables.
         num_file_times_in_memory = 0
