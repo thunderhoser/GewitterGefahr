@@ -30,7 +30,8 @@ def create_storm_images_2d(
         radar_file_name_matrix, return_target=True, target_name=None,
         binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        sounding_file_names=None, sounding_field_names=None,
+        sounding_field_names=None, top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Creates examples with 2-D radar images.
@@ -56,11 +57,12 @@ def create_storm_images_2d(
         `labels.find_label_file`.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
-    :param sounding_file_names: length-T list of paths to sounding files.  Each
-        should be readable by `soundings_only.read_soundings`.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
+    :param top_sounding_dir_name: See doc for
+        `training_validation_io.find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
     :return: radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
@@ -74,13 +76,20 @@ def create_storm_images_2d(
 
     error_checking.assert_is_boolean(return_target)
     trainval_io.check_input_args(
-        num_examples_per_batch=100,
-        num_examples_per_file_time=10,
-        normalize_by_batch=False,
-        radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=2,
-        binarize_target=binarize_target,
-        sounding_file_names=sounding_file_names,
+        num_examples_per_batch=100, num_examples_per_file_time=10,
+        normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
+        num_radar_dimensions=2, binarize_target=binarize_target,
         sounding_field_names=sounding_field_names)
+
+    if sounding_field_names is None:
+        sounding_file_names = None
+    else:
+        sounding_file_names = trainval_io.find_sounding_files(
+            top_sounding_dir_name=top_sounding_dir_name,
+            radar_file_name_matrix=radar_file_name_matrix,
+            target_name=target_name,
+            lag_time_for_convective_contamination_sec=
+            sounding_lag_time_for_convective_contamination_sec)
 
     num_channels = radar_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
@@ -207,7 +216,8 @@ def create_storm_images_3d(
         radar_file_name_matrix, return_target=True, target_name=None,
         binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        sounding_file_names=None, sounding_field_names=None,
+        sounding_field_names=None, top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Creates examples with 3-D radar images.
@@ -226,9 +236,14 @@ def create_storm_images_3d(
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
     :param radar_normalization_dict: Same.
-    :param sounding_file_names: Same.
-    :param sounding_field_names: Same.
-    :param sounding_normalization_dict: Same.
+    :param sounding_field_names: list (length F_s) with names of sounding
+        fields.  Each must be accepted by
+        `soundings_only.check_pressureless_field_name`.
+    :param top_sounding_dir_name: See doc for
+        `training_validation_io.find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param sounding_normalization_dict: Used to normalize soundings (see doc for
+        `deep_learning_utils.normalize_sounding_matrix`).
     :return: radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
         centered radar images.
     :return: sounding_matrix: See doc for `create_storm_images_2d`.
@@ -237,13 +252,20 @@ def create_storm_images_3d(
 
     error_checking.assert_is_boolean(return_target)
     trainval_io.check_input_args(
-        num_examples_per_batch=100,
-        num_examples_per_file_time=10,
-        normalize_by_batch=False,
-        radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=3,
-        binarize_target=binarize_target,
-        sounding_file_names=sounding_file_names,
+        num_examples_per_batch=100, num_examples_per_file_time=10,
+        normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
+        num_radar_dimensions=3, binarize_target=binarize_target,
         sounding_field_names=sounding_field_names)
+
+    if sounding_field_names is None:
+        sounding_file_names = None
+    else:
+        sounding_file_names = trainval_io.find_sounding_files(
+            top_sounding_dir_name=top_sounding_dir_name,
+            radar_file_name_matrix=radar_file_name_matrix,
+            target_name=target_name,
+            lag_time_for_convective_contamination_sec=
+            sounding_lag_time_for_convective_contamination_sec)
 
     num_fields = radar_file_name_matrix.shape[1]
     radar_field_names = [''] * num_fields
@@ -377,7 +399,8 @@ def create_storm_images_2d3d_myrorss(
         radar_file_name_matrix, return_target=True, target_name=None,
         binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        sounding_file_names=None, sounding_field_names=None,
+        sounding_field_names=None, top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Creates examples with 2-D and 3-D radar images.
@@ -405,9 +428,14 @@ def create_storm_images_2d3d_myrorss(
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
     :param radar_normalization_dict: Same.
-    :param sounding_file_names: Same.
-    :param sounding_field_names: Same.
-    :param sounding_normalization_dict: Same.
+    :param sounding_field_names: list (length F_s) with names of sounding
+        fields.  Each must be accepted by
+        `soundings_only.check_pressureless_field_name`.
+    :param top_sounding_dir_name: See doc for
+        `training_validation_io.find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param sounding_normalization_dict: Used to normalize soundings (see doc for
+        `deep_learning_utils.normalize_sounding_matrix`).
     :return: reflectivity_image_matrix_dbz: numpy array (E x m x n x H_r x 1) of
         storm-centered radar images.
     :return: azimuthal_shear_image_matrix_s01: numpy array (E x M x N x F_a) of
@@ -418,13 +446,20 @@ def create_storm_images_2d3d_myrorss(
 
     error_checking.assert_is_boolean(return_target)
     trainval_io.check_input_args(
-        num_examples_per_batch=100,
-        num_examples_per_file_time=10,
-        normalize_by_batch=False,
-        radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=2,
-        binarize_target=binarize_target,
-        sounding_file_names=sounding_file_names,
+        num_examples_per_batch=100, num_examples_per_file_time=10,
+        normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
+        num_radar_dimensions=2, binarize_target=binarize_target,
         sounding_field_names=sounding_field_names)
+
+    if sounding_field_names is None:
+        sounding_file_names = None
+    else:
+        sounding_file_names = trainval_io.find_sounding_files(
+            top_sounding_dir_name=top_sounding_dir_name,
+            radar_file_name_matrix=radar_file_name_matrix,
+            target_name=target_name,
+            lag_time_for_convective_contamination_sec=
+            sounding_lag_time_for_convective_contamination_sec)
 
     (reflectivity_file_name_matrix, az_shear_file_name_matrix
     ) = trainval_io.separate_radar_files_2d3d(

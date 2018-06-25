@@ -70,23 +70,25 @@ RADAR_FIELD_NAMES_KEY = 'radar_field_names'
 RADAR_NORMALIZATION_DICT_KEY = 'radar_normalization_dict'
 RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
 REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
-SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
-SOUNDING_NORMALIZATION_DICT_KEY = 'sounding_normalization_dict'
 TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
 VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 FIRST_VALIDATION_TIME_KEY = 'first_validn_time_unix_sec'
 LAST_VALIDATION_TIME_KEY = 'last_validn_time_unix_sec'
+SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
+SOUNDING_NORMALIZATION_DICT_KEY = 'sounding_normalization_dict'
+SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
 
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
     NUM_TRAINING_BATCHES_KEY, FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
     WEIGHT_LOSS_FUNCTION_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
     RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY, RADAR_NORMALIZATION_DICT_KEY,
-    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY, SOUNDING_FIELD_NAMES_KEY,
-    SOUNDING_NORMALIZATION_DICT_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
+    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
     VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
-    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY
+    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY,
+    SOUNDING_FIELD_NAMES_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
+    SOUNDING_LAG_TIME_KEY
 ]
 
 
@@ -841,11 +843,12 @@ def write_model_metadata(
         first_train_time_unix_sec, last_train_time_unix_sec,
         weight_loss_function, target_name, binarize_target, radar_source,
         radar_field_names, radar_normalization_dict, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, sounding_field_names=None,
-        sounding_normalization_dict=None, training_fraction_by_class_dict=None,
+        reflectivity_heights_m_asl=None, training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
-        last_validn_time_unix_sec=None):
+        last_validn_time_unix_sec=None, sounding_field_names=None,
+        sounding_normalization_dict=None,
+        sounding_lag_time_for_convective_contamination_sec=None):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
@@ -875,11 +878,6 @@ def write_model_metadata(
     :param reflectivity_heights_m_asl: [needed only if CNN does 2-D convolution]
         1-D numpy array of heights (metres above sea level), which apply only to
         "reflectivity_dbz".
-    :param sounding_field_names: [needed only if CNN takes soundings]
-        1-D list with names of sounding fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
-    :param sounding_normalization_dict: Used to normalize soundings (see
-        `deep_learning_utils.normalize_sounding_matrix` for details).
     :param training_fraction_by_class_dict: Used to sample training data (see
         `training_validation_io.storm_image_generator_2d` for details).
     :param validation_fraction_by_class_dict:
@@ -894,6 +892,13 @@ def write_model_metadata(
     :param last_validn_time_unix_sec:
         [needed only if CNN did validation on the fly]
         Last file time in validation period.
+    :param sounding_field_names: [needed only if CNN takes soundings]
+        1-D list with names of sounding fields.  Each must be accepted by
+        `soundings_only.check_pressureless_field_name`.
+    :param sounding_normalization_dict: Used to normalize soundings (see
+        `deep_learning_utils.normalize_sounding_matrix` for details).
+    :param sounding_lag_time_for_convective_contamination_sec: See doc for
+        `training_validation_io.find_sounding_files`.
     """
 
     model_metadata_dict = {
@@ -911,13 +916,15 @@ def write_model_metadata(
         RADAR_NORMALIZATION_DICT_KEY: radar_normalization_dict,
         RADAR_HEIGHTS_KEY: radar_heights_m_asl,
         REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
-        SOUNDING_NORMALIZATION_DICT_KEY: sounding_normalization_dict,
         TRAINING_FRACTION_BY_CLASS_KEY: training_fraction_by_class_dict,
         VALIDATION_FRACTION_BY_CLASS_KEY: validation_fraction_by_class_dict,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         FIRST_VALIDATION_TIME_KEY: first_validn_time_unix_sec,
-        LAST_VALIDATION_TIME_KEY: last_validn_time_unix_sec
+        LAST_VALIDATION_TIME_KEY: last_validn_time_unix_sec,
+        SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
+        SOUNDING_NORMALIZATION_DICT_KEY: sounding_normalization_dict,
+        SOUNDING_LAG_TIME_KEY:
+            sounding_lag_time_for_convective_contamination_sec
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -960,11 +967,11 @@ def train_2d_cnn(
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
         target_name, top_target_directory_name, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
-        sounding_field_names=None, sounding_file_names_for_training=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
-        radar_file_name_matrix_for_validn=None,
-        sounding_file_names_for_validn=None):
+        radar_file_name_matrix_for_validn=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None):
     """Trains CNN with 2-D radar images.
 
     T = number of storm times (initial times) for training
@@ -990,11 +997,6 @@ def train_2d_cnn(
     :param binarize_target: See doc for `_check_training_args`.
     :param weight_loss_function: See doc for `_check_training_args`.
     :param training_fraction_by_class_dict: See doc for `_check_training_args`.
-    :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
-    :param sounding_file_names_for_training: length-T list of paths to sounding
-        files.  Each should be readable by `soundings_only.read_soundings`.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param validation_fraction_by_class_dict: Same as
@@ -1002,8 +1004,12 @@ def train_2d_cnn(
     :param radar_file_name_matrix_for_validn: V-by-C numpy array of paths to
         radar files.  Should be created by
         `training_validation_io.find_radar_files_2d`.
-    :param sounding_file_names_for_validn: length-V list of paths to sounding
-        files.  Each should be readable by `soundings_only.read_soundings`.
+    :param sounding_field_names: list (length F_s) with names of sounding
+        fields.  Each must be accepted by
+        `soundings_only.check_pressureless_field_name`.
+    :param top_sounding_dir_name: See doc for
+        `training_validation_io.find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
     """
 
     loss_function_weight_by_class_dict = _check_training_args(
@@ -1043,8 +1049,10 @@ def train_2d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_training,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
@@ -1062,8 +1070,10 @@ def train_2d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_training,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
@@ -1075,8 +1085,10 @@ def train_2d_cnn(
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_validn,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             validation_steps=num_validation_batches_per_epoch)
 
 
@@ -1086,11 +1098,11 @@ def train_3d_cnn(
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
         target_name, top_target_directory_name, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
-        sounding_field_names=None, sounding_file_names_for_training=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
-        radar_file_name_matrix_for_validn=None,
-        sounding_file_names_for_validn=None):
+        radar_file_name_matrix_for_validn=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None):
     """Trains CNN with 3-D radar images.
 
     T = number of storm times (initial times) for training
@@ -1112,14 +1124,14 @@ def train_3d_cnn(
     :param binarize_target: Same.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
-    :param sounding_field_names: Same.
-    :param sounding_file_names_for_training: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_fraction_by_class_dict: Same.
     :param radar_file_name_matrix_for_validn: V-by-F-by-H numpy array of paths
         to radar files.  Should be created by
         `training_validation_io.find_radar_files_3d`.
-    :param sounding_file_names_for_validn: See doc for `train_2d_cnn`.
+    :param sounding_field_names: See doc for `train_2d_cnn`.
+    :param top_sounding_dir_name: Same.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
     """
 
     loss_function_weight_by_class_dict = _check_training_args(
@@ -1159,8 +1171,10 @@ def train_3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_training,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
@@ -1178,8 +1192,10 @@ def train_3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_training,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
@@ -1191,8 +1207,10 @@ def train_3d_cnn(
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_validn,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             validation_steps=num_validation_batches_per_epoch)
 
 
@@ -1202,11 +1220,11 @@ def train_2d3d_cnn(
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
         target_name, top_target_directory_name, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
-        sounding_field_names=None, sounding_file_names_for_training=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
-        radar_file_name_matrix_for_validn=None,
-        sounding_file_names_for_validn=None):
+        radar_file_name_matrix_for_validn=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None):
     """Trains CNN with 2-D azimuthal-shear images and 3-D reflectivity images.
 
     T = number of storm times (initial times) for training
@@ -1229,13 +1247,13 @@ def train_2d3d_cnn(
     :param binarize_target: Same.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
-    :param sounding_field_names: Same.
-    :param sounding_file_names_for_training: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_fraction_by_class_dict: Same.
     :param radar_file_name_matrix_for_validn: numpy array (V x [H_r + F_a]) of
         paths to image files.  This should be created by `find_radar_files_2d`.
-    :param sounding_file_names_for_validn: See doc for `train_2d_cnn`.
+    :param sounding_field_names: See doc for `train_2d_cnn`.
+    :param top_sounding_dir_name: Same.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
     """
 
     loss_function_weight_by_class_dict = _check_training_args(
@@ -1275,8 +1293,10 @@ def train_2d3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_training,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
@@ -1294,8 +1314,10 @@ def train_2d3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_training,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
@@ -1307,6 +1329,8 @@ def train_2d3d_cnn(
                 target_name=target_name, binarize_target=binarize_target,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
-                sounding_file_names=sounding_file_names_for_validn,
-                sounding_field_names=sounding_field_names),
+                sounding_field_names=sounding_field_names,
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                sounding_lag_time_for_convective_contamination_sec),
             validation_steps=num_validation_batches_per_epoch)

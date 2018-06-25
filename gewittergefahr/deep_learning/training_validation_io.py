@@ -561,7 +561,7 @@ def _read_input_files_2d3d(
 def check_input_args(
         num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
         radar_file_name_matrix, num_radar_dimensions, binarize_target,
-        sounding_file_names=None, sounding_field_names=None):
+        sounding_field_names=None):
     """Error-checking of input arguments to generator.
 
     T = number of storm times (initial times, not valid times)
@@ -578,11 +578,7 @@ def check_input_args(
     :param num_radar_dimensions: Number of radar dimensions.  This should be the
         number of dimensions in `radar_file_name_matrix`.
     :param binarize_target: See doc for `_select_batch`.
-    :param sounding_file_names: [optional]
-        length-T list of paths to sounding files.  Should be created by
-        `find_sounding_files`.
-    :param sounding_field_names:
-        [used only if `sounding_file_names is not None`]
+    :param sounding_field_names: [optional]
         1-D list with names of sounding fields (pressureless fields) to use.  If
         `sounding_field_names is None`, will use all sounding fields.
     """
@@ -600,15 +596,9 @@ def check_input_args(
     error_checking.assert_is_numpy_array(
         radar_file_name_matrix, num_dimensions=num_radar_dimensions)
 
-    if sounding_file_names is not None:
-        num_init_times = radar_file_name_matrix.shape[0]
+    if sounding_field_names is not None:
         error_checking.assert_is_numpy_array(
-            numpy.array(sounding_file_names),
-            exact_dimensions=numpy.array([num_init_times]))
-
-        if sounding_field_names is not None:
-            error_checking.assert_is_numpy_array(
-                numpy.array(sounding_field_names), num_dimensions=1)
+            numpy.array(sounding_field_names), num_dimensions=1)
 
 
 def remove_storms_with_undefined_target(storm_image_dict):
@@ -867,6 +857,62 @@ def find_radar_files_3d(
     return radar_file_name_matrix, image_times_unix_sec
 
 
+def find_sounding_files(
+        top_sounding_dir_name, radar_file_name_matrix, target_name,
+        lag_time_for_convective_contamination_sec):
+    """Finds sounding file for each radar time.
+
+    :param top_sounding_dir_name: Name of top-level directory with sounding
+        files, findable by `soundings_only.find_sounding_file`.
+    :param radar_file_name_matrix: numpy array created by either
+        `find_radar_files_2d` or `find_radar_files_3d`.  Length of the first
+        axis is T.
+    :param target_name: Name of target variable.
+    :param lag_time_for_convective_contamination_sec: See doc for
+        `soundings_only.interp_soundings_to_storm_objects`.
+    :return: sounding_file_names: length-T list of paths to files with storm-
+        centered soundings.
+    """
+
+    error_checking.assert_is_numpy_array(radar_file_name_matrix)
+    num_radar_dimensions = len(radar_file_name_matrix.shape)
+    error_checking.assert_is_geq(num_radar_dimensions, 2)
+    error_checking.assert_is_leq(num_radar_dimensions, 3)
+
+    target_param_dict = labels.column_name_to_label_params(target_name)
+    min_lead_time_sec = target_param_dict[labels.MIN_LEAD_TIME_KEY]
+    max_lead_time_sec = target_param_dict[labels.MAX_LEAD_TIME_KEY]
+    mean_lead_time_sec = numpy.mean(
+        numpy.array([min_lead_time_sec, max_lead_time_sec], dtype=float))
+    mean_lead_time_sec = int(numpy.round(mean_lead_time_sec))
+
+    print (
+        'For each radar time, finding sounding file with lead time = {0:d} sec '
+        'and lag time (for convective contamination) = {1:d} sec...'
+    ).format(mean_lead_time_sec, lag_time_for_convective_contamination_sec)
+
+    num_radar_times = radar_file_name_matrix.shape[0]
+    sounding_file_names = [''] * num_radar_times
+
+    for i in range(num_radar_times):
+        if num_radar_dimensions == 2:
+            this_file_name = radar_file_name_matrix[i, 0]
+        else:
+            this_file_name = radar_file_name_matrix[i, 0, 0]
+
+        this_time_unix_sec, this_spc_date_string = (
+            storm_images.image_file_name_to_time(this_file_name))
+        sounding_file_names[i] = soundings_only.find_sounding_file(
+            top_directory_name=top_sounding_dir_name,
+            spc_date_string=this_spc_date_string,
+            lead_time_seconds=mean_lead_time_sec,
+            lag_time_for_convective_contamination_sec=
+            lag_time_for_convective_contamination_sec,
+            init_time_unix_sec=this_time_unix_sec, raise_error_if_missing=True)
+
+    return sounding_file_names
+
+
 def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     """Reads storm-centered soundings to match with storm-centered radar images.
 
@@ -938,8 +984,9 @@ def storm_image_generator_2d(
         num_examples_per_batch, num_examples_per_file_time, target_name,
         binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        sampling_fraction_by_class_dict=None, sounding_file_names=None,
-        sounding_field_names=None,
+        sampling_fraction_by_class_dict=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Generates examples with 2-D radar images.
@@ -962,15 +1009,15 @@ def storm_image_generator_2d(
         the integer representing a class (-2 for "dead storm") and each value is
         the corresponding sampling fraction.  Sampling fractions will be applied
         to each batch.
-    :param sounding_file_names: length-T list of paths to sounding files.  Each
-        should be readable by `soundings_only.read_soundings`.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
+    :param top_sounding_dir_name: See doc for `find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
 
-    If `sounding_file_names is None`, this method returns...
+    If `sounding_field_names is None`, this method returns...
 
     :return: radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
@@ -979,7 +1026,7 @@ def storm_image_generator_2d(
         storm object belongs to the [k]th class.  Classes are mutually exclusive
         and collectively exhaustive, so the sum across each row is 1.
 
-    If `sounding_file_names is not None`, this method returns...
+    If `sounding_field_names is not None`, this method returns...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = radar_image_matrix: See documentation above.
@@ -994,8 +1041,17 @@ def storm_image_generator_2d(
         normalize_by_batch=False,
         radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=2,
         binarize_target=binarize_target,
-        sounding_file_names=sounding_file_names,
         sounding_field_names=sounding_field_names)
+
+    if sounding_field_names is None:
+        sounding_file_names = None
+    else:
+        sounding_file_names = find_sounding_files(
+            top_sounding_dir_name=top_sounding_dir_name,
+            radar_file_name_matrix=radar_file_name_matrix,
+            target_name=target_name,
+            lag_time_for_convective_contamination_sec=
+            sounding_lag_time_for_convective_contamination_sec)
 
     num_channels = radar_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
@@ -1159,8 +1215,9 @@ def storm_image_generator_3d(
         num_examples_per_batch, num_examples_per_file_time, target_name,
         binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        sampling_fraction_by_class_dict=None, sounding_file_names=None,
-        sounding_field_names=None,
+        sampling_fraction_by_class_dict=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Generates examples with 3-D radar images.
@@ -1177,17 +1234,18 @@ def storm_image_generator_3d(
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
     :param sampling_fraction_by_class_dict: Same.
-    :param sounding_file_names: Same.
     :param sounding_field_names: Same.
-    :param sounding_normalization_dict: Same.
+    :param top_sounding_dir_name: See doc for `find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param sounding_normalization_dict: See doc for `storm_image_generator_2d`.
 
-    If `sounding_file_names is None`, this method returns...
+    If `sounding_field_names is None`, this method returns...
 
     :return: radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
         centered radar images.
     :return: target_matrix: See output doc for `storm_image_generator_2d`.
 
-    If `sounding_file_names is not None`, this method returns...
+    If `sounding_field_names is not None`, this method returns...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = radar_image_matrix: See documentation above.
@@ -1202,8 +1260,17 @@ def storm_image_generator_3d(
         normalize_by_batch=False,
         radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=3,
         binarize_target=binarize_target,
-        sounding_file_names=sounding_file_names,
         sounding_field_names=sounding_field_names)
+
+    if sounding_field_names is None:
+        sounding_file_names = None
+    else:
+        sounding_file_names = find_sounding_files(
+            top_sounding_dir_name=top_sounding_dir_name,
+            radar_file_name_matrix=radar_file_name_matrix,
+            target_name=target_name,
+            lag_time_for_convective_contamination_sec=
+            sounding_lag_time_for_convective_contamination_sec)
 
     num_fields = radar_file_name_matrix.shape[1]
     radar_field_names = [''] * num_fields
@@ -1367,8 +1434,9 @@ def storm_image_generator_2d3d_myrorss(
         num_examples_per_batch, num_examples_per_file_time, target_name,
         binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
-        sampling_fraction_by_class_dict=None, sounding_file_names=None,
-        sounding_field_names=None,
+        sampling_fraction_by_class_dict=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Generates examples with 2-D and 3-D radar images.
@@ -1392,11 +1460,12 @@ def storm_image_generator_2d3d_myrorss(
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
     :param sampling_fraction_by_class_dict: Same.
-    :param sounding_file_names: Same.
     :param sounding_field_names: Same.
-    :param sounding_normalization_dict: Same.
+    :param top_sounding_dir_name: See doc for `find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param sounding_normalization_dict: See doc for `storm_image_generator_2d`.
 
-    If `sounding_file_names is None`, this method returns...
+    If `sounding_field_names is None`, this method returns...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
@@ -1405,7 +1474,7 @@ def storm_image_generator_2d3d_myrorss(
         (E x M x N x F_a) of storm-centered azimuthal-shear images.
     :return: target_matrix: See output doc for `storm_image_generator_2d`.
 
-    If `sounding_file_names is not None`, this method returns...
+    If `sounding_field_names is not None`, this method returns...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: See documentation above.
@@ -1422,8 +1491,17 @@ def storm_image_generator_2d3d_myrorss(
         normalize_by_batch=False,
         radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=2,
         binarize_target=binarize_target,
-        sounding_file_names=sounding_file_names,
         sounding_field_names=sounding_field_names)
+
+    if sounding_field_names is None:
+        sounding_file_names = None
+    else:
+        sounding_file_names = find_sounding_files(
+            top_sounding_dir_name=top_sounding_dir_name,
+            radar_file_name_matrix=radar_file_name_matrix,
+            target_name=target_name,
+            lag_time_for_convective_contamination_sec=
+            sounding_lag_time_for_convective_contamination_sec)
 
     radar_file_name_matrix, sounding_file_names = _shuffle_times(
         radar_file_name_matrix=radar_file_name_matrix,
