@@ -162,7 +162,7 @@ def _check_architecture_args(
     if l2_weight is not None:
         error_checking.assert_is_greater(l2_weight, 0.)
 
-    if num_sounding_heights is not None or num_sounding_fields is not None:
+    if num_sounding_heights is not None and num_sounding_fields is not None:
         error_checking.assert_is_integer(num_sounding_fields)
         error_checking.assert_is_geq(num_sounding_fields, 1)
         error_checking.assert_is_integer(num_sounding_heights)
