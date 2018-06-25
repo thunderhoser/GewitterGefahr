@@ -938,7 +938,7 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     """
 
     print 'Reading data from: "{0:s}"...'.format(sounding_file_name)
-    sounding_dict, _, storm_object_kept_indices = soundings_only.read_soundings(
+    sounding_dict, _ = soundings_only.read_soundings(
         netcdf_file_name=sounding_file_name,
         pressureless_field_names_to_keep=sounding_field_names,
         storm_ids_to_keep=radar_image_dict[storm_images.STORM_IDS_KEY],
@@ -947,6 +947,26 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
 
     if not len(sounding_dict[soundings_only.STORM_IDS_KEY]):
         return None, None
+
+    orig_storm_ids_as_numpy_array = numpy.array(
+        radar_image_dict[storm_images.STORM_IDS_KEY])
+    orig_storm_times_unix_sec = radar_image_dict[
+        storm_images.VALID_TIMES_KEY] + 0
+
+    num_storm_objects_kept = len(sounding_dict[soundings_only.STORM_IDS_KEY])
+    storm_object_kept_indices = []
+
+    for i in range(num_storm_objects_kept):
+        this_index = numpy.where(numpy.logical_and(
+            orig_storm_ids_as_numpy_array ==
+            sounding_dict[soundings_only.STORM_IDS_KEY][i],
+            orig_storm_times_unix_sec ==
+            sounding_dict[soundings_only.INITIAL_TIMES_KEY][i]))[0][0]
+
+        storm_object_kept_indices.append(this_index)
+
+    storm_object_kept_indices = numpy.array(
+        storm_object_kept_indices, dtype=int)
 
     radar_image_dict[storm_images.STORM_IDS_KEY] = sounding_dict[
         soundings_only.STORM_IDS_KEY]
