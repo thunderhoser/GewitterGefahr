@@ -313,14 +313,14 @@ def _read_input_files_2d(
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
 
+        if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
+            return None
+
         storm_ids_to_keep = sounding_dict[STORM_IDS_KEY]
         storm_times_to_keep_unix_sec = sounding_dict[STORM_TIMES_KEY]
         target_values = sounding_dict[TARGET_VALUES_KEY]
         sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
         sounding_field_names = sounding_dict[SOUNDING_FIELD_NAMES_KEY]
-
-        if not len(storm_ids_to_keep):
-            return None
 
     num_channels = len(radar_file_names)
     tuple_of_image_matrices = ()
@@ -405,14 +405,14 @@ def _read_input_files_3d(
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
 
+        if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
+            return None
+
         storm_ids_to_keep = sounding_dict[STORM_IDS_KEY]
         storm_times_to_keep_unix_sec = sounding_dict[STORM_TIMES_KEY]
         target_values = sounding_dict[TARGET_VALUES_KEY]
         sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
         sounding_field_names = sounding_dict[SOUNDING_FIELD_NAMES_KEY]
-
-        if not len(storm_ids_to_keep):
-            return None
 
     num_radar_fields = radar_file_name_matrix.shape[0]
     num_radar_heights = radar_file_name_matrix.shape[1]
@@ -517,14 +517,14 @@ def _read_input_files_2d3d(
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
 
+        if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
+            return None
+
         storm_ids_to_keep = sounding_dict[STORM_IDS_KEY]
         storm_times_to_keep_unix_sec = sounding_dict[STORM_TIMES_KEY]
         target_values = sounding_dict[TARGET_VALUES_KEY]
         sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
         sounding_field_names = sounding_dict[SOUNDING_FIELD_NAMES_KEY]
-
-        if not len(storm_ids_to_keep):
-            return None
 
     num_reflectivity_heights = len(reflectivity_file_names)
     tuple_of_4d_refl_matrices = ()
