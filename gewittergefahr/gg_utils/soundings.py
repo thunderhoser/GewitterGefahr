@@ -24,12 +24,14 @@ from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): This module needs a major overhaul.
+
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 LEAD_TIME_COLUMN = 'lead_time_seconds'
 DEFAULT_LEAD_TIMES_SEC = numpy.array([0], dtype=int)
 
-TEMPORAL_INTERP_METHOD = interp.PREVIOUS_INTERP_METHOD
-SPATIAL_INTERP_METHOD = interp.NEAREST_INTERP_METHOD
+TEMPORAL_INTERP_METHOD = interp.PREV_NEIGHBOUR_METHOD_STRING
+SPATIAL_INTERP_METHOD = interp.NEAREST_NEIGHBOUR_METHOD_STRING
 STORM_COLUMNS_TO_KEEP = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
 
