@@ -437,7 +437,7 @@ def create_storm_images_2d3d_myrorss(
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
     :return: reflectivity_image_matrix_dbz: numpy array (E x m x n x H_r x 1) of
-        storm-centered radar images.
+        storm-centered reflectivity images.
     :return: azimuthal_shear_image_matrix_s01: numpy array (E x M x N x F_a) of
         storm-centered azimuthal-shear images.
     :return: sounding_matrix: See doc for `create_storm_images_2d`.

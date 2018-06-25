@@ -1334,3 +1334,101 @@ def train_2d3d_cnn(
                 sounding_lag_time_for_convective_contamination_sec=
                 sounding_lag_time_for_convective_contamination_sec),
             validation_steps=num_validation_batches_per_epoch)
+
+
+def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None):
+    """Applies CNN to 2-D radar images.
+
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
+        radar images.
+    :param sounding_matrix: [may be None]
+        numpy array (E x H_s x F_s) of storm-centered soundings.
+    :return: class_probability_matrix: E-by-K numpy array of class
+        probabilities.  class_probability_matrix[i, k] is the forecast
+        probability that the [i]th storm object belongs to the [k]th class.
+        Classes are mutually exclusive and collectively exhaustive, so the sum
+        across each row is 1.
+    """
+
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=radar_image_matrix, min_num_dimensions=4,
+        max_num_dimensions=4)
+
+    num_examples = radar_image_matrix.shape[0]
+    if sounding_matrix is None:
+        return model_object.predict(radar_image_matrix, batch_size=num_examples)
+
+    dl_utils.check_sounding_matrix(
+        sounding_matrix=sounding_matrix, num_examples=num_examples)
+    return model_object.predict(
+        [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+
+
+def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None):
+    """Applies CNN to 3-D radar images.
+
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
+        centered radar images.
+    :param sounding_matrix: See doc for `apply_2d_cnn`.
+    :return: class_probability_matrix: Same.
+    """
+
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=radar_image_matrix, min_num_dimensions=5,
+        max_num_dimensions=5)
+
+    num_examples = radar_image_matrix.shape[0]
+    if sounding_matrix is None:
+        return model_object.predict(radar_image_matrix, batch_size=num_examples)
+
+    dl_utils.check_sounding_matrix(
+        sounding_matrix=sounding_matrix, num_examples=num_examples)
+    return model_object.predict(
+        [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+
+
+def apply_2d3d_cnn(
+        model_object, reflectivity_image_matrix_dbz,
+        azimuthal_shear_image_matrix_s01, sounding_matrix=None):
+    """Applies CNN to 2-D azimuthal-shear images and 3-D reflectivity images.
+
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param reflectivity_image_matrix_dbz: numpy array (E x m x n x H_r x 1) of
+        storm-centered reflectivity images.
+    :param azimuthal_shear_image_matrix_s01: numpy array (E x M x N x F_a) of
+        storm-centered azimuthal-shear images.
+    :param sounding_matrix: See doc for `apply_2d_cnn`.
+    :return: class_probability_matrix: Same.
+    """
+
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
+        max_num_dimensions=5)
+    dl_utils.check_predictor_matrix(
+        predictor_matrix=azimuthal_shear_image_matrix_s01, min_num_dimensions=4,
+        max_num_dimensions=4)
+
+    expected_dimensions = numpy.array(
+        reflectivity_image_matrix_dbz.shape[:-1] + (1,))
+    error_checking.assert_is_numpy_array(
+        reflectivity_image_matrix_dbz, exact_dimensions=expected_dimensions)
+
+    num_examples = reflectivity_image_matrix_dbz.shape[0]
+    expected_dimensions = numpy.array(
+        (num_examples,) + azimuthal_shear_image_matrix_s01[1:])
+    error_checking.assert_is_numpy_array(
+        azimuthal_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
+
+    if sounding_matrix is None:
+        return model_object.predict(
+            [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01],
+            batch_size=num_examples)
+
+    dl_utils.check_sounding_matrix(
+        sounding_matrix=sounding_matrix, num_examples=num_examples)
+    return model_object.predict(
+        [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+         sounding_matrix],
+        batch_size=num_examples)
