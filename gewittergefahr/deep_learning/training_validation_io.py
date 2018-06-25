@@ -1112,9 +1112,9 @@ def storm_image_generator_2d(
                 num_examples_in_memory_by_class_dict)
 
             if sounding_file_names is None:
-                this_sounding_file_name = sounding_file_names[file_time_index]
-            else:
                 this_sounding_file_name = None
+            else:
+                this_sounding_file_name = sounding_file_names[file_time_index]
 
             this_example_dict = _read_input_files_2d(
                 radar_file_names=radar_file_name_matrix[
@@ -1331,9 +1331,9 @@ def storm_image_generator_3d(
                 num_examples_in_memory_by_class_dict)
 
             if sounding_file_names is None:
-                this_sounding_file_name = sounding_file_names[file_time_index]
-            else:
                 this_sounding_file_name = None
+            else:
+                this_sounding_file_name = sounding_file_names[file_time_index]
 
             this_example_dict = _read_input_files_3d(
                 radar_file_name_matrix=radar_file_name_matrix[
@@ -1566,9 +1566,9 @@ def storm_image_generator_2d3d_myrorss(
                 num_examples_in_memory_by_class_dict)
 
             if sounding_file_names is None:
-                this_sounding_file_name = sounding_file_names[file_time_index]
-            else:
                 this_sounding_file_name = None
+            else:
+                this_sounding_file_name = sounding_file_names[file_time_index]
 
             this_example_dict = _read_input_files_2d3d(
                 reflectivity_file_names=reflectivity_file_name_matrix[
