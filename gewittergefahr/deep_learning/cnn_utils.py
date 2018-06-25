@@ -48,27 +48,31 @@ DEFAULT_MOMENTUM_FOR_BATCH_NORMALIZATION = 0.99
 
 
 def _check_input_args_for_conv_layer(
-        num_output_filters, num_kernel_rows, num_kernel_columns,
-        num_rows_per_stride, num_columns_per_stride, padding_type,
-        activation_function, is_first_layer, num_kernel_depths=None,
-        num_depths_per_stride=None, num_input_rows=None, num_input_columns=None,
-        num_input_channels=None, num_input_depths=None):
-    """Checks input arguments for 2-D-conv or 3-D-conv layer.
+        num_output_filters, num_kernel_rows, num_rows_per_stride, padding_type,
+        activation_function, is_first_layer, num_kernel_columns=None,
+        num_kernel_depths=None, num_columns_per_stride=None,
+        num_depths_per_stride=None, num_input_rows=None,
+        num_input_channels=None, num_input_columns=None, num_input_depths=None):
+    """Checks input args for 1-D, 2-D, or 3-D-convolution layer.
 
     :param num_output_filters: See documentation for `get_3d_conv_layer`.
     :param num_kernel_rows: Same.
-    :param num_kernel_columns: Same.
     :param num_rows_per_stride: Same.
-    :param num_columns_per_stride: Same.
     :param padding_type: Same.
     :param activation_function: Same.
     :param is_first_layer: Same.
-    :param num_kernel_depths: Same.
-    :param num_depths_per_stride: Same.
+    :param num_kernel_columns: [used only for 2-D or 3-D convolution] Same.
+    :param num_kernel_depths: [used only for 3-D conv] Same.
+    :param num_columns_per_stride: [used only for 2-D or 3-D conv] Same.
+    :param num_depths_per_stride: [used only for 3-D conv] Same.
     :param num_input_rows: Same.
-    :param num_input_columns: Same.
     :param num_input_channels: Same.
-    :param num_input_depths: Same.
+    :param num_input_columns:
+        [used only for 2-D or 3-D conv when is_first_layer = True]
+        Same.
+    :param num_input_depths:
+        [used only for 3-D conv when is_first_layer = True]
+        Same.
     :raises: ValueError: if `padding_type not in VALID_PADDING_TYPES`.
     """
 
@@ -76,17 +80,9 @@ def _check_input_args_for_conv_layer(
     error_checking.assert_is_geq(num_output_filters, 2)
     error_checking.assert_is_integer(num_kernel_rows)
     error_checking.assert_is_geq(num_kernel_rows, 2)
-    error_checking.assert_is_integer(num_kernel_columns)
-    error_checking.assert_is_geq(num_kernel_columns, 2)
-
     error_checking.assert_is_integer(num_rows_per_stride)
     error_checking.assert_is_greater(num_rows_per_stride, 0)
     error_checking.assert_is_less_than(num_rows_per_stride, num_kernel_rows)
-
-    error_checking.assert_is_integer(num_columns_per_stride)
-    error_checking.assert_is_greater(num_columns_per_stride, 0)
-    error_checking.assert_is_less_than(
-        num_columns_per_stride, num_kernel_columns)
 
     error_checking.assert_is_string(padding_type)
     if padding_type not in VALID_PADDING_TYPES:
@@ -95,28 +91,41 @@ def _check_input_args_for_conv_layer(
             '"{1:s}".').format(VALID_PADDING_TYPES, padding_type)
         raise ValueError(error_string)
 
-    if num_kernel_depths is None:
+    error_checking.assert_is_string(activation_function)
+    error_checking.assert_is_boolean(is_first_layer)
+
+    if num_kernel_columns is None:
+        num_dimensions = 1
+    elif num_kernel_depths is None:
         num_dimensions = 2
     else:
         num_dimensions = 3
+
+    if num_dimensions >= 2:
+        error_checking.assert_is_integer(num_kernel_columns)
+        error_checking.assert_is_geq(num_kernel_columns, 2)
+        error_checking.assert_is_integer(num_columns_per_stride)
+        error_checking.assert_is_greater(num_columns_per_stride, 0)
+        error_checking.assert_is_less_than(
+            num_columns_per_stride, num_kernel_columns)
+
+    if num_dimensions == 3:
         error_checking.assert_is_integer(num_kernel_depths)
         error_checking.assert_is_geq(num_kernel_depths, 2)
-
         error_checking.assert_is_integer(num_depths_per_stride)
         error_checking.assert_is_greater(num_depths_per_stride, 0)
         error_checking.assert_is_leq(
             num_depths_per_stride, num_kernel_depths)
 
-    error_checking.assert_is_string(activation_function)
-    error_checking.assert_is_boolean(is_first_layer)
-
     if is_first_layer:
         error_checking.assert_is_integer(num_input_rows)
         error_checking.assert_is_geq(num_input_rows, 3)
-        error_checking.assert_is_integer(num_input_columns)
-        error_checking.assert_is_geq(num_input_columns, 3)
         error_checking.assert_is_integer(num_input_channels)
         error_checking.assert_is_geq(num_input_channels, 1)
+
+        if num_dimensions >= 2:
+            error_checking.assert_is_integer(num_input_columns)
+            error_checking.assert_is_geq(num_input_columns, 3)
 
         if num_dimensions == 3:
             error_checking.assert_is_integer(num_input_depths)
@@ -124,66 +133,50 @@ def _check_input_args_for_conv_layer(
 
 
 def _check_input_args_for_pooling_layer(
-        num_rows_in_window, num_columns_in_window, pooling_type,
-        num_rows_per_stride, num_columns_per_stride, num_depths_in_window=None,
-        num_depths_per_stride=None):
+        num_rows_in_window, pooling_type, num_rows_per_stride,
+        num_columns_in_window=None, num_depths_in_window=None,
+        num_columns_per_stride=None, num_depths_per_stride=None):
     """Checks input arguments for 2-D-pooling or 3-D-pooling layer.
 
     :param num_rows_in_window: See documentation for `get_3d_pooling_layer`.
-    :param num_columns_in_window: Same.
     :param pooling_type: Same.
     :param num_rows_per_stride: Same.
-    :param num_columns_per_stride: Same.
-    :param num_depths_in_window: Same.
-    :param num_depths_per_stride: Same.
-    :return: num_rows_per_stride: Same.
-    :return: num_columns_per_stride: Same.
-    :return: num_depths_per_stride: Same.
+    :param num_columns_in_window: [used only for 2-D or 3-D pooling] Same.
+    :param num_depths_in_window: [used only for 3-D pooling] Same.
+    :param num_columns_per_stride: [used only for 2-D or 3-D pooling] Same.
+    :param num_depths_per_stride: [used only for 3-D pooling] Same.
     :raises: ValueError: if `pooling_type not in VALID_POOLING_TYPES`.
     """
 
     error_checking.assert_is_integer(num_rows_in_window)
     error_checking.assert_is_geq(num_rows_in_window, 1)
-    error_checking.assert_is_integer(num_columns_in_window)
-    error_checking.assert_is_geq(num_columns_in_window, 1)
-
     error_checking.assert_is_string(pooling_type)
+
     if pooling_type not in VALID_POOLING_TYPES:
         error_string = (
             '\n\n{0:s}\nValid pooling types (listed above) do not include '
             '"{1:s}".').format(VALID_POOLING_TYPES, pooling_type)
         raise ValueError(error_string)
 
-    if num_depths_in_window is None:
-        num_dimensions = 2
-    else:
-        num_dimensions = 3
-        error_checking.assert_is_integer(num_depths_in_window)
-        error_checking.assert_is_geq(num_depths_in_window, 1)
-
-    if (num_rows_per_stride is None or num_columns_per_stride is None or
-            num_depths_per_stride is None):
-        num_rows_per_stride = num_rows_in_window + 0
-        num_columns_per_stride = num_columns_in_window + 0
-
-        if num_dimensions == 3:
-            num_depths_per_stride = num_depths_in_window + 0
-
     error_checking.assert_is_integer(num_rows_per_stride)
     error_checking.assert_is_greater(num_rows_per_stride, 0)
     error_checking.assert_is_leq(num_rows_per_stride, num_rows_in_window)
 
-    error_checking.assert_is_integer(num_columns_per_stride)
-    error_checking.assert_is_greater(num_columns_per_stride, 0)
-    error_checking.assert_is_leq(num_columns_per_stride, num_columns_in_window)
+    if num_columns_in_window is not None:
+        error_checking.assert_is_integer(num_columns_in_window)
+        error_checking.assert_is_geq(num_columns_in_window, 1)
+        error_checking.assert_is_integer(num_columns_per_stride)
+        error_checking.assert_is_greater(num_columns_per_stride, 0)
+        error_checking.assert_is_leq(
+            num_columns_per_stride, num_columns_in_window)
 
-    if num_dimensions == 3:
+    if num_depths_in_window is not None:
+        error_checking.assert_is_integer(num_depths_in_window)
+        error_checking.assert_is_geq(num_depths_in_window, 1)
         error_checking.assert_is_integer(num_depths_per_stride)
         error_checking.assert_is_greater(num_depths_per_stride, 0)
         error_checking.assert_is_leq(
             num_depths_per_stride, num_depths_in_window)
-
-    return num_rows_per_stride, num_columns_per_stride, num_depths_per_stride
 
 
 def get_weight_regularizer(
@@ -218,6 +211,66 @@ def get_random_uniform_initializer(
     return keras.initializers.RandomUniform(minval=min_value, maxval=max_value)
 
 
+def get_1d_conv_layer(
+        num_output_filters, num_kernel_pixels, num_pixels_per_stride,
+        padding_type=YES_PADDING_TYPE, kernel_weight_init='glorot_uniform',
+        bias_weight_init='zeros', kernel_weight_regularizer=None,
+        bias_weight_regularizer=None, activation_function='relu',
+        is_first_layer=False, num_input_pixels=None, num_input_channels=None):
+    """Creates 1-D-convolution layer.
+
+    In other words, this layer will convolve over 1-D feature maps.
+
+    To add this layer to a Keras model, use the following code.
+
+    model_object = keras.models.Sequential()
+    ... # May add other layers here.
+    layer_object = get_1d_conv_layer(...)
+    model_object.add(layer_object)
+
+    :param num_output_filters: See documentation for `get_3d_conv_layer`.
+    :param num_kernel_pixels: Same.
+    :param num_pixels_per_stride: Same.
+    :param padding_type: Same.
+    :param kernel_weight_init: Same.
+    :param bias_weight_init: Same.
+    :param kernel_weight_regularizer: Same.
+    :param bias_weight_regularizer: Same.
+    :param activation_function: Same.
+    :param is_first_layer: Same.
+    :param num_input_pixels: Same.
+    :param num_input_channels: Same.
+    :return: layer_object: Instance of `keras.layers.Conv1D`.
+    """
+
+    _check_input_args_for_conv_layer(
+        num_output_filters=num_output_filters,
+        num_kernel_rows=num_kernel_pixels,
+        num_rows_per_stride=num_pixels_per_stride, padding_type=padding_type,
+        activation_function=activation_function, is_first_layer=is_first_layer,
+        num_input_rows=num_input_pixels, num_input_channels=num_input_channels)
+
+    if is_first_layer:
+        return keras.layers.Conv1D(
+            filters=num_output_filters, kernel_size=num_kernel_pixels,
+            strides=num_pixels_per_stride, padding=padding_type,
+            dilation_rate=(1,), activation=activation_function, use_bias=True,
+            kernel_initializer=kernel_weight_init,
+            bias_initializer=bias_weight_init,
+            kernel_regularizer=kernel_weight_regularizer,
+            bias_regularizer=bias_weight_regularizer,
+            input_shape=(num_input_pixels, num_input_channels))
+
+    return keras.layers.Conv1D(
+        filters=num_output_filters, kernel_size=(num_kernel_pixels,),
+        strides=(num_pixels_per_stride,), padding=padding_type,
+        dilation_rate=(1,), activation=activation_function, use_bias=True,
+        kernel_initializer=kernel_weight_init,
+        bias_initializer=bias_weight_init,
+        kernel_regularizer=kernel_weight_regularizer,
+        bias_regularizer=bias_weight_regularizer)
+
+
 def get_2d_conv_layer(
         num_output_filters, num_kernel_rows, num_kernel_columns,
         num_rows_per_stride, num_columns_per_stride,
@@ -234,7 +287,7 @@ def get_2d_conv_layer(
 
     model_object = keras.models.Sequential()
     ... # May add other layers here.
-    layer_object = get_2d_convolution_layer(...)
+    layer_object = get_2d_conv_layer(...)
     model_object.add(layer_object)
 
     :param num_output_filters: See documentation for `get_3d_conv_layer`.
@@ -306,7 +359,7 @@ def get_3d_conv_layer(
 
     model_object = keras.models.Sequential()
     ... # May add other layers here.
-    layer_object = get_3d_convolution_layer(...)
+    layer_object = get_3d_conv_layer(...)
     model_object.add(layer_object)
 
     :param num_output_filters: Number of output filters.
@@ -408,10 +461,42 @@ def get_dropout_layer(dropout_fraction=DEFAULT_DROPOUT_FRACTION):
     return keras.layers.Dropout(rate=dropout_fraction)
 
 
+def get_1d_pooling_layer(
+        num_pixels_in_window, num_pixels_per_stride,
+        pooling_type=MAX_POOLING_TYPE):
+    """Creates 1-D-pooling layer.
+
+    In other words, this layer will pool over 1-D feature maps.
+
+    model_object = keras.models.Sequential()
+    ... # May add other layers here.
+    layer_object = get_1d_pooling_layer(...)
+    model_object.add(layer_object)
+
+    :param num_pixels_in_window: See doc for `get_3d_pooling_layer`.
+    :param num_pixels_per_stride: Same.
+    :param pooling_type: Same.
+    :return: layer_object: Instance of `keras.layers.MaxPooling2D` or
+        `keras.layers.AveragePooling2D`.
+    """
+
+    _check_input_args_for_pooling_layer(
+        num_rows_in_window=num_pixels_in_window, pooling_type=pooling_type,
+        num_rows_per_stride=num_pixels_per_stride)
+
+    if pooling_type == MAX_POOLING_TYPE:
+        return keras.layers.MaxPooling1D(
+            pool_size=num_pixels_in_window, strides=num_pixels_per_stride,
+            padding=NO_PADDING_TYPE)
+
+    return keras.layers.AveragePooling1D(
+        pool_size=num_pixels_in_window, strides=num_pixels_per_stride,
+        padding=NO_PADDING_TYPE)
+
+
 def get_2d_pooling_layer(
-        num_rows_in_window, num_columns_in_window,
-        pooling_type=MAX_POOLING_TYPE, num_rows_per_stride=None,
-        num_columns_per_stride=None):
+        num_rows_in_window, num_columns_in_window, num_rows_per_stride,
+        num_columns_per_stride, pooling_type=MAX_POOLING_TYPE):
     """Creates 2-D-pooling layer.
 
     In other words, this layer will pool over 2-D feature maps.
@@ -421,11 +506,11 @@ def get_2d_pooling_layer(
     layer_object = get_2d_pooling_layer(...)
     model_object.add(layer_object)
 
-    :param num_rows_in_window: See documentation for `get_3d_pooling_layer`.
-    :param num_columns_in_window: See doc for `get_3d_pooling_layer`.
-    :param pooling_type: See doc for `get_3d_pooling_layer`.
-    :param num_rows_per_stride: See doc for `get_3d_pooling_layer`.
-    :param num_columns_per_stride: See doc for `get_3d_pooling_layer`.
+    :param num_rows_in_window: See doc for `get_3d_pooling_layer`.
+    :param num_columns_in_window: Same.
+    :param pooling_type: Same.
+    :param num_rows_per_stride: Same.
+    :param num_columns_per_stride: Same.
     :return: layer_object: Instance of `keras.layers.MaxPooling2D` or
         `keras.layers.AveragePooling2D`.
     """
@@ -450,8 +535,8 @@ def get_2d_pooling_layer(
 
 def get_3d_pooling_layer(
         num_rows_in_window, num_columns_in_window, num_depths_in_window,
-        pooling_type=MAX_POOLING_TYPE, num_rows_per_stride=None,
-        num_columns_per_stride=None, num_depths_per_stride=None):
+        num_rows_per_stride, num_columns_per_stride, num_depths_per_stride,
+        pooling_type=MAX_POOLING_TYPE):
     """Creates 3-D-pooling layer.
 
     In other words, this layer will pool over 3-D feature maps.
