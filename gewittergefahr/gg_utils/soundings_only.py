@@ -1083,6 +1083,9 @@ def read_soundings(
         `_convert_interp_table_to_soundings`.
     :return: lag_time_for_convective_contamination_sec: See doc for
         `interp_soundings_to_storm_objects`.
+    :return: storm_object_kept_indices:
+        [None if `storm_ids_to_keep is None`]
+        1-D numpy array with indices of original storm objects that were kept.
     """
 
     netcdf_dataset = netcdf_io.open_netcdf(
@@ -1158,7 +1161,7 @@ def read_soundings(
             exact_dimensions=numpy.array([num_storm_objects_to_keep]))
 
         storm_ids_as_numpy_array = numpy.array(storm_ids)
-        storm_object_indices_to_keep = []
+        storm_object_kept_indices = []
 
         for i in range(num_storm_objects_to_keep):
             these_indices = numpy.where(
@@ -1168,18 +1171,19 @@ def read_soundings(
             )[0]
 
             if len(these_indices):
-                storm_object_indices_to_keep.append(these_indices[0])
+                storm_object_kept_indices.append(these_indices[0])
 
-        storm_object_indices_to_keep = numpy.array(
-            storm_object_indices_to_keep, dtype=int)
+        storm_object_kept_indices = numpy.array(
+            storm_object_kept_indices, dtype=int)
 
-        storm_ids = [storm_ids[i] for i in storm_object_indices_to_keep]
-        init_times_unix_sec = init_times_unix_sec[storm_object_indices_to_keep]
-        sounding_matrix = sounding_matrix[storm_object_indices_to_keep, ...]
+        storm_ids = [storm_ids[i] for i in storm_object_kept_indices]
+        init_times_unix_sec = init_times_unix_sec[storm_object_kept_indices]
+        sounding_matrix = sounding_matrix[storm_object_kept_indices, ...]
 
         if lowest_pressures_mb is not None:
-            lowest_pressures_mb = lowest_pressures_mb[
-                storm_object_indices_to_keep]
+            lowest_pressures_mb = lowest_pressures_mb[storm_object_kept_indices]
+    else:
+        storm_object_kept_indices = None
 
     num_storm_objects = len(storm_ids)
     lead_times_seconds = numpy.full(
@@ -1194,7 +1198,9 @@ def read_soundings(
         VERTICAL_LEVELS_KEY: vertical_levels_mb,
         PRESSURELESS_FIELD_NAMES_KEY: pressureless_field_names
     }
-    return sounding_dict, lag_time_for_convective_contamination_sec
+
+    return (sounding_dict, lag_time_for_convective_contamination_sec,
+            storm_object_kept_indices)
 
 
 def find_sounding_file(

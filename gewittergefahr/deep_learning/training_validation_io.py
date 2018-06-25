@@ -303,12 +303,8 @@ def _read_input_files_2d(
 
     if sounding_file_name is None:
         sounding_matrix = None
-        target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
-        storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
-        storm_times_to_keep_unix_sec = this_radar_image_dict[
-            storm_images.VALID_TIMES_KEY]
     else:
-        sounding_dict = read_soundings(
+        sounding_dict, this_radar_image_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
@@ -316,11 +312,14 @@ def _read_input_files_2d(
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
 
-        storm_ids_to_keep = sounding_dict[STORM_IDS_KEY]
-        storm_times_to_keep_unix_sec = sounding_dict[STORM_TIMES_KEY]
-        target_values = sounding_dict[TARGET_VALUES_KEY]
-        sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-        sounding_field_names = sounding_dict[SOUNDING_FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[
+            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+
+    target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
+    storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+    storm_times_to_keep_unix_sec = this_radar_image_dict[
+        storm_images.VALID_TIMES_KEY]
 
     num_channels = len(radar_file_names)
     tuple_of_image_matrices = ()
@@ -395,12 +394,8 @@ def _read_input_files_3d(
 
     if sounding_file_name is None:
         sounding_matrix = None
-        target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
-        storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
-        storm_times_to_keep_unix_sec = this_radar_image_dict[
-            storm_images.VALID_TIMES_KEY]
     else:
-        sounding_dict = read_soundings(
+        sounding_dict, this_radar_image_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
@@ -408,11 +403,14 @@ def _read_input_files_3d(
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
 
-        storm_ids_to_keep = sounding_dict[STORM_IDS_KEY]
-        storm_times_to_keep_unix_sec = sounding_dict[STORM_TIMES_KEY]
-        target_values = sounding_dict[TARGET_VALUES_KEY]
-        sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-        sounding_field_names = sounding_dict[SOUNDING_FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[
+            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+
+    target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
+    storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+    storm_times_to_keep_unix_sec = this_radar_image_dict[
+        storm_images.VALID_TIMES_KEY]
 
     num_radar_fields = radar_file_name_matrix.shape[0]
     num_radar_heights = radar_file_name_matrix.shape[1]
@@ -512,12 +510,8 @@ def _read_input_files_2d3d(
 
     if sounding_file_name is None:
         sounding_matrix = None
-        target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
-        storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
-        storm_times_to_keep_unix_sec = this_radar_image_dict[
-            storm_images.VALID_TIMES_KEY]
     else:
-        sounding_dict = read_soundings(
+        sounding_dict, this_radar_image_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
@@ -525,11 +519,14 @@ def _read_input_files_2d3d(
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
 
-        storm_ids_to_keep = sounding_dict[STORM_IDS_KEY]
-        storm_times_to_keep_unix_sec = sounding_dict[STORM_TIMES_KEY]
-        target_values = sounding_dict[TARGET_VALUES_KEY]
-        sounding_matrix = sounding_dict[SOUNDING_MATRIX_KEY]
-        sounding_field_names = sounding_dict[SOUNDING_FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[
+            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+
+    target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
+    storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+    storm_times_to_keep_unix_sec = this_radar_image_dict[
+        storm_images.VALID_TIMES_KEY]
 
     num_reflectivity_heights = len(reflectivity_file_names)
     tuple_of_4d_refl_matrices = ()
@@ -935,62 +932,33 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     :param radar_image_dict: Dictionary created by
         `storm_images.read_storm_images_and_labels`, for the same file time as
         the sounding file.
-    :return: example_dict: Dictionary with the following keys.
-    example_dict['storm_ids']: length-E list of storm IDs.
-    example_dict['storm_times_unix_sec']: length-E numpy array of storm times.
-    example_dict['target_values']: length-E numpy array of target values (class
-        integers).
-    example_dict['sounding_matrix']: numpy array (E x H_s x F_s) of soundings.
-    example_dict['sounding_field_names']: list (length F_s) with names of
-        sounding fields.
+    :return: sounding_dict: See output doc for `soundings_only.read_soundings`.
+    :return: radar_image_dict: Same as input, except that some storm objects may
+        be removed.
     """
 
     print 'Reading data from: "{0:s}"...'.format(sounding_file_name)
-    sounding_dict, _ = soundings_only.read_soundings(
+    sounding_dict, _, storm_object_kept_indices = soundings_only.read_soundings(
         netcdf_file_name=sounding_file_name,
         pressureless_field_names_to_keep=sounding_field_names,
         storm_ids_to_keep=radar_image_dict[storm_images.STORM_IDS_KEY],
         init_times_to_keep_unix_sec=radar_image_dict[
             storm_images.VALID_TIMES_KEY])
 
-    storm_ids = sounding_dict[soundings_only.STORM_IDS_KEY]
-    num_storm_objects = len(storm_ids)
-    if num_storm_objects == 0:
-        return None
+    if not len(sounding_dict[soundings_only.STORM_IDS_KEY]):
+        return None, None
 
-    storm_times_unix_sec = sounding_dict[
+    radar_image_dict[storm_images.STORM_IDS_KEY] = sounding_dict[
+        soundings_only.STORM_IDS_KEY]
+    radar_image_dict[storm_images.VALID_TIMES_KEY] = sounding_dict[
         soundings_only.INITIAL_TIMES_KEY]
-    sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
-    if sounding_field_names is None:
-        sounding_field_names = sounding_dict[
-            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+    radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY] = radar_image_dict[
+        storm_images.STORM_IMAGE_MATRIX_KEY][storm_object_kept_indices, ...]
+    if storm_images.LABEL_VALUES_KEY in radar_image_dict:
+        radar_image_dict[storm_images.LABEL_VALUES_KEY] = radar_image_dict[
+            storm_images.LABEL_VALUES_KEY][storm_object_kept_indices]
 
-    radar_image_dict[storm_images.STORM_IDS_KEY] = numpy.array(
-        radar_image_dict[storm_images.STORM_IDS_KEY])
-
-    return_target = storm_images.LABEL_VALUES_KEY in radar_image_dict
-    if return_target:
-        target_values = numpy.full(num_storm_objects, -1, dtype=int)
-    else:
-        target_values = None
-
-    for i in range(num_storm_objects):
-        this_index = numpy.where(
-            numpy.logical_and(
-                radar_image_dict[storm_images.STORM_IDS_KEY] == storm_ids[i],
-                radar_image_dict[storm_images.VALID_TIMES_KEY] ==
-                storm_times_unix_sec[i])
-        )[0][0]
-
-        if return_target:
-            target_values[i] = radar_image_dict[
-                storm_images.LABEL_VALUES_KEY][this_index]
-
-    return {
-        STORM_IDS_KEY: storm_ids, STORM_TIMES_KEY: storm_times_unix_sec,
-        TARGET_VALUES_KEY: target_values, SOUNDING_MATRIX_KEY: sounding_matrix,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names
-    }
+    return sounding_dict, radar_image_dict
 
 
 def storm_image_generator_2d(
