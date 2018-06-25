@@ -60,34 +60,28 @@ NUM_EPOCHS_KEY = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_FILE_TIME_KEY = 'num_examples_per_time'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
-FIRST_TRAINING_TIME_KEY = 'first_train_time_unix_sec'
-LAST_TRAINING_TIME_KEY = 'last_train_time_unix_sec'
+TRAINING_FILE_NAME_MATRIX_KEY = 'radar_file_name_matrix_for_training'
 WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
 TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
-RADAR_SOURCE_KEY = 'radar_source'
-RADAR_FIELD_NAMES_KEY = 'radar_field_names'
 RADAR_NORMALIZATION_DICT_KEY = 'radar_normalization_dict'
-RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
-REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
 TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
 VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
-FIRST_VALIDATION_TIME_KEY = 'first_validn_time_unix_sec'
-LAST_VALIDATION_TIME_KEY = 'last_validn_time_unix_sec'
+VALIDATION_FILE_NAME_MATRIX_KEY = 'radar_file_name_matrix_for_validn'
 SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
+TOP_SOUNDING_DIR_NAME_KEY = 'top_sounding_dir_name'
 SOUNDING_NORMALIZATION_DICT_KEY = 'sounding_normalization_dict'
 SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
 
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
-    NUM_TRAINING_BATCHES_KEY, FIRST_TRAINING_TIME_KEY, LAST_TRAINING_TIME_KEY,
+    NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAME_MATRIX_KEY,
     WEIGHT_LOSS_FUNCTION_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
-    RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY, RADAR_NORMALIZATION_DICT_KEY,
-    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
+    RADAR_NORMALIZATION_DICT_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
     VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
-    FIRST_VALIDATION_TIME_KEY, LAST_VALIDATION_TIME_KEY,
-    SOUNDING_FIELD_NAMES_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
+    VALIDATION_FILE_NAME_MATRIX_KEY, SOUNDING_FIELD_NAMES_KEY,
+    TOP_SOUNDING_DIR_NAME_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
     SOUNDING_LAG_TIME_KEY
 ]
 
@@ -840,15 +834,15 @@ def read_model(hdf5_file_name):
 def write_model_metadata(
         pickle_file_name, num_epochs, num_examples_per_batch,
         num_examples_per_file_time, num_training_batches_per_epoch,
-        first_train_time_unix_sec, last_train_time_unix_sec,
-        weight_loss_function, target_name, binarize_target, radar_source,
-        radar_field_names, radar_normalization_dict, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, training_fraction_by_class_dict=None,
+        radar_file_name_matrix_for_training, weight_loss_function, target_name,
+        binarize_target, radar_normalization_dict,
+        training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
-        num_validation_batches_per_epoch=None, first_validn_time_unix_sec=None,
-        last_validn_time_unix_sec=None, sounding_field_names=None,
-        sounding_normalization_dict=None,
-        sounding_lag_time_for_convective_contamination_sec=None):
+        num_validation_batches_per_epoch=None,
+        radar_file_name_matrix_for_validn=None, sounding_field_names=None,
+        top_sounding_dir_name=None,
+        sounding_lag_time_for_convective_contamination_sec=None,
+        sounding_normalization_dict=None):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
@@ -857,27 +851,16 @@ def write_model_metadata(
     :param num_examples_per_file_time: Number of examples (storm objects) per
         file time.  One "file time" may be either one time step or one SPC date.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param first_train_time_unix_sec: First file time in training period.  If
-        files contain one SPC date each, this can be any time on the first SPC
-        date.
-    :param last_train_time_unix_sec: Last file time in training period.
+    :param radar_file_name_matrix_for_training: numpy array created by
+        `training_validation_io.find_radar_files_2d` or
+        `training_validation_io.find_radar_files_3d`.
     :param weight_loss_function: See doc for `_check_training_args`.
     :param target_name: Name of target variable.
     :param binarize_target: Boolean flag.  If True, target variable was
         binarized, so that the highest class becomes 1 and all other classes
         become 0.
-    :param radar_source: Data source (must be accepted by
-        `radar_utils.check_data_source`).
-    :param radar_field_names: 1-D list with names of radar fields used in
-        training.  Each field must accepted by `radar_utils.check_field_name`.
     :param radar_normalization_dict: Used to normalize radar data (see
         `deep_learning_utils.normalize_predictor_matrix` for details).
-    :param radar_heights_m_asl: [needed only if CNN does 3-D convolution]
-        1-D numpy array of heights (metres above sea level), which apply to each
-        radar field.
-    :param reflectivity_heights_m_asl: [needed only if CNN does 2-D convolution]
-        1-D numpy array of heights (metres above sea level), which apply only to
-        "reflectivity_dbz".
     :param training_fraction_by_class_dict: Used to sample training data (see
         `training_validation_io.storm_image_generator_2d` for details).
     :param validation_fraction_by_class_dict:
@@ -886,19 +869,18 @@ def write_model_metadata(
     :param num_validation_batches_per_epoch:
         [needed only if CNN did validation on the fly]
         Number of validation batches per epoch.
-    :param first_validn_time_unix_sec:
+    :param radar_file_name_matrix_for_validn:
         [needed only if CNN did validation on the fly]
-        First file time in validation period.
-    :param last_validn_time_unix_sec:
-        [needed only if CNN did validation on the fly]
-        Last file time in validation period.
+        numpy array created by `training_validation_io.find_radar_files_2d` or
+        `training_validation_io.find_radar_files_3d`.
     :param sounding_field_names: [needed only if CNN takes soundings]
         1-D list with names of sounding fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
+    :param top_sounding_dir_name: See doc for
+        `training_validation_io.find_sounding_files`.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see
         `deep_learning_utils.normalize_sounding_matrix` for details).
-    :param sounding_lag_time_for_convective_contamination_sec: See doc for
-        `training_validation_io.find_sounding_files`.
     """
 
     model_metadata_dict = {
@@ -906,22 +888,17 @@ def write_model_metadata(
         NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
         NUM_EXAMPLES_PER_FILE_TIME_KEY: num_examples_per_file_time,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
-        FIRST_TRAINING_TIME_KEY: first_train_time_unix_sec,
-        LAST_TRAINING_TIME_KEY: last_train_time_unix_sec,
+        TRAINING_FILE_NAME_MATRIX_KEY: radar_file_name_matrix_for_training,
         WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         TARGET_NAME_KEY: target_name,
         BINARIZE_TARGET_KEY: binarize_target,
-        RADAR_SOURCE_KEY: radar_source,
-        RADAR_FIELD_NAMES_KEY: radar_field_names,
         RADAR_NORMALIZATION_DICT_KEY: radar_normalization_dict,
-        RADAR_HEIGHTS_KEY: radar_heights_m_asl,
-        REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
         TRAINING_FRACTION_BY_CLASS_KEY: training_fraction_by_class_dict,
         VALIDATION_FRACTION_BY_CLASS_KEY: validation_fraction_by_class_dict,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
-        FIRST_VALIDATION_TIME_KEY: first_validn_time_unix_sec,
-        LAST_VALIDATION_TIME_KEY: last_validn_time_unix_sec,
+        VALIDATION_FILE_NAME_MATRIX_KEY: radar_file_name_matrix_for_validn,
         SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
+        TOP_SOUNDING_DIR_NAME_KEY: top_sounding_dir_name,
         SOUNDING_NORMALIZATION_DICT_KEY: sounding_normalization_dict,
         SOUNDING_LAG_TIME_KEY:
             sounding_lag_time_for_convective_contamination_sec
