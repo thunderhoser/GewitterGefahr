@@ -113,7 +113,7 @@ def _train_cnn(
         last_validn_time_unix_sec = time_conversion.string_to_unix_sec(
             last_validation_time_string, dl_helper.INPUT_TIME_FORMAT)
 
-    if sounding_field_names[0] == '':
+    if sounding_field_names[0] == 'None':
         sounding_field_names = None
         num_sounding_fields = None
     else:

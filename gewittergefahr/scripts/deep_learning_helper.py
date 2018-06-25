@@ -48,7 +48,7 @@ DEFAULT_SOUNDING_FIELD_NAMES = [
     soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME
 ]
 DEFAULT_SOUNDING_LAG_TIME_SEC = 1800
-DEFAULT_NUM_SOUNDING_FILTERS = 8
+DEFAULT_NUM_SOUNDING_FILTERS = 48
 
 MODEL_DIRECTORY_HELP_STRING = (
     'Name of output directory.  The model, training history, and TensorBoard '
@@ -119,7 +119,7 @@ VALIDATION_TIME_HELP_STRING = (
 SOUNDING_FIELD_NAMES_HELP_STRING = (
     'List with names of sounding fields.  Each name must be accepted by '
     '`soundings_only.check_pressureless_field_name`.  To train without '
-    'soundings, make this a 1-item list with the empty string ("").')
+    'soundings, make this a 1-item list with the string "None".')
 SOUNDING_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `training_validation_io.find_sounding_files`.')
