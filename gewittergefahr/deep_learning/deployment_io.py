@@ -146,9 +146,9 @@ def create_storm_images_2d(
                 continue
 
             this_sounding_matrix = this_sounding_dict[
-                trainval_io.SOUNDING_MATRIX_KEY]
+                soundings_only.SOUNDING_MATRIX_KEY]
             sounding_field_names = this_sounding_dict[
-                trainval_io.SOUNDING_FIELD_NAMES_KEY]
+                soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
 
             if sounding_matrix is None:
                 sounding_matrix = this_sounding_matrix + 0.
@@ -318,9 +318,9 @@ def create_storm_images_3d(
                 continue
 
             this_sounding_matrix = this_sounding_dict[
-                trainval_io.SOUNDING_MATRIX_KEY]
+                soundings_only.SOUNDING_MATRIX_KEY]
             sounding_field_names = this_sounding_dict[
-                trainval_io.SOUNDING_FIELD_NAMES_KEY]
+                soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
 
             if sounding_matrix is None:
                 sounding_matrix = this_sounding_matrix + 0.
@@ -512,9 +512,9 @@ def create_storm_images_2d3d_myrorss(
                 continue
 
             this_sounding_matrix = this_sounding_dict[
-                trainval_io.SOUNDING_MATRIX_KEY]
+                soundings_only.SOUNDING_MATRIX_KEY]
             sounding_field_names = this_sounding_dict[
-                trainval_io.SOUNDING_FIELD_NAMES_KEY]
+                soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
 
             if sounding_matrix is None:
                 sounding_matrix = this_sounding_matrix + 0.
