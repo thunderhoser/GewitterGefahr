@@ -28,6 +28,8 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -73,6 +75,11 @@ SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
 TOP_SOUNDING_DIR_NAME_KEY = 'top_sounding_dir_name'
 SOUNDING_NORMALIZATION_DICT_KEY = 'sounding_normalization_dict'
 SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
+USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
+RADAR_SOURCE_KEY = 'radar_source'
+RADAR_FIELD_NAMES_KEY = 'radar_field_names'
+RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
+REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
 
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
@@ -82,7 +89,8 @@ MODEL_METADATA_KEYS = [
     VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
     VALIDATION_FILE_NAME_MATRIX_KEY, SOUNDING_FIELD_NAMES_KEY,
     TOP_SOUNDING_DIR_NAME_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
-    SOUNDING_LAG_TIME_KEY
+    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
+    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
 
 
@@ -835,8 +843,9 @@ def write_model_metadata(
         pickle_file_name, num_epochs, num_examples_per_batch,
         num_examples_per_file_time, num_training_batches_per_epoch,
         radar_file_name_matrix_for_training, weight_loss_function, target_name,
-        binarize_target, radar_normalization_dict,
-        training_fraction_by_class_dict=None,
+        binarize_target, radar_normalization_dict, use_2d3d_convolution,
+        radar_source, radar_field_names, radar_heights_m_asl=None,
+        reflectivity_heights_m_asl=None, training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         radar_file_name_matrix_for_validn=None, sounding_field_names=None,
@@ -861,6 +870,19 @@ def write_model_metadata(
         become 0.
     :param radar_normalization_dict: Used to normalize radar data (see
         `deep_learning_utils.normalize_predictor_matrix` for details).
+    :param use_2d3d_convolution: Boolean flag, indicating whether or not the
+        network used a hybrid of 2-D and 3-D convolution.
+    :param radar_source: Data source (must be accepted by
+        `radar_utils.check_data_source`).
+    :param radar_field_names: 1-D list with names of radar fields.  Each must be
+        accepted by `radar_utils.check_field_name`.
+    :param radar_heights_m_asl: [needed only if radar_source = "gridrad"]
+        1-D numpy array of heights (metres above sea level) applied to each
+        radar field.
+    :param reflectivity_heights_m_asl:
+        [needed only if radar_source != "gridrad"]
+        1-D numpy array of heights (metres above sea level) applied to the field
+        "reflectivity_dbz".
     :param training_fraction_by_class_dict: Used to sample training data (see
         `training_validation_io.storm_image_generator_2d` for details).
     :param validation_fraction_by_class_dict:
@@ -893,6 +915,11 @@ def write_model_metadata(
         TARGET_NAME_KEY: target_name,
         BINARIZE_TARGET_KEY: binarize_target,
         RADAR_NORMALIZATION_DICT_KEY: radar_normalization_dict,
+        USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
+        RADAR_SOURCE_KEY: radar_source,
+        RADAR_FIELD_NAMES_KEY: radar_field_names,
+        RADAR_HEIGHTS_KEY: radar_heights_m_asl,
+        REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
         TRAINING_FRACTION_BY_CLASS_KEY: training_fraction_by_class_dict,
         VALIDATION_FRACTION_BY_CLASS_KEY: validation_fraction_by_class_dict,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
@@ -901,7 +928,7 @@ def write_model_metadata(
         TOP_SOUNDING_DIR_NAME_KEY: top_sounding_dir_name,
         SOUNDING_NORMALIZATION_DICT_KEY: sounding_normalization_dict,
         SOUNDING_LAG_TIME_KEY:
-            sounding_lag_time_for_convective_contamination_sec
+            sounding_lag_time_for_convective_contamination_sec,
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -923,6 +950,38 @@ def read_model_metadata(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     model_metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if USE_2D3D_CONVOLUTION_KEY not in model_metadata_dict:
+        model_metadata_dict.update({USE_2D3D_CONVOLUTION_KEY: False})
+
+    if RADAR_SOURCE_KEY not in model_metadata_dict:
+        radar_file_name_matrix_for_training = model_metadata_dict[
+            TRAINING_FILE_NAME_MATRIX_KEY]
+        num_fields = radar_file_name_matrix_for_training.shape[1]
+        num_heights = radar_file_name_matrix_for_training.shape[2]
+        radar_field_names = [''] * num_fields
+        radar_heights_m_asl = numpy.full(num_heights, -1, dtype=int)
+
+        for j in range(num_fields):
+            this_radar_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=radar_file_name_matrix_for_training[0, j, 0],
+                return_images=False)
+            radar_field_names[j] = this_radar_image_dict[
+                storm_images.RADAR_FIELD_NAME_KEY]
+
+        for k in range(num_heights):
+            this_radar_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=radar_file_name_matrix_for_training[0, 0, k],
+                return_images=False)
+            radar_heights_m_asl[k] = this_radar_image_dict[
+                storm_images.RADAR_HEIGHT_KEY]
+
+        model_metadata_dict.update({
+            RADAR_SOURCE_KEY: radar_utils.GRIDRAD_SOURCE_ID,
+            RADAR_FIELD_NAMES_KEY: radar_field_names,
+            RADAR_HEIGHTS_KEY: radar_heights_m_asl,
+            REFLECTIVITY_HEIGHTS_KEY: None
+        })
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
