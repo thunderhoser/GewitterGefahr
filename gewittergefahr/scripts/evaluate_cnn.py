@@ -674,8 +674,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, SOUNDING_DIRECTORY_ARG_NAME),
         top_target_dir_name=getattr(
             INPUT_ARG_OBJECT, TARGET_DIRECTORY_ARG_NAME),
-        one_file_per_time_step=getattr(
-            INPUT_ARG_OBJECT, ONE_FILE_PER_TIME_STEP_ARG_NAME),
+        one_file_per_time_step=bool(getattr(
+            INPUT_ARG_OBJECT, ONE_FILE_PER_TIME_STEP_ARG_NAME)),
         first_eval_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_EVAL_TIME_ARG_NAME),
         last_eval_time_string=getattr(
