@@ -100,9 +100,9 @@ def _get_num_examples_per_batch_by_class(
             num_extended_classes, num_examples_per_batch, dtype=int)
         return dict(zip(keys, values))
 
-    return dl_utils.class_fractions_to_num_points(
-        class_fraction_dict=sampling_fraction_by_class_dict,
-        num_points_to_sample=num_examples_per_batch)
+    return dl_utils.class_fractions_to_num_examples(
+        sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
+        target_name=target_name, num_examples_total=num_examples_per_batch)
 
 
 def _get_num_examples_left_by_class(
@@ -336,7 +336,7 @@ def _read_input_files_2d(
             this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
     return {
-        RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_predictor_variables(
+        RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_radar_fields(
             tuple_of_image_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
@@ -432,10 +432,10 @@ def _read_input_files_3d(
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
         tuple_of_4d_image_matrices += (
-            dl_utils.stack_predictor_variables(tuple_of_3d_image_matrices),)
+            dl_utils.stack_radar_fields(tuple_of_3d_image_matrices),)
 
     return {
-        RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_heights(
+        RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_radar_heights(
             tuple_of_4d_image_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
@@ -535,7 +535,7 @@ def _read_input_files_2d3d(
                 storm_ids_to_keep=storm_ids_to_keep,
                 valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
 
-        this_4d_matrix = dl_utils.stack_predictor_variables(
+        this_4d_matrix = dl_utils.stack_radar_fields(
             (this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],))
         tuple_of_4d_refl_matrices += (this_4d_matrix,)
 
@@ -554,9 +554,9 @@ def _read_input_files_2d3d(
             this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
     return {
-        REFLECTIVITY_IMAGE_MATRIX_KEY: dl_utils.stack_heights(
+        REFLECTIVITY_IMAGE_MATRIX_KEY: dl_utils.stack_radar_heights(
             tuple_of_4d_refl_matrices),
-        AZ_SHEAR_IMAGE_MATRIX_KEY: dl_utils.stack_heights(
+        AZ_SHEAR_IMAGE_MATRIX_KEY: dl_utils.stack_radar_heights(
             tuple_of_3d_az_shear_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
@@ -980,7 +980,7 @@ def storm_image_generator_2d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
         binarize_target=False,
-        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -1160,10 +1160,10 @@ def storm_image_generator_2d(
                 target_values_in_memory=all_target_values)
 
         if sampling_fraction_by_class_dict is not None:
-            batch_indices = dl_utils.sample_points_by_class(
-                target_values=all_target_values, target_name=target_name,
-                class_fraction_dict=sampling_fraction_by_class_dict,
-                num_points_to_sample=num_examples_per_batch)
+            batch_indices = dl_utils.sample_by_class(
+                sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
+                target_name=target_name, target_values=all_target_values,
+                num_examples_total=num_examples_per_batch)
 
             full_radar_image_matrix = full_radar_image_matrix[
                 batch_indices, ...]
@@ -1171,9 +1171,9 @@ def storm_image_generator_2d(
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
 
-        full_radar_image_matrix = dl_utils.normalize_predictor_matrix(
-            predictor_matrix=full_radar_image_matrix,
-            normalize_by_batch=False, predictor_names=field_name_by_channel,
+        full_radar_image_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=full_radar_image_matrix,
+            normalize_by_batch=False, field_names=field_name_by_channel,
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:
@@ -1211,7 +1211,7 @@ def storm_image_generator_3d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
         binarize_target=False,
-        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -1379,10 +1379,10 @@ def storm_image_generator_3d(
                 target_values_in_memory=all_target_values)
 
         if sampling_fraction_by_class_dict is not None:
-            batch_indices = dl_utils.sample_points_by_class(
-                target_values=all_target_values, target_name=target_name,
-                class_fraction_dict=sampling_fraction_by_class_dict,
-                num_points_to_sample=num_examples_per_batch)
+            batch_indices = dl_utils.sample_by_class(
+                sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
+                target_name=target_name, target_values=all_target_values,
+                num_examples_total=num_examples_per_batch)
 
             full_radar_image_matrix = full_radar_image_matrix[
                 batch_indices, ...]
@@ -1390,9 +1390,9 @@ def storm_image_generator_3d(
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
 
-        full_radar_image_matrix = dl_utils.normalize_predictor_matrix(
-            predictor_matrix=full_radar_image_matrix,
-            normalize_by_batch=False, predictor_names=radar_field_names,
+        full_radar_image_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=full_radar_image_matrix,
+            normalize_by_batch=False, field_names=radar_field_names,
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:
@@ -1430,7 +1430,7 @@ def storm_image_generator_2d3d_myrorss(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
         binarize_target=False,
-        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -1623,10 +1623,10 @@ def storm_image_generator_2d3d_myrorss(
                 target_values_in_memory=all_target_values)
 
         if sampling_fraction_by_class_dict is not None:
-            batch_indices = dl_utils.sample_points_by_class(
-                target_values=all_target_values, target_name=target_name,
-                class_fraction_dict=sampling_fraction_by_class_dict,
-                num_points_to_sample=num_examples_per_batch)
+            batch_indices = dl_utils.sample_by_class(
+                sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
+                target_name=target_name, target_values=all_target_values,
+                num_examples_total=num_examples_per_batch)
 
             full_reflectivity_matrix_dbz = full_reflectivity_matrix_dbz[
                 batch_indices, ...]
@@ -1636,15 +1636,14 @@ def storm_image_generator_2d3d_myrorss(
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
 
-        full_reflectivity_matrix_dbz = dl_utils.normalize_predictor_matrix(
-            predictor_matrix=full_reflectivity_matrix_dbz,
-            normalize_by_batch=False, predictor_names=[radar_utils.REFL_NAME],
+        full_reflectivity_matrix_dbz = dl_utils.normalize_radar_images(
+            radar_image_matrix=full_reflectivity_matrix_dbz,
+            normalize_by_batch=False, field_names=[radar_utils.REFL_NAME],
             normalization_dict=radar_normalization_dict)
 
-        full_azimuthal_shear_matrix_s01 = dl_utils.normalize_predictor_matrix(
-            predictor_matrix=full_azimuthal_shear_matrix_s01,
-            normalize_by_batch=False,
-            predictor_names=azimuthal_shear_field_names,
+        full_azimuthal_shear_matrix_s01 = dl_utils.normalize_radar_images(
+            radar_image_matrix=full_azimuthal_shear_matrix_s01,
+            normalize_by_batch=False, field_names=azimuthal_shear_field_names,
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:

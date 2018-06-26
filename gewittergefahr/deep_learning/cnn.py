@@ -186,7 +186,7 @@ def _check_architecture_args(
 
 def _check_training_args(
         num_epochs, num_training_batches_per_epoch,
-        num_validation_batches_per_epoch, weight_loss_function,
+        num_validation_batches_per_epoch, weight_loss_function, target_name,
         binarize_target, training_fraction_by_class_dict, model_file_name,
         history_file_name, tensorboard_dir_name):
     """Error-checking of input args for training.
@@ -200,11 +200,10 @@ def _check_training_args(
         weighted differently in the loss function (inversely proportional to
         their sampling fractions, specified in
         `training_fraction_by_class_dict`).
-    :param binarize_target: Boolean flag.  If True, will binarize target
-        variable, so that the highest class becomes 1 and all other classes
-        become 0.
-    :param training_fraction_by_class_dict: See doc for
-        `training_validation_io.storm_image_generator_2d`.
+    :param target_name: See doc for
+        `deep_learning_utils.class_fractions_to_weights`.
+    :param binarize_target: Same.
+    :param training_fraction_by_class_dict: Same.
     :param model_file_name: Path to output file (HDF5 format).  Model will be
         saved here after each epoch.
     :param history_file_name: Path to output file (CSV format).  Training
@@ -228,8 +227,8 @@ def _check_training_args(
     if weight_loss_function:
         loss_function_weight_by_class_dict = (
             dl_utils.class_fractions_to_weights(
-                class_fraction_dict=training_fraction_by_class_dict,
-                binarize_target=binarize_target))
+                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
+                target_name=target_name, binarize_target=binarize_target))
     else:
         loss_function_weight_by_class_dict = None
 
@@ -1052,7 +1051,7 @@ def train_2d_cnn(
         num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function,
+        weight_loss_function=weight_loss_function, target_name=target_name,
         binarize_target=binarize_target,
         training_fraction_by_class_dict=training_fraction_by_class_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
@@ -1174,7 +1173,7 @@ def train_3d_cnn(
         num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function,
+        weight_loss_function=weight_loss_function, target_name=target_name,
         binarize_target=binarize_target,
         training_fraction_by_class_dict=training_fraction_by_class_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
@@ -1296,7 +1295,7 @@ def train_2d3d_cnn(
         num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function,
+        weight_loss_function=weight_loss_function, target_name=target_name,
         binarize_target=binarize_target,
         training_fraction_by_class_dict=training_fraction_by_class_dict,
         model_file_name=model_file_name, history_file_name=history_file_name,
@@ -1387,15 +1386,15 @@ def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None):
         across each row is 1.
     """
 
-    dl_utils.check_predictor_matrix(
-        predictor_matrix=radar_image_matrix, min_num_dimensions=4,
+    dl_utils.check_radar_images(
+        radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
         max_num_dimensions=4)
 
     num_examples = radar_image_matrix.shape[0]
     if sounding_matrix is None:
         return model_object.predict(radar_image_matrix, batch_size=num_examples)
 
-    dl_utils.check_sounding_matrix(
+    dl_utils.check_soundings(
         sounding_matrix=sounding_matrix, num_examples=num_examples)
     return model_object.predict(
         [radar_image_matrix, sounding_matrix], batch_size=num_examples)
@@ -1411,15 +1410,15 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None):
     :return: class_probability_matrix: Same.
     """
 
-    dl_utils.check_predictor_matrix(
-        predictor_matrix=radar_image_matrix, min_num_dimensions=5,
+    dl_utils.check_radar_images(
+        radar_image_matrix=radar_image_matrix, min_num_dimensions=5,
         max_num_dimensions=5)
 
     num_examples = radar_image_matrix.shape[0]
     if sounding_matrix is None:
         return model_object.predict(radar_image_matrix, batch_size=num_examples)
 
-    dl_utils.check_sounding_matrix(
+    dl_utils.check_soundings(
         sounding_matrix=sounding_matrix, num_examples=num_examples)
     return model_object.predict(
         [radar_image_matrix, sounding_matrix], batch_size=num_examples)
@@ -1439,12 +1438,12 @@ def apply_2d3d_cnn(
     :return: class_probability_matrix: Same.
     """
 
-    dl_utils.check_predictor_matrix(
-        predictor_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
+    dl_utils.check_radar_images(
+        radar_image_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
         max_num_dimensions=5)
-    dl_utils.check_predictor_matrix(
-        predictor_matrix=azimuthal_shear_image_matrix_s01, min_num_dimensions=4,
-        max_num_dimensions=4)
+    dl_utils.check_radar_images(
+        radar_image_matrix=azimuthal_shear_image_matrix_s01,
+        min_num_dimensions=4, max_num_dimensions=4)
 
     expected_dimensions = numpy.array(
         reflectivity_image_matrix_dbz.shape[:-1] + (1,))
@@ -1462,7 +1461,7 @@ def apply_2d3d_cnn(
             [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01],
             batch_size=num_examples)
 
-    dl_utils.check_sounding_matrix(
+    dl_utils.check_soundings(
         sounding_matrix=sounding_matrix, num_examples=num_examples)
     return model_object.predict(
         [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,

@@ -66,7 +66,7 @@ def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
 def create_storm_images_2d(
         radar_file_name_matrix, num_examples_per_file_time, return_target=True,
         target_name=None, binarize_target=False, top_target_directory_name=None,
-        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
@@ -222,7 +222,7 @@ def create_storm_images_2d(
             tuple_of_image_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
-        this_radar_image_matrix = dl_utils.stack_predictor_variables(
+        this_radar_image_matrix = dl_utils.stack_radar_fields(
             tuple_of_image_matrices)
         if radar_image_matrix is None:
             radar_image_matrix = this_radar_image_matrix + 0.
@@ -233,9 +233,9 @@ def create_storm_images_2d(
     if radar_image_matrix is None:
         return None, None, None
 
-    radar_image_matrix = dl_utils.normalize_predictor_matrix(
-        predictor_matrix=radar_image_matrix, normalize_by_batch=False,
-        predictor_names=field_name_by_channel,
+    radar_image_matrix = dl_utils.normalize_radar_images(
+        radar_image_matrix=radar_image_matrix, normalize_by_batch=False,
+        field_names=field_name_by_channel,
         normalization_dict=radar_normalization_dict).astype('float32')
 
     if sounding_file_names is not None:
@@ -254,7 +254,7 @@ def create_storm_images_2d(
 def create_storm_images_3d(
         radar_file_name_matrix, num_examples_per_file_time, return_target=True,
         target_name=None, binarize_target=False, top_target_directory_name=None,
-        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
@@ -404,9 +404,9 @@ def create_storm_images_3d(
                     this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
             tuple_of_4d_image_matrices += (
-                dl_utils.stack_predictor_variables(tuple_of_3d_image_matrices),)
+                dl_utils.stack_radar_fields(tuple_of_3d_image_matrices),)
 
-        this_radar_image_matrix = dl_utils.stack_heights(
+        this_radar_image_matrix = dl_utils.stack_radar_heights(
             tuple_of_4d_image_matrices)
         if radar_image_matrix is None:
             radar_image_matrix = this_radar_image_matrix + 0.
@@ -417,9 +417,9 @@ def create_storm_images_3d(
     if radar_image_matrix is None:
         return None, None, None
 
-    radar_image_matrix = dl_utils.normalize_predictor_matrix(
-        predictor_matrix=radar_image_matrix, normalize_by_batch=False,
-        predictor_names=radar_field_names,
+    radar_image_matrix = dl_utils.normalize_radar_images(
+        radar_image_matrix=radar_image_matrix, normalize_by_batch=False,
+        field_names=radar_field_names,
         normalization_dict=radar_normalization_dict).astype('float32')
 
     if sounding_file_names is not None:
@@ -438,7 +438,7 @@ def create_storm_images_3d(
 def create_storm_images_2d3d_myrorss(
         radar_file_name_matrix, num_examples_per_file_time, return_target=True,
         target_name=None, binarize_target=False, top_target_directory_name=None,
-        radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
+        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
@@ -597,11 +597,11 @@ def create_storm_images_2d3d_myrorss(
                     valid_times_to_keep_unix_sec=
                     these_storm_times_to_keep_unix_sec)
 
-            this_4d_matrix = dl_utils.stack_predictor_variables(
+            this_4d_matrix = dl_utils.stack_radar_fields(
                 (this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],))
             tuple_of_4d_refl_matrices += (this_4d_matrix,)
 
-        this_reflectivity_matrix_dbz = dl_utils.stack_heights(
+        this_reflectivity_matrix_dbz = dl_utils.stack_radar_heights(
             tuple_of_4d_refl_matrices)
         if reflectivity_image_matrix_dbz is None:
             reflectivity_image_matrix_dbz = this_reflectivity_matrix_dbz + 0.
@@ -624,7 +624,7 @@ def create_storm_images_2d3d_myrorss(
             tuple_of_3d_az_shear_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
 
-        this_azimuthal_shear_matrix_s01 = dl_utils.stack_predictor_variables(
+        this_azimuthal_shear_matrix_s01 = dl_utils.stack_radar_fields(
             tuple_of_3d_az_shear_matrices)
         if azimuthal_shear_image_matrix_s01 is None:
             azimuthal_shear_image_matrix_s01 = (
@@ -637,13 +637,13 @@ def create_storm_images_2d3d_myrorss(
     if reflectivity_image_matrix_dbz is None:
         return None, None, None, None
 
-    reflectivity_image_matrix_dbz = dl_utils.normalize_predictor_matrix(
-        predictor_matrix=reflectivity_image_matrix_dbz,
-        normalize_by_batch=False, predictor_names=[radar_utils.REFL_NAME],
+    reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
+        radar_image_matrix=reflectivity_image_matrix_dbz,
+        normalize_by_batch=False, field_names=[radar_utils.REFL_NAME],
         normalization_dict=radar_normalization_dict).astype('float32')
-    azimuthal_shear_image_matrix_s01 = dl_utils.normalize_predictor_matrix(
-        predictor_matrix=azimuthal_shear_image_matrix_s01,
-        normalize_by_batch=False, predictor_names=azimuthal_shear_field_names,
+    azimuthal_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
+        radar_image_matrix=azimuthal_shear_image_matrix_s01,
+        normalize_by_batch=False, field_names=azimuthal_shear_field_names,
         normalization_dict=radar_normalization_dict).astype('float32')
 
     if sounding_file_names is not None:
