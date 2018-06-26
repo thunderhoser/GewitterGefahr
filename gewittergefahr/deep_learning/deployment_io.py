@@ -23,6 +23,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import error_checking
 
 
@@ -133,26 +134,17 @@ def create_storm_images_2d(
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=radar_file_name_matrix[i, 0])
 
-        if sounding_file_names is None:
-            these_storm_ids_to_keep = this_radar_image_dict[
-                storm_images.STORM_IDS_KEY]
-            these_storm_times_to_keep_unix_sec = this_radar_image_dict[
-                storm_images.VALID_TIMES_KEY]
+        if sounding_file_names is not None:
+            this_sounding_dict, this_radar_image_dict = (
+                trainval_io.read_soundings(
+                    sounding_file_name=sounding_file_names[i],
+                    sounding_field_names=sounding_field_names,
+                    radar_image_dict=this_radar_image_dict))
 
-            if return_target:
-                target_values = numpy.concatenate((
-                    target_values,
-                    this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
-        else:
-            this_sounding_dict = trainval_io.read_soundings(
-                sounding_file_name=sounding_file_names[i],
-                sounding_field_names=sounding_field_names,
-                radar_image_dict=this_radar_image_dict)
+            if (this_sounding_dict is None or
+                    not len(this_sounding_dict[soundings_only.STORM_IDS_KEY])):
+                continue
 
-            these_storm_ids_to_keep = this_sounding_dict[
-                trainval_io.STORM_IDS_KEY]
-            these_storm_times_to_keep_unix_sec = this_sounding_dict[
-                trainval_io.STORM_TIMES_KEY]
             this_sounding_matrix = this_sounding_dict[
                 trainval_io.SOUNDING_MATRIX_KEY]
             sounding_field_names = this_sounding_dict[
@@ -164,10 +156,14 @@ def create_storm_images_2d(
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0)
 
-            if return_target:
-                target_values = numpy.concatenate((
-                    target_values,
-                    this_sounding_dict[trainval_io.TARGET_VALUES_KEY]))
+        these_storm_ids_to_keep = this_radar_image_dict[
+            storm_images.STORM_IDS_KEY]
+        these_storm_times_to_keep_unix_sec = this_radar_image_dict[
+            storm_images.VALID_TIMES_KEY]
+        if return_target:
+            target_values = numpy.concatenate((
+                target_values,
+                this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
 
         tuple_of_image_matrices = ()
         for j in range(num_channels):
@@ -310,26 +306,17 @@ def create_storm_images_3d(
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=radar_file_name_matrix[i, 0, 0])
 
-        if sounding_file_names is None:
-            these_storm_ids_to_keep = this_radar_image_dict[
-                storm_images.STORM_IDS_KEY]
-            these_storm_times_to_keep_unix_sec = this_radar_image_dict[
-                storm_images.VALID_TIMES_KEY]
+        if sounding_file_names is not None:
+            this_sounding_dict, this_radar_image_dict = (
+                trainval_io.read_soundings(
+                    sounding_file_name=sounding_file_names[i],
+                    sounding_field_names=sounding_field_names,
+                    radar_image_dict=this_radar_image_dict))
 
-            if return_target:
-                target_values = numpy.concatenate((
-                    target_values,
-                    this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
-        else:
-            this_sounding_dict = trainval_io.read_soundings(
-                sounding_file_name=sounding_file_names[i],
-                sounding_field_names=sounding_field_names,
-                radar_image_dict=this_radar_image_dict)
+            if (this_sounding_dict is None or
+                    not len(this_sounding_dict[soundings_only.STORM_IDS_KEY])):
+                continue
 
-            these_storm_ids_to_keep = this_sounding_dict[
-                trainval_io.STORM_IDS_KEY]
-            these_storm_times_to_keep_unix_sec = this_sounding_dict[
-                trainval_io.STORM_TIMES_KEY]
             this_sounding_matrix = this_sounding_dict[
                 trainval_io.SOUNDING_MATRIX_KEY]
             sounding_field_names = this_sounding_dict[
@@ -341,10 +328,14 @@ def create_storm_images_3d(
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0)
 
-            if return_target:
-                target_values = numpy.concatenate((
-                    target_values,
-                    this_sounding_dict[trainval_io.TARGET_VALUES_KEY]))
+        these_storm_ids_to_keep = this_radar_image_dict[
+            storm_images.STORM_IDS_KEY]
+        these_storm_times_to_keep_unix_sec = this_radar_image_dict[
+            storm_images.VALID_TIMES_KEY]
+        if return_target:
+            target_values = numpy.concatenate((
+                target_values,
+                this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
 
         tuple_of_4d_image_matrices = ()
         for k in range(num_heights):
@@ -509,26 +500,17 @@ def create_storm_images_2d3d_myrorss(
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=reflectivity_file_name_matrix[i, 0])
 
-        if sounding_file_names is None:
-            these_storm_ids_to_keep = this_radar_image_dict[
-                storm_images.STORM_IDS_KEY]
-            these_storm_times_to_keep_unix_sec = this_radar_image_dict[
-                storm_images.VALID_TIMES_KEY]
+        if sounding_file_names is not None:
+            this_sounding_dict, this_radar_image_dict = (
+                trainval_io.read_soundings(
+                    sounding_file_name=sounding_file_names[i],
+                    sounding_field_names=sounding_field_names,
+                    radar_image_dict=this_radar_image_dict))
 
-            if return_target:
-                target_values = numpy.concatenate((
-                    target_values,
-                    this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
-        else:
-            this_sounding_dict = trainval_io.read_soundings(
-                sounding_file_name=sounding_file_names[i],
-                sounding_field_names=sounding_field_names,
-                radar_image_dict=this_radar_image_dict)
+            if (this_sounding_dict is None or
+                    not len(this_sounding_dict[soundings_only.STORM_IDS_KEY])):
+                continue
 
-            these_storm_ids_to_keep = this_sounding_dict[
-                trainval_io.STORM_IDS_KEY]
-            these_storm_times_to_keep_unix_sec = this_sounding_dict[
-                trainval_io.STORM_TIMES_KEY]
             this_sounding_matrix = this_sounding_dict[
                 trainval_io.SOUNDING_MATRIX_KEY]
             sounding_field_names = this_sounding_dict[
@@ -540,10 +522,14 @@ def create_storm_images_2d3d_myrorss(
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0)
 
-            if return_target:
-                target_values = numpy.concatenate((
-                    target_values,
-                    this_sounding_dict[trainval_io.TARGET_VALUES_KEY]))
+        these_storm_ids_to_keep = this_radar_image_dict[
+            storm_images.STORM_IDS_KEY]
+        these_storm_times_to_keep_unix_sec = this_radar_image_dict[
+            storm_images.VALID_TIMES_KEY]
+        if return_target:
+            target_values = numpy.concatenate((
+                target_values,
+                this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
 
         tuple_of_4d_refl_matrices = ()
         for k in range(num_reflectivity_heights):
