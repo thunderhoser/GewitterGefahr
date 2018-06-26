@@ -192,7 +192,7 @@ def create_storm_images_2d(
                 (radar_image_matrix, this_radar_image_matrix), axis=0)
 
     if radar_image_matrix is None:
-        return radar_image_matrix, sounding_matrix, target_values
+        return None, None, None
 
     radar_image_matrix = dl_utils.normalize_predictor_matrix(
         predictor_matrix=radar_image_matrix, normalize_by_batch=False,
@@ -375,7 +375,7 @@ def create_storm_images_3d(
                 (radar_image_matrix, this_radar_image_matrix), axis=0)
 
     if radar_image_matrix is None:
-        return radar_image_matrix, sounding_matrix, target_values
+        return None, None, None
 
     radar_image_matrix = dl_utils.normalize_predictor_matrix(
         predictor_matrix=radar_image_matrix, normalize_by_batch=False,
@@ -594,8 +594,7 @@ def create_storm_images_2d3d_myrorss(
                  this_azimuthal_shear_matrix_s01), axis=0)
 
     if reflectivity_image_matrix_dbz is None:
-        return (reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
-                sounding_matrix, target_values)
+        return None, None, None, None
 
     reflectivity_image_matrix_dbz = dl_utils.normalize_predictor_matrix(
         predictor_matrix=reflectivity_image_matrix_dbz,
