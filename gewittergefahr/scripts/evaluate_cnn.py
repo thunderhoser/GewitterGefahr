@@ -40,6 +40,7 @@ RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
 SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 ONE_FILE_PER_TIME_STEP_ARG_NAME = 'one_file_per_time_step'
+NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME = 'num_examples_per_file_time'
 FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
 LAST_EVAL_TIME_ARG_NAME = 'last_eval_time_string'
 NUM_STORM_OBJECTS_ARG_NAME = 'num_storm_objects'
@@ -61,6 +62,11 @@ TARGET_DIRECTORY_HELP_STRING = (
 ONE_FILE_PER_TIME_STEP_HELP_STRING = (
     'Boolean flag.  If 1 (0), the model will be evaluated with one set of files'
     ' per time step (SPC date).')
+NUM_EXAMPLES_PER_FILE_TIME_HELP_STRING = (
+    'Number of examples (storm objects) per file time.  If `{0:s}` = True, this'
+    ' is the number of examples per time step.  If `{0:s}` = False, this is '
+    'number of examples per SPC date.'
+).format(ONE_FILE_PER_TIME_STEP_ARG_NAME)
 EVAL_TIME_HELP_STRING = (
     'Evaluation time (format "yyyy-mm-dd-HHMMSS").  Evaluation times will be '
     'drawn randomly from `{0:s}`...`{1:s}`.  For each time drawn, all storm '
@@ -93,6 +99,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + ONE_FILE_PER_TIME_STEP_ARG_NAME, type=int, required=False, default=0,
     help=ONE_FILE_PER_TIME_STEP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME, type=int, required=True,
+    help=NUM_EXAMPLES_PER_FILE_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_EVAL_TIME_ARG_NAME, type=str, required=True,
@@ -254,8 +264,9 @@ def _create_attributes_diagram(
 
 def _create_forecast_observation_pairs_2d(
         model_object, top_storm_radar_image_dir_name, top_sounding_dir_name,
-        top_target_dir_name, one_file_per_time_step, first_eval_time_unix_sec,
-        last_eval_time_unix_sec, num_storm_objects, model_metadata_dict):
+        top_target_dir_name, one_file_per_time_step, num_examples_per_file_time,
+        first_eval_time_unix_sec, last_eval_time_unix_sec, num_storm_objects,
+        model_metadata_dict):
     """Creates forecast-observation pairs for a network with 2-D convolution.
 
     N = number of storm objects
@@ -265,6 +276,7 @@ def _create_forecast_observation_pairs_2d(
     :param top_sounding_dir_name: Same.
     :param top_target_dir_name: Same.
     :param one_file_per_time_step: Same.
+    :param num_examples_per_file_time: Same.
     :param first_eval_time_unix_sec: Same.
     :param last_eval_time_unix_sec: Same.
     :param num_storm_objects: Same.
@@ -304,6 +316,7 @@ def _create_forecast_observation_pairs_2d(
         (this_radar_image_matrix, this_sounding_matrix, these_observed_labels
         ) = deployment_io.create_storm_images_2d(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
+            num_examples_per_file_time=num_examples_per_file_time,
             return_target=True,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
@@ -341,8 +354,9 @@ def _create_forecast_observation_pairs_2d(
 
 def _create_forecast_observation_pairs_3d(
         model_object, top_storm_radar_image_dir_name, top_sounding_dir_name,
-        top_target_dir_name, one_file_per_time_step, first_eval_time_unix_sec,
-        last_eval_time_unix_sec, num_storm_objects, model_metadata_dict):
+        top_target_dir_name, one_file_per_time_step, num_examples_per_file_time,
+        first_eval_time_unix_sec, last_eval_time_unix_sec, num_storm_objects,
+        model_metadata_dict):
     """Creates forecast-observation pairs for a network with 3-D convolution.
 
     :param model_object: See doc for `_create_forecast_observation_pairs_2d`.
@@ -350,6 +364,7 @@ def _create_forecast_observation_pairs_3d(
     :param top_sounding_dir_name: Same.
     :param top_target_dir_name: Same.
     :param one_file_per_time_step: Same.
+    :param num_examples_per_file_time: Same.
     :param first_eval_time_unix_sec: Same.
     :param last_eval_time_unix_sec: Same.
     :param num_storm_objects: Same.
@@ -385,6 +400,7 @@ def _create_forecast_observation_pairs_3d(
         (this_radar_image_matrix, this_sounding_matrix, these_observed_labels
         ) = deployment_io.create_storm_images_3d(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
+            num_examples_per_file_time=num_examples_per_file_time,
             return_target=True,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
@@ -422,8 +438,9 @@ def _create_forecast_observation_pairs_3d(
 
 def _create_forecast_observation_pairs_2d3d(
         model_object, top_storm_radar_image_dir_name, top_sounding_dir_name,
-        top_target_dir_name, one_file_per_time_step, first_eval_time_unix_sec,
-        last_eval_time_unix_sec, num_storm_objects, model_metadata_dict):
+        top_target_dir_name, one_file_per_time_step, num_examples_per_file_time,
+        first_eval_time_unix_sec, last_eval_time_unix_sec, num_storm_objects,
+        model_metadata_dict):
     """Creates forecast-observation pairs for a network with 2D/3D convolution.
 
     :param model_object: See doc for `_create_forecast_observation_pairs_2d`.
@@ -431,6 +448,7 @@ def _create_forecast_observation_pairs_2d3d(
     :param top_sounding_dir_name: Same.
     :param top_target_dir_name: Same.
     :param one_file_per_time_step: Same.
+    :param num_examples_per_file_time: Same.
     :param first_eval_time_unix_sec: Same.
     :param last_eval_time_unix_sec: Same.
     :param num_storm_objects: Same.
@@ -469,6 +487,7 @@ def _create_forecast_observation_pairs_2d3d(
          this_sounding_matrix, these_observed_labels
         ) = deployment_io.create_storm_images_2d3d_myrorss(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
+            num_examples_per_file_time=num_examples_per_file_time,
             return_target=True,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
@@ -507,8 +526,9 @@ def _create_forecast_observation_pairs_2d3d(
 
 def _evaluate_model(
         model_file_name, top_storm_radar_image_dir_name, top_sounding_dir_name,
-        top_target_dir_name, one_file_per_time_step, first_eval_time_string,
-        last_eval_time_string, num_storm_objects, output_dir_name):
+        top_target_dir_name, one_file_per_time_step, num_examples_per_file_time,
+        first_eval_time_string, last_eval_time_string, num_storm_objects,
+        output_dir_name):
     """Evaluates predictions from a convolutional neural network (CNN).
 
     :param model_file_name: See documentation at top of file.
@@ -516,6 +536,7 @@ def _evaluate_model(
     :param top_sounding_dir_name: Same.
     :param top_target_dir_name: Same.
     :param one_file_per_time_step: Same.
+    :param num_examples_per_file_time: Same.
     :param first_eval_time_string: Same.
     :param last_eval_time_string: Same.
     :param num_storm_objects: Same.
@@ -557,6 +578,7 @@ def _evaluate_model(
                 top_sounding_dir_name=top_sounding_dir_name,
                 top_target_dir_name=top_target_dir_name,
                 one_file_per_time_step=one_file_per_time_step,
+                num_examples_per_file_time=num_examples_per_file_time,
                 first_eval_time_unix_sec=first_eval_time_unix_sec,
                 last_eval_time_unix_sec=last_eval_time_unix_sec,
                 num_storm_objects=num_storm_objects,
@@ -573,6 +595,7 @@ def _evaluate_model(
                     top_sounding_dir_name=top_sounding_dir_name,
                     top_target_dir_name=top_target_dir_name,
                     one_file_per_time_step=one_file_per_time_step,
+                    num_examples_per_file_time=num_examples_per_file_time,
                     first_eval_time_unix_sec=first_eval_time_unix_sec,
                     last_eval_time_unix_sec=last_eval_time_unix_sec,
                     num_storm_objects=num_storm_objects,
@@ -586,6 +609,7 @@ def _evaluate_model(
                     top_sounding_dir_name=top_sounding_dir_name,
                     top_target_dir_name=top_target_dir_name,
                     one_file_per_time_step=one_file_per_time_step,
+                    num_examples_per_file_time=num_examples_per_file_time,
                     first_eval_time_unix_sec=first_eval_time_unix_sec,
                     last_eval_time_unix_sec=last_eval_time_unix_sec,
                     num_storm_objects=num_storm_objects,
@@ -676,6 +700,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, TARGET_DIRECTORY_ARG_NAME),
         one_file_per_time_step=bool(getattr(
             INPUT_ARG_OBJECT, ONE_FILE_PER_TIME_STEP_ARG_NAME)),
+        num_examples_per_file_time=getattr(
+            INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME),
         first_eval_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_EVAL_TIME_ARG_NAME),
         last_eval_time_string=getattr(

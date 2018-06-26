@@ -27,9 +27,45 @@ from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import error_checking
 
 
+def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
+    """Randomly subsets radar images.
+
+    :param radar_image_dict: Dictionary created by
+        `storm_images.read_storm_images` or
+        `storm_images.read_storm_images_and_labels`.
+    :param num_examples_to_keep: Will keep radar images for this many examples
+        (storm objects).
+    :return: radar_image_dict: Same as input, but may contain fewer storm
+        objects.
+    """
+
+    num_examples_total = len(radar_image_dict[storm_images.STORM_IDS_KEY])
+    if num_examples_total <= num_examples_to_keep:
+        return radar_image_dict
+
+    example_to_keep_indices = numpy.linspace(
+        0, num_examples_to_keep - 1, num=num_examples_to_keep, dtype=int)
+    example_to_keep_indices = numpy.random.choice(
+        example_to_keep_indices, size=num_examples_to_keep, replace=False)
+
+    radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY] = radar_image_dict[
+        storm_images.STORM_IMAGE_MATRIX_KEY][example_to_keep_indices, ...]
+    radar_image_dict[storm_images.STORM_IDS_KEY] = [
+        radar_image_dict[storm_images.STORM_IDS_KEY][i]
+        for i in example_to_keep_indices]
+    radar_image_dict[storm_images.VALID_TIMES_KEY] = radar_image_dict[
+        storm_images.VALID_TIMES_KEY][example_to_keep_indices]
+
+    if storm_images.LABEL_VALUES_KEY in radar_image_dict:
+        radar_image_dict[storm_images.LABEL_VALUES_KEY] = radar_image_dict[
+            storm_images.LABEL_VALUES_KEY][example_to_keep_indices]
+
+    return radar_image_dict
+
+
 def create_storm_images_2d(
-        radar_file_name_matrix, return_target=True, target_name=None,
-        binarize_target=False, top_target_directory_name=None,
+        radar_file_name_matrix, num_examples_per_file_time, return_target=True,
+        target_name=None, binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -46,6 +82,8 @@ def create_storm_images_2d(
 
     :param radar_file_name_matrix: T-by-C numpy array of paths to radar files.
         Should be created by `training_validation_io.find_radar_files_2d`.
+    :param num_examples_per_file_time: Number of examples (storm objects) per
+        file time.
     :param return_target: Boolean flag.  If True, will return target values.
     :param target_name: [used only if return_target = True]
         Name of target variable.
@@ -77,7 +115,8 @@ def create_storm_images_2d(
 
     error_checking.assert_is_boolean(return_target)
     trainval_io.check_input_args(
-        num_examples_per_batch=100, num_examples_per_file_time=10,
+        num_examples_per_batch=100,
+        num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
         num_radar_dimensions=2, binarize_target=binarize_target,
         sounding_field_names=sounding_field_names)
@@ -133,6 +172,10 @@ def create_storm_images_2d(
                 radar_file_name_matrix[i, 0])
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=radar_file_name_matrix[i, 0])
+
+        this_radar_image_dict = _randomly_subset_radar_images(
+            radar_image_dict=this_radar_image_dict,
+            num_examples_to_keep=num_examples_per_file_time)
 
         if sounding_file_names is not None:
             this_sounding_dict, this_radar_image_dict = (
@@ -209,8 +252,8 @@ def create_storm_images_2d(
 
 
 def create_storm_images_3d(
-        radar_file_name_matrix, return_target=True, target_name=None,
-        binarize_target=False, top_target_directory_name=None,
+        radar_file_name_matrix, num_examples_per_file_time, return_target=True,
+        target_name=None, binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -227,7 +270,8 @@ def create_storm_images_3d(
 
     :param radar_file_name_matrix: numpy array (T x F_r x H_r) of paths to
         radar-image files.  Should be created by `find_radar_files_3d`.
-    :param return_target: See doc for `create_storm_images_2d`.
+    :param num_examples_per_file_time: See doc for `create_storm_images_2d`.
+    :param return_target: Same.
     :param target_name: Same.
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
@@ -248,7 +292,8 @@ def create_storm_images_3d(
 
     error_checking.assert_is_boolean(return_target)
     trainval_io.check_input_args(
-        num_examples_per_batch=100, num_examples_per_file_time=10,
+        num_examples_per_batch=100,
+        num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
         num_radar_dimensions=3, binarize_target=binarize_target,
         sounding_field_names=sounding_field_names)
@@ -305,6 +350,10 @@ def create_storm_images_3d(
                 radar_file_name_matrix[i, 0, 0])
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=radar_file_name_matrix[i, 0, 0])
+
+        this_radar_image_dict = _randomly_subset_radar_images(
+            radar_image_dict=this_radar_image_dict,
+            num_examples_to_keep=num_examples_per_file_time)
 
         if sounding_file_names is not None:
             this_sounding_dict, this_radar_image_dict = (
@@ -387,8 +436,8 @@ def create_storm_images_3d(
 
 
 def create_storm_images_2d3d_myrorss(
-        radar_file_name_matrix, return_target=True, target_name=None,
-        binarize_target=False, top_target_directory_name=None,
+        radar_file_name_matrix, num_examples_per_file_time, return_target=True,
+        target_name=None, binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_NORMALIZATION_DICT,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -414,7 +463,8 @@ def create_storm_images_2d3d_myrorss(
 
     :param radar_file_name_matrix: See doc for
         `training_validation_io.separate_radar_files_2d3d`.
-    :param return_target: See doc for `create_storm_images_2d`.
+    :param num_examples_per_file_time: See doc for `create_storm_images_2d`.
+    :param return_target: Same.
     :param target_name: Same.
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
@@ -437,7 +487,8 @@ def create_storm_images_2d3d_myrorss(
 
     error_checking.assert_is_boolean(return_target)
     trainval_io.check_input_args(
-        num_examples_per_batch=100, num_examples_per_file_time=10,
+        num_examples_per_batch=100,
+        num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
         num_radar_dimensions=2, binarize_target=binarize_target,
         sounding_field_names=sounding_field_names)
@@ -499,6 +550,10 @@ def create_storm_images_2d3d_myrorss(
                 reflectivity_file_name_matrix[i, 0])
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=reflectivity_file_name_matrix[i, 0])
+
+        this_radar_image_dict = _randomly_subset_radar_images(
+            radar_image_dict=this_radar_image_dict,
+            num_examples_to_keep=num_examples_per_file_time)
 
         if sounding_file_names is not None:
             this_sounding_dict, this_radar_image_dict = (
