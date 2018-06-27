@@ -317,6 +317,28 @@ def _get_sounding_layers(
     return sounding_input_layer_object, sounding_layer_object
 
 
+def _model_to_feature_generator(model_object):
+    """Reduces Keras model from predictor to feature-generator.
+
+    Specifically, this method removes all layers after the last flattening
+    layer.
+
+    :param model_object: Instance of `keras.models.Model`.
+    :return: intermediate_model_object: Same as input, except that all layers
+        after the last flattening layer are removed.
+    """
+
+    list_of_layer_objects = model_object.layers
+    layer_types = [type(obj).__name__ for obj in list_of_layer_objects]
+    flatten_layer_flags = numpy.array(
+        [t == 'Flatten' for t in layer_types], dtype=bool)
+    last_flatten_layer_index = numpy.where(flatten_layer_flags)[0][-1]
+
+    return keras.models.Model(
+        inputs=model_object.input,
+        outputs=model_object.get_layer(index=last_flatten_layer_index).output)
+
+
 def get_2d_mnist_architecture(
         num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
         num_filters_in_first_conv_layer=32, l2_weight=None):
@@ -1371,14 +1393,31 @@ def train_2d3d_cnn(
             validation_steps=num_validation_batches_per_epoch)
 
 
-def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None):
+def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
+                 return_features=False):
     """Applies CNN to 2-D radar images.
+
+    If return_features = True, this method will return only features (the output
+    of the last "Flatten" layer).  If return_features = False, this method will
+    return predictions (the output of the last fully connected, or "Dense,"
+    layer).
+
+    E = number of storm objects
+    Z = number of features
 
     :param model_object: Instance of `keras.models.Sequential`.
     :param radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
     :param sounding_matrix: [may be None]
         numpy array (E x H_s x F_s) of storm-centered soundings.
+    :param return_features: See general discussion above.
+
+    If return_features = True, returns the following...
+
+    :return: feature_matrix: E-by-Z numpy array of features.
+
+    If return_features = False, returns the following...
+
     :return: class_probability_matrix: E-by-K numpy array of class
         probabilities.  class_probability_matrix[i, k] is the forecast
         probability that the [i]th storm object belongs to the [k]th class.
@@ -1389,13 +1428,25 @@ def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None):
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
         max_num_dimensions=4)
-
     num_examples = radar_image_matrix.shape[0]
+
+    error_checking.assert_is_boolean(return_features)
+    if sounding_matrix is not None:
+        dl_utils.check_soundings(
+            sounding_matrix=sounding_matrix, num_examples=num_examples)
+
+    if return_features:
+        intermediate_model_object = _model_to_feature_generator(model_object)
+        if sounding_matrix is None:
+            return intermediate_model_object.predict(
+                radar_image_matrix, batch_size=num_examples)
+
+        return intermediate_model_object.predict(
+            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+
     if sounding_matrix is None:
         return model_object.predict(radar_image_matrix, batch_size=num_examples)
 
-    dl_utils.check_soundings(
-        sounding_matrix=sounding_matrix, num_examples=num_examples)
     return model_object.predict(
         [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
@@ -1404,31 +1455,19 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
                  return_features=False):
     """Applies CNN to 3-D radar images.
 
-    If return_features = True, this method will return only features (the output
-    of the last "Flatten" layer).  If return_features = False, this method will
-    return predictions (the output of the last fully connected, or "Dense,"
-    layer).
-
-    E = number of storm objects
-    X = number of features
-
     :param model_object: Instance of `keras.models.Sequential`.
     :param radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
         centered radar images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
-    :param return_features: See general discussion above.
+    :param return_features: Same.
 
     If return_features = True, returns the following...
 
-    :return: feature_matrix: E-by-X numpy array of features.
+    :return: feature_matrix: See doc for `apply_2d_cnn`.
 
     If return_features = False, returns the following...
 
-    :return: class_probability_matrix: E-by-K numpy array of class
-        probabilities.  class_probability_matrix[i, k] is the forecast
-        probability that the [i]th storm object belongs to the [k]th class.
-        Classes are mutually exclusive and collectively exhaustive, so the sum
-        across each row is 1.
+    :return: class_probability_matrix: See doc for `apply_2d_cnn`.
     """
 
     dl_utils.check_radar_images(
@@ -1442,17 +1481,7 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        list_of_layer_objects = model_object.layers
-        layer_types = [type(obj).__name__ for obj in list_of_layer_objects]
-        flatten_layer_flags = numpy.array(
-            [t == 'Flatten' for t in layer_types], dtype=bool)
-        last_flatten_layer_index = numpy.where(flatten_layer_flags)[0][-1]
-
-        intermediate_model_object = keras.models.Model(
-            inputs=model_object.input,
-            outputs=model_object.get_layer(
-                index=last_flatten_layer_index).output)
-
+        intermediate_model_object = _model_to_feature_generator(model_object)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -1469,7 +1498,8 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
 
 def apply_2d3d_cnn(
         model_object, reflectivity_image_matrix_dbz,
-        azimuthal_shear_image_matrix_s01, sounding_matrix=None):
+        azimuthal_shear_image_matrix_s01, sounding_matrix=None,
+        return_features=False):
     """Applies CNN to 2-D azimuthal-shear images and 3-D reflectivity images.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -1478,7 +1508,15 @@ def apply_2d3d_cnn(
     :param azimuthal_shear_image_matrix_s01: numpy array (E x M x N x F_a) of
         storm-centered azimuthal-shear images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
-    :return: class_probability_matrix: Same.
+    :param return_features: Same.
+
+    If return_features = True, returns the following...
+
+    :return: feature_matrix: See doc for `apply_2d_cnn`.
+
+    If return_features = False, returns the following...
+
+    :return: class_probability_matrix: See doc for `apply_2d_cnn`.
     """
 
     dl_utils.check_radar_images(
@@ -1499,13 +1537,29 @@ def apply_2d3d_cnn(
     error_checking.assert_is_numpy_array(
         azimuthal_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
 
+    error_checking.assert_is_boolean(return_features)
+    if sounding_matrix is not None:
+        dl_utils.check_soundings(
+            sounding_matrix=sounding_matrix, num_examples=num_examples)
+
+    if return_features:
+        intermediate_model_object = _model_to_feature_generator(model_object)
+        if sounding_matrix is None:
+            return intermediate_model_object.predict(
+                [reflectivity_image_matrix_dbz,
+                 azimuthal_shear_image_matrix_s01],
+                batch_size=num_examples)
+
+        return intermediate_model_object.predict(
+            [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+             sounding_matrix],
+            batch_size=num_examples)
+
     if sounding_matrix is None:
         return model_object.predict(
             [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01],
             batch_size=num_examples)
 
-    dl_utils.check_soundings(
-        sounding_matrix=sounding_matrix, num_examples=num_examples)
     return model_object.predict(
         [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
          sounding_matrix],

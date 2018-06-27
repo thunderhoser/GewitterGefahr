@@ -280,7 +280,7 @@ def _create_forecast_observation_pairs_2d(
     :param first_eval_time_unix_sec: Same.
     :param last_eval_time_unix_sec: Same.
     :param num_storm_objects: Same.
-    :param model_metadata_dict: Dictionary created by `cnn_read_model_metadata`.
+    :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     :return: forecast_probabilities: length-N numpy array of forecast event
         probabilities.
     :return: observed_labels: length-N numpy array of observed labels (1 for
