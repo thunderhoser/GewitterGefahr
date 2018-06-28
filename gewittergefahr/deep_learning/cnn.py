@@ -20,6 +20,7 @@ T = number of file times (time steps or SPC dates)
 
 import pickle
 import numpy
+import netCDF4
 import keras.losses
 import keras.optimizers
 import keras.models
@@ -29,6 +30,7 @@ from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -100,6 +102,11 @@ MODEL_METADATA_KEYS = [
     USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY,
     RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
+
+STORM_OBJECT_DIMENSION_KEY = 'storm_object'
+FEATURE_DIMENSION_KEY = 'feature'
+FEATURE_MATRIX_KEY = 'feature_matrix'
+TARGET_VALUES_KEY = 'target_values'
 
 
 def _check_architecture_args(
@@ -1618,3 +1625,89 @@ def apply_2d3d_cnn(
         [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
          sounding_matrix],
         batch_size=num_examples)
+
+
+def write_features(
+        netcdf_file_name, feature_matrix, target_values, append_to_file=False):
+    """Writes features (output of last "Flatten" layer in CNN) to NetCDF file.
+
+    E = number of storm objects
+    Z = number of features
+
+    :param netcdf_file_name: Path to output file.
+    :param feature_matrix: E-by-Z numpy array of features.
+    :param target_values: length-E numpy array of target values.  Must all be
+        integers in 0...(K - 1), where K = number of classes.
+    :param append_to_file: Boolean flag.  If True, will append to existing file.
+        If False, will create new file.
+    """
+
+    error_checking.assert_is_boolean(append_to_file)
+    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
+    num_storm_objects = feature_matrix.shape[0]
+
+    error_checking.assert_is_integer_numpy_array(target_values)
+    error_checking.assert_is_numpy_array(
+        target_values, exact_dimensions=numpy.array([num_storm_objects]))
+    error_checking.assert_is_geq_numpy_array(target_values, 0)
+
+    if append_to_file:
+        error_checking.assert_is_string(netcdf_file_name)
+        netcdf_dataset = netCDF4.Dataset(
+            netcdf_file_name, 'a', format='NETCDF3_64BIT_OFFSET')
+
+        prev_num_storm_objects = len(numpy.array(
+            netcdf_dataset.variables[TARGET_VALUES_KEY][:]))
+        netcdf_dataset.variables[FEATURE_MATRIX_KEY][
+            prev_num_storm_objects:(prev_num_storm_objects + num_storm_objects),
+            ...
+        ] = feature_matrix
+        netcdf_dataset.variables[TARGET_VALUES_KEY][
+            prev_num_storm_objects:(prev_num_storm_objects + num_storm_objects)
+        ] = target_values
+
+    else:
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=netcdf_file_name)
+        netcdf_dataset = netCDF4.Dataset(
+            netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+        netcdf_dataset.createDimension(STORM_OBJECT_DIMENSION_KEY, None)
+        netcdf_dataset.createDimension(
+            FEATURE_DIMENSION_KEY, feature_matrix.shape[1])
+
+        netcdf_dataset.createVariable(
+            FEATURE_MATRIX_KEY, datatype=numpy.float32,
+            dimensions=(STORM_OBJECT_DIMENSION_KEY, FEATURE_DIMENSION_KEY))
+        netcdf_dataset.variables[FEATURE_MATRIX_KEY][:] = feature_matrix
+
+        netcdf_dataset.createVariable(
+            TARGET_VALUES_KEY, datatype=numpy.int32,
+            dimensions=STORM_OBJECT_DIMENSION_KEY)
+        netcdf_dataset.variables[TARGET_VALUES_KEY][:] = target_values
+
+    netcdf_dataset.close()
+
+
+def read_features(netcdf_file_name):
+    """Reads features (output of last "Flatten" layer in CNN) from NetCDF file.
+
+    E = number of storm objects
+    Z = number of features
+
+    :param netcdf_file_name: Path to input file.
+    :return: feature_matrix: E-by-Z numpy array of features.
+    :return: target_values: length-E numpy array of target values.  All in
+        0...(K - 1), where K = number of classes.
+    """
+
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
+
+    feature_matrix = numpy.array(
+        netcdf_dataset.variables[FEATURE_MATRIX_KEY][:])
+    target_values = numpy.array(
+        netcdf_dataset.variables[TARGET_VALUES_KEY][:], dtype=int)
+    netcdf_dataset.close()
+
+    return feature_matrix, target_values
