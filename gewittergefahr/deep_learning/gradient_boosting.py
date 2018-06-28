@@ -112,15 +112,7 @@ def train_model(
         exact_dimensions=numpy.array([num_training_examples]))
     error_checking.assert_is_geq_numpy_array(training_target_values, 0)
 
-    training_target_matrix = numpy.full(
-        (num_training_examples, num_classes), 0, dtype=int)
-    for i in range(num_training_examples):
-        training_target_matrix[i, training_target_values[i]] = 1
-
     if num_iters_for_early_stopping is None:
-        print training_feature_matrix.shape
-        print training_target_values.shape
-
         model_object.fit(
             training_feature_matrix, training_target_values,
             eval_metric='logloss', verbose=True)
