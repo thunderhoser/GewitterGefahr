@@ -298,6 +298,8 @@ def _create_forecast_observation_pairs_2d(
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
 
+    radar_file_name_matrix, _ = trainval_io._shuffle_times(
+        radar_file_name_matrix)
     print SEPARATOR_STRING
 
     forecast_probabilities = numpy.array([])
@@ -382,6 +384,8 @@ def _create_forecast_observation_pairs_3d(
         last_file_time_unix_sec=last_eval_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step)
 
+    radar_file_name_matrix, _ = trainval_io._shuffle_times(
+        radar_file_name_matrix)
     print SEPARATOR_STRING
 
     forecast_probabilities = numpy.array([])
@@ -468,6 +472,8 @@ def _create_forecast_observation_pairs_2d3d(
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
 
+    radar_file_name_matrix, _ = trainval_io._shuffle_times(
+        radar_file_name_matrix)
     print SEPARATOR_STRING
 
     forecast_probabilities = numpy.array([])
