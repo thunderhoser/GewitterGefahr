@@ -110,6 +110,9 @@ def train_model(
     error_checking.assert_is_geq_numpy_array(training_target_values, 0)
 
     if num_iters_for_early_stopping is None:
+        print training_feature_matrix.size
+        print training_target_values.size
+
         model_object.fit(
             training_feature_matrix, training_target_values,
             eval_metric='logloss', verbose=True)
