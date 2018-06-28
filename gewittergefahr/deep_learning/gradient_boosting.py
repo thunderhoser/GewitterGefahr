@@ -73,9 +73,9 @@ def create_model(
 
 
 def train_model(
-        model_object, num_classes, training_feature_matrix,
-        training_target_values, num_iters_for_early_stopping=None,
-        validation_feature_matrix=None, validation_target_values=None):
+        model_object, training_feature_matrix, training_target_values,
+        num_iters_for_early_stopping=None, validation_feature_matrix=None,
+        validation_target_values=None):
     """Trains GBT model for classification.
 
     T = number of training examples
@@ -84,7 +84,6 @@ def train_model(
 
     :param model_object: Instance of `xgboost.XGBClassifier`.  The easiest way
         to create one is to use `create_model`.
-    :param num_classes: Number of target classes.
     :param training_feature_matrix: T-by-Z numpy array of features for training.
     :param training_target_values: length-T integer numpy array of target values
         for training.  If target_values[i] = k, the [i]th example (storm object)
@@ -139,3 +138,21 @@ def train_model(
             eval_metric='logloss', verbose=True,
             early_stopping_rounds=num_iters_for_early_stopping,
             eval_set=[(validation_feature_matrix, validation_target_values)])
+
+
+def apply_model(model_object, feature_matrix):
+    """Applies trained GBT model to new examples.
+
+    E = number of examples (storm objects)
+    Z = number of features (input variables)
+
+    :param model_object: Trained instance of `xgboost.XGBClassifier`.
+    :param feature_matrix: E-by-Z numpy array of features.
+    :return: class_probability_matrix: E-by-K numpy array of class
+        probabilities.  class_probability_matrix[i, k] is the forecast
+        probability that the [i]th storm object belongs to the [k]th class.
+        Classes are mutually exclusive and collectively exhaustive, so the sum
+        across each row is 1.
+    """
+
+    return model_object.predict_proba(feature_matrix)
