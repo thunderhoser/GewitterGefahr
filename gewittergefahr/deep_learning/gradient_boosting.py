@@ -6,7 +6,6 @@ created by a convolutional neural network (CNN).
 
 import numpy
 import xgboost
-import keras.utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Still need some way to do oversampling/undersampling.
@@ -121,7 +120,7 @@ def train_model(
         print training_target_matrix.shape
 
         model_object.fit(
-            training_feature_matrix, training_target_matrix,
+            training_feature_matrix, numpy.reshape(training_target_values, (training_target_values.size, 1)),
             eval_metric='logloss', verbose=True)
     else:
         error_checking.assert_is_integer(num_iters_for_early_stopping)
