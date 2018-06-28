@@ -6,6 +6,7 @@ created by a convolutional neural network (CNN).
 
 import numpy
 import xgboost
+import keras.utils
 from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Still need some way to do oversampling/undersampling.
@@ -71,9 +72,9 @@ def create_model(
 
 
 def train_model(
-        model_object, training_feature_matrix, training_target_values,
-        num_iters_for_early_stopping=None, validation_feature_matrix=None,
-        validation_target_values=None):
+        model_object, num_classes, training_feature_matrix,
+        training_target_values, num_iters_for_early_stopping=None,
+        validation_feature_matrix=None, validation_target_values=None):
     """Trains GBT model for classification.
 
     T = number of training examples
@@ -82,6 +83,7 @@ def train_model(
 
     :param model_object: Instance of `xgboost.XGBClassifier`.  The easiest way
         to create one is to use `create_model`.
+    :param num_classes: Number of target classes.
     :param training_feature_matrix: T-by-Z numpy array of features for training.
     :param training_target_values: length-T integer numpy array of target values
         for training.  If target_values[i] = k, the [i]th example (storm object)
@@ -109,12 +111,17 @@ def train_model(
         exact_dimensions=numpy.array([num_training_examples]))
     error_checking.assert_is_geq_numpy_array(training_target_values, 0)
 
+    training_target_matrix = numpy.full(
+        (num_training_examples, num_classes), 0, dtype=int)
+    for i in range(num_training_examples):
+        training_target_matrix[i, training_target_values[i]] = 1
+
     if num_iters_for_early_stopping is None:
-        print training_feature_matrix.size
-        print training_target_values.size
+        print training_feature_matrix.shape
+        print training_target_matrix.shape
 
         model_object.fit(
-            training_feature_matrix, training_target_values,
+            training_feature_matrix, training_target_matrix,
             eval_metric='logloss', verbose=True)
     else:
         error_checking.assert_is_integer(num_iters_for_early_stopping)
