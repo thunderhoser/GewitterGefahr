@@ -194,6 +194,19 @@ def binary_pofd(target_tensor, forecast_probability_tensor):
     return b / (b + d + K.epsilon())
 
 
+def binary_peirce_score(target_tensor, forecast_probability_tensor):
+    """Returns binary Peirce score.
+
+    :param target_tensor: See documentation for `_get_num_true_positives`.
+    :param forecast_probability_tensor: See documentation for
+        `_get_num_true_positives`.
+    :return: binary_peirce_score: Binary Peirce score.
+    """
+
+    return binary_pod(target_tensor, forecast_probability_tensor) - binary_pofd(
+        target_tensor, forecast_probability_tensor)
+
+
 def binary_npv(target_tensor, forecast_probability_tensor):
     """Returns binary negative predictive value (d / [b + d]).
 

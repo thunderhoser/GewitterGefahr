@@ -40,12 +40,13 @@ def _train_cnn(
         num_examples_per_file_time, num_training_batches_per_epoch,
         top_storm_radar_image_dir_name, one_file_per_time_step,
         first_training_time_string, last_training_time_string,
-        radar_field_names, target_name, top_target_dir_name, binarize_target,
-        num_radar_filters_in_first_conv_layer, dropout_fraction, l2_weight,
-        sampling_fraction_dict_keys, sampling_fraction_dict_values,
-        weight_loss_function, num_validation_batches_per_epoch,
-        first_validation_time_string, last_validation_time_string,
-        sounding_field_names, top_sounding_dir_name,
+        monitor_string, radar_field_names, target_name, top_target_dir_name,
+        binarize_target, num_radar_filters_in_first_conv_layer,
+        dropout_fraction, l2_weight, sampling_fraction_dict_keys,
+        sampling_fraction_dict_values, weight_loss_function,
+        num_validation_batches_per_epoch, first_validation_time_string,
+        last_validation_time_string, sounding_field_names,
+        top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
         num_sounding_filters_in_first_conv_layer):
     """Trains CNN with 3-D GridRad images.
@@ -60,6 +61,7 @@ def _train_cnn(
     :param one_file_per_time_step: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
+    :param monitor_string: Same.
     :param radar_field_names: Same.
     :param target_name: Same.
     :param top_target_dir_name: Same.
@@ -162,7 +164,8 @@ def _train_cnn(
         num_examples_per_file_time=num_examples_per_file_time,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
-        weight_loss_function=weight_loss_function, target_name=target_name,
+        weight_loss_function=weight_loss_function,
+        monitor_string=monitor_string, target_name=target_name,
         binarize_target=binarize_target,
         radar_normalization_dict=RADAR_NORMALIZATION_DICT,
         use_2d3d_convolution=False, radar_source=radar_utils.GRIDRAD_SOURCE_ID,
@@ -202,7 +205,7 @@ def _train_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
         target_name=target_name, top_target_directory_name=top_target_dir_name,
-        binarize_target=binarize_target,
+        monitor_string=monitor_string, binarize_target=binarize_target,
         weight_loss_function=weight_loss_function,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -236,6 +239,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME),
         last_training_time_string=getattr(
             INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
+        monitor_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MONITOR_STRING_ARG_NAME),
         radar_field_names=getattr(
             INPUT_ARG_OBJECT, dl_helper.RADAR_FIELD_NAMES_ARG_NAME),
         target_name=getattr(

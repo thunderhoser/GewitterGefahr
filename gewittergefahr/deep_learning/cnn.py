@@ -33,6 +33,10 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+LOSS_AS_MONITOR_STRING = 'loss'
+PEIRCE_SCORE_AS_MONITOR_STRING = 'peirce_score'
+VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
+
 VALID_NUMBERS_OF_RADAR_ROWS = numpy.array([16, 32, 64], dtype=int)
 VALID_NUMBERS_OF_RADAR_COLUMNS = numpy.array([16, 32, 64], dtype=int)
 VALID_NUMBERS_OF_RADAR_HEIGHTS = numpy.array([12], dtype=int)
@@ -47,6 +51,7 @@ CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'binary_frequency_bias': keras_metrics.binary_frequency_bias,
     'binary_pod': keras_metrics.binary_pod,
     'binary_pofd': keras_metrics.binary_pofd,
+    'binary_peirce_score': keras_metrics.binary_peirce_score,
     'binary_success_ratio': keras_metrics.binary_success_ratio,
     'binary_focn': keras_metrics.binary_focn
 }
@@ -55,7 +60,8 @@ LIST_OF_METRIC_FUNCTIONS = [
     keras_metrics.accuracy, keras_metrics.binary_accuracy,
     keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
     keras_metrics.binary_pod, keras_metrics.binary_pofd,
-    keras_metrics.binary_success_ratio, keras_metrics.binary_focn
+    keras_metrics.binary_peirce_score, keras_metrics.binary_success_ratio,
+    keras_metrics.binary_focn
 ]
 
 NUM_EPOCHS_KEY = 'num_epochs'
@@ -64,6 +70,7 @@ NUM_EXAMPLES_PER_FILE_TIME_KEY = 'num_examples_per_time'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 TRAINING_FILE_NAME_MATRIX_KEY = 'radar_file_name_matrix_for_training'
 WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
+MONITOR_STRING_KEY = 'monitor_string'
 TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
 RADAR_NORMALIZATION_DICT_KEY = 'radar_normalization_dict'
@@ -84,13 +91,14 @@ REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
     NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAME_MATRIX_KEY,
-    WEIGHT_LOSS_FUNCTION_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
-    RADAR_NORMALIZATION_DICT_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
-    VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
-    VALIDATION_FILE_NAME_MATRIX_KEY, SOUNDING_FIELD_NAMES_KEY,
-    TOP_SOUNDING_DIR_NAME_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
-    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
-    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
+    WEIGHT_LOSS_FUNCTION_KEY, MONITOR_STRING_KEY, TARGET_NAME_KEY,
+    BINARIZE_TARGET_KEY, RADAR_NORMALIZATION_DICT_KEY,
+    TRAINING_FRACTION_BY_CLASS_KEY, VALIDATION_FRACTION_BY_CLASS_KEY,
+    NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILE_NAME_MATRIX_KEY,
+    SOUNDING_FIELD_NAMES_KEY, TOP_SOUNDING_DIR_NAME_KEY,
+    SOUNDING_NORMALIZATION_DICT_KEY, SOUNDING_LAG_TIME_KEY,
+    USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY,
+    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
 
 
@@ -863,10 +871,11 @@ def read_model(hdf5_file_name):
 def write_model_metadata(
         pickle_file_name, num_epochs, num_examples_per_batch,
         num_examples_per_file_time, num_training_batches_per_epoch,
-        radar_file_name_matrix_for_training, weight_loss_function, target_name,
-        binarize_target, radar_normalization_dict, use_2d3d_convolution,
-        radar_source, radar_field_names, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None, training_fraction_by_class_dict=None,
+        radar_file_name_matrix_for_training, weight_loss_function,
+        monitor_string, target_name, binarize_target, radar_normalization_dict,
+        use_2d3d_convolution, radar_source, radar_field_names,
+        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
+        training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         radar_file_name_matrix_for_validn=None, sounding_field_names=None,
@@ -885,6 +894,7 @@ def write_model_metadata(
         `training_validation_io.find_radar_files_2d` or
         `training_validation_io.find_radar_files_3d`.
     :param weight_loss_function: See doc for `_check_training_args`.
+    :param monitor_string: See doc for `_get_checkpoint_object`.
     :param target_name: Name of target variable.
     :param binarize_target: Boolean flag.  If True, target variable was
         binarized, so that the highest class becomes 1 and all other classes
@@ -933,6 +943,7 @@ def write_model_metadata(
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         TRAINING_FILE_NAME_MATRIX_KEY: radar_file_name_matrix_for_training,
         WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
+        MONITOR_STRING_KEY: monitor_string,
         TARGET_NAME_KEY: target_name,
         BINARIZE_TARGET_KEY: binarize_target,
         RADAR_NORMALIZATION_DICT_KEY: radar_normalization_dict,
@@ -1004,6 +1015,9 @@ def read_model_metadata(pickle_file_name):
             REFLECTIVITY_HEIGHTS_KEY: None
         })
 
+    if MONITOR_STRING_KEY not in model_metadata_dict:
+        model_metadata_dict.update({MONITOR_STRING_KEY: LOSS_AS_MONITOR_STRING})
+
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
     if not set(expected_keys_as_set).issubset(actual_keys_as_set):
@@ -1018,11 +1032,58 @@ def read_model_metadata(pickle_file_name):
     return model_metadata_dict
 
 
+def _get_checkpoint_object(
+        output_model_file_name, monitor_string, use_validation):
+    """Creates checkpoint object for Keras model.
+
+    The checkpoint object determines, after each epoch, whether or not the new
+    model will be saved.  If the model is saved, the checkpoint object also
+    determines *where* the model will be saved.
+
+    :param output_model_file_name: Path to output file (HDF5 format).
+    :param monitor_string: Evaluation function reported after each epoch.  Valid
+        options are in the list `VALID_MONITOR_STRINGS`.
+    :param use_validation: Boolean flag.  If True, after each epoch
+        `monitor_string` will be computed for the validation data and the new
+        model will be saved only if `monitor_string` has improved.  If False,
+        after each epoch `monitor_string` will be computed for the training
+        data and the new model will be saved regardless of the value of
+        `monitor_string`.
+    :return: checkpoint_object: Instance of `keras.callbacks.ModelCheckpoint`.
+    :raises: ValueError: if `monitor_string not in VALID_MONITOR_STRINGS`.
+    """
+
+    error_checking.assert_is_string(monitor_string)
+    if monitor_string not in VALID_MONITOR_STRINGS:
+        error_string = (
+            '\n\n{0:s}\nValid monitors (listed above) do not include "{1:s}".'
+        ).format(str(VALID_MONITOR_STRINGS), monitor_string)
+        raise ValueError(error_string)
+
+    if monitor_string == LOSS_AS_MONITOR_STRING:
+        mode_string = 'min'
+    else:
+        mode_string = 'max'
+
+    if use_validation:
+        return keras.callbacks.ModelCheckpoint(
+            filepath=output_model_file_name,
+            monitor='val_{0:s}'.format(monitor_string), verbose=1,
+            save_best_only=True, save_weights_only=False, mode=mode_string,
+            period=1)
+
+    return keras.callbacks.ModelCheckpoint(
+        filepath=output_model_file_name, monitor=monitor_string, verbose=1,
+        save_best_only=False, save_weights_only=False, mode=mode_string,
+        period=1)
+
+
 def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_examples_per_batch, num_examples_per_file_time,
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
-        target_name, top_target_directory_name, binarize_target=False,
+        target_name, top_target_directory_name,
+        monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
@@ -1051,9 +1112,10 @@ def train_2d_cnn(
     :param top_target_directory_name: Name of top-level directory with target
         values (storm-hazard labels).  Files within this directory should be
         findable by `labels.find_label_file`.
-    :param binarize_target: See doc for `_check_training_args`.
-    :param weight_loss_function: See doc for `_check_training_args`.
-    :param training_fraction_by_class_dict: See doc for `_check_training_args`.
+    :param monitor_string: See doc for `_get_checkpoint_object`.
+    :param binarize_target: Same.
+    :param weight_loss_function: Same.
+    :param training_fraction_by_class_dict: Same.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param validation_fraction_by_class_dict: Same as
@@ -1093,11 +1155,11 @@ def train_2d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
-    if num_validation_batches_per_epoch is None:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            filepath=model_file_name, monitor='loss', verbose=1,
-            save_best_only=False, save_weights_only=False, mode='min', period=1)
+    checkpoint_object = _get_checkpoint_object(
+        output_model_file_name=model_file_name, monitor_string=monitor_string,
+        use_validation=num_validation_batches_per_epoch is not None)
 
+    if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
@@ -1115,10 +1177,6 @@ def train_2d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            filepath=model_file_name, monitor='val_loss', verbose=1,
-            save_best_only=True, save_weights_only=False, mode='min', period=1)
-
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
@@ -1153,7 +1211,8 @@ def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_examples_per_batch, num_examples_per_file_time,
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
-        target_name, top_target_directory_name, binarize_target=False,
+        target_name, top_target_directory_name,
+        monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
@@ -1178,6 +1237,7 @@ def train_3d_cnn(
         `training_validation_io.find_radar_files_3d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
+    :param monitor_string: See doc for `_get_checkpoint_object`.
     :param binarize_target: Same.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
@@ -1215,11 +1275,11 @@ def train_3d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
-    if num_validation_batches_per_epoch is None:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            filepath=model_file_name, monitor='loss', verbose=1,
-            save_best_only=False, save_weights_only=False, mode='min', period=1)
+    checkpoint_object = _get_checkpoint_object(
+        output_model_file_name=model_file_name, monitor_string=monitor_string,
+        use_validation=num_validation_batches_per_epoch is not None)
 
+    if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
@@ -1237,10 +1297,6 @@ def train_3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            filepath=model_file_name, monitor='val_loss', verbose=1,
-            save_best_only=True, save_weights_only=False, mode='min', period=1)
-
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
@@ -1275,7 +1331,8 @@ def train_2d3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_examples_per_batch, num_examples_per_file_time,
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
-        target_name, top_target_directory_name, binarize_target=False,
+        target_name, top_target_directory_name,
+        monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
@@ -1301,6 +1358,7 @@ def train_2d3d_cnn(
         paths to image files.  This should be created by `find_radar_files_2d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
+    :param monitor_string: See doc for `_get_checkpoint_object`.
     :param binarize_target: Same.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
@@ -1337,11 +1395,11 @@ def train_2d3d_cnn(
         write_images=True, embeddings_freq=1,
         embeddings_layer_names=embedding_layer_names)
 
-    if num_validation_batches_per_epoch is None:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            filepath=model_file_name, monitor='loss', verbose=1,
-            save_best_only=False, save_weights_only=False, mode='min', period=1)
+    checkpoint_object = _get_checkpoint_object(
+        output_model_file_name=model_file_name, monitor_string=monitor_string,
+        use_validation=num_validation_batches_per_epoch is not None)
 
+    if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
@@ -1359,10 +1417,6 @@ def train_2d3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
-        checkpoint_object = keras.callbacks.ModelCheckpoint(
-            filepath=model_file_name, monitor='val_loss', verbose=1,
-            save_best_only=True, save_weights_only=False, mode='min', period=1)
-
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,

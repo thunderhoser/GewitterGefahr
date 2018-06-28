@@ -1,6 +1,7 @@
 """Handles input args for deep-learning scripts."""
 
 from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.deep_learning import cnn
 
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
@@ -13,6 +14,7 @@ RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
 ONE_FILE_PER_TIME_STEP_ARG_NAME = 'one_file_per_time_step'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
+MONITOR_STRING_ARG_NAME = 'monitor_string'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
@@ -35,6 +37,7 @@ DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
 DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH = 32
 DEFAULT_ONE_FILE_PER_TIME_STEP_FLAG = 0
+DEFAULT_MONITOR_STRING = cnn.LOSS_AS_MONITOR_STRING
 DEFAULT_BINARIZE_TARGET_FLAG = 0
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 DEFAULT_DROPOUT_FRACTION = 0.25
@@ -75,6 +78,14 @@ TRAINING_TIME_HELP_STRING = (
     'be any time in the first SPC date.'
 ).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME,
          ONE_FILE_PER_TIME_STEP_ARG_NAME)
+MONITOR_STRING_HELP_STRING = (
+    'Evaluation function reported after each epoch.  If `{0:s}` > 0, after each'
+    ' epoch `{1:s}` will be computed for validation data and the new model will'
+    ' be saved only if `{1:s}` has improved.  If `{0:s}` = 0, after each epoch '
+    '`{1:s}` will be computed for training data and the new model will be saved'
+    ' regardless.  Valid options for `{1:s}` are listed below.\n{2:s}'
+).format(NUM_VALIDN_BATCHES_ARG_NAME, MONITOR_STRING_ARG_NAME,
+         str(cnn.VALID_MONITOR_STRINGS))
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  Each name must be accepted by '
     '`radar_utils.check_field_name`.')
@@ -179,6 +190,10 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=True,
         help=TRAINING_TIME_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MONITOR_STRING_ARG_NAME, type=str, required=False,
+        default=DEFAULT_MONITOR_STRING, help=MONITOR_STRING_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=True,
