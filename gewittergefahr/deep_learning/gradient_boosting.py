@@ -57,14 +57,16 @@ def create_model(
     error_checking.assert_is_geq(l2_weight, 0.)
 
     if num_classes == 2:
-        objective_function_string = 'binary:logistic'
-    else:
-        objective_function_string = 'multi:softprob'
+        return xgboost.XGBClassifier(
+            max_depth=max_depth, learning_rate=learning_rate,
+            n_estimators=num_trees, silent=False, objective='binary:logistic',
+            subsample=fraction_of_examples_per_tree,
+            colsample_bylevel=fraction_of_features_per_split,
+            reg_lambda=l2_weight)
 
     return xgboost.XGBClassifier(
         max_depth=max_depth, learning_rate=learning_rate,
-        n_estimators=num_trees, silent=False,
-        objective=objective_function_string,
+        n_estimators=num_trees, silent=False, objective='multi:softprob',
         subsample=fraction_of_examples_per_tree,
         colsample_bylevel=fraction_of_features_per_split, reg_lambda=l2_weight,
         num_class=num_classes)
@@ -117,10 +119,10 @@ def train_model(
 
     if num_iters_for_early_stopping is None:
         print training_feature_matrix.shape
-        print training_target_matrix.shape
+        print training_target_values.shape
 
         model_object.fit(
-            training_feature_matrix, numpy.reshape(training_target_values, (training_target_values.size, 1)),
+            training_feature_matrix, training_target_values,
             eval_metric='logloss', verbose=True)
     else:
         error_checking.assert_is_integer(num_iters_for_early_stopping)
