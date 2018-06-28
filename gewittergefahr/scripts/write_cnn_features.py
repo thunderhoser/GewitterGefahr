@@ -48,8 +48,8 @@ TARGET_DIRECTORY_HELP_STRING = (
     'will be found by `labels.find_label_file`.')
 STORM_TIME_HELP_STRING = (
     'Storm time (format "yyyy-mm-dd-HHMMSS").  Storm times will be drawn '
-    'randomly from `{0:s}`...`{1:s}`.  For each time drawn, a max of `{2:d}` '
-    'storm objects will be used.  A max of `{3:d}` storm objects over the '
+    'randomly from `{0:s}`...`{1:s}`.  For each time drawn, a max of `{2:s}` '
+    'storm objects will be used.  A max of `{3:s}` storm objects over the '
     'entire period will be used.  The features and target value will be written'
     ' for each storm object used.'
 ).format(FIRST_STORM_TIME_ARG_NAME, LAST_STORM_TIME_ARG_NAME,
