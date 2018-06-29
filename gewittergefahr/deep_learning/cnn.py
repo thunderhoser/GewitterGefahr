@@ -332,7 +332,7 @@ def _get_sounding_layers(
     return sounding_input_layer_object, sounding_layer_object
 
 
-def _model_to_feature_generator(model_object):
+def model_to_feature_generator(model_object):
     """Reduces Keras model from predictor to feature-generator.
 
     Specifically, this method removes all layers after the last flattening
@@ -345,8 +345,10 @@ def _model_to_feature_generator(model_object):
 
     list_of_layer_objects = model_object.layers
     layer_types = [type(obj).__name__ for obj in list_of_layer_objects]
+
+    # TODO(thunderhoser): This is hacky.  There is probably a safer way.
     flatten_layer_flags = numpy.array(
-        [t == 'Flatten' for t in layer_types], dtype=bool)
+        [t in ['Flatten', 'Concatenate'] for t in layer_types], dtype=bool)
     last_flatten_layer_index = numpy.where(flatten_layer_flags)[0][-1]
 
     return keras.models.Model(
@@ -1497,7 +1499,7 @@ def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        intermediate_model_object = _model_to_feature_generator(model_object)
+        intermediate_model_object = model_to_feature_generator(model_object)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -1542,7 +1544,7 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        intermediate_model_object = _model_to_feature_generator(model_object)
+        intermediate_model_object = model_to_feature_generator(model_object)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -1604,7 +1606,7 @@ def apply_2d3d_cnn(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        intermediate_model_object = _model_to_feature_generator(model_object)
+        intermediate_model_object = model_to_feature_generator(model_object)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 [reflectivity_image_matrix_dbz,
