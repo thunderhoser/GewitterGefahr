@@ -134,6 +134,7 @@ def _extract_2d_cnn_features(
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
     print SEPARATOR_STRING
+    print num_examples_per_batch
 
     generator_object = trainval_io.storm_image_generator_2d(
         radar_file_name_matrix=radar_file_name_matrix,
