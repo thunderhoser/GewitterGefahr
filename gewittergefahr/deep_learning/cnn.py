@@ -36,7 +36,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 LOSS_AS_MONITOR_STRING = 'loss'
-PEIRCE_SCORE_AS_MONITOR_STRING = 'peirce_score'
+PEIRCE_SCORE_AS_MONITOR_STRING = 'binary_peirce_score'
 VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
 
 VALID_NUMBERS_OF_RADAR_ROWS = numpy.array([16, 32, 64], dtype=int)
