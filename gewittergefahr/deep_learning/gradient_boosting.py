@@ -4,11 +4,11 @@ The input data for GBT are features (outputs of the last "Flatten" layer)
 created by a convolutional neural network (CNN).
 """
 
+import pickle
 import numpy
 import xgboost
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-
-# TODO(thunderhoser): Still need some way to do oversampling/undersampling.
 
 DEFAULT_NUM_TREES = 100
 DEFAULT_LEARNING_RATE = 0.1
@@ -16,6 +16,24 @@ DEFAULT_MAX_TREE_DEPTH = 3
 DEFAULT_FRACTION_OF_EXAMPLES_PER_TREE = 1. - numpy.exp(-1.)
 DEFAULT_FRACTION_OF_FEATURES_PER_SPLIT = 1.
 DEFAULT_L2_WEIGHT = 0.001
+
+NUM_CLASSES_KEY = 'num_classes'
+NUM_TREES_KEY = 'num_trees'
+LEARNING_RATE_KEY = 'learning_rate'
+MAX_DEPTH_KEY = 'max_depth'
+FRACTION_OF_EXAMPLES_PER_TREE_KEY = 'fraction_of_examples_per_tree'
+FRACTION_OF_FEATURES_PER_SPLIT_KEY = 'fraction_of_features_per_split'
+L2_WEIGHT_KEY = 'l2_weight'
+NUM_ITERS_FOR_EARLY_STOPPING_KEY = 'num_iters_for_early_stopping'
+TRAINING_FILE_KEY = 'training_file_name'
+VALIDATION_FILE_KEY = 'validation_file_name'
+
+MODEL_METADATA_KEYS = [
+    NUM_CLASSES_KEY, NUM_TREES_KEY, LEARNING_RATE_KEY, MAX_DEPTH_KEY,
+    FRACTION_OF_EXAMPLES_PER_TREE_KEY, FRACTION_OF_FEATURES_PER_SPLIT_KEY,
+    L2_WEIGHT_KEY, NUM_ITERS_FOR_EARLY_STOPPING_KEY, TRAINING_FILE_KEY,
+    VALIDATION_FILE_KEY
+]
 
 
 def create_model(
@@ -156,3 +174,102 @@ def apply_model(model_object, feature_matrix):
     """
 
     return model_object.predict_proba(feature_matrix)
+
+
+def write_model(model_object, pickle_file_name):
+    """Writes model to Pickle file.
+
+    :param model_object: Instance (preferably trained) of
+        `xgboost.XGBClassifier`.
+    :param pickle_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(model_object, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_model(pickle_file_name):
+    """Reads model from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: model_object: Instance of `xgboost.XGBClassifier`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    model_object = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return model_object
+
+
+def write_model_metadata(
+        num_classes, num_trees, learning_rate, max_depth,
+        fraction_of_examples_per_tree, fraction_of_features_per_split,
+        l2_weight, num_iters_for_early_stopping, training_file_name,
+        validation_file_name, pickle_file_name):
+    """Writes metadata for GBT model to Pickle file.
+
+    :param num_classes: See documentation for `create_model`.
+    :param num_trees: Same.
+    :param learning_rate: Same.
+    :param max_depth: Same.
+    :param fraction_of_examples_per_tree: Same.
+    :param fraction_of_features_per_split: Same.
+    :param l2_weight: Same.
+    :param num_iters_for_early_stopping: [may be None]
+        See documentation for `train_model`.
+    :param training_file_name: Path to file with training data (readable by
+        `cnn.read_features`).
+    :param validation_file_name: [may be None]
+        Path to file with validation data (readable by `cnn.read_features`).
+    :param pickle_file_name: Path to output file.
+    """
+
+    model_metadata_dict = {
+        NUM_CLASSES_KEY: num_classes,
+        NUM_TREES_KEY: num_trees,
+        LEARNING_RATE_KEY: learning_rate,
+        MAX_DEPTH_KEY: max_depth,
+        FRACTION_OF_EXAMPLES_PER_TREE_KEY: fraction_of_examples_per_tree,
+        FRACTION_OF_FEATURES_PER_SPLIT_KEY: fraction_of_features_per_split,
+        L2_WEIGHT_KEY: l2_weight,
+        NUM_ITERS_FOR_EARLY_STOPPING_KEY: num_iters_for_early_stopping,
+        TRAINING_FILE_KEY: training_file_name,
+        VALIDATION_FILE_KEY: validation_file_name
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(model_metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_model_metadata(pickle_file_name):
+    """Reads model metadata from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: model_metadata_dict: Dictionary with all keys in the list
+        `MODEL_METADATA_KEYS`.
+    :raises: ValueError: if dictionary does not contain all keys in the list
+        `MODEL_METADATA_KEYS`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    model_metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    expected_keys_as_set = set(MODEL_METADATA_KEYS)
+    actual_keys_as_set = set(model_metadata_dict.keys())
+    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+        error_string = (
+            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
+            '("{1:s}") are listed below.  Some expected keys were not found.'
+            '\n{2:s}\n'
+        ).format(MODEL_METADATA_KEYS, pickle_file_name,
+                 model_metadata_dict.keys())
+
+        raise ValueError(error_string)
+
+    return model_metadata_dict
