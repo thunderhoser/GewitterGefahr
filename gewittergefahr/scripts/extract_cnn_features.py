@@ -11,6 +11,9 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
+# TODO(thunderhoser): Allow generators to stop when they run out of files,
+# rather than looping through files again.
+
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
