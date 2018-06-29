@@ -8,6 +8,7 @@ import argparse
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -196,6 +197,8 @@ def _extract_2d_cnn_features(
             netcdf_file_name=output_netcdf_file_name,
             feature_matrix=this_feature_matrix,
             target_values=these_target_values,
+            num_classes=labels.column_name_to_num_classes(
+                model_metadata_dict[cnn.TARGET_NAME_KEY]),
             append_to_file=num_examples_read > 0)
 
         num_examples_read += num_examples_in_this_batch
@@ -231,7 +234,6 @@ def _extract_3d_cnn_features(
         last_file_time_unix_sec=last_storm_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step)
     print SEPARATOR_STRING
-    print num_examples_per_batch
 
     generator_object = trainval_io.storm_image_generator_3d(
         radar_file_name_matrix=radar_file_name_matrix,
@@ -294,6 +296,8 @@ def _extract_3d_cnn_features(
             netcdf_file_name=output_netcdf_file_name,
             feature_matrix=this_feature_matrix,
             target_values=these_target_values,
+            num_classes=labels.column_name_to_num_classes(
+                model_metadata_dict[cnn.TARGET_NAME_KEY]),
             append_to_file=num_examples_read > 0)
 
         num_examples_read += num_examples_in_this_batch
@@ -392,6 +396,8 @@ def _extract_2d3d_cnn_features(
             netcdf_file_name=output_netcdf_file_name,
             feature_matrix=this_feature_matrix,
             target_values=these_target_values,
+            num_classes=labels.column_name_to_num_classes(
+                model_metadata_dict[cnn.TARGET_NAME_KEY]),
             append_to_file=num_examples_read > 0)
 
         num_examples_read += num_examples_in_this_batch
