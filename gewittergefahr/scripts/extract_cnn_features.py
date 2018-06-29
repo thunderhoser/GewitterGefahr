@@ -12,9 +12,6 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
-# TODO(thunderhoser): Allow generators to stop when they run out of files,
-# rather than looping through files again.
-
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
@@ -153,7 +150,7 @@ def _extract_2d_cnn_features(
         sounding_lag_time_for_convective_contamination_sec=
         model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
         sounding_normalization_dict=model_metadata_dict[
-            cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+            cnn.SOUNDING_NORMALIZATION_DICT_KEY], loop_thru_files_once=True)
 
     num_examples_read = 0
     use_soundings = model_metadata_dict[
@@ -166,12 +163,21 @@ def _extract_2d_cnn_features(
         print MINOR_SEPARATOR_STRING
 
         if use_soundings:
-            this_list_of_predictor_matrices, this_target_matrix = next(
-                generator_object)
+            try:
+                this_list_of_predictor_matrices, this_target_matrix = next(
+                    generator_object)
+            except StopIteration:
+                break
+
             this_radar_image_matrix = this_list_of_predictor_matrices[0]
             this_sounding_matrix = this_list_of_predictor_matrices[1]
         else:
-            this_radar_image_matrix, this_target_matrix = next(generator_object)
+            try:
+                this_radar_image_matrix, this_target_matrix = next(
+                    generator_object)
+            except StopIteration:
+                break
+
             this_sounding_matrix = None
 
         print SEPARATOR_STRING
@@ -256,7 +262,7 @@ def _extract_3d_cnn_features(
         sounding_lag_time_for_convective_contamination_sec=
         model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
         sounding_normalization_dict=model_metadata_dict[
-            cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+            cnn.SOUNDING_NORMALIZATION_DICT_KEY], loop_thru_files_once=True)
 
     num_examples_read = 0
     use_soundings = model_metadata_dict[
@@ -269,12 +275,21 @@ def _extract_3d_cnn_features(
         print MINOR_SEPARATOR_STRING
 
         if use_soundings:
-            this_list_of_predictor_matrices, this_target_matrix = next(
-                generator_object)
+            try:
+                this_list_of_predictor_matrices, this_target_matrix = next(
+                    generator_object)
+            except StopIteration:
+                break
+
             this_radar_image_matrix = this_list_of_predictor_matrices[0]
             this_sounding_matrix = this_list_of_predictor_matrices[1]
         else:
-            this_radar_image_matrix, this_target_matrix = next(generator_object)
+            try:
+                this_radar_image_matrix, this_target_matrix = next(
+                    generator_object)
+            except StopIteration:
+                break
+
             this_sounding_matrix = None
 
         print SEPARATOR_STRING
@@ -361,7 +376,7 @@ def _extract_2d3d_cnn_features(
         sounding_lag_time_for_convective_contamination_sec=
         model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
         sounding_normalization_dict=model_metadata_dict[
-            cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+            cnn.SOUNDING_NORMALIZATION_DICT_KEY], loop_thru_files_once=True)
 
     num_examples_read = 0
     use_soundings = model_metadata_dict[
@@ -373,8 +388,12 @@ def _extract_2d3d_cnn_features(
         ).format(num_examples_read, num_examples_total)
         print MINOR_SEPARATOR_STRING
 
-        this_list_of_predictor_matrices, this_target_matrix = next(
-            generator_object)
+        try:
+            this_list_of_predictor_matrices, this_target_matrix = next(
+                generator_object)
+        except StopIteration:
+            break
+
         print SEPARATOR_STRING
 
         num_examples_in_this_batch = min(

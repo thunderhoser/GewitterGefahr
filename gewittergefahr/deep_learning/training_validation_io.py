@@ -985,7 +985,8 @@ def storm_image_generator_2d(
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
-        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
+        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
+        loop_thru_files_once=False):
     """Generates examples with 2-D radar images.
 
     Each example consists of storm-centered 2-D radar images, and possibly the
@@ -1013,6 +1014,10 @@ def storm_image_generator_2d(
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
+    :param loop_thru_files_once: Boolean flag.  If True, this generator will
+        loop through `radar_file_name_matrix` only once.  If False, once this
+        generator has reached the end of `radar_file_name_matrix`, it will go
+        back to the beginning and keep looping.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1032,6 +1037,7 @@ def storm_image_generator_2d(
     :return: target_matrix: See documentation above.
     """
 
+    error_checking.assert_is_boolean(loop_thru_files_once)
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
@@ -1124,6 +1130,9 @@ def storm_image_generator_2d(
             print MINOR_SEPARATOR_STRING
 
             file_time_index = numpy.mod(file_time_index + 1, num_file_times)
+            if loop_thru_files_once and file_time_index == 0:
+                raise StopIteration
+
             if this_example_dict is None:
                 continue
 
@@ -1216,7 +1225,8 @@ def storm_image_generator_3d(
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
-        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
+        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
+        loop_thru_files_once=False):
     """Generates examples with 3-D radar images.
 
     Each example consists of storm-centered 3-D radar images, and possibly the
@@ -1235,6 +1245,7 @@ def storm_image_generator_3d(
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: See doc for `storm_image_generator_2d`.
+    :param loop_thru_files_once: Same.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1251,6 +1262,7 @@ def storm_image_generator_3d(
     :return: target_matrix: See documentation above.
     """
 
+    error_checking.assert_is_boolean(loop_thru_files_once)
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
@@ -1343,6 +1355,9 @@ def storm_image_generator_3d(
             print MINOR_SEPARATOR_STRING
 
             file_time_index = numpy.mod(file_time_index + 1, num_file_times)
+            if loop_thru_files_once and file_time_index == 0:
+                raise StopIteration
+
             if this_example_dict is None:
                 continue
 
@@ -1435,7 +1450,8 @@ def storm_image_generator_2d3d_myrorss(
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
-        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
+        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
+        loop_thru_files_once=False):
     """Generates examples with 2-D and 3-D radar images.
 
     Each example consists of a storm-centered 3-D reflectivity image, storm-
@@ -1461,6 +1477,7 @@ def storm_image_generator_2d3d_myrorss(
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: See doc for `storm_image_generator_2d`.
+    :param loop_thru_files_once: Same.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1482,6 +1499,7 @@ def storm_image_generator_2d3d_myrorss(
     :return: target_matrix: See output doc for `storm_image_generator_2d`.
     """
 
+    error_checking.assert_is_boolean(loop_thru_files_once)
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
@@ -1580,6 +1598,9 @@ def storm_image_generator_2d3d_myrorss(
             print MINOR_SEPARATOR_STRING
 
             file_time_index = numpy.mod(file_time_index + 1, num_file_times)
+            if loop_thru_files_once and file_time_index == 0:
+                raise StopIteration
+
             if this_example_dict is None:
                 continue
 
