@@ -107,6 +107,7 @@ STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
 FEATURE_MATRIX_KEY = 'feature_matrix'
 TARGET_VALUES_KEY = 'target_values'
+NUM_CLASSES_KEY = 'num_classes'
 
 
 def _check_architecture_args(
@@ -1630,7 +1631,8 @@ def apply_2d3d_cnn(
 
 
 def write_features(
-        netcdf_file_name, feature_matrix, target_values, append_to_file=False):
+        netcdf_file_name, feature_matrix, target_values, num_classes,
+        append_to_file=False):
     """Writes features (output of last "Flatten" layer in CNN) to NetCDF file.
 
     E = number of storm objects
@@ -1640,6 +1642,7 @@ def write_features(
     :param feature_matrix: E-by-Z numpy array of features.
     :param target_values: length-E numpy array of target values.  Must all be
         integers in 0...(K - 1), where K = number of classes.
+    :param num_classes: Number of classes.
     :param append_to_file: Boolean flag.  If True, will append to existing file.
         If False, will create new file.
     """
@@ -1648,10 +1651,10 @@ def write_features(
     error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
     num_storm_objects = feature_matrix.shape[0]
 
-    error_checking.assert_is_integer_numpy_array(target_values)
+    dl_utils.check_target_values(
+        target_values=target_values, num_dimensions=1, num_classes=num_classes)
     error_checking.assert_is_numpy_array(
         target_values, exact_dimensions=numpy.array([num_storm_objects]))
-    error_checking.assert_is_geq_numpy_array(target_values, 0)
 
     if append_to_file:
         error_checking.assert_is_string(netcdf_file_name)
@@ -1674,6 +1677,7 @@ def write_features(
         netcdf_dataset = netCDF4.Dataset(
             netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
+        netcdf_dataset.setncattr(NUM_CLASSES_KEY, num_classes)
         netcdf_dataset.createDimension(STORM_OBJECT_DIMENSION_KEY, None)
         netcdf_dataset.createDimension(
             FEATURE_DIMENSION_KEY, feature_matrix.shape[1])
@@ -1701,6 +1705,7 @@ def read_features(netcdf_file_name):
     :return: feature_matrix: E-by-Z numpy array of features.
     :return: target_values: length-E numpy array of target values.  All in
         0...(K - 1), where K = number of classes.
+    :return: num_classes: Number of classes.
     """
 
     netcdf_dataset = netcdf_io.open_netcdf(
@@ -1710,6 +1715,7 @@ def read_features(netcdf_file_name):
         netcdf_dataset.variables[FEATURE_MATRIX_KEY][:])
     target_values = numpy.array(
         netcdf_dataset.variables[TARGET_VALUES_KEY][:], dtype=int)
+    num_classes = getattr(netcdf_dataset, NUM_CLASSES_KEY)
     netcdf_dataset.close()
 
-    return feature_matrix, target_values
+    return feature_matrix, target_values, num_classes
