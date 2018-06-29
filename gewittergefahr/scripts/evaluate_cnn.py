@@ -5,6 +5,7 @@ training nor validation -- the easiest way to ensure independence is to use data
 from different years), but this is not enforced by the code.
 """
 
+import random
 import os.path
 import argparse
 import numpy
@@ -15,6 +16,9 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import model_evaluation_helper as model_eval_helper
+
+random.seed(6695)
+numpy.random.seed(6695)
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))

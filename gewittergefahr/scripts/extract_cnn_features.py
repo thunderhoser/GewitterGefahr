@@ -193,14 +193,18 @@ def _extract_2d_cnn_features(
 
         print 'Writing features and target values to: "{0:s}"...'.format(
             output_netcdf_file_name)
+
+        if model_metadata_dict[cnn.BINARIZE_TARGET_KEY]:
+            num_classes_in_file = 2
+        else:
+            num_classes_in_file = labels.column_name_to_num_classes(
+                model_metadata_dict[cnn.TARGET_NAME_KEY])
+
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
             feature_matrix=this_feature_matrix,
-            target_values=these_target_values,
-            num_classes=labels.column_name_to_num_classes(
-                model_metadata_dict[cnn.TARGET_NAME_KEY]),
+            target_values=these_target_values, num_classes=num_classes_in_file,
             append_to_file=num_examples_read > 0)
-
         num_examples_read += num_examples_in_this_batch
 
 
@@ -292,14 +296,18 @@ def _extract_3d_cnn_features(
 
         print 'Writing features and target values to: "{0:s}"...'.format(
             output_netcdf_file_name)
+
+        if model_metadata_dict[cnn.BINARIZE_TARGET_KEY]:
+            num_classes_in_file = 2
+        else:
+            num_classes_in_file = labels.column_name_to_num_classes(
+                model_metadata_dict[cnn.TARGET_NAME_KEY])
+
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
             feature_matrix=this_feature_matrix,
-            target_values=these_target_values,
-            num_classes=labels.column_name_to_num_classes(
-                model_metadata_dict[cnn.TARGET_NAME_KEY]),
+            target_values=these_target_values, num_classes=num_classes_in_file,
             append_to_file=num_examples_read > 0)
-
         num_examples_read += num_examples_in_this_batch
 
 
@@ -392,14 +400,18 @@ def _extract_2d3d_cnn_features(
 
         print 'Writing features and target values to: "{0:s}"...'.format(
             output_netcdf_file_name)
+
+        if model_metadata_dict[cnn.BINARIZE_TARGET_KEY]:
+            num_classes_in_file = 2
+        else:
+            num_classes_in_file = labels.column_name_to_num_classes(
+                model_metadata_dict[cnn.TARGET_NAME_KEY])
+
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
             feature_matrix=this_feature_matrix,
-            target_values=these_target_values,
-            num_classes=labels.column_name_to_num_classes(
-                model_metadata_dict[cnn.TARGET_NAME_KEY]),
+            target_values=these_target_values, num_classes=num_classes_in_file,
             append_to_file=num_examples_read > 0)
-
         num_examples_read += num_examples_in_this_batch
 
 
