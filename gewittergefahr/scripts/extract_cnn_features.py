@@ -21,7 +21,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-NUM_VALUES_PER_BATCH = int(1e8)
+NUM_VALUES_PER_BATCH = int(1e7)
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
@@ -427,6 +427,7 @@ def _extract_features(
         intermediate_model_object.layers[-1].output_shape)[-1]
     num_examples_per_batch = int(numpy.round(
         float(NUM_VALUES_PER_BATCH) / num_features))
+    num_examples_per_batch = min([num_examples_per_batch, num_examples])
 
     model_directory_name, _ = os.path.split(model_file_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
