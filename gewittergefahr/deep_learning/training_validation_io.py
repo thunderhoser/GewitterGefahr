@@ -28,6 +28,9 @@ from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
+# TODO(thunderhoser): Clean up some of the HACKS I've introduced on Jun 28-29
+# (to use generators for something other than training).
+
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 RADAR_IMAGE_MATRIX_KEY = 'radar_image_matrix'
@@ -217,8 +220,12 @@ def _select_batch(
     num_examples_in_memory = len(target_values)
     example_indices = numpy.linspace(
         0, num_examples_in_memory - 1, num=num_examples_in_memory, dtype=int)
-    batch_indices = numpy.random.choice(
-        example_indices, size=num_examples_per_batch, replace=False)
+
+    if num_examples_in_memory > num_examples_per_batch:
+        batch_indices = numpy.random.choice(
+            example_indices, size=num_examples_per_batch, replace=False)
+    else:
+        batch_indices = example_indices + 0
 
     for i in range(len(list_of_predictor_matrices)):
         if list_of_predictor_matrices[i] is None:
