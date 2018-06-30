@@ -20,7 +20,7 @@ MANY_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT = {
 }
 
 WIND_TARGET_NAME = (
-    'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00001-05000m'
+    'wind-speed_percentile=100.0_lead-time=1800-3600sec_distance=00001-05000m'
     '_cutoffs=30-50kt')
 SAMPLING_FRACTION_BY_WIND_CLASS_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
 NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
