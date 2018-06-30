@@ -184,6 +184,9 @@ def _extract_2d_cnn_features(
 
         num_examples_in_this_batch = min(
             [num_examples_per_batch, num_examples_total - num_examples_read])
+        num_examples_in_this_batch = min(
+            [num_examples_in_this_batch, this_target_matrix.shape[0]])
+
         this_radar_image_matrix = this_radar_image_matrix[
             :num_examples_in_this_batch, ...]
         these_target_values = numpy.argmax(
@@ -296,6 +299,9 @@ def _extract_3d_cnn_features(
 
         num_examples_in_this_batch = min(
             [num_examples_per_batch, num_examples_total - num_examples_read])
+        num_examples_in_this_batch = min(
+            [num_examples_in_this_batch, this_target_matrix.shape[0]])
+
         this_radar_image_matrix = this_radar_image_matrix[
             :num_examples_in_this_batch, ...]
         these_target_values = numpy.argmax(
@@ -398,6 +404,8 @@ def _extract_2d3d_cnn_features(
 
         num_examples_in_this_batch = min(
             [num_examples_per_batch, num_examples_total - num_examples_read])
+        num_examples_in_this_batch = min(
+            [num_examples_in_this_batch, this_target_matrix.shape[0]])
 
         this_reflectivity_matrix_dbz = this_list_of_predictor_matrices[0][
             :num_examples_in_this_batch, ...]
