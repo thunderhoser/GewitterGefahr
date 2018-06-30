@@ -1097,8 +1097,18 @@ def storm_image_generator_2d(
 
     while True:
         stopping_criterion = False
+        if loop_thru_files_once and file_time_index >= num_file_times:
+            raise StopIteration
 
         while not stopping_criterion:
+            if file_time_index == num_file_times:
+                if loop_thru_files_once:
+                    if all_target_values is None:
+                        raise StopIteration
+                    break
+
+                file_time_index = 0
+
             if all_target_values is None:
                 num_examples_in_memory = 0
             else:
@@ -1129,10 +1139,7 @@ def storm_image_generator_2d(
                 sounding_field_names=sounding_field_names)
             print MINOR_SEPARATOR_STRING
 
-            file_time_index = numpy.mod(file_time_index + 1, num_file_times)
-            if loop_thru_files_once and file_time_index == 0:
-                raise StopIteration
-
+            file_time_index += 1
             if this_example_dict is None:
                 continue
 
@@ -1322,8 +1329,18 @@ def storm_image_generator_3d(
 
     while True:
         stopping_criterion = False
+        if loop_thru_files_once and file_time_index >= num_file_times:
+            raise StopIteration
 
         while not stopping_criterion:
+            if file_time_index == num_file_times:
+                if loop_thru_files_once:
+                    if all_target_values is None:
+                        raise StopIteration
+                    break
+
+                file_time_index = 0
+
             if full_radar_image_matrix is None:
                 num_examples_in_memory = 0
             else:
@@ -1354,10 +1371,7 @@ def storm_image_generator_3d(
                 sounding_field_names=sounding_field_names)
             print MINOR_SEPARATOR_STRING
 
-            file_time_index = numpy.mod(file_time_index + 1, num_file_times)
-            if loop_thru_files_once and file_time_index == 0:
-                raise StopIteration
-
+            file_time_index += 1
             if this_example_dict is None:
                 continue
 
@@ -1563,8 +1577,18 @@ def storm_image_generator_2d3d_myrorss(
 
     while True:
         stopping_criterion = False
+        if loop_thru_files_once and file_time_index >= num_file_times:
+            raise StopIteration
 
         while not stopping_criterion:
+            if file_time_index == num_file_times:
+                if loop_thru_files_once:
+                    if all_target_values is None:
+                        raise StopIteration
+                    break
+
+                file_time_index = 0
+
             if all_target_values is None:
                 num_examples_in_memory = 0
             else:
@@ -1597,10 +1621,7 @@ def storm_image_generator_2d3d_myrorss(
                 sounding_field_names=sounding_field_names)
             print MINOR_SEPARATOR_STRING
 
-            file_time_index = numpy.mod(file_time_index + 1, num_file_times)
-            if loop_thru_files_once and file_time_index == 0:
-                raise StopIteration
-
+            file_time_index += 1
             if this_example_dict is None:
                 continue
 
