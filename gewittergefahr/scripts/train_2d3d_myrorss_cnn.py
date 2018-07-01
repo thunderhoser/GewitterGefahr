@@ -154,13 +154,10 @@ def _train_cnn(
     tensorboard_dir_name = '{0:s}/tensorboard'.format(output_model_dir_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(output_model_dir_name)
 
-    print RADAR_FIELD_NAMES
-    print REFLECTIVITY_HEIGHTS_M_ASL
-
     # Find input files for training.
     radar_file_name_matrix_for_training, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
-        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+        radar_source=radar_utils.MYRORSS_SOURCE_ID,
         radar_field_names=RADAR_FIELD_NAMES,
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
         first_file_time_unix_sec=first_train_time_unix_sec,
@@ -173,7 +170,7 @@ def _train_cnn(
     else:
         radar_file_name_matrix_for_validn, _ = trainval_io.find_radar_files_2d(
             top_directory_name=top_storm_radar_image_dir_name,
-            radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+            radar_source=radar_utils.MYRORSS_SOURCE_ID,
             radar_field_names=RADAR_FIELD_NAMES,
             reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
             first_file_time_unix_sec=first_validn_time_unix_sec,
