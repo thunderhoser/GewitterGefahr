@@ -1,6 +1,11 @@
-"""Trains hybrid 2D/3D convolutional neural net with MYRORSS data."""
+"""Trains CNN with 2-D and 3-D images from MYRORSS.
 
-import copy
+CNN = convolutional neural net
+MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
+Field in 2-D images = azimuthal shear
+Field in 3-D images = reflectivity
+"""
+
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
@@ -11,68 +16,138 @@ from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
-from gewittergefahr.scripts import deep_learning as dl_script_helper
+from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NORMALIZE_BY_BATCH = False
-NORMALIZATION_DICT = copy.deepcopy(dl_utils.DEFAULT_NORMALIZATION_DICT)
+NUM_REFLECTIVITY_ROWS = 32
+NUM_REFLECTIVITY_COLUMNS = 32
+NUM_SOUNDING_HEIGHTS = 37
+REFLECTIVITY_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
+RADAR_NORMALIZATION_DICT = dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT
+SOUNDING_NORMALIZATION_DICT = dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT
 
 AZIMUTHAL_SHEAR_FIELD_NAMES = radar_utils.SHEAR_NAMES
 RADAR_FIELD_NAMES = [radar_utils.REFL_NAME] + AZIMUTHAL_SHEAR_FIELD_NAMES
-REFLECTIVITY_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
-INPUT_ARG_PARSER = dl_script_helper.add_input_arguments(
+INPUT_ARG_PARSER = dl_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER)
 
-FIRST_NUM_REFL_FILTERS_ARG_NAME = 'first_num_reflectivity_filters'
-FIRST_NUM_REFL_FILTERS_HELP_STRING = (
-    'Number of reflectivity filters in first convolution layer.  For more '
-    'details, see `cnn.get_architecture_for_2d3d_myrorss`.')
+NUM_REFL_FILTERS_ARG_NAME = 'num_refl_filters_in_first_conv_layer'
+NUM_AZ_SHEAR_FILTERS_ARG_NAME = 'num_az_shear_filters_in_first_conv_layer'
+
+NUM_REFL_FILTERS_HELP_STRING = (
+    'Number of reflectivity filters in first convolutional layer.  Number of '
+    'filters will double for each successive layer convolving over reflectivity'
+    ' images.')
+NUM_AZ_SHEAR_FILTERS_HELP_STRING = (
+    'Number of azimuthal-shear filters in first convolutional layer.  Number of'
+    ' filters will double for each successive layer convolving over '
+    'azimuthal-shear images.')
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_NUM_REFL_FILTERS_ARG_NAME, type=int, required=True,
-    help=FIRST_NUM_REFL_FILTERS_HELP_STRING)
+    '--' + NUM_REFL_FILTERS_ARG_NAME, type=int, required=False,
+    default=8, help=NUM_REFL_FILTERS_HELP_STRING)
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_AZ_SHEAR_FILTERS_ARG_NAME, type=int, required=False,
+    default=16, help=NUM_AZ_SHEAR_FILTERS_HELP_STRING)
 
 
-def _train_2d3d_myrorss_cnn(
-        output_model_dir_name, num_epochs, num_training_batches_per_epoch,
-        input_storm_image_dir_name, input_target_dir_name,
-        num_examples_per_batch, one_file_per_time_step,
-        num_examples_per_file_time, training_start_time_string,
-        training_end_time_string, target_name, weight_loss_function,
-        binarize_target, class_fraction_dict_keys, class_fraction_dict_values,
-        num_validation_batches_per_epoch, validation_start_time_string,
-        validation_end_time_string, dropout_fraction, l2_weight,
-        first_num_reflectivity_filters):
-    """Trains hybrid 2D/3D convolutional neural net with MYRORSS data.
+def _train_cnn(
+        output_model_dir_name, num_epochs, num_examples_per_batch,
+        num_examples_per_file_time, num_training_batches_per_epoch,
+        top_storm_radar_image_dir_name, one_file_per_time_step,
+        first_training_time_string, last_training_time_string, monitor_string,
+        radar_field_names, target_name, top_target_dir_name, binarize_target,
+        num_refl_filters_in_first_conv_layer,
+        num_az_shear_filters_in_first_conv_layer, dropout_fraction, l2_weight,
+        sampling_fraction_dict_keys, sampling_fraction_dict_values,
+        weight_loss_function, num_validation_batches_per_epoch,
+        first_validation_time_string, last_validation_time_string,
+        sounding_field_names, top_sounding_dir_name,
+        sounding_lag_time_for_convective_contamination_sec,
+        num_sounding_filters_in_first_conv_layer):
+    """Trains CNN with 2-D and 3-D images from MYRORSS.
 
     :param output_model_dir_name: See documentation at the top of
-        `scripts/deep_learning.py`.
+        'scripts/deep_learning.py'.
     :param num_epochs: Same.
-    :param num_training_batches_per_epoch: Same.
-    :param input_storm_image_dir_name: Same.
-    :param input_target_dir_name: Same.
     :param num_examples_per_batch: Same.
-    :param one_file_per_time_step: Same.
     :param num_examples_per_file_time: Same.
-    :param training_start_time_string: Same.
-    :param training_end_time_string: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param top_storm_radar_image_dir_name: Same.
+    :param one_file_per_time_step: Same.
+    :param first_training_time_string: Same.
+    :param last_training_time_string: Same.
+    :param monitor_string: Same.
+    :param radar_field_names: Same.
     :param target_name: Same.
-    :param weight_loss_function: Same.
+    :param top_target_dir_name: Same.
     :param binarize_target: Same.
-    :param class_fraction_dict_keys: Same.
-    :param class_fraction_dict_values: Same.
-    :param num_validation_batches_per_epoch: Same.
-    :param validation_start_time_string: Same.
-    :param validation_end_time_string: Same.
-    :param dropout_fraction: Same.
+    :param num_refl_filters_in_first_conv_layer: See documentation at the top of
+        this file.
+    :param num_az_shear_filters_in_first_conv_layer: Same.
+    :param dropout_fraction: See documentation at the top of
+        'scripts/deep_learning.py'.
     :param l2_weight: Same.
-    :param first_num_reflectivity_filters: Same.
+    :param sampling_fraction_dict_keys: Same.
+    :param sampling_fraction_dict_values: Same.
+    :param weight_loss_function: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param first_validation_time_string: Same.
+    :param last_validation_time_string: Same.
+    :param sounding_field_names: Same.
+    :param top_sounding_dir_name: Same.
+    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param num_sounding_filters_in_first_conv_layer: Same.
     """
 
-    # Make output directory; determine names of output files.
+    # Convert inputs.
+    if dropout_fraction <= 0.:
+        dropout_fraction = None
+    if l2_weight <= 0.:
+        l2_weight = None
+
+    sampling_fraction_dict_keys = numpy.array(
+        sampling_fraction_dict_keys, dtype=int)
+    sampling_fraction_dict_values = numpy.array(
+        sampling_fraction_dict_values, dtype=float)
+
+    if len(sampling_fraction_dict_keys) > 1:
+        sampling_fraction_by_class_dict = dict(zip(
+            sampling_fraction_dict_keys, sampling_fraction_dict_values))
+    else:
+        sampling_fraction_by_class_dict = None
+
+    first_train_time_unix_sec = time_conversion.string_to_unix_sec(
+        first_training_time_string, dl_helper.INPUT_TIME_FORMAT)
+    last_train_time_unix_sec = time_conversion.string_to_unix_sec(
+        last_training_time_string, dl_helper.INPUT_TIME_FORMAT)
+
+    if num_validation_batches_per_epoch <= 0:
+        num_validation_batches_per_epoch = None
+        first_validn_time_unix_sec = None
+        last_validn_time_unix_sec = None
+    else:
+        first_validn_time_unix_sec = time_conversion.string_to_unix_sec(
+            first_validation_time_string, dl_helper.INPUT_TIME_FORMAT)
+        last_validn_time_unix_sec = time_conversion.string_to_unix_sec(
+            last_validation_time_string, dl_helper.INPUT_TIME_FORMAT)
+
+    if sounding_field_names[0] == 'None':
+        sounding_field_names = None
+        num_sounding_fields = None
+    else:
+        num_sounding_fields = len(sounding_field_names)
+
+    # Error-checking.
+    myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
+        field_names=RADAR_FIELD_NAMES,
+        data_source=radar_utils.MYRORSS_SOURCE_ID,
+        refl_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
+
+    # Set locations of output files.
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_model_dir_name)
     model_file_name = '{0:s}/model.h5'.format(output_model_dir_name)
@@ -80,167 +155,155 @@ def _train_2d3d_myrorss_cnn(
     tensorboard_dir_name = '{0:s}/tensorboard'.format(output_model_dir_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(output_model_dir_name)
 
-    # Verify radar fields.
-    myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
-        field_names=RADAR_FIELD_NAMES,
-        data_source=radar_utils.MYRORSS_SOURCE_ID,
-        refl_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
-
-    # Verify and convert other inputs.
-    class_fraction_dict_keys = numpy.array(class_fraction_dict_keys, dtype=int)
-    class_fraction_dict_values = numpy.array(
-        class_fraction_dict_values, dtype=float)
-    class_fraction_dict = dict(zip(
-        class_fraction_dict_keys, class_fraction_dict_values))
-    print 'Class fractions for sampling = {0:s}'.format(
-        str(class_fraction_dict))
-
-    first_train_time_unix_sec = time_conversion.string_to_unix_sec(
-        training_start_time_string, dl_script_helper.INPUT_TIME_FORMAT)
-    last_train_time_unix_sec = time_conversion.string_to_unix_sec(
-        training_end_time_string, dl_script_helper.INPUT_TIME_FORMAT)
-
-    if num_validation_batches_per_epoch <= 0:
-        num_validation_batches_per_epoch = None
+    # Find input files for training.
+    radar_file_name_matrix_for_training, _ = trainval_io.find_radar_files_2d(
+        top_directory_name=top_storm_radar_image_dir_name,
+        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+        radar_field_names=radar_field_names,
+        reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
+        first_file_time_unix_sec=first_train_time_unix_sec,
+        last_file_time_unix_sec=last_train_time_unix_sec,
+        one_file_per_time_step=one_file_per_time_step)
+    print SEPARATOR_STRING
 
     if num_validation_batches_per_epoch is None:
-        first_validn_time_unix_sec = None
-        last_validn_time_unix_sec = None
+        radar_file_name_matrix_for_validn = None
     else:
-        first_validn_time_unix_sec = time_conversion.string_to_unix_sec(
-            validation_start_time_string, dl_script_helper.INPUT_TIME_FORMAT)
-        last_validn_time_unix_sec = time_conversion.string_to_unix_sec(
-            validation_end_time_string, dl_script_helper.INPUT_TIME_FORMAT)
+        radar_file_name_matrix_for_validn, _ = trainval_io.find_radar_files_2d(
+            top_directory_name=top_storm_radar_image_dir_name,
+            radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+            radar_field_names=radar_field_names,
+            reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
+            first_file_time_unix_sec=first_validn_time_unix_sec,
+            last_file_time_unix_sec=last_validn_time_unix_sec,
+            one_file_per_time_step=one_file_per_time_step)
+        print SEPARATOR_STRING
 
-    # Write metadata.
     print 'Writing metadata to: "{0:s}"...\n'.format(metadata_file_name)
-
     cnn.write_model_metadata(
-        num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
+        pickle_file_name=metadata_file_name, num_epochs=num_epochs,
+        num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        first_train_time_unix_sec=first_train_time_unix_sec,
-        last_train_time_unix_sec=last_train_time_unix_sec,
-        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        first_validn_time_unix_sec=first_validn_time_unix_sec,
-        last_validn_time_unix_sec=last_validn_time_unix_sec,
-        radar_source=radar_utils.MYRORSS_SOURCE_ID,
-        radar_field_names=RADAR_FIELD_NAMES, radar_heights_m_asl=None,
+        radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
+        weight_loss_function=weight_loss_function,
+        monitor_string=monitor_string, target_name=target_name,
+        binarize_target=binarize_target,
+        radar_normalization_dict=RADAR_NORMALIZATION_DICT,
+        use_2d3d_convolution=True, radar_source=radar_utils.MYRORSS_SOURCE_ID,
+        radar_field_names=radar_field_names,
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-        target_name=target_name, normalize_by_batch=NORMALIZE_BY_BATCH,
-        normalization_dict=NORMALIZATION_DICT,
-        percentile_offset_for_normalization=None,
-        class_fraction_dict=class_fraction_dict,
-        sounding_statistic_names=None, binarize_target=binarize_target,
-        use_2d3d_convolution=True, pickle_file_name=metadata_file_name)
+        training_fraction_by_class_dict=sampling_fraction_by_class_dict,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
+        radar_file_name_matrix_for_validn=radar_file_name_matrix_for_validn,
+        sounding_field_names=sounding_field_names,
+        top_sounding_dir_name=top_sounding_dir_name,
+        sounding_lag_time_for_convective_contamination_sec=
+        sounding_lag_time_for_convective_contamination_sec,
+        sounding_normalization_dict=SOUNDING_NORMALIZATION_DICT)
 
-    # Set up model architecture.
     if binarize_target:
         num_classes_to_predict = 2
     else:
         num_classes_to_predict = labels.column_name_to_num_classes(
             column_name=target_name, include_dead_storms=False)
 
-    model_object = cnn.get_architecture_for_2d3d_myrorss(
-        num_classes=num_classes_to_predict, dropout_fraction=dropout_fraction,
-        first_num_reflectivity_filters=first_num_reflectivity_filters,
+    model_object = cnn.get_2d3d_swirlnet_architecture(
+        num_reflectivity_rows=NUM_REFLECTIVITY_ROWS,
+        num_reflectivity_columns=NUM_REFLECTIVITY_COLUMNS,
+        num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_ASL),
         num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
-        l2_weight=l2_weight)
-
-    print '\nFinding training files...'
-    training_file_name_matrix, _ = trainval_io.find_2d_input_files(
-        top_directory_name=input_storm_image_dir_name,
-        radar_source=radar_utils.MYRORSS_SOURCE_ID,
-        radar_field_names=RADAR_FIELD_NAMES,
-        first_image_time_unix_sec=first_train_time_unix_sec,
-        last_image_time_unix_sec=last_train_time_unix_sec,
-        reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-        one_file_per_time_step=one_file_per_time_step)
-
-    if num_validation_batches_per_epoch is None:
-        validation_file_name_matrix = None
-    else:
-        print 'Finding validation files...'
-        validation_file_name_matrix, _ = trainval_io.find_2d_input_files(
-            top_directory_name=input_storm_image_dir_name,
-            radar_source=radar_utils.MYRORSS_SOURCE_ID,
-            radar_field_names=RADAR_FIELD_NAMES,
-            first_image_time_unix_sec=first_validn_time_unix_sec,
-            last_image_time_unix_sec=last_validn_time_unix_sec,
-            reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
-            one_file_per_time_step=one_file_per_time_step)
-
+        num_classes=num_classes_to_predict,
+        num_refl_filters_in_first_conv_layer=
+        num_refl_filters_in_first_conv_layer,
+        num_az_shear_filters_in_first_conv_layer=
+        num_az_shear_filters_in_first_conv_layer,
+        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
+        num_sounding_heights=NUM_SOUNDING_HEIGHTS,
+        num_sounding_fields=num_sounding_fields,
+        num_sounding_filters_in_first_conv_layer=
+        num_sounding_filters_in_first_conv_layer)
     print SEPARATOR_STRING
 
-    cnn.train_2d3d_cnn_with_myrorss(
+    cnn.train_2d3d_cnn(
         model_object=model_object, model_file_name=model_file_name,
         history_file_name=history_file_name,
-        tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        train_image_file_name_matrix=training_file_name_matrix,
-        top_target_directory_name=input_target_dir_name,
-        num_examples_per_batch=num_examples_per_batch,
+        tensorboard_dir_name=tensorboard_dir_name,
+        num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file_time=num_examples_per_file_time,
-        target_name=target_name, binarize_target=binarize_target,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
+        target_name=target_name, top_target_directory_name=top_target_dir_name,
+        monitor_string=monitor_string, binarize_target=binarize_target,
         weight_loss_function=weight_loss_function,
-        training_class_fraction_dict=class_fraction_dict,
+        training_fraction_by_class_dict=sampling_fraction_by_class_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validn_image_file_name_matrix=validation_file_name_matrix,
-        validation_class_fraction_dict=class_fraction_dict)
+        validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
+        radar_file_name_matrix_for_validn=radar_file_name_matrix_for_validn,
+        sounding_field_names=sounding_field_names,
+        top_sounding_dir_name=top_sounding_dir_name,
+        sounding_lag_time_for_convective_contamination_sec=
+        sounding_lag_time_for_convective_contamination_sec)
 
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
-    ONE_FILE_PER_TIME_STEP = bool(getattr(
-        INPUT_ARG_OBJECT, dl_script_helper.ONE_FILE_PER_TIME_STEP_ARG_NAME))
 
-    if ONE_FILE_PER_TIME_STEP:
-        NUM_EXAMPLES_PER_FILE_TIME = getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_TIME_ARG_NAME)
-    else:
-        NUM_EXAMPLES_PER_FILE_TIME = getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_DATE_ARG_NAME)
-
-    _train_2d3d_myrorss_cnn(
+    _train_cnn(
         output_model_dir_name=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.MODEL_DIRECTORY_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.MODEL_DIRECTORY_ARG_NAME),
         num_epochs=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_EPOCHS_ARG_NAME),
-        num_training_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_TRAIN_BATCHES_ARG_NAME),
-        input_storm_image_dir_name=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.STORM_IMAGE_DIR_ARG_NAME),
-        input_target_dir_name=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.TARGET_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_EPOCHS_ARG_NAME),
         num_examples_per_batch=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
-        one_file_per_time_step=ONE_FILE_PER_TIME_STEP,
-        num_examples_per_file_time=NUM_EXAMPLES_PER_FILE_TIME,
-        training_start_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.TRAINING_START_TIME_ARG_NAME),
-        training_end_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.TRAINING_END_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
+        num_examples_per_file_time=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME),
+        num_training_batches_per_epoch=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_TRAIN_BATCHES_ARG_NAME),
+        top_storm_radar_image_dir_name=getattr(
+            INPUT_ARG_OBJECT, dl_helper.RADAR_DIRECTORY_ARG_NAME),
+        one_file_per_time_step=bool(getattr(
+            INPUT_ARG_OBJECT, dl_helper.ONE_FILE_PER_TIME_STEP_ARG_NAME)),
+        first_training_time_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME),
+        last_training_time_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
+        monitor_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MONITOR_STRING_ARG_NAME),
+        radar_field_names=getattr(
+            INPUT_ARG_OBJECT, dl_helper.RADAR_FIELD_NAMES_ARG_NAME),
         target_name=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.TARGET_NAME_ARG_NAME),
-        weight_loss_function=bool(getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.WEIGHT_LOSS_ARG_NAME)),
+            INPUT_ARG_OBJECT, dl_helper.TARGET_NAME_ARG_NAME),
+        top_target_dir_name=getattr(
+            INPUT_ARG_OBJECT, dl_helper.TARGET_DIRECTORY_ARG_NAME),
         binarize_target=bool(getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.BINARIZE_TARGET_ARG_NAME)),
-        class_fraction_dict_keys=getattr(
-            INPUT_ARG_OBJECT,
-            dl_script_helper.CLASS_FRACTION_DICT_KEYS_ARG_NAME),
-        class_fraction_dict_values=getattr(
-            INPUT_ARG_OBJECT,
-            dl_script_helper.CLASS_FRACTION_DICT_VALUES_ARG_NAME),
-        num_validation_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.NUM_VALIDN_BATCHES_ARG_NAME),
-        validation_start_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.VALIDATION_START_TIME_ARG_NAME),
-        validation_end_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.VALIDATION_END_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.BINARIZE_TARGET_ARG_NAME)),
+        num_refl_filters_in_first_conv_layer=getattr(
+            INPUT_ARG_OBJECT, NUM_REFL_FILTERS_ARG_NAME),
+        num_az_shear_filters_in_first_conv_layer=getattr(
+            INPUT_ARG_OBJECT, NUM_AZ_SHEAR_FILTERS_ARG_NAME),
         dropout_fraction=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.DROPOUT_FRACTION_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.DROPOUT_FRACTION_ARG_NAME),
         l2_weight=getattr(
-            INPUT_ARG_OBJECT, dl_script_helper.L2_WEIGHT_ARG_NAME),
-        first_num_reflectivity_filters=getattr(
-            INPUT_ARG_OBJECT, FIRST_NUM_REFL_FILTERS_ARG_NAME))
+            INPUT_ARG_OBJECT, dl_helper.L2_WEIGHT_ARG_NAME),
+        sampling_fraction_dict_keys=getattr(
+            INPUT_ARG_OBJECT, dl_helper.SAMPLING_FRACTION_KEYS_ARG_NAME),
+        sampling_fraction_dict_values=getattr(
+            INPUT_ARG_OBJECT, dl_helper.SAMPLING_FRACTION_VALUES_ARG_NAME),
+        weight_loss_function=bool(getattr(
+            INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME)),
+        num_validation_batches_per_epoch=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_VALIDN_BATCHES_ARG_NAME),
+        first_validation_time_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_TIME_ARG_NAME),
+        last_validation_time_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_TIME_ARG_NAME),
+        sounding_field_names=getattr(
+            INPUT_ARG_OBJECT, dl_helper.SOUNDING_FIELD_NAMES_ARG_NAME),
+        top_sounding_dir_name=getattr(
+            INPUT_ARG_OBJECT, dl_helper.SOUNDING_DIRECTORY_ARG_NAME),
+        sounding_lag_time_for_convective_contamination_sec=getattr(
+            INPUT_ARG_OBJECT, dl_helper.SOUNDING_LAG_TIME_ARG_NAME),
+        num_sounding_filters_in_first_conv_layer=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_SOUNDING_FILTERS_ARG_NAME))

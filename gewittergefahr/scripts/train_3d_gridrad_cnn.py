@@ -181,12 +181,17 @@ def _train_cnn(
         sounding_lag_time_for_convective_contamination_sec,
         sounding_normalization_dict=SOUNDING_NORMALIZATION_DICT)
 
-    num_classes = labels.column_name_to_num_classes(target_name)
+    if binarize_target:
+        num_classes_to_predict = 2
+    else:
+        num_classes_to_predict = labels.column_name_to_num_classes(
+            column_name=target_name, include_dead_storms=False)
+
     model_object = cnn.get_3d_swilrnet_architecture(
         num_radar_rows=NUM_RADAR_ROWS, num_radar_columns=NUM_RADAR_COLUMNS,
         num_radar_heights=len(RADAR_HEIGHTS_M_ASL),
         num_radar_fields=len(radar_field_names),
-        num_classes=num_classes,
+        num_classes=num_classes_to_predict,
         num_radar_filters_in_first_conv_layer=
         num_radar_filters_in_first_conv_layer,
         dropout_fraction=dropout_fraction, l2_weight=l2_weight,
