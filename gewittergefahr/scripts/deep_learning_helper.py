@@ -196,8 +196,8 @@ def add_input_arguments(argument_parser_object):
         default=DEFAULT_MONITOR_STRING, help=MONITOR_STRING_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=True,
-        help=RADAR_FIELD_NAMES_HELP_STRING)
+        '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
+        default=[''], help=RADAR_FIELD_NAMES_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + TARGET_NAME_ARG_NAME, type=str, required=True,

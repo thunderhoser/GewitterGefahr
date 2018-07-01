@@ -59,7 +59,7 @@ def _train_cnn(
         num_examples_per_file_time, num_training_batches_per_epoch,
         top_storm_radar_image_dir_name, one_file_per_time_step,
         first_training_time_string, last_training_time_string, monitor_string,
-        radar_field_names, target_name, top_target_dir_name, binarize_target,
+        target_name, top_target_dir_name, binarize_target,
         num_refl_filters_in_first_conv_layer,
         num_az_shear_filters_in_first_conv_layer, dropout_fraction, l2_weight,
         sampling_fraction_dict_keys, sampling_fraction_dict_values,
@@ -81,7 +81,6 @@ def _train_cnn(
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
     :param monitor_string: Same.
-    :param radar_field_names: Same.
     :param target_name: Same.
     :param top_target_dir_name: Same.
     :param binarize_target: Same.
@@ -159,7 +158,7 @@ def _train_cnn(
     radar_file_name_matrix_for_training, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=radar_utils.GRIDRAD_SOURCE_ID,
-        radar_field_names=radar_field_names,
+        radar_field_names=RADAR_FIELD_NAMES,
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
         first_file_time_unix_sec=first_train_time_unix_sec,
         last_file_time_unix_sec=last_train_time_unix_sec,
@@ -172,7 +171,7 @@ def _train_cnn(
         radar_file_name_matrix_for_validn, _ = trainval_io.find_radar_files_2d(
             top_directory_name=top_storm_radar_image_dir_name,
             radar_source=radar_utils.GRIDRAD_SOURCE_ID,
-            radar_field_names=radar_field_names,
+            radar_field_names=RADAR_FIELD_NAMES,
             reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
             first_file_time_unix_sec=first_validn_time_unix_sec,
             last_file_time_unix_sec=last_validn_time_unix_sec,
@@ -191,7 +190,7 @@ def _train_cnn(
         binarize_target=binarize_target,
         radar_normalization_dict=RADAR_NORMALIZATION_DICT,
         use_2d3d_convolution=True, radar_source=radar_utils.MYRORSS_SOURCE_ID,
-        radar_field_names=radar_field_names,
+        radar_field_names=RADAR_FIELD_NAMES,
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -271,8 +270,6 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
         monitor_string=getattr(
             INPUT_ARG_OBJECT, dl_helper.MONITOR_STRING_ARG_NAME),
-        radar_field_names=getattr(
-            INPUT_ARG_OBJECT, dl_helper.RADAR_FIELD_NAMES_ARG_NAME),
         target_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.TARGET_NAME_ARG_NAME),
         top_target_dir_name=getattr(
