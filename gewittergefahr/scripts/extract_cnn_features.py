@@ -29,6 +29,8 @@ FIRST_STORM_TIME_ARG_NAME = 'first_storm_time_string'
 LAST_STORM_TIME_ARG_NAME = 'last_storm_time_string'
 ONE_FILE_PER_TIME_STEP_ARG_NAME = 'one_file_per_time_step'
 NUM_EXAMPLES_ARG_NAME = 'num_examples'
+SAMPLING_FRACTION_KEYS_ARG_NAME = 'sampling_fraction_keys'
+SAMPLING_FRACTION_VALUES_ARG_NAME = 'sampling_fraction_values'
 OUTPUT_FILE_ARG_NAME = 'output_netcdf_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -56,6 +58,15 @@ ONE_FILE_PER_TIME_STEP_HELP_STRING = (
 NUM_EXAMPLES_HELP_STRING = (
     'Number of storm objects.  See discussion for `{0:s}` and `{1:s}`.'
 ).format(FIRST_STORM_TIME_ARG_NAME, LAST_STORM_TIME_ARG_NAME)
+SAMPLING_FRACTION_KEYS_HELP_STRING = (
+    'List of keys.  Each key is the integer representing a class (-2 for '
+    '"dead storm").  Corresponding values in `{0:s}` are sampling fractions, '
+    'which will be applied to each batch.  This can be used to achieve over- '
+    'and undersampling of different classes.  Leave default for no special '
+    'sampling.'
+).format(SAMPLING_FRACTION_VALUES_ARG_NAME)
+SAMPLING_FRACTION_VALUES_HELP_STRING = 'See documentation for `{0:s}`.'.format(
+    SAMPLING_FRACTION_KEYS_ARG_NAME)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `cnn.write_features`).')
 
@@ -93,6 +104,14 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + SAMPLING_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
+    required=False, default=[0], help=SAMPLING_FRACTION_KEYS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + SAMPLING_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
+    required=False, default=[0.], help=SAMPLING_FRACTION_VALUES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
@@ -102,7 +121,7 @@ def _extract_2d_cnn_features(
         top_target_dir_name, first_storm_time_unix_sec,
         last_storm_time_unix_sec, one_file_per_time_step,
         num_examples_per_batch, num_examples_total, output_netcdf_file_name,
-        model_metadata_dict):
+        sampling_fraction_by_class_dict, model_metadata_dict):
     """Extracts features (output of the last "Flatten" layer) from a 2-D CNN.
 
     :param model_object: Trained model (instance of `keras.models.Sequential`).
@@ -118,6 +137,7 @@ def _extract_2d_cnn_features(
         `num_examples_total` storm objects have been written.
     :param num_examples_total: See above.
     :param output_netcdf_file_name: Path to output file.
+    :param sampling_fraction_by_class_dict: See documentation at top of file.
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     """
 
@@ -142,8 +162,7 @@ def _extract_2d_cnn_features(
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
         radar_normalization_dict=model_metadata_dict[
             cnn.RADAR_NORMALIZATION_DICT_KEY],
-        sampling_fraction_by_class_dict=model_metadata_dict[
-            cnn.TRAINING_FRACTION_BY_CLASS_KEY],
+        sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
         sounding_field_names=model_metadata_dict[
             cnn.SOUNDING_FIELD_NAMES_KEY],
         top_sounding_dir_name=top_sounding_dir_name,
@@ -222,7 +241,7 @@ def _extract_3d_cnn_features(
         top_target_dir_name, first_storm_time_unix_sec,
         last_storm_time_unix_sec, one_file_per_time_step,
         num_examples_per_batch, num_examples_total, output_netcdf_file_name,
-        model_metadata_dict):
+        sampling_fraction_by_class_dict, model_metadata_dict):
     """Extracts features (output of the last "Flatten" layer) from a 3-D CNN.
 
     :param model_object: Trained model (instance of `keras.models.Sequential`).
@@ -235,6 +254,7 @@ def _extract_3d_cnn_features(
     :param num_examples_per_batch: See doc for `_extract_2d_cnn_features`.
     :param num_examples_total: Same.
     :param output_netcdf_file_name: See documentation at top of file.
+    :param sampling_fraction_by_class_dict: Same.
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     """
 
@@ -257,8 +277,7 @@ def _extract_3d_cnn_features(
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
         radar_normalization_dict=model_metadata_dict[
             cnn.RADAR_NORMALIZATION_DICT_KEY],
-        sampling_fraction_by_class_dict=model_metadata_dict[
-            cnn.TRAINING_FRACTION_BY_CLASS_KEY],
+        sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
         sounding_field_names=model_metadata_dict[
             cnn.SOUNDING_FIELD_NAMES_KEY],
         top_sounding_dir_name=top_sounding_dir_name,
@@ -337,7 +356,7 @@ def _extract_2d3d_cnn_features(
         top_target_dir_name, first_storm_time_unix_sec,
         last_storm_time_unix_sec, one_file_per_time_step,
         num_examples_per_batch, num_examples_total, output_netcdf_file_name,
-        model_metadata_dict):
+        sampling_fraction_by_class_dict, model_metadata_dict):
     """Extracts features (output of the last "Flatten" layer) from a 2D/3D CNN.
 
     :param model_object: Trained model (instance of `keras.models.Sequential`).
@@ -350,6 +369,7 @@ def _extract_2d3d_cnn_features(
     :param num_examples_per_batch: See doc for `_extract_2d_cnn_features`.
     :param num_examples_total: Same.
     :param output_netcdf_file_name: See documentation at top of file.
+    :param sampling_fraction_by_class_dict: Same.
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     """
 
@@ -374,8 +394,7 @@ def _extract_2d3d_cnn_features(
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
         radar_normalization_dict=model_metadata_dict[
             cnn.RADAR_NORMALIZATION_DICT_KEY],
-        sampling_fraction_by_class_dict=model_metadata_dict[
-            cnn.TRAINING_FRACTION_BY_CLASS_KEY],
+        sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
         sounding_field_names=model_metadata_dict[
             cnn.SOUNDING_FIELD_NAMES_KEY],
         top_sounding_dir_name=top_sounding_dir_name,
@@ -445,7 +464,8 @@ def _extract_2d3d_cnn_features(
 def _extract_features(
         model_file_name, top_storm_radar_image_dir_name, top_sounding_dir_name,
         top_target_dir_name, first_storm_time_string, last_storm_time_string,
-        one_file_per_time_step, num_examples, output_netcdf_file_name):
+        one_file_per_time_step, num_examples, sampling_fraction_dict_keys,
+        sampling_fraction_dict_values, output_netcdf_file_name):
     """Extracts features (output of the last "Flatten" layer) from a CNN.
 
     :param model_file_name: See documentation at top of file.
@@ -456,17 +476,33 @@ def _extract_features(
     :param last_storm_time_string: Same.
     :param one_file_per_time_step: Same.
     :param num_examples: Same.
+    :param sampling_fraction_dict_keys: Same.
+    :param sampling_fraction_dict_values: Same.
     :param output_netcdf_file_name: Same.
     """
 
+    # Convert input arguments.
     first_storm_time_unix_sec = time_conversion.string_to_unix_sec(
         first_storm_time_string, INPUT_TIME_FORMAT)
     last_storm_time_unix_sec = time_conversion.string_to_unix_sec(
         last_storm_time_string, INPUT_TIME_FORMAT)
 
+    sampling_fraction_dict_keys = numpy.array(
+        sampling_fraction_dict_keys, dtype=int)
+    sampling_fraction_dict_values = numpy.array(
+        sampling_fraction_dict_values, dtype=float)
+
+    if len(sampling_fraction_dict_keys) > 1:
+        sampling_fraction_by_class_dict = dict(zip(
+            sampling_fraction_dict_keys, sampling_fraction_dict_values))
+    else:
+        sampling_fraction_by_class_dict = None
+
+    # Read trained model.
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
 
+    # Determine number of examples to generate per batch.
     intermediate_model_object = cnn.model_to_feature_generator(model_object)
     num_features = numpy.array(
         intermediate_model_object.layers[-1].output_shape)[-1]
@@ -474,6 +510,7 @@ def _extract_features(
         float(NUM_VALUES_PER_BATCH) / num_features))
     num_examples_per_batch = min([num_examples_per_batch, num_examples])
 
+    # Read metadata for trained model.
     model_directory_name, _ = os.path.split(model_file_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
@@ -491,6 +528,7 @@ def _extract_features(
             num_examples_per_batch=num_examples_per_batch,
             num_examples_total=num_examples,
             output_netcdf_file_name=output_netcdf_file_name,
+            sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
             model_metadata_dict=model_metadata_dict)
     else:
         num_radar_dimensions = len(
@@ -508,6 +546,7 @@ def _extract_features(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_total=num_examples,
                 output_netcdf_file_name=output_netcdf_file_name,
+                sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
                 model_metadata_dict=model_metadata_dict)
         else:
             _extract_3d_cnn_features(
@@ -521,6 +560,7 @@ def _extract_features(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_total=num_examples,
                 output_netcdf_file_name=output_netcdf_file_name,
+                sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
                 model_metadata_dict=model_metadata_dict)
 
 
@@ -542,4 +582,8 @@ if __name__ == '__main__':
         one_file_per_time_step=bool(getattr(
             INPUT_ARG_OBJECT, ONE_FILE_PER_TIME_STEP_ARG_NAME)),
         num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
+        sampling_fraction_dict_keys=getattr(
+            INPUT_ARG_OBJECT, SAMPLING_FRACTION_KEYS_ARG_NAME),
+        sampling_fraction_dict_values=getattr(
+            INPUT_ARG_OBJECT, SAMPLING_FRACTION_VALUES_ARG_NAME),
         output_netcdf_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
