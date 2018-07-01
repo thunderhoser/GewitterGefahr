@@ -154,6 +154,9 @@ def _train_cnn(
     tensorboard_dir_name = '{0:s}/tensorboard'.format(output_model_dir_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(output_model_dir_name)
 
+    print RADAR_FIELD_NAMES
+    print REFLECTIVITY_HEIGHTS_M_ASL
+
     # Find input files for training.
     radar_file_name_matrix_for_training, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
