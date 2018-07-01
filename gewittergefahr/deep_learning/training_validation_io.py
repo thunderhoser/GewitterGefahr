@@ -563,7 +563,7 @@ def _read_input_files_2d3d(
     return {
         REFLECTIVITY_IMAGE_MATRIX_KEY: dl_utils.stack_radar_heights(
             tuple_of_4d_refl_matrices),
-        AZ_SHEAR_IMAGE_MATRIX_KEY: dl_utils.stack_radar_heights(
+        AZ_SHEAR_IMAGE_MATRIX_KEY: dl_utils.stack_radar_fields(
             tuple_of_3d_az_shear_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
