@@ -498,13 +498,10 @@ def _read_input_files_2d3d(
 
     print 'Reading data from: "{0:s}" and "{1:s}"...'.format(
         reflectivity_file_names[0], label_file_name)
-    start_time_unix_sec = time.time()
     this_radar_image_dict = storm_images.read_storm_images_and_labels(
         image_file_name=reflectivity_file_names[0],
         label_file_name=label_file_name, label_name=target_name,
         num_storm_objects_class_dict=num_examples_left_by_class_dict)
-    time_elapsed_sec = time.time() - start_time_unix_sec
-    print 'Time elapsed = {0:.2f} seconds'.format(time_elapsed_sec)
 
     if this_radar_image_dict is None:
         return None
@@ -517,13 +514,10 @@ def _read_input_files_2d3d(
     if sounding_file_name is None:
         sounding_matrix = None
     else:
-        start_time_unix_sec = time.time()
         sounding_dict, this_radar_image_dict = read_soundings(
             sounding_file_name=sounding_file_name,
             sounding_field_names=sounding_field_names,
             radar_image_dict=this_radar_image_dict)
-        time_elapsed_sec = time.time() - start_time_unix_sec
-        print 'Time elapsed = {0:.2f} seconds'.format(time_elapsed_sec)
 
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
@@ -544,13 +538,10 @@ def _read_input_files_2d3d(
         if j != 0:
             print 'Reading data from: "{0:s}"...'.format(
                 reflectivity_file_names[j])
-            start_time_unix_sec = time.time()
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=reflectivity_file_names[j],
                 storm_ids_to_keep=storm_ids_to_keep,
                 valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
-            time_elapsed_sec = time.time() - start_time_unix_sec
-            print 'Time elapsed = {0:.2f} seconds'.format(time_elapsed_sec)
 
         this_4d_matrix = dl_utils.stack_radar_fields(
             (this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],))
@@ -562,13 +553,10 @@ def _read_input_files_2d3d(
     for j in range(num_azimuthal_shear_fields):
         print 'Reading data from: "{0:s}"...'.format(
             azimuthal_shear_file_names[j])
-        start_time_unix_sec = time.time()
         this_radar_image_dict = storm_images.read_storm_images(
             netcdf_file_name=azimuthal_shear_file_names[j],
             storm_ids_to_keep=storm_ids_to_keep,
             valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
-        time_elapsed_sec = time.time() - start_time_unix_sec
-        print 'Time elapsed = {0:.2f} seconds'.format(time_elapsed_sec)
 
         tuple_of_3d_az_shear_matrices += (
             this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
