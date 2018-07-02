@@ -1257,9 +1257,14 @@ def read_storm_images(
         storm_ids = [storm_ids[i] for i in indices_to_keep]
         valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
 
-    storm_image_matrix = numpy.array(
-        netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
-            indices_to_keep, ...])
+    if len(indices_to_keep):
+        storm_image_matrix = numpy.array(
+            netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
+                indices_to_keep, ...])
+    else:
+        num_latitudes = netcdf_dataset.dimensions[LAT_DIMENSION_KEY].size
+        num_longitudes = netcdf_dataset.dimensions[LNG_DIMENSION_KEY].size
+        storm_image_matrix = numpy.full((0, num_latitudes, num_longitudes), 0.)
 
     netcdf_dataset.close()
 
