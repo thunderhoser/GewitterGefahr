@@ -1,22 +1,18 @@
-"""Separates storm-centered MYRORSS images associated with non-negative targets.
+"""Separates storm-centered MYRORSS images associated with positive targets.
 
-Specifically, images associated with non-negative target values are written to a
-new directory.  For rare events like tornadoes and severe convective wind,
-non-negative target values are the minority, so this has the advantage of
-separating the most interesting cases in smaller files, where it takes much less
-time to access them.  (For example, reading 10 images from a file with 10^5
-images takes much longer than reading 10 images from a file with 100 images --
-despite the fact that storm-centered radar images are stored in NetCDF files,
-which allow random access.)
-
-Keep in mind that "non-negative" means any value other than 0 ("no tornado" or
-"lowest wind speed") or -2 ("dead storm").  Thus, if the target variable is
-multiclass, images with various target values will be written to the new set of
-files.
+Specifically, images associated with positive target values are written to a new
+directory.  For rare events like tornadoes and severe convective wind, positive
+target values (anything other than -2 ["dead storm"] and 0 [lowest category])
+are the minority, so this has the advantage of separating the most interesting
+cases in smaller files, where it takes much less time to access them.  (For
+example, reading 10 images from a file with 10^5 images takes much longer than
+reading 10 images from a file with 100 images -- despite the fact that storm-
+centered radar images are stored in NetCDF files, which allow random access.)
 """
 
 import argparse
 import numpy
+from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import storm_images
@@ -38,7 +34,7 @@ INPUT_RADAR_DIR_ARG_NAME = 'input_storm_radar_image_dir_name'
 OUTPUT_RADAR_DIR_ARG_NAME = 'output_storm_radar_image_dir_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 ONE_FILE_PER_TIME_STEP_ARG_NAME = 'one_file_per_time_step'
-TARGET_NAME_ARG_NAME = 'target_name'
+TARGET_NAMES_ARG_NAME = 'target_names'
 FIRST_STORM_TIME_ARG_NAME = 'first_storm_time_string'
 LAST_STORM_TIME_ARG_NAME = 'last_storm_time_string'
 
@@ -46,7 +42,7 @@ INPUT_RADAR_DIR_HELP_STRING = (
     'Name of top-level input directory.  Files therein will be found by '
     '`storm_images.find_many_files_myrorss_or_mrms`.')
 OUTPUT_RADAR_DIR_HELP_STRING = (
-    'Name of top-level output directory.  Images associated with non-negative '
+    'Name of top-level output directory.  Images associated with positive '
     'target values will be written therein by '
     '`storm_images.write_storm_images`.')
 TARGET_DIRECTORY_HELP_STRING = (
@@ -55,9 +51,11 @@ TARGET_DIRECTORY_HELP_STRING = (
 ONE_FILE_PER_TIME_STEP_HELP_STRING = (
     'Boolean flag.  If 1 (0), this script will read and write files with one '
     'time step (SPC date) each.')
-TARGET_NAME_HELP_STRING = (
-    'Name of target variable (must be accepted by '
-    '`labels.column_name_to_label_params`).')
+TARGET_NAMES_HELP_STRING = (
+    'Names of target variables (each must be accepted by '
+    '`labels.column_name_to_label_params`).  Any storm object with a positive '
+    'target value for *any* target variable will be written to the new '
+    'directory.')
 STORM_TIME_HELP_STRING = (
     'Storm time (format "yyyy-mm-dd-HHMMSS").  This script will read and write '
     'files for all storm times from `{0:s}`...`{1:s}`.  If `{2:s}` = False, '
@@ -84,8 +82,8 @@ INPUT_ARG_PARSER.add_argument(
     help=ONE_FILE_PER_TIME_STEP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_NAME_ARG_NAME, type=str, required=True,
-    help=TARGET_NAME_HELP_STRING)
+    '--' + TARGET_NAMES_ARG_NAME, type=str, nargs='+', required=True,
+    help=TARGET_NAMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_STORM_TIME_ARG_NAME, type=str, required=True,
@@ -98,15 +96,15 @@ INPUT_ARG_PARSER.add_argument(
 
 def _separate_files(
         top_input_radar_image_dir_name, top_output_radar_image_dir_name,
-        top_target_dir_name, one_file_per_time_step, target_name,
+        top_target_dir_name, one_file_per_time_step, target_names,
         first_storm_time_string, last_storm_time_string):
-    """Separates MYRORSS images associated with non-negative target values.
+    """Separates MYRORSS images associated with positive target values.
 
     :param top_input_radar_image_dir_name: See documentation at top of file.
     :param top_output_radar_image_dir_name: Same.
     :param top_target_dir_name: Same.
     :param one_file_per_time_step: Same.
-    :param target_name: Same.
+    :param target_names: Same.
     :param first_storm_time_string: Same.
     :param last_storm_time_string: Same.
     """
@@ -129,6 +127,7 @@ def _separate_files(
 
     num_storm_times = orig_storm_image_file_name_matrix.shape[0]
     num_field_height_pairs = orig_storm_image_file_name_matrix.shape[1]
+    num_target_variables = len(target_names)
     target_file_names = [''] * num_storm_times
 
     print 'Finding target files to match storm-image files...'
@@ -136,29 +135,38 @@ def _separate_files(
         target_file_names[i] = storm_images.find_storm_label_file(
             storm_image_file_name=orig_storm_image_file_name_matrix[i, 0],
             top_label_directory_name=top_target_dir_name,
-            label_name=target_name,
+            label_name=target_names[0],
             one_file_per_spc_date=not one_file_per_time_step,
             raise_error_if_missing=True)
 
     for i in range(num_storm_times):
-        print '\nReading data from: "{0:s}" and "{1:s}"...'.format(
-            orig_storm_image_file_name_matrix[i, 0], target_file_names[i])
-        this_storm_image_dict = storm_images.read_storm_images_and_labels(
-            image_file_name=orig_storm_image_file_name_matrix[i, 0],
-            label_file_name=target_file_names[i], label_name=target_name)
+        these_indices_to_keep = numpy.array([], dtype=int)
 
-        these_indices_to_keep = numpy.where(
-            this_storm_image_dict[storm_images.LABEL_VALUES_KEY] > 0)[0]
-        these_storm_ids_to_keep = [
-            this_storm_image_dict[storm_images.STORM_IDS_KEY][k]
-            for k in these_indices_to_keep]
-        these_storm_times_to_keep_unix_sec = this_storm_image_dict[
-            storm_images.VALID_TIMES_KEY][these_indices_to_keep]
+        for j in range(num_target_variables):
+            print 'Reading target variable "{0:s}" from: "{1:s}"...'.format(
+                target_names[j], target_file_names[i])
+            this_storm_label_dict = labels.read_labels_from_netcdf(
+                netcdf_file_name=target_file_names[i],
+                label_name=target_names[j])
+
+            these_new_indices = numpy.where(
+                this_storm_label_dict[labels.LABEL_VALUES_KEY] > 0)[0]
+            these_indices_to_keep = numpy.concatenate((
+                these_indices_to_keep, these_new_indices))
+            if j != num_target_variables - 1:
+                continue
+
+            these_indices_to_keep = numpy.unique(these_indices_to_keep)
+            these_storm_ids_to_keep = [
+                this_storm_label_dict[labels.STORM_IDS_KEY][k]
+                for k in these_indices_to_keep]
+            these_storm_times_to_keep_unix_sec = this_storm_label_dict[
+                labels.VALID_TIMES_KEY][these_indices_to_keep]
 
         print (
-            'There are {0:d} storm objects with non-negative values of the '
-            'target variable ("{1:s}").'
-        ).format(len(these_storm_ids_to_keep), target_name)
+            'There are {0:d} storm objects with positive values of any target '
+            'variable.'
+        ).format(len(these_storm_ids_to_keep))
 
         for j in range(num_field_height_pairs):
             print 'Reading data from: "{0:s}"...'.format(
@@ -209,7 +217,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, TARGET_DIRECTORY_ARG_NAME),
         one_file_per_time_step=bool(getattr(
             INPUT_ARG_OBJECT, ONE_FILE_PER_TIME_STEP_ARG_NAME)),
-        target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
+        target_names=getattr(INPUT_ARG_OBJECT, TARGET_NAMES_ARG_NAME),
         first_storm_time_string=getattr(
             INPUT_ARG_OBJECT, FIRST_STORM_TIME_ARG_NAME),
         last_storm_time_string=getattr(
