@@ -494,11 +494,13 @@ def _find_storm_objects(
         raise ValueError(error_string)
 
     start_time_unix_sec = time.time()
-    all_storm_object_ids = numpy.array(all_storm_object_ids, dtype='object')
-    relevant_indices = numpy.array(
-        [numpy.where(all_storm_object_ids == s)[0][0]
-         for s in storm_object_ids_to_keep],
-        dtype=int)
+    all_storm_object_ids = numpy.sort(
+        numpy.array(all_storm_object_ids, dtype='object'))
+    storm_object_ids_to_keep = numpy.array(
+        storm_object_ids_to_keep, dtype='object')
+
+    relevant_indices = numpy.searchsorted(
+        all_storm_object_ids, storm_object_ids_to_keep, side='left').astype(int)
 
     # relevant_indices = numpy.array(
     #     [all_storm_object_ids.index(s) for s in storm_object_ids_to_keep],
