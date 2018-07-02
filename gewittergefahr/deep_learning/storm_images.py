@@ -469,26 +469,16 @@ def _find_storm_objects(
     """
 
     num_storm_objects_total = len(all_storm_ids)
-    num_storm_objects_to_keep = len(storm_ids_to_keep)
-
-    start_time_unix_sec = time.time()
     all_storm_object_ids = [
         '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
         for i in range(num_storm_objects_total)]
-    print (
-        'Time elapsed in creating `all_storm_object_ids` = {0:.2f} seconds'
-    ).format(time.time() - start_time_unix_sec)
 
-    start_time_unix_sec = time.time()
+    num_storm_objects_to_keep = len(storm_ids_to_keep)
     storm_object_ids_to_keep = [
         '{0:s}_{1:d}'.format(storm_ids_to_keep[i],
                              valid_times_to_keep_unix_sec[i])
         for i in range(num_storm_objects_to_keep)]
-    print (
-        'Time elapsed in creating `storm_object_ids_to_keep` = {0:.2f} seconds'
-    ).format(time.time() - start_time_unix_sec)
 
-    start_time_unix_sec = time.time()
     this_num_unique = len(set(all_storm_object_ids))
     if this_num_unique != len(all_storm_object_ids):
         error_string = (
@@ -496,12 +486,6 @@ def _find_storm_objects(
         ).format(this_num_unique, len(all_storm_object_ids))
         raise ValueError(error_string)
 
-    print (
-        'Time elapsed in finding unique `all_storm_object_ids` = {0:.2f} '
-        'seconds'
-    ).format(time.time() - start_time_unix_sec)
-
-    start_time_unix_sec = time.time()
     this_num_unique = len(set(storm_object_ids_to_keep))
     if this_num_unique != len(storm_object_ids_to_keep):
         error_string = (
@@ -509,15 +493,17 @@ def _find_storm_objects(
         ).format(this_num_unique, len(storm_object_ids_to_keep))
         raise ValueError(error_string)
 
-    print (
-        'Time elapsed in finding unique `storm_object_ids_to_keep` = {0:.2f} '
-        'seconds'
-    ).format(time.time() - start_time_unix_sec)
-
     start_time_unix_sec = time.time()
+    all_storm_object_ids = numpy.array(all_storm_object_ids, dtype='object')
     relevant_indices = numpy.array(
-        [all_storm_object_ids.index(s) for s in storm_object_ids_to_keep],
+        [numpy.where(all_storm_object_ids == s)[0][0]
+         for s in storm_object_ids_to_keep],
         dtype=int)
+
+    # relevant_indices = numpy.array(
+    #     [all_storm_object_ids.index(s) for s in storm_object_ids_to_keep],
+    #     dtype=int)
+
     print (
         'Time elapsed in finding `relevant_indices` = {0:.2f} seconds'
     ).format(time.time() - start_time_unix_sec)
