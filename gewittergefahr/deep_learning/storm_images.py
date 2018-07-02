@@ -471,14 +471,24 @@ def _find_storm_objects(
     num_storm_objects_total = len(all_storm_ids)
     num_storm_objects_to_keep = len(storm_ids_to_keep)
 
+    start_time_unix_sec = time.time()
     all_storm_object_ids = [
         '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
         for i in range(num_storm_objects_total)]
+    print (
+        'Time elapsed in creating `all_storm_object_ids` = {0:.2f} seconds'
+    ).format(time.time() - start_time_unix_sec)
+
+    start_time_unix_sec = time.time()
     storm_object_ids_to_keep = [
         '{0:s}_{1:d}'.format(storm_ids_to_keep[i],
                              valid_times_to_keep_unix_sec[i])
         for i in range(num_storm_objects_to_keep)]
+    print (
+        'Time elapsed in creating `storm_object_ids_to_keep` = {0:.2f} seconds'
+    ).format(time.time() - start_time_unix_sec)
 
+    start_time_unix_sec = time.time()
     this_num_unique = len(set(all_storm_object_ids))
     if this_num_unique != len(all_storm_object_ids):
         error_string = (
@@ -486,6 +496,12 @@ def _find_storm_objects(
         ).format(this_num_unique, len(all_storm_object_ids))
         raise ValueError(error_string)
 
+    print (
+        'Time elapsed in finding unique `all_storm_object_ids` = {0:.2f} '
+        'seconds'
+    ).format(time.time() - start_time_unix_sec)
+
+    start_time_unix_sec = time.time()
     this_num_unique = len(set(storm_object_ids_to_keep))
     if this_num_unique != len(storm_object_ids_to_keep):
         error_string = (
@@ -493,9 +509,20 @@ def _find_storm_objects(
         ).format(this_num_unique, len(storm_object_ids_to_keep))
         raise ValueError(error_string)
 
-    return numpy.array(
+    print (
+        'Time elapsed in finding unique `storm_object_ids_to_keep` = {0:.2f} '
+        'seconds'
+    ).format(time.time() - start_time_unix_sec)
+
+    start_time_unix_sec = time.time()
+    relevant_indices = numpy.array(
         [all_storm_object_ids.index(s) for s in storm_object_ids_to_keep],
         dtype=int)
+    print (
+        'Time elapsed in finding `relevant_indices` = {0:.2f} seconds'
+    ).format(time.time() - start_time_unix_sec)
+
+    return relevant_indices
 
 
 def extract_storm_image(
@@ -1386,14 +1413,9 @@ def read_storm_images_and_labels(
             storm_to_tornadoes_table = labels.read_tornado_labels(
                 label_file_name)
     else:
-        start_time_unix_sec = time.time()
         storm_label_dict = labels.read_labels_from_netcdf(
             netcdf_file_name=label_file_name, label_name=label_name)
-        print (
-            'Time elapsed in `labels.read_labels_from_netcdf` = {0:.2f} seconds'
-        ).format(time.time() - start_time_unix_sec)
 
-        start_time_unix_sec = time.time()
         storm_to_events_dict = {
             tracking_utils.STORM_ID_COLUMN:
                 storm_label_dict[labels.STORM_IDS_KEY],
@@ -1408,40 +1430,23 @@ def read_storm_images_and_labels(
         else:
             storm_to_tornadoes_table = pandas.DataFrame.from_dict(
                 storm_to_events_dict)
-        print (
-            'Time elapsed in creating pandas DataFrame = {0:.2f} seconds'
-        ).format(time.time() - start_time_unix_sec)
 
-    start_time_unix_sec = time.time()
     storm_image_dict = read_storm_images(
         netcdf_file_name=image_file_name, return_images=False)
-    print (
-        'Time elapsed in `read_storm_images` with `return_images = False`: '
-        '{0:.2f} seconds'
-    ).format(time.time() - start_time_unix_sec)
 
-    start_time_unix_sec = time.time()
     label_values = extract_storm_labels_with_name(
         storm_ids=storm_image_dict[STORM_IDS_KEY],
         valid_times_unix_sec=storm_image_dict[VALID_TIMES_KEY],
         label_name=label_name, storm_to_winds_table=storm_to_winds_table,
         storm_to_tornadoes_table=storm_to_tornadoes_table)
-    print (
-        'Time elapsed in `extract_storm_labels_with_name` = {0:.2f} seconds'
-    ).format(time.time() - start_time_unix_sec)
 
     if num_storm_objects_class_dict is None:
         storm_image_dict = read_storm_images(
             netcdf_file_name=image_file_name, return_images=True)
     else:
-        start_time_unix_sec = time.time()
         indices_to_keep = _filter_storm_objects_by_label(
             label_values=label_values,
             num_storm_objects_class_dict=num_storm_objects_class_dict)
-        print (
-            'Time elapsed in `_filter_storm_objects_by_label` = {0:.2f} seconds'
-        ).format(time.time() - start_time_unix_sec)
-
         if not len(indices_to_keep):
             return None
 
@@ -1450,15 +1455,10 @@ def read_storm_images_and_labels(
         valid_times_to_keep_unix_sec = storm_image_dict[
             VALID_TIMES_KEY][indices_to_keep]
 
-        start_time_unix_sec = time.time()
         storm_image_dict = read_storm_images(
             netcdf_file_name=image_file_name, return_images=True,
             storm_ids_to_keep=storm_ids_to_keep,
             valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
-        print (
-            'Time elapsed in `read_storm_images` with `return_images = True`: '
-            '{0:.2f} seconds'
-        ).format(time.time() - start_time_unix_sec)
         label_values = label_values[indices_to_keep]
 
     storm_image_dict.update({LABEL_VALUES_KEY: label_values})
