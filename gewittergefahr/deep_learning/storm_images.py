@@ -494,17 +494,15 @@ def _find_storm_objects(
         raise ValueError(error_string)
 
     start_time_unix_sec = time.time()
-    all_storm_object_ids = numpy.sort(
-        numpy.array(all_storm_object_ids, dtype='object'))
+    all_storm_object_ids = numpy.array(all_storm_object_ids, dtype='object')
     storm_object_ids_to_keep = numpy.array(
         storm_object_ids_to_keep, dtype='object')
 
+    sort_indices = numpy.argsort(all_storm_object_ids)
     relevant_indices = numpy.searchsorted(
-        all_storm_object_ids, storm_object_ids_to_keep, side='left').astype(int)
-
-    # relevant_indices = numpy.array(
-    #     [all_storm_object_ids.index(s) for s in storm_object_ids_to_keep],
-    #     dtype=int)
+        all_storm_object_ids[sort_indices], storm_object_ids_to_keep,
+        side='left').astype(int)
+    relevant_indices = sort_indices[relevant_indices]
 
     print (
         'Time elapsed in finding `relevant_indices` = {0:.2f} seconds'
