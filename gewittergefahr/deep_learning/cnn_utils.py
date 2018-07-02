@@ -79,10 +79,10 @@ def _check_input_args_for_conv_layer(
     error_checking.assert_is_integer(num_output_filters)
     error_checking.assert_is_geq(num_output_filters, 2)
     error_checking.assert_is_integer(num_kernel_rows)
-    error_checking.assert_is_geq(num_kernel_rows, 2)
+    error_checking.assert_is_geq(num_kernel_rows, 1)
     error_checking.assert_is_integer(num_rows_per_stride)
     error_checking.assert_is_greater(num_rows_per_stride, 0)
-    error_checking.assert_is_less_than(num_rows_per_stride, num_kernel_rows)
+    error_checking.assert_is_leq(num_rows_per_stride, num_kernel_rows)
 
     error_checking.assert_is_string(padding_type)
     if padding_type not in VALID_PADDING_TYPES:
@@ -103,15 +103,15 @@ def _check_input_args_for_conv_layer(
 
     if num_dimensions >= 2:
         error_checking.assert_is_integer(num_kernel_columns)
-        error_checking.assert_is_geq(num_kernel_columns, 2)
+        error_checking.assert_is_geq(num_kernel_columns, 1)
         error_checking.assert_is_integer(num_columns_per_stride)
         error_checking.assert_is_greater(num_columns_per_stride, 0)
-        error_checking.assert_is_less_than(
+        error_checking.assert_is_leq(
             num_columns_per_stride, num_kernel_columns)
 
     if num_dimensions == 3:
         error_checking.assert_is_integer(num_kernel_depths)
-        error_checking.assert_is_geq(num_kernel_depths, 2)
+        error_checking.assert_is_geq(num_kernel_depths, 1)
         error_checking.assert_is_integer(num_depths_per_stride)
         error_checking.assert_is_greater(num_depths_per_stride, 0)
         error_checking.assert_is_leq(
