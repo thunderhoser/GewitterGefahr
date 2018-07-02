@@ -1138,7 +1138,7 @@ def write_storm_images(
     netcdf_dataset.setncattr(RADAR_HEIGHT_KEY, radar_height_m_asl)
 
     num_storm_objects = storm_image_matrix.shape[0]
-    num_storm_id_chars = 0
+    num_storm_id_chars = 1
     for i in range(num_storm_objects):
         num_storm_id_chars = max([num_storm_id_chars, len(storm_ids[i])])
 
