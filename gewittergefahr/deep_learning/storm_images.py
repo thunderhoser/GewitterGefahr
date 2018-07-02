@@ -4,7 +4,6 @@ A "storm image" is a radar image that shares a center with the storm object (in
 other words, the center of the image is the centroid of the storm object).
 """
 
-import time
 import os
 import copy
 import glob
@@ -493,7 +492,6 @@ def _find_storm_objects(
         ).format(this_num_unique, len(storm_object_ids_to_keep))
         raise ValueError(error_string)
 
-    start_time_unix_sec = time.time()
     all_storm_object_ids = numpy.array(all_storm_object_ids, dtype='object')
     storm_object_ids_to_keep = numpy.array(
         storm_object_ids_to_keep, dtype='object')
@@ -502,13 +500,7 @@ def _find_storm_objects(
     relevant_indices = numpy.searchsorted(
         all_storm_object_ids[sort_indices], storm_object_ids_to_keep,
         side='left').astype(int)
-    relevant_indices = sort_indices[relevant_indices]
-
-    print (
-        'Time elapsed in finding `relevant_indices` = {0:.2f} seconds'
-    ).format(time.time() - start_time_unix_sec)
-
-    return relevant_indices
+    return sort_indices[relevant_indices]
 
 
 def extract_storm_image(
