@@ -532,7 +532,7 @@ def _extract_features(
             model_metadata_dict=model_metadata_dict)
     else:
         num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILE_NAME_MATRIX_KEY].shape)
+            model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
 
         if num_radar_dimensions == 2:
             _extract_2d_cnn_features(

@@ -433,7 +433,7 @@ def _evaluate_model(
                 model_metadata_dict=model_metadata_dict))
     else:
         num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILE_NAME_MATRIX_KEY].shape)
+            model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
         if num_radar_dimensions == 2:
             forecast_probabilities, observed_labels = (
                 _create_forecast_observation_pairs_2d(
