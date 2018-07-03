@@ -114,8 +114,7 @@ def _separate_files(
     last_storm_time_unix_sec = time_conversion.string_to_unix_sec(
         last_storm_time_string, INPUT_TIME_FORMAT)
 
-    (orig_storm_image_file_name_matrix, _
-    ) = storm_images.find_many_files_myrorss_or_mrms(
+    this_file_dict = storm_images.find_many_files_myrorss_or_mrms(
         top_directory_name=top_input_radar_image_dir_name,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         radar_field_names=RADAR_FIELD_NAMES,
@@ -125,6 +124,9 @@ def _separate_files(
         reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
     print SEPARATOR_STRING
 
+    orig_storm_image_file_name_matrix = this_file_dict[
+        storm_images.IMAGE_FILE_NAME_MATRIX_KEY]
+
     num_storm_times = orig_storm_image_file_name_matrix.shape[0]
     num_field_height_pairs = orig_storm_image_file_name_matrix.shape[1]
     num_target_variables = len(target_names)
@@ -132,12 +134,17 @@ def _separate_files(
 
     print 'Finding target files to match storm-image files...'
     for i in range(num_storm_times):
-        target_file_names[i] = storm_images.find_storm_label_file(
-            storm_image_file_name=orig_storm_image_file_name_matrix[i, 0],
-            top_label_directory_name=top_target_dir_name,
-            label_name=target_names[0],
-            one_file_per_spc_date=not one_file_per_time_step,
-            raise_error_if_missing=True)
+        for j in range(num_field_height_pairs):
+            if orig_storm_image_file_name_matrix[i, j] == '':
+                continue
+
+            target_file_names[i] = storm_images.find_storm_label_file(
+                storm_image_file_name=orig_storm_image_file_name_matrix[i, j],
+                top_label_directory_name=top_target_dir_name,
+                label_name=target_names[0],
+                one_file_per_spc_date=not one_file_per_time_step,
+                raise_error_if_missing=True)
+            break
 
     for i in range(num_storm_times):
         these_indices_to_keep = numpy.array([], dtype=int)
@@ -169,6 +176,9 @@ def _separate_files(
         ).format(len(these_storm_ids_to_keep))
 
         for j in range(num_field_height_pairs):
+            if orig_storm_image_file_name_matrix[i, j] == '':
+                continue
+
             print 'Reading data from: "{0:s}"...'.format(
                 orig_storm_image_file_name_matrix[i, j])
             this_storm_image_dict = storm_images.read_storm_images(
