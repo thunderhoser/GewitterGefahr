@@ -1,6 +1,7 @@
 """IO methods for storm-tracking data (both polygons and tracks)."""
 
 import os
+import copy
 import glob
 import pickle
 import numpy
@@ -13,10 +14,20 @@ from gewittergefahr.gg_utils import error_checking
 
 DATE_FORMAT = '%Y%m%d'
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-REGEX_FOR_TIME_FORMAT = (
-    '[0-9][0-9][0-9][0-9]-[0-1][0-9]-[0-3][0-9]-[0-2][0-9][0-5][0-9][0-5][0-9]')
 
-PROCESSED_FILE_PREFIX = 'storm-tracking'
+SPC_DATE_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]'
+YEAR_REGEX = '[0-9][0-9][0-9][0-9]'
+MONTH_REGEX = '[0-1][0-9]'
+DAY_OF_MONTH_REGEX = '[0-3][0-9]'
+HOUR_REGEX = '[0-2][0-9]'
+MINUTE_REGEX = '[0-5][0-9]'
+SECOND_REGEX = '[0-5][0-9]'
+
+TIME_FORMAT_AS_REGEX = '{0:s}-{1:s}-{2:s}-{3:s}{4:s}{5:s}'.format(
+    YEAR_REGEX, MONTH_REGEX, DAY_OF_MONTH_REGEX, HOUR_REGEX, MINUTE_REGEX,
+    SECOND_REGEX)
+
+PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME = 'storm-tracking'
 PROCESSED_FILE_EXTENSION = '.p'
 
 MANDATORY_COLUMNS = [
@@ -74,7 +85,7 @@ def _get_pathless_processed_file_name(unix_time_sec, data_source):
     """
 
     return '{0:s}_{1:s}_{2:s}{3:s}'.format(
-        PROCESSED_FILE_PREFIX, data_source,
+        PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME, data_source,
         time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
         PROCESSED_FILE_EXTENSION)
 
@@ -156,56 +167,153 @@ def find_processed_file(
     return processed_file_name
 
 
-def find_processed_files_one_spc_date(
-        spc_date_string, data_source, top_processed_dir_name,
-        tracking_scale_metres2, raise_error_if_missing=True):
-    """Finds all processed tracking files for one SPC date.
+def find_processed_files_at_times(
+        top_processed_dir_name, tracking_scale_metres2, data_source,
+        years=None, months=None, hours=None, raise_error_if_missing=True):
+    """Finds processed files with valid time in the specified bins.
 
-    Each file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
+    Specifically, this method will find all processed files in the given years,
+    months, *and* hours.
 
-    :param spc_date_string: SPC date (format "yyyymmdd").
-    :param data_source: Data source (string).
     :param top_processed_dir_name: Name of top-level directory with processed
         tracking files.
-    :param tracking_scale_metres2: Tracking scale (minimum storm-object area).
-    :param raise_error_if_missing: Boolean flag.  If True and no files are
-        found, this method will raise an error.
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).
+    :param data_source: Data source (must be accepted by
+        `storm_tracking_utils.check_data_source`).
+    :param years: [may be None]
+        1-D numpy array of years.
+    :param months: [may be None]
+        1-D numpy array of months (must all be in range 1...12).
+    :param hours: [may be None]
+        1-D numpy array of hours (must all be in range 0...23).
+    :param raise_error_if_missing: Boolean flag.  If no files are found and
+        `raise_error_if_missing = True`, this method will error out.  If no
+        files are found and `raise_error_if_missing = False`, will return empty
+        list.
     :return: processed_file_names: 1-D list of paths to processed tracking
         files.
-    :raises: ValueError: if raise_error_if_missing = True and no files are
-        found.
+    :return: glob_patterns: 1-D list of glob patterns used to find files.
+    :raises: ValueError: if `years`, `months`, and `hours` are all None.
+    :raises: ValueError: if no files are found and
+        `raise_error_if_missing = True`.
     """
 
+    error_checking.assert_is_string(top_processed_dir_name)
+    tracking_scale_metres2 = int(numpy.round(tracking_scale_metres2))
+    error_checking.assert_is_greater(tracking_scale_metres2, 0)
+    tracking_utils.check_data_source(data_source)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    example_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        spc_date_string)
-    example_file_name = find_processed_file(
-        unix_time_sec=example_time_unix_sec, data_source=data_source,
-        spc_date_string=spc_date_string,
-        top_processed_dir_name=top_processed_dir_name,
-        tracking_scale_metres2=tracking_scale_metres2,
-        raise_error_if_missing=False)
+    if years is None and months is None and hours is None:
+        raise ValueError('`years`, `months`, and `hours` cannot all be None.')
 
-    example_directory_name, example_pathless_file_name = os.path.split(
-        example_file_name)
-    example_time_string = time_conversion.unix_sec_to_string(
-        example_time_unix_sec, TIME_FORMAT)
-    example_pathless_file_name = example_pathless_file_name.replace(
-        example_time_string, REGEX_FOR_TIME_FORMAT)
+    if years is None:
+        years = numpy.array([-1], dtype=int)
+    else:
+        error_checking.assert_is_integer_numpy_array(years)
+        error_checking.assert_is_numpy_array(years, num_dimensions=1)
 
-    processed_file_pattern = '{0:s}/{1:s}'.format(
-        example_directory_name, example_pathless_file_name)
-    processed_file_names = glob.glob(processed_file_pattern)
+    if months is None:
+        months = numpy.array([-1], dtype=int)
+    else:
+        error_checking.assert_is_integer_numpy_array(months)
+        error_checking.assert_is_numpy_array(months, num_dimensions=1)
+        error_checking.assert_is_geq_numpy_array(months, 1)
+        error_checking.assert_is_leq_numpy_array(months, 12)
 
-    if raise_error_if_missing and not processed_file_names:
+    if hours is None:
+        hours = numpy.array([-1], dtype=int)
+    else:
+        error_checking.assert_is_integer_numpy_array(hours)
+        error_checking.assert_is_numpy_array(hours, num_dimensions=1)
+        error_checking.assert_is_geq_numpy_array(hours, 0)
+        error_checking.assert_is_leq_numpy_array(hours, 23)
+
+    glob_patterns = []
+    processed_file_names = []
+
+    for this_year in years:
+        for this_month in months:
+            for this_hour in hours:
+                if this_year == -1:
+                    this_year_string = copy.deepcopy(YEAR_REGEX)
+                else:
+                    this_year_string = '{0:04d}'.format(this_year)
+
+                if this_month == -1:
+                    this_month_string = copy.deepcopy(MONTH_REGEX)
+                else:
+                    this_month_string = '{0:02d}'.format(this_month)
+
+                if this_hour == -1:
+                    this_hour_string = copy.deepcopy(HOUR_REGEX)
+                else:
+                    this_hour_string = '{0:02d}'.format(this_hour)
+
+                this_file_pattern = (
+                    '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/'
+                    '{4:s}_{5:s}_{6:s}-{7:s}-{8:s}-{9:s}{10:s}{11:s}{12:s}'
+                ).format(top_processed_dir_name, YEAR_REGEX, SPC_DATE_REGEX,
+                         tracking_scale_metres2,
+                         PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME, data_source,
+                         this_year_string, this_month_string,
+                         DAY_OF_MONTH_REGEX, this_hour_string, MINUTE_REGEX,
+                         SECOND_REGEX, PROCESSED_FILE_EXTENSION)
+                glob_patterns.append(this_file_pattern)
+
+                print (
+                    'Finding files with pattern "{0:s}" (this may take a few '
+                    'minutes)...'
+                ).format(this_file_pattern)
+                processed_file_names += glob.glob(this_file_pattern)
+
+    if raise_error_if_missing and not len(processed_file_names):
         error_string = (
-            'Could not find any processed files with the following pattern: ' +
-            processed_file_pattern)
+            '\n\n{0:s}\nCould not find files with any of the patterns listed '
+            'above.'
+        ).format(str(glob_patterns))
         raise ValueError(error_string)
 
-    return processed_file_names
+    return processed_file_names, glob_patterns
+
+
+def find_processed_files_one_spc_date(
+        top_processed_dir_name, tracking_scale_metres2, data_source,
+        spc_date_string, raise_error_if_missing=True):
+    """Finds processed files with valid time in one SPC date.
+
+    :param top_processed_dir_name: See doc for `find_processed_files_at_times`.
+    :param tracking_scale_metres2: Same.
+    :param data_source: Same.
+    :param spc_date_string: SPC date (format "yyyymmdd").
+    :param raise_error_if_missing: See doc for `find_processed_files_at_times`.
+    :return: processed_file_names: 1-D list of paths to processed tracking
+        files.
+    :return: glob_pattern: glob pattern used to find files.
+    :raises: ValueError: if no files are found and
+        `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(top_processed_dir_name)
+    tracking_scale_metres2 = int(numpy.round(tracking_scale_metres2))
+    error_checking.assert_is_greater(tracking_scale_metres2, 0)
+    tracking_utils.check_data_source(data_source)
+    time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    glob_pattern = (
+        '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/{4:s}_{5:s}_{6:s}{7:s}'
+    ).format(top_processed_dir_name, spc_date_string[:4], spc_date_string,
+             tracking_scale_metres2, PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME,
+             data_source, TIME_FORMAT_AS_REGEX, PROCESSED_FILE_EXTENSION)
+    processed_file_names = glob.glob(glob_pattern)
+
+    if raise_error_if_missing and not len(processed_file_names):
+        error_string = 'Could not find any files with pattern: "{0:s}"'.format(
+            glob_pattern)
+        raise ValueError(error_string)
+
+    return processed_file_names, glob_pattern
 
 
 def processed_file_name_to_time(processed_file_name):
