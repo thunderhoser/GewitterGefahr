@@ -1219,15 +1219,17 @@ def read_storm_images(
 
     radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
     radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
-    storm_ids = netCDF4.chartostring(netcdf_dataset.variables[STORM_IDS_KEY][:])
-    storm_ids = [str(s) for s in storm_ids]
+    num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
 
-    try:
+    if num_storm_objects == 0:
+        storm_ids = []
+        valid_times_unix_sec = numpy.array([], dtype=int)
+    else:
+        storm_ids = netCDF4.chartostring(
+            netcdf_dataset.variables[STORM_IDS_KEY][:])
+        storm_ids = [str(s) for s in storm_ids]
         valid_times_unix_sec = numpy.array(
             netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
-    except:
-        valid_times_unix_sec = numpy.full(
-            len(storm_ids), getattr(netcdf_dataset, 'unix_time_sec'), dtype=int)
 
     if not return_images:
         return {
