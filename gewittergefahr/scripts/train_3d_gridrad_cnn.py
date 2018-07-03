@@ -134,7 +134,7 @@ def _train_cnn(
     metadata_file_name = '{0:s}/model_metadata.p'.format(output_model_dir_name)
 
     # Find input files for training.
-    radar_file_name_matrix_for_training, _ = trainval_io.find_radar_files_3d(
+    radar_file_name_matrix_for_training, _, _ = trainval_io.find_radar_files_3d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         radar_field_names=radar_field_names,
@@ -147,7 +147,8 @@ def _train_cnn(
     if num_validation_batches_per_epoch is None:
         radar_file_name_matrix_for_validn = None
     else:
-        radar_file_name_matrix_for_validn, _ = trainval_io.find_radar_files_3d(
+        (radar_file_name_matrix_for_validn, _, _
+        ) = trainval_io.find_radar_files_3d(
             top_directory_name=top_storm_radar_image_dir_name,
             radar_source=radar_utils.GRIDRAD_SOURCE_ID,
             radar_field_names=radar_field_names,

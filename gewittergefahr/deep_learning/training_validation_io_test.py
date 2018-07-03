@@ -25,7 +25,8 @@ WIND_TARGET_NAME = (
 SAMPLING_FRACTION_BY_WIND_CLASS_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
 NUM_EXAMPLES_PER_BATCH_BY_WIND_CLASS_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
 
-# The following constants are used to test _get_num_examples_left_by_class.
+# The following constants are used to test _get_num_examples_left_by_class and
+# _need_negative_target_values.
 NUM_FILE_TIMES_PER_BATCH = 20
 NUM_EXAMPLES_IN_MEMORY_BY_TOR_CLASS_DICT = {0: 1000, 1: 10}
 NUM_EXAMPLES_LEFT_BY_TOR_CLASS_DICT = {0: 0, 1: 10}
@@ -145,7 +146,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(this_dict == MANY_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
-    def test_get_num_examples_remaining_by_tor_need_times_and_examples(self):
+    def test_get_num_examples_left_by_tor_need_times_and_examples(self):
         """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
@@ -164,7 +165,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
-    def test_get_num_examples_remaining_by_tor_need_times(self):
+    def test_get_num_examples_left_by_tor_need_times(self):
         """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
@@ -183,7 +184,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
-    def test_get_num_examples_remaining_by_tor_need_examples(self):
+    def test_get_num_examples_left_by_tor_need_examples(self):
         """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  No downsampling, because there
@@ -202,7 +203,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(this_dict == NUM_EXAMPLES_PER_BATCH_BY_TOR_CLASS_DICT)
 
-    def test_get_num_examples_remaining_by_tor_downsampling(self):
+    def test_get_num_examples_left_by_tor_downsampling(self):
         """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = tornado occurrence.  Will downsample, because there
@@ -221,7 +222,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         self.assertTrue(this_dict == NUM_EXAMPLES_LEFT_BY_TOR_CLASS_DICT)
 
-    def test_get_num_examples_remaining_by_wind_downsampling(self):
+    def test_get_num_examples_left_by_wind_downsampling(self):
         """Ensures correct output from _get_num_examples_left_by_class.
 
         Target variable = wind class.  Will downsample, because there are
@@ -239,6 +240,33 @@ class TrainingValidationIoTests(unittest.TestCase):
             NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT)
 
         self.assertTrue(this_dict == NUM_EXAMPLES_LEFT_BY_WIND_CLASS_DICT)
+
+    def test_need_negative_target_values_wind_yes(self):
+        """Ensures correct output from _need_negative_target_values.
+
+        In this case, target variable = wind-speed category and answer = yes.
+        """
+
+        self.assertTrue(trainval_io._need_negative_target_values(
+            NUM_EXAMPLES_IN_MEMORY_BY_WIND_CLASS_DICT))
+
+    def test_need_negative_target_values_tornado_no(self):
+        """Ensures correct output from _need_negative_target_values.
+
+        In this case, target variable = tornado occurrence and answer = no.
+        """
+
+        self.assertFalse(trainval_io._need_negative_target_values(
+            NUM_EXAMPLES_LEFT_BY_TOR_CLASS_DICT))
+
+    def test_need_negative_target_values_wind_no(self):
+        """Ensures correct output from _need_negative_target_values.
+
+        In this case, target variable = tornado occurrence and answer = no.
+        """
+
+        self.assertFalse(trainval_io._need_negative_target_values(
+            NUM_EXAMPLES_LEFT_BY_WIND_CLASS_DICT))
 
     def test_determine_stopping_tor_need_times_and_examples(self):
         """Ensures correct output from _determine_stopping_criterion.

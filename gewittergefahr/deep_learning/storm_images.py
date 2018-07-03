@@ -55,6 +55,12 @@ STORM_TO_WINDS_TABLE_KEY = 'storm_to_winds_table'
 STORM_TO_TORNADOES_TABLE_KEY = 'storm_to_tornadoes_table'
 LABEL_VALUES_KEY = 'label_values'
 
+RADAR_FIELD_NAMES_KEY = 'radar_field_names'
+RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
+IMAGE_FILE_NAME_MATRIX_KEY = 'image_file_name_matrix'
+RADAR_FIELD_NAME_BY_PAIR_KEY = 'radar_field_name_by_pair'
+RADAR_HEIGHT_BY_PAIR_KEY = 'radar_height_by_pair_m_asl'
+
 LAT_DIMENSION_KEY = 'latitude'
 LNG_DIMENSION_KEY = 'longitude'
 CHARACTER_DIMENSION_KEY = 'storm_id_character'
@@ -1615,10 +1621,14 @@ def find_many_files_myrorss_or_mrms(
         `raise_error_if_all_missing` = True, this method will error out.
     :param raise_error_if_any_missing: Boolean flag.  If any file is missing and
         `raise_error_if_any_missing` = True, this method will error out.
-    :return: image_file_name_matrix: T-by-C numpy array of file paths.
-    :return: valid_times_unix_sec: length-T numpy array of valid times.  If
+    :return: file_dict: Dictionary with the following keys.
+    file_dict['image_file_name_matrix']: T-by-C numpy array of file paths.
+    file_dict['valid_times_unix_sec']: length-T numpy array of valid times.  If
         `one_file_per_time_step is False`, valid_times_unix_sec[i] is just a
         time on the [i]th SPC date.
+    file_dict['field_name_by_pair']: length-C list with names of radar fields.
+    file_dict['height_by_pair_m_asl']: length-C numpy array of radar heights
+        (metres above sea level).
     :raises: ValueError: If no files are found and `raise_error_if_all_missing`
         = True.
     """
@@ -1632,6 +1642,11 @@ def find_many_files_myrorss_or_mrms(
             field_names=radar_field_names, data_source=radar_source,
             refl_heights_m_asl=reflectivity_heights_m_asl))
     num_field_height_pairs = len(field_name_by_pair)
+
+    file_dict = {
+        RADAR_FIELD_NAME_BY_PAIR_KEY: field_name_by_pair,
+        RADAR_HEIGHT_BY_PAIR_KEY: height_by_pair_m_asl
+    }
 
     first_spc_date_string = time_conversion.time_to_spc_date_string(
         start_time_unix_sec)
@@ -1666,7 +1681,7 @@ def find_many_files_myrorss_or_mrms(
 
             if image_file_name_matrix is None:
                 image_file_name_matrix = copy.deepcopy(this_file_name_matrix)
-                valid_times_unix_sec = copy.deepcopy(these_times_unix_sec)
+                valid_times_unix_sec = these_times_unix_sec + 0
             else:
                 image_file_name_matrix = numpy.concatenate(
                     (image_file_name_matrix, this_file_name_matrix), axis=0)
@@ -1682,7 +1697,11 @@ def find_many_files_myrorss_or_mrms(
                 start_time_string, end_time_string)
             raise ValueError(error_string)
 
-        return image_file_name_matrix, valid_times_unix_sec
+        file_dict.update({
+            IMAGE_FILE_NAME_MATRIX_KEY: image_file_name_matrix,
+            VALID_TIMES_KEY: valid_times_unix_sec
+        })
+        return file_dict
 
     image_file_name_matrix = None
     valid_spc_date_strings = None
@@ -1723,7 +1742,11 @@ def find_many_files_myrorss_or_mrms(
                              all_spc_date_strings[-1])
                     raise ValueError(error_string)
 
-                return None, None
+                file_dict.update({
+                    IMAGE_FILE_NAME_MATRIX_KEY: None,
+                    VALID_TIMES_KEY: None
+                })
+                return file_dict
 
             image_file_name_matrix = numpy.full(
                 (num_times, num_field_height_pairs), '', dtype=object)
@@ -1747,7 +1770,11 @@ def find_many_files_myrorss_or_mrms(
                 if not os.path.isfile(image_file_name_matrix[i, j]):
                     image_file_name_matrix[i, j] = ''
 
-    return image_file_name_matrix, valid_times_unix_sec
+    file_dict.update({
+        IMAGE_FILE_NAME_MATRIX_KEY: image_file_name_matrix,
+        VALID_TIMES_KEY: valid_times_unix_sec
+    })
+    return file_dict
 
 
 def find_many_files_gridrad(
@@ -1778,16 +1805,24 @@ def find_many_files_gridrad(
     :param one_file_per_time_step: See general discussion above.
     :param raise_error_if_all_missing: Boolean flag.  If no files are found and
         `raise_error_if_all_missing` = True, this method will error out.
-    :return: image_file_name_matrix: T-by-F-by-H numpy array of file paths.
-    :return: valid_times_unix_sec: length-T numpy array of valid times.  If
+    :return: file_dict: Dictionary with the following keys.
+    file_dict['image_file_name_matrix']: T-by-F-by-H numpy array of file paths.
+    file_dict['valid_times_unix_sec']: length-T numpy array of valid times.  If
         `one_file_per_time_step is False`, valid_times_unix_sec[i] is just a
         time on the [i]th SPC date.
+    file_dict['radar_field_names']: length-F list with names of radar fields.
+    file_dict['radar_heights_m_asl']: length-H numpy array of radar heights
+        (metres above sea level).
     :raises: ValueError: If no files are found and `raise_error_if_all_missing`
         = True.
     """
 
     _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
         field_names=radar_field_names, heights_m_asl=radar_heights_m_asl)
+    file_dict = {
+        RADAR_FIELD_NAMES_KEY: radar_field_names,
+        RADAR_HEIGHTS_KEY: radar_heights_m_asl
+    }
 
     error_checking.assert_is_boolean(one_file_per_time_step)
     error_checking.assert_is_boolean(raise_error_if_all_missing)
@@ -1876,7 +1911,11 @@ def find_many_files_gridrad(
                                  all_spc_date_strings[-1])
                         raise ValueError(error_string)
 
-                    return None, None
+                    file_dict.update({
+                        IMAGE_FILE_NAME_MATRIX_KEY: None,
+                        VALID_TIMES_KEY: None
+                    })
+                    return file_dict
 
                 image_file_name_matrix = numpy.full(
                     (num_times, num_fields, num_heights), '', dtype=object)
@@ -1901,7 +1940,11 @@ def find_many_files_gridrad(
                         radar_height_m_asl=radar_heights_m_asl[k],
                         raise_error_if_missing=True)
 
-    return image_file_name_matrix, valid_times_unix_sec
+    file_dict.update({
+        IMAGE_FILE_NAME_MATRIX_KEY: image_file_name_matrix,
+        VALID_TIMES_KEY: valid_times_unix_sec
+    })
+    return file_dict
 
 
 def extract_storm_labels_with_name(

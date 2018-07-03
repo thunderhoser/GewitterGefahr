@@ -139,7 +139,7 @@ def _create_forecast_observation_pairs_2d(
         "yes", 0 for "no").
     """
 
-    radar_file_name_matrix, _ = trainval_io.find_radar_files_2d(
+    radar_file_name_matrix, _, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
@@ -149,9 +149,6 @@ def _create_forecast_observation_pairs_2d(
         radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
-
-    radar_file_name_matrix, _ = trainval_io._shuffle_times(
-        radar_file_name_matrix)
     print SEPARATOR_STRING
 
     forecast_probabilities = numpy.array([])
@@ -227,7 +224,7 @@ def _create_forecast_observation_pairs_3d(
     :return: observed_labels: Same.
     """
 
-    radar_file_name_matrix, _ = trainval_io.find_radar_files_3d(
+    radar_file_name_matrix, _, _ = trainval_io.find_radar_files_3d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
@@ -235,9 +232,6 @@ def _create_forecast_observation_pairs_3d(
         first_file_time_unix_sec=first_eval_time_unix_sec,
         last_file_time_unix_sec=last_eval_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step)
-
-    radar_file_name_matrix, _ = trainval_io._shuffle_times(
-        radar_file_name_matrix)
     print SEPARATOR_STRING
 
     forecast_probabilities = numpy.array([])
@@ -313,7 +307,7 @@ def _create_forecast_observation_pairs_2d3d(
     :return: observed_labels: Same.
     """
 
-    radar_file_name_matrix, _ = trainval_io.find_radar_files_2d(
+    radar_file_name_matrix, _, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
@@ -323,9 +317,6 @@ def _create_forecast_observation_pairs_2d3d(
         radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
-
-    radar_file_name_matrix, _ = trainval_io._shuffle_times(
-        radar_file_name_matrix)
     print SEPARATOR_STRING
 
     forecast_probabilities = numpy.array([])

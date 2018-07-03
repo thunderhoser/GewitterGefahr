@@ -141,13 +141,13 @@ def _extract_2d_cnn_features(
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     """
 
-    radar_file_name_matrix, _ = trainval_io.find_radar_files_2d(
+    radar_file_name_matrix, _, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
         first_file_time_unix_sec=first_storm_time_unix_sec,
         last_file_time_unix_sec=last_storm_time_unix_sec,
-        one_file_per_time_step=one_file_per_time_step,
+        one_file_per_time_step=one_file_per_time_step, shuffle_times=False,
         radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
@@ -258,14 +258,14 @@ def _extract_3d_cnn_features(
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     """
 
-    radar_file_name_matrix, _ = trainval_io.find_radar_files_3d(
+    radar_file_name_matrix, _, _ = trainval_io.find_radar_files_3d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
         radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         first_file_time_unix_sec=first_storm_time_unix_sec,
         last_file_time_unix_sec=last_storm_time_unix_sec,
-        one_file_per_time_step=one_file_per_time_step)
+        one_file_per_time_step=one_file_per_time_step, shuffle_times=False)
     print SEPARATOR_STRING
 
     generator_object = trainval_io.storm_image_generator_3d(
@@ -373,13 +373,13 @@ def _extract_2d3d_cnn_features(
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     """
 
-    radar_file_name_matrix, _ = trainval_io.find_radar_files_2d(
+    radar_file_name_matrix, _, _ = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
         first_file_time_unix_sec=first_storm_time_unix_sec,
         last_file_time_unix_sec=last_storm_time_unix_sec,
-        one_file_per_time_step=one_file_per_time_step,
+        one_file_per_time_step=one_file_per_time_step, shuffle_times=False,
         radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         reflectivity_heights_m_asl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])
