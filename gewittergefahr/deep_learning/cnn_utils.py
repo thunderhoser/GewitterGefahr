@@ -430,12 +430,12 @@ def get_3d_conv_layer(
 
     return keras.layers.Conv3D(
         filters=num_output_filters,
-        kernel_size=(num_kernel_rows, num_kernel_columns,
-                     num_kernel_depths),
-        strides=(num_rows_per_stride, num_columns_per_stride,
-                 num_depths_per_stride),
-        padding=padding_type, data_format='channels_last', dilation_rate=(1, 1, 1),
-        activation=activation_function, use_bias=True,
+        kernel_size=(
+            num_kernel_rows, num_kernel_columns, num_kernel_depths),
+        strides=(
+            num_rows_per_stride, num_columns_per_stride, num_depths_per_stride),
+        padding=padding_type, data_format='channels_last',
+        dilation_rate=(1, 1, 1), activation=activation_function, use_bias=True,
         kernel_initializer=kernel_weight_init,
         bias_initializer=bias_weight_init,
         kernel_regularizer=kernel_weight_regularizer,
