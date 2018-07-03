@@ -752,16 +752,20 @@ def get_2d3d_swirlnet_architecture(
 
     for i in range(3):
         if i == 0:
-            this_input_layer_object = refl_input_layer_object
+            this_target_shape = (
+                num_reflectivity_rows * num_reflectivity_columns,
+                num_reflectivity_heights, 1)
+            this_input_layer_object = keras.layers.Reshape(
+                target_shape=this_target_shape
+            )(refl_input_layer_object)
         else:
             this_num_refl_filters *= 2
             this_input_layer_object = reflectivity_layer_object
 
-        reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
+        reflectivity_layer_object = cnn_utils.get_2d_conv_layer(
             num_output_filters=this_num_refl_filters,
-            num_kernel_rows=5, num_kernel_columns=5, num_kernel_depths=3,
-            num_rows_per_stride=1, num_columns_per_stride=1,
-            num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+            num_kernel_rows=1, num_kernel_columns=3, num_rows_per_stride=1,
+            num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
             kernel_weight_regularizer=regularizer_object,
             activation_function='relu', is_first_layer=False
         )(this_input_layer_object)
@@ -771,11 +775,10 @@ def get_2d3d_swirlnet_architecture(
                 dropout_fraction=dropout_fraction
             )(reflectivity_layer_object)
 
-        reflectivity_layer_object = cnn_utils.get_3d_pooling_layer(
-            num_rows_in_window=1, num_columns_in_window=1,
-            num_depths_in_window=2, pooling_type=cnn_utils.MEAN_POOLING_TYPE,
-            num_rows_per_stride=1, num_columns_per_stride=1,
-            num_depths_per_stride=2
+        reflectivity_layer_object = cnn_utils.get_2d_pooling_layer(
+            num_rows_in_window=1, num_columns_in_window=2,
+            pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
+            num_columns_per_stride=2
         )(reflectivity_layer_object)
 
     this_target_shape = (
