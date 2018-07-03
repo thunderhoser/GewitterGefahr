@@ -604,7 +604,7 @@ def get_3d_swilrnet_architecture(
                num_radar_fields))
     this_num_output_filters = num_radar_filters_in_first_conv_layer + 0
 
-    for i in range(3):
+    for i in range(2):
         if i == 0:
             this_input_layer_object = radar_input_layer_object
         else:
@@ -613,7 +613,7 @@ def get_3d_swilrnet_architecture(
 
         radar_layer_object = cnn_utils.get_3d_conv_layer(
             num_output_filters=this_num_output_filters,
-            num_kernel_rows=5, num_kernel_columns=5, num_kernel_depths=3,
+            num_kernel_rows=3, num_kernel_columns=3, num_kernel_depths=3,
             num_rows_per_stride=1, num_columns_per_stride=1,
             num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
             kernel_weight_regularizer=regularizer_object,
