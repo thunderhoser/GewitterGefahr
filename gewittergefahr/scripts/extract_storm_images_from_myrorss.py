@@ -164,7 +164,7 @@ def _extract_storm_images(
         print SEPARATOR_STRING
 
     # Find storm objects on the given SPC date.
-    tracking_file_names = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
         spc_date_string=spc_date_string,
         data_source=tracking_utils.SEGMOTION_SOURCE_ID,
         top_processed_dir_name=tracking_dir_name,

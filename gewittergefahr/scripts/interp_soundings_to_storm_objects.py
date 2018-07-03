@@ -121,7 +121,7 @@ def _interp_soundings(
 
     lead_times_seconds = numpy.array(lead_times_seconds, dtype=int)
 
-    tracking_file_names = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
         spc_date_string=spc_date_string,
         data_source=tracking_utils.SEGMOTION_SOURCE_ID,
         top_processed_dir_name=top_tracking_dir_name,

@@ -61,11 +61,13 @@ def _write_csv_file_for_thea(
 
     tracking_file_names = []
     for this_spc_date_string in spc_date_strings:
-        tracking_file_names += tracking_io.find_processed_files_one_spc_date(
+        (these_tracking_file_names, _
+        ) = tracking_io.find_processed_files_one_spc_date(
             spc_date_string=this_spc_date_string,
             data_source=tracking_utils.SEGMOTION_SOURCE_ID,
             top_processed_dir_name=top_tracking_dir_name,
             tracking_scale_metres2=tracking_scale_metres2)
+        tracking_file_names += these_tracking_file_names
 
     num_files = len(tracking_file_names)
     list_of_storm_object_tables = [None] * num_files

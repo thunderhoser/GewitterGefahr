@@ -1107,7 +1107,8 @@ def _find_input_and_output_tracking_files(
     }
 
     for i in range(num_spc_dates):
-        these_input_file_names = tracking_io.find_processed_files_one_spc_date(
+        (these_input_file_names, _
+        ) = tracking_io.find_processed_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
             data_source=tracking_utils.SEGMOTION_SOURCE_ID,
             top_processed_dir_name=top_input_dir_name,

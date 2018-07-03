@@ -331,7 +331,7 @@ def find_files_for_smart_io(
         this_spc_date_string = time_conversion.time_to_spc_date_string(
             spc_dates_unix_sec[i])
 
-        input_file_names_by_spc_date[i] = (
+        input_file_names_by_spc_date[i], _ = (
             tracking_io.find_processed_files_one_spc_date(
                 spc_date_string=this_spc_date_string, data_source=data_source,
                 top_processed_dir_name=top_input_dir_name,

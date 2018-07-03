@@ -82,7 +82,7 @@ def _compute_radar_stats_from_gridrad(
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    tracking_file_names = tracking_io.find_processed_files_one_spc_date(
+    tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
         spc_date_string=spc_date_string,
         data_source=tracking_utils.SEGMOTION_SOURCE_ID,
         top_processed_dir_name=top_tracking_dir_name,

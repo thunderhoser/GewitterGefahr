@@ -80,7 +80,7 @@ def _find_tracking_gaps(
         print 'Finding tracking files for SPC date "{0:s}"...'.format(
             spc_date_strings[i])
 
-        these_file_names = tracking_io.find_processed_files_one_spc_date(
+        these_file_names, _ = tracking_io.find_processed_files_one_spc_date(
             spc_date_string=spc_date_strings[i],
             data_source=tracking_utils.PROBSEVERE_SOURCE_ID,
             top_processed_dir_name=top_tracking_dir_name,
