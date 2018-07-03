@@ -759,7 +759,7 @@ def get_2d3d_swirlnet_architecture(
 
         reflectivity_layer_object = cnn_utils.get_3d_conv_layer(
             num_output_filters=this_num_refl_filters,
-            num_kernel_rows=3, num_kernel_columns=3, num_kernel_depths=3,
+            num_kernel_rows=5, num_kernel_columns=5, num_kernel_depths=3,
             num_rows_per_stride=1, num_columns_per_stride=1,
             num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
             kernel_weight_regularizer=regularizer_object,
@@ -816,8 +816,8 @@ def get_2d3d_swirlnet_architecture(
             this_num_output_filters *= 2
 
         radar_layer_object = cnn_utils.get_2d_conv_layer(
-            num_output_filters=this_num_output_filters, num_kernel_rows=5,
-            num_kernel_columns=5, num_rows_per_stride=1,
+            num_output_filters=this_num_output_filters, num_kernel_rows=3,
+            num_kernel_columns=3, num_rows_per_stride=1,
             num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
             kernel_weight_regularizer=regularizer_object,
             activation_function='relu'
