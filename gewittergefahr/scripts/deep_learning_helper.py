@@ -11,6 +11,8 @@ NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME = 'num_examples_per_file_time'
 NUM_TRAIN_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
+RADAR_DIRECTORY_POSITIVE_TARGETS_ARG_NAME = (
+    'input_storm_radar_image_dir_name_pos_targets_only')
 ONE_FILE_PER_TIME_STEP_ARG_NAME = 'one_file_per_time_step'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
@@ -69,6 +71,13 @@ RADAR_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
     'therein will be found by `training_validation_io.find_radar_files_2d` or '
     '`training_validation_io.find_radar_files_3d`.')
+RADAR_DIRECTORY_POSITIVE_TARGETS_HELP_STRING = (
+    'Same as `{0:s}`, except that this directory contains files only for storm '
+    'objects with positive target values.  This may be left as "None", in which'
+    ' case storm-centered radar images will be read only from `{0:s}`.  For '
+    'details on how to separate storm objects with positive target values, see '
+    'separate_myrorss_images_with_positive_targets.py.'
+).format(RADAR_DIRECTORY_ARG_NAME)
 ONE_FILE_PER_TIME_STEP_HELP_STRING = (
     'Boolean flag.  If 1 (0), the model will be trained with one set of files '
     'per time step (SPC date).')
@@ -177,6 +186,11 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + RADAR_DIRECTORY_ARG_NAME, type=str, required=True,
         help=RADAR_DIRECTORY_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + RADAR_DIRECTORY_POSITIVE_TARGETS_ARG_NAME, type=str,
+        required=False, default='None',
+        help=RADAR_DIRECTORY_POSITIVE_TARGETS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + ONE_FILE_PER_TIME_STEP_ARG_NAME, type=int, required=False,
