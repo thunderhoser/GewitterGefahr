@@ -12,8 +12,7 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-DATE_FORMAT = '%Y%m%d'
-TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+RANDOM_LEAP_YEAR = 4000
 
 SPC_DATE_REGEX = '[0-9][0-9][0-9][0-9][0-1][0-9][0-3][0-9]'
 YEAR_REGEX = '[0-9][0-9][0-9][0-9]'
@@ -23,12 +22,13 @@ HOUR_REGEX = '[0-2][0-9]'
 MINUTE_REGEX = '[0-5][0-9]'
 SECOND_REGEX = '[0-5][0-9]'
 
-TIME_FORMAT_AS_REGEX = '{0:s}-{1:s}-{2:s}-{3:s}{4:s}{5:s}'.format(
+TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
+TIME_FORMAT_IN_FILE_NAMES_AS_REGEX = '{0:s}-{1:s}-{2:s}-{3:s}{4:s}{5:s}'.format(
     YEAR_REGEX, MONTH_REGEX, DAY_OF_MONTH_REGEX, HOUR_REGEX, MINUTE_REGEX,
     SECOND_REGEX)
 
-PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME = 'storm-tracking'
-PROCESSED_FILE_EXTENSION = '.p'
+PREFIX_FOR_PATHLESS_FILE_NAMES = 'storm-tracking'
+FILE_EXTENSION = '.p'
 
 MANDATORY_COLUMNS = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
@@ -73,96 +73,91 @@ TIME_FORMAT_IN_AMY_FILES = '%Y-%m-%d-%H%M%SZ'
 METRES2_TO_KM2 = 1e-6
 
 
-def _get_pathless_processed_file_name(unix_time_sec, data_source):
-    """Generates pathless name for processed tracking file.
+def _get_previous_month(month, year):
+    """Returns previous month.
 
-    This file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
+    :param month: Month (integer from 1...12).
+    :param year: Year (integer).
+    :return: previous_month: Previous month (integer from 1...12).
+    :return: previous_year: Previous year (integer).
+    """
 
+    previous_month = month - 1
+    if previous_month == 0:
+        previous_month = 12
+        previous_year = year - 1
+    else:
+        previous_year = year - 0
+
+    return previous_month, previous_year
+
+
+def _get_num_days_in_month(month, year):
+    """Returns number of days in month.
+
+    :param month: Month (integer from 1...12).
+    :param year: Year (integer).
+    :return: num_days_in_month: Number of days in month.
+    """
+
+    time_string = '{0:04d}-{1:02d}'.format(year, month)
+    unix_time_sec = time_conversion.string_to_unix_sec(time_string, '%Y-%m')
+    (_, last_time_in_month_unix_sec
+    ) = time_conversion.first_and_last_times_in_month(unix_time_sec)
+
+    day_of_month_string = time_conversion.unix_sec_to_string(
+        last_time_in_month_unix_sec, '%d')
+    return int(day_of_month_string)
+
+
+def find_processed_file(
+        top_processed_dir_name, tracking_scale_metres2, data_source,
+        unix_time_sec, spc_date_string=None, raise_error_if_missing=True):
+    """Finds processed tracking file.
+
+    This file should contain storm outlines and tracking statistics for one time
+    step.
+
+    :param top_processed_dir_name: Name of top-level directory with processed
+        tracking files.
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).
+    :param data_source: Data source (must be accepted by
+        `storm_tracking_utils.check_data_source`).
     :param unix_time_sec: Valid time.
-    :param data_source: Data source (string).
-    :return: pathless_file_name: Pathless name for processed file.
+    :param spc_date_string: [used only if data_source == "probsevere"]
+        SPC date (format "yyyymmdd").
+    :param raise_error_if_missing: Boolean flag.  If the file is missing and
+        `raise_error_if_missing = True`, this method will error out.  If the
+        file is missing and `raise_error_if_missing = False`, will return the
+        *expected* path.
+    :return: processed_file_name: Path to processed tracking file.
+    :raises: ValueError: if the file is missing and
+        `raise_error_if_missing = True`.
     """
 
-    return '{0:s}_{1:s}_{2:s}{3:s}'.format(
-        PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME, data_source,
-        time_conversion.unix_sec_to_string(unix_time_sec, TIME_FORMAT),
-        PROCESSED_FILE_EXTENSION)
-
-
-def _get_relative_processed_directory(
-        data_source, tracking_scale_metres2, unix_time_sec=None,
-        spc_date_string=None):
-    """Generates relative directory for processed tracking files.
-
-    Each file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
-
-    :param data_source: Data source (string).
-    :param tracking_scale_metres2: Tracking scale (minimum storm-object area).
-    :param unix_time_sec: Valid time (needed only if data_source =
-        "probSevere").
-    :param spc_date_string: SPC date (format "yyyymmdd") (needed only if
-        data_source = "segmotion").
-    :return: relative_directory_name: Relative path for processed tracking
-        files.
-    """
+    error_checking.assert_is_string(top_processed_dir_name)
+    tracking_scale_metres2 = int(numpy.round(tracking_scale_metres2))
+    error_checking.assert_is_greater(tracking_scale_metres2, 0)
+    tracking_utils.check_data_source(data_source)
+    error_checking.assert_is_boolean(raise_error_if_missing)
 
     if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
         date_string = spc_date_string
     else:
         date_string = time_conversion.time_to_spc_date_string(unix_time_sec)
 
-    return '{0:s}/{1:s}/scale_{2:d}m2'.format(
-        date_string[:4], date_string, int(numpy.round(tracking_scale_metres2)))
-
-
-def find_processed_file(
-        unix_time_sec, data_source, top_processed_dir_name,
-        tracking_scale_metres2, spc_date_string=None,
-        raise_error_if_missing=True):
-    """Finds processed tracking file.
-
-    This file should contain storm objects (bounding polygons) and tracking
-    statistics for one time step and one tracking scale.
-
-    :param unix_time_sec: Valid time.
-    :param data_source: Data source (string).
-    :param top_processed_dir_name: Name of top-level directory with processed
-        tracking files.
-    :param tracking_scale_metres2: Tracking scale (minimum storm-object area).
-    :param spc_date_string: SPC date (format "yyyymmdd") (needed only if
-        data_source = "segmotion").
-    :param raise_error_if_missing: Boolean flag.  If True and file is missing,
-        this method will raise an error.  If False and file is missing, will
-        return the *expected* path.
-    :return: processed_file_name: Path to processed tracking file.  If
-        raise_error_if_missing = False and file is missing, this is the
-        *expected* path.
-    :raises: ValueError: if raise_error_if_missing = True and file is missing.
-    """
-
-    # Verification.
-    tracking_utils.check_data_source(data_source)
-    if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
-        time_conversion.spc_date_string_to_unix_sec(spc_date_string)
-
-    error_checking.assert_is_string(top_processed_dir_name)
-    error_checking.assert_is_boolean(raise_error_if_missing)
-
-    pathless_file_name = _get_pathless_processed_file_name(
-        unix_time_sec, data_source)
-    relative_directory_name = _get_relative_processed_directory(
-        data_source=data_source, spc_date_string=spc_date_string,
-        unix_time_sec=unix_time_sec,
-        tracking_scale_metres2=tracking_scale_metres2)
-
-    processed_file_name = '{0:s}/{1:s}/{2:s}'.format(
-        top_processed_dir_name, relative_directory_name, pathless_file_name)
+    processed_file_name = (
+        '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/{4:s}_{5:s}_{6:s}{7:s}'
+    ).format(
+        top_processed_dir_name, date_string[:4], date_string,
+        tracking_scale_metres2, PREFIX_FOR_PATHLESS_FILE_NAMES, data_source,
+        time_conversion.unix_sec_to_string(
+            unix_time_sec, TIME_FORMAT_IN_FILE_NAMES), FILE_EXTENSION)
 
     if raise_error_if_missing and not os.path.isfile(processed_file_name):
-        raise ValueError('Cannot find processed file.  Expected at location: ' +
-                         processed_file_name)
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            processed_file_name)
+        raise ValueError(error_string)
 
     return processed_file_name
 
@@ -250,22 +245,81 @@ def find_processed_files_at_times(
                 else:
                     this_hour_string = '{0:02d}'.format(this_hour)
 
-                this_file_pattern = (
-                    '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/'
-                    '{4:s}_{5:s}_{6:s}-{7:s}-{8:s}-{9:s}{10:s}{11:s}{12:s}'
-                ).format(top_processed_dir_name, YEAR_REGEX, SPC_DATE_REGEX,
-                         tracking_scale_metres2,
-                         PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME, data_source,
-                         this_year_string, this_month_string,
-                         DAY_OF_MONTH_REGEX, this_hour_string, MINUTE_REGEX,
-                         SECOND_REGEX, PROCESSED_FILE_EXTENSION)
-                glob_patterns.append(this_file_pattern)
+                if this_year == -1:
+                    if this_month == -1:
+                        these_temporal_subdir_names = [
+                            '{0:s}/{1:s}'.format(YEAR_REGEX, SPC_DATE_REGEX)
+                        ]
+                    else:
+                        this_month_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
+                            YEAR_REGEX, this_month_string, DAY_OF_MONTH_REGEX)
 
-                print (
-                    'Finding files with pattern "{0:s}" (this may take a few '
-                    'minutes)...'
-                ).format(this_file_pattern)
-                processed_file_names += glob.glob(this_file_pattern)
+                        this_prev_month, _ = _get_previous_month(
+                            month=this_month, year=RANDOM_LEAP_YEAR)
+                        this_num_days_in_prev_month = _get_num_days_in_month(
+                            month=this_prev_month, year=RANDOM_LEAP_YEAR)
+                        this_prev_month_subdir_name = (
+                            '{0:s}/{0:s}{1:02d}{2:02d}'
+                        ).format(YEAR_REGEX, this_prev_month,
+                                 this_num_days_in_prev_month)
+
+                        these_temporal_subdir_names = [
+                            this_month_subdir_name, this_prev_month_subdir_name
+                        ]
+
+                        if this_prev_month == 2:
+                            this_prev_month_subdir_name = (
+                                '{0:s}/{0:s}{1:02d}{2:02d}'
+                            ).format(YEAR_REGEX, this_prev_month,
+                                     this_num_days_in_prev_month - 1)
+                            these_temporal_subdir_names.append(
+                                this_prev_month_subdir_name)
+
+                else:
+                    if this_month == -1:
+                        this_year_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
+                            this_year_string, MONTH_REGEX, DAY_OF_MONTH_REGEX)
+                        this_prev_year_subdir_name = (
+                            '{0:04d}/{0:04d}1231'.format(this_year - 1))
+
+                        these_temporal_subdir_names = [
+                            this_year_subdir_name, this_prev_year_subdir_name
+                        ]
+                    else:
+                        this_month_subdir_name = '{0:s}/{0:s}{1:s}{2:s}'.format(
+                            this_year_string, this_month_string,
+                            DAY_OF_MONTH_REGEX)
+
+                        this_prev_month, this_prev_year = _get_previous_month(
+                            month=this_month, year=this_year)
+                        this_num_days_in_prev_month = _get_num_days_in_month(
+                            month=this_prev_month, year=this_prev_year)
+                        this_prev_month_subdir_name = (
+                            '{0:04d}/{0:04d}{1:02d}{2:02d}'
+                        ).format(this_prev_year, this_prev_month,
+                                 this_num_days_in_prev_month)
+
+                        these_temporal_subdir_names = [
+                            this_month_subdir_name, this_prev_month_subdir_name
+                        ]
+
+                for this_temporal_subdir_name in these_temporal_subdir_names:
+                    this_file_pattern = (
+                        '{0:s}/{1:s}/scale_{2:d}m2/'
+                        '{3:s}_{4:s}_{5:s}-{6:s}-{7:s}-{8:s}{9:s}{10:s}{11:s}'
+                    ).format(top_processed_dir_name, this_temporal_subdir_name,
+                             tracking_scale_metres2,
+                             PREFIX_FOR_PATHLESS_FILE_NAMES,
+                             data_source, this_year_string, this_month_string,
+                             DAY_OF_MONTH_REGEX, this_hour_string, MINUTE_REGEX,
+                             SECOND_REGEX, FILE_EXTENSION)
+                    glob_patterns.append(this_file_pattern)
+
+                    print (
+                        'Finding files with pattern "{0:s}" (this may take a '
+                        'few minutes)...'
+                    ).format(this_file_pattern)
+                    processed_file_names += glob.glob(this_file_pattern)
 
     if raise_error_if_missing and not len(processed_file_names):
         error_string = (
@@ -304,8 +358,8 @@ def find_processed_files_one_spc_date(
     glob_pattern = (
         '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/{4:s}_{5:s}_{6:s}{7:s}'
     ).format(top_processed_dir_name, spc_date_string[:4], spc_date_string,
-             tracking_scale_metres2, PREFIX_FOR_PATHLESS_PROCESSED_FILE_NAME,
-             data_source, TIME_FORMAT_AS_REGEX, PROCESSED_FILE_EXTENSION)
+             tracking_scale_metres2, PREFIX_FOR_PATHLESS_FILE_NAMES,
+             data_source, TIME_FORMAT_IN_FILE_NAMES_AS_REGEX, FILE_EXTENSION)
     processed_file_names = glob.glob(glob_pattern)
 
     if raise_error_if_missing and not len(processed_file_names):
@@ -332,7 +386,7 @@ def processed_file_name_to_time(processed_file_name):
 
     extensionless_file_name_parts = extensionless_file_name.split('_')
     return time_conversion.string_to_unix_sec(
-        extensionless_file_name_parts[-1], TIME_FORMAT)
+        extensionless_file_name_parts[-1], TIME_FORMAT_IN_FILE_NAMES)
 
 
 def write_csv_file_for_amy(
