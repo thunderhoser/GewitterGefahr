@@ -2,6 +2,11 @@
 
 * convolutional neural network
 
+Some variables in this module contain the string "pos_targets_only", which means
+that they pertain only to storm objects with positive target values.  For
+details on how to separate storm objects with positive target values, see
+separate_myrorss_images_with_positive_targets.py.
+
 --- NOTATION ---
 
 The following letters will be used throughout this module.
@@ -71,7 +76,7 @@ NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_FILE_TIME_KEY = 'num_examples_per_time'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 TRAINING_FILE_NAMES_KEY = 'radar_file_name_matrix_for_training'
-TRAINING_FILE_NAMES_POSITIVE_TARGETS_KEY = (
+TRAINING_FILE_NAMES_POS_TARGETS_KEY = (
     'radar_file_name_matrix_for_training_pos_targets_only')
 WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
 MONITOR_STRING_KEY = 'monitor_string'
@@ -82,7 +87,7 @@ TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
 VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 VALIDATION_FILE_NAMES_KEY = 'radar_file_name_matrix_for_validn'
-VALIDATION_FILE_NAMES_POSITIVE_TARGETS_KEY = (
+VALIDATION_FILE_NAMES_POS_TARGETS_KEY = (
     'radar_file_name_matrix_for_validation_pos_targets_only')
 SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
 TOP_SOUNDING_DIR_NAME_KEY = 'top_sounding_dir_name'
@@ -97,11 +102,11 @@ REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
     NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAMES_KEY,
-    TRAINING_FILE_NAMES_POSITIVE_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
+    TRAINING_FILE_NAMES_POS_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     MONITOR_STRING_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
     RADAR_NORMALIZATION_DICT_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
     VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
-    VALIDATION_FILE_NAMES_KEY, VALIDATION_FILE_NAMES_POSITIVE_TARGETS_KEY,
+    VALIDATION_FILE_NAMES_KEY, VALIDATION_FILE_NAMES_POS_TARGETS_KEY,
     SOUNDING_FIELD_NAMES_KEY, TOP_SOUNDING_DIR_NAME_KEY,
     SOUNDING_NORMALIZATION_DICT_KEY, SOUNDING_LAG_TIME_KEY,
     USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY,
@@ -936,9 +941,9 @@ def write_model_metadata(
         [needed only if radar_source != "gridrad"]
         1-D numpy array of heights (metres above sea level) applied to the field
         "reflectivity_dbz".
-    :param radar_file_name_matrix_for_training_pos_targets_only: numpy array
-        created by `training_validation_io.find_radar_files_2d` or
-        `training_validation_io.find_radar_files_3d`.
+    :param radar_file_name_matrix_for_training_pos_targets_only: Same as
+        `radar_file_name_matrix_for_training`, but only for storm objects with
+        positive target values.
     :param training_fraction_by_class_dict: Used to sample training data (see
         `training_validation_io.storm_image_generator_2d` for details).
     :param validation_fraction_by_class_dict:
@@ -951,7 +956,9 @@ def write_model_metadata(
         [needed only if CNN did validation on the fly]
         numpy array created by `training_validation_io.find_radar_files_2d` or
         `training_validation_io.find_radar_files_3d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: See above.
+    :param radar_file_name_matrix_for_validn_pos_targets_only: Same as
+        `radar_file_name_matrix_for_validn`, but only for storm objects with
+        positive target values.
     :param sounding_field_names: [needed only if CNN takes soundings]
         1-D list with names of sounding fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
@@ -968,7 +975,7 @@ def write_model_metadata(
         NUM_EXAMPLES_PER_FILE_TIME_KEY: num_examples_per_file_time,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         TRAINING_FILE_NAMES_KEY: radar_file_name_matrix_for_training,
-        TRAINING_FILE_NAMES_POSITIVE_TARGETS_KEY:
+        TRAINING_FILE_NAMES_POS_TARGETS_KEY:
             radar_file_name_matrix_for_training_pos_targets_only,
         WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         MONITOR_STRING_KEY: monitor_string,
@@ -984,7 +991,7 @@ def write_model_metadata(
         VALIDATION_FRACTION_BY_CLASS_KEY: validation_fraction_by_class_dict,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         VALIDATION_FILE_NAMES_KEY: radar_file_name_matrix_for_validn,
-        VALIDATION_FILE_NAMES_POSITIVE_TARGETS_KEY:
+        VALIDATION_FILE_NAMES_POS_TARGETS_KEY:
             radar_file_name_matrix_for_validn_pos_targets_only,
         SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
         TOP_SOUNDING_DIR_NAME_KEY: top_sounding_dir_name,
@@ -1048,10 +1055,10 @@ def read_model_metadata(pickle_file_name):
     if MONITOR_STRING_KEY not in model_metadata_dict:
         model_metadata_dict.update({MONITOR_STRING_KEY: LOSS_AS_MONITOR_STRING})
 
-    if TRAINING_FILE_NAMES_POSITIVE_TARGETS_KEY not in model_metadata_dict:
+    if TRAINING_FILE_NAMES_POS_TARGETS_KEY not in model_metadata_dict:
         model_metadata_dict.update({
-            TRAINING_FILE_NAMES_POSITIVE_TARGETS_KEY: None,
-            VALIDATION_FILE_NAMES_POSITIVE_TARGETS_KEY: None
+            TRAINING_FILE_NAMES_POS_TARGETS_KEY: None,
+            VALIDATION_FILE_NAMES_POS_TARGETS_KEY: None
         })
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
@@ -1207,7 +1214,7 @@ def train_2d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1226,7 +1233,7 @@ def train_2d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1242,7 +1249,7 @@ def train_2d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d(
                 radar_file_name_matrix=radar_file_name_matrix_for_validn,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_validn_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1289,11 +1296,9 @@ def train_3d_cnn(
         `training_validation_io.find_radar_files_3d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
-    :param radar_file_name_matrix_for_training_pos_targets_only: Same as
-        `radar_file_name_matrix_for_training`, but only for storm objects with
-        positive target values.
+    :param radar_file_name_matrix_for_training_pos_targets_only: Same.
     :param monitor_string: See doc for `_get_checkpoint_object`.
-    :param binarize_target: Same.
+    :param binarize_target: See doc for `train_2d_cnn`.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -1301,10 +1306,9 @@ def train_3d_cnn(
     :param radar_file_name_matrix_for_validn: V-by-F-by-H numpy array of paths
         to radar files.  Should be created by
         `training_validation_io.find_radar_files_3d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: Same as
-        `radar_file_name_matrix_for_validn`, but only for storm objects with
-        positive target values.
-    :param sounding_field_names: See doc for `train_2d_cnn`.
+    :param radar_file_name_matrix_for_validn_pos_targets_only: See doc for
+        `train_2d_cnn`.
+    :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     """
@@ -1341,7 +1345,7 @@ def train_3d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1360,7 +1364,7 @@ def train_3d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1376,7 +1380,7 @@ def train_3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_3d(
                 radar_file_name_matrix=radar_file_name_matrix_for_validn,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_validn_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1424,21 +1428,18 @@ def train_2d3d_cnn(
         paths to image files.  This should be created by `find_radar_files_2d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
-    :param radar_file_name_matrix_for_training_pos_targets_only: Same as
-        `radar_file_name_matrix_for_training`, but only for storm objects with
-        positive target values.
+    :param radar_file_name_matrix_for_training_pos_targets_only: Same.
     :param monitor_string: See doc for `_get_checkpoint_object`.
-    :param binarize_target: Same.
+    :param binarize_target: See doc for `train_2d_cnn`.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_fraction_by_class_dict: Same.
     :param radar_file_name_matrix_for_validn: numpy array (V x [H_r + F_a]) of
         paths to image files.  This should be created by `find_radar_files_2d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: Same as
-        `radar_file_name_matrix_for_validn`, but only for storm objects with
-        positive target values.
-    :param sounding_field_names: See doc for `train_2d_cnn`.
+    :param radar_file_name_matrix_for_validn_pos_targets_only: See doc for
+        `train_2d_cnn`.
+    :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     """
@@ -1475,7 +1476,7 @@ def train_2d3d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1494,7 +1495,7 @@ def train_2d3d_cnn(
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
                 radar_file_name_matrix=radar_file_name_matrix_for_training,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
@@ -1510,7 +1511,7 @@ def train_2d3d_cnn(
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d3d_myrorss(
                 radar_file_name_matrix=radar_file_name_matrix_for_validn,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 radar_file_name_matrix_for_validn_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,

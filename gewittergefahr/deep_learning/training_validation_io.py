@@ -1,5 +1,10 @@
 """IO methods for training and on-the-fly validation of a deep-learning model.
 
+Some variables in this module contain the string "pos_targets_only", which means
+that they pertain only to storm objects with positive target values.  For
+details on how to separate storm objects with positive target values, see
+separate_myrorss_images_with_positive_targets.py.
+
 --- NOTATION ---
 
 The following letters will be used throughout this module.
@@ -241,9 +246,8 @@ def _need_negative_target_values(num_examples_left_by_class_dict):
 
 def _read_input_files_2d(
         radar_file_names, top_target_directory_name, target_name,
-        num_examples_left_by_class_dict,
-        radar_file_names_positive_targets_only=None, sounding_file_name=None,
-        sounding_field_names=None):
+        num_examples_left_by_class_dict, radar_file_names_pos_targets_only=None,
+        sounding_file_name=None, sounding_field_names=None):
     """Reads data for `storm_image_generator_2d`.
 
     t_0 = file time = time step or SPC date
@@ -257,10 +261,8 @@ def _read_input_files_2d(
     :param target_name: Name of target variable.
     :param num_examples_left_by_class_dict: Dictionary created by
         `_get_num_examples_left_by_class`.
-    :param radar_file_names_positive_targets_only: Same as `radar_file_names`,
-        but only for storm objects with positive target values.  For details on
-        how to separate storm objects with positive target values, see
-        separate_myrorss_images_with_positive_targets.py.
+    :param radar_file_names_pos_targets_only: Same as `radar_file_names`, but
+        only for storm objects with positive target values.
     :param sounding_file_name: [optional] Path to sounding file.  Should be
         readable by `soundings_only.read_soundings` and contain storm-centered
         soundings for t_0.
@@ -283,9 +285,9 @@ def _read_input_files_2d(
         top_label_directory_name=top_target_directory_name,
         label_name=target_name, raise_error_if_missing=True)
 
-    if radar_file_names_positive_targets_only is not None:
+    if radar_file_names_pos_targets_only is not None:
         if not _need_negative_target_values(num_examples_left_by_class_dict):
-            radar_file_names = radar_file_names_positive_targets_only
+            radar_file_names = radar_file_names_pos_targets_only
 
     print 'Reading data from: "{0:s}" and "{1:s}"...'.format(
         radar_file_names[0], label_file_name)
@@ -348,8 +350,8 @@ def _read_input_files_2d(
 def _read_input_files_3d(
         radar_file_name_matrix, top_target_directory_name, target_name,
         num_examples_left_by_class_dict,
-        radar_file_name_matrix_positive_targets_only=None,
-        sounding_file_name=None, sounding_field_names=None):
+        radar_file_name_matrix_pos_targets_only=None, sounding_file_name=None,
+        sounding_field_names=None):
     """Reads data for `storm_image_generator_3d`.
 
     t_0 = file time = time step or SPC date
@@ -361,9 +363,7 @@ def _read_input_files_3d(
     :param top_target_directory_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
-    :param radar_file_name_matrix_positive_targets_only: Same as
-        `radar_file_name_matrix`, but only for storm objects with positive
-        target values.
+    :param radar_file_name_matrix_pos_targets_only: Same.
     :param sounding_file_name: See doc for `_read_input_files_2d`.
     :param sounding_field_names: Same.
     :return: example_dict: Dictionary with the following keys.
@@ -379,10 +379,9 @@ def _read_input_files_3d(
         top_label_directory_name=top_target_directory_name,
         label_name=target_name, raise_error_if_missing=True)
 
-    if radar_file_name_matrix_positive_targets_only is not None:
+    if radar_file_name_matrix_pos_targets_only is not None:
         if not _need_negative_target_values(num_examples_left_by_class_dict):
-            radar_file_name_matrix = (
-                radar_file_name_matrix_positive_targets_only)
+            radar_file_name_matrix = radar_file_name_matrix_pos_targets_only
 
     print 'Reading data from: "{0:s}" and "{1:s}"...'.format(
         radar_file_name_matrix[0, 0], label_file_name)
@@ -453,8 +452,8 @@ def _read_input_files_3d(
 def _read_input_files_2d3d(
         reflectivity_file_names, azimuthal_shear_file_names,
         top_target_directory_name, target_name, num_examples_left_by_class_dict,
-        refl_file_names_positive_targets_only=None,
-        az_shear_file_names_positive_targets_only=None, sounding_file_name=None,
+        refl_file_names_pos_targets_only=None,
+        az_shear_file_names_pos_targets_only=None, sounding_file_name=None,
         sounding_field_names=None):
     """Reads data for `storm_image_generator_2d3d_myrorss`.
 
@@ -477,12 +476,11 @@ def _read_input_files_2d3d(
     :param top_target_directory_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
-    :param refl_file_names_positive_targets_only: Same as
-        `reflectivity_file_names`, but containing only storm objects with
-        positive target values.
-    :param az_shear_file_names_positive_targets_only: Same as
-        `azimuthal_shear_file_names`, but containing only storm objects with
-        positive target values.
+    :param refl_file_names_pos_targets_only: Same as `reflectivity_file_names`,
+        but only for storm objects with positive target values.
+    :param az_shear_file_names_pos_targets_only: Same as
+        `azimuthal_shear_file_names`, but only for storm objects with positive
+        target values.
     :param sounding_file_name: See doc for `_read_input_files_2d`.
     :param sounding_field_names: Same.
     :return: example_dict: Dictionary with the following keys.
@@ -500,11 +498,10 @@ def _read_input_files_2d3d(
         top_label_directory_name=top_target_directory_name,
         label_name=target_name, raise_error_if_missing=True)
 
-    if refl_file_names_positive_targets_only is not None:
+    if refl_file_names_pos_targets_only is not None:
         if not _need_negative_target_values(num_examples_left_by_class_dict):
-            reflectivity_file_names = refl_file_names_positive_targets_only
-            azimuthal_shear_file_names = (
-                az_shear_file_names_positive_targets_only)
+            reflectivity_file_names = refl_file_names_pos_targets_only
+            azimuthal_shear_file_names = az_shear_file_names_pos_targets_only
 
     print 'Reading data from: "{0:s}" and "{1:s}"...'.format(
         reflectivity_file_names[0], label_file_name)
@@ -585,7 +582,7 @@ def _read_input_files_2d3d(
 def check_input_args(
         num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
         radar_file_name_matrix, num_radar_dimensions, binarize_target,
-        radar_file_name_matrix_positive_targets_only=None,
+        radar_file_name_matrix_pos_targets_only=None,
         sounding_field_names=None):
     """Error-checking of input arguments to generator.
 
@@ -603,9 +600,9 @@ def check_input_args(
     :param num_radar_dimensions: Number of radar dimensions.  This should be the
         number of dimensions in `radar_file_name_matrix`.
     :param binarize_target: See doc for `_select_batch`.
-    :param radar_file_name_matrix_positive_targets_only: [optional]
-        numpy array of file paths, with the same dimensions as
-        `radar_file_name_matrix`.
+    :param radar_file_name_matrix_pos_targets_only: [optional]
+        Same as `radar_file_name_matrix`, but only for storm objects with
+        positive target values.
     :param sounding_field_names: [optional]
         1-D list with names of sounding fields (pressureless fields) to use.  If
         `sounding_field_names is None`, will use all sounding fields.
@@ -624,9 +621,9 @@ def check_input_args(
     error_checking.assert_is_numpy_array(
         radar_file_name_matrix, num_dimensions=num_radar_dimensions)
 
-    if radar_file_name_matrix_positive_targets_only is not None:
+    if radar_file_name_matrix_pos_targets_only is not None:
         error_checking.assert_is_numpy_array(
-            radar_file_name_matrix_positive_targets_only,
+            radar_file_name_matrix_pos_targets_only,
             exact_dimensions=numpy.array(radar_file_name_matrix.shape))
 
     if sounding_field_names is not None:
@@ -755,7 +752,7 @@ def find_radar_files_2d(
         top_directory_name, radar_source, radar_field_names,
         first_file_time_unix_sec, last_file_time_unix_sec,
         one_file_per_time_step, shuffle_times=True,
-        top_directory_name_positive_targets_only=None, radar_heights_m_asl=None,
+        top_directory_name_pos_targets_only=None, radar_heights_m_asl=None,
         reflectivity_heights_m_asl=None):
     """Finds input files for either of the following generators.
 
@@ -777,21 +774,19 @@ def find_radar_files_2d(
     :param last_file_time_unix_sec: See above.
     :param one_file_per_time_step: See general discussion above.
     :param shuffle_times: Boolean flag.  If True, will shuffle times randomly.
-    :param top_directory_name_positive_targets_only: Name of top-level directory
-        with storm-centered radar images for storm objects with positive target
-        values (anything other than 0 or -2).  For details on how to separate
-        storm objects with positive target values, see
-        separate_myrorss_images_with_positive_targets.py.
+    :param top_directory_name_pos_targets_only: Name of top-level directory
+        with storm-centered radar images, but only for storm objects with
+        positive target values.
     :param radar_heights_m_asl: [used only if radar_source = "gridrad"]
         1-D numpy array of radar heights (metres above sea level).
     :param reflectivity_heights_m_asl: [used only if radar_source != "gridrad"]
         1-D numpy array of reflectivity heights (metres above sea level).
     :return: radar_file_name_matrix: T-by-C numpy array of paths to files with
         storm-centered radar images.
-    :return: radar_file_name_matrix_positive_targets_only:
-        [None if `top_directory_name_positive_targets_only is None`]
-        T-by-C numpy array of paths to files with storm-centered radar images,
-        but only for storm objects with positive target values.
+    :return: radar_file_name_matrix_pos_targets_only:
+        [None if `top_directory_name_pos_targets_only is None`]
+        Same as `radar_file_name_matrix`, but only for storm objects with
+        positive target values.
     :return: file_times_unix_sec: length-T numpy array of file times.
     """
 
@@ -843,12 +838,12 @@ def find_radar_files_2d(
         radar_file_name_matrix = radar_file_name_matrix[image_time_indices, ...]
         image_times_unix_sec = image_times_unix_sec[image_time_indices]
 
-    if top_directory_name_positive_targets_only is None:
+    if top_directory_name_pos_targets_only is None:
         return radar_file_name_matrix, None, image_times_unix_sec
 
     num_image_times = radar_file_name_matrix.shape[0]
     num_field_height_pairs = radar_file_name_matrix.shape[1]
-    radar_file_name_matrix_positive_targets_only = numpy.full(
+    radar_file_name_matrix_pos_targets_only = numpy.full(
         (num_image_times, num_field_height_pairs), '', dtype=object)
 
     for j in range(num_field_height_pairs):
@@ -863,24 +858,24 @@ def find_radar_files_2d(
             ) = storm_images.image_file_name_to_time(
                 radar_file_name_matrix[i, j])
 
-            radar_file_name_matrix_positive_targets_only[i, j] = (
+            radar_file_name_matrix_pos_targets_only[i, j] = (
                 storm_images.find_storm_image_file(
-                    top_directory_name=top_directory_name_positive_targets_only,
+                    top_directory_name=top_directory_name_pos_targets_only,
                     spc_date_string=this_spc_date_string,
                     radar_source=radar_source, radar_field_name=this_field_name,
                     radar_height_m_asl=this_height_m_asl,
                     unix_time_sec=this_time_unix_sec,
                     raise_error_if_missing=True))
 
-    return (radar_file_name_matrix,
-            radar_file_name_matrix_positive_targets_only, image_times_unix_sec)
+    return (radar_file_name_matrix, radar_file_name_matrix_pos_targets_only,
+            image_times_unix_sec)
 
 
 def find_radar_files_3d(
         top_directory_name, radar_source, radar_field_names,
         radar_heights_m_asl, first_file_time_unix_sec, last_file_time_unix_sec,
         one_file_per_time_step, shuffle_times=True,
-        top_directory_name_positive_targets_only=None):
+        top_directory_name_pos_targets_only=None):
     """Finds input files for `storm_image_generator_3d`.
 
     :param top_directory_name: See doc for `find_radar_files_2d`.
@@ -891,13 +886,11 @@ def find_radar_files_3d(
     :param last_file_time_unix_sec: Same.
     :param one_file_per_time_step: Same.
     :param shuffle_times: Same.
-    :param top_directory_name_positive_targets_only: Same.
+    :param top_directory_name_pos_targets_only: Same.
     :return: radar_file_name_matrix: numpy array (T x F_r x H_r) of paths to
         files with storm-centered radar images.
-    :return: radar_file_name_matrix_positive_targets_only:
-        [None if `top_directory_name_positive_targets_only is None`]
-        numpy array (T x F_r x H_r) of paths to files with storm-centered radar
-        images, but only for storm objects with positive target values.
+    :return: radar_file_name_matrix_pos_targets_only: See doc for
+        `find_radar_files_2d`.
     :return: file_times_unix_sec: length-T numpy array of file times.
     """
 
@@ -947,13 +940,13 @@ def find_radar_files_3d(
         radar_file_name_matrix = radar_file_name_matrix[image_time_indices, ...]
         image_times_unix_sec = image_times_unix_sec[image_time_indices]
 
-    if top_directory_name_positive_targets_only is None:
+    if top_directory_name_pos_targets_only is None:
         return radar_file_name_matrix, None, image_times_unix_sec
 
     num_image_times = radar_file_name_matrix.shape[0]
     num_fields = radar_file_name_matrix.shape[1]
     num_heights = radar_file_name_matrix.shape[2]
-    radar_file_name_matrix_positive_targets_only = numpy.full(
+    radar_file_name_matrix_pos_targets_only = numpy.full(
         (num_image_times, num_fields, num_heights), '', dtype=object)
 
     for j in range(num_fields):
@@ -971,10 +964,9 @@ def find_radar_files_3d(
                 ) = storm_images.image_file_name_to_time(
                     radar_file_name_matrix[i, j, k])
 
-                radar_file_name_matrix_positive_targets_only[i, j, k] = (
+                radar_file_name_matrix_pos_targets_only[i, j, k] = (
                     storm_images.find_storm_image_file(
-                        top_directory_name=
-                        top_directory_name_positive_targets_only,
+                        top_directory_name=top_directory_name_pos_targets_only,
                         spc_date_string=this_spc_date_string,
                         radar_source=radar_source,
                         radar_field_name=this_field_name,
@@ -982,8 +974,8 @@ def find_radar_files_3d(
                         unix_time_sec=this_time_unix_sec,
                         raise_error_if_missing=True))
 
-    return (radar_file_name_matrix,
-            radar_file_name_matrix_positive_targets_only, image_times_unix_sec)
+    return (radar_file_name_matrix, radar_file_name_matrix_pos_targets_only,
+            image_times_unix_sec)
 
 
 def find_sounding_files(
@@ -1102,8 +1094,7 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
 def storm_image_generator_2d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
-        radar_file_name_matrix_positive_targets_only=None,
-        binarize_target=False,
+        radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
@@ -1124,9 +1115,8 @@ def storm_image_generator_2d(
     :param num_examples_per_batch: See doc for `check_input_args`.
     :param num_examples_per_file_time: Same.
     :param target_name: Name of target variable.
-    :param radar_file_name_matrix_positive_targets_only: [may be None]
-        T-by-C numpy array of paths to radar files, created by
-        `find_radar_files_2d`.
+    :param radar_file_name_matrix_pos_targets_only: [may be None]
+        See doc for `find_radar_files_2d`.
     :param binarize_target: See doc for `_select_batch`.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
         `deep_learning_utils.normalize_predictor_matrix`).
@@ -1170,8 +1160,8 @@ def storm_image_generator_2d(
         num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
         num_radar_dimensions=2, binarize_target=binarize_target,
-        radar_file_name_matrix_positive_targets_only=
-        radar_file_name_matrix_positive_targets_only,
+        radar_file_name_matrix_pos_targets_only=
+        radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
 
     if sounding_field_names is None:
@@ -1253,11 +1243,11 @@ def storm_image_generator_2d(
             else:
                 this_sounding_file_name = sounding_file_names[file_time_index]
 
-            if radar_file_name_matrix_positive_targets_only is None:
+            if radar_file_name_matrix_pos_targets_only is None:
                 these_radar_file_names_pos_targets_only = None
             else:
                 these_radar_file_names_pos_targets_only = (
-                    radar_file_name_matrix_positive_targets_only[
+                    radar_file_name_matrix_pos_targets_only[
                         file_time_index, ...].tolist())
 
             this_example_dict = _read_input_files_2d(
@@ -1266,7 +1256,7 @@ def storm_image_generator_2d(
                 top_target_directory_name=top_target_directory_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
-                radar_file_names_positive_targets_only=
+                radar_file_names_pos_targets_only=
                 these_radar_file_names_pos_targets_only,
                 sounding_file_name=this_sounding_file_name,
                 sounding_field_names=sounding_field_names)
@@ -1359,8 +1349,7 @@ def storm_image_generator_2d(
 def storm_image_generator_3d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
-        radar_file_name_matrix_positive_targets_only=None,
-        binarize_target=False,
+        radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
@@ -1379,9 +1368,7 @@ def storm_image_generator_3d(
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
-    :param radar_file_name_matrix_positive_targets_only: [may be None]
-        numpy array (T x F_r x H_r) of paths to radar-image files, created by
-        `find_radar_files_3d`.
+    :param radar_file_name_matrix_pos_targets_only: Same.
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
     :param sampling_fraction_by_class_dict: Same.
@@ -1412,8 +1399,8 @@ def storm_image_generator_3d(
         num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
         num_radar_dimensions=3, binarize_target=binarize_target,
-        radar_file_name_matrix_positive_targets_only=
-        radar_file_name_matrix_positive_targets_only,
+        radar_file_name_matrix_pos_targets_only=
+        radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
 
     if sounding_field_names is None:
@@ -1495,11 +1482,11 @@ def storm_image_generator_3d(
             else:
                 this_sounding_file_name = sounding_file_names[file_time_index]
 
-            if radar_file_name_matrix_positive_targets_only is None:
+            if radar_file_name_matrix_pos_targets_only is None:
                 this_file_name_matrix_pos_targets_only = None
             else:
                 this_file_name_matrix_pos_targets_only = (
-                    radar_file_name_matrix_positive_targets_only[
+                    radar_file_name_matrix_pos_targets_only[
                         file_time_index, ...])
 
             this_example_dict = _read_input_files_3d(
@@ -1508,7 +1495,7 @@ def storm_image_generator_3d(
                 top_target_directory_name=top_target_directory_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
-                radar_file_name_matrix_positive_targets_only=
+                radar_file_name_matrix_pos_targets_only=
                 this_file_name_matrix_pos_targets_only,
                 sounding_file_name=this_sounding_file_name,
                 sounding_field_names=sounding_field_names)
@@ -1601,8 +1588,7 @@ def storm_image_generator_3d(
 def storm_image_generator_2d3d_myrorss(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file_time, target_name,
-        radar_file_name_matrix_positive_targets_only=None,
-        binarize_target=False,
+        radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
@@ -1628,7 +1614,7 @@ def storm_image_generator_2d3d_myrorss(
     :param num_examples_per_batch: Same.
     :param num_examples_per_file_time: Same.
     :param target_name: Same.
-    :param radar_file_name_matrix_positive_targets_only: Same.
+    :param radar_file_name_matrix_pos_targets_only: Same.
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
     :param sampling_fraction_by_class_dict: Same.
@@ -1664,8 +1650,8 @@ def storm_image_generator_2d3d_myrorss(
         num_examples_per_file_time=num_examples_per_file_time,
         normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
         num_radar_dimensions=2, binarize_target=binarize_target,
-        radar_file_name_matrix_positive_targets_only=
-        radar_file_name_matrix_positive_targets_only,
+        radar_file_name_matrix_pos_targets_only=
+        radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
 
     if sounding_field_names is None:
@@ -1680,11 +1666,11 @@ def storm_image_generator_2d3d_myrorss(
 
     (reflectivity_file_name_matrix, az_shear_file_name_matrix
     ) = separate_radar_files_2d3d(radar_file_name_matrix)
-    if radar_file_name_matrix_positive_targets_only is not None:
-        (refl_file_name_matrix_positive_targets_only,
-         az_shear_file_name_matrix_positive_targets_only
-        ) = separate_radar_files_2d3d(
-            radar_file_name_matrix_positive_targets_only)
+
+    if radar_file_name_matrix_pos_targets_only is not None:
+        (refl_file_name_matrix_pos_targets_only,
+         az_shear_file_name_matrix_pos_targets_only
+        ) = separate_radar_files_2d3d(radar_file_name_matrix_pos_targets_only)
 
     num_azimuthal_shear_fields = az_shear_file_name_matrix.shape[1]
     azimuthal_shear_field_names = [''] * num_azimuthal_shear_fields
@@ -1756,15 +1742,15 @@ def storm_image_generator_2d3d_myrorss(
             else:
                 this_sounding_file_name = sounding_file_names[file_time_index]
 
-            if radar_file_name_matrix_positive_targets_only is None:
+            if radar_file_name_matrix_pos_targets_only is None:
                 these_refl_file_names_pos_targets_only = None
                 these_az_shear_file_names_pos_targets_only = None
             else:
                 these_refl_file_names_pos_targets_only = (
-                    refl_file_name_matrix_positive_targets_only[
+                    refl_file_name_matrix_pos_targets_only[
                         file_time_index, ...].tolist())
                 these_az_shear_file_names_pos_targets_only = (
-                    az_shear_file_name_matrix_positive_targets_only[
+                    az_shear_file_name_matrix_pos_targets_only[
                         file_time_index, ...].tolist())
 
             this_example_dict = _read_input_files_2d3d(
@@ -1775,9 +1761,9 @@ def storm_image_generator_2d3d_myrorss(
                 top_target_directory_name=top_target_directory_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
-                refl_file_names_positive_targets_only=
+                refl_file_names_pos_targets_only=
                 these_refl_file_names_pos_targets_only,
-                az_shear_file_names_positive_targets_only=
+                az_shear_file_names_pos_targets_only=
                 these_az_shear_file_names_pos_targets_only,
                 sounding_file_name=this_sounding_file_name,
                 sounding_field_names=sounding_field_names)

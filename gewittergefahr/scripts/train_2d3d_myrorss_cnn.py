@@ -164,7 +164,7 @@ def _train_cnn(
      radar_file_name_matrix_for_training_pos_targets_only, _
     ) = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
-        top_directory_name_positive_targets_only=
+        top_directory_name_pos_targets_only=
         top_storm_radar_image_dir_name_pos_targets_only,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         radar_field_names=RADAR_FIELD_NAMES,
@@ -182,7 +182,7 @@ def _train_cnn(
          radar_file_name_matrix_for_validn_pos_targets_only, _
         ) = trainval_io.find_radar_files_2d(
             top_directory_name=top_storm_radar_image_dir_name,
-            top_directory_name_positive_targets_only=
+            top_directory_name_pos_targets_only=
             top_storm_radar_image_dir_name_pos_targets_only,
             radar_source=radar_utils.MYRORSS_SOURCE_ID,
             radar_field_names=RADAR_FIELD_NAMES,
@@ -285,8 +285,7 @@ if __name__ == '__main__':
         top_storm_radar_image_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.RADAR_DIRECTORY_ARG_NAME),
         top_storm_radar_image_dir_name_pos_targets_only=getattr(
-            INPUT_ARG_OBJECT,
-            dl_helper.RADAR_DIRECTORY_POSITIVE_TARGETS_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.RADAR_DIRECTORY_POS_TARGETS_ARG_NAME),
         one_file_per_time_step=bool(getattr(
             INPUT_ARG_OBJECT, dl_helper.ONE_FILE_PER_TIME_STEP_ARG_NAME)),
         first_training_time_string=getattr(
