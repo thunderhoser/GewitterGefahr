@@ -96,6 +96,36 @@ EXPECTED_SUBGRID_DATA_MATRIX = numpy.array([[numpy.nan, 8., 1., numpy.nan],
 EXPECTED_ROW_OFFSET = 1
 EXPECTED_COLUMN_OFFSET = 4
 
+# The following constants are used to test count_events_on_equidistant_grid.
+GRID_POINTS_X_FOR_COUNTING_METRES = numpy.array([0, 1, 2, 3, 4, 5], dtype=float)
+GRID_POINTS_Y_FOR_COUNTING_METRES = numpy.array([10, 20, 30, 40], dtype=float)
+EVENT_X_COORDS_METRES = numpy.array(
+    [0.3, 1.5, 3.4, 5.2, 5, 0, 1.9, 2.9, 4.6, 0.2, 1, 4.4, 1.7, 2.5, 4.5])
+EVENT_Y_COORDS_METRES = numpy.array(
+    [36, 37, 36.5, 42, 36, 28, 30, 25, 25, 19, 22, 23, 15, 10, 7.5])
+NUM_EVENTS_MATRIX_EQUIDISTANT = numpy.array([[0, 0, 0, 1, 0, 1],
+                                             [1, 1, 1, 0, 1, 0],
+                                             [1, 0, 1, 1, 0, 1],
+                                             [1, 0, 1, 1, 0, 2]], dtype=int)
+
+# The following constants are used to test count_events_on_non_equidistant_grid.
+GRID_POINT_X_MATRIX_FOR_COUNTING_METRES = numpy.array(
+    [[0, 1, 2, 3, 4, 5],
+     [0, 1, 2, 3, 4, 5],
+     [0, 1, 2, 3, 4, 5],
+     [0, 1, 2, 3, 4, 5]], dtype=float)
+GRID_POINT_Y_MATRIX_FOR_COUNTING_METRES = numpy.array(
+    [[10, 10, 10, 10, 10, 10],
+     [20, 20, 20, 20, 20, 20],
+     [30, 30, 30, 30, 30, 30],
+     [40, 40, 40, 40, 40, 40]], dtype=float)
+
+COUNTING_RADIUS_METRES = 5.
+NUM_EVENTS_MATRIX_NON_EQUIDISTANT = numpy.array([[1, 2, 2, 2, 2, 2],
+                                                 [2, 3, 3, 3, 3, 3],
+                                                 [2, 2, 2, 2, 2, 1],
+                                                 [3, 4, 5, 5, 4, 4]], dtype=int)
+
 
 class GridsTests(unittest.TestCase):
     """Each method is a unit test for grids.py."""
@@ -241,6 +271,31 @@ class GridsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_subgrid_data_matrix, EXPECTED_SUBGRID_DATA_MATRIX,
             equal_nan=True, atol=TOLERANCE))
+
+    def test_count_events_on_equidistant_grid(self):
+        """Ensures correct output from count_events_on_equidistant_grid."""
+
+        this_num_events_matrix = grids.count_events_on_equidistant_grid(
+            event_x_coords_metres=EVENT_X_COORDS_METRES,
+            event_y_coords_metres=EVENT_Y_COORDS_METRES,
+            grid_point_x_coords_metres=GRID_POINTS_X_FOR_COUNTING_METRES,
+            grid_point_y_coords_metres=GRID_POINTS_Y_FOR_COUNTING_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_num_events_matrix, NUM_EVENTS_MATRIX_EQUIDISTANT))
+
+    def test_count_events_on_non_equidistant_grid(self):
+        """Ensures correct output from count_events_on_non_equidistant_grid."""
+
+        this_num_events_matrix = grids.count_events_on_non_equidistant_grid(
+            event_x_coords_metres=EVENT_X_COORDS_METRES,
+            event_y_coords_metres=EVENT_Y_COORDS_METRES,
+            grid_point_x_matrix_metres=GRID_POINT_X_MATRIX_FOR_COUNTING_METRES,
+            grid_point_y_matrix_metres=GRID_POINT_Y_MATRIX_FOR_COUNTING_METRES,
+            effective_radius_metres=COUNTING_RADIUS_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            this_num_events_matrix, NUM_EVENTS_MATRIX_NON_EQUIDISTANT))
 
 
 if __name__ == '__main__':

@@ -6,6 +6,7 @@ DEFINITIONS
 """
 
 import numpy
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 
@@ -407,3 +408,141 @@ def extract_latlng_subgrid(
         distance_matrix_metres > max_distance_from_center_metres)
     subgrid_data_matrix[bad_indices] = numpy.nan
     return subgrid_data_matrix, min_valid_row_index, min_valid_column_index
+
+
+def count_events_on_equidistant_grid(
+        event_x_coords_metres, event_y_coords_metres,
+        grid_point_x_coords_metres, grid_point_y_coords_metres):
+    """Counts number of events in each cell of an equidistant grid.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    K = number of events
+
+    :param event_x_coords_metres: length-K numpy array with x-coordinates of
+        events.
+    :param event_y_coords_metres: length-K numpy array with y-coordinates of
+        events.
+    :param grid_point_x_coords_metres: length-N numpy array with unique
+        x-coordinates at grid points.
+    :param grid_point_y_coords_metres: length-M numpy array with unique
+        y-coordinates at grid points.
+    :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
+        number of events in grid cell [i, j].
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(event_x_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_x_coords_metres, num_dimensions=1)
+    num_events = len(event_x_coords_metres)
+
+    error_checking.assert_is_numpy_array_without_nan(event_y_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_y_coords_metres,
+        exact_dimensions=numpy.array([num_events], dtype=int))
+
+    error_checking.assert_is_numpy_array_without_nan(grid_point_x_coords_metres)
+    error_checking.assert_is_numpy_array(
+        grid_point_x_coords_metres, num_dimensions=1)
+
+    error_checking.assert_is_numpy_array_without_nan(grid_point_y_coords_metres)
+    error_checking.assert_is_numpy_array(
+        grid_point_y_coords_metres, num_dimensions=1)
+
+    num_grid_rows = len(grid_point_y_coords_metres)
+    num_grid_columns = len(grid_point_x_coords_metres)
+    num_events_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), 0, dtype=int)
+
+    for k in range(num_events):
+        _, this_row = general_utils.find_nearest_value(
+            grid_point_y_coords_metres, event_y_coords_metres[k])
+        _, this_column = general_utils.find_nearest_value(
+            grid_point_x_coords_metres, event_x_coords_metres[k])
+        num_events_matrix[this_row, this_column] += 1
+
+    return num_events_matrix
+
+
+def count_events_on_non_equidistant_grid(
+        event_x_coords_metres, event_y_coords_metres,
+        grid_point_x_matrix_metres, grid_point_y_matrix_metres,
+        effective_radius_metres):
+    """Counts number of events near each point of a non-equidistant grid.
+
+    M = number of rows (unique grid-point y-coordinates)
+    N = number of columns (unique grid-point x-coordinates)
+    K = number of events
+
+    :param event_x_coords_metres: length-K numpy array with x-coordinates of
+        events.
+    :param event_y_coords_metres: length-K numpy array with y-coordinates of
+        events.
+    :param grid_point_x_matrix_metres: M-by-N numpy array with x-coordinates of
+        grid points.
+    :param grid_point_y_matrix_metres: M-by-N numpy array with y-coordinates of
+        grid points.
+    :param effective_radius_metres: At each grid point [i, j], the value
+        computed will be number of events within `effective_radius_metres` of
+        point [i, j].
+    :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
+        number of events within `effective_radius_metres` of grid point [i, j].
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(event_x_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_x_coords_metres, num_dimensions=1)
+    num_events = len(event_x_coords_metres)
+
+    error_checking.assert_is_numpy_array_without_nan(event_y_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_y_coords_metres,
+        exact_dimensions=numpy.array([num_events], dtype=int))
+
+    error_checking.assert_is_numpy_array_without_nan(grid_point_x_matrix_metres)
+    error_checking.assert_is_numpy_array(
+        grid_point_x_matrix_metres, num_dimensions=2)
+
+    error_checking.assert_is_numpy_array_without_nan(grid_point_y_matrix_metres)
+    error_checking.assert_is_numpy_array(
+        grid_point_y_matrix_metres,
+        exact_dimensions=numpy.array(grid_point_x_matrix_metres.shape))
+
+    error_checking.assert_is_greater(effective_radius_metres, 0.)
+    effective_radius_metres2 = effective_radius_metres ** 2
+
+    num_events = len(event_x_coords_metres)
+    num_grid_rows = grid_point_x_matrix_metres.shape[0]
+    num_grid_columns = grid_point_x_matrix_metres.shape[1]
+    num_events_matrix = numpy.full(
+        (num_grid_rows, num_grid_columns), 0, dtype=int)
+
+    for k in range(num_events):
+        these_check_x_flags = numpy.logical_and(
+            grid_point_x_matrix_metres >=
+            event_x_coords_metres[k] - effective_radius_metres,
+            grid_point_x_matrix_metres <=
+            event_x_coords_metres[k] + effective_radius_metres)
+        these_check_y_flags = numpy.logical_and(
+            grid_point_y_matrix_metres >=
+            event_y_coords_metres[k] - effective_radius_metres,
+            grid_point_y_matrix_metres <=
+            event_y_coords_metres[k] + effective_radius_metres)
+        these_indices_to_check_as_tuple = numpy.where(
+            numpy.logical_and(these_check_x_flags, these_check_y_flags))
+
+        these_distances_metres2 = (
+            (grid_point_x_matrix_metres[these_indices_to_check_as_tuple] -
+             event_x_coords_metres[k]) ** 2 +
+            (grid_point_y_matrix_metres[these_indices_to_check_as_tuple] -
+             event_y_coords_metres[k]) ** 2
+        )
+        these_nearby_indices = numpy.where(
+            these_distances_metres2 <= effective_radius_metres2)[0]
+        these_nearby_rows = these_indices_to_check_as_tuple[
+            0][these_nearby_indices]
+        these_nearby_columns = these_indices_to_check_as_tuple[
+            1][these_nearby_indices]
+        num_events_matrix[these_nearby_rows, these_nearby_columns] += 1
+
+    return num_events_matrix

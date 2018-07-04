@@ -1,13 +1,13 @@
 """Interpolation methods."""
 
 import copy
-import math
 import os.path
 import numpy
 import pandas
 import scipy.interpolate
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import nwp_model_io
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -116,34 +116,6 @@ def _interp_to_next_time(
     return numpy.stack(list_of_interp_matrices, axis=-1)
 
 
-def _find_nearest_value(sorted_input_values, test_value):
-    """Finds nearest value in array to test value.
-
-    This method is based on the following:
-
-    https://stackoverflow.com/posts/26026189/revisions
-
-    :param sorted_input_values: 1-D numpy array.  Must be sorted in ascending
-        order.
-    :param test_value: Test value.
-    :return: nearest_value: Nearest value in `sorted_input_values` to
-        `test_value`.
-    :return: nearest_index: Array index of nearest value.
-    """
-
-    nearest_index = numpy.searchsorted(
-        sorted_input_values, test_value, side='left')
-
-    subtract_one = nearest_index > 0 and (
-        nearest_index == len(sorted_input_values) or
-        math.fabs(test_value - sorted_input_values[nearest_index - 1]) <
-        math.fabs(test_value - sorted_input_values[nearest_index]))
-    if subtract_one:
-        nearest_index -= 1
-
-    return sorted_input_values[nearest_index], nearest_index
-
-
 def _nn_interp_from_xy_grid_to_points(
         input_matrix, sorted_grid_point_x_metres, sorted_grid_point_y_metres,
         query_x_coords_metres, query_y_coords_metres):
@@ -161,9 +133,9 @@ def _nn_interp_from_xy_grid_to_points(
     interp_values = numpy.full(num_query_points, numpy.nan)
 
     for i in range(num_query_points):
-        _, this_row = _find_nearest_value(
+        _, this_row = general_utils.find_nearest_value(
             sorted_grid_point_y_metres, query_y_coords_metres[i])
-        _, this_column = _find_nearest_value(
+        _, this_column = general_utils.find_nearest_value(
             sorted_grid_point_x_metres, query_x_coords_metres[i])
         interp_values[i] = input_matrix[this_row, this_column]
 

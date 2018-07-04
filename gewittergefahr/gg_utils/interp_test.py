@@ -8,11 +8,6 @@ from gewittergefahr.gg_utils import nwp_model_utils
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _find_nearest_value.
-SORTED_ARRAY = numpy.array([-5., -3., -1., 0., 1.5, 4., 9.])
-TEST_VALUES = numpy.array([-6., -5., -4., -3., 5., 8., 9., 10.])
-NEAREST_INDICES_FOR_TEST_VALUES = numpy.array([0., 0., 1., 1., 5., 6., 6., 6.])
-
 # The following constants are used to test _get_wind_rotation_metadata.
 FIELD_NAMES_GRIB1 = [
     'HGT:500 mb', 'UGRD:500 mb', 'VGRD:500 mb', 'HGT:700 mb', 'UGRD:700 mb',
@@ -176,17 +171,6 @@ def _compare_metadata_dicts(first_metadata_dict, second_metadata_dict):
 
 class InterpTests(unittest.TestCase):
     """Each method is a unit test for interp.py."""
-
-    def test_find_nearest_value(self):
-        """Ensures correct output from _find_nearest_value."""
-
-        these_nearest_indices = numpy.full(len(TEST_VALUES), -1)
-        for i in range(len(TEST_VALUES)):
-            _, these_nearest_indices[i] = interp._find_nearest_value(
-                sorted_input_values=SORTED_ARRAY, test_value=TEST_VALUES[i])
-
-        self.assertTrue(numpy.array_equal(
-            these_nearest_indices, NEAREST_INDICES_FOR_TEST_VALUES))
 
     def test_get_wind_rotation_metadata_narr(self):
         """Ensures correct output from _get_wind_rotation_metadata.

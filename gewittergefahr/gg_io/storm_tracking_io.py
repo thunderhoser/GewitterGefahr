@@ -110,6 +110,29 @@ def _get_num_days_in_month(month, year):
     return int(day_of_month_string)
 
 
+def _check_input_args_for_file_finding(
+        top_processed_dir_name, tracking_scale_metres2, data_source,
+        raise_error_if_missing):
+    """Error-checks input arguments for file-finding methods.
+
+    :param top_processed_dir_name: Name of top-level directory with processed
+        tracking files.
+    :param tracking_scale_metres2: Tracking scale (minimum storm area).
+    :param data_source: Data source (must be accepted by
+        `storm_tracking_utils.check_data_source`).
+    :param raise_error_if_missing: Boolean flag.  Determines whether or not, if
+        (file is / files are) not found, the method will error out.
+    :return: tracking_scale_metres2: Integer version of input.
+    """
+
+    error_checking.assert_is_string(top_processed_dir_name)
+    error_checking.assert_is_greater(tracking_scale_metres2, 0)
+    tracking_utils.check_data_source(data_source)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    return int(numpy.round(tracking_scale_metres2))
+
+
 def find_processed_file(
         top_processed_dir_name, tracking_scale_metres2, data_source,
         unix_time_sec, spc_date_string=None, raise_error_if_missing=True):
@@ -118,11 +141,10 @@ def find_processed_file(
     This file should contain storm outlines and tracking statistics for one time
     step.
 
-    :param top_processed_dir_name: Name of top-level directory with processed
-        tracking files.
-    :param tracking_scale_metres2: Tracking scale (minimum storm area).
-    :param data_source: Data source (must be accepted by
-        `storm_tracking_utils.check_data_source`).
+    :param top_processed_dir_name: See doc for
+        `_check_input_args_for_file_finding`.
+    :param tracking_scale_metres2: Same.
+    :param data_source: Same.
     :param unix_time_sec: Valid time.
     :param spc_date_string: [used only if data_source == "probsevere"]
         SPC date (format "yyyymmdd").
@@ -135,11 +157,10 @@ def find_processed_file(
         `raise_error_if_missing = True`.
     """
 
-    error_checking.assert_is_string(top_processed_dir_name)
-    tracking_scale_metres2 = int(numpy.round(tracking_scale_metres2))
-    error_checking.assert_is_greater(tracking_scale_metres2, 0)
-    tracking_utils.check_data_source(data_source)
-    error_checking.assert_is_boolean(raise_error_if_missing)
+    tracking_scale_metres2 = _check_input_args_for_file_finding(
+        top_processed_dir_name=top_processed_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2, data_source=data_source,
+        raise_error_if_missing=raise_error_if_missing)
 
     if data_source == tracking_utils.SEGMOTION_SOURCE_ID:
         date_string = spc_date_string
@@ -170,11 +191,10 @@ def find_processed_files_at_times(
     Specifically, this method will find all processed files in the given years,
     months, *and* hours.
 
-    :param top_processed_dir_name: Name of top-level directory with processed
-        tracking files.
-    :param tracking_scale_metres2: Tracking scale (minimum storm area).
-    :param data_source: Data source (must be accepted by
-        `storm_tracking_utils.check_data_source`).
+    :param top_processed_dir_name: See doc for
+        `_check_input_args_for_file_finding`.
+    :param tracking_scale_metres2: Same.
+    :param data_source: Same.
     :param years: [may be None]
         1-D numpy array of years.
     :param months: [may be None]
@@ -193,11 +213,10 @@ def find_processed_files_at_times(
         `raise_error_if_missing = True`.
     """
 
-    error_checking.assert_is_string(top_processed_dir_name)
-    tracking_scale_metres2 = int(numpy.round(tracking_scale_metres2))
-    error_checking.assert_is_greater(tracking_scale_metres2, 0)
-    tracking_utils.check_data_source(data_source)
-    error_checking.assert_is_boolean(raise_error_if_missing)
+    tracking_scale_metres2 = _check_input_args_for_file_finding(
+        top_processed_dir_name=top_processed_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2, data_source=data_source,
+        raise_error_if_missing=raise_error_if_missing)
 
     if years is None and months is None and hours is None:
         raise ValueError('`years`, `months`, and `hours` cannot all be None.')
@@ -336,7 +355,8 @@ def find_processed_files_one_spc_date(
         spc_date_string, raise_error_if_missing=True):
     """Finds processed files with valid time in one SPC date.
 
-    :param top_processed_dir_name: See doc for `find_processed_files_at_times`.
+    :param top_processed_dir_name: See doc for
+        `_check_input_args_for_file_finding`.
     :param tracking_scale_metres2: Same.
     :param data_source: Same.
     :param spc_date_string: SPC date (format "yyyymmdd").
@@ -348,12 +368,12 @@ def find_processed_files_one_spc_date(
         `raise_error_if_missing = True`.
     """
 
-    error_checking.assert_is_string(top_processed_dir_name)
-    tracking_scale_metres2 = int(numpy.round(tracking_scale_metres2))
-    error_checking.assert_is_greater(tracking_scale_metres2, 0)
-    tracking_utils.check_data_source(data_source)
+    tracking_scale_metres2 = _check_input_args_for_file_finding(
+        top_processed_dir_name=top_processed_dir_name,
+        tracking_scale_metres2=tracking_scale_metres2, data_source=data_source,
+        raise_error_if_missing=raise_error_if_missing)
+
     time_conversion.spc_date_string_to_unix_sec(spc_date_string)
-    error_checking.assert_is_boolean(raise_error_if_missing)
 
     glob_pattern = (
         '{0:s}/{1:s}/{2:s}/scale_{3:d}m2/{4:s}_{5:s}_{6:s}{7:s}'
