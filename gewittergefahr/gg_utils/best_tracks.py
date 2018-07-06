@@ -18,6 +18,7 @@ Lakshmanan, V., B. Herzog, and D. Kingfield, 2015: "A method for extracting
     54 (2), 451-462.
 """
 
+import time
 import copy
 import numpy
 import pandas
@@ -805,6 +806,7 @@ def break_storm_tracks(
 
         num_objects_done += 1
 
+        start_time_unix_sec = time.time()
         times_before_start_sec = (
             storm_track_table[TRACK_START_TIME_COLUMN].values -
             storm_object_table[tracking_utils.TIME_COLUMN].values[i])
@@ -815,10 +817,17 @@ def break_storm_tracks(
         try_track_flags = numpy.logical_and(
             times_before_start_sec <= max_extrapolation_time_sec,
             times_after_end_sec <= max_extrapolation_time_sec)
+        try_track_indices = numpy.where(try_track_flags)[0]
+
+        print (
+            'Time elapsed in finding temporally nearby storm cells = {0:.4f} '
+            'seconds'
+        ).format(time.time() - start_time_unix_sec)
+
         if not numpy.any(try_track_flags):
             continue
 
-        try_track_indices = numpy.where(try_track_flags)[0]
+        start_time_unix_sec = time.time()
         prediction_errors_metres = _get_prediction_errors_for_one_object(
             x_coord_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
             y_coord_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
@@ -826,19 +835,29 @@ def break_storm_tracks(
             storm_object_table[tracking_utils.TIME_COLUMN].values[i],
             storm_track_table=storm_track_table.iloc[try_track_indices])
 
+        print (
+            'Time elapsed in finding prediction errors for one storm object '
+            '(produced by {0:d} temporally nearby objects) = {1:.4f} seconds'
+        ).format(len(try_track_indices), time.time() - start_time_unix_sec)
+
         if numpy.min(prediction_errors_metres) > max_prediction_error_metres:
             continue
 
         if use_extra_criteria:
+            start_time_unix_sec = time.time()
             orig_storm_id = storm_object_table[
                 tracking_utils.STORM_ID_COLUMN].values[i]
             orig_track_indices = numpy.where(
-                numpy.array(storm_object_table[
-                    tracking_utils.STORM_ID_COLUMN].values) ==
-                orig_storm_id)[0]
+                numpy.array(
+                    storm_object_table[tracking_utils.STORM_ID_COLUMN].values)
+                == orig_storm_id)[0]
 
             num_objects_in_orig_track = len(orig_track_indices)
             if num_objects_in_orig_track < min_objects_in_track:
+                print (
+                    'Time elapsed in using extra breakup criteria = {0:.4f} '
+                    'seconds'
+                ).format(time.time() - start_time_unix_sec)
                 continue
 
             sort_indices = numpy.argsort(prediction_errors_metres)
@@ -846,6 +865,11 @@ def break_storm_tracks(
             nearest_track_indices = try_track_indices[min_error_indices]
             nearest_track_ids = storm_object_table[
                 tracking_utils.STORM_ID_COLUMN].values[nearest_track_indices]
+
+            print (
+                'Time elapsed in using extra breakup criteria = {0:.4f} '
+                'seconds'
+            ).format(time.time() - start_time_unix_sec)
 
             if orig_storm_id in nearest_track_ids:
                 continue
