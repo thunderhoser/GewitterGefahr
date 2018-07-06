@@ -68,27 +68,27 @@ def plot_winds_for_one_storm(
 
     storm_plotting.plot_storm_track(
         basemap_object=basemap_object, axes_object=axes_object,
-        latitudes_deg=centroid_latitudes_deg,
-        longitudes_deg=centroid_longitudes_deg, line_colour=storm_colour,
-        line_width=storm_line_width)
+        centroid_latitudes_deg=centroid_latitudes_deg,
+        centroid_longitudes_deg=centroid_longitudes_deg,
+        line_colour=storm_colour, line_width=storm_line_width)
 
     storm_times_unix_sec = storm_to_winds_table[
         tracking_utils.TIME_COLUMN].values[storm_cell_rows]
     first_storm_object_row = storm_cell_rows[numpy.argmin(storm_times_unix_sec)]
     last_storm_object_row = storm_cell_rows[numpy.argmax(storm_times_unix_sec)]
 
-    storm_plotting.plot_unfilled_polygon(
+    storm_plotting.plot_storm_outline_unfilled(
         basemap_object=basemap_object, axes_object=axes_object,
         polygon_object_latlng=storm_to_winds_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
-                first_storm_object_row],
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
+        ].values[first_storm_object_row],
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
-    storm_plotting.plot_unfilled_polygon(
+    storm_plotting.plot_storm_outline_unfilled(
         basemap_object=basemap_object, axes_object=axes_object,
         polygon_object_latlng=storm_to_winds_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
-                last_storm_object_row],
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
+        ].values[last_storm_object_row],
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
     wind_latitudes_deg = numpy.array([])
@@ -160,27 +160,27 @@ def plot_tornadoes_for_one_storm(
 
     storm_plotting.plot_storm_track(
         basemap_object=basemap_object, axes_object=axes_object,
-        latitudes_deg=centroid_latitudes_deg,
-        longitudes_deg=centroid_longitudes_deg, line_colour=storm_colour,
-        line_width=storm_line_width)
+        centroid_latitudes_deg=centroid_latitudes_deg,
+        centroid_longitudes_deg=centroid_longitudes_deg,
+        line_colour=storm_colour, line_width=storm_line_width)
 
     storm_times_unix_sec = storm_to_tornadoes_table[
         tracking_utils.TIME_COLUMN].values[storm_cell_rows]
     first_storm_object_row = storm_cell_rows[numpy.argmin(storm_times_unix_sec)]
     last_storm_object_row = storm_cell_rows[numpy.argmax(storm_times_unix_sec)]
 
-    storm_plotting.plot_unfilled_polygon(
+    storm_plotting.plot_storm_outline_unfilled(
         basemap_object=basemap_object, axes_object=axes_object,
         polygon_object_latlng=storm_to_tornadoes_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
-                first_storm_object_row],
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
+        ].values[first_storm_object_row],
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
-    storm_plotting.plot_unfilled_polygon(
+    storm_plotting.plot_storm_outline_unfilled(
         basemap_object=basemap_object, axes_object=axes_object,
         polygon_object_latlng=storm_to_tornadoes_table[
-            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN].values[
-                last_storm_object_row],
+            tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
+        ].values[last_storm_object_row],
         exterior_colour=storm_colour, exterior_line_width=storm_line_width)
 
     tornado_latitudes_deg = storm_to_tornadoes_table[

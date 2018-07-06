@@ -486,66 +486,75 @@ def _convert_to_plotting_units(field_matrix_gg_units, field_name):
     :return: field_matrix_plotting_units: Same as input, but in plotting units.
     """
 
+    radar_utils.check_field_name(field_name)
+    error_checking.assert_is_real_numpy_array(field_matrix_gg_units)
+    error_checking.assert_is_numpy_array(
+        field_matrix_gg_units, num_dimensions=2)
+
     if field_name in radar_utils.ECHO_TOP_NAMES:
         return field_matrix_gg_units * KM_TO_KFT
 
     return field_matrix_gg_units
 
 
-def plot_latlng_grid(axes_object=None, field_name=None, field_matrix=None,
-                     min_latitude_deg=None, min_longitude_deg=None,
-                     lat_spacing_deg=None, lng_spacing_deg=None,
-                     colour_map=None, colour_minimum=None, colour_maximum=None):
-    """Plots lat-long grid of a single radar field.
+def plot_latlng_grid(
+        field_matrix, field_name, axes_object, min_grid_point_latitude_deg,
+        min_grid_point_longitude_deg, latitude_spacing_deg,
+        longitude_spacing_deg, colour_map=None, min_value_in_colour_map=None,
+        max_value_in_colour_map=None):
+    """Plots gridded radar field as colour map.
 
-    Because this method plots a lat-long grid, rather than an x-y grid, the
-    projection used for the basemap must be cylindrical equidistant (which is
-    the same as a lat-long projection).
+    M = number of rows (unique latitudes at grid points)
+    N = number of columns (unique longitudes at grid points)
 
-    This is the most convenient way to plot radar data, since both MYRORSS and
-    MRMS data are on a lat-long grid.
+    Because this method plots a lat-long grid (as opposed to an x-y grid), the
+    basemap must use the "cylindrical equidistant" projection, which is the same
+    as a lat-long projection.  Any other basemap projection will ruin things.
 
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
-
+    :param field_matrix: M-by-N numpy array with field to plot.
+    :param field_name: Field name (must be accepted by
+        `radar_utils.check_field_name`).
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param field_name: Name of radar field.
-    :param field_matrix: M-by-N numpy array with values of radar field.  This
-        should be in standard GewitterGefahr units (will be converted to
-        plotting units by convert_to_plotting_units).  Latitude should increase
-        while traveling down a column, and longitude should increase while
-        traveling right across a row.
-    :param min_latitude_deg: Minimum latitude over all grid points (deg N).
-    :param min_longitude_deg: Minimum longitude over all grid points (deg E).
-    :param lat_spacing_deg: Meridional spacing between adjacent grid points.
-    :param lng_spacing_deg: Zonal spacing between adjacent grid points.
+    :param min_grid_point_latitude_deg: Minimum latitude over all grid points
+        (deg N).  This should correspond to field_matrix, so that all values in
+        field_matrix[0, :] occur at min_grid_point_latitude_deg.
+    :param min_grid_point_longitude_deg: Minimum longitude over all grid points
+        (deg E).  This should correspond to field_matrix, so that all values in
+        field_matrix[:, 0] occur at min_grid_point_longitude_deg.
+    :param latitude_spacing_deg: Spacing between meridionally adjacent grid
+        points (deg N).
+    :param longitude_spacing_deg: Spacing between zonally adjacent grid points
+        (deg E).
     :param colour_map: Instance of `matplotlib.pyplot.cm`.
-    :param colour_minimum: Minimum value for colour map.
-    :param colour_maximum: Maximum value for colour map.
+    :param min_value_in_colour_map: Minimum value in colour map.
+    :param max_value_in_colour_map: Max value in colour map.
     """
 
-    radar_utils.check_field_name(field_name)
-    field_matrix = _convert_to_plotting_units(field_matrix, field_name)
-    field_matrix = numpy.ma.masked_where(
-        numpy.isnan(field_matrix), field_matrix)
+    field_matrix = _convert_to_plotting_units(
+        field_matrix_gg_units=field_matrix, field_name=field_name)
 
-    grid_point_latitudes_deg, grid_point_longitudes_deg = (
-        grids.get_latlng_grid_points(
-            min_latitude_deg=min_latitude_deg,
-            min_longitude_deg=min_longitude_deg,
-            lat_spacing_deg=lat_spacing_deg, lng_spacing_deg=lng_spacing_deg,
-            num_rows=field_matrix.shape[0], num_columns=field_matrix.shape[1]))
+    (field_matrix_at_edges, grid_cell_edge_latitudes_deg,
+     grid_cell_edge_longitudes_deg
+    ) = grids.latlng_field_grid_points_to_edges(
+        field_matrix=field_matrix, min_latitude_deg=min_grid_point_latitude_deg,
+        min_longitude_deg=min_grid_point_longitude_deg,
+        lat_spacing_deg=latitude_spacing_deg,
+        lng_spacing_deg=longitude_spacing_deg)
+
+    field_matrix_at_edges = numpy.ma.masked_where(
+        numpy.isnan(field_matrix_at_edges), field_matrix_at_edges)
 
     if colour_map is None:
         colour_map, colour_norm_object, _ = _get_default_colour_map(field_name)
-        colour_minimum = colour_norm_object.boundaries[0]
-        colour_maximum = colour_norm_object.boundaries[-1]
+        min_value_in_colour_map = colour_norm_object.boundaries[0]
+        max_value_in_colour_map = colour_norm_object.boundaries[-1]
     else:
-        error_checking.assert_is_greater(colour_maximum, colour_minimum)
+        error_checking.assert_is_greater(
+            max_value_in_colour_map, min_value_in_colour_map)
         colour_norm_object = None
 
     pyplot.pcolormesh(
-        grid_point_longitudes_deg, grid_point_latitudes_deg, field_matrix,
-        cmap=colour_map, norm=colour_norm_object, vmin=colour_minimum,
-        vmax=colour_maximum, shading='flat', edgecolors='None',
-        axes=axes_object)
+        grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
+        field_matrix_at_edges, cmap=colour_map, norm=colour_norm_object,
+        vmin=min_value_in_colour_map, vmax=max_value_in_colour_map,
+        shading='flat', edgecolors='None', axes=axes_object)
