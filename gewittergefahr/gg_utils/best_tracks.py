@@ -236,36 +236,54 @@ def _get_theil_sen_rmse(
 
 
 def _get_prediction_errors_for_one_object(
-        x_coord_metres=None, y_coord_metres=None, unix_time_sec=None,
-        storm_track_table=None):
-    """Computes Theil-Sen prediction errors for one storm object.
+        object_x_metres, object_y_metres, object_time_unix_sec,
+        storm_track_table, max_prediction_error_metres=None):
+    """Computes Theil-Sen errors produced by many storm tracks for one object.
 
     N = number of tracks
 
-    :param x_coord_metres: Actual x-coordinate of storm object.
-    :param y_coord_metres: Actual y-coordinate of storm object.
-    :param unix_time_sec: Valid time of storm object.
-    :param storm_track_table: pandas DataFrame with columns documented in
-        storm_objects_to_tracks.
-    :return: prediction_errors_metres: length-N numpy array of prediction errors
-        (distances between actual location and Theil-Sen prediction).
+    :param object_x_metres: x-coordinate of the one storm object.
+    :param object_y_metres: y-coordinate of the one storm object.
+    :param object_time_unix_sec: Valid time of the one storm object.
+    :param storm_track_table: N-row pandas DataFrame with columns listed in
+        `storm_objects_to_tracks`.
+    :param max_prediction_error_metres: Max prediction error (the storm object
+        will not be linked to any track with a greater error).  This is used as
+        a shortcut, to reduce the number of Theil-Sen predictions necessary.  If
+        you do not want a shortcut, leave this as None.
+    :return: error_by_track_metres: length-N numpy array with error yielded by
+        Theil-Sen prediction for each track.
     """
 
-    num_storm_tracks = len(storm_track_table)
-    x_predicted_metres = numpy.full(num_storm_tracks, numpy.nan)
-    y_predicted_metres = numpy.full(num_storm_tracks, numpy.nan)
+    num_tracks = len(storm_track_table)
+    x_predicted_metres = numpy.full(num_tracks, numpy.inf)
+    y_predicted_metres = numpy.full(num_tracks, numpy.inf)
 
-    for j in range(num_storm_tracks):
+    for j in range(num_tracks):
+        if max_prediction_error_metres is not None:
+            these_nearby_x_flags = numpy.absolute(
+                storm_track_table[TRACK_X_COORDS_COLUMN].values[j] -
+                object_x_metres
+            ) <= 5 * max_prediction_error_metres
+            these_nearby_y_flags = numpy.absolute(
+                storm_track_table[TRACK_Y_COORDS_COLUMN].values[j] -
+                object_y_metres
+            ) <= 5 * max_prediction_error_metres
+
+            if not (numpy.any(these_nearby_x_flags) or
+                    numpy.any(these_nearby_y_flags)):
+                continue
+
         x_predicted_metres[j], y_predicted_metres[j] = _theil_sen_predict(
             theil_sen_model_for_x=storm_track_table[
                 THEIL_SEN_MODEL_X_COLUMN].values[j],
             theil_sen_model_for_y=storm_track_table[
                 THEIL_SEN_MODEL_Y_COLUMN].values[j],
-            query_time_unix_sec=unix_time_sec)
+            query_time_unix_sec=object_time_unix_sec)
 
     return numpy.sqrt(
-        (x_coord_metres - x_predicted_metres) ** 2 +
-        (y_coord_metres - y_predicted_metres) ** 2)
+        (object_x_metres - x_predicted_metres) ** 2 +
+        (object_y_metres - y_predicted_metres) ** 2)
 
 
 def _get_join_time_for_two_tracks(start_times_unix_sec, end_times_unix_sec):
@@ -829,11 +847,12 @@ def break_storm_tracks(
 
         start_time_unix_sec = time.time()
         prediction_errors_metres = _get_prediction_errors_for_one_object(
-            x_coord_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
-            y_coord_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
-            unix_time_sec=
-            storm_object_table[tracking_utils.TIME_COLUMN].values[i],
-            storm_track_table=storm_track_table.iloc[try_track_indices])
+            object_x_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
+            object_y_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
+            object_time_unix_sec=storm_object_table[
+                tracking_utils.TIME_COLUMN].values[i],
+            storm_track_table=storm_track_table.iloc[try_track_indices],
+            max_prediction_error_metres=max_prediction_error_metres)
 
         print (
             'Time elapsed in finding prediction errors for one storm object '
