@@ -189,10 +189,12 @@ def _theil_sen_predict(theil_sen_model_for_x=None, theil_sen_model_for_y=None,
     :return: y_predicted_metres: Predicted y-coordinate.
     """
 
-    x_predicted_metres = theil_sen_model_for_x.predict(
-        query_time_unix_sec)[0]
-    y_predicted_metres = theil_sen_model_for_y.predict(
-        query_time_unix_sec)[0]
+    x_predicted_metres = (
+        theil_sen_model_for_x.coef_ * query_time_unix_sec +
+        theil_sen_model_for_x.intercept_)
+    y_predicted_metres = (
+        theil_sen_model_for_y.coef_ * query_time_unix_sec +
+        theil_sen_model_for_y.intercept_)
 
     return x_predicted_metres, y_predicted_metres
 
