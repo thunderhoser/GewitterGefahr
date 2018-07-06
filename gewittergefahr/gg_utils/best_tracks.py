@@ -57,14 +57,14 @@ TRACK_X_COORDS_COLUMN = 'x_coords_metres'
 TRACK_Y_COORDS_COLUMN = 'y_coords_metres'
 OBJECT_INDICES_COLUMN_FOR_TRACK = 'object_indices'
 
-THEIL_SEN_MODEL_X_COLUMN = 'theil_sen_model_for_x'
-THEIL_SEN_MODEL_Y_COLUMN = 'theil_sen_model_for_y'
-THEIL_SEN_MODEL_COLUMNS = [THEIL_SEN_MODEL_X_COLUMN, THEIL_SEN_MODEL_Y_COLUMN]
-
-REPORT_PERIOD_FOR_THEIL_SEN = 100  # Print message after every 100 fits.
-REPORT_PERIOD_FOR_BREAKUP = 100
-REPORT_PERIOD_FOR_MERGER = 10
-REPORT_PERIOD_FOR_TIE_BREAKER = 500
+THEIL_SEN_X_INTERCEPT_COLUMN = 'theil_sen_x_intercept_metres'
+THEIL_SEN_X_VELOCITY_COLUMN = 'theil_sen_x_velocity_m_s01'
+THEIL_SEN_Y_INTERCEPT_COLUMN = 'theil_sen_y_intercept_metres'
+THEIL_SEN_Y_VELOCITY_COLUMN = 'theil_sen_y_velocity_m_s01'
+THEIL_SEN_COLUMNS = [
+    THEIL_SEN_X_INTERCEPT_COLUMN, THEIL_SEN_X_VELOCITY_COLUMN,
+    THEIL_SEN_Y_INTERCEPT_COLUMN, THEIL_SEN_Y_VELOCITY_COLUMN
+]
 
 FILE_INDEX_COLUMN = 'file_index'
 
@@ -145,70 +145,95 @@ def _project_storm_centroids_latlng_to_xy(storm_object_table):
          tracking_utils.CENTROID_LNG_COLUMN], axis=1, inplace=False)
 
 
-def _theil_sen_fit(
-        unix_times_sec=None, x_coords_metres=None, y_coords_metres=None):
-    """Fits Theil-Sen trajectory to storm track.
+def _theil_sen_fit_one_track(
+        object_x_coords_metres, object_y_coords_metres, object_times_unix_sec):
+    """Fits Theil-Sen model for one storm track.
 
-    N = number of storm objects in track
+    P = number of storm objects in the track
 
-    :param unix_times_sec: length-N numpy array of times.
-    :param x_coords_metres: length-N numpy array of x-coordinates.
-    :param y_coords_metres: length-N numpy array of y-coordinates.
-    :return: theil_sen_model_for_x: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is x-coordinate.
-    :return: theil_sen_model_for_y: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is y-coordinate.
+    :param object_x_coords_metres: length-P numpy array of x-coordinates.
+    :param object_y_coords_metres: length-P numpy array of y-coordinates.
+    :param object_times_unix_sec: length-P numpy array of times.
+    :return: x_intercept_metres: x-intercept.
+    :return: x_velocity_m_s01: x-velocity (metres per second).
+    :return: y_intercept_metres: y-intercept.
+    :return: y_velocity_m_s01: y-velocity (metres per second).
     """
 
-    num_storm_objects = len(unix_times_sec)
-    unix_times_sec = numpy.reshape(unix_times_sec, (num_storm_objects, 1))
+    num_storm_objects = len(object_times_unix_sec)
+    object_times_unix_sec = numpy.reshape(
+        object_times_unix_sec, (num_storm_objects, 1))
 
-    theil_sen_model_for_x = TheilSenRegressor(fit_intercept=True)
-    theil_sen_model_for_x.fit(unix_times_sec, x_coords_metres)
-    theil_sen_model_for_y = TheilSenRegressor(fit_intercept=True)
-    theil_sen_model_for_y.fit(unix_times_sec, y_coords_metres)
+    model_object_for_x = TheilSenRegressor(fit_intercept=True)
+    model_object_for_x.fit(object_times_unix_sec, object_x_coords_metres)
+    model_object_for_y = TheilSenRegressor(fit_intercept=True)
+    model_object_for_y.fit(object_times_unix_sec, object_y_coords_metres)
 
-    return theil_sen_model_for_x, theil_sen_model_for_y
+    return (model_object_for_x.intercept_, model_object_for_x.coef_,
+            model_object_for_y.intercept_, model_object_for_y.coef_)
+
+
+def _theil_sen_predict(
+        x_intercept_metres, x_velocity_m_s01, y_intercept_metres,
+        y_velocity_m_s01, query_time_unix_sec):
+    """Uses one Theil-Sen model to predict storm location at one time.
+
+    :param x_intercept_metres: See doc for `_theil_sen_fit_one_track`.
+    :param x_velocity_m_s01: Same.
+    :param y_intercept_metres: Same.
+    :param y_velocity_m_s01: Same.
+    :param query_time_unix_sec: Query time.
+    :return: x_predicted_metres: x-coordinate of predicted location.
+    :return: y_predicted_metres: y-coordinate of predicted location.
+    """
+
+    x_predicted_metres = (
+        x_intercept_metres + x_velocity_m_s01 * query_time_unix_sec)
+    y_predicted_metres = (
+        y_intercept_metres + y_velocity_m_s01 * query_time_unix_sec)
+    return x_predicted_metres, y_predicted_metres
 
 
 def _theil_sen_predict_many_times(
-        theil_sen_model_for_x, theil_sen_model_for_y, query_times_unix_sec):
-    """Uses one Theil-Sen model to predict location at many times.
+        x_intercept_metres, x_velocity_m_s01, y_intercept_metres,
+        y_velocity_m_s01, query_times_unix_sec):
+    """Uses one Theil-Sen model to predict storm location at many times.
 
-    Q = number of query times
+    P = number of query times
 
-    :param theil_sen_model_for_x: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time\
-        and predictand is x-coordinate.
-    :param theil_sen_model_for_y: Same but for y-coordinate.
-    :param query_times_unix_sec: length-Q numpy array of query times.
-    :return: predicted_x_coords_metres: length-Q numpy array of predicted
+    :param x_intercept_metres: See doc for `_theil_sen_fit_one_track`.
+    :param x_velocity_m_s01: Same.
+    :param y_intercept_metres: Same.
+    :param y_velocity_m_s01: Same.
+    :param query_times_unix_sec: length-P numpy array of query times.
+    :return: predicted_x_coords_metres: length-P numpy array of predicted
         x-coordinates.
-    :return: predicted_y_coords_metres: length-Q numpy array of predicted
+    :return: predicted_y_coords_metres: length-P numpy array of predicted
         y-coordinates.
     """
 
     predicted_x_coords_metres = (
-        theil_sen_model_for_x.coef_ * query_times_unix_sec +
-        theil_sen_model_for_x.intercept_)
+        x_intercept_metres + x_velocity_m_s01 * query_times_unix_sec)
     predicted_y_coords_metres = (
-        theil_sen_model_for_y.coef_ * query_times_unix_sec +
-        theil_sen_model_for_y.intercept_)
+        y_intercept_metres + y_velocity_m_s01 * query_times_unix_sec)
     return predicted_x_coords_metres, predicted_y_coords_metres
 
 
 def _theil_sen_predict_many_models(
-        list_of_models_for_x, list_of_models_for_y, query_time_unix_sec):
-    """Uses many Theil-Sen models to predict location at one time.
+        x_intercepts_metres, x_velocities_m_s01, y_intercepts_metres,
+        y_velocities_m_s01, query_time_unix_sec):
+    """Uses many Theil-Sen models to predict storm location at one time.
 
     M = number of models
 
-    :param list_of_models_for_x: length-M list of
-        `sklearn.linear_model.TheilSenRegressor` objects, where the predictor is
-        time and predictand is x-coordinate.
-    :param list_of_models_for_y: Same but for y-coordinate.
+    :param x_intercepts_metres: length-M numpy array of x-intercepts (metres),
+        produced by `_theil_sen_fit_one_track`.
+    :param x_velocities_m_s01: length-M numpy array of x-velocities (metres per
+        second), produced by `_theil_sen_fit_one_track`.
+    :param y_intercepts_metres: Same as `x_intercepts_metres`, but for
+        y-coordinates.
+    :param y_velocities_m_s01: Same as `x_velocities_m_s01`, but for
+        y-coordinates.
     :param query_time_unix_sec: Query time.
     :return: predicted_x_coords_metres: length-M numpy array of predicted
         x-coordinates.
@@ -216,102 +241,75 @@ def _theil_sen_predict_many_models(
         y-coordinates.
     """
 
-    predicted_x_coords_metres = numpy.array(
-        [this_model.coef_ * query_time_unix_sec + this_model.intercept_
-         for this_model in list_of_models_for_x])
-    predicted_y_coords_metres = numpy.array(
-        [this_model.coef_ * query_time_unix_sec + this_model.intercept_
-         for this_model in list_of_models_for_y])
+    predicted_x_coords_metres = (
+        x_intercepts_metres + x_velocities_m_s01 * query_time_unix_sec)
+    predicted_y_coords_metres = (
+        y_intercepts_metres + y_velocities_m_s01 * query_time_unix_sec)
     return predicted_x_coords_metres, predicted_y_coords_metres
 
 
-def _theil_sen_predict(
-        theil_sen_model_for_x, theil_sen_model_for_y, query_time_unix_sec):
-    """Uses Theil-Sen model to predict location of storm at given time.
+def _get_theil_sen_error_one_track(storm_track_table, storm_track_index):
+    """Computes Theil-Sen error for one storm track.
 
-    :param theil_sen_model_for_x: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is x-coordinate.
-    :param theil_sen_model_for_y: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is y-coordinate.
-    :param query_time_unix_sec: Query time (for which location will be
-        predicted).
-    :return: x_predicted_metres: Predicted x-coordinate.
-    :return: y_predicted_metres: Predicted y-coordinate.
+    :param storm_track_table: pandas DataFrame created by
+        `theil_sen_fit_for_each_track`.
+    :param storm_track_index: Array index.  This method will compute the error
+        for the [k]th track, where k = `storm_track_index`.
+    :return: rmse_metres: Root mean squared error of storm locations predicted
+        by Theil-Sen model.  The mean is taken over all points in the track.
     """
 
-    x_predicted_metres = (
-        theil_sen_model_for_x.coef_ * query_time_unix_sec +
-        theil_sen_model_for_x.intercept_)
-    y_predicted_metres = (
-        theil_sen_model_for_y.coef_ * query_time_unix_sec +
-        theil_sen_model_for_y.intercept_)
+    (predicted_x_coords_metres, predicted_y_coords_metres
+    ) = _theil_sen_predict_many_times(
+        x_intercept_metres=storm_track_table[
+            THEIL_SEN_X_INTERCEPT_COLUMN].values[storm_track_index],
+        x_velocity_m_s01=storm_track_table[
+            THEIL_SEN_X_VELOCITY_COLUMN].values[storm_track_index],
+        y_intercept_metres=storm_track_table[
+            THEIL_SEN_Y_INTERCEPT_COLUMN].values[storm_track_index],
+        y_velocity_m_s01=storm_track_table[
+            THEIL_SEN_Y_VELOCITY_COLUMN].values[storm_track_index],
+        query_times_unix_sec=storm_track_table[
+            TRACK_TIMES_COLUMN].values[storm_track_index])
 
-    return x_predicted_metres, y_predicted_metres
-
-
-def _get_theil_sen_rmse(
-        theil_sen_model_for_x, theil_sen_model_for_y, track_times_unix_sec,
-        track_x_metres, track_y_metres):
-    """For a single track, finds RMSE of Theil-Sen-predicted centroid locations.
-
-    RMSE = root mean squared error
-    P = number of points in track
-
-    :param theil_sen_model_for_x: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is x-coordinate.
-    :param theil_sen_model_for_y: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is y-coordinate.
-    :param track_times_unix_sec: length-P numpy array of valid times.
-    :param track_x_metres: length-P numpy array with x-coordinates of object
-        centroids.
-    :param track_y_metres: length-P numpy array with y-coordinates of object
-        centroids.
-    :return: rmse_metres: RMSE of predicted centroid locations from Theil-Sen
-        model.
-    """
-
-    x_predicted_metres, y_predicted_metres = _theil_sen_predict_many_times(
-        theil_sen_model_for_x=theil_sen_model_for_x,
-        theil_sen_model_for_y=theil_sen_model_for_y,
-        query_times_unix_sec=track_times_unix_sec)
-
-    return numpy.sqrt(numpy.mean(
-        (x_predicted_metres - track_x_metres) ** 2 +
-        (y_predicted_metres - track_y_metres) ** 2))
+    x_errors_metres = predicted_x_coords_metres - storm_track_table[
+        TRACK_X_COORDS_COLUMN].values[storm_track_index]
+    y_errors_metres = predicted_y_coords_metres - storm_track_table[
+        TRACK_Y_COORDS_COLUMN].values[storm_track_index]
+    return numpy.sqrt(numpy.mean(x_errors_metres ** 2 + y_errors_metres ** 2))
 
 
-def _get_prediction_errors_for_one_object(
+def _get_theil_sen_errors_one_object(
         object_x_metres, object_y_metres, object_time_unix_sec,
-        storm_track_table, max_prediction_error_metres=None):
-    """Computes Theil-Sen errors produced by many storm tracks for one object.
+        storm_track_table):
+    """Computes Theil-Sen errors produced by many models for one storm object.
 
-    N = number of tracks
+    T = number of storm tracks
 
     :param object_x_metres: x-coordinate of the one storm object.
     :param object_y_metres: y-coordinate of the one storm object.
     :param object_time_unix_sec: Valid time of the one storm object.
-    :param storm_track_table: N-row pandas DataFrame with columns listed in
-        `storm_objects_to_tracks`.
-    :param max_prediction_error_metres: Max prediction error (the storm object
-        will not be linked to any track with a greater error).  This is used as
-        a shortcut, to reduce the number of Theil-Sen predictions necessary.  If
-        you do not want a shortcut, leave this as None.
-    :return: error_by_track_metres: length-N numpy array with error yielded by
-        Theil-Sen prediction for each track.
+    :param storm_track_table: T-row pandas DataFrame created by
+        `theil_sen_fit_for_each_track`.
+    :return: error_by_track_metres: length-T numpy array with error yielded by
+        the Theil-Sen model for each track.
     """
 
-    x_predicted_metres, y_predicted_metres = _theil_sen_predict_many_models(
-        list_of_models_for_x=storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values,
-        list_of_models_for_y=storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values,
+    (predicted_x_coords_metres, predicted_y_coords_metres
+    ) = _theil_sen_predict_many_models(
+        x_intercepts_metres=storm_track_table[
+            THEIL_SEN_X_INTERCEPT_COLUMN].values,
+        x_velocities_m_s01=storm_track_table[
+            THEIL_SEN_X_VELOCITY_COLUMN].values,
+        y_intercepts_metres=storm_track_table[
+            THEIL_SEN_Y_INTERCEPT_COLUMN].values,
+        y_velocities_m_s01=storm_track_table[
+            THEIL_SEN_Y_VELOCITY_COLUMN].values,
         query_time_unix_sec=object_time_unix_sec)
 
     return numpy.sqrt(
-        (object_x_metres - x_predicted_metres) ** 2 +
-        (object_y_metres - y_predicted_metres) ** 2)
+        (object_x_metres - predicted_x_coords_metres) ** 2 +
+        (object_y_metres - predicted_y_coords_metres) ** 2)
 
 
 def _get_join_time_for_two_tracks(start_times_unix_sec, end_times_unix_sec):
@@ -377,149 +375,151 @@ def _get_join_distance_for_two_tracks(
         (y_coords_late_metres[0] - y_coords_early_metres[-1]) ** 2)
 
 
-def _get_velocity_diff_for_two_tracks(theil_sen_models_for_x,
-                                      theil_sen_models_for_y):
+def _get_velocity_difference_two_tracks(
+        storm_track_table, first_index, second_index):
     """Computes velocity difference between two storm tracks.
 
-    :param theil_sen_models_for_x: length-2 list.  Each element is an instance
-        of `sklearn.linear_model.TheilSenRegressor` for one track, where the
-        predictor is time and predictand is x-coordinate.
-    :param theil_sen_models_for_y: Same as above, but for y-coordinates.
-    :return: velocity_difference_m_s01: Magnitude of vectorial difference
-        between the two velocities.
+    :param storm_track_table: pandas DataFrame created by
+        `theil_sen_fit_for_each_track`.
+    :param first_index: Array index of the first track in the comparison.
+    :param second_index: Array index of the second track in the comparison.
+    :return: velocity_difference_m_s01: Magnitude of vector difference between
+        the two velocities.
     """
 
-    x_velocity_diff_m_s01 = (
-        theil_sen_models_for_x[0].coef_[0] - theil_sen_models_for_x[1].coef_[0])
-    y_velocity_diff_m_s01 = (
-        theil_sen_models_for_y[0].coef_[0] - theil_sen_models_for_y[1].coef_[0])
-    return numpy.sqrt(x_velocity_diff_m_s01 ** 2 + y_velocity_diff_m_s01 ** 2)
+    x_difference_m_s01 = (
+        storm_track_table[THEIL_SEN_X_VELOCITY_COLUMN].values[first_index] -
+        storm_track_table[THEIL_SEN_X_VELOCITY_COLUMN].values[second_index])
+    y_difference_m_s01 = (
+        storm_track_table[THEIL_SEN_Y_VELOCITY_COLUMN].values[first_index] -
+        storm_track_table[THEIL_SEN_Y_VELOCITY_COLUMN].values[second_index])
+    return numpy.sqrt(x_difference_m_s01 ** 2 + y_difference_m_s01 ** 2)
 
 
-def _get_mean_prediction_error_for_two_tracks(
-        x_coords_late_metres, y_coords_late_metres, late_times_unix_sec,
-        theil_sen_model_for_x_early, theil_sen_model_for_y_early,
-        last_early_time_unix_sec):
-    """Computes mean error in using early track to predict late-track positions.
+def _get_theil_sen_error_two_tracks(
+        storm_track_table, early_track_index, late_track_index):
+    """Computes Theil-Sen error from using early track to predict late track.
 
-    Specifically, for each time step t_L in the late track, the Theil-Sen model
-    for the early track is used to predict the late track's position.  Thus, for
-    each t_L, there is a prediction error in metres per second
-    ([distance between actual and predicted positions] / [extrapolation time]).
-    This method returns the mean of said prediction errors.
-
-    For the definitions of "early track" and "late track," see documentation for
-    _get_join_time_for_two_tracks.
-
-    T = number of times in late track
-
-    :param x_coords_late_metres: length-T numpy array with x-coordinates of late
-        track.
-    :param y_coords_late_metres: length-T numpy array with y-coordinates of late
-        track.
-    :param late_times_unix_sec: length-T numpy array with times of late track.
-    :param theil_sen_model_for_x_early: Instance of
-        `sklearn.linear_model.TheilSenRegressor` for the early track, where the
-        predictor is time and predictand is x-coordinate.
-    :param theil_sen_model_for_y_early: Same as above, but for y-coordinates.
-    :param last_early_time_unix_sec: Last time step in early track.
-    :return: mean_prediction_error_m_s01: Mean error generated by using early
-        track's Theil-Sen model to predict positions in late track.
+    :param storm_track_table: pandas DataFrame created by
+        `theil_sen_fit_for_each_track`.
+    :param early_track_index: Array index of the earlier track in the
+        comparison.
+    :param late_track_index: Array index of the later track in the comparison.
+    :return: mean_error_m_s01: Mean error incurred by using the early track to
+        predict locations in the late track (metres per second).
     """
 
-    num_late_objects = len(x_coords_late_metres)
-    x_predicted_metres = numpy.full(num_late_objects, numpy.nan)
-    y_predicted_metres = numpy.full(num_late_objects, numpy.nan)
+    (predicted_x_coords_metres, predicted_y_coords_metres
+    ) = _theil_sen_predict_many_times(
+        x_intercept_metres=storm_track_table[
+            THEIL_SEN_X_INTERCEPT_COLUMN].values[early_track_index],
+        x_velocity_m_s01=storm_track_table[
+            THEIL_SEN_X_VELOCITY_COLUMN].values[early_track_index],
+        y_intercept_metres=storm_track_table[
+            THEIL_SEN_Y_INTERCEPT_COLUMN].values[early_track_index],
+        y_velocity_m_s01=storm_track_table[
+            THEIL_SEN_Y_VELOCITY_COLUMN].values[early_track_index],
+        query_times_unix_sec=storm_track_table[
+            TRACK_TIMES_COLUMN].values[late_track_index])
 
-    for i in range(num_late_objects):
-        x_predicted_metres[i], y_predicted_metres[i] = _theil_sen_predict(
-            theil_sen_model_for_x=theil_sen_model_for_x_early,
-            theil_sen_model_for_y=theil_sen_model_for_y_early,
-            query_time_unix_sec=late_times_unix_sec[i])
+    x_errors_metres = predicted_x_coords_metres - storm_track_table[
+        TRACK_X_COORDS_COLUMN].values[late_track_index]
+    y_errors_metres = predicted_y_coords_metres - storm_track_table[
+        TRACK_Y_COORDS_COLUMN].values[late_track_index]
 
     prediction_errors_metres = numpy.sqrt(
-        (x_predicted_metres - x_coords_late_metres) ** 2 +
-        (y_predicted_metres - y_coords_late_metres) ** 2)
-    extrapolation_times_sec = late_times_unix_sec - last_early_time_unix_sec
-    return numpy.mean(prediction_errors_metres / extrapolation_times_sec)
+        x_errors_metres ** 2 + y_errors_metres ** 2)
+    extrap_times_seconds = (
+        storm_track_table[TRACK_TIMES_COLUMN].values[late_track_index] -
+        numpy.max(
+            storm_track_table[TRACK_TIMES_COLUMN].values[early_track_index]
+        ))
+    return numpy.mean(prediction_errors_metres / extrap_times_seconds)
 
 
-def _break_ties_one_storm_track(
-        object_x_coords_metres=None, object_y_coords_metres=None,
-        object_times_unix_sec=None, theil_sen_model_for_x=None,
-        theil_sen_model_for_y=None):
-    """Breaks all ties for one storm track.
+def _break_ties_one_track(storm_track_table, storm_track_index):
+    """Breaks ties for one storm track.
 
-    For the definition of a "tie" among storm objects, see documentation for
-    break_ties_among_storm_objects.
+    Specifically, this method ensures that there is no time step with multiple
+    objects associated with the track.
 
-    T = number of times in track
-
-    :param object_x_coords_metres: length-T numpy array with x-coordinates of
-        track.
-    :param object_y_coords_metres: length-T numpy array with y-coordinates of
-        track.
-    :param object_times_unix_sec: length-T numpy array with times of track.
-    :param theil_sen_model_for_x: Instance of
-        `sklearn.linear_model.TheilSenRegressor` for the track, where the
-        predictor is time and predictand is x-coordinate.
-    :param theil_sen_model_for_y: Same as above, except for y-coordinates.
-    :return: indices_to_remove: 1-D numpy array with indices of storm objects to
-        remove from the track.
+    :param storm_track_table: pandas DataFrame created by
+        `theil_sen_fit_for_each_track`.
+    :param storm_track_index: Array index.  This method will break ties for the
+        [k]th track, where k = `storm_track_index`.
+    :return: object_indices_to_remove: 1-D numpy array with indices of storm
+        objects to remove.  If `k in object_indices_to_remove`, the [k]th storm
+        object in the track should be removed.
     """
 
-    num_storm_objects = len(object_times_unix_sec)
-    object_indices_to_keep = numpy.linspace(
-        0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
+    object_indices_to_remove = numpy.array([], dtype=int)
+    object_times_unix_sec = storm_track_table[
+        TRACK_TIMES_COLUMN].values[storm_track_index]
 
-    unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
+    unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
         object_times_unix_sec, return_inverse=True)
-    num_unique_times = len(unique_times_unix_sec)
+    if len(unique_times_unix_sec) == len(object_times_unix_sec):
+        return object_indices_to_remove
 
-    while num_unique_times < len(object_times_unix_sec):
-        for i in range(num_unique_times):
-            these_object_indices = numpy.where(
-                orig_to_unique_time_indices == i)[0]
-            if len(these_object_indices) == 1:
+    object_x_coords_metres = storm_track_table[
+        TRACK_X_COORDS_COLUMN].values[storm_track_index]
+    object_y_coords_metres = storm_track_table[
+        TRACK_Y_COORDS_COLUMN].values[storm_track_index]
+
+    theil_sen_x_intercept_metres = storm_track_table[
+        THEIL_SEN_X_INTERCEPT_COLUMN].values[storm_track_index]
+    theil_sen_x_velocity_m_s01 = storm_track_table[
+        THEIL_SEN_X_VELOCITY_COLUMN].values[storm_track_index]
+    theil_sen_y_intercept_metres = storm_track_table[
+        THEIL_SEN_Y_INTERCEPT_COLUMN].values[storm_track_index]
+    theil_sen_y_velocity_m_s01 = storm_track_table[
+        THEIL_SEN_Y_VELOCITY_COLUMN].values[storm_track_index]
+
+    while len(unique_times_unix_sec) < len(object_times_unix_sec):
+        for i in range(len(unique_times_unix_sec)):
+            these_object_indices = numpy.where(orig_to_unique_indices == i)[0]
+            if len(these_object_indices) == 1:  # No tie to break
                 continue
 
-            this_x_predicted_metres, this_y_predicted_metres = (
-                _theil_sen_predict(
-                    theil_sen_model_for_x=theil_sen_model_for_x,
-                    theil_sen_model_for_y=theil_sen_model_for_y,
-                    query_time_unix_sec=unique_times_unix_sec[i]))
+            (this_x_predicted_metres, this_y_predicted_metres
+            ) = _theil_sen_predict(
+                x_intercept_metres=theil_sen_x_intercept_metres,
+                x_velocity_m_s01=theil_sen_x_velocity_m_s01,
+                y_intercept_metres=theil_sen_y_intercept_metres,
+                y_velocity_m_s01=theil_sen_y_velocity_m_s01,
+                query_time_unix_sec=unique_times_unix_sec[i])
 
-            these_prediction_errors_metres = numpy.sqrt(
+            these_errors_metres = numpy.sqrt(
                 (object_x_coords_metres[these_object_indices] -
                  this_x_predicted_metres) ** 2 +
                 (object_y_coords_metres[these_object_indices] -
                  this_y_predicted_metres) ** 2)
-            this_min_index = these_object_indices[
-                numpy.argmin(these_prediction_errors_metres)]
 
-            for k in these_object_indices:
-                if k == this_min_index:
-                    continue
+            these_object_indices_to_remove = numpy.delete(
+                these_object_indices, numpy.argmin(these_errors_metres))
+            object_indices_to_remove = numpy.concatenate((
+                object_indices_to_remove, these_object_indices_to_remove))
 
-                object_x_coords_metres = numpy.delete(object_x_coords_metres, k)
-                object_y_coords_metres = numpy.delete(object_y_coords_metres, k)
-                object_times_unix_sec = numpy.delete(object_times_unix_sec, k)
-                object_indices_to_keep = numpy.delete(object_indices_to_keep, k)
+            object_x_coords_metres = numpy.delete(
+                object_x_coords_metres, these_object_indices_to_remove)
+            object_y_coords_metres = numpy.delete(
+                object_y_coords_metres, these_object_indices_to_remove)
+            object_times_unix_sec = numpy.delete(
+                object_times_unix_sec, these_object_indices_to_remove)
 
-            theil_sen_model_for_x, theil_sen_model_for_y = _theil_sen_fit(
-                unix_times_sec=object_times_unix_sec,
-                x_coords_metres=object_x_coords_metres,
-                y_coords_metres=object_y_coords_metres)
+            (theil_sen_x_intercept_metres, theil_sen_x_velocity_m_s01,
+             theil_sen_y_intercept_metres, theil_sen_y_velocity_m_s01
+            ) = _theil_sen_fit_one_track(
+                object_x_coords_metres=object_x_coords_metres,
+                object_y_coords_metres=object_y_coords_metres,
+                object_times_unix_sec=object_times_unix_sec)
 
             break
 
-        unique_times_unix_sec, orig_to_unique_time_indices = numpy.unique(
+        unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
             object_times_unix_sec, return_inverse=True)
-        num_unique_times = len(unique_times_unix_sec)
 
-    remove_object_flags = numpy.full(num_storm_objects, True, dtype=bool)
-    remove_object_flags[object_indices_to_keep] = False
-    return numpy.where(remove_object_flags)[0]
+    return object_indices_to_remove
 
 
 def _find_changed_tracks(storm_track_table, orig_storm_track_table):
@@ -708,68 +708,70 @@ def storm_objects_to_tracks(storm_object_table, storm_ids_to_use=None):
     return storm_track_table
 
 
-def theil_sen_fit_for_each_track(
+def theil_sen_fit_many_tracks(
         storm_track_table, fit_indices=None, verbose=True):
     """Fits Theil-Sen model for each storm track.
 
     :param storm_track_table: pandas DataFrame created by
-        storm_objects_to_tracks.
-    :param fit_indices: 1-D numpy array of indices (rows in storm_track_table).
-        Theil-Sen fits will be computed only for these storm tracks.  If
-        fit_indices = None, Theil-Sen fits will be computed for all storm
-        tracks.
-    :param verbose: Boolean flag.  If verbose = True, will print progress
-        messages to the command window.  If verbose = False, will print nothing.
-    :return: storm_track_table: Same as input, but with additional columns
-        listed below.
-    storm_track_table.theil_sen_model_for_x: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is x-coordinate.
-    storm_track_table.theil_sen_model_for_y: Instance of
-        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time
-        and predictand is y-coordinate.
+        `storm_objects_to_tracks`.
+    :param fit_indices: 1-D numpy array with indices of storm tracks to
+        manipulate.  If `k in fit_indices`, a Theil-Sen model will be fit for
+        the [k]th track.
+    :param verbose: Boolean flag.  If True, will print progress messages to
+        command window.
+    :return: storm_track_table: Same as input, but with extra columns listed
+        below.
+    storm_track_table.theil_sen_x_intercept_metres: x-intercept for Theil-Sen
+        model.
+    storm_track_table.theil_sen_x_velocity_m_s01: x-velocity for Theil-Sen model
+        (metres per second).
+    storm_track_table.theil_sen_y_intercept_metres: y-intercept for Theil-Sen
+        model.
+    storm_track_table.theil_sen_y_velocity_m_s01: y-velocity for Theil-Sen model
+        (metres per second).
     """
 
-    num_storm_tracks = len(storm_track_table.index)
+    num_tracks = len(storm_track_table.index)
     if fit_indices is None:
         fit_indices = numpy.linspace(
-            0, num_storm_tracks - 1, num=num_storm_tracks, dtype=int)
+            0, num_tracks - 1, num=num_tracks, dtype=int)
+
+        nan_array = numpy.full(num_tracks, numpy.nan)
+        argument_dict = {
+            THEIL_SEN_X_INTERCEPT_COLUMN: nan_array,
+            THEIL_SEN_X_VELOCITY_COLUMN: nan_array,
+            THEIL_SEN_Y_INTERCEPT_COLUMN: nan_array,
+            THEIL_SEN_Y_VELOCITY_COLUMN: nan_array
+        }
+        storm_track_table = storm_track_table.assign(**argument_dict)
 
     error_checking.assert_is_integer_numpy_array(fit_indices)
     error_checking.assert_is_numpy_array(fit_indices, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(fit_indices, 0)
-    error_checking.assert_is_less_than_numpy_array(
-        fit_indices, num_storm_tracks)
+    error_checking.assert_is_less_than_numpy_array(fit_indices, num_tracks)
 
-    if not (THEIL_SEN_MODEL_X_COLUMN in list(storm_track_table) and
-            THEIL_SEN_MODEL_Y_COLUMN in list(storm_track_table)):
-        object_array = numpy.full(num_storm_tracks, numpy.nan, dtype=object)
-        argument_dict = {THEIL_SEN_MODEL_X_COLUMN: object_array,
-                         THEIL_SEN_MODEL_Y_COLUMN: object_array}
-        storm_track_table = storm_track_table.assign(**argument_dict)
-
-    num_fits_computed = 0
+    num_fits_done = 0
     for i in fit_indices:
-        (storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[i],
-         storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values[i]) = (
-             _theil_sen_fit(
-                 unix_times_sec=storm_track_table[TRACK_TIMES_COLUMN].values[i],
-                 x_coords_metres=storm_track_table[
-                     TRACK_X_COORDS_COLUMN].values[i],
-                 y_coords_metres=storm_track_table[
-                     TRACK_Y_COORDS_COLUMN].values[i]))
+        if verbose and numpy.mod(num_fits_done, 100) == 0:
+            print 'Have fit {0:d} of {1:d} Theil-Sen models...'.format(
+                num_fits_done, len(fit_indices))
 
-        num_fits_computed += 1
-        if not (numpy.mod(num_fits_computed, REPORT_PERIOD_FOR_THEIL_SEN) == 0
-                and verbose):
-            continue
+        (storm_track_table[THEIL_SEN_X_INTERCEPT_COLUMN].values[i],
+         storm_track_table[THEIL_SEN_X_VELOCITY_COLUMN].values[i],
+         storm_track_table[THEIL_SEN_Y_INTERCEPT_COLUMN].values[i],
+         storm_track_table[THEIL_SEN_Y_VELOCITY_COLUMN].values[i]
+        ) = _theil_sen_fit_one_track(
+            object_x_coords_metres=storm_track_table[
+                TRACK_X_COORDS_COLUMN].values[i],
+            object_y_coords_metres=storm_track_table[
+                TRACK_Y_COORDS_COLUMN].values[i],
+            object_times_unix_sec=storm_track_table[
+                TRACK_TIMES_COLUMN].values[i])
 
-        print ('Have fit Theil-Sen model for ' + str(num_fits_computed) + '/' +
-               str(len(fit_indices)) + ' storm tracks...')
+        num_fits_done += 1
 
     if verbose:
-        print ('Have fit Theil-Sen model for all ' + str(len(fit_indices)) +
-               ' storm tracks!')
+        print 'Have fit all {0:d} Theil-Sen models!'.format(len(fit_indices))
     return storm_track_table
 
 
@@ -791,8 +793,8 @@ def break_storm_tracks(
     storm_object_table.centroid_x_metres: x-coordinate of storm centroid.
     storm_object_table.centroid_y_metres: y-coordinate of storm centroid.
 
-    :param storm_track_table: pandas DataFrame with columns documented in
-        theil_sen_fit_for_each_track.
+    :param storm_track_table: pandas DataFrame with columns listed in
+        `theil_sen_fit_many_tracks`.
     :param max_extrapolation_time_sec: Maximum extrapolation time.  No storm
         track will be extrapolated > `max_extrapolation_time_sec` before the
         time of its first storm object or after the time of its last storm
@@ -846,7 +848,7 @@ def break_storm_tracks(
             working_object_indices])
 
     for i in working_object_indices:
-        if numpy.mod(num_objects_done, REPORT_PERIOD_FOR_BREAKUP) == 0:
+        if numpy.mod(num_objects_done, 100) == 0:
             print ('Have performed break-up step for ' + str(num_objects_done) +
                    '/' + str(num_working_objects) + ' storm objects...')
 
@@ -874,13 +876,12 @@ def break_storm_tracks(
             continue
 
         start_time_unix_sec = time.time()
-        prediction_errors_metres = _get_prediction_errors_for_one_object(
+        prediction_errors_metres = _get_theil_sen_errors_one_object(
             object_x_metres=storm_object_table[CENTROID_X_COLUMN].values[i],
             object_y_metres=storm_object_table[CENTROID_Y_COLUMN].values[i],
             object_time_unix_sec=storm_object_table[
                 tracking_utils.TIME_COLUMN].values[i],
-            storm_track_table=storm_track_table.iloc[try_track_indices],
-            max_prediction_error_metres=max_prediction_error_metres)
+            storm_track_table=storm_track_table.iloc[try_track_indices])
 
         print (
             'Time elapsed in finding prediction errors for one storm object '
@@ -941,13 +942,15 @@ def break_storm_tracks(
     storm_track_table = storm_objects_to_tracks(storm_object_table)
     storm_track_table = storm_track_table.merge(
         orig_storm_track_table[
-            THEIL_SEN_MODEL_COLUMNS + [tracking_utils.STORM_ID_COLUMN]],
+            THEIL_SEN_COLUMNS + [tracking_utils.STORM_ID_COLUMN]],
         on=tracking_utils.STORM_ID_COLUMN, how='left')
 
     track_changed_indices = _find_changed_tracks(
         storm_track_table, orig_storm_track_table)
-    storm_track_table = theil_sen_fit_for_each_track(
-        storm_track_table, fit_indices=track_changed_indices, verbose=False)
+    storm_track_table = theil_sen_fit_many_tracks(
+        storm_track_table=storm_track_table, fit_indices=track_changed_indices,
+        verbose=False)
+
     return storm_object_table, storm_track_table
 
 
@@ -961,8 +964,8 @@ def merge_storm_tracks(
     This is the "merger" step in w2besttrack.
 
     :param storm_object_table: See documentation for break_storm_tracks.
-    :param storm_track_table: pandas DataFrame with columns documented in
-        theil_sen_fit_for_each_track.
+    :param storm_track_table: pandas DataFrame with columns listed in
+        `theil_sen_fit_many_tracks`.
     :param working_track_indices: 1-D numpy array with indices of storm tracks
         to work on (consider for merging).  If working_track_indices = None,
         this method will work on all storm tracks.
@@ -1008,7 +1011,7 @@ def merge_storm_tracks(
     remove_storm_track_flags = numpy.full(num_storm_tracks, False, dtype=bool)
 
     for j in working_track_indices:
-        if numpy.mod(num_tracks_considered, REPORT_PERIOD_FOR_MERGER) == 0:
+        if numpy.mod(num_tracks_considered, 10) == 0:
             print ('Have considered ' + str(num_tracks_considered) + '/' +
                    str(num_working_tracks) + ' storm tracks for merging...')
 
@@ -1056,21 +1059,9 @@ def merge_storm_tracks(
                     this_join_distance_m_s01)
                 continue
 
-            this_mean_prediction_error_m_s01 = (
-                _get_mean_prediction_error_for_two_tracks(
-                    x_coords_late_metres=
-                    storm_track_table[TRACK_X_COORDS_COLUMN].values[late_index],
-                    y_coords_late_metres=
-                    storm_track_table[TRACK_Y_COORDS_COLUMN].values[late_index],
-                    late_times_unix_sec=
-                    storm_track_table[TRACK_TIMES_COLUMN].values[late_index],
-                    theil_sen_model_for_x_early=storm_track_table[
-                        THEIL_SEN_MODEL_X_COLUMN].values[early_index],
-                    theil_sen_model_for_y_early=storm_track_table[
-                        THEIL_SEN_MODEL_Y_COLUMN].values[early_index],
-                    last_early_time_unix_sec=
-                    numpy.max(storm_track_table[TRACK_TIMES_COLUMN].values[
-                        early_index])))
+            this_mean_prediction_error_m_s01 = _get_theil_sen_error_two_tracks(
+                storm_track_table=storm_track_table,
+                early_track_index=early_index, late_track_index=late_index)
 
             if not (this_mean_prediction_error_m_s01 <=
                     max_mean_prediction_error_m_s01):
@@ -1096,8 +1087,8 @@ def merge_storm_tracks(
 
             storm_track_table_j_only = storm_objects_to_tracks(
                 storm_object_table, [storm_id_j])
-            storm_track_table_j_only = theil_sen_fit_for_each_track(
-                storm_track_table_j_only, verbose=False)
+            storm_track_table_j_only = theil_sen_fit_many_tracks(
+                storm_track_table=storm_track_table_j_only, verbose=False)
             storm_track_table.iloc[j] = copy.deepcopy(
                 storm_track_table_j_only.iloc[0])
 
@@ -1126,8 +1117,8 @@ def break_ties_among_storm_objects(
     from S (and left with no track).
 
     :param storm_object_table: See documentation for break_storm_tracks.
-    :param storm_track_table: pandas DataFrame with columns documented in
-        theil_sen_fit_for_each_track.
+    :param storm_track_table: pandas DataFrame with columns listed in
+        `theil_sen_fit_many_tracks`.
     :param working_track_indices: 1-D numpy array with indices of storm tracks
         to work on (consider for tie-breaking).  If working_track_indices =
         None, this method will work on all storm tracks.
@@ -1155,30 +1146,20 @@ def break_ties_among_storm_objects(
     num_tracks_considered = 0
 
     for j in working_track_indices:
-        if numpy.mod(num_tracks_considered, REPORT_PERIOD_FOR_TIE_BREAKER) == 0:
+        if numpy.mod(num_tracks_considered, 500) == 0:
             print ('Have considered ' + str(num_tracks_considered) + '/' +
                    str(num_working_tracks) +
                    ' storm tracks for tie-breaking...')
 
         num_tracks_considered += 1
-
-        these_object_indices_to_remove = _break_ties_one_storm_track(
-            object_x_coords_metres=
-            storm_track_table[TRACK_X_COORDS_COLUMN].values[j],
-            object_y_coords_metres=
-            storm_track_table[TRACK_Y_COORDS_COLUMN].values[j],
-            object_times_unix_sec=
-            storm_track_table[TRACK_TIMES_COLUMN].values[j],
-            theil_sen_model_for_x=
-            storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[j],
-            theil_sen_model_for_y=
-            storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values[j])
+        these_object_indices_to_remove = _break_ties_one_track(
+            storm_track_table=storm_track_table, storm_track_index=j)
+        if not len(these_object_indices_to_remove):
+            continue
 
         these_object_indices_to_remove = storm_track_table[
             OBJECT_INDICES_COLUMN_FOR_TRACK].values[j][
                 these_object_indices_to_remove]
-        if not len(these_object_indices_to_remove):
-            continue
 
         num_ties_broken += len(these_object_indices_to_remove)
         num_tracks_with_ties_broken += 1
@@ -1190,8 +1171,8 @@ def break_ties_among_storm_objects(
             tracking_utils.STORM_ID_COLUMN].values[j]
         storm_track_table_j_only = storm_objects_to_tracks(
             storm_object_table, [storm_id_j])
-        storm_track_table_j_only = theil_sen_fit_for_each_track(
-            storm_track_table_j_only, verbose=False)
+        storm_track_table_j_only = theil_sen_fit_many_tracks(
+            storm_track_table=storm_track_table_j_only, verbose=False)
         storm_track_table.iloc[j] = copy.deepcopy(
             storm_track_table_j_only.iloc[0])
 
@@ -1385,7 +1366,8 @@ def run_best_track(
     storm_object_table = _project_storm_centroids_latlng_to_xy(
         storm_object_table)
     storm_track_table = storm_objects_to_tracks(storm_object_table)
-    storm_track_table = theil_sen_fit_for_each_track(storm_track_table)
+    storm_track_table = theil_sen_fit_many_tracks(
+        storm_track_table=storm_track_table, verbose=True)
 
     for i in range(num_main_iters):
         print ('Starting main iteration ' + str(i + 1) + '/' +
@@ -1698,7 +1680,8 @@ def evaluate_tracks(
     storm_object_table = _project_storm_centroids_latlng_to_xy(
         storm_object_table)
     storm_track_table = storm_objects_to_tracks(storm_object_table)
-    storm_track_table = theil_sen_fit_for_each_track(storm_track_table)
+    storm_track_table = theil_sen_fit_many_tracks(
+        storm_track_table=storm_track_table, verbose=True)
 
     # Compute median track lifetime.
     track_lifetimes_sec = (
@@ -1714,15 +1697,8 @@ def evaluate_tracks(
     centroid_rmse_by_track_metres = numpy.full(num_tracks, numpy.nan)
 
     for i in range(num_tracks):
-        centroid_rmse_by_track_metres[i] = _get_theil_sen_rmse(
-            theil_sen_model_for_x=
-            storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values[i],
-            theil_sen_model_for_y=
-            storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values[i],
-            track_times_unix_sec=
-            storm_track_table[TRACK_TIMES_COLUMN].values[i],
-            track_x_metres=storm_track_table[TRACK_X_COORDS_COLUMN].values[i],
-            track_y_metres=storm_track_table[TRACK_Y_COORDS_COLUMN].values[i])
+        centroid_rmse_by_track_metres[i] = _get_theil_sen_error_one_track(
+            storm_track_table=storm_track_table, storm_track_index=i)
 
     centroid_rmse_by_track_metres[
         centroid_rmse_by_track_metres > MAX_CENTROID_RMSE_METRES] = numpy.nan

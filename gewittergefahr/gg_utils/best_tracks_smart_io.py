@@ -447,8 +447,8 @@ def run_best_track(
 
                 storm_track_table = best_tracks.storm_objects_to_tracks(
                     storm_object_table)
-                storm_track_table = best_tracks.theil_sen_fit_for_each_track(
-                    storm_track_table)
+                storm_track_table = best_tracks.theil_sen_fit_many_tracks(
+                    storm_track_table=storm_track_table, verbose=True)
                 these_working_indices = numpy.where(
                     storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                     spc_dates_unix_sec[k])[0]
@@ -474,8 +474,8 @@ def run_best_track(
 
             storm_track_table = best_tracks.storm_objects_to_tracks(
                 storm_object_table)
-            storm_track_table = best_tracks.theil_sen_fit_for_each_track(
-                storm_track_table)
+            storm_track_table = best_tracks.theil_sen_fit_many_tracks(
+                storm_track_table=storm_track_table, verbose=True)
             these_working_indices = _find_tracks_with_spc_date(
                 storm_object_table, storm_track_table,
                 spc_date_unix_sec=spc_dates_unix_sec[k])
@@ -498,8 +498,8 @@ def run_best_track(
 
             storm_track_table = best_tracks.storm_objects_to_tracks(
                 storm_object_table)
-            storm_track_table = best_tracks.theil_sen_fit_for_each_track(
-                storm_track_table)
+            storm_track_table = best_tracks.theil_sen_fit_many_tracks(
+                storm_track_table=storm_track_table, verbose=True)
             these_working_indices = _find_tracks_with_spc_date(
                 storm_object_table, storm_track_table,
                 spc_date_unix_sec=spc_dates_unix_sec[k])
