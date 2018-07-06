@@ -173,8 +173,60 @@ def _theil_sen_fit(
     return theil_sen_model_for_x, theil_sen_model_for_y
 
 
-def _theil_sen_predict(theil_sen_model_for_x=None, theil_sen_model_for_y=None,
-                       query_time_unix_sec=None):
+def _theil_sen_predict_many_times(
+        theil_sen_model_for_x, theil_sen_model_for_y, query_times_unix_sec):
+    """Uses one Theil-Sen model to predict location at many times.
+
+    Q = number of query times
+
+    :param theil_sen_model_for_x: Instance of
+        `sklearn.linear_model.TheilSenRegressor`, where the predictor is time\
+        and predictand is x-coordinate.
+    :param theil_sen_model_for_y: Same but for y-coordinate.
+    :param query_times_unix_sec: length-Q numpy array of query times.
+    :return: predicted_x_coords_metres: length-Q numpy array of predicted
+        x-coordinates.
+    :return: predicted_y_coords_metres: length-Q numpy array of predicted
+        y-coordinates.
+    """
+
+    predicted_x_coords_metres = (
+        theil_sen_model_for_x.coef_ * query_times_unix_sec +
+        theil_sen_model_for_x.intercept_)
+    predicted_y_coords_metres = (
+        theil_sen_model_for_y.coef_ * query_times_unix_sec +
+        theil_sen_model_for_y.intercept_)
+    return predicted_x_coords_metres, predicted_y_coords_metres
+
+
+def _theil_sen_predict_many_models(
+        list_of_models_for_x, list_of_models_for_y, query_time_unix_sec):
+    """Uses many Theil-Sen models to predict location at one time.
+
+    M = number of models
+
+    :param list_of_models_for_x: length-M list of
+        `sklearn.linear_model.TheilSenRegressor` objects, where the predictor is
+        time and predictand is x-coordinate.
+    :param list_of_models_for_y: Same but for y-coordinate.
+    :param query_time_unix_sec: Query time.
+    :return: predicted_x_coords_metres: length-M numpy array of predicted
+        x-coordinates.
+    :return: predicted_y_coords_metres: length-M numpy array of predicted
+        y-coordinates.
+    """
+
+    predicted_x_coords_metres = numpy.array(
+        [this_model.coef_ * query_time_unix_sec + this_model.intercept_
+         for this_model in list_of_models_for_x])
+    predicted_y_coords_metres = numpy.array(
+        [this_model.coef_ * query_time_unix_sec + this_model.intercept_
+         for this_model in list_of_models_for_y])
+    return predicted_x_coords_metres, predicted_y_coords_metres
+
+
+def _theil_sen_predict(
+        theil_sen_model_for_x, theil_sen_model_for_y, query_time_unix_sec):
     """Uses Theil-Sen model to predict location of storm at given time.
 
     :param theil_sen_model_for_x: Instance of
@@ -222,15 +274,10 @@ def _get_theil_sen_rmse(
         model.
     """
 
-    num_points = len(track_x_metres)
-    x_predicted_metres = numpy.full(num_points, numpy.nan)
-    y_predicted_metres = numpy.full(num_points, numpy.nan)
-
-    for j in range(num_points):
-        x_predicted_metres[j], y_predicted_metres[j] = _theil_sen_predict(
-            theil_sen_model_for_x=theil_sen_model_for_x,
-            theil_sen_model_for_y=theil_sen_model_for_y,
-            query_time_unix_sec=track_times_unix_sec[j])
+    x_predicted_metres, y_predicted_metres = _theil_sen_predict_many_times(
+        theil_sen_model_for_x=theil_sen_model_for_x,
+        theil_sen_model_for_y=theil_sen_model_for_y,
+        query_times_unix_sec=track_times_unix_sec)
 
     return numpy.sqrt(numpy.mean(
         (x_predicted_metres - track_x_metres) ** 2 +
@@ -257,31 +304,10 @@ def _get_prediction_errors_for_one_object(
         Theil-Sen prediction for each track.
     """
 
-    num_tracks = len(storm_track_table)
-    x_predicted_metres = numpy.full(num_tracks, numpy.inf)
-    y_predicted_metres = numpy.full(num_tracks, numpy.inf)
-
-    for j in range(num_tracks):
-        if max_prediction_error_metres is not None:
-            these_nearby_x_flags = numpy.absolute(
-                storm_track_table[TRACK_X_COORDS_COLUMN].values[j] -
-                object_x_metres
-            ) <= 5 * max_prediction_error_metres
-            these_nearby_y_flags = numpy.absolute(
-                storm_track_table[TRACK_Y_COORDS_COLUMN].values[j] -
-                object_y_metres
-            ) <= 5 * max_prediction_error_metres
-
-            if not (numpy.any(these_nearby_x_flags) or
-                    numpy.any(these_nearby_y_flags)):
-                continue
-
-        x_predicted_metres[j], y_predicted_metres[j] = _theil_sen_predict(
-            theil_sen_model_for_x=storm_track_table[
-                THEIL_SEN_MODEL_X_COLUMN].values[j],
-            theil_sen_model_for_y=storm_track_table[
-                THEIL_SEN_MODEL_Y_COLUMN].values[j],
-            query_time_unix_sec=object_time_unix_sec)
+    x_predicted_metres, y_predicted_metres = _theil_sen_predict_many_models(
+        list_of_models_for_x=storm_track_table[THEIL_SEN_MODEL_X_COLUMN].values,
+        list_of_models_for_y=storm_track_table[THEIL_SEN_MODEL_Y_COLUMN].values,
+        query_time_unix_sec=object_time_unix_sec)
 
     return numpy.sqrt(
         (object_x_metres - x_predicted_metres) ** 2 +
