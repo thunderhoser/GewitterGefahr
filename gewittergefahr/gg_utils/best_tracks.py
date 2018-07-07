@@ -42,7 +42,6 @@ USE_EXTRA_BREAKUP_CRITERIA_DEFAULT_FLAG = True
 
 DEFAULT_NUM_MAIN_ITERS = 3
 DEFAULT_NUM_BREAKUP_ITERS = 3
-# DEFAULT_MIN_OBJECTS_IN_TRACK = 3
 DEFAULT_MIN_OBJECTS_IN_TRACK = 1
 MIN_OBJECTS_IN_TRACK_FOR_THEA = 1
 
@@ -451,14 +450,13 @@ def _break_ties_one_track(storm_track_table, storm_track_index):
         object in the track should be removed.
     """
 
-    object_indices_to_remove = numpy.array([], dtype=int)
     object_times_unix_sec = storm_track_table[
         TRACK_TIMES_COLUMN].values[storm_track_index]
-
     unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
         object_times_unix_sec, return_inverse=True)
+
     if len(unique_times_unix_sec) == len(object_times_unix_sec):
-        return object_indices_to_remove
+        return numpy.array([], dtype=int)
 
     object_x_coords_metres = storm_track_table[
         TRACK_X_COORDS_COLUMN].values[storm_track_index]
@@ -473,6 +471,10 @@ def _break_ties_one_track(storm_track_table, storm_track_index):
         THEIL_SEN_Y_INTERCEPT_COLUMN].values[storm_track_index]
     theil_sen_y_velocity_m_s01 = storm_track_table[
         THEIL_SEN_Y_VELOCITY_COLUMN].values[storm_track_index]
+
+    num_storm_objects = len(object_times_unix_sec)
+    object_indices_to_keep = numpy.linspace(
+        0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
 
     while len(unique_times_unix_sec) < len(object_times_unix_sec):
         for i in range(len(unique_times_unix_sec)):
@@ -493,18 +495,17 @@ def _break_ties_one_track(storm_track_table, storm_track_index):
                  this_x_predicted_metres) ** 2 +
                 (object_y_coords_metres[these_object_indices] -
                  this_y_predicted_metres) ** 2)
+            this_nearest_object_index = these_object_indices[
+                numpy.argmin(these_errors_metres)]
 
-            these_object_indices_to_remove = numpy.delete(
-                these_object_indices, numpy.argmin(these_errors_metres))
-            object_indices_to_remove = numpy.concatenate((
-                object_indices_to_remove, these_object_indices_to_remove))
+            for j in these_object_indices:
+                if j == this_nearest_object_index:
+                    continue
 
-            object_x_coords_metres = numpy.delete(
-                object_x_coords_metres, these_object_indices_to_remove)
-            object_y_coords_metres = numpy.delete(
-                object_y_coords_metres, these_object_indices_to_remove)
-            object_times_unix_sec = numpy.delete(
-                object_times_unix_sec, these_object_indices_to_remove)
+                object_x_coords_metres = numpy.delete(object_x_coords_metres, j)
+                object_y_coords_metres = numpy.delete(object_y_coords_metres, j)
+                object_times_unix_sec = numpy.delete(object_times_unix_sec, j)
+                object_indices_to_keep = numpy.delete(object_indices_to_keep, j)
 
             (theil_sen_x_intercept_metres, theil_sen_x_velocity_m_s01,
              theil_sen_y_intercept_metres, theil_sen_y_velocity_m_s01
@@ -518,7 +519,9 @@ def _break_ties_one_track(storm_track_table, storm_track_index):
         unique_times_unix_sec, orig_to_unique_indices = numpy.unique(
             object_times_unix_sec, return_inverse=True)
 
-    return object_indices_to_remove
+    remove_object_flags = numpy.full(num_storm_objects, True, dtype=bool)
+    remove_object_flags[object_indices_to_keep] = False
+    return numpy.where(remove_object_flags)[0]
 
 
 def _find_changed_tracks(storm_track_table, orig_storm_track_table):

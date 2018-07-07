@@ -9,151 +9,135 @@ from gewittergefahr.gg_utils import best_tracks
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _theil_sen_fit.
-X_COEFF_THEIL_SEN_M_S01 = 2.5
-Y_COEFF_THEIL_SEN_M_S01 = -3.6
+# The following constants are used to test _theil_sen_fit_one_track.
+X_INTERCEPT_ONE_TRACK_METRES = 0.
+X_VELOCITY_ONE_TRACK_M_S01 = 2.5
+Y_INTERCEPT_ONE_TRACK_METRES = 0.
+Y_VELOCITY_ONE_TRACK_M_S01 = -3.6
 
-TIMES_LINEAR_UNIX_SEC = numpy.linspace(0, 9, num=10, dtype=int)
-X_LINEAR_METRES = numpy.array(
+VALID_TIMES_ONE_TRACK_UNIX_SEC = numpy.linspace(0, 9, num=10, dtype=int)
+X_COORDS_ONE_TRACK_METRES = numpy.array(
     [0., 2.5, 5., 7.5, 10., 12.5, 15., 17.5, 20., 22.5])
-Y_LINEAR_METRES = numpy.array(
+Y_COORDS_ONE_TRACK_METRES = numpy.array(
     [0., -3.6, -7.2, -10.8, -14.4, -18., -21.6, -25.2, -28.8, -32.4])
 
-# The following constants are used to test _theil_sen_predict.
-QUERY_TIME_THEIL_SEN_UNIX_SEC = 20
-X_PREDICTED_THEIL_SEN_METRES = (
-    X_COEFF_THEIL_SEN_M_S01 * QUERY_TIME_THEIL_SEN_UNIX_SEC)
-Y_PREDICTED_THEIL_SEN_METRES = (
-    Y_COEFF_THEIL_SEN_M_S01 * QUERY_TIME_THEIL_SEN_UNIX_SEC)
+# The following constants are used to test _theil_sen_predict and
+# _theil_sen_predict_many_times.
+QUERY_TIMES_ONE_TRACK_UNIX_SEC = numpy.array([-10, 0, 10, 20], dtype=int)
+QUERY_X_COORDS_ONE_TRACK_METRES = numpy.array([-25, 0, 25, 50], dtype=float)
+QUERY_Y_COORDS_ONE_TRACK_METRES = numpy.array([36, 0, -36, -72], dtype=float)
 
-# The following constants are used to test get_theil_sen_rmse.
-X_ERRORS_METRES = numpy.array([-0.5, -1., -2., -1., 0., 0.5, 1., 2., 1.5, 0.])
-Y_ERRORS_METRES = numpy.array([3., 1., 2., 1.5, 0.5, 0., 0.5, 1., -1., -2.])
-THEIL_SEN_RMSE_METRES = numpy.sqrt(36.5 / 10)
+# The following constants are used to test _theil_sen_predict_many_models.
+X_INTERCEPTS_MANY_MODELS_METRES = numpy.array([-5, 0, 5, 10], dtype=float)
+X_VELOCITIES_MANY_MODELS_M_S01 = numpy.array([-5, 0, 5, 10], dtype=float)
+Y_INTERCEPTS_MANY_MODELS_METRES = numpy.array([1, 2, 3, 4], dtype=float)
+Y_VELOCITIES_MANY_MODELS_M_S01 = numpy.array([-1, -2, -3, -4], dtype=float)
+QUERY_TIME_MANY_MODELS_UNIX_SEC = 7
 
-X_NOISY_METRES = X_LINEAR_METRES + X_ERRORS_METRES
-Y_NOISY_METRES = Y_LINEAR_METRES + Y_ERRORS_METRES
+QUERY_X_COORDS_MANY_MODELS_METRES = numpy.array([-40, 0, 40, 80], dtype=float)
+QUERY_Y_COORDS_MANY_MODELS_METRES = numpy.array(
+    [-6, -12, -18, -24], dtype=float)
 
-# The following constants are used to test
-# _get_prediction_errors_for_one_object.
-X_COORD_ONE_OBJECT_METRES = 5.
-Y_COORD_ONE_OBJECT_METRES = 10.
-TIME_ONE_OBJECT_UNIX_SEC = 1200
+# The following constants are used to test _get_theil_sen_error_one_track and
+# _get_theil_sen_errors_one_object.
+THESE_X_ERRORS_METRES = numpy.array(
+    [-0.5, -1., -2., -1., 0., 0.5, 1., 2., 1.5, 0.])
+THESE_Y_ERRORS_METRES = numpy.array(
+    [3., 1., 2., 1.5, 0.5, 0., 0.5, 1., -1., -2.])
 
-THESE_STORM_IDS = ['category6', 'ef12_hypercane']
-THESE_START_TIMES_UNIX_SEC = numpy.array([0, 0])
-THESE_END_TIMES_UNIX_SEC = numpy.array([900, 1500])
+ONE_TRACK_RMSE_METRES = numpy.sqrt(36.5 / 10)
+ONE_TRACK_FIRST_OBJECT_ERROR_METRES = numpy.sqrt(9.25)
 
-PREDICTOR_STORM_TRACK_DICT = {
-    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
-    best_tracks.TRACK_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    best_tracks.TRACK_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC
+THIS_DICT = {
+    best_tracks.THEIL_SEN_X_INTERCEPT_COLUMN: X_INTERCEPT_ONE_TRACK_METRES,
+    best_tracks.THEIL_SEN_X_VELOCITY_COLUMN: X_VELOCITY_ONE_TRACK_M_S01,
+    best_tracks.THEIL_SEN_Y_INTERCEPT_COLUMN: Y_INTERCEPT_ONE_TRACK_METRES,
+    best_tracks.THEIL_SEN_Y_VELOCITY_COLUMN: Y_VELOCITY_ONE_TRACK_M_S01,
+    best_tracks.TRACK_TIMES_COLUMN: [VALID_TIMES_ONE_TRACK_UNIX_SEC],
+    best_tracks.TRACK_X_COORDS_COLUMN:
+        [X_COORDS_ONE_TRACK_METRES + THESE_X_ERRORS_METRES],
+    best_tracks.TRACK_Y_COORDS_COLUMN:
+        [Y_COORDS_ONE_TRACK_METRES + THESE_Y_ERRORS_METRES]
 }
-PREDICTOR_STORM_TRACK_TABLE = pandas.DataFrame.from_dict(
-    PREDICTOR_STORM_TRACK_DICT)
-
-THIS_NESTED_ARRAY = PREDICTOR_STORM_TRACK_TABLE[[
-    tracking_utils.STORM_ID_COLUMN,
-    tracking_utils.STORM_ID_COLUMN]].values.tolist()
-THIS_ARGUMENT_DICT = {
-    best_tracks.TRACK_TIMES_COLUMN: THIS_NESTED_ARRAY,
-    best_tracks.TRACK_X_COORDS_COLUMN: THIS_NESTED_ARRAY,
-    best_tracks.TRACK_Y_COORDS_COLUMN: THIS_NESTED_ARRAY,
-}
-PREDICTOR_STORM_TRACK_TABLE = PREDICTOR_STORM_TRACK_TABLE.assign(
-    **THIS_ARGUMENT_DICT)
-
-PREDICTOR_STORM_TRACK_TABLE[best_tracks.TRACK_TIMES_COLUMN].values[
-    0] = numpy.array([0, 300, 600, 900], dtype=int)
-PREDICTOR_STORM_TRACK_TABLE[best_tracks.TRACK_TIMES_COLUMN].values[
-    1] = numpy.array([0, 300, 600, 900, 1200, 1500], dtype=int)
-
-# Theil-Sen model for this track will predict position of (20 m, 20 m) for the
-# one storm object.
-PREDICTOR_STORM_TRACK_TABLE[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    0] = numpy.array([0., 5., 10., 15.])
-PREDICTOR_STORM_TRACK_TABLE[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    0] = numpy.array([-20., -10., 0., 10.])
-
-# Theil-Sen model for this track will predict position of (-5 m, 10 m) for the
-# one storm object.
-PREDICTOR_STORM_TRACK_TABLE[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    1] = numpy.array([-25., -20., -15., -10., -5., 0.])
-PREDICTOR_STORM_TRACK_TABLE[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    1] = numpy.array([0., 2.5, 5., 7.5, 10., 12.5])
-
-PREDICTION_ERRORS_ONE_OBJECT_METRES = numpy.array([numpy.sqrt(325.), 10.])
+ONE_TRACK_TABLE_NOISY = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test _get_join_time_for_two_tracks.
-START_TIMES_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([0, 1800])
-END_TIMES_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([2100, 6000])
+START_TIMES_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([0, 1800], dtype=int)
+END_TIMES_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([2100, 6000], dtype=int)
 EARLY_INDEX_OVERLAPPING_TRACKS = 0
 LATE_INDEX_OVERLAPPING_TRACKS = 1
 
-START_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([1800, 0])
-END_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([6000, 1500])
+START_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([1800, 0], dtype=int)
+END_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC = numpy.array([6000, 1500], dtype=int)
 EARLY_INDEX_NON_OVERLAPPING_TRACKS = 1
 LATE_INDEX_NON_OVERLAPPING_TRACKS = 0
 JOIN_TIME_NON_OVERLAPPING_SEC = 300
 
-# The following constants are used to test _get_join_distance_for_two_tracks,
-# _get_velocity_diff_for_two_tracks, and
-# _get_mean_prediction_error_for_two_tracks.
-X_COORDS_EARLY_TRACK_METRES = numpy.array([0., 5., 10.])
-Y_COORDS_EARLY_TRACK_METRES = numpy.array([-5., 6., 17.])
-X_COORDS_LATE_TRACK_METRES = numpy.array([20., 19., 18.])
-Y_COORDS_LATE_TRACK_METRES = numpy.array([27., 25., 23.])
-JOIN_DISTANCE_METRES = numpy.sqrt(200.)
+# The following constants are used to test _get_join_distance_for_two_tracks.
+X_COORDS_EARLY_TRACK_METRES = numpy.array([0, 5, 10], dtype=float)
+Y_COORDS_EARLY_TRACK_METRES = numpy.array([-5, 6, 17], dtype=float)
+X_COORDS_LATE_TRACK_METRES = numpy.array([20, 19, 18], dtype=float)
+Y_COORDS_LATE_TRACK_METRES = numpy.array([27, 25, 23], dtype=float)
+JOIN_DISTANCE_TWO_TRACKS_METRES = numpy.sqrt(200.)
 
-TIMES_EARLY_TRACK_UNIX_SEC = numpy.array([0, 1, 2])
-TIMES_LATE_TRACK_UNIX_SEC = numpy.array([7, 8, 9])
-X_VELOCITY_DIFF_M_S01 = 6.
-Y_VELOCITY_DIFF_M_S01 = 13.
-VELOCITY_DIFFERENCE_M_S01 = numpy.sqrt(
-    X_VELOCITY_DIFF_M_S01 ** 2 + Y_VELOCITY_DIFF_M_S01 ** 2)
+# The following constants are used to test _get_velocity_difference_two_tracks.
+VALID_TIMES_EARLY_TRACK_UNIX_SEC = numpy.array([0, 1, 2], dtype=int)
+VALID_TIMES_LATE_TRACK_UNIX_SEC = numpy.array([7, 8, 9], dtype=int)
+VELOCITY_DIFF_TWO_TRACKS_M_S01 = numpy.sqrt(6**2 + 13**2)
 
-X_LATE_PREDICTED_BY_EARLY_METRES = numpy.array([35., 40., 45.])
-Y_LATE_PREDICTED_BY_EARLY_METRES = numpy.array([72., 83., 94.])
-ERRORS_LATE_PREDICTED_BY_EARLY_METRES = numpy.sqrt(
-    (X_LATE_PREDICTED_BY_EARLY_METRES - X_COORDS_LATE_TRACK_METRES) ** 2 +
-    (Y_LATE_PREDICTED_BY_EARLY_METRES - Y_COORDS_LATE_TRACK_METRES) ** 2)
+# The following constants are used to test _get_theil_sen_error_two_tracks.
+THESE_X_PREDICTED_METRES = numpy.array([35, 40, 45], dtype=float)
+THESE_Y_PREDICTED_METRES = numpy.array([72, 83, 94], dtype=float)
+THESE_ERRORS_METRES = numpy.sqrt(
+    (THESE_X_PREDICTED_METRES - X_COORDS_LATE_TRACK_METRES) ** 2 +
+    (THESE_Y_PREDICTED_METRES - Y_COORDS_LATE_TRACK_METRES) ** 2)
 
-THESE_EXTRAP_TIMES_SEC = (
-    TIMES_LATE_TRACK_UNIX_SEC - TIMES_EARLY_TRACK_UNIX_SEC[-1])
-MEAN_ERROR_LATE_PREDICTED_BY_EARLY_M_S01 = numpy.mean(
-    ERRORS_LATE_PREDICTED_BY_EARLY_METRES / THESE_EXTRAP_TIMES_SEC)
+THESE_EXTRAP_TIMES_SECONDS = (
+    VALID_TIMES_LATE_TRACK_UNIX_SEC - VALID_TIMES_EARLY_TRACK_UNIX_SEC[-1])
+MEAN_ERROR_TWO_TRACKS_M_S01 = numpy.mean(
+    THESE_ERRORS_METRES / THESE_EXTRAP_TIMES_SECONDS)
 
-# The following constants are used to test _break_ties_one_storm_track.
-X_COORDS_IN_TIE_METRES = numpy.array(
+THIS_DICT = {
+    best_tracks.TRACK_X_COORDS_COLUMN:
+        [X_COORDS_LATE_TRACK_METRES, X_COORDS_EARLY_TRACK_METRES],
+    best_tracks.TRACK_Y_COORDS_COLUMN:
+        [Y_COORDS_LATE_TRACK_METRES, Y_COORDS_EARLY_TRACK_METRES],
+    best_tracks.TRACK_TIMES_COLUMN:
+        [VALID_TIMES_LATE_TRACK_UNIX_SEC, VALID_TIMES_EARLY_TRACK_UNIX_SEC]
+}
+TWO_STORM_TRACKS_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+# The following constants are used to test _break_ties_one_track.
+THESE_X_COORDS_METRES = numpy.array(
     [0., 5., 6.66, 10., -90., 15., 14.44, 20., 333.])
-Y_COORDS_IN_TIE_METRES = numpy.array(
+THESE_Y_COORDS_METRES = numpy.array(
     [0., 10., -7.77, 20., 18.88, 30., 511.11, 40., 39.99])
-TIMES_IN_TIE_UNIX_SEC = numpy.array([0, 1, 1, 2, 2, 3, 3, 4, 4], dtype=int)
-INDICES_TO_REMOVE_FROM_TIE = numpy.array([2, 4, 6, 8], dtype=int)
+THESE_TIMES_UNIX_SEC = numpy.array([0, 1, 1, 2, 2, 3, 3, 4, 4], dtype=int)
+INDICES_TO_REMOVE_FOR_TIEBREAKER = numpy.array([2, 4, 6, 8], dtype=int)
+
+THIS_DICT = {
+    best_tracks.TRACK_X_COORDS_COLUMN: [THESE_X_COORDS_METRES],
+    best_tracks.TRACK_Y_COORDS_COLUMN: [THESE_Y_COORDS_METRES],
+    best_tracks.TRACK_TIMES_COLUMN: [THESE_TIMES_UNIX_SEC]
+}
+STORM_TRACK_TABLE_FOR_TIEBREAKER = pandas.DataFrame.from_dict(THIS_DICT)
 
 # The following constants are used to test storm_objects_to_tracks.
 THESE_STORM_IDS = [
-    'foo', 'bar', 'hal',
-    'foo', 'bar', 'moo', best_tracks.EMPTY_STORM_ID,
-    'foo', 'moo', best_tracks.EMPTY_STORM_ID]
+    'foo', 'bar', 'hal', 'foo', 'bar', 'moo', best_tracks.EMPTY_STORM_ID, 'foo',
+    'moo', best_tracks.EMPTY_STORM_ID]
 THESE_TIMES_UNIX_SEC = numpy.array(
-    [0, 0, 0,
-     300, 300, 300, 300,
-     600, 600, 600], dtype=int)
-THESE_X_CENTROIDS_METRES = numpy.array(
-    [10., 0., 20.,
-     11., 1., 30., numpy.nan,
-     12., 31., numpy.nan])
-THESE_Y_CENTROIDS_METRES = numpy.array(
-    [100., 0., 200.,
-     105., 5., 300., numpy.nan,
-     110., 305., numpy.nan])
+    [0, 0, 0, 300, 300, 300, 300, 600, 600, 600], dtype=int)
+THESE_X_COORDS_METRES = numpy.array(
+    [10, 0, 20, 11, 1, 30, numpy.nan, 12, 31, numpy.nan])
+THESE_Y_COORDS_METRES = numpy.array(
+    [100, 0, 200, 105, 5, 300, numpy.nan, 110, 305, numpy.nan])
 
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
-    best_tracks.CENTROID_X_COLUMN: THESE_X_CENTROIDS_METRES,
-    best_tracks.CENTROID_Y_COLUMN: THESE_Y_CENTROIDS_METRES
+    best_tracks.CENTROID_X_COLUMN: THESE_X_COORDS_METRES,
+    best_tracks.CENTROID_Y_COLUMN: THESE_Y_COORDS_METRES
 }
 MAIN_STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
 
@@ -164,75 +148,40 @@ THESE_END_TIMES_UNIX_SEC = numpy.array([300, 600, 0, 600], dtype=int)
 THIS_DICT = {
     tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
     best_tracks.TRACK_START_TIME_COLUMN: THESE_START_TIMES_UNIX_SEC,
-    best_tracks.TRACK_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC
+    best_tracks.TRACK_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    best_tracks.TRACK_TIMES_COLUMN: [[0, 300], [0, 300, 600], [0], [300, 600]],
+    best_tracks.TRACK_X_COORDS_COLUMN: [[0, 1], [10, 11, 12], [20], [30, 31]],
+    best_tracks.TRACK_Y_COORDS_COLUMN:
+        [[0, 5], [100, 105, 110], [200], [300, 305]],
+    best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK:
+        [[1, 4], [0, 3, 7], [2], [5, 8]]
 }
 MAIN_STORM_TRACK_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-
-THIS_NESTED_ARRAY = MAIN_STORM_TRACK_TABLE[[
-    tracking_utils.STORM_ID_COLUMN,
-    tracking_utils.STORM_ID_COLUMN]].values.tolist()
-THIS_ARGUMENT_DICT = {
-    best_tracks.TRACK_TIMES_COLUMN: THIS_NESTED_ARRAY,
-    best_tracks.TRACK_X_COORDS_COLUMN: THIS_NESTED_ARRAY,
-    best_tracks.TRACK_Y_COORDS_COLUMN: THIS_NESTED_ARRAY,
-    best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK: THIS_NESTED_ARRAY
-}
-MAIN_STORM_TRACK_TABLE = MAIN_STORM_TRACK_TABLE.assign(**THIS_ARGUMENT_DICT)
-
-MAIN_STORM_TRACK_TABLE[best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK].values[
-    0] = numpy.array([1, 4], dtype=int)
-MAIN_STORM_TRACK_TABLE[best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK].values[
-    1] = numpy.array([0, 3, 7], dtype=int)
-MAIN_STORM_TRACK_TABLE[best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK].values[
-    2] = numpy.array([2], dtype=int)
-MAIN_STORM_TRACK_TABLE[best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK].values[
-    3] = numpy.array([5, 8], dtype=int)
-
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_TIMES_COLUMN].values[
-    0] = numpy.array([0, 300], dtype=int)
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_TIMES_COLUMN].values[
-    1] = numpy.array([0, 300, 600], dtype=int)
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_TIMES_COLUMN].values[
-    2] = numpy.array([0], dtype=int)
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_TIMES_COLUMN].values[
-    3] = numpy.array([300, 600], dtype=int)
-
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    0] = numpy.array([0., 1.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    0] = numpy.array([0., 5.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    1] = numpy.array([10., 11., 12.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    1] = numpy.array([100., 105., 110.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    2] = numpy.array([20.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    2] = numpy.array([200.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    3] = numpy.array([30., 31.])
-MAIN_STORM_TRACK_TABLE[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    3] = numpy.array([300., 305.])
 
 STORM_TRACK_TABLE_FOO_ONLY = MAIN_STORM_TRACK_TABLE.loc[
     MAIN_STORM_TRACK_TABLE[tracking_utils.STORM_ID_COLUMN] == 'foo']
 
-ARRAY_COLUMNS_IN_STORM_TRACK_TABLE = [
+ARRAY_COLUMNS_IN_TRACK_TABLE = [
     best_tracks.TRACK_TIMES_COLUMN, best_tracks.TRACK_X_COORDS_COLUMN,
     best_tracks.TRACK_Y_COORDS_COLUMN,
     best_tracks.OBJECT_INDICES_COLUMN_FOR_TRACK]
-STRING_COLUMNS_IN_STORM_TRACK_TABLE = [tracking_utils.STORM_ID_COLUMN]
+STRING_COLUMNS_IN_TRACK_TABLE = [tracking_utils.STORM_ID_COLUMN]
 
 # The following constants are used to test _find_changed_tracks.
-STORM_TRACK_TABLE_CHANGED = copy.deepcopy(MAIN_STORM_TRACK_TABLE)
-STORM_TRACK_TABLE_CHANGED[best_tracks.TRACK_X_COORDS_COLUMN].values[
-    0] = numpy.array([123., 1.])
-STORM_TRACK_TABLE_CHANGED[best_tracks.TRACK_TIMES_COLUMN].values[
-    1] = numpy.array([0, 303, 600], dtype=int)
-STORM_TRACK_TABLE_CHANGED[best_tracks.TRACK_Y_COORDS_COLUMN].values[
-    3] = numpy.array([300., 321.])
+MAIN_STORM_TRACK_TABLE_TWEAKED = copy.deepcopy(MAIN_STORM_TRACK_TABLE)
+MAIN_STORM_TRACK_TABLE_TWEAKED[
+    best_tracks.TRACK_X_COORDS_COLUMN
+].values[0] = numpy.array([123, 1], dtype=float)
 
-TRACK_CHANGED_INDICES = numpy.array([0, 1, 3], dtype=int)
+MAIN_STORM_TRACK_TABLE_TWEAKED[
+    best_tracks.TRACK_TIMES_COLUMN
+].values[1] = numpy.array([0, 303, 600], dtype=int)
+
+MAIN_STORM_TRACK_TABLE_TWEAKED[
+    best_tracks.TRACK_Y_COORDS_COLUMN
+].values[3] = numpy.array([300, 305], dtype=float)
+
+TRACK_CHANGED_INDICES = numpy.array([0, 1], dtype=int)
 
 # The following constants are used to test remove_short_tracks.
 ROWS_WITH_TRACK_LENGTH_LESS_THAN1 = numpy.array([6, 9], dtype=int)
@@ -252,14 +201,11 @@ STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3 = MAIN_STORM_OBJECT_TABLE.drop(
 
 # The following constants are used to test get_storm_ages.
 THESE_STORM_IDS = [
-    'a', 'b', 'c',
-    'd', 'b', 'a', best_tracks.EMPTY_STORM_ID,
-    best_tracks.EMPTY_STORM_ID, 'a'
+    'Ricky', 'Julian', 'Bubbles', 'Trinity', 'Julian', 'Ricky',
+    best_tracks.EMPTY_STORM_ID, best_tracks.EMPTY_STORM_ID, 'Ricky'
 ]
 THESE_TIMES_UNIX_SEC = numpy.array(
-    [0, 0, 0,
-     300, 300, 300, 300,
-     600, 600], dtype=int)
+    [0, 0, 0, 300, 300, 300, 300, 600, 600], dtype=int)
 
 BEST_TRACK_START_TIME_UNIX_SEC = 0
 BEST_TRACK_END_TIME_UNIX_SEC = 600
@@ -295,96 +241,155 @@ STORM_OBJECT_TABLE_SOME_VALID_AGES = copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES)
 STORM_OBJECT_TABLE_SOME_VALID_AGES = STORM_OBJECT_TABLE_SOME_VALID_AGES.assign(
     **THIS_DICT)
 
-THESE_AGES_SECONDS[:] = -1
-THIS_DICT = {tracking_utils.AGE_COLUMN: THESE_AGES_SECONDS}
+THIS_DICT = {
+    tracking_utils.AGE_COLUMN: numpy.full(len(THESE_STORM_IDS), -1, dtype=int)
+}
 STORM_OBJECT_TABLE_INVALID_AGES = copy.deepcopy(
     STORM_OBJECT_TABLE_SOME_VALID_AGES)
 STORM_OBJECT_TABLE_INVALID_AGES = (
     STORM_OBJECT_TABLE_INVALID_AGES.assign(**THIS_DICT))
 
 
+def _compare_storm_track_tables(
+        first_storm_track_table, second_storm_track_table):
+    """Determines equality of two tables with storm-tracking data.
+
+    :param first_storm_track_table: First table (pandas DataFrame).
+    :param second_storm_track_table: Second table.
+    :return: are_tables_equal: Boolean flag.
+    """
+
+    first_column_names = list(first_storm_track_table)
+    second_column_names = list(second_storm_track_table)
+    if set(first_column_names) != set(second_column_names):
+        return False
+
+    num_tracks = len(first_storm_track_table.index)
+    for this_column in first_column_names:
+        if this_column in STRING_COLUMNS_IN_TRACK_TABLE:
+            if not numpy.array_equal(
+                    first_storm_track_table[this_column].values,
+                    second_storm_track_table[this_column].values):
+                return False
+
+        elif this_column in ARRAY_COLUMNS_IN_TRACK_TABLE:
+            for i in range(num_tracks):
+                if not numpy.allclose(
+                        first_storm_track_table[this_column].values[i],
+                        second_storm_track_table[this_column].values[i],
+                        atol=TOLERANCE):
+                    return False
+
+        else:
+            if not numpy.allclose(
+                    first_storm_track_table[this_column].values,
+                    second_storm_track_table[this_column].values,
+                    atol=TOLERANCE):
+                return False
+
+    return True
+
+
 class BestTracksTests(unittest.TestCase):
     """Each method is a unit test for best_tracks.py."""
 
-    def test_theil_sen_fit(self):
-        """Ensures correct output from _theil_sen_fit."""
+    def test__theil_sen_fit_one_track(self):
+        """Ensures correct output from _theil_sen_fit_one_track."""
 
-        this_ts_model_for_x, this_ts_model_for_y = best_tracks._theil_sen_fit(
-            unix_times_sec=TIMES_LINEAR_UNIX_SEC,
-            x_coords_metres=X_LINEAR_METRES, y_coords_metres=Y_LINEAR_METRES)
+        (this_x_intercept_metres, this_x_velocity_m_s01,
+         this_y_intercept_metres, this_y_velocity_m_s01
+        ) = best_tracks._theil_sen_fit_one_track(
+            object_x_coords_metres=X_COORDS_ONE_TRACK_METRES,
+            object_y_coords_metres=Y_COORDS_ONE_TRACK_METRES,
+            object_times_unix_sec=VALID_TIMES_ONE_TRACK_UNIX_SEC)
 
-        this_x_coefficient_m_s01 = this_ts_model_for_x.coef_[0]
-        this_y_coefficient_m_s01 = this_ts_model_for_y.coef_[0]
-
-        self.assertTrue(
-            numpy.absolute(this_x_coefficient_m_s01 - X_COEFF_THEIL_SEN_M_S01)
-            <= TOLERANCE)
-        self.assertTrue(
-            numpy.absolute(this_y_coefficient_m_s01 - Y_COEFF_THEIL_SEN_M_S01)
-            <= TOLERANCE)
+        self.assertTrue(numpy.isclose(
+            this_x_intercept_metres, X_INTERCEPT_ONE_TRACK_METRES,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_x_velocity_m_s01, X_VELOCITY_ONE_TRACK_M_S01, atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_y_intercept_metres, Y_INTERCEPT_ONE_TRACK_METRES,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_y_velocity_m_s01, Y_VELOCITY_ONE_TRACK_M_S01, atol=TOLERANCE))
 
     def test_theil_sen_predict(self):
-        """Ensures correct output from _theil_sen_predict.
+        """Ensures correct output from _theil_sen_predict."""
 
-        This is an integration test, not a unit test, because it also requires
-        _theil_sen_fit.
-        """
+        (this_x_predicted_metres, this_y_predicted_metres
+        ) = best_tracks._theil_sen_predict(
+            x_intercept_metres=X_INTERCEPT_ONE_TRACK_METRES,
+            x_velocity_m_s01=X_VELOCITY_ONE_TRACK_M_S01,
+            y_intercept_metres=Y_INTERCEPT_ONE_TRACK_METRES,
+            y_velocity_m_s01=Y_VELOCITY_ONE_TRACK_M_S01,
+            query_time_unix_sec=QUERY_TIMES_ONE_TRACK_UNIX_SEC[0])
 
-        this_ts_model_for_x, this_ts_model_for_y = best_tracks._theil_sen_fit(
-            unix_times_sec=TIMES_LINEAR_UNIX_SEC,
-            x_coords_metres=X_LINEAR_METRES, y_coords_metres=Y_LINEAR_METRES)
+        self.assertTrue(numpy.isclose(
+            this_x_predicted_metres, QUERY_X_COORDS_ONE_TRACK_METRES[0],
+            atol=TOLERANCE))
+        self.assertTrue(numpy.isclose(
+            this_y_predicted_metres, QUERY_Y_COORDS_ONE_TRACK_METRES[0],
+            atol=TOLERANCE))
 
-        this_x_predicted_metres, this_y_predicted_metres = (
-            best_tracks._theil_sen_predict(
-                theil_sen_model_for_x=this_ts_model_for_x,
-                theil_sen_model_for_y=this_ts_model_for_y,
-                query_time_unix_sec=QUERY_TIME_THEIL_SEN_UNIX_SEC))
+    def test_theil_sen_predict_many_times(self):
+        """Ensures correct output from _theil_sen_predict_many_times."""
 
-        self.assertTrue(
-            numpy.absolute(this_x_predicted_metres -
-                           X_PREDICTED_THEIL_SEN_METRES) <= TOLERANCE)
-        self.assertTrue(
-            numpy.absolute(this_y_predicted_metres -
-                           Y_PREDICTED_THEIL_SEN_METRES) <= TOLERANCE)
-
-    def test_get_theil_sen_rmse(self):
-        """Ensures correct output from _get_theil_sen_rmse.
-
-        This is an integration test, not a unit test, because it also requires
-        _theil_sen_fit.
-        """
-
-        this_ts_model_for_x, this_ts_model_for_y = best_tracks._theil_sen_fit(
-            unix_times_sec=TIMES_LINEAR_UNIX_SEC,
-            x_coords_metres=X_LINEAR_METRES, y_coords_metres=Y_LINEAR_METRES)
-
-        this_rmse_metres = best_tracks._get_theil_sen_rmse(
-            theil_sen_model_for_x=this_ts_model_for_x,
-            theil_sen_model_for_y=this_ts_model_for_y,
-            track_times_unix_sec=TIMES_LINEAR_UNIX_SEC,
-            track_x_metres=X_NOISY_METRES, track_y_metres=Y_NOISY_METRES)
-
-        self.assertTrue(numpy.isclose(this_rmse_metres, THEIL_SEN_RMSE_METRES))
-
-    def test_get_prediction_errors_for_one_object(self):
-        """Ensures correct output from _get_prediction_errors_for_one_object.
-
-        This is an integration test, not a unit test, because it depends on
-        _theil_sen_fit_for_each_track.
-        """
-
-        this_storm_track_table = best_tracks.theil_sen_fit_for_each_track(
-            PREDICTOR_STORM_TRACK_TABLE)
-
-        these_prediction_errors_metres = (
-            best_tracks._get_prediction_errors_for_one_object(
-                x_coord_metres=X_COORD_ONE_OBJECT_METRES,
-                y_coord_metres=Y_COORD_ONE_OBJECT_METRES,
-                unix_time_sec=TIME_ONE_OBJECT_UNIX_SEC,
-                storm_track_table=this_storm_track_table))
+        (these_x_predicted_metres, these_y_predicted_metres
+        ) = best_tracks._theil_sen_predict_many_times(
+            x_intercept_metres=X_INTERCEPT_ONE_TRACK_METRES,
+            x_velocity_m_s01=X_VELOCITY_ONE_TRACK_M_S01,
+            y_intercept_metres=Y_INTERCEPT_ONE_TRACK_METRES,
+            y_velocity_m_s01=Y_VELOCITY_ONE_TRACK_M_S01,
+            query_times_unix_sec=QUERY_TIMES_ONE_TRACK_UNIX_SEC)
 
         self.assertTrue(numpy.allclose(
-            these_prediction_errors_metres, PREDICTION_ERRORS_ONE_OBJECT_METRES,
+            these_x_predicted_metres, QUERY_X_COORDS_ONE_TRACK_METRES,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_y_predicted_metres, QUERY_Y_COORDS_ONE_TRACK_METRES,
+            atol=TOLERANCE))
+
+    def test_theil_sen_predict_many_models(self):
+        """Ensures correct output from _theil_sen_predict_many_models."""
+
+        (these_x_predicted_metres, these_y_predicted_metres
+        ) = best_tracks._theil_sen_predict_many_models(
+            x_intercepts_metres=X_INTERCEPTS_MANY_MODELS_METRES,
+            x_velocities_m_s01=X_VELOCITIES_MANY_MODELS_M_S01,
+            y_intercepts_metres=Y_INTERCEPTS_MANY_MODELS_METRES,
+            y_velocities_m_s01=Y_VELOCITIES_MANY_MODELS_M_S01,
+            query_time_unix_sec=QUERY_TIME_MANY_MODELS_UNIX_SEC)
+
+        self.assertTrue(numpy.allclose(
+            these_x_predicted_metres, QUERY_X_COORDS_MANY_MODELS_METRES,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_y_predicted_metres, QUERY_Y_COORDS_MANY_MODELS_METRES,
+            atol=TOLERANCE))
+
+    def test_get_theil_sen_error_one_track(self):
+        """Ensures correct output for _get_theil_sen_error_one_track."""
+
+        this_rmse_metres = best_tracks._get_theil_sen_error_one_track(
+            storm_track_table=ONE_TRACK_TABLE_NOISY, storm_track_index=0)
+        self.assertTrue(numpy.isclose(
+            this_rmse_metres, ONE_TRACK_RMSE_METRES, atol=TOLERANCE))
+
+    def test_get_theil_sen_errors_one_object(self):
+        """Ensures correct output from _get_theil_sen_errors_one_object."""
+
+        this_error_metres = best_tracks._get_theil_sen_errors_one_object(
+            object_x_metres=ONE_TRACK_TABLE_NOISY[
+                best_tracks.TRACK_X_COORDS_COLUMN].values[0][0],
+            object_y_metres=ONE_TRACK_TABLE_NOISY[
+                best_tracks.TRACK_Y_COORDS_COLUMN].values[0][0],
+            object_time_unix_sec=ONE_TRACK_TABLE_NOISY[
+                best_tracks.TRACK_TIMES_COLUMN].values[0][0],
+            storm_track_table=ONE_TRACK_TABLE_NOISY)[0]
+
+        self.assertTrue(numpy.isclose(
+            this_error_metres, ONE_TRACK_FIRST_OBJECT_ERROR_METRES,
             atol=TOLERANCE))
 
     def test_get_join_time_for_two_tracks_overlapping(self):
@@ -393,27 +398,27 @@ class BestTracksTests(unittest.TestCase):
         In this case the two tracks overlap in time.
         """
 
-        this_join_time_sec, this_early_index, this_late_index = (
-            best_tracks._get_join_time_for_two_tracks(
-                START_TIMES_OVERLAPPING_TRACKS_UNIX_SEC,
-                END_TIMES_OVERLAPPING_TRACKS_UNIX_SEC))
+        (this_join_time_seconds, this_early_index, this_late_index
+        ) = best_tracks._get_join_time_for_two_tracks(
+            start_times_unix_sec=START_TIMES_OVERLAPPING_TRACKS_UNIX_SEC,
+            end_times_unix_sec=END_TIMES_OVERLAPPING_TRACKS_UNIX_SEC)
 
-        self.assertTrue(numpy.isnan(this_join_time_sec))
+        self.assertTrue(numpy.isnan(this_join_time_seconds))
         self.assertTrue(this_early_index == EARLY_INDEX_OVERLAPPING_TRACKS)
         self.assertTrue(this_late_index == LATE_INDEX_OVERLAPPING_TRACKS)
 
     def test_get_join_time_for_two_tracks_non_overlapping(self):
         """Ensures correct output from _get_join_time_for_two_tracks.
 
-        In this case the two tracks do not overlap in time.
+        In this case the two tracks do *not* overlap in time.
         """
 
-        this_join_time_sec, this_early_index, this_late_index = (
-            best_tracks._get_join_time_for_two_tracks(
-                START_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC,
-                END_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC))
+        (this_join_time_seconds, this_early_index, this_late_index
+        ) = best_tracks._get_join_time_for_two_tracks(
+            start_times_unix_sec=START_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC,
+            end_times_unix_sec=END_TIMES_NON_OVERLAPPING_TRACKS_UNIX_SEC)
 
-        self.assertTrue(this_join_time_sec == JOIN_TIME_NON_OVERLAPPING_SEC)
+        self.assertTrue(this_join_time_seconds == JOIN_TIME_NON_OVERLAPPING_SEC)
         self.assertTrue(this_early_index == EARLY_INDEX_NON_OVERLAPPING_TRACKS)
         self.assertTrue(this_late_index == LATE_INDEX_NON_OVERLAPPING_TRACKS)
 
@@ -426,220 +431,161 @@ class BestTracksTests(unittest.TestCase):
                 y_coords_early_metres=Y_COORDS_EARLY_TRACK_METRES,
                 x_coords_late_metres=X_COORDS_LATE_TRACK_METRES,
                 y_coords_late_metres=Y_COORDS_LATE_TRACK_METRES))
+
         self.assertTrue(numpy.isclose(
-            this_join_distance_metres, JOIN_DISTANCE_METRES))
+            this_join_distance_metres, JOIN_DISTANCE_TWO_TRACKS_METRES,
+            atol=TOLERANCE))
 
-    def test_get_velocity_diff_for_two_tracks(self):
-        """Ensures correct output from _get_velocity_diff_for_two_tracks.
+    def test_get_velocity_difference_two_tracks(self):
+        """Ensures correct output from _get_velocity_difference_two_tracks."""
 
-        This is an integration test, not a unit test, because it depends on
-        _theil_sen_fit.
-        """
-
-        theil_sen_model_for_x_early, theil_sen_model_for_y_early = (
-            best_tracks._theil_sen_fit(
-                unix_times_sec=TIMES_EARLY_TRACK_UNIX_SEC,
-                x_coords_metres=X_COORDS_EARLY_TRACK_METRES,
-                y_coords_metres=Y_COORDS_EARLY_TRACK_METRES))
-
-        theil_sen_model_for_x_late, theil_sen_model_for_y_late = (
-            best_tracks._theil_sen_fit(
-                unix_times_sec=TIMES_LATE_TRACK_UNIX_SEC,
-                x_coords_metres=X_COORDS_LATE_TRACK_METRES,
-                y_coords_metres=Y_COORDS_LATE_TRACK_METRES))
+        this_storm_track_table = best_tracks.theil_sen_fit_many_tracks(
+            storm_track_table=copy.deepcopy(TWO_STORM_TRACKS_TABLE),
+            verbose=False)
 
         this_velocity_diff_m_s01 = (
-            best_tracks._get_velocity_diff_for_two_tracks(
-                [theil_sen_model_for_x_early, theil_sen_model_for_x_late],
-                [theil_sen_model_for_y_early, theil_sen_model_for_y_late]))
-        self.assertTrue(numpy.isclose(
-            this_velocity_diff_m_s01, VELOCITY_DIFFERENCE_M_S01,
-            atol=TOLERANCE))
-
-    def test_get_mean_prediction_error_for_two_tracks(self):
-        """Ensures correctness of _get_mean_prediction_error_for_two_tracks.
-
-        This is an integration test, not a unit test, because it depends on
-        _theil_sen_fit.
-        """
-
-        theil_sen_model_for_x_early, theil_sen_model_for_y_early = (
-            best_tracks._theil_sen_fit(
-                unix_times_sec=TIMES_EARLY_TRACK_UNIX_SEC,
-                x_coords_metres=X_COORDS_EARLY_TRACK_METRES,
-                y_coords_metres=Y_COORDS_EARLY_TRACK_METRES))
-
-        this_mean_error_m_s01 = (
-            best_tracks._get_mean_prediction_error_for_two_tracks(
-                x_coords_late_metres=X_COORDS_LATE_TRACK_METRES,
-                y_coords_late_metres=Y_COORDS_LATE_TRACK_METRES,
-                late_times_unix_sec=TIMES_LATE_TRACK_UNIX_SEC,
-                theil_sen_model_for_x_early=theil_sen_model_for_x_early,
-                theil_sen_model_for_y_early=theil_sen_model_for_y_early,
-                last_early_time_unix_sec=numpy.max(TIMES_EARLY_TRACK_UNIX_SEC)))
+            best_tracks._get_velocity_difference_two_tracks(
+                storm_track_table=this_storm_track_table, first_index=0,
+                second_index=1))
 
         self.assertTrue(numpy.isclose(
-            this_mean_error_m_s01, MEAN_ERROR_LATE_PREDICTED_BY_EARLY_M_S01,
+            this_velocity_diff_m_s01, VELOCITY_DIFF_TWO_TRACKS_M_S01,
             atol=TOLERANCE))
 
-    def test_break_ties_one_storm_track(self):
-        """Ensures correct output from _break_ties_one_storm_track."""
+    def test_get_theil_sen_error_two_tracks(self):
+        """Ensures correct output from _get_theil_sen_error_two_tracks."""
 
-        this_theil_sen_model_for_x, this_theil_sen_model_for_y = (
-            best_tracks._theil_sen_fit(
-                unix_times_sec=TIMES_IN_TIE_UNIX_SEC,
-                x_coords_metres=X_COORDS_IN_TIE_METRES,
-                y_coords_metres=Y_COORDS_IN_TIE_METRES))
+        this_storm_track_table = best_tracks.theil_sen_fit_many_tracks(
+            storm_track_table=copy.deepcopy(TWO_STORM_TRACKS_TABLE),
+            verbose=False)
 
-        these_indices_to_remove = best_tracks._break_ties_one_storm_track(
-            object_x_coords_metres=X_COORDS_IN_TIE_METRES,
-            object_y_coords_metres=Y_COORDS_IN_TIE_METRES,
-            object_times_unix_sec=TIMES_IN_TIE_UNIX_SEC,
-            theil_sen_model_for_x=this_theil_sen_model_for_x,
-            theil_sen_model_for_y=this_theil_sen_model_for_y)
+        this_mean_error_m_s01 = best_tracks._get_theil_sen_error_two_tracks(
+            storm_track_table=this_storm_track_table, early_track_index=1,
+            late_track_index=0)
 
+        self.assertTrue(numpy.isclose(
+            this_mean_error_m_s01, MEAN_ERROR_TWO_TRACKS_M_S01, atol=TOLERANCE))
+
+    def test_break_ties_one_track(self):
+        """Ensures correct output from _break_ties_one_track."""
+
+        this_storm_track_table = best_tracks.theil_sen_fit_many_tracks(
+            storm_track_table=copy.deepcopy(STORM_TRACK_TABLE_FOR_TIEBREAKER),
+            verbose=False)
+
+        these_indices_to_remove = best_tracks._break_ties_one_track(
+            storm_track_table=this_storm_track_table, storm_track_index=0)
         self.assertTrue(numpy.array_equal(
-            these_indices_to_remove, INDICES_TO_REMOVE_FROM_TIE))
+            these_indices_to_remove, INDICES_TO_REMOVE_FOR_TIEBREAKER))
 
     def test_find_changed_tracks(self):
         """Ensures correct output from _find_changed_tracks."""
 
         these_track_changed_indices = best_tracks._find_changed_tracks(
-            STORM_TRACK_TABLE_CHANGED, MAIN_STORM_TRACK_TABLE)
+            storm_track_table=MAIN_STORM_TRACK_TABLE_TWEAKED,
+            orig_storm_track_table=MAIN_STORM_TRACK_TABLE)
         self.assertTrue(numpy.array_equal(
             these_track_changed_indices, TRACK_CHANGED_INDICES))
 
-    def test_storm_objects_to_tracks_all_storms(self):
+    def test_storm_objects_to_tracks_all(self):
         """Ensures correct output from storm_objects_to_tracks.
 
-        In this case, tracking info is added for all storms.
+        In this case, tracking data are created for all storms.
         """
 
         this_storm_track_table = best_tracks.storm_objects_to_tracks(
-            MAIN_STORM_OBJECT_TABLE, storm_ids_to_use=None)
+            MAIN_STORM_OBJECT_TABLE)
         this_storm_track_table.sort_values(
             tracking_utils.STORM_ID_COLUMN, axis=0, ascending=True,
             inplace=True)
 
-        self.assertTrue(set(list(this_storm_track_table)) ==
-                        set(list(MAIN_STORM_TRACK_TABLE)))
-        num_rows = len(MAIN_STORM_TRACK_TABLE.index)
-
-        for this_column in list(MAIN_STORM_TRACK_TABLE):
-            if this_column in STRING_COLUMNS_IN_STORM_TRACK_TABLE:
-                self.assertTrue(numpy.array_equal(
-                    this_storm_track_table[this_column].values,
-                    MAIN_STORM_TRACK_TABLE[this_column].values))
-
-            elif this_column in ARRAY_COLUMNS_IN_STORM_TRACK_TABLE:
-                for i in range(num_rows):
-                    self.assertTrue(numpy.allclose(
-                        this_storm_track_table[this_column].values[i],
-                        MAIN_STORM_TRACK_TABLE[this_column].values[i],
-                        atol=TOLERANCE))
-
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_storm_track_table[this_column].values,
-                    MAIN_STORM_TRACK_TABLE[this_column].values, atol=TOLERANCE))
+        self.assertTrue(_compare_storm_track_tables(
+            this_storm_track_table, MAIN_STORM_TRACK_TABLE))
 
     def test_storm_objects_to_tracks_foo_only(self):
         """Ensures correct output from storm_objects_to_tracks.
 
-        In this case, tracking info is added only for storm "foo".
+        In this case, tracking data are created only for storm "foo".
         """
 
         this_storm_track_table = best_tracks.storm_objects_to_tracks(
             MAIN_STORM_OBJECT_TABLE, storm_ids_to_use=['foo'])
+        self.assertTrue(_compare_storm_track_tables(
+            this_storm_track_table, STORM_TRACK_TABLE_FOO_ONLY))
 
-        self.assertTrue(set(list(this_storm_track_table)) ==
-                        set(list(STORM_TRACK_TABLE_FOO_ONLY)))
-        num_rows = len(STORM_TRACK_TABLE_FOO_ONLY.index)
-
-        for this_column in list(STORM_TRACK_TABLE_FOO_ONLY):
-            if this_column in STRING_COLUMNS_IN_STORM_TRACK_TABLE:
-                self.assertTrue(numpy.array_equal(
-                    this_storm_track_table[this_column].values,
-                    STORM_TRACK_TABLE_FOO_ONLY[this_column].values))
-
-            elif this_column in ARRAY_COLUMNS_IN_STORM_TRACK_TABLE:
-                for i in range(num_rows):
-                    self.assertTrue(numpy.allclose(
-                        this_storm_track_table[this_column].values[i],
-                        STORM_TRACK_TABLE_FOO_ONLY[this_column].values[i],
-                        atol=TOLERANCE))
-
-            else:
-                self.assertTrue(numpy.allclose(
-                    this_storm_track_table[this_column].values,
-                    STORM_TRACK_TABLE_FOO_ONLY[this_column].values,
-                    atol=TOLERANCE))
-
-    def test_remove_short_tracks_min_length1(self):
+    def test_remove_short_tracks_min_length_1(self):
         """Ensures correct output from remove_short_tracks.
 
         In this case, minimum track length is one storm object.
         """
 
         this_storm_object_table = best_tracks.remove_short_tracks(
-            MAIN_STORM_OBJECT_TABLE, min_objects_in_track=1)
+            storm_object_table=MAIN_STORM_OBJECT_TABLE, min_objects_in_track=1)
 
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.STORM_ID_COLUMN].values,
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ1[
-                tracking_utils.STORM_ID_COLUMN].values))
+                tracking_utils.STORM_ID_COLUMN
+            ].values))
+
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.TIME_COLUMN].values,
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ1[
-                tracking_utils.TIME_COLUMN].values))
+                tracking_utils.TIME_COLUMN
+            ].values))
 
-    def test_remove_short_tracks_min_length2(self):
+    def test_remove_short_tracks_min_length_2(self):
         """Ensures correct output from remove_short_tracks.
 
         In this case, minimum track length is 2 storm objects.
         """
 
         this_storm_object_table = best_tracks.remove_short_tracks(
-            MAIN_STORM_OBJECT_TABLE, min_objects_in_track=2)
+            storm_object_table=MAIN_STORM_OBJECT_TABLE, min_objects_in_track=2)
 
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.STORM_ID_COLUMN].values,
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ2[
-                tracking_utils.STORM_ID_COLUMN].values))
+                tracking_utils.STORM_ID_COLUMN
+            ].values))
+
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.TIME_COLUMN].values,
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ2[
-                tracking_utils.TIME_COLUMN].values))
+                tracking_utils.TIME_COLUMN
+            ].values))
 
-    def test_remove_short_tracks_min_length3(self):
+    def test_remove_short_tracks_min_length_3(self):
         """Ensures correct output from remove_short_tracks.
 
         In this case, minimum track length is 3 storm objects.
         """
 
         this_storm_object_table = best_tracks.remove_short_tracks(
-            MAIN_STORM_OBJECT_TABLE, min_objects_in_track=3)
+            storm_object_table=MAIN_STORM_OBJECT_TABLE, min_objects_in_track=3)
 
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.STORM_ID_COLUMN].values,
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3[
-                tracking_utils.STORM_ID_COLUMN].values))
+                tracking_utils.STORM_ID_COLUMN
+            ].values))
+
         self.assertTrue(numpy.array_equal(
             this_storm_object_table[tracking_utils.TIME_COLUMN].values,
             STORM_OBJECT_TABLE_TRACK_LENGTH_GEQ3[
-                tracking_utils.TIME_COLUMN].values))
+                tracking_utils.TIME_COLUMN
+            ].values))
 
-    def test_get_storm_ages_invalid(self):
+    def test_get_storm_ages_all_invalid(self):
         """Ensures correct output from get_storm_ages.
 
         In this case all storm ages are invalid ("-1 seconds"), because all
-        storms either start near the beginning of the tracking period or end
-        near the end of the tracking period.
+        storms either start too near the beginning of the tracking period or end
+        too near the end of the period.
         """
 
-        input_table = copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES)
         this_storm_object_table = best_tracks.get_storm_ages(
-            storm_object_table=input_table,
+            storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES),
             best_track_start_time_unix_sec=BEST_TRACK_START_TIME_UNIX_SEC,
             best_track_end_time_unix_sec=BEST_TRACK_END_TIME_UNIX_SEC,
             max_extrap_time_for_breakup_sec=MAX_EXTRAP_TIME_LARGE_SECONDS,
@@ -654,9 +600,8 @@ class BestTracksTests(unittest.TestCase):
         In this case some storm ages are valid (not "-1 seconds").
         """
 
-        input_table = copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES)
         this_storm_object_table = best_tracks.get_storm_ages(
-            storm_object_table=input_table,
+            storm_object_table=copy.deepcopy(STORM_OBJECT_TABLE_NO_AGES),
             best_track_start_time_unix_sec=BEST_TRACK_START_TIME_UNIX_SEC,
             best_track_end_time_unix_sec=BEST_TRACK_END_TIME_UNIX_SEC,
             max_extrap_time_for_breakup_sec=MAX_EXTRAP_TIME_SMALL_SECONDS,
