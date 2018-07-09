@@ -498,14 +498,19 @@ def _break_ties_one_track(storm_track_table, storm_track_index):
             this_nearest_object_index = these_object_indices[
                 numpy.argmin(these_errors_metres)]
 
-            for j in these_object_indices:
-                if j == this_nearest_object_index:
-                    continue
+            these_object_indices_to_remove = these_object_indices.tolist()
+            these_object_indices_to_remove.remove(this_nearest_object_index)
+            these_object_indices_to_remove = numpy.array(
+                these_object_indices_to_remove, dtype=int)
 
-                object_x_coords_metres = numpy.delete(object_x_coords_metres, j)
-                object_y_coords_metres = numpy.delete(object_y_coords_metres, j)
-                object_times_unix_sec = numpy.delete(object_times_unix_sec, j)
-                object_indices_to_keep = numpy.delete(object_indices_to_keep, j)
+            object_x_coords_metres = numpy.delete(
+                object_x_coords_metres, these_object_indices_to_remove)
+            object_y_coords_metres = numpy.delete(
+                object_y_coords_metres, these_object_indices_to_remove)
+            object_times_unix_sec = numpy.delete(
+                object_times_unix_sec, these_object_indices_to_remove)
+            object_indices_to_keep = numpy.delete(
+                object_indices_to_keep, these_object_indices_to_remove)
 
             (theil_sen_x_intercept_metres, theil_sen_x_velocity_m_s01,
              theil_sen_y_intercept_metres, theil_sen_y_velocity_m_s01
@@ -850,7 +855,7 @@ def break_storm_tracks(
             working_object_indices])
 
     for i in working_object_indices:
-        if numpy.mod(num_objects_done, 100) == 0:
+        if numpy.mod(num_objects_done, 1000) == 0:
             print ('Have performed break-up step for ' + str(num_objects_done) +
                    '/' + str(num_working_objects) + ' storm objects...')
 
@@ -990,7 +995,7 @@ def merge_storm_tracks(
     remove_storm_track_flags = numpy.full(num_storm_tracks, False, dtype=bool)
 
     for j in working_track_indices:
-        if numpy.mod(num_tracks_considered, 10) == 0:
+        if numpy.mod(num_tracks_considered, 100) == 0:
             print ('Have considered ' + str(num_tracks_considered) + '/' +
                    str(num_working_tracks) + ' storm tracks for merging...')
 
@@ -1034,8 +1039,8 @@ def merge_storm_tracks(
             this_join_distance_m_s01 = (
                 this_join_distance_metres / this_join_time_sec)
             if not this_join_distance_m_s01 <= max_join_distance_m_s01:
-                print 'Join distance = {0:.1f} m/s'.format(
-                    this_join_distance_m_s01)
+                # print 'Join distance = {0:.1f} m/s'.format(
+                #     this_join_distance_m_s01)
                 continue
 
             this_mean_prediction_error_m_s01 = _get_theil_sen_error_two_tracks(
@@ -1044,10 +1049,10 @@ def merge_storm_tracks(
 
             if not (this_mean_prediction_error_m_s01 <=
                     max_mean_prediction_error_m_s01):
-                print 'Join distance = {0:.1f} m/s'.format(
-                    this_join_distance_m_s01)
-                print 'Mean prediction error = {0:.1f} m/s'.format(
-                    this_mean_prediction_error_m_s01)
+                # print 'Join distance = {0:.1f} m/s'.format(
+                #     this_join_distance_m_s01)
+                # print 'Mean prediction error = {0:.1f} m/s'.format(
+                #     this_mean_prediction_error_m_s01)
                 continue
 
             remove_storm_track_flags[k] = True
