@@ -71,7 +71,9 @@ def plot_histogram(
         0, num_bins - 1, step=x_tick_spacing_num_bins, dtype=int)
     x_tick_indices = x_tick_indices[x_tick_indices < num_bins]
     x_tick_values = bin_centers[x_tick_indices]
+
     pyplot.xticks(x_tick_values, axes=axes_object)
+    axes_object.set_xlim(bin_edges[0], bin_edges[-1])
 
     if y_tick_spacing is not None:
         error_checking.assert_is_greater(y_tick_spacing, 0.)
@@ -80,7 +82,6 @@ def plot_histogram(
             numpy.max(fraction_of_examples_by_bin), y_tick_spacing)
         num_y_ticks = 1 + int(numpy.round(max_y_tick_value / y_tick_spacing))
         y_tick_values = numpy.linspace(0., max_y_tick_value, num=num_y_ticks)
-        pyplot.yticks(y_tick_values, axes=axes_object)
 
-    axes_object.set_xlim(bin_edges[0], bin_edges[-1])
-    axes_object.set_ylim(0., max_y_tick_value)
+        pyplot.yticks(y_tick_values, axes=axes_object)
+        axes_object.set_ylim(0., max_y_tick_value)
