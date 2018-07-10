@@ -2,7 +2,6 @@
 
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import histograms
@@ -25,7 +24,7 @@ pyplot.rc('figure', titlesize=FONT_SIZE)
 
 def plot_histogram(
         input_values, num_bins, min_value, max_value, axes_object,
-        x_tick_spacing_num_bins, y_tick_spacing,
+        x_tick_spacing_num_bins, y_tick_spacing=None,
         bar_face_colour=DEFAULT_HISTOGRAM_FACE_COLOUR,
         bar_edge_colour=DEFAULT_HISTOGRAM_EDGE_COLOUR,
         bar_edge_width=DEFAULT_HISTOGRAM_EDGE_WIDTH):
@@ -46,13 +45,15 @@ def plot_histogram(
     :param bar_edge_width: Width for edge of each bar.
     """
 
+    # TODO(thunderhoser): Make input args nicer, especially `y_tick_spacing`.
+
     error_checking.assert_is_integer(x_tick_spacing_num_bins)
     error_checking.assert_is_greater(x_tick_spacing_num_bins, 0)
-    error_checking.assert_is_greater(y_tick_spacing, 0.)
 
     _, num_examples_by_bin = histograms.create_histogram(
         input_values=input_values, num_bins=num_bins, min_value=min_value,
         max_value=max_value)
+    print num_examples_by_bin
 
     fraction_of_examples_by_bin = (
             num_examples_by_bin.astype(float) / numpy.sum(num_examples_by_bin))
@@ -70,13 +71,16 @@ def plot_histogram(
         0, num_bins - 1, step=x_tick_spacing_num_bins, dtype=int)
     x_tick_indices = x_tick_indices[x_tick_indices < num_bins]
     x_tick_values = bin_centers[x_tick_indices]
-
-    max_y_tick_value = rounder.ceiling_to_nearest(
-        numpy.max(fraction_of_examples_by_bin), y_tick_spacing)
-    num_y_ticks = 1 + int(numpy.round(max_y_tick_value / y_tick_spacing))
-    y_tick_values = numpy.linspace(0., max_y_tick_value, num=num_y_ticks)
-
     pyplot.xticks(x_tick_values, axes=axes_object)
-    pyplot.yticks(y_tick_values, axes=axes_object)
+
+    if y_tick_spacing is not None:
+        error_checking.assert_is_greater(y_tick_spacing, 0.)
+
+        max_y_tick_value = rounder.ceiling_to_nearest(
+            numpy.max(fraction_of_examples_by_bin), y_tick_spacing)
+        num_y_ticks = 1 + int(numpy.round(max_y_tick_value / y_tick_spacing))
+        y_tick_values = numpy.linspace(0., max_y_tick_value, num=num_y_ticks)
+        pyplot.yticks(y_tick_values, axes=axes_object)
+
     axes_object.set_xlim(bin_edges[0], bin_edges[-1])
     axes_object.set_ylim(0., max_y_tick_value)
