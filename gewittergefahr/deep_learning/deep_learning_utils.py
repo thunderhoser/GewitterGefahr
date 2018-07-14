@@ -409,6 +409,57 @@ def normalize_radar_images(
     return radar_image_matrix
 
 
+def mask_low_reflectivity_pixels(
+        radar_image_matrix_3d, field_names, reflectivity_threshold_dbz=15.):
+    """Masks pixels with low reflectivity.
+
+    Specifically, at each pixel with low reflectivity, this method sets all
+    variables to zero.
+
+    :param radar_image_matrix_3d: numpy array of radar images.  Dimensions must
+        be E x M x N x H_r x F_r.
+    :param field_names: List of field names (length F_r).  Each field name must
+        be accepted by `radar_utils.check_field_name`.
+    :param reflectivity_threshold_dbz: Threshold used to define "low
+        reflectivity" (units of dBZ).
+    :return: radar_image_matrix_3d: Same as input, but low-reflectivity pixels
+        are masked.
+    :raises: ValueError: if `"reflectivity_dbz" not in field_names`.
+    """
+
+    check_radar_images(
+        radar_image_matrix=radar_image_matrix_3d, min_num_dimensions=5,
+        max_num_dimensions=5)
+    num_fields = radar_image_matrix_3d.shape[-1]
+
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names), exact_dimensions=numpy.array([num_fields]))
+    error_checking.assert_is_greater(reflectivity_threshold_dbz, 0.)
+
+    if radar_utils.REFL_NAME not in field_names:
+        error_string = (
+            'Cannot find "{0:s}" (needed to find low-reflectivity pixels) in '
+            'list `{1:s}`.'
+        ).format(radar_utils.REFL_NAME, field_names)
+        raise ValueError(error_string)
+
+    reflectivity_index = field_names.index(radar_utils.REFL_NAME)
+    tuple_of_bad_indices = numpy.where(
+        radar_image_matrix_3d[..., reflectivity_index] <
+        reflectivity_threshold_dbz)
+    num_bad_values = len(tuple_of_bad_indices[0])
+
+    for j in range(num_fields):
+        these_last_indices = numpy.full(num_bad_values, j, dtype=int)
+        radar_image_matrix_3d[
+            tuple_of_bad_indices[0], tuple_of_bad_indices[1],
+            tuple_of_bad_indices[2], tuple_of_bad_indices[3],
+            these_last_indices] = 0.
+
+    return radar_image_matrix_3d
+
+
 def normalize_soundings(
         sounding_matrix, pressureless_field_names,
         normalization_dict=DEFAULT_SOUNDING_NORMALIZATION_DICT):

@@ -219,6 +219,93 @@ RADAR_MATRIX_5D_NORM_BY_CLIMO = numpy.stack(
     (RADAR_MATRIX_4D_NORM_BY_CLIMO, RADAR_MATRIX_HEIGHT2_NORM_BY_CLIMO,
      RADAR_MATRIX_HEIGHT3_NORM_BY_CLIMO), axis=-2)
 
+# The following constants are used to test mask_low_reflectivity_pixels.
+FIELD_NAMES_FOR_MASKING = [radar_utils.REFL_NAME, radar_utils.DIVERGENCE_NAME]
+MASKING_THRESHOLD_DBZ = 15.
+
+THIS_REFL_MATRIX_HEIGHT2 = numpy.array([[17, 24, 1, 8],
+                                        [23, 5, 7, 14],
+                                        [4, 6, 13, 20],
+                                        [10, 12, 19, 21],
+                                        [11, 18, 25, 2]], dtype=float)
+THIS_REFL_MATRIX_HEIGHT1 = 2 * THIS_REFL_MATRIX_HEIGHT2
+THIS_REFL_MATRIX_HEIGHT0 = 3 * THIS_REFL_MATRIX_HEIGHT2
+THIS_REFL_MATRIX_EXAMPLE0 = numpy.stack(
+    (THIS_REFL_MATRIX_HEIGHT0, THIS_REFL_MATRIX_HEIGHT1,
+     THIS_REFL_MATRIX_HEIGHT2), axis=-1)
+
+THIS_REFL_MATRIX_HEIGHT2_MASKED = numpy.array([[17, 24, 0, 0],
+                                               [23, 0, 0, 0],
+                                               [0, 0, 0, 20],
+                                               [0, 0, 19, 21],
+                                               [0, 18, 25, 0]], dtype=float)
+THIS_REFL_MATRIX_HEIGHT1_MASKED = numpy.array([[34, 48, 0, 16],
+                                               [46, 0, 0, 28],
+                                               [0, 0, 26, 40],
+                                               [20, 24, 38, 42],
+                                               [22, 36, 50, 0]], dtype=float)
+THIS_REFL_MATRIX_HEIGHT0_MASKED = numpy.array([[51, 72, 0, 24],
+                                               [69, 15, 21, 42],
+                                               [0, 18, 39, 60],
+                                               [30, 36, 57, 63],
+                                               [33, 54, 75, 0]], dtype=float)
+THIS_REFL_MATRIX_EXAMPLE0_MASKED = numpy.stack(
+    (THIS_REFL_MATRIX_HEIGHT0_MASKED, THIS_REFL_MATRIX_HEIGHT1_MASKED,
+     THIS_REFL_MATRIX_HEIGHT2_MASKED), axis=-1)
+
+THIS_REFL_MATRIX_HEIGHT2 = numpy.array([[17, 19, 18, 21],
+                                        [0, 19, 0, 18],
+                                        [22, 10, 7, 8],
+                                        [24, 17, 1, 24],
+                                        [17, 4, 2, 0]], dtype=float)
+THIS_REFL_MATRIX_HEIGHT1 = 2 * THIS_REFL_MATRIX_HEIGHT2
+THIS_REFL_MATRIX_HEIGHT0 = 3 * THIS_REFL_MATRIX_HEIGHT2
+THIS_REFL_MATRIX_EXAMPLE1 = numpy.stack(
+    (THIS_REFL_MATRIX_HEIGHT0, THIS_REFL_MATRIX_HEIGHT1,
+     THIS_REFL_MATRIX_HEIGHT2), axis=-1)
+
+THIS_REFL_MATRIX_HEIGHT2_MASKED = numpy.array([[17, 19, 18, 21],
+                                               [0, 19, 0, 18],
+                                               [22, 0, 0, 0],
+                                               [24, 17, 0, 24],
+                                               [17, 0, 0, 0]], dtype=float)
+THIS_REFL_MATRIX_HEIGHT1_MASKED = numpy.array([[34, 38, 36, 42],
+                                               [0, 38, 0, 36],
+                                               [44, 20, 0, 16],
+                                               [48, 34, 0, 48],
+                                               [34, 0, 0, 0]], dtype=float)
+THIS_REFL_MATRIX_HEIGHT0_MASKED = numpy.array([[51, 57, 54, 63],
+                                               [0, 57, 0, 54],
+                                               [66, 30, 21, 24],
+                                               [72, 51, 0, 72],
+                                               [51, 0, 0, 0]], dtype=float)
+THIS_REFL_MATRIX_EXAMPLE1_MASKED = numpy.stack(
+    (THIS_REFL_MATRIX_HEIGHT0_MASKED, THIS_REFL_MATRIX_HEIGHT1_MASKED,
+     THIS_REFL_MATRIX_HEIGHT2_MASKED), axis=-1)
+
+THIS_DIVERGENCE_MATRIX_EXAMPLE0 = 0.001 * THIS_REFL_MATRIX_EXAMPLE0
+THIS_DIVERGENCE_MATRIX_EXAMPLE0_MASKED = (
+    0.001 * THIS_REFL_MATRIX_EXAMPLE0_MASKED)
+THIS_DIVERGENCE_MATRIX_EXAMPLE1 = 0.001 * THIS_REFL_MATRIX_EXAMPLE1
+THIS_DIVERGENCE_MATRIX_EXAMPLE1_MASKED = (
+    0.001 * THIS_REFL_MATRIX_EXAMPLE1_MASKED)
+
+THIS_EXAMPLE0_MATRIX = numpy.stack(
+    (THIS_REFL_MATRIX_EXAMPLE0, THIS_DIVERGENCE_MATRIX_EXAMPLE0), axis=-1)
+THIS_EXAMPLE1_MATRIX = numpy.stack(
+    (THIS_REFL_MATRIX_EXAMPLE1, THIS_DIVERGENCE_MATRIX_EXAMPLE1), axis=-1)
+RADAR_MATRIX_3D_UNMASKED = numpy.stack(
+    (THIS_EXAMPLE0_MATRIX, THIS_EXAMPLE1_MATRIX), axis=0)
+
+THIS_EXAMPLE0_MATRIX_MASKED = numpy.stack(
+    (THIS_REFL_MATRIX_EXAMPLE0_MASKED, THIS_DIVERGENCE_MATRIX_EXAMPLE0_MASKED),
+    axis=-1)
+THIS_EXAMPLE1_MATRIX_MASKED = numpy.stack(
+    (THIS_REFL_MATRIX_EXAMPLE1_MASKED, THIS_DIVERGENCE_MATRIX_EXAMPLE1_MASKED),
+    axis=-1)
+RADAR_MATRIX_3D_MASKED = numpy.stack(
+    (THIS_EXAMPLE0_MATRIX_MASKED, THIS_EXAMPLE1_MATRIX_MASKED), axis=0)
+
 # The following constants are used to test normalize_soundings.
 SOUNDING_FIELD_NAMES = [
     soundings_only.RELATIVE_HUMIDITY_NAME, soundings_only.TEMPERATURE_NAME,
@@ -747,6 +834,17 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_radar_matrix, RADAR_MATRIX_5D_NORM_BY_CLIMO,
             atol=TOLERANCE, equal_nan=True))
+
+    def test_mask_low_reflectivity_pixels(self):
+        """Ensures correct output from mask_low_reflectivity_pixels."""
+
+        this_matrix = dl_utils.mask_low_reflectivity_pixels(
+            radar_image_matrix_3d=copy.deepcopy(RADAR_MATRIX_3D_UNMASKED),
+            field_names=FIELD_NAMES_FOR_MASKING,
+            reflectivity_threshold_dbz=MASKING_THRESHOLD_DBZ)
+
+        self.assertTrue(numpy.allclose(
+            this_matrix, RADAR_MATRIX_3D_MASKED, atol=TOLERANCE))
 
     def test_normalize_soundings(self):
         """Ensures correct output from normalize_soundings."""
