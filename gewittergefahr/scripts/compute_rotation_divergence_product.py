@@ -19,6 +19,7 @@ from gewittergefahr.gg_io import gridrad_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import file_system_utils
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -34,6 +35,7 @@ ROTATION_DIVERGENCE_PRODUCTS_KEY = 'rotation_divergence_products_s02'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 GRIDRAD_DIR_ARG_NAME = 'input_gridrad_dir_name'
 SPC_DATE_ARG_NAME = 'spc_date_string'
+RADIUS_ARG_NAME = 'radius_from_storm_centroid_metres'
 OUTPUT_FILE_ARG_NAME = 'output_pickle_file_name'
 
 TRACKING_DIR_HELP_STRING = (
@@ -47,6 +49,11 @@ GRIDRAD_DIR_HELP_STRING = (
 SPC_DATE_HELP_STRING = (
     'SPC date (format "yyyymmdd").  The rotation-divergence product will be '
     'computed for each storm object on this date.')
+RADIUS_HELP_STRING = (
+    'For each storm object, the rotation-divergence product (RDP) will be max '
+    'rotation * max divergence within this horizontal radius from the storm '
+    'centroid.  If `{0:s}` = -1, the RDP will be max rotation * max divergence '
+    'within the storm object (bounding polygon).').format(RADIUS_ARG_NAME)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (with valid time, storm ID, and rotation-divergence '
     'product for each storm object).')
@@ -65,20 +72,28 @@ INPUT_ARG_PARSER.add_argument(
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + RADIUS_ARG_NAME, type=int, required=False, default=10000,
+    help=RADIUS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
 def _compute_rdp_for_each_storm_object(
         top_tracking_dir_name, top_gridrad_dir_name, spc_date_string,
-        output_pickle_file_name):
+        radius_from_storm_centroid_metres, output_pickle_file_name):
     """Computes rotation-divergence product for each storm object.
 
     :param top_tracking_dir_name: See documentation at top of file.
     :param top_gridrad_dir_name: Same.
     :param spc_date_string: Same.
+    :param radius_from_storm_centroid_metres: Same.
     :param output_pickle_file_name: Same.
     """
+
+    if radius_from_storm_centroid_metres == -1:
+        radius_from_storm_centroid_metres = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         file_name=output_pickle_file_name)
@@ -107,11 +122,14 @@ def _compute_rdp_for_each_storm_object(
 
         print 'Reading "{0:s}" field from: "{1:s}"...'.format(
             radar_utils.VORTICITY_NAME, this_gridrad_file_name)
-        (this_vorticity_matrix_s01, these_grid_point_heights_m_asl, _, _
+        (this_vorticity_matrix_s01, these_grid_point_heights_m_asl,
+         these_grid_point_latitudes_deg, these_grid_point_longitudes_deg
         ) = gridrad_io.read_field_from_full_grid_file(
             netcdf_file_name=this_gridrad_file_name,
             field_name=radar_utils.VORTICITY_NAME,
             metadata_dict=this_metadata_dict)
+
+        these_grid_point_latitudes_deg = these_grid_point_latitudes_deg[::-1]
         this_vorticity_matrix_s01 = numpy.flip(
             this_vorticity_matrix_s01, axis=1)
 
@@ -145,12 +163,25 @@ def _compute_rdp_for_each_storm_object(
         ).format(this_time_string)
 
         for this_storm_object_index in these_storm_object_indices:
-            these_grid_point_rows = storm_object_table[
-                tracking_utils.GRID_POINT_ROW_COLUMN
-            ].values[this_storm_object_index]
-            these_grid_point_columns = storm_object_table[
-                tracking_utils.GRID_POINT_COLUMN_COLUMN
-            ].values[this_storm_object_index]
+            if radius_from_storm_centroid_metres is None:
+                these_grid_point_rows = storm_object_table[
+                    tracking_utils.GRID_POINT_ROW_COLUMN
+                ].values[this_storm_object_index]
+                these_grid_point_columns = storm_object_table[
+                    tracking_utils.GRID_POINT_COLUMN_COLUMN
+                ].values[this_storm_object_index]
+            else:
+                (these_grid_point_rows, these_grid_point_columns
+                ) = grids.get_latlng_grid_points_in_radius(
+                    grid_point_latitudes_deg=these_grid_point_latitudes_deg,
+                    grid_point_longitudes_deg=these_grid_point_longitudes_deg,
+                    test_latitude_deg=storm_object_table[
+                        tracking_utils.CENTROID_LAT_COLUMN
+                    ].values[this_storm_object_index],
+                    test_longitude_deg=storm_object_table[
+                        tracking_utils.CENTROID_LNG_COLUMN
+                    ].values[this_storm_object_index],
+                    effective_radius_metres=radius_from_storm_centroid_metres)
 
             this_vorticity_s01 = numpy.nanmax(
                 this_vorticity_matrix_s01[
@@ -160,8 +191,6 @@ def _compute_rdp_for_each_storm_object(
                     :, these_grid_point_rows, these_grid_point_columns])
             rdp_by_storm_object_s02[this_storm_object_index] = (
                 this_vorticity_s01 * this_divergence_s01)
-
-        print rdp_by_storm_object_s02[these_storm_object_indices]
 
     rdp_dict = {
         STORM_IDS_KEY:
@@ -185,4 +214,6 @@ if __name__ == '__main__':
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         top_gridrad_dir_name=getattr(INPUT_ARG_OBJECT, GRIDRAD_DIR_ARG_NAME),
         spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
+        radius_from_storm_centroid_metres=getattr(
+            INPUT_ARG_OBJECT, RADIUS_ARG_NAME),
         output_pickle_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))

@@ -126,6 +126,34 @@ NUM_EVENTS_MATRIX_NON_EQUIDISTANT = numpy.array([[1, 2, 2, 2, 2, 2],
                                                  [2, 2, 2, 2, 2, 1],
                                                  [3, 4, 5, 5, 4, 4]], dtype=int)
 
+# The following constants are used to test get_latlng_grid_points_in_radius.
+LATITUDES_FOR_RADIUS_TEST_DEG = numpy.array([51, 52, 53, 54], dtype=float)
+LONGITUDES_FOR_RADIUS_TEST_DEG = numpy.array([245.8, 246.2, 246.6, 247, 247.4])
+
+CALGARY_LATITUDE_DEG = 51.1
+CALGARY_LONGITUDE_DEG = 246.
+EDMONTON_LATITUDE_DEG = 53.6
+EDMONTON_LONGITUDE_DEG = 246.5
+EFFECTIVE_RADIUS_METRES = 105000.
+
+ROWS_IN_CALGARY_RADIUS_LAT_INCREASING = numpy.array(
+    [0, 0, 0, 0, 0, 1, 1], dtype=int)
+COLUMNS_IN_CALGARY_RADIUS_LAT_INCREASING = numpy.array(
+    [0, 1, 2, 3, 4, 0, 1], dtype=int)
+ROWS_IN_CALGARY_RADIUS_LAT_DECREASING = numpy.array(
+    [2, 2, 3, 3, 3, 3, 3], dtype=int)
+COLUMNS_IN_CALGARY_RADIUS_LAT_DECREASING = numpy.array(
+    [0, 1, 0, 1, 2, 3, 4], dtype=int)
+
+ROWS_IN_EDMONTON_RADIUS_LAT_INCREASING = numpy.array(
+    [2, 2, 2, 2, 2, 3, 3, 3, 3, 3], dtype=int)
+COLUMNS_IN_EDMONTON_RADIUS_LAT_INCREASING = numpy.array(
+    [0, 1, 2, 3, 4, 0, 1, 2, 3, 4], dtype=int)
+ROWS_IN_EDMONTON_RADIUS_LAT_DECREASING = numpy.array(
+    [0, 0, 0, 0, 0, 1, 1, 1, 1, 1], dtype=int)
+COLUMNS_IN_EDMONTON_RADIUS_LAT_DECREASING = numpy.array(
+    [0, 1, 2, 3, 4, 0, 1, 2, 3, 4], dtype=int)
+
 
 class GridsTests(unittest.TestCase):
     """Each method is a unit test for grids.py."""
@@ -296,6 +324,82 @@ class GridsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             this_num_events_matrix, NUM_EVENTS_MATRIX_NON_EQUIDISTANT))
+
+    def test_get_latlng_grid_points_in_radius_calgary_lat_incr(self):
+        """Ensures correct output from get_latlng_grid_points_in_radius.
+
+        In this case, the test point is Calgary and latitude increases with row
+        number.
+        """
+
+        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+            grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG,
+            grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
+            test_latitude_deg=CALGARY_LATITUDE_DEG,
+            test_longitude_deg=CALGARY_LONGITUDE_DEG,
+            effective_radius_metres=EFFECTIVE_RADIUS_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            these_rows, ROWS_IN_CALGARY_RADIUS_LAT_INCREASING))
+        self.assertTrue(numpy.array_equal(
+            these_columns, COLUMNS_IN_CALGARY_RADIUS_LAT_INCREASING))
+
+    def test_get_latlng_grid_points_in_radius_calgary_lat_decr(self):
+        """Ensures correct output from get_latlng_grid_points_in_radius.
+
+        In this case, the test point is Calgary and latitude decreases with row
+        number.
+        """
+
+        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+            grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG[::-1],
+            grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
+            test_latitude_deg=CALGARY_LATITUDE_DEG,
+            test_longitude_deg=CALGARY_LONGITUDE_DEG,
+            effective_radius_metres=EFFECTIVE_RADIUS_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            these_rows, ROWS_IN_CALGARY_RADIUS_LAT_DECREASING))
+        self.assertTrue(numpy.array_equal(
+            these_columns, COLUMNS_IN_CALGARY_RADIUS_LAT_DECREASING))
+
+    def test_get_latlng_grid_points_in_radius_edmonton_lat_incr(self):
+        """Ensures correct output from get_latlng_grid_points_in_radius.
+
+        In this case, the test point is Edmonton and latitude increases with row
+        number.
+        """
+
+        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+            grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG,
+            grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
+            test_latitude_deg=EDMONTON_LATITUDE_DEG,
+            test_longitude_deg=EDMONTON_LONGITUDE_DEG,
+            effective_radius_metres=EFFECTIVE_RADIUS_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            these_rows, ROWS_IN_EDMONTON_RADIUS_LAT_INCREASING))
+        self.assertTrue(numpy.array_equal(
+            these_columns, COLUMNS_IN_EDMONTON_RADIUS_LAT_INCREASING))
+
+    def test_get_latlng_grid_points_in_radius_edmonton_lat_decr(self):
+        """Ensures correct output from get_latlng_grid_points_in_radius.
+
+        In this case, the test point is Edmonton and latitude decreases with row
+        number.
+        """
+
+        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+            grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG[::-1],
+            grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
+            test_latitude_deg=EDMONTON_LATITUDE_DEG,
+            test_longitude_deg=EDMONTON_LONGITUDE_DEG,
+            effective_radius_metres=EFFECTIVE_RADIUS_METRES)
+
+        self.assertTrue(numpy.array_equal(
+            these_rows, ROWS_IN_EDMONTON_RADIUS_LAT_DECREASING))
+        self.assertTrue(numpy.array_equal(
+            these_columns, COLUMNS_IN_EDMONTON_RADIUS_LAT_DECREASING))
 
 
 if __name__ == '__main__':
