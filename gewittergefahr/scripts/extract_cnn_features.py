@@ -277,6 +277,8 @@ def _extract_3d_cnn_features(
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
         radar_normalization_dict=model_metadata_dict[
             cnn.RADAR_NORMALIZATION_DICT_KEY],
+        refl_masking_threshold_dbz=model_metadata_dict[
+            cnn.REFL_MASKING_THRESHOLD_KEY],
         sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
         sounding_field_names=model_metadata_dict[
             cnn.SOUNDING_FIELD_NAMES_KEY],

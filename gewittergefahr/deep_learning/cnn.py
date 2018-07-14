@@ -83,6 +83,7 @@ MONITOR_STRING_KEY = 'monitor_string'
 TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
 RADAR_NORMALIZATION_DICT_KEY = 'radar_normalization_dict'
+REFL_MASKING_THRESHOLD_KEY = 'reflectivity_masking_threshold_dbz'
 TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
 VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
@@ -104,13 +105,13 @@ MODEL_METADATA_KEYS = [
     NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAMES_KEY,
     TRAINING_FILE_NAMES_POS_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     MONITOR_STRING_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
-    RADAR_NORMALIZATION_DICT_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
-    VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
-    VALIDATION_FILE_NAMES_KEY, VALIDATION_FILE_NAMES_POS_TARGETS_KEY,
-    SOUNDING_FIELD_NAMES_KEY, TOP_SOUNDING_DIR_NAME_KEY,
-    SOUNDING_NORMALIZATION_DICT_KEY, SOUNDING_LAG_TIME_KEY,
-    USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY,
-    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
+    RADAR_NORMALIZATION_DICT_KEY, REFL_MASKING_THRESHOLD_KEY,
+    TRAINING_FRACTION_BY_CLASS_KEY, VALIDATION_FRACTION_BY_CLASS_KEY,
+    NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILE_NAMES_KEY,
+    VALIDATION_FILE_NAMES_POS_TARGETS_KEY, SOUNDING_FIELD_NAMES_KEY,
+    TOP_SOUNDING_DIR_NAME_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
+    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
+    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
@@ -899,7 +900,8 @@ def write_model_metadata(
         radar_file_name_matrix_for_training, weight_loss_function,
         monitor_string, target_name, binarize_target, radar_normalization_dict,
         use_2d3d_convolution, radar_source, radar_field_names,
-        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
+        refl_masking_threshold_dbz=0., radar_heights_m_asl=None,
+        reflectivity_heights_m_asl=None,
         radar_file_name_matrix_for_training_pos_targets_only=None,
         training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
@@ -932,6 +934,9 @@ def write_model_metadata(
         network used a hybrid of 2-D and 3-D convolution.
     :param radar_source: Data source (must be accepted by
         `radar_utils.check_data_source`).
+    :param refl_masking_threshold_dbz: Used to mask out pixels with low
+        reflectivity (see doc for
+        `deep_learning_utils.mask_low_reflectivity_pixels`).
     :param radar_field_names: 1-D list with names of radar fields.  Each must be
         accepted by `radar_utils.check_field_name`.
     :param radar_heights_m_asl: [needed only if radar_source = "gridrad"]
@@ -984,6 +989,7 @@ def write_model_metadata(
         RADAR_NORMALIZATION_DICT_KEY: radar_normalization_dict,
         USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
         RADAR_SOURCE_KEY: radar_source,
+        REFL_MASKING_THRESHOLD_KEY: refl_masking_threshold_dbz,
         RADAR_FIELD_NAMES_KEY: radar_field_names,
         RADAR_HEIGHTS_KEY: radar_heights_m_asl,
         REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
@@ -1060,6 +1066,9 @@ def read_model_metadata(pickle_file_name):
             TRAINING_FILE_NAMES_POS_TARGETS_KEY: None,
             VALIDATION_FILE_NAMES_POS_TARGETS_KEY: None
         })
+
+    if REFL_MASKING_THRESHOLD_KEY not in model_metadata_dict:
+        model_metadata_dict.update({REFL_MASKING_THRESHOLD_KEY: 0.})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
@@ -1269,6 +1278,7 @@ def train_3d_cnn(
         num_epochs, num_examples_per_batch, num_examples_per_file_time,
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
         target_name, top_target_directory_name,
+        refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
         radar_file_name_matrix_for_training_pos_targets_only=None,
         monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
@@ -1296,7 +1306,10 @@ def train_3d_cnn(
         `training_validation_io.find_radar_files_3d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
-    :param radar_file_name_matrix_for_training_pos_targets_only: Same.
+    :param refl_masking_threshold_dbz: See doc for
+        `deep_learning_utils.mask_low_reflectivity_pixels`.
+    :param radar_file_name_matrix_for_training_pos_targets_only: See doc for
+        `train_2d_cnn`.
     :param monitor_string: See doc for `_get_checkpoint_object`.
     :param binarize_target: See doc for `train_2d_cnn`.
     :param weight_loss_function: Same.
@@ -1351,6 +1364,7 @@ def train_3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
+                refl_masking_threshold_dbz=refl_masking_threshold_dbz,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1370,6 +1384,7 @@ def train_3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
+                refl_masking_threshold_dbz=refl_masking_threshold_dbz,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1386,6 +1401,7 @@ def train_3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
+                refl_masking_threshold_dbz=refl_masking_threshold_dbz,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,

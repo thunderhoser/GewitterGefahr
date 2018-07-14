@@ -27,6 +27,7 @@ TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
 
 DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION = 1.
 MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION = 5.
+DEFAULT_REFL_MASK_THRESHOLD_DBZ = 15.
 
 DEFAULT_RADAR_NORMALIZATION_DICT = {
     radar_utils.ECHO_TOP_18DBZ_NAME: numpy.array([0., 15.]),  # km
@@ -410,7 +411,8 @@ def normalize_radar_images(
 
 
 def mask_low_reflectivity_pixels(
-        radar_image_matrix_3d, field_names, reflectivity_threshold_dbz=15.):
+        radar_image_matrix_3d, field_names,
+        reflectivity_threshold_dbz=DEFAULT_REFL_MASK_THRESHOLD_DBZ):
     """Masks pixels with low reflectivity.
 
     Specifically, at each pixel with low reflectivity, this method sets all

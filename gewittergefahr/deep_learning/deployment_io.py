@@ -255,6 +255,7 @@ def create_storm_images_3d(
         radar_file_name_matrix, num_examples_per_file_time, return_target=True,
         target_name=None, binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
+        refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
@@ -276,6 +277,8 @@ def create_storm_images_3d(
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
     :param radar_normalization_dict: Same.
+    :param refl_masking_threshold_dbz: See doc for
+        `deep_learning_utils.mask_low_reflectivity_pixels`.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
@@ -416,6 +419,10 @@ def create_storm_images_3d(
 
     if radar_image_matrix is None:
         return None, None, None
+
+    radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
+        radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
+        reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
     radar_image_matrix = dl_utils.normalize_radar_images(
         radar_image_matrix=radar_image_matrix, normalize_by_batch=False,

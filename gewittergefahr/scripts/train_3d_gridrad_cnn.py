@@ -26,13 +26,24 @@ INPUT_ARG_PARSER = dl_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER)
 
 NUM_RADAR_FILTERS_ARG_NAME = 'num_radar_filters_in_first_conv_layer'
+REFL_MASK_THRESHOLD_ARG_NAME = 'refl_masking_threshold_dbz'
+
 NUM_RADAR_FILTERS_HELP_STRING = (
     'Number of radar filters in first convolutional layer.  Number of filters '
     'will double for each successive layer convolving over radar images.')
+REFL_MASK_THRESHOLD_HELP_STRING = (
+    'Used to mask out areas of low reflectivity.  Specifically, at each pixel '
+    'with reflectivity < `{0:s}`, all variables will be set to zero.'
+).format(REFL_MASK_THRESHOLD_ARG_NAME)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_RADAR_FILTERS_ARG_NAME, type=int, required=False,
     default=16, help=NUM_RADAR_FILTERS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + REFL_MASK_THRESHOLD_ARG_NAME, type=float, required=False,
+    default=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
+    help=REFL_MASK_THRESHOLD_HELP_STRING)
 
 
 def _train_cnn(
@@ -42,11 +53,11 @@ def _train_cnn(
         first_training_time_string, last_training_time_string,
         monitor_string, radar_field_names, target_name, top_target_dir_name,
         binarize_target, num_radar_filters_in_first_conv_layer,
-        dropout_fraction, l2_weight, sampling_fraction_dict_keys,
-        sampling_fraction_dict_values, weight_loss_function,
-        num_validation_batches_per_epoch, first_validation_time_string,
-        last_validation_time_string, sounding_field_names,
-        top_sounding_dir_name,
+        dropout_fraction, l2_weight, refl_masking_threshold_dbz,
+        sampling_fraction_dict_keys, sampling_fraction_dict_values,
+        weight_loss_function, num_validation_batches_per_epoch,
+        first_validation_time_string, last_validation_time_string,
+        sounding_field_names, top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
         num_sounding_filters_in_first_conv_layer):
     """Trains CNN with 3-D GridRad images.
@@ -71,7 +82,10 @@ def _train_cnn(
     :param dropout_fraction: See documentation at the top of
         'scripts/deep_learning.py'.
     :param l2_weight: Same.
-    :param sampling_fraction_dict_keys: Same.
+    :param refl_masking_threshold_dbz: See documentation at the top of this
+        file.
+    :param sampling_fraction_dict_keys: See documentation at the top of
+        'scripts/deep_learning.py'.
     :param sampling_fraction_dict_values: Same.
     :param weight_loss_function: Same.
     :param num_validation_batches_per_epoch: Same.
@@ -170,6 +184,7 @@ def _train_cnn(
         binarize_target=binarize_target,
         radar_normalization_dict=RADAR_NORMALIZATION_DICT,
         use_2d3d_convolution=False, radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+        refl_masking_threshold_dbz=refl_masking_threshold_dbz,
         radar_field_names=radar_field_names,
         radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
@@ -212,6 +227,7 @@ def _train_cnn(
         radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
         target_name=target_name, top_target_directory_name=top_target_dir_name,
         monitor_string=monitor_string, binarize_target=binarize_target,
+        refl_masking_threshold_dbz=refl_masking_threshold_dbz,
         weight_loss_function=weight_loss_function,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
@@ -261,6 +277,8 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.DROPOUT_FRACTION_ARG_NAME),
         l2_weight=getattr(
             INPUT_ARG_OBJECT, dl_helper.L2_WEIGHT_ARG_NAME),
+        refl_masking_threshold_dbz=getattr(
+            INPUT_ARG_OBJECT, REFL_MASK_THRESHOLD_ARG_NAME),
         sampling_fraction_dict_keys=getattr(
             INPUT_ARG_OBJECT, dl_helper.SAMPLING_FRACTION_KEYS_ARG_NAME),
         sampling_fraction_dict_values=getattr(

@@ -257,6 +257,8 @@ def _create_forecast_observation_pairs_3d(
             top_target_directory_name=top_target_dir_name,
             radar_normalization_dict=model_metadata_dict[
                 cnn.RADAR_NORMALIZATION_DICT_KEY],
+            refl_masking_threshold_dbz=model_metadata_dict[
+                cnn.REFL_MASKING_THRESHOLD_KEY],
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             top_sounding_dir_name=top_sounding_dir_name,

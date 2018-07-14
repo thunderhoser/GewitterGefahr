@@ -1351,6 +1351,7 @@ def storm_image_generator_3d(
         num_examples_per_batch, num_examples_per_file_time, target_name,
         radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
+        refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
@@ -1371,7 +1372,10 @@ def storm_image_generator_3d(
     :param radar_file_name_matrix_pos_targets_only: Same.
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
-    :param sampling_fraction_by_class_dict: Same.
+    :param refl_masking_threshold_dbz: See doc for
+        `deep_learning_utils.mask_low_reflectivity_pixels`.
+    :param sampling_fraction_by_class_dict: See doc for
+        `storm_image_generator_2d`.
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
@@ -1548,6 +1552,11 @@ def storm_image_generator_3d(
             all_target_values = all_target_values[batch_indices]
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
+
+        full_radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
+            radar_image_matrix_3d=full_radar_image_matrix,
+            field_names=radar_field_names,
+            reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
         full_radar_image_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=full_radar_image_matrix,
