@@ -1708,8 +1708,8 @@ def run_tracking(
 
 def join_tracks_across_spc_dates(
         first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        top_output_dir_name, tracking_start_time_unix_sec=None,
-        tracking_end_time_unix_sec=None,
+        top_output_dir_name, start_time_unix_sec=None, end_time_unix_sec=None,
+        tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
@@ -1732,6 +1732,12 @@ def join_tracks_across_spc_dates(
         tracking files).
     :param top_output_dir_name: Name of top-level output directory (for new
         tracking files).
+    :param start_time_unix_sec: Start of period to be processed.  This time must
+        be in the first SPC date, given by `first_spc_date_string`.  If None,
+        will default to the start of the first SPC date.
+    :param end_time_unix_sec: End of period to be processed.  This time must be
+        in the last SPC date, given by `last_spc_date_string`.  If None, will
+        default to the end of `last_spc_date_string`.
     :param tracking_start_time_unix_sec: Start of tracking period.
     :param tracking_end_time_unix_sec: End of tracking period.
     :param max_link_time_seconds: See documentation for
@@ -1755,7 +1761,9 @@ def join_tracks_across_spc_dates(
         last_spc_date_string=last_spc_date_string,
         top_input_dir_name=top_input_dir_name,
         tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-        top_output_dir_name=top_output_dir_name)
+        top_output_dir_name=top_output_dir_name,
+        start_time_unix_sec=start_time_unix_sec,
+        end_time_unix_sec=end_time_unix_sec)
 
     spc_date_strings = tracking_file_dict[SPC_DATE_STRINGS_KEY]
     spc_dates_unix_sec = numpy.array(
