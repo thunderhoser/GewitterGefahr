@@ -475,16 +475,6 @@ def _find_storm_objects(
 
     # TODO(thunderhoser): Make this method safer.
 
-    print len(all_storm_ids)
-    print len(all_valid_times_unix_sec)
-    print len(storm_ids_to_keep)
-    print len(valid_times_to_keep_unix_sec)
-
-    print type(all_storm_ids)
-    print all_valid_times_unix_sec.dtype
-    print type(storm_ids_to_keep)
-    print valid_times_to_keep_unix_sec.dtype
-
     num_storm_objects_total = len(all_storm_ids)
     all_storm_object_ids = [
         '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
