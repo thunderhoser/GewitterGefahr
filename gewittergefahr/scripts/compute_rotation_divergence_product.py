@@ -153,14 +153,15 @@ def _compute_rdp_for_each_storm_object(
 
         this_time_string = time_conversion.unix_sec_to_string(
             this_time_unix_sec, TIME_FORMAT_FOR_LOG_MESSAGES)
-        these_storm_object_indices = numpy.where(
-            storm_object_table[tracking_utils.TIME_COLUMN] ==
-            this_time_unix_sec)[0]
-
         print (
             'Computing rotation-divergence product for all storm objects at '
             '{0:s}...\n'
         ).format(this_time_string)
+
+        these_storm_object_indices = numpy.where(
+            storm_object_table[tracking_utils.TIME_COLUMN] ==
+            this_time_unix_sec)[0]
+        this_grid_point_dict = None
 
         for this_storm_object_index in these_storm_object_indices:
             if radius_from_storm_centroid_metres is None:
@@ -171,17 +172,19 @@ def _compute_rdp_for_each_storm_object(
                     tracking_utils.GRID_POINT_COLUMN_COLUMN
                 ].values[this_storm_object_index]
             else:
-                (these_grid_point_rows, these_grid_point_columns
+                (these_grid_point_rows, these_grid_point_columns,
+                 this_grid_point_dict
                 ) = grids.get_latlng_grid_points_in_radius(
-                    grid_point_latitudes_deg=these_grid_point_latitudes_deg,
-                    grid_point_longitudes_deg=these_grid_point_longitudes_deg,
                     test_latitude_deg=storm_object_table[
                         tracking_utils.CENTROID_LAT_COLUMN
                     ].values[this_storm_object_index],
                     test_longitude_deg=storm_object_table[
                         tracking_utils.CENTROID_LNG_COLUMN
                     ].values[this_storm_object_index],
-                    effective_radius_metres=radius_from_storm_centroid_metres)
+                    effective_radius_metres=radius_from_storm_centroid_metres,
+                    grid_point_latitudes_deg=these_grid_point_latitudes_deg,
+                    grid_point_longitudes_deg=these_grid_point_longitudes_deg,
+                    grid_point_dict=this_grid_point_dict)
 
             this_vorticity_s01 = numpy.nanmax(
                 this_vorticity_matrix_s01[

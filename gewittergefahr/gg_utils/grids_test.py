@@ -332,7 +332,7 @@ class GridsTests(unittest.TestCase):
         number.
         """
 
-        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+        these_rows, these_columns, _ = grids.get_latlng_grid_points_in_radius(
             grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG,
             grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
             test_latitude_deg=CALGARY_LATITUDE_DEG,
@@ -351,7 +351,7 @@ class GridsTests(unittest.TestCase):
         number.
         """
 
-        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+        these_rows, these_columns, _ = grids.get_latlng_grid_points_in_radius(
             grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG[::-1],
             grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
             test_latitude_deg=CALGARY_LATITUDE_DEG,
@@ -370,7 +370,7 @@ class GridsTests(unittest.TestCase):
         number.
         """
 
-        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+        these_rows, these_columns, _ = grids.get_latlng_grid_points_in_radius(
             grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG,
             grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
             test_latitude_deg=EDMONTON_LATITUDE_DEG,
@@ -389,7 +389,7 @@ class GridsTests(unittest.TestCase):
         number.
         """
 
-        these_rows, these_columns = grids.get_latlng_grid_points_in_radius(
+        these_rows, these_columns, _ = grids.get_latlng_grid_points_in_radius(
             grid_point_latitudes_deg=LATITUDES_FOR_RADIUS_TEST_DEG[::-1],
             grid_point_longitudes_deg=LONGITUDES_FOR_RADIUS_TEST_DEG,
             test_latitude_deg=EDMONTON_LATITUDE_DEG,

@@ -14,6 +14,10 @@ from gewittergefahr.gg_utils import error_checking
 DEGREES_LAT_TO_METRES = 60 * 1852
 DEGREES_TO_RADIANS = numpy.pi / 180
 
+GRID_POINT_X_MATRIX_KEY = 'grid_point_x_matrix_metres'
+GRID_POINT_Y_MATRIX_KEY = 'grid_point_y_matrix_metres'
+PROJECTION_OBJECT_KEY = 'projection_object'
+
 
 def get_xy_grid_points(x_min_metres=None, y_min_metres=None,
                        x_spacing_metres=None, y_spacing_metres=None,
@@ -550,70 +554,93 @@ def count_events_on_non_equidistant_grid(
 
 
 def get_latlng_grid_points_in_radius(
-        grid_point_latitudes_deg, grid_point_longitudes_deg, test_latitude_deg,
-        test_longitude_deg, effective_radius_metres):
+        test_latitude_deg, test_longitude_deg, effective_radius_metres,
+        grid_point_latitudes_deg=None, grid_point_longitudes_deg=None,
+        grid_point_dict=None):
     """Finds lat-long grid points within radius of test point.
+
+    One of the following sets of input args must be specified:
+
+    - grid_point_latitudes_deg and grid_point_longitudes_deg
+    - grid_point_dict
 
     M = number of rows (unique grid-point latitudes)
     N = number of columns (unique grid-point longitudes)
     K = number of grid points within radius of test point
 
-    :param grid_point_latitudes_deg: length-M numpy array with latitudes (deg N)
-        of grid points.
-    :param grid_point_longitudes_deg: length-N numpy array with longitudes
-        (deg E) of grid points.
     :param test_latitude_deg: Latitude (deg N) of test point.
     :param test_longitude_deg: Longitude (deg E) of test point.
     :param effective_radius_metres: Effective radius (will find all grid points
         within this radius of test point).
+    :param grid_point_latitudes_deg: length-M numpy array with latitudes (deg N)
+        of grid points.
+    :param grid_point_longitudes_deg: length-N numpy array with longitudes
+        (deg E) of grid points.
+    :param grid_point_dict: Dictionary created by a previous run of this method
+        (see output documentation).
     :return: rows_in_radius: length-K numpy array with row indices of grid
         points near test point.
     :return: columns_in_radius: Same but for columns.
+    :return: grid_point_dict: Dictionary with the following keys.
+    grid_point_dict['grid_point_x_matrix_metres']: M-by-N numpy array with
+        x-coordinates of grid points.
+    grid_point_dict['grid_point_y_matrix_metres']: M-by-N numpy array with
+        y-coordinates of grid points.
+    grid_point_dict['projection_object']: Instance of `pyproj.Proj`, which can
+        be used to convert future test points from lat-long to x-y coordinates.
     """
 
-    (grid_point_lat_matrix_deg, grid_point_lng_matrix_deg
-    ) = latlng_vectors_to_matrices(
-        unique_latitudes_deg=grid_point_latitudes_deg,
-        unique_longitudes_deg=grid_point_longitudes_deg)
+    if grid_point_dict is None:
+        (grid_point_lat_matrix_deg, grid_point_lng_matrix_deg
+        ) = latlng_vectors_to_matrices(
+            unique_latitudes_deg=grid_point_latitudes_deg,
+            unique_longitudes_deg=grid_point_longitudes_deg)
+
+        projection_object = projections.init_azimuthal_equidistant_projection(
+            central_latitude_deg=numpy.mean(grid_point_latitudes_deg),
+            central_longitude_deg=numpy.mean(grid_point_longitudes_deg))
+
+        (grid_point_x_matrix_metres, grid_point_y_matrix_metres
+        ) = projections.project_latlng_to_xy(
+            latitudes_deg=grid_point_lat_matrix_deg,
+            longitudes_deg=grid_point_lng_matrix_deg,
+            projection_object=projection_object)
+
+        grid_point_dict = {
+            GRID_POINT_X_MATRIX_KEY: grid_point_x_matrix_metres,
+            GRID_POINT_Y_MATRIX_KEY: grid_point_y_matrix_metres,
+            PROJECTION_OBJECT_KEY: projection_object
+        }
 
     error_checking.assert_is_valid_latitude(test_latitude_deg)
     error_checking.assert_is_geq(effective_radius_metres, 0.)
     test_longitude_deg = lng_conversion.convert_lng_positive_in_west(
         longitudes_deg=numpy.array([test_longitude_deg]), allow_nan=False)[0]
 
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=numpy.mean(grid_point_latitudes_deg),
-        central_longitude_deg=numpy.mean(grid_point_longitudes_deg))
-
-    (grid_point_x_matrix_metres, grid_point_y_matrix_metres
-    ) = projections.project_latlng_to_xy(
-        latitudes_deg=grid_point_lat_matrix_deg,
-        longitudes_deg=grid_point_lng_matrix_deg,
-        projection_object=projection_object)
-
     (test_x_coords_metres, test_y_coords_metres
     ) = projections.project_latlng_to_xy(
         latitudes_deg=numpy.array([test_latitude_deg]),
         longitudes_deg=numpy.array([test_longitude_deg]),
-        projection_object=projection_object)
+        projection_object=grid_point_dict[PROJECTION_OBJECT_KEY])
     test_x_coord_metres = test_x_coords_metres[0]
     test_y_coord_metres = test_y_coords_metres[0]
 
     valid_x_flags = numpy.absolute(
-        grid_point_x_matrix_metres - test_x_coord_metres
+        grid_point_dict[GRID_POINT_X_MATRIX_KEY] - test_x_coord_metres
     ) <= effective_radius_metres
     valid_y_flags = numpy.absolute(
-        grid_point_y_matrix_metres - test_y_coord_metres
+        grid_point_dict[GRID_POINT_Y_MATRIX_KEY] - test_y_coord_metres
     ) <= effective_radius_metres
     rows_to_try, columns_to_try = numpy.where(numpy.logical_and(
         valid_x_flags, valid_y_flags))
 
     distances_to_try_metres = numpy.sqrt(
-        (grid_point_x_matrix_metres[rows_to_try, columns_to_try] -
+        (grid_point_dict[GRID_POINT_X_MATRIX_KEY][rows_to_try, columns_to_try] -
          test_x_coord_metres) ** 2 +
-        (grid_point_y_matrix_metres[rows_to_try, columns_to_try] -
+        (grid_point_dict[GRID_POINT_Y_MATRIX_KEY][rows_to_try, columns_to_try] -
          test_y_coord_metres) ** 2)
     valid_indices = numpy.where(
         distances_to_try_metres <= effective_radius_metres)[0]
 
-    return rows_to_try[valid_indices], columns_to_try[valid_indices]
+    return (rows_to_try[valid_indices], columns_to_try[valid_indices],
+            grid_point_dict)
