@@ -112,6 +112,8 @@ def _compute_rdp_for_each_storm_object(
             netcdf_file_name=this_gridrad_file_name,
             field_name=radar_utils.VORTICITY_NAME,
             metadata_dict=this_metadata_dict)
+        this_vorticity_matrix_s01 = numpy.flip(
+            this_vorticity_matrix_s01, axis=1)
 
         print 'Removing heights < {0:d} m ASL from "{1:s}" data...'.format(
             MIN_VORTICITY_HEIGHT_M_ASL, radar_utils.VORTICITY_NAME)
@@ -128,6 +130,8 @@ def _compute_rdp_for_each_storm_object(
             netcdf_file_name=this_gridrad_file_name,
             field_name=radar_utils.DIVERGENCE_NAME,
             metadata_dict=this_metadata_dict)
+        this_divgerence_matrix_s01 = numpy.flip(
+            this_divgerence_matrix_s01, axis=1)
 
         this_time_string = time_conversion.unix_sec_to_string(
             this_time_unix_sec, TIME_FORMAT_FOR_LOG_MESSAGES)
