@@ -195,8 +195,6 @@ def _compute_rdp_for_each_storm_object(
             rdp_by_storm_object_s02[this_storm_object_index] = (
                 this_vorticity_s01 * this_divergence_s01)
 
-        print rdp_by_storm_object_s02[these_storm_object_indices]
-
     rdp_dict = {
         STORM_IDS_KEY:
             storm_object_table[tracking_utils.STORM_ID_COLUMN].values.tolist(),
