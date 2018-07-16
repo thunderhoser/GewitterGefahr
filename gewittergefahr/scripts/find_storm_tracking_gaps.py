@@ -9,7 +9,7 @@ from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-FILE_SIZE_WITHOUT_STORMS_BYTES = 0
+FILE_SIZE_WITHOUT_STORMS_BYTES = 2765
 
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
