@@ -116,6 +116,9 @@ MODEL_METADATA_KEYS = [
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
+SPATIAL_DIMENSION_KEYS = [
+    'spatial_dimension1', 'spatial_dimension2', 'spatial_dimension3']
+
 FEATURE_MATRIX_KEY = 'feature_matrix'
 TARGET_VALUES_KEY = 'target_values'
 NUM_CLASSES_KEY = 'num_classes'
@@ -344,28 +347,23 @@ def _get_sounding_layers(
     return sounding_input_layer_object, sounding_layer_object
 
 
-def model_to_feature_generator(model_object):
+def model_to_feature_generator(model_object, output_layer_name):
     """Reduces Keras model from predictor to feature-generator.
 
-    Specifically, this method removes all layers after the last flattening
-    layer.
+    Specifically, this method turns an intermediate layer H into the output
+    layer, removing all layers after H.  The output of the new ("intermediate")
+    model will consist of activations from layer H, rather than predictions.
 
     :param model_object: Instance of `keras.models.Model`.
+    :param output_layer_name: Name of new output layer.
     :return: intermediate_model_object: Same as input, except that all layers
-        after the last flattening layer are removed.
+        after H are removed.
     """
 
-    list_of_layer_objects = model_object.layers
-    layer_types = [type(obj).__name__ for obj in list_of_layer_objects]
-
-    # TODO(thunderhoser): This is hacky.  There is probably a safer way.
-    flatten_layer_flags = numpy.array(
-        [t in ['Flatten', 'Concatenate'] for t in layer_types], dtype=bool)
-    last_flatten_layer_index = numpy.where(flatten_layer_flags)[0][-1]
-
+    error_checking.assert_is_string(output_layer_name)
     return keras.models.Model(
         inputs=model_object.input,
-        outputs=model_object.get_layer(index=last_flatten_layer_index).output)
+        outputs=model_object.get_layer(name=output_layer_name).output)
 
 
 def get_2d_mnist_architecture(
@@ -1542,17 +1540,14 @@ def train_2d3d_cnn(
             validation_steps=num_validation_batches_per_epoch)
 
 
-def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
-                 return_features=False):
+def apply_2d_cnn(
+        model_object, radar_image_matrix, sounding_matrix=None,
+        return_features=False, output_layer_name=None):
     """Applies CNN to 2-D radar images.
 
-    If return_features = True, this method will return only features (the output
-    of the last "Flatten" layer).  If return_features = False, this method will
-    return predictions (the output of the last fully connected, or "Dense,"
-    layer).
-
-    E = number of storm objects
-    Z = number of features
+    If return_features = True, this method will return only features
+    (activations from an intermediate layer H).  If return_features = False,
+    this method will return predictions.
 
     :param model_object: Instance of `keras.models.Sequential`.
     :param radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
@@ -1560,12 +1555,14 @@ def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
     :param sounding_matrix: [may be None]
         numpy array (E x H_s x F_s) of storm-centered soundings.
     :param return_features: See general discussion above.
+    :param output_layer_name: [used only if return_features = True]
+        Name of intermediate layer from which activations will be returned.
 
-    If return_features = True, returns the following...
+    If return_features = True...
 
-    :return: feature_matrix: E-by-Z numpy array of features.
+    :return: feature_matrix: numpy array of features.
 
-    If return_features = False, returns the following...
+    If return_features = False...
 
     :return: class_probability_matrix: E-by-K numpy array of class
         probabilities.  class_probability_matrix[i, k] is the forecast
@@ -1585,7 +1582,8 @@ def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        intermediate_model_object = model_to_feature_generator(model_object)
+        intermediate_model_object = model_to_feature_generator(
+            model_object=model_object, output_layer_name=output_layer_name)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -1600,8 +1598,9 @@ def apply_2d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
         [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
 
-def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
-                 return_features=False):
+def apply_3d_cnn(
+        model_object, radar_image_matrix, sounding_matrix=None,
+        return_features=False, output_layer_name=None):
     """Applies CNN to 3-D radar images.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -1609,12 +1608,13 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
         centered radar images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
     :param return_features: Same.
+    :param output_layer_name: Same.
 
-    If return_features = True, returns the following...
+    If return_features = True...
 
     :return: feature_matrix: See doc for `apply_2d_cnn`.
 
-    If return_features = False, returns the following...
+    If return_features = False...
 
     :return: class_probability_matrix: See doc for `apply_2d_cnn`.
     """
@@ -1630,7 +1630,8 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        intermediate_model_object = model_to_feature_generator(model_object)
+        intermediate_model_object = model_to_feature_generator(
+            model_object=model_object, output_layer_name=output_layer_name)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -1648,7 +1649,7 @@ def apply_3d_cnn(model_object, radar_image_matrix, sounding_matrix=None,
 def apply_2d3d_cnn(
         model_object, reflectivity_image_matrix_dbz,
         azimuthal_shear_image_matrix_s01, sounding_matrix=None,
-        return_features=False):
+        return_features=False, output_layer_name=None):
     """Applies CNN to 2-D azimuthal-shear images and 3-D reflectivity images.
 
     :param model_object: Instance of `keras.models.Sequential`.
@@ -1658,12 +1659,13 @@ def apply_2d3d_cnn(
         storm-centered azimuthal-shear images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
     :param return_features: Same.
+    :param output_layer_name: Same.
 
-    If return_features = True, returns the following...
+    If return_features = True...
 
     :return: feature_matrix: See doc for `apply_2d_cnn`.
 
-    If return_features = False, returns the following...
+    If return_features = False...
 
     :return: class_probability_matrix: See doc for `apply_2d_cnn`.
     """
@@ -1692,7 +1694,8 @@ def apply_2d3d_cnn(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
     if return_features:
-        intermediate_model_object = model_to_feature_generator(model_object)
+        intermediate_model_object = model_to_feature_generator(
+            model_object=model_object, output_layer_name=output_layer_name)
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 [reflectivity_image_matrix_dbz,
@@ -1718,13 +1721,12 @@ def apply_2d3d_cnn(
 def write_features(
         netcdf_file_name, feature_matrix, target_values, num_classes,
         append_to_file=False):
-    """Writes features (output of last "Flatten" layer in CNN) to NetCDF file.
-
-    E = number of storm objects
-    Z = number of features
+    """Writes features (activations of intermediate layer) to NetCDF file.
 
     :param netcdf_file_name: Path to output file.
-    :param feature_matrix: E-by-Z numpy array of features.
+    :param feature_matrix: numpy array of features.  Must have >= 2 dimensions,
+        where the first dimension (length E) represents examples and the last
+        dimension represents channels (transformed input variables).
     :param target_values: length-E numpy array of target values.  Must all be
         integers in 0...(K - 1), where K = number of classes.
     :param num_classes: Number of classes.
@@ -1733,7 +1735,7 @@ def write_features(
     """
 
     error_checking.assert_is_boolean(append_to_file)
-    error_checking.assert_is_numpy_array(feature_matrix, num_dimensions=2)
+    error_checking.assert_is_numpy_array(feature_matrix)
     num_storm_objects = feature_matrix.shape[0]
 
     dl_utils.check_target_values(
@@ -1767,9 +1769,18 @@ def write_features(
         netcdf_dataset.createDimension(
             FEATURE_DIMENSION_KEY, feature_matrix.shape[1])
 
+        num_spatial_dimensions = len(feature_matrix.shape) - 2
+        tuple_of_dimension_keys = (STORM_OBJECT_DIMENSION_KEY,)
+
+        for i in range(num_spatial_dimensions):
+            netcdf_dataset.createDimension(
+                SPATIAL_DIMENSION_KEYS[i], feature_matrix.shape[i + 1])
+            tuple_of_dimension_keys += (SPATIAL_DIMENSION_KEYS[i],)
+
+        tuple_of_dimension_keys += (FEATURE_DIMENSION_KEY,)
         netcdf_dataset.createVariable(
             FEATURE_MATRIX_KEY, datatype=numpy.float32,
-            dimensions=(STORM_OBJECT_DIMENSION_KEY, FEATURE_DIMENSION_KEY))
+            dimensions=tuple_of_dimension_keys)
         netcdf_dataset.variables[FEATURE_MATRIX_KEY][:] = feature_matrix
 
         netcdf_dataset.createVariable(
@@ -1781,10 +1792,7 @@ def write_features(
 
 
 def read_features(netcdf_file_name):
-    """Reads features (output of last "Flatten" layer in CNN) from NetCDF file.
-
-    E = number of storm objects
-    Z = number of features
+    """Reads features (activations of intermediate layer) from NetCDF file.
 
     :param netcdf_file_name: Path to input file.
     :return: feature_matrix: E-by-Z numpy array of features.
