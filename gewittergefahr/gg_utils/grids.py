@@ -19,6 +19,33 @@ GRID_POINT_Y_MATRIX_KEY = 'grid_point_y_matrix_metres'
 PROJECTION_OBJECT_KEY = 'projection_object'
 
 
+def _check_input_events(
+        event_x_coords_metres, event_y_coords_metres, event_ids):
+    """Checks inputs to `count_events_on*equidistant_grid`.
+
+    :param event_x_coords_metres: See doc for
+        `count_events_on_equidistant_grid`.
+    :param event_y_coords_metres: Same.
+    :param event_ids: Same.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(event_x_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_x_coords_metres, num_dimensions=1)
+    num_events = len(event_x_coords_metres)
+
+    error_checking.assert_is_numpy_array_without_nan(event_y_coords_metres)
+    error_checking.assert_is_numpy_array(
+        event_y_coords_metres,
+        exact_dimensions=numpy.array([num_events], dtype=int))
+
+    if event_ids is not None:
+        error_checking.assert_is_string_list(event_ids)
+        error_checking.assert_is_numpy_array(
+            numpy.array(event_ids),
+            exact_dimensions=numpy.array([num_events], dtype=int))
+
+
 def get_xy_grid_points(x_min_metres=None, y_min_metres=None,
                        x_spacing_metres=None, y_spacing_metres=None,
                        num_rows=None, num_columns=None):
@@ -417,7 +444,7 @@ def extract_latlng_subgrid(
 
 def count_events_on_equidistant_grid(
         event_x_coords_metres, event_y_coords_metres,
-        grid_point_x_coords_metres, grid_point_y_coords_metres):
+        grid_point_x_coords_metres, grid_point_y_coords_metres, event_ids=None):
     """Counts number of events in each cell of an equidistant grid.
 
     M = number of rows (unique grid-point y-coordinates)
@@ -431,20 +458,19 @@ def count_events_on_equidistant_grid(
     :param grid_point_x_coords_metres: length-N numpy array with unique
         x-coordinates at grid points.
     :param grid_point_y_coords_metres: length-M numpy array with unique
-        y-coordinates at grid points.
+        y-coordinates at grid point.
+    :param event_ids: length-K list of event IDs (strings).  Each event ID will
+        be counted only once per grid cell.  If `event_ids is None`, will assume
+        that each location in `event_x_coords_metres` and
+        `event_y_coords_metres` comes from a unique event.
     :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
         number of events in grid cell [i, j].
     """
 
-    error_checking.assert_is_numpy_array_without_nan(event_x_coords_metres)
-    error_checking.assert_is_numpy_array(
-        event_x_coords_metres, num_dimensions=1)
+    _check_input_events(
+        event_x_coords_metres=event_x_coords_metres,
+        event_y_coords_metres=event_y_coords_metres, event_ids=event_ids)
     num_events = len(event_x_coords_metres)
-
-    error_checking.assert_is_numpy_array_without_nan(event_y_coords_metres)
-    error_checking.assert_is_numpy_array(
-        event_y_coords_metres,
-        exact_dimensions=numpy.array([num_events], dtype=int))
 
     error_checking.assert_is_numpy_array_without_nan(grid_point_x_coords_metres)
     error_checking.assert_is_numpy_array(
@@ -459,12 +485,29 @@ def count_events_on_equidistant_grid(
     num_events_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int)
 
+    if event_ids is not None:
+        event_ids_by_grid_cell_dict = {}
+        for i in range(num_grid_rows):
+            for j in range(num_grid_columns):
+                event_ids_by_grid_cell_dict[i, j] = []
+
     for k in range(num_events):
         _, this_row = general_utils.find_nearest_value(
             grid_point_y_coords_metres, event_y_coords_metres[k])
         _, this_column = general_utils.find_nearest_value(
             grid_point_x_coords_metres, event_x_coords_metres[k])
-        num_events_matrix[this_row, this_column] += 1
+
+        if event_ids is None:
+            num_events_matrix[this_row, this_column] += 1
+        else:
+            event_ids_by_grid_cell_dict[this_row, this_column].append(
+                event_ids[k])
+
+    if event_ids is not None:
+        for i in range(num_grid_rows):
+            for j in range(num_grid_columns):
+                num_events_matrix[i, j] = len(set(
+                    event_ids_by_grid_cell_dict[i, j]))
 
     return num_events_matrix
 
@@ -472,7 +515,7 @@ def count_events_on_equidistant_grid(
 def count_events_on_non_equidistant_grid(
         event_x_coords_metres, event_y_coords_metres,
         grid_point_x_matrix_metres, grid_point_y_matrix_metres,
-        effective_radius_metres):
+        effective_radius_metres, event_ids=None):
     """Counts number of events near each point of a non-equidistant grid.
 
     M = number of rows (unique grid-point y-coordinates)
@@ -490,19 +533,15 @@ def count_events_on_non_equidistant_grid(
     :param effective_radius_metres: At each grid point [i, j], the value
         computed will be number of events within `effective_radius_metres` of
         point [i, j].
+    :param event_ids: See doc for `count_events_on_equidistant_grid`.
     :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
         number of events within `effective_radius_metres` of grid point [i, j].
     """
 
-    error_checking.assert_is_numpy_array_without_nan(event_x_coords_metres)
-    error_checking.assert_is_numpy_array(
-        event_x_coords_metres, num_dimensions=1)
+    _check_input_events(
+        event_x_coords_metres=event_x_coords_metres,
+        event_y_coords_metres=event_y_coords_metres, event_ids=event_ids)
     num_events = len(event_x_coords_metres)
-
-    error_checking.assert_is_numpy_array_without_nan(event_y_coords_metres)
-    error_checking.assert_is_numpy_array(
-        event_y_coords_metres,
-        exact_dimensions=numpy.array([num_events], dtype=int))
 
     error_checking.assert_is_numpy_array_without_nan(grid_point_x_matrix_metres)
     error_checking.assert_is_numpy_array(
@@ -516,11 +555,16 @@ def count_events_on_non_equidistant_grid(
     error_checking.assert_is_greater(effective_radius_metres, 0.)
     effective_radius_metres2 = effective_radius_metres ** 2
 
-    num_events = len(event_x_coords_metres)
     num_grid_rows = grid_point_x_matrix_metres.shape[0]
     num_grid_columns = grid_point_x_matrix_metres.shape[1]
     num_events_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int)
+
+    if event_ids is not None:
+        event_ids_by_grid_cell_dict = {}
+        for i in range(num_grid_rows):
+            for j in range(num_grid_columns):
+                event_ids_by_grid_cell_dict[i, j] = []
 
     for k in range(num_events):
         these_check_x_flags = numpy.logical_and(
@@ -548,7 +592,20 @@ def count_events_on_non_equidistant_grid(
             0][these_nearby_indices]
         these_nearby_columns = these_indices_to_check_as_tuple[
             1][these_nearby_indices]
-        num_events_matrix[these_nearby_rows, these_nearby_columns] += 1
+
+        if event_ids is None:
+            num_events_matrix[these_nearby_rows, these_nearby_columns] += 1
+        else:
+            for m in range(len(these_nearby_rows)):
+                event_ids_by_grid_cell_dict[
+                    these_nearby_rows[m], these_nearby_columns[m]
+                ].append(event_ids[k])
+
+    if event_ids is not None:
+        for i in range(num_grid_rows):
+            for j in range(num_grid_columns):
+                num_events_matrix[i, j] = len(set(
+                    event_ids_by_grid_cell_dict[i, j]))
 
     return num_events_matrix
 
