@@ -15,6 +15,7 @@ def unzip_tar(tar_file_name, target_directory_name=None,
         from the tar file.  Each list element should be a relative path inside
         the tar file.  After unzipping, the same relative path will exist inside
         `target_directory_name`.
+    :raises: ValueError: if the Unix command fails.
     """
 
     error_checking.assert_is_string(tar_file_name)
@@ -27,7 +28,10 @@ def unzip_tar(tar_file_name, target_directory_name=None,
     for this_relative_path in file_and_dir_names_to_unzip:
         unix_command_string += ' "' + this_relative_path + '"'
 
-    os.system(unix_command_string)
+    exit_code = os.system(unix_command_string)
+    if exit_code != 0:
+        raise ValueError('\nUnix command failed (log messages shown above '
+                         'should explain why).')
 
 
 def unzip_gzip(gzip_file_name, extracted_file_name):
@@ -38,6 +42,7 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
     :param gzip_file_name: Path to gzip archive.
     :param extracted_file_name: The one file in the gzip archive will be saved
         here.
+    :raises: ValueError: if the Unix command fails.
     """
 
     error_checking.assert_is_string(gzip_file_name)
@@ -46,4 +51,8 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
 
     unix_command_string = 'gunzip -v -c "{0:s}" > "{1:s}"'.format(
         gzip_file_name, extracted_file_name)
-    os.system(unix_command_string)
+    exit_code = os.system(unix_command_string)
+
+    if exit_code != 0:
+        raise ValueError('\nUnix command failed (log messages shown above '
+                         'should explain why).')
