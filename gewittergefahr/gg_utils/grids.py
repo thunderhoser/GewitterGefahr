@@ -465,6 +465,9 @@ def count_events_on_equidistant_grid(
         `event_y_coords_metres` comes from a unique event.
     :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
         number of events in grid cell [i, j].
+    :return: event_ids_by_grid_cell_dict: Dictionary, where key [i, j] is a 1-D
+        list of event IDs assigned to grid cell [i, j].  If `event_ids is None`,
+        this will also be `None`.
     """
 
     _check_input_events(
@@ -485,13 +488,19 @@ def count_events_on_equidistant_grid(
     num_events_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int)
 
-    if event_ids is not None:
+    if event_ids is None:
+        event_ids_by_grid_cell_dict = None
+    else:
         event_ids_by_grid_cell_dict = {}
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
                 event_ids_by_grid_cell_dict[i, j] = []
 
     for k in range(num_events):
+        if numpy.mod(k, 1000) == 0:
+            print 'Have assigned {0:d} of {1:d} events to grid cells...'.format(
+                k, num_events)
+
         _, this_row = general_utils.find_nearest_value(
             grid_point_y_coords_metres, event_y_coords_metres[k])
         _, this_column = general_utils.find_nearest_value(
@@ -503,13 +512,16 @@ def count_events_on_equidistant_grid(
             event_ids_by_grid_cell_dict[this_row, this_column].append(
                 event_ids[k])
 
+    print 'Have assigned all {0:d} events to grid cells!'.format(num_events)
+
     if event_ids is not None:
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
-                num_events_matrix[i, j] = len(set(
-                    event_ids_by_grid_cell_dict[i, j]))
+                event_ids_by_grid_cell_dict[i, j] = list(
+                    set(event_ids_by_grid_cell_dict[i, j]))
+                num_events_matrix[i, j] = len(event_ids_by_grid_cell_dict[i, j])
 
-    return num_events_matrix
+    return num_events_matrix, event_ids_by_grid_cell_dict
 
 
 def count_events_on_non_equidistant_grid(
@@ -536,6 +548,8 @@ def count_events_on_non_equidistant_grid(
     :param event_ids: See doc for `count_events_on_equidistant_grid`.
     :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
         number of events within `effective_radius_metres` of grid point [i, j].
+    :return: event_ids_by_grid_cell_dict: See doc for
+        `count_events_on_equidistant_grid`.
     """
 
     _check_input_events(
@@ -560,13 +574,19 @@ def count_events_on_non_equidistant_grid(
     num_events_matrix = numpy.full(
         (num_grid_rows, num_grid_columns), 0, dtype=int)
 
-    if event_ids is not None:
+    if event_ids is None:
+        event_ids_by_grid_cell_dict = None
+    else:
         event_ids_by_grid_cell_dict = {}
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
                 event_ids_by_grid_cell_dict[i, j] = []
 
     for k in range(num_events):
+        if numpy.mod(k, 1000) == 0:
+            print 'Have assigned {0:d} of {1:d} events to grid cells...'.format(
+                k, num_events)
+
         these_check_x_flags = numpy.logical_and(
             grid_point_x_matrix_metres >=
             event_x_coords_metres[k] - effective_radius_metres,
@@ -601,13 +621,16 @@ def count_events_on_non_equidistant_grid(
                     these_nearby_rows[m], these_nearby_columns[m]
                 ].append(event_ids[k])
 
+    print 'Have assigned all {0:d} events to grid cells!'.format(num_events)
+
     if event_ids is not None:
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
-                num_events_matrix[i, j] = len(set(
+                event_ids_by_grid_cell_dict[i, j] = list(set(
                     event_ids_by_grid_cell_dict[i, j]))
+                num_events_matrix[i, j] = len(event_ids_by_grid_cell_dict[i, j])
 
-    return num_events_matrix
+    return num_events_matrix, event_ids_by_grid_cell_dict
 
 
 def get_latlng_grid_points_in_radius(
