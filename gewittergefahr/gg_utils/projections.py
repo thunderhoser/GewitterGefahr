@@ -57,6 +57,28 @@ def init_azimuthal_equidistant_projection(central_latitude_deg,
                 lon_0=central_longitude_deg)
 
 
+def init_cylindrical_equidistant_projection(
+        central_latitude_deg, central_longitude_deg, true_scale_latitude_deg):
+    """Initializes cylindrical equidistant projection.
+
+    :param central_latitude_deg: Central latitude (deg N).
+    :param central_longitude_deg: Central longitude (deg E).
+    :param true_scale_latitude_deg: Latitude of true scale (deg N).
+    :return: projection_object: Instance of `pyproj.Proj`.
+    """
+
+    error_checking.assert_is_valid_latitude(central_latitude_deg)
+    error_checking.assert_is_valid_latitude(true_scale_latitude_deg)
+    error_checking.assert_is_non_array(central_longitude_deg)
+    central_longitude_deg = lng_conversion.convert_lng_positive_in_west(
+        central_longitude_deg, allow_nan=False)
+
+    return Proj(
+        proj='eqc', lat_0=central_latitude_deg, lon_0=central_longitude_deg,
+        lat_ts=true_scale_latitude_deg, rsphere=EARTH_RADIUS_METRES,
+        ellps='sphere')
+
+
 def init_cylindrical_equal_area_projection(min_latitude_deg=None,
                                            max_latitude_deg=None,
                                            min_longitude_deg=None,
