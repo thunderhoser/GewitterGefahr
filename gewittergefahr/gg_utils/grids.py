@@ -466,8 +466,8 @@ def count_events_on_equidistant_grid(
     :return: num_events_matrix: M-by-N numpy array, where element [i, j] is the
         number of events in grid cell [i, j].
     :return: event_ids_by_grid_cell_dict: Dictionary, where key [i, j] is a 1-D
-        list of event IDs assigned to grid cell [i, j].  If `event_ids is None`,
-        this will also be `None`.
+        numpy array of event IDs assigned to grid cell [i, j].  If
+        `event_ids is None`, this will also be `None`.
     """
 
     _check_input_events(
@@ -518,8 +518,8 @@ def count_events_on_equidistant_grid(
     if integer_event_ids is not None:
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
-                event_ids_by_grid_cell_dict[i, j] = list(
-                    set(event_ids_by_grid_cell_dict[i, j]))
+                event_ids_by_grid_cell_dict[i, j] = numpy.array(
+                    list(set(event_ids_by_grid_cell_dict[i, j])), dtype=int)
                 num_events_matrix[i, j] = len(event_ids_by_grid_cell_dict[i, j])
 
     return num_events_matrix, event_ids_by_grid_cell_dict
@@ -628,8 +628,8 @@ def count_events_on_non_equidistant_grid(
     if integer_event_ids is not None:
         for i in range(num_grid_rows):
             for j in range(num_grid_columns):
-                event_ids_by_grid_cell_dict[i, j] = list(set(
-                    event_ids_by_grid_cell_dict[i, j]))
+                event_ids_by_grid_cell_dict[i, j] = numpy.array(
+                    list(set(event_ids_by_grid_cell_dict[i, j])), dtype=int)
                 num_events_matrix[i, j] = len(event_ids_by_grid_cell_dict[i, j])
 
     return num_events_matrix, event_ids_by_grid_cell_dict
