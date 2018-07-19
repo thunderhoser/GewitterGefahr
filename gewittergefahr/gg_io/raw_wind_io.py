@@ -503,23 +503,18 @@ def get_max_of_sustained_and_gust(wind_speeds_m_s01, wind_gust_speeds_m_s01,
 def speed_and_direction_to_uv(wind_speeds_m_s01, wind_directions_deg):
     """Converts wind vectors from speed and direction to u- and v-components.
 
-    N = number of wind vectors
-
-    :param wind_speeds_m_s01: length-N numpy array of wind speeds (m/s).
-    :param wind_directions_deg: length-N numpy array of wind directions (degrees
-        of origin).
-    :return: u_winds_m_s01: length-N numpy array of u-components (m/s).
-    :return: v_winds_m_s01: length-N numpy array of v-components (m/s).
+    :param wind_speeds_m_s01: numpy array of wind speeds (metres per second).
+    :param wind_directions_deg: Equivalent-shape numpy array of wind
+        directions (direction of origin, as per meteorological convention).
+    :return: u_winds_m_s01: Equivalent-shape numpy array of u-components (metres
+        per second).
+    :return: v_winds_m_s01: Equivalent-shape numpy array of v-components.
     """
 
-    error_checking.assert_is_real_numpy_array(wind_speeds_m_s01)
-    error_checking.assert_is_numpy_array(wind_speeds_m_s01, num_dimensions=1)
-    num_observations = len(wind_speeds_m_s01)
-
-    error_checking.assert_is_real_numpy_array(wind_directions_deg)
+    error_checking.assert_is_geq_numpy_array(wind_speeds_m_s01, 0.)
     error_checking.assert_is_numpy_array(
         wind_directions_deg,
-        exact_dimensions=numpy.array([num_observations]))
+        exact_dimensions=numpy.array(wind_speeds_m_s01.shape))
 
     these_wind_directions_deg = copy.deepcopy(wind_directions_deg)
     these_wind_directions_deg[
@@ -535,25 +530,19 @@ def speed_and_direction_to_uv(wind_speeds_m_s01, wind_directions_deg):
 def uv_to_speed_and_direction(u_winds_m_s01, v_winds_m_s01):
     """Converts wind vectors from u- and v-components to speed and direction.
 
-    N = number of wind vectors
-
-    :param u_winds_m_s01: length-N numpy array of u-components (m/s).
-    :param v_winds_m_s01: length-N numpy array of v-components (m/s).
-    :return: wind_speeds_m_s01: length-N numpy array of wind speeds (m/s).
-    :return: wind_directions_deg: length-N numpy array of wind directions
-        (degrees of origin).
+    :param u_winds_m_s01: numpy array of u-components (metres per second).
+    :param v_winds_m_s01: Equivalent-shape numpy array of v-components.
+    :return: wind_speeds_m_s01: Equivalent-shape numpy array of wind speeds
+        (metres per second).
+    :return: wind_directions_deg: Equivalent-shape numpy array of wind
+        directions (direction of origin, as per meteorological convention).
     """
 
-    error_checking.assert_is_real_numpy_array(u_winds_m_s01)
-    error_checking.assert_is_numpy_array(u_winds_m_s01, num_dimensions=1)
-    num_observations = len(u_winds_m_s01)
-
-    error_checking.assert_is_real_numpy_array(v_winds_m_s01)
     error_checking.assert_is_numpy_array(
-        v_winds_m_s01, exact_dimensions=numpy.array([num_observations]))
+        v_winds_m_s01, exact_dimensions=numpy.array(u_winds_m_s01.shape))
 
-    wind_directions_deg = RADIANS_TO_DEGREES * numpy.arctan2(-u_winds_m_s01,
-                                                             -v_winds_m_s01)
+    wind_directions_deg = RADIANS_TO_DEGREES * numpy.arctan2(
+        -u_winds_m_s01, -v_winds_m_s01)
     wind_directions_deg = numpy.mod(wind_directions_deg + 360., 360)
 
     wind_speeds_m_s01 = numpy.sqrt(u_winds_m_s01 ** 2 + v_winds_m_s01 ** 2)
