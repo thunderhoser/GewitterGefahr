@@ -198,7 +198,7 @@ def _compute_rdp_for_each_storm_object(
     rdp_dict = {
         STORM_IDS_KEY:
             storm_object_table[tracking_utils.STORM_ID_COLUMN].values.tolist(),
-        STORM_TIMES_KEY: storm_object_table[tracking_utils.TIME_COLUMN],
+        STORM_TIMES_KEY: storm_object_table[tracking_utils.TIME_COLUMN].values,
         ROTATION_DIVERGENCE_PRODUCTS_KEY: rdp_by_storm_object_s02
     }
 
