@@ -350,11 +350,11 @@ class GridsTests(unittest.TestCase):
         In this case event IDs are *not* included as input.
         """
 
-        this_num_events_matrix, _ = grids.count_events_on_non_equidistant_grid(
+        this_num_events_matrix, _ = grids.count_events_on_equidistant_grid_new(
             event_x_coords_metres=EVENT_X_COORDS_METRES,
             event_y_coords_metres=EVENT_Y_COORDS_METRES, integer_event_ids=None,
-            grid_point_x_matrix_metres=GRID_POINT_X_MATRIX_FOR_COUNTING_METRES,
-            grid_point_y_matrix_metres=GRID_POINT_Y_MATRIX_FOR_COUNTING_METRES,
+            grid_point_x_coords_metres=GRID_POINTS_X_FOR_COUNTING_METRES,
+            grid_point_y_coords_metres=GRID_POINTS_Y_FOR_COUNTING_METRES,
             effective_radius_metres=COUNTING_RADIUS_METRES)
 
         self.assertTrue(numpy.array_equal(
@@ -366,12 +366,12 @@ class GridsTests(unittest.TestCase):
         In this case event IDs are included as input.
         """
 
-        this_num_events_matrix, _ = grids.count_events_on_non_equidistant_grid(
+        this_num_events_matrix, _ = grids.count_events_on_equidistant_grid_new(
             event_x_coords_metres=EVENT_X_COORDS_METRES,
             event_y_coords_metres=EVENT_Y_COORDS_METRES,
             integer_event_ids=INTEGER_EVENT_IDS,
-            grid_point_x_matrix_metres=GRID_POINT_X_MATRIX_FOR_COUNTING_METRES,
-            grid_point_y_matrix_metres=GRID_POINT_Y_MATRIX_FOR_COUNTING_METRES,
+            grid_point_x_coords_metres=GRID_POINTS_X_FOR_COUNTING_METRES,
+            grid_point_y_coords_metres=GRID_POINTS_Y_FOR_COUNTING_METRES,
             effective_radius_metres=COUNTING_RADIUS_METRES)
 
         self.assertTrue(numpy.array_equal(
