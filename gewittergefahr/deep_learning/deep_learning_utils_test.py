@@ -78,7 +78,8 @@ TORNADO_CLASS_MATRIX = keras.utils.to_categorical(TORNADO_CLASSES_1D, 2)
 WIND_CLASS_MATRIX = keras.utils.to_categorical(
     WIND_CLASSES_1D, numpy.max(WIND_CLASSES_1D) + 1)
 
-# The following constants are used to test normalize_radar_images.
+# The following constants are used to test normalize_radar_images and
+# denormalize_radar_images.
 PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
 RADAR_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME]
 RADAR_NORMALIZATION_DICT = {
@@ -121,25 +122,15 @@ RADAR_MATRIX_4D_UNNORMALIZED = numpy.stack(
     (RADAR_MATRIX_EXAMPLE1_HEIGHT1_UNNORMALIZED,
      RADAR_MATRIX_EXAMPLE2_HEIGHT1_UNNORMALIZED), axis=0)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT1 + 6) / 22,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 16) / 22), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT1 + 6) / 22,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 16) / 22), axis=-1)
-RADAR_MATRIX_4D_NORM_BY_BATCH = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORM_BY_BATCH,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORM_BY_BATCH), axis=0)
-
-RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORM_BY_CLIMO = numpy.stack(
+RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORMALIZED = numpy.stack(
     ((REFL_MATRIX_EXAMPLE1_HEIGHT1 - 1) / 9,
      (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 8) / 16), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORM_BY_CLIMO = numpy.stack(
+RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORMALIZED = numpy.stack(
     ((REFL_MATRIX_EXAMPLE2_HEIGHT1 - 1) / 9,
      (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 8) / 16), axis=-1)
-RADAR_MATRIX_4D_NORM_BY_CLIMO = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORM_BY_CLIMO,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORM_BY_CLIMO), axis=0)
+RADAR_MATRIX_4D_NORMALIZED = numpy.stack(
+    (RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORMALIZED,
+     RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORMALIZED), axis=0)
 
 RADAR_MATRIX_EXAMPLE1_HEIGHT2_UNNORMALIZED = numpy.stack(
     (REFL_MATRIX_EXAMPLE1_HEIGHT2, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2), axis=-1)
@@ -161,63 +152,29 @@ RADAR_MATRIX_5D_UNNORMALIZED = numpy.stack(
     (RADAR_MATRIX_4D_UNNORMALIZED, RADAR_MATRIX_HEIGHT2_UNNORMALIZED,
      RADAR_MATRIX_HEIGHT3_UNNORMALIZED), axis=-2)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT1 + 6) / 23,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 17) / 23), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT1 + 6) / 23,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 17) / 23), axis=-1)
-RADAR_MATRIX_HEIGHT1_NORM_BY_BATCH = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORM_BY_BATCH,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORM_BY_BATCH), axis=0)
-
-RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT2 + 6) / 23,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 + 17) / 23), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT2 + 6) / 23,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 + 17) / 23), axis=-1)
-RADAR_MATRIX_HEIGHT2_NORM_BY_BATCH = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORM_BY_BATCH,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORM_BY_BATCH), axis=0)
-
-RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT3 + 6) / 23,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 + 17) / 23), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORM_BY_BATCH = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT3 + 6) / 23,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 + 17) / 23), axis=-1)
-RADAR_MATRIX_HEIGHT3_NORM_BY_BATCH = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORM_BY_BATCH,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORM_BY_BATCH), axis=0)
-
-RADAR_MATRIX_5D_NORM_BY_BATCH = numpy.stack(
-    (RADAR_MATRIX_HEIGHT1_NORM_BY_BATCH, RADAR_MATRIX_HEIGHT2_NORM_BY_BATCH,
-     RADAR_MATRIX_HEIGHT3_NORM_BY_BATCH), axis=-2)
-
-RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORM_BY_CLIMO = numpy.stack(
+RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORMALIZED = numpy.stack(
     ((REFL_MATRIX_EXAMPLE1_HEIGHT2 - 1) / 9,
      (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 + 8) / 16), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORM_BY_CLIMO = numpy.stack(
+RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORMALIZED = numpy.stack(
     ((REFL_MATRIX_EXAMPLE2_HEIGHT2 - 1) / 9,
      (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 + 8) / 16), axis=-1)
-RADAR_MATRIX_HEIGHT2_NORM_BY_CLIMO = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORM_BY_CLIMO,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORM_BY_CLIMO), axis=0)
+RADAR_MATRIX_HEIGHT2_NORMALIZED = numpy.stack(
+    (RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORMALIZED,
+     RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORMALIZED), axis=0)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORM_BY_CLIMO = numpy.stack(
+RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORMALIZED = numpy.stack(
     ((REFL_MATRIX_EXAMPLE1_HEIGHT3 - 1) / 9,
      (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 + 8) / 16), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORM_BY_CLIMO = numpy.stack(
+RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORMALIZED = numpy.stack(
     ((REFL_MATRIX_EXAMPLE2_HEIGHT3 - 1) / 9,
      (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 + 8) / 16), axis=-1)
-RADAR_MATRIX_HEIGHT3_NORM_BY_CLIMO = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORM_BY_CLIMO,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORM_BY_CLIMO), axis=0)
+RADAR_MATRIX_HEIGHT3_NORMALIZED = numpy.stack(
+    (RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORMALIZED,
+     RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORMALIZED), axis=0)
 
-RADAR_MATRIX_5D_NORM_BY_CLIMO = numpy.stack(
-    (RADAR_MATRIX_4D_NORM_BY_CLIMO, RADAR_MATRIX_HEIGHT2_NORM_BY_CLIMO,
-     RADAR_MATRIX_HEIGHT3_NORM_BY_CLIMO), axis=-2)
+RADAR_MATRIX_5D_NORMALIZED = numpy.stack(
+    (RADAR_MATRIX_4D_NORMALIZED, RADAR_MATRIX_HEIGHT2_NORMALIZED,
+     RADAR_MATRIX_HEIGHT3_NORMALIZED), axis=-2)
 
 # The following constants are used to test mask_low_reflectivity_pixels.
 FIELD_NAMES_FOR_MASKING = [radar_utils.REFL_NAME, radar_utils.DIVERGENCE_NAME]
@@ -775,64 +732,64 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, RADAR_IMAGE_MATRIX_5D, atol=TOLERANCE, equal_nan=True))
 
-    def test_normalize_radar_images_4d_by_batch(self):
+    def test_normalize_radar_images_4d(self):
         """Ensures correct output from normalize_radar_images.
 
-        In this case a 4-D matrix is normalized by batch.
+        In this case the input matrix is 4-D.
         """
 
         this_radar_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_UNNORMALIZED),
-            normalize_by_batch=True,
-            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
-
-        self.assertTrue(numpy.allclose(
-            this_radar_matrix, RADAR_MATRIX_4D_NORM_BY_BATCH,
-            atol=TOLERANCE, equal_nan=True))
-
-    def test_normalize_radar_images_4d_by_climo(self):
-        """Ensures correct output from normalize_radar_images.
-
-        In this case a 4-D matrix is normalized by climatology.
-        """
-
-        this_radar_matrix = dl_utils.normalize_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_UNNORMALIZED),
-            normalize_by_batch=False, field_names=RADAR_FIELD_NAMES,
+            field_names=RADAR_FIELD_NAMES,
             normalization_dict=RADAR_NORMALIZATION_DICT)
 
         self.assertTrue(numpy.allclose(
-            this_radar_matrix, RADAR_MATRIX_4D_NORM_BY_CLIMO,
+            this_radar_matrix, RADAR_MATRIX_4D_NORMALIZED,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_normalize_radar_images_5d_by_batch(self):
+    def test_normalize_radar_images_5d(self):
         """Ensures correct output from normalize_radar_images.
 
-        In this case a 5-D matrix is normalized by batch.
+        In this case the input matrix is 5-D.
         """
 
         this_radar_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_UNNORMALIZED),
-            normalize_by_batch=True,
-            percentile_offset=PERCENTILE_OFFSET_FOR_NORMALIZATION)
-
-        self.assertTrue(numpy.allclose(
-            this_radar_matrix, RADAR_MATRIX_5D_NORM_BY_BATCH,
-            atol=TOLERANCE, equal_nan=True))
-
-    def test_normalize_radar_images_5d_by_climo(self):
-        """Ensures correct output from normalize_radar_images.
-
-        In this case a 5-D matrix is normalized by climatology.
-        """
-
-        this_radar_matrix = dl_utils.normalize_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_UNNORMALIZED),
-            normalize_by_batch=False, field_names=RADAR_FIELD_NAMES,
+            field_names=RADAR_FIELD_NAMES,
             normalization_dict=RADAR_NORMALIZATION_DICT)
 
         self.assertTrue(numpy.allclose(
-            this_radar_matrix, RADAR_MATRIX_5D_NORM_BY_CLIMO,
+            this_radar_matrix, RADAR_MATRIX_5D_NORMALIZED,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_denormalize_radar_images_4d(self):
+        """Ensures correct output from denormalize_radar_images.
+
+        In this case the input matrix is 4-D.
+        """
+
+        this_radar_matrix = dl_utils.denormalize_radar_images(
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_NORMALIZED),
+            field_names=RADAR_FIELD_NAMES,
+            normalization_dict=RADAR_NORMALIZATION_DICT)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_4D_UNNORMALIZED,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_denormalize_radar_images_5d(self):
+        """Ensures correct output from denormalize_radar_images.
+
+        In this case the input matrix is 5-D.
+        """
+
+        this_radar_matrix = dl_utils.denormalize_radar_images(
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_NORMALIZED),
+            field_names=RADAR_FIELD_NAMES,
+            normalization_dict=RADAR_NORMALIZATION_DICT)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_5D_UNNORMALIZED,
             atol=TOLERANCE, equal_nan=True))
 
     def test_mask_low_reflectivity_pixels(self):
@@ -849,14 +806,24 @@ class DeepLearningUtilsTests(unittest.TestCase):
     def test_normalize_soundings(self):
         """Ensures correct output from normalize_soundings."""
 
-        this_input_matrix = copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED)
-        this_normalized_matrix = dl_utils.normalize_soundings(
-            sounding_matrix=this_input_matrix,
+        this_sounding_matrix = dl_utils.normalize_soundings(
+            sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED),
             pressureless_field_names=SOUNDING_FIELD_NAMES,
             normalization_dict=SOUNDING_NORMALIZATION_DICT)
 
         self.assertTrue(numpy.allclose(
-            this_normalized_matrix, SOUNDING_MATRIX_NORMALIZED, atol=TOLERANCE))
+            this_sounding_matrix, SOUNDING_MATRIX_NORMALIZED, atol=TOLERANCE))
+
+    def test_denormalize_soundings(self):
+        """Ensures correct output from denormalize_soundings."""
+
+        this_sounding_matrix = dl_utils.denormalize_soundings(
+            sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_NORMALIZED),
+            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            normalization_dict=SOUNDING_NORMALIZATION_DICT)
+
+        self.assertTrue(numpy.allclose(
+            this_sounding_matrix, SOUNDING_MATRIX_UNNORMALIZED, atol=TOLERANCE))
 
     def test_sample_by_class_tornado(self):
         """Ensures correct output from sample_by_class.

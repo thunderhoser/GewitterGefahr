@@ -24,9 +24,6 @@ from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
-
-DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION = 1.
-MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION = 5.
 DEFAULT_REFL_MASK_THRESHOLD_DBZ = 15.
 
 DEFAULT_RADAR_NORMALIZATION_DICT = {
@@ -333,43 +330,28 @@ def stack_radar_heights(tuple_of_4d_matrices):
 
 
 def normalize_radar_images(
-        radar_image_matrix, normalize_by_batch=False, field_names=None,
-        normalization_dict=DEFAULT_RADAR_NORMALIZATION_DICT,
-        percentile_offset=DEFAULT_PERCENTILE_OFFSET_FOR_NORMALIZATION):
+        radar_image_matrix, field_names,
+        normalization_dict=DEFAULT_RADAR_NORMALIZATION_DICT):
     """Normalizes radar images.
 
-    Specifically, for each field x and each pixel (i, j), the normalization is
-    done as follows.
+    Specifically, for each field x and each pixel (i, j), the following equation
+    is used.
 
     x_new(i, j) = [x_old(i, j) - x_min] / [x_max - x_min]
-
-    If normalize_by_batch = True, radar_image_matrix is treated as one batch and
-    variables have the following meanings.
-
-    x_min = minimum (or a very small percentile) of x-values in the batch
-    x_max = maximum (or a very large percentile) of x-values in the batch
-
-    If normalize_by_batch = False, variables have the following meanings.
 
     x_min = climatological minimum for x (taken from normalization_dict)
     x_max = climatological maximum for x (taken from normalization_dict)
 
     :param radar_image_matrix: numpy array of radar images.  Dimensions may be
         E x M x N x C or E x M x N x H_r x F_r.
-    :param normalize_by_batch: Boolean flag.  See general discussion above.
-    :param field_names: [used only if normalize_by_batch = False]
-        1-D list with names of radar fields, in the order that they appear in
-        radar_image_matrix.  If radar_image_matrix is 4-dimensional, field_names
-        must have length C.  If radar_image_matrix is 5-dimensional, field_names
-        must have length F_r.  Each field name must be accepted by
-        `radar_utils.check_field_name`.
-    :param normalization_dict: [used only if normalize_by_batch = False]
-        Dictionary, where each key is a field name (from the list `field_names`)
-        and each value is a length-2 numpy array with [x_min, x_max].
-    :param percentile_offset: [used only if normalize_by_batch = True]
-        Offset for x_min and x_max (reduces the effect of outliers).  If
-        percentile_offset = q, x_min will be the [q]th percentile and x_max will
-        be the [100 - q]th percentile.
+    :param field_names: 1-D list with names of radar fields, in the order that
+        they appear in radar_image_matrix.  If radar_image_matrix is
+        4-dimensional, field_names must have length C.  If radar_image_matrix is
+        5-dimensional, field_names must have length F_r.  Each field name must
+        be accepted by `radar_utils.check_field_name`.
+    :param normalization_dict: Dictionary, where each key is a field name (from
+        the list `field_names`) and each value is a length-2 numpy array with
+        [x_min, x_max].
     :return: radar_image_matrix: Normalized version of input.  Dimensions are
         the same.
     """
@@ -379,33 +361,51 @@ def normalize_radar_images(
         max_num_dimensions=5)
     num_fields = radar_image_matrix.shape[-1]
 
-    error_checking.assert_is_boolean(normalize_by_batch)
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names),
+        exact_dimensions=numpy.array([num_fields]))
 
-    if normalize_by_batch:
-        error_checking.assert_is_geq(percentile_offset, 0.)
-        error_checking.assert_is_leq(
-            percentile_offset, MAX_PERCENTILE_OFFSET_FOR_NORMALIZATION)
+    for k in range(num_fields):
+        this_min_value = normalization_dict[field_names[k]][0]
+        this_max_value = normalization_dict[field_names[k]][1]
+        radar_image_matrix[..., k] = (
+            (radar_image_matrix[..., k] - this_min_value) /
+            (this_max_value - this_min_value))
 
-        for k in range(num_fields):
-            this_min_value = numpy.nanpercentile(
-                radar_image_matrix[..., k], percentile_offset)
-            this_max_value = numpy.nanpercentile(
-                radar_image_matrix[..., k], 100. - percentile_offset)
-            radar_image_matrix[..., k] = (
-                (radar_image_matrix[..., k] - this_min_value) /
-                (this_max_value - this_min_value))
-    else:
-        error_checking.assert_is_string_list(field_names)
-        error_checking.assert_is_numpy_array(
-            numpy.array(field_names),
-            exact_dimensions=numpy.array([num_fields]))
+    return radar_image_matrix
 
-        for k in range(num_fields):
-            this_min_value = normalization_dict[field_names[k]][0]
-            this_max_value = normalization_dict[field_names[k]][1]
-            radar_image_matrix[..., k] = (
-                (radar_image_matrix[..., k] - this_min_value) /
-                (this_max_value - this_min_value))
+
+def denormalize_radar_images(
+        radar_image_matrix, field_names,
+        normalization_dict=DEFAULT_RADAR_NORMALIZATION_DICT):
+    """Denormalizes radar images.
+
+    This method is the inverse of `normalize_radar_images`.
+
+    :param radar_image_matrix: See doc for `normalize_radar_images`.
+    :param field_names: Same.
+    :param normalization_dict: Same.
+    :return: radar_image_matrix: Denormalized version of input.  Dimensions are
+        the same.
+    """
+
+    check_radar_images(
+        radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
+        max_num_dimensions=5)
+    num_fields = radar_image_matrix.shape[-1]
+
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names),
+        exact_dimensions=numpy.array([num_fields]))
+
+    for k in range(num_fields):
+        this_min_value = normalization_dict[field_names[k]][0]
+        this_max_value = normalization_dict[field_names[k]][1]
+        radar_image_matrix[..., k] = (
+            this_min_value +
+            radar_image_matrix[..., k] * (this_max_value - this_min_value))
 
     return radar_image_matrix
 
@@ -467,7 +467,7 @@ def normalize_soundings(
         normalization_dict=DEFAULT_SOUNDING_NORMALIZATION_DICT):
     """Normalizes soundings.
 
-    For wind at each pixel (i, j), the normalization is done as follows.
+    For wind at each pixel (i, j), the following equation is used.
 
     wind_speed_new(i, j) = [wind_speed(i, j) - min_wind_speed] /
                            [max_wind_speed - min_wind_speed]
@@ -475,8 +475,7 @@ def normalize_soundings(
     u_wind_new(i, j) = u_wind(i, j) * normalization_ratio
     v_wind_new(i, j) = v_wind(i, j) * normalization_ratio
 
-    For each other field f at each pixel (i, j), the normalization is done as
-    follows.
+    For any other field f at each pixel (i, j), the following equation is used.
 
     x_new(i, j) = [x_old(i, j) - x_min] / [x_max - x_min]
 
@@ -544,6 +543,73 @@ def normalize_soundings(
             (sounding_matrix[..., k] - this_min_value) /
             (this_max_value - this_min_value)
         )
+
+    return sounding_matrix
+
+
+def denormalize_soundings(
+        sounding_matrix, pressureless_field_names,
+        normalization_dict=DEFAULT_SOUNDING_NORMALIZATION_DICT):
+    """Denormalizes soundings.
+
+    This method is the inverse of `normalize_soundings`.
+
+    :param sounding_matrix: See doc for `normalize_soundings`.
+    :param pressureless_field_names: Same.
+    :param normalization_dict: Same.
+    :return: sounding_matrix: Denormalized version of input.  Dimensions are the
+        same.
+    """
+
+    error_checking.assert_is_string_list(pressureless_field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(pressureless_field_names), num_dimensions=1)
+
+    num_pressureless_fields = len(pressureless_field_names)
+    check_soundings(sounding_matrix=sounding_matrix,
+                    num_pressureless_fields=num_pressureless_fields)
+
+    done_wind_speed = False
+
+    for k in range(num_pressureless_fields):
+        if pressureless_field_names[k] in [soundings_only.U_WIND_NAME,
+                                           soundings_only.V_WIND_NAME]:
+            if done_wind_speed:
+                continue
+
+            u_wind_index = pressureless_field_names.index(
+                soundings_only.U_WIND_NAME)
+            v_wind_index = pressureless_field_names.index(
+                soundings_only.V_WIND_NAME)
+            normalized_wind_speeds_m_s01 = numpy.sqrt(
+                sounding_matrix[..., u_wind_index] ** 2 +
+                sounding_matrix[..., v_wind_index] ** 2)
+
+            min_wind_speed_m_s01 = normalization_dict[
+                soundings_only.WIND_SPEED_KEY][0]
+            max_wind_speed_m_s01 = normalization_dict[
+                soundings_only.WIND_SPEED_KEY][1]
+            wind_speeds_m_s01 = min_wind_speed_m_s01 + (
+                normalized_wind_speeds_m_s01 *
+                (max_wind_speed_m_s01 - min_wind_speed_m_s01))
+
+            denormalization_ratios = (
+                wind_speeds_m_s01 / normalized_wind_speeds_m_s01)
+            denormalization_ratios[numpy.isnan(denormalization_ratios)] = 0.
+
+            sounding_matrix[..., u_wind_index] = (
+                sounding_matrix[..., u_wind_index] * denormalization_ratios)
+            sounding_matrix[..., v_wind_index] = (
+                sounding_matrix[..., v_wind_index] * denormalization_ratios)
+
+            done_wind_speed = True
+            continue
+
+        this_min_value = normalization_dict[pressureless_field_names[k]][0]
+        this_max_value = normalization_dict[pressureless_field_names[k]][1]
+        sounding_matrix[..., k] = (
+            this_min_value +
+            sounding_matrix[..., k] * (this_max_value - this_min_value))
 
     return sounding_matrix
 

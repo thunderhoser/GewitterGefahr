@@ -22,7 +22,7 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 2.7']
 
 PACKAGE_REQUIREMENTS = [
-    'descartes', 'geopy', 'netCDF4', 'pyproj', 'scipy', 'sharppy', 'skewt',
+    'descartes', 'geopy', 'netCDF4', 'pyproj', 'scipy', 'skewt',
     'scikit-learn', 'matplotlib', 'numpy', 'pandas', 'shapely', 'scikit-image']
 
 # PACKAGE_REQUIREMENTS = [
