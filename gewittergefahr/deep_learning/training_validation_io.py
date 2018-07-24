@@ -1312,7 +1312,7 @@ def storm_image_generator_2d(
 
         full_radar_image_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=full_radar_image_matrix,
-            normalize_by_batch=False, field_names=field_name_by_channel,
+            field_names=field_name_by_channel,
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:
@@ -1560,7 +1560,7 @@ def storm_image_generator_3d(
 
         full_radar_image_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=full_radar_image_matrix,
-            normalize_by_batch=False, field_names=radar_field_names,
+            field_names=radar_field_names,
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:
@@ -1837,12 +1837,12 @@ def storm_image_generator_2d3d_myrorss(
 
         full_reflectivity_matrix_dbz = dl_utils.normalize_radar_images(
             radar_image_matrix=full_reflectivity_matrix_dbz,
-            normalize_by_batch=False, field_names=[radar_utils.REFL_NAME],
+            field_names=[radar_utils.REFL_NAME],
             normalization_dict=radar_normalization_dict)
 
         full_azimuthal_shear_matrix_s01 = dl_utils.normalize_radar_images(
             radar_image_matrix=full_azimuthal_shear_matrix_s01,
-            normalize_by_batch=False, field_names=azimuthal_shear_field_names,
+            field_names=azimuthal_shear_field_names,
             normalization_dict=radar_normalization_dict)
 
         if sounding_file_names is not None:
