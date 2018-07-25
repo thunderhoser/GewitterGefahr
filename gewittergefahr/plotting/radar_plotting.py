@@ -23,7 +23,8 @@ MESH_PLOTTING_UNITS = 'mm'
 SHI_PLOTTING_UNITS = ''
 VIL_PLOTTING_UNITS = 'mm'
 
-KM_TO_KFT = 3.2808  # kilometres to kilofeet
+KM_TO_KILOFEET = 3.2808
+METRES_TO_KM = 1e-3
 
 
 def _get_modern_colour_list():
@@ -487,12 +488,8 @@ def _convert_to_plotting_units(field_matrix_gg_units, field_name):
     """
 
     radar_utils.check_field_name(field_name)
-    error_checking.assert_is_real_numpy_array(field_matrix_gg_units)
-    error_checking.assert_is_numpy_array(
-        field_matrix_gg_units, num_dimensions=2)
-
     if field_name in radar_utils.ECHO_TOP_NAMES:
-        return field_matrix_gg_units * KM_TO_KFT
+        return field_matrix_gg_units * KM_TO_KILOFEET
 
     return field_matrix_gg_units
 
@@ -502,7 +499,7 @@ def plot_latlng_grid(
         min_grid_point_longitude_deg, latitude_spacing_deg,
         longitude_spacing_deg, colour_map=None, min_value_in_colour_map=None,
         max_value_in_colour_map=None):
-    """Plots gridded radar field as colour map.
+    """Plots lat-long grid as colour map.
 
     M = number of rows (unique latitudes at grid points)
     N = number of columns (unique longitudes at grid points)
@@ -558,3 +555,109 @@ def plot_latlng_grid(
         field_matrix_at_edges, cmap=colour_map, norm=colour_norm_object,
         vmin=min_value_in_colour_map, vmax=max_value_in_colour_map,
         shading='flat', edgecolors='None', axes=axes_object)
+
+
+def plot_2d_grid_without_coords(
+        field_matrix, field_name, axes_object, colour_map=None,
+        min_value_in_colour_map=None, max_value_in_colour_map=None):
+    """Plots 2-D grid as colour map.
+
+    In this case the grid is not georeferenced (convenient for storm-centered
+    radar images).
+
+    :param field_matrix: See doc for `plot_latlng_grid`.
+    :param field_name: Same.
+    :param axes_object: Same.
+    :param colour_map: Same.
+    :param min_value_in_colour_map: Same.
+    :param max_value_in_colour_map: Same.
+    """
+
+    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
+
+    field_matrix = _convert_to_plotting_units(
+        field_matrix_gg_units=field_matrix, field_name=field_name)
+    field_matrix = numpy.ma.masked_where(
+        numpy.isnan(field_matrix), field_matrix)
+
+    if colour_map is None:
+        colour_map, colour_norm_object, _ = _get_default_colour_map(field_name)
+        min_value_in_colour_map = colour_norm_object.boundaries[0]
+        max_value_in_colour_map = colour_norm_object.boundaries[-1]
+    else:
+        error_checking.assert_is_greater(
+            max_value_in_colour_map, min_value_in_colour_map)
+        colour_norm_object = None
+
+    axes_object.pcolormesh(
+        field_matrix, cmap=colour_map, norm=colour_norm_object,
+        vmin=min_value_in_colour_map, vmax=max_value_in_colour_map,
+        shading='flat', edgecolors='None')
+
+    axes_object.set_xticks([])
+    axes_object.set_yticks([])
+
+
+def plot_3d_grid_without_coords(
+        field_matrix, heights_m_asl, field_name, num_panel_rows,
+        figure_width_inches=15., figure_height_inches=15., colour_map=None,
+        min_value_in_colour_map=None, max_value_in_colour_map=None):
+    """Plots 3-D grid as many colour maps (one per height).
+
+    M = number of grid rows
+    N = number of grid columns
+    H = number of grid heights
+
+    :param field_matrix: M-by-N-by-H numpy array with values of radar field.
+    :param heights_m_asl: length-H integer numpy array of heights (metres above
+        sea level).
+    :param field_name: See doc for `plot_latlng_grid`.
+    :param num_panel_rows: Number of rows in paneled figure (different than M,
+        the number of grid rows).
+    :param figure_width_inches: Figure width.
+    :param figure_height_inches: Figure height.
+    :param colour_map: See doc for `plot_latlng_grid`.
+    :param min_value_in_colour_map: Same.
+    :param max_value_in_colour_map: Same.
+    :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    """
+
+    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
+    num_heights = field_matrix.shape[2]
+
+    error_checking.assert_is_integer_numpy_array(heights_m_asl)
+    error_checking.assert_is_geq_numpy_array(heights_m_asl, 0)
+    error_checking.assert_is_numpy_array(
+        heights_m_asl, exact_dimensions=numpy.array([num_heights]))
+
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_geq(num_panel_rows, 1)
+    error_checking.assert_is_leq(num_panel_rows, num_heights)
+
+    num_panel_columns = int(numpy.ceil(float(num_heights) / num_panel_rows))
+    figure_object, axes_objects_2d_list = pyplot.subplots(
+        num_panel_rows, num_panel_columns,
+        figsize=(figure_width_inches, figure_height_inches),
+        sharex=True, sharey=True)
+    pyplot.subplots_adjust(
+        left=0.01, bottom=0.01, right=0.95, top=0.95, hspace=0, wspace=0)
+
+    for i in range(num_panel_rows):
+        for j in range(num_panel_columns):
+            this_height_index = i * num_panel_columns + j
+            plot_2d_grid_without_coords(
+                field_matrix=field_matrix[..., this_height_index],
+                field_name=field_name, axes_object=axes_objects_2d_list[i][j],
+                colour_map=colour_map,
+                min_value_in_colour_map=min_value_in_colour_map,
+                max_value_in_colour_map=max_value_in_colour_map)
+
+            this_legend_string = '{0:.1f} km ASL'.format(
+                heights_m_asl[this_height_index] * METRES_TO_KM)
+
+            axes_objects_2d_list[i][j].text(
+                0.5, 0.01, this_legend_string, fontsize=20, color='k',
+                horizontalalignment='center', verticalalignment='bottom',
+                transform=axes_objects_2d_list[i][j].transAxes)
+
+    return figure_object

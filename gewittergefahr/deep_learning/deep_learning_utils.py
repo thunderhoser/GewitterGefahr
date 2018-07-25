@@ -18,13 +18,19 @@ T = number of file times (time steps or SPC dates)
 
 import copy
 import numpy
+from gewittergefahr.gg_io import raw_wind_io as wind_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import moisture_conversions
+from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
 DEFAULT_REFL_MASK_THRESHOLD_DBZ = 15.
+
+MB_TO_PASCALS = 100.
+METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 DEFAULT_RADAR_NORMALIZATION_DICT = {
     radar_utils.ECHO_TOP_18DBZ_NAME: numpy.array([0., 15.]),  # km
@@ -612,6 +618,81 @@ def denormalize_soundings(
             sounding_matrix[..., k] * (this_max_value - this_min_value))
 
     return sounding_matrix
+
+
+def soundings_to_skewt_dictionaries(
+        sounding_matrix, pressure_levels_mb, pressureless_field_names):
+    """Converts soundings to format required by the skewt package.
+
+    :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
+    :param pressure_levels_mb: integer numpy array (length H_s) of pressure
+        levels.
+    :param pressureless_field_names: list (length F_s) with names of
+        pressureless fields, in the order that they appear in sounding_matrix.
+    :return: list_of_skewt_dictionaries: length-E list of dictionaries.  The
+        format of each dictionary is described in the input doc for
+        `sounding_plotting.plot_sounding`.
+    """
+
+    # TODO(thunderhoser): Allow some fields to be missing from sounding_matrix.
+
+    error_checking.assert_is_string_list(pressureless_field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(pressureless_field_names), num_dimensions=1)
+
+    error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
+    error_checking.assert_is_greater_numpy_array(pressure_levels_mb, 0)
+    error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
+
+    num_examples = sounding_matrix.shape[0]
+    num_pressure_levels = len(pressure_levels_mb)
+    num_pressureless_fields = len(pressureless_field_names)
+    check_soundings(sounding_matrix=sounding_matrix,
+                    num_vertical_levels=num_pressure_levels,
+                    num_pressureless_fields=num_pressureless_fields)
+
+    u_wind_index = pressureless_field_names.index(soundings_only.U_WIND_NAME)
+    v_wind_index = pressureless_field_names.index(soundings_only.V_WIND_NAME)
+    (wind_speed_matrix_m_s01, wind_direction_matrix_deg
+    ) = wind_utils.uv_to_speed_and_direction(
+        u_winds_m_s01=sounding_matrix[..., u_wind_index],
+        v_winds_m_s01=sounding_matrix[..., v_wind_index])
+    wind_speed_matrix_kt = METRES_PER_SECOND_TO_KT * wind_speed_matrix_m_s01
+
+    temperature_index = pressureless_field_names.index(
+        soundings_only.TEMPERATURE_NAME)
+    temperature_matrix_celsius = temperature_conversions.kelvins_to_celsius(
+        sounding_matrix[..., temperature_index])
+
+    pressure_matrix_mb = numpy.full(
+        (num_examples, num_pressure_levels), numpy.nan)
+    for i in range(num_examples):
+        pressure_matrix_mb[i, :] = pressure_levels_mb
+    pressure_matrix_pascals = pressure_matrix_mb * MB_TO_PASCALS
+
+    specific_humidity_index = pressureless_field_names.index(
+        soundings_only.SPECIFIC_HUMIDITY_NAME)
+    dewpoint_matrix_kelvins = (
+        moisture_conversions.specific_humidity_to_dewpoint(
+            specific_humidities_kg_kg01=sounding_matrix[
+                ..., specific_humidity_index],
+            total_pressures_pascals=pressure_matrix_pascals))
+    dewpoint_matrix_celsius = temperature_conversions.kelvins_to_celsius(
+        dewpoint_matrix_kelvins)
+
+    list_of_skewt_dictionaries = [None] * num_examples
+    for i in range(num_examples):
+        list_of_skewt_dictionaries[i] = {
+            soundings_only.PRESSURE_COLUMN_SKEWT: pressure_matrix_pascals[i, :],
+            soundings_only.TEMPERATURE_COLUMN_SKEWT:
+                temperature_matrix_celsius[i, :],
+            soundings_only.DEWPOINT_COLUMN_SKEWT: dewpoint_matrix_celsius[i, :],
+            soundings_only.WIND_SPEED_COLUMN_SKEWT: wind_speed_matrix_kt[i, :],
+            soundings_only.WIND_DIRECTION_COLUMN_SKEWT:
+                wind_direction_matrix_deg[i, :]
+        }
+
+    return list_of_skewt_dictionaries
 
 
 def sample_by_class(

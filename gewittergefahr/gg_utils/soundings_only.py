@@ -889,14 +889,8 @@ def sounding_dict_to_skewt(sounding_dict, sounding_index):
         `soundings_only._convert_interp_table_to_soundings`.
     :param sounding_index: Will convert the [k]th sounding in `sounding_dict`,
         where k = `sounding_index`.
-    :return: sounding_dict_for_skewt: Dictionary with the following keys.
-    sounding_dict_for_skewt.PRES: length-P numpy array of pressures (millibars).
-    sounding_dict_for_skewt.TEMP: length-P numpy array of temperatures
-        (Celsius).
-    sounding_dict_for_skewt.DWPT: length-P numpy array of dewpoints (Celsius).
-    sounding_dict_for_skewt.SKNT: length-P numpy array of wind speeds (knots).
-    sounding_dict_for_skewt.WDIR: length-P numpy array of wind directions
-        (direction of origin, as per meteorological convention) (degrees).
+    :return: sounding_dict_for_skewt: See input doc for
+        `sounding_plotting.plot_sounding`.
     """
 
     num_soundings = len(sounding_dict[STORM_IDS_KEY])
