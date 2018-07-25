@@ -4,7 +4,7 @@ import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 
-LARGE_NUMBER = 1e6
+DEFAULT_IDEAL_LOGIT = 10.
 
 DEFAULT_LEARNING_RATE = 0.01
 DEFAULT_NUM_ITERATIONS = 200
@@ -75,7 +75,7 @@ def create_constant_initializer(constant_value):
 def optimize_input_for_class(
         model_object, target_class, optimize_for_probability, initializer,
         num_iterations=DEFAULT_NUM_ITERATIONS,
-        learning_rate=DEFAULT_LEARNING_RATE):
+        learning_rate=DEFAULT_LEARNING_RATE, ideal_logit=DEFAULT_IDEAL_LOGIT):
     """Finds the input that maximizes prediction of the target class.
 
     If `optimize_for_probability = True`, this method finds an input that
@@ -93,7 +93,9 @@ def optimize_input_for_class(
     logit for the target class does not necessarily minimize logits for the
     other classes.
 
-    N = number of input tensors
+    This method assumes that the output layer is a `keras.layers.Activation`
+    layer, so its input and output tensors are both E x K, where E = number of
+    examples and K = number of classes.
 
     :param model_object: Instance of `keras.models.Model`.
     :param target_class: Input will be optimized for this class.  Must be an
@@ -108,8 +110,15 @@ def optimize_input_for_class(
         the gradient of x with respect to the loss function.  The "loss
         function" is the difference between the actual and maximum possible
         predictions for the target class.
+    :param ideal_logit: [used only if `optimize_for_probability = False`]
+        The loss function will be (logit[k] - ideal_logit) ** 2, where logit[k]
+        is the logit for the target class.  If `ideal_logit is None`, the loss
+        function will be sign(logit[k]) * logit[k]**2, or the negative square of
+        logit[k], so that loss always decreases as logit[k] increases.
     :return: list_of_optimized_input_matrices: length-N list of optimized input
-        matrices (numpy arrays).
+        matrices (numpy arrays), where N = number of tensors.
+    :raises: TypeError: if `optimize_for_probability = False` and the output
+        layer is not an activation layer.
     :raises: TypeError: if `initializer` is not a function.
     """
 
@@ -121,8 +130,18 @@ def optimize_input_for_class(
     error_checking.assert_is_less_than(learning_rate, 1.)
 
     if not optimize_for_probability:
-        raise ValueError(
-            'Sorry, `optimize_for_probability` must be True for now.')
+        if ideal_logit is not None:
+            error_checking.assert_is_greater(ideal_logit, 0.)
+
+        this_type_string = type(model_object.layers[-1]).__name__
+        if this_type_string != 'Activation':
+            error_string = (
+                'If `optimize_for_probability = False`, the output layer must '
+                'be an "Activation" layer (got "{0:s}" layer).  Otherwise, '
+                'there is no way to access the pre-softmax logits (unnormalized'
+                ' probabilities).'
+            ).format(this_type_string)
+            raise TypeError(error_string)
 
     if not callable(initializer):
         raise TypeError('`initializer` is not callable (i.e., not a function).')
@@ -132,9 +151,14 @@ def optimize_input_for_class(
         loss_tensor = K.mean(
             (model_object.layers[-1].output[..., target_class] - 1) ** 2)
     else:
-        loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., target_class] - LARGE_NUMBER)
-            ** 2)
+        if ideal_logit is None:
+            loss_tensor = -K.mean(
+                K.sign(model_object.layers[-1].input[..., target_class]) *
+                model_object.layers[-1].input[..., target_class] ** 2)
+        else:
+            loss_tensor = K.mean(
+                (model_object.layers[-1].input[..., target_class] -
+                 ideal_logit) ** 2)
 
     # Define and scale gradient tensors.
     if isinstance(model_object.input, list):
