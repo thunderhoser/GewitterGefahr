@@ -4,8 +4,7 @@ import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import error_checking
 
-DEFAULT_IDEAL_LOGIT = 10.
-
+DEFAULT_IDEAL_LOGIT = 7.
 DEFAULT_LEARNING_RATE = 0.01
 DEFAULT_NUM_ITERATIONS = 200
 
