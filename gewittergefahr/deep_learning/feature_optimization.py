@@ -120,16 +120,20 @@ def optimize_input_for_class(
     error_checking.assert_is_greater(learning_rate, 0.)
     error_checking.assert_is_less_than(learning_rate, 1.)
 
+    if not optimize_for_probability:
+        raise ValueError(
+            'Sorry, `optimize_for_probability` must be True for now.')
+
     if not callable(initializer):
         raise TypeError('`initializer` is not callable (i.e., not a function).')
 
     # Define loss tensor.
     if optimize_for_probability:
         loss_tensor = K.mean(
-            (model_object.layers[-1].output[:, target_class] - 1) ** 2)
+            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
     else:
         loss_tensor = K.mean(
-            (model_object.layers[-1].output[:, target_class] - LARGE_NUMBER)
+            (model_object.layers[-1].output[..., target_class] - LARGE_NUMBER)
             ** 2)
 
     # Define and scale gradient tensors.
