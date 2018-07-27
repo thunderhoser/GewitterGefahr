@@ -459,6 +459,61 @@ def sort_neurons_by_weight(model_object, layer_name):
     return weight_matrix, sort_indices_as_tuple
 
 
+def get_class_activation_for_examples(
+        model_object, target_class, return_probs, list_of_input_matrices):
+    """Returns prediction of one class for each input example.
+
+    If `return_probs = True`, this method returns the predicted probability of
+    the target class for each example.
+
+    If `return_probs = False`, returns the logit of the target class for each
+    example.  Each input to the prediction layer's activation function is a
+    logit, and each output is a probability, so logits can be viewed as
+    "unnormalized probabilities".
+
+    :param model_object: Instance of `keras.models.Model`.
+    :param target_class: Predictions will be returned for this class.  Must be
+        an integer in 0...(K - 1), where K = number of classes.
+    :param return_probs: See general discussion above.
+    :param list_of_input_matrices: length-T list of numpy arrays, comprising one
+        or more examples (storm objects).  list_of_input_matrices[i] must have
+        the same dimensions as the [i]th input tensor to the model.
+    :return: activation_values: length-E numpy array, where activation_values[i]
+        is the activation (prediction) of the given class for the [i]th example.
+    :raises: TypeError: if `return_probs = False` and the output layer is not an
+        activation layer.
+    """
+
+    error_checking.assert_is_integer(target_class)
+    error_checking.assert_is_boolean(return_probs)
+    if not return_probs:
+        out_layer_type_string = type(model_object.layers[-1]).__name__
+        if out_layer_type_string != 'Activation':
+            error_string = (
+                'If `return_probs = False`, the output layer must be an '
+                '"Activation" layer (got "{0:s}" layer).  Otherwise, there is '
+                'no way to access the pre-softmax logits (unnormalized '
+                'probabilities).'
+            ).format(out_layer_type_string)
+            raise TypeError(error_string)
+
+    if isinstance(model_object.input, list):
+        list_of_input_tensors = model_object.input
+    else:
+        list_of_input_tensors = [model_object.input]
+
+    if return_probs:
+        activation_function = K.function(
+            list_of_input_tensors + [K.learning_phase()],
+            [model_object.layers[-1].output[..., target_class]])
+    else:
+        activation_function = K.function(
+            list_of_input_tensors + [K.learning_phase()],
+            [model_object.layers[-1].input[..., target_class]])
+
+    return activation_function(list_of_input_matrices + [0])[0]
+
+
 def get_neuron_activation_for_examples(
         model_object, layer_name, neuron_indices, list_of_input_matrices):
     """Returns activation of one neuron by each input example.
@@ -474,9 +529,8 @@ def get_neuron_activation_for_examples(
         `neuron_indices` must have length K - 1.  (The first dimension of the
         layer output is the example dimension, for which all indices from
         0...[E - 1] are used.)
-    :param list_of_input_matrices: length-T list of numpy arrays, comprising one
-        or more examples (storm objects).  list_of_input_matrices[i] must have
-        the same dimensions as the [i]th input tensor to the model.
+    :param list_of_input_matrices: See doc for
+        `get_class_activation_for_examples`.
     :return: activation_values: length-E numpy array, where activation_values[i]
         is the activation of the given neuron by the [i]th example.
     """
@@ -497,7 +551,7 @@ def get_neuron_activation_for_examples(
     return activation_function(list_of_input_matrices + [0])[0]
 
 
-def get_channel_activation_for_example(
+def get_channel_activation_for_examples(
         model_object, layer_name, channel_index, list_of_input_matrices,
         stat_function_for_neuron_activations):
     """Returns activation of one channel by each input example.
@@ -509,7 +563,7 @@ def get_channel_activation_for_example(
         If `channel_index = c`, the activation of the [c]th channel in the
         layer will be computed.
     :param list_of_input_matrices: See doc for
-        `get_neuron_activation_for_examples`.
+        `get_class_activation_for_examples`.
     :param stat_function_for_neuron_activations: See doc for
         `optimize_input_for_channel_activation`.
     :return: activation_values: length-E numpy array, where activation_values[i]
@@ -533,6 +587,50 @@ def get_channel_activation_for_example(
         [model_object.get_layer(name=layer_name).output[..., channel_index]])
 
     return activation_function(list_of_input_matrices + [0])[0]
+
+
+def get_saliency_maps_for_class_activation(
+        model_object, target_class, return_probs, list_of_input_matrices,
+        ideal_logit=DEFAULT_IDEAL_LOGIT):
+    """Creates saliency map for prediction of one class by each input example.
+
+    :param model_object: Instance of `keras.models.Model`.
+    :param target_class: See doc for `get_class_activation_for_examples`.
+    :param return_probs: Same.
+    :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
+    :param ideal_logit: See doc for `optimize_input_for_class`.
+    :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
+    """
+
+    error_checking.assert_is_integer(target_class)
+    error_checking.assert_is_boolean(return_probs)
+    if not return_probs:
+        out_layer_type_string = type(model_object.layers[-1]).__name__
+        if out_layer_type_string != 'Activation':
+            error_string = (
+                'If `return_probs = False`, the output layer must be an '
+                '"Activation" layer (got "{0:s}" layer).  Otherwise, there is '
+                'no way to access the pre-softmax logits (unnormalized '
+                'probabilities).'
+            ).format(out_layer_type_string)
+            raise TypeError(error_string)
+
+    if return_probs:
+        loss_tensor = K.mean(
+            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
+    else:
+        if ideal_logit is None:
+            loss_tensor = -K.mean(
+                K.sign(model_object.layers[-1].input[..., target_class]) *
+                model_object.layers[-1].input[..., target_class] ** 2)
+        else:
+            loss_tensor = K.mean(
+                (model_object.layers[-1].input[..., target_class] -
+                 ideal_logit) ** 2)
+
+    return _do_saliency_calculations(
+        model_object=model_object, loss_tensor=loss_tensor,
+        list_of_input_matrices=list_of_input_matrices)
 
 
 def get_saliency_maps_for_neuron_activation(
