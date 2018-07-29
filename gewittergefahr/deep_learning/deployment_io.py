@@ -256,7 +256,8 @@ def create_storm_images_3d(
         target_name=None, binarize_target=False, top_target_directory_name=None,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
-        sounding_field_names=None, top_sounding_dir_name=None,
+        return_rotation_divergence_product=False, sounding_field_names=None,
+        top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT):
@@ -277,8 +278,11 @@ def create_storm_images_3d(
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
     :param radar_normalization_dict: Same.
-    :param refl_masking_threshold_dbz: See doc for
-        `deep_learning_utils.mask_low_reflectivity_pixels`.
+    :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
+        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
+    :param return_rotation_divergence_product: Boolean flag.  If True, the
+        rotation-divergence product (RDP) for each storm object will be
+        returned.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
@@ -291,9 +295,16 @@ def create_storm_images_3d(
         centered radar images.
     :return: sounding_matrix: See doc for `create_storm_images_2d`.
     :return: target_values: Same.
+    :return: rotation_divergence_products_s02: length-E numpy array of
+        rotation-divergence products (seconds^-2).  If
+        `return_rotation_divergence_product = False`, this is None.
     """
 
     error_checking.assert_is_boolean(return_target)
+    error_checking.assert_is_boolean(return_rotation_divergence_product)
+    if not return_target:
+        binarize_target = False
+
     trainval_io.check_input_args(
         num_examples_per_batch=100,
         num_examples_per_file_time=num_examples_per_file_time,
@@ -323,7 +334,16 @@ def create_storm_images_3d(
     num_heights = radar_file_name_matrix.shape[2]
     radar_image_matrix = None
     sounding_matrix = None
-    target_values = numpy.array([], dtype=int)
+
+    if return_target:
+        target_values = numpy.array([], dtype=int)
+    else:
+        target_values = None
+
+    if return_rotation_divergence_product:
+        rotation_divergence_products_s02 = numpy.array([], dtype=float)
+    else:
+        rotation_divergence_products_s02 = None
 
     for i in range(num_file_times):
         if return_target:
@@ -388,6 +408,11 @@ def create_storm_images_3d(
             target_values = numpy.concatenate((
                 target_values,
                 this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
+        if return_rotation_divergence_product:
+            rotation_divergence_products_s02 = numpy.concatenate((
+                rotation_divergence_products_s02,
+                this_radar_image_dict[
+                    storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY]))
 
         tuple_of_4d_image_matrices = ()
         for k in range(num_heights):
@@ -438,7 +463,8 @@ def create_storm_images_3d(
         num_classes = labels.column_name_to_num_classes(target_name)
         target_values = (target_values == num_classes - 1).astype(int)
 
-    return radar_image_matrix, sounding_matrix, target_values
+    return (radar_image_matrix, sounding_matrix, target_values,
+            rotation_divergence_products_s02)
 
 
 def create_storm_images_2d3d_myrorss(

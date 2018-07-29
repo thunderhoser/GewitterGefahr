@@ -349,7 +349,7 @@ def _read_input_files_2d(
 
 def _read_input_files_3d(
         radar_file_name_matrix, top_target_directory_name, target_name,
-        num_examples_left_by_class_dict,
+        num_examples_left_by_class_dict, rdp_filter_threshold_s02=None,
         radar_file_name_matrix_pos_targets_only=None, sounding_file_name=None,
         sounding_field_names=None):
     """Reads data for `storm_image_generator_3d`.
@@ -363,6 +363,7 @@ def _read_input_files_3d(
     :param top_target_directory_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
+    :param rdp_filter_threshold_s02: See doc for `storm_image_generator_3d`.
     :param radar_file_name_matrix_pos_targets_only: Same.
     :param sounding_file_name: See doc for `_read_input_files_2d`.
     :param sounding_field_names: Same.
@@ -397,6 +398,13 @@ def _read_input_files_3d(
         this_radar_image_dict)
     if not len(this_radar_image_dict[storm_images.STORM_IDS_KEY]):
         return None
+
+    if rdp_filter_threshold_s02 is not None:
+        this_radar_image_dict = remove_storms_with_low_rdp(
+            storm_image_dict=this_radar_image_dict,
+            rdp_filter_threshold_s02=rdp_filter_threshold_s02)
+        if not len(this_radar_image_dict[storm_images.STORM_IDS_KEY]):
+            return None
 
     if sounding_file_name is None:
         sounding_matrix = None
@@ -646,7 +654,44 @@ def remove_storms_with_undefined_target(storm_image_dict):
 
     keys_to_change = [
         storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
-        storm_images.VALID_TIMES_KEY, storm_images.LABEL_VALUES_KEY]
+        storm_images.VALID_TIMES_KEY, storm_images.LABEL_VALUES_KEY,
+    ]
+    if storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY in storm_image_dict:
+        keys_to_change += [storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY]
+
+    for this_key in keys_to_change:
+        if this_key == storm_images.STORM_IDS_KEY:
+            storm_image_dict[this_key] = [
+                storm_image_dict[this_key][i] for i in valid_indices]
+        else:
+            storm_image_dict[this_key] = storm_image_dict[this_key][
+                valid_indices, ...]
+
+    return storm_image_dict
+
+
+def remove_storms_with_low_rdp(storm_image_dict, rdp_filter_threshold_s02):
+    """Removes storm objects with low RDP (rotation-divergence product).
+
+    :param storm_image_dict: Dictionary created by
+        `storm_images.read_storm_images_and_labels`.
+    :param rdp_filter_threshold_s02: Minimum RDP.  All storm objects with RDP
+        < `rdp_filter_threshold_s02` will be removed.
+    :return: storm_image_dict: Same as input, but maybe with fewer storm
+        objects.
+    """
+
+    error_checking.assert_is_greater(rdp_filter_threshold_s02, 0.)
+    valid_indices = numpy.where(
+        storm_image_dict[storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY] >=
+        rdp_filter_threshold_s02)[0]
+
+    keys_to_change = [
+        storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
+        storm_images.VALID_TIMES_KEY, storm_images.LABEL_VALUES_KEY,
+        storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY
+    ]
+
     for this_key in keys_to_change:
         if this_key == storm_images.STORM_IDS_KEY:
             storm_image_dict[this_key] = [
@@ -1352,8 +1397,8 @@ def storm_image_generator_3d(
         radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
         radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
-        sampling_fraction_by_class_dict=None, sounding_field_names=None,
-        top_sounding_dir_name=None,
+        rdp_filter_threshold_s02=None, sampling_fraction_by_class_dict=None,
+        sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
         sounding_normalization_dict=
         dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
@@ -1372,8 +1417,11 @@ def storm_image_generator_3d(
     :param radar_file_name_matrix_pos_targets_only: Same.
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
-    :param refl_masking_threshold_dbz: See doc for
-        `deep_learning_utils.mask_low_reflectivity_pixels`.
+    :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
+        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
+    :param rdp_filter_threshold_s02: Used as a pre-model filter, to remove storm
+        objects with small rotation-divergence product (see doc for
+        `storm_images.get_max_rdp_for_each_storm_object`).
     :param sampling_fraction_by_class_dict: See doc for
         `storm_image_generator_2d`.
     :param sounding_field_names: Same.
@@ -1499,6 +1547,7 @@ def storm_image_generator_3d(
                 top_target_directory_name=top_target_directory_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
+                rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 radar_file_name_matrix_pos_targets_only=
                 this_file_name_matrix_pos_targets_only,
                 sounding_file_name=this_sounding_file_name,

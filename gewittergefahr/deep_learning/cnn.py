@@ -84,6 +84,7 @@ TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
 RADAR_NORMALIZATION_DICT_KEY = 'radar_normalization_dict'
 REFL_MASKING_THRESHOLD_KEY = 'reflectivity_masking_threshold_dbz'
+RDP_FILTER_THRESHOLD_KEY = 'rdp_filter_threshold_s02'
 TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
 VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
@@ -106,12 +107,13 @@ MODEL_METADATA_KEYS = [
     TRAINING_FILE_NAMES_POS_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     MONITOR_STRING_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
     RADAR_NORMALIZATION_DICT_KEY, REFL_MASKING_THRESHOLD_KEY,
-    TRAINING_FRACTION_BY_CLASS_KEY, VALIDATION_FRACTION_BY_CLASS_KEY,
-    NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILE_NAMES_KEY,
-    VALIDATION_FILE_NAMES_POS_TARGETS_KEY, SOUNDING_FIELD_NAMES_KEY,
-    TOP_SOUNDING_DIR_NAME_KEY, SOUNDING_NORMALIZATION_DICT_KEY,
-    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
-    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
+    RDP_FILTER_THRESHOLD_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
+    VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
+    VALIDATION_FILE_NAMES_KEY, VALIDATION_FILE_NAMES_POS_TARGETS_KEY,
+    SOUNDING_FIELD_NAMES_KEY, TOP_SOUNDING_DIR_NAME_KEY,
+    SOUNDING_NORMALIZATION_DICT_KEY, SOUNDING_LAG_TIME_KEY,
+    USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY,
+    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
@@ -899,8 +901,8 @@ def write_model_metadata(
         radar_file_name_matrix_for_training, weight_loss_function,
         monitor_string, target_name, binarize_target, radar_normalization_dict,
         use_2d3d_convolution, radar_source, radar_field_names,
-        refl_masking_threshold_dbz=0., radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None,
+        refl_masking_threshold_dbz=0., rdp_filter_threshold_s02=None,
+        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
         radar_file_name_matrix_for_training_pos_targets_only=None,
         training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
@@ -936,6 +938,9 @@ def write_model_metadata(
     :param refl_masking_threshold_dbz: Used to mask out pixels with low
         reflectivity (see doc for
         `deep_learning_utils.mask_low_reflectivity_pixels`).
+    :param rdp_filter_threshold_s02: Used to remove storm objects with low
+        rotation-divergence product (see doc for
+        `storm_images.get_max_rdp_for_each_storm_object`).
     :param radar_field_names: 1-D list with names of radar fields.  Each must be
         accepted by `radar_utils.check_field_name`.
     :param radar_heights_m_asl: [needed only if radar_source = "gridrad"]
@@ -989,6 +994,7 @@ def write_model_metadata(
         USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
         RADAR_SOURCE_KEY: radar_source,
         REFL_MASKING_THRESHOLD_KEY: refl_masking_threshold_dbz,
+        RDP_FILTER_THRESHOLD_KEY: rdp_filter_threshold_s02,
         RADAR_FIELD_NAMES_KEY: radar_field_names,
         RADAR_HEIGHTS_KEY: radar_heights_m_asl,
         REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
@@ -1068,6 +1074,8 @@ def read_model_metadata(pickle_file_name):
 
     if REFL_MASKING_THRESHOLD_KEY not in model_metadata_dict:
         model_metadata_dict.update({REFL_MASKING_THRESHOLD_KEY: 0.})
+    if RDP_FILTER_THRESHOLD_KEY not in model_metadata_dict:
+        model_metadata_dict.update({RDP_FILTER_THRESHOLD_KEY: None})
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
@@ -1278,6 +1286,7 @@ def train_3d_cnn(
         num_training_batches_per_epoch, radar_file_name_matrix_for_training,
         target_name, top_target_directory_name,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
+        rdp_filter_threshold_s02=None,
         radar_file_name_matrix_for_training_pos_targets_only=None,
         monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
@@ -1305,8 +1314,11 @@ def train_3d_cnn(
         `training_validation_io.find_radar_files_3d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
-    :param refl_masking_threshold_dbz: See doc for
-        `deep_learning_utils.mask_low_reflectivity_pixels`.
+    :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
+        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
+    :param rdp_filter_threshold_s02: Used as a pre-model filter, to remove storm
+        objects with small rotation-divergence product (see doc for
+        `storm_images.get_max_rdp_for_each_storm_object`).
     :param radar_file_name_matrix_for_training_pos_targets_only: See doc for
         `train_2d_cnn`.
     :param monitor_string: See doc for `_get_checkpoint_object`.
@@ -1364,6 +1376,7 @@ def train_3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 refl_masking_threshold_dbz=refl_masking_threshold_dbz,
+                rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1384,6 +1397,7 @@ def train_3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 refl_masking_threshold_dbz=refl_masking_threshold_dbz,
+                rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1401,6 +1415,7 @@ def train_3d_cnn(
                 num_examples_per_file_time=num_examples_per_file_time,
                 target_name=target_name, binarize_target=binarize_target,
                 refl_masking_threshold_dbz=refl_masking_threshold_dbz,
+                rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
@@ -1601,6 +1616,7 @@ def apply_2d_cnn(
 
 def apply_3d_cnn(
         model_object, radar_image_matrix, sounding_matrix=None,
+        rdp_filter_threshold_s02=None, rotation_divergence_products_s02=None,
         return_features=False, output_layer_name=None):
     """Applies CNN to 3-D radar images.
 
@@ -1608,6 +1624,14 @@ def apply_3d_cnn(
     :param radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
         centered radar images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
+    :param rdp_filter_threshold_s02:
+        [used only if `return_features = False`]
+        Minimum RDP (rotation-divergence product).  Any storm object with RDP <
+        `rdp_filter_threshold_s02` will not be presented to the CNN.  The
+        prediction will be 100% probability of the lowest class (zero).
+    :param rotation_divergence_products_s02:
+        [used only if `rdp_filter_threshold_s02 is not None`]
+        length-E numpy array of rotation-divergence products (seconds^-2).
     :param return_features: Same.
     :param output_layer_name: Same.
 
@@ -1625,11 +1649,11 @@ def apply_3d_cnn(
         max_num_dimensions=5)
     num_examples = radar_image_matrix.shape[0]
 
-    error_checking.assert_is_boolean(return_features)
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
+    error_checking.assert_is_boolean(return_features)
     if return_features:
         intermediate_model_object = model_to_feature_generator(
             model_object=model_object, output_layer_name=output_layer_name)
@@ -1640,11 +1664,37 @@ def apply_3d_cnn(
         return intermediate_model_object.predict(
             [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
-    if sounding_matrix is None:
-        return model_object.predict(radar_image_matrix, batch_size=num_examples)
+    if rdp_filter_threshold_s02 is None:
+        if sounding_matrix is None:
+            return model_object.predict(
+                radar_image_matrix, batch_size=num_examples)
+        return model_object.predict(
+            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
-    return model_object.predict(
-        [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+    error_checking.assert_is_greater(rdp_filter_threshold_s02, 0.)
+    error_checking.assert_is_numpy_array(
+        rotation_divergence_products_s02,
+        exact_dimensions=numpy.array([num_examples]))
+
+    num_classes = model_object.layers[-1].output.get_shape().as_list()[-1]
+    class_probability_matrix = numpy.full((num_examples, num_classes), 0.)
+    class_probability_matrix[:, 0] = 1.
+    high_rdp_indices = numpy.where(
+        rotation_divergence_products_s02 >= rdp_filter_threshold_s02)[0]
+
+    if len(high_rdp_indices):
+        if sounding_matrix is None:
+            class_probability_matrix[
+                high_rdp_indices, ...
+            ] = model_object.predict(
+                radar_image_matrix, batch_size=num_examples)
+        else:
+            class_probability_matrix[
+                high_rdp_indices, ...
+            ] = model_object.predict(
+                [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+
+    return class_probability_matrix
 
 
 def apply_2d3d_cnn(

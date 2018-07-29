@@ -1456,29 +1456,20 @@ def write_storm_images(
 
 
 def read_storm_images(
-        netcdf_file_name, return_images=True,
-        min_rotation_divergence_product_s02=None, storm_ids_to_keep=None,
+        netcdf_file_name, return_images=True, storm_ids_to_keep=None,
         valid_times_to_keep_unix_sec=None):
     """Reads storm-centered radar images from NetCDF file.
 
     L = number of storm objects returned
 
-    If `min_rotation_divergence_product_s02 is not None`,
-    `storm_ids_to_keep` and `valid_times_to_keep_unix_sec` will be ignored.
-
     :param netcdf_file_name: Path to input file.
     :param return_images: Boolean flag.  If True, will return images and
-        metadata.  If False, will return only metadata:
-    :param min_rotation_divergence_product_s02: Minimum rotation-divergence
-        product (RDP) (seconds^-2).  Only storm objects with RDP >=
-        `min_rotation_divergence_product_s02` will be returned.
+        metadata.  If False, will return only metadata.
     :param storm_ids_to_keep:
-        [used only if `min_rotation_divergence_product_s02 is None and
-        return_images = True`]
+        [used only if `return_images = True`]
         length-L list with string ID of storm objects to keep.
     :param valid_times_to_keep_unix_sec:
-        [used only if `min_rotation_divergence_product_s02 is None and
-        return_images = True`]
+        [used only if `return_images = True`]
         length-L numpy array with valid times of storm objects to keep.
     :return: storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
@@ -1490,28 +1481,11 @@ def read_storm_images(
     storm_image_dict['rotation_divergence_products_s02']: Same.
     storm_image_dict['horiz_radius_for_rdp_metres']: Same.
     storm_image_dict['min_height_for_rdp_m_asl']: Same.
-
-    :raises: ValueError: if `min_rotation_divergence_product_s02 is not None`
-        but the NetCDF file does not contain rotation-divergence products.
     """
 
+    error_checking.assert_is_boolean(return_images)
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
-
-    error_checking.assert_is_boolean(return_images)
-    if min_rotation_divergence_product_s02 is not None:
-        error_checking.assert_is_greater(
-            min_rotation_divergence_product_s02, 0.)
-
-        if ROTATION_DIVERGENCE_PRODUCTS_KEY not in netcdf_dataset.variables:
-            error_string = (
-                'Cannot filter by rotation-divergence product (RDP), because it'
-                ' is not present in the NetCDF file ("{0:s}").'
-            ).format(netcdf_file_name)
-            raise ValueError(error_string)
-
-        storm_ids_to_keep = None
-        valid_times_to_keep_unix_sec = None
 
     radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
     radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
@@ -1546,19 +1520,6 @@ def read_storm_images(
         else:
             rotation_divergence_products_s02 = None
 
-    if min_rotation_divergence_product_s02 is None:
-        indices_to_keep = numpy.linspace(
-            0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
-    else:
-        indices_to_keep = numpy.where(
-            rotation_divergence_products_s02 >=
-            min_rotation_divergence_product_s02)[0]
-
-        storm_ids = [storm_ids[i] for i in indices_to_keep]
-        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
-        rotation_divergence_products_s02 = rotation_divergence_products_s02[
-            indices_to_keep]
-
     if not return_images:
         return {
             STORM_IDS_KEY: storm_ids,
@@ -1592,10 +1553,12 @@ def read_storm_images(
 
         storm_ids = [storm_ids[i] for i in indices_to_keep]
         valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
-
         if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
             rotation_divergence_products_s02 = rotation_divergence_products_s02[
                 indices_to_keep]
+    else:
+        indices_to_keep = numpy.linspace(
+            0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
 
     if len(indices_to_keep):
         storm_image_matrix = numpy.array(
@@ -1701,7 +1664,6 @@ def filter_storm_objects(
 
 def read_storm_images_and_labels(
         image_file_name, label_file_name, label_name,
-        min_rotation_divergence_product_s02=None,
         num_storm_objects_class_dict=None):
     """Reads storm-centered radar images and corresponding hazard labels.
 
@@ -1712,9 +1674,6 @@ def read_storm_images_and_labels(
     :param label_file_name: Path to file with hazard labels (will be read by
         `labels.read_labels_from_netcdf`).
     :param label_name: Name of hazard label (target variable).
-    :param min_rotation_divergence_product_s02: Minimum rotation-divergence
-        product (RDP) (seconds^-2).  Only storm objects with RDP >=
-        `min_rotation_divergence_product_s02` will be returned.
     :param num_storm_objects_class_dict: Dictionary, where each key is a class
         integer (-2 for dead storms) and each value is the corresponding number
         of storm objects desired.
@@ -1755,8 +1714,7 @@ def read_storm_images_and_labels(
             storm_to_events_dict)
 
     storm_image_dict = read_storm_images(
-        netcdf_file_name=image_file_name, return_images=False,
-        min_rotation_divergence_product_s02=min_rotation_divergence_product_s02)
+        netcdf_file_name=image_file_name, return_images=False)
 
     label_values = extract_storm_labels_with_name(
         storm_ids=storm_image_dict[STORM_IDS_KEY],

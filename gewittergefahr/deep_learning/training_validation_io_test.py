@@ -62,12 +62,14 @@ THESE_STORM_IDS = ['A', 'B', 'C', 'D']
 THIS_IMAGE_MATRIX = numpy.reshape(numpy.linspace(1., 24., num=24), (4, 3, 2))
 THESE_TARGET_VALUES = numpy.array([-1, 0, -1, -2], dtype=int)
 THESE_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
+THESE_RDP_VALUES_S02 = numpy.array([10, 1, 15, 3], dtype=float)
 
-RADAR_IMAGE_DICT_WITH_UNDEF_TARGETS = {
+RADAR_IMAGE_DICT_UNFILTERED = {
     storm_images.STORM_IDS_KEY: THESE_STORM_IDS,
     storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC,
     storm_images.STORM_IMAGE_MATRIX_KEY: THIS_IMAGE_MATRIX,
     storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES,
+    storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY: THESE_RDP_VALUES_S02
 }
 
 THESE_VALID_INDICES = numpy.array([1, 3], dtype=int)
@@ -78,6 +80,22 @@ RADAR_IMAGE_DICT_NO_UNDEF_TARGETS = {
     storm_images.STORM_IMAGE_MATRIX_KEY:
         THIS_IMAGE_MATRIX[THESE_VALID_INDICES, :],
     storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
+    storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY:
+        THESE_RDP_VALUES_S02[THESE_VALID_INDICES]
+}
+
+# The following constants are used to test remove_storms_with_low_rdp.
+RDP_FILTER_THRESHOLD_S02 = 7.
+THESE_VALID_INDICES = numpy.array([0, 2], dtype=int)
+RADAR_IMAGE_DICT_HIGH_RDP = {
+    storm_images.STORM_IDS_KEY:
+        [THESE_STORM_IDS[i] for i in THESE_VALID_INDICES],
+    storm_images.VALID_TIMES_KEY: THESE_TIMES_UNIX_SEC[THESE_VALID_INDICES],
+    storm_images.STORM_IMAGE_MATRIX_KEY:
+        THIS_IMAGE_MATRIX[THESE_VALID_INDICES, :],
+    storm_images.LABEL_VALUES_KEY: THESE_TARGET_VALUES[THESE_VALID_INDICES],
+    storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY:
+        THESE_RDP_VALUES_S02[THESE_VALID_INDICES]
 }
 
 # The following constants are used to test separate_radar_files_2d3d.
@@ -100,6 +118,40 @@ REFLECTIVITY_FILE_NAME_MATRIX = numpy.array([['C', 'B'],
                                              ['H', 'G']], dtype=object)
 AZ_SHEAR_FILE_NAME_MATRIX = numpy.array([['E', 'D'],
                                          ['J', 'I']], dtype=object)
+
+
+def _compare_radar_image_dicts(first_radar_image_dict, second_radar_image_dict):
+    """Compares two dictionaries with storm-centered radar images.
+
+    :param first_radar_image_dict: First dictionary.
+    :param second_radar_image_dict: Second dictionary.
+    :return: are_dicts_equal: Boolean flag.
+    """
+
+    first_keys = first_radar_image_dict.keys()
+    second_keys = second_radar_image_dict.keys()
+    if set(first_keys) != set(second_keys):
+        return False
+
+    for this_key in first_keys:
+        if this_key == storm_images.STORM_IDS_KEY:
+            if (first_radar_image_dict[this_key] !=
+                    second_radar_image_dict[this_key]):
+                return False
+
+        elif this_key in [storm_images.VALID_TIMES_KEY,
+                          storm_images.LABEL_VALUES_KEY]:
+            if not numpy.array_equal(first_radar_image_dict[this_key],
+                                     second_radar_image_dict[this_key]):
+                return False
+
+        else:
+            if not numpy.allclose(first_radar_image_dict[this_key],
+                                  second_radar_image_dict[this_key],
+                                  atol=TOLERANCE):
+                return False
+
+    return True
 
 
 class TrainingValidationIoTests(unittest.TestCase):
@@ -526,25 +578,19 @@ class TrainingValidationIoTests(unittest.TestCase):
     def test_remove_storms_with_undefined_target(self):
         """Ensures correct output from remove_storms_with_undefined_target."""
 
-        this_input_dict = copy.deepcopy(RADAR_IMAGE_DICT_WITH_UNDEF_TARGETS)
         this_radar_image_dict = trainval_io.remove_storms_with_undefined_target(
-            this_input_dict)
+            copy.deepcopy(RADAR_IMAGE_DICT_UNFILTERED))
+        self.assertTrue(_compare_radar_image_dicts(
+            this_radar_image_dict, RADAR_IMAGE_DICT_NO_UNDEF_TARGETS))
 
-        actual_keys = this_radar_image_dict.keys()
-        expected_keys = RADAR_IMAGE_DICT_NO_UNDEF_TARGETS.keys()
-        self.assertTrue(set(actual_keys) == set(expected_keys))
+    def test_remove_storms_with_low_rdp(self):
+        """Ensures correct output from remove_storms_with_low_rdp."""
 
-        self.assertTrue(
-            this_radar_image_dict[storm_images.STORM_IDS_KEY] ==
-            RADAR_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.STORM_IDS_KEY])
-        self.assertTrue(numpy.allclose(
-            this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
-            RADAR_IMAGE_DICT_NO_UNDEF_TARGETS[
-                storm_images.STORM_IMAGE_MATRIX_KEY],
-            atol=TOLERANCE))
-        self.assertTrue(numpy.array_equal(
-            this_radar_image_dict[storm_images.LABEL_VALUES_KEY],
-            RADAR_IMAGE_DICT_NO_UNDEF_TARGETS[storm_images.LABEL_VALUES_KEY]))
+        this_radar_image_dict = trainval_io.remove_storms_with_low_rdp(
+            storm_image_dict=copy.deepcopy(RADAR_IMAGE_DICT_UNFILTERED),
+            rdp_filter_threshold_s02=RDP_FILTER_THRESHOLD_S02)
+        self.assertTrue(_compare_radar_image_dicts(
+            this_radar_image_dict, RADAR_IMAGE_DICT_HIGH_RDP))
 
     def test_separate_radar_files_2d3d_no_refl(self):
         """Ensures correctness of separate_radar_files_2d3d.
