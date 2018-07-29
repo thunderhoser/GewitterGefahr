@@ -682,6 +682,9 @@ def remove_storms_with_low_rdp(storm_image_dict, rdp_filter_threshold_s02):
     """
 
     error_checking.assert_is_greater(rdp_filter_threshold_s02, 0.)
+    print 'Removing storm objects with RDP < {0:.2e} s^-2...'.format(
+        rdp_filter_threshold_s02)
+
     valid_indices = numpy.where(
         storm_image_dict[storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY] >=
         rdp_filter_threshold_s02)[0]
