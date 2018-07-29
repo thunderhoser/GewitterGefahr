@@ -91,8 +91,9 @@ def _check_input_args_for_conv_layer(
             '"{1:s}".').format(VALID_PADDING_TYPES, padding_type)
         raise ValueError(error_string)
 
-    error_checking.assert_is_string(activation_function)
     error_checking.assert_is_boolean(is_first_layer)
+    if activation_function is not None:
+        error_checking.assert_is_string(activation_function)
 
     if num_kernel_columns is None:
         num_dimensions = 1
@@ -385,7 +386,9 @@ def get_3d_conv_layer(
         `keras.regularizers.Regularizer`.  This may be created, for example, by
         `get_weight_regularizer`.
     :param bias_weight_regularizer: See above.
-    :param activation_function: Activation function (string).
+    :param activation_function: Activation function (string).  For linear
+        activation, or to put the activation in a separate layer, make this
+        `None`.
     :param is_first_layer: Boolean flag.  If True, this is the first layer in
         the network (convolves over raw images rather than feature maps, which
         means that dimensions of raw images must be known).
@@ -613,12 +616,12 @@ def get_batch_norm_layer(
 
 
 def get_fully_connected_layer(
-        num_output_units, activation_function,
+        num_output_units, activation_function=None,
         kernel_weight_init='glorot_uniform', bias_weight_init='zeros'):
     """Creates fully connected layer (traditional neural-net layer).
 
     :param num_output_units: Number of output units ("neurons").
-    :param activation_function: Activation function (string).
+    :param activation_function: See doc for `get_3d_conv_layer`.
     :param kernel_weight_init: Initialization method for kernel weights (either
         string or instance of `keras.initializers.Initializer`).
     :param bias_weight_init: Initialization method for biases (either string or
@@ -630,7 +633,8 @@ def get_fully_connected_layer(
 
     error_checking.assert_is_integer(num_output_units)
     error_checking.assert_is_greater(num_output_units, 0)
-    error_checking.assert_is_string(activation_function)
+    if activation_function is not None:
+        error_checking.assert_is_string(activation_function)
 
     return keras.layers.Dense(
         num_output_units, activation=activation_function, use_bias=True,
@@ -648,3 +652,14 @@ def get_flattening_layer():
     """
 
     return keras.layers.Flatten()
+
+
+def get_activation_layer(activation_function):
+    """Creates activation layer.
+
+    :param activation_function: Activation function (string).
+    :return: layer_object: Instance of `keras.layers.Activation`.
+    """
+
+    error_checking.assert_is_string(activation_function)
+    return keras.layers.Activation(activation_function)

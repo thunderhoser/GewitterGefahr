@@ -437,8 +437,9 @@ def get_2d_mnist_architecture(
     model_object.add(layer_object)
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax')
+        num_output_units=num_classes, activation_function=None)
     model_object.add(layer_object)
+    model_object.add(cnn_utils.get_activation_layer('softmax'))
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
@@ -540,8 +541,8 @@ def get_2d_swilrnet_architecture(
             [radar_layer_object, sounding_layer_object])
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax'
-    )(layer_object)
+        num_output_units=num_classes, activation_function=None)(layer_object)
+    layer_object = cnn_utils.get_activation_layer('softmax')(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
@@ -654,8 +655,8 @@ def get_3d_swilrnet_architecture(
             [radar_layer_object, sounding_layer_object])
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax'
-    )(layer_object)
+        num_output_units=num_classes, activation_function=None)(layer_object)
+    layer_object = cnn_utils.get_activation_layer('softmax')(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
@@ -859,8 +860,8 @@ def get_2d3d_swirlnet_architecture(
             [radar_layer_object, sounding_layer_object])
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function='softmax'
-    )(layer_object)
+        num_output_units=num_classes, activation_function=None)(layer_object)
+    layer_object = cnn_utils.get_activation_layer('softmax')(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
