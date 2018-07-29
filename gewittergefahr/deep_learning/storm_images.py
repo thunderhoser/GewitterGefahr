@@ -56,7 +56,7 @@ RADAR_FIELD_NAME_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_asl'
 ROTATION_DIVERGENCE_PRODUCTS_KEY = 'rotation_divergence_products_s02'
 HORIZ_RADIUS_FOR_RDP_KEY = 'horiz_radius_for_rdp_metres'
-MIN_HEIGHT_FOR_RDP_KEY = 'min_height_for_rdp_m_asl'
+MIN_VORT_HEIGHT_FOR_RDP_KEY = 'min_vort_height_for_rdp_m_asl'
 
 STORM_TO_WINDS_TABLE_KEY = 'storm_to_winds_table'
 STORM_TO_TORNADOES_TABLE_KEY = 'storm_to_tornadoes_table'
@@ -78,7 +78,7 @@ DEFAULT_NUM_IMAGE_COLUMNS = 32
 MIN_NUM_IMAGE_ROWS = 2
 MIN_NUM_IMAGE_COLUMNS = 2
 DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES = 10000.
-DEFAULT_MIN_HEIGHT_FOR_RDP_M_ASL = 4000
+DEFAULT_MIN_VORT_HEIGHT_FOR_RDP_M_ASL = 4000
 
 DEFAULT_RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
 
@@ -212,7 +212,7 @@ def _get_storm_image_coords(
 def _check_storm_images(
         storm_image_matrix, storm_ids, valid_times_unix_sec, radar_field_name,
         radar_height_m_asl, rotation_divergence_products_s02=None,
-        horiz_radius_for_rdp_metres=None, min_height_for_rdp_m_asl=None):
+        horiz_radius_for_rdp_metres=None, min_vort_height_for_rdp_m_asl=None):
     """Checks storm images (e.g., created by extract_storm_image) for errors.
 
     L = number of storm objects
@@ -230,7 +230,7 @@ def _check_storm_images(
     :param horiz_radius_for_rdp_metres:
         [used only if `rotation_divergence_products_s02 is not None`]
         See doc for `get_max_rdp_for_each_storm_object`.
-    :param min_height_for_rdp_m_asl:
+    :param min_vort_height_for_rdp_m_asl:
         [used only if `rotation_divergence_products_s02 is not None`]
         See doc for `get_max_rdp_for_each_storm_object`.
     """
@@ -258,8 +258,8 @@ def _check_storm_images(
             rotation_divergence_products_s02,
             exact_dimensions=numpy.array([num_storm_objects]))
         error_checking.assert_is_greater(horiz_radius_for_rdp_metres, 0.)
-        error_checking.assert_is_integer(min_height_for_rdp_m_asl)
-        error_checking.assert_is_greater(min_height_for_rdp_m_asl, 0)
+        error_checking.assert_is_integer(min_vort_height_for_rdp_m_asl)
+        error_checking.assert_is_greater(min_vort_height_for_rdp_m_asl, 0)
 
 
 def _check_storm_labels(
@@ -551,7 +551,7 @@ def _find_storm_objects(
 def _get_max_rdp_values_one_time(
         divergence_matrix_s01, vorticity_matrix_s01, grid_point_latitudes_deg,
         grid_point_longitudes_deg, grid_point_heights_m_asl,
-        min_rdp_height_m_asl, storm_centroid_latitudes_deg,
+        min_vorticity_height_m_asl, storm_centroid_latitudes_deg,
         storm_centroid_longitudes_deg, horizontal_radius_metres):
     """Computes max RDP for each storm object at one time step.
 
@@ -573,8 +573,8 @@ def _get_max_rdp_values_one_time(
         (deg E) of grid points.
     :param grid_point_heights_m_asl: length-H numpy array with heights (metres
         above sea level) of grid point.
-    :param min_rdp_height_m_asl: Minimum height (metres above sea level) for RDP
-        calculations.  Lower heights will be ignored.
+    :param min_vorticity_height_m_asl: Minimum vorticity height (metres above
+        sea level).  All vorticity values below this height are ignored.
     :param storm_centroid_latitudes_deg: length-L numpy array with latitudes
         (deg N) at centroids of storm objects.
     :param storm_centroid_longitudes_deg: length-L numpy array with longitudes
@@ -587,8 +587,7 @@ def _get_max_rdp_values_one_time(
     """
 
     valid_height_indices = numpy.where(
-        grid_point_heights_m_asl >= min_rdp_height_m_asl)[0]
-    divergence_matrix_s01 = divergence_matrix_s01[valid_height_indices, ...]
+        grid_point_heights_m_asl >= min_vorticity_height_m_asl)[0]
     vorticity_matrix_s01 = vorticity_matrix_s01[valid_height_indices, ...]
     del grid_point_heights_m_asl
 
@@ -973,9 +972,9 @@ def extract_storm_images_gridrad(
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS,
         radar_field_names=DEFAULT_GRIDRAD_FIELD_NAMES,
         radar_heights_m_asl=DEFAULT_RADAR_HEIGHTS_M_ASL,
-        include_rotation_divergence_products=False,
+        include_rotation_divergence_product=False,
         horiz_radius_for_rdp_metres=DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES,
-        min_height_for_rdp_m_asl=DEFAULT_MIN_HEIGHT_FOR_RDP_M_ASL):
+        min_vort_height_for_rdp_m_asl=DEFAULT_MIN_VORT_HEIGHT_FOR_RDP_M_ASL):
     """Extracts storm-centered radar image for each field, height, storm object.
 
     L = number of storm objects
@@ -998,25 +997,25 @@ def extract_storm_images_gridrad(
     :param radar_field_names: length-F list with names of radar fields.
     :param radar_heights_m_asl: length-H numpy array of radar heights (metres
         above sea level).
-    :param include_rotation_divergence_products: Boolean flag.  If True, this
+    :param include_rotation_divergence_product: Boolean flag.  If True, this
         method will compute rotation-divergence product for each storm object.
     :param horiz_radius_for_rdp_metres: See doc for
         `get_max_rdp_for_each_storm_object`.
-    :param min_height_for_rdp_m_asl: Same.
+    :param min_vort_height_for_rdp_m_asl: Same.
     :return: image_file_name_matrix: T-by-F-by-H numpy array of paths to output
         files.
     :raises: ValueError: if grid spacing is not uniform across all files.
     """
 
     error_checking.assert_is_boolean(one_file_per_time_step)
-    error_checking.assert_is_boolean(include_rotation_divergence_products)
+    error_checking.assert_is_boolean(include_rotation_divergence_product)
 
-    if include_rotation_divergence_products:
+    if include_rotation_divergence_product:
         rotation_divergence_products_s02 = get_max_rdp_for_each_storm_object(
             storm_object_table=storm_object_table,
             top_gridrad_dir_name=top_radar_dir_name,
             horizontal_radius_metres=horiz_radius_for_rdp_metres,
-            min_height_m_asl=min_height_for_rdp_m_asl)
+            min_vorticity_height_m_asl=min_vort_height_for_rdp_m_asl)
         print SEPARATOR_STRING
 
     _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
@@ -1070,7 +1069,7 @@ def extract_storm_images_gridrad(
                 this_date_storm_ids = []
                 this_date_valid_times_unix_sec = numpy.array([], dtype=int)
 
-                if include_rotation_divergence_products:
+                if include_rotation_divergence_product:
                     this_date_rdp_values_s02 = numpy.array([], dtype=float)
                 else:
                     this_date_rdp_values_s02 = None
@@ -1125,7 +1124,7 @@ def extract_storm_images_gridrad(
                             this_date_valid_times_unix_sec,
                             these_times_unix_sec))
 
-                    if include_rotation_divergence_products:
+                    if include_rotation_divergence_product:
                         these_rdp_values_s02 = rotation_divergence_products_s02[
                             these_storm_indices]
                         if not one_file_per_time_step:
@@ -1217,7 +1216,8 @@ def extract_storm_images_gridrad(
                             these_rdp_values_s02,
                             horiz_radius_for_rdp_metres=
                             horiz_radius_for_rdp_metres,
-                            min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
+                            min_vort_height_for_rdp_m_asl=
+                            min_vort_height_for_rdp_m_asl)
 
                         continue
 
@@ -1253,7 +1253,7 @@ def extract_storm_images_gridrad(
                     radar_height_m_asl=radar_heights_m_asl[k],
                     rotation_divergence_products_s02=this_date_rdp_values_s02,
                     horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
-                    min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
+                    min_vort_height_for_rdp_m_asl=min_vort_height_for_rdp_m_asl)
 
     return image_file_name_matrix
 
@@ -1261,15 +1261,21 @@ def extract_storm_images_gridrad(
 def get_max_rdp_for_each_storm_object(
         storm_object_table, top_gridrad_dir_name,
         horizontal_radius_metres=DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES,
-        min_height_m_asl=DEFAULT_MIN_HEIGHT_FOR_RDP_M_ASL):
+        min_vorticity_height_m_asl=DEFAULT_MIN_VORT_HEIGHT_FOR_RDP_M_ASL):
     """Computes max rotation-divergence product (RDP) for each storm object.
 
     This method works only for GridRad data, because unlike MYRORSS, GridRad
     includes 3-D vorticity and divergence fields.
 
-    The "maximum RDP" for each storm object is the max RDP at height >=
-    `min_height_m_asl` and within a horizontal radius of
-    `horizontal_radius_metres` from the storm's horizontal centroid.
+    The "maximum RDP" for each storm object is max vorticity * max divergence,
+    as defined below.
+
+    "Max vorticity" = max vorticity at height >= `min_vorticity_height_m_asl`
+    and within a horizontal radius of `horizontal_radius_metres` from the
+    storm's horizontal centroid.
+
+    "Max divergence" = max divergence at any height, within a horizontal radius
+    of `horizontal_radius_metres` from the storm's horizontal centroid.
 
     L = number of storm objects
 
@@ -1278,14 +1284,14 @@ def get_max_rdp_for_each_storm_object(
         therein will be located by `gridrad_io.find_file` and read by
         `gridrad_io.read_field_from_full_grid_file`).
     :param horizontal_radius_metres: See general discussion above.
-    :param min_height_m_asl: See general discussion above.
+    :param min_vorticity_height_m_asl: See general discussion above.
     :return: max_rdp_values_s02: length-L numpy array with maximum RDP for each
         storm object.  Units are seconds^-2.
     """
 
     error_checking.assert_is_greater(horizontal_radius_metres, 0.)
-    error_checking.assert_is_integer(min_height_m_asl)
-    error_checking.assert_is_greater(min_height_m_asl, 0)
+    error_checking.assert_is_integer(min_vorticity_height_m_asl)
+    error_checking.assert_is_greater(min_vorticity_height_m_asl, 0)
 
     storm_times_unix_sec = numpy.unique(
         storm_object_table[tracking_utils.TIME_COLUMN].values)
@@ -1346,7 +1352,7 @@ def get_max_rdp_for_each_storm_object(
             grid_point_latitudes_deg=these_grid_point_latitudes_deg,
             grid_point_longitudes_deg=these_grid_point_longitudes_deg,
             grid_point_heights_m_asl=these_grid_point_heights_m_asl,
-            min_rdp_height_m_asl=min_height_m_asl,
+            min_vorticity_height_m_asl=min_vorticity_height_m_asl,
             storm_centroid_latitudes_deg=storm_object_table[
                 tracking_utils.CENTROID_LAT_COLUMN].values[these_storm_indices],
             storm_centroid_longitudes_deg=storm_object_table[
@@ -1360,7 +1366,7 @@ def write_storm_images(
         netcdf_file_name, storm_image_matrix, storm_ids, valid_times_unix_sec,
         radar_field_name, radar_height_m_asl,
         rotation_divergence_products_s02=None, horiz_radius_for_rdp_metres=None,
-        min_height_for_rdp_m_asl=None, num_storm_objects_per_chunk=1):
+        min_vort_height_for_rdp_m_asl=None, num_storm_objects_per_chunk=1):
     """Writes storm-centered radar images to NetCDF file.
 
     These images should be created by `extract_storm_image`.
@@ -1373,7 +1379,7 @@ def write_storm_images(
     :param radar_height_m_asl: Same.
     :param rotation_divergence_products_s02: Same.
     :param horiz_radius_for_rdp_metres: Same.
-    :param min_height_for_rdp_m_asl: Same.
+    :param min_vort_height_for_rdp_m_asl: Same.
     :param num_storm_objects_per_chunk: Number of storm objects per NetCDF
         chunk.  To use default chunking, set this to `None`.
     """
@@ -1385,7 +1391,7 @@ def write_storm_images(
         radar_height_m_asl=radar_height_m_asl,
         rotation_divergence_products_s02=rotation_divergence_products_s02,
         horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
-        min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
+        min_vort_height_for_rdp_m_asl=min_vort_height_for_rdp_m_asl)
 
     if num_storm_objects_per_chunk is not None:
         error_checking.assert_is_integer(num_storm_objects_per_chunk)
@@ -1401,7 +1407,7 @@ def write_storm_images(
         netcdf_dataset.setncattr(
             HORIZ_RADIUS_FOR_RDP_KEY, horiz_radius_for_rdp_metres)
         netcdf_dataset.setncattr(
-            MIN_HEIGHT_FOR_RDP_KEY, min_height_for_rdp_m_asl)
+            MIN_VORT_HEIGHT_FOR_RDP_KEY, min_vort_height_for_rdp_m_asl)
 
     num_storm_objects = storm_image_matrix.shape[0]
     num_storm_id_chars = 1
@@ -1480,7 +1486,7 @@ def read_storm_images(
     storm_image_dict['radar_height_m_asl']: Same.
     storm_image_dict['rotation_divergence_products_s02']: Same.
     storm_image_dict['horiz_radius_for_rdp_metres']: Same.
-    storm_image_dict['min_height_for_rdp_m_asl']: Same.
+    storm_image_dict['min_vort_height_for_rdp_m_asl']: Same.
     """
 
     error_checking.assert_is_boolean(return_images)
@@ -1492,11 +1498,11 @@ def read_storm_images(
     if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
         horiz_radius_for_rdp_metres = getattr(
             netcdf_dataset, HORIZ_RADIUS_FOR_RDP_KEY)
-        min_height_for_rdp_m_asl = getattr(
-            netcdf_dataset, MIN_HEIGHT_FOR_RDP_KEY)
+        min_vort_height_for_rdp_m_asl = getattr(
+            netcdf_dataset, MIN_VORT_HEIGHT_FOR_RDP_KEY)
     else:
         horiz_radius_for_rdp_metres = None
-        min_height_for_rdp_m_asl = None
+        min_vort_height_for_rdp_m_asl = None
 
     num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
     if num_storm_objects == 0:
@@ -1528,7 +1534,7 @@ def read_storm_images(
             RADAR_HEIGHT_KEY: radar_height_m_asl,
             ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02,
             HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
-            MIN_HEIGHT_FOR_RDP_KEY: min_height_for_rdp_m_asl
+            MIN_VORT_HEIGHT_FOR_RDP_KEY: min_vort_height_for_rdp_m_asl
         }
 
     filter_storms = not(
@@ -1578,7 +1584,7 @@ def read_storm_images(
         radar_height_m_asl=radar_height_m_asl,
         rotation_divergence_products_s02=rotation_divergence_products_s02,
         horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
-        min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
+        min_vort_height_for_rdp_m_asl=min_vort_height_for_rdp_m_asl)
 
     return {
         STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
@@ -1588,7 +1594,7 @@ def read_storm_images(
         RADAR_HEIGHT_KEY: radar_height_m_asl,
         ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02,
         HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
-        MIN_HEIGHT_FOR_RDP_KEY: min_height_for_rdp_m_asl
+        MIN_VORT_HEIGHT_FOR_RDP_KEY: min_vort_height_for_rdp_m_asl
     }
 
 
@@ -1686,7 +1692,7 @@ def read_storm_images_and_labels(
     storm_image_dict['radar_height_m_asl']: Same.
     storm_image_dict['rotation_divergence_products_s02']: Same.
     storm_image_dict['horiz_radius_for_rdp_metres']: Same.
-    storm_image_dict['min_height_for_rdp_m_asl']: Same.
+    storm_image_dict['min_vort_height_for_rdp_m_asl']: Same.
     storm_image_dict['label_values']: 1-D numpy array with label for each storm
         object.
     """

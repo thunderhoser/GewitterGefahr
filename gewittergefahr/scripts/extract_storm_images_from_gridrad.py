@@ -17,6 +17,9 @@ SPC_DATE_ARG_NAME = 'spc_date_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
+INCLUDE_RDP_ARG_NAME = 'include_rotation_divergence_product'
+RDP_RADIUS_ARG_NAME = 'horiz_radius_for_rdp_metres'
+MIN_RDP_HEIGHT_ARG_NAME = 'min_vort_height_for_rdp_m_asl'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 NUM_ROWS_HELP_STRING = (
@@ -42,6 +45,20 @@ TRACKING_DIR_HELP_STRING = (
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  This argument is used to find the '
     'specific tracking files in `{0:s}`.').format(TRACKING_DIR_ARG_NAME)
+INCLUDE_RDP_HELP_STRING = (
+    'Boolean flag.  If 1, the rotation-divergence product (RDP) will be '
+    'computed for each storm object and saved along with the image.')
+RDP_RADIUS_HELP_STRING = (
+    'Horizontal radius for RDP calculations.  RDP = max divergence * max '
+    'vorticity, and max divergence will be based on all grid points within a '
+    'horizontal radius of `{0:s}` around the horizontal storm centroid.'
+).format(RDP_RADIUS_ARG_NAME)
+MIN_RDP_HEIGHT_HELP_STRING = (
+    'Minimum vorticity heights for RDP calculations.  RDP = max divergence * '
+    'max vorticity, and max vorticity will be based on all grid points at '
+    'height >= `{0:s}` and within a horizontal radius of `{1:s}` around the '
+    'horizontal storm centroid.'
+).format(MIN_RDP_HEIGHT_ARG_NAME, RDP_RADIUS_ARG_NAME)
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for storm-centered radar images.')
 
@@ -92,6 +109,20 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + INCLUDE_RDP_ARG_NAME, type=int, required=False, default=1,
+    help=INCLUDE_RDP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + RDP_RADIUS_ARG_NAME, type=float, required=False,
+    default=storm_images.DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES,
+    help=RDP_RADIUS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + MIN_RDP_HEIGHT_ARG_NAME, type=int, required=False,
+    default=storm_images.DEFAULT_MIN_VORT_HEIGHT_FOR_RDP_M_ASL,
+    help=MIN_RDP_HEIGHT_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=False,
     default=DEFAULT_OUTPUT_DIR_NAME, help=OUTPUT_DIR_HELP_STRING)
 
@@ -99,7 +130,9 @@ INPUT_ARG_PARSER.add_argument(
 def _extract_storm_images(
         num_image_rows, num_image_columns, radar_field_names,
         radar_heights_m_asl, spc_date_string, radar_dir_name, tracking_dir_name,
-        tracking_scale_metres2, output_dir_name):
+        tracking_scale_metres2, include_rotation_divergence_product,
+        horiz_radius_for_rdp_metres, min_vort_height_for_rdp_m_asl,
+        output_dir_name):
     """Extracts storm-centered radar images from GridRad data.
 
     :param num_image_rows: See documentation at top of file.
@@ -110,6 +143,9 @@ def _extract_storm_images(
     :param radar_dir_name: Same.
     :param tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
+    :param include_rotation_divergence_product: Same.
+    :param horiz_radius_for_rdp_metres: Same.
+    :param min_vort_height_for_rdp_m_asl: Same.
     :param output_dir_name: Same.
     """
 
@@ -132,29 +168,30 @@ def _extract_storm_images(
         one_file_per_time_step=False, num_storm_image_rows=num_image_rows,
         num_storm_image_columns=num_image_columns,
         radar_field_names=radar_field_names,
-        radar_heights_m_asl=radar_heights_m_asl)
+        radar_heights_m_asl=radar_heights_m_asl,
+        include_rotation_divergence_product=include_rotation_divergence_product,
+        horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
+        min_vort_height_for_rdp_m_asl=min_vort_height_for_rdp_m_asl)
 
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    NUM_IMAGE_ROWS = getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME)
-    NUM_IMAGE_COLUMNS = getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME)
-    RADAR_FIELD_NAMES = getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME)
-    RADAR_HEIGHTS_M_ASL = numpy.array(
-        getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int)
-
-    SPC_DATE_STRING = getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME)
-    RADAR_DIR_NAME = getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME)
-    TRACKING_DIR_NAME = getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME)
-    TRACKING_SCALE_METRES2 = getattr(INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME)
-    OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
-
     _extract_storm_images(
-        num_image_rows=NUM_IMAGE_ROWS, num_image_columns=NUM_IMAGE_COLUMNS,
-        radar_field_names=RADAR_FIELD_NAMES,
-        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
-        spc_date_string=SPC_DATE_STRING, radar_dir_name=RADAR_DIR_NAME,
-        tracking_dir_name=TRACKING_DIR_NAME,
-        tracking_scale_metres2=TRACKING_SCALE_METRES2,
-        output_dir_name=OUTPUT_DIR_NAME)
+        num_image_rows=getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME),
+        num_image_columns=getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME),
+        radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME),
+        radar_heights_m_asl=numpy.array(
+            getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int),
+        spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
+        radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
+        tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
+        tracking_scale_metres2=getattr(
+            INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
+        include_rotation_divergence_product=bool(getattr(
+            INPUT_ARG_OBJECT, INCLUDE_RDP_ARG_NAME)),
+        horiz_radius_for_rdp_metres=getattr(
+            INPUT_ARG_OBJECT, RDP_RADIUS_ARG_NAME),
+        min_vort_height_for_rdp_m_asl=getattr(
+            INPUT_ARG_OBJECT, MIN_RDP_HEIGHT_ARG_NAME),
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
