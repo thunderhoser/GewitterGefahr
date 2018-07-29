@@ -3,7 +3,6 @@
 import copy
 import unittest
 import numpy
-from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -99,13 +98,28 @@ RADAR_IMAGE_DICT_HIGH_RDP = {
 }
 
 # The following constants are used to test separate_radar_files_2d3d.
-RADAR_FILE_NAME_MATRIX = numpy.array([['A', 'B', 'C', 'D', 'E'],
-                                      ['F', 'G', 'H', 'I', 'J']], dtype=object)
-FIELD_NAME_BY_PAIR = [
-    radar_utils.MESH_NAME, radar_utils.REFL_NAME, radar_utils.REFL_NAME,
-    radar_utils.MID_LEVEL_SHEAR_NAME, radar_utils.LOW_LEVEL_SHEAR_NAME
-]
-HEIGHT_BY_PAIR_M_ASL = numpy.array([250, 5000, 1000, 250, 250], dtype=int)
+RADAR_FILE_NAME_MATRIX = numpy.array([
+    ['storm_images/myrorss/2018/mesh_mm/00250_metres_asl/'
+     'storm_images_20180728.nc',
+     'storm_images/myrorss/2018/reflectivity_dbz/05000_metres_asl/'
+     'storm_images_20180728.nc',
+     'storm_images/myrorss/2018/reflectivity_dbz/01000_metres_asl/'
+     'storm_images_20180728.nc',
+     'storm_images/myrorss/2018/mid_level_shear_s01/00250_metres_asl/'
+     'storm_images_20180728.nc',
+     'storm_images/myrorss/2018/low_level_shear_s01/00250_metres_asl/'
+     'storm_images_20180728.nc'],
+    ['storm_images/myrorss/2018/mesh_mm/00250_metres_asl/'
+     'storm_images_20180729.nc',
+     'storm_images/myrorss/2018/reflectivity_dbz/05000_metres_asl/'
+     'storm_images_20180729.nc',
+     'storm_images/myrorss/2018/reflectivity_dbz/01000_metres_asl/'
+     'storm_images_20180729.nc',
+     'storm_images/myrorss/2018/mid_level_shear_s01/00250_metres_asl/'
+     'storm_images_20180729.nc',
+     'storm_images/myrorss/2018/low_level_shear_s01/00250_metres_asl/'
+     'storm_images_20180729.nc']
+], dtype=object)
 
 REFLECTIVITY_INDICES = numpy.array([1, 2], dtype=int)
 AZIMUTHAL_SHEAR_INDICES = numpy.array([3, 4], dtype=int)
@@ -114,10 +128,8 @@ NON_REFLECTIVITY_INDICES = numpy.array([0, 3, 4], dtype=int)
 NON_AZIMUTHAL_SHEAR_INDICES = numpy.array([0, 1, 2], dtype=int)
 NON_MESH_INDICES = numpy.array([1, 2, 3, 4], dtype=int)
 
-REFLECTIVITY_FILE_NAME_MATRIX = numpy.array([['C', 'B'],
-                                             ['H', 'G']], dtype=object)
-AZ_SHEAR_FILE_NAME_MATRIX = numpy.array([['E', 'D'],
-                                         ['J', 'I']], dtype=object)
+REFLECTIVITY_FILE_NAME_MATRIX = RADAR_FILE_NAME_MATRIX[..., [2, 1]]
+AZ_SHEAR_FILE_NAME_MATRIX = RADAR_FILE_NAME_MATRIX[..., [4, 3]]
 
 
 def _compare_radar_image_dicts(first_radar_image_dict, second_radar_image_dict):
@@ -601,12 +613,7 @@ class TrainingValidationIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             trainval_io.separate_radar_files_2d3d(
                 radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
-                    ..., NON_REFLECTIVITY_INDICES],
-                test_mode=True,
-                field_name_by_pair=[
-                    FIELD_NAME_BY_PAIR[k] for k in NON_REFLECTIVITY_INDICES],
-                height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[
-                    NON_REFLECTIVITY_INDICES])
+                    ..., NON_REFLECTIVITY_INDICES])
 
     def test_separate_radar_files_2d3d_no_az_shear(self):
         """Ensures correctness of separate_radar_files_2d3d.
@@ -617,12 +624,7 @@ class TrainingValidationIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             trainval_io.separate_radar_files_2d3d(
                 radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
-                    ..., NON_AZIMUTHAL_SHEAR_INDICES],
-                test_mode=True,
-                field_name_by_pair=[
-                    FIELD_NAME_BY_PAIR[k] for k in NON_AZIMUTHAL_SHEAR_INDICES],
-                height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[
-                    NON_AZIMUTHAL_SHEAR_INDICES])
+                    ..., NON_AZIMUTHAL_SHEAR_INDICES])
 
     def test_separate_radar_files_2d3d_bad_fields(self):
         """Ensures correctness of separate_radar_files_2d3d.
@@ -634,11 +636,7 @@ class TrainingValidationIoTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             trainval_io.separate_radar_files_2d3d(
                 radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
-                    ..., MESH_INDICES],
-                test_mode=True,
-                field_name_by_pair=[
-                    FIELD_NAME_BY_PAIR[k] for k in MESH_INDICES],
-                height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[MESH_INDICES])
+                    ..., MESH_INDICES])
 
     def test_separate_radar_files_2d3d_all_good(self):
         """Ensures correctness of separate_radar_files_2d3d.
@@ -646,14 +644,10 @@ class TrainingValidationIoTests(unittest.TestCase):
         In this case, all input files are valid.
         """
 
-        this_refl_file_name_matrix, this_az_shear_file_name_matrix = (
-            trainval_io.separate_radar_files_2d3d(
-                radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
-                    ..., NON_MESH_INDICES],
-                test_mode=True,
-                field_name_by_pair=[
-                    FIELD_NAME_BY_PAIR[k] for k in NON_MESH_INDICES],
-                height_by_pair_m_asl=HEIGHT_BY_PAIR_M_ASL[NON_MESH_INDICES]))
+        (this_refl_file_name_matrix, this_az_shear_file_name_matrix
+        ) = trainval_io.separate_radar_files_2d3d(
+            radar_file_name_matrix=RADAR_FILE_NAME_MATRIX[
+                ..., NON_MESH_INDICES])
 
         self.assertTrue(numpy.array_equal(
             this_refl_file_name_matrix, REFLECTIVITY_FILE_NAME_MATRIX))

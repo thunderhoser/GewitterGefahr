@@ -1043,18 +1043,12 @@ def read_model_metadata(pickle_file_name):
         radar_heights_m_asl = numpy.full(num_heights, -1, dtype=int)
 
         for j in range(num_fields):
-            this_radar_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=radar_file_name_matrix_for_training[0, j, 0],
-                return_images=False)
-            radar_field_names[j] = this_radar_image_dict[
-                storm_images.RADAR_FIELD_NAME_KEY]
+            radar_field_names[j] = storm_images.image_file_name_to_field(
+                radar_file_name_matrix_for_training[0, j, 0])
 
         for k in range(num_heights):
-            this_radar_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=radar_file_name_matrix_for_training[0, 0, k],
-                return_images=False)
-            radar_heights_m_asl[k] = this_radar_image_dict[
-                storm_images.RADAR_HEIGHT_KEY]
+            radar_heights_m_asl[k] = storm_images.image_file_name_to_height(
+                radar_file_name_matrix_for_training[0, 0, k])
 
         model_metadata_dict.update({
             RADAR_SOURCE_KEY: radar_utils.GRIDRAD_SOURCE_ID,

@@ -134,10 +134,8 @@ def create_storm_images_2d(
     num_channels = radar_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
     for j in range(num_channels):
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=radar_file_name_matrix[0, j])
-        field_name_by_channel[j] = this_radar_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        field_name_by_channel[j] = storm_images.image_file_name_to_field(
+            radar_file_name_matrix[0, j])
 
     num_file_times = radar_file_name_matrix.shape[0]
     radar_image_matrix = None
@@ -325,10 +323,8 @@ def create_storm_images_3d(
     num_fields = radar_file_name_matrix.shape[1]
     radar_field_names = [''] * num_fields
     for j in range(num_fields):
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=radar_file_name_matrix[0, j, 0])
-        radar_field_names[j] = this_radar_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        radar_field_names[j] = storm_images.image_file_name_to_field(
+            radar_file_name_matrix[0, j, 0])
 
     num_file_times = radar_file_name_matrix.shape[0]
     num_heights = radar_file_name_matrix.shape[2]
@@ -542,10 +538,8 @@ def create_storm_images_2d3d_myrorss(
     num_azimuthal_shear_fields = az_shear_file_name_matrix.shape[1]
     azimuthal_shear_field_names = [''] * num_azimuthal_shear_fields
     for j in range(num_azimuthal_shear_fields):
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=az_shear_file_name_matrix[0, j])
-        azimuthal_shear_field_names[j] = this_radar_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        azimuthal_shear_field_names[j] = storm_images.image_file_name_to_field(
+            az_shear_file_name_matrix[0, j])
 
     num_file_times = reflectivity_file_name_matrix.shape[0]
     num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]

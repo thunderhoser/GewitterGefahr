@@ -189,7 +189,7 @@ GRID_POINT_LATITUDES_DEG = numpy.array([52.5, 53, 53.5, 54])
 GRID_POINT_LONGITUDES_DEG = numpy.array(
     [243, 244, 245, 246, 247, 248], dtype=float)
 GRID_POINT_HEIGHTS_M_ASL = numpy.array([3000, 6000, 9000], dtype=int)
-MIN_RDP_HEIGHT_M_ASL = 4000
+MIN_VORTICITY_HEIGHT_M_ASL = 4000
 HORIZ_RADIUS_FOR_RDP_METRES = 75000.
 STORM_CENTROID_LATITUDES_DEG = numpy.array([52, 53.25])
 STORM_CENTROID_LONGITUDES_DEG = numpy.array([243.5, 246])
@@ -221,7 +221,7 @@ STORM_IMAGE_MATRIX_EDGE = numpy.array([[75., numpy.nan, 0., 0.],
                                        [0., 0., 0., 0.]])
 
 # The following constants are used to test find_storm_image_file,
-# image_file_name_to_time, and find_storm_label_file.
+# image_file_name_to_time, image_file_name_to_field, and find_storm_label_file.
 TOP_STORM_IMAGE_DIR_NAME = 'storm_images'
 VALID_TIME_UNIX_SEC = 1516749825
 SPC_DATE_STRING = '20180123'
@@ -445,7 +445,7 @@ class StormImagesTests(unittest.TestCase):
             grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
             grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
             grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
-            min_rdp_height_m_asl=MIN_RDP_HEIGHT_M_ASL,
+            min_vorticity_height_m_asl=MIN_VORTICITY_HEIGHT_M_ASL,
             storm_centroid_latitudes_deg=STORM_CENTROID_LATITUDES_DEG,
             storm_centroid_longitudes_deg=STORM_CENTROID_LONGITUDES_DEG,
             horizontal_radius_metres=HORIZ_RADIUS_FOR_RDP_METRES)
@@ -539,6 +539,46 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(this_time_unix_sec is None)
         self.assertTrue(this_spc_date_string == SPC_DATE_STRING)
+
+    def test_image_file_name_to_field_one_time(self):
+        """Ensures correct output from image_file_name_to_field.
+
+        In this case, file name is for one time step.
+        """
+
+        this_field_name = storm_images.image_file_name_to_field(
+            STORM_IMAGE_FILE_NAME_ONE_TIME)
+        self.assertTrue(this_field_name == RADAR_FIELD_NAME)
+
+    def test_image_file_name_to_field_one_spc_date(self):
+        """Ensures correct output from image_file_name_to_field.
+
+        In this case, file name is for one SPC date.
+        """
+
+        this_field_name = storm_images.image_file_name_to_field(
+            STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
+        self.assertTrue(this_field_name == RADAR_FIELD_NAME)
+
+    def test_image_file_name_to_height_one_time(self):
+        """Ensures correct output from image_file_name_to_height.
+
+        In this case, file name is for one time step.
+        """
+
+        this_height_m_asl = storm_images.image_file_name_to_height(
+            STORM_IMAGE_FILE_NAME_ONE_TIME)
+        self.assertTrue(this_height_m_asl == RADAR_HEIGHT_M_ASL)
+
+    def test_image_file_name_to_height_one_spc_date(self):
+        """Ensures correct output from image_file_name_to_height.
+
+        In this case, file name is for one SPC date.
+        """
+
+        this_height_m_asl = storm_images.image_file_name_to_height(
+            STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
+        self.assertTrue(this_height_m_asl == RADAR_HEIGHT_M_ASL)
 
     def test_find_storm_label_file_one_time_to_one_time(self):
         """Ensures correct output from find_storm_label_file.

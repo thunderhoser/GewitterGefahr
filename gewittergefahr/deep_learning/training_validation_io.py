@@ -706,9 +706,7 @@ def remove_storms_with_low_rdp(storm_image_dict, rdp_filter_threshold_s02):
     return storm_image_dict
 
 
-def separate_radar_files_2d3d(
-        radar_file_name_matrix, test_mode=False, field_name_by_pair=None,
-        height_by_pair_m_asl=None):
+def separate_radar_files_2d3d(radar_file_name_matrix):
     """Separates input files for `storm_image_generator_2d3d_myrorss`.
 
     Specifically, separates these files into two arrays: one for reflectivity
@@ -719,9 +717,6 @@ def separate_radar_files_2d3d(
 
     :param radar_file_name_matrix: numpy array (T x [H_r + F_a]) of paths to
         image files.  This should be created by `find_radar_files_2d`.
-    :param test_mode: Leave this False.
-    :param field_name_by_pair: Leave this empty.
-    :param height_by_pair_m_asl: Leave this empty.
     :return: reflectivity_file_name_matrix: numpy array (T x H_r) of paths to
         reflectivity files.
     :return: az_shear_file_name_matrix: numpy array (T x F_a) of paths to
@@ -736,20 +731,16 @@ def separate_radar_files_2d3d(
 
     error_checking.assert_is_numpy_array(
         radar_file_name_matrix, num_dimensions=2)
-    error_checking.assert_is_boolean(test_mode)
+
     num_field_height_pairs = radar_file_name_matrix.shape[1]
+    field_name_by_pair = [''] * num_field_height_pairs
+    height_by_pair_m_asl = numpy.full(num_field_height_pairs, -1, dtype=int)
 
-    if not test_mode:
-        field_name_by_pair = [''] * num_field_height_pairs
-        height_by_pair_m_asl = numpy.full(num_field_height_pairs, -1, dtype=int)
-
-        for j in range(num_field_height_pairs):
-            this_radar_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=radar_file_name_matrix[0, j])
-            field_name_by_pair[j] = this_radar_image_dict[
-                storm_images.RADAR_FIELD_NAME_KEY]
-            height_by_pair_m_asl[j] = this_radar_image_dict[
-                storm_images.RADAR_HEIGHT_KEY]
+    for j in range(num_field_height_pairs):
+        field_name_by_pair[j] = storm_images.image_file_name_to_field(
+            radar_file_name_matrix[0, j])
+        height_by_pair_m_asl[j] = storm_images.image_file_name_to_height(
+            radar_file_name_matrix[0, j])
 
     reflectivity_indices = numpy.where(numpy.array(
         [s == radar_utils.REFL_NAME for s in field_name_by_pair]))[0]
@@ -895,11 +886,10 @@ def find_radar_files_2d(
         (num_image_times, num_field_height_pairs), '', dtype=object)
 
     for j in range(num_field_height_pairs):
-        this_storm_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=radar_file_name_matrix[0, j], return_images=False)
-        this_field_name = this_storm_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
-        this_height_m_asl = this_storm_image_dict[storm_images.RADAR_HEIGHT_KEY]
+        this_field_name = storm_images.image_file_name_to_field(
+            radar_file_name_matrix[0, j])
+        this_height_m_asl = storm_images.image_file_name_to_height(
+            radar_file_name_matrix[0, j])
 
         for i in range(num_image_times):
             (this_time_unix_sec, this_spc_date_string
@@ -999,13 +989,10 @@ def find_radar_files_3d(
 
     for j in range(num_fields):
         for k in range(num_heights):
-            this_storm_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=radar_file_name_matrix[0, j, k],
-                return_images=False)
-            this_field_name = this_storm_image_dict[
-                storm_images.RADAR_FIELD_NAME_KEY]
-            this_height_m_asl = this_storm_image_dict[
-                storm_images.RADAR_HEIGHT_KEY]
+            this_field_name = storm_images.image_file_name_to_field(
+                radar_file_name_matrix[0, j, k])
+            this_height_m_asl = storm_images.image_file_name_to_height(
+                radar_file_name_matrix[0, j, k])
 
             for i in range(num_image_times):
                 (this_time_unix_sec, this_spc_date_string
@@ -1225,10 +1212,8 @@ def storm_image_generator_2d(
     num_channels = radar_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
     for j in range(num_channels):
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=radar_file_name_matrix[0, j])
-        field_name_by_channel[j] = this_radar_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        field_name_by_channel[j] = storm_images.image_file_name_to_field(
+            radar_file_name_matrix[0, j])
 
     num_examples_per_batch_by_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -1471,10 +1456,8 @@ def storm_image_generator_3d(
     num_fields = radar_file_name_matrix.shape[1]
     radar_field_names = [''] * num_fields
     for j in range(num_fields):
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=radar_file_name_matrix[0, j, 0])
-        radar_field_names[j] = this_radar_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        radar_field_names[j] = storm_images.image_file_name_to_field(
+            radar_file_name_matrix[0, j, 0])
 
     num_examples_per_batch_by_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
@@ -1736,10 +1719,8 @@ def storm_image_generator_2d3d_myrorss(
     num_azimuthal_shear_fields = az_shear_file_name_matrix.shape[1]
     azimuthal_shear_field_names = [''] * num_azimuthal_shear_fields
     for j in range(num_azimuthal_shear_fields):
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=az_shear_file_name_matrix[0, j])
-        azimuthal_shear_field_names[j] = this_radar_image_dict[
-            storm_images.RADAR_FIELD_NAME_KEY]
+        azimuthal_shear_field_names[j] = storm_images.image_file_name_to_field(
+            az_shear_file_name_matrix[0, j])
 
     num_examples_per_batch_by_class_dict = _get_num_examples_per_batch_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,

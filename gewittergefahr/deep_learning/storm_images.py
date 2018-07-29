@@ -1815,8 +1815,6 @@ def find_storm_image_file(
 def image_file_name_to_time(storm_image_file_name):
     """Parses time from name of storm-image file.
 
-    This file should be written by `write_storm_images`.
-
     :param storm_image_file_name: Path to input file.
     :return: unix_time_sec: Valid time.  If the file contains data for one SPC
         date (rather than one time step), this will be None.
@@ -1838,6 +1836,47 @@ def image_file_name_to_time(storm_image_file_name):
     time_conversion.spc_date_string_to_unix_sec(spc_date_string)
 
     return unix_time_sec, spc_date_string
+
+
+def image_file_name_to_field(storm_image_file_name):
+    """Parses radar field from name of storm-image file.
+
+    :param storm_image_file_name: Path to input file.
+    :return: radar_field_name: Name of radar field.
+    :raises: ValueError: if radar field cannot be parsed from file name.
+    """
+
+    subdirectory_names = os.path.split(storm_image_file_name)[0].split('/')
+    for this_subdir_name in subdirectory_names:
+        try:
+            radar_utils.check_field_name(this_subdir_name)
+            return this_subdir_name
+        except:
+            pass
+
+    error_string = 'Cannot parse radar field from file name: "{0:s}"'.format(
+        storm_image_file_name)
+    raise ValueError(error_string)
+
+
+def image_file_name_to_height(storm_image_file_name):
+    """Parses radar height from name of storm-image file.
+
+    :param storm_image_file_name: Path to input file.
+    :return: radar_height_m_asl: Radar height (metres above sea level).
+    :raises: ValueError: if radar height cannot be parsed from file name.
+    """
+
+    keyword = '_metres_asl'
+    subdirectory_names = os.path.split(storm_image_file_name)[0].split('/')
+
+    for this_subdir_name in subdirectory_names:
+        if keyword in this_subdir_name:
+            return int(this_subdir_name.replace(keyword, ''))
+
+    error_string = 'Cannot parse radar height from file name: "{0:s}"'.format(
+        storm_image_file_name)
+    raise ValueError(error_string)
 
 
 def find_storm_label_file(
