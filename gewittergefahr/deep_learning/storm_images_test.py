@@ -150,7 +150,7 @@ INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
     [0, 4, 13, 20, 26, 34], dtype=int)
 
-# The following constants are used to test _find_storm_objects.
+# The following constants are used to test find_storm_objects.
 ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
 ALL_VALID_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
 STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
@@ -410,27 +410,27 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
 
-    def test_find_storm_objects_all_good(self):
-        """Ensures correct output from _find_storm_objects.
+    def testfind_storm_objects_all_good(self):
+        """Ensures correct output from find_storm_objects.
 
         In this case, all desired storm objects should be found.
         """
 
-        these_indices = storm_images._find_storm_objects(
+        these_indices = storm_images.find_storm_objects(
             all_storm_ids=ALL_STORM_IDS,
             all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
             storm_ids_to_keep=STORM_IDS_TO_KEEP_ALL_GOOD,
             valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD)
         self.assertTrue(numpy.array_equal(these_indices, RELEVANT_INDICES))
 
-    def test_find_storm_objects_one_missing(self):
-        """Ensures correct output from _find_storm_objects.
+    def testfind_storm_objects_one_missing(self):
+        """Ensures correct output from find_storm_objects.
 
         In this case, one desired storm object is missing.
         """
 
         with self.assertRaises(ValueError):
-            storm_images._find_storm_objects(
+            storm_images.find_storm_objects(
                 all_storm_ids=ALL_STORM_IDS,
                 all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
                 storm_ids_to_keep=STORM_IDS_TO_KEEP_ONE_MISSING,

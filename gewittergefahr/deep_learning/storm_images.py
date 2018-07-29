@@ -295,7 +295,7 @@ def _check_storm_labels(
     if storm_to_winds_table is None:
         relevant_storm_to_winds_table = None
     else:
-        relevant_indices = _find_storm_objects(
+        relevant_indices = find_storm_objects(
             all_storm_ids=storm_to_winds_table[
                 tracking_utils.STORM_ID_COLUMN].values,
             all_valid_times_unix_sec=storm_to_winds_table[
@@ -308,7 +308,7 @@ def _check_storm_labels(
     if storm_to_tornadoes_table is None:
         relevant_storm_to_tornadoes_table = None
     else:
-        relevant_indices = _find_storm_objects(
+        relevant_indices = find_storm_objects(
             all_storm_ids=storm_to_tornadoes_table[
                 tracking_utils.STORM_ID_COLUMN].values,
             all_valid_times_unix_sec=storm_to_tornadoes_table[
@@ -475,79 +475,6 @@ def _filter_storm_objects_by_label(
     return indices_to_keep
 
 
-def _find_storm_objects(
-        all_storm_ids, all_valid_times_unix_sec, storm_ids_to_keep,
-        valid_times_to_keep_unix_sec):
-    """Finds storm objects.
-
-    P = total number of storm objects
-    p = number of storm objects to keep
-
-    :param all_storm_ids: length-P list of storm IDs (strings).
-    :param all_valid_times_unix_sec: length-P list of valid times.
-    :param storm_ids_to_keep: length-p list of storm IDs (strings).
-    :param valid_times_to_keep_unix_sec: length-p numpy array of valid times.
-    :return: relevant_indices: length-p numpy array of indices.
-        all_storm_ids[relevant_indices] yields storm_ids_to_keep, and
-        all_valid_times_unix_sec[relevant_indices] yields
-        valid_times_to_keep_unix_sec.
-    :raises: ValueError: if `all_storm_ids` and `all_valid_times_unix_sec`
-        contain any duplicate pairs.
-    :raises: ValueError: if `storm_ids_to_keep` and
-        `valid_times_to_keep_unix_sec` contain any duplicate pairs.
-    :raises: ValueError: if any desired storm object is not found.
-    """
-
-    num_storm_objects_total = len(all_storm_ids)
-    all_object_ids = [
-        '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
-        for i in range(num_storm_objects_total)]
-
-    num_storm_objects_to_keep = len(storm_ids_to_keep)
-    object_ids_to_keep = [
-        '{0:s}_{1:d}'.format(storm_ids_to_keep[i],
-                             valid_times_to_keep_unix_sec[i])
-        for i in range(num_storm_objects_to_keep)]
-
-    this_num_unique = len(set(all_object_ids))
-    if this_num_unique != len(all_object_ids):
-        error_string = (
-            'Only {0:d} of {1:d} original storm objects are unique.'
-        ).format(this_num_unique, len(all_object_ids))
-        raise ValueError(error_string)
-
-    this_num_unique = len(set(object_ids_to_keep))
-    if this_num_unique != len(object_ids_to_keep):
-        error_string = (
-            'Only {0:d} of {1:d} desired storm objects are unique.'
-        ).format(this_num_unique, len(object_ids_to_keep))
-        raise ValueError(error_string)
-
-    all_object_ids_numpy = numpy.array(all_object_ids, dtype='object')
-    object_ids_to_keep_numpy = numpy.array(object_ids_to_keep, dtype='object')
-
-    sort_indices = numpy.argsort(all_object_ids_numpy)
-    relevant_indices = numpy.searchsorted(
-        all_object_ids_numpy[sort_indices], object_ids_to_keep_numpy,
-        side='left'
-    ).astype(int)
-    relevant_indices = sort_indices[relevant_indices]
-
-    if not numpy.array_equal(all_object_ids_numpy[relevant_indices],
-                             object_ids_to_keep_numpy):
-        missing_object_flags = (
-            all_object_ids_numpy[relevant_indices] != object_ids_to_keep_numpy)
-
-        error_string = (
-            '{0:d} of {1:d} desired storm objects are missing.  Their ID-time '
-            'pairs are listed below.\n{2:s}'
-        ).format(numpy.sum(missing_object_flags), num_storm_objects_to_keep,
-                 str(object_ids_to_keep_numpy[missing_object_flags]))
-        raise ValueError(error_string)
-
-    return relevant_indices
-
-
 def _get_max_rdp_values_one_time(
         divergence_matrix_s01, vorticity_matrix_s01, grid_point_latitudes_deg,
         grid_point_longitudes_deg, grid_point_heights_m_asl,
@@ -611,6 +538,91 @@ def _get_max_rdp_values_one_time(
         )
 
     return max_rdp_values_s02
+
+
+def find_storm_objects(
+        all_storm_ids, all_valid_times_unix_sec, storm_ids_to_keep,
+        valid_times_to_keep_unix_sec):
+    """Finds storm objects.
+
+    P = total number of storm objects
+    p = number of storm objects to keep
+
+    :param all_storm_ids: length-P list of storm IDs (strings).
+    :param all_valid_times_unix_sec: length-P list of valid times.
+    :param storm_ids_to_keep: length-p list of storm IDs (strings).
+    :param valid_times_to_keep_unix_sec: length-p numpy array of valid times.
+    :return: relevant_indices: length-p numpy array of indices.
+        all_storm_ids[relevant_indices] yields storm_ids_to_keep, and
+        all_valid_times_unix_sec[relevant_indices] yields
+        valid_times_to_keep_unix_sec.
+    :raises: ValueError: if `all_storm_ids` and `all_valid_times_unix_sec`
+        contain any duplicate pairs.
+    :raises: ValueError: if `storm_ids_to_keep` and
+        `valid_times_to_keep_unix_sec` contain any duplicate pairs.
+    :raises: ValueError: if any desired storm object is not found.
+    """
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(all_storm_ids), num_dimensions=1)
+    num_storm_objects_total = len(all_storm_ids)
+    error_checking.assert_is_numpy_array(
+        all_valid_times_unix_sec,
+        exact_dimensions=numpy.array([num_storm_objects_total]))
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(storm_ids_to_keep), num_dimensions=1)
+    num_storm_objects_to_keep = len(storm_ids_to_keep)
+    error_checking.assert_is_numpy_array(
+        valid_times_to_keep_unix_sec,
+        exact_dimensions=numpy.array([num_storm_objects_to_keep]))
+
+    all_object_ids = [
+        '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
+        for i in range(num_storm_objects_total)]
+
+    object_ids_to_keep = [
+        '{0:s}_{1:d}'.format(storm_ids_to_keep[i],
+                             valid_times_to_keep_unix_sec[i])
+        for i in range(num_storm_objects_to_keep)]
+
+    this_num_unique = len(set(all_object_ids))
+    if this_num_unique != len(all_object_ids):
+        error_string = (
+            'Only {0:d} of {1:d} original storm objects are unique.'
+        ).format(this_num_unique, len(all_object_ids))
+        raise ValueError(error_string)
+
+    this_num_unique = len(set(object_ids_to_keep))
+    if this_num_unique != len(object_ids_to_keep):
+        error_string = (
+            'Only {0:d} of {1:d} desired storm objects are unique.'
+        ).format(this_num_unique, len(object_ids_to_keep))
+        raise ValueError(error_string)
+
+    all_object_ids_numpy = numpy.array(all_object_ids, dtype='object')
+    object_ids_to_keep_numpy = numpy.array(object_ids_to_keep, dtype='object')
+
+    sort_indices = numpy.argsort(all_object_ids_numpy)
+    relevant_indices = numpy.searchsorted(
+        all_object_ids_numpy[sort_indices], object_ids_to_keep_numpy,
+        side='left'
+    ).astype(int)
+    relevant_indices = sort_indices[relevant_indices]
+
+    if not numpy.array_equal(all_object_ids_numpy[relevant_indices],
+                             object_ids_to_keep_numpy):
+        missing_object_flags = (
+            all_object_ids_numpy[relevant_indices] != object_ids_to_keep_numpy)
+
+        error_string = (
+            '{0:d} of {1:d} desired storm objects are missing.  Their ID-time '
+            'pairs are listed below.\n{2:s}'
+        ).format(numpy.sum(missing_object_flags), num_storm_objects_to_keep,
+                 str(object_ids_to_keep_numpy[missing_object_flags]))
+        raise ValueError(error_string)
+
+    return relevant_indices
 
 
 def extract_storm_image(
@@ -1551,7 +1563,7 @@ def read_storm_images(
             valid_times_to_keep_unix_sec,
             exact_dimensions=numpy.array([num_storm_objects_to_keep]))
 
-        indices_to_keep = _find_storm_objects(
+        indices_to_keep = find_storm_objects(
             all_storm_ids=storm_ids,
             all_valid_times_unix_sec=valid_times_unix_sec,
             storm_ids_to_keep=storm_ids_to_keep,
