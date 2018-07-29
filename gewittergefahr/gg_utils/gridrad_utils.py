@@ -133,8 +133,8 @@ def interp_temperature_surface_from_nwp(
 
 
 def interp_reflectivity_to_heights(
-        reflectivity_matrix_dbz=None, unique_grid_point_heights_m_asl=None,
-        target_height_matrix_m_asl=None):
+        reflectivity_matrix_dbz, grid_point_heights_m_asl,
+        target_height_matrix_m_asl):
     """At each horizontal location, interpolates reflectivity to target height.
 
     M = number of rows (unique grid-point latitudes)
@@ -142,10 +142,9 @@ def interp_reflectivity_to_heights(
     H = number of height levels (unique grid-point heights)
 
     :param reflectivity_matrix_dbz: H-by-M-by-N matrix of reflectivities.
-    :param unique_grid_point_heights_m_asl: length-H numpy array of grid-point
-        heights (metres above sea level).  If array is increasing
-        (decreasing), height increases (decreases) with the first index of
-        reflectivity_matrix_dbz.
+    :param grid_point_heights_m_asl: length-H numpy array of grid-point heights
+        (metres above sea level).  If array is increasing (decreasing), height
+        increases (decreases) with the first index of reflectivity_matrix_dbz.
     :param target_height_matrix_m_asl: M-by-N matrix of target heights (metres
         above sea level).
     :return: interp_refl_matrix_dbz: M-by-N numpy array of interpolated
@@ -162,10 +161,10 @@ def interp_reflectivity_to_heights(
     num_grid_columns = reflectivity_matrix_dbz.shape[2]
 
     error_checking.assert_is_numpy_array(
-        unique_grid_point_heights_m_asl,
+        grid_point_heights_m_asl,
         exact_dimensions=numpy.array([num_grid_heights]))
     error_checking.assert_is_geq_numpy_array(
-        unique_grid_point_heights_m_asl, 0.)
+        grid_point_heights_m_asl, 0.)
 
     error_checking.assert_is_numpy_array(
         target_height_matrix_m_asl,
@@ -186,7 +185,7 @@ def interp_reflectivity_to_heights(
                 continue
 
             interp_object = scipy.interpolate.interp1d(
-                unique_grid_point_heights_m_asl[these_real_indices],
+                grid_point_heights_m_asl[these_real_indices],
                 these_reflectivities_dbz[these_real_indices], kind='linear',
                 bounds_error=False, fill_value='extrapolate',
                 assume_sorted=True)
@@ -216,8 +215,8 @@ def get_column_max_reflectivity(reflectivity_matrix_dbz):
 
 
 def get_echo_tops(
-        reflectivity_matrix_dbz=None, unique_grid_point_heights_m_asl=None,
-        critical_reflectivity_dbz=None):
+        reflectivity_matrix_dbz, grid_point_heights_m_asl,
+        critical_reflectivity_dbz):
     """Finds echo top at each horizontal location.
 
     "Echo top" = maximum height with >= critical reflectivity.
@@ -227,14 +226,14 @@ def get_echo_tops(
     H = number of height levels (unique grid-point heights)
 
     :param reflectivity_matrix_dbz: H-by-M-by-N matrix of reflectivities.
-    :param unique_grid_point_heights_m_asl: length-H numpy array of grid-point
-        heights (metres above sea level).  Must be sorted in ascending order,
-        which means that height must increase with the first index of
+    :param grid_point_heights_m_asl: length-H numpy array of grid-point heights
+        (metres above sea level).  Must be sorted in ascending order, which
+        means that height must increase with the first index of
         reflectivity_matrix_dbz.
     :param critical_reflectivity_dbz: Critical reflectivity.
     :return: echo_top_matrix_m_asl: M-by-N matrix of echo tops (metres above sea
         level).
-    :raises: ValueError: unique_grid_point_heights_m_asl not sorted in ascending
+    :raises: ValueError: grid_point_heights_m_asl not sorted in ascending
         order.
     """
 
@@ -248,15 +247,15 @@ def get_echo_tops(
     num_grid_columns = reflectivity_matrix_dbz.shape[2]
 
     error_checking.assert_is_numpy_array(
-        unique_grid_point_heights_m_asl,
+        grid_point_heights_m_asl,
         exact_dimensions=numpy.array([num_grid_heights]))
     error_checking.assert_is_geq_numpy_array(
-        unique_grid_point_heights_m_asl, 0.)
+        grid_point_heights_m_asl, 0.)
 
-    sorted_heights_m_asl = numpy.sort(unique_grid_point_heights_m_asl)
+    sorted_heights_m_asl = numpy.sort(grid_point_heights_m_asl)
     if not numpy.array_equal(sorted_heights_m_asl,
-                             unique_grid_point_heights_m_asl):
-        raise ValueError('unique_grid_point_heights_m_asl are not sorted in '
+                             grid_point_heights_m_asl):
+        raise ValueError('grid_point_heights_m_asl are not sorted in '
                          'ascending order.')
 
     echo_top_matrix_m_asl = numpy.full(
@@ -266,7 +265,7 @@ def get_echo_tops(
             echo_top_matrix_m_asl[i, j] = (
                 radar_utils.get_echo_top_single_column(
                     reflectivities_dbz=reflectivity_matrix_dbz[:, i, j],
-                    heights_m_asl=unique_grid_point_heights_m_asl,
+                    heights_m_asl=grid_point_heights_m_asl,
                     critical_reflectivity_dbz=critical_reflectivity_dbz,
                     check_args=False))
 

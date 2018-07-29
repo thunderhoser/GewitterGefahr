@@ -23,8 +23,11 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 PADDING_VALUE = 0
 GRID_SPACING_TOLERANCE_DEG = 1e-4
@@ -51,6 +54,10 @@ STORM_IDS_KEY = 'storm_ids'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 RADAR_FIELD_NAME_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_asl'
+ROTATION_DIVERGENCE_PRODUCTS_KEY = 'rotation_divergence_products_s02'
+HORIZ_RADIUS_FOR_RDP_KEY = 'horiz_radius_for_rdp_metres'
+MIN_HEIGHT_FOR_RDP_KEY = 'min_height_for_rdp_m_asl'
+
 STORM_TO_WINDS_TABLE_KEY = 'storm_to_winds_table'
 STORM_TO_TORNADOES_TABLE_KEY = 'storm_to_tornadoes_table'
 LABEL_VALUES_KEY = 'label_values'
@@ -68,10 +75,10 @@ STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 
 DEFAULT_NUM_IMAGE_ROWS = 32
 DEFAULT_NUM_IMAGE_COLUMNS = 32
-# MIN_NUM_IMAGE_ROWS = 8
-# MIN_NUM_IMAGE_COLUMNS = 8
 MIN_NUM_IMAGE_ROWS = 2
 MIN_NUM_IMAGE_COLUMNS = 2
+DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES = 10000.
+DEFAULT_MIN_HEIGHT_FOR_RDP_M_ASL = 4000
 
 DEFAULT_RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
 
@@ -95,11 +102,11 @@ def _centroids_latlng_to_rowcol(
         nw_grid_point_lng_deg, lat_spacing_deg, lng_spacing_deg):
     """Converts storm centroids from lat-long to row-column coordinates.
 
-    N = number of storm objects
+    L = number of storm objects
 
-    :param centroid_latitudes_deg: length-N numpy array with latitudes (deg N)
+    :param centroid_latitudes_deg: length-L numpy array with latitudes (deg N)
         of storm centroids.
-    :param centroid_longitudes_deg: length-N numpy array with longitudes (deg E)
+    :param centroid_longitudes_deg: length-L numpy array with longitudes (deg E)
         of storm centroids.
     :param nw_grid_point_lat_deg: Latitude (deg N) of northwesternmost grid
         point.
@@ -107,9 +114,9 @@ def _centroids_latlng_to_rowcol(
         point.
     :param lat_spacing_deg: Spacing (deg N) between adjacent grid rows.
     :param lng_spacing_deg: Spacing (deg E) between adjacent grid columns.
-    :return: centroid_rows: length-N numpy array with row indices (half-
+    :return: centroid_rows: length-L numpy array with row indices (half-
         integers) of storm centroids.
-    :return: centroid_columns: length-N numpy array with column indices (half-
+    :return: centroid_columns: length-L numpy array with column indices (half-
         integers) of storm centroids.
     """
 
@@ -204,7 +211,8 @@ def _get_storm_image_coords(
 
 def _check_storm_images(
         storm_image_matrix, storm_ids, valid_times_unix_sec, radar_field_name,
-        radar_height_m_asl):
+        radar_height_m_asl, rotation_divergence_products_s02=None,
+        horiz_radius_for_rdp_metres=None, min_height_for_rdp_m_asl=None):
     """Checks storm images (e.g., created by extract_storm_image) for errors.
 
     L = number of storm objects
@@ -217,6 +225,14 @@ def _check_storm_images(
     :param valid_times_unix_sec: length-L numpy array of valid times.
     :param radar_field_name: Name of radar field (string).
     :param radar_height_m_asl: Height (metres above sea level) of radar field.
+    :param rotation_divergence_products_s02: length-L numpy array of rotation-
+        divergence products (seconds^-2).  This may be `None`.
+    :param horiz_radius_for_rdp_metres:
+        [used only if `rotation_divergence_products_s02 is not None`]
+        See doc for `get_max_rdp_for_each_storm_object`.
+    :param min_height_for_rdp_m_asl:
+        [used only if `rotation_divergence_products_s02 is not None`]
+        See doc for `get_max_rdp_for_each_storm_object`.
     """
 
     error_checking.assert_is_string_list(storm_ids)
@@ -237,11 +253,19 @@ def _check_storm_images(
             [num_storm_objects, storm_image_matrix.shape[1],
              storm_image_matrix.shape[2]]))
 
+    if rotation_divergence_products_s02 is not None:
+        error_checking.assert_is_numpy_array(
+            rotation_divergence_products_s02,
+            exact_dimensions=numpy.array([num_storm_objects]))
+        error_checking.assert_is_greater(horiz_radius_for_rdp_metres, 0.)
+        error_checking.assert_is_integer(min_height_for_rdp_m_asl)
+        error_checking.assert_is_greater(min_height_for_rdp_m_asl, 0)
+
 
 def _check_storm_labels(
         storm_ids, valid_times_unix_sec, storm_to_winds_table,
         storm_to_tornadoes_table):
-    """Checks storm labels (target variables) for errors.
+    """Error-checks storm labels (target variables).
 
     L = number of storm objects
 
@@ -271,8 +295,6 @@ def _check_storm_labels(
     if storm_to_winds_table is None:
         relevant_storm_to_winds_table = None
     else:
-        # labels.check_wind_speed_label_table(storm_to_winds_table)
-
         relevant_indices = _find_storm_objects(
             all_storm_ids=storm_to_winds_table[
                 tracking_utils.STORM_ID_COLUMN].values,
@@ -286,8 +308,6 @@ def _check_storm_labels(
     if storm_to_tornadoes_table is None:
         relevant_storm_to_tornadoes_table = None
     else:
-        # labels.check_tornado_label_table(storm_to_tornadoes_table)
-
         relevant_indices = _find_storm_objects(
             all_storm_ids=storm_to_tornadoes_table[
                 tracking_utils.STORM_ID_COLUMN].values,
@@ -466,49 +486,132 @@ def _find_storm_objects(
     :param all_storm_ids: length-P list of storm IDs (strings).
     :param all_valid_times_unix_sec: length-P list of valid times.
     :param storm_ids_to_keep: length-p list of storm IDs (strings).
-    :param valid_times_to_keep_unix_sec: length-p list of valid times.
-    :return: relevant_indices: length-p numpy array with indices desired storm
-        objects in the large arrays.
-    :raises: ValueError: if any storm object (pair of storm ID and valid time)
-        is non-unique.
+    :param valid_times_to_keep_unix_sec: length-p numpy array of valid times.
+    :return: relevant_indices: length-p numpy array of indices.
+        all_storm_ids[relevant_indices] yields storm_ids_to_keep, and
+        all_valid_times_unix_sec[relevant_indices] yields
+        valid_times_to_keep_unix_sec.
+    :raises: ValueError: if `all_storm_ids` and `all_valid_times_unix_sec`
+        contain any duplicate pairs.
+    :raises: ValueError: if `storm_ids_to_keep` and
+        `valid_times_to_keep_unix_sec` contain any duplicate pairs.
+    :raises: ValueError: if any desired storm object is not found.
     """
 
-    # TODO(thunderhoser): Make this method safer.
-
     num_storm_objects_total = len(all_storm_ids)
-    all_storm_object_ids = [
+    all_object_ids = [
         '{0:s}_{1:d}'.format(all_storm_ids[i], all_valid_times_unix_sec[i])
         for i in range(num_storm_objects_total)]
 
     num_storm_objects_to_keep = len(storm_ids_to_keep)
-    storm_object_ids_to_keep = [
+    object_ids_to_keep = [
         '{0:s}_{1:d}'.format(storm_ids_to_keep[i],
                              valid_times_to_keep_unix_sec[i])
         for i in range(num_storm_objects_to_keep)]
 
-    this_num_unique = len(set(all_storm_object_ids))
-    if this_num_unique != len(all_storm_object_ids):
+    this_num_unique = len(set(all_object_ids))
+    if this_num_unique != len(all_object_ids):
         error_string = (
             'Only {0:d} of {1:d} original storm objects are unique.'
-        ).format(this_num_unique, len(all_storm_object_ids))
+        ).format(this_num_unique, len(all_object_ids))
         raise ValueError(error_string)
 
-    this_num_unique = len(set(storm_object_ids_to_keep))
-    if this_num_unique != len(storm_object_ids_to_keep):
+    this_num_unique = len(set(object_ids_to_keep))
+    if this_num_unique != len(object_ids_to_keep):
         error_string = (
             'Only {0:d} of {1:d} desired storm objects are unique.'
-        ).format(this_num_unique, len(storm_object_ids_to_keep))
+        ).format(this_num_unique, len(object_ids_to_keep))
         raise ValueError(error_string)
 
-    all_storm_object_ids = numpy.array(all_storm_object_ids, dtype='object')
-    storm_object_ids_to_keep = numpy.array(
-        storm_object_ids_to_keep, dtype='object')
+    all_object_ids_numpy = numpy.array(all_object_ids, dtype='object')
+    object_ids_to_keep_numpy = numpy.array(object_ids_to_keep, dtype='object')
 
-    sort_indices = numpy.argsort(all_storm_object_ids)
+    sort_indices = numpy.argsort(all_object_ids_numpy)
     relevant_indices = numpy.searchsorted(
-        all_storm_object_ids[sort_indices], storm_object_ids_to_keep,
-        side='left').astype(int)
-    return sort_indices[relevant_indices]
+        all_object_ids_numpy[sort_indices], object_ids_to_keep_numpy,
+        side='left'
+    ).astype(int)
+    relevant_indices = sort_indices[relevant_indices]
+
+    if not numpy.array_equal(all_object_ids_numpy[relevant_indices],
+                             object_ids_to_keep_numpy):
+        missing_object_flags = (
+            all_object_ids_numpy[relevant_indices] != object_ids_to_keep_numpy)
+
+        error_string = (
+            '{0:d} of {1:d} desired storm objects are missing.  Their ID-time '
+            'pairs are listed below.\n{2:s}'
+        ).format(numpy.sum(missing_object_flags), num_storm_objects_to_keep,
+                 str(object_ids_to_keep_numpy[missing_object_flags]))
+        raise ValueError(error_string)
+
+    return relevant_indices
+
+
+def _get_max_rdp_values_one_time(
+        divergence_matrix_s01, vorticity_matrix_s01, grid_point_latitudes_deg,
+        grid_point_longitudes_deg, grid_point_heights_m_asl,
+        min_rdp_height_m_asl, storm_centroid_latitudes_deg,
+        storm_centroid_longitudes_deg, horizontal_radius_metres):
+    """Computes max RDP for each storm object at one time step.
+
+    RDP = rotation-divergence product.  For a thorough definition, see
+    documentation for `get_max_rdp_for_each_storm_object`.
+
+    M = number of rows (unique latitudes at grid points)
+    N = number of columns (unique longitudes at grid points)
+    H = number of depths (unique heights at grid points)
+    L = number of storm objects
+
+    :param divergence_matrix_s01: H-by-M-by-N numpy array of divergence values
+        (units are seconds^-1).
+    :param vorticity_matrix_s01: H-by-M-by-N numpy array of vorticity values
+        (seconds^-1).
+    :param grid_point_latitudes_deg: length-M numpy array with latitudes (deg N)
+        of grid points.
+    :param grid_point_longitudes_deg: length-N numpy array with longitudes
+        (deg E) of grid points.
+    :param grid_point_heights_m_asl: length-H numpy array with heights (metres
+        above sea level) of grid point.
+    :param min_rdp_height_m_asl: Minimum height (metres above sea level) for RDP
+        calculations.  Lower heights will be ignored.
+    :param storm_centroid_latitudes_deg: length-L numpy array with latitudes
+        (deg N) at centroids of storm objects.
+    :param storm_centroid_longitudes_deg: length-L numpy array with longitudes
+        (deg E) at centroids of storm objects.
+    :param horizontal_radius_metres: Horizontal radius for RDP calculations.
+        Values > `horizontal_radius_metres` from the centroid of a storm object
+        will be ignored.
+    :return: max_rdp_values_s02: length-L numpy array with maximum RDP
+        (seconds^-2) for each storm object.
+    """
+
+    valid_height_indices = numpy.where(
+        grid_point_heights_m_asl >= min_rdp_height_m_asl)[0]
+    divergence_matrix_s01 = divergence_matrix_s01[valid_height_indices, ...]
+    vorticity_matrix_s01 = vorticity_matrix_s01[valid_height_indices, ...]
+    del grid_point_heights_m_asl
+
+    num_storm_objects = len(storm_centroid_latitudes_deg)
+    max_rdp_values_s02 = numpy.full(num_storm_objects, numpy.nan)
+    grid_point_dict = None
+
+    for i in range(num_storm_objects):
+        (these_rows, these_columns, grid_point_dict
+        ) = grids.get_latlng_grid_points_in_radius(
+            test_latitude_deg=storm_centroid_latitudes_deg[i],
+            test_longitude_deg=storm_centroid_longitudes_deg[i],
+            effective_radius_metres=horizontal_radius_metres,
+            grid_point_latitudes_deg=grid_point_latitudes_deg,
+            grid_point_longitudes_deg=grid_point_longitudes_deg,
+            grid_point_dict=grid_point_dict)
+
+        max_rdp_values_s02[i] = (
+            numpy.nanmax(divergence_matrix_s01[:, these_rows, these_columns]) *
+            numpy.nanmax(vorticity_matrix_s01[:, these_rows, these_columns])
+        )
+
+    return max_rdp_values_s02
 
 
 def extract_storm_image(
@@ -869,7 +972,10 @@ def extract_storm_images_gridrad(
         num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS,
         radar_field_names=DEFAULT_GRIDRAD_FIELD_NAMES,
-        radar_heights_m_asl=DEFAULT_RADAR_HEIGHTS_M_ASL):
+        radar_heights_m_asl=DEFAULT_RADAR_HEIGHTS_M_ASL,
+        include_rotation_divergence_products=False,
+        horiz_radius_for_rdp_metres=DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES,
+        min_height_for_rdp_m_asl=DEFAULT_MIN_HEIGHT_FOR_RDP_M_ASL):
     """Extracts storm-centered radar image for each field, height, storm object.
 
     L = number of storm objects
@@ -877,8 +983,13 @@ def extract_storm_images_gridrad(
     H = number of radar heights
     T = number of time steps with storm objects
 
-    :param storm_object_table: See documentation for
-        `extract_storm_images_myrorss_or_mrms`.
+    :param storm_object_table: L-row pandas DataFrame with at least the
+        following columns.
+    storm_object_table.storm_id: String ID for storm cell.
+    storm_object_table.unix_time_sec: Valid time.
+    storm_object_table.centroid_lat_deg: Latitude (deg N) of storm centroid.
+    storm_object_table.centroid_lng_deg: Longitude (deg E) of storm centroid.
+
     :param top_radar_dir_name: Same.
     :param top_output_dir_name: Same.
     :param one_file_per_time_step: Same.
@@ -887,12 +998,26 @@ def extract_storm_images_gridrad(
     :param radar_field_names: length-F list with names of radar fields.
     :param radar_heights_m_asl: length-H numpy array of radar heights (metres
         above sea level).
+    :param include_rotation_divergence_products: Boolean flag.  If True, this
+        method will compute rotation-divergence product for each storm object.
+    :param horiz_radius_for_rdp_metres: See doc for
+        `get_max_rdp_for_each_storm_object`.
+    :param min_height_for_rdp_m_asl: Same.
     :return: image_file_name_matrix: T-by-F-by-H numpy array of paths to output
         files.
     :raises: ValueError: if grid spacing is not uniform across all files.
     """
 
     error_checking.assert_is_boolean(one_file_per_time_step)
+    error_checking.assert_is_boolean(include_rotation_divergence_products)
+
+    if include_rotation_divergence_products:
+        rotation_divergence_products_s02 = get_max_rdp_for_each_storm_object(
+            storm_object_table=storm_object_table,
+            top_gridrad_dir_name=top_radar_dir_name,
+            horizontal_radius_metres=horiz_radius_for_rdp_metres,
+            min_height_m_asl=min_height_for_rdp_m_asl)
+        print SEPARATOR_STRING
 
     _, _ = gridrad_utils.fields_and_refl_heights_to_pairs(
         field_names=radar_field_names, heights_m_asl=radar_heights_m_asl)
@@ -945,6 +1070,11 @@ def extract_storm_images_gridrad(
                 this_date_storm_ids = []
                 this_date_valid_times_unix_sec = numpy.array([], dtype=int)
 
+                if include_rotation_divergence_products:
+                    this_date_rdp_values_s02 = numpy.array([], dtype=float)
+                else:
+                    this_date_rdp_values_s02 = None
+
                 for i in these_time_indices:
 
                     # Read metadata for [i]th valid time.
@@ -994,6 +1124,15 @@ def extract_storm_images_gridrad(
                         this_date_valid_times_unix_sec = numpy.concatenate((
                             this_date_valid_times_unix_sec,
                             these_times_unix_sec))
+
+                    if include_rotation_divergence_products:
+                        these_rdp_values_s02 = rotation_divergence_products_s02[
+                            these_storm_indices]
+                        if not one_file_per_time_step:
+                            this_date_rdp_values_s02 = numpy.concatenate((
+                                this_date_rdp_values_s02, these_rdp_values_s02))
+                    else:
+                        these_rdp_values_s02 = None
 
                     # Read data for [j]th field at [i]th valid time.
                     print 'Reading "{0:s}" from file: "{1:s}"...'.format(
@@ -1073,7 +1212,12 @@ def extract_storm_images_gridrad(
                             storm_ids=these_storm_ids,
                             valid_times_unix_sec=these_times_unix_sec,
                             radar_field_name=radar_field_names[j],
-                            radar_height_m_asl=radar_heights_m_asl[k])
+                            radar_height_m_asl=radar_heights_m_asl[k],
+                            rotation_divergence_products_s02=
+                            these_rdp_values_s02,
+                            horiz_radius_for_rdp_metres=
+                            horiz_radius_for_rdp_metres,
+                            min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
 
                         continue
 
@@ -1106,14 +1250,117 @@ def extract_storm_images_gridrad(
                     storm_ids=this_date_storm_ids,
                     valid_times_unix_sec=this_date_valid_times_unix_sec,
                     radar_field_name=radar_field_names[j],
-                    radar_height_m_asl=radar_heights_m_asl[k])
+                    radar_height_m_asl=radar_heights_m_asl[k],
+                    rotation_divergence_products_s02=this_date_rdp_values_s02,
+                    horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
+                    min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
 
     return image_file_name_matrix
 
 
+def get_max_rdp_for_each_storm_object(
+        storm_object_table, top_gridrad_dir_name,
+        horizontal_radius_metres=DEFAULT_HORIZ_RADIUS_FOR_RDP_METRES,
+        min_height_m_asl=DEFAULT_MIN_HEIGHT_FOR_RDP_M_ASL):
+    """Computes max rotation-divergence product (RDP) for each storm object.
+
+    This method works only for GridRad data, because unlike MYRORSS, GridRad
+    includes 3-D vorticity and divergence fields.
+
+    The "maximum RDP" for each storm object is the max RDP at height >=
+    `min_height_m_asl` and within a horizontal radius of
+    `horizontal_radius_metres` from the storm's horizontal centroid.
+
+    L = number of storm objects
+
+    :param storm_object_table: See doc for `extract_storm_images_gridrad`.
+    :param top_gridrad_dir_name: Name of top-level directory with GridRad (files
+        therein will be located by `gridrad_io.find_file` and read by
+        `gridrad_io.read_field_from_full_grid_file`).
+    :param horizontal_radius_metres: See general discussion above.
+    :param min_height_m_asl: See general discussion above.
+    :return: max_rdp_values_s02: length-L numpy array with maximum RDP for each
+        storm object.  Units are seconds^-2.
+    """
+
+    error_checking.assert_is_greater(horizontal_radius_metres, 0.)
+    error_checking.assert_is_integer(min_height_m_asl)
+    error_checking.assert_is_greater(min_height_m_asl, 0)
+
+    storm_times_unix_sec = numpy.unique(
+        storm_object_table[tracking_utils.TIME_COLUMN].values)
+    storm_time_strings = [time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+                          for t in storm_times_unix_sec]
+
+    num_storm_times = len(storm_time_strings)
+    gridrad_file_names = [None] * num_storm_times
+    for i in range(num_storm_times):
+        gridrad_file_names[i] = gridrad_io.find_file(
+            unix_time_sec=storm_times_unix_sec[i],
+            top_directory_name=top_gridrad_dir_name,
+            raise_error_if_missing=True)
+
+    num_storm_objects = len(storm_object_table.index)
+    max_rdp_values_s02 = numpy.full(num_storm_objects, numpy.nan)
+
+    for i in range(num_storm_times):
+        if i != 0:
+            print '\n'
+        this_metadata_dict = gridrad_io.read_metadata_from_full_grid_file(
+            gridrad_file_names[i])
+
+        print 'Reading "{0:s}" from file: "{1:s}"...'.format(
+            radar_utils.DIVERGENCE_NAME, gridrad_file_names[i])
+        (this_divergence_matrix_s01, these_grid_point_heights_m_asl,
+         these_grid_point_latitudes_deg, these_grid_point_longitudes_deg
+        ) = gridrad_io.read_field_from_full_grid_file(
+            netcdf_file_name=gridrad_file_names[i],
+            field_name=radar_utils.DIVERGENCE_NAME,
+            metadata_dict=this_metadata_dict, raise_error_if_fails=True)
+
+        these_grid_point_latitudes_deg = these_grid_point_latitudes_deg[::-1]
+        this_divergence_matrix_s01 = numpy.flip(
+            this_divergence_matrix_s01, axis=1)
+
+        print 'Reading "{0:s}" from file: "{1:s}"...'.format(
+            radar_utils.VORTICITY_NAME, gridrad_file_names[i])
+        (this_vorticity_matrix_s01, _, _, _
+        ) = gridrad_io.read_field_from_full_grid_file(
+            netcdf_file_name=gridrad_file_names[i],
+            field_name=radar_utils.VORTICITY_NAME,
+            metadata_dict=this_metadata_dict, raise_error_if_fails=True)
+        this_vorticity_matrix_s01 = numpy.flip(
+            this_vorticity_matrix_s01, axis=1)
+
+        print (
+            'Computing rotation-divergence product for all storm objects at '
+            '{0:s}...'
+        ).format(storm_time_strings[i])
+        these_storm_indices = numpy.where(
+            storm_object_table[tracking_utils.TIME_COLUMN].values ==
+            storm_times_unix_sec[i])[0]
+
+        max_rdp_values_s02[these_storm_indices] = _get_max_rdp_values_one_time(
+            divergence_matrix_s01=this_divergence_matrix_s01,
+            vorticity_matrix_s01=this_vorticity_matrix_s01,
+            grid_point_latitudes_deg=these_grid_point_latitudes_deg,
+            grid_point_longitudes_deg=these_grid_point_longitudes_deg,
+            grid_point_heights_m_asl=these_grid_point_heights_m_asl,
+            min_rdp_height_m_asl=min_height_m_asl,
+            storm_centroid_latitudes_deg=storm_object_table[
+                tracking_utils.CENTROID_LAT_COLUMN].values[these_storm_indices],
+            storm_centroid_longitudes_deg=storm_object_table[
+                tracking_utils.CENTROID_LNG_COLUMN].values[these_storm_indices],
+            horizontal_radius_metres=horizontal_radius_metres)
+
+    return max_rdp_values_s02
+
+
 def write_storm_images(
         netcdf_file_name, storm_image_matrix, storm_ids, valid_times_unix_sec,
-        radar_field_name, radar_height_m_asl, num_storm_objects_per_chunk=1):
+        radar_field_name, radar_height_m_asl,
+        rotation_divergence_products_s02=None, horiz_radius_for_rdp_metres=None,
+        min_height_for_rdp_m_asl=None, num_storm_objects_per_chunk=1):
     """Writes storm-centered radar images to NetCDF file.
 
     These images should be created by `extract_storm_image`.
@@ -1124,6 +1371,9 @@ def write_storm_images(
     :param valid_times_unix_sec: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
+    :param rotation_divergence_products_s02: Same.
+    :param horiz_radius_for_rdp_metres: Same.
+    :param min_height_for_rdp_m_asl: Same.
     :param num_storm_objects_per_chunk: Number of storm objects per NetCDF
         chunk.  To use default chunking, set this to `None`.
     """
@@ -1132,7 +1382,10 @@ def write_storm_images(
         storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
         valid_times_unix_sec=valid_times_unix_sec,
         radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl)
+        radar_height_m_asl=radar_height_m_asl,
+        rotation_divergence_products_s02=rotation_divergence_products_s02,
+        horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
+        min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
 
     if num_storm_objects_per_chunk is not None:
         error_checking.assert_is_integer(num_storm_objects_per_chunk)
@@ -1144,6 +1397,11 @@ def write_storm_images(
 
     netcdf_dataset.setncattr(RADAR_FIELD_NAME_KEY, radar_field_name)
     netcdf_dataset.setncattr(RADAR_HEIGHT_KEY, radar_height_m_asl)
+    if rotation_divergence_products_s02 is not None:
+        netcdf_dataset.setncattr(
+            HORIZ_RADIUS_FOR_RDP_KEY, horiz_radius_for_rdp_metres)
+        netcdf_dataset.setncattr(
+            MIN_HEIGHT_FOR_RDP_KEY, min_height_for_rdp_m_asl)
 
     num_storm_objects = storm_image_matrix.shape[0]
     num_storm_id_chars = 1
@@ -1173,6 +1431,14 @@ def write_storm_images(
         dimensions=STORM_OBJECT_DIMENSION_KEY)
     netcdf_dataset.variables[VALID_TIMES_KEY][:] = valid_times_unix_sec
 
+    if rotation_divergence_products_s02 is not None:
+        netcdf_dataset.createVariable(
+            ROTATION_DIVERGENCE_PRODUCTS_KEY, datatype=numpy.float32,
+            dimensions=STORM_OBJECT_DIMENSION_KEY)
+        netcdf_dataset.variables[
+            ROTATION_DIVERGENCE_PRODUCTS_KEY
+        ][:] = rotation_divergence_products_s02
+
     if num_storm_objects_per_chunk is None:
         chunk_size_tuple = None
     else:
@@ -1190,22 +1456,30 @@ def write_storm_images(
 
 
 def read_storm_images(
-        netcdf_file_name, return_images=True, storm_ids_to_keep=None,
+        netcdf_file_name, return_images=True,
+        min_rotation_divergence_product_s02=None, storm_ids_to_keep=None,
         valid_times_to_keep_unix_sec=None):
     """Reads storm-centered radar images from NetCDF file.
 
-    p = number of storm objects to keep
+    L = number of storm objects returned
 
-    If `storm_ids_to_keep is None` or `valid_times_to_keep_unix_sec is None`,
-    will keep all storm objects.
+    If `min_rotation_divergence_product_s02 is not None`,
+    `storm_ids_to_keep` and `valid_times_to_keep_unix_sec` will be ignored.
 
     :param netcdf_file_name: Path to input file.
-    :param return_images: Boolean flag.  If True, will return storm images +
-        metadata.  If False, will return only metadata.
-    :param storm_ids_to_keep: length-p list with string IDs of storm objects to
-        keep.
-    :param valid_times_to_keep_unix_sec: length-p numpy array with valid times
-        of storm objects to keep.
+    :param return_images: Boolean flag.  If True, will return images and
+        metadata.  If False, will return only metadata:
+    :param min_rotation_divergence_product_s02: Minimum rotation-divergence
+        product (RDP) (seconds^-2).  Only storm objects with RDP >=
+        `min_rotation_divergence_product_s02` will be returned.
+    :param storm_ids_to_keep:
+        [used only if `min_rotation_divergence_product_s02 is None and
+        return_images = True`]
+        length-L list with string ID of storm objects to keep.
+    :param valid_times_to_keep_unix_sec:
+        [used only if `min_rotation_divergence_product_s02 is None and
+        return_images = True`]
+        length-L numpy array with valid times of storm objects to keep.
     :return: storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
         `_check_storm_images`.
@@ -1213,19 +1487,52 @@ def read_storm_images(
     storm_image_dict['valid_times_unix_sec']: Same.
     storm_image_dict['radar_field_name']: Same.
     storm_image_dict['radar_height_m_asl']: Same.
+    storm_image_dict['rotation_divergence_products_s02']: Same.
+    storm_image_dict['horiz_radius_for_rdp_metres']: Same.
+    storm_image_dict['min_height_for_rdp_m_asl']: Same.
+
+    :raises: ValueError: if `min_rotation_divergence_product_s02 is not None`
+        but the NetCDF file does not contain rotation-divergence products.
     """
 
-    error_checking.assert_is_boolean(return_images)
     netcdf_dataset = netcdf_io.open_netcdf(
         netcdf_file_name=netcdf_file_name, raise_error_if_fails=True)
 
+    error_checking.assert_is_boolean(return_images)
+    if min_rotation_divergence_product_s02 is not None:
+        error_checking.assert_is_greater(
+            min_rotation_divergence_product_s02, 0.)
+
+        if ROTATION_DIVERGENCE_PRODUCTS_KEY not in netcdf_dataset.variables:
+            error_string = (
+                'Cannot filter by rotation-divergence product (RDP), because it'
+                ' is not present in the NetCDF file ("{0:s}").'
+            ).format(netcdf_file_name)
+            raise ValueError(error_string)
+
+        storm_ids_to_keep = None
+        valid_times_to_keep_unix_sec = None
+
     radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
     radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
-    num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
+    if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
+        horiz_radius_for_rdp_metres = getattr(
+            netcdf_dataset, HORIZ_RADIUS_FOR_RDP_KEY)
+        min_height_for_rdp_m_asl = getattr(
+            netcdf_dataset, MIN_HEIGHT_FOR_RDP_KEY)
+    else:
+        horiz_radius_for_rdp_metres = None
+        min_height_for_rdp_m_asl = None
 
+    num_storm_objects = netcdf_dataset.variables[STORM_IDS_KEY].shape[0]
     if num_storm_objects == 0:
         storm_ids = []
         valid_times_unix_sec = numpy.array([], dtype=int)
+        if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
+            rotation_divergence_products_s02 = numpy.array([], dtype=float)
+        else:
+            rotation_divergence_products_s02 = None
+
     else:
         storm_ids = netCDF4.chartostring(
             netcdf_dataset.variables[STORM_IDS_KEY][:])
@@ -1233,20 +1540,39 @@ def read_storm_images(
         valid_times_unix_sec = numpy.array(
             netcdf_dataset.variables[VALID_TIMES_KEY][:], dtype=int)
 
+        if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
+            rotation_divergence_products_s02 = numpy.array(
+                netcdf_dataset.variables[ROTATION_DIVERGENCE_PRODUCTS_KEY][:])
+        else:
+            rotation_divergence_products_s02 = None
+
+    if min_rotation_divergence_product_s02 is None:
+        indices_to_keep = numpy.linspace(
+            0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
+    else:
+        indices_to_keep = numpy.where(
+            rotation_divergence_products_s02 >=
+            min_rotation_divergence_product_s02)[0]
+
+        storm_ids = [storm_ids[i] for i in indices_to_keep]
+        valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
+        rotation_divergence_products_s02 = rotation_divergence_products_s02[
+            indices_to_keep]
+
     if not return_images:
         return {
             STORM_IDS_KEY: storm_ids,
             VALID_TIMES_KEY: valid_times_unix_sec,
             RADAR_FIELD_NAME_KEY: radar_field_name,
-            RADAR_HEIGHT_KEY: radar_height_m_asl
+            RADAR_HEIGHT_KEY: radar_height_m_asl,
+            ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02,
+            HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
+            MIN_HEIGHT_FOR_RDP_KEY: min_height_for_rdp_m_asl
         }
 
-    num_storm_objects = len(storm_ids)
-
-    if storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None:
-        indices_to_keep = numpy.linspace(
-            0, num_storm_objects - 1, num=num_storm_objects, dtype=int)
-    else:
+    filter_storms = not(
+        storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None)
+    if filter_storms:
         error_checking.assert_is_string_list(storm_ids_to_keep)
         error_checking.assert_is_numpy_array(
             numpy.array(storm_ids_to_keep), num_dimensions=1)
@@ -1267,6 +1593,10 @@ def read_storm_images(
         storm_ids = [storm_ids[i] for i in indices_to_keep]
         valid_times_unix_sec = valid_times_unix_sec[indices_to_keep]
 
+        if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
+            rotation_divergence_products_s02 = rotation_divergence_products_s02[
+                indices_to_keep]
+
     if len(indices_to_keep):
         storm_image_matrix = numpy.array(
             netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
@@ -1282,14 +1612,20 @@ def read_storm_images(
         storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
         valid_times_unix_sec=valid_times_unix_sec,
         radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl)
+        radar_height_m_asl=radar_height_m_asl,
+        rotation_divergence_products_s02=rotation_divergence_products_s02,
+        horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
+        min_height_for_rdp_m_asl=min_height_for_rdp_m_asl)
 
     return {
         STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
         STORM_IDS_KEY: storm_ids,
         VALID_TIMES_KEY: valid_times_unix_sec,
         RADAR_FIELD_NAME_KEY: radar_field_name,
-        RADAR_HEIGHT_KEY: radar_height_m_asl
+        RADAR_HEIGHT_KEY: radar_height_m_asl,
+        ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02,
+        HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
+        MIN_HEIGHT_FOR_RDP_KEY: min_height_for_rdp_m_asl
     }
 
 
@@ -1297,7 +1633,7 @@ def filter_storm_objects(
         label_file_name, label_name, num_storm_objects_class_dict):
     """Filters storm objects by label (target variable).
 
-    N = number of storm objects to keep
+    L = number of storm objects to keep
 
     :param label_file_name: Path to file with hazard labels (readable by
         `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
@@ -1305,9 +1641,9 @@ def filter_storm_objects(
     :param num_storm_objects_class_dict: Dictionary, where each key is a class
         integer (-2 for dead storms) and each value is the corresponding number
         of storm objects to return.
-    :return: storm_ids_to_keep: length-N list with string IDs of storm objects
+    :return: storm_ids_to_keep: length-L list with string IDs of storm objects
         to keep.
-    :return: valid_times_to_keep_unix_sec: length-N numpy array with valid times
+    :return: valid_times_to_keep_unix_sec: length-L numpy array with valid times
         of storm objects to keep.
     :return: label_values: length-T numpy array of label (target) values.
     """
@@ -1365,20 +1701,23 @@ def filter_storm_objects(
 
 def read_storm_images_and_labels(
         image_file_name, label_file_name, label_name,
+        min_rotation_divergence_product_s02=None,
         num_storm_objects_class_dict=None):
     """Reads storm-centered radar images and corresponding hazard labels.
 
-    If `num_storm_objects_class_dict is not None` and no desired storm objects
-    are found, this method will return None.
+    If no desired storm objects are found, this method returns `None`.
 
-    :param image_file_name: Path to storm-image file (readable by
-        `read_storm_images`).
-    :param label_file_name: Path to storm-label file (readable by
-        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
-    :param label_name: Will return values for this label only.
+    :param image_file_name: Path to file with storm-centered radar images (will
+        be read by `read_storm_images`).
+    :param label_file_name: Path to file with hazard labels (will be read by
+        `labels.read_labels_from_netcdf`).
+    :param label_name: Name of hazard label (target variable).
+    :param min_rotation_divergence_product_s02: Minimum rotation-divergence
+        product (RDP) (seconds^-2).  Only storm objects with RDP >=
+        `min_rotation_divergence_product_s02` will be returned.
     :param num_storm_objects_class_dict: Dictionary, where each key is a class
         integer (-2 for dead storms) and each value is the corresponding number
-        of storm objects to return.
+        of storm objects desired.
     :return storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
         `_check_storm_images`.
@@ -1386,46 +1725,38 @@ def read_storm_images_and_labels(
     storm_image_dict['valid_times_unix_sec']: Same.
     storm_image_dict['radar_field_name']: Same.
     storm_image_dict['radar_height_m_asl']: Same.
+    storm_image_dict['rotation_divergence_products_s02']: Same.
+    storm_image_dict['horiz_radius_for_rdp_metres']: Same.
+    storm_image_dict['min_height_for_rdp_m_asl']: Same.
     storm_image_dict['label_values']: 1-D numpy array with label for each storm
         object.
     """
 
-    error_checking.assert_is_string(label_file_name)
-    parameter_dict = labels.column_name_to_label_params(label_name)
-    event_type_string = parameter_dict[labels.EVENT_TYPE_KEY]
+    storm_label_dict = labels.read_labels_from_netcdf(
+        netcdf_file_name=label_file_name, label_name=label_name)
+    storm_to_events_dict = {
+        tracking_utils.STORM_ID_COLUMN:
+            storm_label_dict[labels.STORM_IDS_KEY],
+        tracking_utils.TIME_COLUMN:
+            storm_label_dict[labels.VALID_TIMES_KEY],
+        label_name: storm_label_dict[labels.LABEL_VALUES_KEY]
+    }
 
     storm_to_winds_table = None
     storm_to_tornadoes_table = None
-    _, label_file_extension = os.path.splitext(label_file_name)
+    parameter_dict = labels.column_name_to_label_params(label_name)
+    event_type_string = parameter_dict[labels.EVENT_TYPE_KEY]
 
-    if label_file_extension == '.p':
-        if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
-            storm_to_winds_table = labels.read_wind_speed_labels(
-                label_file_name)
-        else:
-            storm_to_tornadoes_table = labels.read_tornado_labels(
-                label_file_name)
+    if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
+        storm_to_winds_table = pandas.DataFrame.from_dict(
+            storm_to_events_dict)
     else:
-        storm_label_dict = labels.read_labels_from_netcdf(
-            netcdf_file_name=label_file_name, label_name=label_name)
-
-        storm_to_events_dict = {
-            tracking_utils.STORM_ID_COLUMN:
-                storm_label_dict[labels.STORM_IDS_KEY],
-            tracking_utils.TIME_COLUMN:
-                storm_label_dict[labels.VALID_TIMES_KEY],
-            label_name: storm_label_dict[labels.LABEL_VALUES_KEY]
-        }
-
-        if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
-            storm_to_winds_table = pandas.DataFrame.from_dict(
-                storm_to_events_dict)
-        else:
-            storm_to_tornadoes_table = pandas.DataFrame.from_dict(
-                storm_to_events_dict)
+        storm_to_tornadoes_table = pandas.DataFrame.from_dict(
+            storm_to_events_dict)
 
     storm_image_dict = read_storm_images(
-        netcdf_file_name=image_file_name, return_images=False)
+        netcdf_file_name=image_file_name, return_images=False,
+        min_rotation_divergence_product_s02=min_rotation_divergence_product_s02)
 
     label_values = extract_storm_labels_with_name(
         storm_ids=storm_image_dict[STORM_IDS_KEY],
@@ -1434,25 +1765,26 @@ def read_storm_images_and_labels(
         storm_to_tornadoes_table=storm_to_tornadoes_table)
 
     if num_storm_objects_class_dict is None:
-        storm_image_dict = read_storm_images(
-            netcdf_file_name=image_file_name, return_images=True)
+        indices_to_keep = numpy.linspace(
+            0, len(label_values) - 1, num=len(label_values), dtype=int)
     else:
         indices_to_keep = _filter_storm_objects_by_label(
             label_values=label_values,
             num_storm_objects_class_dict=num_storm_objects_class_dict)
-        if not len(indices_to_keep):
-            return None
 
-        storm_ids_to_keep = [
-            storm_image_dict[STORM_IDS_KEY][i] for i in indices_to_keep]
-        valid_times_to_keep_unix_sec = storm_image_dict[
-            VALID_TIMES_KEY][indices_to_keep]
+    if not len(indices_to_keep):
+        return None
 
-        storm_image_dict = read_storm_images(
-            netcdf_file_name=image_file_name, return_images=True,
-            storm_ids_to_keep=storm_ids_to_keep,
-            valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
-        label_values = label_values[indices_to_keep]
+    storm_ids_to_keep = [
+        storm_image_dict[STORM_IDS_KEY][i] for i in indices_to_keep]
+    valid_times_to_keep_unix_sec = storm_image_dict[
+        VALID_TIMES_KEY][indices_to_keep]
+
+    storm_image_dict = read_storm_images(
+        netcdf_file_name=image_file_name, return_images=True,
+        storm_ids_to_keep=storm_ids_to_keep,
+        valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
+    label_values = label_values[indices_to_keep]
 
     storm_image_dict.update({LABEL_VALUES_KEY: label_values})
     return storm_image_dict

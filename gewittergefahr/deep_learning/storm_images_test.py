@@ -153,9 +153,47 @@ INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
 # The following constants are used to test _find_storm_objects.
 ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
 ALL_VALID_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
-STORM_IDS_TO_KEEP = ['a', 'c', 'a', 'e', 'e']
-VALID_TIMES_TO_KEEP_UNIX_SEC = numpy.array([0, 0, 1, 1, 2], dtype=int)
+STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
+TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2], dtype=int)
 RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
+
+STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
+TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
+
+# The following constants are used to test _get_max_rdp_values_one_time.
+DIVERGENCE_MATRIX_HEIGHT1_S01 = numpy.array(
+    [[1, 2, 3, 4, 5, 6],
+     [7, 8, 9, 10, 11, 12],
+     [13, 14, 15, 16, 17, 18],
+     [19, 20, 21, 22, 23, 24]], dtype=float)
+DIVERGENCE_MATRIX_HEIGHT2_S01 = DIVERGENCE_MATRIX_HEIGHT1_S01 * 2
+DIVERGENCE_MATRIX_HEIGHT3_S01 = DIVERGENCE_MATRIX_HEIGHT1_S01 * 3
+DIVERGENCE_MATRIX_S01 = numpy.stack(
+    (DIVERGENCE_MATRIX_HEIGHT1_S01, DIVERGENCE_MATRIX_HEIGHT2_S01,
+     DIVERGENCE_MATRIX_HEIGHT3_S01),
+    axis=0)
+
+VORTICITY_MATRIX_HEIGHT1_S01 = numpy.array(
+    [[-11, -7, -3, 1, 5, 9],
+     [-10, -6, -2, 2, 6, 10],
+     [-9, -5, -1, 3, 7, 11],
+     [-8, -4, 0, 4, 8, 12]], dtype=float)
+VORTICITY_MATRIX_HEIGHT2_S01 = VORTICITY_MATRIX_HEIGHT1_S01 + 6.
+VORTICITY_MATRIX_HEIGHT3_S01 = VORTICITY_MATRIX_HEIGHT1_S01 + 15.
+VORTICITY_MATRIX_S01 = numpy.stack(
+    (VORTICITY_MATRIX_HEIGHT1_S01, VORTICITY_MATRIX_HEIGHT2_S01,
+     VORTICITY_MATRIX_HEIGHT3_S01),
+    axis=0)
+
+GRID_POINT_LATITUDES_DEG = numpy.array([52.5, 53, 53.5, 54])
+GRID_POINT_LONGITUDES_DEG = numpy.array(
+    [243, 244, 245, 246, 247, 248], dtype=float)
+GRID_POINT_HEIGHTS_M_ASL = numpy.array([3000, 6000, 9000], dtype=int)
+MIN_RDP_HEIGHT_M_ASL = 4000
+HORIZ_RADIUS_FOR_RDP_METRES = 75000.
+STORM_CENTROID_LATITUDES_DEG = numpy.array([52, 53.25])
+STORM_CENTROID_LONGITUDES_DEG = numpy.array([243.5, 246])
+MAX_RDP_VALUES_S02 = numpy.array([6 * 8, 51 * 22], dtype=float)
 
 # The following constants are used to test extract_one_label_per_storm.
 WIND_SPEED_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
@@ -372,15 +410,48 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
 
-    def test_find_storm_objects(self):
-        """Ensures correct output from _find_storm_objects."""
+    def test_find_storm_objects_all_good(self):
+        """Ensures correct output from _find_storm_objects.
+
+        In this case, all desired storm objects should be found.
+        """
 
         these_indices = storm_images._find_storm_objects(
             all_storm_ids=ALL_STORM_IDS,
             all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
-            storm_ids_to_keep=STORM_IDS_TO_KEEP,
-            valid_times_to_keep_unix_sec=VALID_TIMES_TO_KEEP_UNIX_SEC)
+            storm_ids_to_keep=STORM_IDS_TO_KEEP_ALL_GOOD,
+            valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD)
         self.assertTrue(numpy.array_equal(these_indices, RELEVANT_INDICES))
+
+    def test_find_storm_objects_one_missing(self):
+        """Ensures correct output from _find_storm_objects.
+
+        In this case, one desired storm object is missing.
+        """
+
+        with self.assertRaises(ValueError):
+            storm_images._find_storm_objects(
+                all_storm_ids=ALL_STORM_IDS,
+                all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
+                storm_ids_to_keep=STORM_IDS_TO_KEEP_ONE_MISSING,
+                valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING)
+
+    def test_get_max_rdp_values_one_time(self):
+        """Ensures correct output from _get_max_rdp_values_one_time."""
+
+        these_max_rdp_values_s02 = storm_images._get_max_rdp_values_one_time(
+            divergence_matrix_s01=DIVERGENCE_MATRIX_S01,
+            vorticity_matrix_s01=VORTICITY_MATRIX_S01,
+            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
+            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
+            grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
+            min_rdp_height_m_asl=MIN_RDP_HEIGHT_M_ASL,
+            storm_centroid_latitudes_deg=STORM_CENTROID_LATITUDES_DEG,
+            storm_centroid_longitudes_deg=STORM_CENTROID_LONGITUDES_DEG,
+            horizontal_radius_metres=HORIZ_RADIUS_FOR_RDP_METRES)
+
+        self.assertTrue(numpy.allclose(
+            these_max_rdp_values_s02, MAX_RDP_VALUES_S02, atol=TOLERANCE))
 
     def test_extract_storm_image_middle(self):
         """Ensures correct output from extract_storm_image.
