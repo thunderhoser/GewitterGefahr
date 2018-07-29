@@ -271,7 +271,7 @@ def _do_validation(
 
     bad_indices = numpy.where(fom_by_threshold > max_fom)[0]
     npv_by_threshold[bad_indices] = numpy.nan
-    best_threshold_index = numpy.argmax(npv_by_threshold)
+    best_threshold_index = numpy.nanargmax(npv_by_threshold)
 
     print (
         'Best threshold = {0:.2e} s^-2 ... NPV = {1:.4f} ... FOM = {2:.4f}'

@@ -461,7 +461,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, OPTIMIZATION_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
         optimize_for_probability=bool(
-            getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME)),
+            getattr(INPUT_ARG_OBJECT, OPTIMIZE_FOR_PROBABILITY_ARG_NAME)),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
         learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
         ideal_logit=getattr(INPUT_ARG_OBJECT, IDEAL_LOGIT_ARG_NAME),
