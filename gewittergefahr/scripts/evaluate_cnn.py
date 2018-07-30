@@ -164,8 +164,7 @@ def _create_forecast_observation_pairs_2d(
         if len(observed_labels) > num_storm_objects:
             break
 
-        (this_radar_image_matrix, this_sounding_matrix, these_observed_labels
-        ) = deployment_io.create_storm_images_2d(
+        this_example_dict = deployment_io.create_storm_images_2d(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
             num_examples_per_file_time=num_examples_per_file_time,
             return_target=True,
@@ -181,6 +180,13 @@ def _create_forecast_observation_pairs_2d(
             model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+
+        this_radar_image_matrix = this_example_dict[
+            deployment_io.RADAR_IMAGE_MATRIX_KEY]
+        this_sounding_matrix = this_example_dict[
+            deployment_io.SOUNDING_MATRIX_KEY]
+        these_observed_labels = this_example_dict[
+            deployment_io.TARGET_VALUES_KEY]
 
         print MINOR_SEPARATOR_STRING
         if this_radar_image_matrix is None:
@@ -248,9 +254,7 @@ def _create_forecast_observation_pairs_3d(
         if len(observed_labels) > num_storm_objects:
             break
 
-        (this_radar_image_matrix, this_sounding_matrix, these_observed_labels,
-         these_rdp_values_s02
-        ) = deployment_io.create_storm_images_3d(
+        this_example_dict = deployment_io.create_storm_images_3d(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
             num_examples_per_file_time=num_examples_per_file_time,
             return_target=True,
@@ -270,6 +274,15 @@ def _create_forecast_observation_pairs_3d(
             model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+
+        this_radar_image_matrix = this_example_dict[
+            deployment_io.RADAR_IMAGE_MATRIX_KEY]
+        this_sounding_matrix = this_example_dict[
+            deployment_io.SOUNDING_MATRIX_KEY]
+        these_observed_labels = this_example_dict[
+            deployment_io.TARGET_VALUES_KEY]
+        these_rdp_values_s02 = this_example_dict[
+            deployment_io.ROTATION_DIVERGENCE_PRODUCTS_KEY]
 
         print MINOR_SEPARATOR_STRING
         if this_radar_image_matrix is None:
@@ -340,9 +353,7 @@ def _create_forecast_observation_pairs_2d3d(
         if len(observed_labels) > num_storm_objects:
             break
 
-        (this_reflectivity_matrix_dbz, this_azimuthal_shear_matrix_s01,
-         this_sounding_matrix, these_observed_labels
-        ) = deployment_io.create_storm_images_2d3d_myrorss(
+        this_example_dict = deployment_io.create_storm_images_2d3d_myrorss(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
             num_examples_per_file_time=num_examples_per_file_time,
             return_target=True,
@@ -358,6 +369,15 @@ def _create_forecast_observation_pairs_2d3d(
             model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+
+        this_reflectivity_matrix_dbz = this_example_dict[
+            deployment_io.REFLECTIVITY_MATRIX_KEY]
+        this_azimuthal_shear_matrix_s01 = this_example_dict[
+            deployment_io.AZ_SHEAR_MATRIX_KEY]
+        this_sounding_matrix = this_example_dict[
+            deployment_io.SOUNDING_MATRIX_KEY]
+        these_observed_labels = this_example_dict[
+            deployment_io.TARGET_VALUES_KEY]
 
         print MINOR_SEPARATOR_STRING
         if this_reflectivity_matrix_dbz is None:

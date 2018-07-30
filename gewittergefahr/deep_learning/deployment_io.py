@@ -26,6 +26,13 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import error_checking
 
+RADAR_IMAGE_MATRIX_KEY = 'radar_image_matrix'
+REFLECTIVITY_MATRIX_KEY = 'reflectivity_image_matrix_dbz'
+AZ_SHEAR_MATRIX_KEY = 'azimuthal_shear_image_matrix_s01'
+SOUNDING_MATRIX_KEY = 'sounding_matrix'
+TARGET_VALUES_KEY = 'target_values'
+ROTATION_DIVERGENCE_PRODUCTS_KEY = 'rotation_divergence_products_s02'
+
 
 def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
     """Randomly subsets radar images.
@@ -56,9 +63,16 @@ def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
     radar_image_dict[storm_images.VALID_TIMES_KEY] = radar_image_dict[
         storm_images.VALID_TIMES_KEY][example_to_keep_indices]
 
-    if storm_images.LABEL_VALUES_KEY in radar_image_dict:
-        radar_image_dict[storm_images.LABEL_VALUES_KEY] = radar_image_dict[
-            storm_images.LABEL_VALUES_KEY][example_to_keep_indices]
+    these_keys = [
+        storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY,
+        storm_images.LABEL_VALUES_KEY
+    ]
+
+    for this_key in these_keys:
+        if this_key not in radar_image_dict:
+            continue
+        radar_image_dict[this_key] = radar_image_dict[
+            this_key][example_to_keep_indices]
 
     return radar_image_dict
 
@@ -104,13 +118,15 @@ def create_storm_images_2d(
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
-    :return: radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
-        radar images.
-    :return: sounding_matrix: [may be None]
-        numpy array (E x H_s x F_s) of storm-centered soundings.
-    :return: target_values: [may be None]
-        length-E numpy array of target values.  If target_values[i] = k, the
-        [i]th storm object belongs to the [k]th class.
+    :return: example_dict: Dictionary with the following keys.
+    example_dict['radar_image_matrix']: E-by-M-by-N-by-C numpy array of
+        storm-centered radar images.
+    example_dict['sounding_matrix']: numpy array (E x H_s x F_s) of
+        storm-centered soundings.  If `sounding_field_names is None`, this is
+        `None`.
+    example_dict['target_values']: length-E numpy array of target values.  If
+        target_values[i] = k, the [i]th storm object belongs to the [k]th class.
+        If `return_target = False`, this is `None`.
     """
 
     error_checking.assert_is_boolean(return_target)
@@ -229,7 +245,7 @@ def create_storm_images_2d(
                 (radar_image_matrix, this_radar_image_matrix), axis=0)
 
     if radar_image_matrix is None:
-        return None, None, None
+        return None
 
     radar_image_matrix = dl_utils.normalize_radar_images(
         radar_image_matrix=radar_image_matrix,
@@ -246,7 +262,11 @@ def create_storm_images_2d(
         num_classes = labels.column_name_to_num_classes(target_name)
         target_values = (target_values == num_classes - 1).astype(int)
 
-    return radar_image_matrix, sounding_matrix, target_values
+    return {
+        RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
+        SOUNDING_MATRIX_KEY: sounding_matrix,
+        TARGET_VALUES_KEY: target_values
+    }
 
 
 def create_storm_images_3d(
@@ -289,17 +309,15 @@ def create_storm_images_3d(
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
-    :return: radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
-        centered radar images.
-    :return: sounding_matrix: See doc for `create_storm_images_2d`.
-    :return: target_values: Same.
-    :return: rotation_divergence_products_s02: length-E numpy array of
+    :param example_dict: Dictionary with the following keys.
+    example_dict['radar_image_matrix']: numpy array (E x M x N x H_r x F_r) of
+        storm-centered radar images.
+    example_dict['sounding_matrix']: See doc for `create_storm_images_2d`.
+    example_dict['target_values']: Same.
+    example_dict['rotation_divergence_products_s02']: length-E numpy array of
         rotation-divergence products (seconds^-2).  If
         `return_rotation_divergence_product = False`, this is None.
     """
-
-    # TODO(thunderhoser): Should return dictionary, rather than 4 values in a
-    # tuple.
 
     error_checking.assert_is_boolean(return_target)
     error_checking.assert_is_boolean(return_rotation_divergence_product)
@@ -442,7 +460,7 @@ def create_storm_images_3d(
                 (radar_image_matrix, this_radar_image_matrix), axis=0)
 
     if radar_image_matrix is None:
-        return None, None, None, None
+        return None
 
     radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
         radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
@@ -462,8 +480,12 @@ def create_storm_images_3d(
         num_classes = labels.column_name_to_num_classes(target_name)
         target_values = (target_values == num_classes - 1).astype(int)
 
-    return (radar_image_matrix, sounding_matrix, target_values,
-            rotation_divergence_products_s02)
+    return {
+        RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
+        SOUNDING_MATRIX_KEY: sounding_matrix,
+        TARGET_VALUES_KEY: target_values,
+        ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02
+    }
 
 
 def create_storm_images_2d3d_myrorss(
@@ -508,12 +530,13 @@ def create_storm_images_2d3d_myrorss(
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
         `deep_learning_utils.normalize_sounding_matrix`).
-    :return: reflectivity_image_matrix_dbz: numpy array (E x m x n x H_r x 1) of
-        storm-centered reflectivity images.
-    :return: azimuthal_shear_image_matrix_s01: numpy array (E x M x N x F_a) of
-        storm-centered azimuthal-shear images.
-    :return: sounding_matrix: See doc for `create_storm_images_2d`.
-    :return: target_values: Same.
+    :return: example_dict: Dictionary with the following keys.
+    example_dict['reflectivity_image_matrix_dbz']: numpy array
+        (E x m x n x H_r x 1) of storm-centered reflectivity images.
+    example_dict['azimuthal_shear_image_matrix_s01']: numpy array
+        (E x M x N x F_a) of storm-centered azimuthal-shear images.
+    example_dict['sounding_matrix']: See doc for `create_storm_images_2d`.
+    example_dict['target_values']: Same.
     """
 
     error_checking.assert_is_boolean(return_target)
@@ -664,7 +687,7 @@ def create_storm_images_2d3d_myrorss(
                  this_azimuthal_shear_matrix_s01), axis=0)
 
     if reflectivity_image_matrix_dbz is None:
-        return None, None, None, None
+        return None
 
     reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
         radar_image_matrix=reflectivity_image_matrix_dbz,
@@ -685,5 +708,9 @@ def create_storm_images_2d3d_myrorss(
         num_classes = labels.column_name_to_num_classes(target_name)
         target_values = (target_values == num_classes - 1).astype(int)
 
-    return (reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
-            sounding_matrix, target_values)
+    return {
+        REFLECTIVITY_MATRIX_KEY: reflectivity_image_matrix_dbz,
+        AZ_SHEAR_MATRIX_KEY: azimuthal_shear_image_matrix_s01,
+        SOUNDING_MATRIX_KEY: sounding_matrix,
+        TARGET_VALUES_KEY: target_values
+    }
