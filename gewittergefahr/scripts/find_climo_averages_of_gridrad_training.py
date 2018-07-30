@@ -197,6 +197,9 @@ def _run(
             this_sounding_dict[soundings_only.STORM_IDS_KEY])
 
         for j in range(num_sounding_fields):
+            if this_num_storm_objects == 0:
+                continue
+
             this_field_index = this_sounding_dict[
                 soundings_only.PRESSURELESS_FIELD_NAMES_KEY
             ].index(SOUNDING_FIELD_NAMES[j])
@@ -210,7 +213,6 @@ def _run(
                 this_mean_value = numpy.mean(
                     this_sounding_dict[soundings_only.SOUNDING_MATRIX_KEY][
                         :, this_pressure_index, this_field_index])
-                print this_mean_value
 
                 mean_sounding_value_matrix[j, k] = _get_weighted_average(
                     input_values=numpy.array(
