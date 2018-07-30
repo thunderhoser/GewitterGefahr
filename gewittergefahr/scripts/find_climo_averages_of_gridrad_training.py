@@ -211,7 +211,7 @@ def _run(
                     this_sounding_dict[soundings_only.SOUNDING_MATRIX_KEY][
                         :, this_pressure_index, this_field_index])
 
-                mean_radar_value_matrix[j, k] = _get_weighted_average(
+                mean_sounding_value_matrix[j, k] = _get_weighted_average(
                     input_values=numpy.array(
                         [mean_sounding_value_matrix[j, k], this_mean_value]),
                     input_weights=numpy.array([
