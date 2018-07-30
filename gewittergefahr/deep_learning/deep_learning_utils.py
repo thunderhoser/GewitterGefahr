@@ -17,6 +17,7 @@ T = number of file times (time steps or SPC dates)
 """
 
 import copy
+import pickle
 import numpy
 from gewittergefahr.gg_io import raw_wind_io as wind_utils
 from gewittergefahr.gg_utils import labels
@@ -24,6 +25,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
@@ -767,3 +769,43 @@ def sample_by_class(
             indices_to_keep_by_class_dict[this_key][:this_num_examples]))
 
     return indices_to_keep
+
+
+def write_climo_averages_to_file(
+        pickle_file_name, mean_radar_value_dict, mean_sounding_value_dict):
+    """Writes climatological averages to Pickle file.
+
+    :param pickle_file_name: Path to output file.
+    :param mean_radar_value_dict: Dictionary, where key
+        [field_name, height_m_asl] contains the climatological average for the
+        given field.  `field_name` must be accepted by
+        `radar_utils.check_field_name`, and `height_m_asl` must be the radar
+        height in metres above sea level.
+    :param mean_sounding_value_dict: Dictionary, where key
+        [field_name, pressure_level_mb] contains the climatological average for
+        the given field.  `field_name` must be accepted by
+        `soundings_only.check_pressureless_field_name`, and `pressure_level_mb`
+        must be the pressure level in millibars.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_radar_value_dict, pickle_file_handle)
+    pickle.dump(mean_sounding_value_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_climo_averages_from_file(pickle_file_name):
+    """Reads climatological averages from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mean_radar_value_dict: See doc for `write_climo_averages_to_file`.
+    :return: mean_sounding_value_dict: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mean_radar_value_dict = pickle.load(pickle_file_handle)
+    mean_sounding_value_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return mean_radar_value_dict, mean_sounding_value_dict
