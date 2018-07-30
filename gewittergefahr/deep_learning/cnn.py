@@ -1676,20 +1676,24 @@ def apply_3d_cnn(
     high_rdp_indices = numpy.where(
         rotation_divergence_products_s02 >= rdp_filter_threshold_s02)[0]
 
-    print '{0:d} of {1:d}'.format(
-        len(high_rdp_indices), len(rotation_divergence_products_s02))
+    print '{0:d} of {1:d} storm objects have RDP >= {2:.2e} s^-2.'.format(
+        len(high_rdp_indices), len(rotation_divergence_products_s02),
+        rdp_filter_threshold_s02)
 
     if len(high_rdp_indices):
         if sounding_matrix is None:
             class_probability_matrix[
                 high_rdp_indices, ...
             ] = model_object.predict(
-                radar_image_matrix, batch_size=num_examples)
+                radar_image_matrix[high_rdp_indices, ...],
+                batch_size=num_examples)
         else:
             class_probability_matrix[
                 high_rdp_indices, ...
             ] = model_object.predict(
-                [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+                [radar_image_matrix[high_rdp_indices, ...],
+                 sounding_matrix[high_rdp_indices, ...]],
+                batch_size=num_examples)
 
     return class_probability_matrix
 
