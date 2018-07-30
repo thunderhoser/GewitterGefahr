@@ -1172,7 +1172,8 @@ def read_soundings(
         sounding_matrix = sounding_matrix[storm_object_to_keep_indices, ...]
 
         if lowest_pressures_mb is not None:
-            lowest_pressures_mb = lowest_pressures_mb[storm_object_to_keep_indices]
+            lowest_pressures_mb = lowest_pressures_mb[
+                storm_object_to_keep_indices]
 
     num_storm_objects = len(storm_ids)
     lead_times_seconds = numpy.full(

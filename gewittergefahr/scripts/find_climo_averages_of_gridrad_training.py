@@ -172,16 +172,17 @@ def _run(
                         return_images=True, storm_ids_to_keep=these_storm_ids,
                         valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
 
-                these_values = numpy.array([
-                    mean_radar_value_matrix[j, k],
-                    numpy.mean(this_radar_image_dict)
-                ])
-                these_weights = numpy.array([
-                    num_storm_objects_with_radar_images,
-                    this_num_storm_objects])
+                this_mean_value = numpy.mean(
+                    this_radar_image_dict[
+                        storm_images.STORM_IMAGE_MATRIX_KEY[:, j, k]])
 
                 mean_radar_value_matrix[j, k] = _get_weighted_average(
-                    input_values=these_values, input_weights=these_weights)
+                    input_values=numpy.array(
+                        [mean_radar_value_matrix[j, k], this_mean_value]),
+                    input_weights=numpy.array([
+                        num_storm_objects_with_radar_images,
+                        this_num_storm_objects])
+                )
 
         num_storm_objects_with_radar_images += this_num_storm_objects
 
@@ -206,16 +207,18 @@ def _run(
                     SOUNDING_PRESSURE_LEVELS_MB[k]
                 )[0]
 
-                these_values = numpy.array([
-                    mean_sounding_value_matrix[j, k],
+                this_mean_value = numpy.mean(
                     this_sounding_dict[soundings_only.SOUNDING_MATRIX_KEY][
-                        :, this_pressure_index, this_field_index]
-                ])
-                these_weights = numpy.array(
-                    [num_storm_objects_with_soundings, this_num_storm_objects])
+                        :, this_pressure_index, this_field_index])
 
                 mean_radar_value_matrix[j, k] = _get_weighted_average(
-                    input_values=these_values, input_weights=these_weights)
+                    input_values=numpy.array(
+                        [mean_sounding_value_matrix[j, k], this_mean_value]),
+                    input_weights=numpy.array([
+                        num_storm_objects_with_soundings,
+                        this_num_storm_objects
+                    ])
+                )
 
         num_storm_objects_with_soundings += this_num_storm_objects
         print SEPARATOR_STRING
