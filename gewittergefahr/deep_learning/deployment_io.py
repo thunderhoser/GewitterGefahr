@@ -298,6 +298,9 @@ def create_storm_images_3d(
         `return_rotation_divergence_product = False`, this is None.
     """
 
+    # TODO(thunderhoser): Should return dictionary, rather than 4 values in a
+    # tuple.
+
     error_checking.assert_is_boolean(return_target)
     error_checking.assert_is_boolean(return_rotation_divergence_product)
     if not return_target:
@@ -439,7 +442,7 @@ def create_storm_images_3d(
                 (radar_image_matrix, this_radar_image_matrix), axis=0)
 
     if radar_image_matrix is None:
-        return None, None, None
+        return None, None, None, None
 
     radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
         radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
