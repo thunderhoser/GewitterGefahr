@@ -4,12 +4,14 @@ GridRad training data consist of storm-centered radar images and storm-centered
 NWP soundings.
 """
 
+import pickle
 import argparse
 import numpy
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -34,6 +36,7 @@ SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
+OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 RADAR_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
@@ -53,6 +56,9 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'computed for each of these fields at each height (metres above sea level) '
     'in the following list.\n{0:s}'
 ).format(str(RADAR_HEIGHTS_M_ASL))
+OUTPUT_FILE_HELP_STRING = (
+    'Path to output file.  This will be a Pickle file with the climatological '
+    'mean for each radar field/height and each sounding field/pressure.')
 
 DEFAULT_TOP_RADAR_IMAGE_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
@@ -89,6 +95,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
     default=DEFAULT_RADAR_FIELD_NAMES, help=RADAR_FIELD_NAMES_HELP_STRING)
 
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
+    help=OUTPUT_FILE_HELP_STRING)
+
 
 def _get_weighted_average(input_values, input_weights):
     """Computes weighted average.
@@ -103,9 +113,49 @@ def _get_weighted_average(input_values, input_weights):
     return numpy.average(input_values, weights=input_weights)
 
 
+def _write_climo_averages_to_file(
+        pickle_file_name, mean_radar_value_dict, mean_sounding_value_dict):
+    """Writes climatological averages to Pickle file.
+
+    :param pickle_file_name: Path to output file.
+    :param mean_radar_value_dict: Dictionary, where key
+        [field_name, height_m_asl] contains the climatological average for the
+        given field.  `field_name` must be accepted by
+        `radar_utils.check_field_name`, and `height_m_asl` must be the radar
+        height in metres above sea level.
+    :param mean_sounding_value_dict: Dictionary, where key
+        [field_name, pressure_level_mb] contains the climatological average for
+        the given field.  `field_name` must be accepted by
+        `soundings_only.check_pressureless_field_name`, and `pressure_level_mb`
+        must be the pressure level in millibars.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_radar_value_dict, pickle_file_handle)
+    pickle.dump(mean_sounding_value_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def _read_climo_averages_from_file(pickle_file_name):
+    """Reads climatological averages from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mean_radar_value_dict: See doc for `_write_climo_averages_to_file`.
+    :return: mean_sounding_value_dict: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mean_radar_value_dict = pickle.load(pickle_file_handle)
+    mean_sounding_value_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return mean_radar_value_dict, mean_sounding_value_dict
+
+
 def _run(
         top_radar_image_dir_name, top_sounding_dir_name, first_spc_date_string,
-        last_spc_date_string, radar_field_names):
+        last_spc_date_string, radar_field_names, output_file_name):
     """Finds climatological averages for GridRad training data.
 
     This is effectively the main method.
@@ -115,6 +165,7 @@ def _run(
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param radar_field_names: Same.
+    :param output_file_name: Same.
     """
 
     radar_file_name_matrix = trainval_io.find_radar_files_3d(
@@ -143,10 +194,18 @@ def _run(
     num_sounding_fields = len(SOUNDING_FIELD_NAMES)
     num_sounding_pressures = len(SOUNDING_PRESSURE_LEVELS_MB)
 
-    mean_radar_value_matrix = numpy.full(
-        (num_radar_fields, num_radar_heights), 0.)
-    mean_sounding_value_matrix = numpy.full(
-        (num_sounding_fields, num_sounding_pressures), 0.)
+    mean_radar_value_dict = {}
+    for j in range(num_radar_fields):
+        for k in range(num_radar_heights):
+            mean_radar_value_dict[
+                radar_field_names[j], RADAR_HEIGHTS_M_ASL[k]] = 0.
+
+    mean_sounding_value_dict = {}
+    for j in range(num_sounding_fields):
+        for k in range(num_sounding_pressures):
+            mean_sounding_value_dict[
+                SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]] = 0.
+
     num_storm_objects_with_radar_images = 0
     num_storm_objects_with_soundings = 0
 
@@ -175,10 +234,16 @@ def _run(
                 this_mean_value = numpy.mean(
                     this_radar_image_dict[
                         storm_images.STORM_IMAGE_MATRIX_KEY][:, j, k])
+                these_values = numpy.array([
+                    mean_radar_value_dict[
+                        radar_field_names[j], RADAR_HEIGHTS_M_ASL[k]],
+                    this_mean_value
+                ])
 
-                mean_radar_value_matrix[j, k] = _get_weighted_average(
-                    input_values=numpy.array(
-                        [mean_radar_value_matrix[j, k], this_mean_value]),
+                mean_radar_value_dict[
+                    radar_field_names[j], RADAR_HEIGHTS_M_ASL[k]
+                ] = _get_weighted_average(
+                    input_values=these_values,
                     input_weights=numpy.array([
                         num_storm_objects_with_radar_images,
                         this_num_storm_objects])
@@ -213,10 +278,17 @@ def _run(
                 this_mean_value = numpy.mean(
                     this_sounding_dict[soundings_only.SOUNDING_MATRIX_KEY][
                         :, this_pressure_index, this_field_index])
+                these_values = numpy.array([
+                    mean_sounding_value_dict[
+                        SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]
+                    ],
+                    this_mean_value
+                ])
 
-                mean_sounding_value_matrix[j, k] = _get_weighted_average(
-                    input_values=numpy.array(
-                        [mean_sounding_value_matrix[j, k], this_mean_value]),
+                mean_sounding_value_dict[
+                    SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]
+                ] = _get_weighted_average(
+                    input_values=these_values,
                     input_weights=numpy.array([
                         num_storm_objects_with_soundings,
                         this_num_storm_objects
@@ -230,7 +302,8 @@ def _run(
         for k in range(num_radar_heights):
             print 'Mean "{0:s}" at {1:d} metres ASL = {2:.2e}'.format(
                 radar_field_names[j], RADAR_HEIGHTS_M_ASL[k],
-                mean_radar_value_matrix[j, k])
+                mean_radar_value_dict[
+                    radar_field_names[j], RADAR_HEIGHTS_M_ASL[k]])
 
     print SEPARATOR_STRING
 
@@ -238,7 +311,16 @@ def _run(
         for k in range(num_sounding_pressures):
             print 'Mean "{0:s}" at {1:d} mb = {2:.2e}'.format(
                 SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k],
-                mean_sounding_value_matrix[j, k])
+                mean_sounding_value_dict[
+                    SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]])
+
+    print SEPARATOR_STRING
+    print 'Writing climatological averages to file: "{0:s}"...'.format(
+        output_file_name)
+    _write_climo_averages_to_file(
+        pickle_file_name=output_file_name,
+        mean_radar_value_dict=mean_radar_value_dict,
+        mean_sounding_value_dict=mean_sounding_value_dict)
 
 
 if __name__ == '__main__':
@@ -251,4 +333,5 @@ if __name__ == '__main__':
         first_spc_date_string=getattr(
             INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
-        radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME))
+        radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME),
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
