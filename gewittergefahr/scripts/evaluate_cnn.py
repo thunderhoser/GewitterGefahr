@@ -181,16 +181,16 @@ def _create_forecast_observation_pairs_2d(
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
+        print MINOR_SEPARATOR_STRING
+        if this_example_dict is None:
+            continue
+
         this_radar_image_matrix = this_example_dict[
             deployment_io.RADAR_IMAGE_MATRIX_KEY]
         this_sounding_matrix = this_example_dict[
             deployment_io.SOUNDING_MATRIX_KEY]
         these_observed_labels = this_example_dict[
             deployment_io.TARGET_VALUES_KEY]
-
-        print MINOR_SEPARATOR_STRING
-        if this_radar_image_matrix is None:
-            continue
 
         this_probability_matrix = cnn.apply_2d_cnn(
             model_object=model_object,
@@ -275,6 +275,10 @@ def _create_forecast_observation_pairs_3d(
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
+        print MINOR_SEPARATOR_STRING
+        if this_example_dict is None:
+            continue
+
         this_radar_image_matrix = this_example_dict[
             deployment_io.RADAR_IMAGE_MATRIX_KEY]
         this_sounding_matrix = this_example_dict[
@@ -283,10 +287,6 @@ def _create_forecast_observation_pairs_3d(
             deployment_io.TARGET_VALUES_KEY]
         these_rdp_values_s02 = this_example_dict[
             deployment_io.ROTATION_DIVERGENCE_PRODUCTS_KEY]
-
-        print MINOR_SEPARATOR_STRING
-        if this_radar_image_matrix is None:
-            continue
 
         this_probability_matrix = cnn.apply_3d_cnn(
             model_object=model_object,
@@ -370,6 +370,10 @@ def _create_forecast_observation_pairs_2d3d(
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
+        print MINOR_SEPARATOR_STRING
+        if this_example_dict is None:
+            continue
+
         this_reflectivity_matrix_dbz = this_example_dict[
             deployment_io.REFLECTIVITY_MATRIX_KEY]
         this_azimuthal_shear_matrix_s01 = this_example_dict[
@@ -378,10 +382,6 @@ def _create_forecast_observation_pairs_2d3d(
             deployment_io.SOUNDING_MATRIX_KEY]
         these_observed_labels = this_example_dict[
             deployment_io.TARGET_VALUES_KEY]
-
-        print MINOR_SEPARATOR_STRING
-        if this_reflectivity_matrix_dbz is None:
-            continue
 
         this_probability_matrix = cnn.apply_2d3d_cnn(
             model_object=model_object,
