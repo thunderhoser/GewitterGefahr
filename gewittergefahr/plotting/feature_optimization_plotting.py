@@ -22,6 +22,9 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.plotting import radar_plotting
 
+# TODO(thunderhoser): Allow this module to plot optimized soundings, not just
+# optimized radar fields.
+
 METRES_TO_KM = 1e-3
 
 DEFAULT_FIG_WIDTH_INCHES = 15.

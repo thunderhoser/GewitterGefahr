@@ -617,7 +617,8 @@ def get_batch_norm_layer(
 
 def get_fully_connected_layer(
         num_output_units, activation_function=None,
-        kernel_weight_init='glorot_uniform', bias_weight_init='zeros'):
+        kernel_weight_init='glorot_uniform', bias_weight_init='zeros',
+        kernel_weight_regularizer=None, bias_weight_regularizer=None):
     """Creates fully connected layer (traditional neural-net layer).
 
     :param num_output_units: Number of output units ("neurons").
@@ -626,10 +627,10 @@ def get_fully_connected_layer(
         string or instance of `keras.initializers.Initializer`).
     :param bias_weight_init: Initialization method for biases (either string or
         instance of `keras.initializers.Initializer`).
+    :param kernel_weight_regularizer: See doc for `get_3d_conv_layer`.
+    :param bias_weight_regularizer: Same.
     :return: layer_object: Instance of `keras.layers.Dense`.
     """
-
-    # TODO(thunderhoser): Add regularization.
 
     error_checking.assert_is_integer(num_output_units)
     error_checking.assert_is_greater(num_output_units, 0)
@@ -639,7 +640,9 @@ def get_fully_connected_layer(
     return keras.layers.Dense(
         num_output_units, activation=activation_function, use_bias=True,
         kernel_initializer=kernel_weight_init,
-        bias_initializer=bias_weight_init)
+        bias_initializer=bias_weight_init,
+        kernel_regularizer=kernel_weight_regularizer,
+        bias_regularizer=bias_weight_regularizer)
 
 
 def get_flattening_layer():

@@ -1676,6 +1676,9 @@ def apply_3d_cnn(
     high_rdp_indices = numpy.where(
         rotation_divergence_products_s02 >= rdp_filter_threshold_s02)[0]
 
+    print '{0:d} of {1:d}'.format(
+        len(high_rdp_indices), len(rotation_divergence_products_s02))
+
     if len(high_rdp_indices):
         if sounding_matrix is None:
             class_probability_matrix[
