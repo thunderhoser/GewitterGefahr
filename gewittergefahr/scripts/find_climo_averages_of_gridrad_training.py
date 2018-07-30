@@ -174,7 +174,7 @@ def _run(
 
                 this_mean_value = numpy.mean(
                     this_radar_image_dict[
-                        storm_images.STORM_IMAGE_MATRIX_KEY[:, j, k]])
+                        storm_images.STORM_IMAGE_MATRIX_KEY][:, j, k])
 
                 mean_radar_value_matrix[j, k] = _get_weighted_average(
                     input_values=numpy.array(
