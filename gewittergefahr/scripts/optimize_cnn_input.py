@@ -3,12 +3,13 @@
 CNN = convolutional neural network
 """
 
-import pickle
+import copy
 import os.path
 import argparse
 import numpy
 from keras import backend as K
 import keras.models
+from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -18,7 +19,6 @@ from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 # TODO(thunderhoser): Get rid of Swirlnet functionality.
-# TODO(thunderhoser): Allow optimization for more than one neuron or channel.
 # TODO(thunderhoser): Allow optimization with more than one initialization.
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
@@ -39,9 +39,9 @@ NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 LEARNING_RATE_ARG_NAME = 'learning_rate'
 IDEAL_LOGIT_ARG_NAME = 'ideal_logit'
 LAYER_NAME_ARG_NAME = 'layer_name'
-NEURON_INDICES_ARG_NAME = 'neuron_indices'
 IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
-CHANNEL_INDEX_ARG_NAME = 'channel_index'
+NEURON_INDICES_ARG_NAME = 'neuron_indices'
+CHANNEL_INDICES_ARG_NAME = 'channel_indices'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -88,14 +88,6 @@ LAYER_NAME_HELP_STRING = (
 ).format(OPTIMIZATION_TYPE_ARG_NAME,
          feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
          feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING)
-NEURON_INDICES_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] List of indices for neuron whose activation'
-    ' is to be maximized.  If the output of layer `{2:s}` has K dimensions, '
-    '`{3:s}` must have length K - 1.  (The first dimension of the layer output '
-    'is the example dimension, for which the index is always 0.)'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
-         LAYER_NAME_ARG_NAME, NEURON_INDICES_ARG_NAME)
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] The loss function will be '
     '(neuron_activation - ideal_activation)**2 or [max(channel_activations) - '
@@ -106,9 +98,17 @@ IDEAL_ACTIVATION_HELP_STRING = (
          feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
          feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING,
          IDEAL_ACTIVATION_ARG_NAME)
-CHANNEL_INDEX_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Index of channel whose max activation is to'
-    ' be maximized.'
+NEURON_INDICES_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}"] Indices for each neuron whose activation is'
+    ' to be maximized.  For example, to maximize activation for neuron '
+    '(0, 0, 2), this argument should be "0 0 2".  To maximize activations for '
+    'neurons (0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In'
+    ' other words, use -1 to separate neurons.'
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING)
+CHANNEL_INDICES_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}"] Index for each channel whose activation is '
+    'to be maximized.'
 ).format(OPTIMIZATION_TYPE_ARG_NAME,
          feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING)
 OUTPUT_FILE_HELP_STRING = (
@@ -165,8 +165,8 @@ INPUT_ARG_PARSER.add_argument(
     help=IDEAL_ACTIVATION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + CHANNEL_INDEX_ARG_NAME, type=int, required=False, default=-1,
-    help=CHANNEL_INDEX_HELP_STRING)
+    '--' + CHANNEL_INDICES_ARG_NAME, type=int, nargs='+', required=False,
+    default=[-1], help=CHANNEL_INDICES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -229,59 +229,77 @@ def _denormalize_swirlnet_data(input_matrix):
     return input_matrix
 
 
-def _write_optimized_input_file(
-        pickle_file_name, list_of_optimized_input_matrices, model_file_name,
-        is_model_swirlnet, optimization_type_string, target_class,
-        optimize_for_probability, num_iterations, learning_rate, ideal_logit,
-        layer_name, neuron_indices, ideal_activation, channel_index):
-    """Writes optimized input data to Pickle file.
+def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
+    """Denormalizes input data for a GewitterGefahr model.
 
-    :param pickle_file_name: Path to output file.
-    :param list_of_optimized_input_matrices: length-T list of optimized input
-        matrices (numpy arrays), where T = number of input tensors to the model.
-    :param model_file_name: See documentation at top of file.
-    :param is_model_swirlnet: Same.
-    :param optimization_type_string: Same.
-    :param target_class: Same.
-    :param optimize_for_probability: Same.
-    :param num_iterations: Same.
-    :param learning_rate: Same.
-    :param ideal_logit: Same.
-    :param layer_name: Same.
-    :param neuron_indices: Same.
-    :param ideal_activation: Same.
-    :param channel_index: Same.
+    :param list_of_input_matrices: length-T list of input matrices (numpy
+        arrays), where T = number of input tensors to the model.
+    :param model_metadata_dict: Dictionary with metadata for the GewitterGefahr
+        model, created by `cnn.read_model_metadata`.
+    :return: list_of_input_matrices: Denormalized version of input (same
+        dimensions).
     """
 
-    # TODO(thunderhoser): Add file IO to feature_optimization.py.
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        radar_field_names = model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY]
+        azimuthal_shear_indices = numpy.where(numpy.array(
+            [f in radar_utils.SHEAR_NAMES for f in radar_field_names]))[0]
+        azimuthal_shear_field_names = [
+            radar_field_names[j] for j in azimuthal_shear_indices]
 
-    metadata_dict = {
-        'model_file_name': model_file_name,
-        'is_model_swirlnet': is_model_swirlnet,
-        'optimization_type_string': optimization_type_string,
-        'target_class': target_class,
-        'optimize_for_probability': optimize_for_probability,
-        'num_iterations': num_iterations,
-        'learning_rate': learning_rate,
-        'ideal_logit': ideal_logit,
-        'layer_name': layer_name,
-        'neuron_indices': neuron_indices,
-        'ideal_activation': ideal_activation,
-        'channel_index': channel_index
-    }
+        print 'Denormalizing reflectivity fields...'
+        list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
+            radar_image_matrix=list_of_input_matrices[0],
+            field_names=[radar_utils.REFL_NAME],
+            normalization_dict=model_metadata_dict[
+                cnn.RADAR_NORMALIZATION_DICT_KEY])
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
-    pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(list_of_optimized_input_matrices, pickle_file_handle)
-    pickle.dump(metadata_dict, pickle_file_handle)
-    pickle_file_handle.close()
+        print 'Denormalizing azimuthal-shear fields...'
+        list_of_input_matrices[1] = dl_utils.denormalize_radar_images(
+            radar_image_matrix=list_of_input_matrices[1],
+            field_names=azimuthal_shear_field_names,
+            normalization_dict=model_metadata_dict[
+                cnn.RADAR_NORMALIZATION_DICT_KEY])
+    else:
+        radar_file_name_matrix = model_metadata_dict[
+            cnn.TRAINING_FILE_NAMES_KEY]
+        num_channels = radar_file_name_matrix.shape[1]
+        field_name_by_channel = [''] * num_channels
+
+        for j in range(num_channels):
+            if len(radar_file_name_matrix.shape) == 3:
+                field_name_by_channel[j] = (
+                    storm_images.image_file_name_to_field(
+                        radar_file_name_matrix[0, j, 0]))
+            else:
+                field_name_by_channel[j] = (
+                    storm_images.image_file_name_to_field(
+                        radar_file_name_matrix[0, j]))
+
+        print 'Denormalizing radar fields...'
+        list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
+            radar_image_matrix=list_of_input_matrices[0],
+            field_names=field_name_by_channel,
+            normalization_dict=model_metadata_dict[
+                cnn.RADAR_NORMALIZATION_DICT_KEY])
+
+    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
+        print 'Denormalizing soundings...'
+        list_of_input_matrices[-1] = dl_utils.denormalize_soundings(
+            sounding_matrix=list_of_input_matrices[-1],
+            pressureless_field_names=model_metadata_dict[
+                cnn.SOUNDING_FIELD_NAMES_KEY],
+            normalization_dict=model_metadata_dict[
+                cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+
+    return list_of_input_matrices
 
 
 def _run(
         model_file_name, is_model_swirlnet, optimization_type_string,
         target_class, optimize_for_probability, num_iterations, learning_rate,
-        ideal_logit, layer_name, neuron_indices, ideal_activation,
-        channel_index, output_file_name):
+        ideal_logit, layer_name, ideal_activation, neuron_indices,
+        channel_indices, output_file_name):
     """Finds optimal input for one class, neuron, or channel of a CNN.
 
     This is effectively the main method.
@@ -295,12 +313,13 @@ def _run(
     :param learning_rate: Same.
     :param ideal_logit: Same.
     :param layer_name: Same.
-    :param neuron_indices: Same.
     :param ideal_activation: Same.
-    :param channel_index: Same.
+    :param neuron_indices: Same.
+    :param channel_indices: Same.
     :param output_file_name: Same.
     """
 
+    # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     feature_optimization.check_optimization_type(optimization_type_string)
     if ideal_logit <= 0:
@@ -308,6 +327,21 @@ def _run(
     if ideal_activation <= 0:
         ideal_activation = None
 
+    if (optimization_type_string ==
+            feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
+        neuron_indices = neuron_indices.astype(float)
+        neuron_indices[neuron_indices < 0] = numpy.nan
+
+        neuron_indices_2d_list = general_utils.split_array_by_nan(
+            neuron_indices)
+        neuron_index_matrix = numpy.array(neuron_indices_2d_list, dtype=int)
+        del neuron_indices, neuron_indices_2d_list
+
+    if (optimization_type_string ==
+            feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING):
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+
+    # Read model.
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     if is_model_swirlnet:
         model_object = keras.models.load_model(
@@ -324,32 +358,68 @@ def _run(
         print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
         model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
 
+    # Do feature optimization.
     print MINOR_SEPARATOR_STRING
+    list_of_optimized_input_matrices = None
 
     if (optimization_type_string ==
             feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING):
+
+        print '\nOptimizing inputs for target class {0:d}...'.format(
+            target_class)
         list_of_optimized_input_matrices = (
             feature_optimization.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
                 optimize_for_probability=optimize_for_probability,
                 init_function=init_function, num_iterations=num_iterations,
                 learning_rate=learning_rate, ideal_logit=ideal_logit))
+
     elif (optimization_type_string ==
-              feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
-        list_of_optimized_input_matrices = (
-            feature_optimization.optimize_input_for_neuron_activation(
-                model_object=model_object, layer_name=layer_name,
-                neuron_indices=neuron_indices, init_function=init_function,
-                num_iterations=num_iterations, learning_rate=learning_rate,
-                ideal_activation=ideal_activation))
+          feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
+
+        for i in range(neuron_index_matrix.shape[0]):
+            print (
+                '\nOptimizing inputs for neuron {0:s} in layer "{1:s}"...'
+            ).format(str(neuron_index_matrix[i, :]), layer_name)
+
+            these_matrices = (
+                feature_optimization.optimize_input_for_neuron_activation(
+                    model_object=model_object, layer_name=layer_name,
+                    neuron_indices=neuron_index_matrix[i, :],
+                    init_function=init_function, num_iterations=num_iterations,
+                    learning_rate=learning_rate,
+                    ideal_activation=ideal_activation))
+
+            if list_of_optimized_input_matrices is None:
+                list_of_optimized_input_matrices = copy.deepcopy(these_matrices)
+            else:
+                for j in range(len(list_of_optimized_input_matrices)):
+                    list_of_optimized_input_matrices[j] = numpy.concatenate(
+                        (list_of_optimized_input_matrices[j],
+                         these_matrices[j]), axis=0)
+
     else:
-        list_of_optimized_input_matrices = (
-            feature_optimization.optimize_input_for_channel_activation(
-                model_object=model_object, layer_name=layer_name,
-                channel_index=channel_index, init_function=init_function,
-                stat_function_for_neuron_activations=K.max,
-                num_iterations=num_iterations, learning_rate=learning_rate,
-                ideal_activation=ideal_activation))
+        for this_channel_index in channel_indices:
+            print (
+                '\nOptimizing inputs for channel {0:d} in layer "{1:s}"...'
+            ).format(this_channel_index, layer_name)
+
+            these_matrices = (
+                feature_optimization.optimize_input_for_channel_activation(
+                    model_object=model_object, layer_name=layer_name,
+                    channel_index=this_channel_index,
+                    init_function=init_function,
+                    stat_function_for_neuron_activations=K.max,
+                    num_iterations=num_iterations, learning_rate=learning_rate,
+                    ideal_activation=ideal_activation))
+
+            if list_of_optimized_input_matrices is None:
+                list_of_optimized_input_matrices = copy.deepcopy(these_matrices)
+            else:
+                for j in range(len(list_of_optimized_input_matrices)):
+                    list_of_optimized_input_matrices[j] = numpy.concatenate(
+                        (list_of_optimized_input_matrices[j],
+                         these_matrices[j]), axis=0)
 
     print MINOR_SEPARATOR_STRING
 
@@ -358,81 +428,24 @@ def _run(
         list_of_optimized_input_matrices[0] = _denormalize_swirlnet_data(
             list_of_optimized_input_matrices[0])
     else:
-        if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-            radar_field_names = model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY]
-            azimuthal_shear_indices = numpy.where(numpy.array(
-                [f in radar_utils.SHEAR_NAMES for f in radar_field_names]))[0]
-            azimuthal_shear_field_names = [
-                radar_field_names[j] for j in azimuthal_shear_indices]
-
-            print 'Denormalizing reflectivity field...'
-            list_of_optimized_input_matrices[
-                0
-            ] = dl_utils.denormalize_radar_images(
-                radar_image_matrix=list_of_optimized_input_matrices[0],
-                field_names=[radar_utils.REFL_NAME],
-                normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY])
-
-            print 'Denormalizing azimuthal-shear fields...'
-            list_of_optimized_input_matrices[
-                1
-            ] = dl_utils.denormalize_radar_images(
-                radar_image_matrix=list_of_optimized_input_matrices[1],
-                field_names=azimuthal_shear_field_names,
-                normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY])
-        else:
-            radar_file_name_matrix = model_metadata_dict[
-                cnn.TRAINING_FILE_NAMES_KEY]
-            num_channels = radar_file_name_matrix.shape[1]
-            field_name_by_channel = [''] * num_channels
-
-            for j in range(num_channels):
-                if len(radar_file_name_matrix.shape) == 3:
-                    field_name_by_channel[
-                        j
-                    ] = storm_images.image_file_to_field_name(
-                        radar_file_name_matrix[0, j, 0])
-                else:
-                    field_name_by_channel[
-                        j
-                    ] = storm_images.image_file_to_field_name(
-                        radar_file_name_matrix[0, j])
-
-            print 'Denormalizing radar fields...'
-            list_of_optimized_input_matrices[
-                0
-            ] = dl_utils.denormalize_radar_images(
-                radar_image_matrix=list_of_optimized_input_matrices[0],
-                field_names=field_name_by_channel,
-                normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY])
-
-        if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
-            print 'Denormalizing soundings...'
-            list_of_optimized_input_matrices[
-                -1
-            ] = dl_utils.denormalize_soundings(
-                sounding_matrix=list_of_optimized_input_matrices[-1],
-                pressureless_field_names=model_metadata_dict[
-                    cnn.SOUNDING_FIELD_NAMES_KEY],
-                normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+        list_of_optimized_input_matrices = _denormalize_gg_data(
+            list_of_input_matrices=list_of_optimized_input_matrices,
+            model_metadata_dict=model_metadata_dict)
 
     print 'Writing optimized input matrices to file: "{0:s}"...'.format(
         output_file_name)
-    _write_optimized_input_file(
+    feature_optimization.write_optimized_input_to_file(
         pickle_file_name=output_file_name,
         list_of_optimized_input_matrices=list_of_optimized_input_matrices,
-        model_file_name=model_file_name, is_model_swirlnet=is_model_swirlnet,
+        model_file_name=model_file_name, num_iterations=num_iterations,
+        learning_rate=learning_rate,
         optimization_type_string=optimization_type_string,
         target_class=target_class,
         optimize_for_probability=optimize_for_probability,
-        num_iterations=num_iterations, learning_rate=learning_rate,
         ideal_logit=ideal_logit, layer_name=layer_name,
-        neuron_indices=neuron_indices, ideal_activation=ideal_activation,
-        channel_index=channel_index)
+        ideal_activation=ideal_activation,
+        neuron_index_matrix=neuron_index_matrix,
+        channel_indices=channel_indices)
 
 
 if __name__ == '__main__':
@@ -450,8 +463,9 @@ if __name__ == '__main__':
         learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
         ideal_logit=getattr(INPUT_ARG_OBJECT, IDEAL_LOGIT_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
+        ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
         neuron_indices=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
-        ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
-        channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
+        channel_indices=numpy.array(
+            getattr(INPUT_ARG_OBJECT, CHANNEL_INDICES_ARG_NAME), dtype=int),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))

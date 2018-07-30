@@ -7,8 +7,10 @@ Olah, C., A. Mordvintsev, and L. Schubert, 2017: Feature visualization. Distill,
     URL https://distill.pub/2017/feature-visualization.
 """
 
+import pickle
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 DEFAULT_IDEAL_LOGIT = 7.
@@ -24,6 +26,18 @@ VALID_OPTIMIZATION_TYPE_STRINGS = [
     CLASS_OPTIMIZATION_TYPE_STRING, NEURON_OPTIMIZATION_TYPE_STRING,
     CHANNEL_OPTIMIZATION_TYPE_STRING
 ]
+
+MODEL_FILE_NAME_KEY = 'model_file_name'
+NUM_ITERATIONS_KEY = 'num_iterations'
+LEARNING_RATE_KEY = 'learning_rate'
+OPTIMIZATION_TYPE_KEY = 'optimization_type_string'
+TARGET_CLASS_KEY = 'target_class'
+OPTIMIZE_FOR_PROB_KEY = 'optimize_for_probability'
+IDEAL_LOGIT_KEY = 'ideal_logit'
+LAYER_NAME_KEY = 'layer_name'
+IDEAL_ACTIVATION_KEY = 'ideal_activation'
+NEURON_INDICES_KEY = 'neuron_index_matrix'
+CHANNEL_INDICES_KEY = 'channel_indices'
 
 
 def _check_input_args(init_function, num_iterations, learning_rate):
@@ -733,3 +747,138 @@ def get_saliency_maps_for_channel_activation(
     return _do_saliency_calculations(
         model_object=model_object, loss_tensor=loss_tensor,
         list_of_input_matrices=list_of_input_matrices)
+
+
+def write_optimized_input_to_file(
+        pickle_file_name, list_of_optimized_input_matrices, model_file_name,
+        num_iterations, learning_rate, optimization_type_string,
+        target_class=None, optimize_for_probability=None, ideal_logit=None,
+        layer_name=None, ideal_activation=None, neuron_index_matrix=None,
+        channel_indices=None):
+    """Writes optimized input data to Pickle file.
+
+    E = number of examples (storm objects)
+
+    :param pickle_file_name: Path to output file.
+    :param list_of_optimized_input_matrices: length-T list of optimized input
+        matrices (numpy arrays), where T = number of input tensors to the model.
+    :param model_file_name: Path to file with trained model.
+    :param num_iterations: Number of iterations used in optimization procedure.
+    :param learning_rate: Learning rate used in optimization procedure.
+    :param optimization_type_string: Optimization type (must be accepted by
+        `check_optimization_type`).
+    :param target_class: [used only if optimization_type_string = "class"]
+        See doc for `optimize_input_for_class`.
+    :param optimize_for_probability: Same.
+    :param ideal_logit: Same.
+    :param layer_name:
+        [used only if optimization_type_string = "neuron" or "channel"]
+        See doc for `optimize_input_for_neuron_activation` or
+        `optimize_input_for_channel_activation`.
+    :param ideal_activation: Same.
+    :param neuron_index_matrix:
+        [used only if optimization_type_string = "neuron"]
+        E-by-? numpy array, where neuron_index_matrix[i, :] contains array
+        indices of the neuron whose activation was maxxed for the [i]th example.
+    :param channel_indices: [used only if optimization_type_string = "channel"]
+        length-E numpy array, where channel_indices[i] is the index of the
+        channel whose activation was maxxed for the [i]th example.
+    """
+
+    error_checking.assert_is_list(list_of_optimized_input_matrices)
+    for this_array in list_of_optimized_input_matrices:
+        error_checking.assert_is_numpy_array(this_array)
+
+    num_examples = list_of_optimized_input_matrices[0].shape[0]
+    for i in range(1, len(list_of_optimized_input_matrices)):
+        these_expected_dim = numpy.array(
+            (num_examples,) + list_of_optimized_input_matrices[i].shape[1:],
+            dtype=int)
+        error_checking.assert_is_numpy_array(
+            list_of_optimized_input_matrices[i],
+            exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_integer(num_iterations)
+    error_checking.assert_is_greater(num_iterations, 0)
+    error_checking.assert_is_greater(learning_rate, 0.)
+    error_checking.assert_is_less_than(learning_rate, 1.)
+    check_optimization_type(optimization_type_string)
+
+    if optimization_type_string == CLASS_OPTIMIZATION_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+        error_checking.assert_is_boolean(optimize_for_probability)
+
+        if optimize_for_probability:
+            ideal_logit = None
+        if ideal_logit is not None:
+            error_checking.assert_is_greater(ideal_logit, 0.)
+
+    if optimization_type_string in [NEURON_OPTIMIZATION_TYPE_STRING,
+                                    CHANNEL_OPTIMIZATION_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+        if ideal_activation is not None:
+            error_checking.assert_is_greater(ideal_activation, 0.)
+
+    if optimization_type_string == NEURON_OPTIMIZATION_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
+        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
+        expected_dimensions = numpy.array(
+            (num_examples,) + neuron_index_matrix.shape[1:], dtype=int)
+        error_checking.assert_is_numpy_array(
+            neuron_index_matrix, exact_dimensions=expected_dimensions)
+
+    if optimization_type_string == CHANNEL_OPTIMIZATION_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(channel_indices)
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+        error_checking.assert_is_numpy_array(
+            channel_indices, exact_dimensions=numpy.array([num_examples]))
+
+    metadata_dict = {
+        MODEL_FILE_NAME_KEY: model_file_name,
+        NUM_ITERATIONS_KEY: num_iterations,
+        LEARNING_RATE_KEY: learning_rate,
+        OPTIMIZATION_TYPE_KEY: optimization_type_string,
+        TARGET_CLASS_KEY: target_class,
+        OPTIMIZE_FOR_PROB_KEY: optimize_for_probability,
+        IDEAL_LOGIT_KEY: ideal_logit,
+        LAYER_NAME_KEY: layer_name,
+        IDEAL_ACTIVATION_KEY: ideal_activation,
+        NEURON_INDICES_KEY: neuron_index_matrix,
+        CHANNEL_INDICES_KEY: channel_indices,
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(list_of_optimized_input_matrices, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_optimized_inputs_from_file(pickle_file_name):
+    """Reads optimized input data from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: list_of_optimized_input_matrices:
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['model_file_name']: See doc for
+        `write_optimized_inputs_to_file`.
+    metadata_dict['num_iterations']: Same.
+    metadata_dict['learning_rate']: Same.
+    metadata_dict['optimization_type_string']: Same.
+    metadata_dict['target_class']: Same.
+    metadata_dict['optimize_for_probability']: Same.
+    metadata_dict['ideal_logit']: Same.
+    metadata_dict['layer_name']: Same.
+    metadata_dict['ideal_activation']: Same.
+    metadata_dict['neuron_index_matrix']: Same.
+    metadata_dict['channel_indices']: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    list_of_optimized_input_matrices = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return list_of_optimized_input_matrices, metadata_dict
