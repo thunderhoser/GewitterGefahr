@@ -210,6 +210,7 @@ def _run(
                 this_mean_value = numpy.mean(
                     this_sounding_dict[soundings_only.SOUNDING_MATRIX_KEY][
                         :, this_pressure_index, this_field_index])
+                print this_mean_value
 
                 mean_sounding_value_matrix[j, k] = _get_weighted_average(
                     input_values=numpy.array(
