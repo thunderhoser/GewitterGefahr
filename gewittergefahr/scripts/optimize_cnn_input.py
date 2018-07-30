@@ -30,14 +30,6 @@ SWIRLNET_FIELD_MEANS = numpy.array([20.745745, -0.718525, 1.929636])
 SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
     [17.947071, 4.343980, 4.969537])
 
-CLASS_OPTIMIZATION_TYPE_STRING = 'class'
-NEURON_OPTIMIZATION_TYPE_STRING = 'neuron'
-CHANNEL_OPTIMIZATION_TYPE_STRING = 'channel'
-VALID_OPTIMIZATION_TYPE_STRINGS = [
-    CLASS_OPTIMIZATION_TYPE_STRING, NEURON_OPTIMIZATION_TYPE_STRING,
-    CHANNEL_OPTIMIZATION_TYPE_STRING
-]
-
 MODEL_FILE_ARG_NAME = 'model_file_name'
 IS_SWIRLNET_ARG_NAME = 'is_model_swirlnet'
 OPTIMIZATION_TYPE_ARG_NAME = 'optimization_type_string'
@@ -65,17 +57,19 @@ OPTIMIZATION_TYPE_HELP_STRING = (
     'Optimization type.  Input data may be optimized for class prediction, '
     'neuron activation, or channel activation.  Valid options are listed below.'
     '\n{0:s}'
-).format(str(VALID_OPTIMIZATION_TYPE_STRINGS))
+).format(str(feature_optimization.VALID_OPTIMIZATION_TYPE_STRINGS))
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Input data will be optimized for prediction'
     ' of class k, where k = `{2:s}`.'
-).format(OPTIMIZATION_TYPE_ARG_NAME, CLASS_OPTIMIZATION_TYPE_STRING,
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 OPTIMIZE_FOR_PROBABILITY_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, input data will be '
     'optimized for the predicted probability of class `{2:s}`.  If 0, input '
     'data will be optimized for the pre-softmax logit of class `{2:s}`.'
-).format(OPTIMIZATION_TYPE_ARG_NAME, CLASS_OPTIMIZATION_TYPE_STRING,
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for optimization procedure.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for optimization procedure.'
@@ -85,19 +79,22 @@ IDEAL_LOGIT_HELP_STRING = (
     '  If {3:s} = -1, the loss function will be -sign(logit[k]) * logit[k]**2, '
     'or the negative signed square of logit[k], so that loss always decreases '
     'as logit[k] increases.'
-).format(OPTIMIZATION_TYPE_ARG_NAME, CLASS_OPTIMIZATION_TYPE_STRING,
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
          OPTIMIZE_FOR_PROBABILITY_ARG_NAME, IDEAL_LOGIT_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neuron or '
     'channel whose activation is to be maximized.'
-).format(OPTIMIZATION_TYPE_ARG_NAME, NEURON_OPTIMIZATION_TYPE_STRING,
-         CLASS_OPTIMIZATION_TYPE_STRING)
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
+         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING)
 NEURON_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] List of indices for neuron whose activation'
     ' is to be maximized.  If the output of layer `{2:s}` has K dimensions, '
     '`{3:s}` must have length K - 1.  (The first dimension of the layer output '
     'is the example dimension, for which the index is always 0.)'
-).format(OPTIMIZATION_TYPE_ARG_NAME, NEURON_OPTIMIZATION_TYPE_STRING,
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
          LAYER_NAME_ARG_NAME, NEURON_INDICES_ARG_NAME)
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] The loss function will be '
@@ -105,12 +102,15 @@ IDEAL_ACTIVATION_HELP_STRING = (
     'ideal_activation]**2.  If {3:s} = -1, the loss function will be '
     '-sign(neuron_activation) * neuron_activation**2 or '
     '-sign(max(channel_activations)) * max(channel_activations)**2.'
-).format(OPTIMIZATION_TYPE_ARG_NAME, NEURON_OPTIMIZATION_TYPE_STRING,
-         CHANNEL_OPTIMIZATION_TYPE_STRING, IDEAL_ACTIVATION_ARG_NAME)
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
+         feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING,
+         IDEAL_ACTIVATION_ARG_NAME)
 CHANNEL_INDEX_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Index of channel whose max activation is to'
     ' be maximized.'
-).format(OPTIMIZATION_TYPE_ARG_NAME, CHANNEL_OPTIMIZATION_TYPE_STRING)
+).format(OPTIMIZATION_TYPE_ARG_NAME,
+         feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (Pickle format).  Optimized input matrices and '
     'metadata will be saved here.')
@@ -171,23 +171,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
-
-
-def _check_optimization_type(optimization_type_string):
-    """Ensures that optimization type is valid.
-
-    :param optimization_type_string: Optimization type.
-    :raises: ValueError: if
-        `optimization_type_string not in VALID_OPTIMIZATION_TYPE_STRINGS`.
-    """
-
-    error_checking.assert_is_string(optimization_type_string)
-    if optimization_type_string not in VALID_OPTIMIZATION_TYPE_STRINGS:
-        error_string = (
-            '\n\n{0:s}\nValid optimization types (listed above) do not include '
-            '"{1:s}".'
-        ).format(str(VALID_OPTIMIZATION_TYPE_STRINGS), optimization_type_string)
-        raise ValueError(error_string)
 
 
 def _brier_score_keras(observation_tensor, class_probability_tensor):
@@ -319,8 +302,7 @@ def _run(
     """
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-
-    _check_optimization_type(optimization_type_string)
+    feature_optimization.check_optimization_type(optimization_type_string)
     if ideal_logit <= 0:
         ideal_logit = None
     if ideal_activation <= 0:
@@ -344,14 +326,16 @@ def _run(
 
     print MINOR_SEPARATOR_STRING
 
-    if optimization_type_string == CLASS_OPTIMIZATION_TYPE_STRING:
+    if (optimization_type_string ==
+            feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING):
         list_of_optimized_input_matrices = (
             feature_optimization.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
                 optimize_for_probability=optimize_for_probability,
                 init_function=init_function, num_iterations=num_iterations,
                 learning_rate=learning_rate, ideal_logit=ideal_logit))
-    elif optimization_type_string == NEURON_OPTIMIZATION_TYPE_STRING:
+    elif (optimization_type_string ==
+              feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
         list_of_optimized_input_matrices = (
             feature_optimization.optimize_input_for_neuron_activation(
                 model_object=model_object, layer_name=layer_name,

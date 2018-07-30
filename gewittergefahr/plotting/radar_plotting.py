@@ -1,11 +1,4 @@
-"""Plotting methods for radar data.
-
---- DEFINITIONS ---
-
-MYRORSS = Multi-year Reanalysis of Remotely Sensed Storms
-
-MRMS = Multi-radar Multi-sensor
-"""
+"""Plotting methods for radar data."""
 
 import numpy
 import matplotlib
@@ -16,12 +9,12 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 
-REFLECTIVITY_PLOTTING_UNITS = 'dBZ'
-SHEAR_PLOTTING_UNITS = 's^-1'
-ECHO_TOP_PLOTTING_UNITS = 'kft'
-MESH_PLOTTING_UNITS = 'mm'
-SHI_PLOTTING_UNITS = ''
-VIL_PLOTTING_UNITS = 'mm'
+REFL_PLOTTING_UNIT_STRING = 'dBZ'
+SHEAR_PLOTTING_UNIT_STRING = 's^-1'
+ECHO_TOP_PLOTTING_UNIT_STRING = 'kft'
+MESH_PLOTTING_UNIT_STRING = 'mm'
+SHI_PLOTTING_UNIT_STRING = ''
+VIL_PLOTTING_UNIT_STRING = 'mm'
 
 KM_TO_KILOFEET = 3.2808
 METRES_TO_KM = 1e-3
@@ -49,13 +42,13 @@ def _get_modern_colour_list():
     return colour_list
 
 
-def _get_default_refl_colour_map():
-    """Returns default colour map for reflectivity.
+def _get_default_refl_colour_scheme():
+    """Returns default colour scheme for reflectivity.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See documentation for _get_default_colour_map.
-        Units in this case are dBZ, or decibels of reflectivity.
+    :return: colour_bounds_dbz: See doc for `get_default_colour_scheme`.  In
+        this case, units are dBZ (decibels of reflectivity).
     """
 
     main_colour_list = [
@@ -85,13 +78,13 @@ def _get_default_refl_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_dbz
 
 
-def _get_default_zdr_colour_map():
-    """Returns default colour map for Z_DR (differential reflectivity).
+def _get_default_zdr_colour_scheme():
+    """Returns default colour scheme for Z_DR (differential reflectivity).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See documentation for _get_default_colour_map.
-        Units in this case are dB (decibels).
+    :return: colour_bounds_db: See doc for `get_default_colour_scheme`.  In
+        this case, units are dB (decibels).
     """
 
     main_colour_list = _get_modern_colour_list()
@@ -111,13 +104,13 @@ def _get_default_zdr_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_dbz
 
 
-def _get_default_kdp_colour_map():
-    """Returns default colour map for K_DP (specific differential phase).
+def _get_default_kdp_colour_scheme():
+    """Returns default colour scheme for K_DP (specific differential phase).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See documentation for _get_default_colour_map.
-        Units in this case are deg km^-1.
+    :return: colour_bounds_deg_km01: See doc for `get_default_colour_scheme`.
+        In this case, units are degrees per km.
     """
 
     main_colour_list = _get_modern_colour_list()
@@ -137,13 +130,13 @@ def _get_default_kdp_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_dbz
 
 
-def _get_default_rho_hv_colour_map():
-    """Returns default colour map for rho_hv (correlation coefficient).
+def _get_default_rho_hv_colour_scheme():
+    """Returns default colour scheme for rho_hv (correlation coefficient).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See documentation for _get_default_colour_map.
-        Units in this case are dimensionless.
+    :return: colour_bounds: See doc for `get_default_colour_scheme`.  In this
+        case, units are dimensionless.
     """
 
     main_colour_list = _get_modern_colour_list()
@@ -163,13 +156,13 @@ def _get_default_rho_hv_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_dbz
 
 
-def _get_default_spectrum_width_colour_map():
-    """Returns default colour map for velocity-spectrum width.
+def _get_default_spectrum_width_colour_scheme():
+    """Returns default colour scheme for sigma_v (velocity-spectrum width).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See documentation for _get_default_colour_map.
-        Units in this case are m s^-1.
+    :return: colour_bounds_m_s01: See doc for `get_default_colour_scheme`.  In
+        this case, units are metres per second.
     """
 
     main_colour_list = _get_modern_colour_list()
@@ -188,13 +181,13 @@ def _get_default_spectrum_width_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_dbz
 
 
-def _get_default_divergence_or_vorticity_colour_map():
-    """Returns default colour map for divergence or vorticity.
+def _get_default_vorticity_colour_scheme():
+    """Returns default colour scheme for vorticity.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See documentation for _get_default_colour_map.
-        Units in this case are s^-1.
+    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
+        this case, units are seconds^-1.
     """
 
     main_colour_list = [
@@ -224,13 +217,25 @@ def _get_default_divergence_or_vorticity_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_dbz
 
 
-def _get_default_shear_colour_map():
-    """Returns default colour map for azimuthal shear.
+def _get_default_divergence_colour_scheme():
+    """Returns default colour scheme for divergence.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_s01: See documentation for _get_default_colour_map.
-        Units in this case are inverse seconds.
+    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
+        this case, units are seconds^-1.
+    """
+
+    return _get_default_vorticity_colour_scheme()
+
+
+def _get_default_shear_colour_scheme():
+    """Returns default colour scheme for azimuthal shear.
+
+    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
+    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
+        this case, units are seconds^-1.
     """
 
     main_colour_list = [
@@ -261,13 +266,13 @@ def _get_default_shear_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_s01
 
 
-def _get_default_echo_top_colour_map():
-    """Returns default colour map for echo tops.
+def _get_default_echo_top_colour_scheme():
+    """Returns default colur scheme for echo tops.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_kft: See documentation for _get_default_colour_map.
-        Units in this case are kilofeet (why, America, why?).
+    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
+        this case, units are kilofeet (why, America, why?).
     """
 
     main_colour_list = [
@@ -295,13 +300,13 @@ def _get_default_echo_top_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_kft
 
 
-def _get_default_mesh_colour_map():
-    """Returns default colour map for MESH (maximum estimated hail size).
+def _get_default_mesh_colour_scheme():
+    """Returns default colour scheme for MESH (max estimated size of hail).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_mm: See documentation for _get_default_colour_map.
-        Units in this case are mm.
+    :return: colour_bounds_mm: See doc for `get_default_colour_scheme`.  In
+        this case, units are millimetres.
     """
 
     main_colour_list = [
@@ -331,13 +336,13 @@ def _get_default_mesh_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_mm
 
 
-def _get_default_shi_colour_map():
-    """Returns default colour map for SHI (severe-hail index).
+def _get_default_shi_colour_scheme():
+    """Returns default colour scheme for SHI (severe-hail index).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds: See documentation for _get_default_colour_map.
-        Units in this case are dimensionless.
+    :return: colour_bounds: See doc for `get_default_colour_scheme`.  In this
+        case, units are dimensionless.
     """
 
     main_colour_list = [
@@ -367,13 +372,13 @@ def _get_default_shi_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds
 
 
-def _get_default_vil_colour_map():
-    """Returns default colour map for VIL (vertically integrated liquid).
+def _get_default_vil_colour_scheme():
+    """Returns default colour scheme for VIL (vertically integrated liquid).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_mm: See documentation for _get_default_colour_map.
-        Units in this case are mm.
+    :return: colour_bounds_mm: See doc for `get_default_colour_scheme`.  In
+        this case, units are millimetres.
     """
 
     main_colour_list = [
@@ -403,12 +408,29 @@ def _get_default_vil_colour_map():
     return colour_map_object, colour_norm_object, colour_bounds_mm
 
 
-def _get_default_colour_map(field_name):
-    """Returns default colour map for the given radar field.
+def _convert_to_plotting_units(field_matrix, field_name):
+    """Converts field from default (GewitterGefahr) units to plotting units.
+
+    :param field_matrix: numpy array in default units.
+    :param field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :return: field_matrix: Same as input, but now in plotting units.
+    """
+
+    radar_utils.check_field_name(field_name)
+    if field_name in radar_utils.ECHO_TOP_NAMES:
+        return field_matrix * KM_TO_KILOFEET
+
+    return field_matrix
+
+
+def get_default_colour_scheme(field_name):
+    """Returns default colour scheme for the given radar field.
 
     N = number of colours
 
-    :param field_name: Name of radar field (string).
+    :param field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
     :return: colour_bounds: length-(N + 1) numpy array of colour boundaries.
@@ -418,117 +440,115 @@ def _get_default_colour_map(field_name):
         boundaries for the (i + 1)th colour.
     """
 
+    radar_utils.check_field_name(field_name)
+
     if field_name in radar_utils.REFLECTIVITY_NAMES:
-        return _get_default_refl_colour_map()
+        return _get_default_refl_colour_scheme()
 
     if field_name in radar_utils.SHEAR_NAMES:
-        return _get_default_shear_colour_map()
+        return _get_default_shear_colour_scheme()
 
     if field_name in radar_utils.ECHO_TOP_NAMES:
-        return _get_default_echo_top_colour_map()
+        return _get_default_echo_top_colour_scheme()
 
     if field_name == radar_utils.MESH_NAME:
-        return _get_default_mesh_colour_map()
+        return _get_default_mesh_colour_scheme()
 
     if field_name == radar_utils.SHI_NAME:
-        return _get_default_shi_colour_map()
+        return _get_default_shi_colour_scheme()
 
     if field_name == radar_utils.VIL_NAME:
-        return _get_default_vil_colour_map()
+        return _get_default_vil_colour_scheme()
 
     if field_name == radar_utils.DIFFERENTIAL_REFL_NAME:
-        return _get_default_zdr_colour_map()
+        return _get_default_zdr_colour_scheme()
 
     if field_name == radar_utils.SPEC_DIFF_PHASE_NAME:
-        return _get_default_kdp_colour_map()
+        return _get_default_kdp_colour_scheme()
 
     if field_name == radar_utils.CORRELATION_COEFF_NAME:
-        return _get_default_rho_hv_colour_map()
+        return _get_default_rho_hv_colour_scheme()
 
     if field_name == radar_utils.SPECTRUM_WIDTH_NAME:
-        return _get_default_spectrum_width_colour_map()
+        return _get_default_spectrum_width_colour_scheme()
 
-    if field_name in [radar_utils.DIVERGENCE_NAME, radar_utils.VORTICITY_NAME]:
-        return _get_default_divergence_or_vorticity_colour_map()
+    if field_name == radar_utils.VORTICITY_NAME:
+        return _get_default_vorticity_colour_scheme()
 
+    if field_name == radar_utils.DIVERGENCE_NAME:
+        return _get_default_divergence_colour_scheme()
 
-def _get_plotting_units(field_name):
-    """Returns plotting units of radar field.
-
-    :param field_name: Name of radar field (string).
-    :return: plotting_units: String describing units.
-    """
-
-    if field_name in radar_utils.REFLECTIVITY_NAMES:
-        return REFLECTIVITY_PLOTTING_UNITS
-
-    if field_name in radar_utils.SHEAR_NAMES:
-        return SHEAR_PLOTTING_UNITS
-
-    if field_name in radar_utils.ECHO_TOP_NAMES:
-        return ECHO_TOP_PLOTTING_UNITS
-
-    if field_name == radar_utils.MESH_NAME:
-        return MESH_PLOTTING_UNITS
-
-    if field_name == radar_utils.SHI_NAME:
-        return SHI_PLOTTING_UNITS
-
-    if field_name == radar_utils.VIL_NAME:
-        return VIL_PLOTTING_UNITS
+    return None
 
 
-def _convert_to_plotting_units(field_matrix_gg_units, field_name):
-    """Converts field from standard GewitterGefahr units to plotting units.
+def get_plotting_units(field_name):
+    """Returns string with plotting units for the given radar field.
 
-    :param field_matrix_gg_units: numpy array with values of radar field (in
-        GewitterGefahr units, which are included in `field_name`).
-    :param field_name: Name of radar field (string).
-    :return: field_matrix_plotting_units: Same as input, but in plotting units.
+    :param field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :return: unit_string: String with plotting units.
     """
 
     radar_utils.check_field_name(field_name)
-    if field_name in radar_utils.ECHO_TOP_NAMES:
-        return field_matrix_gg_units * KM_TO_KILOFEET
 
-    return field_matrix_gg_units
+    if field_name in radar_utils.REFLECTIVITY_NAMES:
+        return REFL_PLOTTING_UNIT_STRING
+
+    if field_name in radar_utils.SHEAR_NAMES:
+        return SHEAR_PLOTTING_UNIT_STRING
+
+    if field_name in radar_utils.ECHO_TOP_NAMES:
+        return ECHO_TOP_PLOTTING_UNIT_STRING
+
+    if field_name == radar_utils.MESH_NAME:
+        return MESH_PLOTTING_UNIT_STRING
+
+    if field_name == radar_utils.SHI_NAME:
+        return SHI_PLOTTING_UNIT_STRING
+
+    if field_name == radar_utils.VIL_NAME:
+        return VIL_PLOTTING_UNIT_STRING
+
+    return None
 
 
 def plot_latlng_grid(
         field_matrix, field_name, axes_object, min_grid_point_latitude_deg,
         min_grid_point_longitude_deg, latitude_spacing_deg,
-        longitude_spacing_deg, colour_map=None, min_value_in_colour_map=None,
-        max_value_in_colour_map=None):
+        longitude_spacing_deg, colour_map_object=None, colour_norm_object=None):
     """Plots lat-long grid as colour map.
 
-    M = number of rows (unique latitudes at grid points)
-    N = number of columns (unique longitudes at grid points)
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
 
-    Because this method plots a lat-long grid (as opposed to an x-y grid), the
-    basemap must use the "cylindrical equidistant" projection, which is the same
-    as a lat-long projection.  Any other basemap projection will ruin things.
+    Because this method plots a lat-long grid (rather than an x-y grid), if you
+    have used Basemap to plot borders or anything else, the only acceptable
+    projection is cylindrical equidistant (in which x = longitude and
+    y = latitude, so no coordinate conversion is necessary).
 
-    :param field_matrix: M-by-N numpy array with field to plot.
-    :param field_name: Field name (must be accepted by
+    To use the default colour scheme for the given radar field, leave
+    `colour_map_object` and `colour_norm_object` empty.
+
+    :param field_matrix: M-by-N numpy array with values of radar field.
+    :param field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
-    :param min_grid_point_latitude_deg: Minimum latitude over all grid points
-        (deg N).  This should correspond to field_matrix, so that all values in
-        field_matrix[0, :] occur at min_grid_point_latitude_deg.
-    :param min_grid_point_longitude_deg: Minimum longitude over all grid points
-        (deg E).  This should correspond to field_matrix, so that all values in
-        field_matrix[:, 0] occur at min_grid_point_longitude_deg.
-    :param latitude_spacing_deg: Spacing between meridionally adjacent grid
-        points (deg N).
-    :param longitude_spacing_deg: Spacing between zonally adjacent grid points
-        (deg E).
-    :param colour_map: Instance of `matplotlib.pyplot.cm`.
-    :param min_value_in_colour_map: Minimum value in colour map.
-    :param max_value_in_colour_map: Max value in colour map.
+    :param min_grid_point_latitude_deg: Minimum latitude (deg N) over all grid
+        points.  This should be the latitude in the first row of `field_matrix`
+        -- i.e., at `field_matrix[0, :]`.
+    :param min_grid_point_longitude_deg: Minimum longitude (deg E) over all grid
+        points.  This should be the longitude in the first column of
+        `field_matrix` -- i.e., at `field_matrix[:, 0]`.
+    :param latitude_spacing_deg: Spacing (deg N) between grid points in adjacent
+        rows.
+    :param longitude_spacing_deg: Spacing (deg E) between grid points in
+        adjacent columns.
+    :param colour_map_object: Instance of `matplotlib.pyplot.cm`.
+    :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
     """
 
     field_matrix = _convert_to_plotting_units(
-        field_matrix_gg_units=field_matrix, field_name=field_name)
+        field_matrix=field_matrix, field_name=field_name)
 
     (field_matrix_at_edges, grid_cell_edge_latitudes_deg,
      grid_cell_edge_longitudes_deg
@@ -541,94 +561,101 @@ def plot_latlng_grid(
     field_matrix_at_edges = numpy.ma.masked_where(
         numpy.isnan(field_matrix_at_edges), field_matrix_at_edges)
 
-    if colour_map is None:
-        colour_map, colour_norm_object, _ = _get_default_colour_map(field_name)
-        min_value_in_colour_map = colour_norm_object.boundaries[0]
-        max_value_in_colour_map = colour_norm_object.boundaries[-1]
-    else:
-        error_checking.assert_is_greater(
-            max_value_in_colour_map, min_value_in_colour_map)
-        colour_norm_object = None
+    if colour_map_object is None or colour_norm_object is None:
+        colour_map_object, colour_norm_object, _ = get_default_colour_scheme(
+            field_name)
 
     pyplot.pcolormesh(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
-        field_matrix_at_edges, cmap=colour_map, norm=colour_norm_object,
-        vmin=min_value_in_colour_map, vmax=max_value_in_colour_map,
-        shading='flat', edgecolors='None', axes=axes_object)
+        field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
+        vmin=colour_norm_object.boundaries[0],
+        vmax=colour_norm_object.boundaries[-1], shading='flat',
+        edgecolors='None', axes=axes_object)
 
 
 def plot_2d_grid_without_coords(
-        field_matrix, field_name, axes_object, colour_map=None,
-        min_value_in_colour_map=None, max_value_in_colour_map=None):
+        field_matrix, field_name, axes_object, annotation_string=None,
+        colour_map_object=None, colour_norm_object=None):
     """Plots 2-D grid as colour map.
 
     In this case the grid is not georeferenced (convenient for storm-centered
     radar images).
 
+    To use the default colour scheme for the given radar field, leave
+    `colour_map_object` and `colour_norm_object` empty.
+
     :param field_matrix: See doc for `plot_latlng_grid`.
     :param field_name: Same.
     :param axes_object: Same.
-    :param colour_map: Same.
-    :param min_value_in_colour_map: Same.
-    :param max_value_in_colour_map: Same.
+    :param annotation_string: Annotation (will be printed in the bottom-center
+        of the axes).  If this is `None`, there will be no annotation.
+    :param colour_map_object: See doc for `plot_latlng_grid`.
+    :param colour_norm_object: Same.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
 
     field_matrix = _convert_to_plotting_units(
-        field_matrix_gg_units=field_matrix, field_name=field_name)
+        field_matrix=field_matrix, field_name=field_name)
     field_matrix = numpy.ma.masked_where(
         numpy.isnan(field_matrix), field_matrix)
 
-    if colour_map is None:
-        colour_map, colour_norm_object, _ = _get_default_colour_map(field_name)
-        min_value_in_colour_map = colour_norm_object.boundaries[0]
-        max_value_in_colour_map = colour_norm_object.boundaries[-1]
-    else:
-        error_checking.assert_is_greater(
-            max_value_in_colour_map, min_value_in_colour_map)
-        colour_norm_object = None
+    if colour_map_object is None or colour_norm_object is None:
+        colour_map_object, colour_norm_object, _ = get_default_colour_scheme(
+            field_name)
 
     axes_object.pcolormesh(
-        field_matrix, cmap=colour_map, norm=colour_norm_object,
-        vmin=min_value_in_colour_map, vmax=max_value_in_colour_map,
-        shading='flat', edgecolors='None')
+        field_matrix, cmap=colour_map_object, norm=colour_norm_object,
+        vmin=colour_norm_object.boundaries[0],
+        vmax=colour_norm_object.boundaries[-1], shading='flat',
+        edgecolors='None')
 
     axes_object.set_xticks([])
     axes_object.set_yticks([])
+    if annotation_string is None:
+        return
+
+    error_checking.assert_is_string(annotation_string)
+    axes_object.text(
+        0.5, 0.01, annotation_string, fontsize=20, color='k',
+        horizontalalignment='center', verticalalignment='bottom',
+        transform=axes_object.transAxes)
 
 
 def plot_3d_grid_without_coords(
-        field_matrix, heights_m_asl, field_name, num_panel_rows,
-        figure_width_inches=15., figure_height_inches=15., colour_map=None,
-        min_value_in_colour_map=None, max_value_in_colour_map=None):
+        field_matrix, field_name, grid_point_heights_m_asl, num_panel_rows,
+        figure_width_inches=15., figure_height_inches=15.,
+        colour_map_object=None, colour_norm_object=None):
     """Plots 3-D grid as many colour maps (one per height).
 
     M = number of grid rows
     N = number of grid columns
     H = number of grid heights
 
+    To use the default colour scheme for the given radar field, leave
+    `colour_map_object` and `colour_norm_object` empty.
+
     :param field_matrix: M-by-N-by-H numpy array with values of radar field.
-    :param heights_m_asl: length-H integer numpy array of heights (metres above
-        sea level).
-    :param field_name: See doc for `plot_latlng_grid`.
+    :param field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :param grid_point_heights_m_asl: length-H integer numpy array of heights
+        (metres above sea level).
     :param num_panel_rows: Number of rows in paneled figure (different than M,
         the number of grid rows).
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
-    :param colour_map: See doc for `plot_latlng_grid`.
-    :param min_value_in_colour_map: Same.
-    :param max_value_in_colour_map: Same.
+    :param colour_map_object: See doc for `plot_latlng_grid`.
+    :param colour_norm_object: Same.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
     num_heights = field_matrix.shape[2]
 
-    error_checking.assert_is_integer_numpy_array(heights_m_asl)
-    error_checking.assert_is_geq_numpy_array(heights_m_asl, 0)
+    error_checking.assert_is_integer_numpy_array(grid_point_heights_m_asl)
+    error_checking.assert_is_geq_numpy_array(grid_point_heights_m_asl, 0)
     error_checking.assert_is_numpy_array(
-        heights_m_asl, exact_dimensions=numpy.array([num_heights]))
+        grid_point_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
 
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
@@ -645,19 +672,14 @@ def plot_3d_grid_without_coords(
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_height_index = i * num_panel_columns + j
+            this_annotation_string = '{0:.1f} km ASL'.format(
+                grid_point_heights_m_asl[this_height_index] * METRES_TO_KM)
+
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., this_height_index],
                 field_name=field_name, axes_object=axes_objects_2d_list[i][j],
-                colour_map=colour_map,
-                min_value_in_colour_map=min_value_in_colour_map,
-                max_value_in_colour_map=max_value_in_colour_map)
-
-            this_legend_string = '{0:.1f} km ASL'.format(
-                heights_m_asl[this_height_index] * METRES_TO_KM)
-
-            axes_objects_2d_list[i][j].text(
-                0.5, 0.01, this_legend_string, fontsize=20, color='k',
-                horizontalalignment='center', verticalalignment='bottom',
-                transform=axes_objects_2d_list[i][j].transAxes)
+                annotation_string=this_annotation_string,
+                colour_map_object=colour_map_object,
+                colour_norm_object=colour_norm_object)
 
     return figure_object

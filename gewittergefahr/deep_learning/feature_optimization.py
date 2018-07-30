@@ -17,6 +17,14 @@ DEFAULT_IDEAL_ACTIVATION = 2.
 DEFAULT_LEARNING_RATE = 0.01
 DEFAULT_NUM_ITERATIONS = 200
 
+CLASS_OPTIMIZATION_TYPE_STRING = 'class'
+NEURON_OPTIMIZATION_TYPE_STRING = 'neuron'
+CHANNEL_OPTIMIZATION_TYPE_STRING = 'channel'
+VALID_OPTIMIZATION_TYPE_STRINGS = [
+    CLASS_OPTIMIZATION_TYPE_STRING, NEURON_OPTIMIZATION_TYPE_STRING,
+    CHANNEL_OPTIMIZATION_TYPE_STRING
+]
+
 
 def _check_input_args(init_function, num_iterations, learning_rate):
     """Checks input args to optimization methods.
@@ -132,6 +140,23 @@ def _do_saliency_calculations(
         list_of_saliency_matrices[i] *= -1
 
     return list_of_saliency_matrices
+
+
+def check_optimization_type(optimization_type_string):
+    """Ensures that optimization type is valid.
+
+    :param optimization_type_string: Optimization type.
+    :raises: ValueError: if
+        `optimization_type_string not in VALID_OPTIMIZATION_TYPE_STRINGS`.
+    """
+
+    error_checking.assert_is_string(optimization_type_string)
+    if optimization_type_string not in VALID_OPTIMIZATION_TYPE_STRINGS:
+        error_string = (
+            '\n\n{0:s}\nValid optimization types (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VALID_OPTIMIZATION_TYPE_STRINGS), optimization_type_string)
+        raise ValueError(error_string)
 
 
 def create_gaussian_initializer(mean, standard_deviation):
