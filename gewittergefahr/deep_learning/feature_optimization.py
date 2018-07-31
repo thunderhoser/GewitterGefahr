@@ -39,6 +39,8 @@ IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_index_matrix'
 CHANNEL_INDICES_KEY = 'channel_indices'
 
+STORM_ID_KEY = 'storm_id'
+STORM_TIME_KEY = 'storm_time_unix_sec'
 RETURN_PROBS_KEY = 'return_probs'
 
 
@@ -845,11 +847,11 @@ def get_saliency_maps_for_channel_activation(
     :param model_object: Instance of `keras.models.Model`.
     :param layer_name: See doc for `get_channel_activation_for_examples`.
     :param channel_index: Same.
-    :param list_of_input_matrices: ee doc for `_do_saliency_calculations`.
+    :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
     :param stat_function_for_neuron_activations: See doc for
         `optimize_input_for_channel_activation`.
     :param ideal_activation: Same.
-    :return: list_of_saliency_matrices: ee doc for `_do_saliency_calculations`.
+    :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
     """
 
     error_checking.assert_is_string(layer_name)
@@ -1119,3 +1121,139 @@ def read_activations_from_file(pickle_file_name):
     pickle_file_handle.close()
 
     return activation_matrix, metadata_dict
+
+
+def write_saliency_maps_to_file(
+        pickle_file_name, list_of_saliency_matrices, model_file_name, storm_id,
+        storm_time_unix_sec, component_type_string, target_class=None,
+        return_probs=None, ideal_logit=None, layer_name=None,
+        ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
+    """Writes saliency maps to Pickle file.
+
+    C = number of model components (classes, neurons, or channels) for which
+        saliency maps were computed
+
+    All saliency maps are for the same example (storm object) but a different
+    model component.
+
+    :param pickle_file_name: Path to output file.
+    :param list_of_saliency_matrices: length-T list of numpy arrays, where
+        T = number of input tensors to the model, comprising the saliency map
+        for each model component.  The first dimension of each array has length
+        C.
+    :param model_file_name: Path to file with trained model.
+    :param storm_id: Storm ID for example.
+    :param storm_time_unix_sec: Valid time for example.
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
+        See doc for `get_saliency_maps_for_class_activation`.
+    :param return_probs: Same.
+    :param ideal_logit: Same.
+    :param layer_name:
+        [used only if component_type_string = "neuron" or "channel"]
+        See doc for `get_saliency_maps_for_neuron_activation` or
+        `get_saliency_maps_for_channel_activation`.
+    :param ideal_activation: Same.
+    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
+        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
+        indices of the [j]th neuron whose saliency map was computed.
+    :param channel_indices: [used only if component_type_string = "channel"]
+        length-C numpy array, where channel_indices[j] is the index of the
+        [j]th channel whose saliency map was computed.
+    """
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_string(storm_id)
+    error_checking.assert_is_integer(storm_time_unix_sec)
+    check_component_type(component_type_string)
+
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+        error_checking.assert_is_boolean(return_probs)
+        num_components = 1
+
+        if return_probs:
+            ideal_logit = None
+        if ideal_logit is not None:
+            error_checking.assert_is_greater(ideal_logit, 0.)
+
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+        if ideal_activation is not None:
+            error_checking.assert_is_greater(ideal_activation, 0.)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
+        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
+        error_checking.assert_is_numpy_array(
+            neuron_index_matrix, num_dimensions=2)
+        num_components = neuron_index_matrix.shape[0]
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(channel_indices)
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+        num_components = len(channel_indices)
+
+    error_checking.assert_is_list(list_of_saliency_matrices)
+    for this_array in list_of_saliency_matrices:
+        error_checking.assert_is_numpy_array(this_array)
+        these_expected_dim = numpy.array(
+            (num_components,) + this_array.shape[1:], dtype=int)
+        error_checking.assert_is_numpy_array(
+            this_array, exact_dimensions=these_expected_dim)
+
+    metadata_dict = {
+        MODEL_FILE_NAME_KEY: model_file_name,
+        STORM_ID_KEY: storm_id,
+        STORM_TIME_KEY: storm_time_unix_sec,
+        COMPONENT_TYPE_KEY: component_type_string,
+        TARGET_CLASS_KEY: target_class,
+        RETURN_PROBS_KEY: return_probs,
+        IDEAL_LOGIT_KEY: ideal_logit,
+        LAYER_NAME_KEY: layer_name,
+        IDEAL_ACTIVATION_KEY: ideal_activation,
+        NEURON_INDICES_KEY: neuron_index_matrix,
+        CHANNEL_INDICES_KEY: channel_indices,
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(list_of_saliency_matrices, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_saliency_maps_from_file(pickle_file_name):
+    """Reads saliency maps from Pickle file.
+
+    C = number of model components (classes, neurons, or channels) for which
+        saliency maps were computed
+
+    :param pickle_file_name: Path to input file.
+    :return: list_of_saliency_matrices: length-T list of numpy arrays, where
+        T = number of input tensors to the model, comprising the saliency map
+        for each model component.  The first dimension of each array has length
+        C.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['model_file_name']: See doc for `write_saliency_maps_to_file`.
+    metadata_dict['storm_id']: Same.
+    metadata_dict['storm_time_unix_sec']: Same.
+    metadata_dict['component_type_string']: Same.
+    metadata_dict['target_class']: Same.
+    metadata_dict['return_probs']: Same.
+    metadata_dict['ideal_logit']: Same.
+    metadata_dict['layer_name']: Same.
+    metadata_dict['ideal_activation']: Same.
+    metadata_dict['neuron_index_matrix']: Same.
+    metadata_dict['channel_indices']: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    list_of_saliency_matrices = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return list_of_saliency_matrices, metadata_dict

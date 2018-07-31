@@ -26,6 +26,8 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import error_checking
 
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
 RADAR_IMAGE_MATRIX_KEY = 'radar_image_matrix'
 REFLECTIVITY_MATRIX_KEY = 'reflectivity_image_matrix_dbz'
 AZ_SHEAR_MATRIX_KEY = 'azimuthal_shear_image_matrix_s01'
@@ -153,11 +155,13 @@ def create_storm_images_2d(
         field_name_by_channel[j] = storm_images.image_file_name_to_field(
             radar_file_name_matrix[0, j])
 
-    num_file_times = radar_file_name_matrix.shape[0]
+    storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
     radar_image_matrix = None
     sounding_matrix = None
     target_values = numpy.array([], dtype=int)
 
+    num_file_times = radar_file_name_matrix.shape[0]
     for i in range(num_file_times):
         if return_target:
             label_file_name = storm_images.find_storm_label_file(
@@ -213,10 +217,13 @@ def create_storm_images_2d(
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0)
 
-        these_storm_ids_to_keep = this_radar_image_dict[
-            storm_images.STORM_IDS_KEY]
-        these_storm_times_to_keep_unix_sec = this_radar_image_dict[
+        these_storm_ids = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+        these_storm_times_unix_sec = this_radar_image_dict[
             storm_images.VALID_TIMES_KEY]
+
+        storm_ids += these_storm_ids
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec, these_storm_times_unix_sec))
         if return_target:
             target_values = numpy.concatenate((
                 target_values,
@@ -229,9 +236,8 @@ def create_storm_images_2d(
                     radar_file_name_matrix[i, j])
                 this_radar_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=radar_file_name_matrix[i, j],
-                    storm_ids_to_keep=these_storm_ids_to_keep,
-                    valid_times_to_keep_unix_sec=
-                    these_storm_times_to_keep_unix_sec)
+                    storm_ids_to_keep=these_storm_ids,
+                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
 
             tuple_of_image_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -263,6 +269,8 @@ def create_storm_images_2d(
         target_values = (target_values == num_classes - 1).astype(int)
 
     return {
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
         RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
         SOUNDING_MATRIX_KEY: sounding_matrix,
         TARGET_VALUES_KEY: target_values
@@ -347,20 +355,15 @@ def create_storm_images_3d(
         radar_field_names[j] = storm_images.image_file_name_to_field(
             radar_file_name_matrix[0, j, 0])
 
-    num_file_times = radar_file_name_matrix.shape[0]
-    num_heights = radar_file_name_matrix.shape[2]
+    storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
     radar_image_matrix = None
     sounding_matrix = None
+    target_values = numpy.array([], dtype=int)
+    rotation_divergence_products_s02 = numpy.array([], dtype=float)
 
-    if return_target:
-        target_values = numpy.array([], dtype=int)
-    else:
-        target_values = None
-
-    if return_rotation_divergence_product:
-        rotation_divergence_products_s02 = numpy.array([], dtype=float)
-    else:
-        rotation_divergence_products_s02 = None
+    num_file_times = radar_file_name_matrix.shape[0]
+    num_heights = radar_file_name_matrix.shape[2]
 
     for i in range(num_file_times):
         if return_target:
@@ -417,10 +420,13 @@ def create_storm_images_3d(
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0)
 
-        these_storm_ids_to_keep = this_radar_image_dict[
-            storm_images.STORM_IDS_KEY]
-        these_storm_times_to_keep_unix_sec = this_radar_image_dict[
+        these_storm_ids = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+        these_storm_times_unix_sec = this_radar_image_dict[
             storm_images.VALID_TIMES_KEY]
+        storm_ids += these_storm_ids
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec, these_storm_times_unix_sec))
+
         if return_target:
             target_values = numpy.concatenate((
                 target_values,
@@ -441,9 +447,8 @@ def create_storm_images_3d(
                         radar_file_name_matrix[i, j, k])
                     this_radar_image_dict = storm_images.read_storm_images(
                         netcdf_file_name=radar_file_name_matrix[i, j, k],
-                        storm_ids_to_keep=these_storm_ids_to_keep,
-                        valid_times_to_keep_unix_sec=
-                        these_storm_times_to_keep_unix_sec)
+                        storm_ids_to_keep=these_storm_ids,
+                        valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
 
                 tuple_of_3d_image_matrices += (
                     this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -481,6 +486,8 @@ def create_storm_images_3d(
         target_values = (target_values == num_classes - 1).astype(int)
 
     return {
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
         RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
         SOUNDING_MATRIX_KEY: sounding_matrix,
         TARGET_VALUES_KEY: target_values,
@@ -567,12 +574,15 @@ def create_storm_images_2d3d_myrorss(
         azimuthal_shear_field_names[j] = storm_images.image_file_name_to_field(
             az_shear_file_name_matrix[0, j])
 
-    num_file_times = reflectivity_file_name_matrix.shape[0]
-    num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]
+    storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
     reflectivity_image_matrix_dbz = None
     azimuthal_shear_image_matrix_s01 = None
     sounding_matrix = None
     target_values = numpy.array([], dtype=int)
+
+    num_file_times = reflectivity_file_name_matrix.shape[0]
+    num_reflectivity_heights = reflectivity_file_name_matrix.shape[1]
 
     for i in range(num_file_times):
         if return_target:
@@ -629,10 +639,13 @@ def create_storm_images_2d3d_myrorss(
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix, this_sounding_matrix), axis=0)
 
-        these_storm_ids_to_keep = this_radar_image_dict[
-            storm_images.STORM_IDS_KEY]
-        these_storm_times_to_keep_unix_sec = this_radar_image_dict[
+        these_storm_ids = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+        these_storm_times_unix_sec = this_radar_image_dict[
             storm_images.VALID_TIMES_KEY]
+        storm_ids += these_storm_ids
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec, these_storm_times_unix_sec))
+
         if return_target:
             target_values = numpy.concatenate((
                 target_values,
@@ -645,9 +658,8 @@ def create_storm_images_2d3d_myrorss(
                     reflectivity_file_name_matrix[i, k])
                 this_radar_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=reflectivity_file_name_matrix[i, k],
-                    storm_ids_to_keep=these_storm_ids_to_keep,
-                    valid_times_to_keep_unix_sec=
-                    these_storm_times_to_keep_unix_sec)
+                    storm_ids_to_keep=these_storm_ids,
+                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
 
             this_4d_matrix = dl_utils.stack_radar_fields(
                 (this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],))
@@ -669,9 +681,8 @@ def create_storm_images_2d3d_myrorss(
 
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=az_shear_file_name_matrix[i, j],
-                storm_ids_to_keep=these_storm_ids_to_keep,
-                valid_times_to_keep_unix_sec=
-                these_storm_times_to_keep_unix_sec)
+                storm_ids_to_keep=these_storm_ids,
+                valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
 
             tuple_of_3d_az_shear_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -709,6 +720,8 @@ def create_storm_images_2d3d_myrorss(
         target_values = (target_values == num_classes - 1).astype(int)
 
     return {
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
         REFLECTIVITY_MATRIX_KEY: reflectivity_image_matrix_dbz,
         AZ_SHEAR_MATRIX_KEY: azimuthal_shear_image_matrix_s01,
         SOUNDING_MATRIX_KEY: sounding_matrix,

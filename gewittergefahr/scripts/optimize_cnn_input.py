@@ -298,7 +298,7 @@ def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
 def _run(
         model_file_name, is_model_swirlnet, component_type_string,
         target_class, optimize_for_probability, num_iterations, learning_rate,
-        ideal_logit, layer_name, ideal_activation, neuron_indices,
+        ideal_logit, layer_name, ideal_activation, neuron_indices_flattened,
         channel_indices, output_file_name):
     """Finds optimal input for one class, neuron, or channel of a CNN.
 
@@ -314,7 +314,7 @@ def _run(
     :param ideal_logit: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
-    :param neuron_indices: Same.
+    :param neuron_indices_flattened: Same.
     :param channel_indices: Same.
     :param output_file_name: Same.
     """
@@ -329,13 +329,14 @@ def _run(
 
     if (component_type_string ==
             feature_optimization.NEURON_COMPONENT_TYPE_STRING):
-        neuron_indices = neuron_indices.astype(float)
-        neuron_indices[neuron_indices < 0] = numpy.nan
+        neuron_indices_flattened = neuron_indices_flattened.astype(float)
+        neuron_indices_flattened[neuron_indices_flattened < 0] = numpy.nan
 
         neuron_indices_2d_list = general_utils.split_array_by_nan(
-            neuron_indices)
+            neuron_indices_flattened)
         neuron_index_matrix = numpy.array(neuron_indices_2d_list, dtype=int)
-        del neuron_indices, neuron_indices_2d_list
+    else:
+        neuron_index_matrix = None
 
     if (component_type_string ==
             feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
@@ -377,15 +378,15 @@ def _run(
     elif (component_type_string ==
           feature_optimization.NEURON_COMPONENT_TYPE_STRING):
 
-        for i in range(neuron_index_matrix.shape[0]):
+        for j in range(neuron_index_matrix.shape[0]):
             print (
                 '\nOptimizing inputs for neuron {0:s} in layer "{1:s}"...'
-            ).format(str(neuron_index_matrix[i, :]), layer_name)
+            ).format(str(neuron_index_matrix[j, :]), layer_name)
 
             these_matrices = (
                 feature_optimization.optimize_input_for_neuron_activation(
                     model_object=model_object, layer_name=layer_name,
-                    neuron_indices=neuron_index_matrix[i, :],
+                    neuron_indices=neuron_index_matrix[j, :],
                     init_function=init_function, num_iterations=num_iterations,
                     learning_rate=learning_rate,
                     ideal_activation=ideal_activation))
@@ -393,10 +394,10 @@ def _run(
             if list_of_optimized_input_matrices is None:
                 list_of_optimized_input_matrices = copy.deepcopy(these_matrices)
             else:
-                for j in range(len(list_of_optimized_input_matrices)):
-                    list_of_optimized_input_matrices[j] = numpy.concatenate(
-                        (list_of_optimized_input_matrices[j],
-                         these_matrices[j]), axis=0)
+                for k in range(len(list_of_optimized_input_matrices)):
+                    list_of_optimized_input_matrices[k] = numpy.concatenate(
+                        (list_of_optimized_input_matrices[k],
+                         these_matrices[k]), axis=0)
 
     else:
         for this_channel_index in channel_indices:
@@ -416,10 +417,10 @@ def _run(
             if list_of_optimized_input_matrices is None:
                 list_of_optimized_input_matrices = copy.deepcopy(these_matrices)
             else:
-                for j in range(len(list_of_optimized_input_matrices)):
-                    list_of_optimized_input_matrices[j] = numpy.concatenate(
-                        (list_of_optimized_input_matrices[j],
-                         these_matrices[j]), axis=0)
+                for k in range(len(list_of_optimized_input_matrices)):
+                    list_of_optimized_input_matrices[k] = numpy.concatenate(
+                        (list_of_optimized_input_matrices[k],
+                         these_matrices[k]), axis=0)
 
     print MINOR_SEPARATOR_STRING
 
@@ -463,7 +464,7 @@ if __name__ == '__main__':
         ideal_logit=getattr(INPUT_ARG_OBJECT, IDEAL_LOGIT_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
         ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
-        neuron_indices=numpy.array(
+        neuron_indices_flattened=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
         channel_indices=numpy.array(
             getattr(INPUT_ARG_OBJECT, CHANNEL_INDICES_ARG_NAME), dtype=int),

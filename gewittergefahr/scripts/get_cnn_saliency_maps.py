@@ -1,8 +1,9 @@
-"""Computes activation for the given class, neurons, or channels of a CNN.
+"""Computes saliency maps for the given class, neurons, or channels of a CNN.
 
 CNN = convolutional neural network
 """
 
+import copy
 import os.path
 import argparse
 import numpy
@@ -12,72 +13,89 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import storm_images
-from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-
-# TODO(thunderhoser): Write storm ID and valid time for each example.
+from gewittergefahr.deep_learning import feature_optimization
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 LARGE_INTEGER = int(1e10)
+INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
 RETURN_PROBS_ARG_NAME = 'return_probs'
+IDEAL_LOGIT_ARG_NAME = 'ideal_logit'
 LAYER_NAME_ARG_NAME = 'layer_name'
+IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
 CHANNEL_INDICES_ARG_NAME = 'channel_indices'
 RADAR_IMAGE_DIR_ARG_NAME = 'input_radar_image_dir_name'
 SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
-FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
-LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
+STORM_ID_ARG_NAME = 'storm_id'
+STORM_TIME_ARG_NAME = 'storm_time_string'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing a trained CNN.  Will be read by '
     '`cnn.read_model`.')
 COMPONENT_TYPE_HELP_STRING = (
-    'Component type.  Activations may be computed for one class, one/many '
+    'Component type.  Saliency maps may be computed for one class, one/many '
     'neurons, or one/many channels.  Valid options are listed below.\n{0:s}'
 ).format(str(feature_optimization.VALID_COMPONENT_TYPE_STRINGS))
 TARGET_CLASS_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Activations will be computed for class k, '
-    'where k = `{2:s}`.'
+    '[used only if {0:s} = "{1:s}"] Saliency maps will be computed for class k,'
+    ' where k = `{2:s}`.'
 ).format(COMPONENT_TYPE_ARG_NAME,
          feature_optimization.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 RETURN_PROBS_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, the activation for '
-    'each example will be the predicted probability of class k, where k = '
-    '`{2:s}`.  If 0, the activation for each example will be pre-softmax logit '
-    'for class k.'
+    '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, saliency maps will be '
+    'created for the predicted probability of class k, where k = `{2:s}`.  If '
+    '0, saliency maps will be created for the pre-softmax logit for class k.'
 ).format(COMPONENT_TYPE_ARG_NAME,
          feature_optimization.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
+IDEAL_LOGIT_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}" and {2:s} = 0] The loss function will be '
+    '(logit[k] - {3:s}) ** 2, where logit[k] is the logit for the target class.'
+    '  If {3:s} = -1, the loss function will be -sign(logit[k]) * logit[k]**2, '
+    'or the negative signed square of logit[k], so that loss always decreases '
+    'as logit[k] increases.'
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
+         RETURN_PROBS_ARG_NAME, IDEAL_LOGIT_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neurons or '
-    'channels whose activations will be computed.'
+    'channels for which saliency maps will be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME,
          feature_optimization.NEURON_COMPONENT_TYPE_STRING,
          feature_optimization.CLASS_COMPONENT_TYPE_STRING)
+IDEAL_ACTIVATION_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}" or "{2:s}"] The loss function will be '
+    '(neuron_activation - ideal_activation)**2 or [max(channel_activations) - '
+    'ideal_activation]**2.  If {3:s} = -1, the loss function will be '
+    '-sign(neuron_activation) * neuron_activation**2 or '
+    '-sign(max(channel_activations)) * max(channel_activations)**2.'
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.NEURON_COMPONENT_TYPE_STRING,
+         feature_optimization.CHANNEL_COMPONENT_TYPE_STRING,
+         IDEAL_ACTIVATION_ARG_NAME)
 NEURON_INDICES_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Indices for each neuron whose activation is'
-    ' to be computed.  For example, to compute activations for neuron (0, 0, 2)'
-    ', this argument should be "0 0 2".  To compute activations for neurons '
-    '(0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In other '
-    'words, use -1 to separate neurons.'
+    '[used only if {0:s} = "{1:s}"] Indices for each neuron whose saliency map '
+    'is to be computed.  For example, to compute saliency maps for neuron '
+    '(0, 0, 2), this argument should be "0 0 2".  To compute saliency maps for '
+    'neurons (0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In'
+    ' other words, use -1 to separate neurons.'
 ).format(COMPONENT_TYPE_ARG_NAME,
          feature_optimization.NEURON_COMPONENT_TYPE_STRING)
 CHANNEL_INDICES_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Index for each channel whose activation is '
-    'to be computed.'
+    '[used only if {0:s} = "{1:s}"] Index for each channel whose saliency map '
+    'is to be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME,
          feature_optimization.CHANNEL_COMPONENT_TYPE_STRING)
 RADAR_IMAGE_DIR_HELP_STRING = (
@@ -88,14 +106,17 @@ SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `soundings_only.find_sounding_file` and read by '
     '`soundings_only.read_soundings`.')
-SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Activation will '
-    'be computed for each model component and each example (storm object) from '
-    '`{0:s}`...`{1:s}`.'
-).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+STORM_ID_HELP_STRING = (
+    'Storm ID.  Saliency maps will be created only for this storm at time '
+    '`{0:s}`.'
+).format(STORM_TIME_ARG_NAME)
+STORM_TIME_HELP_STRING = (
+    'Storm time (format "yyyy-mm-dd-HHMMSS").  Saliency maps will be created '
+    'only for storm `{0:s}` at this time.'
+).format(STORM_ID_ARG_NAME)
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `feature_optimization.'
-    'write_activations_to_file`).')
+    'write_saliency_maps_to_file`).')
 
 DEFAULT_TOP_RADAR_IMAGE_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
@@ -122,8 +143,18 @@ INPUT_ARG_PARSER.add_argument(
     default=1, help=RETURN_PROBS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + IDEAL_LOGIT_ARG_NAME, type=float, required=False,
+    default=feature_optimization.DEFAULT_IDEAL_LOGIT,
+    help=IDEAL_LOGIT_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
     help=LAYER_NAME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + IDEAL_ACTIVATION_ARG_NAME, type=float, required=False,
+    default=feature_optimization.DEFAULT_IDEAL_ACTIVATION,
+    help=IDEAL_ACTIVATION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NEURON_INDICES_ARG_NAME, type=int, nargs='+', required=False,
@@ -143,22 +174,22 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_TOP_SOUNDING_DIR_NAME, help=SOUNDING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
+    '--' + STORM_ID_ARG_NAME, type=str, required=True,
+    help=STORM_ID_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
+    '--' + STORM_TIME_ARG_NAME, type=str, required=True,
+    help=STORM_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _read_input_one_spc_date(
+def _read_input_one_storm_object(
         radar_file_name_matrix, model_metadata_dict, top_sounding_dir_name,
-        spc_date_index):
-    """Reads model input for one SPC date.
+        storm_id, storm_time_unix_sec):
+    """Reads model input for one storm object.
 
     :param radar_file_name_matrix: numpy array of file names, created by either
         `training_validation_io.find_radar_files_2d` or
@@ -166,16 +197,16 @@ def _read_input_one_spc_date(
     :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
     :param top_sounding_dir_name: Name of top-level directory with storm-
         centered soundings.
-    :param spc_date_index: Index of SPC date.  Data will be read from
-        radar_file_name_matrix[i, ...], where i = `spc_date_index`.
+    :param storm_id: String ID for storm cell.
+    :param storm_time_unix_sec: Valid time for storm object.
     :return: list_of_input_matrices: length-T list of numpy arrays, where T =
-        number of input tensors to the model.
+        number of input tensors to the model.  Each array contains data for only
+        the given storm object (ID-time pair).
     """
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         example_dict = deployment_io.create_storm_images_2d3d_myrorss(
-            radar_file_name_matrix=radar_file_name_matrix[
-                [spc_date_index], ...],
+            radar_file_name_matrix=radar_file_name_matrix[[0], ...],
             num_examples_per_file_time=LARGE_INTEGER, return_target=False,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             radar_normalization_dict=model_metadata_dict[
@@ -187,19 +218,12 @@ def _read_input_one_spc_date(
             model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
-
-        list_of_input_matrices = [
-            example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY],
-            example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY]
-        ]
-
     else:
         num_radar_dimensions = len(
             model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
         if num_radar_dimensions == 3:
             example_dict = deployment_io.create_storm_images_3d(
-                radar_file_name_matrix=radar_file_name_matrix[
-                    [spc_date_index], ...],
+                radar_file_name_matrix=radar_file_name_matrix[[0], ...],
                 num_examples_per_file_time=LARGE_INTEGER, return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
                 radar_normalization_dict=model_metadata_dict[
@@ -216,8 +240,7 @@ def _read_input_one_spc_date(
                     cnn.SOUNDING_NORMALIZATION_DICT_KEY])
         else:
             example_dict = deployment_io.create_storm_images_2d(
-                radar_file_name_matrix=radar_file_name_matrix[
-                    [spc_date_index], ...],
+                radar_file_name_matrix=radar_file_name_matrix[[0], ...],
                 num_examples_per_file_time=LARGE_INTEGER, return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
                 radar_normalization_dict=model_metadata_dict[
@@ -230,23 +253,38 @@ def _read_input_one_spc_date(
                 sounding_normalization_dict=model_metadata_dict[
                     cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
+    storm_object_index = numpy.where(numpy.logical_and(
+        numpy.array(example_dict[deployment_io.STORM_IDS_KEY]) == storm_id,
+        example_dict[deployment_io.STORM_TIMES_KEY] == storm_time_unix_sec
+    ))[0][0]
+
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         list_of_input_matrices = [
-            example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY]
+            example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY][
+                storm_object_index, ...],
+            example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY][
+                storm_object_index, ...]
+        ]
+    else:
+        list_of_input_matrices = [
+            example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY][
+                storm_object_index, ...]
         ]
 
     if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
         list_of_input_matrices.append(
-            example_dict[deployment_io.SOUNDING_MATRIX_KEY])
+            example_dict[deployment_io.SOUNDING_MATRIX_KEY][
+                storm_object_index, ...])
 
     return list_of_input_matrices
 
 
 def _run(
         model_file_name, component_type_string, target_class, return_probs,
-        layer_name, neuron_indices_flattened, channel_indices,
-        top_radar_image_dir_name, top_sounding_dir_name, first_spc_date_string,
-        last_spc_date_string, output_file_name):
-    """Creates activation maps for one class, neuron, or channel of a CNN.
+        ideal_logit, layer_name, ideal_activation, neuron_indices_flattened,
+        channel_indices, top_radar_image_dir_name, top_sounding_dir_name,
+        storm_id, storm_time_string, output_file_name):
+    """Computes saliency maps for given class, neurons, or channels of a CNN.
 
     This is effectively the main method.
 
@@ -254,19 +292,23 @@ def _run(
     :param component_type_string: Same.
     :param target_class: Same.
     :param return_probs: Same.
+    :param ideal_logit: Same.
     :param layer_name: Same.
+    :param ideal_activation: Same.
     :param neuron_indices_flattened: Same.
     :param channel_indices: Same.
     :param top_radar_image_dir_name: Same.
     :param top_sounding_dir_name: Same.
-    :param first_spc_date_string: Same.
-    :param last_spc_date_string: Same.
+    :param storm_id: Same.
+    :param storm_time_string: Same.
     :param output_file_name: Same.
     """
 
     # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     feature_optimization.check_component_type(component_type_string)
+    storm_time_unix_sec = time_conversion.string_to_unix_sec(
+        storm_time_string, INPUT_TIME_FORMAT)
 
     if (component_type_string ==
             feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
@@ -303,12 +345,8 @@ def _run(
             radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
             radar_field_names=model_metadata_dict[
                 cnn.RADAR_FIELD_NAMES_KEY],
-            first_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(
-                first_spc_date_string),
-            last_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(
-                last_spc_date_string),
+            first_file_time_unix_sec=storm_time_unix_sec,
+            last_file_time_unix_sec=storm_time_unix_sec,
             one_file_per_time_step=False, shuffle_times=False,
             radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
             reflectivity_heights_m_asl=model_metadata_dict[
@@ -320,96 +358,86 @@ def _run(
             radar_field_names=model_metadata_dict[
                 cnn.RADAR_FIELD_NAMES_KEY],
             radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-            first_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(
-                first_spc_date_string),
-            last_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(
-                last_spc_date_string),
+            first_file_time_unix_sec=storm_time_unix_sec,
+            last_file_time_unix_sec=storm_time_unix_sec,
             one_file_per_time_step=False, shuffle_times=False)[0]
 
     print SEPARATOR_STRING
+    list_of_input_matrices = _read_input_one_storm_object(
+        radar_file_name_matrix=radar_file_name_matrix,
+        model_metadata_dict=model_metadata_dict,
+        top_sounding_dir_name=top_sounding_dir_name,
+        storm_id=storm_id, storm_time_unix_sec=storm_time_unix_sec)
+    print SEPARATOR_STRING
 
-    # Compute activation for each example (storm object) and model component.
-    num_spc_dates = radar_file_name_matrix.shape[0]
-    activation_matrix = None
+    # Create saliency maps.
+    list_of_saliency_matrices = None
 
-    for i in range(num_spc_dates):
-        this_list_of_input_matrices = _read_input_one_spc_date(
-            radar_file_name_matrix=radar_file_name_matrix,
-            model_metadata_dict=model_metadata_dict,
-            top_sounding_dir_name=top_sounding_dir_name, spc_date_index=i)
-        print '\n'
+    if (component_type_string ==
+            feature_optimization.CLASS_COMPONENT_TYPE_STRING):
+        print 'Computing saliency map for target class {0:d}...'.format(
+            target_class)
+        list_of_saliency_matrices = (
+            feature_optimization.get_saliency_maps_for_class_activation(
+                model_object=model_object, target_class=target_class,
+                return_probs=return_probs,
+                list_of_input_matrices=list_of_input_matrices,
+                ideal_logit=ideal_logit))
 
-        if num_radar_dimensions == 2:
-            _, this_spc_date_string = storm_images.image_file_name_to_time(
-                radar_file_name_matrix[i, 0])
-        else:
-            _, this_spc_date_string = storm_images.image_file_name_to_time(
-                radar_file_name_matrix[i, 0, 0])
+    elif (component_type_string ==
+          feature_optimization.NEURON_COMPONENT_TYPE_STRING):
 
-        if (component_type_string ==
-                feature_optimization.CLASS_COMPONENT_TYPE_STRING):
+        for j in range(neuron_index_matrix.shape[0]):
             print (
-                'Computing activations for target class {0:d} and SPC date '
-                '"{1:s}"...'
-            ).format(target_class, this_spc_date_string)
+                'Computing saliency map for neuron {0:s} in layer "{1:s}"...'
+            ).format(str(neuron_index_matrix[j, :]), layer_name)
 
-            these_activations = (
-                feature_optimization.get_class_activation_for_examples(
-                    model_object=model_object, target_class=target_class,
-                    return_probs=return_probs,
-                    list_of_input_matrices=this_list_of_input_matrices))
+            these_matrices = (
+                feature_optimization.get_saliency_maps_for_neuron_activation(
+                    model_object=model_object, layer_name=layer_name,
+                    neuron_indices=neuron_index_matrix[j, ...],
+                    list_of_input_matrices=list_of_input_matrices,
+                    ideal_activation=ideal_activation))
 
-        elif (component_type_string ==
-              feature_optimization.NEURON_COMPONENT_TYPE_STRING):
+            if list_of_saliency_matrices is None:
+                list_of_saliency_matrices = copy.deepcopy(these_matrices)
+            else:
+                for k in range(len(list_of_saliency_matrices)):
+                    list_of_saliency_matrices[k] = numpy.concatenate(
+                        (list_of_saliency_matrices[k], these_matrices[k]),
+                        axis=0)
+    else:
+        for this_channel_index in channel_indices:
+            print (
+                'Computing saliency map for channel {0:d} in layer "{1:s}"...'
+            ).format(this_channel_index, layer_name)
 
-            for j in range(neuron_index_matrix.shape[0]):
-                print (
-                    'Computing activations for neuron {0:s} in layer "{1:s}", '
-                    'SPC date "{2:s}"...'
-                ).format(str(neuron_index_matrix[j, :]), layer_name,
-                         this_spc_date_string)
+            these_matrices = (
+                feature_optimization.get_saliency_maps_for_channel_activation(
+                    model_object=model_object, layer_name=layer_name,
+                    channel_index=this_channel_index,
+                    list_of_input_matrices=list_of_input_matrices,
+                    stat_function_for_neuron_activations=K.max,
+                    ideal_activation=ideal_activation))
 
-                these_activations = (
-                    feature_optimization.get_neuron_activation_for_examples(
-                        model_object=model_object, layer_name=layer_name,
-                        neuron_indices=neuron_index_matrix[j, :],
-                        list_of_input_matrices=this_list_of_input_matrices))
+            if list_of_saliency_matrices is None:
+                list_of_saliency_matrices = copy.deepcopy(these_matrices)
+            else:
+                for k in range(len(list_of_saliency_matrices)):
+                    list_of_saliency_matrices[k] = numpy.concatenate(
+                        (list_of_saliency_matrices[k], these_matrices[k]),
+                        axis=0)
 
-        else:
-            for this_channel_index in channel_indices:
-                print (
-                    'Computing activations for channel {0:d} in layer "{1:s}", '
-                    'SPC date "{2:s}"...'
-                ).format(this_channel_index, layer_name, this_spc_date_string)
-
-                these_activations = (
-                    feature_optimization.get_channel_activation_for_examples(
-                        model_object=model_object, layer_name=layer_name,
-                        channel_index=this_channel_index,
-                        list_of_input_matrices=this_list_of_input_matrices,
-                        stat_function_for_neuron_activations=K.max))
-
-        this_activation_matrix = numpy.reshape(
-            these_activations, (len(these_activations), 1))
-        if activation_matrix is None:
-            activation_matrix = this_activation_matrix + 0.
-        else:
-            activation_matrix = numpy.concatenate(
-                (activation_matrix, this_activation_matrix), axis=1)
-
-        if i == num_spc_dates - 1:
-            print SEPARATOR_STRING
-        else:
-            print MINOR_SEPARATOR_STRING
-
-    print 'Writing activations to file: "{0:s}"...'.format(output_file_name)
-    feature_optimization.write_activations_to_file(
-        pickle_file_name=output_file_name, activation_matrix=activation_matrix,
-        model_file_name=model_file_name,
+    print SEPARATOR_STRING
+    print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
+    feature_optimization.write_saliency_maps_to_file(
+        pickle_file_name=output_file_name,
+        list_of_saliency_matrices=list_of_saliency_matrices,
+        model_file_name=model_file_name, storm_id=storm_id,
+        storm_time_unix_sec=storm_time_unix_sec,
         component_type_string=component_type_string, target_class=target_class,
-        return_probs=return_probs, layer_name=layer_name,
+        return_probs=return_probs, ideal_logit=ideal_logit,
+        layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
 
@@ -423,7 +451,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
         return_probs=bool(getattr(INPUT_ARG_OBJECT, RETURN_PROBS_ARG_NAME)),
+        ideal_logit=getattr(INPUT_ARG_OBJECT, IDEAL_LOGIT_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
+        ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
         neuron_indices_flattened=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
         channel_indices=numpy.array(
@@ -431,7 +461,7 @@ if __name__ == '__main__':
         top_radar_image_dir_name=getattr(
             INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
         top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
-        first_spc_date_string=getattr(
-            INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
-        last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
+        storm_id=getattr(
+            INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
+        storm_time_string=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
