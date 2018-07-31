@@ -35,6 +35,7 @@ SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
+NORMALIZE_ARG_NAME = 'normalize'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 RADAR_IMAGE_DIR_HELP_STRING = (
@@ -55,6 +56,9 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'computed for each of these fields at each height (metres above sea level) '
     'in the following list.\n{0:s}'
 ).format(str(RADAR_HEIGHTS_M_ASL))
+NORMALIZE_HELP_STRING = (
+    'Boolean flag.  If 1, values will be normalized, using `deep_learning_utils'
+    '.normalize_radar_images` and `deep_learning_utils.normalize_soundings`.')
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file.  This will be a Pickle file with the climatological '
     'mean for each radar field/height and each sounding field/pressure.')
@@ -95,6 +99,10 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_RADAR_FIELD_NAMES, help=RADAR_FIELD_NAMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NORMALIZE_ARG_NAME, type=int, required=False, default=1,
+    help=NORMALIZE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
@@ -114,7 +122,7 @@ def _get_weighted_average(input_values, input_weights):
 
 def _run(
         top_radar_image_dir_name, top_sounding_dir_name, first_spc_date_string,
-        last_spc_date_string, radar_field_names, output_file_name):
+        last_spc_date_string, radar_field_names, normalize, output_file_name):
     """Finds climatological averages for GridRad training data.
 
     This is effectively the main method.
@@ -124,6 +132,7 @@ def _run(
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param radar_field_names: Same.
+    :param normalize: Same.
     :param output_file_name: Same.
     """
 
@@ -257,6 +266,43 @@ def _run(
         num_storm_objects_with_soundings += this_num_storm_objects
         print SEPARATOR_STRING
 
+    if normalize:
+        print 'Normalizing mean radar values...'
+        dummy_radar_image_matrix = numpy.full(
+            (1, 1, 1, num_radar_heights, num_radar_fields), numpy.nan)
+        for j in range(num_radar_fields):
+            for k in range(num_radar_heights):
+                dummy_radar_image_matrix[..., k, j] = mean_radar_value_dict[
+                    radar_field_names[j], RADAR_HEIGHTS_M_ASL[k]]
+
+        dummy_radar_image_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=dummy_radar_image_matrix,
+            field_names=radar_field_names)
+
+        for j in range(num_radar_fields):
+            for k in range(num_radar_heights):
+                mean_radar_value_dict[
+                    radar_field_names[j], RADAR_HEIGHTS_M_ASL[k]
+                ] = dummy_radar_image_matrix[0, 0, 0, k, j]
+
+        print 'Normalizing mean sounding values...\n'
+        dummy_sounding_matrix = numpy.full(
+            (1, num_sounding_pressures, num_sounding_fields), numpy.nan)
+        for j in range(num_sounding_fields):
+            for k in range(num_sounding_pressures):
+                dummy_sounding_matrix[:, k, j] = mean_sounding_value_dict[
+                    SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]]
+
+        dummy_sounding_matrix = dl_utils.normalize_soundings(
+            sounding_matrix=dummy_sounding_matrix,
+            pressureless_field_names=SOUNDING_FIELD_NAMES)
+
+        for j in range(num_sounding_fields):
+            for k in range(num_sounding_pressures):
+                mean_sounding_value_dict[
+                    SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]
+                ] = dummy_sounding_matrix[0, k, j]
+
     for j in range(num_radar_fields):
         for k in range(num_radar_heights):
             print 'Mean "{0:s}" at {1:d} metres ASL = {2:.2e}'.format(
@@ -274,6 +320,7 @@ def _run(
                     SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]])
 
     print SEPARATOR_STRING
+
     print 'Writing climatological averages to file: "{0:s}"...'.format(
         output_file_name)
     dl_utils.write_climo_averages_to_file(
@@ -293,4 +340,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME),
+        normalize=bool(getattr(INPUT_ARG_OBJECT, NORMALIZE_ARG_NAME)),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
