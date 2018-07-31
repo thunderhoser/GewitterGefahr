@@ -19,18 +19,18 @@ DEFAULT_IDEAL_ACTIVATION = 2.
 DEFAULT_LEARNING_RATE = 0.01
 DEFAULT_NUM_ITERATIONS = 200
 
-CLASS_OPTIMIZATION_TYPE_STRING = 'class'
-NEURON_OPTIMIZATION_TYPE_STRING = 'neuron'
-CHANNEL_OPTIMIZATION_TYPE_STRING = 'channel'
-VALID_OPTIMIZATION_TYPE_STRINGS = [
-    CLASS_OPTIMIZATION_TYPE_STRING, NEURON_OPTIMIZATION_TYPE_STRING,
-    CHANNEL_OPTIMIZATION_TYPE_STRING
+CLASS_COMPONENT_TYPE_STRING = 'class'
+NEURON_COMPONENT_TYPE_STRING = 'neuron'
+CHANNEL_COMPONENT_TYPE_STRING = 'channel'
+VALID_COMPONENT_TYPE_STRINGS = [
+    CLASS_COMPONENT_TYPE_STRING, NEURON_COMPONENT_TYPE_STRING,
+    CHANNEL_COMPONENT_TYPE_STRING
 ]
 
 MODEL_FILE_NAME_KEY = 'model_file_name'
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
-OPTIMIZATION_TYPE_KEY = 'optimization_type_string'
+COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 OPTIMIZE_FOR_PROB_KEY = 'optimize_for_probability'
 IDEAL_LOGIT_KEY = 'ideal_logit'
@@ -39,9 +39,11 @@ IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_index_matrix'
 CHANNEL_INDICES_KEY = 'channel_indices'
 
+RETURN_PROBS_KEY = 'return_probs'
 
-def _check_input_args(init_function, num_iterations, learning_rate):
-    """Checks input args to optimization methods.
+
+def _check_optimization_args(init_function, num_iterations, learning_rate):
+    """Checks input args for optimization methods.
 
     :param init_function: Function used to initialize input tensors.  See
         `create_gaussian_initializer` for an example.
@@ -70,7 +72,7 @@ def _do_gradient_descent(
 
     :param model_object: Instance of `keras.models.Model`.
     :param loss_tensor: Keras tensor defining the loss function.
-    :param init_function: See doc for `_check_input_args`.
+    :param init_function: See doc for `_check_optimization_args`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :return: list_of_optimized_input_matrices: length-T list of optimized input
@@ -156,20 +158,20 @@ def _do_saliency_calculations(
     return list_of_saliency_matrices
 
 
-def check_optimization_type(optimization_type_string):
-    """Ensures that optimization type is valid.
+def check_component_type(component_type_string):
+    """Ensures that component type is valid.
 
-    :param optimization_type_string: Optimization type.
+    :param component_type_string: Component type.
     :raises: ValueError: if
-        `optimization_type_string not in VALID_OPTIMIZATION_TYPE_STRINGS`.
+        `component_type_string not in VALID_COMPONENT_TYPE_STRINGS`.
     """
 
-    error_checking.assert_is_string(optimization_type_string)
-    if optimization_type_string not in VALID_OPTIMIZATION_TYPE_STRINGS:
+    error_checking.assert_is_string(component_type_string)
+    if component_type_string not in VALID_COMPONENT_TYPE_STRINGS:
         error_string = (
-            '\n\n{0:s}\nValid optimization types (listed above) do not include '
+            '\n\n{0:s}\nValid component types (listed above) do not include '
             '"{1:s}".'
-        ).format(str(VALID_OPTIMIZATION_TYPE_STRINGS), optimization_type_string)
+        ).format(str(VALID_COMPONENT_TYPE_STRINGS), component_type_string)
         raise ValueError(error_string)
 
 
@@ -394,7 +396,7 @@ def optimize_input_for_class(
     :param target_class: Input will be optimized for this class.  Must be an
         integer in 0...(K - 1), where K = number of classes.
     :param optimize_for_probability: See general discussion above.
-    :param init_function: See doc for `_check_input_args`.
+    :param init_function: See doc for `_check_optimization_args`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :param ideal_logit: [used only if `optimize_for_probability = False`]
@@ -408,7 +410,7 @@ def optimize_input_for_class(
         layer is not an activation layer.
     """
 
-    _check_input_args(
+    _check_optimization_args(
         init_function=init_function, num_iterations=num_iterations,
         learning_rate=learning_rate)
 
@@ -462,7 +464,7 @@ def optimize_input_for_neuron_activation(
         `neuron_indices` must have length K - 1.  (The first dimension of the
         layer output is the example dimension, for which the index is 0 in this
         case.)
-    :param init_function: See doc for `_check_input_args`.
+    :param init_function: See doc for `_check_optimization_args`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :param ideal_activation: The loss function will be
@@ -475,7 +477,7 @@ def optimize_input_for_neuron_activation(
         `_do_gradient_descent`.
     """
 
-    _check_input_args(
+    _check_optimization_args(
         init_function=init_function, num_iterations=num_iterations,
         learning_rate=learning_rate)
 
@@ -518,7 +520,7 @@ def optimize_input_for_channel_activation(
     :param channel_index: Index of channel whose activation is to be maximized.
         If `channel_index = c`, the activation of the [c]th channel in the
         layer will be maximized.
-    :param init_function: See doc for `_check_input_args`.
+    :param init_function: See doc for `_check_optimization_args`.
     :param stat_function_for_neuron_activations: Function used to process neuron
         activations.  In general, a channel contains many neurons, so there is
         an infinite number of ways to maximize the "channel activation," because
@@ -526,7 +528,7 @@ def optimize_input_for_channel_activation(
         This function must take a Keras tensor (containing neuron activations)
         and return a single number.  Some examples are `keras.backend.max` and
         `keras.backend.mean`.
-    :param num_iterations: See doc for `_check_input_args`.
+    :param num_iterations: See doc for `_check_optimization_args`.
     :param learning_rate: Same.
     :param ideal_activation: The loss function will be
         abs(stat_function_for_neuron_activations(neuron_activations) -
@@ -544,7 +546,7 @@ def optimize_input_for_channel_activation(
         function.
     """
 
-    _check_input_args(
+    _check_optimization_args(
         init_function=init_function, num_iterations=num_iterations,
         learning_rate=learning_rate)
 
@@ -875,7 +877,7 @@ def get_saliency_maps_for_channel_activation(
 
 def write_optimized_input_to_file(
         pickle_file_name, list_of_optimized_input_matrices, model_file_name,
-        num_iterations, learning_rate, optimization_type_string,
+        num_iterations, learning_rate, component_type_string,
         target_class=None, optimize_for_probability=None, ideal_logit=None,
         layer_name=None, ideal_activation=None, neuron_index_matrix=None,
         channel_indices=None):
@@ -889,22 +891,22 @@ def write_optimized_input_to_file(
     :param model_file_name: Path to file with trained model.
     :param num_iterations: Number of iterations used in optimization procedure.
     :param learning_rate: Learning rate used in optimization procedure.
-    :param optimization_type_string: Optimization type (must be accepted by
-        `check_optimization_type`).
-    :param target_class: [used only if optimization_type_string = "class"]
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
         See doc for `optimize_input_for_class`.
     :param optimize_for_probability: Same.
     :param ideal_logit: Same.
     :param layer_name:
-        [used only if optimization_type_string = "neuron" or "channel"]
+        [used only if component_type_string = "neuron" or "channel"]
         See doc for `optimize_input_for_neuron_activation` or
         `optimize_input_for_channel_activation`.
     :param ideal_activation: Same.
     :param neuron_index_matrix:
-        [used only if optimization_type_string = "neuron"]
+        [used only if component_type_string = "neuron"]
         E-by-? numpy array, where neuron_index_matrix[i, :] contains array
         indices of the neuron whose activation was maxxed for the [i]th example.
-    :param channel_indices: [used only if optimization_type_string = "channel"]
+    :param channel_indices: [used only if component_type_string = "channel"]
         length-E numpy array, where channel_indices[i] is the index of the
         channel whose activation was maxxed for the [i]th example.
     """
@@ -927,9 +929,9 @@ def write_optimized_input_to_file(
     error_checking.assert_is_greater(num_iterations, 0)
     error_checking.assert_is_greater(learning_rate, 0.)
     error_checking.assert_is_less_than(learning_rate, 1.)
-    check_optimization_type(optimization_type_string)
+    check_component_type(component_type_string)
 
-    if optimization_type_string == CLASS_OPTIMIZATION_TYPE_STRING:
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
         error_checking.assert_is_integer(target_class)
         error_checking.assert_is_geq(target_class, 0)
         error_checking.assert_is_boolean(optimize_for_probability)
@@ -939,13 +941,13 @@ def write_optimized_input_to_file(
         if ideal_logit is not None:
             error_checking.assert_is_greater(ideal_logit, 0.)
 
-    if optimization_type_string in [NEURON_OPTIMIZATION_TYPE_STRING,
-                                    CHANNEL_OPTIMIZATION_TYPE_STRING]:
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
         error_checking.assert_is_string(layer_name)
         if ideal_activation is not None:
             error_checking.assert_is_greater(ideal_activation, 0.)
 
-    if optimization_type_string == NEURON_OPTIMIZATION_TYPE_STRING:
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
         error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
         error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
         expected_dimensions = numpy.array(
@@ -953,7 +955,7 @@ def write_optimized_input_to_file(
         error_checking.assert_is_numpy_array(
             neuron_index_matrix, exact_dimensions=expected_dimensions)
 
-    if optimization_type_string == CHANNEL_OPTIMIZATION_TYPE_STRING:
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
         error_checking.assert_is_integer_numpy_array(channel_indices)
         error_checking.assert_is_geq_numpy_array(channel_indices, 0)
         error_checking.assert_is_numpy_array(
@@ -963,7 +965,7 @@ def write_optimized_input_to_file(
         MODEL_FILE_NAME_KEY: model_file_name,
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
-        OPTIMIZATION_TYPE_KEY: optimization_type_string,
+        COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
         OPTIMIZE_FOR_PROB_KEY: optimize_for_probability,
         IDEAL_LOGIT_KEY: ideal_logit,
@@ -984,13 +986,14 @@ def read_optimized_inputs_from_file(pickle_file_name):
     """Reads optimized input data from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_optimized_input_matrices:
+    :return: list_of_optimized_input_matrices: length-T list of optimized input
+        matrices (numpy arrays), where T = number of input tensors to the model.
     :return: metadata_dict: Dictionary with the following keys.
     metadata_dict['model_file_name']: See doc for
         `write_optimized_inputs_to_file`.
     metadata_dict['num_iterations']: Same.
     metadata_dict['learning_rate']: Same.
-    metadata_dict['optimization_type_string']: Same.
+    metadata_dict['component_type_string']: Same.
     metadata_dict['target_class']: Same.
     metadata_dict['optimize_for_probability']: Same.
     metadata_dict['ideal_logit']: Same.
@@ -1006,3 +1009,113 @@ def read_optimized_inputs_from_file(pickle_file_name):
     pickle_file_handle.close()
 
     return list_of_optimized_input_matrices, metadata_dict
+
+
+def write_activations_to_file(
+        pickle_file_name, activation_matrix, model_file_name,
+        component_type_string, target_class=None, return_probs=None,
+        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+    """Writes activations to Pickle file.
+
+    E = number of examples (storm objects)
+    C = number of model components (classes, neurons, or channels) for which
+        activations were computed
+
+    :param pickle_file_name: Path to output file.
+    :param activation_matrix: E-by-C numpy array of activations, where
+        activation_matrix[i, j] = activation of the [j]th model component for
+        the [i]th example.
+    :param model_file_name: Path to file with trained model.
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
+        See doc for `get_class_activation_for_examples`.
+    :param return_probs: Same.
+    :param layer_name:
+        [used only if component_type_string = "neuron" or "channel"]
+        See doc for `get_neuron_activation_for_examples` or
+        `get_channel_activation_for_examples`.
+    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
+        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
+        indices of the [j]th neuron whose activation was computed.
+    :param channel_indices: [used only if component_type_string = "channel"]
+        length-C numpy array, where channel_indices[j] is the index of the
+        [j]th channel whose activation was computed.
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(activation_matrix)
+    error_checking.assert_is_numpy_array(activation_matrix, 2)
+    error_checking.assert_is_string(model_file_name)
+    check_component_type(component_type_string)
+
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+        error_checking.assert_is_boolean(return_probs)
+        num_components = 1
+
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
+        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
+        error_checking.assert_is_numpy_array(
+            neuron_index_matrix, num_dimensions=2)
+        num_components = neuron_index_matrix.shape[0]
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(channel_indices)
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+        num_components = len(channel_indices)
+
+    expected_dimensions = numpy.array(
+        [activation_matrix.shape[0], num_components], dtype=int)
+    error_checking.assert_is_numpy_array(
+        activation_matrix, exact_dimensions=expected_dimensions)
+
+    metadata_dict = {
+        MODEL_FILE_NAME_KEY: model_file_name,
+        COMPONENT_TYPE_KEY: component_type_string,
+        TARGET_CLASS_KEY: target_class,
+        RETURN_PROBS_KEY: return_probs,
+        LAYER_NAME_KEY: layer_name,
+        NEURON_INDICES_KEY: neuron_index_matrix,
+        CHANNEL_INDICES_KEY: channel_indices,
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(activation_matrix, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_activations_from_file(pickle_file_name):
+    """Reads activations from Pickle file.
+
+    E = number of examples (storm objects)
+    C = number of model components (classes, neurons, or channels) for which
+        activations were computed
+
+    :param pickle_file_name: Path to input file.
+    :return: activation_matrix: E-by-C numpy array of activations, where
+        activation_matrix[i, j] = activation of the [j]th model component for
+        the [i]th example.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['model_file_name']: See doc for `write_activations_to_file`.
+    metadata_dict['component_type_string']: Same.
+    metadata_dict['target_class']: Same.
+    metadata_dict['return_probs']: Same.
+    metadata_dict['layer_name']: Same.
+    metadata_dict['neuron_index_matrix']: Same.
+    metadata_dict['channel_indices']: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    activation_matrix = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return activation_matrix, metadata_dict

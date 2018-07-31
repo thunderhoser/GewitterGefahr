@@ -14,11 +14,11 @@ NEURON_INDEX_MATRIX = numpy.array([[0, 0, 2],
                                    [0, 1, 2],
                                    [1, 1, 2]], dtype=int)
 
-CLASS_OPTIMIZN_VERBOSE_STRING = 'class 1'
+CLASS_OPTIMIZN_VERBOSE_STRING = 'Class 1'
 CLASS_OPTIMIZN_ABBREV_STRING = 'class1'
-CHANNEL_OPTIMIZN_VERBOSE_STRING = 'layer "average_pooling2d_3", channel 8'
+CHANNEL_OPTIMIZN_VERBOSE_STRING = 'Layer "average_pooling2d_3", channel 8'
 CHANNEL_OPTIMIZN_ABBREV_STRING = 'layer=average-pooling2d-3_channel8'
-NEURON_OPTIMIZN_VERBOSE_STRING = 'layer "average_pooling2d_3"; neuron (1, 1, 2)'
+NEURON_OPTIMIZN_VERBOSE_STRING = 'Layer "average_pooling2d_3"; neuron (1, 1, 2)'
 NEURON_OPTIMIZN_ABBREV_STRING = 'layer=average-pooling2d-3_neuron1,1,2'
 
 
@@ -33,8 +33,8 @@ class FeatureOptimizationPlottingTests(unittest.TestCase):
 
         (this_verbose_string, this_abbrev_string
         ) = fopt_plotting._optimization_metadata_to_strings(
-            optimization_type_string=
-            feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
+            component_type_string=
+            feature_optimization.CLASS_COMPONENT_TYPE_STRING,
             example_index=EXAMPLE_INDEX, target_class=TARGET_CLASS,
             layer_name=LAYER_NAME,
             channel_index_by_example=CHANNEL_INDEX_BY_EXAMPLE,
@@ -51,8 +51,8 @@ class FeatureOptimizationPlottingTests(unittest.TestCase):
 
         (this_verbose_string, this_abbrev_string
         ) = fopt_plotting._optimization_metadata_to_strings(
-            optimization_type_string=
-            feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING,
+            component_type_string=
+            feature_optimization.CHANNEL_COMPONENT_TYPE_STRING,
             example_index=EXAMPLE_INDEX, target_class=TARGET_CLASS,
             layer_name=LAYER_NAME,
             channel_index_by_example=CHANNEL_INDEX_BY_EXAMPLE,
@@ -69,8 +69,8 @@ class FeatureOptimizationPlottingTests(unittest.TestCase):
 
         (this_verbose_string, this_abbrev_string
         ) = fopt_plotting._optimization_metadata_to_strings(
-            optimization_type_string=
-            feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
+            component_type_string=
+            feature_optimization.NEURON_COMPONENT_TYPE_STRING,
             example_index=EXAMPLE_INDEX, target_class=TARGET_CLASS,
             layer_name=LAYER_NAME,
             channel_index_by_example=CHANNEL_INDEX_BY_EXAMPLE,

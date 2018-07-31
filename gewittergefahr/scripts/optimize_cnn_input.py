@@ -1,4 +1,4 @@
-"""Finds optimal input for one class, neuron, or channel of a CNN.
+"""Finds optimal input for the given class, neurons, or channels of a CNN.
 
 CNN = convolutional neural network
 """
@@ -20,6 +20,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 # TODO(thunderhoser): Get rid of Swirlnet functionality.
 # TODO(thunderhoser): Allow optimization with more than one initialization.
+# TODO(thunderhoser): Screw with initialization in general.
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
@@ -32,7 +33,7 @@ SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
 IS_SWIRLNET_ARG_NAME = 'is_model_swirlnet'
-OPTIMIZATION_TYPE_ARG_NAME = 'optimization_type_string'
+COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
 OPTIMIZE_FOR_PROBABILITY_ARG_NAME = 'optimize_for_probability'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
@@ -53,23 +54,22 @@ IS_SWIRLNET_HELP_STRING = (
     ' GewitterGefahr model.  This determines how the model will be read, and '
     'the wrong assumption will cause the script to crash.'
 ).format(MODEL_FILE_ARG_NAME)
-OPTIMIZATION_TYPE_HELP_STRING = (
-    'Optimization type.  Input data may be optimized for class prediction, '
-    'neuron activation, or channel activation.  Valid options are listed below.'
-    '\n{0:s}'
-).format(str(feature_optimization.VALID_OPTIMIZATION_TYPE_STRINGS))
+COMPONENT_TYPE_HELP_STRING = (
+    'Component type.  Input data may be optimized for class prediction, neuron '
+    'activation, or channel activation.  Valid options are listed below.\n{0:s}'
+).format(str(feature_optimization.VALID_COMPONENT_TYPE_STRINGS))
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Input data will be optimized for prediction'
     ' of class k, where k = `{2:s}`.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 OPTIMIZE_FOR_PROBABILITY_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, input data will be '
     'optimized for the predicted probability of class `{2:s}`.  If 0, input '
     'data will be optimized for the pre-softmax logit of class `{2:s}`.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for optimization procedure.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for optimization procedure.'
@@ -79,24 +79,24 @@ IDEAL_LOGIT_HELP_STRING = (
     '  If {3:s} = -1, the loss function will be -sign(logit[k]) * logit[k]**2, '
     'or the negative signed square of logit[k], so that loss always decreases '
     'as logit[k] increases.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING,
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
          OPTIMIZE_FOR_PROBABILITY_ARG_NAME, IDEAL_LOGIT_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neuron or '
     'channel whose activation is to be maximized.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
-         feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING)
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.NEURON_COMPONENT_TYPE_STRING,
+         feature_optimization.CLASS_COMPONENT_TYPE_STRING)
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] The loss function will be '
     '(neuron_activation - ideal_activation)**2 or [max(channel_activations) - '
     'ideal_activation]**2.  If {3:s} = -1, the loss function will be '
     '-sign(neuron_activation) * neuron_activation**2 or '
     '-sign(max(channel_activations)) * max(channel_activations)**2.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING,
-         feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING,
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.NEURON_COMPONENT_TYPE_STRING,
+         feature_optimization.CHANNEL_COMPONENT_TYPE_STRING,
          IDEAL_ACTIVATION_ARG_NAME)
 NEURON_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Indices for each neuron whose activation is'
@@ -104,16 +104,16 @@ NEURON_INDICES_HELP_STRING = (
     '(0, 0, 2), this argument should be "0 0 2".  To maximize activations for '
     'neurons (0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In'
     ' other words, use -1 to separate neurons.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING)
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.NEURON_COMPONENT_TYPE_STRING)
 CHANNEL_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Index for each channel whose activation is '
     'to be maximized.'
-).format(OPTIMIZATION_TYPE_ARG_NAME,
-         feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING)
+).format(COMPONENT_TYPE_ARG_NAME,
+         feature_optimization.CHANNEL_COMPONENT_TYPE_STRING)
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (Pickle format).  Optimized input matrices and '
-    'metadata will be saved here.')
+    'Path to output file (will be written by `feature_optimization.'
+    'write_optimized_input_to_file`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -125,8 +125,8 @@ INPUT_ARG_PARSER.add_argument(
     help=IS_SWIRLNET_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OPTIMIZATION_TYPE_ARG_NAME, type=str, required=True,
-    help=OPTIMIZATION_TYPE_HELP_STRING)
+    '--' + COMPONENT_TYPE_ARG_NAME, type=str, required=True,
+    help=COMPONENT_TYPE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_CLASS_ARG_NAME, type=int, required=False, default=1,
@@ -296,7 +296,7 @@ def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
 
 
 def _run(
-        model_file_name, is_model_swirlnet, optimization_type_string,
+        model_file_name, is_model_swirlnet, component_type_string,
         target_class, optimize_for_probability, num_iterations, learning_rate,
         ideal_logit, layer_name, ideal_activation, neuron_indices,
         channel_indices, output_file_name):
@@ -306,7 +306,7 @@ def _run(
 
     :param model_file_name: See documentation at top of file.
     :param is_model_swirlnet: Same.
-    :param optimization_type_string: Same.
+    :param component_type_string: Same.
     :param target_class: Same.
     :param optimize_for_probability: Same.
     :param num_iterations: Same.
@@ -321,14 +321,14 @@ def _run(
 
     # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    feature_optimization.check_optimization_type(optimization_type_string)
+    feature_optimization.check_component_type(component_type_string)
     if ideal_logit <= 0:
         ideal_logit = None
     if ideal_activation <= 0:
         ideal_activation = None
 
-    if (optimization_type_string ==
-            feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.NEURON_COMPONENT_TYPE_STRING):
         neuron_indices = neuron_indices.astype(float)
         neuron_indices[neuron_indices < 0] = numpy.nan
 
@@ -337,8 +337,8 @@ def _run(
         neuron_index_matrix = numpy.array(neuron_indices_2d_list, dtype=int)
         del neuron_indices, neuron_indices_2d_list
 
-    if (optimization_type_string ==
-            feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
         error_checking.assert_is_geq_numpy_array(channel_indices, 0)
 
     # Read model.
@@ -362,8 +362,8 @@ def _run(
     print MINOR_SEPARATOR_STRING
     list_of_optimized_input_matrices = None
 
-    if (optimization_type_string ==
-            feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.CLASS_COMPONENT_TYPE_STRING):
 
         print '\nOptimizing inputs for target class {0:d}...'.format(
             target_class)
@@ -374,8 +374,8 @@ def _run(
                 init_function=init_function, num_iterations=num_iterations,
                 learning_rate=learning_rate, ideal_logit=ideal_logit))
 
-    elif (optimization_type_string ==
-          feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
+    elif (component_type_string ==
+          feature_optimization.NEURON_COMPONENT_TYPE_STRING):
 
         for i in range(neuron_index_matrix.shape[0]):
             print (
@@ -439,8 +439,7 @@ def _run(
         list_of_optimized_input_matrices=list_of_optimized_input_matrices,
         model_file_name=model_file_name, num_iterations=num_iterations,
         learning_rate=learning_rate,
-        optimization_type_string=optimization_type_string,
-        target_class=target_class,
+        component_type_string=component_type_string, target_class=target_class,
         optimize_for_probability=optimize_for_probability,
         ideal_logit=ideal_logit, layer_name=layer_name,
         ideal_activation=ideal_activation,
@@ -454,8 +453,8 @@ if __name__ == '__main__':
     _run(
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
         is_model_swirlnet=bool(getattr(INPUT_ARG_OBJECT, IS_SWIRLNET_ARG_NAME)),
-        optimization_type_string=getattr(
-            INPUT_ARG_OBJECT, OPTIMIZATION_TYPE_ARG_NAME),
+        component_type_string=getattr(
+            INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
         optimize_for_probability=bool(
             getattr(INPUT_ARG_OBJECT, OPTIMIZE_FOR_PROBABILITY_ARG_NAME)),

@@ -33,57 +33,57 @@ DOTS_PER_INCH = 600
 
 
 def _check_optimization_metadata(
-        optimization_type_string, num_examples, target_class, layer_name,
+        component_type_string, num_examples, target_class, layer_name,
         channel_index_by_example, neuron_index_matrix):
     """Error-checks metadata for feature optimization.
 
     E = number of examples to plot
 
-    :param optimization_type_string: Optimization type used to create synthetic
-        radar data (must be accepted by
-        `feature_optimization.check_optimization_type`).
+    :param component_type_string: Component type used to create synthetic radar
+        data (must be accepted by
+        `feature_optimization.check_component_type`).
     :param num_examples: E in the above discussion.
     :param target_class:
-        [used only if optimization_type_string = "class"]
+        [used only if component_type_string = "class"]
         Class for which radar data were optimized.  For details, see
         `feature_optimization.optimize_input_for_class_activation`.
     :param layer_name:
-        [used only if optimization_type_string = "neuron" or "channel"]
+        [used only if component_type_string = "neuron" or "channel"]
         Name of layer with neuron or channel whose activation was maximized.
         For details, see
         `feature_optimization.optimize_input_for_neuron_activation` or
         `feature_optimization.optimize_input_for_channel_activation`.
     :param channel_index_by_example:
-        [used only if optimization_type_string = "channel"]
+        [used only if component_type_string = "channel"]
         length-E numpy array with indices of channels whose activations were
         maximized.  For details, see
         `feature_optimization.optimize_input_for_channel_activation`.
     :param neuron_index_matrix:
-        [used only if optimization_type_string = "neuron"]
+        [used only if component_type_string = "neuron"]
         E-by-? numpy array, where neuron_index_matrix[i, :] is the set of
         indices for the neuron whose activation is maximized by the [i]th
         example.  For more details, see doc for
         `feature_optimization.optimize_input_for_neuron_activation`.
     """
 
-    feature_optimization.check_optimization_type(optimization_type_string)
-    if (optimization_type_string ==
-            feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING):
+    feature_optimization.check_component_type(component_type_string)
+    if (component_type_string ==
+            feature_optimization.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
         error_checking.assert_is_geq(target_class, 0)
     else:
         error_checking.assert_is_string(layer_name)
 
-    if (optimization_type_string ==
-            feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer_numpy_array(channel_index_by_example)
         error_checking.assert_is_geq_numpy_array(channel_index_by_example, 0)
         error_checking.assert_is_numpy_array(
             channel_index_by_example,
             exact_dimensions=numpy.array([num_examples]))
 
-    if (optimization_type_string ==
-            feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.NEURON_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
         error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
         num_indices_per_example = neuron_index_matrix.shape[-1]
@@ -94,7 +94,7 @@ def _check_optimization_metadata(
 
 
 def _optimization_metadata_to_strings(
-        optimization_type_string, example_index, target_class, layer_name,
+        component_type_string, example_index, target_class, layer_name,
         channel_index_by_example, neuron_index_matrix):
     """Converts optimization metadata to strings.
 
@@ -103,7 +103,7 @@ def _optimization_metadata_to_strings(
     - verbose string (to use in figure legends)
     - abbreviation (to use in file names)
 
-    :param optimization_type_string: See doc for `_check_optimization_metadata`.
+    :param component_type_string: See doc for `_check_optimization_metadata`.
     :param example_index: This method will create strings for the [i]th example,
         where i = `example_index`.
     :param target_class: See doc for `_check_optimization_metadata`.
@@ -114,23 +114,23 @@ def _optimization_metadata_to_strings(
     :return: abbrev_string: See general discussion above.
     """
 
-    feature_optimization.check_optimization_type(optimization_type_string)
-    if (optimization_type_string ==
-            feature_optimization.CLASS_OPTIMIZATION_TYPE_STRING):
+    feature_optimization.check_component_type(component_type_string)
+    if (component_type_string ==
+            feature_optimization.CLASS_COMPONENT_TYPE_STRING):
         verbose_string = 'Class {0:d}'.format(target_class)
         abbrev_string = 'class{0:d}'.format(target_class)
     else:
         verbose_string = 'Layer "{0:s}"'.format(layer_name)
         abbrev_string = 'layer={0:s}'.format(layer_name.replace('_', '-'))
 
-    if (optimization_type_string ==
-            feature_optimization.CHANNEL_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
         this_channel_index = channel_index_by_example[example_index]
         verbose_string += ', channel {0:d}'.format(this_channel_index)
         abbrev_string += '_channel{0:d}'.format(this_channel_index)
 
-    if (optimization_type_string ==
-            feature_optimization.NEURON_OPTIMIZATION_TYPE_STRING):
+    if (component_type_string ==
+            feature_optimization.NEURON_COMPONENT_TYPE_STRING):
         these_neuron_indices = neuron_index_matrix[example_index, :]
         this_neuron_string = ', '.join(
             ['{0:d}'.format(i) for i in these_neuron_indices])
@@ -199,7 +199,7 @@ def plot_optimized_field_2d(
 
 def plot_many_optimized_fields_2d(
         radar_field_matrix, field_name_by_pair, height_by_pair_m_asl,
-        one_figure_per_example, num_panel_rows, optimization_type_string,
+        one_figure_per_example, num_panel_rows, component_type_string,
         output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, layer_name=None,
         target_class=None, channel_index_by_example=None,
@@ -217,7 +217,7 @@ def plot_many_optimized_fields_2d(
         create one paneled figure for each field/height pair, where each panel
         contains a different example.
     :param num_panel_rows: Number of rows in each paneled figure.
-    :param optimization_type_string: See doc for `_check_optimization_metadata`.
+    :param component_type_string: See doc for `_check_optimization_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :param figure_width_inches: Width of each figure.
@@ -233,7 +233,7 @@ def plot_many_optimized_fields_2d(
     num_field_height_pairs = radar_field_matrix.shape[-1]
 
     _check_optimization_metadata(
-        optimization_type_string=optimization_type_string,
+        component_type_string=component_type_string,
         num_examples=num_examples, target_class=target_class,
         layer_name=layer_name,
         channel_index_by_example=channel_index_by_example,
@@ -293,7 +293,7 @@ def plot_many_optimized_fields_2d(
                         annotation_string=this_annotation_string)
 
             _, this_metadata_string = _optimization_metadata_to_strings(
-                optimization_type_string=optimization_type_string,
+                component_type_string=component_type_string,
                 example_index=i, target_class=target_class,
                 layer_name=layer_name,
                 channel_index_by_example=channel_index_by_example,
@@ -319,7 +319,7 @@ def plot_many_optimized_fields_2d(
                     this_example_index = j * num_panel_columns + k
                     (this_annotation_string, _
                     ) = _optimization_metadata_to_strings(
-                        optimization_type_string=optimization_type_string,
+                        component_type_string=component_type_string,
                         example_index=this_example_index,
                         target_class=target_class, layer_name=layer_name,
                         channel_index_by_example=channel_index_by_example,
@@ -345,7 +345,7 @@ def plot_many_optimized_fields_2d(
 
 def plot_many_optimized_fields_3d(
         radar_field_matrix, radar_field_names, radar_heights_m_asl,
-        one_figure_per_example, optimization_type_string, output_dir_name,
+        one_figure_per_example, component_type_string, output_dir_name,
         num_panel_rows=None, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, layer_name=None,
         target_class=None, channel_index_by_example=None,
@@ -362,7 +362,7 @@ def plot_many_optimized_fields_3d(
         panel contains a different radar field/height pair.  If False, will
         create one paneled figure for each field/height pair, where each panel
         contains a different example.
-    :param optimization_type_string: See doc for `_check_optimization_metadata`.
+    :param component_type_string: See doc for `_check_optimization_metadata`.
     :param output_dir_name: See doc for `plot_many_optimized_fields_2d`.
     :param num_panel_rows: [used only if `one_figure_per_example = False`]
         Number of rows in each paneled figure.
@@ -380,7 +380,7 @@ def plot_many_optimized_fields_3d(
     num_heights = radar_field_matrix.shape[-2]
 
     _check_optimization_metadata(
-        optimization_type_string=optimization_type_string,
+        component_type_string=component_type_string,
         num_examples=num_examples, target_class=target_class,
         layer_name=layer_name,
         channel_index_by_example=channel_index_by_example,
@@ -431,7 +431,7 @@ def plot_many_optimized_fields_3d(
                         annotation_string=this_annotation_string)
 
             _, this_metadata_string = _optimization_metadata_to_strings(
-                optimization_type_string=optimization_type_string,
+                component_type_string=component_type_string,
                 example_index=i, target_class=target_class,
                 layer_name=layer_name,
                 channel_index_by_example=channel_index_by_example,
@@ -458,7 +458,7 @@ def plot_many_optimized_fields_3d(
                         this_example_index = j * num_panel_columns + k
                         (this_annotation_string, _
                         ) = _optimization_metadata_to_strings(
-                            optimization_type_string=optimization_type_string,
+                            component_type_string=component_type_string,
                             example_index=this_example_index,
                             target_class=target_class, layer_name=layer_name,
                             channel_index_by_example=channel_index_by_example,
