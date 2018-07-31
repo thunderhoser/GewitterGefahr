@@ -235,8 +235,8 @@ def _read_input_one_spc_date(
         ]
 
     if this_example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
-        this_list_of_input_matrices += this_example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY]
+        this_list_of_input_matrices.append(
+            this_example_dict[deployment_io.SOUNDING_MATRIX_KEY])
 
     return this_list_of_input_matrices
 
