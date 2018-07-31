@@ -235,6 +235,130 @@ def create_constant_initializer(constant_value):
     return init_function
 
 
+def create_climo_initializer(
+        mean_radar_value_dict, mean_sounding_value_dict,
+        sounding_field_names=None, sounding_pressures_mb=None,
+        radar_field_names=None, radar_heights_m_asl=None,
+        radar_field_name_by_channel=None, radar_height_by_channel_m_asl=None):
+    """Creates climatological initializer.
+
+    Specifically, this function initializes each value to a climatological mean.
+    There is one mean for each radar field/height and each sounding
+    field/pressure.
+
+    F_s = number of sounding fields in model input
+    H_s = number of vertical sounding levels (pressures) in model input
+
+    The following letters are used only for 3-D radar images.
+
+    F_r = number of radar fields in model input
+    H_r = number of radar heights in model input
+
+    The following letters are used only for 2-D radar images.
+
+    C = number of radar channels (field/height pairs) in model input
+
+    :param mean_radar_value_dict: See doc for
+        `deep_learning_utils.write_climo_averages_to_file`.
+    :param mean_sounding_value_dict: Same.
+    :param sounding_field_names:
+        [if model input does not contain soundings, leave this as `None`]
+        List (length F_s) with names of sounding fields, in the order that they
+        appear in the corresponding input tensor.
+    :param sounding_pressures_mb:
+        [if model input does not contain soundings, leave this as `None`]
+        numpy array (length H_s) of sounding pressure levels, in the order that
+        they appear in the corresponding input tensor.
+    :param radar_field_names:
+        [if model input does not contain 3-D radar images, leave this as `None`]
+        List (length F_r) with names of radar fields, in the order that they
+        appear in the corresponding input tensor.
+    :param radar_heights_m_asl:
+        [if model input does not contain 3-D radar images, leave this as `None`]
+        numpy array (length H_r) of radar heights (metres above sea level), in
+        the order that they appear in the corresponding input tensor.
+    :param radar_field_name_by_channel:
+        [if model input does not contain 2-D radar images, leave this as `None`]
+        Length-C list of radar fields, in the order that they appear in the
+        corresponding input tensor.
+    :param radar_height_by_channel_m_asl:
+        [if model input does not contain 2-D radar images, leave this as `None`]
+        Length-C numpy array of radar heights (metres above sea level), in the
+        order that they appear in the corresponding input tensor.
+    :return: init_function: Function (see below).
+    """
+
+    if sounding_field_names is not None:
+        error_checking.assert_is_string_list(sounding_field_names)
+        error_checking.assert_is_numpy_array(
+            numpy.array(sounding_field_names), num_dimensions=1)
+
+        error_checking.assert_is_integer_numpy_array(sounding_pressures_mb)
+        error_checking.assert_is_numpy_array(
+            sounding_pressures_mb, num_dimensions=1)
+
+    if radar_field_names is not None:
+        error_checking.assert_is_string_list(radar_field_names)
+        error_checking.assert_is_numpy_array(
+            numpy.array(radar_field_names), num_dimensions=1)
+
+        error_checking.assert_is_integer_numpy_array(radar_heights_m_asl)
+        error_checking.assert_is_numpy_array(
+            radar_heights_m_asl, num_dimensions=1)
+
+    if radar_field_name_by_channel is not None:
+        error_checking.assert_is_string_list(radar_field_name_by_channel)
+        error_checking.assert_is_numpy_array(
+            numpy.array(radar_field_name_by_channel), num_dimensions=1)
+
+        error_checking.assert_is_integer_numpy_array(
+            radar_height_by_channel_m_asl)
+        error_checking.assert_is_numpy_array(
+            radar_height_by_channel_m_asl,
+            exact_dimensions=numpy.array([len(radar_field_name_by_channel)]))
+
+    def init_function(array_dimensions):
+        """Initializes numpy array with climatological means.
+
+        If len(array_dimensions) = 3, this method assumes that the corresponding
+        input tensor contains soundings.
+        If len(array_dimensions) = 4 ... 2-D radar images.
+        If len(array_dimensions) = 5 ... 3-D radar images.
+
+        :param array_dimensions: numpy array of dimensions.
+        :return: array: Array with the given dimensions.
+        """
+
+        array = numpy.full(array_dimensions, numpy.nan)
+        if len(array_dimensions) == 5:
+            for j in range(len(radar_field_names)):
+                for k in range(len(radar_heights_m_asl)):
+                    array[..., k, j] = mean_radar_value_dict[
+                        radar_field_names[j], radar_heights_m_asl[k]]
+
+            return array
+
+        if len(array_dimensions) == 4:
+            for j in range(len(radar_field_name_by_channel)):
+                array[..., j] = mean_radar_value_dict[
+                    radar_field_name_by_channel[j],
+                    radar_height_by_channel_m_asl[j]]
+
+            return array
+
+        if len(array_dimensions) == 3:
+            for j in range(len(sounding_field_names)):
+                for k in range(len(sounding_pressures_mb)):
+                    array[..., k, j] = mean_sounding_value_dict[
+                        sounding_field_names[j], sounding_pressures_mb[k]]
+
+            return array
+
+        return None
+
+    return init_function
+
+
 def optimize_input_for_class(
         model_object, target_class, optimize_for_probability, init_function,
         num_iterations=DEFAULT_NUM_ITERATIONS,
