@@ -461,7 +461,6 @@ if __name__ == '__main__':
         top_radar_image_dir_name=getattr(
             INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
         top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
-        storm_id=getattr(
-            INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
-        storm_time_string=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
+        storm_id=getattr(INPUT_ARG_OBJECT, STORM_ID_ARG_NAME),
+        storm_time_string=getattr(INPUT_ARG_OBJECT, STORM_TIME_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
