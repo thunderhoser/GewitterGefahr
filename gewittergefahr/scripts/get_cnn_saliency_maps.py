@@ -253,28 +253,28 @@ def _read_input_one_storm_object(
                 sounding_normalization_dict=model_metadata_dict[
                     cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
-    storm_object_index = numpy.where(numpy.logical_and(
+    storm_object_index_as_array = numpy.where(numpy.logical_and(
         numpy.array(example_dict[deployment_io.STORM_IDS_KEY]) == storm_id,
         example_dict[deployment_io.STORM_TIMES_KEY] == storm_time_unix_sec
-    ))[0][0]
+    ))[0]
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         list_of_input_matrices = [
             example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY][
-                storm_object_index, ...],
+                storm_object_index_as_array, ...],
             example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY][
-                storm_object_index, ...]
+                storm_object_index_as_array, ...]
         ]
     else:
         list_of_input_matrices = [
             example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY][
-                storm_object_index, ...]
+                storm_object_index_as_array, ...]
         ]
 
     if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
         list_of_input_matrices.append(
             example_dict[deployment_io.SOUNDING_MATRIX_KEY][
-                storm_object_index, ...])
+                storm_object_index_as_array, ...])
 
     return list_of_input_matrices
 
