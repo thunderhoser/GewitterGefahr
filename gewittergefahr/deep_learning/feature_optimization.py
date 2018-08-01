@@ -44,29 +44,6 @@ STORM_TIME_KEY = 'storm_time_unix_sec'
 RETURN_PROBS_KEY = 'return_probs'
 
 
-def _check_optimization_args(init_function, num_iterations, learning_rate):
-    """Checks input args for optimization methods.
-
-    :param init_function: Function used to initialize input tensors.  See
-        `create_gaussian_initializer` for an example.
-    :param num_iterations: Number of iterations for the optimization procedure.
-        This is the number of times that the input tensors will be adjusted.
-    :param learning_rate: Learning rate.  At each iteration, each input value x
-        will be decremented by `learning_rate * gradient`, where `gradient` is
-        the gradient of x with respect to the loss function.
-    :raises: TypeError: if `init_function` is not a function.
-    """
-
-    error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_greater(num_iterations, 0)
-    error_checking.assert_is_greater(learning_rate, 0.)
-    error_checking.assert_is_less_than(learning_rate, 1.)
-
-    if not callable(init_function):
-        raise TypeError(
-            '`init_function` is not callable (i.e., not a function).')
-
-
 def _do_gradient_descent(
         model_object, loss_tensor, init_function, num_iterations,
         learning_rate):
@@ -74,7 +51,7 @@ def _do_gradient_descent(
 
     :param model_object: Instance of `keras.models.Model`.
     :param loss_tensor: Keras tensor defining the loss function.
-    :param init_function: See doc for `_check_optimization_args`.
+    :param init_function: See doc for `optimize_input_for_class`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :return: list_of_optimized_input_matrices: length-T list of optimized input
@@ -175,6 +152,278 @@ def check_component_type(component_type_string):
             '"{1:s}".'
         ).format(str(VALID_COMPONENT_TYPE_STRINGS), component_type_string)
         raise ValueError(error_string)
+
+
+def check_optimization_metadata(
+        num_iterations, learning_rate, component_type_string,
+        target_class=None, optimize_for_probability=None, ideal_logit=None,
+        layer_name=None, ideal_activation=None, neuron_index_matrix=None,
+        channel_indices=None):
+    """Error-checks metadata for optimization.
+
+    C = number of components (classes, neurons, or channels) for which model
+        input was optimized
+
+    :param num_iterations: Number of iterations used in optimization procedure.
+    :param learning_rate: Learning rate used in optimization procedure.
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
+        See doc for `optimize_input_for_class`.
+    :param optimize_for_probability: Same.
+    :param ideal_logit: Same.
+    :param layer_name:
+        [used only if component_type_string = "neuron" or "channel"]
+        See doc for `optimize_input_for_neuron_activation` or
+        `optimize_input_for_channel_activation`.
+    :param ideal_activation: Same.
+    :param neuron_index_matrix:
+        [used only if component_type_string = "neuron"]
+        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
+        indices of the [j]th neuron whose activation was maximized.
+    :param channel_indices: [used only if component_type_string = "channel"]
+        length-C numpy array, where channel_indices[j] is the index of the [j]th
+        channel whose activation was maximized.
+    :return: num_components: Number of model components (classes, neurons, or
+        channels) whose activation was maximized.
+    """
+
+    error_checking.assert_is_integer(num_iterations)
+    error_checking.assert_is_greater(num_iterations, 0)
+    error_checking.assert_is_greater(learning_rate, 0.)
+    error_checking.assert_is_less_than(learning_rate, 1.)
+    check_component_type(component_type_string)
+
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+        error_checking.assert_is_boolean(optimize_for_probability)
+        num_components = 1
+
+        if optimize_for_probability:
+            ideal_logit = None
+        if ideal_logit is not None:
+            error_checking.assert_is_greater(ideal_logit, 0.)
+
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+        if ideal_activation is not None:
+            error_checking.assert_is_greater(ideal_activation, 0.)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
+        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
+        error_checking.assert_is_numpy_array(
+            neuron_index_matrix, num_dimensions=2)
+        num_components = neuron_index_matrix.shape[0]
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(channel_indices)
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+        num_components = len(channel_indices)
+
+    return num_components
+
+
+def check_activation_metadata(
+        component_type_string, target_class=None, return_probs=None,
+        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+    """Error-checks metadata for activation calculations.
+
+    C = number of model components (classes, neurons, or channels) for which
+        activations were computed
+
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
+        See doc for `get_class_activation_for_examples`.
+    :param return_probs: Same.
+    :param layer_name:
+        [used only if component_type_string = "neuron" or "channel"]
+        See doc for `get_neuron_activation_for_examples` or
+        `get_channel_activation_for_examples`.
+    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
+        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
+        indices of the [j]th neuron whose activation was computed.
+    :param channel_indices: [used only if component_type_string = "channel"]
+        length-C numpy array, where channel_indices[j] is the index of the
+        [j]th channel whose activation was computed.
+    :return: num_components: Number of model components (classes, neurons, or
+        channels) whose activation was computed.
+    """
+
+    check_component_type(component_type_string)
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+        error_checking.assert_is_boolean(return_probs)
+        num_components = 1
+
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
+        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
+        error_checking.assert_is_numpy_array(
+            neuron_index_matrix, num_dimensions=2)
+        num_components = neuron_index_matrix.shape[0]
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(channel_indices)
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+        num_components = len(channel_indices)
+
+    return num_components
+
+
+def check_saliency_metadata(
+        component_type_string, target_class=None, return_probs=None,
+        ideal_logit=None, layer_name=None, ideal_activation=None,
+        neuron_index_matrix=None, channel_indices=None):
+    """Error-checks metadata for saliency calculations.
+
+    C = number of model components (classes, neurons, or channels) for which
+        saliency maps were computed
+
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
+        See doc for `get_saliency_maps_for_class_activation`.
+    :param return_probs: Same.
+    :param ideal_logit: Same.
+    :param layer_name:
+        [used only if component_type_string = "neuron" or "channel"]
+        See doc for `get_saliency_maps_for_neuron_activation` or
+        `get_saliency_maps_for_channel_activation`.
+    :param ideal_activation: Same.
+    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
+        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
+        indices of the [j]th neuron whose saliency map was computed.
+    :param channel_indices: [used only if component_type_string = "channel"]
+        length-C numpy array, where channel_indices[j] is the index of the
+        [j]th channel whose saliency map was computed.
+    :return: num_components: Number of model components (classes, neurons, or
+        channels) whose saliency map was computed.
+    """
+
+    check_component_type(component_type_string)
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+        error_checking.assert_is_boolean(return_probs)
+        num_components = 1
+
+        if return_probs:
+            ideal_logit = None
+        if ideal_logit is not None:
+            error_checking.assert_is_greater(ideal_logit, 0.)
+
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+        if ideal_activation is not None:
+            error_checking.assert_is_greater(ideal_activation, 0.)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
+        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
+        error_checking.assert_is_numpy_array(
+            neuron_index_matrix, num_dimensions=2)
+        num_components = neuron_index_matrix.shape[0]
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(channel_indices)
+        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
+        num_components = len(channel_indices)
+
+    return num_components
+
+
+def check_component_metadata(
+        component_type_string, target_class=None, layer_name=None,
+        neuron_indices=None, channel_index=None):
+    """Checks metadata for model component.
+
+    :param component_type_string: Component type (must be accepted by
+        `check_component_type`).
+    :param target_class: [used only if component_type_string = "class"]
+        Target class.  Integer from 0...(K - 1), where K = number of classes.
+    :param layer_name:
+        [used only if component_type_string = "neuron" or "channel"]
+        Name of layer containing neuron or channel.
+    :param neuron_indices: [used only if component_type_string = "neuron"]
+        1-D numpy array with indices of neuron.
+    :param channel_index: [used only if component_type_string = "channel"]
+        Index of channel.
+    """
+
+    check_component_type(component_type_string)
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(target_class)
+        error_checking.assert_is_geq(target_class, 0)
+
+    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
+                                 CHANNEL_COMPONENT_TYPE_STRING]:
+        error_checking.assert_is_string(layer_name)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer_numpy_array(neuron_indices)
+        error_checking.assert_is_geq_numpy_array(neuron_indices, 0)
+        error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        error_checking.assert_is_integer(channel_index)
+        error_checking.assert_is_geq(channel_index, 0)
+
+
+def model_component_to_string(
+        component_type_string, target_class=None, layer_name=None,
+        neuron_indices=None, channel_index=None):
+    """Returns string descriptions for model component (class/neuron/channel).
+
+    Specifically, this method creates two strings:
+
+    - verbose string (to use in figure legends)
+    - abbreviation (to use in file names)
+
+    :param component_type_string: See doc for `check_component_metadata`.
+    :param target_class: Same.
+    :param layer_name: Same.
+    :param neuron_indices: Same.
+    :param channel_index: Same.
+    :return: verbose_string: See general discussion above.
+    :return: abbrev_string: See general discussion above.
+    """
+
+    check_component_metadata(
+        component_type_string=component_type_string, target_class=target_class,
+        layer_name=layer_name, neuron_indices=neuron_indices,
+        channel_index=channel_index)
+
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        verbose_string = 'Class {0:d}'.format(target_class)
+        abbrev_string = 'class{0:d}'.format(target_class)
+    else:
+        verbose_string = 'Layer "{0:s}"'.format(layer_name)
+        abbrev_string = 'layer={0:s}'.format(layer_name.replace('_', '-'))
+
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
+        verbose_string += ', channel {0:d}'.format(channel_index)
+        abbrev_string += '_channel{0:d}'.format(channel_index)
+
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        this_neuron_string = ', '.join(
+            ['{0:d}'.format(i) for i in neuron_indices])
+        verbose_string += '; neuron ({0:s})'.format(this_neuron_string)
+
+        this_neuron_string = ','.join(
+            ['{0:d}'.format(i) for i in neuron_indices])
+        abbrev_string += '_neuron{0:s}'.format(this_neuron_string)
+
+    return verbose_string, abbrev_string
 
 
 def create_gaussian_initializer(mean, standard_deviation):
@@ -398,9 +647,13 @@ def optimize_input_for_class(
     :param target_class: Input will be optimized for this class.  Must be an
         integer in 0...(K - 1), where K = number of classes.
     :param optimize_for_probability: See general discussion above.
-    :param init_function: See doc for `_check_optimization_args`.
-    :param num_iterations: Same.
-    :param learning_rate: Same.
+    :param init_function: Function used to initialize input tensors.  See
+        `create_gaussian_initializer` for an example.
+    :param num_iterations: Number of iterations for the optimization procedure.
+        This is the number of times that the input tensors will be adjusted.
+    :param learning_rate: Learning rate.  At each iteration, each input value x
+        will be decremented by `learning_rate * gradient`, where `gradient` is
+        the gradient of x with respect to the loss function.
     :param ideal_logit: [used only if `optimize_for_probability = False`]
         The loss function will be (logit[k] - ideal_logit) ** 2, where logit[k]
         is the logit for the target class.  If `ideal_logit is None`, the loss
@@ -412,16 +665,17 @@ def optimize_input_for_class(
         layer is not an activation layer.
     """
 
-    _check_optimization_args(
-        init_function=init_function, num_iterations=num_iterations,
-        learning_rate=learning_rate)
+    check_optimization_metadata(
+        num_iterations-num_iterations, learning_rate=learning_rate,
+        component_type_string=CLASS_COMPONENT_TYPE_STRING,
+        target_class=target_class,
+        optimize_for_probability=optimize_for_probability,
+        ideal_logit=ideal_logit)
 
-    error_checking.assert_is_integer(target_class)
-    error_checking.assert_is_boolean(optimize_for_probability)
-    if not optimize_for_probability:
-        if ideal_logit is not None:
-            error_checking.assert_is_greater(ideal_logit, 0.)
-
+    if optimize_for_probability:
+        loss_tensor = K.mean(
+            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
+    else:
         out_layer_type_string = type(model_object.layers[-1]).__name__
         if out_layer_type_string != 'Activation':
             error_string = (
@@ -432,10 +686,6 @@ def optimize_input_for_class(
             ).format(out_layer_type_string)
             raise TypeError(error_string)
 
-    if optimize_for_probability:
-        loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
-    else:
         if ideal_logit is None:
             loss_tensor = -K.mean(
                 K.sign(model_object.layers[-1].input[..., target_class]) *
@@ -466,7 +716,7 @@ def optimize_input_for_neuron_activation(
         `neuron_indices` must have length K - 1.  (The first dimension of the
         layer output is the example dimension, for which the index is 0 in this
         case.)
-    :param init_function: See doc for `_check_optimization_args`.
+    :param init_function: See doc for `optimize_input_for_class`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :param ideal_activation: The loss function will be
@@ -479,13 +729,12 @@ def optimize_input_for_neuron_activation(
         `_do_gradient_descent`.
     """
 
-    _check_optimization_args(
-        init_function=init_function, num_iterations=num_iterations,
-        learning_rate=learning_rate)
+    check_optimization_metadata(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        component_type_string=NEURON_COMPONENT_TYPE_STRING,
+        layer_name=layer_name, ideal_activation=ideal_activation,
+        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
 
-    error_checking.assert_is_string(layer_name)
-    error_checking.assert_is_integer_numpy_array(neuron_indices)
-    error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
     neuron_indices_as_tuple = (0,) + tuple(neuron_indices)
 
     if ideal_activation is None:
@@ -522,7 +771,7 @@ def optimize_input_for_channel_activation(
     :param channel_index: Index of channel whose activation is to be maximized.
         If `channel_index = c`, the activation of the [c]th channel in the
         layer will be maximized.
-    :param init_function: See doc for `_check_optimization_args`.
+    :param init_function: See doc for `check_optimization_metadata`.
     :param stat_function_for_neuron_activations: Function used to process neuron
         activations.  In general, a channel contains many neurons, so there is
         an infinite number of ways to maximize the "channel activation," because
@@ -530,7 +779,7 @@ def optimize_input_for_channel_activation(
         This function must take a Keras tensor (containing neuron activations)
         and return a single number.  Some examples are `keras.backend.max` and
         `keras.backend.mean`.
-    :param num_iterations: See doc for `_check_optimization_args`.
+    :param num_iterations: See doc for `check_optimization_metadata`.
     :param learning_rate: Same.
     :param ideal_activation: The loss function will be
         abs(stat_function_for_neuron_activations(neuron_activations) -
@@ -544,19 +793,13 @@ def optimize_input_for_channel_activation(
 
     :return: list_of_optimized_input_matrices: See doc for
         `_do_gradient_descent`.
-    :raises: TypeError: if `stat_function_for_neuron_activations` is not a
-        function.
     """
 
-    _check_optimization_args(
-        init_function=init_function, num_iterations=num_iterations,
-        learning_rate=learning_rate)
-
-    error_checking.assert_is_string(layer_name)
-    error_checking.assert_is_integer(channel_index)
-    if not callable(stat_function_for_neuron_activations):
-        raise TypeError('`stat_function_for_neuron_activations` is not callable'
-                        ' (i.e., not a function).')
+    check_optimization_metadata(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        component_type_string=CHANNEL_COMPONENT_TYPE_STRING,
+        layer_name=layer_name, ideal_activation=ideal_activation,
+        channel_indices=numpy.array([channel_index]))
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(
@@ -606,8 +849,6 @@ def sort_neurons_by_weight(model_object, layer_name):
     :raises: TypeError: if the given layer is neither dense nor convolutional.
     """
 
-    error_checking.assert_is_string(layer_name)
-
     layer_type_string = type(model_object.get_layer(name=layer_name)).__name__
     valid_layer_type_strings = ['Dense', 'Conv1D', 'Conv2D', 'Conv3D']
     if layer_type_string not in valid_layer_type_strings:
@@ -651,8 +892,10 @@ def get_class_activation_for_examples(
         activation layer.
     """
 
-    error_checking.assert_is_integer(target_class)
-    error_checking.assert_is_boolean(return_probs)
+    check_activation_metadata(
+        component_type_string=CLASS_COMPONENT_TYPE_STRING,
+        target_class=target_class, return_probs=return_probs)
+
     if not return_probs:
         out_layer_type_string = type(model_object.layers[-1]).__name__
         if out_layer_type_string != 'Activation':
@@ -702,9 +945,10 @@ def get_neuron_activation_for_examples(
         is the activation of the given neuron by the [i]th example.
     """
 
-    error_checking.assert_is_string(layer_name)
-    error_checking.assert_is_integer_numpy_array(neuron_indices)
-    error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
+    check_activation_metadata(
+        component_type_string=NEURON_COMPONENT_TYPE_STRING,
+        layer_name=layer_name,
+        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
@@ -738,11 +982,9 @@ def get_channel_activation_for_examples(
         [i]th example.
     """
 
-    error_checking.assert_is_string(layer_name)
-    error_checking.assert_is_integer(channel_index)
-    if not callable(stat_function_for_neuron_activations):
-        raise TypeError('`stat_function_for_neuron_activations` is not callable'
-                        ' (i.e., not a function).')
+    check_activation_metadata(
+        component_type_string=NEURON_COMPONENT_TYPE_STRING,
+        layer_name=layer_name, channel_indices=numpy.array([channel_index]))
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
@@ -751,7 +993,10 @@ def get_channel_activation_for_examples(
 
     activation_function = K.function(
         list_of_input_tensors + [K.learning_phase()],
-        [model_object.get_layer(name=layer_name).output[..., channel_index]])
+        [stat_function_for_neuron_activations(
+            model_object.get_layer(name=layer_name).output[..., channel_index])
+        ]
+    )
 
     return activation_function(list_of_input_matrices + [0])[0]
 
@@ -767,10 +1012,15 @@ def get_saliency_maps_for_class_activation(
     :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
     :param ideal_logit: See doc for `optimize_input_for_class`.
     :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
+    :raises: TypeError: if `return_probs = False` and the output layer is not an
+        activation layer.
     """
 
-    error_checking.assert_is_integer(target_class)
-    error_checking.assert_is_boolean(return_probs)
+    check_saliency_metadata(
+        component_type_string=CLASS_COMPONENT_TYPE_STRING,
+        target_class=target_class, return_probs=return_probs,
+        ideal_logit=ideal_logit)
+
     if not return_probs:
         out_layer_type_string = type(model_object.layers[-1]).__name__
         if out_layer_type_string != 'Activation':
@@ -815,9 +1065,10 @@ def get_saliency_maps_for_neuron_activation(
     :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
     """
 
-    error_checking.assert_is_string(layer_name)
-    error_checking.assert_is_integer_numpy_array(neuron_indices)
-    error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
+    check_saliency_metadata(
+        component_type_string=NEURON_COMPONENT_TYPE_STRING,
+        layer_name=layer_name, ideal_activation=ideal_activation,
+        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
 
     if ideal_activation is None:
         loss_tensor = (
@@ -854,11 +1105,10 @@ def get_saliency_maps_for_channel_activation(
     :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
     """
 
-    error_checking.assert_is_string(layer_name)
-    error_checking.assert_is_integer(channel_index)
-    if not callable(stat_function_for_neuron_activations):
-        raise TypeError('`stat_function_for_neuron_activations` is not callable'
-                        ' (i.e., not a function).')
+    check_saliency_metadata(
+        component_type_string=NEURON_COMPONENT_TYPE_STRING,
+        layer_name=layer_name, ideal_activation=ideal_activation,
+        channel_indices=numpy.array([channel_index]))
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(
@@ -885,83 +1135,40 @@ def write_optimized_input_to_file(
         channel_indices=None):
     """Writes optimized input data to Pickle file.
 
-    E = number of examples (storm objects)
-
     :param pickle_file_name: Path to output file.
     :param list_of_optimized_input_matrices: length-T list of optimized input
         matrices (numpy arrays), where T = number of input tensors to the model.
     :param model_file_name: Path to file with trained model.
-    :param num_iterations: Number of iterations used in optimization procedure.
-    :param learning_rate: Learning rate used in optimization procedure.
-    :param component_type_string: Component type (must be accepted by
-        `check_component_type`).
-    :param target_class: [used only if component_type_string = "class"]
-        See doc for `optimize_input_for_class`.
+    :param num_iterations: See doc for `check_optimization_metadata`.
+    :param learning_rate: Same.
+    :param component_type_string: Same.
+    :param target_class: Same.
     :param optimize_for_probability: Same.
     :param ideal_logit: Same.
-    :param layer_name:
-        [used only if component_type_string = "neuron" or "channel"]
-        See doc for `optimize_input_for_neuron_activation` or
-        `optimize_input_for_channel_activation`.
+    :param layer_name: Same.
     :param ideal_activation: Same.
-    :param neuron_index_matrix:
-        [used only if component_type_string = "neuron"]
-        E-by-? numpy array, where neuron_index_matrix[i, :] contains array
-        indices of the neuron whose activation was maxxed for the [i]th example.
-    :param channel_indices: [used only if component_type_string = "channel"]
-        length-E numpy array, where channel_indices[i] is the index of the
-        channel whose activation was maxxed for the [i]th example.
+    :param neuron_index_matrix: Same.
+    :param channel_indices: Same.
     """
 
-    error_checking.assert_is_list(list_of_optimized_input_matrices)
-    for this_array in list_of_optimized_input_matrices:
-        error_checking.assert_is_numpy_array(this_array)
-
-    num_examples = list_of_optimized_input_matrices[0].shape[0]
-    for i in range(1, len(list_of_optimized_input_matrices)):
-        these_expected_dim = numpy.array(
-            (num_examples,) + list_of_optimized_input_matrices[i].shape[1:],
-            dtype=int)
-        error_checking.assert_is_numpy_array(
-            list_of_optimized_input_matrices[i],
-            exact_dimensions=these_expected_dim)
+    num_components = check_optimization_metadata(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        component_type_string=component_type_string, target_class=target_class,
+        optimize_for_probability=optimize_for_probability,
+        ideal_logit=ideal_logit, layer_name=layer_name,
+        ideal_activation=ideal_activation,
+        neuron_index_matrix=neuron_index_matrix,
+        channel_indices=channel_indices)
 
     error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_greater(num_iterations, 0)
-    error_checking.assert_is_greater(learning_rate, 0.)
-    error_checking.assert_is_less_than(learning_rate, 1.)
-    check_component_type(component_type_string)
+    error_checking.assert_is_list(list_of_optimized_input_matrices)
 
-    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer(target_class)
-        error_checking.assert_is_geq(target_class, 0)
-        error_checking.assert_is_boolean(optimize_for_probability)
-
-        if optimize_for_probability:
-            ideal_logit = None
-        if ideal_logit is not None:
-            error_checking.assert_is_greater(ideal_logit, 0.)
-
-    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
-                                 CHANNEL_COMPONENT_TYPE_STRING]:
-        error_checking.assert_is_string(layer_name)
-        if ideal_activation is not None:
-            error_checking.assert_is_greater(ideal_activation, 0.)
-
-    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
-        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
-        expected_dimensions = numpy.array(
-            (num_examples,) + neuron_index_matrix.shape[1:], dtype=int)
+    for this_array in list_of_optimized_input_matrices:
+        error_checking.assert_is_numpy_array(this_array)
+        these_expected_dim = numpy.array(
+            (num_components,) + this_array.shape[1:], dtype=int)
         error_checking.assert_is_numpy_array(
-            neuron_index_matrix, exact_dimensions=expected_dimensions)
-
-    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer_numpy_array(channel_indices)
-        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
-        error_checking.assert_is_numpy_array(
-            channel_indices, exact_dimensions=numpy.array([num_examples]))
+            this_array, exact_dimensions=these_expected_dim)
 
     metadata_dict = {
         MODEL_FILE_NAME_KEY: model_file_name,
@@ -1028,50 +1235,22 @@ def write_activations_to_file(
         activation_matrix[i, j] = activation of the [j]th model component for
         the [i]th example.
     :param model_file_name: Path to file with trained model.
-    :param component_type_string: Component type (must be accepted by
-        `check_component_type`).
-    :param target_class: [used only if component_type_string = "class"]
-        See doc for `get_class_activation_for_examples`.
+    :param component_type_string: See doc for `check_activation_metadata`.
+    :param target_class: Same.
     :param return_probs: Same.
-    :param layer_name:
-        [used only if component_type_string = "neuron" or "channel"]
-        See doc for `get_neuron_activation_for_examples` or
-        `get_channel_activation_for_examples`.
-    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
-        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
-        indices of the [j]th neuron whose activation was computed.
-    :param channel_indices: [used only if component_type_string = "channel"]
-        length-C numpy array, where channel_indices[j] is the index of the
-        [j]th channel whose activation was computed.
+    :param layer_name: Same.
+    :param neuron_index_matrix: Same.
+    :param channel_indices: Same.
     """
 
-    error_checking.assert_is_numpy_array_without_nan(activation_matrix)
-    error_checking.assert_is_numpy_array(activation_matrix, 2)
+    num_components = check_activation_metadata(
+        component_type_string=component_type_string, target_class=target_class,
+        return_probs=return_probs, layer_name=layer_name,
+        neuron_index_matrix=neuron_index_matrix,
+        channel_indices=channel_indices)
+
     error_checking.assert_is_string(model_file_name)
-    check_component_type(component_type_string)
-
-    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer(target_class)
-        error_checking.assert_is_geq(target_class, 0)
-        error_checking.assert_is_boolean(return_probs)
-        num_components = 1
-
-    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
-                                 CHANNEL_COMPONENT_TYPE_STRING]:
-        error_checking.assert_is_string(layer_name)
-
-    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
-        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
-        error_checking.assert_is_numpy_array(
-            neuron_index_matrix, num_dimensions=2)
-        num_components = neuron_index_matrix.shape[0]
-
-    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer_numpy_array(channel_indices)
-        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
-        num_components = len(channel_indices)
-
+    error_checking.assert_is_numpy_array_without_nan(activation_matrix)
     expected_dimensions = numpy.array(
         [activation_matrix.shape[0], num_components], dtype=int)
     error_checking.assert_is_numpy_array(
@@ -1144,60 +1323,28 @@ def write_saliency_maps_to_file(
     :param model_file_name: Path to file with trained model.
     :param storm_id: Storm ID for example.
     :param storm_time_unix_sec: Valid time for example.
-    :param component_type_string: Component type (must be accepted by
-        `check_component_type`).
-    :param target_class: [used only if component_type_string = "class"]
-        See doc for `get_saliency_maps_for_class_activation`.
+    :param component_type_string: See doc for `check_saliency_metadata`.
+    :param target_class: Same.
     :param return_probs: Same.
     :param ideal_logit: Same.
-    :param layer_name:
-        [used only if component_type_string = "neuron" or "channel"]
-        See doc for `get_saliency_maps_for_neuron_activation` or
-        `get_saliency_maps_for_channel_activation`.
+    :param layer_name: Same.
     :param ideal_activation: Same.
-    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
-        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
-        indices of the [j]th neuron whose saliency map was computed.
-    :param channel_indices: [used only if component_type_string = "channel"]
-        length-C numpy array, where channel_indices[j] is the index of the
-        [j]th channel whose saliency map was computed.
+    :param neuron_index_matrix: Same.
+    :param channel_indices: Same.
     """
+
+    num_components = check_saliency_metadata(
+        component_type_string=component_type_string, target_class=target_class,
+        return_probs=return_probs, ideal_logit=ideal_logit,
+        layer_name=layer_name, ideal_activation=ideal_activation,
+        neuron_index_matrix=neuron_index_matrix,
+        channel_indices=channel_indices)
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(storm_id)
     error_checking.assert_is_integer(storm_time_unix_sec)
-    check_component_type(component_type_string)
-
-    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer(target_class)
-        error_checking.assert_is_geq(target_class, 0)
-        error_checking.assert_is_boolean(return_probs)
-        num_components = 1
-
-        if return_probs:
-            ideal_logit = None
-        if ideal_logit is not None:
-            error_checking.assert_is_greater(ideal_logit, 0.)
-
-    if component_type_string in [NEURON_COMPONENT_TYPE_STRING,
-                                 CHANNEL_COMPONENT_TYPE_STRING]:
-        error_checking.assert_is_string(layer_name)
-        if ideal_activation is not None:
-            error_checking.assert_is_greater(ideal_activation, 0.)
-
-    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
-        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
-        error_checking.assert_is_numpy_array(
-            neuron_index_matrix, num_dimensions=2)
-        num_components = neuron_index_matrix.shape[0]
-
-    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
-        error_checking.assert_is_integer_numpy_array(channel_indices)
-        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
-        num_components = len(channel_indices)
-
     error_checking.assert_is_list(list_of_saliency_matrices)
+
     for this_array in list_of_saliency_matrices:
         error_checking.assert_is_numpy_array(this_array)
         these_expected_dim = numpy.array(

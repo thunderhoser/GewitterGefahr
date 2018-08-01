@@ -60,6 +60,37 @@ pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
 
+def init_panels(num_panel_rows, num_panel_columns, figure_width_inches,
+                figure_height_inches):
+    """Initializes paneled figure.
+
+    :param num_panel_rows: Number of panel rows.
+    :param num_panel_columns: Number of panel columns.
+    :param figure_width_inches: Figure width.
+    :param figure_height_inches: Figure height.
+    :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    :return: axes_objects_2d_list: 2-D list, where axes_objects_2d_list[j][k] is
+        a `matplotlib.axes._subplots.AxesSubplot` object for the [j]th row and
+        [k]th column.
+    """
+
+    figure_object, axes_objects_2d_list = pyplot.subplots(
+        num_panel_rows, num_panel_columns, sharex=True, sharey=True,
+        figsize=(figure_width_inches, figure_height_inches))
+
+    if num_panel_rows == num_panel_columns == 1:
+        axes_objects_2d_list = [[axes_objects_2d_list]]
+    elif num_panel_columns == 1:
+        axes_objects_2d_list = [[a] for a in axes_objects_2d_list]
+    elif num_panel_rows == 1:
+        axes_objects_2d_list = [axes_objects_2d_list]
+
+    pyplot.subplots_adjust(
+        left=0.01, bottom=0.01, right=0.95, top=0.95, hspace=0, wspace=0)
+
+    return figure_object, axes_objects_2d_list
+
+
 def init_lambert_conformal_map(
         min_latitude_deg, max_latitude_deg, min_longitude_deg,
         max_longitude_deg, standard_latitudes_deg=DEFAULT_LCC_STANDARD_LATS_DEG,
