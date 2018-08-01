@@ -29,8 +29,9 @@ from gewittergefahr.plotting import radar_plotting
 # TODO(thunderhoser): Clean up code.  Argument names here are inconsistent with
 # those in feature_optimization.py.
 
-METRES_TO_KM = 1e-3
+matplotlib.rcParams['axes.linewidth'] = 2
 
+METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
 DOTS_PER_INCH = 600
