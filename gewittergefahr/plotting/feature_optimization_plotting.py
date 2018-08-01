@@ -4,7 +4,7 @@
 
 The following letters will be used throughout this module.
 
-E = number of examples (storm objects)
+E = number of model components for which input data were optimized
 M = number of grid rows per image
 N = number of grid columns per image
 H = number of grid heights per image (only for 3-D images)
@@ -25,9 +25,6 @@ from gewittergefahr.plotting import radar_plotting
 
 # TODO(thunderhoser): Allow this module to plot optimized soundings, not just
 # optimized radar fields.
-
-# TODO(thunderhoser): Clean up code.  Argument names here are inconsistent with
-# those in feature_optimization.py.
 
 matplotlib.rcParams['axes.linewidth'] = 2
 
@@ -99,11 +96,10 @@ def plot_optimized_field_2d(
 
 def plot_many_optimized_fields_2d(
         radar_field_matrix, field_name_by_pair, height_by_pair_m_asl,
-        one_figure_per_example, num_panel_rows, component_type_string,
+        one_figure_per_component, num_panel_rows, component_type_string,
         output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
-        figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, layer_name=None,
-        target_class=None, channel_index_by_example=None,
-        neuron_index_matrix=None):
+        figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
+        layer_name=None, neuron_index_matrix=None, channel_indices=None):
     """Plots many optimized 2-D radar fields.
 
     :param radar_field_matrix: E-by-M-by-N-by-C numpy array of radar data.
@@ -111,34 +107,37 @@ def plot_many_optimized_fields_2d(
         accepted by `radar_utils.check_field_name`).
     :param height_by_pair_m_asl: length-C integer numpy array of radar heights
         (metres above sea level).
-    :param one_figure_per_example: Boolean flag.  If True, this method will
-        create one paneled figure for each example (storm object), where each
-        panel contains a different radar field/height pair.  If False, will
-        create one paneled figure for each field/height pair, where each panel
-        contains a different example.
-    :param num_panel_rows: Number of rows in each paneled figure.
-    :param component_type_string: See doc for `_check_optimization_metadata`.
+    :param one_figure_per_component: Boolean flag.  If True, this method will
+        created one paneled figure for each model component, where each panel
+        contains a different radar field/height.  If False, will create one
+        paneled figure for each radar field/height, where each panel contains
+        the optimized field from a different model component.
+    :param num_panel_rows: Number of panel rows in each figure.
+    :param component_type_string: See doc for
+        `feature_optimization.check_optimization_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :param figure_width_inches: Width of each figure.
     :param figure_height_inches: Height of each figure.
-    :param layer_name: See doc for `_check_optimization_metadata`.
-    :param target_class: Same.
-    :param channel_index_by_example: Same.
+    :param target_class: See doc for
+        `feature_optimization.check_optimization_metadata`.
+    :param layer_name: Same.
     :param neuron_index_matrix: Same.
+    :param channel_indices: Same.
     """
 
-    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=4)
-    num_examples = radar_field_matrix.shape[0]
-    num_field_height_pairs = radar_field_matrix.shape[-1]
-
     feature_optimization.check_optimization_metadata(
-        num_iterations=2, learning_rate=0.1,
+        num_iterations=feature_optimization.DEFAULT_NUM_ITERATIONS,
+        learning_rate=feature_optimization.DEFAULT_LEARNING_RATE,
         component_type_string=component_type_string,
         target_class=target_class, optimize_for_probability=True,
         layer_name=layer_name, ideal_activation=1.,
         neuron_index_matrix=neuron_index_matrix,
-        channel_indices=channel_index_by_example)
+        channel_indices=channel_indices)
+
+    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=4)
+    num_components = radar_field_matrix.shape[0]
+    num_field_height_pairs = radar_field_matrix.shape[-1]
 
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_pair),
@@ -150,24 +149,24 @@ def plot_many_optimized_fields_2d(
         height_by_pair_m_asl,
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
-    error_checking.assert_is_boolean(one_figure_per_example)
+    error_checking.assert_is_boolean(one_figure_per_component)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
 
-    if one_figure_per_example:
+    if one_figure_per_component:
         error_checking.assert_is_leq(num_panel_rows, num_field_height_pairs)
         num_panel_columns = int(
             numpy.ceil(float(num_field_height_pairs) / num_panel_rows))
     else:
-        error_checking.assert_is_leq(num_panel_rows, num_examples)
+        error_checking.assert_is_leq(num_panel_rows, num_components)
         num_panel_columns = int(
-            numpy.ceil(float(num_examples) / num_panel_rows))
+            numpy.ceil(float(num_components) / num_panel_rows))
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    if one_figure_per_example:
-        for i in range(num_examples):
+    if one_figure_per_component:
+        for i in range(num_components):
             _, axes_objects_2d_list = plotting_utils.init_panels(
                 num_panel_rows=num_panel_rows,
                 num_panel_columns=num_panel_columns,
@@ -197,7 +196,7 @@ def plot_many_optimized_fields_2d(
                 component_index=i, component_type_string=component_type_string,
                 target_class=target_class, layer_name=layer_name,
                 neuron_index_matrix=neuron_index_matrix,
-                channel_indices=channel_index_by_example)
+                channel_indices=channel_indices)
 
             this_figure_file_name = '{0:s}/optimized-radar_{1:s}.jpg'.format(
                 output_dir_name, this_metadata_string)
@@ -206,7 +205,6 @@ def plot_many_optimized_fields_2d(
                 this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
             pyplot.close()
-
     else:
         for i in range(num_field_height_pairs):
             _, axes_objects_2d_list = plotting_utils.init_panels(
@@ -217,18 +215,17 @@ def plot_many_optimized_fields_2d(
 
             for j in range(num_panel_rows):
                 for k in range(num_panel_columns):
-                    this_example_index = j * num_panel_columns + k
-
+                    this_component_index = j * num_panel_columns + k
                     this_annotation_string, _ = _model_component_to_string(
-                        component_index=this_example_index,
+                        component_index=this_component_index,
                         component_type_string=component_type_string,
                         target_class=target_class, layer_name=layer_name,
                         neuron_index_matrix=neuron_index_matrix,
-                        channel_indices=channel_index_by_example)
+                        channel_indices=channel_indices)
 
                     radar_plotting.plot_2d_grid_without_coords(
                         field_matrix=radar_field_matrix[
-                            this_example_index, ..., i],
+                            this_component_index, ..., i],
                         field_name=field_name_by_pair[i],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
@@ -246,11 +243,10 @@ def plot_many_optimized_fields_2d(
 
 def plot_many_optimized_fields_3d(
         radar_field_matrix, radar_field_names, radar_heights_m_asl,
-        one_figure_per_example, component_type_string, output_dir_name,
+        one_figure_per_component, component_type_string, output_dir_name,
         num_panel_rows=None, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
-        figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, layer_name=None,
-        target_class=None, channel_index_by_example=None,
-        neuron_index_matrix=None):
+        figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
+        layer_name=None, neuron_index_matrix=None, channel_indices=None):
     """Plots many optimized 3-D radar fields.
 
     :param radar_field_matrix: E-by-M-by-N-by-H-by-F numpy array of radar data.
@@ -258,35 +254,36 @@ def plot_many_optimized_fields_3d(
         accepted by `radar_utils.check_field_name`).
     :param radar_heights_m_asl: length-H integer numpy array of radar heights
         (metres above sea level).
-    :param one_figure_per_example: Boolean flag.  If True, this method will
-        create one paneled figure for each example (storm object), where each
-        panel contains a different radar field/height pair.  If False, will
-        create one paneled figure for each field/height pair, where each panel
-        contains a different example.
-    :param component_type_string: See doc for `_check_optimization_metadata`.
-    :param output_dir_name: See doc for `plot_many_optimized_fields_2d`.
-    :param num_panel_rows: [used only if `one_figure_per_example = False`]
-        Number of rows in each paneled figure.
-    :param figure_width_inches: See doc for `plot_many_optimized_fields_2d`.
-    :param figure_height_inches: Same.
-    :param layer_name: See doc for `_check_optimization_metadata`.
-    :param target_class: Same.
-    :param channel_index_by_example: Same.
+    :param one_figure_per_component: See doc for
+        `plot_many_optimized_fields_2d`.
+    :param component_type_string: See doc for
+        `feature_optimization.check_optimization_metadata`.
+    :param output_dir_name: Name of output directory (figures will be saved
+        here).
+    :param num_panel_rows: [used only if `one_figure_per_component = False`]
+        Number of panel rows in each figure.
+    :param figure_width_inches: Width of each figure.
+    :param figure_height_inches: Height of each figure.
+    :param target_class: See doc for
+        `feature_optimization.check_optimization_metadata`.
+    :param layer_name: Same.
     :param neuron_index_matrix: Same.
+    :param channel_indices: Same.
     """
 
-    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=5)
-    num_examples = radar_field_matrix.shape[0]
-    num_fields = radar_field_matrix.shape[-1]
-    num_heights = radar_field_matrix.shape[-2]
-
     feature_optimization.check_optimization_metadata(
-        num_iterations=2, learning_rate=0.1,
+        num_iterations=feature_optimization.DEFAULT_NUM_ITERATIONS,
+        learning_rate=feature_optimization.DEFAULT_LEARNING_RATE,
         component_type_string=component_type_string,
         target_class=target_class, optimize_for_probability=True,
         layer_name=layer_name, ideal_activation=1.,
         neuron_index_matrix=neuron_index_matrix,
-        channel_indices=channel_index_by_example)
+        channel_indices=channel_indices)
+
+    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=5)
+    num_components = radar_field_matrix.shape[0]
+    num_fields = radar_field_matrix.shape[-1]
+    num_heights = radar_field_matrix.shape[-2]
 
     error_checking.assert_is_numpy_array(
         numpy.array(radar_field_names),
@@ -297,23 +294,23 @@ def plot_many_optimized_fields_3d(
     error_checking.assert_is_numpy_array(
         radar_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
 
-    error_checking.assert_is_boolean(one_figure_per_example)
-    if one_figure_per_example:
+    error_checking.assert_is_boolean(one_figure_per_component)
+    if one_figure_per_component:
         num_panel_rows = num_fields + 0
         num_panel_columns = num_heights + 0
     else:
         error_checking.assert_is_integer(num_panel_rows)
         error_checking.assert_is_geq(num_panel_rows, 1)
-        error_checking.assert_is_leq(num_panel_rows, num_examples)
+        error_checking.assert_is_leq(num_panel_rows, num_components)
 
         num_panel_columns = int(
-            numpy.ceil(float(num_examples) / num_panel_rows))
+            numpy.ceil(float(num_components) / num_panel_rows))
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    if one_figure_per_example:
-        for i in range(num_examples):
+    if one_figure_per_component:
+        for i in range(num_components):
             _, axes_objects_2d_list = plotting_utils.init_panels(
                 num_panel_rows=num_panel_rows,
                 num_panel_columns=num_panel_columns,
@@ -336,7 +333,7 @@ def plot_many_optimized_fields_3d(
                 component_index=i, component_type_string=component_type_string,
                 target_class=target_class, layer_name=layer_name,
                 neuron_index_matrix=neuron_index_matrix,
-                channel_indices=channel_index_by_example)
+                channel_indices=channel_indices)
             this_figure_file_name = '{0:s}/optimized-radar_{1:s}.jpg'.format(
                 output_dir_name, this_metadata_string)
 
@@ -356,17 +353,17 @@ def plot_many_optimized_fields_3d(
 
                 for j in range(num_panel_rows):
                     for k in range(num_panel_columns):
-                        this_example_index = j * num_panel_columns + k
+                        this_component_index = j * num_panel_columns + k
                         this_annotation_string, _ = _model_component_to_string(
-                            component_index=this_example_index,
+                            component_index=this_component_index,
                             component_type_string=component_type_string,
                             target_class=target_class, layer_name=layer_name,
                             neuron_index_matrix=neuron_index_matrix,
-                            channel_indices=channel_index_by_example)
+                            channel_indices=channel_indices)
 
                         radar_plotting.plot_2d_grid_without_coords(
                             field_matrix=radar_field_matrix[
-                                this_example_index, ..., m, i],
+                                this_component_index, ..., m, i],
                             field_name=radar_field_names[i],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
