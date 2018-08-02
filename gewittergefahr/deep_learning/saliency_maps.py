@@ -73,7 +73,7 @@ def check_saliency_metadata(
         saliency maps were computed
 
     :param component_type_string: Component type (must be accepted by
-        `check_component_type`).
+        `model_interpretation.check_component_type`).
     :param target_class: See doc for `get_saliency_maps_for_class_activation`.
     :param return_probs: Same.
     :param ideal_logit: Same.
@@ -377,10 +377,10 @@ def read_file(pickle_file_name):
     """Reads saliency maps from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_input_matrices: See doc for `write_saliency_maps_to_file`.
+    :return: list_of_input_matrices: See doc for `write_file`.
     :return: list_of_saliency_matrices: Same.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['model_file_name']: See doc for `write_saliency_maps_to_file`.
+    metadata_dict['model_file_name']: See doc for `write_file`.
     metadata_dict['storm_id']: Same.
     metadata_dict['storm_time_unix_sec']: Same.
     metadata_dict['component_type_string']: Same.
