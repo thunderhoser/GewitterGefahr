@@ -39,17 +39,15 @@ def _model_component_to_string(
         layer_name=None, neuron_index_matrix=None, channel_indices=None):
     """Returns string descriptions for model component (class/neuron/channel).
 
-    C = number of model components
-
     :param component_index: Will return descriptions for the [j]th component,
         where j = `component_index`.
     :param component_type_string: See doc for
         `feature_optimization.model_component_to_string`.
     :param target_class: Same.
     :param layer_name: Same.
-    :param neuron_index_matrix: C-by-? numpy array, where
+    :param neuron_index_matrix: E-by-? numpy array, where
         neuron_index_matrix[j, :] contains array indices for the [j]th neuron.
-    :param channel_indices: length-C numpy array, where channel_indices[j] is
+    :param channel_indices: length-E numpy array, where channel_indices[j] is
         the index of the [j]th channel.
     :return: verbose_string: Verbose string (to use in figure legends).
     :return: abbrev_string: Abbreviation (to use in file names).

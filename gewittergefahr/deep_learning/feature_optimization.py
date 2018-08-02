@@ -1303,12 +1303,13 @@ def read_activations_from_file(pickle_file_name):
 
 
 def write_saliency_maps_to_file(
-        pickle_file_name, list_of_saliency_matrices, model_file_name, storm_id,
-        storm_time_unix_sec, component_type_string, target_class=None,
-        return_probs=None, ideal_logit=None, layer_name=None,
+        pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
+        model_file_name, storm_id, storm_time_unix_sec, component_type_string,
+        target_class=None, return_probs=None, ideal_logit=None, layer_name=None,
         ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
     """Writes saliency maps to Pickle file.
 
+    T = number of input tensors to the model
     C = number of model components (classes, neurons, or channels) for which
         saliency maps were computed
 
@@ -1316,10 +1317,13 @@ def write_saliency_maps_to_file(
     model component.
 
     :param pickle_file_name: Path to output file.
-    :param list_of_saliency_matrices: length-T list of numpy arrays, where
-        T = number of input tensors to the model, comprising the saliency map
-        for each model component.  The first dimension of each array has length
-        C.
+    :param list_of_input_matrices: length-T list of numpy arrays, comprising the
+        input data for one storm object.  The first dimension of each array has
+        length 1.
+    :param list_of_saliency_matrices: length-T list of numpy arrays, comprising
+        the saliency map for each model component.  The first dimension of each
+        array has length C.  Otherwise, list_of_saliency_matrices[i] has the
+        same dimensions as list_of_input_matrices[i].
     :param model_file_name: Path to file with trained model.
     :param storm_id: Storm ID for example.
     :param storm_time_unix_sec: Valid time for example.
@@ -1331,6 +1335,8 @@ def write_saliency_maps_to_file(
     :param ideal_activation: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
+    :raises: ValueError: if `list_of_input_matrices` and
+        `list_of_saliency_matrices` have different lengths.
     """
 
     num_components = check_saliency_metadata(
@@ -1343,14 +1349,29 @@ def write_saliency_maps_to_file(
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string(storm_id)
     error_checking.assert_is_integer(storm_time_unix_sec)
-    error_checking.assert_is_list(list_of_saliency_matrices)
 
-    for this_array in list_of_saliency_matrices:
-        error_checking.assert_is_numpy_array(this_array)
+    error_checking.assert_is_list(list_of_input_matrices)
+    error_checking.assert_is_list(list_of_saliency_matrices)
+    num_input_matrices = len(list_of_input_matrices)
+    num_saliency_matrices = len(list_of_saliency_matrices)
+
+    if num_input_matrices != num_saliency_matrices:
+        error_string = (
+            'Number of input matrices ({0:d}) should equal number of saliency '
+            'matrices ({1:d}).'
+        ).format(num_input_matrices, num_saliency_matrices)
+        raise ValueError(error_string)
+
+    for i in range(num_input_matrices):
+        error_checking.assert_is_numpy_array(list_of_input_matrices[i])
         these_expected_dim = numpy.array(
-            (num_components,) + this_array.shape[1:], dtype=int)
+            (1,) + list_of_input_matrices[i].shape[1:], dtype=int)
         error_checking.assert_is_numpy_array(
-            this_array, exact_dimensions=these_expected_dim)
+            list_of_input_matrices[i], exact_dimensions=these_expected_dim)
+
+        these_expected_dim[0] = num_components
+        error_checking.assert_is_numpy_array(
+            list_of_saliency_matrices[i], exact_dimensions=these_expected_dim)
 
     metadata_dict = {
         MODEL_FILE_NAME_KEY: model_file_name,
@@ -1368,6 +1389,7 @@ def write_saliency_maps_to_file(
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(list_of_input_matrices, pickle_file_handle)
     pickle.dump(list_of_saliency_matrices, pickle_file_handle)
     pickle.dump(metadata_dict, pickle_file_handle)
     pickle_file_handle.close()
@@ -1380,10 +1402,8 @@ def read_saliency_maps_from_file(pickle_file_name):
         saliency maps were computed
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_saliency_matrices: length-T list of numpy arrays, where
-        T = number of input tensors to the model, comprising the saliency map
-        for each model component.  The first dimension of each array has length
-        C.
+    :return: list_of_input_matrices: See doc for `write_saliency_maps_to_file`.
+    :return: list_of_saliency_matrices: Same.
     :return: metadata_dict: Dictionary with the following keys.
     metadata_dict['model_file_name']: See doc for `write_saliency_maps_to_file`.
     metadata_dict['storm_id']: Same.
@@ -1399,8 +1419,9 @@ def read_saliency_maps_from_file(pickle_file_name):
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
+    list_of_input_matrices = pickle.load(pickle_file_handle)
     list_of_saliency_matrices = pickle.load(pickle_file_handle)
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return list_of_saliency_matrices, metadata_dict
+    return list_of_input_matrices, list_of_saliency_matrices, metadata_dict

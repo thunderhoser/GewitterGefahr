@@ -432,6 +432,7 @@ def _run(
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
     feature_optimization.write_saliency_maps_to_file(
         pickle_file_name=output_file_name,
+        list_of_input_matrices=list_of_input_matrices,
         list_of_saliency_matrices=list_of_saliency_matrices,
         model_file_name=model_file_name, storm_id=storm_id,
         storm_time_unix_sec=storm_time_unix_sec,
