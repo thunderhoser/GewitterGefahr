@@ -366,14 +366,20 @@ def _run(
                 '"{1:s}"...'
             ).format(target_class, this_spc_date_string)
 
-            these_activations = (
+            this_activation_matrix = (
                 model_activation.get_class_activation_for_examples(
                     model_object=model_object, target_class=target_class,
                     return_probs=return_probs,
                     list_of_input_matrices=this_list_of_input_matrices))
+            print this_activation_matrix.shape
+
+            this_activation_matrix = numpy.reshape(
+                this_activation_matrix, (len(this_activation_matrix), 1))
+            print this_activation_matrix.shape
 
         elif (component_type_string ==
               model_interpretation.NEURON_COMPONENT_TYPE_STRING):
+            this_activation_matrix = None
 
             for j in range(neuron_index_matrix.shape[0]):
                 print (
@@ -388,7 +394,17 @@ def _run(
                         neuron_indices=neuron_index_matrix[j, :],
                         list_of_input_matrices=this_list_of_input_matrices))
 
+                these_activations = numpy.reshape(
+                    these_activations, (len(these_activations), 1))
+                if this_activation_matrix is None:
+                    this_activation_matrix = these_activations + 0.
+                else:
+                    this_activation_matrix = numpy.concatenate(
+                        (this_activation_matrix, these_activations), axis=1)
+
         else:
+            this_activation_matrix = None
+
             for this_channel_index in channel_indices:
                 print (
                     'Computing activations for channel {0:d} in layer "{1:s}", '
@@ -402,13 +418,20 @@ def _run(
                         list_of_input_matrices=this_list_of_input_matrices,
                         stat_function_for_neuron_activations=K.max))
 
-        this_activation_matrix = numpy.reshape(
-            these_activations, (len(these_activations), 1))
+                these_activations = numpy.reshape(
+                    these_activations, (len(these_activations), 1))
+                if this_activation_matrix is None:
+                    this_activation_matrix = these_activations + 0.
+                else:
+                    this_activation_matrix = numpy.concatenate(
+                        (this_activation_matrix, these_activations), axis=1)
+
         if activation_matrix is None:
             activation_matrix = this_activation_matrix + 0.
         else:
             activation_matrix = numpy.concatenate(
-                (activation_matrix, this_activation_matrix), axis=1)
+                (activation_matrix, this_activation_matrix), axis=0)
+        print activation_matrix.shape
 
         if i == num_spc_dates - 1:
             print SEPARATOR_STRING
