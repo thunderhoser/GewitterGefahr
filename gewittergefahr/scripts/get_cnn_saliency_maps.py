@@ -15,7 +15,8 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.deep_learning import feature_optimization
+from gewittergefahr.deep_learning import model_interpretation
+from gewittergefahr.deep_learning import saliency_maps
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
@@ -46,19 +47,19 @@ MODEL_FILE_HELP_STRING = (
 COMPONENT_TYPE_HELP_STRING = (
     'Component type.  Saliency maps may be computed for one class, one/many '
     'neurons, or one/many channels.  Valid options are listed below.\n{0:s}'
-).format(str(feature_optimization.VALID_COMPONENT_TYPE_STRINGS))
+).format(str(model_interpretation.VALID_COMPONENT_TYPE_STRINGS))
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Saliency maps will be computed for class k,'
     ' where k = `{2:s}`.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 RETURN_PROBS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, saliency maps will be '
     'created for the predicted probability of class k, where k = `{2:s}`.  If '
     '0, saliency maps will be created for the pre-softmax logit for class k.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 IDEAL_LOGIT_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" and {2:s} = 0] The loss function will be '
@@ -67,14 +68,14 @@ IDEAL_LOGIT_HELP_STRING = (
     'or the negative signed square of logit[k], so that loss always decreases '
     'as logit[k] increases.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          RETURN_PROBS_ARG_NAME, IDEAL_LOGIT_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neurons or '
     'channels for which saliency maps will be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.NEURON_COMPONENT_TYPE_STRING,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING)
+         model_interpretation.NEURON_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING)
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] The loss function will be '
     '(neuron_activation - ideal_activation)**2 or [max(channel_activations) - '
@@ -82,8 +83,8 @@ IDEAL_ACTIVATION_HELP_STRING = (
     '-sign(neuron_activation) * neuron_activation**2 or '
     '-sign(max(channel_activations)) * max(channel_activations)**2.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.NEURON_COMPONENT_TYPE_STRING,
-         feature_optimization.CHANNEL_COMPONENT_TYPE_STRING,
+         model_interpretation.NEURON_COMPONENT_TYPE_STRING,
+         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
          IDEAL_ACTIVATION_ARG_NAME)
 NEURON_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Indices for each neuron whose saliency map '
@@ -92,12 +93,12 @@ NEURON_INDICES_HELP_STRING = (
     'neurons (0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In'
     ' other words, use -1 to separate neurons.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.NEURON_COMPONENT_TYPE_STRING)
+         model_interpretation.NEURON_COMPONENT_TYPE_STRING)
 CHANNEL_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Index for each channel whose saliency map '
     'is to be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CHANNEL_COMPONENT_TYPE_STRING)
+         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING)
 RADAR_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
     'therein will be found by `storm_images.find_storm_image_file` and read by '
@@ -115,8 +116,7 @@ STORM_TIME_HELP_STRING = (
     'only for storm `{0:s}` at this time.'
 ).format(STORM_ID_ARG_NAME)
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (will be written by `feature_optimization.'
-    'write_saliency_maps_to_file`).')
+    'Path to output file (will be written by `saliency_maps.write_file`).')
 
 DEFAULT_TOP_RADAR_IMAGE_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
@@ -144,8 +144,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + IDEAL_LOGIT_ARG_NAME, type=float, required=False,
-    default=feature_optimization.DEFAULT_IDEAL_LOGIT,
-    help=IDEAL_LOGIT_HELP_STRING)
+    default=saliency_maps.DEFAULT_IDEAL_LOGIT, help=IDEAL_LOGIT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
@@ -153,7 +152,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + IDEAL_ACTIVATION_ARG_NAME, type=float, required=False,
-    default=feature_optimization.DEFAULT_IDEAL_ACTIVATION,
+    default=saliency_maps.DEFAULT_IDEAL_ACTIVATION,
     help=IDEAL_ACTIVATION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -306,16 +305,16 @@ def _run(
 
     # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    feature_optimization.check_component_type(component_type_string)
+    model_interpretation.check_component_type(component_type_string)
     storm_time_unix_sec = time_conversion.string_to_unix_sec(
         storm_time_string, INPUT_TIME_FORMAT)
 
     if (component_type_string ==
-            feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
+            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
         error_checking.assert_is_geq_numpy_array(channel_indices, 0)
 
     if (component_type_string ==
-            feature_optimization.NEURON_COMPONENT_TYPE_STRING):
+            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
         neuron_indices_flattened = neuron_indices_flattened.astype(float)
         neuron_indices_flattened[neuron_indices_flattened < 0] = numpy.nan
 
@@ -374,18 +373,18 @@ def _run(
     list_of_saliency_matrices = None
 
     if (component_type_string ==
-            feature_optimization.CLASS_COMPONENT_TYPE_STRING):
+            model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         print 'Computing saliency map for target class {0:d}...'.format(
             target_class)
         list_of_saliency_matrices = (
-            feature_optimization.get_saliency_maps_for_class_activation(
+            saliency_maps.get_saliency_maps_for_class_activation(
                 model_object=model_object, target_class=target_class,
                 return_probs=return_probs,
                 list_of_input_matrices=list_of_input_matrices,
                 ideal_logit=ideal_logit))
 
     elif (component_type_string ==
-          feature_optimization.NEURON_COMPONENT_TYPE_STRING):
+          model_interpretation.NEURON_COMPONENT_TYPE_STRING):
 
         for j in range(neuron_index_matrix.shape[0]):
             print (
@@ -393,7 +392,7 @@ def _run(
             ).format(str(neuron_index_matrix[j, :]), layer_name)
 
             these_matrices = (
-                feature_optimization.get_saliency_maps_for_neuron_activation(
+                saliency_maps.get_saliency_maps_for_neuron_activation(
                     model_object=model_object, layer_name=layer_name,
                     neuron_indices=neuron_index_matrix[j, ...],
                     list_of_input_matrices=list_of_input_matrices,
@@ -413,7 +412,7 @@ def _run(
             ).format(this_channel_index, layer_name)
 
             these_matrices = (
-                feature_optimization.get_saliency_maps_for_channel_activation(
+                saliency_maps.get_saliency_maps_for_channel_activation(
                     model_object=model_object, layer_name=layer_name,
                     channel_index=this_channel_index,
                     list_of_input_matrices=list_of_input_matrices,
@@ -430,7 +429,7 @@ def _run(
 
     print SEPARATOR_STRING
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
-    feature_optimization.write_saliency_maps_to_file(
+    saliency_maps.write_file(
         pickle_file_name=output_file_name,
         list_of_input_matrices=list_of_input_matrices,
         list_of_saliency_matrices=list_of_saliency_matrices,

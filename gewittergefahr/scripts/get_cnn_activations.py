@@ -13,7 +13,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
-from gewittergefahr.deep_learning import feature_optimization
+from gewittergefahr.deep_learning import model_interpretation
+from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -46,12 +47,12 @@ MODEL_FILE_HELP_STRING = (
 COMPONENT_TYPE_HELP_STRING = (
     'Component type.  Activations may be computed for one class, one/many '
     'neurons, or one/many channels.  Valid options are listed below.\n{0:s}'
-).format(str(feature_optimization.VALID_COMPONENT_TYPE_STRINGS))
+).format(str(model_interpretation.VALID_COMPONENT_TYPE_STRINGS))
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Activations will be computed for class k, '
     'where k = `{2:s}`.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 RETURN_PROBS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, the activation for '
@@ -59,14 +60,14 @@ RETURN_PROBS_HELP_STRING = (
     '`{2:s}`.  If 0, the activation for each example will be pre-softmax logit '
     'for class k.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neurons or '
     'channels whose activations will be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.NEURON_COMPONENT_TYPE_STRING,
-         feature_optimization.CLASS_COMPONENT_TYPE_STRING)
+         model_interpretation.NEURON_COMPONENT_TYPE_STRING,
+         model_interpretation.CLASS_COMPONENT_TYPE_STRING)
 NEURON_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Indices for each neuron whose activation is'
     ' to be computed.  For example, to compute activations for neuron (0, 0, 2)'
@@ -74,12 +75,12 @@ NEURON_INDICES_HELP_STRING = (
     '(0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In other '
     'words, use -1 to separate neurons.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.NEURON_COMPONENT_TYPE_STRING)
+         model_interpretation.NEURON_COMPONENT_TYPE_STRING)
 CHANNEL_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Index for each channel whose activation is '
     'to be computed.'
 ).format(COMPONENT_TYPE_ARG_NAME,
-         feature_optimization.CHANNEL_COMPONENT_TYPE_STRING)
+         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING)
 RADAR_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
     'therein will be found by `storm_images.find_storm_image_file` and read by '
@@ -94,8 +95,7 @@ SPC_DATE_HELP_STRING = (
     '`{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (will be written by `feature_optimization.'
-    'write_activations_to_file`).')
+    'Path to output file (will be written by `model_activation.write_file`).')
 
 DEFAULT_TOP_RADAR_IMAGE_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
@@ -266,14 +266,14 @@ def _run(
 
     # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
-    feature_optimization.check_component_type(component_type_string)
+    model_interpretation.check_component_type(component_type_string)
 
     if (component_type_string ==
-            feature_optimization.CHANNEL_COMPONENT_TYPE_STRING):
+            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
         error_checking.assert_is_geq_numpy_array(channel_indices, 0)
 
     if (component_type_string ==
-            feature_optimization.NEURON_COMPONENT_TYPE_STRING):
+            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
         neuron_indices_flattened = neuron_indices_flattened.astype(float)
         neuron_indices_flattened[neuron_indices_flattened < 0] = numpy.nan
 
@@ -349,20 +349,20 @@ def _run(
                 radar_file_name_matrix[i, 0, 0])
 
         if (component_type_string ==
-                feature_optimization.CLASS_COMPONENT_TYPE_STRING):
+                model_interpretation.CLASS_COMPONENT_TYPE_STRING):
             print (
                 'Computing activations for target class {0:d} and SPC date '
                 '"{1:s}"...'
             ).format(target_class, this_spc_date_string)
 
             these_activations = (
-                feature_optimization.get_class_activation_for_examples(
+                model_activation.get_class_activation_for_examples(
                     model_object=model_object, target_class=target_class,
                     return_probs=return_probs,
                     list_of_input_matrices=this_list_of_input_matrices))
 
         elif (component_type_string ==
-              feature_optimization.NEURON_COMPONENT_TYPE_STRING):
+              model_interpretation.NEURON_COMPONENT_TYPE_STRING):
 
             for j in range(neuron_index_matrix.shape[0]):
                 print (
@@ -372,7 +372,7 @@ def _run(
                          this_spc_date_string)
 
                 these_activations = (
-                    feature_optimization.get_neuron_activation_for_examples(
+                    model_activation.get_neuron_activation_for_examples(
                         model_object=model_object, layer_name=layer_name,
                         neuron_indices=neuron_index_matrix[j, :],
                         list_of_input_matrices=this_list_of_input_matrices))
@@ -385,7 +385,7 @@ def _run(
                 ).format(this_channel_index, layer_name, this_spc_date_string)
 
                 these_activations = (
-                    feature_optimization.get_channel_activation_for_examples(
+                    model_activation.get_channel_activation_for_examples(
                         model_object=model_object, layer_name=layer_name,
                         channel_index=this_channel_index,
                         list_of_input_matrices=this_list_of_input_matrices,
@@ -405,7 +405,7 @@ def _run(
             print MINOR_SEPARATOR_STRING
 
     print 'Writing activations to file: "{0:s}"...'.format(output_file_name)
-    feature_optimization.write_activations_to_file(
+    model_activation.write_file(
         pickle_file_name=output_file_name, activation_matrix=activation_matrix,
         model_file_name=model_file_name,
         component_type_string=component_type_string, target_class=target_class,

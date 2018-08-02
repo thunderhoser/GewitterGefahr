@@ -19,6 +19,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
@@ -42,7 +43,7 @@ def _model_component_to_string(
     :param component_index: Will return descriptions for the [j]th component,
         where j = `component_index`.
     :param component_type_string: See doc for
-        `feature_optimization.model_component_to_string`.
+        `model_interpretation.model_component_to_string`.
     :param target_class: Same.
     :param layer_name: Same.
     :param neuron_index_matrix: E-by-? numpy array, where
@@ -54,18 +55,18 @@ def _model_component_to_string(
     """
 
     if (component_type_string ==
-            feature_optimization.CLASS_COMPONENT_TYPE_STRING):
-        return feature_optimization.model_component_to_string(
+            model_interpretation.CLASS_COMPONENT_TYPE_STRING):
+        return model_interpretation.model_component_to_string(
             component_type_string=component_type_string,
             target_class=target_class)
 
     if (component_type_string ==
-            feature_optimization.NEURON_COMPONENT_TYPE_STRING):
-        return feature_optimization.model_component_to_string(
+            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
+        return model_interpretation.model_component_to_string(
             component_type_string=component_type_string, layer_name=layer_name,
             neuron_indices=neuron_index_matrix[component_index, :])
 
-    return feature_optimization.model_component_to_string(
+    return model_interpretation.model_component_to_string(
         component_type_string=component_type_string, layer_name=layer_name,
         channel_index=channel_indices[component_index])
 
@@ -112,19 +113,18 @@ def plot_many_optimized_fields_2d(
         the optimized field from a different model component.
     :param num_panel_rows: Number of panel rows in each figure.
     :param component_type_string: See doc for
-        `feature_optimization.check_optimization_metadata`.
+        `feature_optimization.check_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :param figure_width_inches: Width of each figure.
     :param figure_height_inches: Height of each figure.
-    :param target_class: See doc for
-        `feature_optimization.check_optimization_metadata`.
+    :param target_class: See doc for `feature_optimization.check_metadata`.
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
     """
 
-    feature_optimization.check_optimization_metadata(
+    feature_optimization.check_metadata(
         num_iterations=feature_optimization.DEFAULT_NUM_ITERATIONS,
         learning_rate=feature_optimization.DEFAULT_LEARNING_RATE,
         component_type_string=component_type_string,
@@ -255,21 +255,20 @@ def plot_many_optimized_fields_3d(
     :param one_figure_per_component: See doc for
         `plot_many_optimized_fields_2d`.
     :param component_type_string: See doc for
-        `feature_optimization.check_optimization_metadata`.
+        `feature_optimization.check_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :param num_panel_rows: [used only if `one_figure_per_component = False`]
         Number of panel rows in each figure.
     :param figure_width_inches: Width of each figure.
     :param figure_height_inches: Height of each figure.
-    :param target_class: See doc for
-        `feature_optimization.check_optimization_metadata`.
+    :param target_class: See doc for `feature_optimization.check_metadata`.
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
     """
 
-    feature_optimization.check_optimization_metadata(
+    feature_optimization.check_metadata(
         num_iterations=feature_optimization.DEFAULT_NUM_ITERATIONS,
         learning_rate=feature_optimization.DEFAULT_LEARNING_RATE,
         component_type_string=component_type_string,
