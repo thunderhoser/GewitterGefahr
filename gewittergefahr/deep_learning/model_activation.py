@@ -24,7 +24,7 @@ NEURON_INDICES_KEY = 'neuron_index_matrix'
 CHANNEL_INDICES_KEY = 'channel_indices'
 
 
-def check_activation_metadata(
+def check_metadata(
         component_type_string, target_class=None, return_probs=None,
         layer_name=None, neuron_index_matrix=None, channel_indices=None):
     """Error-checks metadata for activation calculations.
@@ -103,7 +103,7 @@ def get_class_activation_for_examples(
         activation layer.
     """
 
-    check_activation_metadata(
+    check_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class, return_probs=return_probs)
 
@@ -151,7 +151,7 @@ def get_neuron_activation_for_examples(
         is the activation of the given neuron by the [i]th example.
     """
 
-    check_activation_metadata(
+    check_metadata(
         component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name,
         neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
@@ -190,7 +190,7 @@ def get_channel_activation_for_examples(
         [i]th example.
     """
 
-    check_activation_metadata(
+    check_metadata(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
         layer_name=layer_name, channel_indices=numpy.array([channel_index]))
@@ -225,7 +225,7 @@ def write_file(
         activation_matrix[i, j] = activation of the [j]th model component for
         the [i]th example.
     :param model_file_name: Path to file with trained model.
-    :param component_type_string: See doc for `check_activation_metadata`.
+    :param component_type_string: See doc for `check_metadata`.
     :param target_class: Same.
     :param return_probs: Same.
     :param layer_name: Same.
@@ -233,7 +233,7 @@ def write_file(
     :param channel_indices: Same.
     """
 
-    num_components = check_activation_metadata(
+    num_components = check_metadata(
         component_type_string=component_type_string, target_class=target_class,
         return_probs=return_probs, layer_name=layer_name,
         neuron_index_matrix=neuron_index_matrix,

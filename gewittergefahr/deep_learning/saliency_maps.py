@@ -63,7 +63,7 @@ def _do_saliency_calculations(
     return list_of_saliency_matrices
 
 
-def check_saliency_metadata(
+def check_metadata(
         component_type_string, target_class=None, return_probs=None,
         ideal_logit=None, layer_name=None, ideal_activation=None,
         neuron_index_matrix=None, channel_indices=None):
@@ -154,7 +154,7 @@ def get_saliency_maps_for_class_activation(
         activation layer.
     """
 
-    check_saliency_metadata(
+    check_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class, return_probs=return_probs,
         ideal_logit=ideal_logit)
@@ -209,7 +209,7 @@ def get_saliency_maps_for_neuron_activation(
     :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
     """
 
-    check_saliency_metadata(
+    check_metadata(
         component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
@@ -257,7 +257,7 @@ def get_saliency_maps_for_channel_activation(
     :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
     """
 
-    check_saliency_metadata(
+    check_metadata(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
         layer_name=layer_name, ideal_activation=ideal_activation,
@@ -305,7 +305,7 @@ def write_file(
     :param model_file_name: Path to file with trained model.
     :param storm_id: String ID for storm object.
     :param storm_time_unix_sec: Valid time for storm object.
-    :param component_type_string: See doc for `check_saliency_metadata`.
+    :param component_type_string: See doc for `check_metadata`.
     :param target_class: Same.
     :param return_probs: Same.
     :param ideal_logit: Same.
@@ -317,7 +317,7 @@ def write_file(
         `list_of_saliency_matrices` have different lengths.
     """
 
-    num_components = check_saliency_metadata(
+    num_components = check_metadata(
         component_type_string=component_type_string, target_class=target_class,
         return_probs=return_probs, ideal_logit=ideal_logit,
         layer_name=layer_name, ideal_activation=ideal_activation,
