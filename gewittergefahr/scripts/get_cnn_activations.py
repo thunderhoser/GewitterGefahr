@@ -191,10 +191,11 @@ def _read_input_one_spc_date(
             sounding_normalization_dict=model_metadata_dict[
                 cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
-        list_of_input_matrices = [
-            example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY],
-            example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY]
-        ]
+        if example_dict is not None:
+            list_of_input_matrices = [
+                example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY],
+                example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY]
+            ]
 
     else:
         num_radar_dimensions = len(
@@ -233,9 +234,13 @@ def _read_input_one_spc_date(
                 sounding_normalization_dict=model_metadata_dict[
                     cnn.SOUNDING_NORMALIZATION_DICT_KEY])
 
-        list_of_input_matrices = [
-            example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY]
-        ]
+        if example_dict is not None:
+            list_of_input_matrices = [
+                example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY]
+            ]
+
+    if example_dict is None:
+        return None, None, None
 
     if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
         list_of_input_matrices.append(
