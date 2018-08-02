@@ -15,6 +15,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
 MODEL_FILE_NAME_KEY = 'model_file_name'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
@@ -211,9 +213,10 @@ def get_channel_activation_for_examples(
 
 
 def write_file(
-        pickle_file_name, activation_matrix, model_file_name,
-        component_type_string, target_class=None, return_probs=None,
-        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+        pickle_file_name, activation_matrix, storm_ids, storm_times_unix_sec,
+        model_file_name, component_type_string, target_class=None,
+        return_probs=None, layer_name=None, neuron_index_matrix=None,
+        channel_indices=None):
     """Writes activations to Pickle file.
 
     E = number of examples (storm objects)
@@ -224,6 +227,8 @@ def write_file(
     :param activation_matrix: E-by-C numpy array of activations, where
         activation_matrix[i, j] = activation of the [j]th model component for
         the [i]th example.
+    :param storm_ids: length-E list of storm IDs.
+    :param storm_times_unix_sec: length-E numpy array of storm times.
     :param model_file_name: Path to file with trained model.
     :param component_type_string: See doc for `check_metadata`.
     :param target_class: Same.
@@ -238,15 +243,25 @@ def write_file(
         return_probs=return_probs, layer_name=layer_name,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
-
     error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_numpy_array_without_nan(activation_matrix)
-    expected_dimensions = numpy.array(
-        [activation_matrix.shape[0], num_components], dtype=int)
+
+    error_checking.assert_is_string_list(storm_ids)
     error_checking.assert_is_numpy_array(
-        activation_matrix, exact_dimensions=expected_dimensions)
+        numpy.array(storm_ids), num_dimensions=1)
+    num_examples = len(storm_ids)
+
+    error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        storm_times_unix_sec, exact_dimensions=numpy.array([num_examples]))
+
+    error_checking.assert_is_numpy_array_without_nan(activation_matrix)
+    error_checking.assert_is_numpy_array(
+        activation_matrix,
+        exact_dimensions=numpy.array([num_examples, num_components]))
 
     metadata_dict = {
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
         MODEL_FILE_NAME_KEY: model_file_name,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,

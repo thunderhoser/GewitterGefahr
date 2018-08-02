@@ -18,8 +18,6 @@ from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
-# TODO(thunderhoser): Write storm ID and valid time for each example.
-
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
@@ -160,6 +158,8 @@ def _read_input_one_spc_date(
         spc_date_index):
     """Reads model input for one SPC date.
 
+    E = number of examples (storm objects)
+
     :param radar_file_name_matrix: numpy array of file names, created by either
         `training_validation_io.find_radar_files_2d` or
         `training_validation_io.find_radar_files_3d`.
@@ -169,7 +169,10 @@ def _read_input_one_spc_date(
     :param spc_date_index: Index of SPC date.  Data will be read from
         radar_file_name_matrix[i, ...], where i = `spc_date_index`.
     :return: list_of_input_matrices: length-T list of numpy arrays, where T =
-        number of input tensors to the model.
+        number of input tensors to the model.  The first dimension of each array
+        has length E.
+    :return: storm_ids: length-E list of storm IDs.
+    :return: storm_times_unix_sec: length-E list of storm times.
     """
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
@@ -238,7 +241,8 @@ def _read_input_one_spc_date(
         list_of_input_matrices.append(
             example_dict[deployment_io.SOUNDING_MATRIX_KEY])
 
-    return list_of_input_matrices
+    return (list_of_input_matrices, example_dict[deployment_io.STORM_IDS_KEY],
+            example_dict[deployment_io.STORM_TIMES_KEY])
 
 
 def _run(
@@ -331,15 +335,22 @@ def _run(
     print SEPARATOR_STRING
 
     # Compute activation for each example (storm object) and model component.
-    num_spc_dates = radar_file_name_matrix.shape[0]
     activation_matrix = None
+    storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
+    num_spc_dates = radar_file_name_matrix.shape[0]
 
     for i in range(num_spc_dates):
-        this_list_of_input_matrices = _read_input_one_spc_date(
+        (this_list_of_input_matrices, these_storm_ids, these_times_unix_sec
+        ) = _read_input_one_spc_date(
             radar_file_name_matrix=radar_file_name_matrix,
             model_metadata_dict=model_metadata_dict,
             top_sounding_dir_name=top_sounding_dir_name, spc_date_index=i)
         print '\n'
+
+        storm_ids += these_storm_ids
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec, these_times_unix_sec))
 
         if num_radar_dimensions == 2:
             _, this_spc_date_string = storm_images.image_file_name_to_time(
@@ -407,6 +418,7 @@ def _run(
     print 'Writing activations to file: "{0:s}"...'.format(output_file_name)
     model_activation.write_file(
         pickle_file_name=output_file_name, activation_matrix=activation_matrix,
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
         model_file_name=model_file_name,
         component_type_string=component_type_string, target_class=target_class,
         return_probs=return_probs, layer_name=layer_name,
