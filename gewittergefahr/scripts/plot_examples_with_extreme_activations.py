@@ -351,7 +351,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                 this_figure_file_name = '{0:s}_{1:s}.jpg'.format(
                     this_base_file_name, radar_field_names[j].replace('_', '-'))
 
-            pyplot.title(this_title_string)
+            pyplot.suptitle(this_title_string)
             print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
             pyplot.close()
