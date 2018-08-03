@@ -165,17 +165,13 @@ def _read_storm_objects(
         model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
     num_spc_dates = len(unique_spc_date_strings_numpy)
 
-    orig_storm_ids = storm_ids + []
-    orig_storm_times_unix_sec = storm_times_unix_sec + 0
-    new_storm_ids = []
-    new_storm_times_unix_sec = numpy.array([], dtype=int)
-
     radar_image_matrix = None
     sounding_matrix = None
     radar_field_names = None
     radar_heights_m_asl = None
     field_name_by_pair = None
     height_by_pair_m_asl = None
+    sort_indices_for_storm_id = numpy.array([], dtype=int)
 
     read_soundings = (
         model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None)
@@ -263,20 +259,15 @@ def _read_storm_objects(
 
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i])[0]
-        these_new_storm_ids = [orig_storm_ids[k] for k in these_indices]
-        these_new_storm_times_unix_sec = orig_storm_times_unix_sec[
-            these_indices]
-
-        new_storm_ids += these_new_storm_ids
-        new_storm_times_unix_sec = numpy.concatenate((
-            new_storm_times_unix_sec, these_new_storm_times_unix_sec))
+        sort_indices_for_storm_id = numpy.concatenate((
+            sort_indices_for_storm_id, these_indices))
 
         these_indices = storm_images.find_storm_objects(
             all_storm_ids=example_dict[deployment_io.STORM_IDS_KEY],
             all_valid_times_unix_sec=example_dict[
                 deployment_io.STORM_TIMES_KEY],
-            storm_ids_to_keep=these_new_storm_ids,
-            valid_times_to_keep_unix_sec=these_new_storm_times_unix_sec)
+            storm_ids_to_keep=[storm_ids[k] for k in these_indices],
+            valid_times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
 
         if radar_image_matrix is None:
             radar_image_matrix = example_dict[
@@ -305,9 +296,9 @@ def _read_storm_objects(
         HEIGHTS_2D_KEY: height_by_pair_m_asl,
         FIELD_NAMES_3D_KEY: radar_field_names,
         HEIGHTS_3D_KEY: radar_heights_m_asl,
-        STORM_IDS_KEY: new_storm_ids,
-        STORM_TIMES_KEY: new_storm_times_unix_sec,
-        STORM_ACTIVATIONS_KEY: storm_activations,
+        STORM_IDS_KEY: [storm_ids[k] for k in sort_indices_for_storm_id],
+        STORM_TIMES_KEY: storm_times_unix_sec[sort_indices_for_storm_id],
+        STORM_ACTIVATIONS_KEY: storm_activations[sort_indices_for_storm_id],
         RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
         SOUNDING_MATRIX_KEY: sounding_matrix
     }
