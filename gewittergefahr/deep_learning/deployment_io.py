@@ -111,7 +111,8 @@ def create_storm_images_2d(
         Files within this directory should be findable by
         `labels.find_label_file`.
     :param radar_normalization_dict: Used to normalize radar images (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
+        `deep_learning_utils.normalize_predictor_matrix`).  If you do not want
+        to normalize, leave this as `None`.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
@@ -119,7 +120,8 @@ def create_storm_images_2d(
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param sounding_normalization_dict: Used to normalize soundings (see doc for
-        `deep_learning_utils.normalize_sounding_matrix`).
+        `deep_learning_utils.normalize_sounding_matrix`).  If you do not want
+        to normalize, leave this as `None`.
     :return: example_dict: Dictionary with the following keys.
     example_dict['radar_image_matrix']: E-by-M-by-N-by-C numpy array of
         storm-centered radar images.
@@ -253,12 +255,14 @@ def create_storm_images_2d(
     if radar_image_matrix is None:
         return None
 
-    radar_image_matrix = dl_utils.normalize_radar_images(
-        radar_image_matrix=radar_image_matrix,
-        field_names=field_name_by_channel,
-        normalization_dict=radar_normalization_dict).astype('float32')
+    if radar_normalization_dict is not None:
+        radar_image_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=radar_image_matrix,
+            field_names=field_name_by_channel,
+            normalization_dict=radar_normalization_dict).astype('float32')
 
-    if sounding_file_names is not None:
+    if (sounding_file_names is not None and
+            sounding_normalization_dict is not None):
         sounding_matrix = dl_utils.normalize_soundings(
             sounding_matrix=sounding_matrix,
             pressureless_field_names=sounding_field_names,
@@ -315,8 +319,7 @@ def create_storm_images_3d(
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param sounding_normalization_dict: Used to normalize soundings (see doc for
-        `deep_learning_utils.normalize_sounding_matrix`).
+    :param sounding_normalization_dict: See doc for `create_storm_images_2d`.
     :param example_dict: Dictionary with the following keys.
     example_dict['radar_image_matrix']: numpy array (E x M x N x H_r x F_r) of
         storm-centered radar images.
@@ -471,11 +474,13 @@ def create_storm_images_3d(
         radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
         reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
-    radar_image_matrix = dl_utils.normalize_radar_images(
-        radar_image_matrix=radar_image_matrix, field_names=radar_field_names,
-        normalization_dict=radar_normalization_dict).astype('float32')
+    if radar_normalization_dict is not None:
+        radar_image_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=radar_image_matrix, field_names=radar_field_names,
+            normalization_dict=radar_normalization_dict).astype('float32')
 
-    if sounding_file_names is not None:
+    if (sounding_file_names is not None and
+            sounding_normalization_dict is not None):
         sounding_matrix = dl_utils.normalize_soundings(
             sounding_matrix=sounding_matrix,
             pressureless_field_names=sounding_field_names,
@@ -535,8 +540,7 @@ def create_storm_images_2d3d_myrorss(
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param sounding_normalization_dict: Used to normalize soundings (see doc for
-        `deep_learning_utils.normalize_sounding_matrix`).
+    :param sounding_normalization_dict: See doc for `create_storm_images_2d`.
     :return: example_dict: Dictionary with the following keys.
     example_dict['reflectivity_image_matrix_dbz']: numpy array
         (E x m x n x H_r x 1) of storm-centered reflectivity images.
@@ -700,16 +704,18 @@ def create_storm_images_2d3d_myrorss(
     if reflectivity_image_matrix_dbz is None:
         return None
 
-    reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
-        radar_image_matrix=reflectivity_image_matrix_dbz,
-        field_names=[radar_utils.REFL_NAME],
-        normalization_dict=radar_normalization_dict).astype('float32')
-    azimuthal_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
-        radar_image_matrix=azimuthal_shear_image_matrix_s01,
-        field_names=azimuthal_shear_field_names,
-        normalization_dict=radar_normalization_dict).astype('float32')
+    if radar_normalization_dict is not None:
+        reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
+            radar_image_matrix=reflectivity_image_matrix_dbz,
+            field_names=[radar_utils.REFL_NAME],
+            normalization_dict=radar_normalization_dict).astype('float32')
+        azimuthal_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
+            radar_image_matrix=azimuthal_shear_image_matrix_s01,
+            field_names=azimuthal_shear_field_names,
+            normalization_dict=radar_normalization_dict).astype('float32')
 
-    if sounding_file_names is not None:
+    if (sounding_file_names is not None and
+            sounding_normalization_dict is not None):
         sounding_matrix = dl_utils.normalize_soundings(
             sounding_matrix=sounding_matrix,
             pressureless_field_names=sounding_field_names,

@@ -206,15 +206,13 @@ def _read_storm_objects(
                 radar_file_name_matrix=this_radar_file_name_matrix,
                 num_examples_per_file_time=LARGE_INTEGER, return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                radar_normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY],
+                radar_normalization_dict=None,
                 sounding_field_names=model_metadata_dict[
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
                 model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-                sounding_normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+                sounding_normalization_dict=None)
 
         else:
             this_radar_file_name_matrix = trainval_io.find_radar_files_3d(
@@ -246,8 +244,7 @@ def _read_storm_objects(
                 radar_file_name_matrix=this_radar_file_name_matrix,
                 num_examples_per_file_time=LARGE_INTEGER, return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                radar_normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY],
+                radar_normalization_dict=None,
                 refl_masking_threshold_dbz=model_metadata_dict[
                     cnn.REFL_MASKING_THRESHOLD_KEY],
                 return_rotation_divergence_product=False,
@@ -256,8 +253,7 @@ def _read_storm_objects(
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
                 model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-                sounding_normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+                sounding_normalization_dict=None)
 
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i])[0]
