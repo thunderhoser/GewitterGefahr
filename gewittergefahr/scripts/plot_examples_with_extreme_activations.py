@@ -10,6 +10,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
@@ -382,6 +383,8 @@ def _run(
     error_checking.assert_is_geq(num_low_activation_examples, 0)
     error_checking.assert_is_greater(
         num_high_activation_examples + num_low_activation_examples, 0)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
 
     # Read activations.
     print 'Reading activations from: "{0:s}"...'.format(
