@@ -353,6 +353,9 @@ def _run(
             top_sounding_dir_name=top_sounding_dir_name, spc_date_index=i)
         print '\n'
 
+        if this_list_of_input_matrices is None:
+            continue
+
         storm_ids += these_storm_ids
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec, these_times_unix_sec))
