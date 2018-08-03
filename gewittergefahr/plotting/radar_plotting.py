@@ -21,6 +21,28 @@ KM_TO_KILOFEET = 3.2808
 METRES_TO_KM = 1e-3
 
 
+def _get_friendly_colour_list():
+    """Returns colours in "colourblind-friendly" scheme used by GridRad viewer.
+
+    :return: colour_list: 1-D list, where each element is a length-3 numpy array
+        with [R, G, B].
+    """
+
+    colour_list = [
+        numpy.array([242., 247., 233.]), numpy.array([220., 240., 212.]),
+        numpy.array([193., 233., 196.]), numpy.array([174., 225., 196.]),
+        numpy.array([156., 218., 205.]), numpy.array([138., 200., 211.]),
+        numpy.array([122., 163., 204.]), numpy.array([106., 119., 196.]),
+        numpy.array([112., 92., 189.]), numpy.array([137., 78., 182.]),
+        numpy.array([167., 64., 174.]), numpy.array([167., 52., 134.]),
+        numpy.array([160., 41., 83.]), numpy.array([153., 30., 30.])]
+
+    for i in range(len(colour_list)):
+        colour_list[i] /= 255
+
+    return colour_list
+
+
 def _get_modern_colour_list():
     """Returns list of colours in "modern" scheme used by GridRad viewer.
 
@@ -66,7 +88,6 @@ def _get_default_refl_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_dbz = numpy.array(
         [0.1, 5., 10., 15., 20., 25., 30., 35., 40., 45., 50., 55., 60., 65.,
@@ -89,10 +110,7 @@ def _get_default_zdr_colour_scheme():
     """
 
     main_colour_list = _get_modern_colour_list()
-
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_db = numpy.array(
         [-1., -0.5, 0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.5, 3., 3.5,
@@ -100,9 +118,9 @@ def _get_default_zdr_colour_scheme():
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_db, colour_map_object.N)
 
-    colour_bounds_dbz = numpy.concatenate((
+    colour_bounds_db = numpy.concatenate((
         numpy.array([-100.]), main_colour_bounds_db, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_dbz
+    return colour_map_object, colour_norm_object, colour_bounds_db
 
 
 def _get_default_kdp_colour_scheme():
@@ -115,10 +133,7 @@ def _get_default_kdp_colour_scheme():
     """
 
     main_colour_list = _get_modern_colour_list()
-
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_deg_km01 = numpy.array(
         [-1., -0.5, 0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.5, 3., 3.5,
@@ -126,9 +141,9 @@ def _get_default_kdp_colour_scheme():
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_deg_km01, colour_map_object.N)
 
-    colour_bounds_dbz = numpy.concatenate((
+    colour_bounds_deg_km01 = numpy.concatenate((
         numpy.array([-100.]), main_colour_bounds_deg_km01, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_dbz
+    return colour_map_object, colour_norm_object, colour_bounds_deg_km01
 
 
 def _get_default_rho_hv_colour_scheme():
@@ -141,10 +156,8 @@ def _get_default_rho_hv_colour_scheme():
     """
 
     main_colour_list = _get_modern_colour_list()
-
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds = numpy.array(
         [0.7, 0.75, 0.8, 0.85, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97,
@@ -152,9 +165,9 @@ def _get_default_rho_hv_colour_scheme():
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds, colour_map_object.N)
 
-    colour_bounds_dbz = numpy.concatenate((
+    colour_bounds = numpy.concatenate((
         numpy.array([-100.]), main_colour_bounds, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_dbz
+    return colour_map_object, colour_norm_object, colour_bounds
 
 
 def _get_default_spectrum_width_colour_scheme():
@@ -166,20 +179,18 @@ def _get_default_spectrum_width_colour_scheme():
         this case, units are metres per second.
     """
 
-    main_colour_list = _get_modern_colour_list()
-
+    main_colour_list = _get_friendly_colour_list()
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_m_s01 = numpy.array(
         [0., 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 5., 6., 7., 8., 9., 10.])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_m_s01, colour_map_object.N)
 
-    colour_bounds_dbz = numpy.concatenate((
+    colour_bounds_m_s01 = numpy.concatenate((
         numpy.array([-100.]), main_colour_bounds_m_s01, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_dbz
+    return colour_map_object, colour_norm_object, colour_bounds_m_s01
 
 
 def _get_default_vorticity_colour_scheme():
@@ -205,17 +216,15 @@ def _get_default_vorticity_colour_scheme():
         main_colour_list[i] /= 255
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_s01 = 0.001 * numpy.array(
         [-6., -5., -4., -3., -2., -1., -0.5, 0., 0.5, 1., 2., 3., 4., 5., 6.])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_s01, colour_map_object.N)
 
-    colour_bounds_dbz = numpy.concatenate((
+    colour_bounds_s01 = numpy.concatenate((
         numpy.array([-100.]), main_colour_bounds_s01, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_dbz
+    return colour_map_object, colour_norm_object, colour_bounds_s01
 
 
 def _get_default_divergence_colour_scheme():
@@ -289,7 +298,6 @@ def _get_default_echo_top_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_kft = numpy.array(
         [0.1, 10., 15., 20., 25., 30., 35., 40., 45., 50., 55., 60., 65.])
@@ -324,7 +332,6 @@ def _get_default_mesh_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_mm = numpy.array(
         [0.1, 15.9, 22.2, 28.6, 34.9, 41.3, 47.6, 54., 60.3, 65., 70., 75., 80.,
@@ -360,7 +367,6 @@ def _get_default_shi_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds = numpy.array(
         [1., 30., 60., 90., 120., 150., 180., 210., 240., 270., 300., 330.,
@@ -396,7 +402,6 @@ def _get_default_vil_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_mm = numpy.array(
         [0.1, 5., 10., 15., 20., 25., 30., 35., 40., 45., 50., 55., 60., 65.,
