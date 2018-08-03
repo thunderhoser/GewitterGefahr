@@ -352,7 +352,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                     grid_point_heights_m_asl=radar_heights_m_asl,
                     num_panel_rows=NUM_PANEL_ROWS)
 
-                (this_colour_map_object, this_colour_norm_object
+                (this_colour_map_object, this_colour_norm_object, _
                 ) = radar_plotting.get_default_colour_scheme(
                     radar_field_names[j])
 
