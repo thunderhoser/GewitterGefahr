@@ -194,11 +194,11 @@ def _read_storm_objects(
             if i == 0:
                 field_name_by_pair = [
                     storm_images.image_file_name_to_field(f) for f in
-                    this_radar_file_name_matrix[0, 0, 0, :]
+                    this_radar_file_name_matrix[0, :]
                 ]
                 height_by_pair_m_asl = numpy.array([
                     storm_images.image_file_name_to_height(f) for f in
-                    this_radar_file_name_matrix[0, 0, 0, :]
+                    this_radar_file_name_matrix[0, :]
                 ], dtype=int)
 
             example_dict = deployment_io.create_storm_images_2d(
@@ -234,11 +234,11 @@ def _read_storm_objects(
             if i == 0:
                 radar_field_names = [
                     storm_images.image_file_name_to_field(f) for f in
-                    this_radar_file_name_matrix[0, 0, 0, 0, :]
+                    this_radar_file_name_matrix[0, :, 0]
                 ]
                 radar_heights_m_asl = numpy.array([
                     storm_images.image_file_name_to_height(f) for f in
-                    this_radar_file_name_matrix[0, 0, 0, :, 0]
+                    this_radar_file_name_matrix[0, 0, :]
                 ], dtype=int)
 
             example_dict = deployment_io.create_storm_images_3d(
