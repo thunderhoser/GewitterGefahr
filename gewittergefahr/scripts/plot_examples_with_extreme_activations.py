@@ -742,8 +742,8 @@ def _run(
         storm_activations=storm_activations,
         activation_metadata_dict=activation_metadata_dict)
 
-    storm_ids = target_value_dict[STORM_ACTIVATIONS_KEY]
-    storm_times_unix_sec = target_value_dict[STORM_ACTIVATIONS_KEY]
+    storm_ids = target_value_dict[STORM_IDS_KEY]
+    storm_times_unix_sec = target_value_dict[STORM_TIMES_KEY]
     storm_activations = target_value_dict[STORM_ACTIVATIONS_KEY]
     storm_target_values = target_value_dict[TARGET_VALUES_KEY]
 
