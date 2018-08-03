@@ -245,8 +245,7 @@ def _read_storm_objects(
                 num_examples_per_file_time=LARGE_INTEGER, return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
                 radar_normalization_dict=None,
-                refl_masking_threshold_dbz=model_metadata_dict[
-                    cnn.REFL_MASKING_THRESHOLD_KEY],
+                refl_masking_threshold_dbz=None,
                 return_rotation_divergence_product=False,
                 sounding_field_names=model_metadata_dict[
                     cnn.SOUNDING_FIELD_NAMES_KEY],
