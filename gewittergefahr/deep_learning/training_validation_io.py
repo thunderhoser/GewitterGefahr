@@ -1406,7 +1406,8 @@ def storm_image_generator_3d(
     :param binarize_target: Same.
     :param radar_normalization_dict: Same.
     :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
-        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
+        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).  If
+        you want no masking, leave this as None.
     :param rdp_filter_threshold_s02: Used as a pre-model filter, to remove storm
         objects with small rotation-divergence product (see doc for
         `storm_images.get_max_rdp_for_each_storm_object`).
@@ -1588,10 +1589,11 @@ def storm_image_generator_3d(
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
 
-        full_radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
-            radar_image_matrix_3d=full_radar_image_matrix,
-            field_names=radar_field_names,
-            reflectivity_threshold_dbz=refl_masking_threshold_dbz)
+        if refl_masking_threshold_dbz is not None:
+            full_radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
+                radar_image_matrix_3d=full_radar_image_matrix,
+                field_names=radar_field_names,
+                reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
         full_radar_image_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=full_radar_image_matrix,

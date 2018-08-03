@@ -309,7 +309,8 @@ def create_storm_images_3d(
     :param top_target_directory_name: Same.
     :param radar_normalization_dict: Same.
     :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
-        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
+        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).  If
+        you want no masking, leave this as `None`.
     :param return_rotation_divergence_product: Boolean flag.  If True, the
         rotation-divergence product (RDP) for each storm object will be
         returned.
@@ -470,9 +471,10 @@ def create_storm_images_3d(
     if radar_image_matrix is None:
         return None
 
-    radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
-        radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
-        reflectivity_threshold_dbz=refl_masking_threshold_dbz)
+    if refl_masking_threshold_dbz is not None:
+        radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
+            radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
+            reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
     if radar_normalization_dict is not None:
         radar_image_matrix = dl_utils.normalize_radar_images(
