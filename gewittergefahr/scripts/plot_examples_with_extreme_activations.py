@@ -264,7 +264,7 @@ def _read_storm_objects(
             all_storm_ids=example_dict[deployment_io.STORM_IDS_KEY],
             all_valid_times_unix_sec=example_dict[
                 deployment_io.STORM_TIMES_KEY],
-            storm_ids_to_keep=storm_ids[these_indices],
+            storm_ids_to_keep=[storm_ids[k] for k in these_indices],
             valid_times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
 
         if radar_image_matrix is None:
