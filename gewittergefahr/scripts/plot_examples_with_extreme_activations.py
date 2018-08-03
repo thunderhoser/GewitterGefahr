@@ -840,14 +840,10 @@ if __name__ == '__main__':
         num_low_activation_examples=getattr(INPUT_ARG_OBJECT, NUM_LOW_ARG_NAME),
         num_high_activation_examples=getattr(
             INPUT_ARG_OBJECT, NUM_HIGH_ARG_NAME),
-        num_hits=getattr(
-            INPUT_ARG_OBJECT, NUM_HIGH_ARG_NAME),
-        num_misses=getattr(
-            INPUT_ARG_OBJECT, NUM_HIGH_ARG_NAME),
-        num_false_alarms=getattr(
-            INPUT_ARG_OBJECT, NUM_HIGH_ARG_NAME),
-        num_correct_nulls=getattr(
-            INPUT_ARG_OBJECT, NUM_HIGH_ARG_NAME),
+        num_hits=getattr(INPUT_ARG_OBJECT, NUM_HITS_ARG_NAME),
+        num_misses=getattr(INPUT_ARG_OBJECT, NUM_MISSES_ARG_NAME),
+        num_false_alarms=getattr(INPUT_ARG_OBJECT, NUM_FALSE_ALARMS_ARG_NAME),
+        num_correct_nulls=getattr(INPUT_ARG_OBJECT, NUM_CORRECT_NULLS_ARG_NAME),
         top_radar_image_dir_name=getattr(
             INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
         top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
