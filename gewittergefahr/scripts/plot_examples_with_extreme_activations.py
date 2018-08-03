@@ -29,7 +29,7 @@ TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 NUM_PANEL_ROWS = 3
 TITLE_FONT_SIZE = 25
-DOTS_PER_INCH = 600
+DOTS_PER_INCH = 300
 
 FIELD_NAMES_2D_KEY = 'field_name_by_pair'
 HEIGHTS_2D_KEY = 'height_by_pair_m_asl'
