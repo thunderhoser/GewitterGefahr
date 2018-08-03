@@ -438,7 +438,6 @@ def _run(
             activation_matrix = numpy.concatenate(
                 (activation_matrix, this_activation_matrix), axis=0)
 
-
         if i == num_spc_dates - 1:
             print SEPARATOR_STRING
         else:
