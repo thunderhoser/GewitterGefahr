@@ -379,11 +379,9 @@ def _run(
                     model_object=model_object, target_class=target_class,
                     return_probs=return_probs,
                     list_of_input_matrices=this_list_of_input_matrices))
-            print this_activation_matrix.shape
 
             this_activation_matrix = numpy.reshape(
                 this_activation_matrix, (len(this_activation_matrix), 1))
-            print this_activation_matrix.shape
 
         elif (component_type_string ==
               model_interpretation.NEURON_COMPONENT_TYPE_STRING):
@@ -439,7 +437,7 @@ def _run(
         else:
             activation_matrix = numpy.concatenate(
                 (activation_matrix, this_activation_matrix), axis=0)
-        print activation_matrix.shape
+
 
         if i == num_spc_dates - 1:
             print SEPARATOR_STRING

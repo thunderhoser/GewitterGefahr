@@ -8,6 +8,7 @@ import matplotlib.colors
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import plotting_utils
 
 REFL_PLOTTING_UNIT_STRING = 'dBZ'
 SHEAR_PLOTTING_UNIT_STRING = 's^-1'
@@ -622,6 +623,70 @@ def plot_2d_grid_without_coords(
         transform=axes_object.transAxes)
 
 
+def plot_many_2d_grids_without_coords(
+        field_matrix, field_name_by_pair, height_by_pair_m_asl, num_panel_rows,
+        figure_width_inches=15., figure_height_inches=15.):
+    """Plots each 2-D grid as colour map (one per field/height pair).
+
+    M = number of grid rows
+    N = number of grid columns
+    C = number of field/height pairs
+
+    This method uses the default colour scheme for each radar field.
+
+    :param field_matrix: M-by-N-by-C numpy array of radar values.
+    :param field_name_by_pair: length-C list with names of radar fields, in the
+        order that they appear in `field_matrix`.  Each field name must be
+        accepted by `radar_utils.check_field_name`.
+    :param height_by_pair_m_asl: length-C numpy array of radar heights (metres
+        above sea level).
+    :param num_panel_rows: Number of rows in paneled figure (different than M,
+        the number of grid rows).
+    :param figure_width_inches: Figure width.
+    :param figure_height_inches: Figure height.
+    :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    """
+
+    error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
+    num_field_height_pairs = field_matrix.shape[2]
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_name_by_pair),
+        exact_dimensions=numpy.array([num_field_height_pairs]))
+
+    error_checking.assert_is_integer_numpy_array(height_by_pair_m_asl)
+    error_checking.assert_is_geq_numpy_array(height_by_pair_m_asl, 0)
+    error_checking.assert_is_numpy_array(
+        height_by_pair_m_asl,
+        exact_dimensions=numpy.array([num_field_height_pairs]))
+
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_geq(num_panel_rows, 1)
+    error_checking.assert_is_leq(num_panel_rows, num_field_height_pairs)
+
+    num_panel_columns = int(numpy.ceil(
+        float(num_field_height_pairs) / num_panel_rows))
+    figure_object, axes_objects_2d_list = plotting_utils.init_panels(
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        figure_width_inches=figure_width_inches,
+        figure_height_inches=figure_height_inches)
+
+    for i in range(num_panel_rows):
+        for j in range(num_panel_columns):
+            this_fh_pair_index = i * num_panel_columns + j
+            this_annotation_string = '{0:s}\nat {1:.1f} km ASL'.format(
+                field_name_by_pair[this_fh_pair_index],
+                height_by_pair_m_asl[this_fh_pair_index] * METRES_TO_KM)
+
+            plot_2d_grid_without_coords(
+                field_matrix=field_matrix[..., this_fh_pair_index],
+                field_name=field_name_by_pair[this_fh_pair_index],
+                axes_object=axes_objects_2d_list[i][j],
+                annotation_string=this_annotation_string)
+
+    return figure_object
+
+
 def plot_3d_grid_without_coords(
         field_matrix, field_name, grid_point_heights_m_asl, num_panel_rows,
         figure_width_inches=15., figure_height_inches=15.,
@@ -662,12 +727,10 @@ def plot_3d_grid_without_coords(
     error_checking.assert_is_leq(num_panel_rows, num_heights)
 
     num_panel_columns = int(numpy.ceil(float(num_heights) / num_panel_rows))
-    figure_object, axes_objects_2d_list = pyplot.subplots(
-        num_panel_rows, num_panel_columns,
-        figsize=(figure_width_inches, figure_height_inches),
-        sharex=True, sharey=True)
-    pyplot.subplots_adjust(
-        left=0.01, bottom=0.01, right=0.95, top=0.95, hspace=0, wspace=0)
+    figure_object, axes_objects_2d_list = plotting_utils.init_panels(
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        figure_width_inches=figure_width_inches,
+        figure_height_inches=figure_height_inches)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
