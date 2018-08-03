@@ -9,6 +9,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -17,6 +18,7 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -26,6 +28,7 @@ LARGE_INTEGER = int(1e10)
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 NUM_PANEL_ROWS = 3
+TITLE_FONT_SIZE = 25
 DOTS_PER_INCH = 600
 
 FIELD_NAMES_2D_KEY = 'field_name_by_pair'
@@ -322,7 +325,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
         this_time_string = time_conversion.unix_sec_to_string(
             storm_times_unix_sec[i], TIME_FORMAT)
         this_title_string = (
-            'Storm "{0:s}" at {1:s} (activation = {2:.2e})'
+            'Storm "{0:s}" at {1:s} (activation = {2:.3f})'
         ).format(storm_ids[i], this_time_string, storm_activations[i])
         this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
             output_dir_name, storm_ids[i].replace('_', '-'), this_time_string)
@@ -342,16 +345,28 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
 
                 this_figure_file_name = '{0:s}.jpg'.format(this_base_file_name)
             else:
-                radar_plotting.plot_3d_grid_without_coords(
+                (_, these_axes_objects_2d_list
+                ) = radar_plotting.plot_3d_grid_without_coords(
                     field_matrix=radar_image_matrix[i, ..., j],
                     field_name=radar_field_names[j],
                     grid_point_heights_m_asl=radar_heights_m_asl,
                     num_panel_rows=NUM_PANEL_ROWS)
 
+                (this_colour_map_object, this_colour_norm_object
+                ) = radar_plotting.get_default_colour_scheme(
+                    radar_field_names[j])
+
+                plotting_utils.add_colour_bar(
+                    axes_object=these_axes_objects_2d_list,
+                    values_to_colour=radar_image_matrix[i, ..., j],
+                    colour_map=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object,
+                    orientation='vertical', extend_min=True, extend_max=True)
+
                 this_figure_file_name = '{0:s}_{1:s}.jpg'.format(
                     this_base_file_name, radar_field_names[j].replace('_', '-'))
 
-            pyplot.suptitle(this_title_string)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
             pyplot.close()

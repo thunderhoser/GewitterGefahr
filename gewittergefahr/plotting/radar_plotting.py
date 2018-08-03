@@ -645,6 +645,8 @@ def plot_many_2d_grids_without_coords(
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    :return: axes_objects_2d_list: 2-D list, where each item is an instance of
+        `matplotlib.axes._subplots.AxesSubplot`.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
@@ -684,7 +686,7 @@ def plot_many_2d_grids_without_coords(
                 axes_object=axes_objects_2d_list[i][j],
                 annotation_string=this_annotation_string)
 
-    return figure_object
+    return figure_object, axes_objects_2d_list
 
 
 def plot_3d_grid_without_coords(
@@ -712,6 +714,8 @@ def plot_3d_grid_without_coords(
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
+    :return: axes_objects_2d_list: 2-D list, where each item is an instance of
+        `matplotlib.axes._subplots.AxesSubplot`.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
@@ -745,4 +749,4 @@ def plot_3d_grid_without_coords(
                 colour_map_object=colour_map_object,
                 colour_norm_object=colour_norm_object)
 
-    return figure_object
+    return figure_object, axes_objects_2d_list
