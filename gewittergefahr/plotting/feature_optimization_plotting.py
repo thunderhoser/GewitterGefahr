@@ -27,8 +27,6 @@ from gewittergefahr.plotting import radar_plotting
 # TODO(thunderhoser): Allow this module to plot optimized soundings, not just
 # optimized radar fields.
 
-matplotlib.rcParams['axes.linewidth'] = 2
-
 METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.

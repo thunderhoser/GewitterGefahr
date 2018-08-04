@@ -332,7 +332,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
     for i in range(num_storm_objects):
         this_time_string = time_conversion.unix_sec_to_string(
             storm_times_unix_sec[i], TIME_FORMAT)
-        this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+        this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
             storm_ids[i], this_time_string)
         this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
             output_dir_name, storm_ids[i].replace('_', '-'), this_time_string)
@@ -350,6 +350,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                     height_by_pair_m_asl=height_by_pair_m_asl,
                     num_panel_rows=NUM_PANEL_ROWS)
 
+                this_title_string = this_base_title_string + ''
                 this_figure_file_name = '{0:s}.jpg'.format(this_base_file_name)
             else:
                 (_, these_axes_objects_2d_list
@@ -370,6 +371,8 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                     colour_norm_object=this_colour_norm_object,
                     orientation='vertical', extend_min=True, extend_max=True)
 
+                this_title_string = '{0:s}; {1:s}'.format(
+                    this_base_title_string, radar_field_names[j])
                 this_figure_file_name = '{0:s}_{1:s}.jpg'.format(
                     this_base_file_name, radar_field_names[j].replace('_', '-'))
 
