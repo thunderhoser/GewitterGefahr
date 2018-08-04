@@ -85,7 +85,7 @@ def _run(top_tracking_dir_name, spc_date_string, output_pickle_file_name):
         num_storm_objects)
     print SEPARATOR_STRING
 
-    storm_areas_km2 = storm_areas_metres2 * 1e-3
+    storm_areas_km2 = storm_areas_metres2 * 1e-6
     print (
         'Minimum area = {0:.1f} km^2 ... max = {1:.1f} km^2 ... '
         'mean = {2:.1f} km^2 ... median = {3:.1f} km^2'
