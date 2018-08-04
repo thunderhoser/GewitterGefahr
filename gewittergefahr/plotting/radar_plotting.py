@@ -184,7 +184,7 @@ def _get_default_spectrum_width_colour_scheme():
     colour_map_object.set_under(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_m_s01 = numpy.array(
-        [0., 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 5., 6., 7., 8., 9., 10.])
+        [0.1, 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 5., 6., 7., 8., 9., 10.])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_m_s01, colour_map_object.N)
 
