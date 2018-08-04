@@ -327,6 +327,8 @@ def _run(
     if ideal_activation <= 0:
         ideal_activation = None
 
+    print ideal_logit
+
     if (component_type_string ==
             model_interpretation.NEURON_COMPONENT_TYPE_STRING):
         neuron_indices_flattened = neuron_indices_flattened.astype(float)
