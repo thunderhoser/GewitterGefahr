@@ -85,6 +85,13 @@ def _run(top_tracking_dir_name, spc_date_string, output_pickle_file_name):
         num_storm_objects)
     print SEPARATOR_STRING
 
+    storm_areas_km2 = storm_areas_metres2 * 1e-3
+    print (
+        'Minimum area = {0:.1f} km^2 ... max = {1:.1f} km^2 ... '
+        'mean = {2:.1f} km^2 ... median = {3:.1f} km^2'
+    ).format(numpy.min(storm_areas_km2), numpy.max(storm_areas_km2),
+             numpy.mean(storm_areas_km2), numpy.median(storm_areas_km2))
+
     storm_area_dict = {
         STORM_IDS_KEY:
             storm_object_table[tracking_utils.STORM_ID_COLUMN].values.tolist(),
