@@ -330,16 +330,29 @@ def plot_many_optimized_fields_3d(
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
 
-                _, this_metadata_string = _model_component_to_string(
+                (this_verbose_string, this_abbrev_string
+                ) = _model_component_to_string(
                     component_index=i,
                     component_type_string=component_type_string,
                     target_class=target_class, layer_name=layer_name,
                     neuron_index_matrix=neuron_index_matrix,
                     channel_indices=channel_indices)
 
+                (this_colour_map_object, this_colour_norm_object, _
+                ) = radar_plotting.get_default_colour_scheme(
+                    radar_field_names[m])
+
+                plotting_utils.add_colour_bar(
+                    axes_object_or_list=axes_objects_2d_list,
+                    values_to_colour=radar_field_matrix[i, ..., m],
+                    colour_map=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object,
+                    orientation='vertical', extend_min=True, extend_max=True)
+
+                pyplot.suptitle(this_verbose_string)
                 this_figure_file_name = (
                     '{0:s}/optimized-radar_{1:s}_{2:s}.jpg'
-                ).format(output_dir_name, this_metadata_string,
+                ).format(output_dir_name, this_abbrev_string,
                          radar_field_names[m].replace('_', '-'))
 
                 print 'Saving figure to file: "{0:s}"...'.format(
@@ -371,6 +384,21 @@ def plot_many_optimized_fields_3d(
                             field_name=radar_field_names[i],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
+
+                (this_colour_map_object, this_colour_norm_object, _
+                ) = radar_plotting.get_default_colour_scheme(
+                    radar_field_names[i])
+
+                plotting_utils.add_colour_bar(
+                    axes_object_or_list=axes_objects_2d_list,
+                    values_to_colour=radar_field_matrix[..., m, i],
+                    colour_map=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object,
+                    orientation='vertical', extend_min=True, extend_max=True)
+
+                this_title_string = '{0:s} at {1:.1f} km ASL'.format(
+                    radar_field_names[i], radar_heights_m_asl[m] * METRES_TO_KM)
+                pyplot.suptitle(this_title_string)
 
                 this_figure_file_name = (
                     '{0:s}/optimized-radar_{1:s}_{2:05d}metres.jpg'
