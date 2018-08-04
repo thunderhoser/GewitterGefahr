@@ -364,7 +364,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                     radar_field_names[j])
 
                 plotting_utils.add_colour_bar(
-                    axes_object=these_axes_objects_2d_list,
+                    axes_object_or_list=these_axes_objects_2d_list,
                     values_to_colour=radar_image_matrix[i, ..., j],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,

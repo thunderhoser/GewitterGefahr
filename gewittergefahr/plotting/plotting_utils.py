@@ -412,12 +412,13 @@ def plot_meridians(
 
 
 def add_colour_bar(
-        axes_object, values_to_colour, colour_map, colour_norm_object,
+        axes_object_or_list, values_to_colour, colour_map, colour_norm_object,
         orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
         extend_max=True, fraction_of_axis_length=1.):
     """Adds colour bar to existing plot.
 
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param axes_object_or_list: `matplotlib.axes._subplots.AxesSubplot` object
+        or list thereof.
     :param values_to_colour: numpy array of values to which the colour map will
         be applied.
     :param colour_map: Instance of `matplotlib.pyplot.cm`.
@@ -459,18 +460,19 @@ def add_colour_bar(
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
 
     return pyplot.colorbar(
-        ax=axes_object, mappable=scalar_mappable_object,
+        ax=axes_object_or_list, mappable=scalar_mappable_object,
         orientation=orientation, pad=this_padding, extend=extend_argument,
         shrink=fraction_of_axis_length)
 
 
 def add_linear_colour_bar(
-        axes_object, values_to_colour, colour_map, colour_min, colour_max,
-        orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
+        axes_object_or_list, values_to_colour, colour_map, colour_min,
+        colour_max, orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
         extend_max=True):
     """Adds linear colour bar to existing plot.
 
-    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param axes_object_or_list: `matplotlib.axes._subplots.AxesSubplot` object
+        or list thereof.
     :param values_to_colour: numpy array of values to which the colour map will
         be applied.
     :param colour_map: Instance of `matplotlib.pyplot.cm`.
@@ -488,6 +490,6 @@ def add_linear_colour_bar(
         vmin=colour_min, vmax=colour_max, clip=False)
 
     return add_colour_bar(
-        axes_object, values_to_colour=values_to_colour, colour_map=colour_map,
-        colour_norm_object=colour_norm_object, orientation=orientation,
-        extend_min=extend_min, extend_max=extend_max)
+        axes_object_or_list, values_to_colour=values_to_colour,
+        colour_map=colour_map, colour_norm_object=colour_norm_object,
+        orientation=orientation, extend_min=extend_min, extend_max=extend_max)

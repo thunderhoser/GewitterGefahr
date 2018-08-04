@@ -411,9 +411,9 @@ def plot_performance_diagram(
         success_ratio_matrix, pod_matrix, csi_matrix, LEVELS_FOR_CSI_CONTOURS,
         cmap=csi_colour_map, vmin=0., vmax=1., axes=axes_object)
     colour_bar_object = plotting_utils.add_linear_colour_bar(
-        axes_object, values_to_colour=csi_matrix, colour_map=csi_colour_map,
-        colour_min=0., colour_max=1., orientation='vertical', extend_min=False,
-        extend_max=False)
+        axes_object_or_list=axes_object, values_to_colour=csi_matrix,
+        colour_map=csi_colour_map, colour_min=0., colour_max=1.,
+        orientation='vertical', extend_min=False, extend_max=False)
     colour_bar_object.set_label('CSI (critical success index)')
 
     bias_colour_tuple = ()
