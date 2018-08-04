@@ -32,6 +32,7 @@ matplotlib.rcParams['axes.linewidth'] = 2
 METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
+TITLE_FONT_SIZE = 20
 DOTS_PER_INCH = 300
 
 
@@ -197,7 +198,7 @@ def plot_many_optimized_fields_2d(
                 neuron_index_matrix=neuron_index_matrix,
                 channel_indices=channel_indices)
 
-            pyplot.suptitle(this_verbose_string)
+            pyplot.suptitle(this_verbose_string, fontsize=TITLE_FONT_SIZE)
             this_figure_file_name = '{0:s}/optimized-radar_{1:s}.jpg'.format(
                 output_dir_name, this_abbrev_string)
 
@@ -243,7 +244,7 @@ def plot_many_optimized_fields_2d(
 
             this_title_string = '{0:s} at {1:.1f} km ASL'.format(
                 field_name_by_pair[i], height_by_pair_m_asl[i] * METRES_TO_KM)
-            pyplot.suptitle(this_title_string)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_figure_file_name = (
                 '{0:s}/optimized-radar_{1:s}_{2:05d}metres.jpg'
@@ -366,7 +367,9 @@ def plot_many_optimized_fields_3d(
                     colour_norm_object=this_colour_norm_object,
                     orientation='vertical', extend_min=True, extend_max=True)
 
-                pyplot.suptitle(this_verbose_string)
+                this_title_string = '{0:s}; {1:s}'.format(
+                    this_verbose_string, radar_field_names[m])
+                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
                 this_figure_file_name = (
                     '{0:s}/optimized-radar_{1:s}_{2:s}.jpg'
                 ).format(output_dir_name, this_abbrev_string,
@@ -415,7 +418,7 @@ def plot_many_optimized_fields_3d(
 
                 this_title_string = '{0:s} at {1:.1f} km ASL'.format(
                     radar_field_names[i], radar_heights_m_asl[m] * METRES_TO_KM)
-                pyplot.suptitle(this_title_string)
+                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
                 this_figure_file_name = (
                     '{0:s}/optimized-radar_{1:s}_{2:05d}metres.jpg'
