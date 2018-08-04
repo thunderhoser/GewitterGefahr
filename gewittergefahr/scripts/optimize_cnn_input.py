@@ -320,14 +320,14 @@ def _run(
     """
 
     # Check input args.
+    print num_iterations
+
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     model_interpretation.check_component_type(component_type_string)
     if ideal_logit <= 0:
         ideal_logit = None
     if ideal_activation <= 0:
         ideal_activation = None
-
-    print ideal_logit
 
     if (component_type_string ==
             model_interpretation.NEURON_COMPONENT_TYPE_STRING):
