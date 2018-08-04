@@ -32,7 +32,7 @@ matplotlib.rcParams['axes.linewidth'] = 2
 METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
-DOTS_PER_INCH = 600
+DOTS_PER_INCH = 300
 
 
 def _model_component_to_string(
@@ -241,8 +241,8 @@ def plot_many_optimized_fields_2d(
 
 def plot_many_optimized_fields_3d(
         radar_field_matrix, radar_field_names, radar_heights_m_asl,
-        one_figure_per_component, component_type_string, output_dir_name,
-        num_panel_rows=None, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
+        one_figure_per_component, num_panel_rows, component_type_string,
+        output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
         layer_name=None, neuron_index_matrix=None, channel_indices=None):
     """Plots many optimized 3-D radar fields.
@@ -254,12 +254,11 @@ def plot_many_optimized_fields_3d(
         (metres above sea level).
     :param one_figure_per_component: See doc for
         `plot_many_optimized_fields_2d`.
+    :param num_panel_rows: Number of panel rows in each figure.
     :param component_type_string: See doc for
         `feature_optimization.check_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
-    :param num_panel_rows: [used only if `one_figure_per_component = False`]
-        Number of panel rows in each figure.
     :param figure_width_inches: Width of each figure.
     :param figure_height_inches: Height of each figure.
     :param target_class: See doc for `feature_optimization.check_metadata`.
@@ -292,14 +291,15 @@ def plot_many_optimized_fields_3d(
         radar_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
 
     error_checking.assert_is_boolean(one_figure_per_component)
-    if one_figure_per_component:
-        num_panel_rows = num_fields + 0
-        num_panel_columns = num_heights + 0
-    else:
-        error_checking.assert_is_integer(num_panel_rows)
-        error_checking.assert_is_geq(num_panel_rows, 1)
-        error_checking.assert_is_leq(num_panel_rows, num_components)
+    error_checking.assert_is_integer(num_panel_rows)
+    error_checking.assert_is_geq(num_panel_rows, 1)
 
+    if one_figure_per_component:
+        error_checking.assert_is_leq(num_panel_rows, num_heights)
+        num_panel_columns = int(
+            numpy.ceil(float(num_heights) / num_panel_rows))
+    else:
+        error_checking.assert_is_leq(num_panel_rows, num_components)
         num_panel_columns = int(
             numpy.ceil(float(num_components) / num_panel_rows))
 
@@ -314,31 +314,38 @@ def plot_many_optimized_fields_3d(
                 figure_width_inches=figure_width_inches,
                 figure_height_inches=figure_height_inches)
 
-            for j in range(num_panel_rows):
-                for k in range(num_panel_columns):
-                    this_annotation_string = '{0:s}\nat {1:.1f} km'.format(
-                        radar_field_names[j],
-                        radar_heights_m_asl[k] * METRES_TO_KM)
+            for m in range(num_fields):
+                for j in range(num_panel_rows):
+                    for k in range(num_panel_columns):
+                        this_height_index = j * num_panel_columns + k
+                        this_annotation_string = '{1:.1f} km ASL'.format(
+                            radar_field_names[m],
+                            radar_heights_m_asl[this_height_index] *
+                            METRES_TO_KM)
 
-                    radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_field_matrix[i, ..., k, j],
-                        field_name=radar_field_names[j],
-                        axes_object=axes_objects_2d_list[j][k],
-                        annotation_string=this_annotation_string)
+                        radar_plotting.plot_2d_grid_without_coords(
+                            field_matrix=radar_field_matrix[
+                                i, ..., this_height_index, m],
+                            field_name=radar_field_names[m],
+                            axes_object=axes_objects_2d_list[j][k],
+                            annotation_string=this_annotation_string)
 
-            _, this_metadata_string = _model_component_to_string(
-                component_index=i, component_type_string=component_type_string,
-                target_class=target_class, layer_name=layer_name,
-                neuron_index_matrix=neuron_index_matrix,
-                channel_indices=channel_indices)
-            this_figure_file_name = '{0:s}/optimized-radar_{1:s}.jpg'.format(
-                output_dir_name, this_metadata_string)
+                _, this_metadata_string = _model_component_to_string(
+                    component_index=i,
+                    component_type_string=component_type_string,
+                    target_class=target_class, layer_name=layer_name,
+                    neuron_index_matrix=neuron_index_matrix,
+                    channel_indices=channel_indices)
 
-            print 'Saving figure to file: "{0:s}"...'.format(
-                this_figure_file_name)
-            pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
-            pyplot.close()
+                this_figure_file_name = (
+                    '{0:s}/optimized-radar_{1:s}_{2:s}.jpg'
+                ).format(output_dir_name, this_metadata_string,
+                         radar_field_names[m].replace('_', '-'))
 
+                print 'Saving figure to file: "{0:s}"...'.format(
+                    this_figure_file_name)
+                pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+                pyplot.close()
     else:
         for i in range(num_fields):
             for m in range(num_heights):
