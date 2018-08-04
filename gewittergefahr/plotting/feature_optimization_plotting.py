@@ -308,13 +308,13 @@ def plot_many_optimized_fields_3d(
 
     if one_figure_per_component:
         for i in range(num_components):
-            _, axes_objects_2d_list = plotting_utils.init_panels(
-                num_panel_rows=num_panel_rows,
-                num_panel_columns=num_panel_columns,
-                figure_width_inches=figure_width_inches,
-                figure_height_inches=figure_height_inches)
-
             for m in range(num_fields):
+                _, axes_objects_2d_list = plotting_utils.init_panels(
+                    num_panel_rows=num_panel_rows,
+                    num_panel_columns=num_panel_columns,
+                    figure_width_inches=figure_width_inches,
+                    figure_height_inches=figure_height_inches)
+
                 for j in range(num_panel_rows):
                     for k in range(num_panel_columns):
                         this_height_index = j * num_panel_columns + k
