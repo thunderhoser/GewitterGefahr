@@ -1,5 +1,6 @@
 """Plots radar and sounding data for each storm object."""
 
+import pickle
 import argparse
 import numpy
 import matplotlib
@@ -10,6 +11,7 @@ from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
@@ -19,13 +21,10 @@ from gewittergefahr.plotting import radar_plotting
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-# SOUNDING_FIELD_NAMES = [
-#     soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
-#     soundings_only.TEMPERATURE_NAME, soundings_only.SPECIFIC_HUMIDITY_NAME
-# ]
-
-# TODO(thunderhoser): Fix this hack.
-SOUNDING_FIELD_NAMES = None
+SOUNDING_FIELD_NAMES = [
+    soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
+    soundings_only.TEMPERATURE_NAME, soundings_only.SPECIFIC_HUMIDITY_NAME
+]
 
 FIELD_NAMES_2D_KEY = 'field_name_by_pair'
 HEIGHTS_2D_KEY = 'height_by_pair_m_asl'
@@ -43,8 +42,7 @@ NUM_PANEL_ROWS = 3
 TITLE_FONT_SIZE = 20
 DOTS_PER_INCH = 300
 
-STORM_IDS_ARG_NAME = 'storm_ids'
-STORM_TIMES_ARG_NAME = 'storm_times_unix_sec'
+METADATA_FILE_ARG_NAME = 'input_storm_metafile_name'
 RADAR_IMAGE_DIR_ARG_NAME = 'input_radar_image_dir_name'
 RADAR_SOURCE_ARG_NAME = 'radar_source'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
@@ -55,11 +53,11 @@ SOUNDING_LAG_TIME_ARG_NAME = 'sounding_lag_time_sec'
 SOUNDING_LEAD_TIME_ARG_NAME = 'sounding_lead_time_sec'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
-STORM_IDS_HELP_STRING = 'List of storm IDs (one per storm object).'
-STORM_TIMES_HELP_STRING = (
-    'List of storm times (one per storm object).  This list must have the same '
-    'length as `{0:s}`.'
-).format(STORM_IDS_ARG_NAME)
+METADATA_FILE_HELP_STRING = (
+    'Path to input file, containing ID/time of each storm object to plot.  This'
+    ' file should contain a single dictionary with the keys "{0:s}" and '
+    '"{1:s}".'
+).format(STORM_IDS_KEY, STORM_TIMES_KEY)
 RADAR_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
     'therein will be found by `storm_images.find_storm_image_file` and read by '
@@ -83,20 +81,21 @@ REFL_HEIGHTS_HELP_STRING = (
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `soundings_only.find_sounding_file` and read by '
-    '`soundings_only.read_soundings`.')
-SOUNDING_LAG_TIME_HELP_STRING = 'Lag time (used to find sounding files).'
-SOUNDING_LEAD_TIME_HELP_STRING = 'Lead time (used to find sounding files).'
+    '`soundings_only.read_soundings`.  If you do not want to plot soundings, '
+    'leave this argument alone.')
+SOUNDING_LAG_TIME_HELP_STRING = (
+    'Lag time (used to find sounding files).  If you do not want to plot '
+    'soundings, leave this argument alone.')
+SOUNDING_LEAD_TIME_HELP_STRING = (
+    'Lead time (used to find sounding files).  If you do not want to plot '
+    'soundings, leave this argument alone.')
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_IDS_ARG_NAME, type=str, nargs='+', required=True,
-    help=STORM_IDS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_TIMES_ARG_NAME, type=int, nargs='+', required=True,
-    help=STORM_TIMES_HELP_STRING)
+    '--' + METADATA_FILE_ARG_NAME, type=str, required=True,
+    help=METADATA_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_IMAGE_DIR_ARG_NAME, type=str, required=True,
@@ -119,7 +118,7 @@ INPUT_ARG_PARSER.add_argument(
     default=[-1], help=REFL_HEIGHTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=True,
+    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=False, default='',
     help=SOUNDING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -127,7 +126,7 @@ INPUT_ARG_PARSER.add_argument(
     help=SOUNDING_LAG_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SOUNDING_LEAD_TIME_ARG_NAME, type=int, required=True,
+    '--' + SOUNDING_LEAD_TIME_ARG_NAME, type=int, required=False, default=0,
     help=SOUNDING_LEAD_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -196,6 +195,12 @@ def _read_inputs(
     height_by_pair_m_asl = None
     sort_indices_for_storm_id = numpy.array([], dtype=int)
 
+    read_soundings = top_sounding_dir_name != ''
+    if read_soundings:
+        sounding_field_names = SOUNDING_FIELD_NAMES + []
+    else:
+        sounding_field_names = None
+
     for i in range(num_spc_dates):
         if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
             this_radar_file_name_matrix = trainval_io.find_radar_files_3d(
@@ -217,7 +222,7 @@ def _read_inputs(
                 target_name=dummy_target_name, radar_normalization_dict=None,
                 refl_masking_threshold_dbz=None,
                 return_rotation_divergence_product=False,
-                sounding_field_names=SOUNDING_FIELD_NAMES,
+                sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
                 sounding_lag_time_sec,
@@ -250,7 +255,7 @@ def _read_inputs(
                 radar_file_name_matrix=this_radar_file_name_matrix,
                 num_examples_per_file_time=LARGE_INTEGER, return_target=False,
                 target_name=dummy_target_name, radar_normalization_dict=None,
-                sounding_field_names=SOUNDING_FIELD_NAMES,
+                sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
                 sounding_lag_time_sec,
@@ -273,7 +278,7 @@ def _read_inputs(
             radar_image_matrix = this_storm_object_dict[
                 deployment_io.RADAR_IMAGE_MATRIX_KEY][these_indices, ...] + 0.
 
-            if SOUNDING_FIELD_NAMES is not None:
+            if read_soundings:
                 sounding_matrix = this_storm_object_dict[
                     deployment_io.SOUNDING_MATRIX_KEY][these_indices, ...] + 0.
         else:
@@ -283,7 +288,7 @@ def _read_inputs(
                      these_indices, ...]),
                 axis=0)
 
-            if SOUNDING_FIELD_NAMES is not None:
+            if read_soundings:
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix,
                      this_storm_object_dict[deployment_io.SOUNDING_MATRIX_KEY][
@@ -375,7 +380,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
 
 
 def _run(
-        storm_ids, storm_times_unix_sec, top_radar_image_dir_name, radar_source,
+        storm_metadata_file_name, top_radar_image_dir_name, radar_source,
         radar_field_names, radar_heights_m_asl, refl_heights_m_asl,
         top_sounding_dir_name, sounding_lag_time_sec, sounding_lead_time_sec,
         output_dir_name):
@@ -383,8 +388,7 @@ def _run(
 
     This is effectively the main method.
 
-    :param storm_ids: See documentation at top of file.
-    :param storm_times_unix_sec: Same.
+    :param storm_metadata_file_name: See documentation at top of file.
     :param top_radar_image_dir_name: Same.
     :param radar_source: Same.
     :param radar_field_names: Same.
@@ -396,8 +400,18 @@ def _run(
     :param output_dir_name: Same.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
+    print 'Reading storm ID/time pairs from: "{0:s}"...'.format(
+        storm_metadata_file_name)
+    pickle_file_handle = open(storm_metadata_file_name, 'rb')
+    storm_object_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
     storm_object_dict = _read_inputs(
-        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        storm_ids=storm_object_dict[STORM_IDS_KEY],
+        storm_times_unix_sec=storm_object_dict[STORM_TIMES_KEY],
         top_radar_image_dir_name=top_radar_image_dir_name,
         radar_source=radar_source, radar_field_names=radar_field_names,
         radar_heights_m_asl=radar_heights_m_asl,
@@ -415,9 +429,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        storm_ids=getattr(INPUT_ARG_OBJECT, STORM_IDS_ARG_NAME),
-        storm_times_unix_sec=numpy.array(
-            getattr(INPUT_ARG_OBJECT, STORM_TIMES_ARG_NAME), dtype=int),
+        storm_metadata_file_name=getattr(
+            INPUT_ARG_OBJECT, METADATA_FILE_ARG_NAME),
         top_radar_image_dir_name=getattr(
             INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
         radar_source=getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_ARG_NAME),
