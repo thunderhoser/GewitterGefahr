@@ -320,8 +320,6 @@ def _run(
     """
 
     # Check input args.
-    print num_iterations
-
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     model_interpretation.check_component_type(component_type_string)
     if ideal_logit <= 0:

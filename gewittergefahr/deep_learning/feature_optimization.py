@@ -388,7 +388,7 @@ def optimize_input_for_class(
     """
 
     check_metadata(
-        num_iterations-num_iterations, learning_rate=learning_rate,
+        num_iterations=num_iterations, learning_rate=learning_rate,
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class,
         optimize_for_probability=optimize_for_probability,
