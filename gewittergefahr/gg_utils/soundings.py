@@ -877,11 +877,12 @@ def _create_query_points(storm_object_table, lead_times_sec):
     """
 
     if numpy.any(lead_times_sec > 0):
-        storm_speeds_m_s01, geodetic_bearings_deg = (
-            geodetic_utils.xy_components_to_displacements_and_bearings(
-                storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
-                storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values
-            ))
+        (storm_speeds_m_s01, geodetic_bearings_deg
+        ) = geodetic_utils.xy_to_scalar_displacements_and_bearings(
+            x_displacements_metres=storm_object_table[
+                tracking_utils.EAST_VELOCITY_COLUMN].values,
+            y_displacements_metres=storm_object_table[
+                tracking_utils.NORTH_VELOCITY_COLUMN].values)
 
     num_storm_objects = len(storm_object_table.index)
     num_lead_times = len(lead_times_sec)
@@ -901,14 +902,15 @@ def _create_query_points(storm_object_table, lead_times_sec):
                 list_of_query_point_tables[i].assign(**argument_dict))
 
         else:
-            these_extrap_latitudes_deg, these_extrap_longitudes_deg = (
-                geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
-                    start_latitudes_deg=storm_object_table[
-                        tracking_utils.CENTROID_LAT_COLUMN].values,
-                    start_longitudes_deg=storm_object_table[
-                        tracking_utils.CENTROID_LNG_COLUMN].values,
-                    displacements_metres=storm_speeds_m_s01 * lead_times_sec[i],
-                    geodetic_bearings_deg=geodetic_bearings_deg))
+            (these_extrap_latitudes_deg, these_extrap_longitudes_deg
+            ) = geodetic_utils.start_points_and_displacements_to_endpoints(
+                start_latitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LAT_COLUMN].values,
+                start_longitudes_deg=storm_object_table[
+                    tracking_utils.CENTROID_LNG_COLUMN].values,
+                scalar_displacements_metres=
+                storm_speeds_m_s01 * lead_times_sec[i],
+                geodetic_bearings_deg=geodetic_bearings_deg)
 
             this_dict = {
                 tracking_utils.CENTROID_LAT_COLUMN: these_extrap_latitudes_deg,

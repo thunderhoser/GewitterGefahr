@@ -827,9 +827,10 @@ def read_polygons_from_netcdf(
                 lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
 
         (polygon_table[tracking_utils.CENTROID_LAT_COLUMN].values[i],
-         polygon_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]) = (
-             geodetic_utils.get_latlng_centroid(
-                 these_vertex_lat_deg, these_vertex_lng_deg))
+         polygon_table[tracking_utils.CENTROID_LNG_COLUMN].values[i]
+        ) = geodetic_utils.get_latlng_centroid(
+            latitudes_deg=these_vertex_lat_deg,
+            longitudes_deg=these_vertex_lng_deg)
 
         polygon_table[tracking_utils.POLYGON_OBJECT_ROWCOL_COLUMN].values[i] = (
             polygons.vertex_arrays_to_polygon_object(

@@ -248,7 +248,7 @@ def _create_target_points_for_interp(storm_object_table, lead_times_seconds):
 
     if numpy.any(lead_times_seconds > 0):
         (storm_speeds_m_s01, storm_bearings_deg
-        ) = geodetic_utils.xy_components_to_displacements_and_bearings(
+        ) = geodetic_utils.xy_to_scalar_displacements_and_bearings(
             x_displacements_metres=
             storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
             y_displacements_metres=
@@ -278,12 +278,13 @@ def _create_target_points_for_interp(storm_object_table, lead_times_seconds):
             continue
 
         (these_extrap_latitudes_deg, these_extrap_longitudes_deg
-        ) = geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
+        ) = geodetic_utils.start_points_and_displacements_to_endpoints(
             start_latitudes_deg=storm_object_table[
                 tracking_utils.CENTROID_LAT_COLUMN].values,
             start_longitudes_deg=storm_object_table[
                 tracking_utils.CENTROID_LNG_COLUMN].values,
-            displacements_metres=storm_speeds_m_s01 * lead_times_seconds[i],
+            scalar_displacements_metres=
+            storm_speeds_m_s01 * lead_times_seconds[i],
             geodetic_bearings_deg=storm_bearings_deg)
 
         this_dict = {

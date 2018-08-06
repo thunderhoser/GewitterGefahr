@@ -24,6 +24,7 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -129,6 +130,80 @@ def _centroids_latlng_to_rowcol(
 
     return (rounder.round_to_half_integer(center_row_indices),
             rounder.round_to_half_integer(center_column_indices))
+
+
+def _get_rotated_storm_image_coords(
+        storm_centroid_lat_deg, storm_centroid_lng_deg, storm_motion_u_m_s01,
+        storm_motion_v_m_s01, num_storm_image_rows, num_storm_image_columns,
+        storm_grid_spacing_metres):
+    """Generates lat-long coordinates for rotated, storm-centered grid.
+
+    The grid is rotated so that storm motion is in the +x-direction.
+
+    M = number of rows in storm-centered grid (must be even)
+    N = number of columns in storm-centered grid (must be even)
+
+    :param storm_centroid_lat_deg: Latitude (deg N) of storm centroid.
+    :param storm_centroid_lng_deg: Longitude (deg E) of storm centroid.
+    :param storm_motion_u_m_s01: Eastward storm motion (metres per second).
+    :param storm_motion_v_m_s01: Northward storm motion (metres per second).
+    :param num_storm_image_rows: M in the above discussion.
+    :param num_storm_image_columns: N in the above discussion.
+    :param storm_grid_spacing_metres: Spacing between grid points in adjacent
+        rows or columns.
+    :return: grid_point_lat_matrix_deg: M-by-N numpy array with latitudes
+        (deg N) of grid points.
+    :return: grid_point_lng_matrix_deg: M-by-N numpy array with longitudes
+        (deg E) of grid points.
+    """
+
+    storm_bearing_deg = (
+        geodetic_utils.xy_components_to_displacements_and_bearings(
+            x_displacements_metres=numpy.array([storm_motion_u_m_s01]),
+            y_displacements_metres=numpy.array([storm_motion_v_m_s01])
+        )[-1][0]
+    )
+
+    this_max_displacement_metres = storm_grid_spacing_metres * (
+        num_storm_image_columns / 2 - 0.5)
+    this_min_displacement_metres = -1 * this_max_displacement_metres
+    x_prime_displacements_metres = numpy.linspace(
+        this_min_displacement_metres, this_max_displacement_metres,
+        num=num_storm_image_columns)
+
+    this_max_displacement_metres = storm_grid_spacing_metres * (
+        num_storm_image_rows / 2 - 0.5)
+    this_min_displacement_metres = -1 * this_max_displacement_metres
+    y_prime_displacements_metres = numpy.linspace(
+        this_min_displacement_metres, this_max_displacement_metres,
+        num=num_storm_image_rows)
+
+    (x_prime_displ_matrix_metres, y_prime_displ_matrix_metres
+    ) = grids.xy_vectors_to_matrices(
+        x_unique_metres=x_prime_displacements_metres,
+        y_unique_metres=y_prime_displacements_metres)
+
+    (x_displacement_matrix_metres, y_displacement_matrix_metres
+     ) = _rotate_displacements(
+        x_displacements_metres=x_prime_displ_matrix_metres,
+        y_diplacements_metres=y_prime_displ_matrix_metres,
+        ccw_rotation_angle_deg=storm_bearing_deg)
+
+    (total_displacement_matrix_metres, bearing_matrix_deg
+     ) = geodetic_utils.xy_components_to_displacements_and_bearings(
+        x_displacements_metres=x_displacement_matrix_metres,
+        y_displacements_metres=y_displacement_matrix_metres)
+
+    start_latitude_matrix_deg = numpy.full(
+        (num_storm_image_rows, num_storm_image_columns), storm_centroid_lat_deg)
+    start_longitude_matrix_deg = numpy.full(
+        (num_storm_image_rows, num_storm_image_columns), storm_centroid_lng_deg)
+
+    return geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
+        start_latitudes_deg=start_latitude_matrix_deg,
+        start_longitudes_deg=start_longitude_matrix_deg,
+        displacements_metres=total_displacement_matrix_metres,
+        geodetic_bearings_deg=bearing_matrix_deg)
 
 
 def _get_storm_image_coords(
@@ -1608,76 +1683,6 @@ def read_storm_images(
         HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
         MIN_VORT_HEIGHT_FOR_RDP_KEY: min_vort_height_for_rdp_m_asl
     }
-
-
-def filter_storm_objects(
-        label_file_name, label_name, num_storm_objects_class_dict):
-    """Filters storm objects by label (target variable).
-
-    L = number of storm objects to keep
-
-    :param label_file_name: Path to file with hazard labels (readable by
-        `labels.read_wind_speed_labels` or `labels.read_tornado_labels`).
-    :param label_name: Name of label (target variable).
-    :param num_storm_objects_class_dict: Dictionary, where each key is a class
-        integer (-2 for dead storms) and each value is the corresponding number
-        of storm objects to return.
-    :return: storm_ids_to_keep: length-L list with string IDs of storm objects
-        to keep.
-    :return: valid_times_to_keep_unix_sec: length-L numpy array with valid times
-        of storm objects to keep.
-    :return: label_values: length-T numpy array of label (target) values.
-    """
-
-    error_checking.assert_is_string(label_file_name)
-    _, label_file_extension = os.path.splitext(label_file_name)
-
-    if label_file_extension == '.p':
-        storm_to_events_table = labels.read_wind_speed_labels(label_file_name)
-    else:
-        storm_label_dict = labels.read_labels_from_netcdf(
-            netcdf_file_name=label_file_name, label_name=label_name)
-        storm_to_events_dict = {
-            tracking_utils.STORM_ID_COLUMN:
-                storm_label_dict[labels.STORM_IDS_KEY],
-            tracking_utils.TIME_COLUMN:
-                storm_label_dict[labels.VALID_TIMES_KEY],
-            label_name: storm_label_dict[labels.LABEL_VALUES_KEY]
-        }
-        storm_to_events_table = pandas.DataFrame.from_dict(storm_to_events_dict)
-
-    parameter_dict = labels.column_name_to_label_params(label_name)
-    event_type_string = parameter_dict[labels.EVENT_TYPE_KEY]
-
-    if event_type_string == events2storms.WIND_EVENT_TYPE_STRING:
-        label_values = extract_storm_labels_with_name(
-            storm_ids=storm_to_events_table[
-                tracking_utils.STORM_ID_COLUMN].values.tolist(),
-            valid_times_unix_sec=storm_to_events_table[
-                tracking_utils.TIME_COLUMN].values,
-            label_name=label_name, storm_to_winds_table=storm_to_events_table,
-            storm_to_tornadoes_table=None)
-    else:
-        label_values = extract_storm_labels_with_name(
-            storm_ids=storm_to_events_table[
-                tracking_utils.STORM_ID_COLUMN].values.tolist(),
-            valid_times_unix_sec=storm_to_events_table[
-                tracking_utils.TIME_COLUMN].values,
-            label_name=label_name, storm_to_winds_table=None,
-            storm_to_tornadoes_table=storm_to_events_table)
-
-    indices_to_keep = _filter_storm_objects_by_label(
-        label_values=label_values,
-        num_storm_objects_class_dict=num_storm_objects_class_dict)
-    if not len(indices_to_keep):
-        return None, None
-
-    storm_ids_to_keep = storm_to_events_table[
-        tracking_utils.STORM_ID_COLUMN].values[indices_to_keep].tolist()
-    valid_times_to_keep_unix_sec = storm_to_events_table[
-        tracking_utils.TIME_COLUMN].values[indices_to_keep].astype(int)
-    return (storm_ids_to_keep, valid_times_to_keep_unix_sec,
-            label_values[indices_to_keep])
 
 
 def read_storm_images_and_labels(

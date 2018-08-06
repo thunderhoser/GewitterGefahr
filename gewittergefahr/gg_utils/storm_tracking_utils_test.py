@@ -112,9 +112,10 @@ for i in range(NUM_STORMS_SMALL_SCALE):
             lat_spacing_deg=LATITUDE_SPACING_DEG,
             lng_spacing_deg=LONGITUDE_SPACING_DEG))
 
-    THIS_CENTROID_LAT_DEG, THIS_CENTROID_LNG_DEG = (
-        geodetic_utils.get_latlng_centroid(
-            THESE_VERTEX_LATITUDES_DEG, THESE_VERTEX_LONGITUDES_DEG))
+    (THIS_CENTROID_LAT_DEG, THIS_CENTROID_LNG_DEG
+    ) = geodetic_utils.get_latlng_centroid(
+        latitudes_deg=THESE_VERTEX_LATITUDES_DEG,
+        longitudes_deg=THESE_VERTEX_LONGITUDES_DEG)
 
     STORM_OBJECT_TABLE_SMALL_SCALE[tracking_utils.CENTROID_LAT_COLUMN].values[
         i] = THIS_CENTROID_LAT_DEG
@@ -227,9 +228,10 @@ for i in range(NUM_STORMS_LARGE_SCALE):
             lat_spacing_deg=LATITUDE_SPACING_DEG,
             lng_spacing_deg=LONGITUDE_SPACING_DEG))
 
-    THIS_CENTROID_LAT_DEG, THIS_CENTROID_LNG_DEG = (
-        geodetic_utils.get_latlng_centroid(
-            THESE_VERTEX_LATITUDES_DEG, THESE_VERTEX_LONGITUDES_DEG))
+    (THIS_CENTROID_LAT_DEG, THIS_CENTROID_LNG_DEG
+    ) = geodetic_utils.get_latlng_centroid(
+        latitudes_deg=THESE_VERTEX_LATITUDES_DEG,
+        longitudes_deg=THESE_VERTEX_LONGITUDES_DEG)
 
     STORM_OBJECT_TABLE_LARGE_SCALE[tracking_utils.CENTROID_LAT_COLUMN].values[
         i] = THIS_CENTROID_LAT_DEG

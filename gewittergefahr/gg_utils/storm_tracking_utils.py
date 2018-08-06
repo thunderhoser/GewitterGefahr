@@ -369,9 +369,10 @@ def make_buffers_around_storm_objects(
         centroid_latitudes_deg[i] = this_centroid_object.y
         centroid_longitudes_deg[i] = this_centroid_object.x
 
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            centroid_latitudes_deg, centroid_longitudes_deg))
+    (global_centroid_lat_deg, global_centroid_lng_deg
+    ) = geodetic_utils.get_latlng_centroid(
+        latitudes_deg=centroid_latitudes_deg,
+        longitudes_deg=centroid_longitudes_deg)
     projection_object = projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)
 

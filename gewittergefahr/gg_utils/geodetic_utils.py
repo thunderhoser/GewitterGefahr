@@ -118,83 +118,84 @@ def get_latlng_centroid(latitudes_deg, longitudes_deg, allow_nan=True):
     return numpy.nanmean(latitudes_deg), numpy.nanmean(longitudes_deg)
 
 
-def start_points_and_distances_and_bearings_to_endpoints(
-        start_latitudes_deg=None, start_longitudes_deg=None,
-        displacements_metres=None, geodetic_bearings_deg=None):
-    """Computes endpoint from each start point, displacement, and bearing.
+def start_points_and_displacements_to_endpoints(
+        start_latitudes_deg, start_longitudes_deg, scalar_displacements_metres,
+        geodetic_bearings_deg):
+    """Computes endpoint from each start point and displacement.
 
-    P = number of start points
-
-    :param start_latitudes_deg: length-P numpy array of beginning latitudes
-        (deg N).
-    :param start_longitudes_deg: length-P numpy array of beginning longitudes
-        (deg E).
-    :param displacements_metres: length-P numpy array of displacements.
-    :param geodetic_bearings_deg: length-P numpy array of geodetic bearings
-        (from start point towards end point, measured clockwise from due north).
-    :return: end_latitudes_deg: length-P numpy array of end latitudes (deg N).
-    :return: end_longitudes_deg: length-P numpy array of end longitudes (deg E).
+    :param start_latitudes_deg: numpy array with latitudes (deg N) of start
+        points.
+    :param start_longitudes_deg: equivalent-size numpy array with longitudes
+        (deg E) of start points.
+    :param scalar_displacements_metres: equivalent-size numpy array of scalar
+        displacements.
+    :param geodetic_bearings_deg: equivalent-size numpy array of geodetic
+        bearings (from start point to end point, measured clockwise from due
+        north).
+    :return: end_latitudes_deg: equivalent-size numpy array with latitudes
+        (deg N) of endpoints.
+    :return: end_longitudes_deg: equivalent-size numpy array with longitudes
+        (deg E) of endpoints.
     """
 
     error_checking.assert_is_valid_lat_numpy_array(
         start_latitudes_deg, allow_nan=False)
-    error_checking.assert_is_numpy_array(start_latitudes_deg, num_dimensions=1)
-    num_points = len(start_latitudes_deg)
 
     start_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
         start_longitudes_deg, allow_nan=False)
     error_checking.assert_is_numpy_array(
-        start_longitudes_deg, exact_dimensions=numpy.array([num_points]))
+        start_longitudes_deg,
+        exact_dimensions=numpy.array(start_latitudes_deg.shape))
 
-    error_checking.assert_is_geq_numpy_array(displacements_metres, 0.)
+    error_checking.assert_is_geq_numpy_array(scalar_displacements_metres, 0.)
     error_checking.assert_is_numpy_array(
-        displacements_metres, exact_dimensions=numpy.array([num_points]))
+        scalar_displacements_metres,
+        exact_dimensions=numpy.array(start_latitudes_deg.shape))
 
     error_checking.assert_is_geq_numpy_array(geodetic_bearings_deg, 0.)
     error_checking.assert_is_leq_numpy_array(geodetic_bearings_deg, 360.)
     error_checking.assert_is_numpy_array(
-        geodetic_bearings_deg, exact_dimensions=numpy.array([num_points]))
+        geodetic_bearings_deg,
+        exact_dimensions=numpy.array(start_latitudes_deg.shape))
 
-    end_latitudes_deg = numpy.full(num_points, numpy.nan)
-    end_longitudes_deg = numpy.full(num_points, numpy.nan)
+    end_latitudes_deg = numpy.full(start_latitudes_deg.shape, numpy.nan)
+    end_longitudes_deg = numpy.full(start_latitudes_deg.shape, numpy.nan)
+    num_points = start_latitudes_deg.size
+
     for i in range(num_points):
         this_start_point_object = geopy.Point(
-            start_latitudes_deg[i], start_longitudes_deg[i])
+            start_latitudes_deg.flat[i], start_longitudes_deg.flat[i])
         this_end_point_object = VincentyDistance(
-            meters=displacements_metres[i]).destination(
-                this_start_point_object, geodetic_bearings_deg[i])
+            meters=scalar_displacements_metres.flat[i]).destination(
+                this_start_point_object, geodetic_bearings_deg.flat[i])
 
-        end_latitudes_deg[i] = this_end_point_object.latitude
-        end_longitudes_deg[i] = this_end_point_object.longitude
+        end_latitudes_deg.flat[i] = this_end_point_object.latitude
+        end_longitudes_deg.flat[i] = this_end_point_object.longitude
 
-    return end_latitudes_deg, lng_conversion.convert_lng_positive_in_west(
+    end_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
         end_longitudes_deg, allow_nan=False)
+    return end_latitudes_deg, end_longitudes_deg
 
 
-def xy_components_to_displacements_and_bearings(x_displacements_metres,
-                                                y_displacements_metres):
-    """For each pair of x- and y-displacement, gets total dsplcmnt and bearing.
+def xy_to_scalar_displacements_and_bearings(
+        x_displacements_metres, y_displacements_metres):
+    """For each displacement vector, converts x-y to magnitude and direction.
 
-    P = number of points
-
-    :param x_displacements_metres: length-P numpy array of eastward
+    :param x_displacements_metres: numpy array of eastward displacements.
+    :param y_displacements_metres: equivalent-size numpy array of northward
         displacements.
-    :param y_displacements_metres: length-P numpy array of northward
+    :return: scalar_displacements_metres: equivalent-size numpy array of total
         displacements.
-    :return: scalar_displacements_metres: length-P numpy array of total
-        displacements.
-    :return: geodetic_bearings_deg: length-P numpy array of geodetic bearings
-        (measured clockwise from due north).
+    :return: geodetic_bearings_deg: equivalent-size numpy array of geodetic
+        bearings (from start point to end point, measured clockwise from due
+        north).
     """
 
     error_checking.assert_is_numpy_array_without_nan(x_displacements_metres)
-    error_checking.assert_is_numpy_array(
-        x_displacements_metres, num_dimensions=1)
-    num_points = len(x_displacements_metres)
-
     error_checking.assert_is_numpy_array_without_nan(y_displacements_metres)
     error_checking.assert_is_numpy_array(
-        y_displacements_metres, exact_dimensions=numpy.array([num_points]))
+        y_displacements_metres,
+        exact_dimensions=numpy.array(y_displacements_metres.shape))
 
     scalar_displacements_metres = numpy.sqrt(
         x_displacements_metres ** 2 + y_displacements_metres ** 2)
@@ -205,31 +206,26 @@ def xy_components_to_displacements_and_bearings(x_displacements_metres,
         standard_bearings_deg)
 
 
-def displacements_and_bearings_to_xy_components(scalar_displacements_metres,
-                                                geodetic_bearings_deg):
-    """For each pair of total dsplcmnt and bearing, gets x- and y-displacements.
+def scalar_displacements_and_bearings_to_xy(
+        scalar_displacements_metres, geodetic_bearings_deg):
+    """For each displacement vector, converts magnitude and direction to x-y.
 
-    P = number of points
-
-    :param scalar_displacements_metres: length-P numpy array of total
+    :param scalar_displacements_metres: numpy array of total displacements.
+    :param geodetic_bearings_deg: equivalent-size numpy array of geodetic
+        bearings (from start point to end point, measured clockwise from due
+        north).
+    :return: x_displacements_metres: equivalent-size numpy array of eastward
         displacements.
-    :param geodetic_bearings_deg: length-P numpy array of geodetic bearings
-        (measured clockwise from due north).
-    :return: x_displacements_metres: length-P numpy array of eastward
-        displacements.
-    :return: y_displacements_metres: length-P numpy array of northward
+    :return: y_displacements_metres: equivalent-size numpy array of northward
         displacements.
     """
 
     error_checking.assert_is_geq_numpy_array(scalar_displacements_metres, 0.)
-    error_checking.assert_is_numpy_array(
-        scalar_displacements_metres, num_dimensions=1)
-    num_points = len(scalar_displacements_metres)
-
     error_checking.assert_is_geq_numpy_array(geodetic_bearings_deg, 0.)
     error_checking.assert_is_leq_numpy_array(geodetic_bearings_deg, 360.)
     error_checking.assert_is_numpy_array(
-        geodetic_bearings_deg, exact_dimensions=numpy.array([num_points]))
+        geodetic_bearings_deg,
+        exact_dimensions=numpy.array(scalar_displacements_metres.shape))
 
     standard_angles_radians = DEGREES_TO_RADIANS * geodetic_to_standard_angles(
         geodetic_bearings_deg)
@@ -237,18 +233,60 @@ def displacements_and_bearings_to_xy_components(scalar_displacements_metres,
             scalar_displacements_metres * numpy.sin(standard_angles_radians))
 
 
+def rotate_displacement_vectors(
+        x_displacements_metres, y_displacements_metres, ccw_rotation_angle_deg):
+    """Rotates each displacement vector by a certain angle.
+
+    :param x_displacements_metres: numpy array of eastward displacements.
+    :param y_displacements_metres: equivalent-size numpy array of northward
+        displacements.
+    :param ccw_rotation_angle_deg: Rotation angle (degrees).  Each displacement
+        vector will be rotated counterclockwise by this amount.
+    :return: x_prime_displacements_metres: equivalent-size numpy array of
+        "eastward" displacements (in the rotated coordinate system).
+    :return: y_prime_displacements_metres: equivalent-size numpy array of
+        "northward" displacements (in the rotated coordinate system).
+    """
+
+    error_checking.assert_is_numpy_array_without_nan(x_displacements_metres)
+    error_checking.assert_is_numpy_array_without_nan(y_displacements_metres)
+    error_checking.assert_is_numpy_array(
+        y_displacements_metres,
+        exact_dimensions=numpy.array(y_displacements_metres.shape))
+    error_checking.assert_is_greater(ccw_rotation_angle_deg, -360.)
+    error_checking.assert_is_less_than(ccw_rotation_angle_deg, 360.)
+
+    ccw_rotation_angle_rad = DEGREES_TO_RADIANS * ccw_rotation_angle_deg
+    rotation_matrix = numpy.array([
+        [numpy.cos(ccw_rotation_angle_rad), -numpy.sin(ccw_rotation_angle_rad)],
+        [numpy.sin(ccw_rotation_angle_rad), numpy.cos(ccw_rotation_angle_rad)]
+    ])
+
+    x_prime_displacements_metres = numpy.full(
+        x_displacements_metres.shape, numpy.nan)
+    y_prime_displacements_metres = numpy.full(
+        x_displacements_metres.shape, numpy.nan)
+    num_points = x_prime_displacements_metres.size
+
+    for i in range(num_points):
+        this_vector = numpy.transpose(numpy.array(
+            [x_displacements_metres.flat[i], y_displacements_metres.flat[i]]))
+        this_vector = numpy.matmul(rotation_matrix, this_vector)
+        x_prime_displacements_metres.flat[i] = this_vector[0]
+        y_prime_displacements_metres.flat[i] = this_vector[1]
+
+    return x_prime_displacements_metres, y_prime_displacements_metres
+
+
 def standard_to_geodetic_angles(standard_angles_deg):
     """Converts angles from standard to geodetic format.
 
-    "Standard format" = measured counterclockwise from due east.
-    "Geodetic format" = measured clockwise from due north.
+    "Standard format" = measured counterclockwise from due east
+    "Geodetic format" = measured clockwise from due north
 
-    N = number of angles
-
-    :param standard_angles_deg: length-N numpy array of standard angles
-        (degrees).
-    :return: geodetic_angles_deg: length-N numpy array of geodetic angles
-        (degrees).
+    :param standard_angles_deg: numpy array of standard angles (degrees).
+    :return: geodetic_angles_deg: equivalent-size numpy array of geodetic
+        angles.
     """
 
     error_checking.assert_is_numpy_array_without_nan(standard_angles_deg)
@@ -258,15 +296,12 @@ def standard_to_geodetic_angles(standard_angles_deg):
 def geodetic_to_standard_angles(geodetic_angles_deg):
     """Converts angles from geodetic to standard format.
 
-    "Standard format" = measured counterclockwise from due east.
-    "Geodetic format" = measured clockwise from due north.
+    For the definitions of "geodetic format" and "standard format," see doc for
+    `standard_to_geodetic_angles`.
 
-    N = number of angles
-
-    :param geodetic_angles_deg: length-N numpy array of geodetic angles
-        (degrees).
-    :return: standard_angles_deg: length-N numpy array of standard angles
-        (degrees).
+    :param geodetic_angles_deg: numpy array of geodetic angles (degrees).
+    :return: standard_angles_deg: equivalent-size numpy array of standard
+        angles.
     """
 
     error_checking.assert_is_numpy_array_without_nan(geodetic_angles_deg)

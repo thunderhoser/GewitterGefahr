@@ -1284,10 +1284,12 @@ def link_each_storm_to_winds(
         max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=0)
     print SEPARATOR_STRING
 
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values))
+    (global_centroid_lat_deg, global_centroid_lng_deg
+    ) = geodetic_utils.get_latlng_centroid(
+        latitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LAT_COLUMN].values,
+        longitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LNG_COLUMN].values)
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)
@@ -1366,10 +1368,12 @@ def link_each_storm_to_tornadoes(
         max_time_before_storm_start_sec=0, max_time_after_storm_end_sec=0)
     print SEPARATOR_STRING
 
-    global_centroid_lat_deg, global_centroid_lng_deg = (
-        geodetic_utils.get_latlng_centroid(
-            storm_object_table[tracking_utils.CENTROID_LAT_COLUMN].values,
-            storm_object_table[tracking_utils.CENTROID_LNG_COLUMN].values))
+    (global_centroid_lat_deg, global_centroid_lng_deg
+    ) = geodetic_utils.get_latlng_centroid(
+        latitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LAT_COLUMN].values,
+        longitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LNG_COLUMN].values)
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         global_centroid_lat_deg, global_centroid_lng_deg)

@@ -560,10 +560,12 @@ def _storm_motion_from_uv_to_speed_direction(storm_object_table):
         degrees (clockwise from due north).
     """
 
-    storm_speeds_m_s01, geodetic_bearings_deg = (
-        geodetic_utils.xy_components_to_displacements_and_bearings(
-            storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values,
-            storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values))
+    (storm_speeds_m_s01, geodetic_bearings_deg
+    ) = geodetic_utils.xy_to_scalar_displacements_and_bearings(
+        x_displacements_metres=storm_object_table[
+            tracking_utils.EAST_VELOCITY_COLUMN].values,
+        y_displacements_metres=storm_object_table[
+            tracking_utils.NORTH_VELOCITY_COLUMN].values)
 
     argument_dict = {SPEED_COLUMN: storm_speeds_m_s01,
                      GEOGRAPHIC_BEARING_COLUMN: geodetic_bearings_deg}
@@ -633,14 +635,14 @@ def _extrapolate_polygons(
         these_first_vertex_lat_deg = numpy.array(these_first_vertex_lat_deg)
         these_first_vertex_lng_deg = numpy.array(these_first_vertex_lng_deg)
 
-        these_extrap_lat_deg, these_extrap_lng_deg = (
-            geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
-                start_latitudes_deg=these_first_vertex_lat_deg,
-                start_longitudes_deg=these_first_vertex_lng_deg,
-                displacements_metres=
-                storm_object_table[SPEED_COLUMN].values * lead_time_seconds,
-                geodetic_bearings_deg=
-                storm_object_table[GEOGRAPHIC_BEARING_COLUMN].values))
+        (these_extrap_lat_deg, these_extrap_lng_deg
+        ) = geodetic_utils.start_points_and_displacements_to_endpoints(
+            start_latitudes_deg=these_first_vertex_lat_deg,
+            start_longitudes_deg=these_first_vertex_lng_deg,
+            scalar_displacements_metres=
+            storm_object_table[SPEED_COLUMN].values * lead_time_seconds,
+            geodetic_bearings_deg=
+            storm_object_table[GEOGRAPHIC_BEARING_COLUMN].values)
 
         these_lat_diffs_deg = these_extrap_lat_deg - these_first_vertex_lat_deg
         these_lng_diffs_deg = these_extrap_lng_deg - these_first_vertex_lng_deg
@@ -1114,12 +1116,13 @@ def create_forecast_grids(
             init_times_unix_sec[i]]
         this_num_storm_objects = len(this_storm_object_table.index)
 
-        this_centroid_lat_deg, this_centroid_lng_deg = (
-            geodetic_utils.get_latlng_centroid(
-                this_storm_object_table[
-                    tracking_utils.CENTROID_LAT_COLUMN].values,
-                this_storm_object_table[
-                    tracking_utils.CENTROID_LNG_COLUMN].values))
+        (this_centroid_lat_deg, this_centroid_lng_deg
+        ) = geodetic_utils.get_latlng_centroid(
+            latitudes_deg=this_storm_object_table[
+                tracking_utils.CENTROID_LAT_COLUMN].values,
+            longitudes_deg=this_storm_object_table[
+                tracking_utils.CENTROID_LNG_COLUMN].values)
+
         this_projection_object = (
             projections.init_azimuthal_equidistant_projection(
                 this_centroid_lat_deg, this_centroid_lng_deg))
