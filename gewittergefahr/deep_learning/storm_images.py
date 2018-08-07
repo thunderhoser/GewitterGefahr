@@ -744,8 +744,8 @@ def _extract_rotated_storm_image(
         sorted_grid_point_y_metres=full_grid_points_y_metres,
         query_x_coords_metres=subgrid_point_x_matrix_metres.ravel(),
         query_y_coords_metres=subgrid_point_y_matrix_metres.ravel(),
-        method_string=interp.SPLINE_METHOD_STRING,
-        spline_degree=3, extrapolate=True)
+        method_string=interp.NEAREST_NEIGHBOUR_METHOD_STRING,
+        spline_degree=1, extrapolate=True)
     storm_centered_radar_matrix = numpy.reshape(
         storm_centered_radar_matrix,
         (num_storm_image_rows, num_storm_image_columns))
@@ -760,7 +760,7 @@ def _extract_rotated_storm_image(
         numpy.logical_or(invalid_x_flags, invalid_y_flags))
 
     storm_centered_radar_matrix[invalid_indices] = 0.
-    return storm_centered_radar_matrix
+    return numpy.flipud(storm_centered_radar_matrix)
 
 
 def _extract_unrotated_storm_image(
