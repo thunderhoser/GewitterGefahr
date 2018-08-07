@@ -24,7 +24,7 @@ CENTROID_LONGITUDES_DEG = numpy.array([230., 230.005, 230.01, 230.015, 230.02])
 CENTER_ROWS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
 CENTER_COLUMNS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
 
-# The following constants are used to test _get_rotated_storm_image_coords.
+# The following constants are used to test _rotate_grid_one_storm_object.
 ONE_CENTROID_LATITUDE_DEG = 53.5
 ONE_CENTROID_LONGITUDE_DEG = 246.5
 EASTWARD_MOTION_M_S01 = 1.
@@ -254,8 +254,8 @@ FULL_GRID_POINT_LONGITUDES_DEG = numpy.array(
     [246.45, 246.47, 246.49, 246.51, 246.53, 246.55])
 
 STORM_IMAGE_MATRIX_ROTATED = numpy.array([[0, 5, 5, 5, 5, 0],
-                                          [0, 5, 5, 5, 5, 5],
                                           [5, 5, 5, 5, 5, 0],
+                                          [0, 5, 5, 5, 5, 5],
                                           [0, 5, 5, 5, 5, 0]], dtype=float)
 
 # The following constants are used to test _extract_unrotated_storm_image.
@@ -342,14 +342,14 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_center_columns, CENTER_COLUMNS))
 
-    def test_get_rotated_storm_image_coords_zero_motion(self):
-        """Ensures correct output from _get_rotated_storm_image_coords.
+    def test_rotate_grid_one_storm_object_zero_motion(self):
+        """Ensures correct output from _rotate_grid_one_storm_object.
 
         In this case, storm motion is zero (stationary).
         """
 
         (this_latitude_matrix_deg, this_longitude_matrix_deg
-        ) = storm_images._get_rotated_storm_image_coords(
+        ) = storm_images._rotate_grid_one_storm_object(
             centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
             centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
             eastward_motion_m_s01=0., northward_motion_m_s01=0.,
@@ -364,14 +364,14 @@ class StormImagesTests(unittest.TestCase):
             this_longitude_matrix_deg, ROTATED_LNG_MATRIX_ZERO_MOTION_DEG,
             atol=TOLERANCE))
 
-    def test_get_rotated_storm_image_coords_eastward(self):
-        """Ensures correct output from _get_rotated_storm_image_coords.
+    def test_rotate_grid_one_storm_object_eastward(self):
+        """Ensures correct output from _rotate_grid_one_storm_object.
 
         In this case, storm motion is due eastward.
         """
 
         (this_latitude_matrix_deg, this_longitude_matrix_deg
-        ) = storm_images._get_rotated_storm_image_coords(
+        ) = storm_images._rotate_grid_one_storm_object(
             centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
             centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
             eastward_motion_m_s01=EASTWARD_MOTION_M_S01,
@@ -387,14 +387,14 @@ class StormImagesTests(unittest.TestCase):
             this_longitude_matrix_deg, ROTATED_LNG_MATRIX_EASTWARD_MOTION_DEG,
             atol=TOLERANCE))
 
-    def test_get_rotated_storm_image_coords_westward(self):
-        """Ensures correct output from _get_rotated_storm_image_coords.
+    def test_rotate_grid_one_storm_object_westward(self):
+        """Ensures correct output from _rotate_grid_one_storm_object.
 
         In this case, storm motion is due westward.
         """
 
         (this_latitude_matrix_deg, this_longitude_matrix_deg
-        ) = storm_images._get_rotated_storm_image_coords(
+        ) = storm_images._rotate_grid_one_storm_object(
             centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
             centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
             eastward_motion_m_s01=-EASTWARD_MOTION_M_S01,
@@ -410,14 +410,14 @@ class StormImagesTests(unittest.TestCase):
             this_longitude_matrix_deg, ROTATED_LNG_MATRIX_WESTWARD_MOTION_DEG,
             atol=TOLERANCE))
 
-    def test_get_rotated_storm_image_coords_northward(self):
-        """Ensures correct output from _get_rotated_storm_image_coords.
+    def test_rotate_grid_one_storm_object_northward(self):
+        """Ensures correct output from _rotate_grid_one_storm_object.
 
         In this case, storm motion is due northward.
         """
 
         (this_latitude_matrix_deg, this_longitude_matrix_deg
-        ) = storm_images._get_rotated_storm_image_coords(
+        ) = storm_images._rotate_grid_one_storm_object(
             centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
             centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
             eastward_motion_m_s01=0.,
@@ -433,14 +433,14 @@ class StormImagesTests(unittest.TestCase):
             this_longitude_matrix_deg, ROTATED_LNG_MATRIX_NORTHWARD_MOTION_DEG,
             atol=TOLERANCE))
 
-    def test_get_rotated_storm_image_coords_southward(self):
-        """Ensures correct output from _get_rotated_storm_image_coords.
+    def test_rotate_grid_one_storm_object_southward(self):
+        """Ensures correct output from _rotate_grid_one_storm_object.
 
         In this case, storm motion is due southward.
         """
 
         (this_latitude_matrix_deg, this_longitude_matrix_deg
-        ) = storm_images._get_rotated_storm_image_coords(
+        ) = storm_images._rotate_grid_one_storm_object(
             centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
             centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
             eastward_motion_m_s01=0.,
@@ -456,15 +456,15 @@ class StormImagesTests(unittest.TestCase):
             this_longitude_matrix_deg, ROTATED_LNG_MATRIX_SOUTHWARD_MOTION_DEG,
             atol=TOLERANCE))
 
-    def test_get_rotated_storm_image_coords_arbitrary(self):
-        """Ensures correct output from _get_rotated_storm_image_coords.
+    def test_rotate_grid_one_storm_object_arbitrary(self):
+        """Ensures correct output from _rotate_grid_one_storm_object.
 
         In this case, storm motion is in an arbitrary direction (not 0, 90, 180,
         270, or NaN degrees).
         """
 
         (this_latitude_matrix_deg, this_longitude_matrix_deg
-        ) = storm_images._get_rotated_storm_image_coords(
+        ) = storm_images._rotate_grid_one_storm_object(
             centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
             centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
             eastward_motion_m_s01=EASTWARD_MOTION_M_S01,
@@ -648,13 +648,8 @@ class StormImagesTests(unittest.TestCase):
             full_radar_matrix=FULL_RADAR_MATRIX_ROTATED,
             full_grid_point_latitudes_deg=FULL_GRID_POINT_LATITUDES_DEG,
             full_grid_point_longitudes_deg=FULL_GRID_POINT_LONGITUDES_DEG,
-            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
-            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
-            eastward_motion_m_s01=EASTWARD_MOTION_M_S01,
-            northward_motion_m_s01=NORTHWARD_MOTION_M_S01,
-            num_storm_image_rows=NUM_SUBGRID_ROWS_ROTATED,
-            num_storm_image_columns=NUM_SUBGRID_COLUMNS_ROTATED,
-            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+            rotated_gp_lat_matrix_deg=ROTATED_LAT_MATRIX_ARBITRARY_MOTION_DEG,
+            rotated_gp_lng_matrix_deg=ROTATED_LNG_MATRIX_ARBITRARY_MOTION_DEG)
 
         self.assertTrue(numpy.allclose(
             this_storm_image_matrix, STORM_IMAGE_MATRIX_ROTATED,

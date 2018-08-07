@@ -819,7 +819,7 @@ def _extract_rotated_storm_image(
         method_string=interp.SPLINE_METHOD_STRING, spline_degree=1,
         extrapolate=True)
     storm_centered_radar_matrix = numpy.reshape(
-        storm_centered_radar_matrix, rotated_gp_lat_matrix_deg)
+        storm_centered_radar_matrix, rotated_gp_lat_matrix_deg.shape)
 
     invalid_x_flags = numpy.logical_or(
         rotated_gp_x_matrix_metres < numpy.min(full_grid_points_x_metres),
