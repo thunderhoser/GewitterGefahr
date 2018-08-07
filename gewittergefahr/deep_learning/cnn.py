@@ -267,13 +267,13 @@ def _check_training_args(
 
 
 def _get_sounding_layers(
-        num_sounding_heights, num_sounding_fields,
-        num_filters_in_first_conv_layer, dropout_fraction, regularizer_object):
+        num_sounding_heights, num_sounding_fields, num_filters_in_first_layer,
+        dropout_fraction, regularizer_object):
     """Returns the part of a CNN that convolves over sounding data.
 
     :param num_sounding_heights: See doc for `_check_architecture_args`.
     :param num_sounding_fields: Same.
-    :param num_filters_in_first_conv_layer: See doc for
+    :param num_filters_in_first_layer: See doc for
         `get_2d_swirlnet_architecture`.
     :param dropout_fraction: See doc for `_check_architecture_args`.
     :param regularizer_object: Instance of `keras.regularizers.l1_l2`.  Will be
@@ -286,7 +286,7 @@ def _get_sounding_layers(
         num_sounding_heights, num_sounding_fields))
 
     sounding_layer_object = cnn_utils.get_1d_conv_layer(
-        num_output_filters=num_filters_in_first_conv_layer, num_kernel_pixels=3,
+        num_output_filters=num_filters_in_first_layer, num_kernel_pixels=3,
         num_pixels_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu', is_first_layer=False
@@ -303,9 +303,8 @@ def _get_sounding_layers(
     )(sounding_layer_object)
 
     sounding_layer_object = cnn_utils.get_1d_conv_layer(
-        num_output_filters=2 * num_filters_in_first_conv_layer,
-        num_kernel_pixels=3, num_pixels_per_stride=1,
-        padding_type=cnn_utils.YES_PADDING_TYPE,
+        num_output_filters=2 * num_filters_in_first_layer, num_kernel_pixels=3,
+        num_pixels_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
         activation_function='relu', is_first_layer=False
     )(sounding_layer_object)
@@ -321,7 +320,7 @@ def _get_sounding_layers(
     )(sounding_layer_object)
 
     sounding_layer_object = cnn_utils.get_1d_conv_layer(
-        num_output_filters=4 * num_filters_in_first_conv_layer,
+        num_output_filters=4 * num_filters_in_first_layer,
         num_kernel_pixels=3, num_pixels_per_stride=1,
         padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
@@ -364,7 +363,7 @@ def model_to_feature_generator(model_object, output_layer_name):
 
 def get_2d_mnist_architecture(
         num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
-        num_filters_in_first_conv_layer=32, l2_weight=None):
+        num_filters_in_first_layer=32, l2_weight=None):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
@@ -375,9 +374,9 @@ def get_2d_mnist_architecture(
     :param num_radar_columns: Same.
     :param num_radar_channels: Same.
     :param num_classes: Same.
-    :param num_filters_in_first_conv_layer: Number of filters in first
-        convolutional layer.  Number of filters will double for each successive
-        convolutional layer.
+    :param num_filters_in_first_layer: Number of filters in first convolutional
+        layer.  Number of filters will double for each successive convolutional
+        layer.
     :param l2_weight: See doc for `_check_architecture_args`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
@@ -397,7 +396,7 @@ def get_2d_mnist_architecture(
 
     model_object = keras.models.Sequential()
     layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=num_filters_in_first_conv_layer, num_kernel_rows=3,
+        num_output_filters=num_filters_in_first_layer, num_kernel_rows=3,
         num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
         padding_type=cnn_utils.NO_PADDING_TYPE, activation_function='relu',
         kernel_weight_regularizer=regularizer_object,
@@ -407,10 +406,9 @@ def get_2d_mnist_architecture(
     model_object.add(layer_object)
 
     layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=2 * num_filters_in_first_conv_layer,
-        num_kernel_rows=3, num_kernel_columns=3, num_rows_per_stride=1,
-        num_columns_per_stride=1, padding_type=cnn_utils.NO_PADDING_TYPE,
-        activation_function='relu',
+        num_output_filters=2 * num_filters_in_first_layer, num_kernel_rows=3,
+        num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
+        padding_type=cnn_utils.NO_PADDING_TYPE, activation_function='relu',
         kernel_weight_regularizer=regularizer_object)
     model_object.add(layer_object)
 
@@ -534,8 +532,7 @@ def get_2d_swilrnet_architecture(
         ) = _get_sounding_layers(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
-            num_filters_in_first_conv_layer=
-            num_sounding_filters_in_first_layer,
+            num_filters_in_first_layer=num_sounding_filters_in_first_layer,
             dropout_fraction=dropout_fraction,
             regularizer_object=regularizer_object)
 
@@ -652,8 +649,7 @@ def get_3d_swilrnet_architecture(
         ) = _get_sounding_layers(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
-            num_filters_in_first_conv_layer=
-            num_sounding_filters_in_first_layer,
+            num_filters_in_first_layer=num_sounding_filters_in_first_layer,
             dropout_fraction=dropout_fraction,
             regularizer_object=regularizer_object)
 
@@ -835,9 +831,8 @@ def get_2d3d_swirlnet_architecture(
         [reflectivity_layer_object, azimuthal_shear_layer_object], axis=-1)
 
     # Convolve over reflectivity and az-shear filters.
-    this_num_output_filters = (
-        2 * num_shear_filters_in_first_layer +
-        2 * this_num_refl_filters)
+    this_num_output_filters = 2 * (
+        num_shear_filters_in_first_layer + this_num_refl_filters)
 
     for i in range(num_radar_conv_layers):
         if i != 0:
@@ -872,8 +867,7 @@ def get_2d3d_swirlnet_architecture(
         ) = _get_sounding_layers(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
-            num_filters_in_first_conv_layer=
-            num_sounding_filters_in_first_layer,
+            num_filters_in_first_layer=num_sounding_filters_in_first_layer,
             dropout_fraction=dropout_fraction,
             regularizer_object=regularizer_object)
 

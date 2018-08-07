@@ -25,7 +25,7 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = dl_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER)
 
-NUM_RADAR_FILTERS_ARG_NAME = 'num_radar_filters_in_first_conv_layer'
+NUM_RADAR_FILTERS_ARG_NAME = 'num_radar_filters_in_first_layer'
 REFL_MASK_THRESHOLD_ARG_NAME = 'refl_masking_threshold_dbz'
 RDP_FILTER_THRESHOLD_ARG_NAME = 'rdp_filter_threshold_s02'
 
@@ -63,15 +63,15 @@ def _train_cnn(
         top_storm_radar_image_dir_name, one_file_per_time_step,
         first_training_time_string, last_training_time_string,
         monitor_string, radar_field_names, target_name, top_target_dir_name,
-        binarize_target, num_radar_filters_in_first_conv_layer,
-        dropout_fraction, l2_weight, refl_masking_threshold_dbz,
-        rdp_filter_threshold_s02, sampling_fraction_dict_keys,
-        sampling_fraction_dict_values, weight_loss_function,
-        num_validation_batches_per_epoch, first_validation_time_string,
-        last_validation_time_string, sounding_field_names,
-        top_sounding_dir_name,
+        binarize_target, num_radar_conv_layers,
+        num_radar_filters_in_first_layer, dropout_fraction, l2_weight,
+        refl_masking_threshold_dbz, rdp_filter_threshold_s02,
+        sampling_fraction_dict_keys, sampling_fraction_dict_values,
+        weight_loss_function, num_validation_batches_per_epoch,
+        first_validation_time_string, last_validation_time_string,
+        sounding_field_names, top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
-        num_sounding_filters_in_first_conv_layer):
+        num_sounding_filters_in_first_layer):
     """Trains CNN with 3-D GridRad images.
 
     :param output_model_dir_name: See documentation at the top of
@@ -89,7 +89,8 @@ def _train_cnn(
     :param target_name: Same.
     :param top_target_dir_name: Same.
     :param binarize_target: Same.
-    :param num_radar_filters_in_first_conv_layer: See documentation at the top
+    :param num_radar_conv_layers: Same.
+    :param num_radar_filters_in_first_layer: See documentation at the top
         of this file.
     :param dropout_fraction: See documentation at the top of
         'scripts/deep_learning.py'.
@@ -107,7 +108,7 @@ def _train_cnn(
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param num_sounding_filters_in_first_conv_layer: Same.
+    :param num_sounding_filters_in_first_layer: Same.
     """
 
     # Convert inputs.
@@ -222,15 +223,14 @@ def _train_cnn(
     model_object = cnn.get_3d_swilrnet_architecture(
         num_radar_rows=NUM_RADAR_ROWS, num_radar_columns=NUM_RADAR_COLUMNS,
         num_radar_heights=len(RADAR_HEIGHTS_M_ASL),
+        num_radar_conv_layers=num_radar_conv_layers,
         num_radar_fields=len(radar_field_names),
         num_classes=num_classes_to_predict,
-        num_radar_filters_in_first_conv_layer=
-        num_radar_filters_in_first_conv_layer,
+        num_radar_filters_in_first_layer=num_radar_filters_in_first_layer,
         dropout_fraction=dropout_fraction, l2_weight=l2_weight,
         num_sounding_heights=NUM_SOUNDING_HEIGHTS,
         num_sounding_fields=num_sounding_fields,
-        num_sounding_filters_in_first_conv_layer=
-        num_sounding_filters_in_first_conv_layer)
+        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
 
     cnn.train_3d_cnn(
@@ -288,7 +288,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.TARGET_DIRECTORY_ARG_NAME),
         binarize_target=bool(getattr(
             INPUT_ARG_OBJECT, dl_helper.BINARIZE_TARGET_ARG_NAME)),
-        num_radar_filters_in_first_conv_layer=getattr(
+        num_radar_conv_layers=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_RADAR_CONV_LAYERS_ARG_NAME),
+        num_radar_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, NUM_RADAR_FILTERS_ARG_NAME),
         dropout_fraction=getattr(
             INPUT_ARG_OBJECT, dl_helper.DROPOUT_FRACTION_ARG_NAME),
@@ -316,5 +318,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_DIRECTORY_ARG_NAME),
         sounding_lag_time_for_convective_contamination_sec=getattr(
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_LAG_TIME_ARG_NAME),
-        num_sounding_filters_in_first_conv_layer=getattr(
+        num_sounding_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_SOUNDING_FILTERS_ARG_NAME))

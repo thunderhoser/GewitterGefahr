@@ -34,14 +34,14 @@ INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = dl_helper.add_input_arguments(
     argument_parser_object=INPUT_ARG_PARSER)
 
-NUM_REFL_FILTERS_ARG_NAME = 'num_refl_filters_in_first_conv_layer'
-NUM_AZ_SHEAR_FILTERS_ARG_NAME = 'num_az_shear_filters_in_first_conv_layer'
+NUM_REFL_FILTERS_ARG_NAME = 'num_refl_filters_in_first_layer'
+NUM_SHEAR_FILTERS_ARG_NAME = 'num_shear_filters_in_first_layer'
 
 NUM_REFL_FILTERS_HELP_STRING = (
     'Number of reflectivity filters in first convolutional layer.  Number of '
     'filters will double for each successive layer convolving over reflectivity'
     ' images.')
-NUM_AZ_SHEAR_FILTERS_HELP_STRING = (
+NUM_SHEAR_FILTERS_HELP_STRING = (
     'Number of azimuthal-shear filters in first convolutional layer.  Number of'
     ' filters will double for each successive layer convolving over '
     'azimuthal-shear images.')
@@ -50,8 +50,8 @@ INPUT_ARG_PARSER.add_argument(
     '--' + NUM_REFL_FILTERS_ARG_NAME, type=int, required=False,
     default=8, help=NUM_REFL_FILTERS_HELP_STRING)
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_AZ_SHEAR_FILTERS_ARG_NAME, type=int, required=False,
-    default=16, help=NUM_AZ_SHEAR_FILTERS_HELP_STRING)
+    '--' + NUM_SHEAR_FILTERS_ARG_NAME, type=int, required=False,
+    default=16, help=NUM_SHEAR_FILTERS_HELP_STRING)
 
 
 def _train_cnn(
@@ -61,14 +61,14 @@ def _train_cnn(
         top_storm_radar_image_dir_name_pos_targets_only, one_file_per_time_step,
         first_training_time_string, last_training_time_string, monitor_string,
         target_name, top_target_dir_name, binarize_target,
-        num_refl_filters_in_first_conv_layer,
-        num_az_shear_filters_in_first_conv_layer, dropout_fraction, l2_weight,
+        num_radar_conv_layers, num_refl_filters_in_first_layer,
+        num_shear_filters_in_first_layer, dropout_fraction, l2_weight,
         sampling_fraction_dict_keys, sampling_fraction_dict_values,
         weight_loss_function, num_validation_batches_per_epoch,
         first_validation_time_string, last_validation_time_string,
         sounding_field_names, top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
-        num_sounding_filters_in_first_conv_layer):
+        num_sounding_filters_in_first_layer):
     """Trains CNN with 2-D and 3-D images from MYRORSS.
 
     :param output_model_dir_name: See documentation at the top of
@@ -86,9 +86,10 @@ def _train_cnn(
     :param target_name: Same.
     :param top_target_dir_name: Same.
     :param binarize_target: Same.
-    :param num_refl_filters_in_first_conv_layer: See documentation at the top of
-        this file.
-    :param num_az_shear_filters_in_first_conv_layer: Same.
+    :param num_radar_conv_layers: Same.
+    :param num_refl_filters_in_first_layer: See documentation at the top of this
+        file.
+    :param num_shear_filters_in_first_layer: Same.
     :param dropout_fraction: See documentation at the top of
         'scripts/deep_learning.py'.
     :param l2_weight: Same.
@@ -101,7 +102,7 @@ def _train_cnn(
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param num_sounding_filters_in_first_conv_layer: Same.
+    :param num_sounding_filters_in_first_layer: Same.
     """
 
     # Convert inputs.
@@ -231,16 +232,14 @@ def _train_cnn(
         num_reflectivity_columns=NUM_REFLECTIVITY_COLUMNS,
         num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_ASL),
         num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
+        num_radar_conv_layers=num_radar_conv_layers,
         num_classes=num_classes_to_predict,
-        num_refl_filters_in_first_conv_layer=
-        num_refl_filters_in_first_conv_layer,
-        num_az_shear_filters_in_first_conv_layer=
-        num_az_shear_filters_in_first_conv_layer,
+        num_refl_filters_in_first_layer=num_refl_filters_in_first_layer,
+        num_shear_filters_in_first_layer=num_shear_filters_in_first_layer,
         dropout_fraction=dropout_fraction, l2_weight=l2_weight,
         num_sounding_heights=NUM_SOUNDING_HEIGHTS,
         num_sounding_fields=num_sounding_fields,
-        num_sounding_filters_in_first_conv_layer=
-        num_sounding_filters_in_first_conv_layer)
+        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
 
     cnn.train_2d3d_cnn(
@@ -300,10 +299,12 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.TARGET_DIRECTORY_ARG_NAME),
         binarize_target=bool(getattr(
             INPUT_ARG_OBJECT, dl_helper.BINARIZE_TARGET_ARG_NAME)),
-        num_refl_filters_in_first_conv_layer=getattr(
+        num_radar_conv_layers=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_RADAR_CONV_LAYERS_ARG_NAME),
+        num_refl_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, NUM_REFL_FILTERS_ARG_NAME),
-        num_az_shear_filters_in_first_conv_layer=getattr(
-            INPUT_ARG_OBJECT, NUM_AZ_SHEAR_FILTERS_ARG_NAME),
+        num_shear_filters_in_first_layer=getattr(
+            INPUT_ARG_OBJECT, NUM_SHEAR_FILTERS_ARG_NAME),
         dropout_fraction=getattr(
             INPUT_ARG_OBJECT, dl_helper.DROPOUT_FRACTION_ARG_NAME),
         l2_weight=getattr(
@@ -326,5 +327,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_DIRECTORY_ARG_NAME),
         sounding_lag_time_for_convective_contamination_sec=getattr(
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_LAG_TIME_ARG_NAME),
-        num_sounding_filters_in_first_conv_layer=getattr(
+        num_sounding_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_SOUNDING_FILTERS_ARG_NAME))

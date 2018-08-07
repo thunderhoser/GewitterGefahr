@@ -18,6 +18,7 @@ FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
 LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
 MONITOR_STRING_ARG_NAME = 'monitor_string'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
+NUM_RADAR_CONV_LAYERS_ARG_NAME = 'num_radar_conv_layers'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 BINARIZE_TARGET_ARG_NAME = 'binarize_target'
@@ -33,13 +34,14 @@ SOUNDING_FIELD_NAMES_ARG_NAME = 'sounding_field_names'
 SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
 SOUNDING_LAG_TIME_ARG_NAME = (
     'sounding_lag_time_for_convective_contamination_sec')
-NUM_SOUNDING_FILTERS_ARG_NAME = 'num_sounding_filters_in_first_conv_layer'
+NUM_SOUNDING_FILTERS_ARG_NAME = 'num_sounding_filters_in_first_layer'
 
 DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
 DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH = 32
 DEFAULT_ONE_FILE_PER_TIME_STEP_FLAG = 0
 DEFAULT_MONITOR_STRING = cnn.LOSS_AS_MONITOR_STRING
+DEFAULT_NUM_RADAR_CONV_LAYERS = 3
 DEFAULT_BINARIZE_TARGET_FLAG = 0
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 DEFAULT_DROPOUT_FRACTION = 0.25
@@ -98,6 +100,10 @@ MONITOR_STRING_HELP_STRING = (
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  Each name must be accepted by '
     '`radar_utils.check_field_name`.')
+NUM_RADAR_CONV_LAYERS_HELP_STRING = (
+    'Number of convolutional layers for radar data.  Each successive conv layer'
+    ' will cut the dimensions of the radar image in half (example: from '
+    '32 x 32 x 12 to 16 x 16 x 6, then 8 x 8 x 3, then 4 x 4 x 1).')
 TARGET_NAME_HELP_STRING = (
     'Name of target variable (must be accepted by '
     '`labels.column_name_to_label_params`).')
@@ -211,6 +217,11 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
         default=[''], help=RADAR_FIELD_NAMES_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_RADAR_CONV_LAYERS_ARG_NAME, type=int, required=True,
+        default=DEFAULT_NUM_RADAR_CONV_LAYERS,
+        help=NUM_RADAR_CONV_LAYERS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + TARGET_NAME_ARG_NAME, type=str, required=True,
