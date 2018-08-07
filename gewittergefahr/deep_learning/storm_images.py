@@ -759,6 +759,65 @@ def _get_max_rdp_values_one_time(
     return max_rdp_values_s02
 
 
+def _subset_xy_grid_for_interp(
+        field_matrix, grid_point_x_coords_metres, grid_point_y_coords_metres,
+        query_x_coords_metres, query_y_coords_metres):
+    """Subsets x-y grid before interpolation.
+
+    Interpolation will be done from the x-y grid to the query points.
+
+    M = number of rows in original grid
+    N = number of columns in original grid
+    m = number of rows in subset grid
+    n = number of columns in subset grid
+
+    :param field_matrix: M-by-N numpy array of gridded values, which will be
+        interpolated to query points.
+    :param grid_point_x_coords_metres: length-N numpy array of x-coordinates at
+        grid points.  Assumed to be sorted in ascending order.
+    :param grid_point_y_coords_metres: length-M numpy array of y-coordinates at
+        grid points.  Assumed to be sorted in ascending order.
+    :param query_x_coords_metres: numpy array (any dimensions) with
+        x-coordinates of query points.
+    :param query_y_coords_metres: numpy array (equivalent shape to
+        `query_x_coords_metres`) with y-coordinates of query points.
+    :return: subset_field_matrix: m-by-n numpy array of gridded values.
+    :return: subset_gp_x_coords_metres: length-n numpy array of x-coordinates at
+        grid points.
+    :return: subset_gp_y_coords_metres: length-m numpy array of y-coordinates at
+        grid points.
+    """
+
+    valid_x_indices = numpy.where(numpy.logical_and(
+        grid_point_x_coords_metres >= numpy.min(query_x_coords_metres),
+        grid_point_x_coords_metres <= numpy.max(query_x_coords_metres)))[0]
+    first_valid_x_index = max([valid_x_indices[0] - 2, 0])
+    last_valid_x_index = min(
+        [valid_x_indices[-1] + 2,
+         len(grid_point_x_coords_metres) - 1])
+    valid_x_indices = numpy.linspace(
+        first_valid_x_index, last_valid_x_index,
+        num=last_valid_x_index - first_valid_x_index + 1, dtype=int)
+
+    valid_y_indices = numpy.where(numpy.logical_and(
+        grid_point_y_coords_metres >= numpy.min(query_y_coords_metres),
+        grid_point_y_coords_metres <= numpy.max(query_y_coords_metres)))[0]
+    first_valid_y_index = max([valid_y_indices[0] - 2, 0])
+    last_valid_y_index = min(
+        [valid_y_indices[-1] + 2,
+         len(grid_point_y_coords_metres) - 1])
+    valid_y_indices = numpy.linspace(
+        first_valid_y_index, last_valid_y_index,
+        num=last_valid_y_index - first_valid_y_index + 1, dtype=int)
+
+    subset_field_matrix = numpy.take(field_matrix, valid_y_indices, axis=0)
+    subset_field_matrix = numpy.take(
+        subset_field_matrix, valid_x_indices, axis=1)
+
+    return (subset_field_matrix, grid_point_x_coords_metres[valid_x_indices],
+            grid_point_y_coords_metres[valid_y_indices])
+
+
 def _extract_rotated_storm_image(
         full_radar_matrix, full_grid_point_latitudes_deg,
         full_grid_point_longitudes_deg, rotated_gp_lat_matrix_deg,
@@ -811,35 +870,19 @@ def _extract_rotated_storm_image(
             full_grid_point_latitudes_deg.shape, central_longitude_deg),
         projection_object=projection_object)
 
-    valid_x_indices = numpy.where(numpy.logical_and(
-        full_grid_points_x_metres >= numpy.min(rotated_gp_x_matrix_metres),
-        full_grid_points_x_metres <= numpy.max(rotated_gp_x_matrix_metres)
-    ))[0]
-    first_valid_x_index = max([valid_x_indices[0] - 2, 0])
-    last_valid_x_index = min(
-        [valid_x_indices[-1] + 2,
-         len(full_grid_points_x_metres) - 1])
-    valid_x_indices = numpy.linspace(
-        first_valid_x_index, last_valid_x_index,
-        num=last_valid_x_index - first_valid_x_index + 1, dtype=int)
-
-    valid_y_indices = numpy.where(numpy.logical_and(
-        full_grid_points_y_metres >= numpy.min(rotated_gp_y_matrix_metres),
-        full_grid_points_y_metres <= numpy.max(rotated_gp_y_matrix_metres)
-    ))[0]
-    first_valid_y_index = max([valid_y_indices[0] - 2, 0])
-    last_valid_y_index = min(
-        [valid_y_indices[-1] + 2,
-         len(full_grid_points_y_metres) - 1])
-    valid_y_indices = numpy.linspace(
-        first_valid_y_index, last_valid_y_index,
-        num=last_valid_y_index - first_valid_y_index + 1, dtype=int)
+    (full_radar_matrix, full_grid_points_x_metres, full_grid_points_y_metres
+    ) = _subset_xy_grid_for_interp(
+        field_matrix=full_radar_matrix,
+        grid_point_x_coords_metres=full_grid_points_x_metres,
+        grid_point_y_coords_metres=full_grid_points_y_metres,
+        query_x_coords_metres=rotated_gp_x_matrix_metres,
+        query_y_coords_metres=rotated_gp_y_matrix_metres)
 
     exec_start_time_unix_sec = time.time()
     storm_centered_radar_matrix = interp.interp_from_xy_grid_to_points(
-        input_matrix=full_radar_matrix[valid_y_indices, valid_x_indices],
-        sorted_grid_point_x_metres=full_grid_points_x_metres[valid_x_indices],
-        sorted_grid_point_y_metres=full_grid_points_y_metres[valid_y_indices],
+        input_matrix=full_radar_matrix,
+        sorted_grid_point_x_metres=full_grid_points_x_metres,
+        sorted_grid_point_y_metres=full_grid_points_y_metres,
         query_x_coords_metres=rotated_gp_x_matrix_metres.ravel(),
         query_y_coords_metres=rotated_gp_y_matrix_metres.ravel(),
         method_string=interp.SPLINE_METHOD_STRING, spline_degree=1,
