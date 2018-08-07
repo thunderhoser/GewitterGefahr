@@ -1045,6 +1045,18 @@ def extract_storm_images_myrorss_or_mrms(
                     storm_object_table[tracking_utils.SPC_DATE_COLUMN].values ==
                     valid_spc_dates_unix_sec[i])
 
+                if rotate_grids:
+                    east_velocities_m_s01 = storm_object_table[
+                        tracking_utils.EAST_VELOCITY_COLUMN].values
+                    north_velocities_m_s01 = storm_object_table[
+                        tracking_utils.NORTH_VELOCITY_COLUMN].values
+
+                    these_velocity_flags = numpy.logical_and(
+                        numpy.invert(numpy.isnan(east_velocities_m_s01)),
+                        numpy.invert(numpy.isnan(north_velocities_m_s01)))
+                    these_storm_flags = numpy.logical_and(
+                        these_storm_flags, these_velocity_flags)
+
                 these_storm_indices = numpy.where(these_storm_flags)[0]
                 this_num_storms = len(these_storm_indices)
 
@@ -1373,9 +1385,22 @@ def extract_storm_images_gridrad(
                                  this_lng_spacing_deg)
                         raise ValueError(error_string)
 
-                    these_storm_indices = numpy.where(
+                    these_storm_flags = (
                         storm_object_table[tracking_utils.TIME_COLUMN].values ==
-                        valid_times_unix_sec[i])[0]
+                        valid_times_unix_sec[i])
+                    if rotate_grids:
+                        east_velocities_m_s01 = storm_object_table[
+                            tracking_utils.EAST_VELOCITY_COLUMN].values
+                        north_velocities_m_s01 = storm_object_table[
+                            tracking_utils.NORTH_VELOCITY_COLUMN].values
+
+                        these_velocity_flags = numpy.logical_and(
+                            numpy.invert(numpy.isnan(east_velocities_m_s01)),
+                            numpy.invert(numpy.isnan(north_velocities_m_s01)))
+                        these_storm_flags = numpy.logical_and(
+                            these_storm_flags, these_velocity_flags)
+
+                    these_storm_indices = numpy.where(these_storm_flags)[0]
                     this_num_storms = len(these_storm_indices)
 
                     these_storm_ids = storm_object_table[
