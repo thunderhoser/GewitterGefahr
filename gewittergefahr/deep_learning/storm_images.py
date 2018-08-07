@@ -811,16 +811,35 @@ def _extract_rotated_storm_image(
             full_grid_point_latitudes_deg.shape, central_longitude_deg),
         projection_object=projection_object)
 
-    print full_grid_points_x_metres.shape
-    print full_grid_points_y_metres.shape
-    print rotated_gp_x_matrix_metres.shape
-    print rotated_gp_y_matrix_metres.shape
+    valid_x_indices = numpy.where(numpy.logical_and(
+        full_grid_points_x_metres >= numpy.min(rotated_gp_x_matrix_metres),
+        full_grid_points_x_metres <= numpy.max(rotated_gp_x_matrix_metres)
+    ))[0]
+    first_valid_x_index = max([valid_x_indices[0] - 2, 0])
+    last_valid_x_index = min(
+        [valid_x_indices[-1] + 2,
+         len(full_grid_points_x_metres) - 1])
+    valid_x_indices = numpy.linspace(
+        first_valid_x_index, last_valid_x_index,
+        num=last_valid_x_index - first_valid_x_index + 1, dtype=int)
+
+    valid_y_indices = numpy.where(numpy.logical_and(
+        full_grid_points_y_metres >= numpy.min(rotated_gp_y_matrix_metres),
+        full_grid_points_y_metres <= numpy.max(rotated_gp_y_matrix_metres)
+    ))[0]
+    first_valid_y_index = max([valid_y_indices[0] - 2, 0])
+    last_valid_y_index = min(
+        [valid_y_indices[-1] + 2,
+         len(full_grid_points_y_metres) - 1])
+    valid_y_indices = numpy.linspace(
+        first_valid_y_index, last_valid_y_index,
+        num=last_valid_y_index - first_valid_y_index + 1, dtype=int)
 
     exec_start_time_unix_sec = time.time()
     storm_centered_radar_matrix = interp.interp_from_xy_grid_to_points(
-        input_matrix=full_radar_matrix,
-        sorted_grid_point_x_metres=full_grid_points_x_metres,
-        sorted_grid_point_y_metres=full_grid_points_y_metres,
+        input_matrix=full_radar_matrix[valid_y_indices, valid_x_indices],
+        sorted_grid_point_x_metres=full_grid_points_x_metres[valid_x_indices],
+        sorted_grid_point_y_metres=full_grid_points_y_metres[valid_y_indices],
         query_x_coords_metres=rotated_gp_x_matrix_metres.ravel(),
         query_y_coords_metres=rotated_gp_y_matrix_metres.ravel(),
         method_string=interp.SPLINE_METHOD_STRING, spline_degree=1,
