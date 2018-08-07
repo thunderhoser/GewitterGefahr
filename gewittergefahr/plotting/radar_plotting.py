@@ -681,6 +681,9 @@ def plot_many_2d_grids_without_coords(
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_fh_pair_index = i * num_panel_columns + j
+            if this_fh_pair_index >= num_field_height_pairs:
+                break
+
             this_annotation_string = '{0:s}\nat {1:.1f} km ASL'.format(
                 field_name_by_pair[this_fh_pair_index],
                 height_by_pair_m_asl[this_fh_pair_index] * METRES_TO_KM)
@@ -744,6 +747,9 @@ def plot_3d_grid_without_coords(
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_height_index = i * num_panel_columns + j
+            if this_height_index >= num_heights:
+                break
+
             this_annotation_string = '{0:.1f} km ASL'.format(
                 grid_point_heights_m_asl[this_height_index] * METRES_TO_KM)
 

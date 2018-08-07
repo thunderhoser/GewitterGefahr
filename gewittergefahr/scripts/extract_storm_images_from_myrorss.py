@@ -16,6 +16,8 @@ ALL_AZ_SHEAR_FIELD_NAMES = [
 
 NUM_ROWS_ARG_NAME = 'num_rows_per_image'
 NUM_COLUMNS_ARG_NAME = 'num_columns_per_image'
+ROTATE_GRIDS_ARG_NAME = 'rotate_grids'
+GRID_SPACING_ARG_NAME = 'rotated_grid_spacing_metres'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 REFL_HEIGHTS_ARG_NAME = 'reflectivity_heights_m_asl'
 SPC_DATE_ARG_NAME = 'spc_date_string'
@@ -29,6 +31,15 @@ NUM_ROWS_HELP_STRING = (
     'Number of pixel rows in each storm-centered radar image.')
 NUM_COLUMNS_HELP_STRING = (
     'Number of pixel columns in each storm-centered radar image.')
+ROTATE_GRIDS_HELP_STRING = (
+    'Boolean flag.  If 1, each grid will be rotated so that storm motion is in '
+    'the +x-direction; thus, storm-centered grids will be equidistant.  If '
+    'False, each storm-centered grid will be a contiguous rectangle extracted '
+    'from the full grid; thus, storm-centered grids will be lat-long.')
+GRID_SPACING_HELP_STRING = (
+    '[used only if `{0:s}` = 1] Spacing between grid points in adjacent rows or'
+    ' columns.'
+).format(ROTATE_GRIDS_ARG_NAME)
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  For more details, see documentation for'
     ' `{0:s}`.').format(SPC_DATE_ARG_NAME)
@@ -80,6 +91,15 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_COLUMNS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + ROTATE_GRIDS_ARG_NAME, type=int, required=False,
+    default=1, help=ROTATE_GRIDS_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + GRID_SPACING_ARG_NAME, type=float, required=False,
+    default=storm_images.DEFAULT_ROTATED_GRID_SPACING_METRES,
+    help=GRID_SPACING_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
     default=storm_images.DEFAULT_MYRORSS_MRMS_FIELD_NAMES,
     help=RADAR_FIELD_NAMES_HELP_STRING)
@@ -115,22 +135,24 @@ INPUT_ARG_PARSER.add_argument(
 
 
 def _extract_storm_images(
-        num_image_rows, num_image_columns, radar_field_names,
-        refl_heights_m_asl, spc_date_string, tarred_myrorss_dir_name,
-        untarred_myrorss_dir_name, tracking_dir_name, tracking_scale_metres2,
-        output_dir_name):
+        num_image_rows, num_image_columns, rotate_grids,
+        rotated_grid_spacing_metres, radar_field_names, refl_heights_m_asl,
+        spc_date_string, tarred_myrorss_dir_name, untarred_myrorss_dir_name,
+        top_tracking_dir_name, tracking_scale_metres2, top_output_dir_name):
     """Extracts storm-centered radar image for each field, height, storm object.
 
     :param num_image_rows: See documentation at top of file.
     :param num_image_columns: Same.
+    :param rotate_grids: Same.
+    :param rotated_grid_spacing_metres: Same.
     :param radar_field_names: Same.
     :param refl_heights_m_asl: Same.
     :param spc_date_string: Same.
     :param tarred_myrorss_dir_name: Same.
     :param untarred_myrorss_dir_name: Same.
-    :param tracking_dir_name: Same.
+    :param top_tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
 
     # Untar files with azimuthal shear.
@@ -148,7 +170,7 @@ def _extract_storm_images(
             top_target_directory_name=untarred_myrorss_dir_name)
         print SEPARATOR_STRING
 
-    # Untar files with other radar fields.
+    # Untar files with other fields.
     non_shear_field_names = list(
         set(radar_field_names) - set(ALL_AZ_SHEAR_FIELD_NAMES))
 
@@ -163,31 +185,31 @@ def _extract_storm_images(
             refl_heights_m_asl=refl_heights_m_asl)
         print SEPARATOR_STRING
 
-    # Find storm objects on the given SPC date.
+    # Read tracking data for the given SPC date.
     tracking_file_names, _ = tracking_io.find_processed_files_one_spc_date(
         spc_date_string=spc_date_string,
         data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-        top_processed_dir_name=tracking_dir_name,
+        top_processed_dir_name=top_tracking_dir_name,
         tracking_scale_metres2=tracking_scale_metres2)
 
-    # Read storm objects on the given SPC date.
     storm_object_table = tracking_io.read_many_processed_files(
         tracking_file_names)
     print SEPARATOR_STRING
 
-    # Extract storm-centered radar images.
+    # Extract and write storm-centered radar images.
     storm_images.extract_storm_images_myrorss_or_mrms(
         storm_object_table=storm_object_table,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
         top_radar_dir_name=untarred_myrorss_dir_name,
-        top_output_dir_name=output_dir_name, one_file_per_time_step=False,
+        top_output_dir_name=top_output_dir_name, one_file_per_time_step=False,
         num_storm_image_rows=num_image_rows,
-        num_storm_image_columns=num_image_columns,
+        num_storm_image_columns=num_image_columns, rotate_grids=rotate_grids,
+        rotated_grid_spacing_metres=rotated_grid_spacing_metres,
         radar_field_names=radar_field_names,
         reflectivity_heights_m_asl=refl_heights_m_asl)
     print SEPARATOR_STRING
 
-    # Remove MYRORSS data that was just untarred.
+    # Remove MYRORSS data that were just untarred.
     myrorss_io.remove_unzipped_data_1day(
         spc_date_string=spc_date_string,
         top_directory_name=untarred_myrorss_dir_name,
@@ -198,28 +220,21 @@ def _extract_storm_images(
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    NUM_IMAGE_ROWS = getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME)
-    NUM_IMAGE_COLUMNS = getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME)
-    RADAR_FIELD_NAMES = getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME)
-    REFL_HEIGHTS_M_ASL = numpy.array(
-        getattr(INPUT_ARG_OBJECT, REFL_HEIGHTS_ARG_NAME), dtype=int)
-
-    SPC_DATE_STRING = getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME)
-    TARRED_MYRORSS_DIR_NAME = getattr(
-        INPUT_ARG_OBJECT, TARRED_MYRORSS_DIR_ARG_NAME)
-    UNTARRED_MYRORSS_DIR_NAME = getattr(
-        INPUT_ARG_OBJECT, UNTARRED_MYRORSS_DIR_ARG_NAME)
-
-    TRACKING_DIR_NAME = getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME)
-    TRACKING_SCALE_METRES2 = getattr(INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME)
-    OUTPUT_DIR_NAME = getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
-
     _extract_storm_images(
-        num_image_rows=NUM_IMAGE_ROWS, num_image_columns=NUM_IMAGE_COLUMNS,
-        radar_field_names=RADAR_FIELD_NAMES,
-        refl_heights_m_asl=REFL_HEIGHTS_M_ASL, spc_date_string=SPC_DATE_STRING,
-        tarred_myrorss_dir_name=TARRED_MYRORSS_DIR_NAME,
-        untarred_myrorss_dir_name=UNTARRED_MYRORSS_DIR_NAME,
-        tracking_dir_name=TRACKING_DIR_NAME,
-        tracking_scale_metres2=TRACKING_SCALE_METRES2,
-        output_dir_name=OUTPUT_DIR_NAME)
+        num_image_rows=getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME),
+        num_image_columns=getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME),
+        rotate_grids=bool(getattr(INPUT_ARG_OBJECT, ROTATE_GRIDS_ARG_NAME)),
+        rotated_grid_spacing_metres=getattr(
+            INPUT_ARG_OBJECT, GRID_SPACING_ARG_NAME),
+        radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME),
+        refl_heights_m_asl=numpy.array(
+            getattr(INPUT_ARG_OBJECT, REFL_HEIGHTS_ARG_NAME), dtype=int),
+        spc_date_string=getattr(INPUT_ARG_OBJECT, SPC_DATE_ARG_NAME),
+        tarred_myrorss_dir_name=getattr(
+            INPUT_ARG_OBJECT, TARRED_MYRORSS_DIR_ARG_NAME),
+        untarred_myrorss_dir_name=getattr(
+            INPUT_ARG_OBJECT, UNTARRED_MYRORSS_DIR_ARG_NAME),
+        top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
+        tracking_scale_metres2=getattr(
+            INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
