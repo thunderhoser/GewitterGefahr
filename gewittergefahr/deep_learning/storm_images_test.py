@@ -24,15 +24,69 @@ CENTROID_LONGITUDES_DEG = numpy.array([230., 230.005, 230.01, 230.015, 230.02])
 CENTER_ROWS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
 CENTER_COLUMNS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
 
-# The following constants are used to test _get_storm_image_coords.
+# The following constants are used to test _get_rotated_storm_image_coords.
+ONE_CENTROID_LATITUDE_DEG = 53.5
+ONE_CENTROID_LONGITUDE_DEG = 246.5
+EASTWARD_MOTION_M_S01 = 1.
+NORTHWARD_MOTION_M_S01 = 2.
+NUM_FULL_GRID_ROWS_ROTATED = 4
+NUM_FULL_GRID_COLUMNS_ROTATED = 6
+ROTATED_GRID_SPACING_METRES = 1500.
+
+ROTATED_LAT_MATRIX_ZERO_MOTION_DEG = numpy.array(
+    [[53.480, 53.480, 53.480, 53.480, 53.480, 53.480],
+     [53.493, 53.493, 53.493, 53.493, 53.493, 53.493],
+     [53.507, 53.507, 53.507, 53.507, 53.507, 53.507],
+     [53.520, 53.520, 53.520, 53.520, 53.520, 53.520]])
+ROTATED_LNG_MATRIX_ZERO_MOTION_DEG = numpy.array(
+    [[246.444, 246.466, 246.489, 246.511, 246.534, 246.556],
+     [246.443, 246.466, 246.489, 246.511, 246.534, 246.557],
+     [246.443, 246.466, 246.489, 246.511, 246.534, 246.557],
+     [246.443, 246.466, 246.489, 246.511, 246.534, 246.557]])
+
+ROTATED_LAT_MATRIX_EASTWARD_MOTION_DEG = ROTATED_LAT_MATRIX_ZERO_MOTION_DEG + 0.
+ROTATED_LNG_MATRIX_EASTWARD_MOTION_DEG = ROTATED_LNG_MATRIX_ZERO_MOTION_DEG + 0.
+ROTATED_LAT_MATRIX_WESTWARD_MOTION_DEG = numpy.flipud(
+    ROTATED_LAT_MATRIX_ZERO_MOTION_DEG)
+ROTATED_LNG_MATRIX_WESTWARD_MOTION_DEG = numpy.fliplr(
+    ROTATED_LNG_MATRIX_ZERO_MOTION_DEG)
+
+ROTATED_LAT_MATRIX_NORTHWARD_MOTION_DEG = numpy.array(
+    [[53.466, 53.480, 53.493, 53.507, 53.520, 53.534],
+     [53.466, 53.480, 53.493, 53.507, 53.520, 53.534],
+     [53.466, 53.480, 53.493, 53.507, 53.520, 53.534],
+     [53.466, 53.480, 53.493, 53.507, 53.520, 53.534]])
+ROTATED_LNG_MATRIX_NORTHWARD_MOTION_DEG = numpy.array(
+    [[246.534, 246.534, 246.534, 246.534, 246.534, 246.534],
+     [246.511, 246.511, 246.511, 246.511, 246.511, 246.511],
+     [246.489, 246.489, 246.489, 246.489, 246.489, 246.489],
+     [246.466, 246.466, 246.466, 246.466, 246.466, 246.466]])
+
+ROTATED_LAT_MATRIX_SOUTHWARD_MOTION_DEG = numpy.fliplr(
+    ROTATED_LAT_MATRIX_NORTHWARD_MOTION_DEG)
+ROTATED_LNG_MATRIX_SOUTHWARD_MOTION_DEG = numpy.flipud(
+    ROTATED_LNG_MATRIX_NORTHWARD_MOTION_DEG)
+
+ROTATED_LAT_MATRIX_ARBITRARY_MOTION_DEG = numpy.array(
+    [[53.461, 53.473, 53.485, 53.497, 53.509, 53.521],
+     [53.467, 53.479, 53.491, 53.503, 53.515, 53.527],
+     [53.473, 53.485, 53.497, 53.509, 53.521, 53.533],
+     [53.479, 53.491, 53.503, 53.515, 53.527, 53.539]])
+ROTATED_LNG_MATRIX_ARBITRARY_MOTION_DEG = numpy.array(
+    [[246.505, 246.515, 246.525, 246.535, 246.545, 246.556],
+     [246.485, 246.495, 246.505, 246.515, 246.525, 246.535],
+     [246.465, 246.475, 246.485, 246.495, 246.505, 246.515],
+     [246.444, 246.455, 246.465, 246.475, 246.485, 246.495]])
+
+# The following constants are used to test _get_unrotated_storm_image_coords.
 CENTER_ROW_TOP_LEFT = 10.5
 CENTER_ROW_MIDDLE = 1000.5
 CENTER_ROW_BOTTOM_RIGHT = 3490.5
 CENTER_COLUMN_TOP_LEFT = 10.5
 CENTER_COLUMN_MIDDLE = 1000.5
 CENTER_COLUMN_BOTTOM_RIGHT = 6990.5
-NUM_STORM_IMAGE_ROWS = 32
-NUM_STORM_IMAGE_COLUMNS = 64
+NUM_FULL_GRID_ROWS_UNROTATED = 32
+NUM_FULL_GRID_COLUMNS_UNROTATED = 64
 
 STORM_IMAGE_COORD_DICT_TOP_LEFT = {
     storm_images.FIRST_STORM_ROW_KEY: 0,
@@ -150,16 +204,6 @@ INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
     [0, 4, 13, 20, 26, 34], dtype=int)
 
-# The following constants are used to test find_storm_objects.
-ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
-ALL_VALID_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
-STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
-TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2], dtype=int)
-RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
-
-STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
-TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
-
 # The following constants are used to test _get_max_rdp_values_one_time.
 DIVERGENCE_MATRIX_HEIGHT1_S01 = numpy.array(
     [[1, 2, 3, 4, 5, 6],
@@ -189,39 +233,65 @@ GRID_POINT_LATITUDES_DEG = numpy.array([52.5, 53, 53.5, 54])
 GRID_POINT_LONGITUDES_DEG = numpy.array(
     [243, 244, 245, 246, 247, 248], dtype=float)
 GRID_POINT_HEIGHTS_M_ASL = numpy.array([3000, 6000, 9000], dtype=int)
+
+RDP_CENTROID_LATITUDES_DEG = numpy.array([52, 53.25])
+RDP_CENTROID_LONGITUDES_DEG = numpy.array([243.5, 246])
+
 MIN_VORTICITY_HEIGHT_M_ASL = 4000
 HORIZ_RADIUS_FOR_RDP_METRES = 75000.
-STORM_CENTROID_LATITUDES_DEG = numpy.array([52, 53.25])
-STORM_CENTROID_LONGITUDES_DEG = numpy.array([243.5, 246])
 MAX_RDP_VALUES_S02 = numpy.array([6 * 8, 51 * 22], dtype=float)
 
-# The following constants are used to test extract_one_label_per_storm.
-WIND_SPEED_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
-TORNADO_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
-WIND_SPEED_LABELS_AB_TIME0 = numpy.array([0, 0], dtype=int)
-TORNADO_LABELS_AB_TIME0 = numpy.array([1, 0], dtype=int)
+# The following constants are used to test _extract_rotated_storm_image.
+FULL_RADAR_MATRIX_ROTATED = numpy.array([[5, 5, 5, 5, 5, 5],
+                                         [5, 5, 5, 5, 5, 5],
+                                         [5, 5, 5, 5, 5, 5],
+                                         [5, 5, 5, 5, 5, 5]], dtype=float)
 
-# The following constants are used to test extract_storm_image.
-FULL_RADAR_MATRIX = numpy.array(
-    [[numpy.nan, numpy.nan, 10., 20., 30., 40.],
-     [numpy.nan, 5., 15., 25., 35., 50.],
-     [5., 10., 25., 40., 55., 70.],
-     [10., 30., 50., 70., 75., numpy.nan]])
+NUM_SUBGRID_ROWS_ROTATED = 4
+NUM_SUBGRID_COLUMNS_ROTATED = 6
+FULL_GRID_POINT_LATITUDES_DEG = numpy.array([53.47, 53.49, 53.51, 53.53])
+FULL_GRID_POINT_LONGITUDES_DEG = numpy.array(
+    [246.45, 246.47, 246.49, 246.51, 246.53, 246.55])
+
+STORM_IMAGE_MATRIX_ROTATED = numpy.array([[0, 5, 5, 5, 5, 0],
+                                          [0, 5, 5, 5, 5, 5],
+                                          [5, 5, 5, 5, 5, 0],
+                                          [0, 5, 5, 5, 5, 0]], dtype=float)
+
+# The following constants are used to test _extract_unrotated_storm_image.
+FULL_RADAR_MATRIX_UNROTATED = numpy.array(
+    [[numpy.nan, numpy.nan, 10, 20, 30, 40],
+     [numpy.nan, 5, 15, 25, 35, 50],
+     [5, 10, 25, 40, 55, 70],
+     [10, 30, 50, 70, 75, 0]])
 
 CENTER_ROW_TO_EXTRACT_MIDDLE = 1.5
 CENTER_COLUMN_TO_EXTRACT_MIDDLE = 2.5
 CENTER_ROW_TO_EXTRACT_EDGE = 3.5
 CENTER_COLUMN_TO_EXTRACT_EDGE = 5.5
-NUM_ROWS_TO_EXTRACT = 2
-NUM_COLUMNS_TO_EXTRACT = 4
+NUM_SUBGRID_ROWS_UNROTATED = 2
+NUM_SUBGRID_COLUMNS_UNROTATED = 4
 
-STORM_IMAGE_MATRIX_MIDDLE = numpy.array([[5., 15., 25., 35.],
-                                         [10., 25., 40., 55.]])
-STORM_IMAGE_MATRIX_EDGE = numpy.array([[75., numpy.nan, 0., 0.],
-                                       [0., 0., 0., 0.]])
+STORM_IMAGE_MATRIX_UNROTATED_MIDDLE = numpy.array(
+    [[5, 15, 25, 35],
+     [10, 25, 40, 55]], dtype=float)
+STORM_IMAGE_MATRIX_UNROTATED_EDGE = numpy.array(
+    [[75, 0, 0, 0],
+     [0, 0, 0, 0]], dtype=float)
+
+# The following constants are used to test find_storm_objects.
+ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
+ALL_VALID_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
+STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
+TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2], dtype=int)
+RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
+
+STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
+TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
 
 # The following constants are used to test find_storm_image_file,
-# image_file_name_to_time, image_file_name_to_field, and find_storm_label_file.
+# find_storm_label_file, image_file_name_to_time, image_file_name_to_field,
+# and image_file_name_to_height.
 TOP_STORM_IMAGE_DIR_NAME = 'storm_images'
 VALID_TIME_UNIX_SEC = 1516749825
 SPC_DATE_STRING = '20180123'
@@ -245,6 +315,12 @@ STORM_LABEL_FILE_NAME_ONE_TIME = (
     'labels/2018/20180123/wind_labels_2018-01-23-232345.nc')
 STORM_LABEL_FILE_NAME_ONE_SPC_DATE = 'labels/2018/wind_labels_20180123.nc'
 
+# The following constants are used to test extract_storm_labels_with_name.
+WIND_SPEED_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
+TORNADO_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
+WIND_SPEED_LABELS_AB_TIME0 = numpy.array([0, 0], dtype=int)
+TORNADO_LABELS_AB_TIME0 = numpy.array([1, 0], dtype=int)
+
 
 class StormImagesTests(unittest.TestCase):
     """Each method is a unit test for storm_images.py."""
@@ -266,49 +342,187 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_center_columns, CENTER_COLUMNS))
 
-    def test_get_storm_image_coords_top_left(self):
-        """Ensures correct output from _get_storm_image_coords.
+    def test_get_rotated_storm_image_coords_zero_motion(self):
+        """Ensures correct output from _get_rotated_storm_image_coords.
+
+        In this case, storm motion is zero (stationary).
+        """
+
+        (this_latitude_matrix_deg, this_longitude_matrix_deg
+        ) = storm_images._get_rotated_storm_image_coords(
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=0., northward_motion_m_s01=0.,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_latitude_matrix_deg, ROTATED_LAT_MATRIX_ZERO_MOTION_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_longitude_matrix_deg, ROTATED_LNG_MATRIX_ZERO_MOTION_DEG,
+            atol=TOLERANCE))
+
+    def test_get_rotated_storm_image_coords_eastward(self):
+        """Ensures correct output from _get_rotated_storm_image_coords.
+
+        In this case, storm motion is due eastward.
+        """
+
+        (this_latitude_matrix_deg, this_longitude_matrix_deg
+        ) = storm_images._get_rotated_storm_image_coords(
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=EASTWARD_MOTION_M_S01,
+            northward_motion_m_s01=0.,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_latitude_matrix_deg, ROTATED_LAT_MATRIX_EASTWARD_MOTION_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_longitude_matrix_deg, ROTATED_LNG_MATRIX_EASTWARD_MOTION_DEG,
+            atol=TOLERANCE))
+
+    def test_get_rotated_storm_image_coords_westward(self):
+        """Ensures correct output from _get_rotated_storm_image_coords.
+
+        In this case, storm motion is due westward.
+        """
+
+        (this_latitude_matrix_deg, this_longitude_matrix_deg
+        ) = storm_images._get_rotated_storm_image_coords(
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=-EASTWARD_MOTION_M_S01,
+            northward_motion_m_s01=0.,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_latitude_matrix_deg, ROTATED_LAT_MATRIX_WESTWARD_MOTION_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_longitude_matrix_deg, ROTATED_LNG_MATRIX_WESTWARD_MOTION_DEG,
+            atol=TOLERANCE))
+
+    def test_get_rotated_storm_image_coords_northward(self):
+        """Ensures correct output from _get_rotated_storm_image_coords.
+
+        In this case, storm motion is due northward.
+        """
+
+        (this_latitude_matrix_deg, this_longitude_matrix_deg
+        ) = storm_images._get_rotated_storm_image_coords(
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=0.,
+            northward_motion_m_s01=NORTHWARD_MOTION_M_S01,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_latitude_matrix_deg, ROTATED_LAT_MATRIX_NORTHWARD_MOTION_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_longitude_matrix_deg, ROTATED_LNG_MATRIX_NORTHWARD_MOTION_DEG,
+            atol=TOLERANCE))
+
+    def test_get_rotated_storm_image_coords_southward(self):
+        """Ensures correct output from _get_rotated_storm_image_coords.
+
+        In this case, storm motion is due southward.
+        """
+
+        (this_latitude_matrix_deg, this_longitude_matrix_deg
+        ) = storm_images._get_rotated_storm_image_coords(
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=0.,
+            northward_motion_m_s01=-NORTHWARD_MOTION_M_S01,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_latitude_matrix_deg, ROTATED_LAT_MATRIX_SOUTHWARD_MOTION_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_longitude_matrix_deg, ROTATED_LNG_MATRIX_SOUTHWARD_MOTION_DEG,
+            atol=TOLERANCE))
+
+    def test_get_rotated_storm_image_coords_arbitrary(self):
+        """Ensures correct output from _get_rotated_storm_image_coords.
+
+        In this case, storm motion is in an arbitrary direction (not 0, 90, 180,
+        270, or NaN degrees).
+        """
+
+        (this_latitude_matrix_deg, this_longitude_matrix_deg
+        ) = storm_images._get_rotated_storm_image_coords(
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=EASTWARD_MOTION_M_S01,
+            northward_motion_m_s01=NORTHWARD_MOTION_M_S01,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_latitude_matrix_deg, ROTATED_LAT_MATRIX_ARBITRARY_MOTION_DEG,
+            atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            this_longitude_matrix_deg, ROTATED_LNG_MATRIX_ARBITRARY_MOTION_DEG,
+            atol=TOLERANCE))
+
+    def test_get_unrotated_storm_image_coords_top_left(self):
+        """Ensures correct output from _get_unrotated_storm_image_coords.
 
         In this case, storm image runs off the full grid at the top-left.
         """
 
-        this_coord_dict = storm_images._get_storm_image_coords(
+        this_coord_dict = storm_images._get_unrotated_storm_image_coords(
             num_full_grid_rows=NUM_FULL_GRID_ROWS,
             num_full_grid_columns=NUM_FULL_GRID_COLUMNS,
-            num_storm_image_rows=NUM_STORM_IMAGE_ROWS,
-            num_storm_image_columns=NUM_STORM_IMAGE_COLUMNS,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_UNROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_UNROTATED,
             center_row=CENTER_ROW_TOP_LEFT,
             center_column=CENTER_COLUMN_TOP_LEFT)
 
         self.assertTrue(this_coord_dict == STORM_IMAGE_COORD_DICT_TOP_LEFT)
 
-    def test_get_storm_image_coords_middle(self):
-        """Ensures correct output from _get_storm_image_coords.
+    def test_get_unrotated_storm_image_coords_middle(self):
+        """Ensures correct output from _get_unrotated_storm_image_coords.
 
         In this case, storm image does not run off the full grid.
         """
 
-        this_coord_dict = storm_images._get_storm_image_coords(
+        this_coord_dict = storm_images._get_unrotated_storm_image_coords(
             num_full_grid_rows=NUM_FULL_GRID_ROWS,
             num_full_grid_columns=NUM_FULL_GRID_COLUMNS,
-            num_storm_image_rows=NUM_STORM_IMAGE_ROWS,
-            num_storm_image_columns=NUM_STORM_IMAGE_COLUMNS,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_UNROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_UNROTATED,
             center_row=CENTER_ROW_MIDDLE,
             center_column=CENTER_COLUMN_MIDDLE)
 
         self.assertTrue(this_coord_dict == STORM_IMAGE_COORD_DICT_MIDDLE)
 
-    def test_get_storm_image_coords_bottom_right(self):
-        """Ensures correct output from _get_storm_image_coords.
+    def test_get_unrotated_storm_image_coords_bottom_right(self):
+        """Ensures correct output from _get_unrotated_storm_image_coords.
 
         In this case, storm image runs off the full grid at the bottom-right.
         """
 
-        this_coord_dict = storm_images._get_storm_image_coords(
+        this_coord_dict = storm_images._get_unrotated_storm_image_coords(
             num_full_grid_rows=NUM_FULL_GRID_ROWS,
             num_full_grid_columns=NUM_FULL_GRID_COLUMNS,
-            num_storm_image_rows=NUM_STORM_IMAGE_ROWS,
-            num_storm_image_columns=NUM_STORM_IMAGE_COLUMNS,
+            num_storm_image_rows=NUM_FULL_GRID_ROWS_UNROTATED,
+            num_storm_image_columns=NUM_FULL_GRID_COLUMNS_UNROTATED,
             center_row=CENTER_ROW_BOTTOM_RIGHT,
             center_column=CENTER_COLUMN_BOTTOM_RIGHT)
 
@@ -410,7 +624,79 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
 
-    def testfind_storm_objects_all_good(self):
+    def test_get_max_rdp_values_one_time(self):
+        """Ensures correct output from _get_max_rdp_values_one_time."""
+
+        these_max_rdp_values_s02 = storm_images._get_max_rdp_values_one_time(
+            divergence_matrix_s01=DIVERGENCE_MATRIX_S01,
+            vorticity_matrix_s01=VORTICITY_MATRIX_S01,
+            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
+            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
+            grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
+            min_vorticity_height_m_asl=MIN_VORTICITY_HEIGHT_M_ASL,
+            storm_centroid_latitudes_deg=RDP_CENTROID_LATITUDES_DEG,
+            storm_centroid_longitudes_deg=RDP_CENTROID_LONGITUDES_DEG,
+            horizontal_radius_metres=HORIZ_RADIUS_FOR_RDP_METRES)
+
+        self.assertTrue(numpy.allclose(
+            these_max_rdp_values_s02, MAX_RDP_VALUES_S02, atol=TOLERANCE))
+
+    def test_extract_rotated_storm_image(self):
+        """Ensures correct output from _extract_rotated_storm_image."""
+
+        this_storm_image_matrix = storm_images._extract_rotated_storm_image(
+            full_radar_matrix=FULL_RADAR_MATRIX_ROTATED,
+            full_grid_point_latitudes_deg=FULL_GRID_POINT_LATITUDES_DEG,
+            full_grid_point_longitudes_deg=FULL_GRID_POINT_LONGITUDES_DEG,
+            centroid_latitude_deg=ONE_CENTROID_LATITUDE_DEG,
+            centroid_longitude_deg=ONE_CENTROID_LONGITUDE_DEG,
+            eastward_motion_m_s01=EASTWARD_MOTION_M_S01,
+            northward_motion_m_s01=NORTHWARD_MOTION_M_S01,
+            num_storm_image_rows=NUM_SUBGRID_ROWS_ROTATED,
+            num_storm_image_columns=NUM_SUBGRID_COLUMNS_ROTATED,
+            storm_grid_spacing_metres=ROTATED_GRID_SPACING_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_storm_image_matrix, STORM_IMAGE_MATRIX_ROTATED,
+            atol=TOLERANCE))
+
+    def test_extract_unrotated_storm_image_middle(self):
+        """Ensures correct output from _extract_unrotated_storm_image.
+
+        In this case the storm-centered image does *not* run off the full grid
+        (no padding needed).
+        """
+
+        this_storm_image_matrix = storm_images._extract_unrotated_storm_image(
+            full_radar_matrix=FULL_RADAR_MATRIX_UNROTATED,
+            center_row=CENTER_ROW_TO_EXTRACT_MIDDLE,
+            center_column=CENTER_COLUMN_TO_EXTRACT_MIDDLE,
+            num_storm_image_rows=NUM_SUBGRID_ROWS_UNROTATED,
+            num_storm_image_columns=NUM_SUBGRID_COLUMNS_UNROTATED)
+
+        self.assertTrue(numpy.allclose(
+            this_storm_image_matrix, STORM_IMAGE_MATRIX_UNROTATED_MIDDLE,
+            atol=TOLERANCE))
+
+    def test_extract_unrotated_storm_image_edge(self):
+        """Ensures correct output from _extract_unrotated_storm_image.
+
+        In this case the storm-centered image runs off the full grid (padding
+        needed).
+        """
+
+        this_storm_image_matrix = storm_images._extract_unrotated_storm_image(
+            full_radar_matrix=FULL_RADAR_MATRIX_UNROTATED,
+            center_row=CENTER_ROW_TO_EXTRACT_EDGE,
+            center_column=CENTER_COLUMN_TO_EXTRACT_EDGE,
+            num_storm_image_rows=NUM_SUBGRID_ROWS_UNROTATED,
+            num_storm_image_columns=NUM_SUBGRID_COLUMNS_UNROTATED)
+
+        self.assertTrue(numpy.allclose(
+            this_storm_image_matrix, STORM_IMAGE_MATRIX_UNROTATED_EDGE,
+            atol=TOLERANCE))
+
+    def test_find_storm_objects_all_good(self):
         """Ensures correct output from find_storm_objects.
 
         In this case, all desired storm objects should be found.
@@ -423,7 +709,7 @@ class StormImagesTests(unittest.TestCase):
             valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD)
         self.assertTrue(numpy.array_equal(these_indices, RELEVANT_INDICES))
 
-    def testfind_storm_objects_one_missing(self):
+    def test_find_storm_objects_one_missing(self):
         """Ensures correct output from find_storm_objects.
 
         In this case, one desired storm object is missing.
@@ -435,57 +721,6 @@ class StormImagesTests(unittest.TestCase):
                 all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
                 storm_ids_to_keep=STORM_IDS_TO_KEEP_ONE_MISSING,
                 valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING)
-
-    def test_get_max_rdp_values_one_time(self):
-        """Ensures correct output from _get_max_rdp_values_one_time."""
-
-        these_max_rdp_values_s02 = storm_images._get_max_rdp_values_one_time(
-            divergence_matrix_s01=DIVERGENCE_MATRIX_S01,
-            vorticity_matrix_s01=VORTICITY_MATRIX_S01,
-            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-            grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
-            min_vorticity_height_m_asl=MIN_VORTICITY_HEIGHT_M_ASL,
-            storm_centroid_latitudes_deg=STORM_CENTROID_LATITUDES_DEG,
-            storm_centroid_longitudes_deg=STORM_CENTROID_LONGITUDES_DEG,
-            horizontal_radius_metres=HORIZ_RADIUS_FOR_RDP_METRES)
-
-        self.assertTrue(numpy.allclose(
-            these_max_rdp_values_s02, MAX_RDP_VALUES_S02, atol=TOLERANCE))
-
-    def test_extract_storm_image_middle(self):
-        """Ensures correct output from extract_storm_image.
-
-        In this case, storm image does not run off the full grid (no padding
-        needed).
-        """
-
-        this_storm_image_matrix = storm_images.extract_storm_image(
-            full_radar_matrix=FULL_RADAR_MATRIX,
-            center_row=CENTER_ROW_TO_EXTRACT_MIDDLE,
-            center_column=CENTER_COLUMN_TO_EXTRACT_MIDDLE,
-            num_storm_image_rows=NUM_ROWS_TO_EXTRACT,
-            num_storm_image_columns=NUM_COLUMNS_TO_EXTRACT)
-
-        self.assertTrue(numpy.allclose(
-            this_storm_image_matrix, STORM_IMAGE_MATRIX_MIDDLE, atol=TOLERANCE))
-
-    def test_extract_storm_image_edge(self):
-        """Ensures correct output from extract_storm_image.
-
-        In this case, storm image runs off the full grid (padding needed).
-        """
-
-        this_storm_image_matrix = storm_images.extract_storm_image(
-            full_radar_matrix=FULL_RADAR_MATRIX,
-            center_row=CENTER_ROW_TO_EXTRACT_EDGE,
-            center_column=CENTER_COLUMN_TO_EXTRACT_EDGE,
-            num_storm_image_rows=NUM_ROWS_TO_EXTRACT,
-            num_storm_image_columns=NUM_COLUMNS_TO_EXTRACT)
-
-        self.assertTrue(numpy.allclose(
-            this_storm_image_matrix, STORM_IMAGE_MATRIX_EDGE, atol=TOLERANCE,
-            equal_nan=True))
 
     def test_find_storm_image_file_one_time(self):
         """Ensures correct output from find_storm_image_file.

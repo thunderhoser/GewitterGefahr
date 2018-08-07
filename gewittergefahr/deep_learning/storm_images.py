@@ -24,6 +24,8 @@ from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
 from gewittergefahr.gg_utils import grids
+from gewittergefahr.gg_utils import interp
+from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -133,36 +135,35 @@ def _centroids_latlng_to_rowcol(
 
 
 def _get_rotated_storm_image_coords(
-        storm_centroid_lat_deg, storm_centroid_lng_deg, storm_motion_u_m_s01,
-        storm_motion_v_m_s01, num_storm_image_rows, num_storm_image_columns,
+        centroid_latitude_deg, centroid_longitude_deg, eastward_motion_m_s01,
+        northward_motion_m_s01, num_storm_image_rows, num_storm_image_columns,
         storm_grid_spacing_metres):
     """Generates lat-long coordinates for rotated, storm-centered grid.
 
     The grid is rotated so that storm motion is in the +x-direction.
 
-    M = number of rows in storm-centered grid (must be even)
-    N = number of columns in storm-centered grid (must be even)
+    m = number of rows in storm-centered grid (must be even)
+    n = number of columns in storm-centered grid (must be even)
 
-    :param storm_centroid_lat_deg: Latitude (deg N) of storm centroid.
-    :param storm_centroid_lng_deg: Longitude (deg E) of storm centroid.
-    :param storm_motion_u_m_s01: Eastward storm motion (metres per second).
-    :param storm_motion_v_m_s01: Northward storm motion (metres per second).
+    :param centroid_latitude_deg: Latitude (deg N) of storm centroid.
+    :param centroid_longitude_deg: Longitude (deg E) of storm centroid.
+    :param eastward_motion_m_s01: Eastward component of storm motion (metres per
+        second).
+    :param northward_motion_m_s01: Northward component of storm motion.
     :param num_storm_image_rows: M in the above discussion.
     :param num_storm_image_columns: N in the above discussion.
     :param storm_grid_spacing_metres: Spacing between grid points in adjacent
         rows or columns.
-    :return: grid_point_lat_matrix_deg: M-by-N numpy array with latitudes
+    :return: grid_point_lat_matrix_deg: m-by-n numpy array with latitudes
         (deg N) of grid points.
-    :return: grid_point_lng_matrix_deg: M-by-N numpy array with longitudes
+    :return: grid_point_lng_matrix_deg: m-by-n numpy array with longitudes
         (deg E) of grid points.
     """
 
-    storm_bearing_deg = (
-        geodetic_utils.xy_components_to_displacements_and_bearings(
-            x_displacements_metres=numpy.array([storm_motion_u_m_s01]),
-            y_displacements_metres=numpy.array([storm_motion_v_m_s01])
-        )[-1][0]
-    )
+    storm_bearing_deg = geodetic_utils.xy_to_scalar_displacements_and_bearings(
+        x_displacements_metres=numpy.array([eastward_motion_m_s01]),
+        y_displacements_metres=numpy.array([northward_motion_m_s01])
+    )[-1][0]
 
     this_max_displacement_metres = storm_grid_spacing_metres * (
         num_storm_image_columns / 2 - 0.5)
@@ -184,57 +185,62 @@ def _get_rotated_storm_image_coords(
         y_unique_metres=y_prime_displacements_metres)
 
     (x_displacement_matrix_metres, y_displacement_matrix_metres
-     ) = _rotate_displacements(
+    ) = geodetic_utils.rotate_displacement_vectors(
         x_displacements_metres=x_prime_displ_matrix_metres,
-        y_diplacements_metres=y_prime_displ_matrix_metres,
-        ccw_rotation_angle_deg=storm_bearing_deg)
+        y_displacements_metres=y_prime_displ_matrix_metres,
+        ccw_rotation_angle_deg=-(storm_bearing_deg - 90))
 
-    (total_displacement_matrix_metres, bearing_matrix_deg
-     ) = geodetic_utils.xy_components_to_displacements_and_bearings(
+    (scalar_displacement_matrix_metres, bearing_matrix_deg
+    ) = geodetic_utils.xy_to_scalar_displacements_and_bearings(
         x_displacements_metres=x_displacement_matrix_metres,
         y_displacements_metres=y_displacement_matrix_metres)
 
     start_latitude_matrix_deg = numpy.full(
-        (num_storm_image_rows, num_storm_image_columns), storm_centroid_lat_deg)
+        (num_storm_image_rows, num_storm_image_columns), centroid_latitude_deg)
     start_longitude_matrix_deg = numpy.full(
-        (num_storm_image_rows, num_storm_image_columns), storm_centroid_lng_deg)
+        (num_storm_image_rows, num_storm_image_columns), centroid_longitude_deg)
 
-    return geodetic_utils.start_points_and_distances_and_bearings_to_endpoints(
+    return geodetic_utils.start_points_and_displacements_to_endpoints(
         start_latitudes_deg=start_latitude_matrix_deg,
         start_longitudes_deg=start_longitude_matrix_deg,
-        displacements_metres=total_displacement_matrix_metres,
+        scalar_displacements_metres=scalar_displacement_matrix_metres,
         geodetic_bearings_deg=bearing_matrix_deg)
 
 
-def _get_storm_image_coords(
+def _get_unrotated_storm_image_coords(
         num_full_grid_rows, num_full_grid_columns, num_storm_image_rows,
         num_storm_image_columns, center_row, center_column):
-    """Generates row-column coordinates for storm image.
+    """Generates row-column coordinates for storm-centered grid.
 
     :param num_full_grid_rows: Number of rows in full grid.
     :param num_full_grid_columns: Number of columns in full grid.
-    :param num_storm_image_rows: Number of rows in storm image (subgrid).
-    :param num_storm_image_columns: Number of columns in storm image (subgrid).
-    :param center_row: Row index (half-integer) at center of storm image.
-    :param center_column: Column index (half-integer) at center of storm image.
-    :return: storm_image_coord_dict: Dictionary with the following keys.
-    storm_image_coord_dict['first_storm_image_row']: First row (integer) in
-        storm image.
-    storm_image_coord_dict['last_storm_image_row']: Last row (integer) in storm
-        image.
-    storm_image_coord_dict['first_storm_image_column']: First column (integer)
-        in storm image.
-    storm_image_coord_dict['last_storm_image_column']: Last column (integer) in
-        storm image.
-    storm_image_coord_dict['num_padding_rows_at_top']: Number of padding rows at
-        top of storm image.  This will be non-zero iff the storm image runs out
-        of bounds of the full image.
-    storm_image_coord_dict['num_padding_rows_at_bottom']: Number of padding rows
-        at bottom of storm image.
-    storm_image_coord_dict['num_padding_columns_at_left']: Number of padding
-        columns at left of storm image.
-    storm_image_coord_dict['num_padding_columns_at_right']: Number of padding
-        columns at right of storm image.
+    :param num_storm_image_rows: Number of rows in storm-centered image
+        (subgrid).
+    :param num_storm_image_columns: Number of columns in subgrid.
+    :param center_row: Row index (half-integer) at center of subgrid.  If
+        `center_row = k`, row k in the full grid is at the center of the
+        subgrid.
+    :param center_column: Column index (half-integer) at center of subgrid.  If
+        `center_column = m`, column m in the full grid is at the center of the
+        subgrid.
+    :return: coord_dict: Dictionary with the following keys.
+    coord_dict['first_storm_image_row']: First row in subgrid.  If
+        `first_storm_image_row = i`, row 0 in the subgrid = row i in the full
+        grid.
+    coord_dict['last_storm_image_row']: Last row in subgrid.
+    coord_dict['first_storm_image_column']: First column in subgrid.  If
+        `first_storm_image_column = j`, column 0 in the subgrid = column j in
+        the full grid.
+    coord_dict['last_storm_image_column']: Last column in subgrid.
+    coord_dict['num_padding_rows_at_top']: Number of padding rows at top of
+        subgrid.  This will be non-zero iff the subgrid does not fit inside the
+        full grid.
+    coord_dict['num_padding_rows_at_bottom']: Number of padding rows at bottom
+        of subgrid.
+    coord_dict['num_padding_rows_at_left']: Number of padding rows at left side
+        of subgrid.
+    coord_dict['num_padding_rows_at_right']: Number of padding rows at right
+        side of subgrid.
     """
 
     first_storm_image_row = int(numpy.ceil(
@@ -615,6 +621,169 @@ def _get_max_rdp_values_one_time(
     return max_rdp_values_s02
 
 
+def _extract_rotated_storm_image(
+        full_radar_matrix, full_grid_point_latitudes_deg,
+        full_grid_point_longitudes_deg, centroid_latitude_deg,
+        centroid_longitude_deg, eastward_motion_m_s01, northward_motion_m_s01,
+        num_storm_image_rows, num_storm_image_columns,
+        storm_grid_spacing_metres):
+    """Extracts rotated, storm-centered image from full radar image.
+
+    M = number of rows in full grid
+    N = number of columns in full grid
+    m = number of rows in subgrid (storm-centered and rotated).  Must be even.
+    n = number of columns in subgrid.  Must be even.
+
+    The subgrid is rotated so that storm motion is in the +x-direction.
+
+    :param full_radar_matrix: M-by-N numpy array of radar values (one variable
+        at one height and one time step).  Latitude should increase with row
+        index, and longitude should increase with column index.
+    :param full_grid_point_latitudes_deg: length-M numpy array with latitudes
+        (deg N) of grid points.
+    :param full_grid_point_longitudes_deg: length-N numpy array with longitudes
+        (deg E) of grid points.
+    :param centroid_latitude_deg: Latitude (deg N) of storm centroid.
+    :param centroid_longitude_deg: Longitude (deg E) of storm centroid.
+    :param eastward_motion_m_s01: u-component of storm motion (metres per
+        second).
+    :param northward_motion_m_s01: v-component of storm motion.
+    :param num_storm_image_rows: m in the above discussion.
+    :param num_storm_image_columns: n in the above discussion.
+    :param storm_grid_spacing_metres: Spacing between grid points in adjacent
+        rows or columns.
+    :return: storm_centered_radar_matrix: m-by-n numpy array of radar values
+        (same variable, height, and time step).
+    """
+
+    (subgrid_point_lat_matrix_deg, subgrid_point_lng_matrix_deg
+    ) = _get_rotated_storm_image_coords(
+        centroid_latitude_deg=centroid_latitude_deg,
+        centroid_longitude_deg=centroid_longitude_deg,
+        eastward_motion_m_s01=eastward_motion_m_s01,
+        northward_motion_m_s01=northward_motion_m_s01,
+        num_storm_image_rows=num_storm_image_rows,
+        num_storm_image_columns=num_storm_image_columns,
+        storm_grid_spacing_metres=storm_grid_spacing_metres)
+
+    projection_object = projections.init_cylindrical_equidistant_projection(
+        central_latitude_deg=centroid_latitude_deg,
+        central_longitude_deg=centroid_longitude_deg,
+        true_scale_latitude_deg=centroid_latitude_deg)
+
+    (subgrid_point_x_matrix_metres, subgrid_point_y_matrix_metres
+    ) = projections.project_latlng_to_xy(
+        latitudes_deg=subgrid_point_lat_matrix_deg,
+        longitudes_deg=subgrid_point_lng_matrix_deg,
+        projection_object=projection_object)
+
+    full_grid_points_x_metres, _ = projections.project_latlng_to_xy(
+        latitudes_deg=numpy.full(
+            full_grid_point_longitudes_deg.shape, centroid_latitude_deg),
+        longitudes_deg=full_grid_point_longitudes_deg,
+        projection_object=projection_object)
+
+    _, full_grid_points_y_metres = projections.project_latlng_to_xy(
+        latitudes_deg=full_grid_point_latitudes_deg,
+        longitudes_deg=numpy.full(
+            full_grid_point_latitudes_deg.shape, centroid_longitude_deg),
+        projection_object=projection_object)
+
+    storm_centered_radar_matrix = interp.interp_from_xy_grid_to_points(
+        input_matrix=full_radar_matrix,
+        sorted_grid_point_x_metres=full_grid_points_x_metres,
+        sorted_grid_point_y_metres=full_grid_points_y_metres,
+        query_x_coords_metres=subgrid_point_x_matrix_metres.ravel(),
+        query_y_coords_metres=subgrid_point_y_matrix_metres.ravel(),
+        method_string=interp.SPLINE_METHOD_STRING,
+        spline_degree=3, extrapolate=True)
+    storm_centered_radar_matrix = numpy.reshape(
+        storm_centered_radar_matrix,
+        (num_storm_image_rows, num_storm_image_columns))
+
+    invalid_x_flags = numpy.logical_or(
+        subgrid_point_x_matrix_metres < numpy.min(full_grid_points_x_metres),
+        subgrid_point_x_matrix_metres > numpy.max(full_grid_points_x_metres))
+    invalid_y_flags = numpy.logical_or(
+        subgrid_point_y_matrix_metres < numpy.min(full_grid_points_y_metres),
+        subgrid_point_y_matrix_metres > numpy.max(full_grid_points_y_metres))
+    invalid_indices = numpy.where(
+        numpy.logical_or(invalid_x_flags, invalid_y_flags))
+
+    storm_centered_radar_matrix[invalid_indices] = 0.
+    return storm_centered_radar_matrix
+
+
+def _extract_unrotated_storm_image(
+        full_radar_matrix, center_row, center_column, num_storm_image_rows,
+        num_storm_image_columns):
+    """Extracts storm-centered image from full radar image.
+
+    M = number of rows in full grid
+    N = number of columns in full grid
+    m = number of rows in subgrid (must be even)
+    n = number of columns in subgrid (must be even)
+
+    The subgrid is rotated so that storm motion is in the +x-direction.
+
+    :param full_radar_matrix: M-by-N numpy array of radar values (one variable
+        at one height and one time step).
+    :param center_row: Row index (half-integer) at center of subgrid.  If
+        `center_row = i`, row i in the full grid is at the center of the
+        subgrid.
+    :param center_column: Column index (half-integer) at center of subgrid.  If
+        `center_column = j`, column j in the full grid is at the center of the
+        subgrid.
+    :param num_storm_image_rows: m in the above discussion.
+    :param num_storm_image_columns: n in the above discussion.
+    :return: storm_centered_radar_matrix: m-by-n numpy array of radar values
+        (same variable, height, and time step).
+    """
+
+    num_full_grid_rows = full_radar_matrix.shape[0]
+    num_full_grid_columns = full_radar_matrix.shape[1]
+
+    error_checking.assert_is_geq(center_row, -0.5)
+    error_checking.assert_is_leq(center_row, num_full_grid_rows - 0.5)
+    error_checking.assert_is_geq(center_column, -0.5)
+    error_checking.assert_is_leq(center_column, num_full_grid_columns - 0.5)
+
+    storm_image_coord_dict = _get_unrotated_storm_image_coords(
+        num_full_grid_rows=num_full_grid_rows,
+        num_full_grid_columns=num_full_grid_columns,
+        num_storm_image_rows=num_storm_image_rows,
+        num_storm_image_columns=num_storm_image_columns, center_row=center_row,
+        center_column=center_column)
+
+    storm_image_rows = numpy.linspace(
+        storm_image_coord_dict[FIRST_STORM_ROW_KEY],
+        storm_image_coord_dict[LAST_STORM_ROW_KEY],
+        num=(storm_image_coord_dict[LAST_STORM_ROW_KEY] -
+             storm_image_coord_dict[FIRST_STORM_ROW_KEY] + 1),
+        dtype=int)
+    storm_image_columns = numpy.linspace(
+        storm_image_coord_dict[FIRST_STORM_COLUMN_KEY],
+        storm_image_coord_dict[LAST_STORM_COLUMN_KEY],
+        num=(storm_image_coord_dict[LAST_STORM_COLUMN_KEY] -
+             storm_image_coord_dict[FIRST_STORM_COLUMN_KEY] + 1),
+        dtype=int)
+
+    storm_centered_radar_matrix = numpy.take(
+        full_radar_matrix, storm_image_rows, axis=0)
+    storm_centered_radar_matrix = numpy.take(
+        storm_centered_radar_matrix, storm_image_columns, axis=1)
+
+    pad_width_input_arg = (
+        (storm_image_coord_dict[NUM_TOP_PADDING_ROWS_KEY],
+         storm_image_coord_dict[NUM_BOTTOM_PADDING_ROWS_KEY]),
+        (storm_image_coord_dict[NUM_LEFT_PADDING_COLS_KEY],
+         storm_image_coord_dict[NUM_RIGHT_PADDING_COLS_KEY]))
+
+    return numpy.pad(
+        storm_centered_radar_matrix, pad_width=pad_width_input_arg,
+        mode='constant', constant_values=PADDING_VALUE)
+
+
 def find_storm_objects(
         all_storm_ids, all_valid_times_unix_sec, storm_ids_to_keep,
         valid_times_to_keep_unix_sec):
@@ -700,78 +869,6 @@ def find_storm_objects(
     return relevant_indices
 
 
-def extract_storm_image(
-        full_radar_matrix, center_row, center_column,
-        num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
-        num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS):
-    """Extracts storm-centered radar image from full radar image.
-
-    M = number of rows (unique grid-point latitudes) in full grid
-    N = number of columns (unique grid-point longitudes) in full grid
-    m = number of rows in storm image
-    n = number of columns in storm image
-
-    :param full_radar_matrix: M-by-N numpy array of radar values (one variable,
-        one height, one time step).
-    :param center_row: Row index (half-integer) at center of storm image.
-    :param center_column: Column index (half-integer) at center of storm image.
-    :param num_storm_image_rows: m, defined above.
-    :param num_storm_image_columns: n, defined above.
-    :return: storm_centered_radar_matrix: m-by-n numpy array of radar values
-        (same variable, height, and time step).
-    """
-
-    error_checking.assert_is_real_numpy_array(full_radar_matrix)
-    error_checking.assert_is_numpy_array(full_radar_matrix, num_dimensions=2)
-    num_full_grid_rows = full_radar_matrix.shape[0]
-    num_full_grid_columns = full_radar_matrix.shape[1]
-
-    error_checking.assert_is_geq(center_row, -0.5)
-    error_checking.assert_is_leq(center_row, num_full_grid_rows - 0.5)
-    error_checking.assert_is_geq(center_column, -0.5)
-    error_checking.assert_is_leq(center_column, num_full_grid_columns - 0.5)
-
-    error_checking.assert_is_integer(num_storm_image_rows)
-    error_checking.assert_is_geq(num_storm_image_rows, MIN_NUM_IMAGE_ROWS)
-    error_checking.assert_is_integer(num_storm_image_columns)
-    error_checking.assert_is_geq(num_storm_image_columns, MIN_NUM_IMAGE_COLUMNS)
-
-    storm_image_coord_dict = _get_storm_image_coords(
-        num_full_grid_rows=num_full_grid_rows,
-        num_full_grid_columns=num_full_grid_columns,
-        num_storm_image_rows=num_storm_image_rows,
-        num_storm_image_columns=num_storm_image_columns, center_row=center_row,
-        center_column=center_column)
-
-    storm_image_rows = numpy.linspace(
-        storm_image_coord_dict[FIRST_STORM_ROW_KEY],
-        storm_image_coord_dict[LAST_STORM_ROW_KEY],
-        num=(storm_image_coord_dict[LAST_STORM_ROW_KEY] -
-             storm_image_coord_dict[FIRST_STORM_ROW_KEY] + 1),
-        dtype=int)
-    storm_image_columns = numpy.linspace(
-        storm_image_coord_dict[FIRST_STORM_COLUMN_KEY],
-        storm_image_coord_dict[LAST_STORM_COLUMN_KEY],
-        num=(storm_image_coord_dict[LAST_STORM_COLUMN_KEY] -
-             storm_image_coord_dict[FIRST_STORM_COLUMN_KEY] + 1),
-        dtype=int)
-
-    storm_centered_radar_matrix = numpy.take(
-        full_radar_matrix, storm_image_rows, axis=0)
-    storm_centered_radar_matrix = numpy.take(
-        storm_centered_radar_matrix, storm_image_columns, axis=1)
-
-    pad_width_input_arg = (
-        (storm_image_coord_dict[NUM_TOP_PADDING_ROWS_KEY],
-         storm_image_coord_dict[NUM_BOTTOM_PADDING_ROWS_KEY]),
-        (storm_image_coord_dict[NUM_LEFT_PADDING_COLS_KEY],
-         storm_image_coord_dict[NUM_RIGHT_PADDING_COLS_KEY]))
-
-    return numpy.pad(
-        storm_centered_radar_matrix, pad_width=pad_width_input_arg,
-        mode='constant', constant_values=PADDING_VALUE)
-
-
 def extract_storm_images_myrorss_or_mrms(
         storm_object_table, radar_source, top_radar_dir_name,
         top_output_dir_name, one_file_per_time_step=False,
@@ -815,6 +912,9 @@ def extract_storm_images_myrorss_or_mrms(
         files.
     :raises: ValueError: if grid spacing is not uniform across all files.
     """
+
+    # TODO(thunderhoser): Fix old method calls and allow storm-centered grids
+    # to be rotated or unrotated.
 
     error_checking.assert_is_boolean(one_file_per_time_step)
 
@@ -1093,6 +1193,9 @@ def extract_storm_images_gridrad(
         files.
     :raises: ValueError: if grid spacing is not uniform across all files.
     """
+
+    # TODO(thunderhoser): Fix old method calls and allow storm-centered grids
+    # to be rotated or unrotated.
 
     error_checking.assert_is_boolean(one_file_per_time_step)
     error_checking.assert_is_boolean(include_rotation_divergence_product)
