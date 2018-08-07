@@ -212,7 +212,11 @@ def _separate_files(
                 radar_field_name=this_storm_image_dict[
                     storm_images.RADAR_FIELD_NAME_KEY],
                 radar_height_m_asl=this_storm_image_dict[
-                    storm_images.RADAR_HEIGHT_KEY])
+                    storm_images.RADAR_HEIGHT_KEY],
+                rotated_grids=this_storm_image_dict[
+                    storm_images.ROTATED_GRIDS_KEY],
+                rotated_grid_spacing_metres=this_storm_image_dict[
+                    storm_images.ROTATED_GRID_SPACING_KEY])
 
 
 if __name__ == '__main__':

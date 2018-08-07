@@ -57,6 +57,8 @@ STORM_IDS_KEY = 'storm_ids'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 RADAR_FIELD_NAME_KEY = 'radar_field_name'
 RADAR_HEIGHT_KEY = 'radar_height_m_asl'
+ROTATED_GRIDS_KEY = 'rotated_grids'
+ROTATED_GRID_SPACING_KEY = 'rotated_grid_spacing_metres'
 ROTATION_DIVERGENCE_PRODUCTS_KEY = 'rotation_divergence_products_s02'
 HORIZ_RADIUS_FOR_RDP_KEY = 'horiz_radius_for_rdp_metres'
 MIN_VORT_HEIGHT_FOR_RDP_KEY = 'min_vort_height_for_rdp_m_asl'
@@ -71,8 +73,8 @@ IMAGE_FILE_NAME_MATRIX_KEY = 'image_file_name_matrix'
 RADAR_FIELD_NAME_BY_PAIR_KEY = 'field_name_by_pair'
 RADAR_HEIGHT_BY_PAIR_KEY = 'height_by_pair_m_asl'
 
-LAT_DIMENSION_KEY = 'latitude'
-LNG_DIMENSION_KEY = 'longitude'
+ROW_DIMENSION_KEY = 'grid_row'
+COLUMN_DIMENSION_KEY = 'grid_column'
 CHARACTER_DIMENSION_KEY = 'storm_id_character'
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 
@@ -341,8 +343,9 @@ def _get_unrotated_storm_image_coords(
 
 def _check_storm_images(
         storm_image_matrix, storm_ids, valid_times_unix_sec, radar_field_name,
-        radar_height_m_asl, rotation_divergence_products_s02=None,
-        horiz_radius_for_rdp_metres=None, min_vort_height_for_rdp_m_asl=None):
+        radar_height_m_asl, rotated_grids, rotated_grid_spacing_metres=None,
+        rotation_divergence_products_s02=None, horiz_radius_for_rdp_metres=None,
+        min_vort_height_for_rdp_m_asl=None):
     """Checks storm images (e.g., created by extract_storm_image) for errors.
 
     L = number of storm objects
@@ -355,6 +358,10 @@ def _check_storm_images(
     :param valid_times_unix_sec: length-L numpy array of valid times.
     :param radar_field_name: Name of radar field (string).
     :param radar_height_m_asl: Height (metres above sea level) of radar field.
+    :param rotated_grids: Boolean flag.  If True, each grid has been rotated so
+        that storm motion is in the +x-direction.
+    :param rotated_grid_spacing_metres: [used only if `rotate_grids = True`]
+        Spacing between grid points in adjacent rows or columns.
     :param rotation_divergence_products_s02: length-L numpy array of rotation-
         divergence products (seconds^-2).  This may be `None`.
     :param horiz_radius_for_rdp_metres:
@@ -382,6 +389,10 @@ def _check_storm_images(
         storm_image_matrix, exact_dimensions=numpy.array(
             [num_storm_objects, storm_image_matrix.shape[1],
              storm_image_matrix.shape[2]]))
+
+    error_checking.assert_is_boolean(rotated_grids)
+    if rotated_grids:
+        error_checking.assert_is_greater(rotated_grid_spacing_metres, 0.)
 
     if rotation_divergence_products_s02 is not None:
         error_checking.assert_is_numpy_array(
@@ -1228,7 +1239,9 @@ def extract_storm_images_myrorss_or_mrms(
                         storm_ids=these_storm_ids,
                         valid_times_unix_sec=these_times_unix_sec,
                         radar_field_name=field_name_by_pair[j],
-                        radar_height_m_asl=height_by_pair_m_asl[j])
+                        radar_height_m_asl=height_by_pair_m_asl[j],
+                        rotated_grids=rotate_grids,
+                        rotated_grid_spacing_metres=rotated_grid_spacing_metres)
 
                     continue
 
@@ -1260,7 +1273,9 @@ def extract_storm_images_myrorss_or_mrms(
                 storm_ids=this_date_storm_ids,
                 valid_times_unix_sec=this_date_storm_times_unix_sec,
                 radar_field_name=field_name_by_pair[j],
-                radar_height_m_asl=height_by_pair_m_asl[j])
+                radar_height_m_asl=height_by_pair_m_asl[j],
+                rotated_grids=rotate_grids,
+                rotated_grid_spacing_metres=rotated_grid_spacing_metres)
 
     return image_file_name_matrix
 
@@ -1527,7 +1542,10 @@ def extract_storm_images_gridrad(
                             storm_ids=these_storm_ids,
                             valid_times_unix_sec=these_times_unix_sec,
                             radar_field_name=radar_field_names[j],
-                            radar_height_m_asl=radar_heights_m_asl[k])
+                            radar_height_m_asl=radar_heights_m_asl[k],
+                            rotated_grids=rotate_grids,
+                            rotated_grid_spacing_metres=
+                            rotated_grid_spacing_metres)
 
                         continue
 
@@ -1559,7 +1577,9 @@ def extract_storm_images_gridrad(
                     storm_ids=this_date_storm_ids,
                     valid_times_unix_sec=this_date_storm_times_unix_sec,
                     radar_field_name=radar_field_names[j],
-                    radar_height_m_asl=radar_heights_m_asl[k])
+                    radar_height_m_asl=radar_heights_m_asl[k],
+                    rotated_grids=rotate_grids,
+                    rotated_grid_spacing_metres=rotated_grid_spacing_metres)
 
     return image_file_name_matrix
 
@@ -1670,9 +1690,10 @@ def get_max_rdp_for_each_storm_object(
 
 def write_storm_images(
         netcdf_file_name, storm_image_matrix, storm_ids, valid_times_unix_sec,
-        radar_field_name, radar_height_m_asl,
-        rotation_divergence_products_s02=None, horiz_radius_for_rdp_metres=None,
-        min_vort_height_for_rdp_m_asl=None, num_storm_objects_per_chunk=1):
+        radar_field_name, radar_height_m_asl, rotated_grids=False,
+        rotated_grid_spacing_metres=None, rotation_divergence_products_s02=None,
+        horiz_radius_for_rdp_metres=None, min_vort_height_for_rdp_m_asl=None,
+        num_storm_objects_per_chunk=1):
     """Writes storm-centered radar images to NetCDF file.
 
     These images should be created by `extract_storm_image`.
@@ -1683,6 +1704,8 @@ def write_storm_images(
     :param valid_times_unix_sec: Same.
     :param radar_field_name: Same.
     :param radar_height_m_asl: Same.
+    :param rotated_grids: Same.
+    :param rotated_grid_spacing_metres: Same.
     :param rotation_divergence_products_s02: Same.
     :param horiz_radius_for_rdp_metres: Same.
     :param min_vort_height_for_rdp_m_asl: Same.
@@ -1694,7 +1717,8 @@ def write_storm_images(
         storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
         valid_times_unix_sec=valid_times_unix_sec,
         radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl,
+        radar_height_m_asl=radar_height_m_asl, rotated_grids=rotated_grids,
+        rotated_grid_spacing_metres=rotated_grid_spacing_metres,
         rotation_divergence_products_s02=rotation_divergence_products_s02,
         horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
         min_vort_height_for_rdp_m_asl=min_vort_height_for_rdp_m_asl)
@@ -1709,6 +1733,11 @@ def write_storm_images(
 
     netcdf_dataset.setncattr(RADAR_FIELD_NAME_KEY, radar_field_name)
     netcdf_dataset.setncattr(RADAR_HEIGHT_KEY, radar_height_m_asl)
+    netcdf_dataset.setncattr(ROTATED_GRIDS_KEY, int(rotated_grids))
+    if rotated_grids:
+        netcdf_dataset.setncattr(
+            ROTATED_GRID_SPACING_KEY, rotated_grid_spacing_metres)
+
     if rotation_divergence_products_s02 is not None:
         netcdf_dataset.setncattr(
             HORIZ_RADIUS_FOR_RDP_KEY, horiz_radius_for_rdp_metres)
@@ -1723,9 +1752,9 @@ def write_storm_images(
     netcdf_dataset.createDimension(
         STORM_OBJECT_DIMENSION_KEY, num_storm_objects)
     netcdf_dataset.createDimension(
-        LAT_DIMENSION_KEY, storm_image_matrix.shape[1])
+        ROW_DIMENSION_KEY, storm_image_matrix.shape[1])
     netcdf_dataset.createDimension(
-        LNG_DIMENSION_KEY, storm_image_matrix.shape[2])
+        COLUMN_DIMENSION_KEY, storm_image_matrix.shape[2])
     netcdf_dataset.createDimension(CHARACTER_DIMENSION_KEY, num_storm_id_chars)
 
     netcdf_dataset.createVariable(
@@ -1759,8 +1788,8 @@ def write_storm_images(
 
     netcdf_dataset.createVariable(
         STORM_IMAGE_MATRIX_KEY, datatype=numpy.float32,
-        dimensions=(
-            STORM_OBJECT_DIMENSION_KEY, LAT_DIMENSION_KEY, LNG_DIMENSION_KEY),
+        dimensions=(STORM_OBJECT_DIMENSION_KEY, ROW_DIMENSION_KEY,
+                    COLUMN_DIMENSION_KEY),
         chunksizes=chunk_size_tuple)
 
     netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][:] = storm_image_matrix
@@ -1790,6 +1819,8 @@ def read_storm_images(
     storm_image_dict['valid_times_unix_sec']: Same.
     storm_image_dict['radar_field_name']: Same.
     storm_image_dict['radar_height_m_asl']: Same.
+    storm_image_dict['rotated_grids']: Same.
+    storm_image_dict['rotated_grid_spacing_key']: Same.
     storm_image_dict['rotation_divergence_products_s02']: Same.
     storm_image_dict['horiz_radius_for_rdp_metres']: Same.
     storm_image_dict['min_vort_height_for_rdp_m_asl']: Same.
@@ -1801,6 +1832,13 @@ def read_storm_images(
 
     radar_field_name = str(getattr(netcdf_dataset, RADAR_FIELD_NAME_KEY))
     radar_height_m_asl = getattr(netcdf_dataset, RADAR_HEIGHT_KEY)
+    rotated_grids = bool(getattr(netcdf_dataset, ROTATED_GRIDS_KEY))
+    if rotated_grids:
+        rotated_grid_spacing_metres = getattr(
+            netcdf_dataset, ROTATED_GRID_SPACING_KEY)
+    else:
+        rotated_grid_spacing_metres = None
+
     if ROTATION_DIVERGENCE_PRODUCTS_KEY in netcdf_dataset.variables:
         horiz_radius_for_rdp_metres = getattr(
             netcdf_dataset, HORIZ_RADIUS_FOR_RDP_KEY)
@@ -1838,6 +1876,8 @@ def read_storm_images(
             VALID_TIMES_KEY: valid_times_unix_sec,
             RADAR_FIELD_NAME_KEY: radar_field_name,
             RADAR_HEIGHT_KEY: radar_height_m_asl,
+            ROTATED_GRIDS_KEY: rotated_grids,
+            ROTATED_GRID_SPACING_KEY: rotated_grid_spacing_metres,
             ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02,
             HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
             MIN_VORT_HEIGHT_FOR_RDP_KEY: min_vort_height_for_rdp_m_asl
@@ -1877,20 +1917,11 @@ def read_storm_images(
             netcdf_dataset.variables[STORM_IMAGE_MATRIX_KEY][
                 indices_to_keep, ...])
     else:
-        num_latitudes = netcdf_dataset.dimensions[LAT_DIMENSION_KEY].size
-        num_longitudes = netcdf_dataset.dimensions[LNG_DIMENSION_KEY].size
-        storm_image_matrix = numpy.full((0, num_latitudes, num_longitudes), 0.)
+        num_rows = netcdf_dataset.dimensions[ROW_DIMENSION_KEY].size
+        num_columns = netcdf_dataset.dimensions[COLUMN_DIMENSION_KEY].size
+        storm_image_matrix = numpy.full((0, num_rows, num_columns), 0.)
 
     netcdf_dataset.close()
-
-    _check_storm_images(
-        storm_image_matrix=storm_image_matrix, storm_ids=storm_ids,
-        valid_times_unix_sec=valid_times_unix_sec,
-        radar_field_name=radar_field_name,
-        radar_height_m_asl=radar_height_m_asl,
-        rotation_divergence_products_s02=rotation_divergence_products_s02,
-        horiz_radius_for_rdp_metres=horiz_radius_for_rdp_metres,
-        min_vort_height_for_rdp_m_asl=min_vort_height_for_rdp_m_asl)
 
     return {
         STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
@@ -1898,6 +1929,8 @@ def read_storm_images(
         VALID_TIMES_KEY: valid_times_unix_sec,
         RADAR_FIELD_NAME_KEY: radar_field_name,
         RADAR_HEIGHT_KEY: radar_height_m_asl,
+        ROTATED_GRIDS_KEY: rotated_grids,
+        ROTATED_GRID_SPACING_KEY: rotated_grid_spacing_metres,
         ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02,
         HORIZ_RADIUS_FOR_RDP_KEY: horiz_radius_for_rdp_metres,
         MIN_VORT_HEIGHT_FOR_RDP_KEY: min_vort_height_for_rdp_m_asl

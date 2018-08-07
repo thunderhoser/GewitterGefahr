@@ -473,12 +473,14 @@ def create_storm_images_3d(
 
     if refl_masking_threshold_dbz is not None:
         radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
-            radar_image_matrix_3d=radar_image_matrix, field_names=radar_field_names,
+            radar_image_matrix_3d=radar_image_matrix,
+            field_names=radar_field_names,
             reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
     if radar_normalization_dict is not None:
         radar_image_matrix = dl_utils.normalize_radar_images(
-            radar_image_matrix=radar_image_matrix, field_names=radar_field_names,
+            radar_image_matrix=radar_image_matrix,
+            field_names=radar_field_names,
             normalization_dict=radar_normalization_dict).astype('float32')
 
     if (sounding_file_names is not None and
