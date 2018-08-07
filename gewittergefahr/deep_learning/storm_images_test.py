@@ -241,6 +241,30 @@ MIN_VORTICITY_HEIGHT_M_ASL = 4000
 HORIZ_RADIUS_FOR_RDP_METRES = 75000.
 MAX_RDP_VALUES_S02 = numpy.array([6 * 8, 51 * 22], dtype=float)
 
+# The following constants are used to test _subset_xy_grid_for_interp.
+NON_SUBSET_X_COORDS_METRES = numpy.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=float)
+NON_SUBSET_Y_COORDS_METRES = numpy.array([-10, -5, 0, 5, 10, 15], dtype=float)
+NON_SUBSET_FIELD_MATRIX = numpy.array(
+    [[1, 2, 3, 4, 5, 6, 7, 8],
+     [2, 3, 4, 5, 6, 7, 8, 9],
+     [3, 4, 5, 6, 7, 8, 9, 10],
+     [4, 5, 6, 7, 8, 9, 10, 11],
+     [5, 6, 7, 8, 9, 10, 11, 12],
+     [6, 7, 8, 9, 10, 11, 12, 13]], dtype=float)
+
+QUERY_X_COORDS_METRES = numpy.array(
+    [3.5, 4.4, 2.1, 3.3, 3.8, 4.7, 4.4, 4.7, 3.0, 4.1])
+QUERY_Y_COORDS_METRES = numpy.array(
+    [4.1, -1.1, -0.7, -0.8, -2.2, 2.6, 1.4, -3.5, -1.0, 1.0])
+
+SUBSET_X_COORDS_METRES = numpy.array([1, 2, 3, 4, 5, 6], dtype=float)
+SUBSET_Y_COORDS_METRES = numpy.array([-10, -5, 0, 5, 10], dtype=float)
+SUBSET_FIELD_MATRIX = numpy.array([[2, 3, 4, 5, 6, 7],
+                                   [3, 4, 5, 6, 7, 8],
+                                   [4, 5, 6, 7, 8, 9],
+                                   [5, 6, 7, 8, 9, 10],
+                                   [6, 7, 8, 9, 10, 11]], dtype=float)
+
 # The following constants are used to test _extract_rotated_storm_image.
 FULL_RADAR_MATRIX_ROTATED = numpy.array([[5, 5, 5, 5, 5, 5],
                                          [5, 5, 5, 5, 5, 5],
@@ -640,6 +664,24 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             these_max_rdp_values_s02, MAX_RDP_VALUES_S02, atol=TOLERANCE))
+
+    def test_subset_xy_grid_for_interp(self):
+        """Ensures correct output from _subset_xy_grid_for_interp."""
+
+        (this_field_matrix, these_x_coords_metres, these_y_coords_metres
+        ) = storm_images._subset_xy_grid_for_interp(
+            field_matrix=NON_SUBSET_FIELD_MATRIX,
+            grid_point_x_coords_metres=NON_SUBSET_X_COORDS_METRES,
+            grid_point_y_coords_metres=NON_SUBSET_Y_COORDS_METRES,
+            query_x_coords_metres=QUERY_X_COORDS_METRES,
+            query_y_coords_metres=QUERY_Y_COORDS_METRES)
+
+        self.assertTrue(numpy.allclose(
+            this_field_matrix, SUBSET_FIELD_MATRIX, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_x_coords_metres, SUBSET_X_COORDS_METRES, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_y_coords_metres, SUBSET_Y_COORDS_METRES, atol=TOLERANCE))
 
     def test_extract_rotated_storm_image(self):
         """Ensures correct output from _extract_rotated_storm_image."""

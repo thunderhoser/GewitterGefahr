@@ -5,7 +5,6 @@ other words, the center of the image is the centroid of the storm object).
 """
 
 import os
-import time
 import copy
 import glob
 import numpy
@@ -878,7 +877,6 @@ def _extract_rotated_storm_image(
         query_x_coords_metres=rotated_gp_x_matrix_metres,
         query_y_coords_metres=rotated_gp_y_matrix_metres)
 
-    exec_start_time_unix_sec = time.time()
     storm_centered_radar_matrix = interp.interp_from_xy_grid_to_points(
         input_matrix=full_radar_matrix,
         sorted_grid_point_x_metres=full_grid_points_x_metres,
@@ -887,8 +885,6 @@ def _extract_rotated_storm_image(
         query_y_coords_metres=rotated_gp_y_matrix_metres.ravel(),
         method_string=interp.SPLINE_METHOD_STRING, spline_degree=1,
         extrapolate=True)
-    print 'Time elapsed in interpolation = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
     storm_centered_radar_matrix = numpy.reshape(
         storm_centered_radar_matrix, rotated_gp_lat_matrix_deg.shape)
 
