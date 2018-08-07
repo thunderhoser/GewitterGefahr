@@ -43,10 +43,6 @@ from gewittergefahr.gg_utils import error_checking
 LOSS_AS_MONITOR_STRING = 'loss'
 PEIRCE_SCORE_AS_MONITOR_STRING = 'binary_peirce_score'
 VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
-
-VALID_NUMBERS_OF_RADAR_ROWS = numpy.array([16, 32, 64], dtype=int)
-VALID_NUMBERS_OF_RADAR_COLUMNS = numpy.array([16, 32, 64], dtype=int)
-VALID_NUMBERS_OF_RADAR_HEIGHTS = numpy.array([12], dtype=int)
 VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([37], dtype=int)
 
 DEFAULT_L2_WEIGHT = 1e-3
@@ -127,15 +123,19 @@ NUM_CLASSES_KEY = 'num_classes'
 
 
 def _check_architecture_args(
-        num_radar_rows, num_radar_columns, num_radar_dimensions, num_classes,
-        num_radar_channels=None, num_radar_fields=None, num_radar_heights=None,
-        dropout_fraction=None, l2_weight=None, num_sounding_heights=None,
-        num_sounding_fields=None):
+        num_radar_rows, num_radar_columns, num_radar_dimensions,
+        num_radar_conv_layers, num_classes, num_radar_channels=None,
+        num_radar_fields=None, num_radar_heights=None, dropout_fraction=None,
+        l2_weight=None, num_sounding_heights=None, num_sounding_fields=None):
     """Error-checking of input args for model architecture.
 
     :param num_radar_rows: Number of pixel rows per storm-centered radar image.
     :param num_radar_columns: Number of pixel columns per radar image.
     :param num_radar_dimensions: Number of dimensions per radar image.
+    :param num_radar_conv_layers: Number of convolutional layers for radar data.
+        Each successive conv layer will cut the dimensions of the radar image in
+        half (example: from 32 x 32 x 12 to 16 x 16 x 6, then 8 x 8 x 3, then
+        4 x 4 x 1).
     :param num_classes: Number of classes for target variable.
     :param num_radar_channels: [used only if num_radar_dimensions = 2]
         Number of channels (field/height pairs) per radar image.
@@ -149,33 +149,12 @@ def _check_architecture_args(
         convolutional layer.
     :param num_sounding_heights: Number of heights per storm-centered sounding.
     :param num_sounding_fields: Number of fields per sounding.
-    :raises: ValueError: if `num_radar_rows not in VALID_NUMBERS_OF_RADAR_ROWS`.
-    :raises: ValueError: if
-        `num_radar_columns not in VALID_NUMBERS_OF_RADAR_COLUMNS`.
-    :raises: ValueError: if
-        `num_radar_heights not in VALID_NUMBERS_OF_RADAR_HEIGHTS`.
     :raises: ValueError: if
         `num_sounding_heights not in VALID_NUMBERS_OF_SOUNDING_HEIGHTS`.
     """
 
     error_checking.assert_is_integer(num_radar_rows)
-    if num_radar_rows not in VALID_NUMBERS_OF_RADAR_ROWS:
-        error_string = (
-            '\n\n{0:s}\nValid numbers of radar rows (listed above) do not '
-            'include {1:d}.'
-        ).format(str(VALID_NUMBERS_OF_RADAR_ROWS), num_radar_rows)
-        raise ValueError(error_string)
-
     error_checking.assert_is_integer(num_radar_columns)
-    if num_radar_columns not in VALID_NUMBERS_OF_RADAR_COLUMNS:
-        error_string = (
-            '\n\n{0:s}\nValid numbers of radar columns (listed above) do not '
-            'include {1:d}.'
-        ).format(str(VALID_NUMBERS_OF_RADAR_COLUMNS), num_radar_columns)
-        raise ValueError(error_string)
-
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
     error_checking.assert_is_integer(num_radar_dimensions)
     error_checking.assert_is_geq(num_radar_dimensions, 2)
     error_checking.assert_is_leq(num_radar_dimensions, 3)
@@ -186,14 +165,29 @@ def _check_architecture_args(
     else:
         error_checking.assert_is_integer(num_radar_fields)
         error_checking.assert_is_geq(num_radar_fields, 1)
-        error_checking.assert_is_integer(num_radar_heights)
 
-        if num_radar_heights not in VALID_NUMBERS_OF_RADAR_HEIGHTS:
-            error_string = (
-                '\n\n{0:s}\nValid numbers of radar heights (listed above) do '
-                'not include {1:d}.'
-            ).format(str(VALID_NUMBERS_OF_RADAR_HEIGHTS), num_radar_heights)
-            raise ValueError(error_string)
+    error_checking.assert_is_integer(num_radar_conv_layers)
+    error_checking.assert_is_geq(num_radar_conv_layers, 2)
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+
+    num_rows_after_last_conv = float(num_radar_rows)
+    num_columns_after_last_conv = float(num_radar_columns)
+    if num_radar_dimensions == 3:
+        num_heights_after_last_conv = float(num_radar_heights)
+
+    for _ in range(num_radar_conv_layers):
+        num_rows_after_last_conv = numpy.floor(num_rows_after_last_conv / 2)
+        num_columns_after_last_conv = numpy.floor(
+            num_columns_after_last_conv / 2)
+        if num_radar_dimensions == 3:
+            num_heights_after_last_conv = numpy.floor(
+                num_heights_after_last_conv / 2)
+
+    error_checking.assert_is_geq(num_rows_after_last_conv, 1)
+    error_checking.assert_is_geq(num_columns_after_last_conv, 1)
+    if num_radar_dimensions == 3:
+        error_checking.assert_is_geq(num_heights_after_last_conv, 1)
 
     if dropout_fraction is not None:
         error_checking.assert_is_greater(dropout_fraction, 0.)
@@ -391,8 +385,9 @@ def get_2d_mnist_architecture(
 
     _check_architecture_args(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_dimensions=2, num_classes=num_classes,
-        num_radar_channels=num_radar_channels, l2_weight=l2_weight)
+        num_radar_dimensions=2, num_radar_conv_layers=2,
+        num_classes=num_classes, num_radar_channels=num_radar_channels,
+        l2_weight=l2_weight)
 
     if l2_weight is None:
         regularizer_object = None
@@ -452,10 +447,11 @@ def get_2d_mnist_architecture(
 
 
 def get_2d_swilrnet_architecture(
-        num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
-        num_radar_filters_in_first_conv_layer=16, dropout_fraction=0.5,
-        l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_conv_layer=48):
+        num_radar_rows, num_radar_columns, num_radar_conv_layers,
+        num_radar_channels, num_classes, num_radar_filters_in_first_layer=16,
+        dropout_fraction=0.5, l2_weight=DEFAULT_L2_WEIGHT,
+        num_sounding_heights=None, num_sounding_fields=None,
+        num_sounding_filters_in_first_layer=48):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -465,26 +461,27 @@ def get_2d_swilrnet_architecture(
 
     :param num_radar_rows: See doc for `_check_architecture_args`.
     :param num_radar_columns: Same.
+    :param num_radar_conv_layers: Same.
     :param num_radar_channels: Same.
     :param num_classes: Same.
-    :param num_radar_filters_in_first_conv_layer: Number of filters in first
-        convolutional layer for radar images.  Number of filters will double for
-        each successive layer convolving over radar images.
+    :param num_radar_filters_in_first_layer: Number of filters in first conv
+        layer for radar images.  Number of filters will double with each
+        successive conv layer.
     :param dropout_fraction: See doc for `_check_architecture_args`.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
-    :param num_sounding_filters_in_first_conv_layer: Number of filters in first
-        convolutional layer for soundings.  Number of filters will double for
-        each successive layer convolving over soundings.
+    :param num_sounding_filters_in_first_layer: Number of filters in first conv
+        layer for soundings.  Number of filters will double with each successive
+        conv layer.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
 
     _check_architecture_args(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_dimensions=2, num_classes=num_classes,
-        num_radar_channels=num_radar_channels,
+        num_radar_dimensions=2, num_radar_conv_layers=num_radar_conv_layers,
+        num_classes=num_classes, num_radar_channels=num_radar_channels,
         dropout_fraction=dropout_fraction, l2_weight=l2_weight,
         num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
@@ -497,10 +494,13 @@ def get_2d_swilrnet_architecture(
 
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_channels))
-    this_num_output_filters = num_radar_filters_in_first_conv_layer + 0
 
-    for i in range(3):
-        if i == 0:
+    this_input_layer_object = None
+    radar_layer_object = None
+    this_num_output_filters = num_radar_filters_in_first_layer + 0
+
+    for _ in range(num_radar_conv_layers):
+        if this_input_layer_object is None:
             this_input_layer_object = radar_input_layer_object
         else:
             this_input_layer_object = radar_layer_object
@@ -535,7 +535,7 @@ def get_2d_swilrnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_conv_layer=
-            num_sounding_filters_in_first_conv_layer,
+            num_sounding_filters_in_first_layer,
             dropout_fraction=dropout_fraction,
             regularizer_object=regularizer_object)
 
@@ -563,11 +563,11 @@ def get_2d_swilrnet_architecture(
 
 
 def get_3d_swilrnet_architecture(
-        num_radar_rows, num_radar_columns, num_radar_heights, num_radar_fields,
-        num_classes, num_radar_filters_in_first_conv_layer=16,
-        dropout_fraction=0.5, l2_weight=DEFAULT_L2_WEIGHT,
-        num_sounding_heights=None, num_sounding_fields=None,
-        num_sounding_filters_in_first_conv_layer=48):
+        num_radar_rows, num_radar_columns, num_radar_heights,
+        num_radar_conv_layers, num_radar_fields, num_classes,
+        num_radar_filters_in_first_layer=16, dropout_fraction=0.5,
+        l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
+        num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -578,15 +578,16 @@ def get_3d_swilrnet_architecture(
     :param num_radar_rows: See doc for `_check_architecture_args`.
     :param num_radar_columns: Same.
     :param num_radar_heights: Same.
+    :param num_radar_conv_layers: Same.
     :param num_radar_fields: Same.
     :param num_classes: Same.
-    :param num_radar_filters_in_first_conv_layer: See doc for
+    :param num_radar_filters_in_first_layer: See doc for
         `get_2d_swilrnet_architecture`.
     :param dropout_fraction: See doc for `_check_architecture_args`.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
-    :param num_sounding_filters_in_first_conv_layer: See doc for
+    :param num_sounding_filters_in_first_layer: See doc for
         `get_2d_swilrnet_architecture`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
@@ -594,10 +595,10 @@ def get_3d_swilrnet_architecture(
 
     _check_architecture_args(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_heights=num_radar_heights, num_radar_fields=num_radar_fields,
-        num_radar_dimensions=3, num_classes=num_classes,
-        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
-        num_sounding_heights=num_sounding_heights,
+        num_radar_heights=num_radar_heights, num_radar_dimensions=3,
+        num_radar_conv_layers=num_radar_conv_layers, num_classes=num_classes,
+        num_radar_fields=num_radar_fields, dropout_fraction=dropout_fraction,
+        l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
 
     if l2_weight is None:
@@ -609,10 +610,13 @@ def get_3d_swilrnet_architecture(
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_heights,
                num_radar_fields))
-    this_num_output_filters = num_radar_filters_in_first_conv_layer + 0
 
-    for i in range(2):
-        if i == 0:
+    this_input_layer_object = None
+    radar_layer_object = None
+    this_num_output_filters = num_radar_filters_in_first_layer + 0
+
+    for _ in range(num_radar_conv_layers):
+        if this_input_layer_object is None:
             this_input_layer_object = radar_input_layer_object
         else:
             this_input_layer_object = radar_layer_object
@@ -649,7 +653,7 @@ def get_3d_swilrnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_conv_layer=
-            num_sounding_filters_in_first_conv_layer,
+            num_sounding_filters_in_first_layer,
             dropout_fraction=dropout_fraction,
             regularizer_object=regularizer_object)
 
@@ -678,11 +682,11 @@ def get_3d_swilrnet_architecture(
 
 def get_2d3d_swirlnet_architecture(
         num_reflectivity_rows, num_reflectivity_columns,
-        num_reflectivity_heights, num_azimuthal_shear_fields, num_classes,
-        num_refl_filters_in_first_conv_layer=8,
-        num_az_shear_filters_in_first_conv_layer=16, dropout_fraction=0.5,
+        num_reflectivity_heights, num_azimuthal_shear_fields,
+        num_radar_conv_layers, num_classes, num_refl_filters_in_first_layer=8,
+        num_shear_filters_in_first_layer=16, dropout_fraction=0.5,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_conv_layer=48):
+        num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -705,44 +709,53 @@ def get_2d3d_swirlnet_architecture(
         reflectivity image.
     :param num_azimuthal_shear_fields: Number of azimuthal-shear fields
         (channels).
+    :param num_radar_conv_layers: Number of convolutional layers for radar data
+        (after reflectivity and azimuthal shear have been joined).
     :param num_classes: Number of classes for target variable.
-    :param num_refl_filters_in_first_conv_layer: Number of filters in first
+    :param num_refl_filters_in_first_layer: Number of filters in first
         convolutional layer for reflectivity images.  Number of filters will
         double for each successive layer convolving over reflectivity images.
-    :param num_az_shear_filters_in_first_conv_layer: Same, but for azimuthal
+    :param num_shear_filters_in_first_layer: Same, but for azimuthal
         shear.
     :param dropout_fraction: See doc for `_check_architecture_args`.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
-    :param num_sounding_filters_in_first_conv_layer: See doc for
+    :param num_sounding_filters_in_first_layer: See doc for
         `get_2d_swirlnet_architecture`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
 
-    # Error-checking for reflectivity part.
+    # Check input args.
     _check_architecture_args(
         num_radar_rows=num_reflectivity_rows,
         num_radar_columns=num_reflectivity_columns,
-        num_radar_heights=num_reflectivity_heights, num_radar_fields=1,
-        num_radar_dimensions=3, num_classes=num_classes,
+        num_radar_heights=num_reflectivity_heights, num_radar_dimensions=3,
+        num_radar_conv_layers=3, num_classes=num_classes, num_radar_fields=1,
         dropout_fraction=dropout_fraction, l2_weight=l2_weight,
         num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
 
-    # Error-checking for azimuthal-shear part.
+    _check_architecture_args(
+        num_radar_rows=num_reflectivity_rows,
+        num_radar_columns=num_reflectivity_columns, num_radar_dimensions=2,
+        num_radar_conv_layers=num_radar_conv_layers, num_classes=num_classes,
+        num_radar_channels=num_reflectivity_heights)
+
     num_azimuthal_shear_rows = 2 * num_reflectivity_rows
     num_azimuthal_shear_columns = 2 * num_reflectivity_columns
 
     _check_architecture_args(
         num_radar_rows=num_azimuthal_shear_rows,
-        num_radar_columns=num_azimuthal_shear_columns,
-        num_radar_channels=num_azimuthal_shear_fields, num_radar_dimensions=2,
-        num_classes=num_classes, dropout_fraction=dropout_fraction,
-        l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
+        num_radar_columns=num_azimuthal_shear_columns, num_radar_dimensions=2,
+        num_radar_conv_layers=2, num_classes=num_classes,
+        num_radar_channels=num_azimuthal_shear_fields,
+        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
+        num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
 
+    # Flatten reflectivity images from 3-D to 2-D (by convolving over height).
     if l2_weight is None:
         regularizer_object = None
     else:
@@ -752,10 +765,8 @@ def get_2d3d_swirlnet_architecture(
     refl_input_layer_object = keras.layers.Input(
         shape=(num_reflectivity_rows, num_reflectivity_columns,
                num_reflectivity_heights, 1))
-    az_shear_input_layer_object = keras.layers.Input(
-        shape=(num_azimuthal_shear_rows, num_azimuthal_shear_columns,
-               num_azimuthal_shear_fields))
-    this_num_refl_filters = num_refl_filters_in_first_conv_layer + 0
+    reflectivity_layer_object = None
+    this_num_refl_filters = num_refl_filters_in_first_layer + 0
 
     for i in range(3):
         if i == 0:
@@ -794,8 +805,14 @@ def get_2d3d_swirlnet_architecture(
         target_shape=this_target_shape
     )(reflectivity_layer_object)
 
+    # Halve the size of azimuthal-shear images (to make them match
+    # reflectivity).
+    az_shear_input_layer_object = keras.layers.Input(
+        shape=(num_azimuthal_shear_rows, num_azimuthal_shear_columns,
+               num_azimuthal_shear_fields))
+
     azimuthal_shear_layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=num_az_shear_filters_in_first_conv_layer,
+        num_output_filters=num_shear_filters_in_first_layer,
         num_kernel_rows=3, num_kernel_columns=3, num_rows_per_stride=1,
         num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object,
@@ -813,15 +830,16 @@ def get_2d3d_swirlnet_architecture(
         num_columns_per_stride=2
     )(azimuthal_shear_layer_object)
 
+    # Concatenate reflectivity and az-shear filters.
     radar_layer_object = keras.layers.concatenate(
         [reflectivity_layer_object, azimuthal_shear_layer_object], axis=-1)
 
+    # Convolve over reflectivity and az-shear filters.
     this_num_output_filters = (
-        2 * num_az_shear_filters_in_first_conv_layer +
-        2 * this_num_refl_filters
-    )
+        2 * num_shear_filters_in_first_layer +
+        2 * this_num_refl_filters)
 
-    for i in range(3):
+    for i in range(num_radar_conv_layers):
         if i != 0:
             this_num_output_filters *= 2
 
@@ -846,6 +864,7 @@ def get_2d3d_swirlnet_architecture(
 
     radar_layer_object = cnn_utils.get_flattening_layer()(radar_layer_object)
 
+    # Convolve over soundings.
     if num_sounding_fields is None:
         layer_object = radar_layer_object
     else:
@@ -854,7 +873,7 @@ def get_2d3d_swirlnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_conv_layer=
-            num_sounding_filters_in_first_conv_layer,
+            num_sounding_filters_in_first_layer,
             dropout_fraction=dropout_fraction,
             regularizer_object=regularizer_object)
 
