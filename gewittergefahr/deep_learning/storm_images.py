@@ -52,8 +52,10 @@ NUM_BOTTOM_PADDING_ROWS_KEY = 'num_padding_rows_at_bottom'
 NUM_LEFT_PADDING_COLS_KEY = 'num_padding_columns_at_left'
 NUM_RIGHT_PADDING_COLS_KEY = 'num_padding_columns_at_right'
 
-ROTATED_GP_LATITUDES_COLUMN = 'rotated_gp_lat_matrix_deg'
-ROTATED_GP_LONGITUDES_COLUMN = 'rotated_gp_lng_matrix_deg'
+ROTATED_NON_SHEAR_LATITUDES_COLUMN = 'rotated_lat_matrix_non_shear_deg'
+ROTATED_NON_SHEAR_LONGITUDES_COLUMN = 'rotated_lng_matrix_non_shear_deg'
+ROTATED_SHEAR_LATITUDES_COLUMN = 'rotated_lat_matrix_for_shear_deg'
+ROTATED_SHEAR_LONGITUDES_COLUMN = 'rotated_lng_matrix_for_shear_deg'
 
 STORM_IMAGE_MATRIX_KEY = 'storm_image_matrix'
 STORM_IDS_KEY = 'storm_ids'
@@ -229,7 +231,7 @@ def _rotate_grid_one_storm_object(
 
 def _rotate_grids_many_storm_objects(
         storm_object_table, num_storm_image_rows, num_storm_image_columns,
-        storm_grid_spacing_metres):
+        storm_grid_spacing_metres, for_azimuthal_shear):
     """Creates rotated, storm-centered grid for each storm object.
 
     m = number of rows in each storm-centered grid
@@ -247,11 +249,18 @@ def _rotate_grids_many_storm_objects(
     :param num_storm_image_columns: n in the above discussion.
     :param storm_grid_spacing_metres: Spacing between grid points in adjacent
         rows or columns.
+    :param for_azimuthal_shear: Boolean flag.  If True (False), the grids will
+        be created will be used for azimuthal shear (other fields).  This option
+        affects only the names of the output columns.
     :return: storm_object_table: Same as input, but with two new columns.
-    storm_object_table.rotated_gp_lat_matrix_deg: m-by-n numpy array with
+    storm_object_table.rotated_lat_matrix_non_shear_deg: m-by-n numpy array with
         latitudes (deg N) of grid points.
-    storm_object_table.rotated_gp_lng_matrix_deg: m-by-n numpy array with
+    storm_object_table.rotated_lng_matrix_non_shear_deg: m-by-n numpy array with
         longitudes (deg E) of grid points.
+
+    If `for_azimuthal_shear = True`, these columns will be named
+    "rotated_lat_matrix_for_shear_deg" and "rotated_lng_matrix_for_shear_deg",
+    instead.
     """
 
     num_storm_objects = len(storm_object_table.index)
@@ -294,10 +303,17 @@ def _rotate_grids_many_storm_objects(
         'objects in their respective storm cells).'
     ).format(len(good_indices), num_storm_objects)
 
-    argument_dict = {
-        ROTATED_GP_LATITUDES_COLUMN: list_of_latitude_matrices,
-        ROTATED_GP_LONGITUDES_COLUMN: list_of_longitude_matrices,
-    }
+    if for_azimuthal_shear:
+        argument_dict = {
+            ROTATED_SHEAR_LATITUDES_COLUMN: list_of_latitude_matrices,
+            ROTATED_SHEAR_LONGITUDES_COLUMN: list_of_longitude_matrices,
+        }
+    else:
+        argument_dict = {
+            ROTATED_NON_SHEAR_LATITUDES_COLUMN: list_of_latitude_matrices,
+            ROTATED_NON_SHEAR_LONGITUDES_COLUMN: list_of_longitude_matrices,
+        }
+
     return storm_object_table.assign(**argument_dict)
 
 
@@ -1151,12 +1167,24 @@ def extract_storm_images_myrorss_or_mrms(
 
     # Create rotated, storm-centered grids.
     if rotate_grids:
-        storm_object_table = _rotate_grids_many_storm_objects(
-            storm_object_table=storm_object_table,
-            num_storm_image_rows=num_storm_image_rows,
-            num_storm_image_columns=num_storm_image_columns,
-            storm_grid_spacing_metres=rotated_grid_spacing_metres)
-        print SEPARATOR_STRING
+        if any([f in AZIMUTHAL_SHEAR_FIELD_NAMES for f in field_name_by_pair]):
+            storm_object_table = _rotate_grids_many_storm_objects(
+                storm_object_table=storm_object_table,
+                num_storm_image_rows=num_storm_image_rows * 2,
+                num_storm_image_columns=num_storm_image_columns * 2,
+                storm_grid_spacing_metres=rotated_grid_spacing_metres / 2,
+                for_azimuthal_shear=True)
+            print SEPARATOR_STRING
+
+        if any([f not in AZIMUTHAL_SHEAR_FIELD_NAMES
+                for f in field_name_by_pair]):
+            storm_object_table = _rotate_grids_many_storm_objects(
+                storm_object_table=storm_object_table,
+                num_storm_image_rows=num_storm_image_rows,
+                num_storm_image_columns=num_storm_image_columns,
+                storm_grid_spacing_metres=rotated_grid_spacing_metres,
+                for_azimuthal_shear=False)
+            print SEPARATOR_STRING
 
     # Initialize values.
     num_times = len(valid_time_strings)
@@ -1302,6 +1330,21 @@ def extract_storm_images_myrorss_or_mrms(
                 # Extract images for [j]th field/height pair at [i]th time step.
                 if rotate_grids:
                     for k in range(this_num_storms):
+                        if field_name_by_pair[j] in AZIMUTHAL_SHEAR_FIELD_NAMES:
+                            this_rotated_lat_matrix_deg = storm_object_table[
+                                ROTATED_SHEAR_LATITUDES_COLUMN
+                            ].values[these_storm_indices[k]]
+                            this_rotated_lng_matrix_deg = storm_object_table[
+                                ROTATED_SHEAR_LONGITUDES_COLUMN
+                            ].values[these_storm_indices[k]]
+                        else:
+                            this_rotated_lat_matrix_deg = storm_object_table[
+                                ROTATED_NON_SHEAR_LATITUDES_COLUMN
+                            ].values[these_storm_indices[k]]
+                            this_rotated_lng_matrix_deg = storm_object_table[
+                                ROTATED_NON_SHEAR_LONGITUDES_COLUMN
+                            ].values[these_storm_indices[k]]
+
                         this_storm_image_matrix[
                             k, :, :
                         ] = _extract_rotated_storm_image(
@@ -1310,12 +1353,10 @@ def extract_storm_images_myrorss_or_mrms(
                             these_full_gp_latitudes_deg,
                             full_grid_point_longitudes_deg=
                             these_full_gp_longitudes_deg,
-                            rotated_gp_lat_matrix_deg=storm_object_table[
-                                ROTATED_GP_LATITUDES_COLUMN
-                            ].values[these_storm_indices[k]],
-                            rotated_gp_lng_matrix_deg=storm_object_table[
-                                ROTATED_GP_LONGITUDES_COLUMN
-                            ].values[these_storm_indices[k]])
+                            rotated_gp_lat_matrix_deg=
+                            this_rotated_lat_matrix_deg,
+                            rotated_gp_lng_matrix_deg=
+                            this_rotated_lng_matrix_deg)
                 else:
                     (these_center_rows, these_center_columns
                     ) = _centroids_latlng_to_rowcol(
@@ -1480,7 +1521,8 @@ def extract_storm_images_gridrad(
             storm_object_table=storm_object_table,
             num_storm_image_rows=num_storm_image_rows,
             num_storm_image_columns=num_storm_image_columns,
-            storm_grid_spacing_metres=rotated_grid_spacing_metres)
+            storm_grid_spacing_metres=rotated_grid_spacing_metres,
+            for_azimuthal_shear=False)
         print SEPARATOR_STRING
 
     # Initialize values.
@@ -1614,10 +1656,10 @@ def extract_storm_images_gridrad(
                                 full_grid_point_longitudes_deg=
                                 these_full_gp_longitudes_deg,
                                 rotated_gp_lat_matrix_deg=storm_object_table[
-                                    ROTATED_GP_LATITUDES_COLUMN
+                                    ROTATED_NON_SHEAR_LATITUDES_COLUMN
                                 ].values[these_storm_indices[m]],
                                 rotated_gp_lng_matrix_deg=storm_object_table[
-                                    ROTATED_GP_LONGITUDES_COLUMN
+                                    ROTATED_NON_SHEAR_LONGITUDES_COLUMN
                                 ].values[these_storm_indices[m]])
                     else:
                         (these_center_rows, these_center_columns
