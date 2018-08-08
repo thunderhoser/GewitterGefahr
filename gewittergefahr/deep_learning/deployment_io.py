@@ -71,7 +71,8 @@ def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
     ]
 
     for this_key in these_keys:
-        if this_key not in radar_image_dict:
+        if (this_key not in radar_image_dict
+                or radar_image_dict[this_key] is None):
             continue
         radar_image_dict[this_key] = radar_image_dict[
             this_key][example_to_keep_indices]

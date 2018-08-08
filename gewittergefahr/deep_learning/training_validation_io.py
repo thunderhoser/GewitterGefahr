@@ -656,8 +656,6 @@ def remove_storms_with_undefined_target(storm_image_dict):
         storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
         storm_images.VALID_TIMES_KEY, storm_images.LABEL_VALUES_KEY,
     ]
-    if storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY in storm_image_dict:
-        keys_to_change += [storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY]
 
     for this_key in keys_to_change:
         if this_key == storm_images.STORM_IDS_KEY:
@@ -666,6 +664,13 @@ def remove_storms_with_undefined_target(storm_image_dict):
         else:
             storm_image_dict[this_key] = storm_image_dict[this_key][
                 valid_indices, ...]
+
+    keys_to_change = [storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY]
+    for this_key in keys_to_change:
+        if (this_key not in storm_image_dict
+                or storm_image_dict[this_key] is None):
+            continue
+        storm_image_dict[this_key] = storm_image_dict[this_key][valid_indices]
 
     return storm_image_dict
 
