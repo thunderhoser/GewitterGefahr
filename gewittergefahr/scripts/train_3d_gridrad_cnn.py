@@ -14,8 +14,8 @@ from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_RADAR_ROWS = 16
-NUM_RADAR_COLUMNS = 16
+NUM_RADAR_ROWS = 24
+NUM_RADAR_COLUMNS = 24
 NUM_SOUNDING_HEIGHTS = 37
 RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
 RADAR_NORMALIZATION_DICT = dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT
