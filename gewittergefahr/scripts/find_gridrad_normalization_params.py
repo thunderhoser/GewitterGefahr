@@ -309,7 +309,10 @@ def _run(
                         this_field_height_matrix, axis=-1)
                 else:
                     this_field_matrix = numpy.concatenate(
-                        (this_field_matrix, this_field_height_matrix), axis=-1)
+                        (this_field_matrix,
+                         numpy.expand_dims(this_field_height_matrix, axis=-1)),
+                        axis=-1)
+                    print this_field_matrix.shape
 
             print 'Updating normalization params for "{0:s}"...'.format(
                 radar_field_names[j])
