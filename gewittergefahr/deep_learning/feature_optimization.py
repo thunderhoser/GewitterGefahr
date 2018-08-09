@@ -13,6 +13,7 @@ from keras import backend as K
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 DEFAULT_IDEAL_LOGIT = 7.
 DEFAULT_IDEAL_ACTIVATION = 2.
@@ -226,10 +227,10 @@ def create_constant_initializer(constant_value):
 
 
 def create_climo_initializer(
-        mean_radar_value_dict, mean_sounding_value_dict,
-        sounding_field_names=None, sounding_pressures_mb=None,
-        radar_field_names=None, radar_heights_m_asl=None,
-        radar_field_name_by_channel=None, radar_height_by_channel_m_asl=None):
+        normalization_param_file_name, sounding_field_names=None,
+        sounding_pressures_mb=None, radar_field_names=None,
+        radar_heights_m_asl=None, radar_field_name_by_channel=None,
+        radar_height_by_channel_m_asl=None):
     """Creates climatological initializer.
 
     Specifically, this function initializes each value to a climatological mean.
@@ -248,9 +249,9 @@ def create_climo_initializer(
 
     C = number of radar channels (field/height pairs) in model input
 
-    :param mean_radar_value_dict: See doc for
-        `deep_learning_utils.write_climo_averages_to_file`.
-    :param mean_sounding_value_dict: Same.
+    :param normalization_type_string: Normalization type (must be accepted by
+        `dl_utils._check_normalization_type`).  If you don't want to normalize,
+        leave this as None.
     :param sounding_field_names:
         [if model input does not contain soundings, leave this as `None`]
         List (length F_s) with names of sounding fields, in the order that they
@@ -277,6 +278,10 @@ def create_climo_initializer(
         order that they appear in the corresponding input tensor.
     :return: init_function: Function (see below).
     """
+
+    (_, radar_normalization_table, _, sounding_normalization_table
+    ) = dl_utils.read_normalization_params_from_file(
+        normalization_param_file_name)
 
     if sounding_field_names is not None:
         error_checking.assert_is_string_list(sounding_field_names)
@@ -323,24 +328,28 @@ def create_climo_initializer(
         if len(array_dimensions) == 5:
             for j in range(len(radar_field_names)):
                 for k in range(len(radar_heights_m_asl)):
-                    array[..., k, j] = mean_radar_value_dict[
-                        radar_field_names[j], radar_heights_m_asl[k]]
+                    this_key = (radar_field_names[j], radar_heights_m_asl[k])
+                    array[..., k, j] = radar_normalization_table[
+                        dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return array
 
         if len(array_dimensions) == 4:
             for j in range(len(radar_field_name_by_channel)):
-                array[..., j] = mean_radar_value_dict[
-                    radar_field_name_by_channel[j],
-                    radar_height_by_channel_m_asl[j]]
+                this_key = (radar_field_name_by_channel[j],
+                            radar_height_by_channel_m_asl[j])
+                array[..., j] = radar_normalization_table[
+                    dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return array
 
         if len(array_dimensions) == 3:
             for j in range(len(sounding_field_names)):
                 for k in range(len(sounding_pressures_mb)):
-                    array[..., k, j] = mean_sounding_value_dict[
-                        sounding_field_names[j], sounding_pressures_mb[k]]
+                    this_key = (
+                        sounding_field_names[j], sounding_pressures_mb[k])
+                    array[..., k, j] = sounding_normalization_table[
+                        dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return array
 
