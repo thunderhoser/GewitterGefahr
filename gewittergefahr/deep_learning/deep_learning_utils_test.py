@@ -3,6 +3,7 @@
 import copy
 import unittest
 import numpy
+import pandas
 import keras
 from gewittergefahr.gg_io import raw_wind_io as wind_utils
 from gewittergefahr.gg_utils import radar_utils
@@ -85,12 +86,24 @@ WIND_CLASS_MATRIX = keras.utils.to_categorical(
 
 # The following constants are used to test normalize_radar_images and
 # denormalize_radar_images.
-PERCENTILE_OFFSET_FOR_NORMALIZATION = 0.
+MIN_NORMALIZED_VALUE = -1.
+MAX_NORMALIZED_VALUE = 1.
 RADAR_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME]
+
 RADAR_NORMALIZATION_DICT = {
-    radar_utils.DIFFERENTIAL_REFL_NAME: numpy.array([-8., 8.]),
-    radar_utils.REFL_NAME: numpy.array([1., 10.])
+    radar_utils.DIFFERENTIAL_REFL_NAME: numpy.array([0, 4, -8, 8], dtype=float),
+    radar_utils.REFL_NAME: numpy.array([5, 2, 1, 10], dtype=float)
 }
+RADAR_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
+    RADAR_NORMALIZATION_DICT, orient='index')
+
+COLUMN_DICT_OLD_TO_NEW = {
+    0: dl_utils.MEAN_VALUE_COLUMN,
+    1: dl_utils.STANDARD_DEVIATION_COLUMN,
+    2: dl_utils.MIN_VALUE_COLUMN,
+    3: dl_utils.MAX_VALUE_COLUMN
+}
+RADAR_NORMALIZATION_TABLE.rename(columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
 REFL_MATRIX_EXAMPLE1_HEIGHT1 = numpy.array(
     [[0, 1, 2, 3],
@@ -119,67 +132,104 @@ DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 = -1 * REFL_MATRIX_EXAMPLE2_HEIGHT1
 DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 = -1 * REFL_MATRIX_EXAMPLE2_HEIGHT2
 DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 = -1 * REFL_MATRIX_EXAMPLE2_HEIGHT3
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT1_UNNORMALIZED = numpy.stack(
+THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.stack(
     (REFL_MATRIX_EXAMPLE1_HEIGHT1, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT1_UNNORMALIZED = numpy.stack(
+THIS_MATRIX_EXAMPLE2_HEIGHT1 = numpy.stack(
     (REFL_MATRIX_EXAMPLE2_HEIGHT1, DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1), axis=-1)
 RADAR_MATRIX_4D_UNNORMALIZED = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT1_UNNORMALIZED,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT1_UNNORMALIZED), axis=0)
+    (THIS_MATRIX_EXAMPLE1_HEIGHT1, THIS_MATRIX_EXAMPLE2_HEIGHT1), axis=0)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORMALIZED = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT1 - 1) / 9,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 8) / 16), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORMALIZED = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT1 - 1) / 9,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 8) / 16), axis=-1)
-RADAR_MATRIX_4D_NORMALIZED = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT1_NORMALIZED,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT1_NORMALIZED), axis=0)
+THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE1_HEIGHT1 - 5) / 2,
+    (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 - 0) / 4
+), axis=-1)
+THIS_MATRIX_EXAMPLE2_HEIGHT1 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE2_HEIGHT1 - 5) / 2,
+    (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 - 0) / 4
+), axis=-1)
+RADAR_MATRIX_4D_Z_SCORES = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT1, THIS_MATRIX_EXAMPLE2_HEIGHT1), axis=0)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT2_UNNORMALIZED = numpy.stack(
+THIS_MATRIX_EXAMPLE1_HEIGHT1 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE1_HEIGHT1 - 1) / 9,
+    (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT1 + 8) / 16
+), axis=-1)
+THIS_MATRIX_EXAMPLE2_HEIGHT1 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE2_HEIGHT1 - 1) / 9,
+    (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT1 + 8) / 16
+), axis=-1)
+RADAR_MATRIX_4D_MINMAX = -1 + 2 * numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT1, THIS_MATRIX_EXAMPLE2_HEIGHT1), axis=0)
+
+THIS_MATRIX_EXAMPLE1_HEIGHT2 = numpy.stack(
     (REFL_MATRIX_EXAMPLE1_HEIGHT2, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT2_UNNORMALIZED = numpy.stack(
+THIS_MATRIX_EXAMPLE2_HEIGHT2 = numpy.stack(
     (REFL_MATRIX_EXAMPLE2_HEIGHT2, DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2), axis=-1)
-RADAR_MATRIX_HEIGHT2_UNNORMALIZED = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT2_UNNORMALIZED,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT2_UNNORMALIZED), axis=0)
+THIS_MATRIX_HEIGHT2 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT2, THIS_MATRIX_EXAMPLE2_HEIGHT2), axis=0)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT3_UNNORMALIZED = numpy.stack(
+THIS_MATRIX_EXAMPLE1_HEIGHT3 = numpy.stack(
     (REFL_MATRIX_EXAMPLE1_HEIGHT3, DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT3_UNNORMALIZED = numpy.stack(
+THIS_MATRIX_EXAMPLE2_HEIGHT3 = numpy.stack(
     (REFL_MATRIX_EXAMPLE2_HEIGHT3, DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3), axis=-1)
-RADAR_MATRIX_HEIGHT3_UNNORMALIZED = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT3_UNNORMALIZED,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT3_UNNORMALIZED), axis=0)
+THIS_MATRIX_HEIGHT3 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT3, THIS_MATRIX_EXAMPLE2_HEIGHT3), axis=0)
 
 RADAR_MATRIX_5D_UNNORMALIZED = numpy.stack(
-    (RADAR_MATRIX_4D_UNNORMALIZED, RADAR_MATRIX_HEIGHT2_UNNORMALIZED,
-     RADAR_MATRIX_HEIGHT3_UNNORMALIZED), axis=-2)
+    (RADAR_MATRIX_4D_UNNORMALIZED, THIS_MATRIX_HEIGHT2, THIS_MATRIX_HEIGHT3),
+    axis=-2)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORMALIZED = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT2 - 1) / 9,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 + 8) / 16), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORMALIZED = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT2 - 1) / 9,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 + 8) / 16), axis=-1)
-RADAR_MATRIX_HEIGHT2_NORMALIZED = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT2_NORMALIZED,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT2_NORMALIZED), axis=0)
+THIS_MATRIX_EXAMPLE1_HEIGHT2 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE1_HEIGHT2 - 5) / 2,
+    (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 - 0) / 4
+), axis=-1)
+THIS_MATRIX_EXAMPLE2_HEIGHT2 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE2_HEIGHT2 - 5) / 2,
+    (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 - 0) / 4
+), axis=-1)
+THIS_MATRIX_HEIGHT2 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT2, THIS_MATRIX_EXAMPLE2_HEIGHT2), axis=0)
 
-RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORMALIZED = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE1_HEIGHT3 - 1) / 9,
-     (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 + 8) / 16), axis=-1)
-RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORMALIZED = numpy.stack(
-    ((REFL_MATRIX_EXAMPLE2_HEIGHT3 - 1) / 9,
-     (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 + 8) / 16), axis=-1)
-RADAR_MATRIX_HEIGHT3_NORMALIZED = numpy.stack(
-    (RADAR_MATRIX_EXAMPLE1_HEIGHT3_NORMALIZED,
-     RADAR_MATRIX_EXAMPLE2_HEIGHT3_NORMALIZED), axis=0)
+THIS_MATRIX_EXAMPLE1_HEIGHT3 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE1_HEIGHT3 - 5) / 2,
+    (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 - 0) / 4
+), axis=-1)
+THIS_MATRIX_EXAMPLE2_HEIGHT3 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE2_HEIGHT3 - 5) / 2,
+    (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 - 0) / 4
+), axis=-1)
+THIS_MATRIX_HEIGHT3 = numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT3, THIS_MATRIX_EXAMPLE2_HEIGHT3), axis=0)
 
-RADAR_MATRIX_5D_NORMALIZED = numpy.stack(
-    (RADAR_MATRIX_4D_NORMALIZED, RADAR_MATRIX_HEIGHT2_NORMALIZED,
-     RADAR_MATRIX_HEIGHT3_NORMALIZED), axis=-2)
+RADAR_MATRIX_5D_Z_SCORES = numpy.stack(
+    (RADAR_MATRIX_4D_Z_SCORES, THIS_MATRIX_HEIGHT2, THIS_MATRIX_HEIGHT3),
+    axis=-2)
+
+THIS_MATRIX_EXAMPLE1_HEIGHT2 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE1_HEIGHT2 - 1) / 9,
+    (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT2 + 8) / 16
+), axis=-1)
+THIS_MATRIX_EXAMPLE2_HEIGHT2 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE2_HEIGHT2 - 1) / 9,
+    (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT2 + 8) / 16
+), axis=-1)
+THIS_MATRIX_HEIGHT2 = -1 + 2 * numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT2, THIS_MATRIX_EXAMPLE2_HEIGHT2), axis=0)
+
+THIS_MATRIX_EXAMPLE1_HEIGHT3 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE1_HEIGHT3 - 1) / 9,
+    (DIFF_REFL_MATRIX_EXAMPLE1_HEIGHT3 + 8) / 16
+), axis=-1)
+THIS_MATRIX_EXAMPLE2_HEIGHT3 = numpy.stack((
+    (REFL_MATRIX_EXAMPLE2_HEIGHT3 - 1) / 9,
+    (DIFF_REFL_MATRIX_EXAMPLE2_HEIGHT3 + 8) / 16
+), axis=-1)
+THIS_MATRIX_HEIGHT3 = -1 + 2 * numpy.stack(
+    (THIS_MATRIX_EXAMPLE1_HEIGHT3, THIS_MATRIX_EXAMPLE2_HEIGHT3), axis=0)
+
+RADAR_MATRIX_5D_MINMAX = numpy.stack(
+    (RADAR_MATRIX_4D_MINMAX, THIS_MATRIX_HEIGHT2, THIS_MATRIX_HEIGHT3),
+    axis=-2)
 
 # The following constants are used to test mask_low_reflectivity_pixels.
 FIELD_NAMES_FOR_MASKING = [radar_utils.REFL_NAME, radar_utils.DIVERGENCE_NAME]
@@ -276,14 +326,14 @@ SOUNDING_FIELD_NAMES = [
     soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 
-THIS_FIRST_MATRIX = numpy.array([[0.9, 300., -10., 5., 0.02, 310.],
-                                 [0.7, 285., 0., 15., 0.015, 310.],
-                                 [0.95, 270., 15., 20., 0.01, 325.],
-                                 [0.93, 260., 30., 30., 0.007, 341.]])
-THIS_SECOND_MATRIX = numpy.array([[0.7, 305., 0., 0., 0.015, 312.5],
-                                  [0.5, 290., 15., 12.5, 0.015, 310.],
-                                  [0.8, 273., 25., 15., 0.012, 333.],
-                                  [0.9, 262., 40., 20., 0.008, 345.]])
+THIS_FIRST_MATRIX = numpy.array([[0.9, 300, -10, 5, 0.02, 310],
+                                 [0.7, 285, 0, 15, 0.015, 310],
+                                 [0.95, 270, 15, 20, 0.01, 325],
+                                 [0.93, 260, 30, 30, 0.007, 341]])
+THIS_SECOND_MATRIX = numpy.array([[0.7, 305, 0, 0, 0.015, 312.5],
+                                  [0.5, 290, 15, 12.5, 0.015, 310],
+                                  [0.8, 273, 25, 15, 0.012, 333],
+                                  [0.9, 262, 40, 20, 0.008, 345]])
 SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
@@ -329,25 +379,40 @@ LIST_OF_SKEWT_DICTIONARIES = [FIRST_SKEWT_DICT, SECOND_SKEWT_DICT]
 
 # The following constants are used to test normalize_soundings.
 SOUNDING_NORMALIZATION_DICT = {
-    soundings_only.RELATIVE_HUMIDITY_NAME: numpy.array([0., 1.]),
-    soundings_only.TEMPERATURE_NAME: numpy.array([250., 300.]),
-    soundings_only.WIND_SPEED_KEY: numpy.array([0., 50.]),
-    soundings_only.SPECIFIC_HUMIDITY_NAME: numpy.array([0., 0.02]),
+    soundings_only.RELATIVE_HUMIDITY_NAME: numpy.array([0.5, 0.2, 0, 1]),
+    soundings_only.TEMPERATURE_NAME:
+        numpy.array([280, 10, 250, 300], dtype=float),
+    soundings_only.U_WIND_NAME: numpy.array([5, 10, -10, 40], dtype=float),
+    soundings_only.V_WIND_NAME: numpy.array([10, 5, -20, 30], dtype=float),
+    soundings_only.SPECIFIC_HUMIDITY_NAME: numpy.array([0.005, 0.005, 0, 0.02]),
     soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
-        numpy.array([300., 350.])
+        numpy.array([310, 10, 300, 350], dtype=float)
 }
+SOUNDING_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
+    SOUNDING_NORMALIZATION_DICT, orient='index')
+SOUNDING_NORMALIZATION_TABLE.rename(
+    columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
-THIS_FIRST_MATRIX = numpy.array([[0.9, 1., -0.2, 0.1, 1., 0.2],
-                                 [0.7, 0.7, 0., 0.3, 0.75, 0.2],
-                                 [0.95, 0.4, 0.3, 0.4, 0.5, 0.5],
-                                 [0.93, 0.2, 0.6, 0.6, 0.35, 0.82]])
+THIS_FIRST_MATRIX = numpy.array([[2, 2, -1.5, -1, 3, 0],
+                                 [1, 0.5, -0.5, 1, 2, 0],
+                                 [2.25, -1, 1, 2, 1, 1.5],
+                                 [2.15, -2, 2.5, 4, 0.4, 3.1]])
+THIS_SECOND_MATRIX = numpy.array([[1, 2.5, -0.5, -2, 2, 0.25],
+                                  [0, 1, 1, 0.5, 2, 0],
+                                  [1.5, -0.7, 2, 1, 1.4, 2.3],
+                                  [2, -1.8, 3.5, 2, 0.6, 3.5]])
+SOUNDING_MATRIX_Z_SCORES = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
-THIS_SECOND_MATRIX = numpy.array([[0.7, 1.1, 0., 0., 0.75, 0.25],
-                                  [0.5, 0.8, 0.3, 0.25, 0.75, 0.2],
-                                  [0.8, 0.46, 0.5, 0.3, 0.6, 0.66],
-                                  [0.9, 0.24, 0.8, 0.4, 0.4, 0.9]])
-
-SOUNDING_MATRIX_NORMALIZED = numpy.stack(
+THIS_FIRST_MATRIX = numpy.array([[0.9, 1, 0, 0.5, 1, 0.2],
+                                 [0.7, 0.7, 0.2, 0.7, 0.75, 0.2],
+                                 [0.95, 0.4, 0.5, 0.8, 0.5, 0.5],
+                                 [0.93, 0.2, 0.8, 1, 0.35, 0.82]])
+THIS_SECOND_MATRIX = numpy.array([[0.7, 1.1, 0.2, 0.4, 0.75, 0.25],
+                                  [0.5, 0.8, 0.5, 0.65, 0.75, 0.2],
+                                  [0.8, 0.46, 0.7, 0.7, 0.6, 0.66],
+                                  [0.9, 0.24, 1, 0.8, 0.4, 0.9]])
+SOUNDING_MATRIX_MINMAX = -1 + 2 * numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
 # The following constants are used to test sample_by_class.
@@ -778,61 +843,145 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, RADAR_IMAGE_MATRIX_5D, atol=TOLERANCE, equal_nan=True))
 
-    def test_normalize_radar_images_4d(self):
+    def test_normalize_radar_images_4d_z(self):
         """Ensures correct output from normalize_radar_images.
 
-        In this case the input matrix is 4-D.
+        In this case, the input matrix is 4-D and normalization type is z-score.
         """
 
         this_radar_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_UNNORMALIZED),
             field_names=RADAR_FIELD_NAMES,
-            normalization_dict=RADAR_NORMALIZATION_DICT)
+            normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
 
         self.assertTrue(numpy.allclose(
-            this_radar_matrix, RADAR_MATRIX_4D_NORMALIZED,
+            this_radar_matrix, RADAR_MATRIX_4D_Z_SCORES,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_normalize_radar_images_5d(self):
+    def test_normalize_radar_images_4d_minmax(self):
         """Ensures correct output from normalize_radar_images.
 
-        In this case the input matrix is 5-D.
+        In this case, the input matrix is 4-D and normalization type is minmax.
+        """
+
+        this_radar_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_UNNORMALIZED),
+            field_names=RADAR_FIELD_NAMES,
+            normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            min_normalized_value=MIN_NORMALIZED_VALUE,
+            max_normalized_value=MAX_NORMALIZED_VALUE,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_4D_MINMAX,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_normalize_radar_images_5d_z(self):
+        """Ensures correct output from normalize_radar_images.
+
+        In this case, the input matrix is 5-D and normalization type is z-score.
         """
 
         this_radar_matrix = dl_utils.normalize_radar_images(
             radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_UNNORMALIZED),
             field_names=RADAR_FIELD_NAMES,
-            normalization_dict=RADAR_NORMALIZATION_DICT)
+            normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
 
         self.assertTrue(numpy.allclose(
-            this_radar_matrix, RADAR_MATRIX_5D_NORMALIZED,
+            this_radar_matrix, RADAR_MATRIX_5D_Z_SCORES,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_denormalize_radar_images_4d(self):
+    def test_normalize_radar_images_5d_minmax(self):
+        """Ensures correct output from normalize_radar_images.
+
+        In this case, the input matrix is 5-D and normalization type is minmax.
+        """
+
+        this_radar_matrix = dl_utils.normalize_radar_images(
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_UNNORMALIZED),
+            field_names=RADAR_FIELD_NAMES,
+            normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            min_normalized_value=MIN_NORMALIZED_VALUE,
+            max_normalized_value=MAX_NORMALIZED_VALUE,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_5D_MINMAX,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_denormalize_radar_images_4d_z(self):
         """Ensures correct output from denormalize_radar_images.
 
-        In this case the input matrix is 4-D.
+        In this case, the input matrix is 4-D and normalization type is z-score.
         """
 
         this_radar_matrix = dl_utils.denormalize_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_NORMALIZED),
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_Z_SCORES),
             field_names=RADAR_FIELD_NAMES,
-            normalization_dict=RADAR_NORMALIZATION_DICT)
+            normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
 
         self.assertTrue(numpy.allclose(
             this_radar_matrix, RADAR_MATRIX_4D_UNNORMALIZED,
             atol=TOLERANCE, equal_nan=True))
 
-    def test_denormalize_radar_images_5d(self):
+    def test_denormalize_radar_images_4d_minmax(self):
         """Ensures correct output from denormalize_radar_images.
 
-        In this case the input matrix is 5-D.
+        In this case, the input matrix is 4-D and normalization type is minmax.
         """
 
         this_radar_matrix = dl_utils.denormalize_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_NORMALIZED),
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_MINMAX),
             field_names=RADAR_FIELD_NAMES,
-            normalization_dict=RADAR_NORMALIZATION_DICT)
+            normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            min_normalized_value=MIN_NORMALIZED_VALUE,
+            max_normalized_value=MAX_NORMALIZED_VALUE,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_4D_UNNORMALIZED,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_denormalize_radar_images_5d_z(self):
+        """Ensures correct output from denormalize_radar_images.
+
+        In this case, the input matrix is 5-D and normalization type is z-score.
+        """
+
+        this_radar_matrix = dl_utils.denormalize_radar_images(
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_Z_SCORES),
+            field_names=RADAR_FIELD_NAMES,
+            normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_5D_UNNORMALIZED,
+            atol=TOLERANCE, equal_nan=True))
+
+    def test_denormalize_radar_images_5d_minmax(self):
+        """Ensures correct output from denormalize_radar_images.
+
+        In this case, the input matrix is 5-D and normalization type is minmax.
+        """
+
+        this_radar_matrix = dl_utils.denormalize_radar_images(
+            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_MINMAX),
+            field_names=RADAR_FIELD_NAMES,
+            normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            min_normalized_value=MIN_NORMALIZED_VALUE,
+            max_normalized_value=MAX_NORMALIZED_VALUE,
+            normalization_table=RADAR_NORMALIZATION_TABLE)
 
         self.assertTrue(numpy.allclose(
             this_radar_matrix, RADAR_MATRIX_5D_UNNORMALIZED,
@@ -849,24 +998,58 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_matrix, RADAR_MATRIX_3D_MASKED, atol=TOLERANCE))
 
-    def test_normalize_soundings(self):
-        """Ensures correct output from normalize_soundings."""
+    def test_normalize_soundings_z(self):
+        """Ensures correct output from normalize_soundings; z-score method."""
 
         this_sounding_matrix = dl_utils.normalize_soundings(
             sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED),
             pressureless_field_names=SOUNDING_FIELD_NAMES,
-            normalization_dict=SOUNDING_NORMALIZATION_DICT)
+            normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         self.assertTrue(numpy.allclose(
-            this_sounding_matrix, SOUNDING_MATRIX_NORMALIZED, atol=TOLERANCE))
+            this_sounding_matrix, SOUNDING_MATRIX_Z_SCORES, atol=TOLERANCE))
 
-    def test_denormalize_soundings(self):
-        """Ensures correct output from denormalize_soundings."""
+    def test_normalize_soundings_minmax(self):
+        """Ensures correct output from normalize_soundings; z-score method."""
+
+        this_sounding_matrix = dl_utils.normalize_soundings(
+            sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED),
+            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            min_normalized_value=MIN_NORMALIZED_VALUE,
+            max_normalized_value=MAX_NORMALIZED_VALUE,
+            normalization_table=SOUNDING_NORMALIZATION_TABLE)
+
+        self.assertTrue(numpy.allclose(
+            this_sounding_matrix, SOUNDING_MATRIX_MINMAX, atol=TOLERANCE))
+
+    def test_denormalize_soundings_z(self):
+        """Ensures correct output from denormalize_soundings; z-score method."""
 
         this_sounding_matrix = dl_utils.denormalize_soundings(
-            sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_NORMALIZED),
+            sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_Z_SCORES),
             pressureless_field_names=SOUNDING_FIELD_NAMES,
-            normalization_dict=SOUNDING_NORMALIZATION_DICT)
+            normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            normalization_table=SOUNDING_NORMALIZATION_TABLE)
+
+        self.assertTrue(numpy.allclose(
+            this_sounding_matrix, SOUNDING_MATRIX_UNNORMALIZED, atol=TOLERANCE))
+
+    def test_denormalize_soundings_minmax(self):
+        """Ensures correct output from denormalize_soundings; minmax method."""
+
+        this_sounding_matrix = dl_utils.denormalize_soundings(
+            sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_MINMAX),
+            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            normalization_param_file_name=None, test_mode=True,
+            min_normalized_value=MIN_NORMALIZED_VALUE,
+            max_normalized_value=MAX_NORMALIZED_VALUE,
+            normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         self.assertTrue(numpy.allclose(
             this_sounding_matrix, SOUNDING_MATRIX_UNNORMALIZED, atol=TOLERANCE))

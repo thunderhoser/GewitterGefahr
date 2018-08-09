@@ -34,6 +34,25 @@ DEFAULT_REFL_MASK_THRESHOLD_DBZ = 15.
 MB_TO_PASCALS = 100.
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
+MEAN_VALUE_COLUMN = 'mean_value'
+STANDARD_DEVIATION_COLUMN = 'standard_deviation'
+MIN_VALUE_COLUMN = 'min_value'
+MAX_VALUE_COLUMN = 'max_value'
+
+NORMALIZATION_COLUMNS_NO_HEIGHT = [
+    MEAN_VALUE_COLUMN, STANDARD_DEVIATION_COLUMN, MIN_VALUE_COLUMN,
+    MAX_VALUE_COLUMN
+]
+NORMALIZATION_COLUMNS_WITH_HEIGHT = [
+    MEAN_VALUE_COLUMN, STANDARD_DEVIATION_COLUMN
+]
+
+MINMAX_NORMALIZATION_TYPE_STRING = 'minmax'
+Z_NORMALIZATION_TYPE_STRING = 'z_score'
+VALID_NORMALIZATION_TYPE_STRINGS = [
+    MINMAX_NORMALIZATION_TYPE_STRING, Z_NORMALIZATION_TYPE_STRING]
+
+# TODO(thunderhoser): Remove these stupid dictionaries.
 DEFAULT_RADAR_NORMALIZATION_DICT = {
     radar_utils.ECHO_TOP_18DBZ_NAME: numpy.array([0., 15.]),  # km
     radar_utils.ECHO_TOP_40DBZ_NAME: numpy.array([0., 15.]),  # km
@@ -66,6 +85,24 @@ DEFAULT_SOUNDING_NORMALIZATION_DICT = {
     soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
         numpy.array([285.2, 421.6])  # Kelvins
 }
+
+
+def _check_normalization_type(normalization_type_string):
+    """Ensures that normalization type is valid.
+
+    :param normalization_type_string: Normalization type.
+    :raises: ValueError: if
+        `normalization_type_string not in VALID_NORMALIZATION_TYPE_STRINGS`.
+    """
+
+    error_checking.assert_is_string(normalization_type_string)
+    if normalization_type_string not in VALID_NORMALIZATION_TYPE_STRINGS:
+        error_string = (
+            '\n\n{0:s}\nValid normalization types (listed above) do not include'
+            ' "{1:s}".'
+        ).format(str(VALID_NORMALIZATION_TYPE_STRINGS),
+                 normalization_type_string)
+        raise ValueError(error_string)
 
 
 def check_class_fractions(sampling_fraction_by_class_dict, target_name):
@@ -338,17 +375,32 @@ def stack_radar_heights(tuple_of_4d_matrices):
 
 
 def normalize_radar_images(
-        radar_image_matrix, field_names,
-        normalization_dict=DEFAULT_RADAR_NORMALIZATION_DICT):
+        radar_image_matrix, field_names, normalization_type_string,
+        normalization_param_file_name, test_mode=False, min_normalized_value=0.,
+        max_normalized_value=1., normalization_table=None):
     """Normalizes radar images.
 
-    Specifically, for each field x and each pixel (i, j), the following equation
-    is used.
+    If normalization_type_string = "z", z-score normalization is done for each
+    field independently.  Means and standard deviations are read from the
+    normalization file.
 
-    x_new(i, j) = [x_old(i, j) - x_min] / [x_max - x_min]
+    If normalization_type_string = "minmax", min-max normalization is done for
+    each field independently, using the following equations.  Climatological
+    minima and maxima are read from the normalization file.
 
-    x_min = climatological minimum for x (taken from normalization_dict)
-    x_max = climatological maximum for x (taken from normalization_dict)
+    x_unscaled(i, j) = [x(i, j) - x_min] / [x_max - x_min]
+
+    x_scaled(i, j) = x_unscaled(i, j) * [
+        max_normalized_value - min_normalized_value
+    ] + min_normalized_value
+
+    x(i, j) = original value at pixel (i, j)
+    x_min = climatological minimum for field x
+    x_max = climatological max for field x
+    x_unscaled(i, j) = normalized but unscaled value at pixel (i, j)
+    min_normalized_value: from input args
+    max_normalized_value: from input args
+    x_scaled(i, j) = normalized and scaled value at pixel (i, j)
 
     :param radar_image_matrix: numpy array of radar images.  Dimensions may be
         E x M x N x C or E x M x N x H_r x F_r.
@@ -357,12 +409,26 @@ def normalize_radar_images(
         4-dimensional, field_names must have length C.  If radar_image_matrix is
         5-dimensional, field_names must have length F_r.  Each field name must
         be accepted by `radar_utils.check_field_name`.
-    :param normalization_dict: Dictionary, where each key is a field name (from
-        the list `field_names`) and each value is a length-2 numpy array with
-        [x_min, x_max].
-    :return: radar_image_matrix: Normalized version of input.  Dimensions are
-        the same.
+    :param normalization_type_string: Normalization type (must be accepted by
+        `_check_normalization_type`).
+    :param normalization_param_file_name: Path to file with normalization
+        params.  Will be read by `read_normalization_params_from_file`.
+    :param test_mode: For testing only.  Leave this alone.
+    :param min_normalized_value:
+        [used only if normalization_type_string = "minmax"]
+        Minimum normalized value.
+    :param max_normalized_value:
+        [used only if normalization_type_string = "minmax"]
+        Max normalized value.
+    :param normalization_table: For testing only.  Leave this alone.
+    :return: radar_image_matrix: Normalized version of input, with the same
+        dimensions.
     """
+
+    error_checking.assert_is_boolean(test_mode)
+    if not test_mode:
+        normalization_table = read_normalization_params_from_file(
+            normalization_param_file_name)[0]
 
     check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
@@ -374,29 +440,63 @@ def normalize_radar_images(
         numpy.array(field_names),
         exact_dimensions=numpy.array([num_fields]))
 
-    for k in range(num_fields):
-        this_min_value = normalization_dict[field_names[k]][0]
-        this_max_value = normalization_dict[field_names[k]][1]
-        radar_image_matrix[..., k] = (
-            (radar_image_matrix[..., k] - this_min_value) /
-            (this_max_value - this_min_value))
+    _check_normalization_type(normalization_type_string)
+    if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+        error_checking.assert_is_greater(
+            max_normalized_value, min_normalized_value)
+
+    for j in range(num_fields):
+        if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+            this_min_value = normalization_table[
+                MIN_VALUE_COLUMN].loc[field_names[j]]
+            this_max_value = normalization_table[
+                MAX_VALUE_COLUMN].loc[field_names[j]]
+
+            radar_image_matrix[..., j] = (
+                (radar_image_matrix[..., j] - this_min_value) /
+                (this_max_value - this_min_value))
+
+            radar_image_matrix[..., j] = min_normalized_value + (
+                radar_image_matrix[..., j] *
+                (max_normalized_value - min_normalized_value))
+        else:
+            this_mean = normalization_table[
+                MEAN_VALUE_COLUMN].loc[field_names[j]]
+            this_standard_deviation = normalization_table[
+                STANDARD_DEVIATION_COLUMN].loc[field_names[j]]
+
+            radar_image_matrix[..., j] = (
+                (radar_image_matrix[..., j] - this_mean) /
+                this_standard_deviation)
 
     return radar_image_matrix
 
 
 def denormalize_radar_images(
-        radar_image_matrix, field_names,
-        normalization_dict=DEFAULT_RADAR_NORMALIZATION_DICT):
+        radar_image_matrix, field_names, normalization_type_string,
+        normalization_param_file_name, test_mode=False, min_normalized_value=0.,
+        max_normalized_value=1., normalization_table=None):
     """Denormalizes radar images.
 
     This method is the inverse of `normalize_radar_images`.
 
     :param radar_image_matrix: See doc for `normalize_radar_images`.
     :param field_names: Same.
-    :param normalization_dict: Same.
-    :return: radar_image_matrix: Denormalized version of input.  Dimensions are
-        the same.
+    :param normalization_type_string: Same.
+    :param normalization_param_file_name: Path to file with normalization
+        params.  Will be read by `read_normalization_params_from_file`.
+    :param test_mode: For testing only.  Leave this alone.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
+    :param normalization_table: For testing only.  Leave this alone.
+    :return: radar_image_matrix: Denormalized version of input, with the same
+        dimensions.
     """
+
+    error_checking.assert_is_boolean(test_mode)
+    if not test_mode:
+        normalization_table = read_normalization_params_from_file(
+            normalization_param_file_name)[0]
 
     check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
@@ -408,12 +508,36 @@ def denormalize_radar_images(
         numpy.array(field_names),
         exact_dimensions=numpy.array([num_fields]))
 
-    for k in range(num_fields):
-        this_min_value = normalization_dict[field_names[k]][0]
-        this_max_value = normalization_dict[field_names[k]][1]
-        radar_image_matrix[..., k] = (
-            this_min_value +
-            radar_image_matrix[..., k] * (this_max_value - this_min_value))
+    _check_normalization_type(normalization_type_string)
+    if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+        error_checking.assert_is_greater(
+            max_normalized_value, min_normalized_value)
+        # error_checking.assert_is_geq_numpy_array(
+        #     radar_image_matrix, min_normalized_value)
+        # error_checking.assert_is_leq_numpy_array(
+        #     radar_image_matrix, max_normalized_value)
+
+    for j in range(num_fields):
+        if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+            this_min_value = normalization_table[
+                MIN_VALUE_COLUMN].loc[field_names[j]]
+            this_max_value = normalization_table[
+                MAX_VALUE_COLUMN].loc[field_names[j]]
+
+            radar_image_matrix[..., j] = (
+                (radar_image_matrix[..., j] - min_normalized_value) /
+                (max_normalized_value - min_normalized_value))
+
+            radar_image_matrix[..., j] = this_min_value + (
+                radar_image_matrix[..., j] * (this_max_value - this_min_value))
+        else:
+            this_mean = normalization_table[
+                MEAN_VALUE_COLUMN].loc[field_names[j]]
+            this_standard_deviation = normalization_table[
+                STANDARD_DEVIATION_COLUMN].loc[field_names[j]]
+
+            radar_image_matrix[..., j] = this_mean + (
+                this_standard_deviation * radar_image_matrix[..., j])
 
     return radar_image_matrix
 
@@ -471,34 +595,36 @@ def mask_low_reflectivity_pixels(
 
 
 def normalize_soundings(
-        sounding_matrix, pressureless_field_names,
-        normalization_dict=DEFAULT_SOUNDING_NORMALIZATION_DICT):
+        sounding_matrix, pressureless_field_names, normalization_type_string,
+        normalization_param_file_name, test_mode=False, min_normalized_value=0.,
+        max_normalized_value=1., normalization_table=None):
     """Normalizes soundings.
 
-    For wind at each pixel (i, j), the following equation is used.
-
-    wind_speed_new(i, j) = [wind_speed(i, j) - min_wind_speed] /
-                           [max_wind_speed - min_wind_speed]
-    normalization_ratio = wind_speed_new(i, j) / wind_speed(i, j)
-    u_wind_new(i, j) = u_wind(i, j) * normalization_ratio
-    v_wind_new(i, j) = v_wind(i, j) * normalization_ratio
-
-    For any other field f at each pixel (i, j), the following equation is used.
-
-    x_new(i, j) = [x_old(i, j) - x_min] / [x_max - x_min]
-
-    x_min, x_max, min_wind_speed, and max_wind_speed are climatological extrema
-    taken from `normalization_dict`.
+    This method uses the same equations as `normalize_radar_images`.
 
     :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
     :param pressureless_field_names: list (length F_s) with names of
         pressureless fields, in the order that they appear in sounding_matrix.
-    :param normalization_dict: Dictionary, where each key is a field name (
-        either "wind_speed_m_s01" or an item in `pressureless_field_names`) and
-        each value is a length-2 numpy array with [x_min, x_max].
-    :return: sounding_matrix: Normalized version of input.  Dimensions are the
-        same.
+    :param normalization_type_string: Normalization type (must be accepted by
+        `_check_normalization_type`).
+    :param normalization_param_file_name: Path to file with normalization
+        params.  Will be read by `read_normalization_params_from_file`.
+    :param test_mode: For testing only.  Leave this alone.
+    :param min_normalized_value:
+        [used only if normalization_type_string = "minmax"]
+        Minimum normalized value.
+    :param max_normalized_value:
+        [used only if normalization_type_string = "minmax"]
+        Max normalized value.
+    :param normalization_table: For testing only.  Leave this alone.
+    :return: sounding_matrix: Normalized version of input, with the same
+        dimensions.
     """
+
+    error_checking.assert_is_boolean(test_mode)
+    if not test_mode:
+        normalization_table = read_normalization_params_from_file(
+            normalization_param_file_name)[2]
 
     error_checking.assert_is_string_list(pressureless_field_names)
     error_checking.assert_is_numpy_array(
@@ -508,66 +634,63 @@ def normalize_soundings(
     check_soundings(sounding_matrix=sounding_matrix,
                     num_pressureless_fields=num_pressureless_fields)
 
-    done_wind_speed = False
+    _check_normalization_type(normalization_type_string)
+    if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+        error_checking.assert_is_greater(
+            max_normalized_value, min_normalized_value)
 
-    for k in range(num_pressureless_fields):
-        if pressureless_field_names[k] in [soundings_only.U_WIND_NAME,
-                                           soundings_only.V_WIND_NAME]:
-            if done_wind_speed:
-                continue
+    for j in range(num_pressureless_fields):
+        if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+            this_min_value = normalization_table[
+                MIN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+            this_max_value = normalization_table[
+                MAX_VALUE_COLUMN].loc[pressureless_field_names[j]]
 
-            u_wind_index = pressureless_field_names.index(
-                soundings_only.U_WIND_NAME)
-            v_wind_index = pressureless_field_names.index(
-                soundings_only.V_WIND_NAME)
-            wind_speeds_m_s01 = numpy.sqrt(
-                sounding_matrix[..., u_wind_index] ** 2 +
-                sounding_matrix[..., v_wind_index] ** 2)
+            sounding_matrix[..., j] = (
+                (sounding_matrix[..., j] - this_min_value) /
+                (this_max_value - this_min_value))
 
-            min_wind_speed_m_s01 = normalization_dict[
-                soundings_only.WIND_SPEED_KEY][0]
-            max_wind_speed_m_s01 = normalization_dict[
-                soundings_only.WIND_SPEED_KEY][1]
-            normalized_wind_speeds_m_s01 = (
-                (wind_speeds_m_s01 - min_wind_speed_m_s01) /
-                (max_wind_speed_m_s01 - min_wind_speed_m_s01)
-            )
+            sounding_matrix[..., j] = min_normalized_value + (
+                sounding_matrix[..., j] *
+                (max_normalized_value - min_normalized_value))
+        else:
+            this_mean = normalization_table[
+                MEAN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+            this_standard_deviation = normalization_table[
+                STANDARD_DEVIATION_COLUMN
+            ].loc[pressureless_field_names[j]]
 
-            normalization_ratios = (
-                normalized_wind_speeds_m_s01 / wind_speeds_m_s01)
-            normalization_ratios[numpy.isnan(normalization_ratios)] = 0.
-
-            sounding_matrix[..., u_wind_index] = (
-                sounding_matrix[..., u_wind_index] * normalization_ratios)
-            sounding_matrix[..., v_wind_index] = (
-                sounding_matrix[..., v_wind_index] * normalization_ratios)
-
-            done_wind_speed = True
-            continue
-
-        this_min_value = normalization_dict[pressureless_field_names[k]][0]
-        this_max_value = normalization_dict[pressureless_field_names[k]][1]
-        sounding_matrix[..., k] = (
-            (sounding_matrix[..., k] - this_min_value) /
-            (this_max_value - this_min_value)
-        )
+            sounding_matrix[..., j] = (
+                (sounding_matrix[..., j] - this_mean) / this_standard_deviation)
 
     return sounding_matrix
 
 
 def denormalize_soundings(
-        sounding_matrix, pressureless_field_names,
-        normalization_dict=DEFAULT_SOUNDING_NORMALIZATION_DICT):
+        sounding_matrix, pressureless_field_names, normalization_type_string,
+        normalization_param_file_name, test_mode=False, min_normalized_value=0.,
+        max_normalized_value=1., normalization_table=None):
     """Denormalizes soundings.
 
     This method is the inverse of `normalize_soundings`.
 
     :param sounding_matrix: See doc for `normalize_soundings`.
     :param pressureless_field_names: Same.
-    :param normalization_dict: Same.
-    :return: sounding_matrix: Denormalized version of input.  Dimensions are the
-        same.
+    :param normalization_type_string: Same.
+    :param normalization_param_file_name: Path to file with normalization
+        params.  Will be read by `read_normalization_params_from_file`.
+    :param test_mode: For testing only.  Leave this alone.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
+    :param normalization_table: For testing only.  Leave this alone.
+    :return: sounding_matrix: Denormalized version of input, with the same
+        dimensions.
     """
+
+    error_checking.assert_is_boolean(test_mode)
+    if not test_mode:
+        normalization_table = read_normalization_params_from_file(
+            normalization_param_file_name)[2]
 
     error_checking.assert_is_string_list(pressureless_field_names)
     error_checking.assert_is_numpy_array(
@@ -577,47 +700,37 @@ def denormalize_soundings(
     check_soundings(sounding_matrix=sounding_matrix,
                     num_pressureless_fields=num_pressureless_fields)
 
-    done_wind_speed = False
+    _check_normalization_type(normalization_type_string)
+    if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+        error_checking.assert_is_greater(
+            max_normalized_value, min_normalized_value)
+        # error_checking.assert_is_geq_numpy_array(
+        #     sounding_matrix, min_normalized_value)
+        # error_checking.assert_is_leq_numpy_array(
+        #     sounding_matrix, max_normalized_value)
 
-    for k in range(num_pressureless_fields):
-        if pressureless_field_names[k] in [soundings_only.U_WIND_NAME,
-                                           soundings_only.V_WIND_NAME]:
-            if done_wind_speed:
-                continue
+    for j in range(num_pressureless_fields):
+        if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
+            this_min_value = normalization_table[
+                MIN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+            this_max_value = normalization_table[
+                MAX_VALUE_COLUMN].loc[pressureless_field_names[j]]
 
-            u_wind_index = pressureless_field_names.index(
-                soundings_only.U_WIND_NAME)
-            v_wind_index = pressureless_field_names.index(
-                soundings_only.V_WIND_NAME)
-            normalized_wind_speeds_m_s01 = numpy.sqrt(
-                sounding_matrix[..., u_wind_index] ** 2 +
-                sounding_matrix[..., v_wind_index] ** 2)
+            sounding_matrix[..., j] = (
+                (sounding_matrix[..., j] - min_normalized_value) /
+                (max_normalized_value - min_normalized_value))
 
-            min_wind_speed_m_s01 = normalization_dict[
-                soundings_only.WIND_SPEED_KEY][0]
-            max_wind_speed_m_s01 = normalization_dict[
-                soundings_only.WIND_SPEED_KEY][1]
-            wind_speeds_m_s01 = min_wind_speed_m_s01 + (
-                normalized_wind_speeds_m_s01 *
-                (max_wind_speed_m_s01 - min_wind_speed_m_s01))
+            sounding_matrix[..., j] = this_min_value + (
+                sounding_matrix[..., j] * (this_max_value - this_min_value))
+        else:
+            this_mean = normalization_table[
+                MEAN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+            this_standard_deviation = normalization_table[
+                STANDARD_DEVIATION_COLUMN
+            ].loc[pressureless_field_names[j]]
 
-            denormalization_ratios = (
-                wind_speeds_m_s01 / normalized_wind_speeds_m_s01)
-            denormalization_ratios[numpy.isnan(denormalization_ratios)] = 0.
-
-            sounding_matrix[..., u_wind_index] = (
-                sounding_matrix[..., u_wind_index] * denormalization_ratios)
-            sounding_matrix[..., v_wind_index] = (
-                sounding_matrix[..., v_wind_index] * denormalization_ratios)
-
-            done_wind_speed = True
-            continue
-
-        this_min_value = normalization_dict[pressureless_field_names[k]][0]
-        this_max_value = normalization_dict[pressureless_field_names[k]][1]
-        sounding_matrix[..., k] = (
-            this_min_value +
-            sounding_matrix[..., k] * (this_max_value - this_min_value))
+            sounding_matrix[..., j] = this_mean + (
+                this_standard_deviation * sounding_matrix[..., j])
 
     return sounding_matrix
 
@@ -771,41 +884,84 @@ def sample_by_class(
     return indices_to_keep
 
 
-def write_climo_averages_to_file(
-        pickle_file_name, mean_radar_value_dict, mean_sounding_value_dict):
-    """Writes climatological averages to Pickle file.
+def write_normalization_params_to_file(
+        pickle_file_name, radar_table_no_height, radar_table_with_height,
+        sounding_table_no_height, sounding_table_with_height):
+    """Writes normalization parameters to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param mean_radar_value_dict: Dictionary, where key
-        [field_name, height_m_asl] contains the climatological average for the
-        given field.  `field_name` must be accepted by
-        `radar_utils.check_field_name`, and `height_m_asl` must be the radar
-        height in metres above sea level.
-    :param mean_sounding_value_dict: Dictionary, where key
-        [field_name, pressure_level_mb] contains the climatological average for
-        the given field.  `field_name` must be accepted by
-        `soundings_only.check_pressureless_field_name`, and `pressure_level_mb`
-        must be the pressure level in millibars.
+    :param radar_table_no_height: Single-indexed pandas DataFrame.  Each index
+        is a field name (accepted by `radar_utils.check_field_name`).  Must
+        contain the following columns.
+    radar_table_no_height.mean_value: Mean value for the given field.
+    radar_table_no_height.standard_deviation: Standard deviation.
+    radar_table_no_height.min_value: Minimum value.
+    radar_table_no_height.max_value: Max value.
+
+    :param radar_table_with_height: Double-indexed pandas DataFrame.  Each index
+        is a tuple with (field_name, height_m_asl), where `field_name` is
+        accepted by `radar_utils.check_field_name` and `height_m_asl` is in
+        metres above sea level.  Must contain the following columns.
+    radar_table_no_height.mean_value: Mean value for the given field.
+    radar_table_no_height.standard_deviation: Standard deviation.
+
+    :param sounding_table_no_height: Single-indexed pandas DataFrame.  Each
+        index is a field name (accepted by
+        `soundings_only.check_pressureless_field_name`).  Columns should be the
+        same as in `radar_table_no_height`.
+    :param sounding_table_with_height: Double-indexed pandas DataFrame.  Each
+        index is a tuple with (field_name, pressure_mb), where `field_name` is
+        accepted by `soundings_only.check_pressureless_field_name` and
+        `pressure_mb` is in millibars.  Columns should be the same as in
+        `radar_table_with_height`.
     """
+
+    # TODO(thunderhoser): Move this to normalization.py or something.
+    error_checking.assert_columns_in_dataframe(
+        radar_table_no_height, NORMALIZATION_COLUMNS_NO_HEIGHT)
+    error_checking.assert_columns_in_dataframe(
+        radar_table_with_height, NORMALIZATION_COLUMNS_WITH_HEIGHT)
+    error_checking.assert_columns_in_dataframe(
+        sounding_table_no_height, NORMALIZATION_COLUMNS_NO_HEIGHT)
+    error_checking.assert_columns_in_dataframe(
+        sounding_table_with_height, NORMALIZATION_COLUMNS_WITH_HEIGHT)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(mean_radar_value_dict, pickle_file_handle)
-    pickle.dump(mean_sounding_value_dict, pickle_file_handle)
+    pickle.dump(radar_table_no_height, pickle_file_handle)
+    pickle.dump(radar_table_with_height, pickle_file_handle)
+    pickle.dump(sounding_table_no_height, pickle_file_handle)
+    pickle.dump(sounding_table_with_height, pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_climo_averages_from_file(pickle_file_name):
-    """Reads climatological averages from Pickle file.
+def read_normalization_params_from_file(pickle_file_name):
+    """Reads normalization parameters from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: mean_radar_value_dict: See doc for `write_climo_averages_to_file`.
-    :return: mean_sounding_value_dict: Same.
+    :return: radar_table_no_height: See doc for
+        `write_normalization_params_to_file`.
+    :return: radar_table_with_height: Same.
+    :return: sounding_table_no_height: Same.
+    :return: sounding_table_with_height: Same.
     """
 
+    # TODO(thunderhoser): Move this to normalization.py or something.
     pickle_file_handle = open(pickle_file_name, 'rb')
-    mean_radar_value_dict = pickle.load(pickle_file_handle)
-    mean_sounding_value_dict = pickle.load(pickle_file_handle)
+    radar_table_no_height = pickle.load(pickle_file_handle)
+    radar_table_with_height = pickle.load(pickle_file_handle)
+    sounding_table_no_height = pickle.load(pickle_file_handle)
+    sounding_table_with_height = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return mean_radar_value_dict, mean_sounding_value_dict
+    error_checking.assert_columns_in_dataframe(
+        radar_table_no_height, NORMALIZATION_COLUMNS_NO_HEIGHT)
+    error_checking.assert_columns_in_dataframe(
+        radar_table_with_height, NORMALIZATION_COLUMNS_WITH_HEIGHT)
+    error_checking.assert_columns_in_dataframe(
+        sounding_table_no_height, NORMALIZATION_COLUMNS_NO_HEIGHT)
+    error_checking.assert_columns_in_dataframe(
+        sounding_table_with_height, NORMALIZATION_COLUMNS_WITH_HEIGHT)
+
+    return (radar_table_no_height, radar_table_with_height,
+            sounding_table_no_height, sounding_table_with_height)
