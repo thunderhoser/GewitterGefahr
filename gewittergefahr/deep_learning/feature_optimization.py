@@ -227,10 +227,11 @@ def create_constant_initializer(constant_value):
 
 
 def create_climo_initializer(
-        normalization_param_file_name, sounding_field_names=None,
-        sounding_pressures_mb=None, radar_field_names=None,
-        radar_heights_m_asl=None, radar_field_name_by_channel=None,
-        radar_height_by_channel_m_asl=None):
+        normalization_param_file_name, test_mode=False,
+        sounding_field_names=None, sounding_pressures_mb=None,
+        radar_field_names=None, radar_heights_m_asl=None,
+        radar_field_name_by_channel=None, radar_height_by_channel_m_asl=None,
+        radar_normalization_table=None, sounding_normalization_table=None):
     """Creates climatological initializer.
 
     Specifically, this function initializes each value to a climatological mean.
@@ -249,9 +250,9 @@ def create_climo_initializer(
 
     C = number of radar channels (field/height pairs) in model input
 
-    :param normalization_type_string: Normalization type (must be accepted by
-        `dl_utils._check_normalization_type`).  If you don't want to normalize,
-        leave this as None.
+    :param normalization_param_file_name: Path to file with normalization
+        params (will be read by `dl_utils.read_normalization_params_from_file`).
+    :param test_mode: For testing only.  Leave this alone.
     :param sounding_field_names:
         [if model input does not contain soundings, leave this as `None`]
         List (length F_s) with names of sounding fields, in the order that they
@@ -276,12 +277,16 @@ def create_climo_initializer(
         [if model input does not contain 2-D radar images, leave this as `None`]
         Length-C numpy array of radar heights (metres above sea level), in the
         order that they appear in the corresponding input tensor.
+    :param radar_normalization_table: For testing only.  Leave this alone.
+    :param sounding_normalization_table: For testing only.  Leave this alone.
     :return: init_function: Function (see below).
     """
 
-    (_, radar_normalization_table, _, sounding_normalization_table
-    ) = dl_utils.read_normalization_params_from_file(
-        normalization_param_file_name)
+    error_checking.assert_is_boolean(test_mode)
+    if not test_mode:
+        (_, radar_normalization_table, _, sounding_normalization_table
+        ) = dl_utils.read_normalization_params_from_file(
+            normalization_param_file_name)
 
     if sounding_field_names is not None:
         error_checking.assert_is_string_list(sounding_field_names)

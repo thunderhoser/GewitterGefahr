@@ -2,9 +2,11 @@
 
 import unittest
 import numpy
+import pandas
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.deep_learning import feature_optimization
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
 
@@ -48,28 +50,43 @@ SOUNDING_FIELD_NAMES = [
 ]
 SOUNDING_PRESSURES_MB = numpy.array([500, 700, 850, 1000], dtype=int)
 
-MEAN_RADAR_VALUE_DICT = {}
-MEAN_RADAR_VALUE_DICT[radar_utils.REFL_NAME, 1000] = 8.65
-MEAN_RADAR_VALUE_DICT[radar_utils.REFL_NAME, 2000] = 15.5
-MEAN_RADAR_VALUE_DICT[radar_utils.REFL_NAME, 3000] = 18.3
-MEAN_RADAR_VALUE_DICT[radar_utils.SPECTRUM_WIDTH_NAME, 1000] = 0.169
-MEAN_RADAR_VALUE_DICT[radar_utils.SPECTRUM_WIDTH_NAME, 2000] = 0.423
-MEAN_RADAR_VALUE_DICT[radar_utils.SPECTRUM_WIDTH_NAME, 3000] = 0.81
-MEAN_RADAR_VALUE_DICT[radar_utils.REFL_COLUMN_MAX_NAME, 250] = 20.7
+RADAR_NORMALIZATION_DICT = {
+    (radar_utils.REFL_NAME, 1000): numpy.array([8.65, 1]),
+    (radar_utils.REFL_NAME, 2000): numpy.array([15.5, 1]),
+    (radar_utils.REFL_NAME, 3000): numpy.array([18.3, 1]),
+    (radar_utils.SPECTRUM_WIDTH_NAME, 1000): numpy.array([0.169, 1]),
+    (radar_utils.SPECTRUM_WIDTH_NAME, 2000): numpy.array([0.423, 1]),
+    (radar_utils.SPECTRUM_WIDTH_NAME, 3000): numpy.array([0.81, 1]),
+    (radar_utils.REFL_COLUMN_MAX_NAME, 250): numpy.array([20.7, 1])
+}
+RADAR_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
+    RADAR_NORMALIZATION_DICT, orient='index')
 
-MEAN_SOUNDING_VALUE_DICT = {}
-MEAN_SOUNDING_VALUE_DICT[soundings_only.TEMPERATURE_NAME, 500] = 262.
-MEAN_SOUNDING_VALUE_DICT[soundings_only.TEMPERATURE_NAME, 700] = 280.
-MEAN_SOUNDING_VALUE_DICT[soundings_only.TEMPERATURE_NAME, 850] = 289.
-MEAN_SOUNDING_VALUE_DICT[soundings_only.TEMPERATURE_NAME, 1000] = 297.
-MEAN_SOUNDING_VALUE_DICT[
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 500] = 319.
-MEAN_SOUNDING_VALUE_DICT[
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 700] = 311.
-MEAN_SOUNDING_VALUE_DICT[
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 850] = 305.
-MEAN_SOUNDING_VALUE_DICT[
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 1000] = 299.
+COLUMN_DICT_OLD_TO_NEW = {
+    0: dl_utils.MEAN_VALUE_COLUMN,
+    1: dl_utils.STANDARD_DEVIATION_COLUMN
+}
+RADAR_NORMALIZATION_TABLE.rename(columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
+
+SOUNDING_NORMALIZATION_DICT = {
+    (soundings_only.TEMPERATURE_NAME, 500): numpy.array([262., 1]),
+    (soundings_only.TEMPERATURE_NAME, 700): numpy.array([280., 1]),
+    (soundings_only.TEMPERATURE_NAME, 850): numpy.array([289., 1]),
+    (soundings_only.TEMPERATURE_NAME, 1000): numpy.array([297., 1]),
+    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 500):
+        numpy.array([319., 1]),
+    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 700):
+        numpy.array([311., 1]),
+    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 850):
+        numpy.array([305., 1]),
+    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 1000):
+        numpy.array([299., 1])
+}
+
+SOUNDING_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
+    SOUNDING_NORMALIZATION_DICT, orient='index')
+SOUNDING_NORMALIZATION_TABLE.rename(
+    columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
 SOUNDING_DIMENSIONS = numpy.array([1, 4, 2], dtype=int)
 RADAR_DIMENSIONS_4D = numpy.array([1, 16, 32, 4], dtype=int)
@@ -240,14 +257,16 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            mean_radar_value_dict=MEAN_RADAR_VALUE_DICT,
-            mean_sounding_value_dict=MEAN_SOUNDING_VALUE_DICT,
+            normalization_param_file_name=None, test_mode=True,
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL)
+            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
+
         this_matrix = this_init_function(SOUNDING_DIMENSIONS)
         self.assertTrue(numpy.allclose(
             this_matrix, INIT_SOUNDING_MATRIX, atol=TOLERANCE))
@@ -259,14 +278,16 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            mean_radar_value_dict=MEAN_RADAR_VALUE_DICT,
-            mean_sounding_value_dict=MEAN_SOUNDING_VALUE_DICT,
+            normalization_param_file_name=None, test_mode=True,
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL)
+            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
+
         this_matrix = this_init_function(RADAR_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
             this_matrix, INIT_RADAR_MATRIX_4D, atol=TOLERANCE))
@@ -278,14 +299,16 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            mean_radar_value_dict=MEAN_RADAR_VALUE_DICT,
-            mean_sounding_value_dict=MEAN_SOUNDING_VALUE_DICT,
+            normalization_param_file_name=None, test_mode=True,
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL)
+            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
+
         this_matrix = this_init_function(RADAR_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
             this_matrix, INIT_RADAR_MATRIX_5D, atol=TOLERANCE))
@@ -297,14 +320,16 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            mean_radar_value_dict=MEAN_RADAR_VALUE_DICT,
-            mean_sounding_value_dict=MEAN_SOUNDING_VALUE_DICT,
+            normalization_param_file_name=None, test_mode=True,
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL)
+            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_2D)
         self.assertTrue(this_matrix is None)
 
