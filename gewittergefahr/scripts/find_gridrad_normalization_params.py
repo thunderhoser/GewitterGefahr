@@ -57,7 +57,8 @@ RADAR_INTERVAL_DICT = {
 SOUNDING_INTERVAL_DICT = {
     soundings_only.RELATIVE_HUMIDITY_NAME: 1e-3,  # unitless
     soundings_only.TEMPERATURE_NAME: 0.1,  # Kelvins
-    soundings_only.WIND_SPEED_KEY: 0.1,  # m s^-1
+    soundings_only.U_WIND_NAME: 0.1,  # m s^-1
+    soundings_only.V_WIND_NAME: 0.1,  # m s^-1
     soundings_only.SPECIFIC_HUMIDITY_NAME: 1e-5,  # kg kg^-1
     soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: 0.1  # Kelvins
 }
