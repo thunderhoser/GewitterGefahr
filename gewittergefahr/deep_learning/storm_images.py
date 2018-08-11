@@ -6,7 +6,6 @@ other words, the center of the image is the centroid of the storm object).
 
 import os
 import copy
-import time
 import glob
 import numpy
 import pandas
@@ -822,12 +821,9 @@ def _subset_xy_grid_for_interp(
         len(grid_point_y_coords_metres) - 1
     ])
 
-    exec_start_time_unix_sec = time.time()
     subset_field_matrix = field_matrix[
         first_valid_y_index:(last_valid_y_index + 1),
         first_valid_x_index:(last_valid_x_index + 1)]
-    print 'Time elapsed subsetting the matrix = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
 
     return (
         subset_field_matrix,
@@ -1260,15 +1256,11 @@ def extract_storm_images_myrorss_or_mrms(
                          valid_time_strings[i])
 
                 # Read [j]th field/height pair at [i]th time step.
-                exec_start_time_unix_sec = time.time()
                 this_metadata_dict = (
                     myrorss_and_mrms_io.read_metadata_from_raw_file(
                         netcdf_file_name=radar_file_name_matrix[i, j],
                         data_source=radar_source))
-                print 'Time elapsed reading metadata = {0:.3f} s'.format(
-                    time.time() - exec_start_time_unix_sec)
 
-                exec_start_time_unix_sec = time.time()
                 this_sparse_grid_table = (
                     myrorss_and_mrms_io.read_data_from_sparse_grid_file(
                         netcdf_file_name=radar_file_name_matrix[i, j],
@@ -1277,17 +1269,12 @@ def extract_storm_images_myrorss_or_mrms(
                         data_source=radar_source,
                         sentinel_values=this_metadata_dict[
                             radar_utils.SENTINEL_VALUE_COLUMN]))
-                print 'Time elapsed reading sparse grid = {0:.3f} s'.format(
-                    time.time() - exec_start_time_unix_sec)
 
-                exec_start_time_unix_sec = time.time()
                 (this_full_radar_matrix, these_full_gp_latitudes_deg,
                  these_full_gp_longitudes_deg
                 ) = radar_s2f.sparse_to_full_grid(
                     sparse_grid_table=this_sparse_grid_table,
                     metadata_dict=this_metadata_dict)
-                print 'Time elapsed creating full grid = {0:.3f} s'.format(
-                    time.time() - exec_start_time_unix_sec)
 
                 this_full_radar_matrix[numpy.isnan(this_full_radar_matrix)] = 0.
                 if rotate_grids:
