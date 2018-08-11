@@ -147,8 +147,8 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'List of radar fields (each must be accepted by `radar_utils.'
     'check_field_name`).  Normalization params will be computed for each of '
     'these fields, once over all heights and once at each height (metres above '
-    'sea level) in the following list.\n\n{0:s}\n\nDefault fields for MYRORSS:'
-    '\n\n{1:s}\n\nDefault fields for GridRad:\n\n{2:s}'
+    'sea level) in the following list.\n{0:s}\nDefault fields for MYRORSS:'
+    '\n{1:s}\nDefault fields for GridRad:\n{2:s}'
 ).format(str(RADAR_HEIGHTS_M_ASL), str(DEFAULT_MYRORSS_FIELD_NAMES),
          str(DEFAULT_GRIDRAD_FIELD_NAMES))
 OUTPUT_FILE_HELP_STRING = (
@@ -409,6 +409,9 @@ def _run(
             top_radar_image_dir_name = DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME + ''
         if top_sounding_dir_name == '':
             top_sounding_dir_name = DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME + ''
+
+    print these_heights_m_asl
+    print type(these_heights_m_asl)
 
     radar_file_name_matrix = trainval_io.find_radar_files_2d(
         top_directory_name=top_radar_image_dir_name,
