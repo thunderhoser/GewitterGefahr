@@ -6,6 +6,7 @@ other words, the center of the image is the centroid of the storm object).
 
 import os
 import copy
+import time
 import glob
 import numpy
 import pandas
@@ -1255,11 +1256,15 @@ def extract_storm_images_myrorss_or_mrms(
                          valid_time_strings[i])
 
                 # Read [j]th field/height pair at [i]th time step.
+                exec_start_time_unix_sec = time.time()
                 this_metadata_dict = (
                     myrorss_and_mrms_io.read_metadata_from_raw_file(
                         netcdf_file_name=radar_file_name_matrix[i, j],
                         data_source=radar_source))
+                print 'Time elapsed reading metadata = {0:.3f} s'.format(
+                    time.time() - exec_start_time_unix_sec)
 
+                exec_start_time_unix_sec = time.time()
                 this_sparse_grid_table = (
                     myrorss_and_mrms_io.read_data_from_sparse_grid_file(
                         netcdf_file_name=radar_file_name_matrix[i, j],
@@ -1268,12 +1273,17 @@ def extract_storm_images_myrorss_or_mrms(
                         data_source=radar_source,
                         sentinel_values=this_metadata_dict[
                             radar_utils.SENTINEL_VALUE_COLUMN]))
+                print 'Time elapsed reading sparse grid = {0:.3f} s'.format(
+                    time.time() - exec_start_time_unix_sec)
 
+                exec_start_time_unix_sec = time.time()
                 (this_full_radar_matrix, these_full_gp_latitudes_deg,
                  these_full_gp_longitudes_deg
                 ) = radar_s2f.sparse_to_full_grid(
                     sparse_grid_table=this_sparse_grid_table,
                     metadata_dict=this_metadata_dict)
+                print 'Time elapsed creating full grid = {0:.3f} s'.format(
+                    time.time() - exec_start_time_unix_sec)
 
                 this_full_radar_matrix[numpy.isnan(this_full_radar_matrix)] = 0.
                 if rotate_grids:
@@ -1345,6 +1355,7 @@ def extract_storm_images_myrorss_or_mrms(
                                 ROTATED_NON_SHEAR_LONGITUDES_COLUMN
                             ].values[these_storm_indices[k]]
 
+                        exec_start_time_unix_sec = time.time()
                         this_storm_image_matrix[
                             k, :, :
                         ] = _extract_rotated_storm_image(
@@ -1357,6 +1368,8 @@ def extract_storm_images_myrorss_or_mrms(
                             this_rotated_lat_matrix_deg,
                             rotated_gp_lng_matrix_deg=
                             this_rotated_lng_matrix_deg)
+                        print 'Time elapsed rotating images = {0:.3f} s'.format(
+                            time.time() - exec_start_time_unix_sec)
                 else:
                     (these_center_rows, these_center_columns
                     ) = _centroids_latlng_to_rowcol(
