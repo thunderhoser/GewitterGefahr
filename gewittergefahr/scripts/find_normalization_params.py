@@ -393,7 +393,6 @@ def _run(
 
     # Find radar files.
     if radar_source == radar_utils.MYRORSS_SOURCE_ID:
-        these_heights_m_asl = REFLECTIVITY_HEIGHTS_M_ASL + 0.
         if radar_field_names == ['']:
             radar_field_names = DEFAULT_MYRORSS_FIELD_NAMES + []
         if top_radar_image_dir_name == '':
@@ -401,8 +400,17 @@ def _run(
         if top_sounding_dir_name == '':
             top_sounding_dir_name = DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME + ''
 
+        radar_file_name_matrix = trainval_io.find_radar_files_2d(
+            top_directory_name=top_radar_image_dir_name,
+            radar_source=radar_source, radar_field_names=radar_field_names,
+            reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
+            first_file_time_unix_sec=
+            time_conversion.spc_date_string_to_unix_sec(first_spc_date_string),
+            last_file_time_unix_sec=
+            time_conversion.spc_date_string_to_unix_sec(last_spc_date_string),
+            one_file_per_time_step=False, shuffle_times=False)[0]
+
     else:
-        these_heights_m_asl = RADAR_HEIGHTS_M_ASL + 0.
         if radar_field_names == ['']:
             radar_field_names = DEFAULT_GRIDRAD_FIELD_NAMES + []
         if top_radar_image_dir_name == '':
@@ -410,18 +418,15 @@ def _run(
         if top_sounding_dir_name == '':
             top_sounding_dir_name = DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME + ''
 
-    print these_heights_m_asl
-    print type(these_heights_m_asl)
-
-    radar_file_name_matrix = trainval_io.find_radar_files_2d(
-        top_directory_name=top_radar_image_dir_name,
-        radar_source=radar_source, radar_field_names=radar_field_names,
-        reflectivity_heights_m_asl=these_heights_m_asl,
-        first_file_time_unix_sec=time_conversion.spc_date_string_to_unix_sec(
-            first_spc_date_string),
-        last_file_time_unix_sec=time_conversion.spc_date_string_to_unix_sec(
-            last_spc_date_string),
-        one_file_per_time_step=False, shuffle_times=False)[0]
+        radar_file_name_matrix = trainval_io.find_radar_files_2d(
+            top_directory_name=top_radar_image_dir_name,
+            radar_source=radar_source, radar_field_names=radar_field_names,
+            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+            first_file_time_unix_sec=
+            time_conversion.spc_date_string_to_unix_sec(first_spc_date_string),
+            last_file_time_unix_sec=
+            time_conversion.spc_date_string_to_unix_sec(last_spc_date_string),
+            one_file_per_time_step=False, shuffle_times=False)[0]
 
     print SEPARATOR_STRING
 
