@@ -81,8 +81,10 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 3:
-        radar_field_names = [storm_images.image_file_name_to_field(f) for f in
-                             training_radar_file_name_matrix[0, :, 0]]
+        radar_field_names = [
+            storm_images.image_file_name_to_field(f) for f in
+            training_radar_file_name_matrix[0, :, 0]
+        ]
         radar_heights_m_asl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, 0, :]],
@@ -105,8 +107,10 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             channel_indices=fopt_metadata_dict[
                 feature_optimization.CHANNEL_INDICES_KEY])
     else:
-        field_name_by_pair = [storm_images.image_file_name_to_field(f) for f in
-                              training_radar_file_name_matrix[0, :]]
+        field_name_by_pair = [
+            storm_images.image_file_name_to_field(f) for f in
+            training_radar_file_name_matrix[0, :]
+        ]
         height_by_pair_m_asl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, :]],

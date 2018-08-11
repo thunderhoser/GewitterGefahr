@@ -206,27 +206,38 @@ def _read_input_one_storm_object(
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         example_dict = deployment_io.create_storm_images_2d3d_myrorss(
             radar_file_name_matrix=radar_file_name_matrix[[0], ...],
-            num_examples_per_file_time=LARGE_INTEGER, return_target=False,
+            num_examples_per_file=LARGE_INTEGER,
+            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            return_target=False,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            radar_normalization_dict=model_metadata_dict[
-                cnn.RADAR_NORMALIZATION_DICT_KEY],
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             top_sounding_dir_name=top_sounding_dir_name,
             sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-            sounding_normalization_dict=model_metadata_dict[
-                cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
     else:
         num_radar_dimensions = len(
             model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
         if num_radar_dimensions == 3:
             example_dict = deployment_io.create_storm_images_3d(
                 radar_file_name_matrix=radar_file_name_matrix[[0], ...],
-                num_examples_per_file_time=LARGE_INTEGER, return_target=False,
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=model_metadata_dict[
+                    cnn.TARGET_NAME_KEY],
+                min_normalized_value=model_metadata_dict[
+                    cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=model_metadata_dict[
+                    cnn.MAX_NORMALIZED_VALUE_KEY],
+                normalization_param_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_NAME_KEY],
+                return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                radar_normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY],
                 refl_masking_threshold_dbz=model_metadata_dict[
                     cnn.REFL_MASKING_THRESHOLD_KEY],
                 return_rotation_divergence_product=False,
@@ -234,23 +245,26 @@ def _read_input_one_storm_object(
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-                sounding_normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
         else:
             example_dict = deployment_io.create_storm_images_2d(
                 radar_file_name_matrix=radar_file_name_matrix[[0], ...],
-                num_examples_per_file_time=LARGE_INTEGER, return_target=False,
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=model_metadata_dict[
+                    cnn.TARGET_NAME_KEY],
+                min_normalized_value=model_metadata_dict[
+                    cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=model_metadata_dict[
+                    cnn.MAX_NORMALIZED_VALUE_KEY],
+                normalization_param_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_NAME_KEY],
+                return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                radar_normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY],
                 sounding_field_names=model_metadata_dict[
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-                sounding_normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
 
     storm_object_index_as_array = numpy.where(numpy.logical_and(
         numpy.array(example_dict[deployment_io.STORM_IDS_KEY]) == storm_id,

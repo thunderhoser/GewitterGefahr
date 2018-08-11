@@ -2,34 +2,35 @@
 
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.deep_learning import cnn
-
-INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 MODEL_DIRECTORY_ARG_NAME = 'output_model_dir_name'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
-NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME = 'num_examples_per_file_time'
+NUM_EXAMPLES_PER_FILE_ARG_NAME = 'num_examples_per_file'
 NUM_TRAIN_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
 RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
 RADAR_DIRECTORY_POS_TARGETS_ARG_NAME = (
     'input_storm_radar_image_dir_name_pos_targets_only')
-ONE_FILE_PER_TIME_STEP_ARG_NAME = 'one_file_per_time_step'
-FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
-LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
+FIRST_TRAINING_DATE_ARG_NAME = 'first_train_spc_date_string'
+LAST_TRAINING_DATE_ARG_NAME = 'last_train_spc_date_string'
 MONITOR_STRING_ARG_NAME = 'monitor_string'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 NUM_RADAR_CONV_LAYERS_ARG_NAME = 'num_radar_conv_layers'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 BINARIZE_TARGET_ARG_NAME = 'binarize_target'
+NORMALIZATION_TYPE_ARG_NAME = 'normalization_type_string'
+MIN_NORMALIZED_VALUE_ARG_NAME = 'min_normalized_value'
+MAX_NORMALIZED_VALUE_ARG_NAME = 'max_normalized_value'
 DROPOUT_FRACTION_ARG_NAME = 'dropout_fraction'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
 SAMPLING_FRACTION_KEYS_ARG_NAME = 'sampling_fraction_keys'
 SAMPLING_FRACTION_VALUES_ARG_NAME = 'sampling_fraction_values'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
 NUM_VALIDN_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
-FIRST_VALIDATION_TIME_ARG_NAME = 'first_validation_time_string'
-LAST_VALIDATION_TIME_ARG_NAME = 'last_validation_time_string'
+FIRST_VALIDATION_DATE_ARG_NAME = 'first_validn_spc_date_string'
+LAST_VALIDATION_DATE_ARG_NAME = 'last_validn_spc_date_string'
 SOUNDING_FIELD_NAMES_ARG_NAME = 'sounding_field_names'
 SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
 SOUNDING_LAG_TIME_ARG_NAME = (
@@ -39,7 +40,6 @@ NUM_SOUNDING_FILTERS_ARG_NAME = 'num_sounding_filters_in_first_layer'
 DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
 DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH = 32
-DEFAULT_ONE_FILE_PER_TIME_STEP_FLAG = 0
 DEFAULT_MONITOR_STRING = cnn.LOSS_AS_MONITOR_STRING
 DEFAULT_NUM_RADAR_CONV_LAYERS = 3
 DEFAULT_BINARIZE_TARGET_FLAG = 0
@@ -63,11 +63,10 @@ MODEL_DIRECTORY_HELP_STRING = (
 NUM_EPOCHS_HELP_STRING = 'Number of epochs.'
 NUM_EXAMPLES_PER_BATCH_HELP_STRING = (
     'Number of examples (storm objects) per batch.')
-NUM_EXAMPLES_PER_FILE_TIME_HELP_STRING = (
-    'Number of examples (storm objects) per file time.  If `{0:s}` = True, this'
-    ' is the number of examples per time step.  If `{0:s}` = False, this is '
-    'number of examples per SPC date.'
-).format(ONE_FILE_PER_TIME_STEP_ARG_NAME)
+NUM_EXAMPLES_PER_FILE_HELP_STRING = (
+    'Number of examples (storm objects) per file.  This should be significantly'
+    ' lower than `{0:s}` and `{1:s}`, to ensure diversity within each batch.'
+).format(NUM_TRAIN_BATCHES_ARG_NAME, NUM_VALIDN_BATCHES_ARG_NAME)
 NUM_TRAIN_BATCHES_HELP_STRING = 'Number of training batches per epoch.'
 RADAR_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
@@ -80,15 +79,10 @@ RADAR_DIRECTORY_POS_TARGETS_HELP_STRING = (
     'details on how to separate storm objects with positive target values, see '
     'separate_myrorss_images_with_positive_targets.py.'
 ).format(RADAR_DIRECTORY_ARG_NAME)
-ONE_FILE_PER_TIME_STEP_HELP_STRING = (
-    'Boolean flag.  If 1 (0), the model will be trained with one set of files '
-    'per time step (SPC date).')
-TRAINING_TIME_HELP_STRING = (
-    'Training time (format "yyyy-mm-dd-HHMMSS").  The model will be trained '
-    'with storm objects from `{0:s}`...`{1:s}`.  If `{2:s}` = False, this can '
-    'be any time in the first SPC date.'
-).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME,
-         ONE_FILE_PER_TIME_STEP_ARG_NAME)
+TRAINING_DATE_HELP_STRING = (
+    'SPC (Storm Prediction Center) date in format "yyyymmdd".  The model will '
+    'be trained with storm objects from `{0:s}`...`{1:s}`.'
+).format(FIRST_TRAINING_DATE_ARG_NAME, LAST_TRAINING_DATE_ARG_NAME)
 MONITOR_STRING_HELP_STRING = (
     'Evaluation function reported after each epoch.  If `{0:s}` > 0, after each'
     ' epoch `{1:s}` will be computed for validation data and the new model will'
@@ -113,6 +107,16 @@ TARGET_DIRECTORY_HELP_STRING = (
 BINARIZE_TARGET_HELP_STRING = (
     'Boolean flag.  If 1, will binarize target variable, so that the highest '
     'class becomes 1 and all other classes become 0.')
+NORMALIZATION_TYPE_HELP_STRING = (
+    'Normalization type.  If you do not want to normalize, use the empty string'
+    '.  If you want to normalize, this must be in the following list.\n{0:s}'
+).format(str(dl_utils.VALID_NORMALIZATION_TYPE_STRINGS))
+MIN_NORMALIZED_VALUE_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}"] Minimum normalized value.'
+).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
+MAX_NORMALIZED_VALUE_HELP_STRING = (
+    '[used only if {0:s} = "{1:s}"] Max normalized value.'
+).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
 DROPOUT_FRACTION_HELP_STRING = (
     'Dropout fraction.  Will be applied to the weights in each convolutional '
     'layer.  Set to -1 for no dropout.')
@@ -136,12 +140,11 @@ WEIGHT_LOSS_HELP_STRING = (
 NUM_VALIDN_BATCHES_HELP_STRING = (
     'Number of validation batches per epoch.  If you make this 0, on-the-fly '
     'validation will be done with training data.')
-VALIDATION_TIME_HELP_STRING = (
-    'Validation time (format "yyyy-mm-dd-HHMMSS").  The model will be '
-    'validation on the fly with storm objects from `{0:s}`...`{1:s}`.  If '
-    '`{2:s}` = False, this can be any time in the first SPC date.'
-).format(FIRST_VALIDATION_TIME_ARG_NAME, LAST_VALIDATION_TIME_ARG_NAME,
-         ONE_FILE_PER_TIME_STEP_ARG_NAME)
+VALIDATION_DATE_HELP_STRING = (
+    'SPC (Storm Prediction Center) date in format "yyyymmdd".  The model will '
+    'be validated on the fly (monitored) with storm objects from `{0:s}`...'
+    '`{1:s}`.'
+).format(FIRST_VALIDATION_DATE_ARG_NAME, LAST_VALIDATION_DATE_ARG_NAME)
 SOUNDING_FIELD_NAMES_HELP_STRING = (
     'List with names of sounding fields.  Each name must be accepted by '
     '`soundings_only.check_pressureless_field_name`.  To train without '
@@ -181,8 +184,8 @@ def add_input_arguments(argument_parser_object):
         help=NUM_EXAMPLES_PER_BATCH_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME, type=int, required=True,
-        help=NUM_EXAMPLES_PER_FILE_TIME_HELP_STRING)
+        '--' + NUM_EXAMPLES_PER_FILE_ARG_NAME, type=int, required=True,
+        help=NUM_EXAMPLES_PER_FILE_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NUM_TRAIN_BATCHES_ARG_NAME, type=int, required=False,
@@ -198,17 +201,12 @@ def add_input_arguments(argument_parser_object):
         default='None', help=RADAR_DIRECTORY_POS_TARGETS_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + ONE_FILE_PER_TIME_STEP_ARG_NAME, type=int, required=False,
-        default=DEFAULT_ONE_FILE_PER_TIME_STEP_FLAG,
-        help=ONE_FILE_PER_TIME_STEP_HELP_STRING)
+        '--' + FIRST_TRAINING_DATE_ARG_NAME, type=str, required=True,
+        help=TRAINING_DATE_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=True,
-        help=TRAINING_TIME_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=True,
-        help=TRAINING_TIME_HELP_STRING)
+        '--' + LAST_TRAINING_DATE_ARG_NAME, type=str, required=True,
+        help=TRAINING_DATE_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + MONITOR_STRING_ARG_NAME, type=str, required=False,
@@ -236,6 +234,21 @@ def add_input_arguments(argument_parser_object):
         default=DEFAULT_BINARIZE_TARGET_FLAG, help=BINARIZE_TARGET_HELP_STRING)
 
     argument_parser_object.add_argument(
+        '--' + NORMALIZATION_TYPE_ARG_NAME, type=str, required=False,
+        default=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+        help=NORMALIZATION_TYPE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MIN_NORMALIZED_VALUE_ARG_NAME, type=float, required=False,
+        default=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        help=MIN_NORMALIZED_VALUE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MAX_NORMALIZED_VALUE_ARG_NAME, type=float, required=False,
+        default=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        help=MAX_NORMALIZED_VALUE_HELP_STRING)
+
+    argument_parser_object.add_argument(
         '--' + DROPOUT_FRACTION_ARG_NAME, type=float, required=False,
         default=DEFAULT_DROPOUT_FRACTION, help=DROPOUT_FRACTION_HELP_STRING)
 
@@ -261,12 +274,12 @@ def add_input_arguments(argument_parser_object):
         help=NUM_VALIDN_BATCHES_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-        default='', help=VALIDATION_TIME_HELP_STRING)
+        '--' + FIRST_VALIDATION_DATE_ARG_NAME, type=str, required=False,
+        default='', help=VALIDATION_DATE_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-        default='', help=VALIDATION_TIME_HELP_STRING)
+        '--' + LAST_VALIDATION_DATE_ARG_NAME, type=str, required=False,
+        default='', help=VALIDATION_DATE_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + SOUNDING_FIELD_NAMES_ARG_NAME, type=str, nargs='+',

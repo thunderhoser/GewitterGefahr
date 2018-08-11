@@ -179,17 +179,21 @@ def _read_input_one_spc_date(
         example_dict = deployment_io.create_storm_images_2d3d_myrorss(
             radar_file_name_matrix=radar_file_name_matrix[
                 [spc_date_index], ...],
-            num_examples_per_file_time=LARGE_INTEGER, return_target=False,
+            num_examples_per_file=LARGE_INTEGER,
+            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            return_target=False,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            radar_normalization_dict=model_metadata_dict[
-                cnn.RADAR_NORMALIZATION_DICT_KEY],
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             top_sounding_dir_name=top_sounding_dir_name,
             sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-            sounding_normalization_dict=model_metadata_dict[
-                cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
 
         if example_dict is not None:
             list_of_input_matrices = [
@@ -204,10 +208,17 @@ def _read_input_one_spc_date(
             example_dict = deployment_io.create_storm_images_3d(
                 radar_file_name_matrix=radar_file_name_matrix[
                     [spc_date_index], ...],
-                num_examples_per_file_time=LARGE_INTEGER, return_target=False,
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=model_metadata_dict[
+                    cnn.TARGET_NAME_KEY],
+                min_normalized_value=model_metadata_dict[
+                    cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=model_metadata_dict[
+                    cnn.MAX_NORMALIZED_VALUE_KEY],
+                normalization_param_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_NAME_KEY],
+                return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                radar_normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY],
                 refl_masking_threshold_dbz=model_metadata_dict[
                     cnn.REFL_MASKING_THRESHOLD_KEY],
                 return_rotation_divergence_product=False,
@@ -215,24 +226,27 @@ def _read_input_one_spc_date(
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-                sounding_normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
         else:
             example_dict = deployment_io.create_storm_images_2d(
                 radar_file_name_matrix=radar_file_name_matrix[
                     [spc_date_index], ...],
-                num_examples_per_file_time=LARGE_INTEGER, return_target=False,
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=model_metadata_dict[
+                    cnn.TARGET_NAME_KEY],
+                min_normalized_value=model_metadata_dict[
+                    cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=model_metadata_dict[
+                    cnn.MAX_NORMALIZED_VALUE_KEY],
+                normalization_param_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_NAME_KEY],
+                return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                radar_normalization_dict=model_metadata_dict[
-                    cnn.RADAR_NORMALIZATION_DICT_KEY],
                 sounding_field_names=model_metadata_dict[
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-                sounding_normalization_dict=model_metadata_dict[
-                    cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
 
         if example_dict is not None:
             list_of_input_matrices = [

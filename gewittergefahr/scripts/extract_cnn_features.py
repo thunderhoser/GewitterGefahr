@@ -166,19 +166,21 @@ def _extract_2d_cnn_features(
         radar_file_name_matrix=radar_file_name_matrix,
         top_target_directory_name=top_target_dir_name,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_batch,
+        num_examples_per_file=num_examples_per_batch,
         target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+        normalization_type_string=model_metadata_dict[
+            cnn.NORMALIZATION_TYPE_KEY],
+        min_normalized_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+        max_normalized_value=model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+        normalization_param_file_name=model_metadata_dict[
+            cnn.NORMALIZATION_FILE_NAME_KEY],
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
-        radar_normalization_dict=model_metadata_dict[
-            cnn.RADAR_NORMALIZATION_DICT_KEY],
         sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        sounding_field_names=model_metadata_dict[
-            cnn.SOUNDING_FIELD_NAMES_KEY],
+        sounding_field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
         top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
         model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-        sounding_normalization_dict=model_metadata_dict[
-            cnn.SOUNDING_NORMALIZATION_DICT_KEY], loop_thru_files_once=True)
+        loop_thru_files_once=True)
 
     num_examples_read = 0
     use_soundings = model_metadata_dict[
@@ -283,21 +285,25 @@ def _extract_3d_cnn_features(
         radar_file_name_matrix=radar_file_name_matrix,
         top_target_directory_name=top_target_dir_name,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_batch,
+        num_examples_per_file=num_examples_per_batch,
         target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+        normalization_type_string=model_metadata_dict[
+            cnn.NORMALIZATION_TYPE_KEY],
+        min_normalized_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+        max_normalized_value=model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+        normalization_param_file_name=model_metadata_dict[
+            cnn.NORMALIZATION_FILE_NAME_KEY],
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
-        radar_normalization_dict=model_metadata_dict[
-            cnn.RADAR_NORMALIZATION_DICT_KEY],
         refl_masking_threshold_dbz=model_metadata_dict[
             cnn.REFL_MASKING_THRESHOLD_KEY],
+        rdp_filter_threshold_s02=model_metadata_dict[
+            cnn.RDP_FILTER_THRESHOLD_KEY],
         sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        sounding_field_names=model_metadata_dict[
-            cnn.SOUNDING_FIELD_NAMES_KEY],
+        sounding_field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
         top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
         model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-        sounding_normalization_dict=model_metadata_dict[
-            cnn.SOUNDING_NORMALIZATION_DICT_KEY], loop_thru_files_once=True)
+        loop_thru_files_once=True)
 
     num_examples_read = 0
     use_soundings = model_metadata_dict[
@@ -404,19 +410,21 @@ def _extract_2d3d_cnn_features(
         radar_file_name_matrix=radar_file_name_matrix,
         top_target_directory_name=top_target_dir_name,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_batch,
+        num_examples_per_file=num_examples_per_batch,
         target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+        normalization_type_string=model_metadata_dict[
+            cnn.NORMALIZATION_TYPE_KEY],
+        min_normalized_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+        max_normalized_value=model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+        normalization_param_file_name=model_metadata_dict[
+            cnn.NORMALIZATION_FILE_NAME_KEY],
         binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
-        radar_normalization_dict=model_metadata_dict[
-            cnn.RADAR_NORMALIZATION_DICT_KEY],
         sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        sounding_field_names=model_metadata_dict[
-            cnn.SOUNDING_FIELD_NAMES_KEY],
+        sounding_field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
         top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
         model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
-        sounding_normalization_dict=model_metadata_dict[
-            cnn.SOUNDING_NORMALIZATION_DICT_KEY], loop_thru_files_once=True)
+        loop_thru_files_once=True)
 
     num_examples_read = 0
     use_soundings = model_metadata_dict[

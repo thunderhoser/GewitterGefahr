@@ -218,15 +218,15 @@ def _read_inputs(
 
             this_storm_object_dict = deployment_io.create_storm_images_3d(
                 radar_file_name_matrix=this_radar_file_name_matrix,
-                num_examples_per_file_time=LARGE_INTEGER, return_target=False,
-                target_name=dummy_target_name, radar_normalization_dict=None,
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=None, return_target=False,
+                target_name=dummy_target_name,
                 refl_masking_threshold_dbz=None,
                 return_rotation_divergence_product=False,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_sec,
-                sounding_normalization_dict=None)
+                sounding_lag_time_sec)
         else:
             this_radar_file_name_matrix = trainval_io.find_radar_files_2d(
                 top_directory_name=top_radar_image_dir_name,
@@ -253,13 +253,13 @@ def _read_inputs(
 
             this_storm_object_dict = deployment_io.create_storm_images_2d(
                 radar_file_name_matrix=this_radar_file_name_matrix,
-                num_examples_per_file_time=LARGE_INTEGER, return_target=False,
-                target_name=dummy_target_name, radar_normalization_dict=None,
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=None, return_target=False,
+                target_name=dummy_target_name,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_sec,
-                sounding_normalization_dict=None)
+                sounding_lag_time_sec)
 
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i])[0]

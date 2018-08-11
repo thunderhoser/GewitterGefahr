@@ -69,27 +69,29 @@ LIST_OF_METRIC_FUNCTIONS = [
 
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
-NUM_EXAMPLES_PER_FILE_TIME_KEY = 'num_examples_per_time'
+NUM_EXAMPLES_PER_FILE_KEY = 'num_examples_per_file'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
-TRAINING_FILE_NAMES_KEY = 'radar_file_name_matrix_for_training'
+TRAINING_FILE_NAMES_KEY = 'radar_fn_matrix_training'
 TRAINING_FILE_NAMES_POS_TARGETS_KEY = (
-    'radar_file_name_matrix_for_training_pos_targets_only')
+    'radar_fn_matrix_training_pos_targets_only')
 WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
 MONITOR_STRING_KEY = 'monitor_string'
 TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
-RADAR_NORMALIZATION_DICT_KEY = 'radar_normalization_dict'
+NORMALIZATION_TYPE_KEY = 'normalization_type_string'
+MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
+MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
+NORMALIZATION_FILE_NAME_KEY = 'normalization_param_file_name'
 REFL_MASKING_THRESHOLD_KEY = 'reflectivity_masking_threshold_dbz'
 RDP_FILTER_THRESHOLD_KEY = 'rdp_filter_threshold_s02'
 TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
 VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
-VALIDATION_FILE_NAMES_KEY = 'radar_file_name_matrix_for_validn'
+VALIDATION_FILE_NAMES_KEY = 'radar_fn_matrix_validation'
 VALIDATION_FILE_NAMES_POS_TARGETS_KEY = (
-    'radar_file_name_matrix_for_validation_pos_targets_only')
+    'radar_fn_matrix_validation_pos_targets_only')
 SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
 TOP_SOUNDING_DIR_NAME_KEY = 'top_sounding_dir_name'
-SOUNDING_NORMALIZATION_DICT_KEY = 'sounding_normalization_dict'
 SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
 USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
 RADAR_SOURCE_KEY = 'radar_source'
@@ -98,18 +100,18 @@ RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
 REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
 
 MODEL_METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_TIME_KEY,
+    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_KEY,
     NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAMES_KEY,
     TRAINING_FILE_NAMES_POS_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     MONITOR_STRING_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
-    RADAR_NORMALIZATION_DICT_KEY, REFL_MASKING_THRESHOLD_KEY,
+    NORMALIZATION_TYPE_KEY, MIN_NORMALIZED_VALUE_KEY, MAX_NORMALIZED_VALUE_KEY,
+    NORMALIZATION_FILE_NAME_KEY, REFL_MASKING_THRESHOLD_KEY,
     RDP_FILTER_THRESHOLD_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
     VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
     VALIDATION_FILE_NAMES_KEY, VALIDATION_FILE_NAMES_POS_TARGETS_KEY,
     SOUNDING_FIELD_NAMES_KEY, TOP_SOUNDING_DIR_NAME_KEY,
-    SOUNDING_NORMALIZATION_DICT_KEY, SOUNDING_LAG_TIME_KEY,
-    USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY,
-    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
+    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
+    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
@@ -910,50 +912,41 @@ def read_model(hdf5_file_name):
 
 def write_model_metadata(
         pickle_file_name, num_epochs, num_examples_per_batch,
-        num_examples_per_file_time, num_training_batches_per_epoch,
-        radar_file_name_matrix_for_training, weight_loss_function,
-        monitor_string, target_name, binarize_target, radar_normalization_dict,
+        num_examples_per_file, num_training_batches_per_epoch,
+        radar_fn_matrix_training, weight_loss_function,
+        monitor_string, target_name, binarize_target, normalization_type_string,
         use_2d3d_convolution, radar_source, radar_field_names,
-        refl_masking_threshold_dbz=0., rdp_filter_threshold_s02=None,
         radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
-        radar_file_name_matrix_for_training_pos_targets_only=None,
+        min_normalized_value=None, max_normalized_value=None,
+        normalization_param_file_name=None, refl_masking_threshold_dbz=0.,
+        rdp_filter_threshold_s02=None,
+        radar_fn_matrix_training_pos_targets_only=None,
         training_fraction_by_class_dict=None,
         validation_fraction_by_class_dict=None,
-        num_validation_batches_per_epoch=None,
-        radar_file_name_matrix_for_validn=None,
-        radar_file_name_matrix_for_validn_pos_targets_only=None,
+        num_validation_batches_per_epoch=None, radar_fn_matrix_validation=None,
+        radar_fn_matrix_validation_pos_targets_only=None,
         sounding_field_names=None, top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None,
-        sounding_normalization_dict=None):
+        sounding_lag_time_for_convective_contamination_sec=None):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param num_epochs: Number of epochs.
-    :param num_examples_per_batch: Number of examples (storm objects) per batch.
-    :param num_examples_per_file_time: Number of examples (storm objects) per
-        file time.  One "file time" may be either one time step or one SPC date.
+    :param num_epochs: Number of training epochs.
+    :param num_examples_per_batch: Number of examples (storm objects) per
+        training batch.
+    :param num_examples_per_file: Number of examples (storm objects) per file.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param radar_file_name_matrix_for_training: numpy array created by
+    :param radar_fn_matrix_training: numpy array created by
         `training_validation_io.find_radar_files_2d` or
         `training_validation_io.find_radar_files_3d`.
     :param weight_loss_function: See doc for `_check_training_args`.
     :param monitor_string: See doc for `_get_checkpoint_object`.
     :param target_name: Name of target variable.
-    :param binarize_target: Boolean flag.  If True, target variable was
-        binarized, so that the highest class becomes 1 and all other classes
-        become 0.
-    :param radar_normalization_dict: Used to normalize radar data (see
-        `deep_learning_utils.normalize_predictor_matrix` for details).
+    :param binarize_target: See doc for `_check_training_args`.
+    :param normalization_type_string: See doc for `train_2d_cnn`.
     :param use_2d3d_convolution: Boolean flag, indicating whether or not the
         network used a hybrid of 2-D and 3-D convolution.
     :param radar_source: Data source (must be accepted by
         `radar_utils.check_data_source`).
-    :param refl_masking_threshold_dbz: Used to mask out pixels with low
-        reflectivity (see doc for
-        `deep_learning_utils.mask_low_reflectivity_pixels`).
-    :param rdp_filter_threshold_s02: Used to remove storm objects with low
-        rotation-divergence product (see doc for
-        `storm_images.get_max_rdp_for_each_storm_object`).
     :param radar_field_names: 1-D list with names of radar fields.  Each must be
         accepted by `radar_utils.check_field_name`.
     :param radar_heights_m_asl: [needed only if radar_source = "gridrad"]
@@ -963,63 +956,66 @@ def write_model_metadata(
         [needed only if radar_source != "gridrad"]
         1-D numpy array of heights (metres above sea level) applied to the field
         "reflectivity_dbz".
-    :param radar_file_name_matrix_for_training_pos_targets_only: Same as
-        `radar_file_name_matrix_for_training`, but only for storm objects with
-        positive target values.
-    :param training_fraction_by_class_dict: Used to sample training data (see
-        `training_validation_io.storm_image_generator_2d` for details).
-    :param validation_fraction_by_class_dict:
-        [needed only if CNN did validation on the fly]
-        Same as `training_fraction_by_class_dict`, but for validation data.
-    :param num_validation_batches_per_epoch:
-        [needed only if CNN did validation on the fly]
-        Number of validation batches per epoch.
-    :param radar_file_name_matrix_for_validn:
-        [needed only if CNN did validation on the fly]
-        numpy array created by `training_validation_io.find_radar_files_2d` or
-        `training_validation_io.find_radar_files_3d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: Same as
-        `radar_file_name_matrix_for_validn`, but only for storm objects with
-        positive target values.
-    :param sounding_field_names: [needed only if CNN takes soundings]
-        1-D list with names of sounding fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
+    :param min_normalized_value: See doc for `train_2d_cnn`.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
+    :param refl_masking_threshold_dbz: See doc for
+        `deep_learning_utils.mask_low_reflectivity_pixels`.
+    :param rdp_filter_threshold_s02: Used to remove storm objects with small
+        rotation-divergence product (RDP).  Storm objects with RDP <
+        `rdp_filter_threshold_s02` are not passed through the network.
+    :param radar_fn_matrix_training_pos_targets_only: Same as
+        `radar_fn_matrix_training`, but only for storm objects with positive
+        target values.
+    :param training_fraction_by_class_dict: Used for class-conditional sampling
+        of training data (see `training_validation_io.storm_image_generator_2d`
+        for details).
+    :param validation_fraction_by_class_dict: Same as
+        `training_fraction_by_class_dict`, but for validation.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
+    :param radar_fn_matrix_validation: Same as `radar_fn_matrix_training`, but
+        for validation.
+    :param radar_fn_matrix_validation_pos_targets_only: Same as
+        `radar_fn_matrix_training_pos_targets_only`, but for validation.
+    :param sounding_field_names: 1-D list with names of sounding fields.  Each
+        must be accepted by `soundings_only.check_pressureless_field_name`.
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param sounding_normalization_dict: Used to normalize soundings (see
-        `deep_learning_utils.normalize_sounding_matrix` for details).
     """
 
     model_metadata_dict = {
         NUM_EPOCHS_KEY: num_epochs,
         NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        NUM_EXAMPLES_PER_FILE_TIME_KEY: num_examples_per_file_time,
+        NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
         NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
-        TRAINING_FILE_NAMES_KEY: radar_file_name_matrix_for_training,
-        TRAINING_FILE_NAMES_POS_TARGETS_KEY:
-            radar_file_name_matrix_for_training_pos_targets_only,
+        TRAINING_FILE_NAMES_KEY: radar_fn_matrix_training,
         WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         MONITOR_STRING_KEY: monitor_string,
         TARGET_NAME_KEY: target_name,
         BINARIZE_TARGET_KEY: binarize_target,
-        RADAR_NORMALIZATION_DICT_KEY: radar_normalization_dict,
+        NORMALIZATION_TYPE_KEY: normalization_type_string,
         USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
         RADAR_SOURCE_KEY: radar_source,
-        REFL_MASKING_THRESHOLD_KEY: refl_masking_threshold_dbz,
-        RDP_FILTER_THRESHOLD_KEY: rdp_filter_threshold_s02,
         RADAR_FIELD_NAMES_KEY: radar_field_names,
         RADAR_HEIGHTS_KEY: radar_heights_m_asl,
         REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
+        MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
+        MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
+        NORMALIZATION_FILE_NAME_KEY: normalization_param_file_name,
+        REFL_MASKING_THRESHOLD_KEY: refl_masking_threshold_dbz,
+        RDP_FILTER_THRESHOLD_KEY: rdp_filter_threshold_s02,
+        TRAINING_FILE_NAMES_POS_TARGETS_KEY:
+            radar_fn_matrix_training_pos_targets_only,
         TRAINING_FRACTION_BY_CLASS_KEY: training_fraction_by_class_dict,
         VALIDATION_FRACTION_BY_CLASS_KEY: validation_fraction_by_class_dict,
         NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
-        VALIDATION_FILE_NAMES_KEY: radar_file_name_matrix_for_validn,
+        VALIDATION_FILE_NAMES_KEY: radar_fn_matrix_validation,
         VALIDATION_FILE_NAMES_POS_TARGETS_KEY:
-            radar_file_name_matrix_for_validn_pos_targets_only,
+            radar_fn_matrix_validation_pos_targets_only,
         SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
         TOP_SOUNDING_DIR_NAME_KEY: top_sounding_dir_name,
-        SOUNDING_NORMALIZATION_DICT_KEY: sounding_normalization_dict,
         SOUNDING_LAG_TIME_KEY:
             sounding_lag_time_for_convective_contamination_sec,
     }
@@ -1084,6 +1080,14 @@ def read_model_metadata(pickle_file_name):
     if RDP_FILTER_THRESHOLD_KEY not in model_metadata_dict:
         model_metadata_dict.update({RDP_FILTER_THRESHOLD_KEY: None})
 
+    if NORMALIZATION_TYPE_KEY not in model_metadata_dict:
+        model_metadata_dict.update({
+            NORMALIZATION_TYPE_KEY: dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+            MIN_NORMALIZED_VALUE_KEY: 0.,
+            MAX_NORMALIZED_VALUE_KEY: 1.,
+            NORMALIZATION_FILE_NAME_KEY: None,
+        })
+
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
     if not set(expected_keys_as_set).issubset(actual_keys_as_set):
@@ -1146,16 +1150,18 @@ def _get_checkpoint_object(
 
 def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_examples_per_batch, num_examples_per_file_time,
-        num_training_batches_per_epoch, radar_file_name_matrix_for_training,
+        num_epochs, num_examples_per_batch, num_examples_per_file,
+        num_training_batches_per_epoch, radar_fn_matrix_training,
         target_name, top_target_directory_name,
-        radar_file_name_matrix_for_training_pos_targets_only=None,
+        normalization_type_string=None, normalization_param_file_name=None,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        radar_fn_matrix_training_pos_targets_only=None,
         monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
-        validation_fraction_by_class_dict=None,
-        radar_file_name_matrix_for_validn=None,
-        radar_file_name_matrix_for_validn_pos_targets_only=None,
+        validation_fraction_by_class_dict=None, radar_fn_matrix_validation=None,
+        radar_fn_matrix_validation_pos_targets_only=None,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None):
     """Trains CNN with 2-D radar images.
@@ -1169,19 +1175,24 @@ def train_2d_cnn(
     :param tensorboard_dir_name: Same.
     :param num_epochs: Number of epochs.
     :param num_examples_per_batch: Number of examples (storm objects) per batch.
-    :param num_examples_per_file_time: Number of examples (storm objects) per
-        file.  If each file contains one time step (SPC date), this will be
-        number of examples per time step (SPC date).
+    :param num_examples_per_file: Number of examples (storm objects) per file.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param radar_file_name_matrix_for_training: T-by-C numpy array of paths to
+    :param radar_fn_matrix_training: T-by-C numpy array of paths to
         radar files.  Should be created by
         `training_validation_io.find_radar_files_2d`.
     :param target_name: Name of target variable.
     :param top_target_directory_name: Name of top-level directory with target
         values (storm-hazard labels).  Files within this directory should be
         findable by `labels.find_label_file`.
-    :param radar_file_name_matrix_for_training_pos_targets_only: Same as
-        `radar_file_name_matrix_for_training`, but only for storm objects with
+    :param normalization_type_string: Normalization type (must be accepted by
+        `dl_utils._check_normalization_type`).  If you don't want to normalize,
+        leave this as None.
+    :param normalization_param_file_name: See doc for
+        `dl_utils.normalize_radar_images` or `dl_utils.normalize_soundings`.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
+    :param radar_fn_matrix_training_pos_targets_only: Same as
+        `radar_fn_matrix_training`, but only for storm objects with
         positive target values.
     :param monitor_string: See doc for `_get_checkpoint_object`.
     :param binarize_target: Same.
@@ -1191,11 +1202,11 @@ def train_2d_cnn(
         epoch.
     :param validation_fraction_by_class_dict: Same as
         `training_fraction_by_class_dict`, but for validation data.
-    :param radar_file_name_matrix_for_validn: V-by-C numpy array of paths to
+    :param radar_fn_matrix_validation: V-by-C numpy array of paths to
         radar files.  Should be created by
         `training_validation_io.find_radar_files_2d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: Same as
-        `radar_file_name_matrix_for_validn`, but only for storm objects with
+    :param radar_fn_matrix_validation_pos_targets_only: Same as
+        `radar_fn_matrix_validation`, but only for storm objects with
         positive target values.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
@@ -1236,13 +1247,17 @@ def train_2d_cnn(
     if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
-                radar_file_name_matrix=radar_file_name_matrix_for_training,
+                radar_file_name_matrix=radar_fn_matrix_training,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_training_pos_targets_only,
+                radar_fn_matrix_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1255,13 +1270,17 @@ def train_2d_cnn(
     else:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
-                radar_file_name_matrix=radar_file_name_matrix_for_training,
+                radar_file_name_matrix=radar_fn_matrix_training,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_training_pos_targets_only,
+                radar_fn_matrix_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1271,13 +1290,17 @@ def train_2d_cnn(
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d(
-                radar_file_name_matrix=radar_file_name_matrix_for_validn,
+                radar_file_name_matrix=radar_fn_matrix_validation,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_validn_pos_targets_only,
+                radar_fn_matrix_validation_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
@@ -1289,18 +1312,21 @@ def train_2d_cnn(
 
 def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_examples_per_batch, num_examples_per_file_time,
-        num_training_batches_per_epoch, radar_file_name_matrix_for_training,
+        num_epochs, num_examples_per_batch, num_examples_per_file,
+        num_training_batches_per_epoch, radar_fn_matrix_training,
         target_name, top_target_directory_name,
+        normalization_type_string=None, normalization_param_file_name=None,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
         rdp_filter_threshold_s02=None,
-        radar_file_name_matrix_for_training_pos_targets_only=None,
+        radar_fn_matrix_training_pos_targets_only=None,
         monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
-        radar_file_name_matrix_for_validn=None,
-        radar_file_name_matrix_for_validn_pos_targets_only=None,
+        radar_fn_matrix_validation=None,
+        radar_fn_matrix_validation_pos_targets_only=None,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None):
     """Trains CNN with 3-D radar images.
@@ -1314,19 +1340,23 @@ def train_3d_cnn(
     :param tensorboard_dir_name: Same.
     :param num_epochs: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_file_time: Same.
+    :param num_examples_per_file: Same.
     :param num_training_batches_per_epoch: Same.
-    :param radar_file_name_matrix_for_training: T-by-F-by-H numpy array of paths
+    :param radar_fn_matrix_training: T-by-F-by-H numpy array of paths
         to radar files.  Should be created by
         `training_validation_io.find_radar_files_3d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
+    :param normalization_type_string: Same.
+    :param normalization_param_file_name: Same.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
     :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
         (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
     :param rdp_filter_threshold_s02: Used as a pre-model filter, to remove storm
         objects with small rotation-divergence product (see doc for
         `storm_images.get_max_rdp_for_each_storm_object`).
-    :param radar_file_name_matrix_for_training_pos_targets_only: See doc for
+    :param radar_fn_matrix_training_pos_targets_only: See doc for
         `train_2d_cnn`.
     :param monitor_string: See doc for `_get_checkpoint_object`.
     :param binarize_target: See doc for `train_2d_cnn`.
@@ -1334,10 +1364,10 @@ def train_3d_cnn(
     :param training_fraction_by_class_dict: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_fraction_by_class_dict: Same.
-    :param radar_file_name_matrix_for_validn: V-by-F-by-H numpy array of paths
+    :param radar_fn_matrix_validation: V-by-F-by-H numpy array of paths
         to radar files.  Should be created by
         `training_validation_io.find_radar_files_3d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: See doc for
+    :param radar_fn_matrix_validation_pos_targets_only: See doc for
         `train_2d_cnn`.
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
@@ -1375,13 +1405,17 @@ def train_3d_cnn(
     if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
-                radar_file_name_matrix=radar_file_name_matrix_for_training,
+                radar_file_name_matrix=radar_fn_matrix_training,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_training_pos_targets_only,
+                radar_fn_matrix_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 refl_masking_threshold_dbz=refl_masking_threshold_dbz,
                 rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
@@ -1396,13 +1430,17 @@ def train_3d_cnn(
     else:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
-                radar_file_name_matrix=radar_file_name_matrix_for_training,
+                radar_file_name_matrix=radar_fn_matrix_training,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_training_pos_targets_only,
+                radar_fn_matrix_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 refl_masking_threshold_dbz=refl_masking_threshold_dbz,
                 rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
@@ -1414,13 +1452,17 @@ def train_3d_cnn(
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_3d(
-                radar_file_name_matrix=radar_file_name_matrix_for_validn,
+                radar_file_name_matrix=radar_fn_matrix_validation,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_validn_pos_targets_only,
+                radar_fn_matrix_validation_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 refl_masking_threshold_dbz=refl_masking_threshold_dbz,
                 rdp_filter_threshold_s02=rdp_filter_threshold_s02,
                 sampling_fraction_by_class_dict=
@@ -1434,16 +1476,19 @@ def train_3d_cnn(
 
 def train_2d3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_examples_per_batch, num_examples_per_file_time,
-        num_training_batches_per_epoch, radar_file_name_matrix_for_training,
+        num_epochs, num_examples_per_batch, num_examples_per_file,
+        num_training_batches_per_epoch, radar_fn_matrix_training,
         target_name, top_target_directory_name,
-        radar_file_name_matrix_for_training_pos_targets_only=None,
+        normalization_type_string=None, normalization_param_file_name=None,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        radar_fn_matrix_training_pos_targets_only=None,
         monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
         weight_loss_function=False, training_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None,
         validation_fraction_by_class_dict=None,
-        radar_file_name_matrix_for_validn=None,
-        radar_file_name_matrix_for_validn_pos_targets_only=None,
+        radar_fn_matrix_validation=None,
+        radar_fn_matrix_validation_pos_targets_only=None,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None):
     """Trains CNN with 2-D azimuthal-shear images and 3-D reflectivity images.
@@ -1459,22 +1504,26 @@ def train_2d3d_cnn(
     :param tensorboard_dir_name: Same.
     :param num_epochs: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_file_time: Same.
+    :param num_examples_per_file: Same.
     :param num_training_batches_per_epoch: Same.
-    :param radar_file_name_matrix_for_training: numpy array (T x [H_r + F_a]) of
+    :param radar_fn_matrix_training: numpy array (T x [H_r + F_a]) of
         paths to image files.  This should be created by `find_radar_files_2d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
-    :param radar_file_name_matrix_for_training_pos_targets_only: Same.
+    :param normalization_type_string: Same.
+    :param normalization_param_file_name: Same.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
+    :param radar_fn_matrix_training_pos_targets_only: Same.
     :param monitor_string: See doc for `_get_checkpoint_object`.
     :param binarize_target: See doc for `train_2d_cnn`.
     :param weight_loss_function: Same.
     :param training_fraction_by_class_dict: Same.
     :param num_validation_batches_per_epoch: Same.
     :param validation_fraction_by_class_dict: Same.
-    :param radar_file_name_matrix_for_validn: numpy array (V x [H_r + F_a]) of
+    :param radar_fn_matrix_validation: numpy array (V x [H_r + F_a]) of
         paths to image files.  This should be created by `find_radar_files_2d`.
-    :param radar_file_name_matrix_for_validn_pos_targets_only: See doc for
+    :param radar_fn_matrix_validation_pos_targets_only: See doc for
         `train_2d_cnn`.
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
@@ -1512,13 +1561,17 @@ def train_2d3d_cnn(
     if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                radar_file_name_matrix=radar_file_name_matrix_for_training,
+                radar_file_name_matrix=radar_fn_matrix_training,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_training_pos_targets_only,
+                radar_fn_matrix_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1531,13 +1584,17 @@ def train_2d3d_cnn(
     else:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                radar_file_name_matrix=radar_file_name_matrix_for_training,
+                radar_file_name_matrix=radar_fn_matrix_training,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_training_pos_targets_only,
+                radar_fn_matrix_training_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 sampling_fraction_by_class_dict=training_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
@@ -1547,13 +1604,17 @@ def train_2d3d_cnn(
             verbose=1, class_weight=loss_function_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d3d_myrorss(
-                radar_file_name_matrix=radar_file_name_matrix_for_validn,
+                radar_file_name_matrix=radar_fn_matrix_validation,
                 radar_file_name_matrix_pos_targets_only=
-                radar_file_name_matrix_for_validn_pos_targets_only,
+                radar_fn_matrix_validation_pos_targets_only,
                 top_target_directory_name=top_target_directory_name,
                 num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file_time=num_examples_per_file_time,
+                num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
                 sampling_fraction_by_class_dict=
                 validation_fraction_by_class_dict,
                 sounding_field_names=sounding_field_names,

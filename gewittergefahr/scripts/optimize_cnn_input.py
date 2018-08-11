@@ -251,15 +251,27 @@ def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
         list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[0],
             field_names=[radar_utils.REFL_NAME],
-            normalization_dict=model_metadata_dict[
-                cnn.RADAR_NORMALIZATION_DICT_KEY])
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY])
 
         print 'Denormalizing azimuthal-shear fields...'
         list_of_input_matrices[1] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[1],
             field_names=azimuthal_shear_field_names,
-            normalization_dict=model_metadata_dict[
-                cnn.RADAR_NORMALIZATION_DICT_KEY])
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY])
     else:
         radar_file_name_matrix = model_metadata_dict[
             cnn.TRAINING_FILE_NAMES_KEY]
@@ -280,8 +292,14 @@ def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
         list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[0],
             field_names=field_name_by_channel,
-            normalization_dict=model_metadata_dict[
-                cnn.RADAR_NORMALIZATION_DICT_KEY])
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY])
 
     if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
         print 'Denormalizing soundings...'
@@ -289,8 +307,14 @@ def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
             sounding_matrix=list_of_input_matrices[-1],
             pressureless_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
-            normalization_dict=model_metadata_dict[
-                cnn.SOUNDING_NORMALIZATION_DICT_KEY])
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY])
 
     return list_of_input_matrices
 

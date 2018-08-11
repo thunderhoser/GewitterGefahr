@@ -55,40 +55,6 @@ VALID_NORMALIZATION_TYPE_STRINGS = [
 DEFAULT_MIN_NORMALIZED_VALUE = -1.
 DEFAULT_MAX_NORMALIZED_VALUE = 1.
 
-# TODO(thunderhoser): Remove these stupid dictionaries.
-DEFAULT_RADAR_NORMALIZATION_DICT = {
-    radar_utils.ECHO_TOP_18DBZ_NAME: numpy.array([0., 15.]),  # km
-    radar_utils.ECHO_TOP_40DBZ_NAME: numpy.array([0., 15.]),  # km
-    radar_utils.ECHO_TOP_50DBZ_NAME: numpy.array([0., 15.]),  # km
-    radar_utils.LOW_LEVEL_SHEAR_NAME: numpy.array([-0.01, 0.02]),  # s^-1
-    radar_utils.MID_LEVEL_SHEAR_NAME: numpy.array([-0.01, 0.02]),  # s^-1
-    radar_utils.MESH_NAME: numpy.array([0., 90.]),  # mm
-    radar_utils.REFL_NAME: numpy.array([0., 75.]),  # dBZ
-    radar_utils.REFL_COLUMN_MAX_NAME: numpy.array([0., 75.]),  # dBZ
-    radar_utils.REFL_0CELSIUS_NAME: numpy.array([0., 75.]),  # dBZ
-    radar_utils.REFL_M10CELSIUS_NAME: numpy.array([0., 75.]),  # dBZ
-    radar_utils.REFL_M20CELSIUS_NAME: numpy.array([0., 75.]),  # dBZ
-    radar_utils.REFL_LOWEST_ALTITUDE_NAME: numpy.array([0., 75.]),  # dBZ
-    radar_utils.SHI_NAME: numpy.array([0., 450.]),  # unitless
-    radar_utils.VIL_NAME: numpy.array([0., 75.]),  # mm
-    radar_utils.DIFFERENTIAL_REFL_NAME: numpy.array([-1., 4.]),  # dB
-    radar_utils.SPEC_DIFF_PHASE_NAME: numpy.array([-1., 4.]),  # deg km^-1
-    radar_utils.CORRELATION_COEFF_NAME: numpy.array([0.7, 1.]),  # unitless
-    radar_utils.SPECTRUM_WIDTH_NAME: numpy.array([0., 10.]),  # m s^-1
-    radar_utils.VORTICITY_NAME: numpy.array([-0.0075, 0.0075]),  # s^-1
-    radar_utils.DIVERGENCE_NAME: numpy.array([-0.0075, 0.0075])  # s^-1
-}
-
-DEFAULT_SOUNDING_NORMALIZATION_DICT = {
-    soundings_only.RELATIVE_HUMIDITY_NAME: numpy.array([0., 1.]),  # unitless
-    soundings_only.TEMPERATURE_NAME: numpy.array([197.4, 311.8]),  # Kelvins
-    soundings_only.WIND_SPEED_KEY: numpy.array([0., 64.1]),  # m s^-1
-    soundings_only.SPECIFIC_HUMIDITY_NAME:
-        numpy.array([0., 0.0223]),  # kg kg^-1
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
-        numpy.array([285.2, 421.6])  # Kelvins
-}
-
 
 def _check_normalization_type(normalization_type_string):
     """Ensures that normalization type is valid.

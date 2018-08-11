@@ -18,8 +18,6 @@ NUM_RADAR_ROWS = 24
 NUM_RADAR_COLUMNS = 24
 NUM_SOUNDING_HEIGHTS = 37
 RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
-RADAR_NORMALIZATION_DICT = dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT
-SOUNDING_NORMALIZATION_DICT = dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = dl_helper.add_input_arguments(
@@ -28,6 +26,7 @@ INPUT_ARG_PARSER = dl_helper.add_input_arguments(
 NUM_RADAR_FILTERS_ARG_NAME = 'num_radar_filters_in_first_layer'
 REFL_MASK_THRESHOLD_ARG_NAME = 'refl_masking_threshold_dbz'
 RDP_FILTER_THRESHOLD_ARG_NAME = 'rdp_filter_threshold_s02'
+NORMALIZATION_FILE_ARG_NAME = 'normalization_param_file_name'
 
 NUM_RADAR_FILTERS_HELP_STRING = (
     'Number of radar filters in first convolutional layer.  Number of filters '
@@ -42,6 +41,13 @@ RDP_FILTER_THRESHOLD_HELP_STRING = (
     'used to train the CNN.  The lowest class (0) is predicted with 100% '
     'probability.  If you do not want a pre-model filter, make this -1.'
 ).format(RDP_FILTER_THRESHOLD_ARG_NAME)
+NORMALIZATION_FILE_HELP_STRING = (
+    '[used only if {0:s} is not empty] Path to file with normalization params.'
+    '  Will be read by `deep_learning_utils.read_normalization_params_from_file'
+    '`.'
+).format(dl_helper.NORMALIZATION_TYPE_ARG_NAME)
+
+DEFAULT_NORMALIZATION_FILE_NAME = ''
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_RADAR_FILTERS_ARG_NAME, type=int, required=False,
@@ -56,19 +62,25 @@ INPUT_ARG_PARSER.add_argument(
     '--' + RDP_FILTER_THRESHOLD_ARG_NAME, type=float, required=False,
     default=-1., help=RDP_FILTER_THRESHOLD_HELP_STRING)
 
+INPUT_ARG_PARSER.add_argument(
+    '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=False,
+    default=DEFAULT_NORMALIZATION_FILE_NAME,
+    help=NORMALIZATION_FILE_HELP_STRING)
+
 
 def _train_cnn(
         output_model_dir_name, num_epochs, num_examples_per_batch,
-        num_examples_per_file_time, num_training_batches_per_epoch,
-        top_storm_radar_image_dir_name, one_file_per_time_step,
-        first_training_time_string, last_training_time_string,
-        monitor_string, radar_field_names, target_name, top_target_dir_name,
-        binarize_target, num_radar_conv_layers,
-        num_radar_filters_in_first_layer, dropout_fraction, l2_weight,
+        num_examples_per_file, num_training_batches_per_epoch,
+        top_storm_radar_image_dir_name, first_train_spc_date_string,
+        last_train_spc_date_string, monitor_string, radar_field_names,
+        target_name, top_target_dir_name, binarize_target,
+        num_radar_conv_layers, num_radar_filters_in_first_layer,
+        normalization_type_string, normalization_param_file_name,
+        min_normalized_value, max_normalized_value, dropout_fraction, l2_weight,
         refl_masking_threshold_dbz, rdp_filter_threshold_s02,
         sampling_fraction_dict_keys, sampling_fraction_dict_values,
         weight_loss_function, num_validation_batches_per_epoch,
-        first_validation_time_string, last_validation_time_string,
+        first_validn_spc_date_string, last_validn_spc_date_string,
         sounding_field_names, top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
         num_sounding_filters_in_first_layer):
@@ -78,12 +90,11 @@ def _train_cnn(
         'scripts/deep_learning.py'.
     :param num_epochs: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_file_time: Same.
+    :param num_examples_per_file: Same.
     :param num_training_batches_per_epoch: Same.
     :param top_storm_radar_image_dir_name: Same.
-    :param one_file_per_time_step: Same.
-    :param first_training_time_string: Same.
-    :param last_training_time_string: Same.
+    :param first_train_spc_date_string: Same.
+    :param last_train_spc_date_string: Same.
     :param monitor_string: Same.
     :param radar_field_names: Same.
     :param target_name: Same.
@@ -92,8 +103,14 @@ def _train_cnn(
     :param num_radar_conv_layers: Same.
     :param num_radar_filters_in_first_layer: See documentation at the top
         of this file.
-    :param dropout_fraction: See documentation at the top of
+    :param normalization_type_string: See documentation at the top of
         'scripts/deep_learning.py'.
+    :param normalization_param_file_name: See documentation at the top of this
+        file.
+    :param min_normalized_value: See documentation at the top of
+        'scripts/deep_learning.py'.
+    :param max_normalized_value: Same.
+    :param dropout_fraction: Same.
     :param l2_weight: Same.
     :param refl_masking_threshold_dbz: See documentation at the top of this
         file.
@@ -103,8 +120,8 @@ def _train_cnn(
     :param sampling_fraction_dict_values: Same.
     :param weight_loss_function: Same.
     :param num_validation_batches_per_epoch: Same.
-    :param first_validation_time_string: Same.
-    :param last_validation_time_string: Same.
+    :param first_validn_spc_date_string: Same.
+    :param last_validn_spc_date_string: Same.
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
@@ -130,20 +147,24 @@ def _train_cnn(
     else:
         sampling_fraction_by_class_dict = None
 
-    first_train_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_training_time_string, dl_helper.INPUT_TIME_FORMAT)
-    last_train_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_training_time_string, dl_helper.INPUT_TIME_FORMAT)
+    first_train_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        first_train_spc_date_string)
+    last_train_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        last_train_spc_date_string)
 
     if num_validation_batches_per_epoch <= 0:
         num_validation_batches_per_epoch = None
         first_validn_time_unix_sec = None
         last_validn_time_unix_sec = None
     else:
-        first_validn_time_unix_sec = time_conversion.string_to_unix_sec(
-            first_validation_time_string, dl_helper.INPUT_TIME_FORMAT)
-        last_validn_time_unix_sec = time_conversion.string_to_unix_sec(
-            last_validation_time_string, dl_helper.INPUT_TIME_FORMAT)
+        first_validn_time_unix_sec = (
+            time_conversion.spc_date_string_to_unix_sec(
+                first_validn_spc_date_string)
+        )
+        last_validn_time_unix_sec = (
+            time_conversion.spc_date_string_to_unix_sec(
+                last_validn_spc_date_string)
+        )
 
     if sounding_field_names[0] == 'None':
         sounding_field_names = None
@@ -164,55 +185,56 @@ def _train_cnn(
     metadata_file_name = '{0:s}/model_metadata.p'.format(output_model_dir_name)
 
     # Find input files for training.
-    radar_file_name_matrix_for_training, _, _ = trainval_io.find_radar_files_3d(
+    radar_fn_matrix_training = trainval_io.find_radar_files_3d(
         top_directory_name=top_storm_radar_image_dir_name,
-        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
-        radar_field_names=radar_field_names,
-        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
         first_file_time_unix_sec=first_train_time_unix_sec,
         last_file_time_unix_sec=last_train_time_unix_sec,
-        one_file_per_time_step=one_file_per_time_step)
+        one_file_per_time_step=False,
+        radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+        radar_field_names=radar_field_names,
+        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL)[0]
     print SEPARATOR_STRING
 
     if num_validation_batches_per_epoch is None:
-        radar_file_name_matrix_for_validn = None
+        radar_fn_matrix_validation = None
     else:
-        (radar_file_name_matrix_for_validn, _, _
-        ) = trainval_io.find_radar_files_3d(
+        radar_fn_matrix_validation = trainval_io.find_radar_files_3d(
             top_directory_name=top_storm_radar_image_dir_name,
-            radar_source=radar_utils.GRIDRAD_SOURCE_ID,
-            radar_field_names=radar_field_names,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
             first_file_time_unix_sec=first_validn_time_unix_sec,
             last_file_time_unix_sec=last_validn_time_unix_sec,
-            one_file_per_time_step=one_file_per_time_step)
+            one_file_per_time_step=False,
+            radar_source=radar_utils.GRIDRAD_SOURCE_ID,
+            radar_field_names=radar_field_names,
+            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,)[0]
         print SEPARATOR_STRING
 
     print 'Writing metadata to: "{0:s}"...\n'.format(metadata_file_name)
     cnn.write_model_metadata(
         pickle_file_name=metadata_file_name, num_epochs=num_epochs,
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_file_time,
+        num_examples_per_file=num_examples_per_file,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
+        radar_fn_matrix_training=radar_fn_matrix_training,
         weight_loss_function=weight_loss_function,
         monitor_string=monitor_string, target_name=target_name,
         binarize_target=binarize_target,
-        radar_normalization_dict=RADAR_NORMALIZATION_DICT,
+        normalization_type_string=normalization_type_string,
         use_2d3d_convolution=False, radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         refl_masking_threshold_dbz=refl_masking_threshold_dbz,
         rdp_filter_threshold_s02=rdp_filter_threshold_s02,
         radar_field_names=radar_field_names,
         radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+        min_normalized_value=min_normalized_value,
+        max_normalized_value=max_normalized_value,
+        normalization_param_file_name=normalization_param_file_name,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        radar_file_name_matrix_for_validn=radar_file_name_matrix_for_validn,
+        radar_fn_matrix_validation=radar_fn_matrix_validation,
         sounding_field_names=sounding_field_names,
         top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
-        sounding_lag_time_for_convective_contamination_sec,
-        sounding_normalization_dict=SOUNDING_NORMALIZATION_DICT)
+        sounding_lag_time_for_convective_contamination_sec)
 
     if binarize_target:
         num_classes_to_predict = 2
@@ -238,18 +260,22 @@ def _train_cnn(
         history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name,
         num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_file_time,
+        num_examples_per_file=num_examples_per_file,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        radar_file_name_matrix_for_training=radar_file_name_matrix_for_training,
+        radar_fn_matrix_training=radar_fn_matrix_training,
         target_name=target_name, top_target_directory_name=top_target_dir_name,
-        monitor_string=monitor_string, binarize_target=binarize_target,
+        normalization_type_string=normalization_type_string,
+        normalization_param_file_name=normalization_param_file_name,
+        min_normalized_value=min_normalized_value,
+        max_normalized_value=max_normalized_value,
         refl_masking_threshold_dbz=refl_masking_threshold_dbz,
         rdp_filter_threshold_s02=rdp_filter_threshold_s02,
+        monitor_string=monitor_string, binarize_target=binarize_target,
         weight_loss_function=weight_loss_function,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        radar_file_name_matrix_for_validn=radar_file_name_matrix_for_validn,
+        radar_fn_matrix_validation=radar_fn_matrix_validation,
         sounding_field_names=sounding_field_names,
         top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
@@ -266,18 +292,16 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.NUM_EPOCHS_ARG_NAME),
         num_examples_per_batch=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_EXAMPLES_PER_BATCH_ARG_NAME),
-        num_examples_per_file_time=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_EXAMPLES_PER_FILE_TIME_ARG_NAME),
+        num_examples_per_file=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_EXAMPLES_PER_FILE_ARG_NAME),
         num_training_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_TRAIN_BATCHES_ARG_NAME),
         top_storm_radar_image_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.RADAR_DIRECTORY_ARG_NAME),
-        one_file_per_time_step=bool(getattr(
-            INPUT_ARG_OBJECT, dl_helper.ONE_FILE_PER_TIME_STEP_ARG_NAME)),
-        first_training_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME),
-        last_training_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
+        first_train_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_DATE_ARG_NAME),
+        last_train_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_DATE_ARG_NAME),
         monitor_string=getattr(
             INPUT_ARG_OBJECT, dl_helper.MONITOR_STRING_ARG_NAME),
         radar_field_names=getattr(
@@ -292,6 +316,14 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.NUM_RADAR_CONV_LAYERS_ARG_NAME),
         num_radar_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, NUM_RADAR_FILTERS_ARG_NAME),
+        normalization_type_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_TYPE_ARG_NAME),
+        normalization_param_file_name=getattr(
+            INPUT_ARG_OBJECT, NORMALIZATION_FILE_ARG_NAME),
+        min_normalized_value=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MIN_NORMALIZED_VALUE_ARG_NAME),
+        max_normalized_value=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_NORMALIZED_VALUE_ARG_NAME),
         dropout_fraction=getattr(
             INPUT_ARG_OBJECT, dl_helper.DROPOUT_FRACTION_ARG_NAME),
         l2_weight=getattr(
@@ -308,10 +340,10 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME)),
         num_validation_batches_per_epoch=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_VALIDN_BATCHES_ARG_NAME),
-        first_validation_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_TIME_ARG_NAME),
-        last_validation_time_string=getattr(
-            INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_TIME_ARG_NAME),
+        first_validn_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_DATE_ARG_NAME),
+        last_validn_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_DATE_ARG_NAME),
         sounding_field_names=getattr(
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_FIELD_NAMES_ARG_NAME),
         top_sounding_dir_name=getattr(

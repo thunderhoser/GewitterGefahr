@@ -588,8 +588,8 @@ def _read_input_files_2d3d(
 
 
 def check_input_args(
-        num_examples_per_batch, num_examples_per_file_time, normalize_by_batch,
-        radar_file_name_matrix, num_radar_dimensions, binarize_target,
+        num_examples_per_batch, num_examples_per_file, radar_file_name_matrix,
+        num_radar_dimensions, binarize_target,
         radar_file_name_matrix_pos_targets_only=None,
         sounding_field_names=None):
     """Error-checking of input arguments to generator.
@@ -597,11 +597,7 @@ def check_input_args(
     T = number of storm times (initial times, not valid times)
 
     :param num_examples_per_batch: Number of examples (storm objects) per batch.
-    :param num_examples_per_file_time: Number of examples (storm objects) per
-        file.  If each file contains one time step (SPC date), this will be
-        number of examples per time step (SPC date).
-    :param normalize_by_batch: Used to normalize radar images (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
+    :param num_examples_per_file: Number of examples (storm objects) per file.
     :param radar_file_name_matrix: numpy array of paths to radar files.
         Should be created by `find_2d_input_files` or `find_3d_input_files`, and
         the length of the first axis should be T.
@@ -618,16 +614,16 @@ def check_input_args(
 
     error_checking.assert_is_integer(num_examples_per_batch)
     error_checking.assert_is_geq(num_examples_per_batch, 10)
-    error_checking.assert_is_integer(num_examples_per_file_time)
-    error_checking.assert_is_geq(num_examples_per_file_time, 2)
-    error_checking.assert_is_boolean(normalize_by_batch)
-    error_checking.assert_is_boolean(binarize_target)
+    error_checking.assert_is_integer(num_examples_per_file)
+    error_checking.assert_is_geq(num_examples_per_file, 2)
 
     error_checking.assert_is_integer(num_radar_dimensions)
     error_checking.assert_is_geq(num_radar_dimensions, 2)
     error_checking.assert_is_leq(num_radar_dimensions, 3)
     error_checking.assert_is_numpy_array(
         radar_file_name_matrix, num_dimensions=num_radar_dimensions)
+
+    error_checking.assert_is_boolean(binarize_target)
 
     if radar_file_name_matrix_pos_targets_only is not None:
         error_checking.assert_is_numpy_array(
@@ -1133,14 +1129,15 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
 
 def storm_image_generator_2d(
         radar_file_name_matrix, top_target_directory_name,
-        num_examples_per_batch, num_examples_per_file_time, target_name,
+        num_examples_per_batch, num_examples_per_file, target_name,
+        normalization_type_string=None,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        normalization_param_file_name=None,
         radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
-        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
-        sounding_normalization_dict=
-        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
         loop_thru_files_once=False):
     """Generates examples with 2-D radar images.
 
@@ -1153,13 +1150,18 @@ def storm_image_generator_2d(
         values (storm-hazard labels).  Files within this directory should be
         findable by `labels.find_label_file`.
     :param num_examples_per_batch: See doc for `check_input_args`.
-    :param num_examples_per_file_time: Same.
+    :param num_examples_per_file: Same.
     :param target_name: Name of target variable.
+    :param normalization_type_string: Normalization type (must be accepted by
+        `dl_utils._check_normalization_type`).  If you don't want to normalize,
+        leave this as None.
+    :param min_normalized_value: See doc for `dl_utils.normalize_radar_images`
+        or `dl_utils.normalize_soundings`.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
     :param radar_file_name_matrix_pos_targets_only: [may be None]
         See doc for `find_radar_files_2d`.
     :param binarize_target: See doc for `_select_batch`.
-    :param radar_normalization_dict: Used to normalize radar images (see doc for
-        `deep_learning_utils.normalize_predictor_matrix`).
     :param sampling_fraction_by_class_dict: Dictionary, where each key is
         the integer representing a class (-2 for "dead storm") and each value is
         the corresponding sampling fraction.  Sampling fractions will be applied
@@ -1169,8 +1171,6 @@ def storm_image_generator_2d(
         `soundings_only.check_pressureless_field_name`.
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param sounding_normalization_dict: Used to normalize soundings (see doc for
-        `deep_learning_utils.normalize_sounding_matrix`).
     :param loop_thru_files_once: Boolean flag.  If True, this generator will
         loop through `radar_file_name_matrix` only once.  If False, once this
         generator has reached the end of `radar_file_name_matrix`, it will go
@@ -1197,9 +1197,9 @@ def storm_image_generator_2d(
     error_checking.assert_is_boolean(loop_thru_files_once)
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_file_time,
-        normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
-        num_radar_dimensions=2, binarize_target=binarize_target,
+        num_examples_per_file=num_examples_per_file,
+        radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=2,
+        binarize_target=binarize_target,
         radar_file_name_matrix_pos_targets_only=
         radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
@@ -1227,7 +1227,7 @@ def storm_image_generator_2d(
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
     num_file_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_file_time))
+        float(num_examples_per_batch) / num_examples_per_file))
 
     num_examples_in_memory_by_class_dict, _ = _determine_stopping_criterion(
         num_examples_per_batch=num_examples_per_batch,
@@ -1348,16 +1348,23 @@ def storm_image_generator_2d(
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
 
-        full_radar_image_matrix = dl_utils.normalize_radar_images(
-            radar_image_matrix=full_radar_image_matrix,
-            field_names=field_name_by_channel,
-            normalization_dict=radar_normalization_dict)
+        if normalization_type_string is not None:
+            full_radar_image_matrix = dl_utils.normalize_radar_images(
+                radar_image_matrix=full_radar_image_matrix,
+                field_names=field_name_by_channel,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
 
-        if sounding_file_names is not None:
-            full_sounding_matrix = dl_utils.normalize_soundings(
-                sounding_matrix=full_sounding_matrix,
-                pressureless_field_names=sounding_field_names,
-                normalization_dict=sounding_normalization_dict)
+            if sounding_file_names is not None:
+                full_sounding_matrix = dl_utils.normalize_soundings(
+                    sounding_matrix=full_sounding_matrix,
+                    pressureless_field_names=sounding_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value).astype('float32')
 
         list_of_predictor_matrices, target_matrix = _select_batch(
             list_of_predictor_matrices=[
@@ -1386,15 +1393,16 @@ def storm_image_generator_2d(
 
 def storm_image_generator_3d(
         radar_file_name_matrix, top_target_directory_name,
-        num_examples_per_batch, num_examples_per_file_time, target_name,
+        num_examples_per_batch, num_examples_per_file, target_name,
+        normalization_type_string=None,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        normalization_param_file_name=None,
         radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
-        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
         rdp_filter_threshold_s02=None, sampling_fraction_by_class_dict=None,
         sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
-        sounding_normalization_dict=
-        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
         loop_thru_files_once=False):
     """Generates examples with 3-D radar images.
 
@@ -1405,11 +1413,14 @@ def storm_image_generator_3d(
         radar-image files, created by `find_radar_files_3d`.
     :param top_target_directory_name: See doc for `storm_image_generator_2d`.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_file_time: Same.
+    :param num_examples_per_file: Same.
     :param target_name: Same.
+    :param normalization_type_string: Same.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
     :param radar_file_name_matrix_pos_targets_only: Same.
     :param binarize_target: Same.
-    :param radar_normalization_dict: Same.
     :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
         (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).  If
         you want no masking, leave this as None.
@@ -1421,7 +1432,6 @@ def storm_image_generator_3d(
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param sounding_normalization_dict: See doc for `storm_image_generator_2d`.
     :param loop_thru_files_once: Same.
 
     If `sounding_field_names is None`, this method returns...
@@ -1442,9 +1452,9 @@ def storm_image_generator_3d(
     error_checking.assert_is_boolean(loop_thru_files_once)
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_file_time,
-        normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
-        num_radar_dimensions=3, binarize_target=binarize_target,
+        num_examples_per_file=num_examples_per_file,
+        radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=3,
+        binarize_target=binarize_target,
         radar_file_name_matrix_pos_targets_only=
         radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
@@ -1472,7 +1482,7 @@ def storm_image_generator_3d(
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
     num_file_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_file_time))
+        float(num_examples_per_batch) / num_examples_per_file))
 
     num_examples_in_memory_by_class_dict, _ = _determine_stopping_criterion(
         num_examples_per_batch=num_examples_per_batch,
@@ -1600,16 +1610,23 @@ def storm_image_generator_3d(
                 field_names=radar_field_names,
                 reflectivity_threshold_dbz=refl_masking_threshold_dbz)
 
-        full_radar_image_matrix = dl_utils.normalize_radar_images(
-            radar_image_matrix=full_radar_image_matrix,
-            field_names=radar_field_names,
-            normalization_dict=radar_normalization_dict)
+        if normalization_type_string is not None:
+            full_radar_image_matrix = dl_utils.normalize_radar_images(
+                radar_image_matrix=full_radar_image_matrix,
+                field_names=radar_field_names,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
 
-        if sounding_file_names is not None:
-            full_sounding_matrix = dl_utils.normalize_soundings(
-                sounding_matrix=full_sounding_matrix,
-                pressureless_field_names=sounding_field_names,
-                normalization_dict=sounding_normalization_dict)
+            if sounding_file_names is not None:
+                full_sounding_matrix = dl_utils.normalize_soundings(
+                    sounding_matrix=full_sounding_matrix,
+                    pressureless_field_names=sounding_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value).astype('float32')
 
         list_of_predictor_matrices, target_matrix = _select_batch(
             list_of_predictor_matrices=[
@@ -1638,14 +1655,15 @@ def storm_image_generator_3d(
 
 def storm_image_generator_2d3d_myrorss(
         radar_file_name_matrix, top_target_directory_name,
-        num_examples_per_batch, num_examples_per_file_time, target_name,
+        num_examples_per_batch, num_examples_per_file, target_name,
+        normalization_type_string=None,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        normalization_param_file_name=None,
         radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
-        radar_normalization_dict=dl_utils.DEFAULT_RADAR_NORMALIZATION_DICT,
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
-        sounding_normalization_dict=
-        dl_utils.DEFAULT_SOUNDING_NORMALIZATION_DICT,
         loop_thru_files_once=False):
     """Generates examples with 2-D and 3-D radar images.
 
@@ -1663,16 +1681,18 @@ def storm_image_generator_2d3d_myrorss(
     :param radar_file_name_matrix: See doc for `storm_image_generator_2d`.
     :param top_target_directory_name: Same.
     :param num_examples_per_batch: Same.
-    :param num_examples_per_file_time: Same.
+    :param num_examples_per_file: Same.
     :param target_name: Same.
+    :param normalization_type_string: Same.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
+    :param normalization_param_file_name: Same.
     :param radar_file_name_matrix_pos_targets_only: Same.
     :param binarize_target: Same.
-    :param radar_normalization_dict: Same.
     :param sampling_fraction_by_class_dict: Same.
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param sounding_normalization_dict: See doc for `storm_image_generator_2d`.
     :param loop_thru_files_once: Same.
 
     If `sounding_field_names is None`, this method returns...
@@ -1698,9 +1718,9 @@ def storm_image_generator_2d3d_myrorss(
     error_checking.assert_is_boolean(loop_thru_files_once)
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file_time=num_examples_per_file_time,
-        normalize_by_batch=False, radar_file_name_matrix=radar_file_name_matrix,
-        num_radar_dimensions=2, binarize_target=binarize_target,
+        num_examples_per_file=num_examples_per_file,
+        radar_file_name_matrix=radar_file_name_matrix, num_radar_dimensions=2,
+        binarize_target=binarize_target,
         radar_file_name_matrix_pos_targets_only=
         radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
@@ -1736,7 +1756,7 @@ def storm_image_generator_2d3d_myrorss(
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
     num_file_times_per_batch = int(numpy.ceil(
-        float(num_examples_per_batch) / num_examples_per_file_time))
+        float(num_examples_per_batch) / num_examples_per_file))
 
     num_examples_in_memory_by_class_dict, _ = _determine_stopping_criterion(
         num_examples_per_batch=num_examples_per_batch,
@@ -1875,21 +1895,31 @@ def storm_image_generator_2d3d_myrorss(
             if sounding_file_names is not None:
                 full_sounding_matrix = full_sounding_matrix[batch_indices, ...]
 
-        full_reflectivity_matrix_dbz = dl_utils.normalize_radar_images(
-            radar_image_matrix=full_reflectivity_matrix_dbz,
-            field_names=[radar_utils.REFL_NAME],
-            normalization_dict=radar_normalization_dict)
+        if normalization_type_string is not None:
+            full_reflectivity_matrix_dbz = dl_utils.normalize_radar_images(
+                radar_image_matrix=full_reflectivity_matrix_dbz,
+                field_names=[radar_utils.REFL_NAME],
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
 
-        full_azimuthal_shear_matrix_s01 = dl_utils.normalize_radar_images(
-            radar_image_matrix=full_azimuthal_shear_matrix_s01,
-            field_names=azimuthal_shear_field_names,
-            normalization_dict=radar_normalization_dict)
+            full_azimuthal_shear_matrix_s01 = dl_utils.normalize_radar_images(
+                radar_image_matrix=full_azimuthal_shear_matrix_s01,
+                field_names=azimuthal_shear_field_names,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
 
-        if sounding_file_names is not None:
-            full_sounding_matrix = dl_utils.normalize_soundings(
-                sounding_matrix=full_sounding_matrix,
-                pressureless_field_names=sounding_field_names,
-                normalization_dict=sounding_normalization_dict)
+            if sounding_file_names is not None:
+                full_sounding_matrix = dl_utils.normalize_soundings(
+                    sounding_matrix=full_sounding_matrix,
+                    pressureless_field_names=sounding_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value).astype('float32')
 
         list_of_predictor_matrices, target_matrix = _select_batch(
             list_of_predictor_matrices=[
