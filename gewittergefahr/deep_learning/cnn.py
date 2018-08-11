@@ -46,6 +46,9 @@ VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
 VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([37], dtype=int)
 
 DEFAULT_L2_WEIGHT = 1e-3
+DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION = 'relu'
+DEFAULT_CONV_LAYER_DROPOUT_FRACTION = 0.25
+DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = 0.5
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
@@ -126,27 +129,42 @@ NUM_CLASSES_KEY = 'num_classes'
 
 def _check_architecture_args(
         num_radar_rows, num_radar_columns, num_radar_dimensions,
-        num_radar_conv_layers, num_classes, num_radar_channels=None,
-        num_radar_fields=None, num_radar_heights=None, dropout_fraction=None,
+        num_radar_conv_layer_sets, num_conv_layers_per_set, num_classes,
+        conv_layer_activation_function, use_batch_normalization,
+        alpha_for_elu=None, alpha_for_relu=None, num_radar_channels=None,
+        num_radar_fields=None, num_radar_heights=None,
+        conv_layer_dropout_fraction=None, dense_layer_dropout_fraction=None,
         l2_weight=None, num_sounding_heights=None, num_sounding_fields=None):
     """Error-checking of input args for model architecture.
 
     :param num_radar_rows: Number of pixel rows per storm-centered radar image.
     :param num_radar_columns: Number of pixel columns per radar image.
     :param num_radar_dimensions: Number of dimensions per radar image.
-    :param num_radar_conv_layers: Number of convolutional layers for radar data.
-        Each successive conv layer will cut the dimensions of the radar image in
-        half (example: from 32 x 32 x 12 to 16 x 16 x 6, then 8 x 8 x 3, then
-        4 x 4 x 1).
+    :param num_radar_conv_layer_sets: Number of sets of conv layers for radar
+        data.  Each successive conv-layer set will cut the dimensions of the
+        radar image in half (example: from 32 x 32 x 12 to 16 x 16 x 6,
+        then 8 x 8 x 3, then 4 x 4 x 1).
+    :param num_conv_layers_per_set: Number of conv layers in each set.
     :param num_classes: Number of classes for target variable.
+    :param conv_layer_activation_function: Activation function for convolutional
+        layers.  Must be accepted by `cnn_utils.check_activation_function`.
+    :param use_batch_normalization: Boolean flag.  If True, a batch-
+        normalization layer will be included after each convolutional or fully
+        connected layer.
+    :param alpha_for_elu: Slope for negative inputs to eLU (exponential linear
+        unit) activation function.
+    :param alpha_for_relu: Slope for negative inputs to ReLU (rectified linear
+        unit) activation function.
     :param num_radar_channels: [used only if num_radar_dimensions = 2]
         Number of channels (field/height pairs) per radar image.
     :param num_radar_fields: [used only if num_radar_dimensions = 3]
         Number of fields per radar image.
     :param num_radar_heights: [used only if num_radar_dimensions = 3]
         Number of pixel heights per radar image.
-    :param dropout_fraction: Dropout fraction.  Will be used for each dropout
-        layer, of which there is one after each convolutional layer.
+    :param conv_layer_dropout_fraction: Dropout fraction for convolutional
+        layers.
+    :param dense_layer_dropout_fraction: Dropout fraction for dense (fully
+        connected layers).
     :param l2_weight: L2-regularization weight.  Will be used for each
         convolutional layer.
     :param num_sounding_heights: Number of heights per storm-centered sounding.
@@ -154,6 +172,11 @@ def _check_architecture_args(
     :raises: ValueError: if
         `num_sounding_heights not in VALID_NUMBERS_OF_SOUNDING_HEIGHTS`.
     """
+
+    cnn_utils.check_activation_function(
+        activation_function_string=conv_layer_activation_function,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu)
+    error_checking.assert_is_boolean(use_batch_normalization)
 
     error_checking.assert_is_integer(num_radar_rows)
     error_checking.assert_is_integer(num_radar_columns)
@@ -168,8 +191,10 @@ def _check_architecture_args(
         error_checking.assert_is_integer(num_radar_fields)
         error_checking.assert_is_geq(num_radar_fields, 1)
 
-    error_checking.assert_is_integer(num_radar_conv_layers)
-    error_checking.assert_is_geq(num_radar_conv_layers, 2)
+    error_checking.assert_is_integer(num_radar_conv_layer_sets)
+    error_checking.assert_is_geq(num_radar_conv_layer_sets, 2)
+    error_checking.assert_is_integer(num_conv_layers_per_set)
+    error_checking.assert_is_geq(num_conv_layers_per_set, 1)
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
 
@@ -178,7 +203,7 @@ def _check_architecture_args(
     if num_radar_dimensions == 3:
         num_heights_after_last_conv = float(num_radar_heights)
 
-    for _ in range(num_radar_conv_layers):
+    for _ in range(num_radar_conv_layer_sets):
         num_rows_after_last_conv = numpy.floor(num_rows_after_last_conv / 2)
         num_columns_after_last_conv = numpy.floor(
             num_columns_after_last_conv / 2)
@@ -191,9 +216,12 @@ def _check_architecture_args(
     if num_radar_dimensions == 3:
         error_checking.assert_is_geq(num_heights_after_last_conv, 1)
 
-    if dropout_fraction is not None:
-        error_checking.assert_is_greater(dropout_fraction, 0.)
-        error_checking.assert_is_less_than(dropout_fraction, 1.)
+    if conv_layer_dropout_fraction is not None:
+        error_checking.assert_is_greater(conv_layer_dropout_fraction, 0.)
+        error_checking.assert_is_less_than(conv_layer_dropout_fraction, 1.)
+    if dense_layer_dropout_fraction is not None:
+        error_checking.assert_is_greater(dense_layer_dropout_fraction, 0.)
+        error_checking.assert_is_less_than(dense_layer_dropout_fraction, 1.)
 
     if l2_weight is not None:
         error_checking.assert_is_greater(l2_weight, 0.)
@@ -270,16 +298,26 @@ def _check_training_args(
 
 def _get_sounding_layers(
         num_sounding_heights, num_sounding_fields, num_filters_in_first_layer,
-        dropout_fraction, regularizer_object):
+        num_conv_layers_per_set, pooling_type_string, dropout_fraction,
+        regularizer_object, conv_layer_activation_function, alpha_for_elu,
+        alpha_for_relu, use_batch_normalization):
     """Returns the part of a CNN that convolves over sounding data.
 
     :param num_sounding_heights: See doc for `_check_architecture_args`.
     :param num_sounding_fields: Same.
-    :param num_filters_in_first_layer: See doc for
-        `get_2d_swirlnet_architecture`.
-    :param dropout_fraction: See doc for `_check_architecture_args`.
+    :param num_filters_in_first_layer: Number of filters in first set of conv
+        layers.  This will be double with each successive set of conv layers.
+    :param num_conv_layers_per_set: Number of conv layers per set (there are 3
+        sets).
+    :param pooling_type_string: See doc for `_check_architecture_args`.
+    :param dropout_fraction: Same.
     :param regularizer_object: Instance of `keras.regularizers.l1_l2`.  Will be
         applied to each convolutional layer.
+    :param conv_layer_activation_function: See doc for
+        `_check_architecture_args`.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
     :return: input_layer_object: Instance of `keras.layers.Input`.
     :return: flattening_layer_object: Instance of `keras.layers.Flatten`.
     """
@@ -287,57 +325,43 @@ def _get_sounding_layers(
     sounding_input_layer_object = keras.layers.Input(shape=(
         num_sounding_heights, num_sounding_fields))
 
-    sounding_layer_object = cnn_utils.get_1d_conv_layer(
-        num_output_filters=num_filters_in_first_layer, num_kernel_pixels=3,
-        num_pixels_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-        kernel_weight_regularizer=regularizer_object,
-        activation_function='relu', is_first_layer=False
-    )(sounding_input_layer_object)
+    sounding_layer_object = None
+    this_num_output_filters = num_filters_in_first_layer + 0
 
-    if dropout_fraction is not None:
-        sounding_layer_object = cnn_utils.get_dropout_layer(
-            dropout_fraction=dropout_fraction
+    for _ in range(3):
+        if sounding_layer_object is None:
+            sounding_layer_object = sounding_input_layer_object
+        else:
+            this_num_output_filters *= 2
+
+        for _ in range(num_conv_layers_per_set):
+            sounding_layer_object = cnn_utils.get_1d_conv_layer(
+                num_output_filters=this_num_output_filters,
+                num_kernel_pixels=3, num_pixels_per_stride=1,
+                padding_type=cnn_utils.YES_PADDING_TYPE,
+                kernel_weight_regularizer=regularizer_object,
+                is_first_layer=False
+            )(sounding_layer_object)
+
+            sounding_layer_object = cnn_utils.get_activation_layer(
+                activation_function_string=conv_layer_activation_function,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(sounding_layer_object)
+
+            if use_batch_normalization:
+                sounding_layer_object = (
+                    cnn_utils.get_batch_normalization_layer()(
+                        sounding_layer_object))
+
+            if dropout_fraction is not None:
+                sounding_layer_object = cnn_utils.get_dropout_layer(
+                    dropout_fraction=dropout_fraction
+                )(sounding_layer_object)
+
+        sounding_layer_object = cnn_utils.get_1d_pooling_layer(
+            num_pixels_in_window=2, pooling_type=pooling_type_string,
+            num_pixels_per_stride=2
         )(sounding_layer_object)
-
-    sounding_layer_object = cnn_utils.get_1d_pooling_layer(
-        num_pixels_in_window=2, pooling_type=cnn_utils.MEAN_POOLING_TYPE,
-        num_pixels_per_stride=2
-    )(sounding_layer_object)
-
-    sounding_layer_object = cnn_utils.get_1d_conv_layer(
-        num_output_filters=2 * num_filters_in_first_layer, num_kernel_pixels=3,
-        num_pixels_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-        kernel_weight_regularizer=regularizer_object,
-        activation_function='relu', is_first_layer=False
-    )(sounding_layer_object)
-
-    if dropout_fraction is not None:
-        sounding_layer_object = cnn_utils.get_dropout_layer(
-            dropout_fraction=dropout_fraction
-        )(sounding_layer_object)
-
-    sounding_layer_object = cnn_utils.get_1d_pooling_layer(
-        num_pixels_in_window=2, pooling_type=cnn_utils.MEAN_POOLING_TYPE,
-        num_pixels_per_stride=2
-    )(sounding_layer_object)
-
-    sounding_layer_object = cnn_utils.get_1d_conv_layer(
-        num_output_filters=4 * num_filters_in_first_layer,
-        num_kernel_pixels=3, num_pixels_per_stride=1,
-        padding_type=cnn_utils.YES_PADDING_TYPE,
-        kernel_weight_regularizer=regularizer_object,
-        activation_function='relu', is_first_layer=False
-    )(sounding_layer_object)
-
-    if dropout_fraction is not None:
-        sounding_layer_object = cnn_utils.get_dropout_layer(
-            dropout_fraction=dropout_fraction
-        )(sounding_layer_object)
-
-    sounding_layer_object = cnn_utils.get_1d_pooling_layer(
-        num_pixels_in_window=2, pooling_type=cnn_utils.MEAN_POOLING_TYPE,
-        num_pixels_per_stride=2
-    )(sounding_layer_object)
 
     sounding_layer_object = cnn_utils.get_flattening_layer()(
         sounding_layer_object)
@@ -386,9 +410,10 @@ def get_2d_mnist_architecture(
 
     _check_architecture_args(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_dimensions=2, num_radar_conv_layers=2,
-        num_classes=num_classes, num_radar_channels=num_radar_channels,
-        l2_weight=l2_weight)
+        num_radar_channels=num_radar_channels, num_radar_dimensions=2,
+        num_radar_conv_layer_sets=2, num_conv_layers_per_set=1,
+        num_classes=num_classes, conv_layer_activation_function='relu',
+        use_batch_normalization=False, l2_weight=l2_weight)
 
     if l2_weight is None:
         regularizer_object = None
@@ -400,19 +425,24 @@ def get_2d_mnist_architecture(
     layer_object = cnn_utils.get_2d_conv_layer(
         num_output_filters=num_filters_in_first_layer, num_kernel_rows=3,
         num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=cnn_utils.NO_PADDING_TYPE, activation_function='relu',
-        kernel_weight_regularizer=regularizer_object,
-        is_first_layer=True, num_input_rows=num_radar_rows,
-        num_input_columns=num_radar_columns,
+        padding_type=cnn_utils.NO_PADDING_TYPE,
+        kernel_weight_regularizer=regularizer_object, is_first_layer=True,
+        num_input_rows=num_radar_rows, num_input_columns=num_radar_columns,
         num_input_channels=num_radar_channels)
     model_object.add(layer_object)
+
+    model_object.add(cnn_utils.get_activation_layer(
+        activation_function_string='relu'))
 
     layer_object = cnn_utils.get_2d_conv_layer(
         num_output_filters=2 * num_filters_in_first_layer, num_kernel_rows=3,
         num_kernel_columns=3, num_rows_per_stride=1, num_columns_per_stride=1,
-        padding_type=cnn_utils.NO_PADDING_TYPE, activation_function='relu',
+        padding_type=cnn_utils.NO_PADDING_TYPE,
         kernel_weight_regularizer=regularizer_object)
     model_object.add(layer_object)
+
+    model_object.add(cnn_utils.get_activation_layer(
+        activation_function_string='relu'))
 
     layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
@@ -426,17 +456,19 @@ def get_2d_mnist_architecture(
     layer_object = cnn_utils.get_flattening_layer()
     model_object.add(layer_object)
 
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=128, activation_function='relu')
+    layer_object = cnn_utils.get_fully_connected_layer(num_output_units=128)
     model_object.add(layer_object)
+    model_object.add(cnn_utils.get_activation_layer(
+        activation_function_string='relu'))
 
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.5)
     model_object.add(layer_object)
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function=None)
+        num_output_units=num_classes)
     model_object.add(layer_object)
-    model_object.add(cnn_utils.get_activation_layer('softmax'))
+    model_object.add(cnn_utils.get_activation_layer(
+        activation_function_string='softmax'))
 
     model_object.compile(
         loss=keras.losses.categorical_crossentropy,
@@ -447,11 +479,17 @@ def get_2d_mnist_architecture(
 
 
 def get_2d_swilrnet_architecture(
-        num_radar_rows, num_radar_columns, num_radar_conv_layers,
-        num_radar_channels, num_classes, num_radar_filters_in_first_layer=16,
-        dropout_fraction=0.5, l2_weight=DEFAULT_L2_WEIGHT,
-        num_sounding_heights=None, num_sounding_fields=None,
-        num_sounding_filters_in_first_layer=48):
+        num_radar_rows, num_radar_columns, num_radar_channels,
+        num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
+        num_classes,
+        conv_layer_activation_function=DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION,
+        alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
+        use_batch_normalization=True, num_radar_filters_in_first_layer=16,
+        conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
+        l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
+        num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -461,13 +499,20 @@ def get_2d_swilrnet_architecture(
 
     :param num_radar_rows: See doc for `_check_architecture_args`.
     :param num_radar_columns: Same.
-    :param num_radar_conv_layers: Same.
     :param num_radar_channels: Same.
+    :param num_radar_conv_layer_sets: Same.
+    :param num_conv_layers_per_set: Same.
+    :param pooling_type_string: Same.
     :param num_classes: Same.
+    :param conv_layer_activation_function: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
     :param num_radar_filters_in_first_layer: Number of filters in first conv
         layer for radar images.  Number of filters will double with each
         successive conv layer.
-    :param dropout_fraction: See doc for `_check_architecture_args`.
+    :param conv_layer_dropout_fraction: See doc for `_check_architecture_args`.
+    :param dense_layer_dropout_fraction: Same.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
@@ -480,10 +525,16 @@ def get_2d_swilrnet_architecture(
 
     _check_architecture_args(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_dimensions=2, num_radar_conv_layers=num_radar_conv_layers,
-        num_classes=num_classes, num_radar_channels=num_radar_channels,
-        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
-        num_sounding_heights=num_sounding_heights,
+        num_radar_channels=num_radar_channels, num_radar_dimensions=2,
+        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        num_classes=num_classes,
+        conv_layer_activation_function=conv_layer_activation_function,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
 
     if l2_weight is None:
@@ -495,33 +546,42 @@ def get_2d_swilrnet_architecture(
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_channels))
 
-    this_input_layer_object = None
     radar_layer_object = None
     this_num_output_filters = num_radar_filters_in_first_layer + 0
 
-    for _ in range(num_radar_conv_layers):
-        if this_input_layer_object is None:
-            this_input_layer_object = radar_input_layer_object
+    for _ in range(num_radar_conv_layer_sets):
+        if radar_layer_object is None:
+            radar_layer_object = radar_input_layer_object
         else:
-            this_input_layer_object = radar_layer_object
             this_num_output_filters *= 2
 
-        radar_layer_object = cnn_utils.get_2d_conv_layer(
-            num_output_filters=this_num_output_filters,
-            num_kernel_rows=5, num_kernel_columns=5, num_rows_per_stride=1,
-            num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-            kernel_weight_regularizer=regularizer_object,
-            activation_function='relu', is_first_layer=False
-        )(this_input_layer_object)
-
-        if dropout_fraction is not None:
-            radar_layer_object = cnn_utils.get_dropout_layer(
-                dropout_fraction=dropout_fraction
+        for _ in range(num_conv_layers_per_set):
+            radar_layer_object = cnn_utils.get_2d_conv_layer(
+                num_output_filters=this_num_output_filters,
+                num_kernel_rows=5, num_kernel_columns=5, num_rows_per_stride=1,
+                num_columns_per_stride=1,
+                padding_type=cnn_utils.YES_PADDING_TYPE,
+                kernel_weight_regularizer=regularizer_object,
+                is_first_layer=False
             )(radar_layer_object)
+
+            radar_layer_object = cnn_utils.get_activation_layer(
+                activation_function_string=conv_layer_activation_function,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(radar_layer_object)
+
+            if use_batch_normalization:
+                radar_layer_object = cnn_utils.get_batch_normalization_layer()(
+                    radar_layer_object)
+
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = cnn_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
 
         radar_layer_object = cnn_utils.get_2d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
-            pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+            pooling_type=pooling_type_string, num_rows_per_stride=2,
             num_columns_per_stride=2
         )(radar_layer_object)
 
@@ -535,15 +595,26 @@ def get_2d_swilrnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_layer=num_sounding_filters_in_first_layer,
-            dropout_fraction=dropout_fraction,
-            regularizer_object=regularizer_object)
+            num_conv_layers_per_set=num_conv_layers_per_set,
+            pooling_type_string=pooling_type_string,
+            dropout_fraction=conv_layer_dropout_fraction,
+            regularizer_object=regularizer_object,
+            conv_layer_activation_function=conv_layer_activation_function,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+            use_batch_normalization=use_batch_normalization)
 
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function=None)(layer_object)
-    layer_object = cnn_utils.get_activation_layer('softmax')(layer_object)
+        num_output_units=num_classes)(layer_object)
+    layer_object = cnn_utils.get_activation_layer(
+        activation_function_string='softmax')(layer_object)
+    if use_batch_normalization:
+        layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
+    if dense_layer_dropout_fraction is not None:
+        layer_object = cnn_utils.get_dropout_layer(
+            dropout_fraction=dense_layer_dropout_fraction)(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
@@ -562,9 +633,15 @@ def get_2d_swilrnet_architecture(
 
 
 def get_3d_swilrnet_architecture(
-        num_radar_rows, num_radar_columns, num_radar_heights,
-        num_radar_conv_layers, num_radar_fields, num_classes,
-        num_radar_filters_in_first_layer=16, dropout_fraction=0.5,
+        num_radar_rows, num_radar_columns, num_radar_heights, num_radar_fields,
+        num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
+        num_classes,
+        conv_layer_activation_function=DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION,
+        alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
+        use_batch_normalization=True, num_radar_filters_in_first_layer=16,
+        conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
         num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
     """Creates CNN with architecture similar to the following example.
@@ -577,12 +654,19 @@ def get_3d_swilrnet_architecture(
     :param num_radar_rows: See doc for `_check_architecture_args`.
     :param num_radar_columns: Same.
     :param num_radar_heights: Same.
-    :param num_radar_conv_layers: Same.
     :param num_radar_fields: Same.
+    :param num_radar_conv_layer_sets: Same.
+    :param num_conv_layers_per_set: Same.
+    :param pooling_type_string: Same.
     :param num_classes: Same.
+    :param conv_layer_activation_function: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
     :param num_radar_filters_in_first_layer: See doc for
         `get_2d_swilrnet_architecture`.
-    :param dropout_fraction: See doc for `_check_architecture_args`.
+    :param conv_layer_dropout_fraction: See doc for `_check_architecture_args`.
+    :param dense_layer_dropout_fraction: Same.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
@@ -594,9 +678,16 @@ def get_3d_swilrnet_architecture(
 
     _check_architecture_args(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_heights=num_radar_heights, num_radar_dimensions=3,
-        num_radar_conv_layers=num_radar_conv_layers, num_classes=num_classes,
-        num_radar_fields=num_radar_fields, dropout_fraction=dropout_fraction,
+        num_radar_heights=num_radar_heights, num_radar_fields=num_radar_fields,
+        num_radar_dimensions=3,
+        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        num_classes=num_classes,
+        conv_layer_activation_function=conv_layer_activation_function,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
         l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
 
@@ -610,34 +701,43 @@ def get_3d_swilrnet_architecture(
         shape=(num_radar_rows, num_radar_columns, num_radar_heights,
                num_radar_fields))
 
-    this_input_layer_object = None
     radar_layer_object = None
     this_num_output_filters = num_radar_filters_in_first_layer + 0
 
-    for _ in range(num_radar_conv_layers):
-        if this_input_layer_object is None:
-            this_input_layer_object = radar_input_layer_object
+    for _ in range(num_radar_conv_layer_sets):
+        if radar_layer_object is None:
+            radar_layer_object = radar_input_layer_object
         else:
-            this_input_layer_object = radar_layer_object
             this_num_output_filters *= 2
 
-        radar_layer_object = cnn_utils.get_3d_conv_layer(
-            num_output_filters=this_num_output_filters,
-            num_kernel_rows=3, num_kernel_columns=3, num_kernel_depths=3,
-            num_rows_per_stride=1, num_columns_per_stride=1,
-            num_depths_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-            kernel_weight_regularizer=regularizer_object,
-            activation_function='relu', is_first_layer=False
-        )(this_input_layer_object)
-
-        if dropout_fraction is not None:
-            radar_layer_object = cnn_utils.get_dropout_layer(
-                dropout_fraction=dropout_fraction
+        for _ in range(num_conv_layers_per_set):
+            radar_layer_object = cnn_utils.get_3d_conv_layer(
+                num_output_filters=this_num_output_filters,
+                num_kernel_rows=3, num_kernel_columns=3, num_kernel_depths=3,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                num_depths_per_stride=1,
+                padding_type=cnn_utils.YES_PADDING_TYPE,
+                kernel_weight_regularizer=regularizer_object,
+                is_first_layer=False
             )(radar_layer_object)
+
+            radar_layer_object = cnn_utils.get_activation_layer(
+                activation_function_string=conv_layer_activation_function,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(radar_layer_object)
+
+            if use_batch_normalization:
+                radar_layer_object = cnn_utils.get_batch_normalization_layer()(
+                    radar_layer_object)
+
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = cnn_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
 
         radar_layer_object = cnn_utils.get_3d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
-            num_depths_in_window=2, pooling_type=cnn_utils.MEAN_POOLING_TYPE,
+            num_depths_in_window=2, pooling_type=pooling_type_string,
             num_rows_per_stride=2, num_columns_per_stride=2,
             num_depths_per_stride=2
         )(radar_layer_object)
@@ -652,15 +752,26 @@ def get_3d_swilrnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_layer=num_sounding_filters_in_first_layer,
-            dropout_fraction=dropout_fraction,
-            regularizer_object=regularizer_object)
+            num_conv_layers_per_set=num_conv_layers_per_set,
+            pooling_type_string=pooling_type_string,
+            dropout_fraction=conv_layer_dropout_fraction,
+            regularizer_object=regularizer_object,
+            conv_layer_activation_function=conv_layer_activation_function,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+            use_batch_normalization=use_batch_normalization)
 
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function=None)(layer_object)
-    layer_object = cnn_utils.get_activation_layer('softmax')(layer_object)
+        num_output_units=num_classes)(layer_object)
+    layer_object = cnn_utils.get_activation_layer(
+        activation_function_string='softmax')(layer_object)
+    if use_batch_normalization:
+        layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
+    if dense_layer_dropout_fraction is not None:
+        layer_object = cnn_utils.get_dropout_layer(
+            dropout_fraction=dense_layer_dropout_fraction)(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
@@ -681,8 +792,15 @@ def get_3d_swilrnet_architecture(
 def get_2d3d_swirlnet_architecture(
         num_reflectivity_rows, num_reflectivity_columns,
         num_reflectivity_heights, num_azimuthal_shear_fields,
-        num_radar_conv_layers, num_classes, num_refl_filters_in_first_layer=8,
-        num_shear_filters_in_first_layer=16, dropout_fraction=0.5,
+        num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
+        num_classes,
+        conv_layer_activation_function=DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION,
+        alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
+        use_batch_normalization=True, num_refl_filters_in_first_layer=8,
+        num_shear_filters_in_first_layer=16,
+        conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
         num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
     """Creates CNN with architecture similar to the following example.
@@ -707,15 +825,22 @@ def get_2d3d_swirlnet_architecture(
         reflectivity image.
     :param num_azimuthal_shear_fields: Number of azimuthal-shear fields
         (channels).
-    :param num_radar_conv_layers: Number of convolutional layers for radar data
+    :param num_radar_conv_layer_sets: Number of conv-layer sets for radar data
         (after reflectivity and azimuthal shear have been joined).
-    :param num_classes: Number of classes for target variable.
+    :param num_conv_layers_per_set: See doc for `_check_architecture_args`.
+    :param pooling_type_string: Same.
+    :param num_classes: Same.
+    :param conv_layer_activation_function: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
     :param num_refl_filters_in_first_layer: Number of filters in first
         convolutional layer for reflectivity images.  Number of filters will
         double for each successive layer convolving over reflectivity images.
     :param num_shear_filters_in_first_layer: Same, but for azimuthal
         shear.
-    :param dropout_fraction: See doc for `_check_architecture_args`.
+    :param conv_layer_dropout_fraction: See doc for `_check_architecture_args`.
+    :param dense_layer_dropout_fraction: Same.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
@@ -729,29 +854,42 @@ def get_2d3d_swirlnet_architecture(
     _check_architecture_args(
         num_radar_rows=num_reflectivity_rows,
         num_radar_columns=num_reflectivity_columns,
-        num_radar_heights=num_reflectivity_heights, num_radar_dimensions=3,
-        num_radar_conv_layers=3, num_classes=num_classes, num_radar_fields=1,
-        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
-        num_sounding_heights=num_sounding_heights,
+        num_radar_heights=num_reflectivity_heights, num_radar_fields=1,
+        num_radar_dimensions=3, num_radar_conv_layer_sets=3,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        num_classes=num_classes,
+        conv_layer_activation_function=conv_layer_activation_function,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
         num_sounding_fields=num_sounding_fields)
 
     _check_architecture_args(
         num_radar_rows=num_reflectivity_rows,
-        num_radar_columns=num_reflectivity_columns, num_radar_dimensions=2,
-        num_radar_conv_layers=num_radar_conv_layers, num_classes=num_classes,
-        num_radar_channels=num_reflectivity_heights)
+        num_radar_columns=num_reflectivity_columns,
+        num_radar_channels=num_reflectivity_heights, num_radar_dimensions=2,
+        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        num_classes=num_classes,
+        conv_layer_activation_function=conv_layer_activation_function,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization)
 
     num_azimuthal_shear_rows = 2 * num_reflectivity_rows
     num_azimuthal_shear_columns = 2 * num_reflectivity_columns
 
     _check_architecture_args(
         num_radar_rows=num_azimuthal_shear_rows,
-        num_radar_columns=num_azimuthal_shear_columns, num_radar_dimensions=2,
-        num_radar_conv_layers=2, num_classes=num_classes,
-        num_radar_channels=num_azimuthal_shear_fields,
-        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
-        num_sounding_heights=num_sounding_heights,
-        num_sounding_fields=num_sounding_fields)
+        num_radar_columns=num_azimuthal_shear_columns,
+        num_radar_channels=num_azimuthal_shear_fields, num_radar_dimensions=2,
+        num_radar_conv_layer_sets=2,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        num_classes=num_classes,
+        conv_layer_activation_function=conv_layer_activation_function,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization)
 
     # Flatten reflectivity images from 3-D to 2-D (by convolving over height).
     if l2_weight is None:
@@ -763,37 +901,49 @@ def get_2d3d_swirlnet_architecture(
     refl_input_layer_object = keras.layers.Input(
         shape=(num_reflectivity_rows, num_reflectivity_columns,
                num_reflectivity_heights, 1))
+
     reflectivity_layer_object = None
     this_num_refl_filters = num_refl_filters_in_first_layer + 0
 
-    for i in range(3):
-        if i == 0:
+    for _ in range(3):
+        if reflectivity_layer_object is None:
             this_target_shape = (
                 num_reflectivity_rows * num_reflectivity_columns,
                 num_reflectivity_heights, 1)
-            this_input_layer_object = keras.layers.Reshape(
+            reflectivity_layer_object = keras.layers.Reshape(
                 target_shape=this_target_shape
             )(refl_input_layer_object)
         else:
             this_num_refl_filters *= 2
-            this_input_layer_object = reflectivity_layer_object
 
-        reflectivity_layer_object = cnn_utils.get_2d_conv_layer(
-            num_output_filters=this_num_refl_filters,
-            num_kernel_rows=1, num_kernel_columns=3, num_rows_per_stride=1,
-            num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-            kernel_weight_regularizer=regularizer_object,
-            activation_function='relu', is_first_layer=False
-        )(this_input_layer_object)
-
-        if dropout_fraction is not None:
-            reflectivity_layer_object = cnn_utils.get_dropout_layer(
-                dropout_fraction=dropout_fraction
+        for _ in range(num_conv_layers_per_set):
+            reflectivity_layer_object = cnn_utils.get_2d_conv_layer(
+                num_output_filters=this_num_refl_filters,
+                num_kernel_rows=1, num_kernel_columns=3, num_rows_per_stride=1,
+                num_columns_per_stride=1,
+                padding_type=cnn_utils.YES_PADDING_TYPE,
+                kernel_weight_regularizer=regularizer_object,
+                is_first_layer=False
             )(reflectivity_layer_object)
+
+            reflectivity_layer_object = cnn_utils.get_activation_layer(
+                activation_function_string=conv_layer_activation_function,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(reflectivity_layer_object)
+
+            if use_batch_normalization:
+                reflectivity_layer_object = (
+                    cnn_utils.get_batch_normalization_layer()(
+                        reflectivity_layer_object))
+
+            if conv_layer_dropout_fraction is not None:
+                reflectivity_layer_object = cnn_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(reflectivity_layer_object)
 
         reflectivity_layer_object = cnn_utils.get_2d_pooling_layer(
             num_rows_in_window=1, num_columns_in_window=2,
-            pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=1,
+            pooling_type=pooling_type_string, num_rows_per_stride=1,
             num_columns_per_stride=2
         )(reflectivity_layer_object)
 
@@ -809,22 +959,36 @@ def get_2d3d_swirlnet_architecture(
         shape=(num_azimuthal_shear_rows, num_azimuthal_shear_columns,
                num_azimuthal_shear_fields))
 
-    azimuthal_shear_layer_object = cnn_utils.get_2d_conv_layer(
-        num_output_filters=num_shear_filters_in_first_layer,
-        num_kernel_rows=3, num_kernel_columns=3, num_rows_per_stride=1,
-        num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-        kernel_weight_regularizer=regularizer_object,
-        activation_function='relu', is_first_layer=False
-    )(az_shear_input_layer_object)
+    azimuthal_shear_layer_object = None
+    for _ in range(num_conv_layers_per_set):
+        if azimuthal_shear_layer_object is None:
+            azimuthal_shear_layer_object = az_shear_input_layer_object
 
-    if dropout_fraction is not None:
-        azimuthal_shear_layer_object = cnn_utils.get_dropout_layer(
-            dropout_fraction=dropout_fraction
+        azimuthal_shear_layer_object = cnn_utils.get_2d_conv_layer(
+            num_output_filters=num_shear_filters_in_first_layer,
+            num_kernel_rows=3, num_kernel_columns=3, num_rows_per_stride=1,
+            num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
+            kernel_weight_regularizer=regularizer_object, is_first_layer=False
         )(azimuthal_shear_layer_object)
+
+        azimuthal_shear_layer_object = cnn_utils.get_activation_layer(
+            activation_function_string=conv_layer_activation_function,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+        )(azimuthal_shear_layer_object)
+
+        if use_batch_normalization:
+            azimuthal_shear_layer_object = (
+                cnn_utils.get_batch_normalization_layer()(
+                    azimuthal_shear_layer_object))
+
+        if conv_layer_dropout_fraction is not None:
+            azimuthal_shear_layer_object = cnn_utils.get_dropout_layer(
+                dropout_fraction=conv_layer_dropout_fraction
+            )(azimuthal_shear_layer_object)
 
     azimuthal_shear_layer_object = cnn_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
-        pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+        pooling_type=pooling_type_string, num_rows_per_stride=2,
         num_columns_per_stride=2
     )(azimuthal_shear_layer_object)
 
@@ -836,26 +1000,36 @@ def get_2d3d_swirlnet_architecture(
     this_num_output_filters = 2 * (
         num_shear_filters_in_first_layer + this_num_refl_filters)
 
-    for i in range(num_radar_conv_layers):
+    for i in range(num_radar_conv_layer_sets):
         if i != 0:
             this_num_output_filters *= 2
 
-        radar_layer_object = cnn_utils.get_2d_conv_layer(
-            num_output_filters=this_num_output_filters, num_kernel_rows=3,
-            num_kernel_columns=3, num_rows_per_stride=1,
-            num_columns_per_stride=1, padding_type=cnn_utils.YES_PADDING_TYPE,
-            kernel_weight_regularizer=regularizer_object,
-            activation_function='relu'
-        )(radar_layer_object)
-
-        if dropout_fraction is not None:
-            radar_layer_object = cnn_utils.get_dropout_layer(
-                dropout_fraction=dropout_fraction
+        for _ in range(num_conv_layers_per_set):
+            radar_layer_object = cnn_utils.get_2d_conv_layer(
+                num_output_filters=this_num_output_filters, num_kernel_rows=3,
+                num_kernel_columns=3, num_rows_per_stride=1,
+                num_columns_per_stride=1,
+                padding_type=cnn_utils.YES_PADDING_TYPE,
+                kernel_weight_regularizer=regularizer_object
             )(radar_layer_object)
+
+            radar_layer_object = cnn_utils.get_activation_layer(
+                activation_function_string=conv_layer_activation_function,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(radar_layer_object)
+
+            if use_batch_normalization:
+                radar_layer_object = cnn_utils.get_batch_normalization_layer()(
+                    radar_layer_object)
+
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = cnn_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
 
         radar_layer_object = cnn_utils.get_2d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
-            pooling_type=cnn_utils.MEAN_POOLING_TYPE, num_rows_per_stride=2,
+            pooling_type=pooling_type_string, num_rows_per_stride=2,
             num_columns_per_stride=2
         )(radar_layer_object)
 
@@ -870,15 +1044,26 @@ def get_2d3d_swirlnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_layer=num_sounding_filters_in_first_layer,
-            dropout_fraction=dropout_fraction,
-            regularizer_object=regularizer_object)
+            num_conv_layers_per_set=num_conv_layers_per_set,
+            pooling_type_string=pooling_type_string,
+            dropout_fraction=conv_layer_dropout_fraction,
+            regularizer_object=regularizer_object,
+            conv_layer_activation_function=conv_layer_activation_function,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+            use_batch_normalization=use_batch_normalization)
 
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
     layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes, activation_function=None)(layer_object)
-    layer_object = cnn_utils.get_activation_layer('softmax')(layer_object)
+        num_output_units=num_classes)(layer_object)
+    layer_object = cnn_utils.get_activation_layer(
+        activation_function_string='softmax')(layer_object)
+    if use_batch_normalization:
+        layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
+    if dense_layer_dropout_fraction is not None:
+        layer_object = cnn_utils.get_dropout_layer(
+            dropout_fraction=dense_layer_dropout_fraction)(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
