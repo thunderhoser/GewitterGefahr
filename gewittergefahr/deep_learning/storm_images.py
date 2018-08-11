@@ -276,7 +276,7 @@ def _rotate_grids_many_storm_objects(
     )))[0]
 
     for i in range(len(good_indices)):
-        if numpy.mod(i, 1000) == 0:
+        if numpy.mod(i, 10) == 0:
             print (
                 'Have created rotated, storm-centered grid for {0:d} of {1:d} '
                 'storm objects...'
