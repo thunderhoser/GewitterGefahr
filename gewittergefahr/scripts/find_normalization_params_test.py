@@ -1,11 +1,11 @@
-"""Unit tests for find_gridrad_normalization_params.py."""
+"""Unit tests for find_normalization_params.py."""
 
 import copy
 import unittest
 import numpy
 import pandas
-from gewittergefahr.scripts import \
-    find_gridrad_normalization_params as find_norm_params
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
+from gewittergefahr.scripts import find_normalization_params as find_norm_params
 
 TOLERANCE = 1e-6
 
@@ -104,7 +104,7 @@ NORMALIZATION_TABLE_NO_PRCTILE = pandas.DataFrame.from_dict(
 
 COLUMN_DICT_OLD_TO_NEW = {
     0: find_norm_params.MEAN_VALUE_KEY,
-    1: find_norm_params.STANDARD_DEVIATION_KEY
+    1: dl_utils.STANDARD_DEVIATION_COLUMN
 }
 NORMALIZATION_TABLE_NO_PRCTILE.rename(
     columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
@@ -159,8 +159,8 @@ NORMALIZATION_TABLE_WITH_PRCTILE = pandas.DataFrame.from_dict(
     NORMALIZATION_DICT_WITH_PRCTILE, orient='index')
 
 COLUMN_DICT_OLD_TO_NEW.update({
-    2: find_norm_params.MIN_VALUE_KEY,
-    3: find_norm_params.MAX_VALUE_KEY
+    2: dl_utils.MIN_VALUE_COLUMN,
+    3: dl_utils.MAX_VALUE_COLUMN
 })
 NORMALIZATION_TABLE_WITH_PRCTILE.rename(
     columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
@@ -274,8 +274,8 @@ def _compare_normalization_tables(first_norm_table, second_norm_table):
     return True
 
 
-class FindGridadNormParamsTests(unittest.TestCase):
-    """Each method is a unit test for find_gridrad_normalization_params.py."""
+class FindNormalizationParamsTests(unittest.TestCase):
+    """Each method is a unit test for find_normalization_params.py."""
 
     def test_update_z_score_params(self):
         """Ensures correct output from _update_z_score_params."""
