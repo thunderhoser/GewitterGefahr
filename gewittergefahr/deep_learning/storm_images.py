@@ -804,6 +804,7 @@ def _subset_xy_grid_for_interp(
         grid points.
     """
 
+    exec_start_time_unix_sec = time.time()
     valid_x_indices = numpy.where(numpy.logical_and(
         grid_point_x_coords_metres >= numpy.min(query_x_coords_metres),
         grid_point_x_coords_metres <= numpy.max(query_x_coords_metres)))[0]
@@ -814,7 +815,10 @@ def _subset_xy_grid_for_interp(
     valid_x_indices = numpy.linspace(
         first_valid_x_index, last_valid_x_index,
         num=last_valid_x_index - first_valid_x_index + 1, dtype=int)
+    print 'Time elapsed finding valid x-coords = {0:.3f} s'.format(
+        time.time() - exec_start_time_unix_sec)
 
+    exec_start_time_unix_sec = time.time()
     valid_y_indices = numpy.where(numpy.logical_and(
         grid_point_y_coords_metres >= numpy.min(query_y_coords_metres),
         grid_point_y_coords_metres <= numpy.max(query_y_coords_metres)))[0]
@@ -825,10 +829,15 @@ def _subset_xy_grid_for_interp(
     valid_y_indices = numpy.linspace(
         first_valid_y_index, last_valid_y_index,
         num=last_valid_y_index - first_valid_y_index + 1, dtype=int)
+    print 'Time elapsed finding valid y-coords = {0:.3f} s'.format(
+        time.time() - exec_start_time_unix_sec)
 
+    exec_start_time_unix_sec = time.time()
     subset_field_matrix = numpy.take(field_matrix, valid_y_indices, axis=0)
     subset_field_matrix = numpy.take(
         subset_field_matrix, valid_x_indices, axis=1)
+    print 'Time elapsed subsetting the matrix = {0:.3f} s'.format(
+        time.time() - exec_start_time_unix_sec)
 
     return (subset_field_matrix, grid_point_x_coords_metres[valid_x_indices],
             grid_point_y_coords_metres[valid_y_indices])
@@ -863,7 +872,6 @@ def _extract_rotated_storm_image(
     central_latitude_deg = numpy.mean(rotated_gp_lat_matrix_deg)
     central_longitude_deg = numpy.mean(rotated_gp_lng_matrix_deg)
 
-    exec_start_time_unix_sec = time.time()
     projection_object = projections.init_cylindrical_equidistant_projection(
         central_latitude_deg=central_latitude_deg,
         central_longitude_deg=central_longitude_deg,
@@ -886,10 +894,7 @@ def _extract_rotated_storm_image(
         longitudes_deg=numpy.full(
             full_grid_point_latitudes_deg.shape, central_longitude_deg),
         projection_object=projection_object)
-    print 'Time elapsed projecting coords = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
 
-    exec_start_time_unix_sec = time.time()
     (full_radar_matrix, full_grid_points_x_metres, full_grid_points_y_metres
     ) = _subset_xy_grid_for_interp(
         field_matrix=full_radar_matrix,
@@ -897,10 +902,7 @@ def _extract_rotated_storm_image(
         grid_point_y_coords_metres=full_grid_points_y_metres,
         query_x_coords_metres=rotated_gp_x_matrix_metres,
         query_y_coords_metres=rotated_gp_y_matrix_metres)
-    print 'Time elapsed subsetting grid = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
 
-    exec_start_time_unix_sec = time.time()
     storm_centered_radar_matrix = interp.interp_from_xy_grid_to_points(
         input_matrix=full_radar_matrix,
         sorted_grid_point_x_metres=full_grid_points_x_metres,
@@ -909,10 +911,6 @@ def _extract_rotated_storm_image(
         query_y_coords_metres=rotated_gp_y_matrix_metres.ravel(),
         method_string=interp.SPLINE_METHOD_STRING, spline_degree=1,
         extrapolate=True)
-    print 'Time elapsed in main interp = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
-
-    exec_start_time_unix_sec = time.time()
     storm_centered_radar_matrix = numpy.reshape(
         storm_centered_radar_matrix, rotated_gp_lat_matrix_deg.shape)
 
@@ -926,8 +924,6 @@ def _extract_rotated_storm_image(
         numpy.logical_or(invalid_x_flags, invalid_y_flags))
 
     storm_centered_radar_matrix[invalid_indices] = 0.
-    print 'Time elapsed in interp clean-up = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
     return numpy.flipud(storm_centered_radar_matrix)
 
 
@@ -1368,9 +1364,8 @@ def extract_storm_images_myrorss_or_mrms(
                                 ROTATED_NON_SHEAR_LONGITUDES_COLUMN
                             ].values[these_storm_indices[k]]
 
-                        exec_start_time_unix_sec = time.time()
                         this_storm_image_matrix[
-                            k, :, :
+                        k, :, :
                         ] = _extract_rotated_storm_image(
                             full_radar_matrix=this_full_radar_matrix,
                             full_grid_point_latitudes_deg=
@@ -1383,7 +1378,7 @@ def extract_storm_images_myrorss_or_mrms(
                             this_rotated_lng_matrix_deg)
                 else:
                     (these_center_rows, these_center_columns
-                    ) = _centroids_latlng_to_rowcol(
+                     ) = _centroids_latlng_to_rowcol(
                         centroid_latitudes_deg=storm_object_table[
                             tracking_utils.CENTROID_LAT_COLUMN
                         ].values[these_storm_indices],
