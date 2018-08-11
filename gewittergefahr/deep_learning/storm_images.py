@@ -804,43 +804,38 @@ def _subset_xy_grid_for_interp(
         grid points.
     """
 
-    exec_start_time_unix_sec = time.time()
     valid_x_indices = numpy.where(numpy.logical_and(
         grid_point_x_coords_metres >= numpy.min(query_x_coords_metres),
         grid_point_x_coords_metres <= numpy.max(query_x_coords_metres)))[0]
     first_valid_x_index = max([valid_x_indices[0] - 2, 0])
-    last_valid_x_index = min(
-        [valid_x_indices[-1] + 2,
-         len(grid_point_x_coords_metres) - 1])
-    valid_x_indices = numpy.linspace(
-        first_valid_x_index, last_valid_x_index,
-        num=last_valid_x_index - first_valid_x_index + 1, dtype=int)
-    print 'Time elapsed finding valid x-coords = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
+    last_valid_x_index = min([
+        valid_x_indices[-1] + 2,
+        len(grid_point_x_coords_metres) - 1
+    ])
 
-    exec_start_time_unix_sec = time.time()
     valid_y_indices = numpy.where(numpy.logical_and(
         grid_point_y_coords_metres >= numpy.min(query_y_coords_metres),
         grid_point_y_coords_metres <= numpy.max(query_y_coords_metres)))[0]
     first_valid_y_index = max([valid_y_indices[0] - 2, 0])
-    last_valid_y_index = min(
-        [valid_y_indices[-1] + 2,
-         len(grid_point_y_coords_metres) - 1])
-    valid_y_indices = numpy.linspace(
-        first_valid_y_index, last_valid_y_index,
-        num=last_valid_y_index - first_valid_y_index + 1, dtype=int)
-    print 'Time elapsed finding valid y-coords = {0:.3f} s'.format(
-        time.time() - exec_start_time_unix_sec)
+    last_valid_y_index = min([
+        valid_y_indices[-1] + 2,
+        len(grid_point_y_coords_metres) - 1
+    ])
 
     exec_start_time_unix_sec = time.time()
-    subset_field_matrix = numpy.take(field_matrix, valid_y_indices, axis=0)
-    subset_field_matrix = numpy.take(
-        subset_field_matrix, valid_x_indices, axis=1)
+    subset_field_matrix = field_matrix[
+        first_valid_y_index:(last_valid_y_index + 1),
+        first_valid_x_index:(last_valid_x_index + 1)]
     print 'Time elapsed subsetting the matrix = {0:.3f} s'.format(
         time.time() - exec_start_time_unix_sec)
 
-    return (subset_field_matrix, grid_point_x_coords_metres[valid_x_indices],
-            grid_point_y_coords_metres[valid_y_indices])
+    return (
+        subset_field_matrix,
+        grid_point_x_coords_metres[
+            first_valid_x_index:(last_valid_x_index + 1)],
+        grid_point_y_coords_metres[
+            first_valid_y_index:(last_valid_y_index + 1)]
+    )
 
 
 def _extract_rotated_storm_image(
@@ -1365,7 +1360,7 @@ def extract_storm_images_myrorss_or_mrms(
                             ].values[these_storm_indices[k]]
 
                         this_storm_image_matrix[
-                        k, :, :
+                            k, :, :
                         ] = _extract_rotated_storm_image(
                             full_radar_matrix=this_full_radar_matrix,
                             full_grid_point_latitudes_deg=
@@ -1378,7 +1373,7 @@ def extract_storm_images_myrorss_or_mrms(
                             this_rotated_lng_matrix_deg)
                 else:
                     (these_center_rows, these_center_columns
-                     ) = _centroids_latlng_to_rowcol(
+                    ) = _centroids_latlng_to_rowcol(
                         centroid_latitudes_deg=storm_object_table[
                             tracking_utils.CENTROID_LAT_COLUMN
                         ].values[these_storm_indices],
