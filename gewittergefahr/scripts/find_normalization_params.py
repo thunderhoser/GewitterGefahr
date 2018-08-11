@@ -147,8 +147,8 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'List of radar fields (each must be accepted by `radar_utils.'
     'check_field_name`).  Normalization params will be computed for each of '
     'these fields, once over all heights and once at each height (metres above '
-    'sea level) in the following list.\n{0:s}\nDefault fields for MYRORSS:'
-    '\n{1:s}\nDefault fields for GridRad:\n{2:s}'
+    'sea level) in the following list.\n\n{0:s}\n\nDefault fields for MYRORSS:'
+    '\n\n{1:s}\n\nDefault fields for GridRad:\n\n{2:s}'
 ).format(str(RADAR_HEIGHTS_M_ASL), str(DEFAULT_MYRORSS_FIELD_NAMES),
          str(DEFAULT_GRIDRAD_FIELD_NAMES))
 OUTPUT_FILE_HELP_STRING = (
