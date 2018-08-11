@@ -84,10 +84,43 @@ LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
+DEFAULT_MIN_PERCENTILE_LEVEL = 0.1
+DEFAULT_MAX_PERCENTILE_LEVEL = 99.9
+DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME = (
+    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
+    'storm_images_rotated')
+DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME = (
+    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
+    'soundings')
+DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME = (
+    '/condo/swatcommon/common/myrorss_40dbz_echo_tops/final_tracks/reanalyzed/'
+    'storm_images')
+DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME = (
+    '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/final_tracks/reanalyzed/'
+    'soundings')
+
+DEFAULT_GRIDRAD_FIELD_NAMES = [
+    radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
+    radar_utils.DIVERGENCE_NAME, radar_utils.VORTICITY_NAME,
+    radar_utils.DIFFERENTIAL_REFL_NAME, radar_utils.CORRELATION_COEFF_NAME,
+    radar_utils.SPEC_DIFF_PHASE_NAME
+]
+
+DEFAULT_MYRORSS_FIELD_NAMES = [
+    radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME,
+    radar_utils.REFL_NAME, radar_utils.REFL_COLUMN_MAX_NAME,
+    radar_utils.REFL_0CELSIUS_NAME, radar_utils.REFL_M10CELSIUS_NAME,
+    radar_utils.REFL_M20CELSIUS_NAME, radar_utils.REFL_LOWEST_ALTITUDE_NAME,
+    radar_utils.MESH_NAME, radar_utils.SHI_NAME, radar_utils.VIL_NAME
+]
+
 RADAR_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
     'therein will be found by `storm_images.find_storm_image_file` and read by '
-    '`storm_images.read_storm_images`.')
+    '`storm_images.read_storm_images`.  Default is "{0:s}" for MYRORSS data, '
+    '"{1:s}" for GridRad.'
+).format(DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME, DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME)
 RADAR_SOURCE_HELP_STRING = (
     'Source of radar data.  Must be in the following list.\n{0:s}'
 ).format(str(radar_utils.DATA_SOURCE_IDS))
@@ -102,7 +135,10 @@ MAX_PERCENTILE_HELP_STRING = (
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `soundings_only.find_sounding_file` and read by '
-    '`soundings_only.read_soundings`.')
+    '`soundings_only.read_soundings`.  Default is "{0:s}" for MYRORSS data, '
+    '"{1:s}" for GridRad.'
+).format(DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME,
+         DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME)
 SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Normalization '
     'params will be based on all data from `{0:s}`...`{1:s}`.'
@@ -111,31 +147,17 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'List of radar fields (each must be accepted by `radar_utils.'
     'check_field_name`).  Normalization params will be computed for each of '
     'these fields, once over all heights and once at each height (metres above '
-    'sea level) in the following list.\n{0:s}'
-).format(str(RADAR_HEIGHTS_M_ASL))
+    'sea level) in the following list.\n{0:s}\nDefault fields for MYRORSS:'
+    '\n{1:s}\nDefault fields for GridRad:\n{2:s}'
+).format(str(RADAR_HEIGHTS_M_ASL), str(DEFAULT_MYRORSS_FIELD_NAMES),
+         str(DEFAULT_GRIDRAD_FIELD_NAMES))
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `deep_learning_utils.'
     'write_normalization_params_to_file`).')
 
-DEFAULT_MIN_PERCENTILE_LEVEL = 0.1
-DEFAULT_MAX_PERCENTILE_LEVEL = 99.9
-DEFAULT_TOP_RADAR_IMAGE_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'storm_images_rotated')
-DEFAULT_TOP_SOUNDING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'soundings')
-# DEFAULT_RADAR_FIELD_NAMES = [
-#     radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
-#     radar_utils.DIVERGENCE_NAME, radar_utils.VORTICITY_NAME,
-#     radar_utils.DIFFERENTIAL_REFL_NAME, radar_utils.CORRELATION_COEFF_NAME,
-#     radar_utils.SPEC_DIFF_PHASE_NAME
-# ]
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_IMAGE_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_RADAR_IMAGE_DIR_NAME,
+    '--' + RADAR_IMAGE_DIR_ARG_NAME, type=str, required=False, default='',
     help=RADAR_IMAGE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -151,8 +173,8 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_MAX_PERCENTILE_LEVEL, help=MAX_PERCENTILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_SOUNDING_DIR_NAME, help=SOUNDING_DIR_HELP_STRING)
+    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=False, default='',
+    help=SOUNDING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
@@ -163,8 +185,8 @@ INPUT_ARG_PARSER.add_argument(
     help=SPC_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=True,
-    help=RADAR_FIELD_NAMES_HELP_STRING)
+    '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
+    default=[''], help=RADAR_FIELD_NAMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -372,8 +394,21 @@ def _run(
     # Find radar files.
     if radar_source == radar_utils.MYRORSS_SOURCE_ID:
         these_heights_m_asl = REFLECTIVITY_HEIGHTS_M_ASL + 0.
+        if radar_field_names == ['']:
+            radar_field_names = DEFAULT_MYRORSS_FIELD_NAMES + []
+        if top_radar_image_dir_name == '':
+            top_radar_image_dir_name = DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME + ''
+        if top_sounding_dir_name == '':
+            top_sounding_dir_name = DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME + ''
+
     else:
         these_heights_m_asl = RADAR_HEIGHTS_M_ASL + 0.
+        if radar_field_names == ['']:
+            radar_field_names = DEFAULT_GRIDRAD_FIELD_NAMES + []
+        if top_radar_image_dir_name == '':
+            top_radar_image_dir_name = DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME + ''
+        if top_sounding_dir_name == '':
+            top_sounding_dir_name = DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME + ''
 
     radar_file_name_matrix = trainval_io.find_radar_files_2d(
         top_directory_name=top_radar_image_dir_name,
