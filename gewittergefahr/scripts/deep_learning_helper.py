@@ -117,11 +117,6 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  Each name must be accepted by '
     '`radar_utils.check_field_name`.')
 
-NUM_RADAR_CONV_LAYERS_HELP_STRING = (
-    'Number of convolutional layers for radar data.  Each successive conv layer'
-    ' will cut the dimensions of the radar image in half (example: from '
-    '32 x 32 x 12 to 16 x 16 x 6, then 8 x 8 x 3, then 4 x 4 x 1).')
-
 TARGET_NAME_HELP_STRING = (
     'Name of target variable (must be accepted by '
     '`labels.column_name_to_label_params`).')
@@ -136,7 +131,7 @@ BINARIZE_TARGET_HELP_STRING = (
 
 NUM_CONV_LAYER_SETS_HELP_STRING = (
     'Number of sets of conv layers for radar data.  Each successive conv-layer '
-    'set will halve the dimensions of the radar image (example: from'
+    'set will halve the dimensions of the radar image (example -- from'
     '32 x 32 x 12 to 16 x 16 x 6, then 8 x 8 x 3, then 4 x 4 x 1).')
 
 NUM_CONV_LAYERS_PER_SET_HELP_STRING = 'Number of conv layers in each set.'
@@ -177,10 +172,6 @@ MIN_NORMALIZED_VALUE_HELP_STRING = (
 MAX_NORMALIZED_VALUE_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Max normalized value.'
 ).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
-
-DROPOUT_FRACTION_HELP_STRING = (
-    'Dropout fraction.  Will be applied to the weights in each convolutional '
-    'layer.  Set to -1 for no dropout.')
 
 L2_WEIGHT_HELP_STRING = (
     'L2-regularization weight.  Will be applied to each convolutional layer.  '

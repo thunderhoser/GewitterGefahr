@@ -38,7 +38,7 @@ REFL_MASK_THRESHOLD_HELP_STRING = (
 RDP_FILTER_THRESHOLD_HELP_STRING = (
     'Used to remove storm objects with low RDP (rotation-divergence product).  '
     'This is a pre-model filter, so any storm object with RDP < `{0:s}` is not '
-    'used to train the CNN.  The lowest class (0) is predicted with 100% '
+    'used to train the CNN.  The lowest class (0) is predicted with 1.0 '
     'probability.  If you do not want a pre-model filter, make this -1.'
 ).format(RDP_FILTER_THRESHOLD_ARG_NAME)
 NORMALIZATION_FILE_HELP_STRING = (
