@@ -170,17 +170,24 @@ def get_saliency_maps_for_class_activation(
             ).format(out_layer_type_string)
             raise TypeError(error_string)
 
+    num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
+        -1]
+    if num_output_neurons == 1 and target_class == 1:
+        neuron_index = 0
+    else:
+        neuron_index = target_class
+
     if return_probs:
         loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
+            (model_object.layers[-1].output[..., neuron_index] - 1) ** 2)
     else:
         if ideal_logit is None:
             loss_tensor = -K.mean(
-                K.sign(model_object.layers[-1].input[..., target_class]) *
-                model_object.layers[-1].input[..., target_class] ** 2)
+                K.sign(model_object.layers[-1].input[..., neuron_index]) *
+                model_object.layers[-1].input[..., neuron_index] ** 2)
         else:
             loss_tensor = K.mean(
-                (model_object.layers[-1].input[..., target_class] -
+                (model_object.layers[-1].input[..., neuron_index] -
                  ideal_logit) ** 2)
 
     return _do_saliency_calculations(

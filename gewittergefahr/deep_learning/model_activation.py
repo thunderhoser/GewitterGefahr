@@ -125,14 +125,21 @@ def get_class_activation_for_examples(
     else:
         list_of_input_tensors = [model_object.input]
 
+    num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
+        -1]
+    if num_output_neurons == 1 and target_class == 1:
+        neuron_index = 0
+    else:
+        neuron_index = target_class
+
     if return_probs:
         activation_function = K.function(
             list_of_input_tensors + [K.learning_phase()],
-            [model_object.layers[-1].output[..., target_class]])
+            [model_object.layers[-1].output[..., neuron_index]])
     else:
         activation_function = K.function(
             list_of_input_tensors + [K.learning_phase()],
-            [model_object.layers[-1].input[..., target_class]])
+            [model_object.layers[-1].input[..., neuron_index]])
 
     return activation_function(list_of_input_matrices + [0])[0]
 

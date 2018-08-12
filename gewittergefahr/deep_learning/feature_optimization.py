@@ -408,9 +408,16 @@ def optimize_input_for_class(
         optimize_for_probability=optimize_for_probability,
         ideal_logit=ideal_logit)
 
+    num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
+        -1]
+    if num_output_neurons == 1 and target_class == 1:
+        neuron_index = 0
+    else:
+        neuron_index = target_class
+
     if optimize_for_probability:
         loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
+            (model_object.layers[-1].output[..., neuron_index] - 1) ** 2)
     else:
         out_layer_type_string = type(model_object.layers[-1]).__name__
         if out_layer_type_string != 'Activation':
@@ -424,11 +431,11 @@ def optimize_input_for_class(
 
         if ideal_logit is None:
             loss_tensor = -K.mean(
-                K.sign(model_object.layers[-1].input[..., target_class]) *
-                model_object.layers[-1].input[..., target_class] ** 2)
+                K.sign(model_object.layers[-1].input[..., neuron_index]) *
+                model_object.layers[-1].input[..., neuron_index] ** 2)
         else:
             loss_tensor = K.mean(
-                (model_object.layers[-1].input[..., target_class] -
+                (model_object.layers[-1].input[..., neuron_index] -
                  ideal_logit) ** 2)
 
     return _do_gradient_descent(
