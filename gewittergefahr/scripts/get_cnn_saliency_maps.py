@@ -29,8 +29,6 @@ INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 MODEL_FILE_ARG_NAME = 'model_file_name'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
-RETURN_PROBS_ARG_NAME = 'return_probs'
-IDEAL_LOGIT_ARG_NAME = 'ideal_logit'
 LAYER_NAME_ARG_NAME = 'layer_name'
 IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
@@ -54,22 +52,6 @@ TARGET_CLASS_HELP_STRING = (
 ).format(COMPONENT_TYPE_ARG_NAME,
          model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
-RETURN_PROBS_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, saliency maps will be '
-    'created for the predicted probability of class k, where k = `{2:s}`.  If '
-    '0, saliency maps will be created for the pre-softmax logit for class k.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-         TARGET_CLASS_ARG_NAME)
-IDEAL_LOGIT_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}" and {2:s} = 0] The loss function will be '
-    '(logit[k] - {3:s}) ** 2, where logit[k] is the logit for the target class.'
-    '  If {3:s} = -1, the loss function will be -sign(logit[k]) * logit[k]**2, '
-    'or the negative signed square of logit[k], so that loss always decreases '
-    'as logit[k] increases.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-         RETURN_PROBS_ARG_NAME, IDEAL_LOGIT_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neurons or '
     'channels for which saliency maps will be computed.'
@@ -137,14 +119,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_CLASS_ARG_NAME, type=int, required=False, default=1,
     help=TARGET_CLASS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + RETURN_PROBS_ARG_NAME, type=int, required=False,
-    default=1, help=RETURN_PROBS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + IDEAL_LOGIT_ARG_NAME, type=float, required=False,
-    default=saliency_maps.DEFAULT_IDEAL_LOGIT, help=IDEAL_LOGIT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
@@ -293,10 +267,10 @@ def _read_input_one_storm_object(
 
 
 def _run(
-        model_file_name, component_type_string, target_class, return_probs,
-        ideal_logit, layer_name, ideal_activation, neuron_indices_flattened,
-        channel_indices, top_radar_image_dir_name, top_sounding_dir_name,
-        storm_id, storm_time_string, output_file_name):
+        model_file_name, component_type_string, target_class, layer_name,
+        ideal_activation, neuron_indices_flattened, channel_indices,
+        top_radar_image_dir_name, top_sounding_dir_name, storm_id,
+        storm_time_string, output_file_name):
     """Computes saliency maps for given class, neurons, or channels of a CNN.
 
     This is effectively the main method.
@@ -304,8 +278,6 @@ def _run(
     :param model_file_name: See documentation at top of file.
     :param component_type_string: Same.
     :param target_class: Same.
-    :param return_probs: Same.
-    :param ideal_logit: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
     :param neuron_indices_flattened: Same.
@@ -393,9 +365,7 @@ def _run(
         list_of_saliency_matrices = (
             saliency_maps.get_saliency_maps_for_class_activation(
                 model_object=model_object, target_class=target_class,
-                return_probs=return_probs,
-                list_of_input_matrices=list_of_input_matrices,
-                ideal_logit=ideal_logit))
+                list_of_input_matrices=list_of_input_matrices))
 
     elif (component_type_string ==
           model_interpretation.NEURON_COMPONENT_TYPE_STRING):
@@ -450,7 +420,6 @@ def _run(
         model_file_name=model_file_name, storm_id=storm_id,
         storm_time_unix_sec=storm_time_unix_sec,
         component_type_string=component_type_string, target_class=target_class,
-        return_probs=return_probs, ideal_logit=ideal_logit,
         layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
@@ -464,8 +433,6 @@ if __name__ == '__main__':
         component_type_string=getattr(
             INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
-        return_probs=bool(getattr(INPUT_ARG_OBJECT, RETURN_PROBS_ARG_NAME)),
-        ideal_logit=getattr(INPUT_ARG_OBJECT, IDEAL_LOGIT_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
         ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
         neuron_indices_flattened=numpy.array(

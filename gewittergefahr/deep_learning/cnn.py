@@ -636,13 +636,14 @@ def get_2d_swilrnet_architecture(
     (dense_layer_object, activation_layer_object, loss_function
     ) = _get_output_layer_and_loss_function(num_classes)
     layer_object = dense_layer_object(layer_object)
-    layer_object = activation_layer_object(layer_object)
 
     if use_batch_normalization:
         layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
     if dense_layer_dropout_fraction is not None:
         layer_object = cnn_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction)(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
@@ -794,13 +795,14 @@ def get_3d_swilrnet_architecture(
     (dense_layer_object, activation_layer_object, loss_function
     ) = _get_output_layer_and_loss_function(num_classes)
     layer_object = dense_layer_object(layer_object)
-    layer_object = activation_layer_object(layer_object)
 
     if use_batch_normalization:
         layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
     if dense_layer_dropout_fraction is not None:
         layer_object = cnn_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction)(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(
@@ -1087,13 +1089,14 @@ def get_2d3d_swirlnet_architecture(
     (dense_layer_object, activation_layer_object, loss_function
     ) = _get_output_layer_and_loss_function(num_classes)
     layer_object = dense_layer_object(layer_object)
-    layer_object = activation_layer_object(layer_object)
 
     if use_batch_normalization:
         layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
     if dense_layer_dropout_fraction is not None:
         layer_object = cnn_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction)(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
 
     if num_sounding_fields is None:
         model_object = keras.models.Model(

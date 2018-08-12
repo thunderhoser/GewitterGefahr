@@ -126,8 +126,7 @@ def plot_many_optimized_fields_2d(
     feature_optimization.check_metadata(
         num_iterations=feature_optimization.DEFAULT_NUM_ITERATIONS,
         learning_rate=feature_optimization.DEFAULT_LEARNING_RATE,
-        component_type_string=component_type_string,
-        target_class=target_class, optimize_for_probability=True,
+        component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=1.,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
@@ -286,8 +285,7 @@ def plot_many_optimized_fields_3d(
     feature_optimization.check_metadata(
         num_iterations=feature_optimization.DEFAULT_NUM_ITERATIONS,
         learning_rate=feature_optimization.DEFAULT_LEARNING_RATE,
-        component_type_string=component_type_string,
-        target_class=target_class, optimize_for_probability=True,
+        component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=1.,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)

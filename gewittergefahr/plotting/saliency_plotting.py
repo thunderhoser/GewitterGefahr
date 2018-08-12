@@ -9,22 +9,20 @@ from gewittergefahr.gg_utils import error_checking
 
 POSITIVE_LINE_STYLE = 'solid'
 NEGATIVE_LINE_STYLE = 'dashed'
-COLOUR_MAP_OBJECT = pyplot.cm.gist_yarg
+DEFAULT_COLOUR_MAP_OBJECT = pyplot.cm.gist_yarg
 PIXEL_PADDING_FOR_CONTOUR_LABELS = 10
 STRING_FORMAT_FOR_POSITIVE_LABELS = '%.3f'
 STRING_FORMAT_FOR_NEGATIVE_LABELS = '-%.3f'
 FONT_SIZE_FOR_CONTOUR_LABELS = 20
 
 DEFAULT_LINE_WIDTH = 1.5
-DEFAULT_MAX_COLOUR_PERCENTILE = 99.
 DEFAULT_NUM_CONTOUR_LEVELS = 12
-
-# TODO(thunderhoser): Add methods to create paneled figures.
 
 
 def plot_saliency_field_2d(
         saliency_matrix, axes_object, max_contour_value,
-        label_contours=False, line_width=DEFAULT_LINE_WIDTH,
+        colour_map_object=DEFAULT_COLOUR_MAP_OBJECT, label_contours=False,
+        line_width=DEFAULT_LINE_WIDTH,
         num_contour_levels=DEFAULT_NUM_CONTOUR_LEVELS):
     """Plots 2-D saliency field with unfilled, coloured contours.
 
@@ -37,6 +35,7 @@ def plot_saliency_field_2d(
         Minimum saliency value will be -1 * max_contour_value.  Positive values
         will be shown with solid contours, and negative values with dashed
         contours.
+    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :param label_contours: Boolean flag.  If True, each contour will be labeled
         with the corresponding value.
     :param line_width: Width of contour lines (scalar).
@@ -57,7 +56,7 @@ def plot_saliency_field_2d(
         0., max_contour_value, num=num_contour_levels / 2 + 1)
     positive_contour_levels = positive_contour_levels[1:]
     positive_contour_object = axes_object.contour(
-        saliency_matrix, levels=positive_contour_levels, cmap=COLOUR_MAP_OBJECT,
+        saliency_matrix, levels=positive_contour_levels, cmap=colour_map_object,
         vmin=0., vmax=max_contour_value, linewidths=line_width,
         linestyles=POSITIVE_LINE_STYLE)
 
@@ -70,7 +69,7 @@ def plot_saliency_field_2d(
 
     negative_contour_object = axes_object.contour(
         -1 * saliency_matrix, levels=positive_contour_levels,
-        cmap=COLOUR_MAP_OBJECT, vmin=0., vmax=max_contour_value,
+        cmap=colour_map_object, vmin=0., vmax=max_contour_value,
         linewidths=line_width, linestyles=NEGATIVE_LINE_STYLE)
 
     if label_contours:

@@ -35,10 +35,8 @@ MODEL_FILE_ARG_NAME = 'model_file_name'
 IS_SWIRLNET_ARG_NAME = 'is_model_swirlnet'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
-OPTIMIZE_FOR_PROBABILITY_ARG_NAME = 'optimize_for_probability'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 LEARNING_RATE_ARG_NAME = 'learning_rate'
-IDEAL_LOGIT_ARG_NAME = 'ideal_logit'
 LAYER_NAME_ARG_NAME = 'layer_name'
 IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
@@ -64,24 +62,8 @@ TARGET_CLASS_HELP_STRING = (
 ).format(COMPONENT_TYPE_ARG_NAME,
          model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
-OPTIMIZE_FOR_PROBABILITY_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, input data will be '
-    'optimized for the predicted probability of class `{2:s}`.  If 0, input '
-    'data will be optimized for the pre-softmax logit of class `{2:s}`.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-         TARGET_CLASS_ARG_NAME)
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for optimization procedure.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for optimization procedure.'
-IDEAL_LOGIT_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}" and {2:s} = 0] The loss function will be '
-    '(logit[k] - {3:s}) ** 2, where logit[k] is the logit for the target class.'
-    '  If {3:s} = -1, the loss function will be -sign(logit[k]) * logit[k]**2, '
-    'or the negative signed square of logit[k], so that loss always decreases '
-    'as logit[k] increases.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-         OPTIMIZE_FOR_PROBABILITY_ARG_NAME, IDEAL_LOGIT_ARG_NAME)
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neuron or '
     'channel whose activation is to be maximized.'
@@ -133,10 +115,6 @@ INPUT_ARG_PARSER.add_argument(
     help=TARGET_CLASS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OPTIMIZE_FOR_PROBABILITY_ARG_NAME, type=int, required=False,
-    default=1, help=OPTIMIZE_FOR_PROBABILITY_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + NUM_ITERATIONS_ARG_NAME, type=int, required=False,
     default=feature_optimization.DEFAULT_NUM_ITERATIONS,
     help=NUM_ITERATIONS_HELP_STRING)
@@ -145,11 +123,6 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LEARNING_RATE_ARG_NAME, type=float, required=False,
     default=feature_optimization.DEFAULT_LEARNING_RATE,
     help=LEARNING_RATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + IDEAL_LOGIT_ARG_NAME, type=float, required=False,
-    default=feature_optimization.DEFAULT_IDEAL_LOGIT,
-    help=IDEAL_LOGIT_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
@@ -320,10 +293,9 @@ def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
 
 
 def _run(
-        model_file_name, is_model_swirlnet, component_type_string,
-        target_class, optimize_for_probability, num_iterations, learning_rate,
-        ideal_logit, layer_name, ideal_activation, neuron_indices_flattened,
-        channel_indices, output_file_name):
+        model_file_name, is_model_swirlnet, component_type_string, target_class,
+        num_iterations, learning_rate, layer_name, ideal_activation,
+        neuron_indices_flattened, channel_indices, output_file_name):
     """Finds optimal input for one class, neuron, or channel of a CNN.
 
     This is effectively the main method.
@@ -332,10 +304,8 @@ def _run(
     :param is_model_swirlnet: Same.
     :param component_type_string: Same.
     :param target_class: Same.
-    :param optimize_for_probability: Same.
     :param num_iterations: Same.
     :param learning_rate: Same.
-    :param ideal_logit: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
     :param neuron_indices_flattened: Same.
@@ -346,8 +316,6 @@ def _run(
     # Check input args.
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     model_interpretation.check_component_type(component_type_string)
-    if ideal_logit <= 0:
-        ideal_logit = None
     if ideal_activation <= 0:
         ideal_activation = None
 
@@ -395,9 +363,9 @@ def _run(
         list_of_optimized_input_matrices = (
             feature_optimization.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
-                optimize_for_probability=optimize_for_probability,
                 init_function=init_function, num_iterations=num_iterations,
-                learning_rate=learning_rate, ideal_logit=ideal_logit))
+                learning_rate=learning_rate)
+        )
 
     elif (component_type_string ==
           model_interpretation.NEURON_COMPONENT_TYPE_STRING):
@@ -465,9 +433,7 @@ def _run(
         model_file_name=model_file_name, num_iterations=num_iterations,
         learning_rate=learning_rate,
         component_type_string=component_type_string, target_class=target_class,
-        optimize_for_probability=optimize_for_probability,
-        ideal_logit=ideal_logit, layer_name=layer_name,
-        ideal_activation=ideal_activation,
+        layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
 
@@ -481,11 +447,8 @@ if __name__ == '__main__':
         component_type_string=getattr(
             INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
-        optimize_for_probability=bool(
-            getattr(INPUT_ARG_OBJECT, OPTIMIZE_FOR_PROBABILITY_ARG_NAME)),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
         learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
-        ideal_logit=getattr(INPUT_ARG_OBJECT, IDEAL_LOGIT_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
         ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
         neuron_indices_flattened=numpy.array(

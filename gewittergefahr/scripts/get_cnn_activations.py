@@ -29,7 +29,6 @@ LARGE_INTEGER = int(1e10)
 MODEL_FILE_ARG_NAME = 'model_file_name'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
-RETURN_PROBS_ARG_NAME = 'return_probs'
 LAYER_NAME_ARG_NAME = 'layer_name'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
 CHANNEL_INDICES_ARG_NAME = 'channel_indices'
@@ -49,14 +48,6 @@ COMPONENT_TYPE_HELP_STRING = (
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Activations will be computed for class k, '
     'where k = `{2:s}`.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-         TARGET_CLASS_ARG_NAME)
-RETURN_PROBS_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Boolean flag.  If 1, the activation for '
-    'each example will be the predicted probability of class k, where k = '
-    '`{2:s}`.  If 0, the activation for each example will be pre-softmax logit '
-    'for class k.'
 ).format(COMPONENT_TYPE_ARG_NAME,
          model_interpretation.CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
@@ -114,10 +105,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + TARGET_CLASS_ARG_NAME, type=int, required=False, default=1,
     help=TARGET_CLASS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + RETURN_PROBS_ARG_NAME, type=int, required=False,
-    default=1, help=RETURN_PROBS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
@@ -265,10 +252,10 @@ def _read_input_one_spc_date(
 
 
 def _run(
-        model_file_name, component_type_string, target_class, return_probs,
-        layer_name, neuron_indices_flattened, channel_indices,
-        top_radar_image_dir_name, top_sounding_dir_name, first_spc_date_string,
-        last_spc_date_string, output_file_name):
+        model_file_name, component_type_string, target_class, layer_name,
+        neuron_indices_flattened, channel_indices, top_radar_image_dir_name,
+        top_sounding_dir_name, first_spc_date_string, last_spc_date_string,
+        output_file_name):
     """Creates activation maps for one class, neuron, or channel of a CNN.
 
     This is effectively the main method.
@@ -276,7 +263,6 @@ def _run(
     :param model_file_name: See documentation at top of file.
     :param component_type_string: Same.
     :param target_class: Same.
-    :param return_probs: Same.
     :param layer_name: Same.
     :param neuron_indices_flattened: Same.
     :param channel_indices: Same.
@@ -391,7 +377,6 @@ def _run(
             this_activation_matrix = (
                 model_activation.get_class_activation_for_examples(
                     model_object=model_object, target_class=target_class,
-                    return_probs=return_probs,
                     list_of_input_matrices=this_list_of_input_matrices))
 
             this_activation_matrix = numpy.reshape(
@@ -463,8 +448,7 @@ def _run(
         storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
         model_file_name=model_file_name,
         component_type_string=component_type_string, target_class=target_class,
-        return_probs=return_probs, layer_name=layer_name,
-        neuron_index_matrix=neuron_index_matrix,
+        layer_name=layer_name, neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
 
 
@@ -476,7 +460,6 @@ if __name__ == '__main__':
         component_type_string=getattr(
             INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
-        return_probs=bool(getattr(INPUT_ARG_OBJECT, RETURN_PROBS_ARG_NAME)),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
         neuron_indices_flattened=numpy.array(
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),

@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import saliency_plotting
 
 REFL_PLOTTING_UNIT_STRING = 'dBZ'
 SHEAR_PLOTTING_UNIT_STRING = 's^-1'
@@ -19,6 +20,9 @@ VIL_PLOTTING_UNIT_STRING = 'mm'
 
 KM_TO_KILOFEET = 3.2808
 METRES_TO_KM = 1e-3
+
+DEFAULT_FIGURE_WIDTH_INCHES = 15.
+DEFAULT_FIGURE_HEIGHT_INCHES = 15.
 
 
 def _get_friendly_colour_list():
@@ -581,8 +585,15 @@ def plot_latlng_grid(
 
 def plot_2d_grid_without_coords(
         field_matrix, field_name, axes_object, annotation_string=None,
-        colour_map_object=None, colour_norm_object=None):
+        colour_map_object=None, colour_norm_object=None, saliency_matrix=None,
+        num_saliency_contour_levels=
+        saliency_plotting.DEFAULT_NUM_CONTOUR_LEVELS,
+        max_saliency_contour_value=None, label_saliency_contours=False,
+        saliency_colour_map_object=saliency_plotting.DEFAULT_COLOUR_MAP_OBJECT):
     """Plots 2-D grid as colour map.
+
+    M = number of rows in grid
+    N = number of columns in grid
 
     In this case the grid is not georeferenced (convenient for storm-centered
     radar images).
@@ -590,16 +601,31 @@ def plot_2d_grid_without_coords(
     To use the default colour scheme for the given radar field, leave
     `colour_map_object` and `colour_norm_object` empty.
 
-    :param field_matrix: See doc for `plot_latlng_grid`.
+    :param field_matrix: M-by-N numpy array of radar values.
     :param field_name: Same.
     :param axes_object: Same.
-    :param annotation_string: Annotation (will be printed in the bottom-center
-        of the axes).  If this is `None`, there will be no annotation.
+    :param annotation_string: Annotation (will be printed in the bottom-center).
+        If you want no annotation, leave this alone.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
+    :param saliency_matrix: M-by-N numpy array of saliency values.  These will
+        be plotted as line contours (as opposed to colour-filled contours).  If
+        you do not want to plot saliency, leave this alone.
+    :param num_saliency_contour_levels: [used iff `saliency_matrix is not None`]
+        See doc for `saliency_plotting.plot_saliency_field_2d`.
+    :param max_saliency_contour_value: [used iff `saliency_matrix is not None`]
+        Same.
+    :param label_saliency_contours: [used iff `saliency_matrix is not None`]
+        Same.
+    :param saliency_colour_map_object: [used iff `saliency_matrix is not None`]
+        Same.
     """
 
+    error_checking.assert_is_numpy_array_without_nan(field_matrix)
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
+    if saliency_matrix is not None:
+        error_checking.assert_is_numpy_array(
+            saliency_matrix, exact_dimensions=numpy.array(field_matrix.shape))
 
     field_matrix = _convert_to_plotting_units(
         field_matrix=field_matrix, field_name=field_name)
@@ -616,21 +642,33 @@ def plot_2d_grid_without_coords(
         vmax=colour_norm_object.boundaries[-1], shading='flat',
         edgecolors='None')
 
+    if annotation_string is not None:
+        error_checking.assert_is_string(annotation_string)
+        axes_object.text(
+            0.5, 0.01, annotation_string, fontsize=20, color='k',
+            horizontalalignment='center', verticalalignment='bottom',
+            transform=axes_object.transAxes)
+
+    if saliency_matrix is not None:
+        saliency_plotting.plot_saliency_field_2d(
+            saliency_matrix=saliency_matrix, axes_object=axes_object,
+            max_contour_value=max_saliency_contour_value,
+            colour_map_object=saliency_colour_map_object,
+            label_contours=label_saliency_contours,
+            num_contour_levels=num_saliency_contour_levels)
+
     axes_object.set_xticks([])
     axes_object.set_yticks([])
-    if annotation_string is None:
-        return
-
-    error_checking.assert_is_string(annotation_string)
-    axes_object.text(
-        0.5, 0.01, annotation_string, fontsize=20, color='k',
-        horizontalalignment='center', verticalalignment='bottom',
-        transform=axes_object.transAxes)
 
 
 def plot_many_2d_grids_without_coords(
         field_matrix, field_name_by_pair, height_by_pair_m_asl, num_panel_rows,
-        figure_width_inches=15., figure_height_inches=15.):
+        figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
+        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES, saliency_matrix=None,
+        num_saliency_contour_levels=
+        saliency_plotting.DEFAULT_NUM_CONTOUR_LEVELS,
+        max_saliency_contour_value=None, label_saliency_contours=False,
+        saliency_colour_map_object=saliency_plotting.DEFAULT_COLOUR_MAP_OBJECT):
     """Plots each 2-D grid as colour map (one per field/height pair).
 
     M = number of grid rows
@@ -649,14 +687,25 @@ def plot_many_2d_grids_without_coords(
         the number of grid rows).
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
+    :param saliency_matrix: M-by-N-by-C numpy array of saliency values.  These
+        will be plotted as line contours (as opposed to colour-filled contours).
+        If you do not want to plot saliency, leave this alone.
+    :param num_saliency_contour_levels: See doc for
+        `plot_2d_grid_without_coords`.
+    :param max_saliency_contour_value: Same.
+    :param label_saliency_contours: Same.
+    :param saliency_colour_map_object: Same.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where each item is an instance of
         `matplotlib.axes._subplots.AxesSubplot`.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
-    num_field_height_pairs = field_matrix.shape[2]
+    if saliency_matrix is not None:
+        error_checking.assert_is_numpy_array(
+            saliency_matrix, exact_dimensions=numpy.array(field_matrix.shape))
 
+    num_field_height_pairs = field_matrix.shape[2]
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_pair),
         exact_dimensions=numpy.array([num_field_height_pairs]))
@@ -692,15 +741,25 @@ def plot_many_2d_grids_without_coords(
                 field_matrix=field_matrix[..., this_fh_pair_index],
                 field_name=field_name_by_pair[this_fh_pair_index],
                 axes_object=axes_objects_2d_list[i][j],
-                annotation_string=this_annotation_string)
+                annotation_string=this_annotation_string,
+                saliency_matrix=saliency_matrix[..., this_fh_pair_index],
+                num_saliency_contour_levels=num_saliency_contour_levels,
+                max_saliency_contour_value=max_saliency_contour_value,
+                label_saliency_contours=label_saliency_contours,
+                saliency_colour_map_object=saliency_colour_map_object)
 
     return figure_object, axes_objects_2d_list
 
 
 def plot_3d_grid_without_coords(
         field_matrix, field_name, grid_point_heights_m_asl, num_panel_rows,
-        figure_width_inches=15., figure_height_inches=15.,
-        colour_map_object=None, colour_norm_object=None):
+        figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
+        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
+        colour_map_object=None, colour_norm_object=None, saliency_matrix=None,
+        num_saliency_contour_levels=
+        saliency_plotting.DEFAULT_NUM_CONTOUR_LEVELS,
+        max_saliency_contour_value=None, label_saliency_contours=False,
+        saliency_colour_map_object=saliency_plotting.DEFAULT_COLOUR_MAP_OBJECT):
     """Plots 3-D grid as many colour maps (one per height).
 
     M = number of grid rows
@@ -721,14 +780,25 @@ def plot_3d_grid_without_coords(
     :param figure_height_inches: Figure height.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
+    :param saliency_matrix: M-by-N-by-H numpy array of saliency values.  These
+        will be plotted as line contours (as opposed to colour-filled contours).
+        If you do not want to plot saliency, leave this alone.
+    :param num_saliency_contour_levels: See doc for
+        `plot_2d_grid_without_coords`.
+    :param max_saliency_contour_value: Same.
+    :param label_saliency_contours: Same.
+    :param saliency_colour_map_object: Same.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where each item is an instance of
         `matplotlib.axes._subplots.AxesSubplot`.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
-    num_heights = field_matrix.shape[2]
+    if saliency_matrix is not None:
+        error_checking.assert_is_numpy_array(
+            saliency_matrix, exact_dimensions=numpy.array(field_matrix.shape))
 
+    num_heights = field_matrix.shape[2]
     error_checking.assert_is_integer_numpy_array(grid_point_heights_m_asl)
     error_checking.assert_is_geq_numpy_array(grid_point_heights_m_asl, 0)
     error_checking.assert_is_numpy_array(
@@ -758,6 +828,11 @@ def plot_3d_grid_without_coords(
                 field_name=field_name, axes_object=axes_objects_2d_list[i][j],
                 annotation_string=this_annotation_string,
                 colour_map_object=colour_map_object,
-                colour_norm_object=colour_norm_object)
+                colour_norm_object=colour_norm_object,
+                saliency_matrix=saliency_matrix[..., this_height_index],
+                num_saliency_contour_levels=num_saliency_contour_levels,
+                max_saliency_contour_value=max_saliency_contour_value,
+                label_saliency_contours=label_saliency_contours,
+                saliency_colour_map_object=saliency_colour_map_object)
 
     return figure_object, axes_objects_2d_list

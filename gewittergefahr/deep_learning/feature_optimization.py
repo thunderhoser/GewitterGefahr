@@ -15,7 +15,6 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
-DEFAULT_IDEAL_LOGIT = 7.
 DEFAULT_IDEAL_ACTIVATION = 2.
 DEFAULT_LEARNING_RATE = 0.01
 DEFAULT_NUM_ITERATIONS = 200
@@ -25,8 +24,6 @@ NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
-OPTIMIZE_FOR_PROB_KEY = 'optimize_for_probability'
-IDEAL_LOGIT_KEY = 'ideal_logit'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_index_matrix'
@@ -91,8 +88,7 @@ def _do_gradient_descent(
 
 
 def check_metadata(
-        num_iterations, learning_rate, component_type_string,
-        target_class=None, optimize_for_probability=None, ideal_logit=None,
+        num_iterations, learning_rate, component_type_string, target_class=None,
         layer_name=None, ideal_activation=None, neuron_index_matrix=None,
         channel_indices=None):
     """Error-checks metadata for feature optimization.
@@ -105,8 +101,6 @@ def check_metadata(
     :param component_type_string: Component type (must be accepted by
         `model_interpretation.check_component_type`).
     :param target_class: See doc for `optimize_input_for_class`.
-    :param optimize_for_probability: Same.
-    :param ideal_logit: Same.
     :param layer_name: See doc for `optimize_input_for_neuron_activation` or
         `optimize_input_for_channel_activation`.
     :param ideal_activation: Same.
@@ -131,13 +125,7 @@ def check_metadata(
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
         error_checking.assert_is_geq(target_class, 0)
-        error_checking.assert_is_boolean(optimize_for_probability)
         num_components = 1
-
-        if optimize_for_probability:
-            ideal_logit = None
-        if ideal_logit is not None:
-            error_checking.assert_is_greater(ideal_logit, 0.)
 
     if component_type_string in [
             model_interpretation.NEURON_COMPONENT_TYPE_STRING,
@@ -364,79 +352,41 @@ def create_climo_initializer(
 
 
 def optimize_input_for_class(
-        model_object, target_class, optimize_for_probability, init_function,
+        model_object, target_class, init_function,
         num_iterations=DEFAULT_NUM_ITERATIONS,
-        learning_rate=DEFAULT_LEARNING_RATE, ideal_logit=DEFAULT_IDEAL_LOGIT):
-    """Optimizes synthetic input example for prediction of the target class.
-
-    If `optimize_for_probability = True`, this method will maximize predicted
-    probability of the target class.  Maxxing probability of the target class
-    inherently minimizes the probabilities of all other classes, because the sum
-    of all class probabilities must be 1.0.
-
-    If `optimize_for_probability = True`, will maximize pre-softmax logits for
-    the target class.  Maxxing pre-softmax logit for the target class does NOT
-    inherently minimize logits for the other classes, because the sum of class
-    logits is unbounded.
-
-    According to Olah et al. (2017), "optimizing pre-softmax logits produces
-    images of better visual quality".  However, this was for a multiclass
-    problem.  The same may not be true for a binary problem.
+        learning_rate=DEFAULT_LEARNING_RATE):
+    """Optimizes synthetic input example for probability of target class.
 
     :param model_object: Instance of `keras.models.Model`.
     :param target_class: Synthetic input data will be optimized for this class.
         Must be an integer in 0...(K - 1), where K = number of classes.
-    :param optimize_for_probability: See general discussion above.
     :param init_function: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
-    :param ideal_logit: [used only if `optimize_for_probability = False`]
-        The loss function will be (logit[k] - ideal_logit) ** 2, where logit[k]
-        is the logit for the target class.  If `ideal_logit is None`, the loss
-        function will be -sign(logit[k]) * logit[k]**2, or the negative signed
-        square of logit[k], so that loss always decreases as logit[k] increases.
     :return: list_of_optimized_input_matrices: See doc for
         `_do_gradient_descent`.
-    :raises: TypeError: if `optimize_for_probability = False` and the output
-        layer is not an activation layer.
     """
 
     check_metadata(
         num_iterations=num_iterations, learning_rate=learning_rate,
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-        target_class=target_class,
-        optimize_for_probability=optimize_for_probability,
-        ideal_logit=ideal_logit)
+        target_class=target_class)
 
     num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
         -1]
-    if num_output_neurons == 1 and target_class == 1:
-        neuron_index = 0
-    else:
-        neuron_index = target_class
 
-    if optimize_for_probability:
-        loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., neuron_index] - 1) ** 2)
-    else:
-        out_layer_type_string = type(model_object.layers[-1]).__name__
-        if out_layer_type_string != 'Activation':
-            error_string = (
-                'If `optimize_for_probability = False`, the output layer must '
-                'be an "Activation" layer (got "{0:s}" layer).  Otherwise, '
-                'there is no way to access the pre-softmax logits (unnormalized'
-                ' probabilities).'
-            ).format(out_layer_type_string)
-            raise TypeError(error_string)
-
-        if ideal_logit is None:
-            loss_tensor = -K.mean(
-                K.sign(model_object.layers[-1].input[..., neuron_index]) *
-                model_object.layers[-1].input[..., neuron_index] ** 2)
+    if num_output_neurons == 1:
+        error_checking.assert_is_leq(target_class, 1)
+        if target_class == 1:
+            loss_tensor = K.mean(
+                (model_object.layers[-1].output[..., 0] - 1) ** 2)
         else:
             loss_tensor = K.mean(
-                (model_object.layers[-1].input[..., neuron_index] -
-                 ideal_logit) ** 2)
+                model_object.layers[-1].output[..., 0] ** 2)
+    else:
+        error_checking.assert_is_less_than(target_class, num_output_neurons)
+        loss_tensor = K.mean(
+            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -563,9 +513,8 @@ def optimize_input_for_channel_activation(
 def write_file(
         pickle_file_name, list_of_optimized_input_matrices, model_file_name,
         num_iterations, learning_rate, component_type_string,
-        target_class=None, optimize_for_probability=None, ideal_logit=None,
-        layer_name=None, ideal_activation=None, neuron_index_matrix=None,
-        channel_indices=None):
+        target_class=None, layer_name=None, ideal_activation=None,
+        neuron_index_matrix=None, channel_indices=None):
     """Writes optimized input data to Pickle file.
 
     :param pickle_file_name: Path to output file.
@@ -576,8 +525,6 @@ def write_file(
     :param learning_rate: Same.
     :param component_type_string: Same.
     :param target_class: Same.
-    :param optimize_for_probability: Same.
-    :param ideal_logit: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
     :param neuron_index_matrix: Same.
@@ -587,9 +534,7 @@ def write_file(
     num_components = check_metadata(
         num_iterations=num_iterations, learning_rate=learning_rate,
         component_type_string=component_type_string, target_class=target_class,
-        optimize_for_probability=optimize_for_probability,
-        ideal_logit=ideal_logit, layer_name=layer_name,
-        ideal_activation=ideal_activation,
+        layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
 
@@ -609,8 +554,6 @@ def write_file(
         LEARNING_RATE_KEY: learning_rate,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
-        OPTIMIZE_FOR_PROB_KEY: optimize_for_probability,
-        IDEAL_LOGIT_KEY: ideal_logit,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
         NEURON_INDICES_KEY: neuron_index_matrix,
@@ -635,8 +578,6 @@ def read_file(pickle_file_name):
     metadata_dict['learning_rate']: Same.
     metadata_dict['component_type_string']: Same.
     metadata_dict['target_class']: Same.
-    metadata_dict['optimize_for_probability']: Same.
-    metadata_dict['ideal_logit']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['ideal_activation']: Same.
     metadata_dict['neuron_index_matrix']: Same.

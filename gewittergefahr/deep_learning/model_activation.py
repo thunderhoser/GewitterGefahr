@@ -20,15 +20,14 @@ STORM_TIMES_KEY = 'storm_times_unix_sec'
 MODEL_FILE_NAME_KEY = 'model_file_name'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
-RETURN_PROBS_KEY = 'return_probs'
 LAYER_NAME_KEY = 'layer_name'
 NEURON_INDICES_KEY = 'neuron_index_matrix'
 CHANNEL_INDICES_KEY = 'channel_indices'
 
 
 def check_metadata(
-        component_type_string, target_class=None, return_probs=None,
-        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+        component_type_string, target_class=None, layer_name=None,
+        neuron_index_matrix=None, channel_indices=None):
     """Error-checks metadata for activation calculations.
 
     C = number of model components (classes, neurons, or channels) for which
@@ -37,7 +36,6 @@ def check_metadata(
     :param component_type_string: Component type (must be accepted by
         `model_interpretation.check_component_type`).
     :param target_class: See doc for `get_class_activation_for_examples`.
-    :param return_probs: Same.
     :param layer_name: See doc for `get_neuron_activation_for_examples` or
         `get_channel_activation_for_examples`.
     :param neuron_index_matrix: [used only if component_type_string = "neuron"]
@@ -55,7 +53,6 @@ def check_metadata(
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
         error_checking.assert_is_geq(target_class, 0)
-        error_checking.assert_is_boolean(return_probs)
         num_components = 1
 
     if component_type_string in [
@@ -82,43 +79,23 @@ def check_metadata(
 
 
 def get_class_activation_for_examples(
-        model_object, target_class, return_probs, list_of_input_matrices):
-    """For each input example, returns prediction of the target class.
-
-    If `return_probs = True`, this method returns predicted probabilities of the
-    target class.
-
-    If `return_probs = False`, returns pre-softmax logits (unnormalized
-    probabilities) for the target class.
+        model_object, target_class, list_of_input_matrices):
+    """For each input example, returns predicted probability of target class.
 
     :param model_object: Instance of `keras.models.Model`.
     :param target_class: Predictions will be returned for this class.  Must be
         an integer in 0...(K - 1), where K = number of classes.
-    :param return_probs: See general discussion above.
     :param list_of_input_matrices: length-T list of numpy arrays, comprising
         one or more examples (storm objects).  list_of_input_matrices[i] must
         have the same dimensions as the [i]th input tensor to the model.
     :return: activation_values: length-E numpy array, where activation_values[i]
         is the activation (predicted probability or logit) of the target class
         for the [i]th example.
-    :raises: TypeError: if `return_probs = False` and the output layer is not an
-        activation layer.
     """
 
     check_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-        target_class=target_class, return_probs=return_probs)
-
-    if not return_probs:
-        out_layer_type_string = type(model_object.layers[-1]).__name__
-        if out_layer_type_string != 'Activation':
-            error_string = (
-                'If `return_probs = False`, the output layer must be an '
-                '"Activation" layer (got "{0:s}" layer).  Otherwise, there is '
-                'no way to access the pre-softmax logits (unnormalized '
-                'probabilities).'
-            ).format(out_layer_type_string)
-            raise TypeError(error_string)
+        target_class=target_class)
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
@@ -127,19 +104,20 @@ def get_class_activation_for_examples(
 
     num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
         -1]
-    if num_output_neurons == 1 and target_class == 1:
-        neuron_index = 0
-    else:
-        neuron_index = target_class
 
-    if return_probs:
-        activation_function = K.function(
-            list_of_input_tensors + [K.learning_phase()],
-            [model_object.layers[-1].output[..., neuron_index]])
+    if num_output_neurons == 1:
+        error_checking.assert_is_leq(target_class, 1)
+        if target_class == 1:
+            output_tensor = model_object.layers[-1].input[..., 0]
+        else:
+            output_tensor = 1. - model_object.layers[-1].input[..., 0]
     else:
-        activation_function = K.function(
-            list_of_input_tensors + [K.learning_phase()],
-            [model_object.layers[-1].input[..., neuron_index]])
+        error_checking.assert_is_less_than(target_class, num_output_neurons)
+        output_tensor = model_object.layers[-1].input[..., target_class]
+
+    activation_function = K.function(
+        list_of_input_tensors + [K.learning_phase()],
+        [output_tensor])
 
     return activation_function(list_of_input_matrices + [0])[0]
 
@@ -222,8 +200,7 @@ def get_channel_activation_for_examples(
 def write_file(
         pickle_file_name, activation_matrix, storm_ids, storm_times_unix_sec,
         model_file_name, component_type_string, target_class=None,
-        return_probs=None, layer_name=None, neuron_index_matrix=None,
-        channel_indices=None):
+        layer_name=None, neuron_index_matrix=None, channel_indices=None):
     """Writes activations to Pickle file.
 
     E = number of examples (storm objects)
@@ -239,7 +216,6 @@ def write_file(
     :param model_file_name: Path to file with trained model.
     :param component_type_string: See doc for `check_metadata`.
     :param target_class: Same.
-    :param return_probs: Same.
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
@@ -247,8 +223,7 @@ def write_file(
 
     num_components = check_metadata(
         component_type_string=component_type_string, target_class=target_class,
-        return_probs=return_probs, layer_name=layer_name,
-        neuron_index_matrix=neuron_index_matrix,
+        layer_name=layer_name, neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
     error_checking.assert_is_string(model_file_name)
 
@@ -272,7 +247,6 @@ def write_file(
         MODEL_FILE_NAME_KEY: model_file_name,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
-        RETURN_PROBS_KEY: return_probs,
         LAYER_NAME_KEY: layer_name,
         NEURON_INDICES_KEY: neuron_index_matrix,
         CHANNEL_INDICES_KEY: channel_indices,
@@ -294,7 +268,6 @@ def read_file(pickle_file_name):
     metadata_dict['model_file_name']: See doc for `write_file`.
     metadata_dict['component_type_string']: Same.
     metadata_dict['target_class']: Same.
-    metadata_dict['return_probs']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['neuron_index_matrix']: Same.
     metadata_dict['channel_indices']: Same.

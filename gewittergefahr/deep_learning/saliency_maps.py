@@ -7,7 +7,6 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 
-DEFAULT_IDEAL_LOGIT = 7.
 DEFAULT_IDEAL_ACTIVATION = 2.
 
 MODEL_FILE_NAME_KEY = 'model_file_name'
@@ -15,8 +14,6 @@ STORM_ID_KEY = 'storm_id'
 STORM_TIME_KEY = 'storm_time_unix_sec'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
-RETURN_PROBS_KEY = 'return_probs'
-IDEAL_LOGIT_KEY = 'ideal_logit'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_index_matrix'
@@ -64,9 +61,8 @@ def _do_saliency_calculations(
 
 
 def check_metadata(
-        component_type_string, target_class=None, return_probs=None,
-        ideal_logit=None, layer_name=None, ideal_activation=None,
-        neuron_index_matrix=None, channel_indices=None):
+        component_type_string, target_class=None, layer_name=None,
+        ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
     """Error-checks metadata for saliency calculations.
 
     C = number of model components (classes, neurons, or channels) for which
@@ -75,8 +71,6 @@ def check_metadata(
     :param component_type_string: Component type (must be accepted by
         `model_interpretation.check_component_type`).
     :param target_class: See doc for `get_saliency_maps_for_class_activation`.
-    :param return_probs: Same.
-    :param ideal_logit: Same.
     :param layer_name: See doc for `get_saliency_maps_for_neuron_activation` or
         `get_saliency_maps_for_channel_activation`.
     :param ideal_activation: Same.
@@ -95,13 +89,7 @@ def check_metadata(
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
         error_checking.assert_is_geq(target_class, 0)
-        error_checking.assert_is_boolean(return_probs)
         num_components = 1
-
-        if return_probs:
-            ideal_logit = None
-        if ideal_logit is not None:
-            error_checking.assert_is_greater(ideal_logit, 0.)
 
     if component_type_string in [
             model_interpretation.NEURON_COMPONENT_TYPE_STRING,
@@ -129,66 +117,34 @@ def check_metadata(
 
 
 def get_saliency_maps_for_class_activation(
-        model_object, target_class, return_probs, list_of_input_matrices,
-        ideal_logit=DEFAULT_IDEAL_LOGIT):
-    """For each input example, creates saliency map for target class.
-
-    If `return_probs = True`, this method creates saliency maps for the
-    predicted probability of the target class.
-
-    If `return_probs = False`, creates saliency maps for the pre-softmax logit
-    (unnormalized probability) of the target class.
+        model_object, target_class, list_of_input_matrices):
+    """For each input example, creates saliency map for prob of target class.
 
     :param model_object: Instance of `keras.models.Model`.
     :param target_class: Saliency maps will be created for this class.  Must be
         an integer in 0...(K - 1), where K = number of classes.
-    :param return_probs: See general discussion above.
     :param list_of_input_matrices: See doc for `_do_saliency_calculations`.
-    :param ideal_logit: [used only if `return_probs = False`]
-        The loss function will be (logit[k] - ideal_logit) ** 2, where logit[k]
-        is the logit for the target class.  If `ideal_logit is None`, the loss
-        function will be -sign(logit[k]) * logit[k]**2, or the negative signed
-        square of logit[k], so that loss always decreases as logit[k] increases.
     :return: list_of_saliency_matrices: See doc for `_do_saliency_calculations`.
-    :raises: TypeError: if `return_probs = False` and the output layer is not an
-        activation layer.
     """
 
     check_metadata(
         component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
-        target_class=target_class, return_probs=return_probs,
-        ideal_logit=ideal_logit)
-
-    if not return_probs:
-        out_layer_type_string = type(model_object.layers[-1]).__name__
-        if out_layer_type_string != 'Activation':
-            error_string = (
-                'If `return_probs = False`, the output layer must be an '
-                '"Activation" layer (got "{0:s}" layer).  Otherwise, there is '
-                'no way to access the pre-softmax logits (unnormalized '
-                'probabilities).'
-            ).format(out_layer_type_string)
-            raise TypeError(error_string)
+        target_class=target_class)
 
     num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
         -1]
-    if num_output_neurons == 1 and target_class == 1:
-        neuron_index = 0
-    else:
-        neuron_index = target_class
 
-    if return_probs:
-        loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., neuron_index] - 1) ** 2)
-    else:
-        if ideal_logit is None:
-            loss_tensor = -K.mean(
-                K.sign(model_object.layers[-1].input[..., neuron_index]) *
-                model_object.layers[-1].input[..., neuron_index] ** 2)
-        else:
+    if num_output_neurons == 1:
+        error_checking.assert_is_leq(target_class, 1)
+        if target_class == 1:
             loss_tensor = K.mean(
-                (model_object.layers[-1].input[..., neuron_index] -
-                 ideal_logit) ** 2)
+                (model_object.layers[-1].output[..., 0] - 1) ** 2)
+        else:
+            loss_tensor = K.mean(model_object.layers[-1].output[..., 0] ** 2)
+    else:
+        error_checking.assert_is_less_than(target_class, num_output_neurons)
+        loss_tensor = K.mean(
+            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
 
     return _do_saliency_calculations(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -290,8 +246,8 @@ def get_saliency_maps_for_channel_activation(
 def write_file(
         pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
         model_file_name, storm_id, storm_time_unix_sec, component_type_string,
-        target_class=None, return_probs=None, ideal_logit=None, layer_name=None,
-        ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
+        target_class=None, layer_name=None, ideal_activation=None,
+        neuron_index_matrix=None, channel_indices=None):
     """Writes saliency maps to Pickle file.
 
     T = number of input tensors to the model
@@ -314,8 +270,6 @@ def write_file(
     :param storm_time_unix_sec: Valid time for storm object.
     :param component_type_string: See doc for `check_metadata`.
     :param target_class: Same.
-    :param return_probs: Same.
-    :param ideal_logit: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
     :param neuron_index_matrix: Same.
@@ -326,7 +280,6 @@ def write_file(
 
     num_components = check_metadata(
         component_type_string=component_type_string, target_class=target_class,
-        return_probs=return_probs, ideal_logit=ideal_logit,
         layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
@@ -364,8 +317,6 @@ def write_file(
         STORM_TIME_KEY: storm_time_unix_sec,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
-        RETURN_PROBS_KEY: return_probs,
-        IDEAL_LOGIT_KEY: ideal_logit,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
         NEURON_INDICES_KEY: neuron_index_matrix,
@@ -392,8 +343,6 @@ def read_file(pickle_file_name):
     metadata_dict['storm_time_unix_sec']: Same.
     metadata_dict['component_type_string']: Same.
     metadata_dict['target_class']: Same.
-    metadata_dict['return_probs']: Same.
-    metadata_dict['ideal_logit']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['ideal_activation']: Same.
     metadata_dict['neuron_index_matrix']: Same.
