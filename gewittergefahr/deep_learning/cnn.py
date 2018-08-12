@@ -46,7 +46,6 @@ VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
 VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([37], dtype=int)
 
 DEFAULT_L2_WEIGHT = 1e-3
-DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION = 'relu'
 DEFAULT_CONV_LAYER_DROPOUT_FRACTION = 0.25
 DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = 0.5
 
@@ -130,7 +129,7 @@ NUM_CLASSES_KEY = 'num_classes'
 def _check_architecture_args(
         num_radar_rows, num_radar_columns, num_radar_dimensions,
         num_radar_conv_layer_sets, num_conv_layers_per_set, num_classes,
-        conv_layer_activation_function, use_batch_normalization,
+        conv_layer_activation_func_string, use_batch_normalization,
         alpha_for_elu=None, alpha_for_relu=None, num_radar_channels=None,
         num_radar_fields=None, num_radar_heights=None,
         conv_layer_dropout_fraction=None, dense_layer_dropout_fraction=None,
@@ -141,12 +140,12 @@ def _check_architecture_args(
     :param num_radar_columns: Number of pixel columns per radar image.
     :param num_radar_dimensions: Number of dimensions per radar image.
     :param num_radar_conv_layer_sets: Number of sets of conv layers for radar
-        data.  Each successive conv-layer set will cut the dimensions of the
-        radar image in half (example: from 32 x 32 x 12 to 16 x 16 x 6,
-        then 8 x 8 x 3, then 4 x 4 x 1).
+        data.  Each successive conv-layer set will halve the dimensions of the
+        radar image (example: from 32 x 32 x 12 to 16 x 16 x 6, then
+        8 x 8 x 3, then 4 x 4 x 1).
     :param num_conv_layers_per_set: Number of conv layers in each set.
     :param num_classes: Number of classes for target variable.
-    :param conv_layer_activation_function: Activation function for convolutional
+    :param conv_layer_activation_func_string: Activation function for conv
         layers.  Must be accepted by `cnn_utils.check_activation_function`.
     :param use_batch_normalization: Boolean flag.  If True, a batch-
         normalization layer will be included after each convolutional or fully
@@ -174,7 +173,7 @@ def _check_architecture_args(
     """
 
     cnn_utils.check_activation_function(
-        activation_function_string=conv_layer_activation_function,
+        activation_function_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu)
     error_checking.assert_is_boolean(use_batch_normalization)
 
@@ -299,7 +298,7 @@ def _check_training_args(
 def _get_sounding_layers(
         num_sounding_heights, num_sounding_fields, num_filters_in_first_layer,
         num_conv_layers_per_set, pooling_type_string, dropout_fraction,
-        regularizer_object, conv_layer_activation_function, alpha_for_elu,
+        regularizer_object, conv_layer_activation_func_string, alpha_for_elu,
         alpha_for_relu, use_batch_normalization):
     """Returns the part of a CNN that convolves over sounding data.
 
@@ -313,7 +312,7 @@ def _get_sounding_layers(
     :param dropout_fraction: Same.
     :param regularizer_object: Instance of `keras.regularizers.l1_l2`.  Will be
         applied to each convolutional layer.
-    :param conv_layer_activation_function: See doc for
+    :param conv_layer_activation_func_string: See doc for
         `_check_architecture_args`.
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
@@ -344,7 +343,7 @@ def _get_sounding_layers(
             )(sounding_layer_object)
 
             sounding_layer_object = cnn_utils.get_activation_layer(
-                activation_function_string=conv_layer_activation_function,
+                activation_function_string=conv_layer_activation_func_string,
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(sounding_layer_object)
 
@@ -441,7 +440,7 @@ def get_2d_mnist_architecture(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
         num_radar_channels=num_radar_channels, num_radar_dimensions=2,
         num_radar_conv_layer_sets=2, num_conv_layers_per_set=1,
-        num_classes=num_classes, conv_layer_activation_function='relu',
+        num_classes=num_classes, conv_layer_activation_func_string='relu',
         use_batch_normalization=False, l2_weight=l2_weight)
 
     if l2_weight is None:
@@ -510,7 +509,7 @@ def get_2d_swilrnet_architecture(
         num_radar_rows, num_radar_columns, num_radar_channels,
         num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
         num_classes,
-        conv_layer_activation_function=DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION,
+        conv_layer_activation_func_string=cnn_utils.RELU_FUNCTION_STRING,
         alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
         use_batch_normalization=True, num_radar_filters_in_first_layer=16,
@@ -532,7 +531,7 @@ def get_2d_swilrnet_architecture(
     :param num_conv_layers_per_set: Same.
     :param pooling_type_string: Same.
     :param num_classes: Same.
-    :param conv_layer_activation_function: Same.
+    :param conv_layer_activation_func_string: Same.
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
@@ -557,7 +556,7 @@ def get_2d_swilrnet_architecture(
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,
         num_classes=num_classes,
-        conv_layer_activation_function=conv_layer_activation_function,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
@@ -594,7 +593,7 @@ def get_2d_swilrnet_architecture(
             )(radar_layer_object)
 
             radar_layer_object = cnn_utils.get_activation_layer(
-                activation_function_string=conv_layer_activation_function,
+                activation_function_string=conv_layer_activation_func_string,
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(radar_layer_object)
 
@@ -627,7 +626,7 @@ def get_2d_swilrnet_architecture(
             pooling_type_string=pooling_type_string,
             dropout_fraction=conv_layer_dropout_fraction,
             regularizer_object=regularizer_object,
-            conv_layer_activation_function=conv_layer_activation_function,
+            conv_layer_activation_func_string=conv_layer_activation_func_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization)
 
@@ -665,7 +664,7 @@ def get_3d_swilrnet_architecture(
         num_radar_rows, num_radar_columns, num_radar_heights, num_radar_fields,
         num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
         num_classes,
-        conv_layer_activation_function=DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION,
+        conv_layer_activation_func_string=cnn_utils.RELU_FUNCTION_STRING,
         alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
         use_batch_normalization=True, num_radar_filters_in_first_layer=16,
@@ -688,7 +687,7 @@ def get_3d_swilrnet_architecture(
     :param num_conv_layers_per_set: Same.
     :param pooling_type_string: Same.
     :param num_classes: Same.
-    :param conv_layer_activation_function: Same.
+    :param conv_layer_activation_func_string: Same.
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
@@ -712,7 +711,7 @@ def get_3d_swilrnet_architecture(
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,
         num_classes=num_classes,
-        conv_layer_activation_function=conv_layer_activation_function,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
@@ -751,7 +750,7 @@ def get_3d_swilrnet_architecture(
             )(radar_layer_object)
 
             radar_layer_object = cnn_utils.get_activation_layer(
-                activation_function_string=conv_layer_activation_function,
+                activation_function_string=conv_layer_activation_func_string,
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(radar_layer_object)
 
@@ -785,7 +784,7 @@ def get_3d_swilrnet_architecture(
             pooling_type_string=pooling_type_string,
             dropout_fraction=conv_layer_dropout_fraction,
             regularizer_object=regularizer_object,
-            conv_layer_activation_function=conv_layer_activation_function,
+            conv_layer_activation_func_string=conv_layer_activation_func_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization)
 
@@ -824,7 +823,7 @@ def get_2d3d_swirlnet_architecture(
         num_reflectivity_heights, num_azimuthal_shear_fields,
         num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
         num_classes,
-        conv_layer_activation_function=DEFAULT_CONV_LAYER_ACTIVATION_FUNCTION,
+        conv_layer_activation_func_string=cnn_utils.RELU_FUNCTION_STRING,
         alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
         use_batch_normalization=True, num_refl_filters_in_first_layer=8,
@@ -860,7 +859,7 @@ def get_2d3d_swirlnet_architecture(
     :param num_conv_layers_per_set: See doc for `_check_architecture_args`.
     :param pooling_type_string: Same.
     :param num_classes: Same.
-    :param conv_layer_activation_function: Same.
+    :param conv_layer_activation_func_string: Same.
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
@@ -888,7 +887,7 @@ def get_2d3d_swirlnet_architecture(
         num_radar_dimensions=3, num_radar_conv_layer_sets=3,
         num_conv_layers_per_set=num_conv_layers_per_set,
         num_classes=num_classes,
-        conv_layer_activation_function=conv_layer_activation_function,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
@@ -903,7 +902,7 @@ def get_2d3d_swirlnet_architecture(
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,
         num_classes=num_classes,
-        conv_layer_activation_function=conv_layer_activation_function,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization)
 
@@ -917,7 +916,7 @@ def get_2d3d_swirlnet_architecture(
         num_radar_conv_layer_sets=2,
         num_conv_layers_per_set=num_conv_layers_per_set,
         num_classes=num_classes,
-        conv_layer_activation_function=conv_layer_activation_function,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization)
 
@@ -957,7 +956,7 @@ def get_2d3d_swirlnet_architecture(
             )(reflectivity_layer_object)
 
             reflectivity_layer_object = cnn_utils.get_activation_layer(
-                activation_function_string=conv_layer_activation_function,
+                activation_function_string=conv_layer_activation_func_string,
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(reflectivity_layer_object)
 
@@ -1002,7 +1001,7 @@ def get_2d3d_swirlnet_architecture(
         )(azimuthal_shear_layer_object)
 
         azimuthal_shear_layer_object = cnn_utils.get_activation_layer(
-            activation_function_string=conv_layer_activation_function,
+            activation_function_string=conv_layer_activation_func_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
         )(azimuthal_shear_layer_object)
 
@@ -1044,7 +1043,7 @@ def get_2d3d_swirlnet_architecture(
             )(radar_layer_object)
 
             radar_layer_object = cnn_utils.get_activation_layer(
-                activation_function_string=conv_layer_activation_function,
+                activation_function_string=conv_layer_activation_func_string,
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(radar_layer_object)
 
@@ -1078,7 +1077,7 @@ def get_2d3d_swirlnet_architecture(
             pooling_type_string=pooling_type_string,
             dropout_fraction=conv_layer_dropout_fraction,
             regularizer_object=regularizer_object,
-            conv_layer_activation_function=conv_layer_activation_function,
+            conv_layer_activation_func_string=conv_layer_activation_func_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization)
 

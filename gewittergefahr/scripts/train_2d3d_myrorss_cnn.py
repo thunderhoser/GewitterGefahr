@@ -70,20 +70,23 @@ def _train_cnn(
         top_storm_radar_image_dir_name_pos_targets_only,
         first_train_spc_date_string, last_train_spc_date_string, monitor_string,
         target_name, top_target_dir_name, binarize_target,
-        num_radar_conv_layers, num_refl_filters_in_first_layer,
+        num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
+        conv_layer_activation_func_string, alpha_for_elu, alpha_for_relu,
+        use_batch_normalization, conv_layer_dropout_fraction,
+        dense_layer_dropout_fraction, num_refl_filters_in_first_layer,
         num_shear_filters_in_first_layer, normalization_type_string,
         normalization_param_file_name, min_normalized_value,
-        max_normalized_value, dropout_fraction, l2_weight,
-        sampling_fraction_dict_keys, sampling_fraction_dict_values,
-        weight_loss_function, num_validation_batches_per_epoch,
-        first_validn_spc_date_string, last_validn_spc_date_string,
-        sounding_field_names, top_sounding_dir_name,
+        max_normalized_value, l2_weight, sampling_fraction_dict_keys,
+        sampling_fraction_dict_values, weight_loss_function,
+        num_validation_batches_per_epoch, first_validn_spc_date_string,
+        last_validn_spc_date_string, sounding_field_names,
+        top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
         num_sounding_filters_in_first_layer):
     """Trains CNN with 2-D and 3-D images from MYRORSS.
 
     :param output_model_dir_name: See documentation at the top of
-        'scripts/deep_learning.py'.
+        deep_learning_helper.py.
     :param num_epochs: Same.
     :param num_examples_per_batch: Same.
     :param num_examples_per_file: Same.
@@ -96,18 +99,25 @@ def _train_cnn(
     :param target_name: Same.
     :param top_target_dir_name: Same.
     :param binarize_target: Same.
-    :param num_radar_conv_layers: Same.
+    :param num_radar_conv_layer_sets: Same.
+    :param num_conv_layers_per_set: Same.
+    :param pooling_type_string: Same.
+    :param conv_layer_activation_func_string: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
+    :param conv_layer_dropout_fraction: Same.
+    :param dense_layer_dropout_fraction: Same.
     :param num_refl_filters_in_first_layer: See documentation at the top of this
         file.
     :param num_shear_filters_in_first_layer: Same.
     :param normalization_type_string: See documentation at the top of
-        'scripts/deep_learning.py'.
+        deep_learning_helper.py.
     :param normalization_param_file_name: See documentation at the top of this
         file.
     :param min_normalized_value: See documentation at the top of
-        'scripts/deep_learning.py'.
+        deep_learning_helper.py.
     :param max_normalized_value: Same.
-    :param dropout_fraction: Same.
     :param l2_weight: Same.
     :param sampling_fraction_dict_keys: Same.
     :param sampling_fraction_dict_values: Same.
@@ -121,10 +131,12 @@ def _train_cnn(
     :param num_sounding_filters_in_first_layer: Same.
     """
 
-    # Convert inputs.
-    if dropout_fraction <= 0.:
-        dropout_fraction = None
-    if l2_weight <= 0.:
+    # Verify and convert input args.
+    if conv_layer_dropout_fraction <= 0:
+        conv_layer_dropout_fraction = None
+    if dense_layer_dropout_fraction <= 0:
+        dense_layer_dropout_fraction = None
+    if l2_weight <= 0:
         l2_weight = None
 
     sampling_fraction_dict_keys = numpy.array(
@@ -163,7 +175,6 @@ def _train_cnn(
     else:
         num_sounding_fields = len(sounding_field_names)
 
-    # Error-checking.
     myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
         field_names=RADAR_FIELD_NAMES,
         data_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -254,12 +265,18 @@ def _train_cnn(
         num_reflectivity_columns=NUM_REFLECTIVITY_COLUMNS,
         num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_ASL),
         num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
-        num_radar_conv_layers=num_radar_conv_layers,
+        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        pooling_type_string=pooling_type_string,
         num_classes=num_classes_to_predict,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
         num_refl_filters_in_first_layer=num_refl_filters_in_first_layer,
         num_shear_filters_in_first_layer=num_shear_filters_in_first_layer,
-        dropout_fraction=dropout_fraction, l2_weight=l2_weight,
-        num_sounding_heights=NUM_SOUNDING_HEIGHTS,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l2_weight=l2_weight, num_sounding_heights=NUM_SOUNDING_HEIGHTS,
         num_sounding_fields=num_sounding_fields,
         num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
@@ -323,8 +340,24 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.TARGET_DIRECTORY_ARG_NAME),
         binarize_target=bool(getattr(
             INPUT_ARG_OBJECT, dl_helper.BINARIZE_TARGET_ARG_NAME)),
-        num_radar_conv_layers=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_RADAR_CONV_LAYERS_ARG_NAME),
+        num_radar_conv_layer_sets=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_CONV_LAYER_SETS_ARG_NAME),
+        num_conv_layers_per_set=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_CONV_LAYERS_PER_SET_ARG_NAME),
+        pooling_type_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.POOLING_TYPE_ARG_NAME),
+        conv_layer_activation_func_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.ACTIVATION_FUNC_ARG_NAME),
+        alpha_for_elu=getattr(
+            INPUT_ARG_OBJECT, dl_helper.ALPHA_FOR_ELU_ARG_NAME),
+        alpha_for_relu=getattr(
+            INPUT_ARG_OBJECT, dl_helper.ALPHA_FOR_RELU_ARG_NAME),
+        use_batch_normalization=bool(getattr(
+            INPUT_ARG_OBJECT, dl_helper.USE_BATCH_NORM_ARG_NAME)),
+        conv_layer_dropout_fraction=getattr(
+            INPUT_ARG_OBJECT, dl_helper.CONV_LAYER_DROPOUT_ARG_NAME),
+        dense_layer_dropout_fraction=getattr(
+            INPUT_ARG_OBJECT, dl_helper.DENSE_LAYER_DROPOUT_ARG_NAME),
         num_refl_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, NUM_REFL_FILTERS_ARG_NAME),
         num_shear_filters_in_first_layer=getattr(
@@ -337,8 +370,6 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.MIN_NORMALIZED_VALUE_ARG_NAME),
         max_normalized_value=getattr(
             INPUT_ARG_OBJECT, dl_helper.MAX_NORMALIZED_VALUE_ARG_NAME),
-        dropout_fraction=getattr(
-            INPUT_ARG_OBJECT, dl_helper.DROPOUT_FRACTION_ARG_NAME),
         l2_weight=getattr(
             INPUT_ARG_OBJECT, dl_helper.L2_WEIGHT_ARG_NAME),
         sampling_fraction_dict_keys=getattr(
