@@ -1,7 +1,13 @@
 """Helper methods for model interpretation."""
 
 import numpy
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import deployment_io
+
+LARGE_INTEGER = int(1e10)
 
 CLASS_COMPONENT_TYPE_STRING = 'class'
 NEURON_COMPONENT_TYPE_STRING = 'neuron'
@@ -159,3 +165,170 @@ def sort_neurons_by_weight(model_object, layer_name):
         sort_indices_linear, weight_matrix.shape)
 
     return weight_matrix, sort_indices_as_tuple
+
+
+def read_storms_one_spc_date(
+        radar_file_name_matrix, model_metadata_dict, top_sounding_dir_name,
+        spc_date_index, desired_storm_ids=None,
+        desired_storm_times_unix_sec=None):
+    """Reads storm objects (model inputs) for one SPC date.
+
+    E = number of examples (storm objects) returned
+
+    If `desired_storm_ids is None or desired_storm_times_unix_sec is None`, data
+    will be read for all storm objects on the given SPC date.  Otherwise, data
+    will be read only for selected storm objects.
+
+    :param radar_file_name_matrix: numpy array of file names, created by either
+        `training_validation_io.find_radar_files_2d` or
+        `training_validation_io.find_radar_files_3d`.
+    :param model_metadata_dict: Dictionary with metadata for the relevant model,
+        created by `cnn.read_model_metadata`.
+    :param top_sounding_dir_name: Name of top-level directory with storm-
+        centered soundings.
+    :param spc_date_index: Index of SPC date.  Data will be read from
+        radar_file_name_matrix[i, ...], where i = `spc_date_index`.
+    :param desired_storm_ids: 1-D list of storm IDs.  Data will be read only for
+        these storm objects.
+    :param desired_storm_times_unix_sec: 1-D numpy array of storm times (same
+        length as `desired_storm_ids`).  Data will be read only for these storm
+        objects.
+    :return: list_of_input_matrices: length-T list of numpy arrays, where T =
+        number of input tensors to the model.  The first dimension of each array
+        has length E.
+    :return: storm_ids: length-E list of storm IDs.
+    :return: storm_times_unix_sec: length-E list of storm times.
+    """
+
+    return_all_storm_objects = (
+        desired_storm_ids is None or desired_storm_times_unix_sec is None)
+
+    if not return_all_storm_objects:
+        error_checking.assert_is_numpy_array(
+            numpy.array(desired_storm_ids), num_dimensions=1)
+        num_desired_objects = len(desired_storm_ids)
+
+        error_checking.assert_is_integer_numpy_array(
+            desired_storm_times_unix_sec)
+        error_checking.assert_is_numpy_array(
+            desired_storm_times_unix_sec,
+            exact_dimensions=numpy.array([num_desired_objects]))
+
+        this_radar_file_name = numpy.reshape(
+            radar_file_name_matrix[spc_date_index, ...],
+            radar_file_name_matrix[spc_date_index, ...].size)[0]
+        _, spc_date_string = storm_images.image_file_name_to_time(
+            this_radar_file_name)
+
+        valid_indices = numpy.where(numpy.logical_and(
+            desired_storm_times_unix_sec >=
+            time_conversion.get_start_of_spc_date(spc_date_string),
+            desired_storm_times_unix_sec <=
+            time_conversion.get_end_of_spc_date(spc_date_string)
+        ))[0]
+
+        storm_ids = [desired_storm_ids[k] for k in valid_indices]
+        storm_times_unix_sec = desired_storm_times_unix_sec[valid_indices]
+
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        example_dict = deployment_io.create_storm_images_2d3d_myrorss(
+            radar_file_name_matrix=radar_file_name_matrix[
+                [spc_date_index], ...],
+            num_examples_per_file=LARGE_INTEGER,
+            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY],
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            return_target=False,
+            target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            sounding_field_names=model_metadata_dict[
+                cnn.SOUNDING_FIELD_NAMES_KEY],
+            top_sounding_dir_name=top_sounding_dir_name,
+            sounding_lag_time_for_convective_contamination_sec=
+            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+    else:
+        num_radar_dimensions = len(
+            model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
+
+        if num_radar_dimensions == 3:
+            example_dict = deployment_io.create_storm_images_3d(
+                radar_file_name_matrix=radar_file_name_matrix[
+                    [spc_date_index], ...],
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=model_metadata_dict[
+                    cnn.TARGET_NAME_KEY],
+                min_normalized_value=model_metadata_dict[
+                    cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=model_metadata_dict[
+                    cnn.MAX_NORMALIZED_VALUE_KEY],
+                normalization_param_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_NAME_KEY],
+                return_target=False,
+                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                refl_masking_threshold_dbz=model_metadata_dict[
+                    cnn.REFL_MASKING_THRESHOLD_KEY],
+                return_rotation_divergence_product=False,
+                sounding_field_names=model_metadata_dict[
+                    cnn.SOUNDING_FIELD_NAMES_KEY],
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+        else:
+            example_dict = deployment_io.create_storm_images_2d(
+                radar_file_name_matrix=radar_file_name_matrix[
+                    [spc_date_index], ...],
+                num_examples_per_file=LARGE_INTEGER,
+                normalization_type_string=model_metadata_dict[
+                    cnn.TARGET_NAME_KEY],
+                min_normalized_value=model_metadata_dict[
+                    cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=model_metadata_dict[
+                    cnn.MAX_NORMALIZED_VALUE_KEY],
+                normalization_param_file_name=model_metadata_dict[
+                    cnn.NORMALIZATION_FILE_NAME_KEY],
+                return_target=False,
+                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                sounding_field_names=model_metadata_dict[
+                    cnn.SOUNDING_FIELD_NAMES_KEY],
+                top_sounding_dir_name=top_sounding_dir_name,
+                sounding_lag_time_for_convective_contamination_sec=
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+
+    if example_dict is None:
+        return None, None, None
+
+    if return_all_storm_objects:
+        storm_ids = example_dict[deployment_io.STORM_IDS_KEY]
+        storm_times_unix_sec = example_dict[deployment_io.STORM_TIMES_KEY]
+        relevant_indices = numpy.linspace(
+            0, len(storm_ids) - 1, num=len(storm_ids), dtype=int)
+    else:
+        relevant_indices = storm_images.find_storm_objects(
+            all_storm_ids=example_dict[deployment_io.STORM_IDS_KEY],
+            all_valid_times_unix_sec=example_dict[
+                deployment_io.STORM_TIMES_KEY],
+            storm_ids_to_keep=storm_ids,
+            valid_times_to_keep_unix_sec=storm_times_unix_sec)
+
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        list_of_input_matrices = [
+            example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY][
+                relevant_indices, ...],
+            example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY][
+                relevant_indices, ...]
+        ]
+    else:
+        list_of_input_matrices = [
+            example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY][
+                relevant_indices, ...]
+        ]
+
+    if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
+        list_of_input_matrices.append(
+            example_dict[deployment_io.SOUNDING_MATRIX_KEY][
+                relevant_indices, ...])
+
+    return list_of_input_matrices, storm_ids, storm_times_unix_sec

@@ -15,7 +15,6 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import model_activation
-from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
@@ -140,117 +139,6 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _read_input_one_spc_date(
-        radar_file_name_matrix, model_metadata_dict, top_sounding_dir_name,
-        spc_date_index):
-    """Reads model input for one SPC date.
-
-    E = number of examples (storm objects)
-
-    :param radar_file_name_matrix: numpy array of file names, created by either
-        `training_validation_io.find_radar_files_2d` or
-        `training_validation_io.find_radar_files_3d`.
-    :param model_metadata_dict: Dictionary created by `cnn.read_model_metadata`.
-    :param top_sounding_dir_name: Name of top-level directory with storm-
-        centered soundings.
-    :param spc_date_index: Index of SPC date.  Data will be read from
-        radar_file_name_matrix[i, ...], where i = `spc_date_index`.
-    :return: list_of_input_matrices: length-T list of numpy arrays, where T =
-        number of input tensors to the model.  The first dimension of each array
-        has length E.
-    :return: storm_ids: length-E list of storm IDs.
-    :return: storm_times_unix_sec: length-E list of storm times.
-    """
-
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        example_dict = deployment_io.create_storm_images_2d3d_myrorss(
-            radar_file_name_matrix=radar_file_name_matrix[
-                [spc_date_index], ...],
-            num_examples_per_file=LARGE_INTEGER,
-            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            return_target=False,
-            target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
-            top_sounding_dir_name=top_sounding_dir_name,
-            sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
-
-        if example_dict is not None:
-            list_of_input_matrices = [
-                example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY],
-                example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY]
-            ]
-
-    else:
-        num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
-        if num_radar_dimensions == 3:
-            example_dict = deployment_io.create_storm_images_3d(
-                radar_file_name_matrix=radar_file_name_matrix[
-                    [spc_date_index], ...],
-                num_examples_per_file=LARGE_INTEGER,
-                normalization_type_string=model_metadata_dict[
-                    cnn.TARGET_NAME_KEY],
-                min_normalized_value=model_metadata_dict[
-                    cnn.MIN_NORMALIZED_VALUE_KEY],
-                max_normalized_value=model_metadata_dict[
-                    cnn.MAX_NORMALIZED_VALUE_KEY],
-                normalization_param_file_name=model_metadata_dict[
-                    cnn.NORMALIZATION_FILE_NAME_KEY],
-                return_target=False,
-                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                refl_masking_threshold_dbz=model_metadata_dict[
-                    cnn.REFL_MASKING_THRESHOLD_KEY],
-                return_rotation_divergence_product=False,
-                sounding_field_names=model_metadata_dict[
-                    cnn.SOUNDING_FIELD_NAMES_KEY],
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
-        else:
-            example_dict = deployment_io.create_storm_images_2d(
-                radar_file_name_matrix=radar_file_name_matrix[
-                    [spc_date_index], ...],
-                num_examples_per_file=LARGE_INTEGER,
-                normalization_type_string=model_metadata_dict[
-                    cnn.TARGET_NAME_KEY],
-                min_normalized_value=model_metadata_dict[
-                    cnn.MIN_NORMALIZED_VALUE_KEY],
-                max_normalized_value=model_metadata_dict[
-                    cnn.MAX_NORMALIZED_VALUE_KEY],
-                normalization_param_file_name=model_metadata_dict[
-                    cnn.NORMALIZATION_FILE_NAME_KEY],
-                return_target=False,
-                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                sounding_field_names=model_metadata_dict[
-                    cnn.SOUNDING_FIELD_NAMES_KEY],
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
-
-        if example_dict is not None:
-            list_of_input_matrices = [
-                example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY]
-            ]
-
-    if example_dict is None:
-        return None, None, None
-
-    if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
-        list_of_input_matrices.append(
-            example_dict[deployment_io.SOUNDING_MATRIX_KEY])
-
-    return (list_of_input_matrices, example_dict[deployment_io.STORM_IDS_KEY],
-            example_dict[deployment_io.STORM_TIMES_KEY])
-
-
 def _run(
         model_file_name, component_type_string, target_class, layer_name,
         neuron_indices_flattened, channel_indices, top_radar_image_dir_name,
@@ -347,7 +235,7 @@ def _run(
 
     for i in range(num_spc_dates):
         (this_list_of_input_matrices, these_storm_ids, these_times_unix_sec
-        ) = _read_input_one_spc_date(
+        ) = model_interpretation.read_storms_one_spc_date(
             radar_file_name_matrix=radar_file_name_matrix,
             model_metadata_dict=model_metadata_dict,
             top_sounding_dir_name=top_sounding_dir_name, spc_date_index=i)

@@ -10,14 +10,14 @@ from gewittergefahr.deep_learning import model_interpretation
 DEFAULT_IDEAL_ACTIVATION = 2.
 
 MODEL_FILE_NAME_KEY = 'model_file_name'
-STORM_ID_KEY = 'storm_id'
-STORM_TIME_KEY = 'storm_time_unix_sec'
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
-NEURON_INDICES_KEY = 'neuron_index_matrix'
-CHANNEL_INDICES_KEY = 'channel_indices'
+NEURON_INDICES_KEY = 'neuron_indices'
+CHANNEL_INDEX_KEY = 'channel_index'
 
 
 def _do_saliency_calculations(
@@ -62,11 +62,8 @@ def _do_saliency_calculations(
 
 def check_metadata(
         component_type_string, target_class=None, layer_name=None,
-        ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
+        ideal_activation=None, neuron_indices=None, channel_index=None):
     """Error-checks metadata for saliency calculations.
-
-    C = number of model components (classes, neurons, or channels) for which
-        saliency maps were computed
 
     :param component_type_string: Component type (must be accepted by
         `model_interpretation.check_component_type`).
@@ -74,14 +71,9 @@ def check_metadata(
     :param layer_name: See doc for `get_saliency_maps_for_neuron_activation` or
         `get_saliency_maps_for_channel_activation`.
     :param ideal_activation: Same.
-    :param neuron_index_matrix: [used only if component_type_string = "neuron"]
-        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
-        indices of the [j]th neuron whose saliency map was computed.
-    :param channel_indices: [used only if component_type_string = "channel"]
-        length-C numpy array, where channel_indices[j] is the index of the
-        [j]th channel whose saliency map was computed.
-    :return: num_components: Number of model components (classes, neurons, or
-        channels) whose saliency map was computed.
+    :param neuron_indices: See doc for
+        `get_saliency_maps_for_neuron_activation`.
+    :param channel_index: See doc for `get_saliency_maps_for_class_activation`.
     """
 
     model_interpretation.check_component_type(component_type_string)
@@ -89,7 +81,6 @@ def check_metadata(
             model_interpretation.CLASS_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(target_class)
         error_checking.assert_is_geq(target_class, 0)
-        num_components = 1
 
     if component_type_string in [
             model_interpretation.NEURON_COMPONENT_TYPE_STRING,
@@ -101,19 +92,14 @@ def check_metadata(
 
     if (component_type_string ==
             model_interpretation.NEURON_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
-        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
-        error_checking.assert_is_numpy_array(
-            neuron_index_matrix, num_dimensions=2)
-        num_components = neuron_index_matrix.shape[0]
+        error_checking.assert_is_integer_numpy_array(neuron_indices)
+        error_checking.assert_is_geq_numpy_array(neuron_indices, 0)
+        error_checking.assert_is_numpy_array(neuron_indices, num_dimensions=1)
 
     if (component_type_string ==
             model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer_numpy_array(channel_indices)
-        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
-        num_components = len(channel_indices)
-
-    return num_components
+        error_checking.assert_is_integer(channel_index)
+        error_checking.assert_is_geq(channel_index, 0)
 
 
 def get_saliency_maps_for_class_activation(
@@ -175,7 +161,7 @@ def get_saliency_maps_for_neuron_activation(
     check_metadata(
         component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
         layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
+        neuron_indices=neuron_indices)
 
     if ideal_activation is None:
         loss_tensor = (
@@ -224,7 +210,7 @@ def get_saliency_maps_for_channel_activation(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
         layer_name=layer_name, ideal_activation=ideal_activation,
-        channel_indices=numpy.array([channel_index]))
+        channel_index=channel_index)
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(
@@ -245,49 +231,52 @@ def get_saliency_maps_for_channel_activation(
 
 def write_file(
         pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
-        model_file_name, storm_id, storm_time_unix_sec, component_type_string,
+        model_file_name, storm_ids, storm_times_unix_sec, component_type_string,
         target_class=None, layer_name=None, ideal_activation=None,
-        neuron_index_matrix=None, channel_indices=None):
+        neuron_indices=None, channel_index=None):
     """Writes saliency maps to Pickle file.
 
-    T = number of input tensors to the model
-    C = number of model components (classes, neurons, or channels) for which
-        saliency maps were computed
+    Specifically, this method writes saliency maps for many storm objects and
+    one model component.
 
-    All saliency maps are for the same example (storm object) but a different
-    model component.
+    T = number of input tensors to the model
+    E = number of examples (storm objects) for which saliency maps were computed
 
     :param pickle_file_name: Path to output file.
     :param list_of_input_matrices: length-T list of numpy arrays, comprising the
-        input data for one storm object.  The first dimension of each array has
-        length 1.
+        input data for all storm objects  The first dimension of each array has
+        length E.
     :param list_of_saliency_matrices: length-T list of numpy arrays, comprising
-        the saliency map for each model component.  The first dimension of each
-        array has length C.  Otherwise, list_of_saliency_matrices[i] has the
-        same dimensions as list_of_input_matrices[i].
+        the saliency map for each storm object.  list_of_saliency_matrices[k]
+        has the same dimensions as list_of_input_matrices[k].
     :param model_file_name: Path to file with trained model.
-    :param storm_id: String ID for storm object.
-    :param storm_time_unix_sec: Valid time for storm object.
+    :param storm_ids: length-E list of storm IDs.
+    :param storm_times_unix_sec: length-E numpy array of storm times.
     :param component_type_string: See doc for `check_metadata`.
     :param target_class: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
-    :param neuron_index_matrix: Same.
-    :param channel_indices: Same.
+    :param neuron_indices: Same.
+    :param channel_index: Same.
     :raises: ValueError: if `list_of_input_matrices` and
-        `list_of_saliency_matrices` have different lengths.
+        `list_of_saliency_matrices` have different dimensions.
     """
 
-    num_components = check_metadata(
+    check_metadata(
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_index_matrix=neuron_index_matrix,
-        channel_indices=channel_indices)
+        neuron_indices=neuron_indices, channel_index=channel_index)
+
+    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_numpy_array(
+        numpy.array(storm_ids), num_dimensions=1)
+
+    num_storm_objects = len(storm_ids)
+    error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        storm_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects]))
 
     error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_string(storm_id)
-    error_checking.assert_is_integer(storm_time_unix_sec)
-
     error_checking.assert_is_list(list_of_input_matrices)
     error_checking.assert_is_list(list_of_saliency_matrices)
     num_input_matrices = len(list_of_input_matrices)
@@ -300,27 +289,27 @@ def write_file(
         ).format(num_input_matrices, num_saliency_matrices)
         raise ValueError(error_string)
 
-    for i in range(num_input_matrices):
-        error_checking.assert_is_numpy_array(list_of_input_matrices[i])
+    for k in range(num_input_matrices):
+        error_checking.assert_is_numpy_array(list_of_input_matrices[k])
         these_expected_dim = numpy.array(
-            (1,) + list_of_input_matrices[i].shape[1:], dtype=int)
+            (1,) + list_of_input_matrices[k].shape[1:], dtype=int)
         error_checking.assert_is_numpy_array(
-            list_of_input_matrices[i], exact_dimensions=these_expected_dim)
+            list_of_input_matrices[k], exact_dimensions=these_expected_dim)
 
-        these_expected_dim[0] = num_components
         error_checking.assert_is_numpy_array(
-            list_of_saliency_matrices[i], exact_dimensions=these_expected_dim)
+            list_of_saliency_matrices[k],
+            exact_dimensions=numpy.array(list_of_input_matrices[k].shape))
 
     metadata_dict = {
         MODEL_FILE_NAME_KEY: model_file_name,
-        STORM_ID_KEY: storm_id,
-        STORM_TIME_KEY: storm_time_unix_sec,
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
         COMPONENT_TYPE_KEY: component_type_string,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
-        NEURON_INDICES_KEY: neuron_index_matrix,
-        CHANNEL_INDICES_KEY: channel_indices,
+        NEURON_INDICES_KEY: neuron_indices,
+        CHANNEL_INDEX_KEY: channel_index,
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -339,14 +328,14 @@ def read_file(pickle_file_name):
     :return: list_of_saliency_matrices: Same.
     :return: metadata_dict: Dictionary with the following keys.
     metadata_dict['model_file_name']: See doc for `write_file`.
-    metadata_dict['storm_id']: Same.
-    metadata_dict['storm_time_unix_sec']: Same.
+    metadata_dict['storm_ids']: Same.
+    metadata_dict['storm_times_unix_sec']: Same.
     metadata_dict['component_type_string']: Same.
     metadata_dict['target_class']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['ideal_activation']: Same.
-    metadata_dict['neuron_index_matrix']: Same.
-    metadata_dict['channel_indices']: Same.
+    metadata_dict['neuron_indices']: Same.
+    metadata_dict['channel_index']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
