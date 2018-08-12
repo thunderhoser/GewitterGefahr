@@ -802,15 +802,16 @@ def find_radar_files_2d(
     """Finds input files for either of the following generators.
 
     - storm_image_generator_2d
-    - storm_image_generator_2d3d_myrorss
+    - storm_image_generator_2d3d_myrors
 
     If `one_file_per_time_step = True`, this method will return files containing
-    one time step each.  Otherwise, will return files containing one SPC date
-    each.
+    one time step each.  If `one_file_per_time_step = False`, will return files
+    containing one SPC date each.
 
     :param top_directory_name: Name of top-level directory with storm-centered
         radar images.
-    :param radar_source: Name of data source.
+    :param radar_source: Data source (must be accepted by
+        `radar_utils.check_data_source`).
     :param radar_field_names: 1-D list with names of radar fields.
     :param first_file_time_unix_sec: Start time.  This method will seek files
         for all times from `first_file_time_unix_sec`...
@@ -832,7 +833,6 @@ def find_radar_files_2d(
         [None if `top_directory_name_pos_targets_only is None`]
         Same as `radar_file_name_matrix`, but only for storm objects with
         positive target values.
-    :return: file_times_unix_sec: length-T numpy array of file times.
     """
 
     radar_utils.check_data_source(radar_source)
@@ -858,35 +858,29 @@ def find_radar_files_2d(
 
     radar_file_name_matrix = storm_image_file_dict[
         storm_images.IMAGE_FILE_NAME_MATRIX_KEY]
-    image_times_unix_sec = storm_image_file_dict[storm_images.VALID_TIMES_KEY]
+    num_image_times = radar_file_name_matrix.shape[0]
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
         num_field_height_pairs = (
             radar_file_name_matrix.shape[1] * radar_file_name_matrix.shape[2])
         radar_file_name_matrix = numpy.reshape(
-            radar_file_name_matrix,
-            (len(image_times_unix_sec), num_field_height_pairs))
+            radar_file_name_matrix, (num_image_times, num_field_height_pairs))
 
     time_missing_indices = numpy.unique(
         numpy.where(radar_file_name_matrix == '')[0])
     radar_file_name_matrix = numpy.delete(
         radar_file_name_matrix, time_missing_indices, axis=0)
-    image_times_unix_sec = numpy.delete(
-        image_times_unix_sec, time_missing_indices)
+    num_image_times = radar_file_name_matrix.shape[0]
 
     if shuffle_times:
-        num_image_times = radar_file_name_matrix.shape[0]
         image_time_indices = numpy.linspace(
             0, num_image_times - 1, num=num_image_times, dtype=int)
         numpy.random.shuffle(image_time_indices)
-
         radar_file_name_matrix = radar_file_name_matrix[image_time_indices, ...]
-        image_times_unix_sec = image_times_unix_sec[image_time_indices]
 
     if top_directory_name_pos_targets_only is None:
-        return radar_file_name_matrix, None, image_times_unix_sec
+        return radar_file_name_matrix, None
 
-    num_image_times = radar_file_name_matrix.shape[0]
     num_field_height_pairs = radar_file_name_matrix.shape[1]
     radar_file_name_matrix_pos_targets_only = numpy.full(
         (num_image_times, num_field_height_pairs), '', dtype=object)
@@ -911,8 +905,7 @@ def find_radar_files_2d(
                     unix_time_sec=this_time_unix_sec,
                     raise_error_if_missing=True))
 
-    return (radar_file_name_matrix, radar_file_name_matrix_pos_targets_only,
-            image_times_unix_sec)
+    return radar_file_name_matrix, radar_file_name_matrix_pos_targets_only
 
 
 def find_radar_files_3d(
@@ -935,7 +928,6 @@ def find_radar_files_3d(
         files with storm-centered radar images.
     :return: radar_file_name_matrix_pos_targets_only: See doc for
         `find_radar_files_2d`.
-    :return: file_times_unix_sec: length-T numpy array of file times.
     """
 
     radar_utils.check_data_source(radar_source)
@@ -961,33 +953,28 @@ def find_radar_files_3d(
 
     radar_file_name_matrix = storm_image_file_dict[
         storm_images.IMAGE_FILE_NAME_MATRIX_KEY]
-    image_times_unix_sec = storm_image_file_dict[storm_images.VALID_TIMES_KEY]
+    num_image_times = radar_file_name_matrix.shape[0]
 
     if radar_source != radar_utils.GRIDRAD_SOURCE_ID:
         radar_file_name_matrix = numpy.reshape(
             radar_file_name_matrix,
-            (len(image_times_unix_sec), 1, len(radar_heights_m_asl)))
+            (num_image_times, 1, len(radar_heights_m_asl)))
 
     time_missing_indices = numpy.unique(
         numpy.where(radar_file_name_matrix == '')[0])
     radar_file_name_matrix = numpy.delete(
         radar_file_name_matrix, time_missing_indices, axis=0)
-    image_times_unix_sec = numpy.delete(
-        image_times_unix_sec, time_missing_indices)
+    num_image_times = radar_file_name_matrix.shape[0]
 
     if shuffle_times:
-        num_image_times = radar_file_name_matrix.shape[0]
         image_time_indices = numpy.linspace(
             0, num_image_times - 1, num=num_image_times, dtype=int)
         numpy.random.shuffle(image_time_indices)
-
         radar_file_name_matrix = radar_file_name_matrix[image_time_indices, ...]
-        image_times_unix_sec = image_times_unix_sec[image_time_indices]
 
     if top_directory_name_pos_targets_only is None:
-        return radar_file_name_matrix, None, image_times_unix_sec
+        return radar_file_name_matrix, None
 
-    num_image_times = radar_file_name_matrix.shape[0]
     num_fields = radar_file_name_matrix.shape[1]
     num_heights = radar_file_name_matrix.shape[2]
     radar_file_name_matrix_pos_targets_only = numpy.full(
@@ -1015,8 +1002,7 @@ def find_radar_files_3d(
                         unix_time_sec=this_time_unix_sec,
                         raise_error_if_missing=True))
 
-    return (radar_file_name_matrix, radar_file_name_matrix_pos_targets_only,
-            image_times_unix_sec)
+    return radar_file_name_matrix, radar_file_name_matrix_pos_targets_only
 
 
 def find_sounding_files(

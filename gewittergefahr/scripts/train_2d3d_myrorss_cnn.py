@@ -193,7 +193,7 @@ def _train_cnn(
         top_storm_radar_image_dir_name_pos_targets_only = None
 
     (radar_fn_matrix_training,
-     radar_fn_matrix_training_pos_targets_only, _
+     radar_fn_matrix_training_pos_targets_only
     ) = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -211,7 +211,7 @@ def _train_cnn(
         radar_fn_matrix_validation_pos_targets_only = None
     else:
         (radar_fn_matrix_validation,
-         radar_fn_matrix_validation_pos_targets_only, _
+         radar_fn_matrix_validation_pos_targets_only
         ) = trainval_io.find_radar_files_2d(
             top_directory_name=top_storm_radar_image_dir_name,
             radar_source=radar_utils.MYRORSS_SOURCE_ID,
