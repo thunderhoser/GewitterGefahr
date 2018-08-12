@@ -871,8 +871,8 @@ def write_normalization_params_to_file(
         is a tuple with (field_name, height_m_asl), where `field_name` is
         accepted by `radar_utils.check_field_name` and `height_m_asl` is in
         metres above sea level.  Must contain the following columns.
-    radar_table_no_height.mean_value: Mean value for the given field.
-    radar_table_no_height.standard_deviation: Standard deviation.
+    radar_table_with_height.mean_value: Mean value for the given field.
+    radar_table_with_height.standard_deviation: Standard deviation.
 
     :param sounding_table_no_height: Single-indexed pandas DataFrame.  Each
         index is a field name (accepted by
