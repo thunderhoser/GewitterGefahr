@@ -368,6 +368,35 @@ def _get_sounding_layers(
     return sounding_input_layer_object, sounding_layer_object
 
 
+def _get_output_layer_and_loss_function(num_classes):
+    """Returns output layer and loss function.
+
+    :param num_classes: Number of classes.
+    :return: dense_layer_object: Instance of `keras.layers.Dense`, with no
+        activation.
+    :return: activation_layer_object: Instance of `keras.layers.Activation`,
+        `keras.layers.ELU`, or `keras.layers.LeakyReLU`.
+    :return: loss_function: Instance of `keras.losses.binary_crossentropy` or
+        `keras.losses.categorical_crossentropy`.
+    """
+
+    if num_classes == 2:
+        num_output_units = 1
+        loss_function = keras.losses.binary_crossentropy
+        activation_function_string = cnn_utils.SIGMOID_FUNCTION_STRING
+    else:
+        num_output_units = num_classes
+        loss_function = keras.losses.categorical_crossentropy
+        activation_function_string = cnn_utils.SOFTMAX_FUNCTION_STRING
+
+    dense_layer_object = cnn_utils.get_fully_connected_layer(
+        num_output_units=num_output_units)
+    activation_layer_object = cnn_utils.get_activation_layer(
+        activation_function_string=activation_function_string)
+
+    return dense_layer_object, activation_layer_object, loss_function
+
+
 def model_to_feature_generator(model_object, output_layer_name):
     """Reduces Keras model from predictor to feature-generator.
 
@@ -464,15 +493,14 @@ def get_2d_mnist_architecture(
     layer_object = cnn_utils.get_dropout_layer(dropout_fraction=0.5)
     model_object.add(layer_object)
 
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes)
-    model_object.add(layer_object)
-    model_object.add(cnn_utils.get_activation_layer(
-        activation_function_string='softmax'))
+    (dense_layer_object, activation_layer_object, loss_function
+    ) = _get_output_layer_and_loss_function(num_classes)
+    model_object.add(dense_layer_object)
+    model_object.add(activation_layer_object)
 
     model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -606,10 +634,11 @@ def get_2d_swilrnet_architecture(
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes)(layer_object)
-    layer_object = cnn_utils.get_activation_layer(
-        activation_function_string='softmax')(layer_object)
+    (dense_layer_object, activation_layer_object, loss_function
+    ) = _get_output_layer_and_loss_function(num_classes)
+    layer_object = dense_layer_object(layer_object)
+    layer_object = activation_layer_object(layer_object)
+
     if use_batch_normalization:
         layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
     if dense_layer_dropout_fraction is not None:
@@ -625,8 +654,8 @@ def get_2d_swilrnet_architecture(
             outputs=layer_object)
 
     model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -763,10 +792,11 @@ def get_3d_swilrnet_architecture(
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes)(layer_object)
-    layer_object = cnn_utils.get_activation_layer(
-        activation_function_string='softmax')(layer_object)
+    (dense_layer_object, activation_layer_object, loss_function
+    ) = _get_output_layer_and_loss_function(num_classes)
+    layer_object = dense_layer_object(layer_object)
+    layer_object = activation_layer_object(layer_object)
+
     if use_batch_normalization:
         layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
     if dense_layer_dropout_fraction is not None:
@@ -782,8 +812,8 @@ def get_3d_swilrnet_architecture(
             outputs=layer_object)
 
     model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -1055,10 +1085,11 @@ def get_2d3d_swirlnet_architecture(
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
-    layer_object = cnn_utils.get_fully_connected_layer(
-        num_output_units=num_classes)(layer_object)
-    layer_object = cnn_utils.get_activation_layer(
-        activation_function_string='softmax')(layer_object)
+    (dense_layer_object, activation_layer_object, loss_function
+    ) = _get_output_layer_and_loss_function(num_classes)
+    layer_object = dense_layer_object(layer_object)
+    layer_object = activation_layer_object(layer_object)
+
     if use_batch_normalization:
         layer_object = cnn_utils.get_batch_normalization_layer()(layer_object)
     if dense_layer_dropout_fraction is not None:
@@ -1076,8 +1107,8 @@ def get_2d3d_swirlnet_architecture(
             outputs=layer_object)
 
     model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
-        optimizer=keras.optimizers.Adam(), metrics=LIST_OF_METRIC_FUNCTIONS)
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=LIST_OF_METRIC_FUNCTIONS)
 
     model_object.summary()
     return model_object
@@ -1861,10 +1892,18 @@ def apply_2d_cnn(
             [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
     if sounding_matrix is None:
-        return model_object.predict(radar_image_matrix, batch_size=num_examples)
+        these_probabilities = model_object.predict(
+            radar_image_matrix, batch_size=num_examples)
+    else:
+        these_probabilities = model_object.predict(
+            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
-    return model_object.predict(
-        [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+    if len(these_probabilities.shape) > 1:
+        return these_probabilities
+
+    these_probabilities = numpy.reshape(
+        these_probabilities, (len(these_probabilities), 1))
+    return numpy.hstack((1. - these_probabilities, these_probabilities))
 
 
 def apply_3d_cnn(
@@ -1919,42 +1958,52 @@ def apply_3d_cnn(
 
     if rdp_filter_threshold_s02 is None:
         if sounding_matrix is None:
-            return model_object.predict(
+            these_probabilities = model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
-        return model_object.predict(
-            [radar_image_matrix, sounding_matrix], batch_size=num_examples)
-
-    error_checking.assert_is_greater(rdp_filter_threshold_s02, 0.)
-    error_checking.assert_is_numpy_array(
-        rotation_divergence_products_s02,
-        exact_dimensions=numpy.array([num_examples]))
-
-    num_classes = model_object.layers[-1].output.get_shape().as_list()[-1]
-    class_probability_matrix = numpy.full((num_examples, num_classes), 0.)
-    class_probability_matrix[:, 0] = 1.
-    high_rdp_indices = numpy.where(
-        rotation_divergence_products_s02 >= rdp_filter_threshold_s02)[0]
-
-    print '{0:d} of {1:d} storm objects have RDP >= {2:.2e} s^-2.'.format(
-        len(high_rdp_indices), len(rotation_divergence_products_s02),
-        rdp_filter_threshold_s02)
-
-    if len(high_rdp_indices):
-        if sounding_matrix is None:
-            class_probability_matrix[
-                high_rdp_indices, ...
-            ] = model_object.predict(
-                radar_image_matrix[high_rdp_indices, ...],
-                batch_size=num_examples)
         else:
-            class_probability_matrix[
-                high_rdp_indices, ...
-            ] = model_object.predict(
-                [radar_image_matrix[high_rdp_indices, ...],
-                 sounding_matrix[high_rdp_indices, ...]],
-                batch_size=num_examples)
+            these_probabilities = model_object.predict(
+                [radar_image_matrix, sounding_matrix], batch_size=num_examples)
+    else:
+        error_checking.assert_is_greater(rdp_filter_threshold_s02, 0.)
+        error_checking.assert_is_numpy_array(
+            rotation_divergence_products_s02,
+            exact_dimensions=numpy.array([num_examples]))
 
-    return class_probability_matrix
+        num_classes = model_object.layers[-1].output.get_shape().as_list()[-1]
+        if num_classes == 2:
+            these_probabilities = numpy.full(num_examples, 0.)
+        else:
+            these_probabilities = numpy.full((num_examples, num_classes), 0.)
+            these_probabilities[:, 0] = 1.
+
+        high_rdp_indices = numpy.where(
+            rotation_divergence_products_s02 >= rdp_filter_threshold_s02)[0]
+
+        print '{0:d} of {1:d} storm objects have RDP >= {2:.2e} s^-2.'.format(
+            len(high_rdp_indices), len(rotation_divergence_products_s02),
+            rdp_filter_threshold_s02)
+
+        if len(high_rdp_indices):
+            if sounding_matrix is None:
+                these_probabilities[
+                    high_rdp_indices, ...
+                ] = model_object.predict(
+                    radar_image_matrix[high_rdp_indices, ...],
+                    batch_size=num_examples)
+            else:
+                these_probabilities[
+                    high_rdp_indices, ...
+                ] = model_object.predict(
+                    [radar_image_matrix[high_rdp_indices, ...],
+                     sounding_matrix[high_rdp_indices, ...]],
+                    batch_size=num_examples)
+
+    if len(these_probabilities.shape) > 1:
+        return these_probabilities
+
+    these_probabilities = numpy.reshape(
+        these_probabilities, (len(these_probabilities), 1))
+    return numpy.hstack((1. - these_probabilities, these_probabilities))
 
 
 def apply_2d3d_cnn(
@@ -2019,14 +2068,21 @@ def apply_2d3d_cnn(
             batch_size=num_examples)
 
     if sounding_matrix is None:
-        return model_object.predict(
+        these_probabilities = model_object.predict(
             [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01],
             batch_size=num_examples)
+    else:
+        these_probabilities = model_object.predict(
+            [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+             sounding_matrix],
+            batch_size=num_examples)
 
-    return model_object.predict(
-        [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
-         sounding_matrix],
-        batch_size=num_examples)
+    if len(these_probabilities.shape) > 1:
+        return these_probabilities
+
+    these_probabilities = numpy.reshape(
+        these_probabilities, (len(these_probabilities), 1))
+    return numpy.hstack((1. - these_probabilities, these_probabilities))
 
 
 def write_features(
@@ -2049,8 +2105,8 @@ def write_features(
     error_checking.assert_is_numpy_array(feature_matrix)
     num_storm_objects = feature_matrix.shape[0]
 
-    dl_utils.check_target_values(
-        target_values=target_values, num_dimensions=1, num_classes=num_classes)
+    dl_utils.check_target_array(
+        target_array=target_values, num_dimensions=1, num_classes=num_classes)
     error_checking.assert_is_numpy_array(
         target_values, exact_dimensions=numpy.array([num_storm_objects]))
 

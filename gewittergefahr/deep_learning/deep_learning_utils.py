@@ -267,20 +267,20 @@ def check_soundings(
         sounding_matrix, exact_dimensions=numpy.array(expected_dimensions))
 
 
-def check_target_values(target_values, num_dimensions, num_classes):
+def check_target_array(target_array, num_dimensions, num_classes):
     """Error-checks target values.
 
-    :param target_values: numpy array in one of two formats.
+    :param target_array: numpy array in one of two formats.
     [1] length-E integer numpy array of target values.  All values are -2
         ("dead storm") or 0...[K - 1], where K = number of classes.
-    [2] E-by-K numpy array of target values (all 0 or 1, but with array type
-        "float64").  If target_matrix[i, k] = 1, the [i]th storm object belongs
-        to the [k]th class.  Classes are mutually exclusive and collectively
-        exhaustive, so the sum across each row is 1.
+    [2] E-by-K numpy array, where each value is 0 or 1.  If target_array[i, k] =
+        1, the [i]th storm object belongs to the [k]th class.  Classes are
+        mutually exclusive and collectively exhaustive, so the sum across each
+        row of the matrix is 1.
 
-    :param num_dimensions: Number of dimensions expected in `target_values`.
+    :param num_dimensions: Number of dimensions expected in `target_array`.
     :param num_classes: Number of classes that should be represented in
-        `target_values`.
+        `target_array`.
     """
 
     error_checking.assert_is_integer(num_dimensions)
@@ -289,25 +289,25 @@ def check_target_values(target_values, num_dimensions, num_classes):
     error_checking.assert_is_integer(num_classes)
     error_checking.assert_is_geq(num_classes, 2)
 
-    num_examples = target_values.shape[0]
+    num_examples = target_array.shape[0]
 
     if num_dimensions == 1:
         error_checking.assert_is_numpy_array(
-            target_values, exact_dimensions=numpy.array([num_examples]))
-        error_checking.assert_is_integer_numpy_array(target_values)
+            target_array, exact_dimensions=numpy.array([num_examples]))
+        error_checking.assert_is_integer_numpy_array(target_array)
 
         live_storm_object_indices = numpy.where(
-            target_values != labels.DEAD_STORM_INTEGER)[0]
+            target_array != labels.DEAD_STORM_INTEGER)[0]
         error_checking.assert_is_geq_numpy_array(
-            target_values[live_storm_object_indices], 0)
+            target_array[live_storm_object_indices], 0)
         error_checking.assert_is_less_than_numpy_array(
-            target_values, num_classes)
+            target_array, num_classes)
     else:
         error_checking.assert_is_numpy_array(
-            target_values,
+            target_array,
             exact_dimensions=numpy.array([num_examples, num_classes]))
-        error_checking.assert_is_geq_numpy_array(target_values, 0)
-        error_checking.assert_is_leq_numpy_array(target_values, 1)
+        error_checking.assert_is_geq_numpy_array(target_array, 0)
+        error_checking.assert_is_leq_numpy_array(target_array, 1)
 
 
 def stack_radar_fields(tuple_of_3d_matrices):
@@ -789,7 +789,7 @@ def sample_by_class(
 
     :param sampling_fraction_by_class_dict: See doc for `check_class_fractions`.
     :param target_name: Same.
-    :param target_values: See doc for `check_target_values` (format 1).
+    :param target_values: See doc for `check_target_array` (format 1).
     :param num_examples_total: See doc for `class_fractions_to_num_examples`.
     :param test_mode: Leave this argument alone.
     :return: indices_to_keep: 1-D numpy array with indices of examples to keep.
@@ -802,8 +802,8 @@ def sample_by_class(
 
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
-    check_target_values(
-        target_values=target_values, num_dimensions=1, num_classes=num_classes)
+    check_target_array(
+        target_array=target_values, num_dimensions=1, num_classes=num_classes)
 
     indices_to_keep_by_class_dict = {}
     num_desired_examples_by_extended_class = []

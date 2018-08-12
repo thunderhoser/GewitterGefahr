@@ -32,6 +32,16 @@ K = number of classes (possible values of target variable)
 import keras.backend as K
 
 
+def _get_num_tensor_dimensions(input_tensor):
+    """Returns number of dimensions in tensor.
+
+    :param input_tensor: Keras tensor.
+    :return: num_dimensions: Number of dimensions.
+    """
+
+    return len(input_tensor.get_shape().as_list())
+
+
 def _get_num_true_positives(target_tensor, forecast_probability_tensor):
     """Returns number of true positives (a in docstring).
 
@@ -43,9 +53,17 @@ def _get_num_true_positives(target_tensor, forecast_probability_tensor):
     :return: num_true_positives: Number of true positives.
     """
 
-    return K.sum(K.clip(
-        target_tensor[..., -1] * forecast_probability_tensor[..., -1],
-        0., 1.))
+    num_dimensions = _get_num_tensor_dimensions(target_tensor)
+    if num_dimensions == 1:
+        return K.sum(K.clip(
+            target_tensor * forecast_probability_tensor, 0., 1.))
+
+    if num_dimensions == 2:
+        return K.sum(K.clip(
+            target_tensor[..., -1] * forecast_probability_tensor[..., -1],
+            0., 1.))
+
+    return None
 
 
 def _get_num_false_positives(target_tensor, forecast_probability_tensor):
@@ -57,9 +75,18 @@ def _get_num_false_positives(target_tensor, forecast_probability_tensor):
     :return: num_false_positives: Number of false positives.
     """
 
-    return K.sum(K.clip(
-        (1. - target_tensor[..., -1]) * forecast_probability_tensor[..., -1],
-        0., 1.))
+    num_dimensions = _get_num_tensor_dimensions(target_tensor)
+    if num_dimensions == 1:
+        return K.sum(K.clip(
+            (1. - target_tensor) * forecast_probability_tensor, 0., 1.))
+
+    if num_dimensions == 2:
+        return K.sum(K.clip(
+            (1. - target_tensor[..., -1]) *
+            forecast_probability_tensor[..., -1],
+            0., 1.))
+
+    return None
 
 
 def _get_num_false_negatives(target_tensor, forecast_probability_tensor):
@@ -71,9 +98,18 @@ def _get_num_false_negatives(target_tensor, forecast_probability_tensor):
     :return: num_false_negatives: Number of false negatives.
     """
 
-    return K.sum(K.clip(
-        target_tensor[..., -1] * (1. - forecast_probability_tensor[..., -1]),
-        0., 1.))
+    num_dimensions = _get_num_tensor_dimensions(target_tensor)
+    if num_dimensions == 1:
+        return K.sum(K.clip(
+            target_tensor * (1. - forecast_probability_tensor), 0., 1.))
+
+    if num_dimensions == 2:
+        return K.sum(K.clip(
+            target_tensor[..., -1] *
+            (1. - forecast_probability_tensor[..., -1]),
+            0., 1.))
+
+    return None
 
 
 def _get_num_true_negatives(target_tensor, forecast_probability_tensor):
@@ -85,10 +121,18 @@ def _get_num_true_negatives(target_tensor, forecast_probability_tensor):
     :return: num_true_negatives: Number of true negatives.
     """
 
-    return K.sum(K.clip(
-        (1. - target_tensor[..., -1]) *
-        (1. - forecast_probability_tensor[..., -1]),
-        0., 1.))
+    num_dimensions = _get_num_tensor_dimensions(target_tensor)
+    if num_dimensions == 1:
+        return K.sum(K.clip(
+            (1. - target_tensor) * (1. - forecast_probability_tensor), 0., 1.))
+
+    if num_dimensions == 2:
+        return K.sum(K.clip(
+            (1. - target_tensor[..., -1]) *
+            (1. - forecast_probability_tensor[..., -1]),
+            0., 1.))
+
+    return None
 
 
 def accuracy(target_tensor, forecast_probability_tensor):

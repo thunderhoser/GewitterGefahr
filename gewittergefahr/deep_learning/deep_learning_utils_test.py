@@ -74,7 +74,7 @@ TUPLE_OF_4D_RADAR_MATRICES = (
     RADAR_IMAGE_MATRIX_4D, RADAR_IMAGE_MATRIX_4D)
 RADAR_IMAGE_MATRIX_5D = numpy.stack(TUPLE_OF_4D_RADAR_MATRICES, axis=-2)
 
-# The following constants are used to test check_target_values.
+# The following constants are used to test check_target_array.
 TORNADO_CLASSES_1D = numpy.array(
     [1, 1, 1, 1, 0, 1, 0, 1, 1, 1, 1], dtype=int)
 WIND_CLASSES_1D = numpy.array(
@@ -722,111 +722,111 @@ class DeepLearningUtilsTests(unittest.TestCase):
             dl_utils.check_radar_images(
                 radar_image_matrix=RADAR_IMAGE_MATRIX_5D, max_num_dimensions=4)
 
-    def test_check_target_values_1d_binary_good(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_1d_binary_good(self):
+        """Ensures correct output from check_target_array.
 
         In this case the input array is 1-D and contains 2 classes, as expected.
         """
 
-        dl_utils.check_target_values(
-            target_values=TORNADO_CLASSES_1D, num_dimensions=1, num_classes=2)
+        dl_utils.check_target_array(
+            target_array=TORNADO_CLASSES_1D, num_dimensions=1, num_classes=2)
 
-    def test_check_target_values_1d_binary_bad_dim(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_1d_binary_bad_dim(self):
+        """Ensures correct output from check_target_array.
 
         In this case, the input array is 1-D but a 2-D array is expected.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils.check_target_values(
-                target_values=TORNADO_CLASSES_1D, num_dimensions=2,
+            dl_utils.check_target_array(
+                target_array=TORNADO_CLASSES_1D, num_dimensions=2,
                 num_classes=2)
 
-    def test_check_target_values_1d_binary_bad_class_num(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_1d_binary_bad_class_num(self):
+        """Ensures correct output from check_target_array.
 
         In this case, 6 classes are expected and the input array contains only 2
         classes.  However, there is no way to ascertain that the 2-class array
         is wrong (maybe higher classes just did not occur in the sample).
         """
 
-        dl_utils.check_target_values(
-            target_values=TORNADO_CLASSES_1D, num_dimensions=1,
+        dl_utils.check_target_array(
+            target_array=TORNADO_CLASSES_1D, num_dimensions=1,
             num_classes=WIND_CLASS_MATRIX.shape[1])
 
-    def test_check_target_values_1d_multiclass_good(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_1d_multiclass_good(self):
+        """Ensures correct output from check_target_array.
 
         In this case the input array is 1-D and multiclass, as expected.
         """
 
-        dl_utils.check_target_values(
-            target_values=WIND_CLASSES_1D, num_dimensions=1,
+        dl_utils.check_target_array(
+            target_array=WIND_CLASSES_1D, num_dimensions=1,
             num_classes=WIND_CLASS_MATRIX.shape[1])
 
-    def test_check_target_values_1d_multiclass_bad_class_num(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_1d_multiclass_bad_class_num(self):
+        """Ensures correct output from check_target_array.
 
         In this case, the input array contains 6 classes but only 2 classes are
         expected.
         """
 
         with self.assertRaises(ValueError):
-            dl_utils.check_target_values(
-                target_values=WIND_CLASSES_1D, num_dimensions=1, num_classes=2)
+            dl_utils.check_target_array(
+                target_array=WIND_CLASSES_1D, num_dimensions=1, num_classes=2)
 
-    def test_check_target_values_2d_binary_good(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_2d_binary_good(self):
+        """Ensures correct output from check_target_array.
 
         In this case the input array is 2-D and contains 2 classes, as expected.
         """
 
-        dl_utils.check_target_values(
-            target_values=TORNADO_CLASS_MATRIX, num_dimensions=2, num_classes=2)
+        dl_utils.check_target_array(
+            target_array=TORNADO_CLASS_MATRIX, num_dimensions=2, num_classes=2)
 
-    def test_check_target_values_2d_bad_dim(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_2d_bad_dim(self):
+        """Ensures correct output from check_target_array.
 
         In this case, the input array is 2-D but a 1-D array is expected.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils.check_target_values(
-                target_values=TORNADO_CLASS_MATRIX, num_dimensions=1,
+            dl_utils.check_target_array(
+                target_array=TORNADO_CLASS_MATRIX, num_dimensions=1,
                 num_classes=2)
 
-    def test_check_target_values_2d_binary_bad_class_num(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_2d_binary_bad_class_num(self):
+        """Ensures correct output from check_target_array.
 
         In this case, the input array contains 2 classes but 6 classes are
         expected.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils.check_target_values(
-                target_values=TORNADO_CLASS_MATRIX, num_dimensions=2,
+            dl_utils.check_target_array(
+                target_array=TORNADO_CLASS_MATRIX, num_dimensions=2,
                 num_classes=WIND_CLASS_MATRIX.shape[1])
 
-    def test_check_target_values_2d_multiclass_good(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_2d_multiclass_good(self):
+        """Ensures correct output from check_target_array.
 
         In this case the input array is 2-D and multiclass, as expected.
         """
 
-        dl_utils.check_target_values(
-            target_values=WIND_CLASS_MATRIX, num_dimensions=2,
+        dl_utils.check_target_array(
+            target_array=WIND_CLASS_MATRIX, num_dimensions=2,
             num_classes=WIND_CLASS_MATRIX.shape[1])
 
-    def test_check_target_values_2d_multiclass_bad_class_num(self):
-        """Ensures correct output from check_target_values.
+    def test_check_target_array_2d_multiclass_bad_class_num(self):
+        """Ensures correct output from check_target_array.
 
         In this case, the input array contains 6 classes but 2 classes are
         expected.
         """
 
         with self.assertRaises(TypeError):
-            dl_utils.check_target_values(
-                target_values=WIND_CLASS_MATRIX, num_dimensions=2,
+            dl_utils.check_target_array(
+                target_array=WIND_CLASS_MATRIX, num_dimensions=2,
                 num_classes=2)
 
     def test_stack_radar_fields(self):

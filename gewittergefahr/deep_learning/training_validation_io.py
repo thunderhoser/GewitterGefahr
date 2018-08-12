@@ -190,7 +190,7 @@ def _select_batch(
     :param num_classes: Number of classes for target value.
     :return: list_of_predictor_matrices: Same as input, except that the first
         axis of each array has length E_b.
-    :return: target_matrix: See output doc for `storm_image_generator_2d`.
+    :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
     num_examples_in_memory = len(target_values)
@@ -211,14 +211,19 @@ def _select_batch(
             i][batch_indices, ...].astype('float32')
 
     target_values[target_values == labels.DEAD_STORM_INTEGER] = 0
-
     if binarize_target:
         target_values = (target_values == num_classes - 1).astype(int)
-        target_matrix = keras.utils.to_categorical(
-            target_values[batch_indices], 2)
+        num_classes_to_predict = 2
     else:
-        target_matrix = keras.utils.to_categorical(
-            target_values[batch_indices], num_classes)
+        num_classes_to_predict = num_classes + 0
+
+    if num_classes_to_predict == 2:
+        print 'Fraction of target values in positive class: {0:.3f}'.format(
+            numpy.mean(target_values))
+        return list_of_predictor_matrices, target_values
+
+    target_matrix = keras.utils.to_categorical(
+        target_values[batch_indices], num_classes_to_predict)
 
     class_fractions = numpy.mean(target_matrix, axis=0)
     print 'Fraction of target values in each class: {0:s}\n'.format(
@@ -1180,10 +1185,14 @@ def storm_image_generator_2d(
 
     :return: radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
-    :return: target_matrix: E-by-K numpy array of target values (all 0 or 1, but
-        with array type "float64").  If target_matrix[i, k] = 1, the [i]th
-        storm object belongs to the [k]th class.  Classes are mutually exclusive
-        and collectively exhaustive, so the sum across each row is 1.
+    :return: target_array: If number of classes to predict = 2, this is a
+        length-E numpy array, where each value is 0 or 1, indicating the
+        negative or positive class.
+
+        If number of classes to predict > 2, this is an E-by-K numpy array,
+        where each value is 0 or 1.  If target_array[i, k] = 1, the [i]th storm
+        object belongs to the [k]th class.  Classes are mutually exclusive and
+        collectively exhaustive, so the sum across each row of the matrix is 1.
 
     If `sounding_field_names is not None`, this method returns...
 
@@ -1191,7 +1200,7 @@ def storm_image_generator_2d(
     predictor_list[0] = radar_image_matrix: See documentation above.
     predictor_list[1] = sounding_matrix: numpy array (E x H_s x F_s) of storm-
         centered soundings.
-    :return: target_matrix: See documentation above.
+    :return: target_array: See documentation above.
     """
 
     error_checking.assert_is_boolean(loop_thru_files_once)
@@ -1366,7 +1375,7 @@ def storm_image_generator_2d(
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
 
-        list_of_predictor_matrices, target_matrix = _select_batch(
+        list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[
                 full_radar_image_matrix, full_sounding_matrix],
             target_values=all_target_values,
@@ -1386,9 +1395,9 @@ def storm_image_generator_2d(
             num_examples_in_memory_by_class_dict[this_key] = 0
 
         if sounding_file_names is None:
-            yield (radar_image_matrix, target_matrix)
+            yield (radar_image_matrix, target_array)
         else:
-            yield ([radar_image_matrix, sounding_matrix], target_matrix)
+            yield ([radar_image_matrix, sounding_matrix], target_array)
 
 
 def storm_image_generator_3d(
@@ -1438,7 +1447,7 @@ def storm_image_generator_3d(
 
     :return: radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
         centered radar images.
-    :return: target_matrix: See output doc for `storm_image_generator_2d`.
+    :return: target_array: See output doc for `storm_image_generator_2d`.
 
     If `sounding_field_names is not None`, this method returns...
 
@@ -1446,7 +1455,7 @@ def storm_image_generator_3d(
     predictor_list[0] = radar_image_matrix: See documentation above.
     predictor_list[1] = sounding_matrix: numpy array (E x H_s x F_s) of storm-
         centered soundings.
-    :return: target_matrix: See documentation above.
+    :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
     error_checking.assert_is_boolean(loop_thru_files_once)
@@ -1628,7 +1637,7 @@ def storm_image_generator_3d(
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
 
-        list_of_predictor_matrices, target_matrix = _select_batch(
+        list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[
                 full_radar_image_matrix, full_sounding_matrix],
             target_values=all_target_values,
@@ -1648,9 +1657,9 @@ def storm_image_generator_3d(
             num_examples_in_memory_by_class_dict[this_key] = 0
 
         if sounding_file_names is None:
-            yield (radar_image_matrix, target_matrix)
+            yield (radar_image_matrix, target_array)
         else:
-            yield ([radar_image_matrix, sounding_matrix], target_matrix)
+            yield ([radar_image_matrix, sounding_matrix], target_array)
 
 
 def storm_image_generator_2d3d_myrorss(
@@ -1702,7 +1711,7 @@ def storm_image_generator_2d3d_myrorss(
         (E x m x n x H_r x 1) of storm-centered reflectivity images.
     predictor_list[1] = azimuthal_shear_image_matrix_s01: numpy array
         (E x M x N x F_a) of storm-centered azimuthal-shear images.
-    :return: target_matrix: See output doc for `storm_image_generator_2d`.
+    :return: target_array: See output doc for `storm_image_generator_2d`.
 
     If `sounding_field_names is not None`, this method returns...
 
@@ -1712,7 +1721,7 @@ def storm_image_generator_2d3d_myrorss(
         above.
     predictor_list[2] = sounding_matrix: See output doc for
         `storm_image_generator_2d`.
-    :return: target_matrix: See output doc for `storm_image_generator_2d`.
+    :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
     error_checking.assert_is_boolean(loop_thru_files_once)
@@ -1921,7 +1930,7 @@ def storm_image_generator_2d3d_myrorss(
                     min_normalized_value=min_normalized_value,
                     max_normalized_value=max_normalized_value).astype('float32')
 
-        list_of_predictor_matrices, target_matrix = _select_batch(
+        list_of_predictor_matrices, target_array = _select_batch(
             list_of_predictor_matrices=[
                 full_reflectivity_matrix_dbz, full_azimuthal_shear_matrix_s01,
                 full_sounding_matrix],
@@ -1945,8 +1954,8 @@ def storm_image_generator_2d3d_myrorss(
 
         if sounding_file_names is None:
             yield ([reflectivity_matrix_dbz, azimuthal_shear_matrix_s01],
-                   target_matrix)
+                   target_array)
         else:
             yield ([reflectivity_matrix_dbz, azimuthal_shear_matrix_s01,
                     sounding_matrix],
-                   target_matrix)
+                   target_array)

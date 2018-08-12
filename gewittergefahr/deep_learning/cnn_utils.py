@@ -49,13 +49,14 @@ ELU_FUNCTION_STRING = 'elu'
 RELU_FUNCTION_STRING = 'relu'
 SELU_FUNCTION_STRING = 'selu'
 SOFTMAX_FUNCTION_STRING = 'softmax'
+SIGMOID_FUNCTION_STRING = 'sigmoid'
 
 VALID_CONV_LAYER_ACTIV_FUNC_STRINGS = [
-    ELU_FUNCTION_STRING, RELU_FUNCTION_STRING, SELU_FUNCTION_STRING,
-    SOFTMAX_FUNCTION_STRING
+    ELU_FUNCTION_STRING, RELU_FUNCTION_STRING, SELU_FUNCTION_STRING
 ]
 VALID_ACTIVATION_FUNCTION_STRINGS = VALID_CONV_LAYER_ACTIV_FUNC_STRINGS + [
-    SOFTMAX_FUNCTION_STRING]
+    SOFTMAX_FUNCTION_STRING, SIGMOID_FUNCTION_STRING
+]
 
 
 def _check_input_args_for_conv_layer(
@@ -662,7 +663,8 @@ def get_activation_layer(
         Slope for negative inputs to activation function.
     :param alpha_for_relu: [used only if activation_function_string = "relu"]
         Slope for negative inputs to activation function.
-    :return: layer_object: Instance of `keras.layers.Activation`.
+    :return: layer_object: Instance of `keras.layers.Activation`,
+        `keras.layers.ELU`, or `keras.layers.LeakyReLU`.
     """
 
     check_activation_function(
