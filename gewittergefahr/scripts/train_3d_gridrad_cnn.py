@@ -255,7 +255,7 @@ def _train_cnn(
         num_classes_to_predict = labels.column_name_to_num_classes(
             column_name=target_name, include_dead_storms=False)
 
-    model_object = cnn.get_3d_swilrnet_architecture(
+    model_object = cnn.get_3d_swirlnet_architecture(
         num_radar_rows=NUM_RADAR_ROWS, num_radar_columns=NUM_RADAR_COLUMNS,
         num_radar_heights=len(RADAR_HEIGHTS_M_ASL),
         num_radar_fields=len(radar_field_names),

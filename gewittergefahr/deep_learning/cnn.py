@@ -505,7 +505,7 @@ def get_2d_mnist_architecture(
     return model_object
 
 
-def get_2d_swilrnet_architecture(
+def get_2d_swirlnet_architecture(
         num_radar_rows, num_radar_columns, num_radar_channels,
         num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
         num_classes,
@@ -661,7 +661,7 @@ def get_2d_swilrnet_architecture(
     return model_object
 
 
-def get_3d_swilrnet_architecture(
+def get_3d_swirlnet_architecture(
         num_radar_rows, num_radar_columns, num_radar_heights, num_radar_fields,
         num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
         num_classes,
@@ -693,14 +693,14 @@ def get_3d_swilrnet_architecture(
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
     :param num_radar_filters_in_first_layer: See doc for
-        `get_2d_swilrnet_architecture`.
+        `get_2d_swirlnet_architecture`.
     :param conv_layer_dropout_fraction: See doc for `_check_architecture_args`.
     :param dense_layer_dropout_fraction: Same.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
     :param num_sounding_filters_in_first_layer: See doc for
-        `get_2d_swilrnet_architecture`.
+        `get_2d_swirlnet_architecture`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
