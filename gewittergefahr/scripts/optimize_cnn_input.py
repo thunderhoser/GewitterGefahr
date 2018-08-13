@@ -11,6 +11,7 @@ from keras import backend as K
 import keras.models
 from gewittergefahr.gg_utils import general_utils
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -19,13 +20,16 @@ from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
-# TODO(thunderhoser): Allow optimization with more than one initialization.
-# TODO(thunderhoser): Screw with initialization in general.
+# TODO(thunderhoser): Allow different initialization methods.
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
 
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
+
+SOUNDING_PRESSURES_MB = nwp_model_utils.get_pressure_levels(
+    model_name=nwp_model_utils.RAP_MODEL_NAME,
+    grid_id=nwp_model_utils.ID_FOR_130GRID)
 
 SWIRLNET_FIELD_MEANS = numpy.array([20.745745, -0.718525, 1.929636])
 SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
@@ -344,12 +348,39 @@ def _run(
         init_function = feature_optimization.create_constant_initializer(0.)
     else:
         model_object = cnn.read_model(model_file_name)
-        init_function = feature_optimization.create_constant_initializer(0.5)
 
         metadata_file_name = '{0:s}/model_metadata.p'.format(
             os.path.split(model_file_name)[0])
         print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
         model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+
+        training_radar_file_name_matrix = model_metadata_dict[
+            cnn.TRAINING_FILE_NAMES_KEY]
+        num_radar_dimensions = len(training_radar_file_name_matrix.shape)
+
+        if num_radar_dimensions == 2:
+            radar_field_name_by_channel = [
+                storm_images.image_file_name_to_field(f) for f in
+                training_radar_file_name_matrix[0, :]
+            ]
+            radar_height_by_channel_m_asl = numpy.array(
+                [storm_images.image_file_name_to_height(f)
+                 for f in training_radar_file_name_matrix[0, :]],
+                dtype=int)
+        else:
+            radar_field_name_by_channel = None
+            radar_height_by_channel_m_asl = None
+
+        init_function = feature_optimization.create_climo_initializer(
+            normalization_param_file_name=model_metadata_dict[
+                cnn.NORMALIZATION_FILE_NAME_KEY],
+            sounding_field_names=model_metadata_dict[
+                cnn.SOUNDING_FIELD_NAMES_KEY],
+            sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+            radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
+            radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+            radar_field_name_by_channel=radar_field_name_by_channel,
+            radar_height_by_channel_m_asl=radar_height_by_channel_m_asl)
 
     # Do feature optimization.
     print MINOR_SEPARATOR_STRING
