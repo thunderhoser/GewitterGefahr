@@ -18,8 +18,8 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
-from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
+from gewittergefahr.plotting import radar_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
