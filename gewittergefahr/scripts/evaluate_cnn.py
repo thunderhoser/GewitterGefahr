@@ -26,15 +26,13 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
 SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 NUM_EXAMPLES_PER_FILE_ARG_NAME = 'num_examples_per_file'
-FIRST_EVAL_TIME_ARG_NAME = 'first_eval_time_string'
-LAST_EVAL_TIME_ARG_NAME = 'last_eval_time_string'
+FIRST_EVAL_DATE_ARG_NAME = 'first_eval_spc_date_string'
+LAST_EVAL_DATE_ARG_NAME = 'last_eval_spc_date_string'
 NUM_STORM_OBJECTS_ARG_NAME = 'num_storm_objects'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
@@ -53,15 +51,14 @@ TARGET_DIRECTORY_HELP_STRING = (
     'will be found by `labels.find_label_file`.')
 NUM_EXAMPLES_PER_FILE_HELP_STRING = (
     'Number of examples (storm objects) per file.')
-EVAL_TIME_HELP_STRING = (
-    'Evaluation time (format "yyyy-mm-dd-HHMMSS").  Evaluation times will be '
-    'drawn randomly from `{0:s}`...`{1:s}`.  For each time drawn, all storm '
-    'objects will be used.  A forecast-observation pair will be created for '
-    'each storm object.'
-).format(FIRST_EVAL_TIME_ARG_NAME, LAST_EVAL_TIME_ARG_NAME)
+EVAL_DATE_HELP_STRING = (
+    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Storm objects '
+    'will be drawn randomly from `{0:s}`...`{1:s}`.  A forecast-observation '
+    'pair will be created for each storm object.'
+).format(FIRST_EVAL_DATE_ARG_NAME, LAST_EVAL_DATE_ARG_NAME)
 NUM_STORM_OBJECTS_HELP_STRING = (
     'Number of storm objects to draw randomly from `{0:s}`...`{1:s}`.'
-).format(FIRST_EVAL_TIME_ARG_NAME, LAST_EVAL_TIME_ARG_NAME)
+).format(FIRST_EVAL_DATE_ARG_NAME, LAST_EVAL_DATE_ARG_NAME)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Evaluation results will be saved here.')
 
@@ -87,12 +84,12 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_EXAMPLES_PER_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_EVAL_TIME_ARG_NAME, type=str, required=True,
-    help=EVAL_TIME_HELP_STRING)
+    '--' + FIRST_EVAL_DATE_ARG_NAME, type=str, required=True,
+    help=EVAL_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_EVAL_TIME_ARG_NAME, type=str, required=True,
-    help=EVAL_TIME_HELP_STRING)
+    '--' + LAST_EVAL_DATE_ARG_NAME, type=str, required=True,
+    help=EVAL_DATE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_STORM_OBJECTS_ARG_NAME, type=int, required=True,
@@ -407,8 +404,8 @@ def _create_forecast_observation_pairs_2d3d(
 
 def _evaluate_model(
         model_file_name, top_storm_radar_image_dir_name, top_sounding_dir_name,
-        top_target_dir_name, num_examples_per_file, first_eval_time_string,
-        last_eval_time_string, num_storm_objects, output_dir_name):
+        top_target_dir_name, num_examples_per_file, first_eval_spc_date_string,
+        last_eval_spc_date_string, num_storm_objects, output_dir_name):
     """Evaluates predictions from a convolutional neural network (CNN).
 
     :param model_file_name: See documentation at top of file.
@@ -416,18 +413,18 @@ def _evaluate_model(
     :param top_sounding_dir_name: Same.
     :param top_target_dir_name: Same.
     :param num_examples_per_file: Same.
-    :param first_eval_time_string: Same.
-    :param last_eval_time_string: Same.
+    :param first_eval_spc_date_string: Same.
+    :param last_eval_spc_date_string: Same.
     :param num_storm_objects: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if the target variable is non-binary.  This script is
         designed for binary classification only.
     """
 
-    first_eval_time_unix_sec = time_conversion.string_to_unix_sec(
-        first_eval_time_string, INPUT_TIME_FORMAT)
-    last_eval_time_unix_sec = time_conversion.string_to_unix_sec(
-        last_eval_time_string, INPUT_TIME_FORMAT)
+    first_eval_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        first_eval_spc_date_string)
+    last_eval_time_unix_sec = time_conversion.spc_date_string_to_unix_sec(
+        last_eval_spc_date_string)
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
@@ -510,9 +507,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, TARGET_DIRECTORY_ARG_NAME),
         num_examples_per_file=getattr(
             INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_FILE_ARG_NAME),
-        first_eval_time_string=getattr(
-            INPUT_ARG_OBJECT, FIRST_EVAL_TIME_ARG_NAME),
-        last_eval_time_string=getattr(
-            INPUT_ARG_OBJECT, LAST_EVAL_TIME_ARG_NAME),
+        first_eval_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, FIRST_EVAL_DATE_ARG_NAME),
+        last_eval_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, LAST_EVAL_DATE_ARG_NAME),
         num_storm_objects=getattr(INPUT_ARG_OBJECT, NUM_STORM_OBJECTS_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))

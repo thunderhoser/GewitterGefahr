@@ -179,12 +179,13 @@ def plot_sounding(
 
     skewt_object.plot_dry_adiabats(
         color=dry_adiabat_colour, linewidth=contour_line_width,
-        linestyle='solid')
+        linestyle='solid', alpha=1.)
     skewt_object.plot_moist_adiabats(
         color=moist_adiabat_colour, linewidth=contour_line_width,
-        linestyle='solid')
+        linestyle='solid', alpha=1.)
     skewt_object.plot_mixing_lines(
-        color=isohume_colour, linewidth=contour_line_width, linestyle='solid')
+        color=isohume_colour, linewidth=contour_line_width, linestyle='solid',
+        alpha=1.)
 
     axes_object.set_ylim(1000, 100)
     axes_object.set_xlim(-40, 50)
