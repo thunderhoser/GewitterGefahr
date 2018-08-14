@@ -81,8 +81,8 @@ def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
 
 
 def create_storm_images_2d(
-        radar_file_name_matrix, num_examples_per_file,
-        normalization_type_string=None,
+        radar_file_name_matrix, num_examples_per_file, num_rows_to_keep=None,
+        num_columns_to_keep=None, normalization_type_string=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         normalization_param_file_name=None, return_target=True,
@@ -101,6 +101,11 @@ def create_storm_images_2d(
     :param radar_file_name_matrix: T-by-C numpy array of paths to radar files.
         Should be created by `training_validation_io.find_radar_files_2d`.
     :param num_examples_per_file: Number of examples (storm objects) per file.
+    :param num_rows_to_keep: Number of rows to keep from each storm-centered
+        radar image.  If less than total number of rows, images will be cropped
+        around the center.
+    :param num_columns_to_keep: Number of columns to keep from each storm-
+        centered radar image.
     :param normalization_type_string: Normalization type (must be accepted by
         `dl_utils._check_normalization_type`).  If you don't want to normalize,
         leave this as None.
@@ -179,7 +184,9 @@ def create_storm_images_2d(
                 radar_file_name_matrix[i, 0], label_file_name)
             this_radar_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=radar_file_name_matrix[i, 0],
-                label_file_name=label_file_name, label_name=target_name)
+                label_file_name=label_file_name, label_name=target_name,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
             if not len(this_radar_image_dict[storm_images.STORM_IDS_KEY]):
                 continue
 
@@ -192,7 +199,9 @@ def create_storm_images_2d(
             print 'Reading data from: "{0:s}"...'.format(
                 radar_file_name_matrix[i, 0])
             this_radar_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=radar_file_name_matrix[i, 0])
+                netcdf_file_name=radar_file_name_matrix[i, 0],
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
 
         this_radar_image_dict = _randomly_subset_radar_images(
             radar_image_dict=this_radar_image_dict,
@@ -240,7 +249,9 @@ def create_storm_images_2d(
                 this_radar_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=radar_file_name_matrix[i, j],
                     storm_ids_to_keep=these_storm_ids,
-                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
+                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec,
+                    num_rows_to_keep=num_rows_to_keep,
+                    num_columns_to_keep=num_columns_to_keep)
 
             tuple_of_image_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -288,8 +299,8 @@ def create_storm_images_2d(
 
 
 def create_storm_images_3d(
-        radar_file_name_matrix, num_examples_per_file,
-        normalization_type_string=None,
+        radar_file_name_matrix, num_examples_per_file, num_rows_to_keep=None,
+        num_columns_to_keep=None, normalization_type_string=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         normalization_param_file_name=None, return_target=True,
@@ -310,6 +321,8 @@ def create_storm_images_3d(
     :param radar_file_name_matrix: numpy array (T x F_r x H_r) of paths to
         radar-image files.  Should be created by `find_radar_files_3d`.
     :param num_examples_per_file: See doc for `create_storm_images_2d`.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param normalization_type_string: Same.
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
@@ -391,7 +404,9 @@ def create_storm_images_3d(
                 radar_file_name_matrix[i, 0, 0], label_file_name)
             this_radar_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=radar_file_name_matrix[i, 0, 0],
-                label_file_name=label_file_name, label_name=target_name)
+                label_file_name=label_file_name, label_name=target_name,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
             if not len(this_radar_image_dict[storm_images.STORM_IDS_KEY]):
                 continue
 
@@ -404,7 +419,9 @@ def create_storm_images_3d(
             print 'Reading data from: "{0:s}"...'.format(
                 radar_file_name_matrix[i, 0, 0])
             this_radar_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=radar_file_name_matrix[i, 0, 0])
+                netcdf_file_name=radar_file_name_matrix[i, 0, 0],
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
 
         this_radar_image_dict = _randomly_subset_radar_images(
             radar_image_dict=this_radar_image_dict,
@@ -460,7 +477,9 @@ def create_storm_images_3d(
                     this_radar_image_dict = storm_images.read_storm_images(
                         netcdf_file_name=radar_file_name_matrix[i, j, k],
                         storm_ids_to_keep=these_storm_ids,
-                        valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
+                        valid_times_to_keep_unix_sec=these_storm_times_unix_sec,
+                        num_rows_to_keep=num_rows_to_keep,
+                        num_columns_to_keep=num_columns_to_keep)
 
                 tuple_of_3d_image_matrices += (
                     this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -518,8 +537,8 @@ def create_storm_images_3d(
 
 
 def create_storm_images_2d3d_myrorss(
-        radar_file_name_matrix, num_examples_per_file,
-        normalization_type_string=None,
+        radar_file_name_matrix, num_examples_per_file, num_rows_to_keep=None,
+        num_columns_to_keep=None, normalization_type_string=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         normalization_param_file_name=None, return_target=True,
@@ -547,6 +566,8 @@ def create_storm_images_2d3d_myrorss(
     :param radar_file_name_matrix: See doc for
         `training_validation_io.separate_radar_files_2d3d`.
     :param num_examples_per_file: See doc for `create_storm_images_2d`.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param normalization_type_string: Same.
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
@@ -621,7 +642,9 @@ def create_storm_images_2d3d_myrorss(
                 reflectivity_file_name_matrix[i, 0], label_file_name)
             this_radar_image_dict = storm_images.read_storm_images_and_labels(
                 image_file_name=reflectivity_file_name_matrix[i, 0],
-                label_file_name=label_file_name, label_name=target_name)
+                label_file_name=label_file_name, label_name=target_name,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
             if not len(this_radar_image_dict[storm_images.STORM_IDS_KEY]):
                 continue
 
@@ -634,7 +657,9 @@ def create_storm_images_2d3d_myrorss(
             print 'Reading data from: "{0:s}"...'.format(
                 reflectivity_file_name_matrix[i, 0])
             this_radar_image_dict = storm_images.read_storm_images(
-                netcdf_file_name=reflectivity_file_name_matrix[i, 0])
+                netcdf_file_name=reflectivity_file_name_matrix[i, 0],
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
 
         this_radar_image_dict = _randomly_subset_radar_images(
             radar_image_dict=this_radar_image_dict,
@@ -682,7 +707,9 @@ def create_storm_images_2d3d_myrorss(
                 this_radar_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=reflectivity_file_name_matrix[i, k],
                     storm_ids_to_keep=these_storm_ids,
-                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
+                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec,
+                    num_rows_to_keep=num_rows_to_keep,
+                    num_columns_to_keep=num_columns_to_keep)
 
             this_4d_matrix = dl_utils.stack_radar_fields(
                 (this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],))
@@ -705,7 +732,9 @@ def create_storm_images_2d3d_myrorss(
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=az_shear_file_name_matrix[i, j],
                 storm_ids_to_keep=these_storm_ids,
-                valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
+                valid_times_to_keep_unix_sec=these_storm_times_unix_sec,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
 
             tuple_of_3d_az_shear_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)

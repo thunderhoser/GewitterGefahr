@@ -176,12 +176,12 @@ def _brier_skill_score_keras(observation_tensor, class_probability_tensor):
     :return: brier_skill_score: Brier skill score.
     """
 
-    climatology_tensor = K.mean(
+    uncertainty_tensor = K.mean(
         (observation_tensor - K.mean(observation_tensor)) ** 2)
     return (
         1. -
         _brier_score_keras(observation_tensor, class_probability_tensor) /
-        climatology_tensor
+        uncertainty_tensor
     )
 
 

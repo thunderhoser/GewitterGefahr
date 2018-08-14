@@ -244,6 +244,9 @@ def read_storms_one_spc_date(
                 cnn.NORMALIZATION_FILE_NAME_KEY],
             return_target=False,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            num_columns_to_keep=model_metadata_dict[
+                cnn.NUM_COLUMNS_TO_KEEP_KEY],
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             top_sounding_dir_name=top_sounding_dir_name,
@@ -268,6 +271,9 @@ def read_storms_one_spc_date(
                     cnn.NORMALIZATION_FILE_NAME_KEY],
                 return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                num_columns_to_keep=model_metadata_dict[
+                    cnn.NUM_COLUMNS_TO_KEEP_KEY],
                 refl_masking_threshold_dbz=model_metadata_dict[
                     cnn.REFL_MASKING_THRESHOLD_KEY],
                 return_rotation_divergence_product=False,
@@ -291,6 +297,9 @@ def read_storms_one_spc_date(
                     cnn.NORMALIZATION_FILE_NAME_KEY],
                 return_target=False,
                 target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                num_columns_to_keep=model_metadata_dict[
+                    cnn.NUM_COLUMNS_TO_KEEP_KEY],
                 sounding_field_names=model_metadata_dict[
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,

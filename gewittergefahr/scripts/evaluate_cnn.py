@@ -165,6 +165,9 @@ def _create_forecast_observation_pairs_2d(
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
             top_target_directory_name=top_target_dir_name,
+            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            num_columns_to_keep=model_metadata_dict[
+                cnn.NUM_COLUMNS_TO_KEEP_KEY],
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             top_sounding_dir_name=top_sounding_dir_name,
@@ -256,6 +259,9 @@ def _create_forecast_observation_pairs_3d(
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
             top_target_directory_name=top_target_dir_name,
+            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            num_columns_to_keep=model_metadata_dict[
+                cnn.NUM_COLUMNS_TO_KEEP_KEY],
             refl_masking_threshold_dbz=model_metadata_dict[
                 cnn.REFL_MASKING_THRESHOLD_KEY],
             return_rotation_divergence_product=
@@ -355,6 +361,9 @@ def _create_forecast_observation_pairs_2d3d(
             return_target=True,
             target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
             binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            num_columns_to_keep=model_metadata_dict[
+                cnn.NUM_COLUMNS_TO_KEEP_KEY],
             top_target_directory_name=top_target_dir_name,
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],

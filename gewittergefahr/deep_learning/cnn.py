@@ -80,6 +80,8 @@ WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
 MONITOR_STRING_KEY = 'monitor_string'
 TARGET_NAME_KEY = 'target_name'
 BINARIZE_TARGET_KEY = 'binarize_target'
+NUM_ROWS_TO_KEEP_KEY = 'num_radar_rows'
+NUM_COLUMNS_TO_KEEP_KEY = 'num_radar_columns'
 NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
 MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
@@ -106,7 +108,8 @@ MODEL_METADATA_KEYS = [
     NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAMES_KEY,
     TRAINING_FILE_NAMES_POS_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     MONITOR_STRING_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
-    NORMALIZATION_TYPE_KEY, MIN_NORMALIZED_VALUE_KEY, MAX_NORMALIZED_VALUE_KEY,
+    NUM_ROWS_TO_KEEP_KEY, NUM_COLUMNS_TO_KEEP_KEY, NORMALIZATION_TYPE_KEY,
+    MIN_NORMALIZED_VALUE_KEY, MAX_NORMALIZED_VALUE_KEY,
     NORMALIZATION_FILE_NAME_KEY, REFL_MASKING_THRESHOLD_KEY,
     RDP_FILTER_THRESHOLD_KEY, TRAINING_FRACTION_BY_CLASS_KEY,
     VALIDATION_FRACTION_BY_CLASS_KEY, NUM_VALIDATION_BATCHES_KEY,
@@ -1134,6 +1137,7 @@ def write_model_metadata(
         radar_fn_matrix_training, weight_loss_function,
         monitor_string, target_name, binarize_target, normalization_type_string,
         use_2d3d_convolution, radar_source, radar_field_names,
+        num_rows_to_keep=None, num_columns_to_keep=None,
         radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
         min_normalized_value=None, max_normalized_value=None,
         normalization_param_file_name=None, refl_masking_threshold_dbz=0.,
@@ -1167,6 +1171,8 @@ def write_model_metadata(
         `radar_utils.check_data_source`).
     :param radar_field_names: 1-D list with names of radar fields.  Each must be
         accepted by `radar_utils.check_field_name`.
+    :param num_rows_to_keep: See doc for `train_2d_cnn`.
+    :param num_columns_to_keep: Same.
     :param radar_heights_m_asl: [needed only if radar_source = "gridrad"]
         1-D numpy array of heights (metres above sea level) applied to each
         radar field.
@@ -1213,6 +1219,8 @@ def write_model_metadata(
         MONITOR_STRING_KEY: monitor_string,
         TARGET_NAME_KEY: target_name,
         BINARIZE_TARGET_KEY: binarize_target,
+        NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+        NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
         NORMALIZATION_TYPE_KEY: normalization_type_string,
         USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
         RADAR_SOURCE_KEY: radar_source,
@@ -1306,6 +1314,12 @@ def read_model_metadata(pickle_file_name):
             NORMALIZATION_FILE_NAME_KEY: None,
         })
 
+    if NUM_ROWS_TO_KEEP_KEY not in model_metadata_dict:
+        model_metadata_dict.update({
+            NUM_ROWS_TO_KEEP_KEY: None,
+            NUM_COLUMNS_TO_KEEP_KEY: None
+        })
+
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())
     if not set(expected_keys_as_set).issubset(actual_keys_as_set):
@@ -1370,8 +1384,9 @@ def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_examples_per_batch, num_examples_per_file,
         num_training_batches_per_epoch, radar_fn_matrix_training,
-        target_name, top_target_directory_name,
-        normalization_type_string=None, normalization_param_file_name=None,
+        target_name, top_target_directory_name, num_rows_to_keep=None,
+        num_columns_to_keep=None, normalization_type_string=None,
+        normalization_param_file_name=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         radar_fn_matrix_training_pos_targets_only=None,
@@ -1402,6 +1417,11 @@ def train_2d_cnn(
     :param top_target_directory_name: Name of top-level directory with target
         values (storm-hazard labels).  Files within this directory should be
         findable by `labels.find_label_file`.
+    :param num_rows_to_keep: Number of rows to keep from each storm-centered
+        radar image.  If less than total number of rows, images will be cropped
+        around the center.
+    :param num_columns_to_keep: Number of columns to keep from each storm-
+        centered radar image.
     :param normalization_type_string: Normalization type (must be accepted by
         `dl_utils._check_normalization_type`).  If you don't want to normalize,
         leave this as None.
@@ -1472,6 +1492,8 @@ def train_2d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1495,6 +1517,8 @@ def train_2d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1515,6 +1539,8 @@ def train_2d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1532,8 +1558,9 @@ def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_examples_per_batch, num_examples_per_file,
         num_training_batches_per_epoch, radar_fn_matrix_training,
-        target_name, top_target_directory_name,
-        normalization_type_string=None, normalization_param_file_name=None,
+        target_name, top_target_directory_name, num_rows_to_keep=None,
+        num_columns_to_keep=None, normalization_type_string=None,
+        normalization_param_file_name=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
@@ -1565,6 +1592,8 @@ def train_3d_cnn(
         `training_validation_io.find_radar_files_3d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param normalization_type_string: Same.
     :param normalization_param_file_name: Same.
     :param max_normalized_value: Same.
@@ -1630,6 +1659,8 @@ def train_3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1655,6 +1686,8 @@ def train_3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1677,6 +1710,8 @@ def train_3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1696,8 +1731,9 @@ def train_2d3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
         num_epochs, num_examples_per_batch, num_examples_per_file,
         num_training_batches_per_epoch, radar_fn_matrix_training,
-        target_name, top_target_directory_name,
-        normalization_type_string=None, normalization_param_file_name=None,
+        target_name, top_target_directory_name, num_rows_to_keep=None,
+        num_columns_to_keep=None, normalization_type_string=None,
+        normalization_param_file_name=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         radar_fn_matrix_training_pos_targets_only=None,
@@ -1728,6 +1764,8 @@ def train_2d3d_cnn(
         paths to image files.  This should be created by `find_radar_files_2d`.
     :param target_name: See doc for `train_2d_cnn`.
     :param top_target_directory_name: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param normalization_type_string: Same.
     :param normalization_param_file_name: Same.
     :param max_normalized_value: Same.
@@ -1786,6 +1824,8 @@ def train_2d3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1809,6 +1849,8 @@ def train_2d3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -1829,6 +1871,8 @@ def train_2d3d_cnn(
                 num_examples_per_batch=num_examples_per_batch,
                 num_examples_per_file=num_examples_per_file,
                 target_name=target_name, binarize_target=binarize_target,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,

@@ -75,10 +75,10 @@ def _train_cnn(
         num_examples_per_file, num_training_batches_per_epoch,
         top_storm_radar_image_dir_name, first_train_spc_date_string,
         last_train_spc_date_string, monitor_string, radar_field_names,
-        target_name, top_target_dir_name, binarize_target,
-        num_radar_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
-        conv_layer_activation_func_string, alpha_for_elu, alpha_for_relu,
-        use_batch_normalization, conv_layer_dropout_fraction,
+        target_name, top_target_dir_name, binarize_target, num_rows_to_keep,
+        num_columns_to_keep, num_radar_conv_layer_sets, num_conv_layers_per_set,
+        pooling_type_string, conv_layer_activation_func_string, alpha_for_elu,
+        alpha_for_relu, use_batch_normalization, conv_layer_dropout_fraction,
         dense_layer_dropout_fraction, num_radar_filters_in_first_layer,
         normalization_type_string, normalization_param_file_name,
         min_normalized_value, max_normalized_value, l2_weight,
@@ -105,6 +105,8 @@ def _train_cnn(
     :param target_name: Same.
     :param top_target_dir_name: Same.
     :param binarize_target: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param num_radar_conv_layer_sets: Same.
     :param num_conv_layers_per_set: Same.
     :param pooling_type_string: Same.
@@ -149,6 +151,10 @@ def _train_cnn(
         l2_weight = None
     if rdp_filter_threshold_s02 <= 0:
         rdp_filter_threshold_s02 = None
+    if num_rows_to_keep <= 0:
+        num_rows_to_keep = None
+    if num_columns_to_keep <= 0:
+        num_columns_to_keep = None
 
     sampling_fraction_dict_keys = numpy.array(
         sampling_fraction_dict_keys, dtype=int)
@@ -230,7 +236,8 @@ def _train_cnn(
         radar_fn_matrix_training=radar_fn_matrix_training,
         weight_loss_function=weight_loss_function,
         monitor_string=monitor_string, target_name=target_name,
-        binarize_target=binarize_target,
+        binarize_target=binarize_target, num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep,
         normalization_type_string=normalization_type_string,
         use_2d3d_convolution=False, radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         refl_masking_threshold_dbz=refl_masking_threshold_dbz,
@@ -283,6 +290,8 @@ def _train_cnn(
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         radar_fn_matrix_training=radar_fn_matrix_training,
         target_name=target_name, top_target_directory_name=top_target_dir_name,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep,
         normalization_type_string=normalization_type_string,
         normalization_param_file_name=normalization_param_file_name,
         min_normalized_value=min_normalized_value,
@@ -331,6 +340,10 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.TARGET_DIRECTORY_ARG_NAME),
         binarize_target=bool(getattr(
             INPUT_ARG_OBJECT, dl_helper.BINARIZE_TARGET_ARG_NAME)),
+        num_rows_to_keep=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_ROWS_TO_KEEP_ARG_NAME),
+        num_columns_to_keep=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_COLUMNS_TO_KEEP_ARG_NAME),
         num_radar_conv_layer_sets=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_CONV_LAYER_SETS_ARG_NAME),
         num_conv_layers_per_set=getattr(

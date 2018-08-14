@@ -48,6 +48,8 @@ RADAR_SOURCE_ARG_NAME = 'radar_source'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
 RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_asl'
 REFL_HEIGHTS_ARG_NAME = 'refl_heights_m_asl'
+NUM_ROWS_TO_KEEP_ARG_NAME = 'num_rows_to_keep'
+NUM_COLUMNS_TO_KEEP_ARG_NAME = 'num_columns_to_keep'
 SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
 SOUNDING_LAG_TIME_ARG_NAME = 'sounding_lag_time_sec'
 SOUNDING_LEAD_TIME_ARG_NAME = 'sounding_lead_time_sec'
@@ -58,37 +60,56 @@ METADATA_FILE_HELP_STRING = (
     ' file should contain a single dictionary with the keys "{0:s}" and '
     '"{1:s}".'
 ).format(STORM_IDS_KEY, STORM_TIMES_KEY)
+
 RADAR_IMAGE_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered radar images.  Files '
     'therein will be found by `storm_images.find_storm_image_file` and read by '
     '`storm_images.read_storm_images`.')
+
 RADAR_SOURCE_HELP_STRING = (
     'Radar source.  Must be one of the following list.\n{0:s}'
 ).format(str(radar_utils.DATA_SOURCE_IDS))
+
 RADAR_FIELDS_HELP_STRING = (
     'List of radar fields to plot.  Each must be accepted by `radar_utils.'
     'check_field_name`.')
+
 RADAR_HEIGHTS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] List of radar heights.  Each field in '
     '`{2:s}` will be plotted at each height.'
 ).format(RADAR_SOURCE_ARG_NAME, radar_utils.GRIDRAD_SOURCE_ID,
          RADAR_FIELDS_ARG_NAME)
+
 REFL_HEIGHTS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] List of reflectivity heights.  "{2:s}" will'
     ' be plotted at each of these heights.'
 ).format(RADAR_SOURCE_ARG_NAME, radar_utils.MYRORSS_SOURCE_ID,
          radar_utils.REFL_NAME)
+
+NUM_ROWS_TO_KEEP_HELP_STRING = (
+    'Number of rows to keep from each storm-centered radar image.  If less than'
+    ' total number of rows, images will be cropped around the center.  To use '
+    'the full images, leave this alone.')
+
+NUM_COLUMNS_TO_KEEP_HELP_STRING = (
+    'Number of columns to keep from each storm-centered radar image.  If less '
+    'than total number of columns, images will be cropped around the center.  '
+    'To use the full images, leave this alone.')
+
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `soundings_only.find_sounding_file` and read by '
     '`soundings_only.read_soundings`.  If you do not want to plot soundings, '
     'leave this argument alone.')
+
 SOUNDING_LAG_TIME_HELP_STRING = (
     'Lag time (used to find sounding files).  If you do not want to plot '
     'soundings, leave this argument alone.')
+
 SOUNDING_LEAD_TIME_HELP_STRING = (
     'Lead time (used to find sounding files).  If you do not want to plot '
     'soundings, leave this argument alone.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
@@ -118,6 +139,14 @@ INPUT_ARG_PARSER.add_argument(
     default=[-1], help=REFL_HEIGHTS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_ROWS_TO_KEEP_ARG_NAME, type=int, required=False,
+    default=-1, help=NUM_ROWS_TO_KEEP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_COLUMNS_TO_KEEP_ARG_NAME, type=int, required=False,
+    default=-1, help=NUM_COLUMNS_TO_KEEP_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + SOUNDING_DIR_ARG_NAME, type=str, required=False, default='',
     help=SOUNDING_DIR_HELP_STRING)
 
@@ -137,7 +166,8 @@ INPUT_ARG_PARSER.add_argument(
 def _read_inputs(
         storm_ids, storm_times_unix_sec, top_radar_image_dir_name, radar_source,
         radar_field_names, radar_heights_m_asl, refl_heights_m_asl,
-        top_sounding_dir_name, sounding_lag_time_sec, sounding_lead_time_sec):
+        num_rows_to_keep, num_columns_to_keep, top_sounding_dir_name,
+        sounding_lag_time_sec, sounding_lead_time_sec):
     """Reads radar and sounding data for each storm object.
 
     E = number of examples (storm objects)
@@ -154,6 +184,8 @@ def _read_inputs(
     :param radar_field_names: Same.
     :param radar_heights_m_asl: Same.
     :param refl_heights_m_asl: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_sec: Same.
     :param sounding_lead_time_sec: Same.
@@ -221,6 +253,8 @@ def _read_inputs(
                 num_examples_per_file=LARGE_INTEGER,
                 normalization_type_string=None, return_target=False,
                 target_name=dummy_target_name,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 refl_masking_threshold_dbz=None,
                 return_rotation_divergence_product=False,
                 sounding_field_names=sounding_field_names,
@@ -256,6 +290,8 @@ def _read_inputs(
                 num_examples_per_file=LARGE_INTEGER,
                 normalization_type_string=None, return_target=False,
                 target_name=dummy_target_name,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
@@ -385,8 +421,8 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
 def _run(
         storm_metadata_file_name, top_radar_image_dir_name, radar_source,
         radar_field_names, radar_heights_m_asl, refl_heights_m_asl,
-        top_sounding_dir_name, sounding_lag_time_sec, sounding_lead_time_sec,
-        output_dir_name):
+        num_rows_to_keep, num_columns_to_keep, top_sounding_dir_name,
+        sounding_lag_time_sec, sounding_lead_time_sec, output_dir_name):
     """Plots radar and sounding data for each storm object.
 
     This is effectively the main method.
@@ -397,11 +433,18 @@ def _run(
     :param radar_field_names: Same.
     :param radar_heights_m_asl: Same.
     :param refl_heights_m_asl: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_sec: Same.
     :param sounding_lead_time_sec: Same.
     :param output_dir_name: Same.
     """
+
+    if num_rows_to_keep <= 0:
+        num_rows_to_keep = None
+    if num_columns_to_keep <= 0:
+        num_columns_to_keep = None
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
@@ -419,6 +462,8 @@ def _run(
         radar_source=radar_source, radar_field_names=radar_field_names,
         radar_heights_m_asl=radar_heights_m_asl,
         refl_heights_m_asl=refl_heights_m_asl,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep,
         top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_sec=sounding_lag_time_sec,
         sounding_lead_time_sec=sounding_lead_time_sec)
@@ -442,6 +487,9 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int),
         refl_heights_m_asl=numpy.array(
             getattr(INPUT_ARG_OBJECT, REFL_HEIGHTS_ARG_NAME), dtype=int),
+        num_rows_to_keep=getattr(INPUT_ARG_OBJECT, NUM_ROWS_TO_KEEP_ARG_NAME),
+        num_columns_to_keep=getattr(
+            INPUT_ARG_OBJECT, NUM_COLUMNS_TO_KEEP_ARG_NAME),
         top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
         sounding_lag_time_sec=getattr(
             INPUT_ARG_OBJECT, SOUNDING_LAG_TIME_ARG_NAME),

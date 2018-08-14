@@ -251,8 +251,9 @@ def _need_negative_target_values(num_examples_left_by_class_dict):
 
 def _read_input_files_2d(
         radar_file_names, top_target_directory_name, target_name,
-        num_examples_left_by_class_dict, radar_file_names_pos_targets_only=None,
-        sounding_file_name=None, sounding_field_names=None):
+        num_examples_left_by_class_dict, num_rows_to_keep, num_columns_to_keep,
+        radar_file_names_pos_targets_only=None, sounding_file_name=None,
+        sounding_field_names=None):
     """Reads data for `storm_image_generator_2d`.
 
     t_0 = file time = time step or SPC date
@@ -266,6 +267,11 @@ def _read_input_files_2d(
     :param target_name: Name of target variable.
     :param num_examples_left_by_class_dict: Dictionary created by
         `_get_num_examples_left_by_class`.
+    :param num_rows_to_keep: Number of rows to keep from each storm-centered
+        radar image.  If less than total number of rows, images will be cropped
+        around the center.
+    :param num_columns_to_keep: Number of columns to keep from each storm-
+        centered radar image.
     :param radar_file_names_pos_targets_only: Same as `radar_file_names`, but
         only for storm objects with positive target values.
     :param sounding_file_name: [optional] Path to sounding file.  Should be
@@ -299,7 +305,9 @@ def _read_input_files_2d(
     this_radar_image_dict = storm_images.read_storm_images_and_labels(
         image_file_name=radar_file_names[0],
         label_file_name=label_file_name, label_name=target_name,
-        num_storm_objects_class_dict=num_examples_left_by_class_dict)
+        num_storm_objects_class_dict=num_examples_left_by_class_dict,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
 
     if this_radar_image_dict is None:
         return None
@@ -338,7 +346,9 @@ def _read_input_files_2d(
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=radar_file_names[j],
                 storm_ids_to_keep=storm_ids_to_keep,
-                valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
+                valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
 
         tuple_of_image_matrices += (
             this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -354,7 +364,8 @@ def _read_input_files_2d(
 
 def _read_input_files_3d(
         radar_file_name_matrix, top_target_directory_name, target_name,
-        num_examples_left_by_class_dict, rdp_filter_threshold_s02=None,
+        num_examples_left_by_class_dict, num_rows_to_keep, num_columns_to_keep,
+        rdp_filter_threshold_s02=None,
         radar_file_name_matrix_pos_targets_only=None, sounding_file_name=None,
         sounding_field_names=None):
     """Reads data for `storm_image_generator_3d`.
@@ -368,6 +379,8 @@ def _read_input_files_3d(
     :param top_target_directory_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param rdp_filter_threshold_s02: See doc for `storm_image_generator_3d`.
     :param radar_file_name_matrix_pos_targets_only: Same.
     :param sounding_file_name: See doc for `_read_input_files_2d`.
@@ -394,7 +407,9 @@ def _read_input_files_3d(
     this_radar_image_dict = storm_images.read_storm_images_and_labels(
         image_file_name=radar_file_name_matrix[0, 0],
         label_file_name=label_file_name, label_name=target_name,
-        num_storm_objects_class_dict=num_examples_left_by_class_dict)
+        num_storm_objects_class_dict=num_examples_left_by_class_dict,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
 
     if this_radar_image_dict is None:
         return None
@@ -445,7 +460,9 @@ def _read_input_files_3d(
                 this_radar_image_dict = storm_images.read_storm_images(
                     netcdf_file_name=radar_file_name_matrix[j, k],
                     storm_ids_to_keep=storm_ids_to_keep,
-                    valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
+                    valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec,
+                    num_rows_to_keep=num_rows_to_keep,
+                    num_columns_to_keep=num_columns_to_keep)
 
             tuple_of_3d_image_matrices += (
                 this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -465,6 +482,7 @@ def _read_input_files_3d(
 def _read_input_files_2d3d(
         reflectivity_file_names, azimuthal_shear_file_names,
         top_target_directory_name, target_name, num_examples_left_by_class_dict,
+        num_rows_to_keep, num_columns_to_keep,
         refl_file_names_pos_targets_only=None,
         az_shear_file_names_pos_targets_only=None, sounding_file_name=None,
         sounding_field_names=None):
@@ -489,6 +507,8 @@ def _read_input_files_2d3d(
     :param top_target_directory_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param refl_file_names_pos_targets_only: Same as `reflectivity_file_names`,
         but only for storm objects with positive target values.
     :param az_shear_file_names_pos_targets_only: Same as
@@ -521,7 +541,9 @@ def _read_input_files_2d3d(
     this_radar_image_dict = storm_images.read_storm_images_and_labels(
         image_file_name=reflectivity_file_names[0],
         label_file_name=label_file_name, label_name=target_name,
-        num_storm_objects_class_dict=num_examples_left_by_class_dict)
+        num_storm_objects_class_dict=num_examples_left_by_class_dict,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
 
     if this_radar_image_dict is None:
         return None
@@ -561,7 +583,9 @@ def _read_input_files_2d3d(
             this_radar_image_dict = storm_images.read_storm_images(
                 netcdf_file_name=reflectivity_file_names[j],
                 storm_ids_to_keep=storm_ids_to_keep,
-                valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
+                valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
 
         this_4d_matrix = dl_utils.stack_radar_fields(
             (this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],))
@@ -576,7 +600,9 @@ def _read_input_files_2d3d(
         this_radar_image_dict = storm_images.read_storm_images(
             netcdf_file_name=azimuthal_shear_file_names[j],
             storm_ids_to_keep=storm_ids_to_keep,
-            valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec)
+            valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec,
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
 
         tuple_of_3d_az_shear_matrices += (
             this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -1121,6 +1147,7 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
 def storm_image_generator_2d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file, target_name,
+        num_rows_to_keep=None, num_columns_to_keep=None,
         normalization_type_string=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
@@ -1143,6 +1170,11 @@ def storm_image_generator_2d(
     :param num_examples_per_batch: See doc for `check_input_args`.
     :param num_examples_per_file: Same.
     :param target_name: Name of target variable.
+    :param num_rows_to_keep: Number of rows to keep from each storm-centered
+        radar image.  If less than total number of rows, images will be cropped
+        around the center.
+    :param num_columns_to_keep: Number of columns to keep from each storm-
+        centered radar image.
     :param normalization_type_string: Normalization type (must be accepted by
         `dl_utils._check_normalization_type`).  If you don't want to normalize,
         leave this as None.
@@ -1289,6 +1321,8 @@ def storm_image_generator_2d(
                 top_target_directory_name=top_target_directory_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 radar_file_names_pos_targets_only=
                 these_radar_file_names_pos_targets_only,
                 sounding_file_name=this_sounding_file_name,
@@ -1389,6 +1423,7 @@ def storm_image_generator_2d(
 def storm_image_generator_3d(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file, target_name,
+        num_rows_to_keep=None, num_columns_to_keep=None,
         normalization_type_string=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
@@ -1410,6 +1445,8 @@ def storm_image_generator_3d(
     :param num_examples_per_batch: Same.
     :param num_examples_per_file: Same.
     :param target_name: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param normalization_type_string: Same.
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
@@ -1545,6 +1582,8 @@ def storm_image_generator_3d(
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
                 rdp_filter_threshold_s02=rdp_filter_threshold_s02,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 radar_file_name_matrix_pos_targets_only=
                 this_file_name_matrix_pos_targets_only,
                 sounding_file_name=this_sounding_file_name,
@@ -1651,6 +1690,7 @@ def storm_image_generator_3d(
 def storm_image_generator_2d3d_myrorss(
         radar_file_name_matrix, top_target_directory_name,
         num_examples_per_batch, num_examples_per_file, target_name,
+        num_rows_to_keep=None, num_columns_to_keep=None,
         normalization_type_string=None,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
@@ -1678,6 +1718,8 @@ def storm_image_generator_2d3d_myrorss(
     :param num_examples_per_batch: Same.
     :param num_examples_per_file: Same.
     :param target_name: Same.
+    :param num_rows_to_keep: Same.
+    :param num_columns_to_keep: Same.
     :param normalization_type_string: Same.
     :param min_normalized_value: Same.
     :param max_normalized_value: Same.
@@ -1825,6 +1867,8 @@ def storm_image_generator_2d3d_myrorss(
                 top_target_directory_name=top_target_directory_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep,
                 refl_file_names_pos_targets_only=
                 these_refl_file_names_pos_targets_only,
                 az_shear_file_names_pos_targets_only=

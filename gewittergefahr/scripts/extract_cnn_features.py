@@ -168,6 +168,8 @@ def _extract_2d_cnn_features(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file=num_examples_per_batch,
         target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+        num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+        num_columns_to_keep=model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
         normalization_type_string=model_metadata_dict[
             cnn.NORMALIZATION_TYPE_KEY],
         min_normalized_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
@@ -290,6 +292,8 @@ def _extract_3d_cnn_features(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file=num_examples_per_batch,
         target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+        num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+        num_columns_to_keep=model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
         normalization_type_string=model_metadata_dict[
             cnn.NORMALIZATION_TYPE_KEY],
         min_normalized_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
@@ -418,6 +422,8 @@ def _extract_2d3d_cnn_features(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file=num_examples_per_batch,
         target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+        num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+        num_columns_to_keep=model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
         normalization_type_string=model_metadata_dict[
             cnn.NORMALIZATION_TYPE_KEY],
         min_normalized_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],

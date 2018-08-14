@@ -988,6 +988,72 @@ def _extract_unrotated_storm_image(
         mode='constant', constant_values=PADDING_VALUE)
 
 
+def _downsize_storm_images(
+        storm_image_matrix, radar_field_name, num_rows_to_keep=None,
+        num_columns_to_keep=None):
+    """Downsizes storm-centered radar images.
+
+    :param storm_image_matrix: See doc for `_check_radar_images`.
+    :param radar_field_name: Same.
+    :param num_rows_to_keep: Number of rows to keep.  If `storm_image_matrix`
+        contains azimuthal shear, this will be doubled.
+    :param num_columns_to_keep: Number of columns to keep.  If
+        `storm_image_matrix` contains azimuthal shear, this will be doubled.
+    :return: storm_image_matrix: Same as input, but maybe with fewer rows and
+        columns.
+    :raises: ValueError: if downsized image cannot be centered in full image.
+    """
+
+    if num_rows_to_keep is None and num_columns_to_keep is None:
+        return storm_image_matrix
+
+    error_checking.assert_is_integer(num_rows_to_keep)
+    error_checking.assert_is_greater(num_rows_to_keep, 0)
+    error_checking.assert_is_integer(num_columns_to_keep)
+    error_checking.assert_is_greater(num_columns_to_keep, 0)
+
+    if radar_field_name in AZIMUTHAL_SHEAR_FIELD_NAMES:
+        num_rows_to_keep *= 2
+        num_columns_to_keep *= 2
+
+    num_rows_total = storm_image_matrix.shape[1]
+    num_columns_total = storm_image_matrix.shape[2]
+    if (num_rows_to_keep == num_rows_total and
+            num_columns_to_keep == num_columns_total):
+        return storm_image_matrix
+
+    error_checking.assert_is_less_than(num_rows_to_keep, num_rows_total)
+    error_checking.assert_is_less_than(num_columns_to_keep, num_columns_total)
+
+    num_rows_leftover = num_rows_total - num_rows_to_keep
+    if num_rows_leftover != rounder.round_to_nearest(num_rows_leftover, 2):
+        error_string = (
+            'Cannot downsize {0:d}-row image to {1:d} rows, because number of '
+            'rows left over ({2:d}) is odd.'
+        ).format(num_rows_total, num_rows_to_keep, num_rows_leftover)
+        raise ValueError(error_string)
+
+    num_columns_leftover = num_columns_total - num_columns_to_keep
+    if num_columns_leftover != rounder.round_to_nearest(
+            num_columns_leftover, 2):
+        error_string = (
+            'Cannot downsize {0:d}-row image to {1:d} columns, because number '
+            'of columns left over ({2:d}) is odd.'
+        ).format(num_columns_total, num_columns_to_keep, num_columns_leftover)
+        raise ValueError(error_string)
+
+    first_row_to_keep = num_rows_leftover / 2
+    last_row_to_keep = first_row_to_keep + num_rows_to_keep - 1
+    first_column_to_keep = num_columns_leftover / 2
+    last_column_to_keep = first_column_to_keep + num_columns_to_keep - 1
+
+    return storm_image_matrix[
+        :,
+        first_row_to_keep:(last_row_to_keep + 1),
+        first_column_to_keep:(last_column_to_keep + 1)
+    ]
+
+
 def find_storm_objects(
         all_storm_ids, all_valid_times_unix_sec, storm_ids_to_keep,
         valid_times_to_keep_unix_sec):
@@ -1966,20 +2032,30 @@ def write_storm_images(
 
 def read_storm_images(
         netcdf_file_name, return_images=True, storm_ids_to_keep=None,
-        valid_times_to_keep_unix_sec=None):
+        valid_times_to_keep_unix_sec=None, num_rows_to_keep=None,
+        num_columns_to_keep=None):
     """Reads storm-centered radar images from NetCDF file.
 
-    L = number of storm objects returned
+    If `storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None`,
+    all storm objects will be returned.
+
+    If `num_rows_to_keep is None or num_columns_to_keep is None`, full images
+    will be returned.  Otherwise, images will be cropped around the center.
+
+    L = number of storm objects to return
 
     :param netcdf_file_name: Path to input file.
     :param return_images: Boolean flag.  If True, will return images and
         metadata.  If False, will return only metadata.
-    :param storm_ids_to_keep:
-        [used only if `return_images = True`]
-        length-L list with string ID of storm objects to keep.
-    :param valid_times_to_keep_unix_sec:
-        [used only if `return_images = True`]
-        length-L numpy array with valid times of storm objects to keep.
+    :param storm_ids_to_keep: [used only if `return_images = True`]
+        length-L list of storm IDs.
+    :param valid_times_to_keep_unix_sec: [used only if `return_images = True`]
+        length-L numpy array of storm times.
+    :param num_rows_to_keep: [used only if `return_images = True`]
+        See doc for `_downsize_storm_images`.
+    :param num_columns_to_keep: [used only if `return_images = True`]
+        See doc for `_downsize_storm_images`.
+
     :return: storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
         `_check_storm_images`.
@@ -2091,6 +2167,11 @@ def read_storm_images(
 
     netcdf_dataset.close()
 
+    storm_image_matrix = _downsize_storm_images(
+        storm_image_matrix=storm_image_matrix,
+        radar_field_name=radar_field_name, num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
+
     return {
         STORM_IMAGE_MATRIX_KEY: storm_image_matrix,
         STORM_IDS_KEY: storm_ids,
@@ -2107,7 +2188,8 @@ def read_storm_images(
 
 def read_storm_images_and_labels(
         image_file_name, label_file_name, label_name,
-        num_storm_objects_class_dict=None):
+        num_storm_objects_class_dict=None, num_rows_to_keep=None,
+        num_columns_to_keep=None):
     """Reads storm-centered radar images and corresponding hazard labels.
 
     If no desired storm objects are found, this method returns `None`.
@@ -2120,6 +2202,9 @@ def read_storm_images_and_labels(
     :param num_storm_objects_class_dict: Dictionary, where each key is a class
         integer (-2 for dead storms) and each value is the corresponding number
         of storm objects desired.
+    :param num_rows_to_keep: See doc for `read_storm_images`.
+    :param num_columns_to_keep: Same.
+
     :return storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See documentation for
         `_check_storm_images`.
@@ -2184,7 +2269,9 @@ def read_storm_images_and_labels(
     storm_image_dict = read_storm_images(
         netcdf_file_name=image_file_name, return_images=True,
         storm_ids_to_keep=storm_ids_to_keep,
-        valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec)
+        valid_times_to_keep_unix_sec=valid_times_to_keep_unix_sec,
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
     label_values = label_values[indices_to_keep]
 
     storm_image_dict.update({LABEL_VALUES_KEY: label_values})

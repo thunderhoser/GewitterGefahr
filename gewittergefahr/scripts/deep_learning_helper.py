@@ -19,6 +19,8 @@ RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 TARGET_NAME_ARG_NAME = 'target_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 BINARIZE_TARGET_ARG_NAME = 'binarize_target'
+NUM_ROWS_TO_KEEP_ARG_NAME = 'num_rows_to_keep'
+NUM_COLUMNS_TO_KEEP_ARG_NAME = 'num_columns_to_keep'
 NUM_CONV_LAYER_SETS_ARG_NAME = 'num_radar_conv_layer_sets'
 NUM_CONV_LAYERS_PER_SET_ARG_NAME = 'num_conv_layers_per_set'
 POOLING_TYPE_ARG_NAME = 'pooling_type_string'
@@ -31,7 +33,6 @@ DENSE_LAYER_DROPOUT_ARG_NAME = 'dense_layer_dropout_fraction'
 NORMALIZATION_TYPE_ARG_NAME = 'normalization_type_string'
 MIN_NORMALIZED_VALUE_ARG_NAME = 'min_normalized_value'
 MAX_NORMALIZED_VALUE_ARG_NAME = 'max_normalized_value'
-DROPOUT_FRACTION_ARG_NAME = 'dropout_fraction'
 L2_WEIGHT_ARG_NAME = 'l2_weight'
 SAMPLING_FRACTION_KEYS_ARG_NAME = 'sampling_fraction_keys'
 SAMPLING_FRACTION_VALUES_ARG_NAME = 'sampling_fraction_values'
@@ -128,6 +129,16 @@ TARGET_DIRECTORY_HELP_STRING = (
 BINARIZE_TARGET_HELP_STRING = (
     'Boolean flag.  If 1, will binarize target variable, so that the highest '
     'class becomes 1 and all other classes become 0.')
+
+NUM_ROWS_TO_KEEP_HELP_STRING = (
+    'Number of rows to keep from each storm-centered radar image.  If less than'
+    ' total number of rows, images will be cropped around the center.  To use '
+    'the full images, leave this alone.')
+
+NUM_COLUMNS_TO_KEEP_HELP_STRING = (
+    'Number of columns to keep from each storm-centered radar image.  If less '
+    'than total number of columns, images will be cropped around the center.  '
+    'To use the full images, leave this alone.')
 
 NUM_CONV_LAYER_SETS_HELP_STRING = (
     'Number of sets of conv layers for radar data.  Each successive conv-layer '
@@ -289,6 +300,14 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + BINARIZE_TARGET_ARG_NAME, type=int, required=False,
         default=DEFAULT_BINARIZE_TARGET_FLAG, help=BINARIZE_TARGET_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_ROWS_TO_KEEP_ARG_NAME, type=int, required=False,
+        default=-1, help=NUM_ROWS_TO_KEEP_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_COLUMNS_TO_KEEP_ARG_NAME, type=int, required=False,
+        default=-1, help=NUM_COLUMNS_TO_KEEP_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NUM_CONV_LAYER_SETS_ARG_NAME, type=int, required=False,
