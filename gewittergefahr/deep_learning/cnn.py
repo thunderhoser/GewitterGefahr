@@ -2044,6 +2044,7 @@ def apply_3d_cnn(
                      sounding_matrix[high_rdp_indices, ...]],
                     batch_size=num_examples)
 
+    print these_probabilities.shape
     if len(these_probabilities.shape) > 1:
         return these_probabilities
 
