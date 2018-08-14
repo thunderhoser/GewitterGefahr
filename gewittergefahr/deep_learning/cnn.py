@@ -1944,7 +1944,7 @@ def apply_2d_cnn(
         these_probabilities = model_object.predict(
             [radar_image_matrix, sounding_matrix], batch_size=num_examples)
 
-    if len(these_probabilities.shape) > 1:
+    if these_probabilities.shape[-1] > 1:
         return these_probabilities
 
     these_probabilities = numpy.reshape(
@@ -2044,8 +2044,7 @@ def apply_3d_cnn(
                      sounding_matrix[high_rdp_indices, ...]],
                     batch_size=num_examples)
 
-    print these_probabilities.shape
-    if len(these_probabilities.shape) > 1:
+    if these_probabilities.shape[-1] > 1:
         return these_probabilities
 
     these_probabilities = numpy.reshape(
@@ -2124,7 +2123,7 @@ def apply_2d3d_cnn(
              sounding_matrix],
             batch_size=num_examples)
 
-    if len(these_probabilities.shape) > 1:
+    if these_probabilities.shape[-1] > 1:
         return these_probabilities
 
     these_probabilities = numpy.reshape(
