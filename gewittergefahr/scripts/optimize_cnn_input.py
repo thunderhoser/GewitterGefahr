@@ -282,6 +282,12 @@ def _run(
         init_function = feature_optimization.create_climo_initializer(
             normalization_param_file_name=model_metadata_dict[
                 cnn.NORMALIZATION_FILE_NAME_KEY],
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
+            min_normalized_value=model_metadata_dict[
+                cnn.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=model_metadata_dict[
+                cnn.MAX_NORMALIZED_VALUE_KEY],
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
