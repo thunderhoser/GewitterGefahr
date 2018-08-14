@@ -215,8 +215,10 @@ def create_constant_initializer(constant_value):
 
 
 def create_climo_initializer(
-        normalization_param_file_name, test_mode=False,
-        sounding_field_names=None, sounding_pressures_mb=None,
+        normalization_param_file_name, normalization_type_string,
+        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+        test_mode=False, sounding_field_names=None, sounding_pressures_mb=None,
         radar_field_names=None, radar_heights_m_asl=None,
         radar_field_name_by_channel=None, radar_height_by_channel_m_asl=None,
         radar_normalization_table=None, sounding_normalization_table=None):
@@ -238,8 +240,11 @@ def create_climo_initializer(
 
     C = number of radar channels (field/height pairs) in model input
 
-    :param normalization_param_file_name: Path to file with normalization
-        params (will be read by `dl_utils.read_normalization_params_from_file`).
+    :param normalization_param_file_name: See doc for
+        `dl_utils.read_normalization_params_from_file`.
+    :param normalization_type_string: Same.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
     :param test_mode: For testing only.  Leave this alone.
     :param sounding_field_names:
         [if model input does not contain soundings, leave this as `None`]
@@ -325,7 +330,13 @@ def create_climo_initializer(
                     array[..., k, j] = radar_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
-            return array
+            return dl_utils.normalize_radar_images(
+                radar_image_matrix=array, field_names=radar_field_names,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                test_mode=test_mode, min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
+                normalization_table=radar_normalization_table)
 
         if len(array_dimensions) == 4:
             for j in range(len(radar_field_name_by_channel)):
@@ -334,7 +345,14 @@ def create_climo_initializer(
                 array[..., j] = radar_normalization_table[
                     dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
-            return array
+            return dl_utils.normalize_radar_images(
+                radar_image_matrix=array,
+                field_names=radar_field_name_by_channel,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                test_mode=test_mode, min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
+                normalization_table=radar_normalization_table)
 
         if len(array_dimensions) == 3:
             for j in range(len(sounding_field_names)):
@@ -344,7 +362,14 @@ def create_climo_initializer(
                     array[..., k, j] = sounding_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
-            return array
+            return dl_utils.normalize_soundings(
+                sounding_matrix=array,
+                pressureless_field_names=sounding_field_names,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                test_mode=test_mode, min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value,
+                normalization_table=sounding_normalization_table)
 
         return None
 
