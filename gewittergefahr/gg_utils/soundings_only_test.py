@@ -4,12 +4,10 @@ import copy
 import unittest
 import numpy
 import pandas
-from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import temperature_conversions
-from gewittergefahr.gg_utils import moisture_conversions
 
 TOLERANCE = 1e-6
 TOLERANCE_FOR_CONVERTED_VALUES = 1e-3
@@ -457,26 +455,6 @@ SOUNDING_DICT_WITHOUT_NANS = {
     soundings_only.LOWEST_PRESSURES_KEY: THESE_LOWEST_PRESSURES_MB[[0]]
 }
 
-# The following constants are used to test sounding_dict_to_skewt.
-THESE_PRESSURES_MB = numpy.array([500, 600, 700, 850, 925, 1000, 965])
-THESE_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
-    specific_humidities_kg_kg01=THESE_SPECIFIC_HUMIDITIES_KG_KG01,
-    total_pressures_pascals=soundings_only.MB_TO_PASCALS * THESE_PRESSURES_MB)
-(THESE_WIND_SPEEDS_M_S01, THESE_WIND_DIRECTIONS_DEG
-) = raw_wind_io.uv_to_speed_and_direction(
-    u_winds_m_s01=THESE_U_WINDS_M_S01, v_winds_m_s01=THESE_V_WINDS_M_S01)
-
-SOUNDING_DICT_FOR_SKEWT = {
-    soundings_only.PRESSURE_COLUMN_SKEWT: THESE_PRESSURES_MB,
-    soundings_only.TEMPERATURE_COLUMN_SKEWT:
-        temperature_conversions.kelvins_to_celsius(THESE_TEMPERATURES_KELVINS),
-    soundings_only.DEWPOINT_COLUMN_SKEWT:
-        temperature_conversions.kelvins_to_celsius(THESE_DEWPOINTS_KELVINS),
-    soundings_only.WIND_SPEED_COLUMN_SKEWT:
-        soundings_only.METRES_PER_SECOND_TO_KT * THESE_WIND_SPEEDS_M_S01,
-    soundings_only.WIND_DIRECTION_COLUMN_SKEWT: THESE_WIND_DIRECTIONS_DEG
-}
-
 # The following constants are used to test find_sounding_file.
 TOP_DIRECTORY_NAME = 'storm_soundings'
 SPC_DATE_STRING = '20180618'
@@ -755,22 +733,6 @@ class SoundingsOnlyTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             soundings_only.check_pressureless_field_name(
                 soundings_only.WIND_SPEED_KEY)
-
-    def test_sounding_dict_to_skewt(self):
-        """Ensures correct output from sounding_dict_to_skewt."""
-
-        this_sounding_dict_for_skewt = soundings_only.sounding_dict_to_skewt(
-            sounding_dict=SOUNDING_DICT_WITHOUT_NANS, sounding_index=0)
-
-        actual_keys = this_sounding_dict_for_skewt.keys()
-        expected_keys = SOUNDING_DICT_FOR_SKEWT.keys()
-        self.assertTrue(set(actual_keys) == set(expected_keys))
-
-        for this_key in actual_keys:
-            self.assertTrue(numpy.allclose(
-                this_sounding_dict_for_skewt[this_key],
-                SOUNDING_DICT_FOR_SKEWT[this_key],
-                atol=TOLERANCE_FOR_CONVERTED_VALUES))
 
     def test_find_sounding_file_one_time(self):
         """Ensures correct output from find_sounding_file.

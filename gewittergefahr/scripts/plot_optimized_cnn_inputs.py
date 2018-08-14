@@ -102,9 +102,9 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
     print SEPARATOR_STRING
 
     if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is None:
-        list_of_skewt_dictionaries = None
+        list_of_metpy_dictionaries = None
     else:
-        list_of_skewt_dictionaries = dl_utils.soundings_to_skewt_dictionaries(
+        list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_optimized_input_matrices[-1],
             pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
             pressureless_field_names=model_metadata_dict[
@@ -140,7 +140,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
                 feature_optimization.NEURON_INDICES_KEY],
             channel_indices=fopt_metadata_dict[
                 feature_optimization.CHANNEL_INDICES_KEY],
-            list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+            list_of_metpy_dictionaries=list_of_metpy_dictionaries,
             temp_directory_name=temp_directory_name)
     else:
         field_name_by_pair = [
@@ -168,7 +168,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
                 feature_optimization.NEURON_INDICES_KEY],
             channel_indices=fopt_metadata_dict[
                 feature_optimization.CHANNEL_INDICES_KEY],
-            list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+            list_of_metpy_dictionaries=list_of_metpy_dictionaries,
             temp_directory_name=temp_directory_name)
 
 

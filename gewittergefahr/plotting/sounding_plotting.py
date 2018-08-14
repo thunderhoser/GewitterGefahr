@@ -6,23 +6,37 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from skewt import SkewT
+import metpy.plots
+import metpy.units
+from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# Paths to ImageMagick executables.
-CONVERT_EXE_NAME = '/usr/bin/convert'
-MONTAGE_EXE_NAME = '/usr/bin/montage'
+MAIN_LINE_COLOUR_KEY = 'main_line_colour'
+MAIN_LINE_WIDTH_KEY = 'main_line_width'
+DRY_ADIABAT_COLOUR_KEY = 'dry_adiabat_colour'
+MOIST_ADIABAT_COLOUR_KEY = 'moist_adiabat_colour'
+ISOHUME_COLOUR_KEY = 'isohume_colour'
+CONTOUR_LINE_WIDTH_KEY = 'contour_line_width'
+GRID_LINE_COLOUR_KEY = 'grid_line_colour'
+GRID_LINE_WIDTH_KEY = 'grid_line_width'
+FIGURE_WIDTH_KEY = 'figure_width_inches'
+FIGURE_HEIGHT_KEY = 'figure_height_inches'
 
-DEFAULT_LINE_WIDTH = 2
-DEFAULT_LINE_COLOUR = numpy.array([228., 26., 28.]) / 255
+DEFAULT_OPTION_DICT = {
+    MAIN_LINE_COLOUR_KEY: numpy.array([0, 0, 0], dtype=float),
+    MAIN_LINE_WIDTH_KEY: 3,
+    DRY_ADIABAT_COLOUR_KEY: numpy.array([217, 95, 2], dtype=float) / 255,
+    MOIST_ADIABAT_COLOUR_KEY: numpy.array([117, 112, 179], dtype=float) / 255,
+    ISOHUME_COLOUR_KEY: numpy.array([27, 158, 119], dtype=float) / 255,
+    CONTOUR_LINE_WIDTH_KEY: 1.5,
+    GRID_LINE_COLOUR_KEY: numpy.array([152, 152, 152], dtype=float) / 255,
+    GRID_LINE_WIDTH_KEY: 0.5,
+    FIGURE_WIDTH_KEY: 15,
+    FIGURE_HEIGHT_KEY: 15
+}
 
-FONT_SIZE = 13
-DOTS_PER_INCH = 300
-NUM_PIXELS_FOR_UNPANELED_IMAGE = int(1e6)
-BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX = 10
-BORDER_WIDTH_FOR_PANELED_IMAGE_PX = 50
-
+FONT_SIZE = 20
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -31,48 +45,171 @@ pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
 
+# Paths to ImageMagick executables.
+CONVERT_EXE_NAME = '/usr/bin/convert'
+MONTAGE_EXE_NAME = '/usr/bin/montage'
+
+DOTS_PER_INCH = 300
+NUM_PIXELS_FOR_UNPANELED_IMAGE = int(1e6)
+BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX = 10
+BORDER_WIDTH_FOR_PANELED_IMAGE_PX = 50
+
 
 def plot_sounding(
-        sounding_dict_for_skewt, title_string, line_colour=DEFAULT_LINE_COLOUR,
-        line_width=DEFAULT_LINE_WIDTH):
+        sounding_dict_for_metpy, title_string, option_dict=DEFAULT_OPTION_DICT):
     """Plots atmospheric sounding.
 
     H = number of vertical levels in sounding
 
-    :param sounding_dict_for_skewt: Dictionary with the following keys.
-    sounding_dict_for_skewt['pres']: length-H numpy array of pressures
-        (Pascals).
-    sounding_dict_for_skewt['temp']: length-H numpy array of temperatures
-        (deg C).
-    sounding_dict_for_skewt['dwpt']: length-H numpy array of dewpoints (deg C).
-    sounding_dict_for_skewt['sknt']: length-H numpy array of wind speeds
-        (nautical miles per hour, or "knots").
-    sounding_dict_for_skewt['drct']: length-H numpy array of wind directions
-        (degrees of origin, as per meteorological convention).
+    :param sounding_dict_for_metpy: Dictionary with the following keys.
+    sounding_dict_for_metpy['pressures_mb']: length-H numpy array of pressures
+        (millibars).
+    sounding_dict_for_metpy['temperatures_deg_c']: length-H numpy array of
+        temperatures.
+    sounding_dict_for_metpy['dewpoints_deg_c']: length-H numpy array of
+        dewpoints.
+    sounding_dict_for_metpy['u_winds_kt']: length-H numpy array of eastward wind
+        components (nautical miles per hour, or "knots").
+    sounding_dict_for_metpy['v_winds_kt']: length-H numpy array of northward
+        wind components.
 
     :param title_string: Title.
-    :param line_colour: Colour for temperature line, dewpoint line, and wind
-        barbs (in any format accepted by `matplotlib.colors`).
-    :param line_width: Width for temperature line, dewpoint line, and wind
-        barbs.
+    :param option_dict: Dictionary with the following keys.
+    option_dict['main_line_colour']: Colour for temperature and dewpoint lines
+        (in any format accepted by matplotlib).
+    option_dict['main_line_width']: Width for temperature and dewpoint lines.
+    option_dict['dry_adiabat_colour']: Colour for dry adiabats.
+    option_dict['moist_adiabat_colour']: Colour for moist adiabats.
+    option_dict['isohume_colour']: Colour for isohumes (lines of constant mixing
+        ratio).
+    option_dict['contour_line_width']: Width for adiabats and isohumes.
+    option_dict['grid_line_colour']: Colour for grid lines (temperature and
+        pressure contours).
+    option_dict['grid_line_width']: Width for grid lines.
+    option_dict['figure_width_inches']: Figure width.
+    option_dict['figure_height_inches']: Figure height.
     """
 
-    sounding_object = SkewT.Sounding(soundingdata=sounding_dict_for_skewt)
-    sounding_object.plot_skewt(
-        color=line_colour, lw=line_width, parcel_type=None, title=title_string,
-        tmin=-30., tmax=40.)
+    error_checking.assert_is_string(title_string)
+
+    try:
+        main_line_colour = option_dict[MAIN_LINE_COLOUR_KEY]
+    except KeyError:
+        main_line_colour = DEFAULT_OPTION_DICT[MAIN_LINE_COLOUR_KEY]
+
+    try:
+        main_line_width = option_dict[MAIN_LINE_WIDTH_KEY]
+    except KeyError:
+        main_line_width = DEFAULT_OPTION_DICT[MAIN_LINE_WIDTH_KEY]
+
+    try:
+        dry_adiabat_colour = option_dict[DRY_ADIABAT_COLOUR_KEY]
+    except KeyError:
+        dry_adiabat_colour = DEFAULT_OPTION_DICT[DRY_ADIABAT_COLOUR_KEY]
+
+    try:
+        moist_adiabat_colour = option_dict[MOIST_ADIABAT_COLOUR_KEY]
+    except KeyError:
+        moist_adiabat_colour = DEFAULT_OPTION_DICT[MOIST_ADIABAT_COLOUR_KEY]
+
+    try:
+        isohume_colour = option_dict[ISOHUME_COLOUR_KEY]
+    except KeyError:
+        isohume_colour = DEFAULT_OPTION_DICT[ISOHUME_COLOUR_KEY]
+
+    try:
+        contour_line_width = option_dict[CONTOUR_LINE_WIDTH_KEY]
+    except KeyError:
+        contour_line_width = DEFAULT_OPTION_DICT[CONTOUR_LINE_WIDTH_KEY]
+
+    try:
+        grid_line_colour = option_dict[GRID_LINE_COLOUR_KEY]
+    except KeyError:
+        grid_line_colour = DEFAULT_OPTION_DICT[GRID_LINE_COLOUR_KEY]
+
+    try:
+        grid_line_width = option_dict[GRID_LINE_WIDTH_KEY]
+    except KeyError:
+        grid_line_width = DEFAULT_OPTION_DICT[GRID_LINE_WIDTH_KEY]
+
+    try:
+        figure_width_inches = option_dict[FIGURE_WIDTH_KEY]
+    except KeyError:
+        figure_width_inches = DEFAULT_OPTION_DICT[FIGURE_WIDTH_KEY]
+
+    try:
+        figure_height_inches = option_dict[FIGURE_HEIGHT_KEY]
+    except KeyError:
+        figure_height_inches = DEFAULT_OPTION_DICT[FIGURE_HEIGHT_KEY]
+
+    figure_object = pyplot.figure(
+        figsize=(figure_width_inches, figure_height_inches))
+    skewt_object = metpy.plots.SkewT(figure_object, rotation=45)
+
+    pressures_mb = sounding_dict_for_metpy[
+        soundings_only.PRESSURE_COLUMN_METPY] * metpy.units.units.hPa
+    temperatures_deg_c = sounding_dict_for_metpy[
+        soundings_only.TEMPERATURE_COLUMN_METPY] * metpy.units.units.degC
+    dewpoints_deg_c = sounding_dict_for_metpy[
+        soundings_only.DEWPOINT_COLUMN_METPY] * metpy.units.units.degC
+
+    skewt_object.plot(
+        pressures_mb, temperatures_deg_c, color=main_line_colour,
+        linewidth=main_line_width, linestyle='solid')
+
+    skewt_object.plot(
+        pressures_mb, dewpoints_deg_c, color=main_line_colour,
+        linewidth=main_line_width, linestyle='dashed')
+
+    try:
+        u_winds_kt = sounding_dict_for_metpy[
+            soundings_only.U_WIND_COLUMN_METPY] * metpy.units.units.knots
+        v_winds_kt = sounding_dict_for_metpy[
+            soundings_only.V_WIND_COLUMN_METPY] * metpy.units.units.knots
+        plot_wind = True
+    except KeyError:
+        plot_wind = False
+
+    if plot_wind:
+        skewt_object.plot_barbs(pressures_mb, u_winds_kt, v_winds_kt)
+
+    axes_object = skewt_object.ax
+    axes_object.grid(
+        color=grid_line_colour, linewidth=grid_line_width, linestyle='dashed')
+
+    skewt_object.plot_dry_adiabats(
+        color=dry_adiabat_colour, linewidth=contour_line_width,
+        linestyle='solid')
+    skewt_object.plot_moist_adiabats(
+        color=moist_adiabat_colour, linewidth=contour_line_width,
+        linestyle='solid')
+    skewt_object.plot_mixing_lines(
+        color=isohume_colour, linewidth=contour_line_width, linestyle='solid')
+
+    axes_object.set_ylim(1000, 100)
+    axes_object.set_xlim(-40, 50)
+    axes_object.set_xlabel('')
+    axes_object.set_ylabel('')
+
+    tick_values_deg_c = axes_object.get_xticks()
+    tick_labels = []
+    for this_tick_value in tick_values_deg_c:
+        tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
+
+    axes_object.set_xticklabels(tick_labels)
+    pyplot.title(title_string)
 
 
 def plot_many_soundings(
-        list_of_skewt_dictionaries, title_strings, num_panel_rows,
+        list_of_metpy_dictionaries, title_strings, num_panel_rows,
         output_file_name, temp_directory_name=None,
-        line_colour=DEFAULT_LINE_COLOUR, line_width=DEFAULT_LINE_WIDTH):
+        option_dict=DEFAULT_OPTION_DICT):
     """Creates paneled figure with many soundings.
 
     N = number of soundings to plot
 
-    :param list_of_skewt_dictionaries: length-N list of dictionaries.  Each
-        dictionary must satisfy the input format for `sounding_dict_for_skewt`
+    :param list_of_metpy_dictionaries: length-N list of dictionaries.  Each
+        dictionary must satisfy the input format for `sounding_dict_for_metpy`
         in `plot_sounding`.
     :param title_strings: length-N list of titles.
     :param num_panel_rows: Number of rows in paneled figure.
@@ -81,17 +218,16 @@ def plot_many_soundings(
         stored here, then deleted after the panels have been concatenated into
         the final image.  If `temp_directory_name is None`, will use the default
         temp directory on the local machine.
-    :param line_colour: See doc for `plot_sounding`.
-    :param line_width: Same.
+    :param option_dict: See doc for `plot_sounding`.
     """
 
     error_checking.assert_is_numpy_array(
         numpy.array(title_strings), num_dimensions=1)
     num_soundings = len(title_strings)
 
-    error_checking.assert_is_list(list_of_skewt_dictionaries)
-    error_checking.assert_is_geq(len(list_of_skewt_dictionaries), num_soundings)
-    error_checking.assert_is_leq(len(list_of_skewt_dictionaries), num_soundings)
+    error_checking.assert_is_list(list_of_metpy_dictionaries)
+    error_checking.assert_is_geq(len(list_of_metpy_dictionaries), num_soundings)
+    error_checking.assert_is_leq(len(list_of_metpy_dictionaries), num_soundings)
 
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
@@ -114,10 +250,10 @@ def plot_many_soundings(
                 break
 
             plot_sounding(
-                sounding_dict_for_skewt=list_of_skewt_dictionaries[
+                sounding_dict_for_metpy=list_of_metpy_dictionaries[
                     this_sounding_index],
                 title_string=title_strings[this_sounding_index],
-                line_colour=line_colour, line_width=line_width)
+                option_dict=option_dict)
 
             temp_file_names[this_sounding_index] = '{0:s}.jpg'.format(
                 tempfile.NamedTemporaryFile(

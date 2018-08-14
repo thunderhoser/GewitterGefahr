@@ -19,7 +19,6 @@ T = number of file times (time steps or SPC dates)
 import copy
 import pickle
 import numpy
-from gewittergefahr.gg_io import raw_wind_io as wind_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
@@ -704,16 +703,16 @@ def denormalize_soundings(
     return sounding_matrix
 
 
-def soundings_to_skewt_dictionaries(
+def soundings_to_metpy_dictionaries(
         sounding_matrix, pressure_levels_mb, pressureless_field_names):
-    """Converts soundings to format required by the skewt package.
+    """Converts soundings to format required by MetPy.
 
     :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
     :param pressure_levels_mb: integer numpy array (length H_s) of pressure
         levels.
     :param pressureless_field_names: list (length F_s) with names of
         pressureless fields, in the order that they appear in sounding_matrix.
-    :return: list_of_skewt_dictionaries: length-E list of dictionaries.  The
+    :return: list_of_metpy_dictionaries: length-E list of dictionaries.  The
         format of each dictionary is described in the input doc for
         `sounding_plotting.plot_sounding`.
     """
@@ -732,22 +731,6 @@ def soundings_to_skewt_dictionaries(
     check_soundings(sounding_matrix=sounding_matrix,
                     num_vertical_levels=num_pressure_levels,
                     num_pressureless_fields=num_pressureless_fields)
-
-    try:
-        u_wind_index = pressureless_field_names.index(
-            soundings_only.U_WIND_NAME)
-        v_wind_index = pressureless_field_names.index(
-            soundings_only.V_WIND_NAME)
-        include_wind = True
-    except ValueError:
-        include_wind = False
-
-    if include_wind:
-        (wind_speed_matrix_m_s01, wind_direction_matrix_deg
-        ) = wind_utils.uv_to_speed_and_direction(
-            u_winds_m_s01=sounding_matrix[..., u_wind_index],
-            v_winds_m_s01=sounding_matrix[..., v_wind_index])
-        wind_speed_matrix_kt = METRES_PER_SECOND_TO_KT * wind_speed_matrix_m_s01
 
     pressure_matrix_mb = numpy.full(
         (num_examples, num_pressure_levels), numpy.nan)
@@ -794,24 +777,35 @@ def soundings_to_skewt_dictionaries(
     dewpoint_matrix_celsius = temperature_conversions.kelvins_to_celsius(
         dewpoint_matrix_kelvins)
 
-    list_of_skewt_dictionaries = [None] * num_examples
+    try:
+        u_wind_index = pressureless_field_names.index(
+            soundings_only.U_WIND_NAME)
+        v_wind_index = pressureless_field_names.index(
+            soundings_only.V_WIND_NAME)
+        include_wind = True
+    except ValueError:
+        include_wind = False
+
+    list_of_metpy_dictionaries = [None] * num_examples
     for i in range(num_examples):
-        list_of_skewt_dictionaries[i] = {
-            soundings_only.PRESSURE_COLUMN_SKEWT: pressure_matrix_pascals[i, :],
-            soundings_only.TEMPERATURE_COLUMN_SKEWT:
+        list_of_metpy_dictionaries[i] = {
+            soundings_only.PRESSURE_COLUMN_METPY: pressure_matrix_mb[i, :],
+            soundings_only.TEMPERATURE_COLUMN_METPY:
                 temperature_matrix_celsius[i, :],
-            soundings_only.DEWPOINT_COLUMN_SKEWT: dewpoint_matrix_celsius[i, :],
+            soundings_only.DEWPOINT_COLUMN_METPY: dewpoint_matrix_celsius[i, :],
         }
 
         if include_wind:
-            list_of_skewt_dictionaries[i].update({
-                soundings_only.WIND_SPEED_COLUMN_SKEWT:
-                    wind_speed_matrix_kt[i, :],
-                soundings_only.WIND_DIRECTION_COLUMN_SKEWT:
-                    wind_direction_matrix_deg[i, :]
+            list_of_metpy_dictionaries[i].update({
+                soundings_only.U_WIND_COLUMN_METPY:
+                    (sounding_matrix[i, ..., u_wind_index] *
+                     METRES_PER_SECOND_TO_KT),
+                soundings_only.V_WIND_COLUMN_METPY:
+                    (sounding_matrix[i, ..., v_wind_index] *
+                     METRES_PER_SECOND_TO_KT)
             })
 
-    return list_of_skewt_dictionaries
+    return list_of_metpy_dictionaries
 
 
 def sample_by_class(

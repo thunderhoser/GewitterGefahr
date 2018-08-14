@@ -97,10 +97,10 @@ def plot_many_optimized_fields_2d(
         output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
         layer_name=None, neuron_index_matrix=None, channel_indices=None,
-        list_of_skewt_dictionaries=None, temp_directory_name=None):
+        list_of_metpy_dictionaries=None, temp_directory_name=None):
     """Plots many optimized 2-D radar fields.
 
-    If `list_of_skewt_dictionaries is not None`, this method will also plot the
+    If `list_of_metpy_dictionaries is not None`, this method will also plot the
     optimized sounding for each model component.
 
     :param radar_image_matrix: E-by-M-by-N-by-C numpy array of radar data.
@@ -124,10 +124,10 @@ def plot_many_optimized_fields_2d(
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
-    :param list_of_skewt_dictionaries: length-E list of dictionaries, each
+    :param list_of_metpy_dictionaries: length-E list of dictionaries, each
         satisfying the input format to `sounding_plotting.plot_sounding`.
     :param temp_directory_name:
-        [used only if `list_of_skewt_dictionaries is not None and
+        [used only if `list_of_metpy_dictionaries is not None and
         one_figure_per_component = False`]
         See doc for `sounding_plotting.plot_many_soundings`.
     """
@@ -154,12 +154,12 @@ def plot_many_optimized_fields_2d(
         height_by_pair_m_asl,
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
-    if list_of_skewt_dictionaries is not None:
-        error_checking.assert_is_list(list_of_skewt_dictionaries)
+    if list_of_metpy_dictionaries is not None:
+        error_checking.assert_is_list(list_of_metpy_dictionaries)
         error_checking.assert_is_geq(
-            len(list_of_skewt_dictionaries), num_components)
+            len(list_of_metpy_dictionaries), num_components)
         error_checking.assert_is_leq(
-            len(list_of_skewt_dictionaries), num_components)
+            len(list_of_metpy_dictionaries), num_components)
 
     error_checking.assert_is_boolean(one_figure_per_component)
     error_checking.assert_is_integer(num_panel_rows)
@@ -223,9 +223,9 @@ def plot_many_optimized_fields_2d(
             pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
             pyplot.close()
 
-            if list_of_skewt_dictionaries is not None:
+            if list_of_metpy_dictionaries is not None:
                 sounding_plotting.plot_sounding(
-                    sounding_dict_for_skewt=list_of_skewt_dictionaries[i],
+                    sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
                     title_string=this_verbose_string)
 
                 this_figure_file_name = (
@@ -291,12 +291,12 @@ def plot_many_optimized_fields_2d(
             pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
             pyplot.close()
 
-        if list_of_skewt_dictionaries is not None:
+        if list_of_metpy_dictionaries is not None:
             this_figure_file_name = '{0:s}/optimized-soundings.jpg'.format(
                 output_dir_name)
 
             sounding_plotting.plot_many_soundings(
-                list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+                list_of_metpy_dictionaries=list_of_metpy_dictionaries,
                 title_strings=[''] * num_components,
                 num_panel_rows=num_panel_rows,
                 output_file_name=this_figure_file_name,
@@ -309,7 +309,7 @@ def plot_many_optimized_fields_3d(
         output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
         layer_name=None, neuron_index_matrix=None, channel_indices=None,
-        list_of_skewt_dictionaries=None, temp_directory_name=None):
+        list_of_metpy_dictionaries=None, temp_directory_name=None):
     """Plots many optimized 3-D radar fields.
 
     :param radar_image_matrix: E-by-M-by-N-by-H-by-F numpy array of radar data.
@@ -330,10 +330,10 @@ def plot_many_optimized_fields_3d(
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
-    :param list_of_skewt_dictionaries: length-E list of dictionaries, each
+    :param list_of_metpy_dictionaries: length-E list of dictionaries, each
         satisfying the input format to `sounding_plotting.plot_sounding`.
     :param temp_directory_name:
-        [used only if `list_of_skewt_dictionaries is not None and
+        [used only if `list_of_metpy_dictionaries is not None and
         one_figure_per_component = False`]
         See doc for `sounding_plotting.plot_many_soundings`.
     """
@@ -360,12 +360,12 @@ def plot_many_optimized_fields_3d(
     error_checking.assert_is_numpy_array(
         radar_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
 
-    if list_of_skewt_dictionaries is not None:
-        error_checking.assert_is_list(list_of_skewt_dictionaries)
+    if list_of_metpy_dictionaries is not None:
+        error_checking.assert_is_list(list_of_metpy_dictionaries)
         error_checking.assert_is_geq(
-            len(list_of_skewt_dictionaries), num_components)
+            len(list_of_metpy_dictionaries), num_components)
         error_checking.assert_is_leq(
-            len(list_of_skewt_dictionaries), num_components)
+            len(list_of_metpy_dictionaries), num_components)
 
     error_checking.assert_is_boolean(one_figure_per_component)
     error_checking.assert_is_integer(num_panel_rows)
@@ -443,9 +443,9 @@ def plot_many_optimized_fields_3d(
                     this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
                 pyplot.close()
 
-            if list_of_skewt_dictionaries is not None:
+            if list_of_metpy_dictionaries is not None:
                 sounding_plotting.plot_sounding(
-                    sounding_dict_for_skewt=list_of_skewt_dictionaries[i],
+                    sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
                     title_string=this_verbose_string)
 
                 this_figure_file_name = (
@@ -513,12 +513,12 @@ def plot_many_optimized_fields_3d(
                     this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
                 pyplot.close()
 
-            if list_of_skewt_dictionaries is not None:
+            if list_of_metpy_dictionaries is not None:
                 this_figure_file_name = '{0:s}/optimized-soundings.jpg'.format(
                     output_dir_name)
 
                 sounding_plotting.plot_many_soundings(
-                    list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+                    list_of_metpy_dictionaries=list_of_metpy_dictionaries,
                     title_strings=[''] * num_components,
                     num_panel_rows=num_panel_rows,
                     output_file_name=this_figure_file_name,

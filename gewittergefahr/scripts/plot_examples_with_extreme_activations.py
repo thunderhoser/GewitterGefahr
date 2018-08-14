@@ -600,7 +600,7 @@ def _plot_storm_objects(predictor_dict, output_dir_name):
 
     plot_soundings = sounding_matrix is not None
     if plot_soundings:
-        list_of_skewt_dictionaries = dl_utils.soundings_to_skewt_dictionaries(
+        list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=sounding_matrix,
             pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
             pressureless_field_names=sounding_field_names)
@@ -665,7 +665,7 @@ def _plot_storm_objects(predictor_dict, output_dir_name):
             continue
 
         sounding_plotting.plot_sounding(
-            sounding_dict_for_skewt=list_of_skewt_dictionaries[i],
+            sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
             title_string=this_base_title_string)
 
         this_figure_file_name = '{0:s}_sounding.jpg'.format(this_base_file_name)

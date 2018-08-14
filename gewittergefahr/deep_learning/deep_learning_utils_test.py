@@ -5,7 +5,6 @@ import unittest
 import numpy
 import pandas
 import keras
-from gewittergefahr.gg_io import raw_wind_io as wind_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import temperature_conversions
@@ -14,7 +13,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
 TOLERANCE_FOR_CLASS_WEIGHT = 1e-3
-TOLERANCE_FOR_SKEWT_DICTIONARIES = 1e-3
+TOLERANCE_FOR_METPY_DICTIONARIES = 1e-3
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 # The following constants are used to test class_fractions_to_num_examples.
@@ -318,7 +317,7 @@ THIS_EXAMPLE1_MATRIX_MASKED = numpy.stack(
 RADAR_MATRIX_3D_MASKED = numpy.stack(
     (THIS_EXAMPLE0_MATRIX_MASKED, THIS_EXAMPLE1_MATRIX_MASKED), axis=0)
 
-# The following constants are used to test soundings_to_skewt_dictionaries.
+# The following constants are used to test soundings_to_metpy_dictionaries.
 SOUNDING_FIELD_NAMES = [
     soundings_only.RELATIVE_HUMIDITY_NAME, soundings_only.TEMPERATURE_NAME,
     soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
@@ -339,43 +338,39 @@ SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
 
 PRESSURE_LEVELS_MB = numpy.array([1000, 850, 700, 500])
 PRESSURE_LEVELS_PASCALS = numpy.array([10e4, 8.5e4, 7e4, 5e4])
-(FIRST_WIND_SPEEDS_M_S01, FIRST_WIND_DIRECTIONS_DEG
-) = wind_utils.uv_to_speed_and_direction(u_winds_m_s01=THIS_FIRST_MATRIX[:, 2],
-                                         v_winds_m_s01=THIS_FIRST_MATRIX[:, 3])
 FIRST_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
     specific_humidities_kg_kg01=THIS_FIRST_MATRIX[:, 4],
     total_pressures_pascals=PRESSURE_LEVELS_PASCALS)
 
-FIRST_SKEWT_DICT = {
-    soundings_only.TEMPERATURE_COLUMN_SKEWT:
+FIRST_METPY_DICT = {
+    soundings_only.TEMPERATURE_COLUMN_METPY:
         temperature_conversions.kelvins_to_celsius(THIS_FIRST_MATRIX[:, 1]),
-    soundings_only.WIND_SPEED_COLUMN_SKEWT:
-        METRES_PER_SECOND_TO_KT * FIRST_WIND_SPEEDS_M_S01,
-    soundings_only.WIND_DIRECTION_COLUMN_SKEWT: FIRST_WIND_DIRECTIONS_DEG,
-    soundings_only.DEWPOINT_COLUMN_SKEWT:
+    soundings_only.U_WIND_COLUMN_METPY:
+        METRES_PER_SECOND_TO_KT * THIS_FIRST_MATRIX[:, 2],
+    soundings_only.V_WIND_COLUMN_METPY:
+        METRES_PER_SECOND_TO_KT * THIS_FIRST_MATRIX[:, 3],
+    soundings_only.DEWPOINT_COLUMN_METPY:
         temperature_conversions.kelvins_to_celsius(FIRST_DEWPOINTS_KELVINS),
-    soundings_only.PRESSURE_COLUMN_SKEWT: PRESSURE_LEVELS_PASCALS
+    soundings_only.PRESSURE_COLUMN_METPY: PRESSURE_LEVELS_MB
 }
 
-(SECOND_WIND_SPEEDS_M_S01, SECOND_WIND_DIRECTIONS_DEG
-) = wind_utils.uv_to_speed_and_direction(u_winds_m_s01=THIS_SECOND_MATRIX[:, 2],
-                                         v_winds_m_s01=THIS_SECOND_MATRIX[:, 3])
 SECOND_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
     specific_humidities_kg_kg01=THIS_SECOND_MATRIX[:, 4],
     total_pressures_pascals=PRESSURE_LEVELS_PASCALS)
 
-SECOND_SKEWT_DICT = {
-    soundings_only.TEMPERATURE_COLUMN_SKEWT:
+SECOND_METPY_DICT = {
+    soundings_only.TEMPERATURE_COLUMN_METPY:
         temperature_conversions.kelvins_to_celsius(THIS_SECOND_MATRIX[:, 1]),
-    soundings_only.WIND_SPEED_COLUMN_SKEWT:
-        METRES_PER_SECOND_TO_KT * SECOND_WIND_SPEEDS_M_S01,
-    soundings_only.WIND_DIRECTION_COLUMN_SKEWT: SECOND_WIND_DIRECTIONS_DEG,
-    soundings_only.DEWPOINT_COLUMN_SKEWT:
+    soundings_only.U_WIND_COLUMN_METPY:
+        METRES_PER_SECOND_TO_KT * THIS_SECOND_MATRIX[:, 2],
+    soundings_only.V_WIND_COLUMN_METPY:
+        METRES_PER_SECOND_TO_KT * THIS_SECOND_MATRIX[:, 3],
+    soundings_only.DEWPOINT_COLUMN_METPY:
         temperature_conversions.kelvins_to_celsius(SECOND_DEWPOINTS_KELVINS),
-    soundings_only.PRESSURE_COLUMN_SKEWT: PRESSURE_LEVELS_PASCALS
+    soundings_only.PRESSURE_COLUMN_METPY: PRESSURE_LEVELS_MB
 }
 
-LIST_OF_SKEWT_DICTIONARIES = [FIRST_SKEWT_DICT, SECOND_SKEWT_DICT]
+LIST_OF_METPY_DICTIONARIES = [FIRST_METPY_DICT, SECOND_METPY_DICT]
 
 # The following constants are used to test normalize_soundings.
 SOUNDING_NORMALIZATION_DICT = {
@@ -1054,28 +1049,28 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_sounding_matrix, SOUNDING_MATRIX_UNNORMALIZED, atol=TOLERANCE))
 
-    def test_soundings_to_skewt_dictionaries(self):
-        """Ensures correct output from soundings_to_skewt_dictionaries."""
+    def test_soundings_to_metpy_dictionaries(self):
+        """Ensures correct output from soundings_to_metpy_dictionaries."""
 
-        these_skewt_dictionaries = dl_utils.soundings_to_skewt_dictionaries(
+        these_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=SOUNDING_MATRIX_UNNORMALIZED,
             pressure_levels_mb=PRESSURE_LEVELS_MB,
             pressureless_field_names=SOUNDING_FIELD_NAMES)
 
         self.assertTrue(
-            len(these_skewt_dictionaries) == len(LIST_OF_SKEWT_DICTIONARIES))
+            len(these_metpy_dictionaries) == len(LIST_OF_METPY_DICTIONARIES))
 
-        expected_keys = LIST_OF_SKEWT_DICTIONARIES[0].keys()
+        expected_keys = LIST_OF_METPY_DICTIONARIES[0].keys()
 
-        for i in range(len(these_skewt_dictionaries)):
-            these_actual_keys = these_skewt_dictionaries[i].keys()
+        for i in range(len(these_metpy_dictionaries)):
+            these_actual_keys = these_metpy_dictionaries[i].keys()
             self.assertTrue(set(these_actual_keys) == set(expected_keys))
 
             for this_key in expected_keys:
                 self.assertTrue(numpy.allclose(
-                    these_skewt_dictionaries[i][this_key],
-                    LIST_OF_SKEWT_DICTIONARIES[i][this_key],
-                    atol=TOLERANCE_FOR_SKEWT_DICTIONARIES))
+                    these_metpy_dictionaries[i][this_key],
+                    LIST_OF_METPY_DICTIONARIES[i][this_key],
+                    atol=TOLERANCE_FOR_METPY_DICTIONARIES))
 
     def test_sample_by_class_tornado(self):
         """Ensures correct output from sample_by_class.
