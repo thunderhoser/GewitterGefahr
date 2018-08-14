@@ -9,14 +9,17 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import deployment_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
+from gewittergefahr.plotting import sounding_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
@@ -25,6 +28,9 @@ SOUNDING_FIELD_NAMES = [
     soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
     soundings_only.TEMPERATURE_NAME, soundings_only.SPECIFIC_HUMIDITY_NAME
 ]
+SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
+    model_name=nwp_model_utils.RAP_MODEL_NAME,
+    grid_id=nwp_model_utils.ID_FOR_130GRID)
 
 FIELD_NAMES_2D_KEY = 'field_name_by_pair'
 HEIGHTS_2D_KEY = 'height_by_pair_m_asl'
@@ -361,6 +367,14 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
     storm_ids = storm_object_dict[STORM_IDS_KEY]
     storm_times_unix_sec = storm_object_dict[STORM_TIMES_KEY]
     radar_image_matrix = storm_object_dict[RADAR_IMAGE_MATRIX_KEY]
+    sounding_matrix = storm_object_dict[SOUNDING_MATRIX_KEY]
+
+    plot_soundings = sounding_matrix is not None
+    if plot_soundings:
+        list_of_skewt_dictionaries = dl_utils.soundings_to_skewt_dictionaries(
+            sounding_matrix=sounding_matrix,
+            pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
+            pressureless_field_names=SOUNDING_FIELD_NAMES)
 
     num_radar_dimensions = 2 + int(radar_field_names is not None)
     num_storm_objects = len(storm_ids)
@@ -416,6 +430,18 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
             print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
             pyplot.close()
+
+        if not plot_soundings:
+            continue
+
+        sounding_plotting.plot_sounding(
+            sounding_dict_for_skewt=list_of_skewt_dictionaries[i],
+            title_string=this_base_title_string)
+
+        this_figure_file_name = '{0:s}_sounding.jpg'.format(this_base_file_name)
+        print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+        pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+        pyplot.close()
 
 
 def _run(
