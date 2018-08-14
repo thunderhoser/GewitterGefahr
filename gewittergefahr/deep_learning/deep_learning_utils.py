@@ -718,8 +718,6 @@ def soundings_to_skewt_dictionaries(
         `sounding_plotting.plot_sounding`.
     """
 
-    # TODO(thunderhoser): Allow some fields to be missing from sounding_matrix.
-
     error_checking.assert_is_string_list(pressureless_field_names)
     error_checking.assert_is_numpy_array(
         numpy.array(pressureless_field_names), num_dimensions=1)
@@ -735,18 +733,21 @@ def soundings_to_skewt_dictionaries(
                     num_vertical_levels=num_pressure_levels,
                     num_pressureless_fields=num_pressureless_fields)
 
-    u_wind_index = pressureless_field_names.index(soundings_only.U_WIND_NAME)
-    v_wind_index = pressureless_field_names.index(soundings_only.V_WIND_NAME)
-    (wind_speed_matrix_m_s01, wind_direction_matrix_deg
-    ) = wind_utils.uv_to_speed_and_direction(
-        u_winds_m_s01=sounding_matrix[..., u_wind_index],
-        v_winds_m_s01=sounding_matrix[..., v_wind_index])
-    wind_speed_matrix_kt = METRES_PER_SECOND_TO_KT * wind_speed_matrix_m_s01
+    try:
+        u_wind_index = pressureless_field_names.index(
+            soundings_only.U_WIND_NAME)
+        v_wind_index = pressureless_field_names.index(
+            soundings_only.V_WIND_NAME)
+        include_wind = True
+    except ValueError:
+        include_wind = False
 
-    temperature_index = pressureless_field_names.index(
-        soundings_only.TEMPERATURE_NAME)
-    temperature_matrix_celsius = temperature_conversions.kelvins_to_celsius(
-        sounding_matrix[..., temperature_index])
+    if include_wind:
+        (wind_speed_matrix_m_s01, wind_direction_matrix_deg
+        ) = wind_utils.uv_to_speed_and_direction(
+            u_winds_m_s01=sounding_matrix[..., u_wind_index],
+            v_winds_m_s01=sounding_matrix[..., v_wind_index])
+        wind_speed_matrix_kt = METRES_PER_SECOND_TO_KT * wind_speed_matrix_m_s01
 
     pressure_matrix_mb = numpy.full(
         (num_examples, num_pressure_levels), numpy.nan)
@@ -754,13 +755,42 @@ def soundings_to_skewt_dictionaries(
         pressure_matrix_mb[i, :] = pressure_levels_mb
     pressure_matrix_pascals = pressure_matrix_mb * MB_TO_PASCALS
 
-    specific_humidity_index = pressureless_field_names.index(
-        soundings_only.SPECIFIC_HUMIDITY_NAME)
-    dewpoint_matrix_kelvins = (
-        moisture_conversions.specific_humidity_to_dewpoint(
-            specific_humidities_kg_kg01=sounding_matrix[
-                ..., specific_humidity_index],
-            total_pressures_pascals=pressure_matrix_pascals))
+    try:
+        temperature_index = pressureless_field_names.index(
+            soundings_only.TEMPERATURE_NAME)
+        temperature_matrix_kelvins = sounding_matrix[..., temperature_index]
+    except ValueError:
+        virtual_pot_temp_index = pressureless_field_names.index(
+            soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+        temperature_matrix_kelvins = (
+            temperature_conversions.temperatures_from_potential_temperatures(
+                potential_temperatures_kelvins=sounding_matrix[
+                    ..., virtual_pot_temp_index],
+                total_pressures_pascals=pressure_matrix_pascals)
+        )
+
+    try:
+        specific_humidity_index = pressureless_field_names.index(
+            soundings_only.SPECIFIC_HUMIDITY_NAME)
+        dewpoint_matrix_kelvins = (
+            moisture_conversions.specific_humidity_to_dewpoint(
+                specific_humidities_kg_kg01=sounding_matrix[
+                    ..., specific_humidity_index],
+                total_pressures_pascals=pressure_matrix_pascals)
+        )
+    except ValueError:
+        relative_humidity_index = pressureless_field_names.index(
+            soundings_only.RELATIVE_HUMIDITY_NAME)
+        dewpoint_matrix_kelvins = (
+            moisture_conversions.relative_humidity_to_dewpoint(
+                relative_humidities=sounding_matrix[
+                    ..., relative_humidity_index],
+                temperatures_kelvins=temperature_matrix_kelvins,
+                total_pressures_pascals=pressure_matrix_pascals)
+        )
+
+    temperature_matrix_celsius = temperature_conversions.kelvins_to_celsius(
+        temperature_matrix_kelvins)
     dewpoint_matrix_celsius = temperature_conversions.kelvins_to_celsius(
         dewpoint_matrix_kelvins)
 
@@ -771,10 +801,15 @@ def soundings_to_skewt_dictionaries(
             soundings_only.TEMPERATURE_COLUMN_SKEWT:
                 temperature_matrix_celsius[i, :],
             soundings_only.DEWPOINT_COLUMN_SKEWT: dewpoint_matrix_celsius[i, :],
-            soundings_only.WIND_SPEED_COLUMN_SKEWT: wind_speed_matrix_kt[i, :],
-            soundings_only.WIND_DIRECTION_COLUMN_SKEWT:
-                wind_direction_matrix_deg[i, :]
         }
+
+        if include_wind:
+            list_of_skewt_dictionaries[i].update({
+                soundings_only.WIND_SPEED_COLUMN_SKEWT:
+                    wind_speed_matrix_kt[i, :],
+                soundings_only.WIND_DIRECTION_COLUMN_SKEWT:
+                    wind_direction_matrix_deg[i, :]
+            })
 
     return list_of_skewt_dictionaries
 

@@ -23,15 +23,14 @@ from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
-
-# TODO(thunderhoser): Allow this module to plot optimized soundings, not just
-# optimized radar fields.
+from gewittergefahr.plotting import sounding_plotting
 
 METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
 TITLE_FONT_SIZE = 20
-DOTS_PER_INCH = 300
+DOTS_PER_INCH_FOR_RADAR = 300
+DOTS_PER_INCH_FOR_SOUNDING = 600
 
 
 def _model_component_to_string(
@@ -71,12 +70,12 @@ def _model_component_to_string(
 
 
 def plot_optimized_field_2d(
-        radar_field_matrix, radar_field_name, axes_object,
+        radar_image_matrix, radar_field_name, axes_object,
         annotation_string=None, colour_map_object=None,
         colour_norm_object=None):
     """Plots optimized 2-D radar field.
 
-    :param radar_field_matrix: M-by-N numpy array with values of radar field.
+    :param radar_image_matrix: M-by-N numpy array with values of radar field.
     :param radar_field_name: See doc for
         `radar_plotting.plot_2d_grid_without_coords`.
     :param axes_object: Same.
@@ -86,21 +85,25 @@ def plot_optimized_field_2d(
     """
 
     radar_plotting.plot_2d_grid_without_coords(
-        field_matrix=radar_field_matrix, field_name=radar_field_name,
+        field_matrix=radar_image_matrix, field_name=radar_field_name,
         axes_object=axes_object, annotation_string=annotation_string,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object)
 
 
 def plot_many_optimized_fields_2d(
-        radar_field_matrix, field_name_by_pair, height_by_pair_m_asl,
+        radar_image_matrix, field_name_by_pair, height_by_pair_m_asl,
         one_figure_per_component, num_panel_rows, component_type_string,
         output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
-        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+        layer_name=None, neuron_index_matrix=None, channel_indices=None,
+        list_of_skewt_dictionaries=None, temp_directory_name=None):
     """Plots many optimized 2-D radar fields.
 
-    :param radar_field_matrix: E-by-M-by-N-by-C numpy array of radar data.
+    If `list_of_skewt_dictionaries is not None`, this method will also plot the
+    optimized sounding for each model component.
+
+    :param radar_image_matrix: E-by-M-by-N-by-C numpy array of radar data.
     :param field_name_by_pair: length-C list of field names (each must be
         accepted by `radar_utils.check_field_name`).
     :param height_by_pair_m_asl: length-C integer numpy array of radar heights
@@ -121,6 +124,12 @@ def plot_many_optimized_fields_2d(
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
+    :param list_of_skewt_dictionaries: length-E list of dictionaries, each
+        satisfying the input format to `sounding_plotting.plot_sounding`.
+    :param temp_directory_name:
+        [used only if `list_of_skewt_dictionaries is not None and
+        one_figure_per_component = False`]
+        See doc for `sounding_plotting.plot_many_soundings`.
     """
 
     feature_optimization.check_metadata(
@@ -131,9 +140,9 @@ def plot_many_optimized_fields_2d(
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
 
-    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=4)
-    num_components = radar_field_matrix.shape[0]
-    num_field_height_pairs = radar_field_matrix.shape[-1]
+    error_checking.assert_is_numpy_array(radar_image_matrix, num_dimensions=4)
+    num_components = radar_image_matrix.shape[0]
+    num_field_height_pairs = radar_image_matrix.shape[-1]
 
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_pair),
@@ -144,6 +153,13 @@ def plot_many_optimized_fields_2d(
     error_checking.assert_is_numpy_array(
         height_by_pair_m_asl,
         exact_dimensions=numpy.array([num_field_height_pairs]))
+
+    if list_of_skewt_dictionaries is not None:
+        error_checking.assert_is_list(list_of_skewt_dictionaries)
+        error_checking.assert_is_geq(
+            len(list_of_skewt_dictionaries), num_components)
+        error_checking.assert_is_leq(
+            len(list_of_skewt_dictionaries), num_components)
 
     error_checking.assert_is_boolean(one_figure_per_component)
     error_checking.assert_is_integer(num_panel_rows)
@@ -172,6 +188,9 @@ def plot_many_optimized_fields_2d(
             for j in range(num_panel_rows):
                 for k in range(num_panel_columns):
                     this_fh_pair_index = j * num_panel_columns + k
+                    if this_fh_pair_index >= num_field_height_pairs:
+                        continue
+
                     this_annotation_string = '{0:s}'.format(
                         field_name_by_pair[this_fh_pair_index])
 
@@ -182,7 +201,7 @@ def plot_many_optimized_fields_2d(
                             METRES_TO_KM)
 
                     radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_field_matrix[
+                        field_matrix=radar_image_matrix[
                             i, ..., this_fh_pair_index],
                         field_name=field_name_by_pair[this_fh_pair_index],
                         axes_object=axes_objects_2d_list[j][k],
@@ -201,8 +220,24 @@ def plot_many_optimized_fields_2d(
 
             print 'Saving figure to file: "{0:s}"...'.format(
                 this_figure_file_name)
-            pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+            pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
             pyplot.close()
+
+            if list_of_skewt_dictionaries is not None:
+                sounding_plotting.plot_sounding(
+                    sounding_dict_for_skewt=list_of_skewt_dictionaries[i],
+                    title_string=this_verbose_string)
+
+                this_figure_file_name = (
+                    '{0:s}/optimized-sounding_{1:s}.jpg'
+                ).format(output_dir_name, this_abbrev_string)
+
+                print 'Saving figure to file: "{0:s}"...'.format(
+                    this_figure_file_name)
+                pyplot.savefig(
+                    this_figure_file_name, dpi=DOTS_PER_INCH_FOR_SOUNDING)
+                pyplot.close()
+
     else:
         for i in range(num_field_height_pairs):
             _, axes_objects_2d_list = plotting_utils.init_panels(
@@ -214,6 +249,9 @@ def plot_many_optimized_fields_2d(
             for j in range(num_panel_rows):
                 for k in range(num_panel_columns):
                     this_component_index = j * num_panel_columns + k
+                    if this_component_index >= num_components:
+                        continue
+
                     this_annotation_string, _ = _model_component_to_string(
                         component_index=this_component_index,
                         component_type_string=component_type_string,
@@ -222,7 +260,7 @@ def plot_many_optimized_fields_2d(
                         channel_indices=channel_indices)
 
                     radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_field_matrix[
+                        field_matrix=radar_image_matrix[
                             this_component_index, ..., i],
                         field_name=field_name_by_pair[i],
                         axes_object=axes_objects_2d_list[j][k],
@@ -234,7 +272,7 @@ def plot_many_optimized_fields_2d(
 
             plotting_utils.add_colour_bar(
                 axes_object_or_list=axes_objects_2d_list,
-                values_to_colour=radar_field_matrix[..., i],
+                values_to_colour=radar_image_matrix[..., i],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='vertical', extend_min=True, extend_max=True)
@@ -250,19 +288,31 @@ def plot_many_optimized_fields_2d(
 
             print 'Saving figure to file: "{0:s}"...'.format(
                 this_figure_file_name)
-            pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+            pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
             pyplot.close()
+
+        if list_of_skewt_dictionaries is not None:
+            this_figure_file_name = '{0:s}/optimized-soundings.jpg'.format(
+                output_dir_name)
+
+            sounding_plotting.plot_many_soundings(
+                list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+                title_strings=[''] * num_components,
+                num_panel_rows=num_panel_rows,
+                output_file_name=this_figure_file_name,
+                temp_directory_name=temp_directory_name)
 
 
 def plot_many_optimized_fields_3d(
-        radar_field_matrix, radar_field_names, radar_heights_m_asl,
+        radar_image_matrix, radar_field_names, radar_heights_m_asl,
         one_figure_per_component, num_panel_rows, component_type_string,
         output_dir_name, figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES, target_class=None,
-        layer_name=None, neuron_index_matrix=None, channel_indices=None):
+        layer_name=None, neuron_index_matrix=None, channel_indices=None,
+        list_of_skewt_dictionaries=None, temp_directory_name=None):
     """Plots many optimized 3-D radar fields.
 
-    :param radar_field_matrix: E-by-M-by-N-by-H-by-F numpy array of radar data.
+    :param radar_image_matrix: E-by-M-by-N-by-H-by-F numpy array of radar data.
     :param radar_field_names: length-F list of field names (each must be
         accepted by `radar_utils.check_field_name`).
     :param radar_heights_m_asl: length-H integer numpy array of radar heights
@@ -280,6 +330,12 @@ def plot_many_optimized_fields_3d(
     :param layer_name: Same.
     :param neuron_index_matrix: Same.
     :param channel_indices: Same.
+    :param list_of_skewt_dictionaries: length-E list of dictionaries, each
+        satisfying the input format to `sounding_plotting.plot_sounding`.
+    :param temp_directory_name:
+        [used only if `list_of_skewt_dictionaries is not None and
+        one_figure_per_component = False`]
+        See doc for `sounding_plotting.plot_many_soundings`.
     """
 
     feature_optimization.check_metadata(
@@ -290,10 +346,10 @@ def plot_many_optimized_fields_3d(
         neuron_index_matrix=neuron_index_matrix,
         channel_indices=channel_indices)
 
-    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=5)
-    num_components = radar_field_matrix.shape[0]
-    num_fields = radar_field_matrix.shape[-1]
-    num_heights = radar_field_matrix.shape[-2]
+    error_checking.assert_is_numpy_array(radar_image_matrix, num_dimensions=5)
+    num_components = radar_image_matrix.shape[0]
+    num_fields = radar_image_matrix.shape[-1]
+    num_heights = radar_image_matrix.shape[-2]
 
     error_checking.assert_is_numpy_array(
         numpy.array(radar_field_names),
@@ -303,6 +359,13 @@ def plot_many_optimized_fields_3d(
     error_checking.assert_is_geq_numpy_array(radar_heights_m_asl, 0)
     error_checking.assert_is_numpy_array(
         radar_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
+
+    if list_of_skewt_dictionaries is not None:
+        error_checking.assert_is_list(list_of_skewt_dictionaries)
+        error_checking.assert_is_geq(
+            len(list_of_skewt_dictionaries), num_components)
+        error_checking.assert_is_leq(
+            len(list_of_skewt_dictionaries), num_components)
 
     error_checking.assert_is_boolean(one_figure_per_component)
     error_checking.assert_is_integer(num_panel_rows)
@@ -332,13 +395,16 @@ def plot_many_optimized_fields_3d(
                 for j in range(num_panel_rows):
                     for k in range(num_panel_columns):
                         this_height_index = j * num_panel_columns + k
+                        if this_height_index >= num_heights:
+                            continue
+
                         this_annotation_string = '{1:.1f} km ASL'.format(
                             radar_field_names[m],
                             radar_heights_m_asl[this_height_index] *
                             METRES_TO_KM)
 
                         radar_plotting.plot_2d_grid_without_coords(
-                            field_matrix=radar_field_matrix[
+                            field_matrix=radar_image_matrix[
                                 i, ..., this_height_index, m],
                             field_name=radar_field_names[m],
                             axes_object=axes_objects_2d_list[j][k],
@@ -358,7 +424,7 @@ def plot_many_optimized_fields_3d(
 
                 plotting_utils.add_colour_bar(
                     axes_object_or_list=axes_objects_2d_list,
-                    values_to_colour=radar_field_matrix[i, ..., m],
+                    values_to_colour=radar_image_matrix[i, ..., m],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
                     orientation='vertical', extend_min=True, extend_max=True)
@@ -373,7 +439,23 @@ def plot_many_optimized_fields_3d(
 
                 print 'Saving figure to file: "{0:s}"...'.format(
                     this_figure_file_name)
-                pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+                pyplot.savefig(
+                    this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
+                pyplot.close()
+
+            if list_of_skewt_dictionaries is not None:
+                sounding_plotting.plot_sounding(
+                    sounding_dict_for_skewt=list_of_skewt_dictionaries[i],
+                    title_string=this_verbose_string)
+
+                this_figure_file_name = (
+                    '{0:s}/optimized-sounding_{1:s}.jpg'
+                ).format(output_dir_name, this_abbrev_string)
+
+                print 'Saving figure to file: "{0:s}"...'.format(
+                    this_figure_file_name)
+                pyplot.savefig(
+                    this_figure_file_name, dpi=DOTS_PER_INCH_FOR_SOUNDING)
                 pyplot.close()
     else:
         for i in range(num_fields):
@@ -387,6 +469,9 @@ def plot_many_optimized_fields_3d(
                 for j in range(num_panel_rows):
                     for k in range(num_panel_columns):
                         this_component_index = j * num_panel_columns + k
+                        if this_component_index >= num_components:
+                            continue
+
                         this_annotation_string, _ = _model_component_to_string(
                             component_index=this_component_index,
                             component_type_string=component_type_string,
@@ -395,7 +480,7 @@ def plot_many_optimized_fields_3d(
                             channel_indices=channel_indices)
 
                         radar_plotting.plot_2d_grid_without_coords(
-                            field_matrix=radar_field_matrix[
+                            field_matrix=radar_image_matrix[
                                 this_component_index, ..., m, i],
                             field_name=radar_field_names[i],
                             axes_object=axes_objects_2d_list[j][k],
@@ -407,7 +492,7 @@ def plot_many_optimized_fields_3d(
 
                 plotting_utils.add_colour_bar(
                     axes_object_or_list=axes_objects_2d_list,
-                    values_to_colour=radar_field_matrix[..., m, i],
+                    values_to_colour=radar_image_matrix[..., m, i],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
                     orientation='vertical', extend_min=True, extend_max=True)
@@ -424,5 +509,17 @@ def plot_many_optimized_fields_3d(
 
                 print 'Saving figure to file: "{0:s}"...'.format(
                     this_figure_file_name)
-                pyplot.savefig(this_figure_file_name, dpi=DOTS_PER_INCH)
+                pyplot.savefig(
+                    this_figure_file_name, dpi=DOTS_PER_INCH_FOR_RADAR)
                 pyplot.close()
+
+            if list_of_skewt_dictionaries is not None:
+                this_figure_file_name = '{0:s}/optimized-soundings.jpg'.format(
+                    output_dir_name)
+
+                sounding_plotting.plot_many_soundings(
+                    list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+                    title_strings=[''] * num_components,
+                    num_panel_rows=num_panel_rows,
+                    output_file_name=this_figure_file_name,
+                    temp_directory_name=temp_directory_name)

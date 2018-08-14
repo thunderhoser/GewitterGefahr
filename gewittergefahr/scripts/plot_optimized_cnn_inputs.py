@@ -6,16 +6,26 @@ CNN = convolutional neural network
 import os.path
 import argparse
 import numpy
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.plotting import \
     feature_optimization_plotting as fopt_plotting
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+DEFAULT_TEMP_DIRECTORY_NAME = '/condo/swatwork/ralager/temporary_soundings'
+SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
+    model_name=nwp_model_utils.RAP_MODEL_NAME,
+    grid_id=nwp_model_utils.ID_FOR_130GRID)
+
 INPUT_FILE_ARG_NAME = 'input_file_name'
 ONE_FIG_PER_COMPONENT_ARG_NAME = 'one_figure_per_component'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
+TEMP_DIRECTORY_ARG_NAME = 'temp_directory_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
@@ -26,6 +36,10 @@ ONE_FIG_PER_COMPONENT_HELP_STRING = (
     ' create one figure per radar field/height, where each panel is a different'
     ' model component.')
 NUM_PANEL_ROWS_HELP_STRING = 'Number of panel rows in each figure.'
+TEMP_DIRECTORY_HELP_STRING = (
+    'Name of temporary directory.  Will be used only if `{0:s}` contains '
+    'optimized soundings and `{1:s}` = 0.'
+).format(INPUT_FILE_ARG_NAME, ONE_FIG_PER_COMPONENT_ARG_NAME)
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
@@ -43,12 +57,16 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_PANEL_ROWS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + TEMP_DIRECTORY_ARG_NAME, type=str, required=False,
+    default=DEFAULT_TEMP_DIRECTORY_NAME, help=TEMP_DIRECTORY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(input_file_name, one_figure_per_component, num_panel_rows,
-         output_dir_name):
+         temp_directory_name, output_dir_name):
     """Plots optimized input examples (synthetic storm objects) for a CNN.
 
     This is effectively the main method.
@@ -56,6 +74,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
     :param input_file_name: See documentation at top of file.
     :param one_figure_per_component: Same.
     :param num_panel_rows: Same.
+    :param temp_directory_name: Same.
     :param output_dir_name: Same.
     :raises: TypeError: if input examples were optimized for a model that does
         2-D and 3-D convolution.
@@ -80,6 +99,16 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
     list_of_optimized_input_matrices = model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_optimized_input_matrices,
         model_metadata_dict=model_metadata_dict)
+    print SEPARATOR_STRING
+
+    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is None:
+        list_of_skewt_dictionaries = None
+    else:
+        list_of_skewt_dictionaries = dl_utils.soundings_to_skewt_dictionaries(
+            sounding_matrix=list_of_optimized_input_matrices[-1],
+            pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
+            pressureless_field_names=model_metadata_dict[
+                cnn.SOUNDING_FIELD_NAMES_KEY])
 
     training_radar_file_name_matrix = model_metadata_dict[
         cnn.TRAINING_FILE_NAMES_KEY]
@@ -96,7 +125,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             dtype=int)
 
         fopt_plotting.plot_many_optimized_fields_3d(
-            radar_field_matrix=list_of_optimized_input_matrices[0],
+            radar_image_matrix=list_of_optimized_input_matrices[0],
             radar_field_names=radar_field_names,
             radar_heights_m_asl=radar_heights_m_asl,
             one_figure_per_component=one_figure_per_component,
@@ -110,7 +139,9 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             neuron_index_matrix=fopt_metadata_dict[
                 feature_optimization.NEURON_INDICES_KEY],
             channel_indices=fopt_metadata_dict[
-                feature_optimization.CHANNEL_INDICES_KEY])
+                feature_optimization.CHANNEL_INDICES_KEY],
+            list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+            temp_directory_name=temp_directory_name)
     else:
         field_name_by_pair = [
             storm_images.image_file_name_to_field(f) for f in
@@ -122,7 +153,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             dtype=int)
 
         fopt_plotting.plot_many_optimized_fields_2d(
-            radar_field_matrix=list_of_optimized_input_matrices[0],
+            radar_image_matrix=list_of_optimized_input_matrices[0],
             field_name_by_pair=field_name_by_pair,
             height_by_pair_m_asl=height_by_pair_m_asl,
             one_figure_per_component=one_figure_per_component,
@@ -136,7 +167,9 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             neuron_index_matrix=fopt_metadata_dict[
                 feature_optimization.NEURON_INDICES_KEY],
             channel_indices=fopt_metadata_dict[
-                feature_optimization.CHANNEL_INDICES_KEY])
+                feature_optimization.CHANNEL_INDICES_KEY],
+            list_of_skewt_dictionaries=list_of_skewt_dictionaries,
+            temp_directory_name=temp_directory_name)
 
 
 if __name__ == '__main__':
@@ -147,4 +180,5 @@ if __name__ == '__main__':
         one_figure_per_component=bool(
             getattr(INPUT_ARG_OBJECT, ONE_FIG_PER_COMPONENT_ARG_NAME)),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
+        temp_directory_name=getattr(INPUT_ARG_OBJECT, TEMP_DIRECTORY_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))

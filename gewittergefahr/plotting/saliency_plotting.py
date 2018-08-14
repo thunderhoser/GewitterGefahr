@@ -219,6 +219,9 @@ def plot_many_saliency_fields_2d(
             for j in range(num_panel_rows):
                 for k in range(num_panel_columns):
                     this_fh_pair_index = j * num_panel_columns + k
+                    if this_fh_pair_index >= num_field_height_pairs:
+                        continue
+
                     this_annotation_string = '{0:s}'.format(
                         field_name_by_pair[this_fh_pair_index])
 
@@ -270,6 +273,9 @@ def plot_many_saliency_fields_2d(
             for j in range(num_panel_rows):
                 for k in range(num_panel_columns):
                     this_storm_object_index = j * num_panel_columns + k
+                    if this_storm_object_index >= num_storm_objects:
+                        continue
+
                     this_annotation_string = '"{0:s}"\nat {1:s}'.format(
                         saliency_metadata_dict[saliency_maps.STORM_IDS_KEY][
                             this_storm_object_index],
@@ -390,6 +396,9 @@ def plot_many_saliency_fields_3d(
                 for j in range(num_panel_rows):
                     for k in range(num_panel_columns):
                         this_height_index = j * num_panel_columns + k
+                        if this_height_index >= num_heights:
+                            continue
+
                         this_annotation_string = '{1:.1f} km ASL'.format(
                             radar_field_names[m],
                             radar_heights_m_asl[this_height_index] *
@@ -453,6 +462,9 @@ def plot_many_saliency_fields_3d(
                 for j in range(num_panel_rows):
                     for k in range(num_panel_columns):
                         this_storm_object_index = j * num_panel_columns + k
+                        if this_storm_object_index >= num_storm_objects:
+                            continue
+
                         this_annotation_string = '"{0:s}"\nat {1:s}'.format(
                             saliency_metadata_dict[saliency_maps.STORM_IDS_KEY][
                                 this_storm_object_index],
