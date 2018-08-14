@@ -154,7 +154,8 @@ def _create_forecast_observation_pairs_2d(
         this_example_dict = deployment_io.create_storm_images_2d(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
             num_examples_per_file=num_examples_per_file,
-            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[
@@ -248,7 +249,8 @@ def _create_forecast_observation_pairs_3d(
         this_example_dict = deployment_io.create_storm_images_3d(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
             num_examples_per_file=num_examples_per_file,
-            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[
@@ -351,7 +353,8 @@ def _create_forecast_observation_pairs_2d3d(
         this_example_dict = deployment_io.create_storm_images_2d3d_myrorss(
             radar_file_name_matrix=radar_file_name_matrix[[i], ...],
             num_examples_per_file=num_examples_per_file,
-            normalization_type_string=model_metadata_dict[cnn.TARGET_NAME_KEY],
+            normalization_type_string=model_metadata_dict[
+                cnn.NORMALIZATION_TYPE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[

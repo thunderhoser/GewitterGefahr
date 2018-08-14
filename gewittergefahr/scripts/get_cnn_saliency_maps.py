@@ -311,6 +311,11 @@ def _run(
         else:
             print MINOR_SEPARATOR_STRING
 
+    print 'Denormalizing model inputs...'
+    model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_input_matrices,
+        model_metadata_dict=model_metadata_dict)
+
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
     saliency_maps.write_file(
         pickle_file_name=output_file_name,

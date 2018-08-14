@@ -8,6 +8,7 @@ import argparse
 import numpy
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.plotting import \
     feature_optimization_plotting as fopt_plotting
@@ -71,10 +72,14 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
-
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         raise TypeError('This script cannot yet handle models that do 2-D and '
                         '3-D convolution.')
+
+    print 'Denormalizing optimized inputs...'
+    list_of_optimized_input_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_optimized_input_matrices,
+        model_metadata_dict=model_metadata_dict)
 
     training_radar_file_name_matrix = model_metadata_dict[
         cnn.TRAINING_FILE_NAMES_KEY]

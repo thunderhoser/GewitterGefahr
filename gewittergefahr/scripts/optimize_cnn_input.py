@@ -10,7 +10,6 @@ import numpy
 from keras import backend as K
 import keras.models
 from gewittergefahr.gg_utils import general_utils
-from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -18,7 +17,6 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
-from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 # TODO(thunderhoser): Allow different initialization methods.
 
@@ -206,96 +204,6 @@ def _denormalize_swirlnet_data(input_matrix):
     return input_matrix
 
 
-def _denormalize_gg_data(list_of_input_matrices, model_metadata_dict):
-    """Denormalizes input data for a GewitterGefahr model.
-
-    :param list_of_input_matrices: length-T list of input matrices (numpy
-        arrays), where T = number of input tensors to the model.
-    :param model_metadata_dict: Dictionary with metadata for the GewitterGefahr
-        model, created by `cnn.read_model_metadata`.
-    :return: list_of_input_matrices: Denormalized version of input (same
-        dimensions).
-    """
-
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        radar_field_names = model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY]
-        azimuthal_shear_indices = numpy.where(numpy.array(
-            [f in radar_utils.SHEAR_NAMES for f in radar_field_names]))[0]
-        azimuthal_shear_field_names = [
-            radar_field_names[j] for j in azimuthal_shear_indices]
-
-        print 'Denormalizing reflectivity fields...'
-        list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
-            radar_image_matrix=list_of_input_matrices[0],
-            field_names=[radar_utils.REFL_NAME],
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
-
-        print 'Denormalizing azimuthal-shear fields...'
-        list_of_input_matrices[1] = dl_utils.denormalize_radar_images(
-            radar_image_matrix=list_of_input_matrices[1],
-            field_names=azimuthal_shear_field_names,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
-    else:
-        radar_file_name_matrix = model_metadata_dict[
-            cnn.TRAINING_FILE_NAMES_KEY]
-        num_channels = radar_file_name_matrix.shape[1]
-        field_name_by_channel = [''] * num_channels
-
-        for j in range(num_channels):
-            if len(radar_file_name_matrix.shape) == 3:
-                field_name_by_channel[j] = (
-                    storm_images.image_file_name_to_field(
-                        radar_file_name_matrix[0, j, 0]))
-            else:
-                field_name_by_channel[j] = (
-                    storm_images.image_file_name_to_field(
-                        radar_file_name_matrix[0, j]))
-
-        print 'Denormalizing radar fields...'
-        list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
-            radar_image_matrix=list_of_input_matrices[0],
-            field_names=field_name_by_channel,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
-
-    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
-        print 'Denormalizing soundings...'
-        list_of_input_matrices[-1] = dl_utils.denormalize_soundings(
-            sounding_matrix=list_of_input_matrices[-1],
-            pressureless_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
-
-    return list_of_input_matrices
-
-
 def _run(
         model_file_name, is_model_swirlnet, component_type_string, target_class,
         num_iterations, learning_rate, layer_name, ideal_activation,
@@ -446,18 +354,9 @@ def _run(
                          these_matrices[k]), axis=0)
 
     print MINOR_SEPARATOR_STRING
-
-    if is_model_swirlnet:
-        print 'Denormalizing Swirlnet data...'
-        list_of_optimized_input_matrices[0] = _denormalize_swirlnet_data(
-            list_of_optimized_input_matrices[0])
-    else:
-        list_of_optimized_input_matrices = _denormalize_gg_data(
-            list_of_input_matrices=list_of_optimized_input_matrices,
-            model_metadata_dict=model_metadata_dict)
-
     print 'Writing optimized input matrices to file: "{0:s}"...'.format(
         output_file_name)
+
     feature_optimization.write_file(
         pickle_file_name=output_file_name,
         list_of_optimized_input_matrices=list_of_optimized_input_matrices,

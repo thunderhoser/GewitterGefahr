@@ -6,6 +6,7 @@ import numpy
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.plotting import saliency_plotting
 
 # TODO(thunderhoser): Maybe add other saliency-plotting options to this script.
@@ -126,6 +127,11 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         raise TypeError('This script cannot yet handle models that do 2-D and '
                         '3-D convolution.')
+
+    print 'Denormalizing optimized inputs...'
+    list_of_input_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_input_matrices,
+        model_metadata_dict=model_metadata_dict)
 
     # Plot saliency maps.
     training_radar_file_name_matrix = model_metadata_dict[
