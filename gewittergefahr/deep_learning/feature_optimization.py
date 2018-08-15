@@ -23,6 +23,7 @@ MODEL_FILE_NAME_KEY = 'model_file_name'
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 COMPONENT_TYPE_KEY = 'component_type_string'
+INIT_FUNCTION_KEY = 'init_function'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
@@ -537,7 +538,7 @@ def optimize_input_for_channel_activation(
 
 def write_file(
         pickle_file_name, list_of_optimized_input_matrices, model_file_name,
-        num_iterations, learning_rate, component_type_string,
+        num_iterations, learning_rate, component_type_string, init_function,
         target_class=None, layer_name=None, ideal_activation=None,
         neuron_index_matrix=None, channel_indices=None):
     """Writes optimized input data to Pickle file.
@@ -549,6 +550,7 @@ def write_file(
     :param num_iterations: See doc for `check_metadata`.
     :param learning_rate: Same.
     :param component_type_string: Same.
+    :param init_function: Same.
     :param target_class: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
@@ -578,6 +580,7 @@ def write_file(
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
         COMPONENT_TYPE_KEY: component_type_string,
+        INIT_FUNCTION_KEY: init_function,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
@@ -602,6 +605,7 @@ def read_file(pickle_file_name):
     metadata_dict['num_iterations']: Same.
     metadata_dict['learning_rate']: Same.
     metadata_dict['component_type_string']: Same.
+    metadata_dict['init_function']: Same.
     metadata_dict['target_class']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['ideal_activation']: Same.

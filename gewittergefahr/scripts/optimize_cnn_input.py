@@ -15,10 +15,9 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
-
-# TODO(thunderhoser): Allow different initialization methods.
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
@@ -33,12 +32,25 @@ SWIRLNET_FIELD_MEANS = numpy.array([20.745745, -0.718525, 1.929636])
 SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
     [17.947071, 4.343980, 4.969537])
 
+GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
+UNIFORM_INIT_FUNCTION_NAME = 'uniform'
+CONSTANT_INIT_FUNCTION_NAME = 'constant'
+CLIMO_INIT_FUNCTION_NAME = 'climo'
+
+VALID_SWIRLNET_FUNCTION_NAMES = [
+    GAUSSIAN_INIT_FUNCTION_NAME, UNIFORM_INIT_FUNCTION_NAME,
+    CONSTANT_INIT_FUNCTION_NAME
+]
+VALID_GG_FUNCTION_NAMES = (
+    VALID_SWIRLNET_FUNCTION_NAMES + [CLIMO_INIT_FUNCTION_NAME])
+
 MODEL_FILE_ARG_NAME = 'model_file_name'
 IS_SWIRLNET_ARG_NAME = 'is_model_swirlnet'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
 NUM_ITERATIONS_ARG_NAME = 'num_iterations'
 LEARNING_RATE_ARG_NAME = 'learning_rate'
+INIT_FUNCTION_ARG_NAME = 'init_function_name'
 LAYER_NAME_ARG_NAME = 'layer_name'
 IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
@@ -66,6 +78,10 @@ TARGET_CLASS_HELP_STRING = (
          TARGET_CLASS_ARG_NAME)
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for optimization procedure.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for optimization procedure.'
+INIT_FUNCTION_HELP_STRING = (
+    'Initialization function, used to initialize model inputs before '
+    'optimization.  Must be in the following list.\n{0:s}'
+).format(str(VALID_GG_FUNCTION_NAMES))
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neuron or '
     'channel whose activation is to be maximized.'
@@ -125,6 +141,10 @@ INPUT_ARG_PARSER.add_argument(
     '--' + LEARNING_RATE_ARG_NAME, type=float, required=False,
     default=feature_optimization.DEFAULT_LEARNING_RATE,
     help=LEARNING_RATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + INIT_FUNCTION_ARG_NAME, type=str, required=False,
+    default=CLIMO_INIT_FUNCTION_NAME, help=INIT_FUNCTION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
@@ -204,10 +224,134 @@ def _denormalize_swirlnet_data(input_matrix):
     return input_matrix
 
 
+def _check_init_function(init_function_name, is_model_swirlnet):
+    """Ensures that initialization function is valid.
+
+    :param init_function_name: See documentation at top of file.
+    :param is_model_swirlnet: Same.
+    :raises: ValueError: if init function is not in the accepted list.
+    """
+
+    if is_model_swirlnet:
+        valid_function_names = VALID_SWIRLNET_FUNCTION_NAMES
+    else:
+        valid_function_names = VALID_GG_FUNCTION_NAMES
+
+    if init_function_name not in valid_function_names:
+        error_string = (
+            '\n\n{0:s}\nValid init functions (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(valid_function_names), init_function_name)
+        raise ValueError(error_string)
+
+
+def _create_swirlnet_initializer(init_function_name):
+    """Creates initialization function for Swirlnet model.
+
+    :param init_function_name: See documentation at top of file.
+    :return: init_function: Initialization function.
+    """
+
+    if init_function_name == CONSTANT_INIT_FUNCTION_NAME:
+        return feature_optimization.create_constant_initializer(0.)
+
+    if init_function_name == UNIFORM_INIT_FUNCTION_NAME:
+        return feature_optimization.create_uniform_random_initializer(
+            min_value=-1., max_value=1.)
+
+    return feature_optimization.create_gaussian_initializer(
+        mean=0., standard_deviation=1.)
+
+
+def _create_gg_initializer(init_function_name, model_file_name):
+    """Creates initialization function for GewitterGefahr model.
+
+    :param init_function_name: See documentation at top of file.
+    :param model_file_name: Same.
+    :return: init_function: Initialization function.
+    """
+
+    metadata_file_name = '{0:s}/model_metadata.p'.format(
+        os.path.split(model_file_name)[0])
+    print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
+    model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+
+    used_minmax_norm = (
+        model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY] ==
+        dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
+    )
+
+    if init_function_name == CONSTANT_INIT_FUNCTION_NAME:
+        if used_minmax_norm:
+            return feature_optimization.create_constant_initializer(
+                (model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
+                 model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY]) / 2)
+
+        return feature_optimization.create_constant_initializer(0.)
+
+    if init_function_name == UNIFORM_INIT_FUNCTION_NAME:
+        if used_minmax_norm:
+            return feature_optimization.create_uniform_random_initializer(
+                min_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+                max_value=model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY])
+
+        return feature_optimization.create_uniform_random_initializer(
+            min_value=0., max_value=1.)
+
+    if init_function_name == GAUSSIAN_INIT_FUNCTION_NAME:
+        if used_minmax_norm:
+            return feature_optimization.create_gaussian_initializer(
+                mean=(model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
+                      model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY]) / 2,
+                standard_deviation=
+                (model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
+                 model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY]) / 6
+            )
+
+        return feature_optimization.create_gaussian_initializer(
+            mean=0., standard_deviation=1.)
+
+    training_radar_file_name_matrix = model_metadata_dict[
+        cnn.TRAINING_FILE_NAMES_KEY]
+    num_radar_dimensions = len(training_radar_file_name_matrix.shape)
+
+    if num_radar_dimensions == 2:
+        radar_field_name_by_channel = [
+            storm_images.image_file_name_to_field(f) for f in
+            training_radar_file_name_matrix[0, :]
+        ]
+        radar_height_by_channel_m_asl = numpy.array(
+            [storm_images.image_file_name_to_height(f)
+             for f in training_radar_file_name_matrix[0, :]],
+            dtype=int)
+    else:
+        radar_field_name_by_channel = None
+        radar_height_by_channel_m_asl = None
+
+    return feature_optimization.create_climo_initializer(
+        normalization_param_file_name=model_metadata_dict[
+            cnn.NORMALIZATION_FILE_NAME_KEY],
+        normalization_type_string=model_metadata_dict[
+            cnn.NORMALIZATION_TYPE_KEY],
+        min_normalized_value=model_metadata_dict[
+            cnn.MIN_NORMALIZED_VALUE_KEY],
+        max_normalized_value=model_metadata_dict[
+            cnn.MAX_NORMALIZED_VALUE_KEY],
+        sounding_field_names=model_metadata_dict[
+            cnn.SOUNDING_FIELD_NAMES_KEY],
+        sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+        radar_field_names=model_metadata_dict[
+            cnn.RADAR_FIELD_NAMES_KEY],
+        radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+        radar_field_name_by_channel=radar_field_name_by_channel,
+        radar_height_by_channel_m_asl=radar_height_by_channel_m_asl)
+
+
 def _run(
         model_file_name, is_model_swirlnet, component_type_string, target_class,
-        num_iterations, learning_rate, layer_name, ideal_activation,
-        neuron_indices_flattened, channel_indices, output_file_name):
+        num_iterations, learning_rate, init_function_name, layer_name,
+        ideal_activation, neuron_indices_flattened, channel_indices,
+        output_file_name):
     """Finds optimal input for one class, neuron, or channel of a CNN.
 
     This is effectively the main method.
@@ -218,6 +362,7 @@ def _run(
     :param target_class: Same.
     :param num_iterations: Same.
     :param learning_rate: Same.
+    :param init_function_name: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
     :param neuron_indices_flattened: Same.
@@ -226,8 +371,10 @@ def _run(
     """
 
     # Check input args.
-    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    _check_init_function(init_function_name=init_function_name,
+                         is_model_swirlnet=is_model_swirlnet)
     model_interpretation.check_component_type(component_type_string)
+
     if ideal_activation <= 0:
         ideal_activation = None
 
@@ -246,6 +393,8 @@ def _run(
             model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
         error_checking.assert_is_geq_numpy_array(channel_indices, 0)
 
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+
     # Read model.
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     if is_model_swirlnet:
@@ -253,48 +402,13 @@ def _run(
             model_file_name,
             custom_objects={
                 'brier_skill_score_keras': _brier_skill_score_keras})
-        init_function = feature_optimization.create_constant_initializer(0.)
+
+        init_function = _create_swirlnet_initializer(init_function_name)
     else:
         model_object = cnn.read_model(model_file_name)
-
-        metadata_file_name = '{0:s}/model_metadata.p'.format(
-            os.path.split(model_file_name)[0])
-        print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
-        model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
-
-        training_radar_file_name_matrix = model_metadata_dict[
-            cnn.TRAINING_FILE_NAMES_KEY]
-        num_radar_dimensions = len(training_radar_file_name_matrix.shape)
-
-        if num_radar_dimensions == 2:
-            radar_field_name_by_channel = [
-                storm_images.image_file_name_to_field(f) for f in
-                training_radar_file_name_matrix[0, :]
-            ]
-            radar_height_by_channel_m_asl = numpy.array(
-                [storm_images.image_file_name_to_height(f)
-                 for f in training_radar_file_name_matrix[0, :]],
-                dtype=int)
-        else:
-            radar_field_name_by_channel = None
-            radar_height_by_channel_m_asl = None
-
-        init_function = feature_optimization.create_climo_initializer(
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY],
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
-            sounding_pressures_mb=SOUNDING_PRESSURES_MB,
-            radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
-            radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-            radar_field_name_by_channel=radar_field_name_by_channel,
-            radar_height_by_channel_m_asl=radar_height_by_channel_m_asl)
+        init_function = _create_gg_initializer(
+            init_function_name=init_function_name,
+            model_file_name=model_file_name)
 
     # Do feature optimization.
     print MINOR_SEPARATOR_STRING
@@ -367,7 +481,7 @@ def _run(
         pickle_file_name=output_file_name,
         list_of_optimized_input_matrices=list_of_optimized_input_matrices,
         model_file_name=model_file_name, num_iterations=num_iterations,
-        learning_rate=learning_rate,
+        learning_rate=learning_rate, init_function=init_function,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
@@ -385,6 +499,7 @@ if __name__ == '__main__':
         target_class=getattr(INPUT_ARG_OBJECT, TARGET_CLASS_ARG_NAME),
         num_iterations=getattr(INPUT_ARG_OBJECT, NUM_ITERATIONS_ARG_NAME),
         learning_rate=getattr(INPUT_ARG_OBJECT, LEARNING_RATE_ARG_NAME),
+        init_function_name=getattr(INPUT_ARG_OBJECT, INIT_FUNCTION_ARG_NAME),
         layer_name=getattr(INPUT_ARG_OBJECT, LAYER_NAME_ARG_NAME),
         ideal_activation=getattr(INPUT_ARG_OBJECT, IDEAL_ACTIVATION_ARG_NAME),
         neuron_indices_flattened=numpy.array(
