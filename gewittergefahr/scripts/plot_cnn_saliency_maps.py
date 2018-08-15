@@ -128,11 +128,6 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
         raise TypeError('This script cannot yet handle models that do 2-D and '
                         '3-D convolution.')
 
-    print 'Denormalizing optimized inputs...'
-    list_of_input_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_input_matrices,
-        model_metadata_dict=model_metadata_dict)
-
     # Plot saliency maps.
     training_radar_file_name_matrix = model_metadata_dict[
         cnn.TRAINING_FILE_NAMES_KEY]
