@@ -292,7 +292,8 @@ def write_file(
     for k in range(num_input_matrices):
         error_checking.assert_is_numpy_array(list_of_input_matrices[k])
         these_expected_dim = numpy.array(
-            (1,) + list_of_input_matrices[k].shape[1:], dtype=int)
+            (num_storm_objects,) + list_of_input_matrices[k].shape[1:],
+            dtype=int)
         error_checking.assert_is_numpy_array(
             list_of_input_matrices[k], exact_dimensions=these_expected_dim)
 
