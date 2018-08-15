@@ -414,7 +414,7 @@ def plot_meridians(
 def add_colour_bar(
         axes_object_or_list, values_to_colour, colour_map, colour_norm_object,
         orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
-        extend_max=True, fraction_of_axis_length=1.):
+        extend_max=True, fraction_of_axis_length=1., figure_object=None):
     """Adds colour bar to existing plot.
 
     :param axes_object_or_list: `matplotlib.axes._subplots.AxesSubplot` object
@@ -459,10 +459,17 @@ def add_colour_bar(
     else:
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
 
-    colour_bar_object = pyplot.colorbar(
-        ax=axes_object_or_list, mappable=scalar_mappable_object,
-        orientation=orientation, pad=this_padding, extend=extend_argument,
-        shrink=fraction_of_axis_length)
+    if figure_object is None:
+        colour_bar_object = pyplot.colorbar(
+            ax=axes_object_or_list, mappable=scalar_mappable_object,
+            orientation=orientation, pad=this_padding, extend=extend_argument,
+            shrink=fraction_of_axis_length)
+    else:
+        colour_bar_object = figure_object.colorbar(
+            cax=axes_object_or_list, mappable=scalar_mappable_object,
+            orientation=orientation, pad=this_padding, extend=extend_argument,
+            shrink=fraction_of_axis_length)
+
     colour_bar_object.ax.tick_params(labelsize=FONT_SIZE)
     return colour_bar_object
 
