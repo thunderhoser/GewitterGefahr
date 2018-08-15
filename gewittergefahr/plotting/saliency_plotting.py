@@ -387,7 +387,8 @@ def plot_many_saliency_fields_3d(
     if one_fig_per_storm_object:
         for i in range(num_storm_objects):
             for m in range(num_fields):
-                _, axes_objects_2d_list = plotting_utils.init_panels(
+                (figure_object, axes_objects_2d_list
+                ) = plotting_utils.init_panels(
                     num_panel_rows=num_panel_rows,
                     num_panel_columns=num_panel_columns,
                     figure_width_inches=figure_width_inches,
@@ -421,8 +422,11 @@ def plot_many_saliency_fields_3d(
                 ) = radar_plotting.get_default_colour_scheme(
                     radar_field_names[m])
 
+                cbar_axes_object = figure_object.add_axes(
+                    [0.875, 0.01, 0.115, 0.84])
+
                 plotting_utils.add_colour_bar(
-                    axes_object_or_list=axes_objects_2d_list,
+                    axes_object_or_list=cbar_axes_object,
                     values_to_colour=radar_field_matrix[i, ..., m],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
