@@ -32,17 +32,13 @@ SWIRLNET_FIELD_MEANS = numpy.array([20.745745, -0.718525, 1.929636])
 SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
     [17.947071, 4.343980, 4.969537])
 
-GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
-UNIFORM_INIT_FUNCTION_NAME = 'uniform'
-CONSTANT_INIT_FUNCTION_NAME = 'constant'
-CLIMO_INIT_FUNCTION_NAME = 'climo'
-
 VALID_SWIRLNET_FUNCTION_NAMES = [
-    GAUSSIAN_INIT_FUNCTION_NAME, UNIFORM_INIT_FUNCTION_NAME,
-    CONSTANT_INIT_FUNCTION_NAME
+    feature_optimization.GAUSSIAN_INIT_FUNCTION_NAME,
+    feature_optimization.UNIFORM_INIT_FUNCTION_NAME,
+    feature_optimization.CONSTANT_INIT_FUNCTION_NAME
 ]
-VALID_GG_FUNCTION_NAMES = (
-    VALID_SWIRLNET_FUNCTION_NAMES + [CLIMO_INIT_FUNCTION_NAME])
+VALID_GG_FUNCTION_NAMES = VALID_SWIRLNET_FUNCTION_NAMES + [
+    feature_optimization.CLIMO_INIT_FUNCTION_NAME]
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
 IS_SWIRLNET_ARG_NAME = 'is_model_swirlnet'
@@ -144,7 +140,8 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + INIT_FUNCTION_ARG_NAME, type=str, required=False,
-    default=CLIMO_INIT_FUNCTION_NAME, help=INIT_FUNCTION_HELP_STRING)
+    default=feature_optimization.CLIMO_INIT_FUNCTION_NAME,
+    help=INIT_FUNCTION_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAYER_NAME_ARG_NAME, type=str, required=False, default='',
@@ -252,10 +249,10 @@ def _create_swirlnet_initializer(init_function_name):
     :return: init_function: Initialization function.
     """
 
-    if init_function_name == CONSTANT_INIT_FUNCTION_NAME:
+    if init_function_name == feature_optimization.CONSTANT_INIT_FUNCTION_NAME:
         return feature_optimization.create_constant_initializer(0.)
 
-    if init_function_name == UNIFORM_INIT_FUNCTION_NAME:
+    if init_function_name == feature_optimization.UNIFORM_INIT_FUNCTION_NAME:
         return feature_optimization.create_uniform_random_initializer(
             min_value=-1., max_value=1.)
 
@@ -281,7 +278,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
         dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
     )
 
-    if init_function_name == CONSTANT_INIT_FUNCTION_NAME:
+    if init_function_name == feature_optimization.CONSTANT_INIT_FUNCTION_NAME:
         if used_minmax_norm:
             return feature_optimization.create_constant_initializer(
                 (model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
@@ -289,7 +286,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
 
         return feature_optimization.create_constant_initializer(0.)
 
-    if init_function_name == UNIFORM_INIT_FUNCTION_NAME:
+    if init_function_name == feature_optimization.UNIFORM_INIT_FUNCTION_NAME:
         if used_minmax_norm:
             return feature_optimization.create_uniform_random_initializer(
                 min_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
@@ -298,7 +295,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
         return feature_optimization.create_uniform_random_initializer(
             min_value=0., max_value=1.)
 
-    if init_function_name == GAUSSIAN_INIT_FUNCTION_NAME:
+    if init_function_name == feature_optimization.GAUSSIAN_INIT_FUNCTION_NAME:
         if used_minmax_norm:
             return feature_optimization.create_gaussian_initializer(
                 mean=(model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
@@ -481,7 +478,7 @@ def _run(
         pickle_file_name=output_file_name,
         list_of_optimized_input_matrices=list_of_optimized_input_matrices,
         model_file_name=model_file_name, num_iterations=num_iterations,
-        learning_rate=learning_rate, init_function=init_function,
+        learning_rate=learning_rate, init_function_name=init_function_name,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,
