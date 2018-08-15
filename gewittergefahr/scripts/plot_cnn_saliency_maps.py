@@ -103,8 +103,10 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
     ) = saliency_maps.read_file(input_file_name)
 
     if max_contour_value is None:
+        print list_of_saliency_matrices
         all_saliency_values = numpy.array([])
         for this_matrix in list_of_saliency_matrices:
+            print this_matrix
             all_saliency_values = numpy.concatenate(
                 all_saliency_values, numpy.ravel(this_matrix))
 
