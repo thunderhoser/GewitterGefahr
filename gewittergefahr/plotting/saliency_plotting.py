@@ -411,11 +411,11 @@ def plot_many_saliency_fields_3d(
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
 
-                        # plot_saliency_field_2d(
-                        #     saliency_matrix=saliency_field_matrix[
-                        #         i, ..., this_height_index, m],
-                        #     axes_object=axes_objects_2d_list[j][k],
-                        #     option_dict=saliency_option_dict)
+                        plot_saliency_field_2d(
+                            saliency_matrix=saliency_field_matrix[
+                                i, ..., this_height_index, m],
+                            axes_object=axes_objects_2d_list[j][k],
+                            option_dict=saliency_option_dict)
 
                 (this_colour_map_object, this_colour_norm_object, _
                 ) = radar_plotting.get_default_colour_scheme(
