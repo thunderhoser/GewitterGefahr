@@ -114,7 +114,8 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
 
     print 'Max saliency contour = {0:.3e}\n'.format(max_contour_value)
     saliency_option_dict = {
-        saliency_plotting.MAX_CONTOUR_VALUE_KEY: max_contour_value
+        saliency_plotting.MAX_CONTOUR_VALUE_KEY: max_contour_value,
+        saliency_plotting.LABEL_CONTOURS_KEY: True
     }
 
     # Read metadata for the CNN that generated the saliency maps.
