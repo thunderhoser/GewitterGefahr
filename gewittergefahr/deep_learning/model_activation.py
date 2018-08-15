@@ -108,12 +108,12 @@ def get_class_activation_for_examples(
     if num_output_neurons == 1:
         error_checking.assert_is_leq(target_class, 1)
         if target_class == 1:
-            output_tensor = model_object.layers[-1].input[..., 0]
+            output_tensor = model_object.layers[-1].output[..., 0]
         else:
-            output_tensor = 1. - model_object.layers[-1].input[..., 0]
+            output_tensor = 1. - model_object.layers[-1].output[..., 0]
     else:
         error_checking.assert_is_less_than(target_class, num_output_neurons)
-        output_tensor = model_object.layers[-1].input[..., target_class]
+        output_tensor = model_object.layers[-1].output[..., target_class]
 
     activation_function = K.function(
         list_of_input_tensors + [K.learning_phase()],
