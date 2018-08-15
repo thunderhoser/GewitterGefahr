@@ -28,7 +28,7 @@ from gewittergefahr.plotting import radar_plotting
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 POSITIVE_LINE_STYLE = 'solid'
-NEGATIVE_LINE_STYLE = 'dotted'
+NEGATIVE_LINE_STYLE = 'dashed'
 PIXEL_PADDING_FOR_CONTOUR_LABELS = 10
 STRING_FORMAT_FOR_POSITIVE_LABELS = '%.3f'
 STRING_FORMAT_FOR_NEGATIVE_LABELS = '-%.3f'
