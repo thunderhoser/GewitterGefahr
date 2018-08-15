@@ -426,6 +426,7 @@ def plot_many_saliency_fields_3d(
                     [0.875, 0.01, 0.115, 0.84])
 
                 plotting_utils.add_colour_bar(
+                    figure_object=figure_object,
                     axes_object_or_list=cbar_axes_object,
                     values_to_colour=radar_field_matrix[i, ..., m],
                     colour_map=this_colour_map_object,
