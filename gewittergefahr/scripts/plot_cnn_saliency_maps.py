@@ -110,6 +110,7 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
 
         max_contour_value = numpy.percentile(
             all_saliency_values, max_contour_percentile)
+        print max_contour_value
         del all_saliency_values
 
     print 'Max saliency contour = {0:.3e}\n'.format(max_contour_value)
