@@ -245,7 +245,7 @@ def plot_many_saliency_fields_2d(
                         option_dict=saliency_option_dict)
 
             this_storm_id = saliency_metadata_dict[
-                saliency_maps.STORM_TIMES_KEY][i]
+                saliency_maps.STORM_IDS_KEY][i]
             this_storm_time_string = time_conversion.unix_sec_to_string(
                 saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
                 TIME_FORMAT)
@@ -429,7 +429,7 @@ def plot_many_saliency_fields_3d(
                     orientation='vertical', extend_min=True, extend_max=True)
 
                 this_storm_id = saliency_metadata_dict[
-                    saliency_maps.STORM_TIMES_KEY][i]
+                    saliency_maps.STORM_IDS_KEY][i]
                 this_storm_time_string = time_conversion.unix_sec_to_string(
                     saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
                     TIME_FORMAT)
