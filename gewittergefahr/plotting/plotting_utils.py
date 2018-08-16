@@ -467,7 +467,7 @@ def add_colour_bar(
     else:
         colour_bar_object = figure_object.colorbar(
             cax=axes_object_or_list, mappable=scalar_mappable_object,
-            orientation=orientation, pad=this_padding, extend=extend_argument,
+            orientation=orientation, extend=extend_argument,
             shrink=fraction_of_axis_length)
 
     colour_bar_object.ax.tick_params(labelsize=FONT_SIZE)
