@@ -17,6 +17,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -39,17 +40,28 @@ COLOUR_MAP_KEY = 'colour_map_object'
 LABEL_CONTOURS_KEY = 'label_contours'
 LINE_WIDTH_KEY = 'line_width'
 NUM_CONTOUR_LEVELS_KEY = 'num_contour_levels'
-SALIENCY_OPTION_KEYS = [
-    MAX_CONTOUR_VALUE_KEY, COLOUR_MAP_KEY, LABEL_CONTOURS_KEY, LINE_WIDTH_KEY,
-    NUM_CONTOUR_LEVELS_KEY
-]
+SOUNDING_COLOUR_MAP_KEY = 'sounding_colour_map_object'
+MIN_COLOUR_VALUE_KEY = 'min_colour_value'
+MAX_COLOUR_VALUE_KEY = 'max_colour_value'
 
 DEFAULT_SALIENCY_OPTION_DICT = {
     MAX_CONTOUR_VALUE_KEY: None,
     COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
     LABEL_CONTOURS_KEY: False,
     LINE_WIDTH_KEY: 3,
-    NUM_CONTOUR_LEVELS_KEY: 12
+    NUM_CONTOUR_LEVELS_KEY: 12,
+    SOUNDING_COLOUR_MAP_KEY: pyplot.cm.PiYG,
+    MIN_COLOUR_VALUE_KEY: None,
+    MAX_COLOUR_VALUE_KEY: None
+}
+
+SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
+    soundings_only.SPECIFIC_HUMIDITY_NAME: r'$q_{v}$',
+    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: r'$\theta_{v}$',
+    soundings_only.TEMPERATURE_NAME: r'$T$',
+    soundings_only.RELATIVE_HUMIDITY_NAME: 'RH',
+    soundings_only.U_WIND_NAME: r'$u$',
+    soundings_only.V_WIND_NAME: r'$v$'
 }
 
 METRES_TO_KM = 1e-3
@@ -59,11 +71,84 @@ TITLE_FONT_SIZE = 20
 DOTS_PER_INCH = 300
 
 
+def plot_saliency_for_soundings(
+        saliency_matrix, sounding_field_names, pressure_levels_mb, axes_object,
+        option_dict):
+    """Plots saliency for each sounding field.
+
+    F = number of sounding fields
+    H = number of pressure levels
+
+    :param saliency_matrix: H-by-F numpy array of saliency values.
+    :param sounding_field_names: length-F list with names of sounding fields.
+    :param pressure_levels_mb: length-H numpy array of pressure levels
+        (millibars).
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param option_dict: Dictionary with the following keys.
+    option_dict['colour_map_object']: Instance of
+        `matplotlib.colors.ListedColormap`.
+    option_dict['min_colour_value']: Minimum value in colour scheme.
+    option_dict['max_colour_value']: Max value in colour scheme.
+    """
+
+    try:
+        colour_map_object = option_dict[COLOUR_MAP_KEY]
+    except KeyError:
+        colour_map_object = DEFAULT_SALIENCY_OPTION_DICT[
+            SOUNDING_COLOUR_MAP_KEY]
+
+    try:
+        min_colour_value = option_dict[COLOUR_MAP_KEY]
+    except KeyError:
+        min_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MIN_COLOUR_VALUE_KEY]
+
+    try:
+        max_colour_value = option_dict[COLOUR_MAP_KEY]
+    except KeyError:
+        max_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MAX_COLOUR_VALUE_KEY]
+
+    error_checking.assert_is_greater(max_colour_value, min_colour_value)
+
+    error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
+    error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
+    num_pressure_levels = len(pressure_levels_mb)
+
+    error_checking.assert_is_list(sounding_field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(sounding_field_names), num_dimensions=1)
+    num_sounding_fields = len(sounding_field_names)
+
+    error_checking.assert_is_numpy_array_without_nan(saliency_matrix)
+    error_checking.assert_is_numpy_array(
+        saliency_matrix,
+        exact_dimensions=numpy.array(
+            [num_pressure_levels, num_sounding_fields])
+    )
+
+    axes_object.imshow(
+        saliency_matrix, cmap=colour_map_object, origin='lower',
+        aspect=float(2 * num_sounding_fields) / num_pressure_levels,
+        vmin=min_colour_value, vmax=max_colour_value)
+
+    y_tick_locations = numpy.linspace(
+        0, num_pressure_levels - 1, num=num_pressure_levels, dtype=float)
+    y_tick_labels = [''] * num_pressure_levels
+    for k in range(0, num_pressure_levels, 4):
+        y_tick_labels[k] = '{0:d}'.format(
+            int(numpy.round(pressure_levels_mb[k])))
+
+    pyplot.yticks(y_tick_locations, y_tick_labels)
+    pyplot.ylabel('Pressure (mb)')
+
+    x_tick_locations = numpy.linspace(
+        0, num_sounding_fields - 1, num=num_sounding_fields, dtype=float)
+    x_tick_labels = [
+        SOUNDING_FIELD_NAME_TO_ABBREV_DICT[f] for f in sounding_field_names]
+    pyplot.xticks(x_tick_locations, x_tick_labels)
+
+
 def plot_saliency_field_2d(saliency_matrix, axes_object, option_dict):
     """Plots 2-D saliency field with unfilled, coloured contours.
-
-    M = number of rows in spatial grid
-    N = number of columns in spatial grid
 
     :param saliency_matrix: M-by-N numpy array of saliency values.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
