@@ -86,7 +86,7 @@ def init_panels(num_panel_rows, num_panel_columns, figure_width_inches,
         axes_objects_2d_list = [axes_objects_2d_list]
 
     pyplot.subplots_adjust(
-        left=0.01, bottom=0.01, right=0.8, top=0.8, hspace=0, wspace=0)
+        left=0.01, bottom=0.01, right=0.95, top=0.95, hspace=0, wspace=0)
 
     return figure_object, axes_objects_2d_list
 
