@@ -308,7 +308,7 @@ def plot_many_saliency_fields_2d(
                 values_to_colour=radar_field_matrix[..., i],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='vertical', extend_min=True, extend_max=True)
+                orientation='horizontal', extend_min=True, extend_max=True)
 
             this_title_string = '{0:s} at {1:.1f} km ASL'.format(
                 field_name_by_pair[i], height_by_pair_m_asl[i] * METRES_TO_KM)
@@ -417,16 +417,16 @@ def plot_many_saliency_fields_3d(
                             axes_object=axes_objects_2d_list[j][k],
                             option_dict=saliency_option_dict)
 
-                # (this_colour_map_object, this_colour_norm_object, _
-                # ) = radar_plotting.get_default_colour_scheme(
-                #     radar_field_names[m])
-                #
-                # plotting_utils.add_colour_bar(
-                #     axes_object_or_list=axes_objects_2d_list,
-                #     values_to_colour=radar_field_matrix[i, ..., m],
-                #     colour_map=this_colour_map_object,
-                #     colour_norm_object=this_colour_norm_object,
-                #     orientation='vertical', extend_min=True, extend_max=True)
+                (this_colour_map_object, this_colour_norm_object, _
+                ) = radar_plotting.get_default_colour_scheme(
+                    radar_field_names[m])
+
+                plotting_utils.add_colour_bar(
+                    axes_object_or_list=axes_objects_2d_list,
+                    values_to_colour=radar_field_matrix[i, ..., m],
+                    colour_map=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object,
+                    orientation='horizontal', extend_min=True, extend_max=True)
 
                 this_storm_id = saliency_metadata_dict[
                     saliency_maps.STORM_IDS_KEY][i]
@@ -497,7 +497,7 @@ def plot_many_saliency_fields_3d(
                     values_to_colour=radar_field_matrix[..., m, i],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
-                    orientation='vertical', extend_min=True, extend_max=True)
+                    orientation='horizontal', extend_min=True, extend_max=True)
 
                 this_title_string = '{0:s} at {1:.1f} km ASL'.format(
                     radar_field_names[i], radar_heights_m_asl[m] * METRES_TO_KM)
