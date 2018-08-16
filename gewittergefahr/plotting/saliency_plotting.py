@@ -239,8 +239,8 @@ def plot_many_saliency_fields_2d(
                         annotation_string=this_annotation_string)
 
                     plot_saliency_field_2d(
-                        saliency_matrix=saliency_field_matrix[
-                            i, ..., this_fh_pair_index],
+                        saliency_matrix=numpy.flipud(
+                            saliency_field_matrix[i, ..., this_fh_pair_index]),
                         axes_object=axes_objects_2d_list[j][k],
                         option_dict=saliency_option_dict)
 
@@ -295,8 +295,9 @@ def plot_many_saliency_fields_2d(
                         annotation_string=this_annotation_string)
 
                     plot_saliency_field_2d(
-                        saliency_matrix=saliency_field_matrix[
-                            this_storm_object_index, ..., i],
+                        saliency_matrix=numpy.flipud(
+                            saliency_field_matrix[
+                                this_storm_object_index, ..., i]),
                         axes_object=axes_objects_2d_list[j][k],
                         option_dict=saliency_option_dict)
 
@@ -414,8 +415,9 @@ def plot_many_saliency_fields_3d(
                             annotation_string=this_annotation_string)
 
                         plot_saliency_field_2d(
-                            saliency_matrix=saliency_field_matrix[
-                                i, ..., this_height_index, m],
+                            saliency_matrix=numpy.flipud(
+                                saliency_field_matrix[
+                                    i, ..., this_height_index, m]),
                             axes_object=axes_objects_2d_list[j][k],
                             option_dict=saliency_option_dict)
 
@@ -486,8 +488,9 @@ def plot_many_saliency_fields_3d(
                             annotation_string=this_annotation_string)
 
                         plot_saliency_field_2d(
-                            saliency_matrix=saliency_field_matrix[
-                                this_storm_object_index, ..., m, i],
+                            saliency_matrix=numpy.flipud(
+                                saliency_field_matrix[
+                                    this_storm_object_index, ..., m, i]),
                             axes_object=axes_objects_2d_list[j][k],
                             option_dict=saliency_option_dict)
 
