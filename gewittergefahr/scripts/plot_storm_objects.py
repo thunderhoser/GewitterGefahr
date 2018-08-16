@@ -395,7 +395,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
         for j in range(j_max):
             if num_radar_dimensions == 2:
                 radar_plotting.plot_many_2d_grids_without_coords(
-                    field_matrix=radar_image_matrix[i, ...],
+                    field_matrix=numpy.flip(radar_image_matrix[i, ...], axis=1),
                     field_name_by_pair=field_name_by_pair,
                     height_by_pair_m_asl=height_by_pair_m_asl,
                     num_panel_rows=NUM_PANEL_ROWS)
@@ -405,7 +405,8 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
             else:
                 (_, these_axes_objects_2d_list
                 ) = radar_plotting.plot_3d_grid_without_coords(
-                    field_matrix=radar_image_matrix[i, ..., j],
+                    field_matrix=numpy.flip(
+                        radar_image_matrix[i, ..., j], axis=1),
                     field_name=radar_field_names[j],
                     grid_point_heights_m_asl=radar_heights_m_asl,
                     num_panel_rows=NUM_PANEL_ROWS)

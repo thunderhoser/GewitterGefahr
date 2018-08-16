@@ -85,8 +85,9 @@ def plot_optimized_field_2d(
     """
 
     radar_plotting.plot_2d_grid_without_coords(
-        field_matrix=radar_image_matrix, field_name=radar_field_name,
-        axes_object=axes_object, annotation_string=annotation_string,
+        field_matrix=numpy.flipud(radar_image_matrix),
+        field_name=radar_field_name, axes_object=axes_object,
+        annotation_string=annotation_string,
         colour_map_object=colour_map_object,
         colour_norm_object=colour_norm_object)
 
@@ -201,8 +202,8 @@ def plot_many_optimized_fields_2d(
                             METRES_TO_KM)
 
                     radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_image_matrix[
-                            i, ..., this_fh_pair_index],
+                        field_matrix=numpy.flipud(
+                            radar_image_matrix[i, ..., this_fh_pair_index]),
                         field_name=field_name_by_pair[this_fh_pair_index],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
@@ -260,8 +261,8 @@ def plot_many_optimized_fields_2d(
                         channel_indices=channel_indices)
 
                     radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_image_matrix[
-                            this_component_index, ..., i],
+                        field_matrix=numpy.flipud(
+                            radar_image_matrix[this_component_index, ..., i]),
                         field_name=field_name_by_pair[i],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
@@ -404,8 +405,9 @@ def plot_many_optimized_fields_3d(
                             METRES_TO_KM)
 
                         radar_plotting.plot_2d_grid_without_coords(
-                            field_matrix=radar_image_matrix[
-                                i, ..., this_height_index, m],
+                            field_matrix=numpy.flipud(
+                                radar_image_matrix[
+                                    i, ..., this_height_index, m]),
                             field_name=radar_field_names[m],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
@@ -480,8 +482,9 @@ def plot_many_optimized_fields_3d(
                             channel_indices=channel_indices)
 
                         radar_plotting.plot_2d_grid_without_coords(
-                            field_matrix=radar_image_matrix[
-                                this_component_index, ..., m, i],
+                            field_matrix=numpy.flipud(
+                                radar_image_matrix[
+                                    this_component_index, ..., m, i]),
                             field_name=radar_field_names[i],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)

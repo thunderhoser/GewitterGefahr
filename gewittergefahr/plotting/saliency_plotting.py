@@ -232,8 +232,8 @@ def plot_many_saliency_fields_2d(
                             METRES_TO_KM)
 
                     radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_field_matrix[
-                            i, ..., this_fh_pair_index],
+                        field_matrix=numpy.flipud(
+                            radar_field_matrix[i, ..., this_fh_pair_index]),
                         field_name=field_name_by_pair[this_fh_pair_index],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
@@ -287,8 +287,9 @@ def plot_many_saliency_fields_2d(
                     )
 
                     radar_plotting.plot_2d_grid_without_coords(
-                        field_matrix=radar_field_matrix[
-                            this_storm_object_index, ..., i],
+                        field_matrix=numpy.flipud(
+                            radar_field_matrix[
+                                this_storm_object_index, ..., i]),
                         field_name=field_name_by_pair[i],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
@@ -405,8 +406,9 @@ def plot_many_saliency_fields_3d(
                             METRES_TO_KM)
 
                         radar_plotting.plot_2d_grid_without_coords(
-                            field_matrix=radar_field_matrix[
-                                i, ..., this_height_index, m],
+                            field_matrix=numpy.flipud(
+                                radar_field_matrix[
+                                    i, ..., this_height_index, m]),
                             field_name=radar_field_names[m],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
@@ -476,8 +478,9 @@ def plot_many_saliency_fields_3d(
                         )
 
                         radar_plotting.plot_2d_grid_without_coords(
-                            field_matrix=radar_field_matrix[
-                                this_storm_object_index, ..., m, i],
+                            field_matrix=numpy.flipud(
+                                radar_field_matrix[
+                                    this_storm_object_index, ..., m, i]),
                             field_name=radar_field_names[i],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
