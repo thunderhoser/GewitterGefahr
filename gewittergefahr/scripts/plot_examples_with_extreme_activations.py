@@ -650,7 +650,7 @@ def _plot_storm_objects(predictor_dict, output_dir_name):
                     values_to_colour=radar_image_matrix[i, ..., j],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
-                    orientation='vertical', extend_min=True, extend_max=True)
+                    orientation='horizontal', extend_min=True, extend_max=True)
 
                 this_title_string = '{0:s}; {1:s}'.format(
                     this_base_title_string, radar_field_names[j])

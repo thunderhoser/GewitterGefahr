@@ -276,7 +276,7 @@ def plot_many_optimized_fields_2d(
                 values_to_colour=radar_image_matrix[..., i],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='vertical', extend_min=True, extend_max=True)
+                orientation='horizontal', extend_min=True, extend_max=True)
 
             this_title_string = '{0:s} at {1:.1f} km ASL'.format(
                 field_name_by_pair[i], height_by_pair_m_asl[i] * METRES_TO_KM)
@@ -429,7 +429,7 @@ def plot_many_optimized_fields_3d(
                     values_to_colour=radar_image_matrix[i, ..., m],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
-                    orientation='vertical', extend_min=True, extend_max=True)
+                    orientation='horizontal', extend_min=True, extend_max=True)
 
                 this_title_string = '{0:s}; {1:s}'.format(
                     this_verbose_string, radar_field_names[m])
@@ -498,7 +498,7 @@ def plot_many_optimized_fields_3d(
                     values_to_colour=radar_image_matrix[..., m, i],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
-                    orientation='vertical', extend_min=True, extend_max=True)
+                    orientation='horizontal', extend_min=True, extend_max=True)
 
                 this_title_string = '{0:s} at {1:.1f} km ASL'.format(
                     radar_field_names[i], radar_heights_m_asl[m] * METRES_TO_KM)
