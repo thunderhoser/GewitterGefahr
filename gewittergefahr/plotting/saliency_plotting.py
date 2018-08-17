@@ -49,7 +49,7 @@ SOUNDING_COLOUR_MAP_KEY = 'sounding_colour_map_object'
 MIN_COLOUR_VALUE_KEY = 'min_colour_value'
 MAX_COLOUR_VALUE_KEY = 'max_colour_value'
 
-DEFAULT_SALIENCY_OPTION_DICT = {
+DEFAULT_OPTION_DICT = {
     MAX_CONTOUR_VALUE_KEY: None,
     COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
     LABEL_CONTOURS_KEY: False,
@@ -87,7 +87,7 @@ PANELED_IMAGE_BORDER_WIDTH_PIXELS = 10
 
 def plot_saliency_for_sounding(
         saliency_matrix, sounding_field_names, pressure_levels_mb, axes_object,
-        title_string='', option_dict=DEFAULT_SALIENCY_OPTION_DICT):
+        title_string='', option_dict=None):
     """Plots saliency for each sounding field.
 
     f = number of sounding fields
@@ -106,22 +106,13 @@ def plot_saliency_for_sounding(
     option_dict['max_colour_value']: Max value in colour scheme.
     """
 
-    try:
-        colour_map_object = option_dict[COLOUR_MAP_KEY]
-    except KeyError:
-        colour_map_object = DEFAULT_SALIENCY_OPTION_DICT[
-            SOUNDING_COLOUR_MAP_KEY]
+    if option_dict is None:
+        option_dict = {}
 
-    try:
-        min_colour_value = option_dict[MIN_COLOUR_VALUE_KEY]
-    except KeyError:
-        min_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MIN_COLOUR_VALUE_KEY]
-
-    try:
-        max_colour_value = option_dict[MAX_COLOUR_VALUE_KEY]
-    except KeyError:
-        max_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MAX_COLOUR_VALUE_KEY]
-
+    option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
+    colour_map_object = option_dict[COLOUR_MAP_KEY]
+    min_colour_value = option_dict[MIN_COLOUR_VALUE_KEY]
+    max_colour_value = option_dict[MAX_COLOUR_VALUE_KEY]
     error_checking.assert_is_greater(max_colour_value, min_colour_value)
 
     error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
@@ -169,10 +160,8 @@ def plot_saliency_for_sounding(
 def plot_saliency_with_sounding(
         sounding_matrix, saliency_matrix, sounding_field_names,
         pressure_levels_mb, output_file_name, sounding_title_string='',
-        saliency_title_string='',
-        saliency_option_dict=DEFAULT_SALIENCY_OPTION_DICT,
-        sounding_option_dict=sounding_plotting.DEFAULT_OPTION_DICT,
-        temp_directory_name=None):
+        saliency_title_string='', saliency_option_dict=None,
+        sounding_option_dict=None, temp_directory_name=None):
     """Plots saliency for each sounding field, along with the sounding itself.
 
     The sounding itself will be in the left panel; saliency map will be in the
@@ -195,6 +184,16 @@ def plot_saliency_with_sounding(
         the final image.  If `temp_directory_name is None`, will use the default
         temp directory on the local machine.
     """
+
+    if saliency_option_dict is None:
+        saliency_option_dict = {}
+    if sounding_option_dict is None:
+        sounding_option_dict = {}
+
+    saliency_option_dict = DEFAULT_OPTION_DICT.copy().update(
+        saliency_option_dict)
+    sounding_option_dict = sounding_plotting.DEFAULT_OPTION_DICT.copy().update(
+        sounding_option_dict)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     if temp_directory_name is not None:
@@ -223,22 +222,11 @@ def plot_saliency_with_sounding(
         output_size_pixels=SINGLE_IMAGE_SIZE_PIXELS)
 
     # Plot saliency map.
-    try:
-        figure_width_inches = sounding_option_dict[
-            sounding_plotting.FIGURE_WIDTH_KEY]
-    except KeyError:
-        figure_width_inches = sounding_plotting.DEFAULT_OPTION_DICT[
-            sounding_plotting.FIGURE_WIDTH_KEY]
-
-    try:
-        figure_height_inches = sounding_option_dict[
-            sounding_plotting.FIGURE_HEIGHT_KEY]
-    except KeyError:
-        figure_height_inches = sounding_plotting.DEFAULT_OPTION_DICT[
-            sounding_plotting.FIGURE_HEIGHT_KEY]
-
     _, axes_object = pyplot.subplots(
-        1, 1, figsize=(figure_width_inches, figure_height_inches))
+        1, 1,
+        figsize=(sounding_option_dict[sounding_plotting.FIGURE_WIDTH_KEY],
+                 sounding_option_dict[sounding_plotting.FIGURE_HEIGHT_KEY])
+    )
 
     plot_saliency_for_sounding(
         saliency_matrix=saliency_matrix,
@@ -246,27 +234,12 @@ def plot_saliency_with_sounding(
         pressure_levels_mb=pressure_levels_mb, axes_object=axes_object,
         title_string=saliency_title_string, option_dict=saliency_option_dict)
 
-    try:
-        colour_map_object = saliency_option_dict[COLOUR_MAP_KEY]
-    except KeyError:
-        colour_map_object = DEFAULT_SALIENCY_OPTION_DICT[
-            SOUNDING_COLOUR_MAP_KEY]
-
-    try:
-        min_colour_value = saliency_option_dict[MIN_COLOUR_VALUE_KEY]
-    except KeyError:
-        min_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MIN_COLOUR_VALUE_KEY]
-
-    try:
-        max_colour_value = saliency_option_dict[MAX_COLOUR_VALUE_KEY]
-    except KeyError:
-        max_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MAX_COLOUR_VALUE_KEY]
-
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=saliency_matrix,
-        colour_map=colour_map_object, colour_min=min_colour_value,
-        colour_max=max_colour_value, orientation='vertical', extend_min=True,
-        extend_max=True)
+        colour_map=saliency_option_dict[COLOUR_MAP_KEY],
+        colour_min=saliency_option_dict[MIN_COLOUR_VALUE_KEY],
+        colour_max=saliency_option_dict[MAX_COLOUR_VALUE_KEY],
+        orientation='vertical', extend_min=True, extend_max=True)
 
     temp_saliency_file_name = '{0:s}.jpg'.format(
         tempfile.NamedTemporaryFile(dir=temp_directory_name, delete=False).name)
@@ -293,8 +266,7 @@ def plot_saliency_with_sounding(
 def plot_saliency_with_soundings(
         sounding_matrix, saliency_matrix, saliency_metadata_dict,
         sounding_field_names, pressure_levels_mb, output_dir_name,
-        saliency_option_dict=DEFAULT_SALIENCY_OPTION_DICT,
-        temp_directory_name=None):
+        saliency_option_dict=None, temp_directory_name=None):
     """For each storm object, plots sounding along with saliency values.
 
     f = number of sounding fields
@@ -358,8 +330,7 @@ def plot_saliency_with_soundings(
             temp_directory_name=temp_directory_name)
 
 
-def plot_saliency_for_radar(
-        saliency_matrix, axes_object, option_dict=DEFAULT_SALIENCY_OPTION_DICT):
+def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     """Plots saliency map for a 2-D radar field.
 
     :param saliency_matrix: M-by-N numpy array of saliency values.
@@ -381,31 +352,15 @@ def plot_saliency_for_radar(
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix)
     error_checking.assert_is_numpy_array(saliency_matrix, num_dimensions=2)
 
-    try:
-        max_contour_value = option_dict[MAX_CONTOUR_VALUE_KEY]
-    except KeyError:
-        max_contour_value = DEFAULT_SALIENCY_OPTION_DICT[MAX_CONTOUR_VALUE_KEY]
+    if option_dict is None:
+        option_dict = {}
 
-    try:
-        colour_map_object = option_dict[COLOUR_MAP_KEY]
-    except KeyError:
-        colour_map_object = DEFAULT_SALIENCY_OPTION_DICT[COLOUR_MAP_KEY]
-
-    try:
-        label_contours = option_dict[LABEL_CONTOURS_KEY]
-    except KeyError:
-        label_contours = DEFAULT_SALIENCY_OPTION_DICT[LABEL_CONTOURS_KEY]
-
-    try:
-        line_width = option_dict[LINE_WIDTH_KEY]
-    except KeyError:
-        line_width = DEFAULT_SALIENCY_OPTION_DICT[LINE_WIDTH_KEY]
-
-    try:
-        num_contour_levels = option_dict[NUM_CONTOUR_LEVELS_KEY]
-    except KeyError:
-        num_contour_levels = DEFAULT_SALIENCY_OPTION_DICT[
-            NUM_CONTOUR_LEVELS_KEY]
+    option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
+    max_contour_value = option_dict[MAX_CONTOUR_VALUE_KEY]
+    colour_map_object = option_dict[COLOUR_MAP_KEY]
+    label_contours = option_dict[LABEL_CONTOURS_KEY]
+    line_width = option_dict[LINE_WIDTH_KEY]
+    num_contour_levels = option_dict[NUM_CONTOUR_LEVELS_KEY]
 
     error_checking.assert_is_greater(max_contour_value, 0.)
     error_checking.assert_is_boolean(label_contours)
@@ -445,7 +400,7 @@ def plot_saliency_for_radar(
 def plot_saliency_with_radar_2d_fields(
         radar_matrix, saliency_matrix, saliency_metadata_dict,
         field_name_by_pair, height_by_pair_m_asl, one_fig_per_storm_object,
-        num_panel_rows, output_dir_name, saliency_option_dict,
+        num_panel_rows, output_dir_name, saliency_option_dict=None,
         figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
     """Plots many 2-D saliency fields with the underlying radar fields.
@@ -626,8 +581,7 @@ def plot_saliency_with_radar_2d_fields(
 def plot_saliency_with_radar_3d_fields(
         radar_matrix, saliency_matrix, saliency_metadata_dict,
         radar_field_names, radar_heights_m_asl, one_fig_per_storm_object,
-        num_panel_rows, output_dir_name,
-        saliency_option_dict=DEFAULT_SALIENCY_OPTION_DICT,
+        num_panel_rows, output_dir_name, saliency_option_dict=None,
         figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
     """Plots many 3-D saliency fields (with the underlying radar fields).

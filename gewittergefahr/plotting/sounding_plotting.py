@@ -57,7 +57,7 @@ BORDER_WIDTH_FOR_PANELED_IMAGE_PX = 50
 
 
 def plot_sounding(
-        sounding_dict_for_metpy, title_string, option_dict=DEFAULT_OPTION_DICT):
+        sounding_dict_for_metpy, title_string, option_dict=None):
     """Plots atmospheric sounding.
 
     H = number of vertical levels in sounding
@@ -93,55 +93,20 @@ def plot_sounding(
 
     error_checking.assert_is_string(title_string)
 
-    try:
-        main_line_colour = option_dict[MAIN_LINE_COLOUR_KEY]
-    except KeyError:
-        main_line_colour = DEFAULT_OPTION_DICT[MAIN_LINE_COLOUR_KEY]
+    if option_dict is None:
+        option_dict = {}
 
-    try:
-        main_line_width = option_dict[MAIN_LINE_WIDTH_KEY]
-    except KeyError:
-        main_line_width = DEFAULT_OPTION_DICT[MAIN_LINE_WIDTH_KEY]
-
-    try:
-        dry_adiabat_colour = option_dict[DRY_ADIABAT_COLOUR_KEY]
-    except KeyError:
-        dry_adiabat_colour = DEFAULT_OPTION_DICT[DRY_ADIABAT_COLOUR_KEY]
-
-    try:
-        moist_adiabat_colour = option_dict[MOIST_ADIABAT_COLOUR_KEY]
-    except KeyError:
-        moist_adiabat_colour = DEFAULT_OPTION_DICT[MOIST_ADIABAT_COLOUR_KEY]
-
-    try:
-        isohume_colour = option_dict[ISOHUME_COLOUR_KEY]
-    except KeyError:
-        isohume_colour = DEFAULT_OPTION_DICT[ISOHUME_COLOUR_KEY]
-
-    try:
-        contour_line_width = option_dict[CONTOUR_LINE_WIDTH_KEY]
-    except KeyError:
-        contour_line_width = DEFAULT_OPTION_DICT[CONTOUR_LINE_WIDTH_KEY]
-
-    try:
-        grid_line_colour = option_dict[GRID_LINE_COLOUR_KEY]
-    except KeyError:
-        grid_line_colour = DEFAULT_OPTION_DICT[GRID_LINE_COLOUR_KEY]
-
-    try:
-        grid_line_width = option_dict[GRID_LINE_WIDTH_KEY]
-    except KeyError:
-        grid_line_width = DEFAULT_OPTION_DICT[GRID_LINE_WIDTH_KEY]
-
-    try:
-        figure_width_inches = option_dict[FIGURE_WIDTH_KEY]
-    except KeyError:
-        figure_width_inches = DEFAULT_OPTION_DICT[FIGURE_WIDTH_KEY]
-
-    try:
-        figure_height_inches = option_dict[FIGURE_HEIGHT_KEY]
-    except KeyError:
-        figure_height_inches = DEFAULT_OPTION_DICT[FIGURE_HEIGHT_KEY]
+    option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
+    main_line_colour = option_dict[MAIN_LINE_COLOUR_KEY]
+    main_line_width = option_dict[MAIN_LINE_WIDTH_KEY]
+    dry_adiabat_colour = option_dict[DRY_ADIABAT_COLOUR_KEY]
+    moist_adiabat_colour = option_dict[MOIST_ADIABAT_COLOUR_KEY]
+    isohume_colour = option_dict[ISOHUME_COLOUR_KEY]
+    contour_line_width = option_dict[CONTOUR_LINE_WIDTH_KEY]
+    grid_line_colour = option_dict[GRID_LINE_COLOUR_KEY]
+    grid_line_width = option_dict[GRID_LINE_WIDTH_KEY]
+    figure_width_inches = option_dict[FIGURE_WIDTH_KEY]
+    figure_height_inches = option_dict[FIGURE_HEIGHT_KEY]
 
     figure_object = pyplot.figure(
         figsize=(figure_width_inches, figure_height_inches))
@@ -204,8 +169,7 @@ def plot_sounding(
 
 def plot_many_soundings(
         list_of_metpy_dictionaries, title_strings, num_panel_rows,
-        output_file_name, temp_directory_name=None,
-        option_dict=DEFAULT_OPTION_DICT):
+        output_file_name, temp_directory_name=None, option_dict=None):
     """Creates paneled figure with many soundings.
 
     N = number of soundings to plot

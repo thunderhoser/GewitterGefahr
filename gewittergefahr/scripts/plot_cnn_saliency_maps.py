@@ -3,19 +3,24 @@
 import os.path
 import argparse
 import numpy
+from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import storm_images
-from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.plotting import saliency_plotting
 
-# TODO(thunderhoser): Maybe add other saliency-plotting options to this script.
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
+    model_name=nwp_model_utils.RAP_MODEL_NAME,
+    grid_id=nwp_model_utils.ID_FOR_130GRID)
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 MAX_CONTOUR_VALUE_ARG_NAME = 'max_contour_value'
 MAX_CONTOUR_PRCTILE_ARG_NAME = 'max_contour_percentile'
 ONE_FIG_PER_OBJECT_ARG_NAME = 'one_fig_per_storm_object'
 NUM_PANEL_ROWS_ARG_NAME = 'num_panel_rows'
+TEMP_DIRECTORY_ARG_NAME = 'temp_directory_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
@@ -41,6 +46,12 @@ ONE_FIG_PER_OBJECT_HELP_STRING = (
     'object.')
 
 NUM_PANEL_ROWS_HELP_STRING = 'Number of panel rows in each figure.'
+
+TEMP_DIRECTORY_HELP_STRING = (
+    'Name of temporary directory.  Panels of sounding/saliency maps will be '
+    'saved here before they are concatenated, then deleted.  To use the default'
+    ' temp directory on the local machine, leave this alone.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory.  Figures will be saved here.')
 
@@ -66,12 +77,17 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_PANEL_ROWS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + TEMP_DIRECTORY_ARG_NAME, type=str, required=False, default='',
+    help=TEMP_DIRECTORY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
 def _run(input_file_name, max_contour_value, max_contour_percentile,
-         one_fig_per_storm_object, num_panel_rows, output_dir_name):
+         one_fig_per_storm_object, num_panel_rows, temp_directory_name,
+         output_dir_name):
     """Plots saliency maps for a CNN (convolutional neural network).
 
     This is effectively the main method.
@@ -81,6 +97,7 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
     :param max_contour_percentile: Same.
     :param one_fig_per_storm_object: Same.
     :param num_panel_rows: Same.
+    :param temp_directory_name: Same.
     :param output_dir_name: Same.
     :raises: ValueError: if both `max_contour_value` and
         `max_contour_percentile` are non-positive.
@@ -96,6 +113,8 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
     if max_contour_value is None and max_contour_percentile is None:
         raise ValueError(
             'max_contour_value and max_contour_percentile cannot both be None.')
+    if temp_directory_name == '':
+        temp_directory_name = None
 
     # Read saliency maps.
     print 'Reading saliency maps from: "{0:s}"...'.format(input_file_name)
@@ -115,7 +134,9 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
 
     print 'Max saliency contour = {0:.3e}\n'.format(max_contour_value)
     saliency_option_dict = {
-        saliency_plotting.MAX_CONTOUR_VALUE_KEY: max_contour_value
+        saliency_plotting.MAX_CONTOUR_VALUE_KEY: max_contour_value,
+        saliency_plotting.MIN_COLOUR_VALUE_KEY: -1 * max_contour_value,
+        saliency_plotting.MAX_COLOUR_VALUE_KEY: max_contour_value
     }
 
     # Read metadata for the CNN that generated the saliency maps.
@@ -144,9 +165,9 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
              for f in training_radar_file_name_matrix[0, 0, :]],
             dtype=int)
 
-        saliency_plotting.plot_many_saliency_fields_3d(
-            radar_field_matrix=list_of_input_matrices[0],
-            saliency_field_matrix=list_of_saliency_matrices[0],
+        saliency_plotting.plot_saliency_with_radar_3d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
             saliency_metadata_dict=saliency_metadata_dict,
             radar_field_names=radar_field_names,
             radar_heights_m_asl=radar_heights_m_asl,
@@ -163,15 +184,31 @@ def _run(input_file_name, max_contour_value, max_contour_percentile,
              for f in training_radar_file_name_matrix[0, :]],
             dtype=int)
 
-        saliency_plotting.plot_many_saliency_fields_2d(
-            radar_field_matrix=list_of_input_matrices[0],
-            saliency_field_matrix=list_of_saliency_matrices[0],
+        saliency_plotting.plot_saliency_with_radar_2d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
             saliency_metadata_dict=saliency_metadata_dict,
             field_name_by_pair=field_name_by_pair,
             height_by_pair_m_asl=height_by_pair_m_asl,
             one_fig_per_storm_object=one_fig_per_storm_object,
             num_panel_rows=num_panel_rows, output_dir_name=output_dir_name,
             saliency_option_dict=saliency_option_dict)
+
+    print SEPARATOR_STRING
+
+    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
+        saliency_plotting.plot_saliency_with_soundings(
+            sounding_matrix=list_of_input_matrices[-1],
+            saliency_matrix=list_of_saliency_matrices[-1],
+            saliency_metadata_dict=saliency_metadata_dict,
+            sounding_field_names=model_metadata_dict[
+                cnn.SOUNDING_FIELD_NAMES_KEY],
+            pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict,
+            temp_directory_name=temp_directory_name)
+
+    print SEPARATOR_STRING
 
 
 if __name__ == '__main__':
@@ -185,4 +222,5 @@ if __name__ == '__main__':
         one_fig_per_storm_object=bool(getattr(
             INPUT_ARG_OBJECT, ONE_FIG_PER_OBJECT_ARG_NAME)),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
+        temp_directory_name=getattr(INPUT_ARG_OBJECT, TEMP_DIRECTORY_ARG_NAME),
         output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
