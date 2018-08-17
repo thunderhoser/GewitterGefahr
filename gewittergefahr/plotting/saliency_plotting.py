@@ -107,9 +107,13 @@ def plot_saliency_for_sounding(
     """
 
     if option_dict is None:
-        option_dict = {}
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
 
-    option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
+    option_dict = DEFAULT_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
     colour_map_object = option_dict[COLOUR_MAP_KEY]
     min_colour_value = option_dict[MIN_COLOUR_VALUE_KEY]
     max_colour_value = option_dict[MAX_COLOUR_VALUE_KEY]
@@ -186,14 +190,19 @@ def plot_saliency_with_sounding(
     """
 
     if saliency_option_dict is None:
-        saliency_option_dict = {}
-    if sounding_option_dict is None:
-        sounding_option_dict = {}
+        orig_saliency_option_dict = {}
+    else:
+        orig_saliency_option_dict = saliency_option_dict.copy()
 
-    saliency_option_dict = DEFAULT_OPTION_DICT.copy().update(
-        saliency_option_dict)
-    sounding_option_dict = sounding_plotting.DEFAULT_OPTION_DICT.copy().update(
-        sounding_option_dict)
+    if sounding_option_dict is None:
+        orig_sounding_option_dict = {}
+    else:
+        orig_sounding_option_dict = sounding_option_dict.copy()
+
+    saliency_option_dict = DEFAULT_OPTION_DICT.copy()
+    saliency_option_dict.update(orig_saliency_option_dict)
+    sounding_option_dict = sounding_plotting.DEFAULT_OPTION_DICT.copy()
+    sounding_option_dict.update(orig_sounding_option_dict)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
     if temp_directory_name is not None:
@@ -353,13 +362,13 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     error_checking.assert_is_numpy_array(saliency_matrix, num_dimensions=2)
 
     if option_dict is None:
-        option_dict = {}
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
 
-    print option_dict
-    print DEFAULT_OPTION_DICT
-    option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
-    print option_dict
-    
+    option_dict = DEFAULT_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
     max_contour_value = option_dict[MAX_CONTOUR_VALUE_KEY]
     colour_map_object = option_dict[COLOUR_MAP_KEY]
     label_contours = option_dict[LABEL_CONTOURS_KEY]

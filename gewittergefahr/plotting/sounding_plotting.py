@@ -94,9 +94,13 @@ def plot_sounding(
     error_checking.assert_is_string(title_string)
 
     if option_dict is None:
-        option_dict = {}
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
 
-    option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
+    option_dict = DEFAULT_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
     main_line_colour = option_dict[MAIN_LINE_COLOUR_KEY]
     main_line_width = option_dict[MAIN_LINE_WIDTH_KEY]
     dry_adiabat_colour = option_dict[DRY_ADIABAT_COLOUR_KEY]
