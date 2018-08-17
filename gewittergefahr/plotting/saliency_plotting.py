@@ -41,7 +41,7 @@ STRING_FORMAT_FOR_NEGATIVE_LABELS = '-%.3f'
 FONT_SIZE_FOR_CONTOUR_LABELS = 20
 
 MAX_CONTOUR_VALUE_KEY = 'max_contour_value'
-COLOUR_MAP_KEY = 'colour_map_object'
+RADAR_COLOUR_MAP_KEY = 'radar_colour_map_object'
 LABEL_CONTOURS_KEY = 'label_contours'
 LINE_WIDTH_KEY = 'line_width'
 NUM_CONTOUR_LEVELS_KEY = 'num_contour_levels'
@@ -51,7 +51,7 @@ MAX_COLOUR_VALUE_KEY = 'max_colour_value'
 
 DEFAULT_OPTION_DICT = {
     MAX_CONTOUR_VALUE_KEY: None,
-    COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
+    RADAR_COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
     LABEL_CONTOURS_KEY: False,
     LINE_WIDTH_KEY: 3,
     NUM_CONTOUR_LEVELS_KEY: 12,
@@ -114,7 +114,7 @@ def plot_saliency_for_sounding(
     option_dict = DEFAULT_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
-    colour_map_object = option_dict[COLOUR_MAP_KEY]
+    colour_map_object = option_dict[SOUNDING_COLOUR_MAP_KEY]
     min_colour_value = option_dict[MIN_COLOUR_VALUE_KEY]
     max_colour_value = option_dict[MAX_COLOUR_VALUE_KEY]
     error_checking.assert_is_greater(max_colour_value, min_colour_value)
@@ -245,7 +245,7 @@ def plot_saliency_with_sounding(
 
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=saliency_matrix,
-        colour_map=saliency_option_dict[COLOUR_MAP_KEY],
+        colour_map=saliency_option_dict[SOUNDING_COLOUR_MAP_KEY],
         colour_min=saliency_option_dict[MIN_COLOUR_VALUE_KEY],
         colour_max=saliency_option_dict[MAX_COLOUR_VALUE_KEY],
         orientation='vertical', extend_min=True, extend_max=True)
@@ -370,7 +370,7 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     option_dict.update(orig_option_dict)
 
     max_contour_value = option_dict[MAX_CONTOUR_VALUE_KEY]
-    colour_map_object = option_dict[COLOUR_MAP_KEY]
+    colour_map_object = option_dict[RADAR_COLOUR_MAP_KEY]
     label_contours = option_dict[LABEL_CONTOURS_KEY]
     line_width = option_dict[LINE_WIDTH_KEY]
     num_contour_levels = option_dict[NUM_CONTOUR_LEVELS_KEY]
