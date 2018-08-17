@@ -12,6 +12,8 @@ F = number of radar fields per image (only for 3-D images)
 C = number of radar channels (field/height pairs) per image (only for 2-D)
 """
 
+import os
+import tempfile
 import numpy
 import matplotlib
 matplotlib.use('agg')
@@ -23,8 +25,11 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import saliency_maps
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
+from gewittergefahr.plotting import sounding_plotting
+from gewittergefahr.plotting import imagemagick_utils
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
@@ -61,29 +66,39 @@ SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
     soundings_only.TEMPERATURE_NAME: r'$T$',
     soundings_only.RELATIVE_HUMIDITY_NAME: 'RH',
     soundings_only.U_WIND_NAME: r'$u$',
-    soundings_only.V_WIND_NAME: r'$v$'
+    soundings_only.V_WIND_NAME: r'$v$',
+    soundings_only.GEOPOTENTIAL_HEIGHT_NAME: r'$Z$'
 }
 
 METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
 DEFAULT_FIG_HEIGHT_INCHES = 15.
 TITLE_FONT_SIZE = 20
+
+# Paths to ImageMagick executables.
+CONVERT_EXE_NAME = '/usr/bin/convert'
+MONTAGE_EXE_NAME = '/usr/bin/montage'
+
 DOTS_PER_INCH = 300
+SINGLE_IMAGE_SIZE_PIXELS = int(1e6)
+SINGLE_IMAGE_BORDER_WIDTH_PIXELS = 10
+PANELED_IMAGE_BORDER_WIDTH_PIXELS = 10
 
 
-def plot_saliency_for_soundings(
+def plot_saliency_for_sounding(
         saliency_matrix, sounding_field_names, pressure_levels_mb, axes_object,
-        option_dict):
+        title_string='', option_dict=DEFAULT_SALIENCY_OPTION_DICT):
     """Plots saliency for each sounding field.
 
-    F = number of sounding fields
-    H = number of pressure levels
+    f = number of sounding fields
+    p = number of pressure levels
 
-    :param saliency_matrix: H-by-F numpy array of saliency values.
-    :param sounding_field_names: length-F list with names of sounding fields.
-    :param pressure_levels_mb: length-H numpy array of pressure levels
+    :param saliency_matrix: p-by-f numpy array of saliency values.
+    :param sounding_field_names: length-f list with names of sounding fields.
+    :param pressure_levels_mb: length-p numpy array of pressure levels
         (millibars).
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param title_string: Figure title.
     :param option_dict: Dictionary with the following keys.
     option_dict['colour_map_object']: Instance of
         `matplotlib.colors.ListedColormap`.
@@ -98,12 +113,12 @@ def plot_saliency_for_soundings(
             SOUNDING_COLOUR_MAP_KEY]
 
     try:
-        min_colour_value = option_dict[COLOUR_MAP_KEY]
+        min_colour_value = option_dict[MIN_COLOUR_VALUE_KEY]
     except KeyError:
         min_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MIN_COLOUR_VALUE_KEY]
 
     try:
-        max_colour_value = option_dict[COLOUR_MAP_KEY]
+        max_colour_value = option_dict[MAX_COLOUR_VALUE_KEY]
     except KeyError:
         max_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MAX_COLOUR_VALUE_KEY]
 
@@ -137,8 +152,10 @@ def plot_saliency_for_soundings(
         y_tick_labels[k] = '{0:d}'.format(
             int(numpy.round(pressure_levels_mb[k])))
 
+    these_indices = numpy.where(numpy.array(y_tick_labels) != '')[0]
+    y_tick_locations = y_tick_locations[these_indices]
+    y_tick_labels = [y_tick_labels[k] for k in these_indices]
     pyplot.yticks(y_tick_locations, y_tick_labels)
-    pyplot.ylabel('Pressure (mb)')
 
     x_tick_locations = numpy.linspace(
         0, num_sounding_fields - 1, num=num_sounding_fields, dtype=float)
@@ -146,9 +163,204 @@ def plot_saliency_for_soundings(
         SOUNDING_FIELD_NAME_TO_ABBREV_DICT[f] for f in sounding_field_names]
     pyplot.xticks(x_tick_locations, x_tick_labels)
 
+    pyplot.title(title_string)
 
-def plot_saliency_field_2d(saliency_matrix, axes_object, option_dict):
-    """Plots 2-D saliency field with unfilled, coloured contours.
+
+def plot_saliency_with_sounding(
+        sounding_matrix, saliency_matrix, sounding_field_names,
+        pressure_levels_mb, output_file_name, sounding_title_string='',
+        saliency_title_string='',
+        saliency_option_dict=DEFAULT_SALIENCY_OPTION_DICT,
+        sounding_option_dict=sounding_plotting.DEFAULT_OPTION_DICT,
+        temp_directory_name=None):
+    """Plots saliency for each sounding field, along with the sounding itself.
+
+    The sounding itself will be in the left panel; saliency map will be in the
+    right panel.
+
+    f = number of sounding fields
+    p = number of pressure levels
+
+    :param sounding_matrix: p-by-f numpy array of sounding measurements.
+    :param saliency_matrix: p-by-f numpy array of corresponding saliency values.
+    :param sounding_field_names: See doc for `plot_saliency_for_sounding`.
+    :param pressure_levels_mb: Same.
+    :param output_file_name: Path to output (image) file.
+    :param sounding_title_string: Title for sounding itself.
+    :param saliency_title_string: Title for saliency map.
+    :param saliency_option_dict: See doc for `plot_saliency_for_sounding`.
+    :param sounding_option_dict: See doc for `sounding_plotting.plot_sounding`.
+    :param temp_directory_name: Name of temporary directory.  Each panel will be
+        stored here, then deleted after the panels have been concatenated into
+        the final image.  If `temp_directory_name is None`, will use the default
+        temp directory on the local machine.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
+    if temp_directory_name is not None:
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=temp_directory_name)
+
+    # Plot sounding.
+    list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
+        sounding_matrix=numpy.expand_dims(sounding_matrix, axis=0),
+        pressure_levels_mb=pressure_levels_mb,
+        pressureless_field_names=sounding_field_names)
+
+    sounding_plotting.plot_sounding(
+        sounding_dict_for_metpy=list_of_metpy_dictionaries[0],
+        title_string=sounding_title_string, option_dict=sounding_option_dict)
+
+    temp_sounding_file_name = '{0:s}.jpg'.format(
+        tempfile.NamedTemporaryFile(dir=temp_directory_name, delete=False).name)
+    pyplot.savefig(temp_sounding_file_name, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=temp_sounding_file_name,
+        output_file_name=temp_sounding_file_name,
+        border_width_pixels=SINGLE_IMAGE_BORDER_WIDTH_PIXELS,
+        output_size_pixels=SINGLE_IMAGE_SIZE_PIXELS)
+
+    # Plot saliency map.
+    try:
+        figure_width_inches = sounding_option_dict[
+            sounding_plotting.FIGURE_WIDTH_KEY]
+    except KeyError:
+        figure_width_inches = sounding_plotting.DEFAULT_OPTION_DICT[
+            sounding_plotting.FIGURE_WIDTH_KEY]
+
+    try:
+        figure_height_inches = sounding_option_dict[
+            sounding_plotting.FIGURE_HEIGHT_KEY]
+    except KeyError:
+        figure_height_inches = sounding_plotting.DEFAULT_OPTION_DICT[
+            sounding_plotting.FIGURE_HEIGHT_KEY]
+
+    _, axes_object = pyplot.subplots(
+        1, 1, figsize=(figure_width_inches, figure_height_inches))
+
+    plot_saliency_for_sounding(
+        saliency_matrix=saliency_matrix,
+        sounding_field_names=sounding_field_names,
+        pressure_levels_mb=pressure_levels_mb, axes_object=axes_object,
+        title_string=saliency_title_string, option_dict=saliency_option_dict)
+
+    try:
+        colour_map_object = saliency_option_dict[COLOUR_MAP_KEY]
+    except KeyError:
+        colour_map_object = DEFAULT_SALIENCY_OPTION_DICT[
+            SOUNDING_COLOUR_MAP_KEY]
+
+    try:
+        min_colour_value = saliency_option_dict[MIN_COLOUR_VALUE_KEY]
+    except KeyError:
+        min_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MIN_COLOUR_VALUE_KEY]
+
+    try:
+        max_colour_value = saliency_option_dict[MAX_COLOUR_VALUE_KEY]
+    except KeyError:
+        max_colour_value = DEFAULT_SALIENCY_OPTION_DICT[MAX_COLOUR_VALUE_KEY]
+
+    plotting_utils.add_linear_colour_bar(
+        axes_object_or_list=axes_object, values_to_colour=saliency_matrix,
+        colour_map=colour_map_object, colour_min=min_colour_value,
+        colour_max=max_colour_value, orientation='vertical', extend_min=True,
+        extend_max=True)
+
+    temp_saliency_file_name = '{0:s}.jpg'.format(
+        tempfile.NamedTemporaryFile(dir=temp_directory_name, delete=False).name)
+    pyplot.savefig(temp_saliency_file_name, dpi=DOTS_PER_INCH)
+    pyplot.close()
+
+    imagemagick_utils.trim_whitespace(
+        input_file_name=temp_saliency_file_name,
+        output_file_name=temp_saliency_file_name,
+        border_width_pixels=SINGLE_IMAGE_BORDER_WIDTH_PIXELS,
+        output_size_pixels=SINGLE_IMAGE_SIZE_PIXELS)
+
+    # Concatenate the sounding and saliency map.
+    imagemagick_utils.concatenate_images(
+        input_file_names=[temp_sounding_file_name, temp_saliency_file_name],
+        output_file_name=output_file_name, num_panel_rows=1,
+        num_panel_columns=2,
+        border_width_pixels=PANELED_IMAGE_BORDER_WIDTH_PIXELS)
+
+    os.remove(temp_sounding_file_name)
+    os.remove(temp_saliency_file_name)
+
+
+def plot_saliency_with_soundings(
+        sounding_matrix, saliency_matrix, saliency_metadata_dict,
+        sounding_field_names, pressure_levels_mb, output_dir_name,
+        saliency_option_dict=DEFAULT_SALIENCY_OPTION_DICT,
+        temp_directory_name=None):
+    """For each storm object, plots sounding along with saliency values.
+
+    f = number of sounding fields
+    p = number of pressure levels
+
+    This method creates one figure per storm object.
+
+    :param sounding_matrix: E-by-p-by-f numpy array of sounding measurements.
+    :param saliency_matrix: E-by-p-by-f numpy array of corresponding saliency
+        values.
+    :param saliency_metadata_dict: Dictionary returned by
+        `saliency_maps.read_file`.
+    :param sounding_field_names: See doc for `plot_saliency_for_sounding`.
+    :param pressure_levels_mb: Same.
+    :param output_dir_name: Name of output directory (figures will be saved
+        here).
+    :param saliency_option_dict: See doc for `plot_saliency_with_sounding`.
+    :param temp_directory_name: Same.
+    """
+
+    error_checking.assert_is_numpy_array(sounding_matrix)
+    error_checking.assert_is_numpy_array(
+        saliency_matrix, exact_dimensions=numpy.array(sounding_matrix.shape))
+    num_storm_objects = sounding_matrix.shape[0]
+
+    sounding_option_dict = {
+        sounding_plotting.FIGURE_WIDTH_KEY: DEFAULT_FIG_WIDTH_INCHES,
+        sounding_plotting.FIGURE_HEIGHT_KEY: DEFAULT_FIG_HEIGHT_INCHES
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
+    for i in range(num_storm_objects):
+        this_storm_id = saliency_metadata_dict[
+            saliency_maps.STORM_IDS_KEY][i]
+        this_storm_time_string = time_conversion.unix_sec_to_string(
+            saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
+            TIME_FORMAT)
+
+        this_sounding_title_string = 'Storm "{0:s}" at {1:s}'.format(
+            this_storm_id, this_storm_time_string)
+        this_saliency_title_string = 'Saliency'
+
+        this_figure_file_name = (
+            '{0:s}/sounding-saliency_{1:s}_{2:s}.jpg'
+        ).format(output_dir_name, this_storm_id.replace('_', '-'),
+                 this_storm_time_string)
+
+        print 'Saving figure to file: "{0:s}"...'.format(this_figure_file_name)
+        plot_saliency_with_sounding(
+            sounding_matrix=sounding_matrix[i, ...],
+            saliency_matrix=saliency_matrix[i, ...],
+            sounding_field_names=sounding_field_names,
+            pressure_levels_mb=pressure_levels_mb,
+            output_file_name=this_figure_file_name,
+            sounding_title_string=this_sounding_title_string,
+            saliency_title_string=this_saliency_title_string,
+            saliency_option_dict=saliency_option_dict,
+            sounding_option_dict=sounding_option_dict,
+            temp_directory_name=temp_directory_name)
+
+
+def plot_saliency_for_radar(
+        saliency_matrix, axes_object, option_dict=DEFAULT_SALIENCY_OPTION_DICT):
+    """Plots saliency map for a 2-D radar field.
 
     :param saliency_matrix: M-by-N numpy array of saliency values.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
@@ -230,16 +442,16 @@ def plot_saliency_field_2d(saliency_matrix, axes_object, option_dict):
             fontsize=FONT_SIZE_FOR_CONTOUR_LABELS)
 
 
-def plot_many_saliency_fields_2d(
-        radar_field_matrix, saliency_field_matrix, saliency_metadata_dict,
+def plot_saliency_with_radar_2d_fields(
+        radar_matrix, saliency_matrix, saliency_metadata_dict,
         field_name_by_pair, height_by_pair_m_asl, one_fig_per_storm_object,
         num_panel_rows, output_dir_name, saliency_option_dict,
         figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
-    """Plots many 2-D saliency fields (with the underlying radar fields).
+    """Plots many 2-D saliency fields with the underlying radar fields.
 
-    :param radar_field_matrix: E-by-M-by-N-by-C numpy array of radar values.
-    :param saliency_field_matrix: E-by-M-by-N-by-C numpy array of corresponding
+    :param radar_matrix: E-by-M-by-N-by-C numpy array of radar values.
+    :param saliency_matrix: E-by-M-by-N-by-C numpy array of corresponding
         saliency values.
     :param saliency_metadata_dict: Dictionary returned by
         `saliency_maps.read_file`.
@@ -255,18 +467,17 @@ def plot_many_saliency_fields_2d(
     :param num_panel_rows: Number of panel rows in each figure.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
-    :param saliency_option_dict: See doc for `plot_saliency_field_2d`.
+    :param saliency_option_dict: See doc for `plot_saliency_for_radar`.
     :param figure_width_inches: Width of each figure.
     :param figure_height_inches: Height of each figure.
     """
 
-    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=4)
+    error_checking.assert_is_numpy_array(radar_matrix, num_dimensions=4)
     error_checking.assert_is_numpy_array(
-        saliency_field_matrix,
-        exact_dimensions=numpy.array(radar_field_matrix.shape))
+        saliency_matrix, exact_dimensions=numpy.array(radar_matrix.shape))
 
-    num_storm_objects = radar_field_matrix.shape[0]
-    num_field_height_pairs = radar_field_matrix.shape[-1]
+    num_storm_objects = radar_matrix.shape[0]
+    num_field_height_pairs = radar_matrix.shape[-1]
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_pair),
         exact_dimensions=numpy.array([num_field_height_pairs]))
@@ -318,14 +529,14 @@ def plot_many_saliency_fields_2d(
 
                     radar_plotting.plot_2d_grid_without_coords(
                         field_matrix=numpy.flipud(
-                            radar_field_matrix[i, ..., this_fh_pair_index]),
+                            radar_matrix[i, ..., this_fh_pair_index]),
                         field_name=field_name_by_pair[this_fh_pair_index],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
 
-                    plot_saliency_field_2d(
+                    plot_saliency_for_radar(
                         saliency_matrix=numpy.flipud(
-                            saliency_field_matrix[i, ..., this_fh_pair_index]),
+                            saliency_matrix[i, ..., this_fh_pair_index]),
                         axes_object=axes_objects_2d_list[j][k],
                         option_dict=saliency_option_dict)
 
@@ -339,9 +550,10 @@ def plot_many_saliency_fields_2d(
                 this_storm_id, this_storm_time_string)
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-            this_figure_file_name = '{0:s}/saliency_{1:s}_{2:s}.jpg'.format(
-                output_dir_name, this_storm_id.replace('_', '-'),
-                this_storm_time_string)
+            this_figure_file_name = (
+                '{0:s}/radar-saliency_{1:s}_{2:s}.jpg'
+            ).format(output_dir_name, this_storm_id.replace('_', '-'),
+                     this_storm_time_string)
 
             print 'Saving figure to file: "{0:s}"...'.format(
                 this_figure_file_name)
@@ -373,15 +585,14 @@ def plot_many_saliency_fields_2d(
 
                     radar_plotting.plot_2d_grid_without_coords(
                         field_matrix=numpy.flipud(
-                            radar_field_matrix[
-                                this_storm_object_index, ..., i]),
+                            radar_matrix[this_storm_object_index, ..., i]),
                         field_name=field_name_by_pair[i],
                         axes_object=axes_objects_2d_list[j][k],
                         annotation_string=this_annotation_string)
 
-                    plot_saliency_field_2d(
+                    plot_saliency_for_radar(
                         saliency_matrix=numpy.flipud(
-                            saliency_field_matrix[
+                            saliency_matrix[
                                 this_storm_object_index, ..., i]),
                         axes_object=axes_objects_2d_list[j][k],
                         option_dict=saliency_option_dict)
@@ -392,7 +603,7 @@ def plot_many_saliency_fields_2d(
 
             plotting_utils.add_colour_bar(
                 axes_object_or_list=axes_objects_2d_list,
-                values_to_colour=radar_field_matrix[..., i],
+                values_to_colour=radar_matrix[..., i],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
@@ -412,40 +623,40 @@ def plot_many_saliency_fields_2d(
             pyplot.close()
 
 
-def plot_many_saliency_fields_3d(
-        radar_field_matrix, saliency_field_matrix, saliency_metadata_dict,
+def plot_saliency_with_radar_3d_fields(
+        radar_matrix, saliency_matrix, saliency_metadata_dict,
         radar_field_names, radar_heights_m_asl, one_fig_per_storm_object,
-        num_panel_rows, output_dir_name, saliency_option_dict,
+        num_panel_rows, output_dir_name,
+        saliency_option_dict=DEFAULT_SALIENCY_OPTION_DICT,
         figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
     """Plots many 3-D saliency fields (with the underlying radar fields).
 
-    :param radar_field_matrix: E-by-M-by-N-by-H-by-F numpy array of radar
-        values.
-    :param saliency_field_matrix: E-by-M-by-N-by-H-by-F numpy array of
-        corresponding saliency values.
+    :param radar_matrix: E-by-M-by-N-by-H-by-F numpy array of radar values.
+    :param saliency_matrix: E-by-M-by-N-by-H-by-F numpy array of corresponding
+        saliency values.
     :param saliency_metadata_dict: Dictionary returned by
         `saliency_maps.read_file`.
     :param radar_field_names: length-F list of field names (each must be
         accepted by `radar_utils.check_field_name`).
     :param radar_heights_m_asl: length-H integer numpy array of radar heights
         (metres above sea level).
-    :param one_fig_per_storm_object: See doc for `plot_many_saliency_fields_2d`.
+    :param one_fig_per_storm_object: See doc for
+        `plot_saliency_with_radar_2d_fields`.
     :param num_panel_rows: Same.
     :param output_dir_name: Same.
-    :param saliency_option_dict: See doc for `plot_saliency_field_2d`.
+    :param saliency_option_dict: See doc for `plot_saliency_for_radar`.
     :param figure_width_inches: Same.
     :param figure_height_inches: Same.
     """
 
-    error_checking.assert_is_numpy_array(radar_field_matrix, num_dimensions=5)
+    error_checking.assert_is_numpy_array(radar_matrix, num_dimensions=5)
     error_checking.assert_is_numpy_array(
-        saliency_field_matrix,
-        exact_dimensions=numpy.array(radar_field_matrix.shape))
+        saliency_matrix, exact_dimensions=numpy.array(radar_matrix.shape))
 
-    num_storm_objects = radar_field_matrix.shape[0]
-    num_fields = radar_field_matrix.shape[-1]
-    num_heights = radar_field_matrix.shape[-2]
+    num_storm_objects = radar_matrix.shape[0]
+    num_fields = radar_matrix.shape[-1]
+    num_heights = radar_matrix.shape[-2]
     error_checking.assert_is_numpy_array(
         numpy.array(radar_field_names),
         exact_dimensions=numpy.array([num_fields]))
@@ -493,16 +704,15 @@ def plot_many_saliency_fields_3d(
 
                         radar_plotting.plot_2d_grid_without_coords(
                             field_matrix=numpy.flipud(
-                                radar_field_matrix[
+                                radar_matrix[
                                     i, ..., this_height_index, m]),
                             field_name=radar_field_names[m],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
 
-                        plot_saliency_field_2d(
+                        plot_saliency_for_radar(
                             saliency_matrix=numpy.flipud(
-                                saliency_field_matrix[
-                                    i, ..., this_height_index, m]),
+                                saliency_matrix[i, ..., this_height_index, m]),
                             axes_object=axes_objects_2d_list[j][k],
                             option_dict=saliency_option_dict)
 
@@ -512,7 +722,7 @@ def plot_many_saliency_fields_3d(
 
                 plotting_utils.add_colour_bar(
                     axes_object_or_list=axes_objects_2d_list,
-                    values_to_colour=radar_field_matrix[i, ..., m],
+                    values_to_colour=radar_matrix[i, ..., m],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
                     orientation='horizontal', extend_min=True, extend_max=True)
@@ -566,15 +776,15 @@ def plot_many_saliency_fields_3d(
 
                         radar_plotting.plot_2d_grid_without_coords(
                             field_matrix=numpy.flipud(
-                                radar_field_matrix[
+                                radar_matrix[
                                     this_storm_object_index, ..., m, i]),
                             field_name=radar_field_names[i],
                             axes_object=axes_objects_2d_list[j][k],
                             annotation_string=this_annotation_string)
 
-                        plot_saliency_field_2d(
+                        plot_saliency_for_radar(
                             saliency_matrix=numpy.flipud(
-                                saliency_field_matrix[
+                                saliency_matrix[
                                     this_storm_object_index, ..., m, i]),
                             axes_object=axes_objects_2d_list[j][k],
                             option_dict=saliency_option_dict)
@@ -585,7 +795,7 @@ def plot_many_saliency_fields_3d(
 
                 plotting_utils.add_colour_bar(
                     axes_object_or_list=axes_objects_2d_list,
-                    values_to_colour=radar_field_matrix[..., m, i],
+                    values_to_colour=radar_matrix[..., m, i],
                     colour_map=this_colour_map_object,
                     colour_norm_object=this_colour_norm_object,
                     orientation='horizontal', extend_min=True, extend_max=True)

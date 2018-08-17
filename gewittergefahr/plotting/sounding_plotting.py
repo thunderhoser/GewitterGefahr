@@ -11,6 +11,7 @@ import metpy.units
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.plotting import imagemagick_utils
 
 MAIN_LINE_COLOUR_KEY = 'main_line_colour'
 MAIN_LINE_WIDTH_KEY = 'main_line_width'
@@ -241,8 +242,6 @@ def plot_many_soundings(
 
     temp_file_names = [None] * num_soundings
     num_panel_columns = int(numpy.ceil(float(num_soundings) / num_panel_rows))
-    main_command_string = '"{0:s}" -mode concatenate -tile {1:d}x{2:d}'.format(
-        MONTAGE_EXE_NAME, num_panel_columns, num_panel_rows)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
@@ -260,8 +259,6 @@ def plot_many_soundings(
                 tempfile.NamedTemporaryFile(
                     dir=temp_directory_name, delete=False).name
             )
-            main_command_string += ' "{0:s}"'.format(
-                temp_file_names[this_sounding_index])
 
             print 'Saving sounding to: "{0:s}"...'.format(
                 temp_file_names[this_sounding_index])
@@ -269,29 +266,19 @@ def plot_many_soundings(
                 temp_file_names[this_sounding_index], dpi=DOTS_PER_INCH)
             pyplot.close()
 
-            command_string = (
-                '"{0:s}" "{1:s}" -resize {2:d}@ -trim -bordercolor White '
-                '-border {3:d} "{1:s}"'
-            ).format(CONVERT_EXE_NAME, temp_file_names[this_sounding_index],
-                     NUM_PIXELS_FOR_UNPANELED_IMAGE,
-                     BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX)
-
-            exit_code = os.system(command_string)
-            if exit_code != 0:
-                raise ValueError('\nUnix command failed (log messages shown '
-                                 'above should explain why).')
+            imagemagick_utils.trim_whitespace(
+                input_file_name=temp_file_names[this_sounding_index],
+                output_file_name=temp_file_names[this_sounding_index],
+                border_width_pixels=BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX,
+                output_size_pixels=NUM_PIXELS_FOR_UNPANELED_IMAGE)
 
     print 'Concatenating panels into one figure: "{0:s}"...'.format(
         output_file_name)
 
-    main_command_string += (
-        ' -trim -bordercolor White -border {0:d} "{1:s}"'
-    ).format(BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX, output_file_name)
-
-    exit_code = os.system(main_command_string)
-    if exit_code != 0:
-        raise ValueError('\nUnix command failed (log messages shown above '
-                         'should explain why).')
+    imagemagick_utils.concatenate_images(
+        input_file_names=temp_file_names, output_file_name=output_file_name,
+        num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
+        border_width_pixels=BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX)
 
     for i in range(num_soundings):
         os.remove(temp_file_names[i])
