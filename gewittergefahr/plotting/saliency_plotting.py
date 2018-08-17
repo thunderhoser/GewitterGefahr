@@ -144,6 +144,7 @@ def plot_saliency_for_sounding(
             pressure_levels_mb[1] - pressure_levels_mb[0])))
 
     print edge_y_coords_metres
+    print saliency_matrix_at_edges
 
     pyplot.pcolormesh(
         edge_x_coords_metres, edge_y_coords_metres, saliency_matrix_at_edges,
