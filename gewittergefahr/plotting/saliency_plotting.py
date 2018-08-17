@@ -355,7 +355,11 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     if option_dict is None:
         option_dict = {}
 
+    print option_dict
+    print DEFAULT_OPTION_DICT
     option_dict = DEFAULT_OPTION_DICT.copy().update(option_dict)
+    print option_dict
+    
     max_contour_value = option_dict[MAX_CONTOUR_VALUE_KEY]
     colour_map_object = option_dict[COLOUR_MAP_KEY]
     label_contours = option_dict[LABEL_CONTOURS_KEY]
