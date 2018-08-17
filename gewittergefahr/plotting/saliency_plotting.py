@@ -20,6 +20,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -135,21 +136,24 @@ def plot_saliency_for_sounding(
             [num_pressure_levels, num_sounding_fields])
     )
 
-    axes_object.imshow(
-        saliency_matrix, cmap=colour_map_object, origin='lower',
-        aspect=float(2 * num_sounding_fields) / num_pressure_levels,
-        vmin=min_colour_value, vmax=max_colour_value)
+    (saliency_matrix_at_edges, edge_x_coords_metres, edge_y_coords_metres
+    ) = grids.xy_field_grid_points_to_edges(
+        field_matrix=saliency_matrix, x_min_metres=0.,
+        y_min_metres=float(numpy.min(pressure_levels_mb)), x_spacing_metres=1.,
+        y_spacing_metres=float(numpy.absolute(
+            pressure_levels_mb[1] - pressure_levels_mb[0])))
 
-    y_tick_locations = numpy.linspace(
-        0, num_pressure_levels - 1, num=num_pressure_levels, dtype=float)
-    y_tick_labels = [''] * num_pressure_levels
-    for k in range(0, num_pressure_levels, 4):
-        y_tick_labels[k] = '{0:d}'.format(
-            int(numpy.round(pressure_levels_mb[k])))
+    print edge_y_coords_metres
 
-    these_indices = numpy.where(numpy.array(y_tick_labels) != '')[0]
-    y_tick_locations = y_tick_locations[these_indices]
-    y_tick_labels = [y_tick_labels[k] for k in these_indices]
+    pyplot.pcolormesh(
+        edge_x_coords_metres, edge_y_coords_metres, saliency_matrix_at_edges,
+        cmap=colour_map_object, vmin=min_colour_value, vmax=max_colour_value,
+        shading='flat', edgecolors='None', axes=axes_object)
+    axes_object.invert_yaxis()
+    pyplot.yscale('log')
+
+    y_tick_locations = numpy.linspace(100, 1000, num=10, dtype=int)
+    y_tick_labels = ['{0:d}'.format(p) for p in y_tick_locations]
     pyplot.yticks(y_tick_locations, y_tick_labels)
 
     x_tick_locations = numpy.linspace(
