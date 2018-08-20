@@ -283,7 +283,7 @@ def create_climo_initializer(
 
     error_checking.assert_is_boolean(test_mode)
     if not test_mode:
-        (_, radar_normalization_table, _, sounding_normalization_table
+        (radar_normalization_table, _, sounding_normalization_table, _
         ) = dl_utils.read_normalization_params_from_file(
             normalization_param_file_name)
 
@@ -332,7 +332,8 @@ def create_climo_initializer(
         if len(array_dimensions) == 5:
             for j in range(len(radar_field_names)):
                 for k in range(len(radar_heights_m_asl)):
-                    this_key = (radar_field_names[j], radar_heights_m_asl[k])
+                    # this_key = (radar_field_names[j], radar_heights_m_asl[k])
+                    this_key = radar_field_names[j]
                     array[..., k, j] = radar_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
@@ -346,8 +347,9 @@ def create_climo_initializer(
 
         if len(array_dimensions) == 4:
             for j in range(len(radar_field_name_by_channel)):
-                this_key = (radar_field_name_by_channel[j],
-                            radar_height_by_channel_m_asl[j])
+                # this_key = (radar_field_name_by_channel[j],
+                #             radar_height_by_channel_m_asl[j])
+                this_key = radar_field_name_by_channel[j]
                 array[..., j] = radar_normalization_table[
                     dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
@@ -363,8 +365,9 @@ def create_climo_initializer(
         if len(array_dimensions) == 3:
             for j in range(len(sounding_field_names)):
                 for k in range(len(sounding_pressures_mb)):
-                    this_key = (
-                        sounding_field_names[j], sounding_pressures_mb[k])
+                    # this_key = (
+                    #     sounding_field_names[j], sounding_pressures_mb[k])
+                    this_key = sounding_field_names[j]
                     array[..., k, j] = sounding_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
