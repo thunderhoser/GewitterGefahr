@@ -170,108 +170,6 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _get_hilo_activation_examples(
-        storm_activations, num_low_activation_examples,
-        num_high_activation_examples):
-    """Returns low- and high-activation examples.
-
-    E = number of examples (storm objects)
-
-    :param storm_activations: length-E numpy array of model activations.
-    :param num_low_activation_examples: Number of low-activation examples to
-        return.
-    :param num_high_activation_examples: Number of high-activation examples to
-        return.
-    :return: low_indices: 1-D numpy array with indices of low-activation
-        examples.
-    :return: high_indices: 1-D numpy array with indices of high-activation
-        examples.
-    """
-
-    num_low_activation_examples = min(
-        [num_low_activation_examples, len(storm_activations)])
-    num_high_activation_examples = min(
-        [num_high_activation_examples, len(storm_activations)])
-
-    sort_indices = numpy.argsort(storm_activations)
-    if num_low_activation_examples > 0:
-        low_indices = sort_indices[:num_low_activation_examples]
-    else:
-        low_indices = numpy.array([], dtype=int)
-
-    if num_high_activation_examples > 0:
-        high_indices = sort_indices[::-1][:num_high_activation_examples]
-    else:
-        high_indices = numpy.array([], dtype=int)
-
-    return low_indices, high_indices
-
-
-def _get_class_conditional_examples(
-        storm_activations, storm_target_values, num_hits, num_misses,
-        num_false_alarms, num_correct_nulls):
-    """Returns class-conditional examples.
-
-    Specifically, this method returns:
-
-    - best hits (true positives)
-    - worst misses (false negatives)
-    - worst false alarms (false positives)
-    - best correct nulls (true negatives)
-
-    E = number of examples (storm objects)
-
-    :param storm_activations: length-E numpy array of model activations.
-    :param storm_target_values: length-E numpy array of integer target values
-        (0 or 1).
-    :param num_hits: Number of hits to return.
-    :param num_misses: Number of misses to return.
-    :param num_false_alarms: Number of false alarms to return.
-    :param num_correct_nulls: Number of correct nulls to return.
-    :return: hit_indices: 1-D numpy array with indices of best hits.
-    :return: miss_indices: 1-D numpy array with indices of worst misses.
-    :return: false_alarm_indices: 1-D numpy array with indices of worst false
-        alarms.
-    :return: correct_null_indices: 1-D numpy array with indices of best correct
-        nulls.
-    """
-
-    positive_indices = numpy.where(storm_target_values == 1)[0]
-    num_hits = min([num_hits, len(positive_indices)])
-    num_misses = min([num_misses, len(positive_indices)])
-
-    if num_hits > 0:
-        these_indices = numpy.argsort(storm_activations[positive_indices])[::-1]
-        hit_indices = positive_indices[these_indices][:num_hits]
-    else:
-        hit_indices = numpy.array([], dtype=int)
-
-    if num_misses > 0:
-        these_indices = numpy.argsort(storm_activations[positive_indices])
-        miss_indices = positive_indices[these_indices][:num_misses]
-    else:
-        miss_indices = numpy.array([], dtype=int)
-
-    negative_indices = numpy.where(storm_target_values == 0)[0]
-    num_false_alarms = min([num_false_alarms, len(negative_indices)])
-    num_correct_nulls = min([num_correct_nulls, len(negative_indices)])
-
-    if num_false_alarms > 0:
-        these_indices = numpy.argsort(storm_activations[negative_indices])[::-1]
-        false_alarm_indices = negative_indices[these_indices][:num_false_alarms]
-    else:
-        false_alarm_indices = numpy.array([], dtype=int)
-
-    if num_correct_nulls > 0:
-        these_indices = numpy.argsort(storm_activations[negative_indices])
-        correct_null_indices = negative_indices[
-            these_indices][:num_correct_nulls]
-    else:
-        correct_null_indices = numpy.array([], dtype=int)
-
-    return hit_indices, miss_indices, false_alarm_indices, correct_null_indices
-
-
 def _read_target_values(
         top_target_dir_name, storm_activations, activation_metadata_dict):
     """Reads target value for each storm object.
@@ -728,31 +626,12 @@ def _run(
     num_storm_objects = len(storm_ids)
     error_checking.assert_is_leq(numpy.sum(example_counts), num_storm_objects)
 
-    # Plot low-activation examples.
-    low_indices, high_indices = _get_hilo_activation_examples(
+    # Plot high-activation examples.
+    high_indices, low_indices = model_activation.get_hilo_activation_examples(
         storm_activations=storm_activations,
         num_low_activation_examples=num_low_activation_examples,
         num_high_activation_examples=num_high_activation_examples)
 
-    if len(low_indices) > 0:
-        print SEPARATOR_STRING
-        this_predictor_dict = _read_predictors(
-            top_radar_image_dir_name=top_radar_image_dir_name,
-            top_sounding_dir_name=top_sounding_dir_name,
-            activation_metadata_dict=activation_metadata_dict,
-            storm_ids=[storm_ids[k] for k in low_indices],
-            storm_times_unix_sec=storm_times_unix_sec[low_indices],
-            storm_activations=storm_activations[low_indices])
-        print SEPARATOR_STRING
-
-        this_directory_name = '{0:s}/low_activations'.format(output_dir_name)
-        file_system_utils.mkdir_recursive_if_necessary(
-            directory_name=this_directory_name)
-        _plot_storm_objects(
-            predictor_dict=this_predictor_dict,
-            output_dir_name=this_directory_name)
-
-    # Plot high-activation examples.
     if len(high_indices) > 0:
         print SEPARATOR_STRING
         this_predictor_dict = _read_predictors(
@@ -771,9 +650,29 @@ def _run(
             predictor_dict=this_predictor_dict,
             output_dir_name=this_directory_name)
 
+    # Plot low-activation examples.
+    if len(low_indices) > 0:
+        print SEPARATOR_STRING
+        this_predictor_dict = _read_predictors(
+            top_radar_image_dir_name=top_radar_image_dir_name,
+            top_sounding_dir_name=top_sounding_dir_name,
+            activation_metadata_dict=activation_metadata_dict,
+            storm_ids=[storm_ids[k] for k in low_indices],
+            storm_times_unix_sec=storm_times_unix_sec[low_indices],
+            storm_activations=storm_activations[low_indices])
+        print SEPARATOR_STRING
+
+        this_directory_name = '{0:s}/low_activations'.format(output_dir_name)
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=this_directory_name)
+        _plot_storm_objects(
+            predictor_dict=this_predictor_dict,
+            output_dir_name=this_directory_name)
+
     if num_hits + num_misses + num_false_alarms + num_correct_nulls == 0:
         return
 
+    # Find contingency-table extremes.
     print SEPARATOR_STRING
     target_value_dict = _read_target_values(
         top_target_dir_name=top_target_dir_name,
@@ -785,12 +684,18 @@ def _run(
     storm_activations = target_value_dict[STORM_ACTIVATIONS_KEY]
     storm_target_values = target_value_dict[TARGET_VALUES_KEY]
 
-    (hit_indices, miss_indices, false_alarm_indices, correct_null_indices
-    ) = _get_class_conditional_examples(
+    ct_extreme_dict = model_activation.get_contingency_table_extremes(
         storm_activations=storm_activations,
         storm_target_values=storm_target_values, num_hits=num_hits,
         num_misses=num_misses, num_false_alarms=num_false_alarms,
         num_correct_nulls=num_correct_nulls)
+
+    hit_indices = ct_extreme_dict[model_activation.HIT_INDICES_KEY]
+    miss_indices = ct_extreme_dict[model_activation.MISS_INDICES_KEY]
+    false_alarm_indices = ct_extreme_dict[
+        model_activation.FALSE_ALARM_INDICES_KEY]
+    correct_null_indices = ct_extreme_dict[
+        model_activation.CORRECT_NULL_INDICES_KEY]
 
     # Plot best hits (true positives).
     if len(hit_indices) > 0:

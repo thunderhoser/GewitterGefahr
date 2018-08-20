@@ -625,3 +625,46 @@ def read_many_processed_files(pickle_file_names):
 
     return pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
+
+
+def write_storm_ids_and_times(
+        pickle_file_name, storm_ids, storm_times_unix_sec):
+    """Writes ID and time for each storm object to Pickle file.
+
+    N = number of storm objects
+
+    :param pickle_file_name: Path to output file.
+    :param storm_ids: length-N list of IDs (strings).
+    :param storm_times_unix_sec: length-N numpy array of valid times.
+    """
+
+    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_numpy_array(
+        numpy.array(storm_ids), num_dimensions=1)
+    num_storm_objects = len(storm_ids)
+
+    error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        storm_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects]))
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(storm_ids, pickle_file_handle)
+    pickle.dump(storm_times_unix_sec, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_storm_ids_and_times(pickle_file_name):
+    """Reads ID and time for each storm object from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_ids: See doc for `write_storm_ids_and_times`.
+    :return: storm_times_unix_sec: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    storm_ids = pickle.load(pickle_file_handle)
+    storm_times_unix_sec = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return storm_ids, storm_times_unix_sec

@@ -24,6 +24,11 @@ LAYER_NAME_KEY = 'layer_name'
 NEURON_INDICES_KEY = 'neuron_index_matrix'
 CHANNEL_INDICES_KEY = 'channel_indices'
 
+HIT_INDICES_KEY = 'hit_indices'
+MISS_INDICES_KEY = 'miss_indices'
+FALSE_ALARM_INDICES_KEY = 'false_alarm_indices'
+CORRECT_NULL_INDICES_KEY = 'correct_null_indices'
+
 
 def check_metadata(
         component_type_string, target_class=None, layer_name=None,
@@ -195,6 +200,150 @@ def get_channel_activation_for_examples(
     )
 
     return activation_function(list_of_input_matrices + [0])[0]
+
+
+def get_hilo_activation_examples(
+        storm_activations, num_high_activation_examples,
+        num_low_activation_examples):
+    """Finds examples (storm objects) with highest and lowest activations.
+
+    E = number of examples
+
+    :param storm_activations: length-E numpy array of model activations.
+    :param num_high_activation_examples: Number of high-activation examples to
+        return.
+    :param num_low_activation_examples: Number of low-activation examples to
+        return.
+    :return: low_indices: 1-D numpy array with indices of low-activation
+        examples.
+    :return: high_indices: 1-D numpy array with indices of high-activation
+        examples.
+    """
+
+    error_checking.assert_is_numpy_array(storm_activations, num_dimensions=1)
+    error_checking.assert_is_integer(num_high_activation_examples)
+    error_checking.assert_is_geq(num_high_activation_examples, 0)
+    error_checking.assert_is_integer(num_low_activation_examples)
+    error_checking.assert_is_geq(num_low_activation_examples, 0)
+    error_checking.assert_is_greater(
+        num_high_activation_examples + num_low_activation_examples, 0)
+
+    num_low_activation_examples = min(
+        [num_low_activation_examples, len(storm_activations)])
+    num_high_activation_examples = min(
+        [num_high_activation_examples, len(storm_activations)])
+
+    sort_indices = numpy.argsort(storm_activations)
+    if num_high_activation_examples > 0:
+        high_indices = sort_indices[::-1][:num_high_activation_examples]
+    else:
+        high_indices = numpy.array([], dtype=int)
+
+    if num_low_activation_examples > 0:
+        low_indices = sort_indices[:num_low_activation_examples]
+    else:
+        low_indices = numpy.array([], dtype=int)
+
+    return high_indices, low_indices
+
+
+def get_contingency_table_extremes(
+        storm_activations, storm_target_values, num_hits, num_misses,
+        num_false_alarms, num_correct_nulls):
+    """Returns "contingency-table extremes".
+
+    Specifically, this method returns the following:
+
+    - best hits (positive examples with the highest activations)
+    - worst misses (positive examples with the lowest activations)
+    - worst false alarms (negative examples with the highest activations)
+    - best correct nulls (negative examples with the lowest activations)
+
+    DEFINITIONS
+
+    One "example" is one storm object.
+    A "negative example" is a storm object with target = 0.
+    A "positive example" is a storm object with target = 1.
+    The target variable must be binary.
+
+    E = number of examples
+
+    :param storm_activations: length-E numpy array of model activations.
+    :param storm_target_values: length-E numpy array of target values.  These
+        must be integers from 0...1.
+    :param num_hits: Number of best hits.
+    :param num_misses: Number of worst misses.
+    :param num_false_alarms: Number of worst false alarms.
+    :param num_correct_nulls: Number of best correct nulls.
+    :return: ct_extreme_dict: Dictionary with the following keys.
+    ct_extreme_dict['hit_indices']: 1-D numpy array with indices of best hits.
+    ct_extreme_dict['miss_indices']: 1-D numpy array with indices of worst
+        misses.
+    ct_extreme_dict['false_alarm_indices']: 1-D numpy array with indices of
+        worst false alarms.
+    ct_extreme_dict['correct_null_indices']: 1-D numpy array with indices of
+        best correct nulls.
+    """
+
+    error_checking.assert_is_numpy_array(storm_activations, num_dimensions=1)
+    error_checking.assert_is_integer_numpy_array(storm_target_values)
+    error_checking.assert_is_geq_numpy_array(storm_target_values, 0)
+    error_checking.assert_is_leq_numpy_array(storm_target_values, 1)
+
+    num_storm_objects = len(storm_activations)
+    error_checking.assert_is_numpy_array(
+        storm_target_values, exact_dimensions=numpy.array([num_storm_objects]))
+
+    error_checking.assert_is_integer(num_hits)
+    error_checking.assert_is_geq(num_hits, 0)
+    error_checking.assert_is_integer(num_misses)
+    error_checking.assert_is_geq(num_misses, 0)
+    error_checking.assert_is_integer(num_false_alarms)
+    error_checking.assert_is_geq(num_false_alarms, 0)
+    error_checking.assert_is_integer(num_correct_nulls)
+    error_checking.assert_is_geq(num_correct_nulls, 0)
+    error_checking.assert_is_greater(
+        num_hits + num_misses + num_false_alarms + num_correct_nulls, 0)
+
+    positive_indices = numpy.where(storm_target_values == 1)[0]
+    num_hits = min([num_hits, len(positive_indices)])
+    num_misses = min([num_misses, len(positive_indices)])
+
+    if num_hits > 0:
+        these_indices = numpy.argsort(storm_activations[positive_indices])[::-1]
+        hit_indices = positive_indices[these_indices][:num_hits]
+    else:
+        hit_indices = numpy.array([], dtype=int)
+
+    if num_misses > 0:
+        these_indices = numpy.argsort(storm_activations[positive_indices])
+        miss_indices = positive_indices[these_indices][:num_misses]
+    else:
+        miss_indices = numpy.array([], dtype=int)
+
+    negative_indices = numpy.where(storm_target_values == 0)[0]
+    num_false_alarms = min([num_false_alarms, len(negative_indices)])
+    num_correct_nulls = min([num_correct_nulls, len(negative_indices)])
+
+    if num_false_alarms > 0:
+        these_indices = numpy.argsort(storm_activations[negative_indices])[::-1]
+        false_alarm_indices = negative_indices[these_indices][:num_false_alarms]
+    else:
+        false_alarm_indices = numpy.array([], dtype=int)
+
+    if num_correct_nulls > 0:
+        these_indices = numpy.argsort(storm_activations[negative_indices])
+        correct_null_indices = negative_indices[
+            these_indices][:num_correct_nulls]
+    else:
+        correct_null_indices = numpy.array([], dtype=int)
+
+    return {
+        HIT_INDICES_KEY: hit_indices,
+        MISS_INDICES_KEY: miss_indices,
+        FALSE_ALARM_INDICES_KEY: false_alarm_indices,
+        CORRECT_NULL_INDICES_KEY: correct_null_indices
+    }
 
 
 def write_file(
