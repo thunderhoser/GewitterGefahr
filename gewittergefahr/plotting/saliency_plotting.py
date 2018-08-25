@@ -45,8 +45,8 @@ DEFAULT_OPTION_DICT = {
     SOUNDING_COLOUR_MAP_KEY: pyplot.cm.PiYG,
     MIN_COLOUR_VALUE_KEY: None,
     MAX_COLOUR_VALUE_KEY: None,
-    MIN_FONT_SIZE_KEY: 8,
-    MAX_FONT_SIZE_KEY: 20
+    MIN_FONT_SIZE_KEY: 8.,
+    MAX_FONT_SIZE_KEY: 20.
 }
 
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
@@ -74,57 +74,6 @@ SINGLE_IMAGE_BORDER_WIDTH_PIXELS = 10
 PANELED_IMAGE_BORDER_WIDTH_PIXELS = 10
 
 
-def _saliency_to_opacity(
-        saliency_matrix, min_opacity, max_opacity, min_saliency, max_saliency):
-    """Converts saliency values to opacities.
-
-    :param saliency_matrix: numpy array of saliency values.
-    :param min_opacity: Minimum opacity (corresponding to `min_saliency`).  Must
-        be in range 0...1.
-    :param max_opacity: Max opacity (corresponding to `max_saliency`).  Must be
-        in range 0...1.
-    :param min_saliency: Minimum saliency.
-    :param max_saliency: Max saliency.
-    :return: opacity_matrix: numpy array of opacities, with the same shape as
-        `saliency_matrix`.
-    """
-
-    # TODO(thunderhoser): Remove this method.
-
-    error_checking.assert_is_numpy_array(saliency_matrix)
-    error_checking.assert_is_geq(min_opacity, 0.)
-    error_checking.assert_is_leq(max_opacity, 1.)
-    error_checking.assert_is_greater(max_opacity, min_opacity)
-    error_checking.assert_is_greater(max_saliency, min_saliency)
-
-    normalized_saliency_matrix = (
-        (saliency_matrix - min_saliency) / (max_saliency - min_saliency)
-    )
-    return (
-        min_opacity + normalized_saliency_matrix * (max_opacity - min_opacity)
-    )
-
-
-def _radar_values_to_colours(radar_matrix, radar_field_name, opacity_matrix):
-    """Converts radar values to colours.
-
-    :param radar_matrix: M-by-N numpy array of radar values.
-    :param radar_field_name: Name of radar field (must be accepted by
-        `radar_utils.check_field_name`).
-    :param opacity_matrix: M-by-N numpy array of opacities (in range 0...1).
-    :return: rgba_matrix: M-by-N-by-4 numpy array of colours.
-    """
-
-    # TODO(thunderhoser): Remove this method.
-
-    (colour_map_object, colour_norm_object, _
-    ) = radar_plotting.get_default_colour_scheme(radar_field_name)
-
-    rgba_matrix = colour_map_object(colour_norm_object(radar_matrix))
-    rgba_matrix[..., -1] = opacity_matrix
-    return rgba_matrix
-
-
 def _saliency_to_colour_and_size(
         saliency_matrix, colour_map_object, max_colour_value,
         min_font_size_points, max_font_size_points):
@@ -150,6 +99,7 @@ def _saliency_to_colour_and_size(
 
     norm_abs_saliency_matrix = (
         numpy.absolute(saliency_matrix) / max_colour_value)
+    norm_abs_saliency_matrix[norm_abs_saliency_matrix > 1.] = 1.
     font_size_matrix_points = (
         min_font_size_points + norm_abs_saliency_matrix *
         (max_font_size_points - min_font_size_points)
