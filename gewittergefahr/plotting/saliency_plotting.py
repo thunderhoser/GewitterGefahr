@@ -33,16 +33,14 @@ from gewittergefahr.plotting import imagemagick_utils
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-RADAR_COLOUR_MAP_KEY = 'radar_colour_map_object'
-SOUNDING_COLOUR_MAP_KEY = 'sounding_colour_map_object'
+COLOUR_MAP_KEY = 'colour_map_object'
 MIN_COLOUR_VALUE_KEY = 'min_colour_value'
 MAX_COLOUR_VALUE_KEY = 'max_colour_value'
 MIN_FONT_SIZE_KEY = 'min_font_size_points'
 MAX_FONT_SIZE_KEY = 'max_font_size_points'
 
 DEFAULT_OPTION_DICT = {
-    RADAR_COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
-    SOUNDING_COLOUR_MAP_KEY: pyplot.cm.PiYG,
+    COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
     MIN_COLOUR_VALUE_KEY: None,
     MAX_COLOUR_VALUE_KEY: None,
     MIN_FONT_SIZE_KEY: 8.,
@@ -125,8 +123,11 @@ def plot_saliency_for_sounding(
     :param option_dict: Dictionary with the following keys.
     option_dict['colour_map_object']: Instance of
         `matplotlib.colors.ListedColormap`.
-    option_dict['min_colour_value']: Minimum value in colour scheme.
-    option_dict['max_colour_value']: Max value in colour scheme.
+    option_dict['max_colour_value']: Max saliency in colour map.  Minimum
+        saliency in colour map will be -1 * `max_colour_value`.
+    option_dict['min_font_size_points']: Font size for saliency = 0.
+    option_dict['max_font_size_points']: Font size for saliency =
+        `max_colour_value`.
     """
 
     if option_dict is None:
@@ -137,10 +138,12 @@ def plot_saliency_for_sounding(
     option_dict = DEFAULT_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
-    colour_map_object = option_dict[SOUNDING_COLOUR_MAP_KEY]
-    min_colour_value = option_dict[MIN_COLOUR_VALUE_KEY]
-    max_colour_value = option_dict[MAX_COLOUR_VALUE_KEY]
-    error_checking.assert_is_greater(max_colour_value, min_colour_value)
+    rgb_matrix, font_size_matrix_points = _saliency_to_colour_and_size(
+        saliency_matrix=saliency_matrix,
+        colour_map_object=option_dict[COLOUR_MAP_KEY],
+        max_colour_value=option_dict[MAX_COLOUR_VALUE_KEY],
+        min_font_size_points=option_dict[MIN_FONT_SIZE_KEY],
+        max_font_size_points=option_dict[MAX_FONT_SIZE_KEY])
 
     error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
     error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
@@ -158,17 +161,21 @@ def plot_saliency_for_sounding(
             [num_pressure_levels, num_sounding_fields])
     )
 
-    (saliency_matrix_at_edges, edge_x_coords_metres, edge_y_coords_metres
-    ) = grids.xy_field_grid_points_to_edges(
-        field_matrix=saliency_matrix, x_min_metres=0.,
-        y_min_metres=float(numpy.min(pressure_levels_mb)), x_spacing_metres=1.,
-        y_spacing_metres=float(numpy.absolute(
-            pressure_levels_mb[1] - pressure_levels_mb[0])))
+    for i in range(num_pressure_levels):
+        for j in range(num_sounding_fields):
+            if saliency_matrix[i, j] >= 0:
+                axes_object.text(
+                    j + 0.5, pressure_levels_mb[i], '+',
+                    fontsize=font_size_matrix_points[i, j],
+                    color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                    verticalalignment='center', transform=axes_object.transAxes)
+            else:
+                axes_object.text(
+                    j + 0.5, pressure_levels_mb[i], '_',
+                    fontsize=font_size_matrix_points[i, j],
+                    color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                    verticalalignment='bottom', transform=axes_object.transAxes)
 
-    pyplot.pcolormesh(
-        edge_x_coords_metres, edge_y_coords_metres, saliency_matrix_at_edges,
-        cmap=colour_map_object, vmin=min_colour_value, vmax=max_colour_value,
-        shading='flat', edgecolors='None', axes=axes_object)
     axes_object.invert_yaxis()
     pyplot.yscale('log')
 
@@ -269,7 +276,7 @@ def plot_saliency_with_sounding(
 
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=saliency_matrix,
-        colour_map=saliency_option_dict[SOUNDING_COLOUR_MAP_KEY],
+        colour_map=saliency_option_dict[COLOUR_MAP_KEY],
         colour_min=saliency_option_dict[MIN_COLOUR_VALUE_KEY],
         colour_max=saliency_option_dict[MAX_COLOUR_VALUE_KEY],
         orientation='vertical', extend_min=True, extend_max=True)
@@ -391,7 +398,7 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
 
     rgb_matrix, font_size_matrix_points = _saliency_to_colour_and_size(
         saliency_matrix=saliency_matrix,
-        colour_map_object=option_dict[RADAR_COLOUR_MAP_KEY],
+        colour_map_object=option_dict[COLOUR_MAP_KEY],
         max_colour_value=option_dict[MAX_COLOUR_VALUE_KEY],
         min_font_size_points=option_dict[MIN_FONT_SIZE_KEY],
         max_font_size_points=option_dict[MAX_FONT_SIZE_KEY])
