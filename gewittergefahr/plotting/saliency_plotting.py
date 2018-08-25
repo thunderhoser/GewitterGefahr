@@ -408,15 +408,17 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
             if saliency_matrix[i, j] >= 0:
-                this_string = '+'
+                axes_object.text(
+                    x_coords[j], y_coords[i], '+',
+                    fontsize=font_size_matrix_points[i, j],
+                    color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                    verticalalignment='center', transform=axes_object.transAxes)
             else:
-                this_string = r'$\textendash$'
-
-            axes_object.text(
-                x_coords[j], y_coords[i], this_string,
-                fontsize=font_size_matrix_points[i, j],
-                color=rgb_matrix[i, j, ...], horizontalalignment='center',
-                verticalalignment='center', transform=axes_object.transAxes)
+                axes_object.text(
+                    x_coords[j], y_coords[i], '_',
+                    fontsize=font_size_matrix_points[i, j],
+                    color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                    verticalalignment='bottom', transform=axes_object.transAxes)
 
 
 def plot_saliency_with_radar_2d_fields(
