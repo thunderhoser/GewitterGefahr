@@ -21,7 +21,6 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import grids
-from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -34,31 +33,20 @@ from gewittergefahr.plotting import imagemagick_utils
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-POSITIVE_LINE_STYLE = 'solid'
-NEGATIVE_LINE_STYLE = 'dashed'
-PIXEL_PADDING_FOR_CONTOUR_LABELS = 10
-STRING_FORMAT_FOR_POSITIVE_LABELS = '%.3f'
-STRING_FORMAT_FOR_NEGATIVE_LABELS = '-%.3f'
-FONT_SIZE_FOR_CONTOUR_LABELS = 20
-
-MAX_CONTOUR_VALUE_KEY = 'max_contour_value'
 RADAR_COLOUR_MAP_KEY = 'radar_colour_map_object'
-LABEL_CONTOURS_KEY = 'label_contours'
-LINE_WIDTH_KEY = 'line_width'
-NUM_CONTOUR_LEVELS_KEY = 'num_contour_levels'
 SOUNDING_COLOUR_MAP_KEY = 'sounding_colour_map_object'
 MIN_COLOUR_VALUE_KEY = 'min_colour_value'
 MAX_COLOUR_VALUE_KEY = 'max_colour_value'
+MIN_FONT_SIZE_KEY = 'min_font_size_points'
+MAX_FONT_SIZE_KEY = 'max_font_size_points'
 
 DEFAULT_OPTION_DICT = {
-    MAX_CONTOUR_VALUE_KEY: None,
     RADAR_COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
-    LABEL_CONTOURS_KEY: False,
-    LINE_WIDTH_KEY: 3,
-    NUM_CONTOUR_LEVELS_KEY: 12,
     SOUNDING_COLOUR_MAP_KEY: pyplot.cm.PiYG,
     MIN_COLOUR_VALUE_KEY: None,
-    MAX_COLOUR_VALUE_KEY: None
+    MAX_COLOUR_VALUE_KEY: None,
+    MIN_FONT_SIZE_KEY: 8,
+    MAX_FONT_SIZE_KEY: 30
 }
 
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
@@ -84,6 +72,90 @@ DOTS_PER_INCH = 300
 SINGLE_IMAGE_SIZE_PIXELS = int(1e6)
 SINGLE_IMAGE_BORDER_WIDTH_PIXELS = 10
 PANELED_IMAGE_BORDER_WIDTH_PIXELS = 10
+
+
+def _saliency_to_opacity(
+        saliency_matrix, min_opacity, max_opacity, min_saliency, max_saliency):
+    """Converts saliency values to opacities.
+
+    :param saliency_matrix: numpy array of saliency values.
+    :param min_opacity: Minimum opacity (corresponding to `min_saliency`).  Must
+        be in range 0...1.
+    :param max_opacity: Max opacity (corresponding to `max_saliency`).  Must be
+        in range 0...1.
+    :param min_saliency: Minimum saliency.
+    :param max_saliency: Max saliency.
+    :return: opacity_matrix: numpy array of opacities, with the same shape as
+        `saliency_matrix`.
+    """
+
+    # TODO(thunderhoser): Remove this method.
+
+    error_checking.assert_is_numpy_array(saliency_matrix)
+    error_checking.assert_is_geq(min_opacity, 0.)
+    error_checking.assert_is_leq(max_opacity, 1.)
+    error_checking.assert_is_greater(max_opacity, min_opacity)
+    error_checking.assert_is_greater(max_saliency, min_saliency)
+
+    normalized_saliency_matrix = (
+        (saliency_matrix - min_saliency) / (max_saliency - min_saliency)
+    )
+    return (
+        min_opacity + normalized_saliency_matrix * (max_opacity - min_opacity)
+    )
+
+
+def _radar_values_to_colours(radar_matrix, radar_field_name, opacity_matrix):
+    """Converts radar values to colours.
+
+    :param radar_matrix: M-by-N numpy array of radar values.
+    :param radar_field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :param opacity_matrix: M-by-N numpy array of opacities (in range 0...1).
+    :return: rgba_matrix: M-by-N-by-4 numpy array of colours.
+    """
+
+    # TODO(thunderhoser): Remove this method.
+
+    (colour_map_object, colour_norm_object, _
+    ) = radar_plotting.get_default_colour_scheme(radar_field_name)
+
+    rgba_matrix = colour_map_object(colour_norm_object(radar_matrix))
+    rgba_matrix[..., -1] = opacity_matrix
+    return rgba_matrix
+
+
+def _saliency_to_colour_and_size(
+        saliency_matrix, colour_map_object, max_colour_value,
+        min_font_size_points, max_font_size_points):
+    """Returns font size and colour for each saliency value.
+
+    :param saliency_matrix: M-by-N numpy array of saliency values.
+    :param colour_map_object: See doc for `plot_saliency_for_radar`.
+    :param max_colour_value: Same.
+    :param min_font_size_points: Same.
+    :param max_font_size_points: Same.
+    :return: rgb_matrix: M-by-N-by-3 numpy array of colours.
+    :return: font_size_matrix_points: M-by-N numpy array of font sizes.
+    """
+
+    error_checking.assert_is_greater(max_colour_value, 0.)
+    error_checking.assert_is_greater(min_font_size_points, 0.)
+    error_checking.assert_is_greater(max_font_size_points, min_font_size_points)
+
+    colour_norm_object = pyplot.Normalize(vmin=0., vmax=max_colour_value)
+    rgba_matrix = colour_map_object(colour_norm_object(
+        numpy.absolute(saliency_matrix)))
+    rgb_matrix = rgba_matrix[..., :-1]
+
+    norm_abs_saliency_matrix = (
+        numpy.absolute(saliency_matrix) / max_colour_value)
+    font_size_matrix_points = (
+        min_font_size_points + norm_abs_saliency_matrix *
+        (max_font_size_points - min_font_size_points)
+    )
+
+    return rgb_matrix, font_size_matrix_points
 
 
 def plot_saliency_for_sounding(
@@ -347,17 +419,13 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     :param saliency_matrix: M-by-N numpy array of saliency values.
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
     :param option_dict: Dictionary with the following keys.
-    option_dict['max_contour_value']: Max saliency value with a contour assigned
-        to it.  Minimum saliency value will be -1 * max_contour_value.  Positive
-        values will be shown with solid contours, and negative values with
-        dashed contours.
     option_dict['colour_map_object']: Instance of
         `matplotlib.colors.ListedColormap`.
-    option_dict['label_contours']: Boolean flag.  If True, each contour will be
-        labeled with the corresponding value.
-    option_dict['line_width']: Width of contour lines (scalar).
-    option_dict['num_contour_levels']: Number of contour levels (i.e., number of
-        saliency values corresponding to a contour).
+    option_dict['max_colour_value']: Max saliency in colour map.  Minimum
+        saliency in colour map will be -1 * `max_colour_value`.
+    option_dict['min_font_size_points']: Font size for saliency = 0.
+    option_dict['max_font_size_points']: Font size for saliency =
+        `max_colour_value`.
     """
 
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix)
@@ -371,45 +439,34 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
     option_dict = DEFAULT_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
-    max_contour_value = option_dict[MAX_CONTOUR_VALUE_KEY]
-    colour_map_object = option_dict[RADAR_COLOUR_MAP_KEY]
-    label_contours = option_dict[LABEL_CONTOURS_KEY]
-    line_width = option_dict[LINE_WIDTH_KEY]
-    num_contour_levels = option_dict[NUM_CONTOUR_LEVELS_KEY]
+    rgb_matrix, font_size_matrix_points = _saliency_to_colour_and_size(
+        saliency_matrix=saliency_matrix,
+        colour_map_object=option_dict[RADAR_COLOUR_MAP_KEY],
+        max_colour_value=option_dict[MAX_COLOUR_VALUE_KEY],
+        min_font_size_points=option_dict[MIN_FONT_SIZE_KEY],
+        max_font_size_points=option_dict[MAX_FONT_SIZE_KEY])
 
-    error_checking.assert_is_greater(max_contour_value, 0.)
-    error_checking.assert_is_boolean(label_contours)
-    error_checking.assert_is_integer(num_contour_levels)
-    error_checking.assert_is_greater(num_contour_levels, 0)
-    num_contour_levels = int(
-        number_rounding.ceiling_to_nearest(num_contour_levels, 2))
+    num_grid_rows = saliency_matrix.shape[0]
+    num_grid_columns = saliency_matrix.shape[1]
+    x_coord_spacing = num_grid_columns ** -1
+    y_coord_spacing = num_grid_rows ** -1
+    x_coords, y_coords = grids.get_xy_grid_points(
+        x_min_metres=x_coord_spacing / 2, y_min_metres=y_coord_spacing / 2,
+        x_spacing_metres=x_coord_spacing, y_spacing_metres=y_coord_spacing,
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
 
-    positive_contour_levels = numpy.linspace(
-        0., max_contour_value, num=num_contour_levels / 2 + 1)
-    positive_contour_levels = positive_contour_levels[1:]
-    positive_contour_object = axes_object.contour(
-        saliency_matrix, levels=positive_contour_levels, cmap=colour_map_object,
-        vmin=0., vmax=max_contour_value, linewidths=line_width,
-        linestyles=POSITIVE_LINE_STYLE)
+    for i in range(num_grid_rows):
+        for j in range(num_grid_columns):
+            if saliency_matrix[i, j] >= 0:
+                this_string = '+'
+            else:
+                this_string = '-'
 
-    if label_contours:
-        pyplot.clabel(
-            positive_contour_object, inline=True,
-            inline_spacing=PIXEL_PADDING_FOR_CONTOUR_LABELS,
-            fmt=STRING_FORMAT_FOR_POSITIVE_LABELS,
-            fontsize=FONT_SIZE_FOR_CONTOUR_LABELS)
-
-    negative_contour_object = axes_object.contour(
-        -1 * saliency_matrix, levels=positive_contour_levels,
-        cmap=colour_map_object, vmin=0., vmax=max_contour_value,
-        linewidths=line_width, linestyles=NEGATIVE_LINE_STYLE)
-
-    if label_contours:
-        pyplot.clabel(
-            negative_contour_object, inline=True,
-            inline_spacing=PIXEL_PADDING_FOR_CONTOUR_LABELS,
-            fmt=STRING_FORMAT_FOR_NEGATIVE_LABELS,
-            fontsize=FONT_SIZE_FOR_CONTOUR_LABELS)
+            axes_object.text(
+                x_coords[j], y_coords[i], this_string,
+                fontsize=font_size_matrix_points[i, j],
+                color=rgb_matrix[i, j, ...], horizontalalignment='center',
+                verticalalignment='center', transform=axes_object.transAxes)
 
 
 def plot_saliency_with_radar_2d_fields(
