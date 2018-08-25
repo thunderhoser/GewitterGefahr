@@ -410,7 +410,7 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
             if saliency_matrix[i, j] >= 0:
                 this_string = '+'
             else:
-                this_string = '-'
+                this_string = r'$\textendash$'
 
             axes_object.text(
                 x_coords[j], y_coords[i], this_string,
