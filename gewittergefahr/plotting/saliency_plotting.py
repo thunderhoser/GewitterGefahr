@@ -176,7 +176,7 @@ def plot_saliency_for_sounding(
                     color=rgb_matrix[i, j, ...], horizontalalignment='center',
                     verticalalignment='bottom')
 
-    axes_object.set_xlim(-0.5, num_pressure_levels - 0.5)
+    axes_object.set_xlim(-0.5, num_sounding_fields - 0.5)
     axes_object.set_ylim(100, 1000)
     axes_object.invert_yaxis()
     pyplot.yscale('log')
