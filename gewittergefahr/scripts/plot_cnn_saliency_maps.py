@@ -26,16 +26,16 @@ INPUT_FILE_HELP_STRING = (
     'Path to input file.  Will be read by `saliency_maps.read_file`.')
 
 MAX_COLOUR_VALUE_HELP_STRING = (
-    'Max saliency value in colour scheme.  Minimum saliency value in colour '
-    'scheme will be -1 * `{0:s}`.  To use `{1:s}` instead, leave this argument '
-    'alone.'
+    'Max saliency value in colour scheme.  Minimum saliency in colour scheme '
+    'will be -1 * `{0:s}`.  To use `{1:s}` instead, leave this argument alone.'
 ).format(MAX_COLOUR_VALUE_ARG_NAME, MAX_COLOUR_PRCTILE_ARG_NAME)
 
 MAX_COLOUR_PRCTILE_HELP_STRING = (
-    'Max saliency value in colour scheme will be the `{0:s}`th percentile in '
-    '`{1:s}` (over all storm objects, radar field/height pairs, and sounding '
-    'field/height pairs).  Minimum saliency in colour scheme will be -1 * max '
-    'value.  To use `{2:s}` instead, leave this argument alone.'
+    'Max saliency value in colour scheme will be the `{0:s}`th percentile of '
+    'absolute values in `{1:s}` (over all storm objects, radar field/height '
+    'pairs, and sounding field/height pairs).  Minimum saliency in colour '
+    'scheme will be -1 * max value.  To use `{2:s}` instead, leave this '
+    'argument alone.'
 ).format(MAX_COLOUR_PRCTILE_ARG_NAME, INPUT_FILE_ARG_NAME,
          MAX_COLOUR_VALUE_ARG_NAME)
 
@@ -123,8 +123,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
                 (all_saliency_values, numpy.ravel(this_matrix)))
 
         max_colour_value = numpy.percentile(
-            all_saliency_values, max_colour_percentile)
-        print max_colour_value
+            numpy.absolute(all_saliency_values), max_colour_percentile)
         del all_saliency_values
 
     print 'Max saliency value in colour scheme = {0:.3e}\n'.format(
