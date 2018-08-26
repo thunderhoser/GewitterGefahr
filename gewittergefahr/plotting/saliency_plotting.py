@@ -47,8 +47,8 @@ DEFAULT_OPTION_DICT = {
     MAX_COLOUR_VALUE_KEY: None,
     MIN_FONT_SIZE_RADAR_KEY: 8.,
     MAX_FONT_SIZE_RADAR_KEY: 20.,
-    MIN_FONT_SIZE_SOUNDING_KEY: 32.,
-    MAX_FONT_SIZE_SOUNDING_KEY: 80.
+    MIN_FONT_SIZE_SOUNDING_KEY: 24.,
+    MAX_FONT_SIZE_SOUNDING_KEY: 60.
 }
 
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
@@ -184,10 +184,10 @@ def plot_saliency_for_sounding(
     axes_object.set_ylim(100, 1000)
     axes_object.invert_yaxis()
     pyplot.yscale('log')
+    pyplot.minorticks_off()
 
     y_tick_locations = numpy.linspace(100, 1000, num=10, dtype=int)
     y_tick_labels = ['{0:d}'.format(p) for p in y_tick_locations]
-    pyplot.yticks([], [])
     pyplot.yticks(y_tick_locations, y_tick_labels)
 
     x_tick_locations = numpy.linspace(
