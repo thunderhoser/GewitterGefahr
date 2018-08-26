@@ -52,6 +52,8 @@ DEFAULT_OPTION_DICT = {
     MAX_FONT_SIZE_SOUNDING_KEY: 60.
 }
 
+WIND_NAME = 'wind_m_s01'
+
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
     soundings_only.SPECIFIC_HUMIDITY_NAME: r'$q_{v}$',
     soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: r'$\theta_{v}$',
@@ -59,7 +61,8 @@ SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
     soundings_only.RELATIVE_HUMIDITY_NAME: 'RH',
     soundings_only.U_WIND_NAME: r'$u$',
     soundings_only.V_WIND_NAME: r'$v$',
-    soundings_only.GEOPOTENTIAL_HEIGHT_NAME: r'$Z$'
+    soundings_only.GEOPOTENTIAL_HEIGHT_NAME: r'$Z$',
+    WIND_NAME: 'Wind'
 }
 
 WIND_FIELD_NAMES = [soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME]
@@ -184,9 +187,11 @@ def plot_saliency_for_sounding(
             sounding_field_names[k] for k in non_wind_indices]
         saliency_matrix = saliency_matrix[:, non_wind_indices]
 
+        sounding_field_names.append(WIND_NAME)
+        num_sounding_fields = len(sounding_field_names)
+        
         wind_saliency_magnitudes = numpy.reshape(
             wind_saliency_magnitudes, (num_pressure_levels, 1))
-        sounding_field_names.append(WIND_SPEED_NAME)
         saliency_matrix = numpy.hstack((
             saliency_matrix, wind_saliency_magnitudes))
 
@@ -198,8 +203,8 @@ def plot_saliency_for_sounding(
         max_font_size_points=option_dict[MAX_FONT_SIZE_SOUNDING_KEY])
 
     for j in range(num_sounding_fields):
-        if sounding_field_names[j] == WIND_SPEED_NAME:
-            these_x_coords = numpy.full(num_pressure_levels, j)
+        if sounding_field_names[j] == WIND_NAME:
+            these_x_coords = numpy.full(num_pressure_levels, num_sounding_fields)
             axes_object.barbs(
                 these_x_coords, pressure_levels_mb, u_wind_saliency_values * 10,
                 v_wind_saliency_values * 10, wind_saliency_magnitudes * 10,
@@ -207,9 +212,9 @@ def plot_saliency_for_sounding(
                 rounding=False, cmap=option_dict[COLOUR_MAP_KEY],
                 clim=numpy.array([-option_dict[MAX_COLOUR_VALUE_KEY],
                                   option_dict[MAX_COLOUR_VALUE_KEY]]))
-
+            
             continue
-
+        
         for i in range(num_pressure_levels):
             if saliency_matrix[i, j] >= 0:
                 axes_object.text(
