@@ -204,8 +204,7 @@ def plot_saliency_for_sounding(
 
     for j in range(num_sounding_fields):
         if sounding_field_names[j] == WIND_NAME:
-            these_x_coords = numpy.full(
-                num_pressure_levels, num_sounding_fields)
+            these_x_coords = numpy.full(num_pressure_levels, j)
             print these_x_coords
 
             axes_object.barbs(
