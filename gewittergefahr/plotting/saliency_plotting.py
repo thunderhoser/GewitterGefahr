@@ -36,15 +36,19 @@ TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 COLOUR_MAP_KEY = 'colour_map_object'
 MIN_COLOUR_VALUE_KEY = 'min_colour_value'
 MAX_COLOUR_VALUE_KEY = 'max_colour_value'
-MIN_FONT_SIZE_KEY = 'min_font_size_points'
-MAX_FONT_SIZE_KEY = 'max_font_size_points'
+MIN_FONT_SIZE_RADAR_KEY = 'min_font_size_for_radar_points'
+MAX_FONT_SIZE_RADAR_KEY = 'max_font_size_for_radar_points'
+MIN_FONT_SIZE_SOUNDING_KEY = 'min_font_size_for_sounding_points'
+MAX_FONT_SIZE_SOUNDING_KEY = 'max_font_size_for_sounding_points'
 
 DEFAULT_OPTION_DICT = {
     COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
     MIN_COLOUR_VALUE_KEY: None,
     MAX_COLOUR_VALUE_KEY: None,
-    MIN_FONT_SIZE_KEY: 8.,
-    MAX_FONT_SIZE_KEY: 20.
+    MIN_FONT_SIZE_RADAR_KEY: 8.,
+    MAX_FONT_SIZE_RADAR_KEY: 20.,
+    MIN_FONT_SIZE_SOUNDING_KEY: 32.,
+    MAX_FONT_SIZE_SOUNDING_KEY: 80.
 }
 
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
@@ -142,8 +146,8 @@ def plot_saliency_for_sounding(
         saliency_matrix=saliency_matrix,
         colour_map_object=option_dict[COLOUR_MAP_KEY],
         max_colour_value=option_dict[MAX_COLOUR_VALUE_KEY],
-        min_font_size_points=option_dict[MIN_FONT_SIZE_KEY],
-        max_font_size_points=option_dict[MAX_FONT_SIZE_KEY])
+        min_font_size_points=option_dict[MIN_FONT_SIZE_SOUNDING_KEY],
+        max_font_size_points=option_dict[MAX_FONT_SIZE_SOUNDING_KEY])
 
     error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
     error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
@@ -403,8 +407,8 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
         saliency_matrix=saliency_matrix,
         colour_map_object=option_dict[COLOUR_MAP_KEY],
         max_colour_value=option_dict[MAX_COLOUR_VALUE_KEY],
-        min_font_size_points=option_dict[MIN_FONT_SIZE_KEY],
-        max_font_size_points=option_dict[MAX_FONT_SIZE_KEY])
+        min_font_size_points=option_dict[MIN_FONT_SIZE_RADAR_KEY],
+        max_font_size_points=option_dict[MAX_FONT_SIZE_RADAR_KEY])
 
     num_grid_rows = saliency_matrix.shape[0]
     num_grid_columns = saliency_matrix.shape[1]
