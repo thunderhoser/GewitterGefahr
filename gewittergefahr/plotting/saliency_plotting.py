@@ -165,17 +165,19 @@ def plot_saliency_for_sounding(
         for j in range(num_sounding_fields):
             if saliency_matrix[i, j] >= 0:
                 axes_object.text(
-                    j + 0.5, pressure_levels_mb[i], '+',
+                    j, pressure_levels_mb[i], '+',
                     fontsize=font_size_matrix_points[i, j],
                     color=rgb_matrix[i, j, ...], horizontalalignment='center',
                     verticalalignment='center')
             else:
                 axes_object.text(
-                    j + 0.5, pressure_levels_mb[i], '_',
+                    j, pressure_levels_mb[i], '_',
                     fontsize=font_size_matrix_points[i, j],
                     color=rgb_matrix[i, j, ...], horizontalalignment='center',
                     verticalalignment='bottom')
 
+    axes_object.set_xlim(-0.5, num_pressure_levels - 0.5)
+    axes_object.set_ylim(100, 1000)
     axes_object.invert_yaxis()
     pyplot.yscale('log')
 
