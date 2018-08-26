@@ -18,7 +18,6 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from gewittergefahr.gg_io import raw_wind_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings_only
 from gewittergefahr.gg_utils import grids
@@ -53,6 +52,11 @@ DEFAULT_OPTION_DICT = {
 }
 
 WIND_NAME = 'wind_m_s01'
+WIND_COMPONENT_NAMES = [soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME]
+
+WIND_BARB_LENGTH = 10.
+EMPTY_WIND_BARB_RADIUS = 0.2
+SALIENCY_MULTIPLIER_FOR_WIND_BARBS = 10.
 
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
     soundings_only.SPECIFIC_HUMIDITY_NAME: r'$q_{v}$',
@@ -64,8 +68,6 @@ SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
     soundings_only.GEOPOTENTIAL_HEIGHT_NAME: r'$Z$',
     WIND_NAME: 'Wind'
 }
-
-WIND_FIELD_NAMES = [soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME]
 
 METRES_TO_KM = 1e-3
 DEFAULT_FIG_WIDTH_INCHES = 15.
@@ -180,7 +182,7 @@ def plot_saliency_for_sounding(
             u_wind_saliency_values ** 2 + v_wind_saliency_values ** 2)
 
         non_wind_flags = numpy.array(
-            [f not in WIND_FIELD_NAMES for f in sounding_field_names],
+            [f not in WIND_COMPONENT_NAMES for f in sounding_field_names],
             dtype=bool)
         non_wind_indices = numpy.where(non_wind_flags)[0]
         sounding_field_names = [
@@ -189,7 +191,7 @@ def plot_saliency_for_sounding(
 
         sounding_field_names.append(WIND_NAME)
         num_sounding_fields = len(sounding_field_names)
-        
+
         wind_saliency_magnitudes = numpy.reshape(
             wind_saliency_magnitudes, (num_pressure_levels, 1))
         saliency_matrix = numpy.hstack((
@@ -205,18 +207,23 @@ def plot_saliency_for_sounding(
     for j in range(num_sounding_fields):
         if sounding_field_names[j] == WIND_NAME:
             these_x_coords = numpy.full(num_pressure_levels, j)
-            print these_x_coords
+            these_colour_limits = numpy.array([
+                -option_dict[MAX_COLOUR_VALUE_KEY],
+                option_dict[MAX_COLOUR_VALUE_KEY]
+            ]) * SALIENCY_MULTIPLIER_FOR_WIND_BARBS
 
             axes_object.barbs(
-                these_x_coords, pressure_levels_mb, u_wind_saliency_values * 10,
-                v_wind_saliency_values * 10, wind_saliency_magnitudes * 10,
-                length=6, sizes={'emptybarb': 0.1}, fill_empty=True,
+                these_x_coords, pressure_levels_mb,
+                u_wind_saliency_values * SALIENCY_MULTIPLIER_FOR_WIND_BARBS,
+                v_wind_saliency_values * SALIENCY_MULTIPLIER_FOR_WIND_BARBS,
+                wind_saliency_magnitudes * SALIENCY_MULTIPLIER_FOR_WIND_BARBS,
+                length=WIND_BARB_LENGTH,
+                sizes={'emptybarb': EMPTY_WIND_BARB_RADIUS}, fill_empty=True,
                 rounding=False, cmap=option_dict[COLOUR_MAP_KEY],
-                clim=numpy.array([-option_dict[MAX_COLOUR_VALUE_KEY],
-                                  option_dict[MAX_COLOUR_VALUE_KEY]]))
-            
+                clim=these_colour_limits)
+
             continue
-        
+
         for i in range(num_pressure_levels):
             if saliency_matrix[i, j] >= 0:
                 axes_object.text(
