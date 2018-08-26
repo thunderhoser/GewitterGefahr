@@ -183,6 +183,7 @@ def plot_saliency_for_sounding(
 
     y_tick_locations = numpy.linspace(100, 1000, num=10, dtype=int)
     y_tick_labels = ['{0:d}'.format(p) for p in y_tick_locations]
+    pyplot.yticks([], [])
     pyplot.yticks(y_tick_locations, y_tick_labels)
 
     x_tick_locations = numpy.linspace(
