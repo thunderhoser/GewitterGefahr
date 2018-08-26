@@ -1,6 +1,7 @@
 """Methods for geodetic calculations."""
 
 import numpy
+import srtm
 import geopy
 from geopy.distance import VincentyDistance
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
@@ -21,6 +22,26 @@ NEGATIVE_LONGITUDE_ARG = 'negative'
 EITHER_SIGN_LONGITUDE_ARG = 'either'
 VALID_LONGITUDE_SIGN_ARGS = [
     POSITIVE_LONGITUDE_ARG, NEGATIVE_LONGITUDE_ARG, EITHER_SIGN_LONGITUDE_ARG]
+
+
+def _get_elevation(latitude_deg, longitude_deg, srtm_data_object=None):
+    """Gets elevation at a single point.
+
+    WARNING: Input longitudes in western hemisphere must be negative.
+
+    :param latitude_deg: Latitude (deg N).
+    :param longitude_deg: Longitude (deg E).
+    :param srtm_data_object: Instance of `srtm.data.GeoElevationData`.
+    :return: elevation_m_asl: Elevation (metres above sea level).
+    :return: srtm_data_object: Instance of `srtm.data.GeoElevationData`.
+    """
+
+    if srtm_data_object is None:
+        srtm_data_object = srtm.get_data()
+
+    elevation_m_asl = srtm_data_object.get_elevation(
+        latitude=latitude_deg, longitude=longitude_deg)
+    return elevation_m_asl, srtm_data_object
 
 
 def find_invalid_latitudes(latitudes_deg):
@@ -116,6 +137,37 @@ def get_latlng_centroid(latitudes_deg, longitudes_deg, allow_nan=True):
         raise ValueError(error_string)
 
     return numpy.nanmean(latitudes_deg), numpy.nanmean(longitudes_deg)
+
+
+def get_elevations(latitudes_deg, longitudes_deg):
+    """Returns elevation of each point.
+
+    N = number of points
+
+    :param latitudes_deg: length-N numpy array of latitudes (deg N).
+    :param longitudes_deg: length-N numpy array of longitudes (deg E).
+    :return: elevations_m_asl: length-N numpy array of elevations (metres above
+        sea level).
+    """
+
+    error_checking.assert_is_valid_lat_numpy_array(latitudes_deg)
+    error_checking.assert_is_numpy_array(latitudes_deg, num_dimensions=1)
+    num_points = len(latitudes_deg)
+
+    longitudes_deg = lng_conversion.convert_lng_negative_in_west(
+        longitudes_deg, allow_nan=False)
+    error_checking.assert_is_numpy_array(
+        longitudes_deg, exact_dimensions=numpy.array([num_points]))
+
+    srtm_data_object = None
+    elevations_m_asl = numpy.full(num_points, numpy.nan)
+
+    for i in range(num_points):
+        elevations_m_asl[i], srtm_data_object = _get_elevation(
+            latitude_deg=latitudes_deg[i], longitude_deg=longitudes_deg[i],
+            srtm_data_object=srtm_data_object)
+
+    return elevations_m_asl
 
 
 def start_points_and_displacements_to_endpoints(

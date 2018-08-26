@@ -25,7 +25,6 @@ INPUT_ARG_PARSER = dl_helper.add_input_arguments(
 
 NUM_RADAR_FILTERS_ARG_NAME = 'num_radar_filters_in_first_layer'
 REFL_MASK_THRESHOLD_ARG_NAME = 'refl_masking_threshold_dbz'
-RDP_FILTER_THRESHOLD_ARG_NAME = 'rdp_filter_threshold_s02'
 NORMALIZATION_FILE_ARG_NAME = 'normalization_param_file_name'
 
 NUM_RADAR_FILTERS_HELP_STRING = (
@@ -35,12 +34,6 @@ REFL_MASK_THRESHOLD_HELP_STRING = (
     'Used to mask out areas of low reflectivity.  Specifically, at each pixel '
     'with reflectivity < `{0:s}`, all variables will be set to zero.'
 ).format(REFL_MASK_THRESHOLD_ARG_NAME)
-RDP_FILTER_THRESHOLD_HELP_STRING = (
-    'Used to remove storm objects with low RDP (rotation-divergence product).  '
-    'This is a pre-model filter, so any storm object with RDP < `{0:s}` is not '
-    'used to train the CNN.  The lowest class (0) is predicted with 1.0 '
-    'probability.  If you do not want a pre-model filter, make this -1.'
-).format(RDP_FILTER_THRESHOLD_ARG_NAME)
 NORMALIZATION_FILE_HELP_STRING = (
     '[used only if {0:s} is not empty] Path to file with normalization params.'
     '  Will be read by `deep_learning_utils.read_normalization_params_from_file'
@@ -61,10 +54,6 @@ INPUT_ARG_PARSER.add_argument(
     help=REFL_MASK_THRESHOLD_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + RDP_FILTER_THRESHOLD_ARG_NAME, type=float, required=False,
-    default=-1., help=RDP_FILTER_THRESHOLD_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + NORMALIZATION_FILE_ARG_NAME, type=str, required=False,
     default=DEFAULT_NORMALIZATION_FILE_NAME,
     help=NORMALIZATION_FILE_HELP_STRING)
@@ -82,11 +71,11 @@ def _train_cnn(
         dense_layer_dropout_fraction, num_radar_filters_in_first_layer,
         normalization_type_string, normalization_param_file_name,
         min_normalized_value, max_normalized_value, l2_weight,
-        refl_masking_threshold_dbz, rdp_filter_threshold_s02,
-        sampling_fraction_dict_keys, sampling_fraction_dict_values,
-        weight_loss_function, num_validation_batches_per_epoch,
-        first_validn_spc_date_string, last_validn_spc_date_string,
-        sounding_field_names, top_sounding_dir_name,
+        refl_masking_threshold_dbz, sampling_fraction_dict_keys,
+        sampling_fraction_dict_values, weight_loss_function,
+        num_validation_batches_per_epoch, first_validn_spc_date_string,
+        last_validn_spc_date_string, sounding_field_names,
+        top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec,
         num_sounding_filters_in_first_layer):
     """Trains CNN with 3-D GridRad images.
@@ -128,7 +117,6 @@ def _train_cnn(
     :param l2_weight: Same.
     :param refl_masking_threshold_dbz: See documentation at the top of this
         file.
-    :param rdp_filter_threshold_s02: Same.
     :param sampling_fraction_dict_keys: See documentation at the top of
         deep_learning_helper.py.
     :param sampling_fraction_dict_values: Same.
@@ -149,8 +137,6 @@ def _train_cnn(
         dense_layer_dropout_fraction = None
     if l2_weight <= 0:
         l2_weight = None
-    if rdp_filter_threshold_s02 <= 0:
-        rdp_filter_threshold_s02 = None
     if num_rows_to_keep <= 0:
         num_rows_to_keep = None
     if num_columns_to_keep <= 0:
@@ -241,7 +227,6 @@ def _train_cnn(
         normalization_type_string=normalization_type_string,
         use_2d3d_convolution=False, radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         refl_masking_threshold_dbz=refl_masking_threshold_dbz,
-        rdp_filter_threshold_s02=rdp_filter_threshold_s02,
         radar_field_names=radar_field_names,
         radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
         min_normalized_value=min_normalized_value,
@@ -297,7 +282,6 @@ def _train_cnn(
         min_normalized_value=min_normalized_value,
         max_normalized_value=max_normalized_value,
         refl_masking_threshold_dbz=refl_masking_threshold_dbz,
-        rdp_filter_threshold_s02=rdp_filter_threshold_s02,
         monitor_string=monitor_string, binarize_target=binarize_target,
         weight_loss_function=weight_loss_function,
         training_fraction_by_class_dict=sampling_fraction_by_class_dict,
@@ -376,8 +360,6 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.L2_WEIGHT_ARG_NAME),
         refl_masking_threshold_dbz=getattr(
             INPUT_ARG_OBJECT, REFL_MASK_THRESHOLD_ARG_NAME),
-        rdp_filter_threshold_s02=getattr(
-            INPUT_ARG_OBJECT, RDP_FILTER_THRESHOLD_ARG_NAME),
         sampling_fraction_dict_keys=getattr(
             INPUT_ARG_OBJECT, dl_helper.SAMPLING_FRACTION_KEYS_ARG_NAME),
         sampling_fraction_dict_values=getattr(

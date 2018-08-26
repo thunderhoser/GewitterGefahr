@@ -232,7 +232,6 @@ def _create_forecast_observation_pairs_3d(
     forecast_probabilities = numpy.array([])
     observed_labels = numpy.array([], dtype=int)
     num_radar_times = radar_file_name_matrix.shape[0]
-    rdp_filter_threshold_s02 = model_metadata_dict[cnn.RDP_FILTER_THRESHOLD_KEY]
 
     for i in range(num_radar_times):
         print (
@@ -263,8 +262,6 @@ def _create_forecast_observation_pairs_3d(
                 cnn.NUM_COLUMNS_TO_KEEP_KEY],
             refl_masking_threshold_dbz=model_metadata_dict[
                 cnn.REFL_MASKING_THRESHOLD_KEY],
-            return_rotation_divergence_product=
-            rdp_filter_threshold_s02 is not None,
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
             top_sounding_dir_name=top_sounding_dir_name,
@@ -281,15 +278,11 @@ def _create_forecast_observation_pairs_3d(
             deployment_io.SOUNDING_MATRIX_KEY]
         these_observed_labels = this_example_dict[
             deployment_io.TARGET_VALUES_KEY]
-        these_rdp_values_s02 = this_example_dict[
-            deployment_io.ROTATION_DIVERGENCE_PRODUCTS_KEY]
 
         this_probability_matrix = cnn.apply_3d_cnn(
             model_object=model_object,
             radar_image_matrix=this_radar_image_matrix,
-            sounding_matrix=this_sounding_matrix,
-            rdp_filter_threshold_s02=rdp_filter_threshold_s02,
-            rotation_divergence_products_s02=these_rdp_values_s02)
+            sounding_matrix=this_sounding_matrix)
 
         observed_labels = numpy.concatenate((
             observed_labels, these_observed_labels))

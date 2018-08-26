@@ -87,7 +87,7 @@ OUTPUT_FILE_HELP_STRING = (
 
 DEFAULT_TOP_RADAR_IMAGE_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'storm_images_with_rdp')
+    'storm_images_rotated')
 DEFAULT_TOP_SOUNDING_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
     'soundings')

@@ -279,7 +279,6 @@ def read_storms_one_spc_date(
                     cnn.NUM_COLUMNS_TO_KEEP_KEY],
                 refl_masking_threshold_dbz=model_metadata_dict[
                     cnn.REFL_MASKING_THRESHOLD_KEY],
-                return_rotation_divergence_product=False,
                 sounding_field_names=model_metadata_dict[
                     cnn.SOUNDING_FIELD_NAMES_KEY],
                 top_sounding_dir_name=top_sounding_dir_name,

@@ -32,6 +32,11 @@ POINT_LONGITUDES_DEG = numpy.array(
 CENTROID_LATITUDE_DEG = 34.
 CENTROID_LONGITUDE_DEG = 278.
 
+# The following constants are used to test get_elevations.
+LATITUDES_DEG = numpy.array([51.1, 53.5])
+LONGITUDES_DEG = numpy.array([246, 246.5])
+ELEVATIONS_M_ASL = numpy.array([1080, 675], dtype=float)
+
 # The following constants are used to test
 # start_points_and_displacements_to_endpoints.
 START_LATITUDES_DEG = numpy.array([[53.5, 53.5, 53.5],
@@ -156,6 +161,15 @@ class GeodeticUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.isclose(
             this_centroid_lng_deg, CENTROID_LONGITUDE_DEG,
             atol=DEFAULT_TOLERANCE))
+
+    def test_get_elevations(self):
+        """Ensures correct output from get_elevations."""
+
+        these_elevations_m_asl = geodetic_utils.get_elevations(
+            latitudes_deg=LATITUDES_DEG, longitudes_deg=LONGITUDES_DEG)
+
+        self.assertTrue(numpy.allclose(
+            these_elevations_m_asl, ELEVATIONS_M_ASL, atol=DEFAULT_TOLERANCE))
 
     def test_start_points_and_displacements_to_endpoints(self):
         """Ensures crrctness of start_points_and_displacements_to_endpoints."""

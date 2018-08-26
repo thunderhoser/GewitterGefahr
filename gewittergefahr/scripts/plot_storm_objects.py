@@ -282,7 +282,6 @@ def _read_inputs(
                 num_rows_to_keep=num_rows_to_keep,
                 num_columns_to_keep=num_columns_to_keep,
                 refl_masking_threshold_dbz=None,
-                return_rotation_divergence_product=False,
                 sounding_field_names=sounding_field_names,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=

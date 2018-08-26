@@ -149,46 +149,46 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
         cnn.TRAINING_FILE_NAMES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
-    # if num_radar_dimensions == 3:
-    #     radar_field_names = [
-    #         storm_images.image_file_name_to_field(f) for f in
-    #         training_radar_file_name_matrix[0, :, 0]
-    #     ]
-    #     radar_heights_m_asl = numpy.array(
-    #         [storm_images.image_file_name_to_height(f)
-    #          for f in training_radar_file_name_matrix[0, 0, :]],
-    #         dtype=int)
-    #
-    #     saliency_plotting.plot_saliency_with_radar_3d_fields(
-    #         radar_matrix=list_of_input_matrices[0],
-    #         saliency_matrix=list_of_saliency_matrices[0],
-    #         saliency_metadata_dict=saliency_metadata_dict,
-    #         radar_field_names=radar_field_names,
-    #         radar_heights_m_asl=radar_heights_m_asl,
-    #         one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-    #         output_dir_name=output_dir_name,
-    #         saliency_option_dict=saliency_option_dict)
-    # else:
-    #     field_name_by_pair = [
-    #         storm_images.image_file_name_to_field(f) for f in
-    #         training_radar_file_name_matrix[0, :]
-    #     ]
-    #     height_by_pair_m_asl = numpy.array(
-    #         [storm_images.image_file_name_to_height(f)
-    #          for f in training_radar_file_name_matrix[0, :]],
-    #         dtype=int)
-    #
-    #     saliency_plotting.plot_saliency_with_radar_2d_fields(
-    #         radar_matrix=list_of_input_matrices[0],
-    #         saliency_matrix=list_of_saliency_matrices[0],
-    #         saliency_metadata_dict=saliency_metadata_dict,
-    #         field_name_by_pair=field_name_by_pair,
-    #         height_by_pair_m_asl=height_by_pair_m_asl,
-    #         one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-    #         output_dir_name=output_dir_name,
-    #         saliency_option_dict=saliency_option_dict)
-    #
-    # print SEPARATOR_STRING
+    if num_radar_dimensions == 3:
+        radar_field_names = [
+            storm_images.image_file_name_to_field(f) for f in
+            training_radar_file_name_matrix[0, :, 0]
+        ]
+        radar_heights_m_asl = numpy.array(
+            [storm_images.image_file_name_to_height(f)
+             for f in training_radar_file_name_matrix[0, 0, :]],
+            dtype=int)
+
+        saliency_plotting.plot_saliency_with_radar_3d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
+            saliency_metadata_dict=saliency_metadata_dict,
+            radar_field_names=radar_field_names,
+            radar_heights_m_asl=radar_heights_m_asl,
+            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict)
+    else:
+        field_name_by_pair = [
+            storm_images.image_file_name_to_field(f) for f in
+            training_radar_file_name_matrix[0, :]
+        ]
+        height_by_pair_m_asl = numpy.array(
+            [storm_images.image_file_name_to_height(f)
+             for f in training_radar_file_name_matrix[0, :]],
+            dtype=int)
+
+        saliency_plotting.plot_saliency_with_radar_2d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
+            saliency_metadata_dict=saliency_metadata_dict,
+            field_name_by_pair=field_name_by_pair,
+            height_by_pair_m_asl=height_by_pair_m_asl,
+            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict)
+
+    print SEPARATOR_STRING
 
     if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
         saliency_plotting.plot_saliency_with_soundings(

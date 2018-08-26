@@ -204,42 +204,26 @@ INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
     [0, 4, 13, 20, 26, 34], dtype=int)
 
-# The following constants are used to test _get_max_rdp_values_one_time.
-DIVERGENCE_MATRIX_HEIGHT1_S01 = numpy.array(
-    [[1, 2, 3, 4, 5, 6],
-     [7, 8, 9, 10, 11, 12],
-     [13, 14, 15, 16, 17, 18],
-     [19, 20, 21, 22, 23, 24]], dtype=float)
-DIVERGENCE_MATRIX_HEIGHT2_S01 = DIVERGENCE_MATRIX_HEIGHT1_S01 * 2
-DIVERGENCE_MATRIX_HEIGHT3_S01 = DIVERGENCE_MATRIX_HEIGHT1_S01 * 3
-DIVERGENCE_MATRIX_S01 = numpy.stack(
-    (DIVERGENCE_MATRIX_HEIGHT1_S01, DIVERGENCE_MATRIX_HEIGHT2_S01,
-     DIVERGENCE_MATRIX_HEIGHT3_S01),
-    axis=0)
+# The following constants are used to test _interp_storm_image_in_height.
+THIS_MATRIX_HEIGHT1 = numpy.array([[0, 1, 2, 3],
+                                   [4, 5, 6, 7],
+                                   [8, 9, 10, 11]], dtype=float)
 
-VORTICITY_MATRIX_HEIGHT1_S01 = numpy.array(
-    [[-11, -7, -3, 1, 5, 9],
-     [-10, -6, -2, 2, 6, 10],
-     [-9, -5, -1, 3, 7, 11],
-     [-8, -4, 0, 4, 8, 12]], dtype=float)
-VORTICITY_MATRIX_HEIGHT2_S01 = VORTICITY_MATRIX_HEIGHT1_S01 + 6.
-VORTICITY_MATRIX_HEIGHT3_S01 = VORTICITY_MATRIX_HEIGHT1_S01 + 15.
-VORTICITY_MATRIX_S01 = numpy.stack(
-    (VORTICITY_MATRIX_HEIGHT1_S01, VORTICITY_MATRIX_HEIGHT2_S01,
-     VORTICITY_MATRIX_HEIGHT3_S01),
-    axis=0)
+ORIG_HEIGHTS_M_ASL = numpy.array([1000, 2000, 3000, 5000, 8000], dtype=int)
+ORIG_IMAGE_MATRIX_3D = numpy.stack(
+    (THIS_MATRIX_HEIGHT1, THIS_MATRIX_HEIGHT1 + 12, THIS_MATRIX_HEIGHT1 + 24,
+     THIS_MATRIX_HEIGHT1 + 36, THIS_MATRIX_HEIGHT1 + 48),
+    axis=-1)
 
-GRID_POINT_LATITUDES_DEG = numpy.array([52.5, 53, 53.5, 54])
-GRID_POINT_LONGITUDES_DEG = numpy.array(
-    [243, 244, 245, 246, 247, 248], dtype=float)
-GRID_POINT_HEIGHTS_M_ASL = numpy.array([3000, 6000, 9000], dtype=int)
-
-RDP_CENTROID_LATITUDES_DEG = numpy.array([52, 53.25])
-RDP_CENTROID_LONGITUDES_DEG = numpy.array([243.5, 246])
-
-MIN_VORTICITY_HEIGHT_M_ASL = 4000
-HORIZ_RADIUS_FOR_RDP_METRES = 75000.
-MAX_RDP_VALUES_S02 = numpy.array([6 * 8, 51 * 22], dtype=float)
+INTERP_HEIGHTS_M_ASL = numpy.array(
+    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000], dtype=int)
+INTERP_IMAGE_MATRIX_3D = numpy.stack(
+    (THIS_MATRIX_HEIGHT1, THIS_MATRIX_HEIGHT1 + 12, THIS_MATRIX_HEIGHT1 + 24,
+     THIS_MATRIX_HEIGHT1 + 30, THIS_MATRIX_HEIGHT1 + 36,
+     THIS_MATRIX_HEIGHT1 + 40, THIS_MATRIX_HEIGHT1 + 44,
+     THIS_MATRIX_HEIGHT1 + 48, THIS_MATRIX_HEIGHT1 + 52,
+     THIS_MATRIX_HEIGHT1 + 56),
+    axis=-1)
 
 # The following constants are used to test _subset_xy_grid_for_interp.
 NON_SUBSET_X_COORDS_METRES = numpy.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=float)
@@ -334,6 +318,23 @@ RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
 
 STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
 TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
+
+# The following constants are used to test _find_radar_heights_needed.
+STORM_ELEVATIONS_M_ASL = numpy.array(
+    [309, 3691, 4269, 4257, 883, 685, 4800], dtype=float)
+DESIRED_RADAR_HEIGHTS_M_AGL = numpy.array(
+    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000],
+    dtype=int)
+
+DESIRED_MYRORSS_HEIGHTS_M_ASL = numpy.array(
+    [1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000,
+     5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 10000, 11000, 12000, 13000,
+     14000, 15000, 16000, 17000],
+    dtype=int)
+DESIRED_GRIDRAD_HEIGHTS_M_ASL = numpy.array(
+    [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500,
+     7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000],
+    dtype=int)
 
 # The following constants are used to test find_storm_image_file,
 # find_storm_label_file, image_file_name_to_time, image_file_name_to_field,
@@ -670,22 +671,16 @@ class StormImagesTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
 
-    def test_get_max_rdp_values_one_time(self):
-        """Ensures correct output from _get_max_rdp_values_one_time."""
+    def test_interp_storm_image_in_height(self):
+        """Ensures correct output from _interp_storm_image_in_height."""
 
-        these_max_rdp_values_s02 = storm_images._get_max_rdp_values_one_time(
-            divergence_matrix_s01=DIVERGENCE_MATRIX_S01,
-            vorticity_matrix_s01=VORTICITY_MATRIX_S01,
-            grid_point_latitudes_deg=GRID_POINT_LATITUDES_DEG,
-            grid_point_longitudes_deg=GRID_POINT_LONGITUDES_DEG,
-            grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
-            min_vorticity_height_m_asl=MIN_VORTICITY_HEIGHT_M_ASL,
-            storm_centroid_latitudes_deg=RDP_CENTROID_LATITUDES_DEG,
-            storm_centroid_longitudes_deg=RDP_CENTROID_LONGITUDES_DEG,
-            horizontal_radius_metres=HORIZ_RADIUS_FOR_RDP_METRES)
+        this_interp_matrix = storm_images._interp_storm_image_in_height(
+            storm_image_matrix_3d=ORIG_IMAGE_MATRIX_3D,
+            orig_heights_m_asl=ORIG_HEIGHTS_M_ASL,
+            new_heights_m_asl=INTERP_HEIGHTS_M_ASL)
 
         self.assertTrue(numpy.allclose(
-            these_max_rdp_values_s02, MAX_RDP_VALUES_S02, atol=TOLERANCE))
+            this_interp_matrix, INTERP_IMAGE_MATRIX_3D, atol=TOLERANCE))
 
     def test_subset_xy_grid_for_interp(self):
         """Ensures correct output from _subset_xy_grid_for_interp."""
@@ -828,6 +823,34 @@ class StormImagesTests(unittest.TestCase):
                 all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
                 storm_ids_to_keep=STORM_IDS_TO_KEEP_ONE_MISSING,
                 valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING)
+
+    def test_find_radar_heights_needed_myrorss(self):
+        """Ensures correct output from _find_radar_heights_needed.
+
+        In this case the data source is MYRORSS.
+        """
+
+        these_heights_m_asl = storm_images._find_radar_heights_needed(
+            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL,
+            desired_radar_heights_m_agl=DESIRED_RADAR_HEIGHTS_M_AGL,
+            radar_source=radar_utils.MYRORSS_SOURCE_ID)
+
+        self.assertTrue(numpy.array_equal(
+            these_heights_m_asl, DESIRED_MYRORSS_HEIGHTS_M_ASL))
+
+    def test_find_radar_heights_needed_gridrad(self):
+        """Ensures correct output from _find_radar_heights_needed.
+
+        In this case the data source is GridRad.
+        """
+
+        these_heights_m_asl = storm_images._find_radar_heights_needed(
+            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL,
+            desired_radar_heights_m_agl=DESIRED_RADAR_HEIGHTS_M_AGL,
+            radar_source=radar_utils.GRIDRAD_SOURCE_ID)
+
+        self.assertTrue(numpy.array_equal(
+            these_heights_m_asl, DESIRED_GRIDRAD_HEIGHTS_M_ASL))
 
     def test_find_storm_image_file_one_time(self):
         """Ensures correct output from find_storm_image_file.

@@ -33,7 +33,6 @@ REFLECTIVITY_MATRIX_KEY = 'reflectivity_image_matrix_dbz'
 AZ_SHEAR_MATRIX_KEY = 'azimuthal_shear_image_matrix_s01'
 SOUNDING_MATRIX_KEY = 'sounding_matrix'
 TARGET_VALUES_KEY = 'target_values'
-ROTATION_DIVERGENCE_PRODUCTS_KEY = 'rotation_divergence_products_s02'
 
 
 def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
@@ -65,17 +64,9 @@ def _randomly_subset_radar_images(radar_image_dict, num_examples_to_keep):
     radar_image_dict[storm_images.VALID_TIMES_KEY] = radar_image_dict[
         storm_images.VALID_TIMES_KEY][example_to_keep_indices]
 
-    these_keys = [
-        storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY,
-        storm_images.LABEL_VALUES_KEY
-    ]
-
-    for this_key in these_keys:
-        if (this_key not in radar_image_dict
-                or radar_image_dict[this_key] is None):
-            continue
-        radar_image_dict[this_key] = radar_image_dict[
-            this_key][example_to_keep_indices]
+    if storm_images.LABEL_VALUES_KEY in radar_image_dict:
+        radar_image_dict[storm_images.LABEL_VALUES_KEY] = radar_image_dict[
+            storm_images.LABEL_VALUES_KEY][example_to_keep_indices]
 
     return radar_image_dict
 
@@ -306,8 +297,7 @@ def create_storm_images_3d(
         normalization_param_file_name=None, return_target=True,
         target_name=None, binarize_target=False, top_target_directory_name=None,
         refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
-        return_rotation_divergence_product=False, sounding_field_names=None,
-        top_sounding_dir_name=None,
+        sounding_field_names=None, top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None):
     """Creates examples with 3-D radar images.
 
@@ -334,9 +324,6 @@ def create_storm_images_3d(
     :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
         (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).  If
         you want no masking, leave this as `None`.
-    :param return_rotation_divergence_product: Boolean flag.  If True, the
-        rotation-divergence product (RDP) for each storm object will be
-        returned.
     :param sounding_field_names: list (length F_s) with names of sounding
         fields.  Each must be accepted by
         `soundings_only.check_pressureless_field_name`.
@@ -348,13 +335,9 @@ def create_storm_images_3d(
         storm-centered radar images.
     example_dict['sounding_matrix']: See doc for `create_storm_images_2d`.
     example_dict['target_values']: Same.
-    example_dict['rotation_divergence_products_s02']: length-E numpy array of
-        rotation-divergence products (seconds^-2).  If
-        `return_rotation_divergence_product = False`, this is None.
     """
 
     error_checking.assert_is_boolean(return_target)
-    error_checking.assert_is_boolean(return_rotation_divergence_product)
     if not return_target:
         binarize_target = False
 
@@ -385,7 +368,6 @@ def create_storm_images_3d(
     radar_image_matrix = None
     sounding_matrix = None
     target_values = numpy.array([], dtype=int)
-    rotation_divergence_products_s02 = numpy.array([], dtype=float)
 
     num_file_times = radar_file_name_matrix.shape[0]
     num_heights = radar_file_name_matrix.shape[2]
@@ -460,11 +442,6 @@ def create_storm_images_3d(
             target_values = numpy.concatenate((
                 target_values,
                 this_radar_image_dict[storm_images.LABEL_VALUES_KEY]))
-        if return_rotation_divergence_product:
-            rotation_divergence_products_s02 = numpy.concatenate((
-                rotation_divergence_products_s02,
-                this_radar_image_dict[
-                    storm_images.ROTATION_DIVERGENCE_PRODUCTS_KEY]))
 
         tuple_of_4d_image_matrices = ()
         for k in range(num_heights):
@@ -531,8 +508,7 @@ def create_storm_images_3d(
         STORM_TIMES_KEY: storm_times_unix_sec,
         RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
         SOUNDING_MATRIX_KEY: sounding_matrix,
-        TARGET_VALUES_KEY: target_values,
-        ROTATION_DIVERGENCE_PRODUCTS_KEY: rotation_divergence_products_s02
+        TARGET_VALUES_KEY: target_values
     }
 
 
