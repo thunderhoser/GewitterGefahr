@@ -147,6 +147,16 @@ GRID_POINTS_IN_STORMS_DICT = {
 GRID_POINTS_IN_STORMS_TABLE = pandas.DataFrame.from_dict(
     GRID_POINTS_IN_STORMS_DICT)
 
+# The following constants are used to test find_storm_objects.
+ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
+ALL_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
+STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
+TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2], dtype=int)
+RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
+
+STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
+TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
+
 # The following constants are used to test merge_storms_at_two_scales.
 NUM_STORMS_LARGE_SCALE = 3
 STORM_IDS_LARGE_SCALE = ['a', 'b', 'c']
@@ -354,6 +364,33 @@ class StormTrackingUtilsTests(unittest.TestCase):
 
         self.assertTrue(this_grid_points_in_storms_table.equals(
             GRID_POINTS_IN_STORMS_TABLE))
+
+    def test_find_storm_objects_all_good(self):
+        """Ensures correct output from find_storm_objects.
+
+        In this case, all desired storm objects should be found.
+        """
+
+        these_indices = tracking_utils.find_storm_objects(
+            all_storm_ids=ALL_STORM_IDS,
+            all_times_unix_sec=ALL_TIMES_UNIX_SEC,
+            storm_ids_to_keep=STORM_IDS_TO_KEEP_ALL_GOOD,
+            times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD)
+
+        self.assertTrue(numpy.array_equal(these_indices, RELEVANT_INDICES))
+
+    def test_find_storm_objects_one_missing(self):
+        """Ensures correct output from find_storm_objects.
+
+        In this case, one desired storm object is missing.
+        """
+
+        with self.assertRaises(ValueError):
+            tracking_utils.find_storm_objects(
+                all_storm_ids=ALL_STORM_IDS,
+                all_times_unix_sec=ALL_TIMES_UNIX_SEC,
+                storm_ids_to_keep=STORM_IDS_TO_KEEP_ONE_MISSING,
+                times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING)
 
     def test_merge_storms_at_two_scales(self):
         """Ensures correct output from merge_storms_at_two_scales."""

@@ -19,11 +19,11 @@ import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import storm_images
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -186,12 +186,11 @@ def _read_target_values(
         sort_indices_for_storm_id = numpy.concatenate((
             sort_indices_for_storm_id, these_indices))
 
-        these_indices = storm_images.find_storm_objects(
+        these_indices = tracking_utils.find_storm_objects(
             all_storm_ids=this_target_value_dict[labels.STORM_IDS_KEY],
-            all_valid_times_unix_sec=this_target_value_dict[
-                labels.VALID_TIMES_KEY],
+            all_times_unix_sec=this_target_value_dict[labels.VALID_TIMES_KEY],
             storm_ids_to_keep=[storm_ids[k] for k in these_indices],
-            valid_times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
+            times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
         storm_target_values = numpy.concatenate((
             storm_target_values,
             this_target_value_dict[labels.LABEL_VALUES_KEY][these_indices]))

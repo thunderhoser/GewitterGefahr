@@ -3,26 +3,74 @@
 import unittest
 import numpy
 import pandas
-from gewittergefahr.gg_utils import link_events_to_storms as events2storms
-from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import storm_images
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _centroids_latlng_to_rowcol.
-NW_GRID_POINT_LAT_DEG = 55.
-NW_GRID_POINT_LNG_DEG = 230.
-LAT_SPACING_DEG = 0.01
-LNG_SPACING_DEG = 0.01
-NUM_FULL_GRID_ROWS = 3501
-NUM_FULL_GRID_COLUMNS = 7001
+# The following constants are used to test _find_input_heights_needed.
+STORM_ELEVATIONS_M_ASL = numpy.array(
+    [309, 3691, 4269, 4257, 883, 685, 4800], dtype=float)
+DESIRED_RADAR_HEIGHTS_M_AGL = numpy.array(
+    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000],
+    dtype=int)
 
-CENTROID_LATITUDES_DEG = numpy.array([55., 54.995, 54.99, 54.985, 54.98])
-CENTROID_LONGITUDES_DEG = numpy.array([230., 230.005, 230.01, 230.015, 230.02])
-CENTER_ROWS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
-CENTER_COLUMNS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
+DESIRED_MYRORSS_HEIGHTS_M_ASL = numpy.array(
+    [1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000,
+     5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 10000, 11000, 12000, 13000,
+     14000, 15000, 16000, 17000],
+    dtype=int)
+DESIRED_GRIDRAD_HEIGHTS_M_ASL = numpy.array(
+    [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500,
+     7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000],
+    dtype=int)
+
+# The following constants are used to test _fields_and_heights_to_pairs.
+RADAR_FIELD_NAMES = [
+    radar_utils.ECHO_TOP_40DBZ_NAME, radar_utils.LOW_LEVEL_SHEAR_NAME,
+    radar_utils.REFL_NAME, radar_utils.VIL_NAME
+]
+REFLECTIVITY_HEIGHTS_M_AGL = numpy.array([1000, 2000], dtype=int)
+
+FIELD_NAME_BY_PAIR_MYRORSS = [
+    radar_utils.ECHO_TOP_40DBZ_NAME, radar_utils.LOW_LEVEL_SHEAR_NAME,
+    radar_utils.REFL_NAME, radar_utils.REFL_NAME, radar_utils.VIL_NAME
+]
+HEIGHT_BY_PAIR_MYRORSS_M_AGL = numpy.array(
+    [250, 250, 1000, 2000, 250], dtype=int)
+
+FIELD_NAME_BY_PAIR_MRMS = FIELD_NAME_BY_PAIR_MYRORSS + []
+HEIGHT_BY_PAIR_MRMS_M_AGL = numpy.array(
+    [500, 250, 1000, 2000, 500], dtype=int)
+
+# The following constants are used to test _get_relevant_storm_objects.
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
+THESE_SPC_DATES_UNIX_SEC = numpy.array([2, 2, 3, 3, 4, 4], dtype=int)
+THESE_EAST_VELOCITIES_M_S01 = numpy.array(
+    [10, numpy.nan, 10, numpy.nan, 10, numpy.nan])
+THESE_NORTH_VELOCITIES_M_S01 = numpy.array(
+    [10, numpy.nan, 10, numpy.nan, 10, 10])
+
+THIS_DICT = {
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.SPC_DATE_COLUMN: THESE_SPC_DATES_UNIX_SEC,
+    tracking_utils.EAST_VELOCITY_COLUMN: THESE_EAST_VELOCITIES_M_S01,
+    tracking_utils.NORTH_VELOCITY_COLUMN: THESE_NORTH_VELOCITIES_M_S01
+}
+STORM_OBJECT_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+TIME_UNROTATED_GRID_UNIX_SEC = 0
+SPC_DATE_UNROTATED_GRID_UNIX_SEC = 2
+RELEVANT_INDICES_UNROTATED_GRID = numpy.array([0, 1], dtype=int)
+
+FIRST_TIME_ROTATED_GRID_UNIX_SEC = 1
+FIRST_DATE_ROTATED_GRID_UNIX_SEC = 3
+FIRST_RELEVANT_INDICES_ROTATED_GRID = numpy.array([], dtype=int)
+
+SECOND_TIME_ROTATED_GRID_UNIX_SEC = 1
+SECOND_DATE_ROTATED_GRID_UNIX_SEC = 4
+SECOND_RELEVANT_INDICES_ROTATED_GRID = numpy.array([4], dtype=int)
 
 # The following constants are used to test _rotate_grid_one_storm_object.
 ONE_CENTROID_LATITUDE_DEG = 53.5
@@ -78,6 +126,19 @@ ROTATED_LNG_MATRIX_ARBITRARY_MOTION_DEG = numpy.array(
      [246.465, 246.475, 246.485, 246.495, 246.505, 246.515],
      [246.444, 246.455, 246.465, 246.475, 246.485, 246.495]])
 
+# The following constants are used to test _centroids_latlng_to_rowcol.
+NW_GRID_POINT_LAT_DEG = 55.
+NW_GRID_POINT_LNG_DEG = 230.
+LAT_SPACING_DEG = 0.01
+LNG_SPACING_DEG = 0.01
+NUM_FULL_GRID_ROWS = 3501
+NUM_FULL_GRID_COLUMNS = 7001
+
+CENTROID_LATITUDES_DEG = numpy.array([55., 54.995, 54.99, 54.985, 54.98])
+CENTROID_LONGITUDES_DEG = numpy.array([230., 230.005, 230.01, 230.015, 230.02])
+CENTER_ROWS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
+CENTER_COLUMNS = numpy.array([-0.5, 0.5, 1.5, 1.5, 1.5])
+
 # The following constants are used to test _get_unrotated_storm_image_coords.
 CENTER_ROW_TOP_LEFT = 10.5
 CENTER_ROW_MIDDLE = 1000.5
@@ -121,66 +182,6 @@ STORM_IMAGE_COORD_DICT_BOTTOM_RIGHT = {
     storm_images.NUM_RIGHT_PADDING_COLS_KEY: 22
 }
 
-# The following constants are used to test _check_storm_labels.
-MIN_LEAD_TIME_SEC = 0
-MAX_LEAD_TIME_SEC = 900
-MIN_LINK_DISTANCE_METRES = 1
-MAX_LINK_DISTANCE_METRES = 5000
-WIND_SPEED_PERCENTILE_LEVEL = 100.
-WIND_SPEED_CUTOFFS_KT = numpy.array([50.])
-
-WIND_SPEED_REGRESSION_COLUMN = labels.get_column_name_for_regression_label(
-    min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
-    min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-    wind_speed_percentile_level=WIND_SPEED_PERCENTILE_LEVEL)
-
-NUM_WIND_OBS_COLUMN = labels.get_column_name_for_num_wind_obs(
-    min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
-    min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
-
-WIND_SPEED_LABEL_COLUMN = labels.get_column_name_for_classification_label(
-    min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
-    min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-    event_type_string=events2storms.WIND_EVENT_TYPE_STRING,
-    wind_speed_percentile_level=WIND_SPEED_PERCENTILE_LEVEL,
-    wind_speed_class_cutoffs_kt=WIND_SPEED_CUTOFFS_KT)
-
-TORNADO_LABEL_COLUMN = labels.get_column_name_for_classification_label(
-    min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
-    min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
-    max_link_distance_metres=MAX_LINK_DISTANCE_METRES,
-    event_type_string=events2storms.TORNADO_EVENT_TYPE_STRING)
-
-STORM_IDS = ['A', 'B', 'C', 'A', 'B', 'C']
-UNIX_TIMES_SEC = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
-MAX_WIND_SPEEDS_KT = numpy.array([10., 25., 50., 7., 55., 40.])
-WIND_OB_COUNTS = numpy.array([5, 50, 3, 3, 42, 6], dtype=int)
-WIND_SPEED_LABELS = numpy.array([0, 0, 1, 0, 1, 0], dtype=int)
-TORNADO_LABELS = numpy.array([1, 0, 0, 1, 1, 0], dtype=int)
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
-    tracking_utils.TIME_COLUMN: UNIX_TIMES_SEC,
-    NUM_WIND_OBS_COLUMN: WIND_OB_COUNTS,
-    WIND_SPEED_REGRESSION_COLUMN: MAX_WIND_SPEEDS_KT,
-    WIND_SPEED_LABEL_COLUMN: WIND_SPEED_LABELS
-}
-STORM_TO_WINDS_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-STORM_TO_WINDS_TABLE_AB_TIME0 = STORM_TO_WINDS_TABLE.iloc[[0, 1]]
-STORM_TO_WINDS_TABLE_CB_TIME1 = STORM_TO_WINDS_TABLE.iloc[[5, 4]]
-
-THIS_DICT = {
-    tracking_utils.STORM_ID_COLUMN: STORM_IDS,
-    tracking_utils.TIME_COLUMN: UNIX_TIMES_SEC,
-    TORNADO_LABEL_COLUMN: TORNADO_LABELS
-}
-STORM_TO_TORNADOES_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
-STORM_TO_TORNADOES_TABLE_AB_TIME0 = STORM_TO_TORNADOES_TABLE.iloc[[0, 1]]
-STORM_TO_TORNADOES_TABLE_CB_TIME1 = STORM_TO_TORNADOES_TABLE.iloc[[5, 4]]
-
 # The following constants are used to test _filter_storm_objects_by_label.
 TORNADO_LABELS_TO_FILTER = numpy.array(
     [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int)
@@ -203,27 +204,6 @@ INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
     [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int)
 INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
     [0, 4, 13, 20, 26, 34], dtype=int)
-
-# The following constants are used to test _interp_storm_image_in_height.
-THIS_MATRIX_HEIGHT1 = numpy.array([[0, 1, 2, 3],
-                                   [4, 5, 6, 7],
-                                   [8, 9, 10, 11]], dtype=float)
-
-ORIG_HEIGHTS_M_ASL = numpy.array([1000, 2000, 3000, 5000, 8000], dtype=int)
-ORIG_IMAGE_MATRIX_3D = numpy.stack(
-    (THIS_MATRIX_HEIGHT1, THIS_MATRIX_HEIGHT1 + 12, THIS_MATRIX_HEIGHT1 + 24,
-     THIS_MATRIX_HEIGHT1 + 36, THIS_MATRIX_HEIGHT1 + 48),
-    axis=-1)
-
-INTERP_HEIGHTS_M_ASL = numpy.array(
-    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000], dtype=int)
-INTERP_IMAGE_MATRIX_3D = numpy.stack(
-    (THIS_MATRIX_HEIGHT1, THIS_MATRIX_HEIGHT1 + 12, THIS_MATRIX_HEIGHT1 + 24,
-     THIS_MATRIX_HEIGHT1 + 30, THIS_MATRIX_HEIGHT1 + 36,
-     THIS_MATRIX_HEIGHT1 + 40, THIS_MATRIX_HEIGHT1 + 44,
-     THIS_MATRIX_HEIGHT1 + 48, THIS_MATRIX_HEIGHT1 + 52,
-     THIS_MATRIX_HEIGHT1 + 56),
-    axis=-1)
 
 # The following constants are used to test _subset_xy_grid_for_interp.
 NON_SUBSET_X_COORDS_METRES = numpy.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=float)
@@ -309,32 +289,26 @@ THIS_SECOND_MATRIX = numpy.array([[7, 8, 9, 10],
 DOWNSIZED_STORM_IMAGE_MATRIX = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
-# The following constants are used to test find_storm_objects.
-ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
-ALL_VALID_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
-STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
-TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2], dtype=int)
-RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
+# The following constants are used to test _interp_storm_image_in_height.
+THIS_MATRIX_HEIGHT1 = numpy.array([[0, 1, 2, 3],
+                                   [4, 5, 6, 7],
+                                   [8, 9, 10, 11]], dtype=float)
 
-STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
-TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
+ORIG_HEIGHTS_M_ASL = numpy.array([1000, 2000, 3000, 5000, 8000], dtype=int)
+ORIG_IMAGE_MATRIX_3D = numpy.stack(
+    (THIS_MATRIX_HEIGHT1, THIS_MATRIX_HEIGHT1 + 12, THIS_MATRIX_HEIGHT1 + 24,
+     THIS_MATRIX_HEIGHT1 + 36, THIS_MATRIX_HEIGHT1 + 48),
+    axis=-1)
 
-# The following constants are used to test _find_radar_heights_needed.
-STORM_ELEVATIONS_M_ASL = numpy.array(
-    [309, 3691, 4269, 4257, 883, 685, 4800], dtype=float)
-DESIRED_RADAR_HEIGHTS_M_AGL = numpy.array(
-    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000, 11000, 12000],
-    dtype=int)
-
-DESIRED_MYRORSS_HEIGHTS_M_ASL = numpy.array(
-    [1250, 1500, 1750, 2000, 2250, 2500, 2750, 3000, 3500, 4000, 4500, 5000,
-     5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 10000, 11000, 12000, 13000,
-     14000, 15000, 16000, 17000],
-    dtype=int)
-DESIRED_GRIDRAD_HEIGHTS_M_ASL = numpy.array(
-    [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500,
-     7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000],
-    dtype=int)
+INTERP_HEIGHTS_M_ASL = numpy.array(
+    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000, 9000, 10000], dtype=int)
+INTERP_IMAGE_MATRIX_3D = numpy.stack(
+    (THIS_MATRIX_HEIGHT1, THIS_MATRIX_HEIGHT1 + 12, THIS_MATRIX_HEIGHT1 + 24,
+     THIS_MATRIX_HEIGHT1 + 30, THIS_MATRIX_HEIGHT1 + 36,
+     THIS_MATRIX_HEIGHT1 + 40, THIS_MATRIX_HEIGHT1 + 44,
+     THIS_MATRIX_HEIGHT1 + 48, THIS_MATRIX_HEIGHT1 + 52,
+     THIS_MATRIX_HEIGHT1 + 56),
+    axis=-1)
 
 # The following constants are used to test find_storm_image_file,
 # find_storm_label_file, image_file_name_to_time, image_file_name_to_field,
@@ -344,16 +318,16 @@ VALID_TIME_UNIX_SEC = 1516749825
 SPC_DATE_STRING = '20180123'
 RADAR_SOURCE_NAME = radar_utils.MYRORSS_SOURCE_ID
 RADAR_FIELD_NAME = 'echo_top_40dbz_km'
-RADAR_HEIGHT_M_ASL = 250
+RADAR_HEIGHT_M_AGL = 250
 
 STORM_IMAGE_FILE_NAME_ONE_TIME = (
-    'storm_images/myrorss/2018/20180123/echo_top_40dbz_km/00250_metres_asl/'
+    'storm_images/myrorss/2018/20180123/echo_top_40dbz_km/00250_metres_agl/'
     'storm_images_2018-01-23-232345.nc')
 STORM_IMAGE_FILE_NAME_ONE_SPC_DATE = (
-    'storm_images/myrorss/2018/echo_top_40dbz_km/00250_metres_asl/'
+    'storm_images/myrorss/2018/echo_top_40dbz_km/00250_metres_agl/'
     'storm_images_20180123.nc')
 
-TOP_LABEL_DIRECTORY_NAME = 'labels'
+TOP_LABEL_DIR_NAME = 'labels'
 LABEL_NAME = (
     'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00000-10000m_'
     'cutoffs=10-20-30-40-50kt')
@@ -362,32 +336,114 @@ STORM_LABEL_FILE_NAME_ONE_TIME = (
     'labels/2018/20180123/wind_labels_2018-01-23-232345.nc')
 STORM_LABEL_FILE_NAME_ONE_SPC_DATE = 'labels/2018/wind_labels_20180123.nc'
 
-# The following constants are used to test extract_storm_labels_with_name.
-WIND_SPEED_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
-TORNADO_LABELS_CB_TIME1 = numpy.array([0, 1], dtype=int)
-WIND_SPEED_LABELS_AB_TIME0 = numpy.array([0, 0], dtype=int)
-TORNADO_LABELS_AB_TIME0 = numpy.array([1, 0], dtype=int)
-
 
 class StormImagesTests(unittest.TestCase):
     """Each method is a unit test for storm_images.py."""
 
-    def test_centroids_latlng_to_rowcol(self):
-        """Ensures correct output from _centroids_latlng_to_rowcol."""
+    def test_find_input_heights_needed_myrorss(self):
+        """Ensures correct output from _find_input_heights_needed.
 
-        these_center_rows, these_center_columns = (
-            storm_images._centroids_latlng_to_rowcol(
-                centroid_latitudes_deg=CENTROID_LATITUDES_DEG,
-                centroid_longitudes_deg=CENTROID_LONGITUDES_DEG,
-                nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
-                nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
-                lat_spacing_deg=LAT_SPACING_DEG,
-                lng_spacing_deg=LNG_SPACING_DEG))
+        In this case the data source is MYRORSS.
+        """
+
+        these_heights_m_asl = storm_images._find_input_heights_needed(
+            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL,
+            desired_radar_heights_m_agl=DESIRED_RADAR_HEIGHTS_M_AGL,
+            radar_source=radar_utils.MYRORSS_SOURCE_ID)
 
         self.assertTrue(numpy.array_equal(
-            these_center_rows, CENTER_ROWS))
+            these_heights_m_asl, DESIRED_MYRORSS_HEIGHTS_M_ASL))
+
+    def test_find_input_heights_needed_gridrad(self):
+        """Ensures correct output from _find_input_heights_needed.
+
+        In this case the data source is GridRad.
+        """
+
+        these_heights_m_asl = storm_images._find_input_heights_needed(
+            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL,
+            desired_radar_heights_m_agl=DESIRED_RADAR_HEIGHTS_M_AGL,
+            radar_source=radar_utils.GRIDRAD_SOURCE_ID)
+
         self.assertTrue(numpy.array_equal(
-            these_center_columns, CENTER_COLUMNS))
+            these_heights_m_asl, DESIRED_GRIDRAD_HEIGHTS_M_ASL))
+
+    def test_fields_and_heights_to_pairs_myrorss(self):
+        """Ensures correct output from _fields_and_heights_to_pairs.
+
+        In this case the data source is MYRORSS.
+        """
+
+        (this_field_name_by_pair, this_height_by_pair_m_agl
+        ) = storm_images._fields_and_heights_to_pairs(
+            radar_field_names=RADAR_FIELD_NAMES,
+            reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL,
+            radar_source=radar_utils.MYRORSS_SOURCE_ID)
+
+        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR_MYRORSS)
+        self.assertTrue(numpy.array_equal(
+            this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MYRORSS_M_AGL))
+
+    def test_fields_and_heights_to_pairs_mrms(self):
+        """Ensures correct output from _fields_and_heights_to_pairs.
+
+        In this case the data source is MYRORSS.
+        """
+
+        (this_field_name_by_pair, this_height_by_pair_m_agl
+        ) = storm_images._fields_and_heights_to_pairs(
+            radar_field_names=RADAR_FIELD_NAMES,
+            reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL,
+            radar_source=radar_utils.MRMS_SOURCE_ID)
+
+        self.assertTrue(this_field_name_by_pair == FIELD_NAME_BY_PAIR_MRMS)
+        self.assertTrue(numpy.array_equal(
+            this_height_by_pair_m_agl, HEIGHT_BY_PAIR_MRMS_M_AGL))
+
+    def test_get_relevant_storm_objects_unrotated(self):
+        """Ensures correct output from _get_relevant_storm_objects.
+
+        In this case, storm-centered grids are unrotated.
+        """
+
+        these_indices = storm_images._get_relevant_storm_objects(
+            storm_object_table=STORM_OBJECT_TABLE,
+            valid_time_unix_sec=TIME_UNROTATED_GRID_UNIX_SEC,
+            valid_spc_date_unix_sec=SPC_DATE_UNROTATED_GRID_UNIX_SEC,
+            rotate_grids=False)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, RELEVANT_INDICES_UNROTATED_GRID))
+
+    def test_get_relevant_storm_objects_rotated_first(self):
+        """Ensures correct output from _get_relevant_storm_objects.
+
+        In this case, storm-centered grids are rotated.
+        """
+
+        these_indices = storm_images._get_relevant_storm_objects(
+            storm_object_table=STORM_OBJECT_TABLE,
+            valid_time_unix_sec=FIRST_TIME_ROTATED_GRID_UNIX_SEC,
+            valid_spc_date_unix_sec=FIRST_DATE_ROTATED_GRID_UNIX_SEC,
+            rotate_grids=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, FIRST_RELEVANT_INDICES_ROTATED_GRID))
+
+    def test_get_relevant_storm_objects_rotated_second(self):
+        """Ensures correct output from _get_relevant_storm_objects.
+
+        In this case, storm-centered grids are rotated.
+        """
+
+        these_indices = storm_images._get_relevant_storm_objects(
+            storm_object_table=STORM_OBJECT_TABLE,
+            valid_time_unix_sec=SECOND_TIME_ROTATED_GRID_UNIX_SEC,
+            valid_spc_date_unix_sec=SECOND_DATE_ROTATED_GRID_UNIX_SEC,
+            rotate_grids=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, SECOND_RELEVANT_INDICES_ROTATED_GRID))
 
     def test_rotate_grid_one_storm_object_zero_motion(self):
         """Ensures correct output from _rotate_grid_one_storm_object.
@@ -527,6 +583,23 @@ class StormImagesTests(unittest.TestCase):
             this_longitude_matrix_deg, ROTATED_LNG_MATRIX_ARBITRARY_MOTION_DEG,
             atol=TOLERANCE))
 
+    def test_centroids_latlng_to_rowcol(self):
+        """Ensures correct output from _centroids_latlng_to_rowcol."""
+
+        (these_center_rows, these_center_columns
+        ) = storm_images._centroids_latlng_to_rowcol(
+            centroid_latitudes_deg=CENTROID_LATITUDES_DEG,
+            centroid_longitudes_deg=CENTROID_LONGITUDES_DEG,
+            nw_grid_point_lat_deg=NW_GRID_POINT_LAT_DEG,
+            nw_grid_point_lng_deg=NW_GRID_POINT_LNG_DEG,
+            lat_spacing_deg=LAT_SPACING_DEG,
+            lng_spacing_deg=LNG_SPACING_DEG)
+
+        self.assertTrue(numpy.array_equal(
+            these_center_rows, CENTER_ROWS))
+        self.assertTrue(numpy.array_equal(
+            these_center_columns, CENTER_COLUMNS))
+
     def test_get_unrotated_storm_image_coords_top_left(self):
         """Ensures correct output from _get_unrotated_storm_image_coords.
 
@@ -574,42 +647,6 @@ class StormImagesTests(unittest.TestCase):
             center_column=CENTER_COLUMN_BOTTOM_RIGHT)
 
         self.assertTrue(this_coord_dict == STORM_IMAGE_COORD_DICT_BOTTOM_RIGHT)
-
-    def test_check_storm_labels_ab_time0(self):
-        """Ensures correct output from _check_storm_labels.
-
-        In this case, input storm objects are A and B at time 0.
-        """
-
-        this_storm_to_winds_table, storm_to_tornadoes_table = (
-            storm_images._check_storm_labels(
-                storm_ids=['A', 'B'],
-                valid_times_unix_sec=numpy.full(2, 0, dtype=int),
-                storm_to_winds_table=STORM_TO_WINDS_TABLE,
-                storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE))
-
-        self.assertTrue(this_storm_to_winds_table.equals(
-            STORM_TO_WINDS_TABLE_AB_TIME0))
-        self.assertTrue(storm_to_tornadoes_table.equals(
-            STORM_TO_TORNADOES_TABLE_AB_TIME0))
-
-    def test_check_storm_labels_bc_time1(self):
-        """Ensures correct output from _check_storm_labels.
-
-        In this case, input storm objects are B and C at time 1.
-        """
-
-        this_storm_to_winds_table, this_storm_to_tornadoes_table = (
-            storm_images._check_storm_labels(
-                storm_ids=['C', 'B'],
-                valid_times_unix_sec=numpy.full(2, 1, dtype=int),
-                storm_to_winds_table=STORM_TO_WINDS_TABLE,
-                storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE))
-
-        self.assertTrue(this_storm_to_winds_table.equals(
-            STORM_TO_WINDS_TABLE_CB_TIME1))
-        self.assertTrue(this_storm_to_tornadoes_table.equals(
-            STORM_TO_TORNADOES_TABLE_CB_TIME1))
 
     def test_filter_storm_objects_by_label_tornado_nonzero(self):
         """Ensures correct output from _filter_storm_objects_by_label.
@@ -670,17 +707,6 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
-
-    def test_interp_storm_image_in_height(self):
-        """Ensures correct output from _interp_storm_image_in_height."""
-
-        this_interp_matrix = storm_images._interp_storm_image_in_height(
-            storm_image_matrix_3d=ORIG_IMAGE_MATRIX_3D,
-            orig_heights_m_asl=ORIG_HEIGHTS_M_ASL,
-            new_heights_m_asl=INTERP_HEIGHTS_M_ASL)
-
-        self.assertTrue(numpy.allclose(
-            this_interp_matrix, INTERP_IMAGE_MATRIX_3D, atol=TOLERANCE))
 
     def test_subset_xy_grid_for_interp(self):
         """Ensures correct output from _subset_xy_grid_for_interp."""
@@ -798,59 +824,16 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(this_output_matrix.size == 0)
 
-    def test_find_storm_objects_all_good(self):
-        """Ensures correct output from find_storm_objects.
+    def test_interp_storm_image_in_height(self):
+        """Ensures correct output from _interp_storm_image_in_height."""
 
-        In this case, all desired storm objects should be found.
-        """
+        this_interp_matrix = storm_images._interp_storm_image_in_height(
+            storm_image_matrix_3d=ORIG_IMAGE_MATRIX_3D,
+            orig_heights_m_asl=ORIG_HEIGHTS_M_ASL,
+            new_heights_m_asl=INTERP_HEIGHTS_M_ASL)
 
-        these_indices = storm_images.find_storm_objects(
-            all_storm_ids=ALL_STORM_IDS,
-            all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
-            storm_ids_to_keep=STORM_IDS_TO_KEEP_ALL_GOOD,
-            valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD)
-        self.assertTrue(numpy.array_equal(these_indices, RELEVANT_INDICES))
-
-    def test_find_storm_objects_one_missing(self):
-        """Ensures correct output from find_storm_objects.
-
-        In this case, one desired storm object is missing.
-        """
-
-        with self.assertRaises(ValueError):
-            storm_images.find_storm_objects(
-                all_storm_ids=ALL_STORM_IDS,
-                all_valid_times_unix_sec=ALL_VALID_TIMES_UNIX_SEC,
-                storm_ids_to_keep=STORM_IDS_TO_KEEP_ONE_MISSING,
-                valid_times_to_keep_unix_sec=TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING)
-
-    def test_find_radar_heights_needed_myrorss(self):
-        """Ensures correct output from _find_radar_heights_needed.
-
-        In this case the data source is MYRORSS.
-        """
-
-        these_heights_m_asl = storm_images._find_radar_heights_needed(
-            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL,
-            desired_radar_heights_m_agl=DESIRED_RADAR_HEIGHTS_M_AGL,
-            radar_source=radar_utils.MYRORSS_SOURCE_ID)
-
-        self.assertTrue(numpy.array_equal(
-            these_heights_m_asl, DESIRED_MYRORSS_HEIGHTS_M_ASL))
-
-    def test_find_radar_heights_needed_gridrad(self):
-        """Ensures correct output from _find_radar_heights_needed.
-
-        In this case the data source is GridRad.
-        """
-
-        these_heights_m_asl = storm_images._find_radar_heights_needed(
-            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL,
-            desired_radar_heights_m_agl=DESIRED_RADAR_HEIGHTS_M_AGL,
-            radar_source=radar_utils.GRIDRAD_SOURCE_ID)
-
-        self.assertTrue(numpy.array_equal(
-            these_heights_m_asl, DESIRED_GRIDRAD_HEIGHTS_M_ASL))
+        self.assertTrue(numpy.allclose(
+            this_interp_matrix, INTERP_IMAGE_MATRIX_3D, atol=TOLERANCE))
 
     def test_find_storm_image_file_one_time(self):
         """Ensures correct output from find_storm_image_file.
@@ -862,7 +845,7 @@ class StormImagesTests(unittest.TestCase):
             top_directory_name=TOP_STORM_IMAGE_DIR_NAME,
             unix_time_sec=VALID_TIME_UNIX_SEC, spc_date_string=SPC_DATE_STRING,
             radar_source=RADAR_SOURCE_NAME, radar_field_name=RADAR_FIELD_NAME,
-            radar_height_m_asl=RADAR_HEIGHT_M_ASL, raise_error_if_missing=False)
+            radar_height_m_agl=RADAR_HEIGHT_M_AGL, raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME_ONE_TIME)
 
@@ -876,7 +859,7 @@ class StormImagesTests(unittest.TestCase):
             top_directory_name=TOP_STORM_IMAGE_DIR_NAME,
             spc_date_string=SPC_DATE_STRING, radar_source=RADAR_SOURCE_NAME,
             radar_field_name=RADAR_FIELD_NAME,
-            radar_height_m_asl=RADAR_HEIGHT_M_ASL, raise_error_if_missing=False)
+            radar_height_m_agl=RADAR_HEIGHT_M_AGL, raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
 
@@ -931,9 +914,9 @@ class StormImagesTests(unittest.TestCase):
         In this case, file name is for one time step.
         """
 
-        this_height_m_asl = storm_images.image_file_name_to_height(
+        this_height_m_agl = storm_images.image_file_name_to_height(
             STORM_IMAGE_FILE_NAME_ONE_TIME)
-        self.assertTrue(this_height_m_asl == RADAR_HEIGHT_M_ASL)
+        self.assertTrue(this_height_m_agl == RADAR_HEIGHT_M_AGL)
 
     def test_image_file_name_to_height_one_spc_date(self):
         """Ensures correct output from image_file_name_to_height.
@@ -941,125 +924,35 @@ class StormImagesTests(unittest.TestCase):
         In this case, file name is for one SPC date.
         """
 
-        this_height_m_asl = storm_images.image_file_name_to_height(
+        this_height_m_agl = storm_images.image_file_name_to_height(
             STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
-        self.assertTrue(this_height_m_asl == RADAR_HEIGHT_M_ASL)
+        self.assertTrue(this_height_m_agl == RADAR_HEIGHT_M_AGL)
 
-    def test_find_storm_label_file_one_time_to_one_time(self):
+    def test_find_storm_label_file_one_time(self):
         """Ensures correct output from find_storm_label_file.
 
-        In this case, the image file contains one time step and we want a label
-        file with one time step.
+        In this case, file name is for one time step.
         """
 
         this_file_name = storm_images.find_storm_label_file(
             storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
-            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-            label_name=LABEL_NAME, one_file_per_spc_date=False,
-            raise_error_if_missing=False)
+            top_label_dir_name=TOP_LABEL_DIR_NAME, label_name=LABEL_NAME,
+            raise_error_if_missing=False, warn_if_missing=False)
 
         self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
 
-    def test_find_storm_label_file_one_time_to_spc_date(self):
+    def test_find_storm_label_file_one_spc_date(self):
         """Ensures correct output from find_storm_label_file.
 
-        In this case, the image file contains one time step and we want a label
-        file with one SPC date.
-        """
-
-        this_file_name = storm_images.find_storm_label_file(
-            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
-            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-            label_name=LABEL_NAME, one_file_per_spc_date=True,
-            raise_error_if_missing=False)
-
-        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
-
-    def test_find_storm_label_file_one_spc_date_to_spc_date(self):
-        """Ensures correct output from find_storm_label_file.
-
-        In this case, the image file contains one SPC date and we want a label
-        file with one SPC date.
+        In this case, file name is for one SPC date.
         """
 
         this_file_name = storm_images.find_storm_label_file(
             storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
-            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-            label_name=LABEL_NAME, one_file_per_spc_date=True,
-            raise_error_if_missing=False)
+            top_label_dir_name=TOP_LABEL_DIR_NAME, label_name=LABEL_NAME,
+            raise_error_if_missing=False, warn_if_missing=False)
 
         self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
-
-    def test_find_storm_label_file_one_spc_date_to_time(self):
-        """Ensures correct output from find_storm_label_file.
-
-        In this case, the image file contains one SPC date and we want a label
-        file with one time step.
-        """
-
-        this_file_name = storm_images.find_storm_label_file(
-            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
-            top_label_directory_name=TOP_LABEL_DIRECTORY_NAME,
-            label_name=LABEL_NAME, one_file_per_spc_date=False,
-            raise_error_if_missing=False)
-
-        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
-
-    def test_extract_storm_labels_with_name_wind_ab_time0(self):
-        """Ensures correct output from extract_storm_labels_with_name.
-
-        In this case, extracting wind labels for storms A and B at time 0.
-        """
-
-        these_labels = storm_images.extract_storm_labels_with_name(
-            storm_ids=['A', 'B'],
-            valid_times_unix_sec=numpy.full(2, 0, dtype=int),
-            label_name=WIND_SPEED_LABEL_COLUMN,
-            storm_to_winds_table=STORM_TO_WINDS_TABLE_AB_TIME0)
-        self.assertTrue(numpy.array_equal(
-            these_labels, WIND_SPEED_LABELS_AB_TIME0))
-
-    def test_extract_storm_labels_with_name_tornado_ab_time0(self):
-        """Ensures correct output from extract_storm_labels_with_name.
-
-        In this case, extracting tornado labels for storms A and B at time 0.
-        """
-
-        these_labels = storm_images.extract_storm_labels_with_name(
-            storm_ids=['A', 'B'],
-            valid_times_unix_sec=numpy.full(2, 0, dtype=int),
-            label_name=TORNADO_LABEL_COLUMN,
-            storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE_AB_TIME0)
-        self.assertTrue(numpy.array_equal(
-            these_labels, TORNADO_LABELS_AB_TIME0))
-
-    def test_extract_storm_labels_with_name_wind_cb_time1(self):
-        """Ensures correct output from extract_storm_labels_with_name.
-
-        In this case, extracting wind labels for storms C and B at time 1.
-        """
-
-        these_labels = storm_images.extract_storm_labels_with_name(
-            storm_ids=['C', 'B'],
-            valid_times_unix_sec=numpy.full(2, 1, dtype=int),
-            label_name=WIND_SPEED_LABEL_COLUMN,
-            storm_to_winds_table=STORM_TO_WINDS_TABLE_CB_TIME1)
-        self.assertTrue(numpy.array_equal(
-            these_labels, WIND_SPEED_LABELS_CB_TIME1))
-
-    def test_extract_storm_labels_with_name_tornado_cb_time1(self):
-        """Ensures correct output from extract_storm_labels_with_name.
-
-        In this case, extracting tornado labels for storms C and B at time 1.
-        """
-
-        these_labels = storm_images.extract_storm_labels_with_name(
-            storm_ids=['C', 'B'],
-            valid_times_unix_sec=numpy.full(2, 1, dtype=int),
-            label_name=TORNADO_LABEL_COLUMN,
-            storm_to_tornadoes_table=STORM_TO_TORNADOES_TABLE_CB_TIME1)
-        self.assertTrue(numpy.array_equal(
-            these_labels, TORNADO_LABELS_CB_TIME1))
 
 
 if __name__ == '__main__':

@@ -3,6 +3,7 @@
 import numpy
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
@@ -317,12 +318,11 @@ def read_storms_one_spc_date(
         relevant_indices = numpy.linspace(
             0, len(storm_ids) - 1, num=len(storm_ids), dtype=int)
     else:
-        relevant_indices = storm_images.find_storm_objects(
+        relevant_indices = tracking_utils.find_storm_objects(
             all_storm_ids=example_dict[deployment_io.STORM_IDS_KEY],
-            all_valid_times_unix_sec=example_dict[
-                deployment_io.STORM_TIMES_KEY],
+            all_times_unix_sec=example_dict[deployment_io.STORM_TIMES_KEY],
             storm_ids_to_keep=storm_ids,
-            valid_times_to_keep_unix_sec=storm_times_unix_sec)
+            times_to_keep_unix_sec=storm_times_unix_sec)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         list_of_input_matrices = [

@@ -7,6 +7,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import radar_utils
@@ -328,12 +329,12 @@ def _read_inputs(
             sort_indices_for_storm_id, these_indices))
 
         # TODO(thunderhoser): Handle possibility of missing storm objects.
-        these_indices = storm_images.find_storm_objects(
+        these_indices = tracking_utils.find_storm_objects(
             all_storm_ids=this_storm_object_dict[deployment_io.STORM_IDS_KEY],
-            all_valid_times_unix_sec=this_storm_object_dict[
+            all_times_unix_sec=this_storm_object_dict[
                 deployment_io.STORM_TIMES_KEY],
             storm_ids_to_keep=[storm_ids[k] for k in these_indices],
-            valid_times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
+            times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
 
         if radar_image_matrix is None:
             radar_image_matrix = this_storm_object_dict[
@@ -573,11 +574,11 @@ def _run(
     print SEPARATOR_STRING
 
     if storm_activations is not None:
-        these_indices = storm_images.find_storm_objects(
+        these_indices = tracking_utils.find_storm_objects(
             all_storm_ids=storm_object_dict[STORM_IDS_KEY],
-            all_valid_times_unix_sec=storm_object_dict[STORM_TIMES_KEY],
+            all_times_unix_sec=storm_object_dict[STORM_TIMES_KEY],
             storm_ids_to_keep=storm_ids,
-            valid_times_to_keep_unix_sec=storm_times_unix_sec)
+            times_to_keep_unix_sec=storm_times_unix_sec)
         storm_activations = storm_activations[these_indices]
 
     storm_object_dict.update({STORM_ACTIVATIONS_KEY: storm_activations})
