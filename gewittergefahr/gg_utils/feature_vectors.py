@@ -4,7 +4,7 @@ import pickle
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import radar_statistics as radar_stats
 from gewittergefahr.gg_utils import shape_statistics as shape_stats
-from gewittergefahr.gg_utils import soundings
+from gewittergefahr.gg_utils import sounding_stats
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -105,7 +105,8 @@ def check_feature_table(feature_table):
         else:
             feature_column_names = shape_stat_column_names
 
-    sounding_stat_column_names = soundings.get_statistic_columns(feature_table)
+    sounding_stat_column_names = sounding_stats.get_statistic_columns(
+        feature_table)
     if sounding_stat_column_names:
         if feature_column_names:
             feature_column_names += sounding_stat_column_names
@@ -140,7 +141,7 @@ def join_features_and_labels(
     :param shape_statistic_table: pandas DataFrame created by
         `shape_statistics.get_stats_for_storm_objects`.
     :param sounding_statistic_table: pandas DataFrame created by
-        `soundings.get_sounding_stats_for_storm_objects`.
+        `sounding_stats.get_sounding_stats_for_storm_objects`.
     :return: feature_table: pandas DataFrame containing columns with features
         (predictor variables), labels (target variables), and number of wind
         observations used to create label (where applicable).  Also, if
@@ -177,8 +178,10 @@ def join_features_and_labels(
                 shape_statistic_table, on=COLUMNS_TO_MERGE_ON, how='inner')
 
     if sounding_statistic_table is not None:
-        sounding_stat_column_names = soundings.check_sounding_statistic_table(
-            sounding_statistic_table, require_storm_objects=True)
+        sounding_stat_column_names = (
+            sounding_stats.check_sounding_statistic_table(
+                sounding_statistic_table, require_storm_objects=True)
+        )
         sounding_statistic_table = sounding_statistic_table[
             COLUMNS_TO_MERGE_ON + sounding_stat_column_names]
 

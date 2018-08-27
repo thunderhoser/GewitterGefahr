@@ -1,4 +1,4 @@
-"""Methods for computing sounding statistics."""
+"""Sounding statistics."""
 
 import copy
 import pickle
@@ -24,7 +24,7 @@ from gewittergefahr.gg_utils import geodetic_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): This module needs a major overhaul.
+# TODO(thunderhoser): This module is broken and needs to be fixed.
 
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 LEAD_TIME_COLUMN = 'lead_time_seconds'
