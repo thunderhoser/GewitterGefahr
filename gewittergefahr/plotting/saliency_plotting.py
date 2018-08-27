@@ -495,7 +495,7 @@ def plot_saliency_for_radar(saliency_matrix, axes_object, option_dict=None):
 
 def plot_saliency_with_radar_2d_fields(
         radar_matrix, saliency_matrix, saliency_metadata_dict,
-        field_name_by_pair, height_by_pair_m_asl, one_fig_per_storm_object,
+        field_name_by_pair, height_by_pair_m_agl, one_fig_per_storm_object,
         num_panel_rows, output_dir_name, saliency_option_dict=None,
         figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
@@ -508,8 +508,8 @@ def plot_saliency_with_radar_2d_fields(
         `saliency_maps.read_file`.
     :param field_name_by_pair: length-C list of field names (each must be
         accepted by `radar_utils.check_field_name`).
-    :param height_by_pair_m_asl: length-C integer numpy array of radar heights
-        (metres above sea level).
+    :param height_by_pair_m_agl: length-C integer numpy array of radar heights
+        (metres above ground level).
     :param one_fig_per_storm_object: Boolean flag.  If True, this method will
         created one paneled figure for each storm object, where each panel
         contains the saliency map for a different radar field/height.  If False,
@@ -533,10 +533,10 @@ def plot_saliency_with_radar_2d_fields(
         numpy.array(field_name_by_pair),
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
-    error_checking.assert_is_integer_numpy_array(height_by_pair_m_asl)
-    error_checking.assert_is_geq_numpy_array(height_by_pair_m_asl, 0)
+    error_checking.assert_is_integer_numpy_array(height_by_pair_m_agl)
+    error_checking.assert_is_geq_numpy_array(height_by_pair_m_agl, 0)
     error_checking.assert_is_numpy_array(
-        height_by_pair_m_asl,
+        height_by_pair_m_agl,
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
     error_checking.assert_is_boolean(one_fig_per_storm_object)
@@ -574,8 +574,8 @@ def plot_saliency_with_radar_2d_fields(
 
                     if (field_name_by_pair[this_fh_pair_index] ==
                             radar_utils.REFL_NAME):
-                        this_annotation_string += '\nat {0:.1f} km'.format(
-                            height_by_pair_m_asl[this_fh_pair_index] *
+                        this_annotation_string += '\nat {0:.1f} km AGL'.format(
+                            height_by_pair_m_agl[this_fh_pair_index] *
                             METRES_TO_KM)
 
                     radar_plotting.plot_2d_grid_without_coords(
@@ -659,14 +659,14 @@ def plot_saliency_with_radar_2d_fields(
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
 
-            this_title_string = '{0:s} at {1:.1f} km ASL'.format(
-                field_name_by_pair[i], height_by_pair_m_asl[i] * METRES_TO_KM)
+            this_title_string = '{0:s} at {1:.1f} km AGL'.format(
+                field_name_by_pair[i], height_by_pair_m_agl[i] * METRES_TO_KM)
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_figure_file_name = (
                 '{0:s}/saliency_{1:s}_{2:05d}metres.jpg'
             ).format(output_dir_name, field_name_by_pair[i].replace('_', '-'),
-                     height_by_pair_m_asl[i])
+                     height_by_pair_m_agl[i])
 
             print 'Saving figure to file: "{0:s}"...'.format(
                 this_figure_file_name)
@@ -676,7 +676,7 @@ def plot_saliency_with_radar_2d_fields(
 
 def plot_saliency_with_radar_3d_fields(
         radar_matrix, saliency_matrix, saliency_metadata_dict,
-        radar_field_names, radar_heights_m_asl, one_fig_per_storm_object,
+        radar_field_names, radar_heights_m_agl, one_fig_per_storm_object,
         num_panel_rows, output_dir_name, saliency_option_dict=None,
         figure_width_inches=DEFAULT_FIG_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIG_HEIGHT_INCHES):
@@ -689,8 +689,8 @@ def plot_saliency_with_radar_3d_fields(
         `saliency_maps.read_file`.
     :param radar_field_names: length-F list of field names (each must be
         accepted by `radar_utils.check_field_name`).
-    :param radar_heights_m_asl: length-H integer numpy array of radar heights
-        (metres above sea level).
+    :param radar_heights_m_agl: length-H integer numpy array of radar heights
+        (metres above ground level).
     :param one_fig_per_storm_object: See doc for
         `plot_saliency_with_radar_2d_fields`.
     :param num_panel_rows: Same.
@@ -711,10 +711,10 @@ def plot_saliency_with_radar_3d_fields(
         numpy.array(radar_field_names),
         exact_dimensions=numpy.array([num_fields]))
 
-    error_checking.assert_is_integer_numpy_array(radar_heights_m_asl)
-    error_checking.assert_is_geq_numpy_array(radar_heights_m_asl, 0)
+    error_checking.assert_is_integer_numpy_array(radar_heights_m_agl)
+    error_checking.assert_is_geq_numpy_array(radar_heights_m_agl, 0)
     error_checking.assert_is_numpy_array(
-        radar_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
+        radar_heights_m_agl, exact_dimensions=numpy.array([num_heights]))
 
     error_checking.assert_is_boolean(one_fig_per_storm_object)
     error_checking.assert_is_integer(num_panel_rows)
@@ -747,9 +747,9 @@ def plot_saliency_with_radar_3d_fields(
                         if this_height_index >= num_heights:
                             continue
 
-                        this_annotation_string = '{1:.1f} km ASL'.format(
+                        this_annotation_string = '{1:.1f} km AGL'.format(
                             radar_field_names[m],
-                            radar_heights_m_asl[this_height_index] *
+                            radar_heights_m_agl[this_height_index] *
                             METRES_TO_KM)
 
                         radar_plotting.plot_2d_grid_without_coords(
@@ -850,15 +850,15 @@ def plot_saliency_with_radar_3d_fields(
                     colour_norm_object=this_colour_norm_object,
                     orientation='horizontal', extend_min=True, extend_max=True)
 
-                this_title_string = '{0:s} at {1:.1f} km ASL'.format(
-                    radar_field_names[i], radar_heights_m_asl[m] * METRES_TO_KM)
+                this_title_string = '{0:s} at {1:.1f} km AGL'.format(
+                    radar_field_names[i], radar_heights_m_agl[m] * METRES_TO_KM)
                 pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
                 this_figure_file_name = (
                     '{0:s}/saliency_{1:s}_{2:05d}metres.jpg'
                 ).format(output_dir_name,
                          radar_field_names[i].replace('_', '-'),
-                         radar_heights_m_asl[m])
+                         radar_heights_m_agl[m])
 
                 print 'Saving figure to file: "{0:s}"...'.format(
                     this_figure_file_name)

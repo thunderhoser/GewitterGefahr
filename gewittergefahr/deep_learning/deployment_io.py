@@ -165,7 +165,7 @@ def create_storm_images_2d(
         if return_target:
             label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=radar_file_name_matrix[i, 0],
-                top_label_directory_name=top_target_directory_name,
+                top_label_dir_name=top_target_directory_name,
                 label_name=target_name, raise_error_if_missing=False,
                 warn_if_missing=True)
             if not os.path.isfile(label_file_name):
@@ -376,7 +376,7 @@ def create_storm_images_3d(
         if return_target:
             label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=radar_file_name_matrix[i, 0, 0],
-                top_label_directory_name=top_target_directory_name,
+                top_label_dir_name=top_target_directory_name,
                 label_name=target_name, raise_error_if_missing=False,
                 warn_if_missing=True)
             if not os.path.isfile(label_file_name):
@@ -608,7 +608,7 @@ def create_storm_images_2d3d_myrorss(
         if return_target:
             label_file_name = storm_images.find_storm_label_file(
                 storm_image_file_name=reflectivity_file_name_matrix[i, 0],
-                top_label_directory_name=top_target_directory_name,
+                top_label_dir_name=top_target_directory_name,
                 label_name=target_name, raise_error_if_missing=False,
                 warn_if_missing=True)
             if not os.path.isfile(label_file_name):

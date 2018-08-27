@@ -225,8 +225,8 @@ def create_climo_initializer(
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
         test_mode=False, sounding_field_names=None, sounding_pressures_mb=None,
-        radar_field_names=None, radar_heights_m_asl=None,
-        radar_field_name_by_channel=None, radar_height_by_channel_m_asl=None,
+        radar_field_names=None, radar_heights_m_agl=None,
+        radar_field_name_by_channel=None, radar_height_by_channel_m_agl=None,
         radar_normalization_table=None, sounding_normalization_table=None):
     """Creates climatological initializer.
 
@@ -260,22 +260,20 @@ def create_climo_initializer(
         [if model input does not contain soundings, leave this as `None`]
         numpy array (length H_s) of sounding pressure levels, in the order that
         they appear in the corresponding input tensor.
-    :param radar_field_names:
-        [if model input does not contain 3-D radar images, leave this as `None`]
+    :param radar_field_names: [used iff model input contains 3-D radar images]
         List (length F_r) with names of radar fields, in the order that they
         appear in the corresponding input tensor.
-    :param radar_heights_m_asl:
-        [if model input does not contain 3-D radar images, leave this as `None`]
-        numpy array (length H_r) of radar heights (metres above sea level), in
-        the order that they appear in the corresponding input tensor.
+    :param radar_heights_m_agl: [used iff model input contains 3-D radar images]
+        numpy array (length H_r) of radar heights (metres above ground level),
+        in the order that they appear in the corresponding input tensor.
     :param radar_field_name_by_channel:
-        [if model input does not contain 2-D radar images, leave this as `None`]
+        [used iff model input contains 2-D radar images]
         Length-C list of radar fields, in the order that they appear in the
         corresponding input tensor.
-    :param radar_height_by_channel_m_asl:
-        [if model input does not contain 2-D radar images, leave this as `None`]
-        Length-C numpy array of radar heights (metres above sea level), in the
-        order that they appear in the corresponding input tensor.
+    :param radar_height_by_channel_m_agl:
+        [used iff model input contains 2-D radar images]
+        Length-C numpy array of radar heights (metres above ground level), in
+        the order that they appear in the corresponding input tensor.
     :param radar_normalization_table: For testing only.  Leave this alone.
     :param sounding_normalization_table: For testing only.  Leave this alone.
     :return: init_function: Function (see below).
@@ -301,9 +299,9 @@ def create_climo_initializer(
         error_checking.assert_is_numpy_array(
             numpy.array(radar_field_names), num_dimensions=1)
 
-        error_checking.assert_is_integer_numpy_array(radar_heights_m_asl)
+        error_checking.assert_is_integer_numpy_array(radar_heights_m_agl)
         error_checking.assert_is_numpy_array(
-            radar_heights_m_asl, num_dimensions=1)
+            radar_heights_m_agl, num_dimensions=1)
 
     if radar_field_name_by_channel is not None:
         error_checking.assert_is_string_list(radar_field_name_by_channel)
@@ -311,9 +309,9 @@ def create_climo_initializer(
             numpy.array(radar_field_name_by_channel), num_dimensions=1)
 
         error_checking.assert_is_integer_numpy_array(
-            radar_height_by_channel_m_asl)
+            radar_height_by_channel_m_agl)
         error_checking.assert_is_numpy_array(
-            radar_height_by_channel_m_asl,
+            radar_height_by_channel_m_agl,
             exact_dimensions=numpy.array([len(radar_field_name_by_channel)]))
 
     def init_function(array_dimensions):
@@ -331,9 +329,9 @@ def create_climo_initializer(
         array = numpy.full(array_dimensions, numpy.nan)
         if len(array_dimensions) == 5:
             for j in range(len(radar_field_names)):
-                for k in range(len(radar_heights_m_asl)):
-                    # this_key = (radar_field_names[j], radar_heights_m_asl[k])
-                    this_key = radar_field_names[j]
+                for k in range(len(radar_heights_m_agl)):
+                    this_key = (radar_field_names[j], radar_heights_m_agl[k])
+                    # this_key = radar_field_names[j]
                     array[..., k, j] = radar_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
@@ -347,9 +345,9 @@ def create_climo_initializer(
 
         if len(array_dimensions) == 4:
             for j in range(len(radar_field_name_by_channel)):
-                # this_key = (radar_field_name_by_channel[j],
-                #             radar_height_by_channel_m_asl[j])
-                this_key = radar_field_name_by_channel[j]
+                this_key = (radar_field_name_by_channel[j],
+                            radar_height_by_channel_m_agl[j])
+                # this_key = radar_field_name_by_channel[j]
                 array[..., j] = radar_normalization_table[
                     dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
@@ -365,9 +363,9 @@ def create_climo_initializer(
         if len(array_dimensions) == 3:
             for j in range(len(sounding_field_names)):
                 for k in range(len(sounding_pressures_mb)):
-                    # this_key = (
-                    #     sounding_field_names[j], sounding_pressures_mb[k])
-                    this_key = sounding_field_names[j]
+                    this_key = (
+                        sounding_field_names[j], sounding_pressures_mb[k])
+                    # this_key = sounding_field_names[j]
                     array[..., k, j] = sounding_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 

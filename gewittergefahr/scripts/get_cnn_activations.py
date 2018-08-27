@@ -207,8 +207,8 @@ def _run(
             time_conversion.spc_date_string_to_unix_sec(
                 last_spc_date_string),
             one_file_per_time_step=False, shuffle_times=False,
-            radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-            reflectivity_heights_m_asl=model_metadata_dict[
+            radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+            reflectivity_heights_m_agl=model_metadata_dict[
                 cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     else:
         radar_file_name_matrix = trainval_io.find_radar_files_3d(
@@ -216,7 +216,7 @@ def _run(
             radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
             radar_field_names=model_metadata_dict[
                 cnn.RADAR_FIELD_NAMES_KEY],
-            radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+            radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
             first_file_time_unix_sec=
             time_conversion.spc_date_string_to_unix_sec(
                 first_spc_date_string),

@@ -20,7 +20,7 @@ from gewittergefahr.deep_learning import storm_images
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
-REFLECTIVITY_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
+REFLECTIVITY_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
 RADAR_FIELD_NAMES = [
     radar_utils.ECHO_TOP_50DBZ_NAME, radar_utils.ECHO_TOP_18DBZ_NAME,
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MESH_NAME,
@@ -121,11 +121,11 @@ def _separate_files(
         start_time_unix_sec=first_storm_time_unix_sec,
         end_time_unix_sec=last_storm_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step,
-        reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
+        reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL)
     print SEPARATOR_STRING
 
     orig_storm_image_file_name_matrix = this_file_dict[
-        storm_images.IMAGE_FILE_NAME_MATRIX_KEY]
+        storm_images.IMAGE_FILE_NAMES_KEY]
 
     num_storm_times = orig_storm_image_file_name_matrix.shape[0]
     num_field_height_pairs = orig_storm_image_file_name_matrix.shape[1]
@@ -140,10 +140,8 @@ def _separate_files(
 
             target_file_names[i] = storm_images.find_storm_label_file(
                 storm_image_file_name=orig_storm_image_file_name_matrix[i, j],
-                top_label_directory_name=top_target_dir_name,
-                label_name=target_names[0],
-                one_file_per_spc_date=not one_file_per_time_step,
-                raise_error_if_missing=True)
+                top_label_dir_name=top_target_dir_name,
+                label_name=target_names[0], raise_error_if_missing=True)
             break
 
     for i in range(num_storm_times):
@@ -194,7 +192,7 @@ def _separate_files(
                 radar_source=radar_utils.MYRORSS_SOURCE_ID,
                 radar_field_name=this_storm_image_dict[
                     storm_images.RADAR_FIELD_NAME_KEY],
-                radar_height_m_asl=this_storm_image_dict[
+                radar_height_m_agl=this_storm_image_dict[
                     storm_images.RADAR_HEIGHT_KEY],
                 unix_time_sec=None, raise_error_if_missing=False)
 
@@ -211,7 +209,7 @@ def _separate_files(
                     storm_images.VALID_TIMES_KEY],
                 radar_field_name=this_storm_image_dict[
                     storm_images.RADAR_FIELD_NAME_KEY],
-                radar_height_m_asl=this_storm_image_dict[
+                radar_height_m_agl=this_storm_image_dict[
                     storm_images.RADAR_HEIGHT_KEY],
                 rotated_grids=this_storm_image_dict[
                     storm_images.ROTATED_GRIDS_KEY],

@@ -81,25 +81,25 @@ RADAR_IMAGE_DICT_NO_UNDEF_TARGETS = {
 
 # The following constants are used to test separate_radar_files_2d3d.
 RADAR_FILE_NAME_MATRIX = numpy.array([
-    ['storm_images/myrorss/2018/mesh_mm/00250_metres_asl/'
+    ['storm_images/myrorss/2018/mesh_mm/00250_metres_agl/'
      'storm_images_20180728.nc',
-     'storm_images/myrorss/2018/reflectivity_dbz/05000_metres_asl/'
+     'storm_images/myrorss/2018/reflectivity_dbz/05000_metres_agl/'
      'storm_images_20180728.nc',
-     'storm_images/myrorss/2018/reflectivity_dbz/01000_metres_asl/'
+     'storm_images/myrorss/2018/reflectivity_dbz/01000_metres_agl/'
      'storm_images_20180728.nc',
-     'storm_images/myrorss/2018/mid_level_shear_s01/00250_metres_asl/'
+     'storm_images/myrorss/2018/mid_level_shear_s01/00250_metres_agl/'
      'storm_images_20180728.nc',
-     'storm_images/myrorss/2018/low_level_shear_s01/00250_metres_asl/'
+     'storm_images/myrorss/2018/low_level_shear_s01/00250_metres_agl/'
      'storm_images_20180728.nc'],
-    ['storm_images/myrorss/2018/mesh_mm/00250_metres_asl/'
+    ['storm_images/myrorss/2018/mesh_mm/00250_metres_agl/'
      'storm_images_20180729.nc',
-     'storm_images/myrorss/2018/reflectivity_dbz/05000_metres_asl/'
+     'storm_images/myrorss/2018/reflectivity_dbz/05000_metres_agl/'
      'storm_images_20180729.nc',
-     'storm_images/myrorss/2018/reflectivity_dbz/01000_metres_asl/'
+     'storm_images/myrorss/2018/reflectivity_dbz/01000_metres_agl/'
      'storm_images_20180729.nc',
-     'storm_images/myrorss/2018/mid_level_shear_s01/00250_metres_asl/'
+     'storm_images/myrorss/2018/mid_level_shear_s01/00250_metres_agl/'
      'storm_images_20180729.nc',
-     'storm_images/myrorss/2018/low_level_shear_s01/00250_metres_asl/'
+     'storm_images/myrorss/2018/low_level_shear_s01/00250_metres_agl/'
      'storm_images_20180729.nc']
 ], dtype=object)
 

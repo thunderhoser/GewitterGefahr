@@ -12,7 +12,6 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import myrorss_and_mrms_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import deep_learning_helper as dl_helper
@@ -22,7 +21,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 NUM_REFLECTIVITY_ROWS = 32
 NUM_REFLECTIVITY_COLUMNS = 32
 NUM_SOUNDING_HEIGHTS = 37
-REFLECTIVITY_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
+REFLECTIVITY_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
 
 AZIMUTHAL_SHEAR_FIELD_NAMES = radar_utils.SHEAR_NAMES
 RADAR_FIELD_NAMES = [radar_utils.REFL_NAME] + AZIMUTHAL_SHEAR_FIELD_NAMES
@@ -181,11 +180,6 @@ def _train_cnn(
     else:
         num_sounding_fields = len(sounding_field_names)
 
-    myrorss_and_mrms_utils.fields_and_refl_heights_to_pairs(
-        field_names=RADAR_FIELD_NAMES,
-        data_source=radar_utils.MYRORSS_SOURCE_ID,
-        refl_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
-
     # Set locations of output files.
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_model_dir_name)
@@ -209,7 +203,7 @@ def _train_cnn(
         one_file_per_time_step=False,
         top_directory_name_pos_targets_only=
         top_storm_radar_image_dir_name_pos_targets_only,
-        reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
+        reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL)
     print SEPARATOR_STRING
 
     if num_validation_batches_per_epoch is None:
@@ -227,7 +221,7 @@ def _train_cnn(
             one_file_per_time_step=False,
             top_directory_name_pos_targets_only=
             top_storm_radar_image_dir_name_pos_targets_only,
-            reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL)
+            reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL)
         print SEPARATOR_STRING
 
     print 'Writing metadata to: "{0:s}"...\n'.format(metadata_file_name)
@@ -244,7 +238,7 @@ def _train_cnn(
         normalization_type_string=normalization_type_string,
         use_2d3d_convolution=True, radar_source=radar_utils.MYRORSS_SOURCE_ID,
         radar_field_names=RADAR_FIELD_NAMES,
-        reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
+        reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL,
         min_normalized_value=min_normalized_value,
         max_normalized_value=max_normalized_value,
         normalization_param_file_name=normalization_param_file_name,
@@ -270,7 +264,7 @@ def _train_cnn(
     model_object = cnn.get_2d3d_swirlnet_architecture(
         num_reflectivity_rows=NUM_REFLECTIVITY_ROWS,
         num_reflectivity_columns=NUM_REFLECTIVITY_COLUMNS,
-        num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_ASL),
+        num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_AGL),
         num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,

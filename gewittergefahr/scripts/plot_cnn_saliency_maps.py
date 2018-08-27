@@ -154,7 +154,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             storm_images.image_file_name_to_field(f) for f in
             training_radar_file_name_matrix[0, :, 0]
         ]
-        radar_heights_m_asl = numpy.array(
+        radar_heights_m_agl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, 0, :]],
             dtype=int)
@@ -164,7 +164,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             saliency_matrix=list_of_saliency_matrices[0],
             saliency_metadata_dict=saliency_metadata_dict,
             radar_field_names=radar_field_names,
-            radar_heights_m_asl=radar_heights_m_asl,
+            radar_heights_m_agl=radar_heights_m_agl,
             one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
             output_dir_name=output_dir_name,
             saliency_option_dict=saliency_option_dict)
@@ -173,7 +173,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             storm_images.image_file_name_to_field(f) for f in
             training_radar_file_name_matrix[0, :]
         ]
-        height_by_pair_m_asl = numpy.array(
+        height_by_pair_m_agl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, :]],
             dtype=int)
@@ -183,7 +183,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             saliency_matrix=list_of_saliency_matrices[0],
             saliency_metadata_dict=saliency_metadata_dict,
             field_name_by_pair=field_name_by_pair,
-            height_by_pair_m_asl=height_by_pair_m_asl,
+            height_by_pair_m_agl=height_by_pair_m_agl,
             one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
             output_dir_name=output_dir_name,
             saliency_option_dict=saliency_option_dict)

@@ -897,9 +897,9 @@ def write_normalization_params_to_file(
     radar_table_no_height.max_value: Max value.
 
     :param radar_table_with_height: Double-indexed pandas DataFrame.  Each index
-        is a tuple with (field_name, height_m_asl), where `field_name` is
-        accepted by `radar_utils.check_field_name` and `height_m_asl` is in
-        metres above sea level.  Must contain the following columns.
+        is a tuple with (field_name, height_m_agl), where `field_name` is
+        accepted by `radar_utils.check_field_name` and `height_m_agl` is in
+        metres above ground level.  Must contain the following columns.
     radar_table_with_height.mean_value: Mean value for the given field.
     radar_table_with_height.standard_deviation: Standard deviation.
 

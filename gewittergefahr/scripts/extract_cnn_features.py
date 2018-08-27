@@ -157,8 +157,8 @@ def _extract_2d_cnn_features(
         first_file_time_unix_sec=first_storm_time_unix_sec,
         last_file_time_unix_sec=last_storm_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step, shuffle_times=False,
-        radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-        reflectivity_heights_m_asl=model_metadata_dict[
+        radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+        reflectivity_heights_m_agl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     print SEPARATOR_STRING
 
@@ -280,7 +280,7 @@ def _extract_3d_cnn_features(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
-        radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+        radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         first_file_time_unix_sec=first_storm_time_unix_sec,
         last_file_time_unix_sec=last_storm_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step, shuffle_times=False)[0]
@@ -409,8 +409,8 @@ def _extract_2d3d_cnn_features(
         first_file_time_unix_sec=first_storm_time_unix_sec,
         last_file_time_unix_sec=last_storm_time_unix_sec,
         one_file_per_time_step=one_file_per_time_step, shuffle_times=False,
-        radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-        reflectivity_heights_m_asl=model_metadata_dict[
+        radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+        reflectivity_heights_m_agl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     print SEPARATOR_STRING
 

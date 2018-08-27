@@ -293,8 +293,8 @@ def _read_input_files_2d(
 
     label_file_name = storm_images.find_storm_label_file(
         storm_image_file_name=radar_file_names[0],
-        top_label_directory_name=top_target_directory_name,
-        label_name=target_name, raise_error_if_missing=True)
+        top_label_dir_name=top_target_directory_name, label_name=target_name,
+        raise_error_if_missing=True)
 
     if radar_file_names_pos_targets_only is not None:
         if not _need_negative_target_values(num_examples_left_by_class_dict):
@@ -394,8 +394,8 @@ def _read_input_files_3d(
 
     label_file_name = storm_images.find_storm_label_file(
         storm_image_file_name=radar_file_name_matrix[0, 0],
-        top_label_directory_name=top_target_directory_name,
-        label_name=target_name, raise_error_if_missing=True)
+        top_label_dir_name=top_target_directory_name, label_name=target_name,
+        raise_error_if_missing=True)
 
     if radar_file_name_matrix_pos_targets_only is not None:
         if not _need_negative_target_values(num_examples_left_by_class_dict):
@@ -520,8 +520,8 @@ def _read_input_files_2d3d(
 
     label_file_name = storm_images.find_storm_label_file(
         storm_image_file_name=reflectivity_file_names[0],
-        top_label_directory_name=top_target_directory_name,
-        label_name=target_name, raise_error_if_missing=True)
+        top_label_dir_name=top_target_directory_name, label_name=target_name,
+        raise_error_if_missing=True)
 
     if refl_file_names_pos_targets_only is not None:
         if not _need_negative_target_values(num_examples_left_by_class_dict):
@@ -715,12 +715,12 @@ def separate_radar_files_2d3d(radar_file_name_matrix):
 
     num_field_height_pairs = radar_file_name_matrix.shape[1]
     field_name_by_pair = [''] * num_field_height_pairs
-    height_by_pair_m_asl = numpy.full(num_field_height_pairs, -1, dtype=int)
+    height_by_pair_m_agl = numpy.full(num_field_height_pairs, -1, dtype=int)
 
     for j in range(num_field_height_pairs):
         field_name_by_pair[j] = storm_images.image_file_name_to_field(
             radar_file_name_matrix[0, j])
-        height_by_pair_m_asl[j] = storm_images.image_file_name_to_height(
+        height_by_pair_m_agl[j] = storm_images.image_file_name_to_height(
             radar_file_name_matrix[0, j])
 
     reflectivity_indices = numpy.where(numpy.array(
@@ -754,7 +754,7 @@ def separate_radar_files_2d3d(radar_file_name_matrix):
         ).format(str(other_field_names))
         raise ValueError(error_string)
 
-    sort_indices = numpy.argsort(height_by_pair_m_asl[reflectivity_indices])
+    sort_indices = numpy.argsort(height_by_pair_m_agl[reflectivity_indices])
     reflectivity_indices = reflectivity_indices[sort_indices]
     reflectivity_file_name_matrix = radar_file_name_matrix[
         ..., reflectivity_indices]
@@ -772,12 +772,12 @@ def find_radar_files_2d(
         top_directory_name, radar_source, radar_field_names,
         first_file_time_unix_sec, last_file_time_unix_sec,
         one_file_per_time_step, shuffle_times=True,
-        top_directory_name_pos_targets_only=None, radar_heights_m_asl=None,
-        reflectivity_heights_m_asl=None):
+        top_directory_name_pos_targets_only=None, radar_heights_m_agl=None,
+        reflectivity_heights_m_agl=None):
     """Finds input files for either of the following generators.
 
     - storm_image_generator_2d
-    - storm_image_generator_2d3d_myrors
+    - storm_image_generator_2d3d_myrorss
 
     If `one_file_per_time_step = True`, this method will return files containing
     one time step each.  If `one_file_per_time_step = False`, will return files
@@ -798,10 +798,10 @@ def find_radar_files_2d(
     :param top_directory_name_pos_targets_only: Name of top-level directory
         with storm-centered radar images, but only for storm objects with
         positive target values.
-    :param radar_heights_m_asl: [used only if radar_source = "gridrad"]
-        1-D numpy array of radar heights (metres above sea level).
-    :param reflectivity_heights_m_asl: [used only if radar_source != "gridrad"]
-        1-D numpy array of reflectivity heights (metres above sea level).
+    :param radar_heights_m_agl: [used iff radar_source = "gridrad"]
+        1-D numpy array of radar heights (metres above ground level).
+    :param reflectivity_heights_m_agl: [used iff radar_source != "gridrad"]
+        1-D numpy array of reflectivity heights (metres above ground level).
     :return: radar_file_name_matrix: T-by-C numpy array of paths to files with
         storm-centered radar images.
     :return: radar_file_name_matrix_pos_targets_only:
@@ -816,7 +816,7 @@ def find_radar_files_2d(
         storm_image_file_dict = storm_images.find_many_files_gridrad(
             top_directory_name=top_directory_name,
             radar_field_names=radar_field_names,
-            radar_heights_m_asl=radar_heights_m_asl,
+            radar_heights_m_agl=radar_heights_m_agl,
             start_time_unix_sec=first_file_time_unix_sec,
             end_time_unix_sec=last_file_time_unix_sec,
             one_file_per_time_step=one_file_per_time_step,
@@ -828,11 +828,11 @@ def find_radar_files_2d(
             start_time_unix_sec=first_file_time_unix_sec,
             end_time_unix_sec=last_file_time_unix_sec,
             one_file_per_time_step=one_file_per_time_step,
-            reflectivity_heights_m_asl=reflectivity_heights_m_asl,
+            reflectivity_heights_m_agl=reflectivity_heights_m_agl,
             raise_error_if_all_missing=True, raise_error_if_any_missing=False)
 
     radar_file_name_matrix = storm_image_file_dict[
-        storm_images.IMAGE_FILE_NAME_MATRIX_KEY]
+        storm_images.IMAGE_FILE_NAMES_KEY]
     num_image_times = radar_file_name_matrix.shape[0]
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
@@ -863,7 +863,7 @@ def find_radar_files_2d(
     for j in range(num_field_height_pairs):
         this_field_name = storm_images.image_file_name_to_field(
             radar_file_name_matrix[0, j])
-        this_height_m_asl = storm_images.image_file_name_to_height(
+        this_height_m_agl = storm_images.image_file_name_to_height(
             radar_file_name_matrix[0, j])
 
         for i in range(num_image_times):
@@ -876,7 +876,7 @@ def find_radar_files_2d(
                     top_directory_name=top_directory_name_pos_targets_only,
                     spc_date_string=this_spc_date_string,
                     radar_source=radar_source, radar_field_name=this_field_name,
-                    radar_height_m_asl=this_height_m_asl,
+                    radar_height_m_agl=this_height_m_agl,
                     unix_time_sec=this_time_unix_sec,
                     raise_error_if_missing=True))
 
@@ -885,7 +885,7 @@ def find_radar_files_2d(
 
 def find_radar_files_3d(
         top_directory_name, radar_source, radar_field_names,
-        radar_heights_m_asl, first_file_time_unix_sec, last_file_time_unix_sec,
+        radar_heights_m_agl, first_file_time_unix_sec, last_file_time_unix_sec,
         one_file_per_time_step, shuffle_times=True,
         top_directory_name_pos_targets_only=None):
     """Finds input files for `storm_image_generator_3d`.
@@ -893,7 +893,7 @@ def find_radar_files_3d(
     :param top_directory_name: See doc for `find_radar_files_2d`.
     :param radar_source: Same.
     :param radar_field_names: Same.
-    :param radar_heights_m_asl: Same.
+    :param radar_heights_m_agl: Same.
     :param first_file_time_unix_sec: Same.
     :param last_file_time_unix_sec: Same.
     :param one_file_per_time_step: Same.
@@ -911,7 +911,7 @@ def find_radar_files_3d(
         storm_image_file_dict = storm_images.find_many_files_gridrad(
             top_directory_name=top_directory_name,
             radar_field_names=radar_field_names,
-            radar_heights_m_asl=radar_heights_m_asl,
+            radar_heights_m_agl=radar_heights_m_agl,
             start_time_unix_sec=first_file_time_unix_sec,
             end_time_unix_sec=last_file_time_unix_sec,
             one_file_per_time_step=one_file_per_time_step,
@@ -923,17 +923,17 @@ def find_radar_files_3d(
             start_time_unix_sec=first_file_time_unix_sec,
             end_time_unix_sec=last_file_time_unix_sec,
             one_file_per_time_step=one_file_per_time_step,
-            reflectivity_heights_m_asl=radar_heights_m_asl,
+            reflectivity_heights_m_agl=radar_heights_m_agl,
             raise_error_if_all_missing=True, raise_error_if_any_missing=False)
 
     radar_file_name_matrix = storm_image_file_dict[
-        storm_images.IMAGE_FILE_NAME_MATRIX_KEY]
+        storm_images.IMAGE_FILE_NAMES_KEY]
     num_image_times = radar_file_name_matrix.shape[0]
 
     if radar_source != radar_utils.GRIDRAD_SOURCE_ID:
         radar_file_name_matrix = numpy.reshape(
             radar_file_name_matrix,
-            (num_image_times, 1, len(radar_heights_m_asl)))
+            (num_image_times, 1, len(radar_heights_m_agl)))
 
     time_missing_indices = numpy.unique(
         numpy.where(radar_file_name_matrix == '')[0])
@@ -959,7 +959,7 @@ def find_radar_files_3d(
         for k in range(num_heights):
             this_field_name = storm_images.image_file_name_to_field(
                 radar_file_name_matrix[0, j, k])
-            this_height_m_asl = storm_images.image_file_name_to_height(
+            this_height_m_agl = storm_images.image_file_name_to_height(
                 radar_file_name_matrix[0, j, k])
 
             for i in range(num_image_times):
@@ -973,7 +973,7 @@ def find_radar_files_3d(
                         spc_date_string=this_spc_date_string,
                         radar_source=radar_source,
                         radar_field_name=this_field_name,
-                        radar_height_m_asl=this_height_m_asl,
+                        radar_height_m_agl=this_height_m_agl,
                         unix_time_sec=this_time_unix_sec,
                         raise_error_if_missing=True))
 
@@ -1023,8 +1023,9 @@ def find_sounding_files(
         else:
             this_file_name = radar_file_name_matrix[i, 0, 0]
 
-        this_time_unix_sec, this_spc_date_string = (
-            storm_images.image_file_name_to_time(this_file_name))
+        (this_time_unix_sec, this_spc_date_string
+        ) = storm_images.image_file_name_to_time(this_file_name)
+
         sounding_file_names[i] = soundings_only.find_sounding_file(
             top_directory_name=top_sounding_dir_name,
             spc_date_string=this_spc_date_string,

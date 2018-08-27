@@ -119,7 +119,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             storm_images.image_file_name_to_field(f) for f in
             training_radar_file_name_matrix[0, :, 0]
         ]
-        radar_heights_m_asl = numpy.array(
+        radar_heights_m_agl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, 0, :]],
             dtype=int)
@@ -127,7 +127,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
         fopt_plotting.plot_many_optimized_fields_3d(
             radar_image_matrix=list_of_optimized_input_matrices[0],
             radar_field_names=radar_field_names,
-            radar_heights_m_asl=radar_heights_m_asl,
+            radar_heights_m_agl=radar_heights_m_agl,
             one_figure_per_component=one_figure_per_component,
             component_type_string=fopt_metadata_dict[
                 feature_optimization.COMPONENT_TYPE_KEY],
@@ -147,7 +147,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             storm_images.image_file_name_to_field(f) for f in
             training_radar_file_name_matrix[0, :]
         ]
-        height_by_pair_m_asl = numpy.array(
+        height_by_pair_m_agl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, :]],
             dtype=int)
@@ -155,7 +155,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
         fopt_plotting.plot_many_optimized_fields_2d(
             radar_image_matrix=list_of_optimized_input_matrices[0],
             field_name_by_pair=field_name_by_pair,
-            height_by_pair_m_asl=height_by_pair_m_asl,
+            height_by_pair_m_agl=height_by_pair_m_agl,
             one_figure_per_component=one_figure_per_component,
             num_panel_rows=num_panel_rows,
             component_type_string=fopt_metadata_dict[

@@ -100,7 +100,7 @@ def _check_extraction_args(
     """Checks input args for extraction of storm-centered radar images.
 
     Specifically, this method checks input args for
-    `extract_storm_images_non_gridrad` or `extract_storm_images_gridrad`.
+    `extract_storm_images_myrorss_or_mrms` or `extract_storm_images_gridrad`.
 
     :param num_storm_image_rows: Number of rows in each storm-centered image.
         Must be even.
@@ -356,10 +356,11 @@ def _get_relevant_storm_objects(
     """Returns indices of relevant storm objects (at the given time & SPC date).
 
     :param storm_object_table: See doc for
-        `extract_storm_images_non_gridrad` or `extract_storm_images_gridrad`.
+        `extract_storm_images_myrorss_or_mrms` or
+        `extract_storm_images_gridrad`.
     :param valid_time_unix_sec: Will find storm objects with this valid time.
     :param valid_spc_date_unix_sec: Will find storm objects on this SPC date.
-    :param rotate_grids: See doc for `extract_storm_images_non_gridrad` or
+    :param rotate_grids: See doc for `extract_storm_images_myrorss_or_mrms` or
         `extract_storm_images_gridrad`.
     :return: relevant_indices: 1-D numpy array with indices of relevant storm
         objects.
@@ -1116,7 +1117,7 @@ def _find_many_files_one_spc_date(
     return image_file_name_matrix, valid_times_unix_sec
 
 
-def extract_storm_images_non_gridrad(
+def extract_storm_images_myrorss_or_mrms(
         storm_object_table, radar_source, top_radar_dir_name,
         top_output_dir_name, num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS, rotate_grids=True,
@@ -1450,7 +1451,7 @@ def extract_storm_images_non_gridrad(
         print '\n'
 
 
-def extract_storm_images_gridrad_old(
+def extract_storm_images_gridrad(
         storm_object_table, top_radar_dir_name, top_output_dir_name,
         num_storm_image_rows=DEFAULT_NUM_IMAGE_ROWS,
         num_storm_image_columns=DEFAULT_NUM_IMAGE_COLUMNS, rotate_grids=True,
@@ -1464,7 +1465,8 @@ def extract_storm_images_gridrad_old(
     H = number of radar heights
     T = number of unique storm times
 
-    :param storm_object_table: See doc for `extract_storm_images_non_gridrad`.
+    :param storm_object_table: See doc for
+        `extract_storm_images_myrorss_or_mrms`.
     :param top_radar_dir_name: Same.
     :param top_output_dir_name: Same.
     :param num_storm_image_rows: Same.

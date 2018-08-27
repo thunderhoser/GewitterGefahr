@@ -41,12 +41,12 @@ MIN_NORMALIZED_VALUE = 0.
 MAX_NORMALIZED_VALUE = 1.
 
 RADAR_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME]
-RADAR_HEIGHTS_M_ASL = numpy.array([1000, 2000, 3000], dtype=int)
+RADAR_HEIGHTS_M_AGL = numpy.array([1000, 2000, 3000], dtype=int)
 
 RADAR_FIELD_NAME_BY_CHANNEL = [
     radar_utils.REFL_NAME, radar_utils.REFL_NAME, radar_utils.REFL_NAME,
     radar_utils.REFL_COLUMN_MAX_NAME]
-RADAR_HEIGHT_BY_CHANNEL_M_ASL = numpy.array([1000, 2000, 3000, 250], dtype=int)
+RADAR_HEIGHT_BY_CHANNEL_M_AGL = numpy.array([1000, 2000, 3000, 250], dtype=int)
 
 SOUNDING_FIELD_NAMES = [
     soundings_only.TEMPERATURE_NAME,
@@ -278,9 +278,9 @@ class FeatureOptimizationTests(unittest.TestCase):
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
             radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
@@ -302,9 +302,9 @@ class FeatureOptimizationTests(unittest.TestCase):
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
             radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
@@ -326,9 +326,9 @@ class FeatureOptimizationTests(unittest.TestCase):
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
             radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
@@ -350,9 +350,9 @@ class FeatureOptimizationTests(unittest.TestCase):
             sounding_field_names=SOUNDING_FIELD_NAMES,
             sounding_pressures_mb=SOUNDING_PRESSURES_MB,
             radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_asl=RADAR_HEIGHT_BY_CHANNEL_M_ASL,
+            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
             radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 

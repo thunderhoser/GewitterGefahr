@@ -37,9 +37,9 @@ SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
     grid_id=nwp_model_utils.ID_FOR_130GRID)
 
 FIELD_NAMES_2D_KEY = 'field_name_by_pair'
-HEIGHTS_2D_KEY = 'height_by_pair_m_asl'
+HEIGHTS_2D_KEY = 'height_by_pair_m_agl'
 FIELD_NAMES_3D_KEY = 'radar_field_names'
-HEIGHTS_3D_KEY = 'radar_heights_m_asl'
+HEIGHTS_3D_KEY = 'radar_heights_m_agl'
 STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 RADAR_IMAGE_MATRIX_KEY = 'radar_image_matrix'
@@ -58,8 +58,8 @@ STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 RADAR_IMAGE_DIR_ARG_NAME = 'input_radar_image_dir_name'
 RADAR_SOURCE_ARG_NAME = 'radar_source'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
-RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_asl'
-REFL_HEIGHTS_ARG_NAME = 'refl_heights_m_asl'
+RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_agl'
+REFL_HEIGHTS_ARG_NAME = 'refl_heights_m_agl'
 NUM_ROWS_TO_KEEP_ARG_NAME = 'num_rows_to_keep'
 NUM_COLUMNS_TO_KEEP_ARG_NAME = 'num_columns_to_keep'
 SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
@@ -192,7 +192,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _read_inputs(
         storm_ids, storm_times_unix_sec, top_radar_image_dir_name, radar_source,
-        radar_field_names, radar_heights_m_asl, refl_heights_m_asl,
+        radar_field_names, radar_heights_m_agl, refl_heights_m_agl,
         num_rows_to_keep, num_columns_to_keep, top_sounding_dir_name,
         sounding_lag_time_sec, sounding_lead_time_sec):
     """Reads radar and sounding data for each storm object.
@@ -209,8 +209,8 @@ def _read_inputs(
     :param top_radar_image_dir_name: Same.
     :param radar_source: Same.
     :param radar_field_names: Same.
-    :param radar_heights_m_asl: Same.
-    :param refl_heights_m_asl: Same.
+    :param radar_heights_m_agl: Same.
+    :param refl_heights_m_agl: Same.
     :param num_rows_to_keep: Same.
     :param num_columns_to_keep: Same.
     :param top_sounding_dir_name: Same.
@@ -219,14 +219,14 @@ def _read_inputs(
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['radar_field_names']: length-F list with names of radar
         fields.  If radar source is MYRORSS, this is `None`.
-    storm_object_dict['radar_heights_m_asl']: length-H numpy array of radar
-        heights (metres above sea level).  If radar source is MYRORSS, this is
-        `None`.
+    storm_object_dict['radar_heights_m_agl']: length-H numpy array of radar
+        heights (metres above ground level).  If radar source is MYRORSS, this
+        is `None`.
     storm_object_dict['field_name_by_pair']: length-C list with names of radar
         fields.  If radar source is GridRad, this is `None`.
-    storm_object_dict['height_by_pair_m_asl']: length-C numpy array of radar
-        heights (metres above sea level).  If radar source is GridRad, this is
-        `None`.
+    storm_object_dict['height_by_pair_m_agl']: length-C numpy array of radar
+        heights (metres above ground level).  If radar source is GridRad, this
+        is `None`.
     storm_object_dict['storm_ids']: length-E list of storm IDs.
     storm_object_dict['storm_times_unix_sec']: length-E numpy array of storm
         times.
@@ -251,7 +251,7 @@ def _read_inputs(
     radar_image_matrix = None
     sounding_matrix = None
     field_name_by_pair = None
-    height_by_pair_m_asl = None
+    height_by_pair_m_agl = None
     sort_indices_for_storm_id = numpy.array([], dtype=int)
 
     read_soundings = top_sounding_dir_name != ''
@@ -265,7 +265,7 @@ def _read_inputs(
             this_radar_file_name_matrix = trainval_io.find_radar_files_3d(
                 top_directory_name=top_radar_image_dir_name,
                 radar_source=radar_source, radar_field_names=radar_field_names,
-                radar_heights_m_asl=radar_heights_m_asl,
+                radar_heights_m_agl=radar_heights_m_agl,
                 first_file_time_unix_sec=
                 time_conversion.spc_date_string_to_unix_sec(
                     unique_spc_date_strings_numpy[i]),
@@ -298,7 +298,7 @@ def _read_inputs(
                 time_conversion.spc_date_string_to_unix_sec(
                     unique_spc_date_strings_numpy[i]),
                 one_file_per_time_step=False, shuffle_times=False,
-                reflectivity_heights_m_asl=refl_heights_m_asl)[0]
+                reflectivity_heights_m_agl=refl_heights_m_agl)[0]
             print MINOR_SEPARATOR_STRING
 
             if i == 0:
@@ -306,7 +306,7 @@ def _read_inputs(
                     storm_images.image_file_name_to_field(f) for f in
                     this_radar_file_name_matrix[0, :]
                 ]
-                height_by_pair_m_asl = numpy.array([
+                height_by_pair_m_agl = numpy.array([
                     storm_images.image_file_name_to_height(f) for f in
                     this_radar_file_name_matrix[0, :]
                 ], dtype=int)
@@ -362,9 +362,9 @@ def _read_inputs(
 
     return {
         FIELD_NAMES_2D_KEY: field_name_by_pair,
-        HEIGHTS_2D_KEY: height_by_pair_m_asl,
+        HEIGHTS_2D_KEY: height_by_pair_m_agl,
         FIELD_NAMES_3D_KEY: radar_field_names,
-        HEIGHTS_3D_KEY: radar_heights_m_asl,
+        HEIGHTS_3D_KEY: radar_heights_m_agl,
         STORM_IDS_KEY: [storm_ids[k] for k in sort_indices_for_storm_id],
         STORM_TIMES_KEY: storm_times_unix_sec[sort_indices_for_storm_id],
         RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
@@ -385,9 +385,9 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
     """
 
     field_name_by_pair = storm_object_dict[FIELD_NAMES_2D_KEY]
-    height_by_pair_m_asl = storm_object_dict[HEIGHTS_2D_KEY]
+    height_by_pair_m_agl = storm_object_dict[HEIGHTS_2D_KEY]
     radar_field_names = storm_object_dict[FIELD_NAMES_3D_KEY]
-    radar_heights_m_asl = storm_object_dict[HEIGHTS_3D_KEY]
+    radar_heights_m_agl = storm_object_dict[HEIGHTS_3D_KEY]
     storm_ids = storm_object_dict[STORM_IDS_KEY]
     storm_times_unix_sec = storm_object_dict[STORM_TIMES_KEY]
     radar_image_matrix = storm_object_dict[RADAR_IMAGE_MATRIX_KEY]
@@ -426,8 +426,8 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=numpy.flip(radar_image_matrix[i, ...], axis=0),
                     field_name_by_pair=field_name_by_pair,
-                    height_by_pair_m_asl=height_by_pair_m_asl,
-                    num_panel_rows=NUM_PANEL_ROWS)
+                    height_by_pair_metres=height_by_pair_m_agl,
+                    ground_relative=True, num_panel_rows=NUM_PANEL_ROWS)
 
                 this_title_string = this_base_title_string + ''
                 this_figure_file_name = '{0:s}.jpg'.format(this_base_file_name)
@@ -437,8 +437,8 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
                     field_matrix=numpy.flip(
                         radar_image_matrix[i, ..., j], axis=0),
                     field_name=radar_field_names[j],
-                    grid_point_heights_m_asl=radar_heights_m_asl,
-                    num_panel_rows=NUM_PANEL_ROWS)
+                    grid_point_heights_metres=radar_heights_m_agl,
+                    ground_relative=True, num_panel_rows=NUM_PANEL_ROWS)
 
                 (this_colour_map_object, this_colour_norm_object, _
                 ) = radar_plotting.get_default_colour_scheme(
@@ -477,7 +477,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
 def _run(
         input_activation_file_name, input_storm_metafile_name,
         top_radar_image_dir_name, radar_source, radar_field_names,
-        radar_heights_m_asl, refl_heights_m_asl, num_rows_to_keep,
+        radar_heights_m_agl, refl_heights_m_agl, num_rows_to_keep,
         num_columns_to_keep, top_sounding_dir_name, sounding_lag_time_sec,
         sounding_lead_time_sec, output_dir_name):
     """Plots radar and sounding data for each storm object.
@@ -489,8 +489,8 @@ def _run(
     :param top_radar_image_dir_name: Same.
     :param radar_source: Same.
     :param radar_field_names: Same.
-    :param radar_heights_m_asl: Same.
-    :param refl_heights_m_asl: Same.
+    :param radar_heights_m_agl: Same.
+    :param refl_heights_m_agl: Same.
     :param num_rows_to_keep: Same.
     :param num_columns_to_keep: Same.
     :param top_sounding_dir_name: Same.
@@ -532,8 +532,8 @@ def _run(
 
         radar_source = model_metadata_dict[cnn.RADAR_SOURCE_KEY]
         radar_field_names = model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY]
-        radar_heights_m_asl = model_metadata_dict[cnn.RADAR_HEIGHTS_KEY]
-        refl_heights_m_asl = model_metadata_dict[cnn.REFLECTIVITY_HEIGHTS_KEY]
+        radar_heights_m_agl = model_metadata_dict[cnn.RADAR_HEIGHTS_KEY]
+        refl_heights_m_agl = model_metadata_dict[cnn.REFLECTIVITY_HEIGHTS_KEY]
         num_rows_to_keep = model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY]
         num_columns_to_keep = model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY]
         sounding_lag_time_sec = model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
@@ -564,8 +564,8 @@ def _run(
         storm_times_unix_sec=storm_times_unix_sec,
         top_radar_image_dir_name=top_radar_image_dir_name,
         radar_source=radar_source, radar_field_names=radar_field_names,
-        radar_heights_m_asl=radar_heights_m_asl,
-        refl_heights_m_asl=refl_heights_m_asl,
+        radar_heights_m_agl=radar_heights_m_agl,
+        refl_heights_m_agl=refl_heights_m_agl,
         num_rows_to_keep=num_rows_to_keep,
         num_columns_to_keep=num_columns_to_keep,
         top_sounding_dir_name=top_sounding_dir_name,
@@ -598,9 +598,9 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
         radar_source=getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_ARG_NAME),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
-        radar_heights_m_asl=numpy.array(
+        radar_heights_m_agl=numpy.array(
             getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int),
-        refl_heights_m_asl=numpy.array(
+        refl_heights_m_agl=numpy.array(
             getattr(INPUT_ARG_OBJECT, REFL_HEIGHTS_ARG_NAME), dtype=int),
         num_rows_to_keep=getattr(INPUT_ARG_OBJECT, NUM_ROWS_TO_KEEP_ARG_NAME),
         num_columns_to_keep=getattr(

@@ -99,8 +99,8 @@ SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
 USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
 RADAR_SOURCE_KEY = 'radar_source'
 RADAR_FIELD_NAMES_KEY = 'radar_field_names'
-RADAR_HEIGHTS_KEY = 'radar_heights_m_asl'
-REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_asl'
+RADAR_HEIGHTS_KEY = 'radar_heights_m_agl'
+REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_agl'
 
 MODEL_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_KEY,
@@ -1137,7 +1137,7 @@ def write_model_metadata(
         monitor_string, target_name, binarize_target, normalization_type_string,
         use_2d3d_convolution, radar_source, radar_field_names,
         num_rows_to_keep=None, num_columns_to_keep=None,
-        radar_heights_m_asl=None, reflectivity_heights_m_asl=None,
+        radar_heights_m_agl=None, reflectivity_heights_m_agl=None,
         min_normalized_value=None, max_normalized_value=None,
         normalization_param_file_name=None, refl_masking_threshold_dbz=0.,
         radar_fn_matrix_training_pos_targets_only=None,
@@ -1171,13 +1171,12 @@ def write_model_metadata(
         accepted by `radar_utils.check_field_name`.
     :param num_rows_to_keep: See doc for `train_2d_cnn`.
     :param num_columns_to_keep: Same.
-    :param radar_heights_m_asl: [needed only if radar_source = "gridrad"]
-        1-D numpy array of heights (metres above sea level) applied to each
-        radar field.
-    :param reflectivity_heights_m_asl:
-        [needed only if radar_source != "gridrad"]
-        1-D numpy array of heights (metres above sea level) applied to the field
-        "reflectivity_dbz".
+    :param radar_heights_m_agl: [used iff radar_source = "gridrad"]
+        1-D numpy array of heights (metres above ground level).  These apply to
+        each field.
+    :param reflectivity_heights_m_agl: [used iff radar_source != "gridrad"]
+        1-D numpy array of heights (metres above ground level).  These apply
+        only to the field "reflectivity_dbz".
     :param min_normalized_value: See doc for `train_2d_cnn`.
     :param max_normalized_value: Same.
     :param normalization_param_file_name: Same.
@@ -1220,8 +1219,8 @@ def write_model_metadata(
         USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
         RADAR_SOURCE_KEY: radar_source,
         RADAR_FIELD_NAMES_KEY: radar_field_names,
-        RADAR_HEIGHTS_KEY: radar_heights_m_asl,
-        REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_asl,
+        RADAR_HEIGHTS_KEY: radar_heights_m_agl,
+        REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_agl,
         MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
         MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
         NORMALIZATION_FILE_NAME_KEY: normalization_param_file_name,
@@ -1269,20 +1268,20 @@ def read_model_metadata(pickle_file_name):
         num_fields = radar_file_name_matrix_for_training.shape[1]
         num_heights = radar_file_name_matrix_for_training.shape[2]
         radar_field_names = [''] * num_fields
-        radar_heights_m_asl = numpy.full(num_heights, -1, dtype=int)
+        radar_heights_m_agl = numpy.full(num_heights, -1, dtype=int)
 
         for j in range(num_fields):
             radar_field_names[j] = storm_images.image_file_name_to_field(
                 radar_file_name_matrix_for_training[0, j, 0])
 
         for k in range(num_heights):
-            radar_heights_m_asl[k] = storm_images.image_file_name_to_height(
+            radar_heights_m_agl[k] = storm_images.image_file_name_to_height(
                 radar_file_name_matrix_for_training[0, 0, k])
 
         model_metadata_dict.update({
             RADAR_SOURCE_KEY: radar_utils.GRIDRAD_SOURCE_ID,
             RADAR_FIELD_NAMES_KEY: radar_field_names,
-            RADAR_HEIGHTS_KEY: radar_heights_m_asl,
+            RADAR_HEIGHTS_KEY: radar_heights_m_agl,
             REFLECTIVITY_HEIGHTS_KEY: None
         })
 

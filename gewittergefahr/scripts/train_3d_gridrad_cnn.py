@@ -6,7 +6,6 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import gridrad_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -17,7 +16,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 NUM_RADAR_ROWS = 24
 NUM_RADAR_COLUMNS = 24
 NUM_SOUNDING_HEIGHTS = 37
-RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
+RADAR_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER = dl_helper.add_input_arguments(
@@ -178,9 +177,6 @@ def _train_cnn(
     else:
         num_sounding_fields = len(sounding_field_names)
 
-    gridrad_utils.fields_and_refl_heights_to_pairs(
-        field_names=radar_field_names, heights_m_asl=RADAR_HEIGHTS_M_ASL)
-
     # Set locations of output files.
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_model_dir_name)
@@ -197,7 +193,7 @@ def _train_cnn(
         one_file_per_time_step=False,
         radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         radar_field_names=radar_field_names,
-        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL)[0]
+        radar_heights_m_agl=RADAR_HEIGHTS_M_AGL)[0]
     print SEPARATOR_STRING
 
     if num_validation_batches_per_epoch is None:
@@ -210,7 +206,7 @@ def _train_cnn(
             one_file_per_time_step=False,
             radar_source=radar_utils.GRIDRAD_SOURCE_ID,
             radar_field_names=radar_field_names,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,)[0]
+            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL)[0]
         print SEPARATOR_STRING
 
     print 'Writing metadata to: "{0:s}"...\n'.format(metadata_file_name)
@@ -228,7 +224,7 @@ def _train_cnn(
         use_2d3d_convolution=False, radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         refl_masking_threshold_dbz=refl_masking_threshold_dbz,
         radar_field_names=radar_field_names,
-        radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+        radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
         min_normalized_value=min_normalized_value,
         max_normalized_value=max_normalized_value,
         normalization_param_file_name=normalization_param_file_name,
@@ -249,7 +245,7 @@ def _train_cnn(
 
     model_object = cnn.get_3d_swirlnet_architecture(
         num_radar_rows=NUM_RADAR_ROWS, num_radar_columns=NUM_RADAR_COLUMNS,
-        num_radar_heights=len(RADAR_HEIGHTS_M_ASL),
+        num_radar_heights=len(RADAR_HEIGHTS_M_AGL),
         num_radar_fields=len(radar_field_names),
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,

@@ -317,13 +317,13 @@ def _create_gg_initializer(init_function_name, model_file_name):
             storm_images.image_file_name_to_field(f) for f in
             training_radar_file_name_matrix[0, :]
         ]
-        radar_height_by_channel_m_asl = numpy.array(
+        radar_height_by_channel_m_agl = numpy.array(
             [storm_images.image_file_name_to_height(f)
              for f in training_radar_file_name_matrix[0, :]],
             dtype=int)
     else:
         radar_field_name_by_channel = None
-        radar_height_by_channel_m_asl = None
+        radar_height_by_channel_m_agl = None
 
     return feature_optimization.create_climo_initializer(
         normalization_param_file_name=model_metadata_dict[
@@ -339,9 +339,9 @@ def _create_gg_initializer(init_function_name, model_file_name):
         sounding_pressures_mb=SOUNDING_PRESSURES_MB,
         radar_field_names=model_metadata_dict[
             cnn.RADAR_FIELD_NAMES_KEY],
-        radar_heights_m_asl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+        radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         radar_field_name_by_channel=radar_field_name_by_channel,
-        radar_height_by_channel_m_asl=radar_height_by_channel_m_asl)
+        radar_height_by_channel_m_agl=radar_height_by_channel_m_agl)
 
 
 def _run(

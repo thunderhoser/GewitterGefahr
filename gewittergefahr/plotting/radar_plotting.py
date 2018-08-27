@@ -635,7 +635,8 @@ def plot_2d_grid_without_coords(
 
 
 def plot_many_2d_grids_without_coords(
-        field_matrix, field_name_by_pair, height_by_pair_m_asl, num_panel_rows,
+        field_matrix, field_name_by_pair, height_by_pair_metres,
+        ground_relative, num_panel_rows,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES):
     """Plots each 2-D grid as colour map (one per field/height pair).
@@ -650,8 +651,10 @@ def plot_many_2d_grids_without_coords(
     :param field_name_by_pair: length-C list with names of radar fields, in the
         order that they appear in `field_matrix`.  Each field name must be
         accepted by `radar_utils.check_field_name`.
-    :param height_by_pair_m_asl: length-C numpy array of radar heights (metres
-        above sea level).
+    :param height_by_pair_metres: length-C numpy array of radar heights.
+    :param ground_relative: Boolean flag.  If True, heights in
+        `height_by_pair_metres` are ground-relative.  If False,
+        sea-level-relative.
     :param num_panel_rows: Number of rows in paneled figure (different than M,
         the number of grid rows).
     :param figure_width_inches: Figure width.
@@ -668,12 +671,13 @@ def plot_many_2d_grids_without_coords(
         numpy.array(field_name_by_pair),
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
-    error_checking.assert_is_integer_numpy_array(height_by_pair_m_asl)
-    error_checking.assert_is_geq_numpy_array(height_by_pair_m_asl, 0)
+    error_checking.assert_is_integer_numpy_array(height_by_pair_metres)
+    error_checking.assert_is_geq_numpy_array(height_by_pair_metres, 0)
     error_checking.assert_is_numpy_array(
-        height_by_pair_m_asl,
+        height_by_pair_metres,
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
+    error_checking.assert_is_boolean(ground_relative)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
     error_checking.assert_is_leq(num_panel_rows, num_field_height_pairs)
@@ -691,9 +695,13 @@ def plot_many_2d_grids_without_coords(
             if this_fh_pair_index >= num_field_height_pairs:
                 break
 
-            this_annotation_string = '{0:s}\nat {1:.1f} km ASL'.format(
+            this_annotation_string = '{0:s}\nat {1:.1f} km'.format(
                 field_name_by_pair[this_fh_pair_index],
-                height_by_pair_m_asl[this_fh_pair_index] * METRES_TO_KM)
+                height_by_pair_metres[this_fh_pair_index] * METRES_TO_KM)
+            if ground_relative:
+                this_annotation_string += ' AGL'
+            else:
+                this_annotation_string += ' ASL'
 
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., this_fh_pair_index],
@@ -705,8 +713,8 @@ def plot_many_2d_grids_without_coords(
 
 
 def plot_3d_grid_without_coords(
-        field_matrix, field_name, grid_point_heights_m_asl, num_panel_rows,
-        figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
+        field_matrix, field_name, grid_point_heights_metres, ground_relative,
+        num_panel_rows, figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
         colour_map_object=None, colour_norm_object=None):
     """Plots 3-D grid as many colour maps (one per height).
@@ -721,8 +729,10 @@ def plot_3d_grid_without_coords(
     :param field_matrix: M-by-N-by-H numpy array with values of radar field.
     :param field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
-    :param grid_point_heights_m_asl: length-H integer numpy array of heights
-        (metres above sea level).
+    :param grid_point_heights_metres: length-H integer numpy array of heights.
+    :param ground_relative: Boolean flag.  If True, heights in
+        `height_by_pair_metres` are ground-relative.  If False,
+        sea-level-relative.
     :param num_panel_rows: Number of rows in paneled figure (different than M,
         the number of grid rows).
     :param figure_width_inches: Figure width.
@@ -737,11 +747,12 @@ def plot_3d_grid_without_coords(
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
 
     num_heights = field_matrix.shape[2]
-    error_checking.assert_is_integer_numpy_array(grid_point_heights_m_asl)
-    error_checking.assert_is_geq_numpy_array(grid_point_heights_m_asl, 0)
+    error_checking.assert_is_integer_numpy_array(grid_point_heights_metres)
+    error_checking.assert_is_geq_numpy_array(grid_point_heights_metres, 0)
     error_checking.assert_is_numpy_array(
-        grid_point_heights_m_asl, exact_dimensions=numpy.array([num_heights]))
+        grid_point_heights_metres, exact_dimensions=numpy.array([num_heights]))
 
+    error_checking.assert_is_boolean(ground_relative)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
     error_checking.assert_is_leq(num_panel_rows, num_heights)
@@ -758,8 +769,12 @@ def plot_3d_grid_without_coords(
             if this_height_index >= num_heights:
                 break
 
-            this_annotation_string = '{0:.1f} km ASL'.format(
-                grid_point_heights_m_asl[this_height_index] * METRES_TO_KM)
+            this_annotation_string = '{0:.1f} km'.format(
+                grid_point_heights_metres[this_height_index] * METRES_TO_KM)
+            if ground_relative:
+                this_annotation_string += ' AGL'
+            else:
+                this_annotation_string += ' ASL'
 
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., this_height_index],

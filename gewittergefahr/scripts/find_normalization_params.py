@@ -58,8 +58,8 @@ SOUNDING_INTERVAL_DICT = {
     soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: 0.1  # Kelvins
 }
 
-RADAR_HEIGHTS_M_ASL = numpy.linspace(1000, 12000, num=12, dtype=int)
-REFLECTIVITY_HEIGHTS_M_ASL = RADAR_HEIGHTS_M_ASL + 0.
+RADAR_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
+REFLECTIVITY_HEIGHTS_M_AGL = RADAR_HEIGHTS_M_AGL + 0.
 
 SOUNDING_FIELD_NAMES = [
     soundings_only.TEMPERATURE_NAME,
@@ -147,9 +147,9 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     'List of radar fields (each must be accepted by `radar_utils.'
     'check_field_name`).  Normalization params will be computed for each of '
     'these fields, once over all heights and once at each height (metres above '
-    'sea level) in the following list.\n{0:s}\nDefault fields for MYRORSS:'
+    'ground level) in the following list.\n{0:s}\nDefault fields for MYRORSS:'
     '\n{1:s}\nDefault fields for GridRad:\n{2:s}'
-).format(str(RADAR_HEIGHTS_M_ASL), str(DEFAULT_MYRORSS_FIELD_NAMES),
+).format(str(RADAR_HEIGHTS_M_AGL), str(DEFAULT_MYRORSS_FIELD_NAMES),
          str(DEFAULT_GRIDRAD_FIELD_NAMES))
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `deep_learning_utils.'
@@ -403,7 +403,7 @@ def _run(
         radar_file_name_matrix = trainval_io.find_radar_files_2d(
             top_directory_name=top_radar_image_dir_name,
             radar_source=radar_source, radar_field_names=radar_field_names,
-            reflectivity_heights_m_asl=REFLECTIVITY_HEIGHTS_M_ASL,
+            reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL,
             first_file_time_unix_sec=
             time_conversion.spc_date_string_to_unix_sec(first_spc_date_string),
             last_file_time_unix_sec=
@@ -421,7 +421,7 @@ def _run(
         radar_file_name_matrix = trainval_io.find_radar_files_2d(
             top_directory_name=top_radar_image_dir_name,
             radar_source=radar_source, radar_field_names=radar_field_names,
-            radar_heights_m_asl=RADAR_HEIGHTS_M_ASL,
+            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             first_file_time_unix_sec=
             time_conversion.spc_date_string_to_unix_sec(first_spc_date_string),
             last_file_time_unix_sec=
@@ -434,7 +434,7 @@ def _run(
         storm_images.image_file_name_to_field(f) for f in
         radar_file_name_matrix[0, :]
     ]
-    height_by_pair_m_asl = numpy.array(
+    height_by_pair_m_agl = numpy.array(
         [storm_images.image_file_name_to_height(f)
          for f in radar_file_name_matrix[0, :]
         ], dtype=int)
@@ -466,7 +466,7 @@ def _run(
 
     for k in range(num_field_height_pairs):
         radar_z_score_dict_with_height[
-            field_name_by_pair[k], height_by_pair_m_asl[k]
+            field_name_by_pair[k], height_by_pair_m_agl[k]
         ] = copy.deepcopy(orig_parameter_dict)
 
     sounding_z_score_dict_no_height = {}
@@ -529,14 +529,14 @@ def _run(
 
             print (
                 'Updating normalization params for "{0:s}" at {1:d} metres '
-                'ASL...'
-            ).format(field_name_by_pair[k], height_by_pair_m_asl[k])
+                'AGL...'
+            ).format(field_name_by_pair[k], height_by_pair_m_agl[k])
 
             radar_z_score_dict_with_height[
-                field_name_by_pair[k], height_by_pair_m_asl[k]
+                field_name_by_pair[k], height_by_pair_m_agl[k]
             ] = _update_z_score_params(
                 z_score_param_dict=radar_z_score_dict_with_height[
-                    field_name_by_pair[k], height_by_pair_m_asl[k]],
+                    field_name_by_pair[k], height_by_pair_m_agl[k]],
                 new_data_matrix=this_field_height_matrix)
 
         print MINOR_SEPARATOR_STRING
