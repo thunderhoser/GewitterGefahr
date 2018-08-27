@@ -247,8 +247,6 @@ def find_storm_objects(
         all_times_unix_sec[relevant_indices] = times_to_keep_unix_sec
     :raises: ValueError: if `all_storm_ids` and `all_times_unix_sec` contain any
         duplicate pairs.
-    :raises: ValueError: if `storm_ids_to_keep` and `times_to_keep_unix_sec`
-        contain any duplicate pairs.
     :raises: ValueError: if any desired storm object is not found.
     """
 
@@ -280,13 +278,6 @@ def find_storm_objects(
         error_string = (
             'Only {0:d} of {1:d} original storm objects are unique.'
         ).format(this_num_unique, len(all_object_ids))
-        raise ValueError(error_string)
-
-    this_num_unique = len(set(object_ids_to_keep))
-    if this_num_unique != len(object_ids_to_keep):
-        error_string = (
-            'Only {0:d} of {1:d} desired storm objects are unique.'
-        ).format(this_num_unique, len(object_ids_to_keep))
         raise ValueError(error_string)
 
     all_object_ids_numpy = numpy.array(all_object_ids, dtype='object')

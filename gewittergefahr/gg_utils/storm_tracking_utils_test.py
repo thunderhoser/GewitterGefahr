@@ -150,9 +150,9 @@ GRID_POINTS_IN_STORMS_TABLE = pandas.DataFrame.from_dict(
 # The following constants are used to test find_storm_objects.
 ALL_STORM_IDS = ['a', 'b', 'c', 'd', 'a', 'c', 'e', 'f', 'e']
 ALL_TIMES_UNIX_SEC = numpy.array([0, 0, 0, 0, 1, 1, 1, 1, 2], dtype=int)
-STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e']
-TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2], dtype=int)
-RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8], dtype=int)
+STORM_IDS_TO_KEEP_ALL_GOOD = ['a', 'c', 'a', 'e', 'e', 'e']
+TIMES_TO_KEEP_UNIX_SEC_ALL_GOOD = numpy.array([0, 0, 1, 1, 2, 1], dtype=int)
+RELEVANT_INDICES = numpy.array([0, 2, 4, 6, 8, 6], dtype=int)
 
 STORM_IDS_TO_KEEP_ONE_MISSING = ['a', 'c', 'a', 'e', 'e', 'a']
 TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array([0, 0, 1, 1, 2, 2], dtype=int)
