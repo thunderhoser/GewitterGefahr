@@ -181,6 +181,14 @@ def plot_saliency_for_sounding(
         wind_saliency_magnitudes = numpy.sqrt(
             u_wind_saliency_values ** 2 + v_wind_saliency_values ** 2)
 
+        colour_norm_object = pyplot.Normalize(
+            vmin=-option_dict[MAX_COLOUR_VALUE_KEY],
+            vmax=option_dict[MAX_COLOUR_VALUE_KEY])
+        colour_map_object = option_dict[COLOUR_MAP_KEY]
+        rgb_matrix_for_wind = colour_map_object(colour_norm_object(
+            wind_saliency_magnitudes))
+        rgb_matrix_for_wind = rgb_matrix_for_wind[..., :-1]
+
         non_wind_flags = numpy.array(
             [f not in WIND_COMPONENT_NAMES for f in sounding_field_names],
             dtype=bool)
@@ -192,11 +200,6 @@ def plot_saliency_for_sounding(
         sounding_field_names.append(WIND_NAME)
         num_sounding_fields = len(sounding_field_names)
 
-        wind_saliency_magnitudes = numpy.reshape(
-            wind_saliency_magnitudes, (num_pressure_levels, 1))
-        saliency_matrix = numpy.hstack((
-            saliency_matrix, wind_saliency_magnitudes))
-
     rgb_matrix, font_size_matrix_points = _saliency_to_colour_and_size(
         saliency_matrix=saliency_matrix,
         colour_map_object=option_dict[COLOUR_MAP_KEY],
@@ -206,21 +209,17 @@ def plot_saliency_for_sounding(
 
     for j in range(num_sounding_fields):
         if sounding_field_names[j] == WIND_NAME:
-            these_x_coords = numpy.full(num_pressure_levels, j)
-            these_colour_limits = numpy.array([
-                -option_dict[MAX_COLOUR_VALUE_KEY],
-                option_dict[MAX_COLOUR_VALUE_KEY]
-            ]) * SALIENCY_MULTIPLIER_FOR_WIND_BARBS
+            for i in range(num_pressure_levels):
+                this_vector = numpy.array(
+                    [u_wind_saliency_values[i], v_wind_saliency_values[i]])
+                this_vector = (
+                    50 * this_vector / numpy.linalg.norm(this_vector, ord=2))
 
-            axes_object.barbs(
-                these_x_coords, pressure_levels_mb,
-                u_wind_saliency_values * SALIENCY_MULTIPLIER_FOR_WIND_BARBS,
-                v_wind_saliency_values * SALIENCY_MULTIPLIER_FOR_WIND_BARBS,
-                wind_saliency_magnitudes * SALIENCY_MULTIPLIER_FOR_WIND_BARBS,
-                length=WIND_BARB_LENGTH,
-                sizes={'emptybarb': EMPTY_WIND_BARB_RADIUS}, fill_empty=True,
-                rounding=False, cmap=option_dict[COLOUR_MAP_KEY],
-                clim=these_colour_limits)
+                axes_object.barbs(
+                    j, pressure_levels_mb[i], this_vector[0], this_vector[1],
+                    length=WIND_BARB_LENGTH, fill_empty=True, rounding=False,
+                    sizes={'emptybarb': EMPTY_WIND_BARB_RADIUS},
+                    color=rgb_matrix_for_wind[i, ...])
 
             continue
 
