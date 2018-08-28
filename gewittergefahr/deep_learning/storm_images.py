@@ -1389,7 +1389,8 @@ def extract_storm_images_myrorss_or_mrms(
             this_image_file_name = find_storm_image_file(
                 top_directory_name=top_output_dir_name,
                 unix_time_sec=valid_times_unix_sec[i],
-                spc_date_string=valid_spc_dates_unix_sec[i],
+                spc_date_string=time_conversion.time_to_spc_date_string(
+                    valid_spc_dates_unix_sec[i]),
                 radar_source=radar_source,
                 radar_field_name=field_name_by_pair[j],
                 radar_height_m_agl=height_by_pair_m_asl[j],
@@ -1434,7 +1435,8 @@ def extract_storm_images_myrorss_or_mrms(
             this_image_file_name = find_storm_image_file(
                 top_directory_name=top_output_dir_name,
                 unix_time_sec=valid_times_unix_sec[i],
-                spc_date_string=valid_spc_dates_unix_sec[i],
+                spc_date_string=time_conversion.time_to_spc_date_string(
+                    valid_spc_dates_unix_sec[i]),
                 radar_source=radar_source,
                 radar_field_name=radar_utils.REFL_NAME,
                 radar_height_m_agl=reflectivity_heights_m_agl[j],
@@ -1678,7 +1680,8 @@ def extract_storm_images_gridrad(
                 this_image_file_name = find_storm_image_file(
                     top_directory_name=top_output_dir_name,
                     unix_time_sec=valid_times_unix_sec[i],
-                    spc_date_string=valid_spc_dates_unix_sec[i],
+                    spc_date_string=time_conversion.time_to_spc_date_string(
+                        valid_spc_dates_unix_sec[i]),
                     radar_source=radar_utils.GRIDRAD_SOURCE_ID,
                     radar_field_name=radar_field_names[j],
                     radar_height_m_agl=radar_heights_m_agl[k],
