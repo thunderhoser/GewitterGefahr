@@ -417,8 +417,7 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
     if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
         list_of_input_matrices[-1] = dl_utils.denormalize_soundings(
             sounding_matrix=list_of_input_matrices[-1],
-            pressureless_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
+            field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY],
             normalization_param_file_name=model_metadata_dict[

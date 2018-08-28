@@ -224,7 +224,7 @@ def create_climo_initializer(
         normalization_param_file_name, normalization_type_string,
         min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
         max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        test_mode=False, sounding_field_names=None, sounding_pressures_mb=None,
+        test_mode=False, sounding_field_names=None, sounding_heights_m_agl=None,
         radar_field_names=None, radar_heights_m_agl=None,
         radar_field_name_by_channel=None, radar_height_by_channel_m_agl=None,
         radar_normalization_table=None, sounding_normalization_table=None):
@@ -232,10 +232,10 @@ def create_climo_initializer(
 
     Specifically, this function initializes each value to a climatological mean.
     There is one mean for each radar field/height and each sounding
-    field/pressure.
+    field/height.
 
     F_s = number of sounding fields in model input
-    H_s = number of vertical sounding levels (pressures) in model input
+    H_s = number of sounding heights in model input
 
     The following letters are used only for 3-D radar images.
 
@@ -256,10 +256,10 @@ def create_climo_initializer(
         [if model input does not contain soundings, leave this as `None`]
         List (length F_s) with names of sounding fields, in the order that they
         appear in the corresponding input tensor.
-    :param sounding_pressures_mb:
+    :param sounding_heights_m_agl:
         [if model input does not contain soundings, leave this as `None`]
-        numpy array (length H_s) of sounding pressure levels, in the order that
-        they appear in the corresponding input tensor.
+        numpy array (length H_s) of sounding heights (metres above ground
+        level), in the order that they appear in the corresponding input tensor.
     :param radar_field_names: [used iff model input contains 3-D radar images]
         List (length F_r) with names of radar fields, in the order that they
         appear in the corresponding input tensor.
@@ -290,9 +290,9 @@ def create_climo_initializer(
         error_checking.assert_is_numpy_array(
             numpy.array(sounding_field_names), num_dimensions=1)
 
-        error_checking.assert_is_integer_numpy_array(sounding_pressures_mb)
+        error_checking.assert_is_integer_numpy_array(sounding_heights_m_agl)
         error_checking.assert_is_numpy_array(
-            sounding_pressures_mb, num_dimensions=1)
+            sounding_heights_m_agl, num_dimensions=1)
 
     if radar_field_names is not None:
         error_checking.assert_is_string_list(radar_field_names)
@@ -362,16 +362,15 @@ def create_climo_initializer(
 
         if len(array_dimensions) == 3:
             for j in range(len(sounding_field_names)):
-                for k in range(len(sounding_pressures_mb)):
+                for k in range(len(sounding_heights_m_agl)):
                     this_key = (
-                        sounding_field_names[j], sounding_pressures_mb[k])
+                        sounding_field_names[j], sounding_heights_m_agl[k])
                     # this_key = sounding_field_names[j]
                     array[..., k, j] = sounding_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_soundings(
-                sounding_matrix=array,
-                pressureless_field_names=sounding_field_names,
+                sounding_matrix=array, field_names=sounding_field_names,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 test_mode=test_mode, min_normalized_value=min_normalized_value,

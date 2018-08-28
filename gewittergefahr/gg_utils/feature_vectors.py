@@ -8,15 +8,15 @@ from gewittergefahr.gg_utils import sounding_stats
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 
 STORM_COLUMNS_TO_KEEP = [
     tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN,
     tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN,
-    events2storms.STORM_END_TIME_COLUMN]
-
+    tracking_utils.CELL_END_TIME_COLUMN
+]
 COLUMNS_TO_MERGE_ON = [
-    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN]
+    tracking_utils.STORM_ID_COLUMN, tracking_utils.TIME_COLUMN
+]
 
 
 def _check_labels_in_table(storm_object_table):

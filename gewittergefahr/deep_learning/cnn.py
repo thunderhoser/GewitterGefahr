@@ -16,8 +16,8 @@ M = number of rows per radar image
 N = number of columns per radar image
 H_r = number of heights per radar image
 F_r = number of radar fields (not including different heights)
-H_s = number of vertical levels per sounding
-F_s = number of sounding fields (not including different vertical levels)
+H_s = number of height levels per sounding
+F_s = number of sounding fields (not including different heights)
 C = number of field/height pairs per radar image
 K = number of classes for target variable
 T = number of file times (time steps or SPC dates)
@@ -43,7 +43,7 @@ from gewittergefahr.gg_utils import error_checking
 LOSS_AS_MONITOR_STRING = 'loss'
 PEIRCE_SCORE_AS_MONITOR_STRING = 'binary_peirce_score'
 VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
-VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([37], dtype=int)
+VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([49], dtype=int)
 
 DEFAULT_L2_WEIGHT = 1e-3
 DEFAULT_CONV_LAYER_DROPOUT_FRACTION = 0.25
@@ -518,7 +518,7 @@ def get_2d_swirlnet_architecture(
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
+        num_sounding_fields=None, num_sounding_filters_in_first_layer=16):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -674,7 +674,7 @@ def get_3d_swirlnet_architecture(
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
+        num_sounding_fields=None, num_sounding_filters_in_first_layer=16):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -835,7 +835,7 @@ def get_2d3d_swirlnet_architecture(
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_layer=48):
+        num_sounding_fields=None, num_sounding_filters_in_first_layer=16):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -1197,7 +1197,7 @@ def write_model_metadata(
     :param radar_fn_matrix_validation_pos_targets_only: Same as
         `radar_fn_matrix_training_pos_targets_only`, but for validation.
     :param sounding_field_names: 1-D list with names of sounding fields.  Each
-        must be accepted by `soundings_only.check_pressureless_field_name`.
+        must be accepted by `soundings.check_field_name`.
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
@@ -1438,8 +1438,7 @@ def train_2d_cnn(
         `radar_fn_matrix_validation`, but only for storm objects with
         positive target values.
     :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
+        fields.  Each must be accepted by `soundings.check_field_name`.
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.

@@ -82,8 +82,8 @@ RADAR_IMAGE_DIR_HELP_STRING = (
     '`storm_images.read_storm_images`.')
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
-    'will be found by `soundings_only.find_sounding_file` and read by '
-    '`soundings_only.read_soundings`.')
+    'will be found by `soundings.find_sounding_file` and read by '
+    '`soundings.read_soundings`.')
 STORM_IDS_HELP_STRING = (
     'List of storm IDs (must have the same length as `{0:s}`).  Saliency maps '
     'will be computed for each storm object.'

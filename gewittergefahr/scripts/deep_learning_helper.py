@@ -1,6 +1,6 @@
 """Handles input args for deep-learning scripts."""
 
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -64,11 +64,9 @@ DEFAULT_WEIGHT_LOSS_FLAG = 0
 DEFAULT_L2_WEIGHT = 1e-3
 DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH = 16
 DEFAULT_SOUNDING_FIELD_NAMES = [
-    soundings_only.TEMPERATURE_NAME,
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME,
-    soundings_only.RELATIVE_HUMIDITY_NAME,
-    soundings_only.SPECIFIC_HUMIDITY_NAME,
-    soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME
+    soundings.RELATIVE_HUMIDITY_NAME, soundings.SPECIFIC_HUMIDITY_NAME,
+    soundings.U_WIND_NAME, soundings.V_WIND_NAME,
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 DEFAULT_SOUNDING_LAG_TIME_SEC = 1800
 DEFAULT_NUM_SOUNDING_FILTERS = 48
@@ -217,17 +215,16 @@ VALIDATION_DATE_HELP_STRING = (
 
 SOUNDING_FIELD_NAMES_HELP_STRING = (
     'List with names of sounding fields.  Each name must be accepted by '
-    '`soundings_only.check_pressureless_field_name`.  To train without '
-    'soundings, make this a 1-item list with the string "None".')
+    '`soundings.check_field_name`.  To train without soundings, make this a'
+    '1-item list with the string "None".')
 
 SOUNDING_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `training_validation_io.find_sounding_files`.')
 
 SOUNDING_LAG_TIME_HELP_STRING = (
-    'Lag time for soundings (see '
-    '`soundings_only.interp_soundings_to_storm_objects` for details).  This '
-    'will be used to locate sounding files.')
+    'Lag time for soundings (see `soundings.interp_soundings_to_storm_objects` '
+    'for details).  This will be used to locate sounding files.')
 
 NUM_SOUNDING_FILTERS_HELP_STRING = (
     'Number of sounding filters in first convolutional layer.  Number of '

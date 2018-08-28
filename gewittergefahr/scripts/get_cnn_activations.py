@@ -75,8 +75,8 @@ RADAR_IMAGE_DIR_HELP_STRING = (
     '`storm_images.read_storm_images`.')
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
-    'will be found by `soundings_only.find_sounding_file` and read by '
-    '`soundings_only.read_soundings`.')
+    'will be found by `soundings.find_sounding_file` and read by '
+    '`soundings.read_soundings`.')
 SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Activation will '
     'be computed for each model component and each example (storm object) from '

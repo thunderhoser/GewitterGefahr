@@ -3,17 +3,14 @@
 import os.path
 import argparse
 import numpy
-from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.plotting import saliency_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-
-SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
-    model_name=nwp_model_utils.RAP_MODEL_NAME,
-    grid_id=nwp_model_utils.ID_FOR_130GRID)
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0.
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 MAX_COLOUR_VALUE_ARG_NAME = 'max_colour_value'
@@ -197,7 +194,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             saliency_metadata_dict=saliency_metadata_dict,
             sounding_field_names=model_metadata_dict[
                 cnn.SOUNDING_FIELD_NAMES_KEY],
-            pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
+            pressure_levels_mb=SOUNDING_HEIGHTS_M_AGL,
             output_dir_name=output_dir_name,
             saliency_option_dict=saliency_option_dict,
             temp_directory_name=temp_directory_name)

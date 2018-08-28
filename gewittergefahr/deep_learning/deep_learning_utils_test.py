@@ -6,7 +6,7 @@ import numpy
 import pandas
 import keras
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -14,6 +14,8 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 TOLERANCE = 1e-6
 TOLERANCE_FOR_CLASS_WEIGHT = 1e-3
 TOLERANCE_FOR_METPY_DICTIONARIES = 1e-3
+
+PASCALS_TO_MB = 0.01
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 # The following constants are used to test class_fractions_to_num_examples.
@@ -319,68 +321,67 @@ RADAR_MATRIX_3D_MASKED = numpy.stack(
 
 # The following constants are used to test soundings_to_metpy_dictionaries.
 SOUNDING_FIELD_NAMES = [
-    soundings_only.RELATIVE_HUMIDITY_NAME, soundings_only.TEMPERATURE_NAME,
-    soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
-    soundings_only.SPECIFIC_HUMIDITY_NAME,
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
+    soundings.PRESSURE_NAME, soundings.RELATIVE_HUMIDITY_NAME,
+    soundings.TEMPERATURE_NAME, soundings.U_WIND_NAME, soundings.V_WIND_NAME,
+    soundings.SPECIFIC_HUMIDITY_NAME,
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 
-THIS_FIRST_MATRIX = numpy.array([[0.9, 300, -10, 5, 0.02, 310],
-                                 [0.7, 285, 0, 15, 0.015, 310],
-                                 [0.95, 270, 15, 20, 0.01, 325],
-                                 [0.93, 260, 30, 30, 0.007, 341]])
-THIS_SECOND_MATRIX = numpy.array([[0.7, 305, 0, 0, 0.015, 312.5],
-                                  [0.5, 290, 15, 12.5, 0.015, 310],
-                                  [0.8, 273, 25, 15, 0.012, 333],
-                                  [0.9, 262, 40, 20, 0.008, 345]])
+THIS_FIRST_MATRIX = numpy.array([[100000, 0.9, 300, -10, 5, 0.02, 310],
+                                 [85000, 0.7, 285, 0, 15, 0.015, 310],
+                                 [70000, 0.95, 270, 15, 20, 0.01, 325],
+                                 [50000, 0.93, 260, 30, 30, 0.007, 341]])
+THIS_SECOND_MATRIX = numpy.array([[100000, 0.7, 305, 0, 0, 0.015, 312.5],
+                                  [85000, 0.5, 290, 15, 12.5, 0.015, 310],
+                                  [70000, 0.8, 273, 25, 15, 0.012, 333],
+                                  [50000, 0.9, 262, 40, 20, 0.008, 345]])
 SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
-PRESSURE_LEVELS_MB = numpy.array([1000, 850, 700, 500])
-PRESSURE_LEVELS_PASCALS = numpy.array([10e4, 8.5e4, 7e4, 5e4])
 FIRST_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
-    specific_humidities_kg_kg01=THIS_FIRST_MATRIX[:, 4],
-    total_pressures_pascals=PRESSURE_LEVELS_PASCALS)
+    specific_humidities_kg_kg01=THIS_FIRST_MATRIX[:, 5],
+    total_pressures_pascals=THIS_FIRST_MATRIX[:, 0])
 
 FIRST_METPY_DICT = {
-    soundings_only.TEMPERATURE_COLUMN_METPY:
-        temperature_conversions.kelvins_to_celsius(THIS_FIRST_MATRIX[:, 1]),
-    soundings_only.U_WIND_COLUMN_METPY:
-        METRES_PER_SECOND_TO_KT * THIS_FIRST_MATRIX[:, 2],
-    soundings_only.V_WIND_COLUMN_METPY:
+    soundings.TEMPERATURE_COLUMN_METPY:
+        temperature_conversions.kelvins_to_celsius(THIS_FIRST_MATRIX[:, 2]),
+    soundings.U_WIND_COLUMN_METPY:
         METRES_PER_SECOND_TO_KT * THIS_FIRST_MATRIX[:, 3],
-    soundings_only.DEWPOINT_COLUMN_METPY:
+    soundings.V_WIND_COLUMN_METPY:
+        METRES_PER_SECOND_TO_KT * THIS_FIRST_MATRIX[:, 4],
+    soundings.DEWPOINT_COLUMN_METPY:
         temperature_conversions.kelvins_to_celsius(FIRST_DEWPOINTS_KELVINS),
-    soundings_only.PRESSURE_COLUMN_METPY: PRESSURE_LEVELS_MB
+    soundings.PRESSURE_COLUMN_METPY: THIS_FIRST_MATRIX[:, 0] * PASCALS_TO_MB
 }
 
 SECOND_DEWPOINTS_KELVINS = moisture_conversions.specific_humidity_to_dewpoint(
-    specific_humidities_kg_kg01=THIS_SECOND_MATRIX[:, 4],
-    total_pressures_pascals=PRESSURE_LEVELS_PASCALS)
+    specific_humidities_kg_kg01=THIS_SECOND_MATRIX[:, 5],
+    total_pressures_pascals=THIS_SECOND_MATRIX[:, 0])
 
 SECOND_METPY_DICT = {
-    soundings_only.TEMPERATURE_COLUMN_METPY:
-        temperature_conversions.kelvins_to_celsius(THIS_SECOND_MATRIX[:, 1]),
-    soundings_only.U_WIND_COLUMN_METPY:
-        METRES_PER_SECOND_TO_KT * THIS_SECOND_MATRIX[:, 2],
-    soundings_only.V_WIND_COLUMN_METPY:
+    soundings.TEMPERATURE_COLUMN_METPY:
+        temperature_conversions.kelvins_to_celsius(THIS_SECOND_MATRIX[:, 2]),
+    soundings.U_WIND_COLUMN_METPY:
         METRES_PER_SECOND_TO_KT * THIS_SECOND_MATRIX[:, 3],
-    soundings_only.DEWPOINT_COLUMN_METPY:
+    soundings.V_WIND_COLUMN_METPY:
+        METRES_PER_SECOND_TO_KT * THIS_SECOND_MATRIX[:, 4],
+    soundings.DEWPOINT_COLUMN_METPY:
         temperature_conversions.kelvins_to_celsius(SECOND_DEWPOINTS_KELVINS),
-    soundings_only.PRESSURE_COLUMN_METPY: PRESSURE_LEVELS_MB
+    soundings.PRESSURE_COLUMN_METPY: THIS_SECOND_MATRIX[:, 0] * PASCALS_TO_MB
 }
 
 LIST_OF_METPY_DICTIONARIES = [FIRST_METPY_DICT, SECOND_METPY_DICT]
 
 # The following constants are used to test normalize_soundings.
 SOUNDING_NORMALIZATION_DICT = {
-    soundings_only.RELATIVE_HUMIDITY_NAME: numpy.array([0.5, 0.2, 0, 1]),
-    soundings_only.TEMPERATURE_NAME:
-        numpy.array([280, 10, 250, 300], dtype=float),
-    soundings_only.U_WIND_NAME: numpy.array([5, 10, -10, 40], dtype=float),
-    soundings_only.V_WIND_NAME: numpy.array([10, 5, -20, 30], dtype=float),
-    soundings_only.SPECIFIC_HUMIDITY_NAME: numpy.array([0.005, 0.005, 0, 0.02]),
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
+    soundings.PRESSURE_NAME:
+        numpy.array([50000, 20000, 10000, 100000], dtype=float),
+    soundings.RELATIVE_HUMIDITY_NAME: numpy.array([0.5, 0.2, 0, 1]),
+    soundings.TEMPERATURE_NAME: numpy.array([280, 10, 250, 300], dtype=float),
+    soundings.U_WIND_NAME: numpy.array([5, 10, -10, 40], dtype=float),
+    soundings.V_WIND_NAME: numpy.array([10, 5, -20, 30], dtype=float),
+    soundings.SPECIFIC_HUMIDITY_NAME: numpy.array([0.005, 0.005, 0, 0.02]),
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
         numpy.array([310, 10, 300, 350], dtype=float)
 }
 SOUNDING_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
@@ -388,25 +389,25 @@ SOUNDING_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
 SOUNDING_NORMALIZATION_TABLE.rename(
     columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
-THIS_FIRST_MATRIX = numpy.array([[2, 2, -1.5, -1, 3, 0],
-                                 [1, 0.5, -0.5, 1, 2, 0],
-                                 [2.25, -1, 1, 2, 1, 1.5],
-                                 [2.15, -2, 2.5, 4, 0.4, 3.1]])
-THIS_SECOND_MATRIX = numpy.array([[1, 2.5, -0.5, -2, 2, 0.25],
-                                  [0, 1, 1, 0.5, 2, 0],
-                                  [1.5, -0.7, 2, 1, 1.4, 2.3],
-                                  [2, -1.8, 3.5, 2, 0.6, 3.5]])
+THIS_FIRST_MATRIX = numpy.array([[2.5, 2, 2, -1.5, -1, 3, 0],
+                                 [1.75, 1, 0.5, -0.5, 1, 2, 0],
+                                 [1, 2.25, -1, 1, 2, 1, 1.5],
+                                 [0, 2.15, -2, 2.5, 4, 0.4, 3.1]])
+THIS_SECOND_MATRIX = numpy.array([[2.5, 1, 2.5, -0.5, -2, 2, 0.25],
+                                  [1.75, 0, 1, 1, 0.5, 2, 0],
+                                  [1, 1.5, -0.7, 2, 1, 1.4, 2.3],
+                                  [0, 2, -1.8, 3.5, 2, 0.6, 3.5]])
 SOUNDING_MATRIX_Z_SCORES = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
-THIS_FIRST_MATRIX = numpy.array([[0.9, 1, 0, 0.5, 1, 0.2],
-                                 [0.7, 0.7, 0.2, 0.7, 0.75, 0.2],
-                                 [0.95, 0.4, 0.5, 0.8, 0.5, 0.5],
-                                 [0.93, 0.2, 0.8, 1, 0.35, 0.82]])
-THIS_SECOND_MATRIX = numpy.array([[0.7, 1.1, 0.2, 0.4, 0.75, 0.25],
-                                  [0.5, 0.8, 0.5, 0.65, 0.75, 0.2],
-                                  [0.8, 0.46, 0.7, 0.7, 0.6, 0.66],
-                                  [0.9, 0.24, 1, 0.8, 0.4, 0.9]])
+THIS_FIRST_MATRIX = numpy.array([[1, 0.9, 1, 0, 0.5, 1, 0.2],
+                                 [7.5 / 9, 0.7, 0.7, 0.2, 0.7, 0.75, 0.2],
+                                 [6. / 9, 0.95, 0.4, 0.5, 0.8, 0.5, 0.5],
+                                 [4. / 9, 0.93, 0.2, 0.8, 1, 0.35, 0.82]])
+THIS_SECOND_MATRIX = numpy.array([[1, 0.7, 1.1, 0.2, 0.4, 0.75, 0.25],
+                                  [7.5 / 9, 0.5, 0.8, 0.5, 0.65, 0.75, 0.2],
+                                  [6. / 9, 0.8, 0.46, 0.7, 0.7, 0.6, 0.66],
+                                  [4. / 9, 0.9, 0.24, 1, 0.8, 0.4, 0.9]])
 SOUNDING_MATRIX_MINMAX = -1 + 2 * numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
@@ -998,7 +999,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         this_sounding_matrix = dl_utils.normalize_soundings(
             sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED),
-            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            field_names=SOUNDING_FIELD_NAMES,
             normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
             normalization_param_file_name=None, test_mode=True,
             normalization_table=SOUNDING_NORMALIZATION_TABLE)
@@ -1011,7 +1012,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         this_sounding_matrix = dl_utils.normalize_soundings(
             sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_UNNORMALIZED),
-            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            field_names=SOUNDING_FIELD_NAMES,
             normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
             normalization_param_file_name=None, test_mode=True,
             min_normalized_value=MIN_NORMALIZED_VALUE,
@@ -1026,7 +1027,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         this_sounding_matrix = dl_utils.denormalize_soundings(
             sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_Z_SCORES),
-            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            field_names=SOUNDING_FIELD_NAMES,
             normalization_type_string=dl_utils.Z_NORMALIZATION_TYPE_STRING,
             normalization_param_file_name=None, test_mode=True,
             normalization_table=SOUNDING_NORMALIZATION_TABLE)
@@ -1039,7 +1040,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         this_sounding_matrix = dl_utils.denormalize_soundings(
             sounding_matrix=copy.deepcopy(SOUNDING_MATRIX_MINMAX),
-            pressureless_field_names=SOUNDING_FIELD_NAMES,
+            field_names=SOUNDING_FIELD_NAMES,
             normalization_type_string=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
             normalization_param_file_name=None, test_mode=True,
             min_normalized_value=MIN_NORMALIZED_VALUE,
@@ -1054,8 +1055,7 @@ class DeepLearningUtilsTests(unittest.TestCase):
 
         these_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=SOUNDING_MATRIX_UNNORMALIZED,
-            pressure_levels_mb=PRESSURE_LEVELS_MB,
-            pressureless_field_names=SOUNDING_FIELD_NAMES)
+            field_names=SOUNDING_FIELD_NAMES)
 
         self.assertTrue(
             len(these_metpy_dictionaries) == len(LIST_OF_METPY_DICTIONARIES))

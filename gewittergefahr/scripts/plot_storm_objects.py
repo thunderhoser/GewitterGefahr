@@ -11,8 +11,7 @@ from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import link_events_to_storms as events2storms
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import storm_images
@@ -29,12 +28,10 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 SOUNDING_FIELD_NAMES = [
-    soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
-    soundings_only.TEMPERATURE_NAME, soundings_only.SPECIFIC_HUMIDITY_NAME
+    soundings.U_WIND_NAME, soundings.V_WIND_NAME,
+    soundings.TEMPERATURE_NAME, soundings.SPECIFIC_HUMIDITY_NAME,
+    soundings.PRESSURE_NAME
 ]
-SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
-    model_name=nwp_model_utils.RAP_MODEL_NAME,
-    grid_id=nwp_model_utils.ID_FOR_130GRID)
 
 FIELD_NAMES_2D_KEY = 'field_name_by_pair'
 HEIGHTS_2D_KEY = 'height_by_pair_m_agl'
@@ -119,9 +116,9 @@ NUM_COLUMNS_TO_KEEP_HELP_STRING = (
 
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
-    'will be found by `soundings_only.find_sounding_file` and read by '
-    '`soundings_only.read_soundings`.  To plot only radar (no soundings), leave'
-    ' this alone.')
+    'will be found by `soundings.find_sounding_file` and read by '
+    '`soundings.read_soundings`.  To plot only radar (no soundings), leave '
+    'this alone.')
 
 SOUNDING_LAG_TIME_HELP_STRING = (
     '[used only if {0:s} is empty and {1:s} is non-empty] Lag time (used to '
@@ -397,9 +394,7 @@ def _plot_storm_objects(storm_object_dict, output_dir_name):
     plot_soundings = sounding_matrix is not None
     if plot_soundings:
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
-            sounding_matrix=sounding_matrix,
-            pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
-            pressureless_field_names=SOUNDING_FIELD_NAMES)
+            sounding_matrix=sounding_matrix, field_names=SOUNDING_FIELD_NAMES)
 
     num_radar_dimensions = 2 + int(radar_field_names is not None)
     num_storm_objects = len(storm_ids)

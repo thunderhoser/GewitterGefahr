@@ -14,8 +14,8 @@ M = number of rows per radar image
 N = number of columns per radar image
 H_r = number of heights per radar image
 F_r = number of radar fields (not including different heights)
-H_s = number of vertical levels per sounding
-F_s = number of sounding fields (not including different vertical levels)
+H_s = number of height levels per sounding
+F_s = number of sounding fields (not including different heights)
 C = number of field/height pairs per radar image
 K = number of classes for target variable
 T = number of file times (time steps or SPC dates)
@@ -27,7 +27,7 @@ import keras
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import error_checking
 
@@ -180,8 +180,8 @@ def _select_batch(
     E_b = num_examples_per_batch
 
     :param list_of_predictor_matrices: 1-D list, where each item is a numpy
-        array of predictors (radar images, soundings, or sounding statistics).
-        The first axis of each numpy array must have length E_m.
+        array of predictors (radar images or soundings).  The first axis of each
+        array must have length E_m.
     :param target_values: numpy array of target values (length E_m).
     :param num_examples_per_batch: Number of examples per batch.
     :param binarize_target: Boolean flag.  If True, will binarize target
@@ -275,11 +275,11 @@ def _read_input_files_2d(
     :param radar_file_names_pos_targets_only: Same as `radar_file_names`, but
         only for storm objects with positive target values.
     :param sounding_file_name: [optional] Path to sounding file.  Should be
-        readable by `soundings_only.read_soundings` and contain storm-centered
+        readable by `soundings.read_soundings` and contain storm-centered
         soundings for t_0.
     :param sounding_field_names:
         [used only if `sounding_file_names is not None`]
-        1-D list with names of sounding fields (pressureless fields) to use.  If
+        1-D list with names of sounding fields to use.  If
         `sounding_field_names is None`, will use all sounding fields.
     :return: example_dict: Dictionary with the following keys.
     example_dict['radar_image_matrix']: E-by-M-by-N-by-C numpy array of
@@ -328,9 +328,8 @@ def _read_input_files_2d(
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
 
-        sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
-        sounding_field_names = sounding_dict[
-            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict[soundings.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[soundings.FIELD_NAMES_KEY]
 
     target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
     storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
@@ -429,9 +428,8 @@ def _read_input_files_3d(
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
 
-        sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
-        sounding_field_names = sounding_dict[
-            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict[soundings.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[soundings.FIELD_NAMES_KEY]
 
     target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
     storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
@@ -556,9 +554,8 @@ def _read_input_files_2d3d(
         if sounding_dict is None or not len(sounding_dict[STORM_IDS_KEY]):
             return None
 
-        sounding_matrix = sounding_dict[soundings_only.SOUNDING_MATRIX_KEY]
-        sounding_field_names = sounding_dict[
-            soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+        sounding_matrix = sounding_dict[soundings.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[soundings.FIELD_NAMES_KEY]
 
     target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
     storm_ids_to_keep = this_radar_image_dict[storm_images.STORM_IDS_KEY]
@@ -631,7 +628,7 @@ def check_input_args(
         Same as `radar_file_name_matrix`, but only for storm objects with
         positive target values.
     :param sounding_field_names: [optional]
-        1-D list with names of sounding fields (pressureless fields) to use.  If
+        1-D list with names of sounding fields to use.  If
         `sounding_field_names is None`, will use all sounding fields.
     """
 
@@ -986,13 +983,13 @@ def find_sounding_files(
     """Finds sounding file for each radar time.
 
     :param top_sounding_dir_name: Name of top-level directory with sounding
-        files, findable by `soundings_only.find_sounding_file`.
+        files, findable by `soundings.find_sounding_file`.
     :param radar_file_name_matrix: numpy array created by either
         `find_radar_files_2d` or `find_radar_files_3d`.  Length of the first
         axis is T.
     :param target_name: Name of target variable.
     :param lag_time_for_convective_contamination_sec: See doc for
-        `soundings_only.interp_soundings_to_storm_objects`.
+        `soundings.interp_soundings_to_storm_objects`.
     :return: sounding_file_names: length-T list of paths to files with storm-
         centered soundings.
     """
@@ -1026,7 +1023,7 @@ def find_sounding_files(
         (this_time_unix_sec, this_spc_date_string
         ) = storm_images.image_file_name_to_time(this_file_name)
 
-        sounding_file_names[i] = soundings_only.find_sounding_file(
+        sounding_file_names[i] = soundings.find_sounding_file(
             top_directory_name=top_sounding_dir_name,
             spc_date_string=this_spc_date_string,
             lead_time_seconds=mean_lead_time_sec,
@@ -1045,20 +1042,20 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     :param radar_image_dict: Dictionary created by
         `storm_images.read_storm_images_and_labels`, for the same file time as
         the sounding file.
-    :return: sounding_dict: See output doc for `soundings_only.read_soundings`.
+    :return: sounding_dict: See output doc for `soundings.read_soundings`.
     :return: radar_image_dict: Same as input, except that some storm objects may
         be removed.
     """
 
     print 'Reading data from: "{0:s}"...'.format(sounding_file_name)
-    sounding_dict, _ = soundings_only.read_soundings(
+    sounding_dict, _ = soundings.read_soundings(
         netcdf_file_name=sounding_file_name,
-        pressureless_field_names_to_keep=sounding_field_names,
+        field_names_to_keep=sounding_field_names,
         storm_ids_to_keep=radar_image_dict[storm_images.STORM_IDS_KEY],
         init_times_to_keep_unix_sec=radar_image_dict[
             storm_images.VALID_TIMES_KEY])
 
-    if not len(sounding_dict[soundings_only.STORM_IDS_KEY]):
+    if not len(sounding_dict[soundings.STORM_IDS_KEY]):
         return None, None
 
     orig_storm_ids_as_numpy_array = numpy.array(
@@ -1066,15 +1063,15 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     orig_storm_times_unix_sec = radar_image_dict[
         storm_images.VALID_TIMES_KEY] + 0
 
-    num_storm_objects_kept = len(sounding_dict[soundings_only.STORM_IDS_KEY])
+    num_storm_objects_kept = len(sounding_dict[soundings.STORM_IDS_KEY])
     storm_object_kept_indices = []
 
     for i in range(num_storm_objects_kept):
         this_index = numpy.where(numpy.logical_and(
             orig_storm_ids_as_numpy_array ==
-            sounding_dict[soundings_only.STORM_IDS_KEY][i],
+            sounding_dict[soundings.STORM_IDS_KEY][i],
             orig_storm_times_unix_sec ==
-            sounding_dict[soundings_only.INITIAL_TIMES_KEY][i]))[0][0]
+            sounding_dict[soundings.INITIAL_TIMES_KEY][i]))[0][0]
 
         storm_object_kept_indices.append(this_index)
 
@@ -1082,9 +1079,9 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
         storm_object_kept_indices, dtype=int)
 
     radar_image_dict[storm_images.STORM_IDS_KEY] = sounding_dict[
-        soundings_only.STORM_IDS_KEY]
+        soundings.STORM_IDS_KEY]
     radar_image_dict[storm_images.VALID_TIMES_KEY] = sounding_dict[
-        soundings_only.INITIAL_TIMES_KEY]
+        soundings.INITIAL_TIMES_KEY]
     radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY] = radar_image_dict[
         storm_images.STORM_IMAGE_MATRIX_KEY][storm_object_kept_indices, ...]
     if storm_images.LABEL_VALUES_KEY in radar_image_dict:
@@ -1140,8 +1137,7 @@ def storm_image_generator_2d(
         the corresponding sampling fraction.  Sampling fractions will be applied
         to each batch.
     :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
+        fields.  Each must be accepted by `soundings.check_field_name`.
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param loop_thru_files_once: Boolean flag.  If True, this generator will
@@ -1339,7 +1335,7 @@ def storm_image_generator_2d(
             if sounding_file_names is not None:
                 full_sounding_matrix = dl_utils.normalize_soundings(
                     sounding_matrix=full_sounding_matrix,
-                    pressureless_field_names=sounding_field_names,
+                    field_names=sounding_field_names,
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
@@ -1602,7 +1598,7 @@ def storm_image_generator_3d(
             if sounding_file_names is not None:
                 full_sounding_matrix = dl_utils.normalize_soundings(
                     sounding_matrix=full_sounding_matrix,
-                    pressureless_field_names=sounding_field_names,
+                    field_names=sounding_field_names,
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,
@@ -1900,7 +1896,7 @@ def storm_image_generator_2d3d_myrorss(
             if sounding_file_names is not None:
                 full_sounding_matrix = dl_utils.normalize_soundings(
                     sounding_matrix=full_sounding_matrix,
-                    pressureless_field_names=sounding_field_names,
+                    field_names=sounding_field_names,
                     normalization_type_string=normalization_type_string,
                     normalization_param_file_name=normalization_param_file_name,
                     min_normalized_value=min_normalized_value,

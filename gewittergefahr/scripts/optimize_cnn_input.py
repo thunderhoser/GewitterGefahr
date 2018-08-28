@@ -10,7 +10,7 @@ import numpy
 from keras import backend as K
 import keras.models
 from gewittergefahr.gg_utils import general_utils
-from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -24,19 +24,16 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
-SOUNDING_PRESSURES_MB = nwp_model_utils.get_pressure_levels(
-    model_name=nwp_model_utils.RAP_MODEL_NAME,
-    grid_id=nwp_model_utils.ID_FOR_130GRID)
-
 SWIRLNET_FIELD_MEANS = numpy.array([20.745745, -0.718525, 1.929636])
 SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
     [17.947071, 4.343980, 4.969537])
-
 VALID_SWIRLNET_FUNCTION_NAMES = [
     feature_optimization.GAUSSIAN_INIT_FUNCTION_NAME,
     feature_optimization.UNIFORM_INIT_FUNCTION_NAME,
     feature_optimization.CONSTANT_INIT_FUNCTION_NAME
 ]
+
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0.
 VALID_GG_FUNCTION_NAMES = VALID_SWIRLNET_FUNCTION_NAMES + [
     feature_optimization.CLIMO_INIT_FUNCTION_NAME]
 
@@ -336,7 +333,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
             cnn.MAX_NORMALIZED_VALUE_KEY],
         sounding_field_names=model_metadata_dict[
             cnn.SOUNDING_FIELD_NAMES_KEY],
-        sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+        sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
         radar_field_names=model_metadata_dict[
             cnn.RADAR_FIELD_NAMES_KEY],
         radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],

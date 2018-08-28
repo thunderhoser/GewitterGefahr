@@ -9,8 +9,8 @@ M = number of rows per radar image
 N = number of columns per radar image
 H_r = number of heights per radar image
 F_r = number of radar fields (not including different heights)
-H_s = number of vertical levels per sounding
-F_s = number of sounding fields (not including different vertical levels)
+H_s = number of height levels per sounding
+F_s = number of sounding fields (not including different heights)
 C = number of field/height pairs per radar image
 K = number of classes for target variable
 T = number of file times (time steps or SPC dates)
@@ -21,7 +21,7 @@ import pickle
 import numpy
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import file_system_utils
@@ -30,7 +30,7 @@ from gewittergefahr.gg_utils import error_checking
 TOLERANCE_FOR_FREQUENCY_SUM = 1e-3
 DEFAULT_REFL_MASK_THRESHOLD_DBZ = 15.
 
-MB_TO_PASCALS = 100.
+PASCALS_TO_MB = 0.01
 METRES_PER_SECOND_TO_KT = 3.6 / 1.852
 
 MEAN_VALUE_COLUMN = 'mean_value'
@@ -230,17 +230,15 @@ def check_radar_images(
     error_checking.assert_is_leq(num_dimensions, max_num_dimensions)
 
 
-def check_soundings(
-        sounding_matrix, num_examples=None, num_vertical_levels=None,
-        num_pressureless_fields=None):
+def check_soundings(sounding_matrix, num_examples=None, num_height_levels=None,
+                    num_fields=None):
     """Error-checks storm-centered soundings.
 
     :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
-    :param num_examples: Number of examples expected in `sounding_matrix`.
-    :param num_vertical_levels: Number of vertical levels expected in
+    :param num_examples: Number of examples in `sounding_matrix`.
+    :param num_height_levels: Number of height levels expected in
         `sounding_matrix`.
-    :param num_pressureless_fields: Number of pressureless fields expected in
-        `sounding_matrix`.
+    :param num_fields: Number of fields expected in `sounding_matrix`.
     """
 
     error_checking.assert_is_real_numpy_array(sounding_matrix)
@@ -252,15 +250,15 @@ def check_soundings(
     else:
         expected_dimensions += [num_examples]
 
-    if num_vertical_levels is None:
+    if num_height_levels is None:
         expected_dimensions += [sounding_matrix.shape[1]]
     else:
-        expected_dimensions += [num_vertical_levels]
+        expected_dimensions += [num_height_levels]
 
-    if num_pressureless_fields is None:
+    if num_fields is None:
         expected_dimensions += [sounding_matrix.shape[2]]
     else:
-        expected_dimensions += [num_pressureless_fields]
+        expected_dimensions += [num_fields]
 
     error_checking.assert_is_numpy_array(
         sounding_matrix, exact_dimensions=numpy.array(expected_dimensions))
@@ -563,7 +561,7 @@ def mask_low_reflectivity_pixels(
 
 
 def normalize_soundings(
-        sounding_matrix, pressureless_field_names, normalization_type_string,
+        sounding_matrix, field_names, normalization_type_string,
         normalization_param_file_name, test_mode=False, min_normalized_value=0.,
         max_normalized_value=1., normalization_table=None):
     """Normalizes soundings.
@@ -571,8 +569,8 @@ def normalize_soundings(
     This method uses the same equations as `normalize_radar_images`.
 
     :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
-    :param pressureless_field_names: list (length F_s) with names of
-        pressureless fields, in the order that they appear in sounding_matrix.
+    :param field_names: list (length F_s) of field names, in the order that they
+        appear in `sounding_matrix`.
     :param normalization_type_string: Normalization type (must be accepted by
         `_check_normalization_type`).
     :param normalization_param_file_name: Path to file with normalization
@@ -594,48 +592,49 @@ def normalize_soundings(
         normalization_table = read_normalization_params_from_file(
             normalization_param_file_name)[2]
 
-    error_checking.assert_is_string_list(pressureless_field_names)
+    error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(pressureless_field_names), num_dimensions=1)
+        numpy.array(field_names), num_dimensions=1)
 
-    num_pressureless_fields = len(pressureless_field_names)
-    check_soundings(sounding_matrix=sounding_matrix,
-                    num_pressureless_fields=num_pressureless_fields)
-
+    num_fields = len(field_names)
+    check_soundings(sounding_matrix=sounding_matrix, num_fields=num_fields)
     _check_normalization_type(normalization_type_string)
+
     if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
         error_checking.assert_is_greater(
             max_normalized_value, min_normalized_value)
 
-    for j in range(num_pressureless_fields):
+    for j in range(num_fields):
         if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
             this_min_value = normalization_table[
-                MIN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+                MIN_VALUE_COLUMN].loc[field_names[j]]
             this_max_value = normalization_table[
-                MAX_VALUE_COLUMN].loc[pressureless_field_names[j]]
+                MAX_VALUE_COLUMN].loc[field_names[j]]
 
             sounding_matrix[..., j] = (
                 (sounding_matrix[..., j] - this_min_value) /
-                (this_max_value - this_min_value))
-
+                (this_max_value - this_min_value)
+            )
             sounding_matrix[..., j] = min_normalized_value + (
                 sounding_matrix[..., j] *
-                (max_normalized_value - min_normalized_value))
+                (max_normalized_value - min_normalized_value)
+            )
         else:
             this_mean = normalization_table[
-                MEAN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+                MEAN_VALUE_COLUMN].loc[field_names[j]]
             this_standard_deviation = normalization_table[
                 STANDARD_DEVIATION_COLUMN
-            ].loc[pressureless_field_names[j]]
+            ].loc[field_names[j]]
 
             sounding_matrix[..., j] = (
-                (sounding_matrix[..., j] - this_mean) / this_standard_deviation)
+                (sounding_matrix[..., j] - this_mean) / this_standard_deviation
+            )
 
     return sounding_matrix
 
 
 def denormalize_soundings(
-        sounding_matrix, pressureless_field_names, normalization_type_string,
+        sounding_matrix, field_names, normalization_type_string,
         normalization_param_file_name, test_mode=False, min_normalized_value=0.,
         max_normalized_value=1., normalization_table=None):
     """Denormalizes soundings.
@@ -643,7 +642,7 @@ def denormalize_soundings(
     This method is the inverse of `normalize_soundings`.
 
     :param sounding_matrix: See doc for `normalize_soundings`.
-    :param pressureless_field_names: Same.
+    :param field_names: Same.
     :param normalization_type_string: Same.
     :param normalization_param_file_name: Path to file with normalization
         params.  Will be read by `read_normalization_params_from_file`.
@@ -660,15 +659,14 @@ def denormalize_soundings(
         normalization_table = read_normalization_params_from_file(
             normalization_param_file_name)[2]
 
-    error_checking.assert_is_string_list(pressureless_field_names)
+    error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(pressureless_field_names), num_dimensions=1)
+        numpy.array(field_names), num_dimensions=1)
 
-    num_pressureless_fields = len(pressureless_field_names)
-    check_soundings(sounding_matrix=sounding_matrix,
-                    num_pressureless_fields=num_pressureless_fields)
-
+    num_fields = len(field_names)
+    check_soundings(sounding_matrix=sounding_matrix, num_fields=num_fields)
     _check_normalization_type(normalization_type_string)
+
     if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
         error_checking.assert_is_greater(
             max_normalized_value, min_normalized_value)
@@ -677,74 +675,60 @@ def denormalize_soundings(
         # error_checking.assert_is_leq_numpy_array(
         #     sounding_matrix, max_normalized_value)
 
-    for j in range(num_pressureless_fields):
+    for j in range(num_fields):
         if normalization_type_string == MINMAX_NORMALIZATION_TYPE_STRING:
             this_min_value = normalization_table[
-                MIN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+                MIN_VALUE_COLUMN].loc[field_names[j]]
             this_max_value = normalization_table[
-                MAX_VALUE_COLUMN].loc[pressureless_field_names[j]]
+                MAX_VALUE_COLUMN].loc[field_names[j]]
 
             sounding_matrix[..., j] = (
                 (sounding_matrix[..., j] - min_normalized_value) /
-                (max_normalized_value - min_normalized_value))
-
+                (max_normalized_value - min_normalized_value)
+            )
             sounding_matrix[..., j] = this_min_value + (
-                sounding_matrix[..., j] * (this_max_value - this_min_value))
+                sounding_matrix[..., j] * (this_max_value - this_min_value)
+            )
         else:
             this_mean = normalization_table[
-                MEAN_VALUE_COLUMN].loc[pressureless_field_names[j]]
+                MEAN_VALUE_COLUMN].loc[field_names[j]]
             this_standard_deviation = normalization_table[
                 STANDARD_DEVIATION_COLUMN
-            ].loc[pressureless_field_names[j]]
+            ].loc[field_names[j]]
 
             sounding_matrix[..., j] = this_mean + (
-                this_standard_deviation * sounding_matrix[..., j])
+                this_standard_deviation * sounding_matrix[..., j]
+            )
 
     return sounding_matrix
 
 
-def soundings_to_metpy_dictionaries(
-        sounding_matrix, pressure_levels_mb, pressureless_field_names):
+def soundings_to_metpy_dictionaries(sounding_matrix, field_names):
     """Converts soundings to format required by MetPy.
 
     :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
-    :param pressure_levels_mb: integer numpy array (length H_s) of pressure
-        levels.
-    :param pressureless_field_names: list (length F_s) with names of
-        pressureless fields, in the order that they appear in sounding_matrix.
+    :param field_names: list (length F_s) of field names, in the order that they
+        appear in `sounding_matrix`.
     :return: list_of_metpy_dictionaries: length-E list of dictionaries.  The
         format of each dictionary is described in the input doc for
         `sounding_plotting.plot_sounding`.
     """
 
-    error_checking.assert_is_string_list(pressureless_field_names)
+    error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
-        numpy.array(pressureless_field_names), num_dimensions=1)
+        numpy.array(field_names), num_dimensions=1)
+    num_fields = len(field_names)
+    check_soundings(sounding_matrix=sounding_matrix, num_fields=num_fields)
 
-    error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
-    error_checking.assert_is_greater_numpy_array(pressure_levels_mb, 0)
-    error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
-
-    num_examples = sounding_matrix.shape[0]
-    num_pressure_levels = len(pressure_levels_mb)
-    num_pressureless_fields = len(pressureless_field_names)
-    check_soundings(sounding_matrix=sounding_matrix,
-                    num_vertical_levels=num_pressure_levels,
-                    num_pressureless_fields=num_pressureless_fields)
-
-    pressure_matrix_mb = numpy.full(
-        (num_examples, num_pressure_levels), numpy.nan)
-    for i in range(num_examples):
-        pressure_matrix_mb[i, :] = pressure_levels_mb
-    pressure_matrix_pascals = pressure_matrix_mb * MB_TO_PASCALS
+    pressure_index = field_names.index(soundings.PRESSURE_NAME)
+    pressure_matrix_pascals = sounding_matrix[..., pressure_index]
 
     try:
-        temperature_index = pressureless_field_names.index(
-            soundings_only.TEMPERATURE_NAME)
+        temperature_index = field_names.index(soundings.TEMPERATURE_NAME)
         temperature_matrix_kelvins = sounding_matrix[..., temperature_index]
     except ValueError:
-        virtual_pot_temp_index = pressureless_field_names.index(
-            soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+        virtual_pot_temp_index = field_names.index(
+            soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
         temperature_matrix_kelvins = (
             temperature_conversions.temperatures_from_potential_temperatures(
                 potential_temperatures_kelvins=sounding_matrix[
@@ -753,8 +737,8 @@ def soundings_to_metpy_dictionaries(
         )
 
     try:
-        specific_humidity_index = pressureless_field_names.index(
-            soundings_only.SPECIFIC_HUMIDITY_NAME)
+        specific_humidity_index = field_names.index(
+            soundings.SPECIFIC_HUMIDITY_NAME)
         dewpoint_matrix_kelvins = (
             moisture_conversions.specific_humidity_to_dewpoint(
                 specific_humidities_kg_kg01=sounding_matrix[
@@ -762,8 +746,8 @@ def soundings_to_metpy_dictionaries(
                 total_pressures_pascals=pressure_matrix_pascals)
         )
     except ValueError:
-        relative_humidity_index = pressureless_field_names.index(
-            soundings_only.RELATIVE_HUMIDITY_NAME)
+        relative_humidity_index = field_names.index(
+            soundings.RELATIVE_HUMIDITY_NAME)
         dewpoint_matrix_kelvins = (
             moisture_conversions.relative_humidity_to_dewpoint(
                 relative_humidities=sounding_matrix[
@@ -778,29 +762,32 @@ def soundings_to_metpy_dictionaries(
         dewpoint_matrix_kelvins)
 
     try:
-        u_wind_index = pressureless_field_names.index(
-            soundings_only.U_WIND_NAME)
-        v_wind_index = pressureless_field_names.index(
-            soundings_only.V_WIND_NAME)
+        u_wind_index = field_names.index(
+            soundings.U_WIND_NAME)
+        v_wind_index = field_names.index(
+            soundings.V_WIND_NAME)
         include_wind = True
     except ValueError:
         include_wind = False
 
+    num_examples = sounding_matrix.shape[0]
     list_of_metpy_dictionaries = [None] * num_examples
+
     for i in range(num_examples):
         list_of_metpy_dictionaries[i] = {
-            soundings_only.PRESSURE_COLUMN_METPY: pressure_matrix_mb[i, :],
-            soundings_only.TEMPERATURE_COLUMN_METPY:
+            soundings.PRESSURE_COLUMN_METPY:
+                pressure_matrix_pascals[i, :] * PASCALS_TO_MB,
+            soundings.TEMPERATURE_COLUMN_METPY:
                 temperature_matrix_celsius[i, :],
-            soundings_only.DEWPOINT_COLUMN_METPY: dewpoint_matrix_celsius[i, :],
+            soundings.DEWPOINT_COLUMN_METPY: dewpoint_matrix_celsius[i, :],
         }
 
         if include_wind:
             list_of_metpy_dictionaries[i].update({
-                soundings_only.U_WIND_COLUMN_METPY:
+                soundings.U_WIND_COLUMN_METPY:
                     (sounding_matrix[i, ..., u_wind_index] *
                      METRES_PER_SECOND_TO_KT),
-                soundings_only.V_WIND_COLUMN_METPY:
+                soundings.V_WIND_COLUMN_METPY:
                     (sounding_matrix[i, ..., v_wind_index] *
                      METRES_PER_SECOND_TO_KT)
             })
@@ -904,13 +891,12 @@ def write_normalization_params_to_file(
     radar_table_with_height.standard_deviation: Standard deviation.
 
     :param sounding_table_no_height: Single-indexed pandas DataFrame.  Each
-        index is a field name (accepted by
-        `soundings_only.check_pressureless_field_name`).  Columns should be the
-        same as in `radar_table_no_height`.
+        index is a field name (accepted by `soundings.check_field_name`).
+        Columns should be the same as in `radar_table_no_height`.
     :param sounding_table_with_height: Double-indexed pandas DataFrame.  Each
-        index is a tuple with (field_name, pressure_mb), where `field_name` is
-        accepted by `soundings_only.check_pressureless_field_name` and
-        `pressure_mb` is in millibars.  Columns should be the same as in
+        index is a tuple with (field_name, height_m_agl), where `field_name` is
+        accepted by `soundings.check_field_name` and `height_m_agl` is in metres
+        above ground level.  Columns should be the same as in
         `radar_table_with_height`.
     """
 

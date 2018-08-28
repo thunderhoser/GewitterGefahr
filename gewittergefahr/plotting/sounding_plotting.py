@@ -8,7 +8,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 import metpy.plots
 import metpy.units
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import imagemagick_utils
@@ -117,11 +117,11 @@ def plot_sounding(
     skewt_object = metpy.plots.SkewT(figure_object, rotation=45)
 
     pressures_mb = sounding_dict_for_metpy[
-        soundings_only.PRESSURE_COLUMN_METPY] * metpy.units.units.hPa
+        soundings.PRESSURE_COLUMN_METPY] * metpy.units.units.hPa
     temperatures_deg_c = sounding_dict_for_metpy[
-        soundings_only.TEMPERATURE_COLUMN_METPY] * metpy.units.units.degC
+        soundings.TEMPERATURE_COLUMN_METPY] * metpy.units.units.degC
     dewpoints_deg_c = sounding_dict_for_metpy[
-        soundings_only.DEWPOINT_COLUMN_METPY] * metpy.units.units.degC
+        soundings.DEWPOINT_COLUMN_METPY] * metpy.units.units.degC
 
     skewt_object.plot(
         pressures_mb, temperatures_deg_c, color=main_line_colour,
@@ -133,9 +133,9 @@ def plot_sounding(
 
     try:
         u_winds_kt = sounding_dict_for_metpy[
-            soundings_only.U_WIND_COLUMN_METPY] * metpy.units.units.knots
+            soundings.U_WIND_COLUMN_METPY] * metpy.units.units.knots
         v_winds_kt = sounding_dict_for_metpy[
-            soundings_only.V_WIND_COLUMN_METPY] * metpy.units.units.knots
+            soundings.V_WIND_COLUMN_METPY] * metpy.units.units.knots
         plot_wind = True
     except KeyError:
         plot_wind = False

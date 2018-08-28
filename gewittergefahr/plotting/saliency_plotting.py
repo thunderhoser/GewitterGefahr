@@ -19,7 +19,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -52,20 +52,20 @@ DEFAULT_OPTION_DICT = {
 }
 
 WIND_NAME = 'wind_m_s01'
-WIND_COMPONENT_NAMES = [soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME]
+WIND_COMPONENT_NAMES = [soundings.U_WIND_NAME, soundings.V_WIND_NAME]
 
 WIND_BARB_LENGTH = 10.
 EMPTY_WIND_BARB_RADIUS = 0.2
 SALIENCY_MULTIPLIER_FOR_WIND_BARBS = 10.
 
 SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
-    soundings_only.SPECIFIC_HUMIDITY_NAME: r'$q_{v}$',
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: r'$\theta_{v}$',
-    soundings_only.TEMPERATURE_NAME: r'$T$',
-    soundings_only.RELATIVE_HUMIDITY_NAME: 'RH',
-    soundings_only.U_WIND_NAME: r'$u$',
-    soundings_only.V_WIND_NAME: r'$v$',
-    soundings_only.GEOPOTENTIAL_HEIGHT_NAME: r'$Z$',
+    soundings.SPECIFIC_HUMIDITY_NAME: r'$q_{v}$',
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: r'$\theta_{v}$',
+    soundings.TEMPERATURE_NAME: r'$T$',
+    soundings.RELATIVE_HUMIDITY_NAME: 'RH',
+    soundings.U_WIND_NAME: r'$u$',
+    soundings.V_WIND_NAME: r'$v$',
+    soundings.PRESSURE_NAME: r'$p$',
     WIND_NAME: 'Wind'
 }
 
@@ -167,10 +167,8 @@ def plot_saliency_for_sounding(
     )
 
     try:
-        u_wind_index = sounding_field_names.index(
-            soundings_only.U_WIND_NAME)
-        v_wind_index = sounding_field_names.index(
-            soundings_only.V_WIND_NAME)
+        u_wind_index = sounding_field_names.index(soundings.U_WIND_NAME)
+        v_wind_index = sounding_field_names.index(soundings.V_WIND_NAME)
         plot_wind_barbs = True
     except ValueError:
         plot_wind_barbs = False
@@ -307,8 +305,7 @@ def plot_saliency_with_sounding(
     # Plot sounding.
     list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
         sounding_matrix=numpy.expand_dims(sounding_matrix, axis=0),
-        pressure_levels_mb=pressure_levels_mb,
-        pressureless_field_names=sounding_field_names)
+        field_names=sounding_field_names)
 
     sounding_plotting.plot_sounding(
         sounding_dict_for_metpy=list_of_metpy_dictionaries[0],

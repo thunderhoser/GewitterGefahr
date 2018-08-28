@@ -9,8 +9,8 @@ M = number of rows per radar image
 N = number of columns per radar image
 H_r = number of heights per radar image
 F_r = number of radar fields (not including different heights)
-H_s = number of vertical levels per sounding
-F_s = number of sounding fields (not including different vertical levels)
+H_s = number of height levels per sounding
+F_s = number of sounding fields (not including different heights)
 C = number of field/height pairs per radar image
 K = number of classes for target variable
 T = number of file times (time steps or SPC dates)
@@ -23,7 +23,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import labels
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import error_checking
 
 STORM_IDS_KEY = 'storm_ids'
@@ -115,8 +115,7 @@ def create_storm_images_2d(
         Files within this directory should be findable by
         `labels.find_label_file`.
     :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
+        fields.  Each must be accepted by `soundings.check_field_name`.
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
@@ -199,20 +198,19 @@ def create_storm_images_2d(
             num_examples_to_keep=num_examples_per_file)
 
         if sounding_file_names is not None:
-            this_sounding_dict, this_radar_image_dict = (
-                trainval_io.read_soundings(
-                    sounding_file_name=sounding_file_names[i],
-                    sounding_field_names=sounding_field_names,
-                    radar_image_dict=this_radar_image_dict))
+            (this_sounding_dict, this_radar_image_dict
+            ) = trainval_io.read_soundings(
+                sounding_file_name=sounding_file_names[i],
+                sounding_field_names=sounding_field_names,
+                radar_image_dict=this_radar_image_dict)
 
             if (this_sounding_dict is None or
-                    not len(this_sounding_dict[soundings_only.STORM_IDS_KEY])):
+                    not len(this_sounding_dict[soundings.STORM_IDS_KEY])):
                 continue
 
             this_sounding_matrix = this_sounding_dict[
-                soundings_only.SOUNDING_MATRIX_KEY]
-            sounding_field_names = this_sounding_dict[
-                soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+                soundings.SOUNDING_MATRIX_KEY]
+            sounding_field_names = this_sounding_dict[soundings.FIELD_NAMES_KEY]
 
             if sounding_matrix is None:
                 sounding_matrix = this_sounding_matrix + 0.
@@ -270,7 +268,7 @@ def create_storm_images_2d(
         if sounding_file_names is not None:
             dl_utils.normalize_soundings(
                 sounding_matrix=sounding_matrix,
-                pressureless_field_names=sounding_field_names,
+                field_names=sounding_field_names,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -325,8 +323,7 @@ def create_storm_images_3d(
         (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).  If
         you want no masking, leave this as `None`.
     :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
+        fields.  Each must be accepted by `soundings.check_field_name`.
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
@@ -410,20 +407,19 @@ def create_storm_images_3d(
             num_examples_to_keep=num_examples_per_file)
 
         if sounding_file_names is not None:
-            this_sounding_dict, this_radar_image_dict = (
-                trainval_io.read_soundings(
-                    sounding_file_name=sounding_file_names[i],
-                    sounding_field_names=sounding_field_names,
-                    radar_image_dict=this_radar_image_dict))
+            (this_sounding_dict, this_radar_image_dict
+            ) = trainval_io.read_soundings(
+                sounding_file_name=sounding_file_names[i],
+                sounding_field_names=sounding_field_names,
+                radar_image_dict=this_radar_image_dict)
 
             if (this_sounding_dict is None or
-                    not len(this_sounding_dict[soundings_only.STORM_IDS_KEY])):
+                    not len(this_sounding_dict[soundings.STORM_IDS_KEY])):
                 continue
 
             this_sounding_matrix = this_sounding_dict[
-                soundings_only.SOUNDING_MATRIX_KEY]
-            sounding_field_names = this_sounding_dict[
-                soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+                soundings.SOUNDING_MATRIX_KEY]
+            sounding_field_names = this_sounding_dict[soundings.FIELD_NAMES_KEY]
 
             if sounding_matrix is None:
                 sounding_matrix = this_sounding_matrix + 0.
@@ -493,7 +489,7 @@ def create_storm_images_3d(
         if sounding_file_names is not None:
             dl_utils.normalize_soundings(
                 sounding_matrix=sounding_matrix,
-                pressureless_field_names=sounding_field_names,
+                field_names=sounding_field_names,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,
@@ -553,8 +549,7 @@ def create_storm_images_2d3d_myrorss(
     :param binarize_target: Same.
     :param top_target_directory_name: Same.
     :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by
-        `soundings_only.check_pressureless_field_name`.
+        fields.  Each must be accepted by `soundings.check_field_name`.
     :param top_sounding_dir_name: See doc for
         `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
@@ -642,20 +637,19 @@ def create_storm_images_2d3d_myrorss(
             num_examples_to_keep=num_examples_per_file)
 
         if sounding_file_names is not None:
-            this_sounding_dict, this_radar_image_dict = (
-                trainval_io.read_soundings(
-                    sounding_file_name=sounding_file_names[i],
-                    sounding_field_names=sounding_field_names,
-                    radar_image_dict=this_radar_image_dict))
+            (this_sounding_dict, this_radar_image_dict
+            ) = trainval_io.read_soundings(
+                sounding_file_name=sounding_file_names[i],
+                sounding_field_names=sounding_field_names,
+                radar_image_dict=this_radar_image_dict)
 
             if (this_sounding_dict is None or
-                    not len(this_sounding_dict[soundings_only.STORM_IDS_KEY])):
+                    not len(this_sounding_dict[soundings.STORM_IDS_KEY])):
                 continue
 
             this_sounding_matrix = this_sounding_dict[
-                soundings_only.SOUNDING_MATRIX_KEY]
-            sounding_field_names = this_sounding_dict[
-                soundings_only.PRESSURELESS_FIELD_NAMES_KEY]
+                soundings.SOUNDING_MATRIX_KEY]
+            sounding_field_names = this_sounding_dict[soundings.FIELD_NAMES_KEY]
 
             if sounding_matrix is None:
                 sounding_matrix = this_sounding_matrix + 0.
@@ -748,7 +742,7 @@ def create_storm_images_2d3d_myrorss(
         if sounding_file_names is not None:
             dl_utils.normalize_soundings(
                 sounding_matrix=sounding_matrix,
-                pressureless_field_names=sounding_field_names,
+                field_names=sounding_field_names,
                 normalization_type_string=normalization_type_string,
                 normalization_param_file_name=normalization_param_file_name,
                 min_normalized_value=min_normalized_value,

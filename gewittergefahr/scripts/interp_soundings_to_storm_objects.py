@@ -4,7 +4,7 @@ import argparse
 import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import nwp_model_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import echo_top_tracking
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
@@ -59,7 +59,7 @@ TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  Used to find input data.')
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for soundings (one file per SPC date, written '
-    'by `soundings_only.write_soundings`).')
+    'by `soundings.write_soundings`).')
 
 DEFAULT_LEAD_TIMES_SECONDS = [0]
 DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
@@ -76,7 +76,7 @@ INPUT_ARG_PARSER.add_argument(
 
 INPUT_ARG_PARSER.add_argument(
     '--' + LAG_TIME_ARG_NAME, type=int, required=False,
-    default=soundings_only.DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
+    default=soundings.DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC,
     help=LAG_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
@@ -175,20 +175,21 @@ def _interp_soundings(
                  FIRST_RAP_TIME_STRING)
         raise ValueError(error_string)
 
-    sounding_dict_by_lead_time = (
-        soundings_only.interp_soundings_to_storm_objects(
-            storm_object_table=storm_object_table,
-            top_grib_directory_name=top_grib_directory_name,
-            model_name=model_name, lead_times_seconds=lead_times_seconds,
-            lag_time_for_convective_contamination_sec=
-            lag_time_for_convective_contamination_sec, include_surface=False,
-            use_all_grids=True, wgrib_exe_name=WGRIB_EXE_NAME,
-            wgrib2_exe_name=WGRIB2_EXE_NAME, raise_error_if_missing=False))
+    sounding_dict_by_lead_time = soundings.interp_soundings_to_storm_objects(
+        storm_object_table=storm_object_table,
+        top_grib_directory_name=top_grib_directory_name,
+        model_name=model_name, use_all_grids=True,
+        height_levels_m_agl=soundings.DEFAULT_HEIGHT_LEVELS_M_AGL,
+        lead_times_seconds=lead_times_seconds,
+        lag_time_for_convective_contamination_sec=
+        lag_time_for_convective_contamination_sec,
+        wgrib_exe_name=WGRIB_EXE_NAME, wgrib2_exe_name=WGRIB2_EXE_NAME,
+        raise_error_if_missing=False)
     print SEPARATOR_STRING
 
     num_lead_times = len(lead_times_seconds)
     for k in range(num_lead_times):
-        this_sounding_file_name = soundings_only.find_sounding_file(
+        this_sounding_file_name = soundings.find_sounding_file(
             top_directory_name=top_output_dir_name,
             spc_date_string=spc_date_string,
             lead_time_seconds=lead_times_seconds[k],
@@ -197,12 +198,11 @@ def _interp_soundings(
             raise_error_if_missing=False)
 
         print 'Writing soundings to: "{0:s}"...'.format(this_sounding_file_name)
-        soundings_only.write_soundings(
-            sounding_dict=sounding_dict_by_lead_time[k],
-            lead_time_seconds=lead_times_seconds[k],
+        soundings.write_soundings(
+            netcdf_file_name=this_sounding_file_name,
+            sounding_dict_height_coords=sounding_dict_by_lead_time[k],
             lag_time_for_convective_contamination_sec=
-            lag_time_for_convective_contamination_sec,
-            netcdf_file_name=this_sounding_file_name)
+            lag_time_for_convective_contamination_sec)
 
 
 if __name__ == '__main__':

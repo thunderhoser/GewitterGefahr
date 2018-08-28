@@ -6,7 +6,7 @@ CNN = convolutional neural network
 import os.path
 import argparse
 import numpy
-from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -18,9 +18,7 @@ from gewittergefahr.plotting import \
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DEFAULT_TEMP_DIRECTORY_NAME = '/condo/swatwork/ralager/temporary_soundings'
-SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
-    model_name=nwp_model_utils.RAP_MODEL_NAME,
-    grid_id=nwp_model_utils.ID_FOR_130GRID)
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0.
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 ONE_FIG_PER_COMPONENT_ARG_NAME = 'one_figure_per_component'
@@ -106,9 +104,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
     else:
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_optimized_input_matrices[-1],
-            pressure_levels_mb=SOUNDING_PRESSURE_LEVELS_MB,
-            pressureless_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY])
+            field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY])
 
     training_radar_file_name_matrix = model_metadata_dict[
         cnn.TRAINING_FILE_NAMES_KEY]

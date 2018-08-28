@@ -4,7 +4,7 @@ import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
@@ -49,10 +49,9 @@ RADAR_FIELD_NAME_BY_CHANNEL = [
 RADAR_HEIGHT_BY_CHANNEL_M_AGL = numpy.array([1000, 2000, 3000, 250], dtype=int)
 
 SOUNDING_FIELD_NAMES = [
-    soundings_only.TEMPERATURE_NAME,
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
+    soundings.TEMPERATURE_NAME, soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
-SOUNDING_PRESSURES_MB = numpy.array([500, 700, 850, 1000], dtype=int)
+SOUNDING_HEIGHTS_M_AGL = numpy.array([0, 500, 1000, 1500], dtype=int)
 
 RADAR_NORMALIZATION_DICT = {
     (radar_utils.REFL_NAME, 1000): numpy.array([8.65, 1, 0, 0]),
@@ -78,21 +77,20 @@ COLUMN_DICT_OLD_TO_NEW = {
 RADAR_NORMALIZATION_TABLE.rename(columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
 SOUNDING_NORMALIZATION_DICT = {
-    (soundings_only.TEMPERATURE_NAME, 500): numpy.array([262., 1, 0, 0]),
-    (soundings_only.TEMPERATURE_NAME, 700): numpy.array([280., 1, 0, 0]),
-    (soundings_only.TEMPERATURE_NAME, 850): numpy.array([289., 1, 0, 0]),
-    (soundings_only.TEMPERATURE_NAME, 1000): numpy.array([297., 1, 0, 0]),
-    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 500):
+    (soundings.TEMPERATURE_NAME, 0): numpy.array([262., 1, 0, 0]),
+    (soundings.TEMPERATURE_NAME, 500): numpy.array([280., 1, 0, 0]),
+    (soundings.TEMPERATURE_NAME, 1000): numpy.array([289., 1, 0, 0]),
+    (soundings.TEMPERATURE_NAME, 1500): numpy.array([297., 1, 0, 0]),
+    (soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 0):
         numpy.array([319., 1, 0, 0]),
-    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 700):
+    (soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 500):
         numpy.array([311., 1, 0, 0]),
-    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 850):
+    (soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 1000):
         numpy.array([305., 1, 0, 0]),
-    (soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 1000):
+    (soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME, 1500):
         numpy.array([299., 1, 0, 0]),
-    soundings_only.TEMPERATURE_NAME: numpy.array([0., 0, 210, 310]),
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME:
-        numpy.array([0., 0, 280, 380])
+    soundings.TEMPERATURE_NAME: numpy.array([0., 0, 210, 310]),
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: numpy.array([0., 0, 280, 380])
 }
 
 SOUNDING_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
@@ -276,7 +274,7 @@ class FeatureOptimizationTests(unittest.TestCase):
             min_normalized_value=MIN_NORMALIZED_VALUE,
             max_normalized_value=MAX_NORMALIZED_VALUE,
             sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
@@ -300,7 +298,7 @@ class FeatureOptimizationTests(unittest.TestCase):
             min_normalized_value=MIN_NORMALIZED_VALUE,
             max_normalized_value=MAX_NORMALIZED_VALUE,
             sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
@@ -324,7 +322,7 @@ class FeatureOptimizationTests(unittest.TestCase):
             min_normalized_value=MIN_NORMALIZED_VALUE,
             max_normalized_value=MAX_NORMALIZED_VALUE,
             sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
@@ -348,7 +346,7 @@ class FeatureOptimizationTests(unittest.TestCase):
             min_normalized_value=MIN_NORMALIZED_VALUE,
             max_normalized_value=MAX_NORMALIZED_VALUE,
             sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_pressures_mb=SOUNDING_PRESSURES_MB,
+            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
             radar_field_names=RADAR_FIELD_NAMES,
             radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
             radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,

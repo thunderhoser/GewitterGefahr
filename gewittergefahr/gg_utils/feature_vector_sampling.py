@@ -406,7 +406,7 @@ def sample_by_min_observations(
     live_indices, dead_indices = _find_live_and_dead_storms(
         storm_object_times_unix_sec=feature_table[tracking_utils.TIME_COLUMN],
         storm_cell_end_times_unix_sec=feature_table[
-            events2storms.STORM_END_TIME_COLUMN].values,
+            tracking_utils.CELL_END_TIME_COLUMN].values,
         min_lead_time_sec=min_lead_time_sec)
 
     if not return_table:
@@ -481,7 +481,7 @@ def sample_by_min_observations_plus(
     live_indices, dead_indices = _find_live_and_dead_storms(
         storm_object_times_unix_sec=feature_table[tracking_utils.TIME_COLUMN],
         storm_cell_end_times_unix_sec=feature_table[
-            events2storms.STORM_END_TIME_COLUMN].values,
+            tracking_utils.CELL_END_TIME_COLUMN].values,
         min_lead_time_sec=min_lead_time_sec)
 
     if not return_table:
@@ -535,7 +535,7 @@ def sample_by_min_obs_density(
     live_indices, dead_indices = _find_live_and_dead_storms(
         storm_object_times_unix_sec=feature_table[tracking_utils.TIME_COLUMN],
         storm_cell_end_times_unix_sec=feature_table[
-            events2storms.STORM_END_TIME_COLUMN].values,
+            tracking_utils.CELL_END_TIME_COLUMN].values,
         min_lead_time_sec=min_lead_time_sec)
 
     if not return_table:
@@ -614,7 +614,7 @@ def sample_by_min_obs_density_plus(
     live_indices, dead_indices = _find_live_and_dead_storms(
         storm_object_times_unix_sec=feature_table[tracking_utils.TIME_COLUMN],
         storm_cell_end_times_unix_sec=feature_table[
-            events2storms.STORM_END_TIME_COLUMN].values,
+            tracking_utils.CELL_END_TIME_COLUMN].values,
         min_lead_time_sec=min_lead_time_sec)
 
     if not return_table:
@@ -690,7 +690,7 @@ def sample_by_uniform_wind_speed(
     _, dead_indices = _find_live_and_dead_storms(
         storm_object_times_unix_sec=feature_table[tracking_utils.TIME_COLUMN],
         storm_cell_end_times_unix_sec=feature_table[
-            events2storms.STORM_END_TIME_COLUMN].values,
+            tracking_utils.CELL_END_TIME_COLUMN].values,
         min_lead_time_sec=min_lead_time_sec)
 
     wind_speed_categories[dead_indices] = -1

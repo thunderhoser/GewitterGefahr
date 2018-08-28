@@ -10,9 +10,8 @@ import numpy
 import pandas
 from scipy.interpolate import interp1d
 from gewittergefahr.gg_utils import radar_utils
-from gewittergefahr.gg_utils import soundings_only
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import storm_images
@@ -50,26 +49,25 @@ RADAR_INTERVAL_DICT = {
 }
 
 SOUNDING_INTERVAL_DICT = {
-    soundings_only.RELATIVE_HUMIDITY_NAME: 1e-3,  # unitless
-    soundings_only.TEMPERATURE_NAME: 0.1,  # Kelvins
-    soundings_only.U_WIND_NAME: 0.1,  # m s^-1
-    soundings_only.V_WIND_NAME: 0.1,  # m s^-1
-    soundings_only.SPECIFIC_HUMIDITY_NAME: 1e-5,  # kg kg^-1
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: 0.1  # Kelvins
+    soundings.PRESSURE_NAME: 1.,  # Pascals
+    soundings.TEMPERATURE_NAME: 0.01,  # Kelvins
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: 0.01,  # Kelvins
+    soundings.U_WIND_NAME: 0.01,  # m s^-1
+    soundings.V_WIND_NAME: 0.01,  # m s^-1
+    soundings.SPECIFIC_HUMIDITY_NAME: 1e-6,  # kg kg^-1
+    soundings.RELATIVE_HUMIDITY_NAME: 1e-4  # unitless
 }
 
 RADAR_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
 REFLECTIVITY_HEIGHTS_M_AGL = RADAR_HEIGHTS_M_AGL + 0.
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0.
 
 SOUNDING_FIELD_NAMES = [
-    soundings_only.TEMPERATURE_NAME,
-    soundings_only.VIRTUAL_POTENTIAL_TEMPERATURE_NAME,
-    soundings_only.U_WIND_NAME, soundings_only.V_WIND_NAME,
-    soundings_only.SPECIFIC_HUMIDITY_NAME, soundings_only.RELATIVE_HUMIDITY_NAME
+    soundings.PRESSURE_NAME, soundings.TEMPERATURE_NAME,
+    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME,
+    soundings.U_WIND_NAME, soundings.V_WIND_NAME,
+    soundings.SPECIFIC_HUMIDITY_NAME, soundings.RELATIVE_HUMIDITY_NAME
 ]
-SOUNDING_PRESSURE_LEVELS_MB = nwp_model_utils.get_pressure_levels(
-    model_name=nwp_model_utils.RAP_MODEL_NAME,
-    grid_id=nwp_model_utils.ID_FOR_130GRID)
 
 DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC = 1800
@@ -134,8 +132,8 @@ MAX_PERCENTILE_HELP_STRING = (
 ).format(MAX_PERCENTILE_ARG_NAME)
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
-    'will be found by `soundings_only.find_sounding_file` and read by '
-    '`soundings_only.read_soundings`.  Default is "{0:s}" for MYRORSS data, '
+    'will be found by `soundings.find_sounding_file` and read by '
+    '`soundings.read_soundings`.  Default is "{0:s}" for MYRORSS data, '
     '"{1:s}" for GridRad.'
 ).format(DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME,
          DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME)
@@ -473,7 +471,7 @@ def _run(
     sounding_z_score_dict_with_height = {}
     sounding_freq_dict_no_height = {}
     num_sounding_fields = len(SOUNDING_FIELD_NAMES)
-    num_sounding_pressures = len(SOUNDING_PRESSURE_LEVELS_MB)
+    num_sounding_heights = len(SOUNDING_HEIGHTS_M_AGL)
 
     for j in range(num_sounding_fields):
         sounding_z_score_dict_no_height[
@@ -481,9 +479,9 @@ def _run(
         ] = copy.deepcopy(orig_parameter_dict)
         sounding_freq_dict_no_height[SOUNDING_FIELD_NAMES[j]] = {}
 
-        for k in range(num_sounding_pressures):
+        for k in range(num_sounding_heights):
             sounding_z_score_dict_with_height[
-                SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]
+                SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k]
             ] = copy.deepcopy(orig_parameter_dict)
 
     # Update normalization params.
@@ -565,22 +563,21 @@ def _run(
         print MINOR_SEPARATOR_STRING
 
         print 'Reading data from: "{0:s}"...'.format(sounding_file_names[i])
-        this_sounding_dict = soundings_only.read_soundings(
+        this_sounding_dict = soundings.read_soundings(
             netcdf_file_name=sounding_file_names[i],
-            pressureless_field_names_to_keep=SOUNDING_FIELD_NAMES,
+            field_names_to_keep=SOUNDING_FIELD_NAMES,
             storm_ids_to_keep=these_storm_ids,
             init_times_to_keep_unix_sec=these_storm_times_unix_sec)[0]
 
         this_num_storm_objects = len(
-            this_sounding_dict[soundings_only.STORM_IDS_KEY])
+            this_sounding_dict[soundings.STORM_IDS_KEY])
 
         for j in range(num_sounding_fields):
             if this_num_storm_objects == 0:
                 continue
 
             this_field_index = this_sounding_dict[
-                soundings_only.PRESSURELESS_FIELD_NAMES_KEY
-            ].index(SOUNDING_FIELD_NAMES[j])
+                soundings.FIELD_NAMES_KEY].index(SOUNDING_FIELD_NAMES[j])
 
             print 'Updating normalization params for "{0:s}"...'.format(
                 SOUNDING_FIELD_NAMES[j])
@@ -591,7 +588,7 @@ def _run(
                 z_score_param_dict=sounding_z_score_dict_no_height[
                     SOUNDING_FIELD_NAMES[j]],
                 new_data_matrix=this_sounding_dict[
-                    soundings_only.SOUNDING_MATRIX_KEY][..., this_field_index])
+                    soundings.SOUNDING_MATRIX_KEY][..., this_field_index])
 
             sounding_freq_dict_no_height[
                 SOUNDING_FIELD_NAMES[j]
@@ -599,29 +596,28 @@ def _run(
                 frequency_dict=sounding_freq_dict_no_height[
                     SOUNDING_FIELD_NAMES[j]],
                 new_data_matrix=this_sounding_dict[
-                    soundings_only.SOUNDING_MATRIX_KEY][..., this_field_index],
+                    soundings.SOUNDING_MATRIX_KEY][..., this_field_index],
                 rounding_base=SOUNDING_INTERVAL_DICT[SOUNDING_FIELD_NAMES[j]])
 
-            for k in range(num_sounding_pressures):
-                this_pressure_index = numpy.where(
-                    this_sounding_dict[soundings_only.VERTICAL_LEVELS_KEY] ==
-                    SOUNDING_PRESSURE_LEVELS_MB[k]
+            for k in range(num_sounding_heights):
+                this_height_index = numpy.where(
+                    this_sounding_dict[soundings.HEIGHT_LEVELS_KEY] ==
+                    SOUNDING_HEIGHTS_M_AGL[k]
                 )[0]
 
                 print (
                     'Updating normalization params for "{0:s}" at {1:d} mb...'
-                ).format(
-                    SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k])
+                ).format(SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k])
 
                 sounding_z_score_dict_with_height[
-                    SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]
+                    SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k]
                 ] = _update_z_score_params(
                     z_score_param_dict=sounding_z_score_dict_with_height[
-                        SOUNDING_FIELD_NAMES[j], SOUNDING_PRESSURE_LEVELS_MB[k]
+                        SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k]
                     ],
                     new_data_matrix=this_sounding_dict[
-                        soundings_only.SOUNDING_MATRIX_KEY][
-                            ..., this_pressure_index, this_field_index])
+                        soundings.SOUNDING_MATRIX_KEY][
+                            ..., this_height_index, this_field_index])
 
         if i == num_spc_dates - 1:
             print SEPARATOR_STRING
