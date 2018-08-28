@@ -41,6 +41,10 @@ def _get_elevation(latitude_deg, longitude_deg, srtm_data_object=None):
 
     elevation_m_asl = srtm_data_object.get_elevation(
         latitude=latitude_deg, longitude=longitude_deg)
+
+    # TODO(thunderhoser): I am concerned about this hack.
+    if elevation_m_asl is None:
+        elevation_m_asl = 0.
     return elevation_m_asl, srtm_data_object
 
 

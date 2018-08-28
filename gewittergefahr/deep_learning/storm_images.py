@@ -287,9 +287,6 @@ def _find_input_heights_needed(
         numpy.max(desired_radar_heights_m_agl)
     )
 
-    print min_radar_height_m_asl
-    print max_radar_height_m_asl
-
     desired_radar_heights_m_asl = radar_utils.get_valid_heights(
         data_source=radar_source, field_name=radar_utils.REFL_NAME)
     good_indices = numpy.where(numpy.logical_and(
@@ -1501,9 +1498,6 @@ def extract_storm_images_gridrad(
 
         storm_object_table = storm_object_table.assign(
             **{ELEVATION_COLUMN: storm_elevations_m_asl})
-
-        print storm_elevations_m_asl
-        print radar_heights_m_agl
 
         radar_heights_m_asl = _find_input_heights_needed(
             storm_elevations_m_asl=storm_elevations_m_asl,
