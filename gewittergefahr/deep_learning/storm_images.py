@@ -187,8 +187,13 @@ def _check_grid_spacing(
     :raises: ValueError: if grid spacings are inconsistent.
     """
 
-    if (new_metadata_dict[radar_utils.FIELD_NAME_COLUMN] in
-            AZIMUTHAL_SHEAR_FIELD_NAMES):
+    is_field_az_shear = (
+        radar_utils.FIELD_NAME_COLUMN in new_metadata_dict and
+        new_metadata_dict[radar_utils.FIELD_NAME_COLUMN] in
+        AZIMUTHAL_SHEAR_FIELD_NAMES
+    )
+
+    if is_field_az_shear:
         new_lat_spacing_deg = (
             AZ_SHEAR_GRID_SPACING_MULTIPLIER *
             new_metadata_dict[radar_utils.LAT_SPACING_COLUMN])
