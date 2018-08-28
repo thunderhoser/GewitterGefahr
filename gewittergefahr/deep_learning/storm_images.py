@@ -287,6 +287,9 @@ def _find_input_heights_needed(
         numpy.max(desired_radar_heights_m_agl)
     )
 
+    print min_radar_height_m_asl
+    print max_radar_height_m_asl
+
     desired_radar_heights_m_asl = radar_utils.get_valid_heights(
         data_source=radar_source, field_name=radar_utils.REFL_NAME)
     good_indices = numpy.where(numpy.logical_and(
