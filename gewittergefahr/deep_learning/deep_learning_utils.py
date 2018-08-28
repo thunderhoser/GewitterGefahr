@@ -24,6 +24,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import moisture_conversions
 from gewittergefahr.gg_utils import temperature_conversions
+from gewittergefahr.gg_utils import standard_atmosphere as standard_atmo
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -703,12 +704,25 @@ def denormalize_soundings(
     return sounding_matrix
 
 
-def soundings_to_metpy_dictionaries(sounding_matrix, field_names):
+def soundings_to_metpy_dictionaries(
+        sounding_matrix, field_names, height_levels_m_agl=None,
+        storm_elevations_m_asl=None):
     """Converts soundings to format required by MetPy.
+
+    If `sounding_matrix` contains pressures, `height_levels_m_agl` and
+    `storm_elevations_m_asl` will not be used.
+
+    Otherwise, `height_levels_m_agl` and `storm_elevations_m_asl` will be used
+    to estimate the pressure levels for each sounding.
 
     :param sounding_matrix: numpy array (E x H_s x F_s) of soundings.
     :param field_names: list (length F_s) of field names, in the order that they
         appear in `sounding_matrix`.
+    :param height_levels_m_agl: numpy array (length H_s) of height levels
+        (metres above ground level), in the order that they appear in
+        `sounding_matrix`.
+    :param storm_elevations_m_asl: length-E numpy array of storm elevations
+        (metres above sea level).
     :return: list_of_metpy_dictionaries: length-E list of dictionaries.  The
         format of each dictionary is described in the input doc for
         `sounding_plotting.plot_sounding`.
@@ -717,11 +731,36 @@ def soundings_to_metpy_dictionaries(sounding_matrix, field_names):
     error_checking.assert_is_string_list(field_names)
     error_checking.assert_is_numpy_array(
         numpy.array(field_names), num_dimensions=1)
-    num_fields = len(field_names)
-    check_soundings(sounding_matrix=sounding_matrix, num_fields=num_fields)
+    check_soundings(
+        sounding_matrix=sounding_matrix, num_fields=len(field_names))
 
-    pressure_index = field_names.index(soundings.PRESSURE_NAME)
-    pressure_matrix_pascals = sounding_matrix[..., pressure_index]
+    try:
+        pressure_index = field_names.index(soundings.PRESSURE_NAME)
+        pressure_matrix_pascals = sounding_matrix[..., pressure_index]
+    except ValueError:
+        error_checking.assert_is_integer_numpy_array(height_levels_m_agl)
+        error_checking.assert_is_geq_numpy_array(height_levels_m_agl, 0)
+        error_checking.assert_is_numpy_array(
+            height_levels_m_agl, num_dimensions=1)
+
+        error_checking.assert_is_numpy_array_without_nan(storm_elevations_m_asl)
+        error_checking.assert_is_numpy_array(
+            storm_elevations_m_asl, num_dimensions=1)
+
+        num_height_levels = len(height_levels_m_agl)
+        num_examples = len(storm_elevations_m_asl)
+        check_soundings(
+            sounding_matrix=sounding_matrix, num_examples=num_examples,
+            num_height_levels=num_height_levels)
+
+        height_matrix_m_asl = numpy.full(
+            (num_examples, num_height_levels), numpy.nan)
+        for i in range(num_examples):
+            height_matrix_m_asl[i, ...] = (
+                height_levels_m_agl + storm_elevations_m_asl[i])
+
+        pressure_matrix_pascals = standard_atmo.height_to_pressure(
+            height_matrix_m_asl)
 
     try:
         temperature_index = field_names.index(soundings.TEMPERATURE_NAME)

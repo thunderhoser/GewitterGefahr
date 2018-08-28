@@ -14,7 +14,7 @@ def pressure_to_height(pressures_pascals):
 
     :param pressures_pascals: numpy array of pressures.
     :return: heights_m_asl: equivalent-size numpy array of heights (metres above
-        ground level).
+        sea level).
     """
 
     error_checking.assert_is_greater_numpy_array(pressures_pascals, 0.)
@@ -72,19 +72,19 @@ def pressure_to_height(pressures_pascals):
     return numpy.reshape(heights_m_asl, original_shape)
 
 
-def height_to_pressure(heights_m_agl):
+def height_to_pressure(heights_m_asl):
     """Converts heights to pressures.
 
-    :param heights_m_agl: numpy array of heights (metres above ground level).
+    :param heights_m_asl: numpy array of heights (metres above sea level).
     :return: pressures_pascals: equivalent-size numpy array of pressures.
     """
 
-    error_checking.assert_is_numpy_array(heights_m_agl)
+    error_checking.assert_is_numpy_array(heights_m_asl)
 
-    original_shape = heights_m_agl.shape
-    heights_m_agl = numpy.ravel(heights_m_agl)
+    original_shape = heights_m_asl.shape
+    heights_m_asl = numpy.ravel(heights_m_asl)
 
-    num_points = len(heights_m_agl)
+    num_points = len(heights_m_asl)
     pressures_pascals = numpy.full(num_points, numpy.nan)
 
     for i in range(len(STANDARD_HEIGHTS_M_ASL) + 1):
@@ -105,8 +105,8 @@ def height_to_pressure(heights_m_agl):
             this_max_height_m_asl = STANDARD_HEIGHTS_M_ASL[i]
 
         these_indices = numpy.where(numpy.logical_and(
-            heights_m_agl >= this_min_height_m_asl,
-            heights_m_agl < this_max_height_m_asl
+            heights_m_asl >= this_min_height_m_asl,
+            heights_m_asl < this_max_height_m_asl
         ))[0]
 
         if len(these_indices) == 0:
@@ -124,7 +124,7 @@ def height_to_pressure(heights_m_agl):
 
         these_exponentials = numpy.exp(
             (STANDARD_HEIGHTS_M_ASL[this_bottom_index] -
-             heights_m_agl[these_indices]) /
+             heights_m_asl[these_indices]) /
             this_e_folding_height_metres
         )
         pressures_pascals[these_indices] = (

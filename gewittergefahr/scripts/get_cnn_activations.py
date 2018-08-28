@@ -234,15 +234,21 @@ def _run(
     num_spc_dates = radar_file_name_matrix.shape[0]
 
     for i in range(num_spc_dates):
-        (this_list_of_input_matrices, these_storm_ids, these_times_unix_sec
-        ) = model_interpretation.read_storms_one_spc_date(
+        this_storm_object_dict = model_interpretation.read_storms_one_spc_date(
             radar_file_name_matrix=radar_file_name_matrix,
             model_metadata_dict=model_metadata_dict,
             top_sounding_dir_name=top_sounding_dir_name, spc_date_index=i)
         print '\n'
 
-        if this_list_of_input_matrices is None:
+        if this_storm_object_dict is None:
             continue
+
+        this_list_of_input_matrices = this_storm_object_dict[
+            model_interpretation.INPUT_MATRICES_KEY]
+        these_storm_ids = this_storm_object_dict[
+            model_interpretation.STORM_IDS_KEY]
+        these_times_unix_sec = this_storm_object_dict[
+            model_interpretation.STORM_TIMES_KEY]
 
         storm_ids += these_storm_ids
         storm_times_unix_sec = numpy.concatenate((

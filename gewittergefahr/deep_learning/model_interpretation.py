@@ -1,8 +1,10 @@
 """Helper methods for model interpretation."""
 
+import copy
 import numpy
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -19,6 +21,11 @@ VALID_COMPONENT_TYPE_STRINGS = [
     CLASS_COMPONENT_TYPE_STRING, NEURON_COMPONENT_TYPE_STRING,
     CHANNEL_COMPONENT_TYPE_STRING
 ]
+
+INPUT_MATRICES_KEY = 'list_of_input_matrices'
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 
 def check_component_type(component_type_string):
@@ -177,6 +184,7 @@ def read_storms_one_spc_date(
     """Reads storm objects (model inputs) for one SPC date.
 
     E = number of examples (storm objects) returned
+    H = number of height levels per sounding
 
     If `desired_storm_ids is None or desired_storm_times_unix_sec is None`, data
     will be read for all storm objects on the given SPC date.  Otherwise, data
@@ -196,11 +204,18 @@ def read_storms_one_spc_date(
     :param desired_storm_times_unix_sec: 1-D numpy array of storm times (same
         length as `desired_storm_ids`).  Data will be read only for these storm
         objects.
-    :return: list_of_input_matrices: length-T list of numpy arrays, where T =
-        number of input tensors to the model.  The first dimension of each array
-        has length E.
-    :return: storm_ids: length-E list of storm IDs.
-    :return: storm_times_unix_sec: length-E list of storm times.
+    :return: storm_object_dict: Dictionary with the following keys.
+    storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
+        where T = number of input tensors to the model.  The first dimension of
+        each array has length E.
+    storm_object_dict['storm_ids']: length-E list of storm IDs.
+    storm_object_dict['storm_times_unix_sec']: length-E list of storm times.
+    storm_object_dict['sounding_pressure_matrix_pascals']: E-by-H numpy array of
+        pressure levels in soundings.  If model input does not contain soundings
+        *or* model input contains soundings with pressure, this is `None`.
+        `sounding_pressure_matrix_pascals` is useful only when the model input
+        contains soundings with no pressure, because it is needed to plot
+        soundings.
     """
 
     return_all_storm_objects = (
@@ -233,6 +248,17 @@ def read_storms_one_spc_date(
         storm_ids = [desired_storm_ids[k] for k in valid_indices]
         storm_times_unix_sec = desired_storm_times_unix_sec[valid_indices]
 
+    sounding_field_names = model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY]
+    read_pressure_separately = (
+        sounding_field_names is not None and
+        soundings.PRESSURE_NAME not in sounding_field_names
+    )
+    if read_pressure_separately:
+        sounding_field_names_to_read = (
+            sounding_field_names + soundings.PRESSURE_NAME)
+    else:
+        sounding_field_names_to_read = copy.deepcopy(sounding_field_names)
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         example_dict = deployment_io.create_storm_images_2d3d_myrorss(
             radar_file_name_matrix=radar_file_name_matrix[
@@ -251,8 +277,7 @@ def read_storms_one_spc_date(
             num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
             num_columns_to_keep=model_metadata_dict[
                 cnn.NUM_COLUMNS_TO_KEEP_KEY],
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
+            sounding_field_names=sounding_field_names_to_read,
             top_sounding_dir_name=top_sounding_dir_name,
             sounding_lag_time_for_convective_contamination_sec=
             model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
@@ -280,8 +305,7 @@ def read_storms_one_spc_date(
                     cnn.NUM_COLUMNS_TO_KEEP_KEY],
                 refl_masking_threshold_dbz=model_metadata_dict[
                     cnn.REFL_MASKING_THRESHOLD_KEY],
-                sounding_field_names=model_metadata_dict[
-                    cnn.SOUNDING_FIELD_NAMES_KEY],
+                sounding_field_names=sounding_field_names_to_read,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
                 model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
@@ -303,14 +327,13 @@ def read_storms_one_spc_date(
                 num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
                 num_columns_to_keep=model_metadata_dict[
                     cnn.NUM_COLUMNS_TO_KEEP_KEY],
-                sounding_field_names=model_metadata_dict[
-                    cnn.SOUNDING_FIELD_NAMES_KEY],
+                sounding_field_names=sounding_field_names_to_read,
                 top_sounding_dir_name=top_sounding_dir_name,
                 sounding_lag_time_for_convective_contamination_sec=
                 model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
 
     if example_dict is None:
-        return None, None, None
+        return None
 
     if return_all_storm_objects:
         storm_ids = example_dict[deployment_io.STORM_IDS_KEY]
@@ -337,12 +360,24 @@ def read_storms_one_spc_date(
                 relevant_indices, ...]
         ]
 
+    if read_pressure_separately:
+        sounding_pressure_matrix_pascals = example_dict[
+            deployment_io.SOUNDING_MATRIX_KEY][relevant_indices, ..., -1]
+        example_dict[deployment_io.SOUNDING_MATRIX_KEY] = example_dict[
+            deployment_io.SOUNDING_MATRIX_KEY][relevant_indices, ..., :-1]
+    else:
+        sounding_pressure_matrix_pascals = None
+
     if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
         list_of_input_matrices.append(
             example_dict[deployment_io.SOUNDING_MATRIX_KEY][
                 relevant_indices, ...])
 
-    return list_of_input_matrices, storm_ids, storm_times_unix_sec
+    return {
+        INPUT_MATRICES_KEY: list_of_input_matrices, STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
+        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals
+    }
 
 
 def denormalize_data(list_of_input_matrices, model_metadata_dict):

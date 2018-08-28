@@ -102,9 +102,14 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
     if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is None:
         list_of_metpy_dictionaries = None
     else:
+        num_storm_objects = list_of_optimized_input_matrices[-1].shape[0]
+        storm_elevations_m_asl = numpy.full(num_storm_objects, 0.)
+
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_optimized_input_matrices[-1],
-            field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY])
+            field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+            height_levels_m_agl=model_metadata_dict[cnn.SOUNDING_HEIGHTS_KEY],
+            storm_elevations_m_asl=storm_elevations_m_asl)
 
     training_radar_file_name_matrix = model_metadata_dict[
         cnn.TRAINING_FILE_NAMES_KEY]

@@ -224,11 +224,11 @@ def _run(
     list_of_saliency_matrices = None
     storm_ids = []
     storm_times_unix_sec = numpy.array([], dtype=int)
-    num_spc_dates = radar_file_name_matrix.shape[0]
+    sounding_pressure_matrix_pascals = None
 
+    num_spc_dates = radar_file_name_matrix.shape[0]
     for i in range(num_spc_dates):
-        (this_list_of_input_matrices, these_storm_ids, these_times_unix_sec
-        ) = model_interpretation.read_storms_one_spc_date(
+        this_storm_object_dict = model_interpretation.read_storms_one_spc_date(
             radar_file_name_matrix=radar_file_name_matrix,
             model_metadata_dict=model_metadata_dict,
             top_sounding_dir_name=top_sounding_dir_name, spc_date_index=i,
@@ -236,12 +236,29 @@ def _run(
             desired_storm_times_unix_sec=desired_storm_times_unix_sec)
         print MINOR_SEPARATOR_STRING
 
-        if this_list_of_input_matrices is None:
+        if this_storm_object_dict is None:
             continue
 
-        storm_ids += these_storm_ids
+        storm_ids += this_storm_object_dict[
+            model_interpretation.STORM_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
-            storm_times_unix_sec, these_times_unix_sec))
+            storm_times_unix_sec,
+            this_storm_object_dict[model_interpretation.STORM_TIMES_KEY]))
+
+        this_list_of_input_matrices = this_storm_object_dict[
+            model_interpretation.INPUT_MATRICES_KEY]
+        this_pressure_matrix_pascals = this_storm_object_dict[
+            model_interpretation.SOUNDING_PRESSURES_KEY]
+
+        if this_pressure_matrix_pascals is not None:
+            if sounding_pressure_matrix_pascals is None:
+                sounding_pressure_matrix_pascals = (
+                    this_pressure_matrix_pascals + 0.)
+            else:
+                sounding_pressure_matrix_pascals = numpy.concatenate(
+                    (sounding_pressure_matrix_pascals,
+                     this_pressure_matrix_pascals),
+                    axis=0)
 
         if num_radar_dimensions == 2:
             _, this_spc_date_string = storm_images.image_file_name_to_time(
@@ -325,7 +342,8 @@ def _run(
         storm_times_unix_sec=storm_times_unix_sec,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_indices=neuron_indices, channel_index=channel_index)
+        neuron_indices=neuron_indices, channel_index=channel_index,
+        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
 
 
 if __name__ == '__main__':

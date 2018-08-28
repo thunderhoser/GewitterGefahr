@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import temperature_conversions
 from gewittergefahr.gg_utils import moisture_conversions
+from gewittergefahr.gg_utils import standard_atmosphere as standard_atmo
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 TOLERANCE = 1e-6
@@ -320,21 +321,43 @@ RADAR_MATRIX_3D_MASKED = numpy.stack(
     (THIS_EXAMPLE0_MATRIX_MASKED, THIS_EXAMPLE1_MATRIX_MASKED), axis=0)
 
 # The following constants are used to test soundings_to_metpy_dictionaries.
-SOUNDING_FIELD_NAMES = [
-    soundings.PRESSURE_NAME, soundings.RELATIVE_HUMIDITY_NAME,
-    soundings.TEMPERATURE_NAME, soundings.U_WIND_NAME, soundings.V_WIND_NAME,
+SOUNDING_FIELD_NAMES_NO_PRESSURE = [
+    soundings.RELATIVE_HUMIDITY_NAME, soundings.TEMPERATURE_NAME,
+    soundings.U_WIND_NAME, soundings.V_WIND_NAME,
     soundings.SPECIFIC_HUMIDITY_NAME,
     soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 
-THIS_FIRST_MATRIX = numpy.array([[100000, 0.9, 300, -10, 5, 0.02, 310],
-                                 [85000, 0.7, 285, 0, 15, 0.015, 310],
-                                 [70000, 0.95, 270, 15, 20, 0.01, 325],
-                                 [50000, 0.93, 260, 30, 30, 0.007, 341]])
-THIS_SECOND_MATRIX = numpy.array([[100000, 0.7, 305, 0, 0, 0.015, 312.5],
-                                  [85000, 0.5, 290, 15, 12.5, 0.015, 310],
-                                  [70000, 0.8, 273, 25, 15, 0.012, 333],
-                                  [50000, 0.9, 262, 40, 20, 0.008, 345]])
+SOUNDING_FIELD_NAMES = (
+    [soundings.PRESSURE_NAME] + SOUNDING_FIELD_NAMES_NO_PRESSURE)
+
+THIS_FIRST_MATRIX = numpy.array([[0.9, 300, -10, 5, 0.02, 310],
+                                 [0.7, 285, 0, 15, 0.015, 310],
+                                 [0.95, 270, 15, 20, 0.01, 325],
+                                 [0.93, 260, 30, 30, 0.007, 341]])
+THIS_SECOND_MATRIX = numpy.array([[0.7, 305, 0, 0, 0.015, 312.5],
+                                  [0.5, 290, 15, 12.5, 0.015, 310],
+                                  [0.8, 273, 25, 15, 0.012, 333],
+                                  [0.9, 262, 40, 20, 0.008, 345]])
+SOUNDING_MATRIX_NO_PRESSURE = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+
+HEIGHT_LEVELS_M_AGL = numpy.array([0, 1500, 3000, 5000], dtype=int)
+STORM_ELEVATIONS_M_ASL = numpy.array([1045, 645], dtype=float)
+
+FIRST_PRESSURES_PASCALS = standard_atmo.height_to_pressure(
+    STORM_ELEVATIONS_M_ASL[0] + HEIGHT_LEVELS_M_AGL)
+FIRST_PRESSURES_PASCALS = numpy.reshape(
+    FIRST_PRESSURES_PASCALS, (len(FIRST_PRESSURES_PASCALS), 1))
+THIS_FIRST_MATRIX = numpy.hstack((FIRST_PRESSURES_PASCALS, THIS_FIRST_MATRIX))
+
+SECOND_PRESSURES_PASCALS = standard_atmo.height_to_pressure(
+    STORM_ELEVATIONS_M_ASL[1] + HEIGHT_LEVELS_M_AGL)
+SECOND_PRESSURES_PASCALS = numpy.reshape(
+    SECOND_PRESSURES_PASCALS, (len(SECOND_PRESSURES_PASCALS), 1))
+THIS_SECOND_MATRIX = numpy.hstack((
+    SECOND_PRESSURES_PASCALS, THIS_SECOND_MATRIX))
+
 SOUNDING_MATRIX_UNNORMALIZED = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
@@ -389,25 +412,35 @@ SOUNDING_NORMALIZATION_TABLE = pandas.DataFrame.from_dict(
 SOUNDING_NORMALIZATION_TABLE.rename(
     columns=COLUMN_DICT_OLD_TO_NEW, inplace=True)
 
-THIS_FIRST_MATRIX = numpy.array([[2.5, 2, 2, -1.5, -1, 3, 0],
-                                 [1.75, 1, 0.5, -0.5, 1, 2, 0],
-                                 [1, 2.25, -1, 1, 2, 1, 1.5],
-                                 [0, 2.15, -2, 2.5, 4, 0.4, 3.1]])
-THIS_SECOND_MATRIX = numpy.array([[2.5, 1, 2.5, -0.5, -2, 2, 0.25],
-                                  [1.75, 0, 1, 1, 0.5, 2, 0],
-                                  [1, 1.5, -0.7, 2, 1, 1.4, 2.3],
-                                  [0, 2, -1.8, 3.5, 2, 0.6, 3.5]])
+THIS_FIRST_MATRIX = numpy.array([[2, 2, -1.5, -1, 3, 0],
+                                 [1, 0.5, -0.5, 1, 2, 0],
+                                 [2.25, -1, 1, 2, 1, 1.5],
+                                 [2.15, -2, 2.5, 4, 0.4, 3.1]])
+THIS_SECOND_MATRIX = numpy.array([[1, 2.5, -0.5, -2, 2, 0.25],
+                                  [0, 1, 1, 0.5, 2, 0],
+                                  [1.5, -0.7, 2, 1, 1.4, 2.3],
+                                  [2, -1.8, 3.5, 2, 0.6, 3.5]])
+
+THESE_FIRST_PRESSURES = (FIRST_PRESSURES_PASCALS - 50000) / 20000
+THESE_SECOND_PRESSURES = (SECOND_PRESSURES_PASCALS - 50000) / 20000
+THIS_FIRST_MATRIX = numpy.hstack((THESE_FIRST_PRESSURES, THIS_FIRST_MATRIX))
+THIS_SECOND_MATRIX = numpy.hstack((THESE_SECOND_PRESSURES, THIS_SECOND_MATRIX))
 SOUNDING_MATRIX_Z_SCORES = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
-THIS_FIRST_MATRIX = numpy.array([[1, 0.9, 1, 0, 0.5, 1, 0.2],
-                                 [7.5 / 9, 0.7, 0.7, 0.2, 0.7, 0.75, 0.2],
-                                 [6. / 9, 0.95, 0.4, 0.5, 0.8, 0.5, 0.5],
-                                 [4. / 9, 0.93, 0.2, 0.8, 1, 0.35, 0.82]])
-THIS_SECOND_MATRIX = numpy.array([[1, 0.7, 1.1, 0.2, 0.4, 0.75, 0.25],
-                                  [7.5 / 9, 0.5, 0.8, 0.5, 0.65, 0.75, 0.2],
-                                  [6. / 9, 0.8, 0.46, 0.7, 0.7, 0.6, 0.66],
-                                  [4. / 9, 0.9, 0.24, 1, 0.8, 0.4, 0.9]])
+THIS_FIRST_MATRIX = numpy.array([[0.9, 1, 0, 0.5, 1, 0.2],
+                                 [0.7, 0.7, 0.2, 0.7, 0.75, 0.2],
+                                 [0.95, 0.4, 0.5, 0.8, 0.5, 0.5],
+                                 [0.93, 0.2, 0.8, 1, 0.35, 0.82]])
+THIS_SECOND_MATRIX = numpy.array([[0.7, 1.1, 0.2, 0.4, 0.75, 0.25],
+                                  [0.5, 0.8, 0.5, 0.65, 0.75, 0.2],
+                                  [0.8, 0.46, 0.7, 0.7, 0.6, 0.66],
+                                  [0.9, 0.24, 1, 0.8, 0.4, 0.9]])
+
+THESE_FIRST_PRESSURES = (FIRST_PRESSURES_PASCALS - 10000) / 90000
+THESE_SECOND_PRESSURES = (SECOND_PRESSURES_PASCALS - 10000) / 90000
+THIS_FIRST_MATRIX = numpy.hstack((THESE_FIRST_PRESSURES, THIS_FIRST_MATRIX))
+THIS_SECOND_MATRIX = numpy.hstack((THESE_SECOND_PRESSURES, THIS_SECOND_MATRIX))
 SOUNDING_MATRIX_MINMAX = -1 + 2 * numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
@@ -436,6 +469,36 @@ SAMPLING_FRACTION_BY_WIND_4CLASS_DICT = {-2: 0.2, 0: 0.1, 1: 0.4, 2: 0.3}
 WIND_INDICES_TO_KEEP = numpy.array(
     [4, 14, 15, 1, 2, 7, 11, 13, 17, 18, 23, 38, 43, 44, 45, 0, 3, 9, 10, 12,
      16, 24, 25, 26, 5, 6, 8, 21, 28, 32], dtype=int)
+
+
+def _compare_lists_of_metpy_dicts(first_list_of_dicts, second_list_of_dicts):
+    """Compares two lists of MetPy dictionaries.
+
+    :param first_list_of_dicts: First list.
+    :param second_list_of_dicts: Second list.
+    :return: are_lists_equal: Boolean flag, indicating whether or not the two
+        lists are equal.
+    """
+
+    num_first_dicts = len(first_list_of_dicts)
+    num_second_dicts = len(second_list_of_dicts)
+    if num_first_dicts != num_second_dicts:
+        return False
+
+    for i in range(num_first_dicts):
+        these_first_keys = first_list_of_dicts[i].keys()
+        these_second_keys = second_list_of_dicts[i].keys()
+        if set(these_first_keys) != set(these_second_keys):
+            return False
+
+        for this_key in these_first_keys:
+            if not numpy.allclose(
+                    first_list_of_dicts[i][this_key],
+                    second_list_of_dicts[i][this_key],
+                    atol=TOLERANCE_FOR_METPY_DICTIONARIES):
+                return False
+
+    return True
 
 
 class DeepLearningUtilsTests(unittest.TestCase):
@@ -1050,27 +1113,33 @@ class DeepLearningUtilsTests(unittest.TestCase):
         self.assertTrue(numpy.allclose(
             this_sounding_matrix, SOUNDING_MATRIX_UNNORMALIZED, atol=TOLERANCE))
 
-    def test_soundings_to_metpy_dictionaries(self):
-        """Ensures correct output from soundings_to_metpy_dictionaries."""
+    def test_soundings_to_metpy_dictionaries_no_pressure(self):
+        """Ensures correct output from soundings_to_metpy_dictionaries.
+
+        In this case the soundings do not contain pressure.
+        """
+
+        these_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
+            sounding_matrix=SOUNDING_MATRIX_NO_PRESSURE,
+            field_names=SOUNDING_FIELD_NAMES_NO_PRESSURE,
+            height_levels_m_agl=HEIGHT_LEVELS_M_AGL,
+            storm_elevations_m_asl=STORM_ELEVATIONS_M_ASL)
+
+        self.assertTrue(_compare_lists_of_metpy_dicts(
+            these_metpy_dictionaries, LIST_OF_METPY_DICTIONARIES))
+
+    def test_soundings_to_metpy_dictionaries_with_pressure(self):
+        """Ensures correct output from soundings_to_metpy_dictionaries.
+
+        In this case the soundings contain pressure.
+        """
 
         these_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=SOUNDING_MATRIX_UNNORMALIZED,
             field_names=SOUNDING_FIELD_NAMES)
 
-        self.assertTrue(
-            len(these_metpy_dictionaries) == len(LIST_OF_METPY_DICTIONARIES))
-
-        expected_keys = LIST_OF_METPY_DICTIONARIES[0].keys()
-
-        for i in range(len(these_metpy_dictionaries)):
-            these_actual_keys = these_metpy_dictionaries[i].keys()
-            self.assertTrue(set(these_actual_keys) == set(expected_keys))
-
-            for this_key in expected_keys:
-                self.assertTrue(numpy.allclose(
-                    these_metpy_dictionaries[i][this_key],
-                    LIST_OF_METPY_DICTIONARIES[i][this_key],
-                    atol=TOLERANCE_FOR_METPY_DICTIONARIES))
+        self.assertTrue(_compare_lists_of_metpy_dicts(
+            these_metpy_dictionaries, LIST_OF_METPY_DICTIONARIES))
 
     def test_sample_by_class_tornado(self):
         """Ensures correct output from sample_by_class.

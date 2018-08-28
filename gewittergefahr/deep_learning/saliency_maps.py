@@ -18,6 +18,7 @@ LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
+SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 
 def _do_saliency_calculations(
@@ -233,7 +234,8 @@ def write_file(
         pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
         model_file_name, storm_ids, storm_times_unix_sec, component_type_string,
         target_class=None, layer_name=None, ideal_activation=None,
-        neuron_indices=None, channel_index=None):
+        neuron_indices=None, channel_index=None,
+        sounding_pressure_matrix_pascals=None):
     """Writes saliency maps to Pickle file.
 
     Specifically, this method writes saliency maps for many storm objects and
@@ -241,6 +243,7 @@ def write_file(
 
     T = number of input tensors to the model
     E = number of examples (storm objects) for which saliency maps were computed
+    H = number of height levels per sounding
 
     :param pickle_file_name: Path to output file.
     :param list_of_input_matrices: length-T list of numpy arrays, comprising the
@@ -258,6 +261,9 @@ def write_file(
     :param ideal_activation: Same.
     :param neuron_indices: Same.
     :param channel_index: Same.
+    :param sounding_pressure_matrix_pascals: E-by-H numpy array of pressure
+        levels in soundings.  Useful only when the model input contains
+        soundings with no pressure, because it is needed to plot soundings.
     :raises: ValueError: if `list_of_input_matrices` and
         `list_of_saliency_matrices` have different dimensions.
     """
@@ -301,6 +307,17 @@ def write_file(
             list_of_saliency_matrices[k],
             exact_dimensions=numpy.array(list_of_input_matrices[k].shape))
 
+    if sounding_pressure_matrix_pascals is not None:
+        error_checking.assert_is_numpy_array(
+            sounding_pressure_matrix_pascals, num_dimensions=2)
+
+        these_expected_dim = numpy.array(
+            (num_storm_objects,) + sounding_pressure_matrix_pascals.shape[1:],
+            dtype=int)
+        error_checking.assert_is_numpy_array(
+            sounding_pressure_matrix_pascals,
+            exact_dimensions=these_expected_dim)
+
     metadata_dict = {
         MODEL_FILE_NAME_KEY: model_file_name,
         STORM_IDS_KEY: storm_ids,
@@ -311,6 +328,7 @@ def write_file(
         IDEAL_ACTIVATION_KEY: ideal_activation,
         NEURON_INDICES_KEY: neuron_indices,
         CHANNEL_INDEX_KEY: channel_index,
+        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -337,6 +355,7 @@ def read_file(pickle_file_name):
     metadata_dict['ideal_activation']: Same.
     metadata_dict['neuron_indices']: Same.
     metadata_dict['channel_index']: Same.
+    metadata_dict['sounding_pressure_matrix_pascals']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
