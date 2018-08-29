@@ -34,6 +34,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
 MB_TO_PASCALS = 100
+PASCALS_TO_MB = 0.01
 PERCENT_TO_UNITLESS = 0.01
 ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
@@ -397,7 +398,8 @@ def _convert_interp_table_to_soundings(
     if include_surface:
         surface_pressure_name = nwp_model_utils.get_lowest_pressure_name(
             model_name)[0]
-        surface_pressures_mb = interp_table[surface_pressure_name].values
+        surface_pressures_mb = (
+            PASCALS_TO_MB * interp_table[surface_pressure_name].values)
     else:
         surface_pressures_mb = None
 
@@ -503,9 +505,14 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
         spec_humidity_matrix_kg_kg01.shape + (1,)
     )
 
-    field_names.append(SPECIFIC_HUMIDITY_NAME)
-    sounding_matrix = numpy.concatenate(
-        (sounding_matrix, spec_humidity_matrix_kg_kg01), axis=-1)
+    if SPECIFIC_HUMIDITY_NAME in field_names:
+        sounding_matrix[
+            ..., field_names.index(SPECIFIC_HUMIDITY_NAME)
+        ] = spec_humidity_matrix_kg_kg01
+    else:
+        field_names.append(SPECIFIC_HUMIDITY_NAME)
+        sounding_matrix = numpy.concatenate(
+            (sounding_matrix, spec_humidity_matrix_kg_kg01), axis=-1)
 
     sounding_dict[FIELD_NAMES_KEY] = field_names
     sounding_dict[SOUNDING_MATRIX_KEY] = sounding_matrix
@@ -542,9 +549,14 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
     relative_humidity_matrix = numpy.reshape(
         relative_humidity_matrix, relative_humidity_matrix.shape + (1,))
 
-    field_names.append(RELATIVE_HUMIDITY_NAME)
-    sounding_matrix = numpy.concatenate(
-        (sounding_matrix, relative_humidity_matrix), axis=-1)
+    if RELATIVE_HUMIDITY_NAME in field_names:
+        sounding_matrix[
+            ..., field_names.index(RELATIVE_HUMIDITY_NAME)
+        ] = relative_humidity_matrix
+    else:
+        field_names.append(RELATIVE_HUMIDITY_NAME)
+        sounding_matrix = numpy.concatenate(
+            (sounding_matrix, relative_humidity_matrix), axis=-1)
 
     sounding_dict[FIELD_NAMES_KEY] = field_names
     sounding_dict[SOUNDING_MATRIX_KEY] = sounding_matrix
@@ -585,9 +597,14 @@ def _get_virtual_potential_temperatures(
     theta_v_matrix_kelvins = numpy.reshape(
         theta_v_matrix_kelvins, theta_v_matrix_kelvins.shape + (1,))
 
-    field_names.append(VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
-    sounding_matrix = numpy.concatenate(
-        (sounding_matrix, theta_v_matrix_kelvins), axis=-1)
+    if VIRTUAL_POTENTIAL_TEMPERATURE_NAME in field_names:
+        sounding_matrix[
+            ..., field_names.index(VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+        ] = theta_v_matrix_kelvins
+    else:
+        field_names.append(VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+        sounding_matrix = numpy.concatenate(
+            (sounding_matrix, theta_v_matrix_kelvins), axis=-1)
 
     sounding_dict[FIELD_NAMES_KEY] = field_names
     sounding_dict[SOUNDING_MATRIX_KEY] = sounding_matrix
