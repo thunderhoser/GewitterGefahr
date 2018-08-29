@@ -500,10 +500,6 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
             dewpoints_kelvins=dewpoint_matrix_kelvins,
             total_pressures_pascals=pressure_matrix_pascals)
     )
-    spec_humidity_matrix_kg_kg01 = numpy.reshape(
-        spec_humidity_matrix_kg_kg01,
-        spec_humidity_matrix_kg_kg01.shape + (1,)
-    )
 
     if SPECIFIC_HUMIDITY_NAME in field_names:
         sounding_matrix[
@@ -511,6 +507,11 @@ def _relative_to_specific_humidity(sounding_dict, pressure_matrix_pascals):
         ] = spec_humidity_matrix_kg_kg01
     else:
         field_names.append(SPECIFIC_HUMIDITY_NAME)
+
+        spec_humidity_matrix_kg_kg01 = numpy.reshape(
+            spec_humidity_matrix_kg_kg01,
+            spec_humidity_matrix_kg_kg01.shape + (1,)
+        )
         sounding_matrix = numpy.concatenate(
             (sounding_matrix, spec_humidity_matrix_kg_kg01), axis=-1)
 
@@ -546,8 +547,6 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
             temperatures_kelvins=sounding_matrix[..., temperature_index],
             total_pressures_pascals=pressure_matrix_pascals)
     )
-    relative_humidity_matrix = numpy.reshape(
-        relative_humidity_matrix, relative_humidity_matrix.shape + (1,))
 
     if RELATIVE_HUMIDITY_NAME in field_names:
         sounding_matrix[
@@ -555,6 +554,9 @@ def _specific_to_relative_humidity(sounding_dict, pressure_matrix_pascals):
         ] = relative_humidity_matrix
     else:
         field_names.append(RELATIVE_HUMIDITY_NAME)
+
+        relative_humidity_matrix = numpy.reshape(
+            relative_humidity_matrix, relative_humidity_matrix.shape + (1,))
         sounding_matrix = numpy.concatenate(
             (sounding_matrix, relative_humidity_matrix), axis=-1)
 
@@ -594,8 +596,6 @@ def _get_virtual_potential_temperatures(
             temperatures_kelvins=virtual_temperature_matrix_kelvins,
             total_pressures_pascals=pressure_matrix_pascals)
     )
-    theta_v_matrix_kelvins = numpy.reshape(
-        theta_v_matrix_kelvins, theta_v_matrix_kelvins.shape + (1,))
 
     if VIRTUAL_POTENTIAL_TEMPERATURE_NAME in field_names:
         sounding_matrix[
@@ -603,6 +603,9 @@ def _get_virtual_potential_temperatures(
         ] = theta_v_matrix_kelvins
     else:
         field_names.append(VIRTUAL_POTENTIAL_TEMPERATURE_NAME)
+
+        theta_v_matrix_kelvins = numpy.reshape(
+            theta_v_matrix_kelvins, theta_v_matrix_kelvins.shape + (1,))
         sounding_matrix = numpy.concatenate(
             (sounding_matrix, theta_v_matrix_kelvins), axis=-1)
 
