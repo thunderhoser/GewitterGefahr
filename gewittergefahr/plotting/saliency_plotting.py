@@ -34,7 +34,6 @@ from gewittergefahr.plotting import imagemagick_utils
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 COLOUR_MAP_KEY = 'colour_map_object'
-MIN_COLOUR_VALUE_KEY = 'min_colour_value'
 MAX_COLOUR_VALUE_KEY = 'max_colour_value'
 MIN_FONT_SIZE_RADAR_KEY = 'min_font_size_for_radar_points'
 MAX_FONT_SIZE_RADAR_KEY = 'max_font_size_for_radar_points'
@@ -43,7 +42,6 @@ MAX_FONT_SIZE_SOUNDING_KEY = 'max_font_size_for_sounding_points'
 
 DEFAULT_OPTION_DICT = {
     COLOUR_MAP_KEY: pyplot.cm.gist_yarg,
-    MIN_COLOUR_VALUE_KEY: None,
     MAX_COLOUR_VALUE_KEY: None,
     MIN_FONT_SIZE_RADAR_KEY: 8.,
     MAX_FONT_SIZE_RADAR_KEY: 20.,
@@ -180,8 +178,7 @@ def plot_saliency_for_sounding(
             u_wind_saliency_values ** 2 + v_wind_saliency_values ** 2)
 
         colour_norm_object = pyplot.Normalize(
-            vmin=-option_dict[MAX_COLOUR_VALUE_KEY],
-            vmax=option_dict[MAX_COLOUR_VALUE_KEY])
+            vmin=0., vmax=option_dict[MAX_COLOUR_VALUE_KEY])
         colour_map_object = option_dict[COLOUR_MAP_KEY]
         rgb_matrix_for_wind = colour_map_object(colour_norm_object(
             wind_saliency_magnitudes))
@@ -256,8 +253,8 @@ def plot_saliency_for_sounding(
 
 def plot_saliency_with_sounding(
         sounding_matrix, saliency_matrix, sounding_field_names,
-        pressure_levels_mb, output_file_name, sounding_title_string='',
-        saliency_title_string='', saliency_option_dict=None,
+        output_file_name, sounding_title_string='', saliency_title_string='',
+        pressure_levels_pascals=None, saliency_option_dict=None,
         sounding_option_dict=None, temp_directory_name=None):
     """Plots saliency for each sounding field, along with the sounding itself.
 
@@ -270,10 +267,11 @@ def plot_saliency_with_sounding(
     :param sounding_matrix: p-by-f numpy array of sounding measurements.
     :param saliency_matrix: p-by-f numpy array of corresponding saliency values.
     :param sounding_field_names: See doc for `plot_saliency_for_sounding`.
-    :param pressure_levels_mb: Same.
     :param output_file_name: Path to output (image) file.
     :param sounding_title_string: Title for sounding itself.
     :param saliency_title_string: Title for saliency map.
+    :param pressure_levels_pascals: length-p numpy array of pressure levels.  If
+        `sounding_matrix` already includes pressures, this can be `None`.
     :param saliency_option_dict: See doc for `plot_saliency_for_sounding`.
     :param sounding_option_dict: See doc for `sounding_plotting.plot_sounding`.
     :param temp_directory_name: Name of temporary directory.  Each panel will be
@@ -303,9 +301,19 @@ def plot_saliency_with_sounding(
             directory_name=temp_directory_name)
 
     # Plot sounding.
-    list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
-        sounding_matrix=numpy.expand_dims(sounding_matrix, axis=0),
-        field_names=sounding_field_names)
+    try:
+        list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
+            sounding_matrix=numpy.expand_dims(sounding_matrix, axis=0),
+            field_names=sounding_field_names)
+    except:
+        these_pressure_levels_pa = numpy.reshape(
+            pressure_levels_pascals, (pressure_levels_pascals.size, 1))
+        sounding_matrix = numpy.hstack((
+            sounding_matrix, these_pressure_levels_pa))
+
+        list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
+            sounding_matrix=numpy.expand_dims(sounding_matrix, axis=0),
+            field_names=sounding_field_names + [soundings.PRESSURE_NAME])
 
     sounding_plotting.plot_sounding(
         sounding_dict_for_metpy=list_of_metpy_dictionaries[0],
@@ -332,13 +340,14 @@ def plot_saliency_with_sounding(
     plot_saliency_for_sounding(
         saliency_matrix=saliency_matrix,
         sounding_field_names=sounding_field_names,
-        pressure_levels_mb=pressure_levels_mb, axes_object=axes_object,
-        title_string=saliency_title_string, option_dict=saliency_option_dict)
+        pressure_levels_mb=list_of_metpy_dictionaries[0][
+            soundings.PRESSURE_COLUMN_METPY],
+        axes_object=axes_object, title_string=saliency_title_string,
+        option_dict=saliency_option_dict)
 
     plotting_utils.add_linear_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=saliency_matrix,
-        colour_map=saliency_option_dict[COLOUR_MAP_KEY],
-        colour_min=saliency_option_dict[MIN_COLOUR_VALUE_KEY],
+        colour_map=saliency_option_dict[COLOUR_MAP_KEY], colour_min=0.,
         colour_max=saliency_option_dict[MAX_COLOUR_VALUE_KEY],
         orientation='vertical', extend_min=True, extend_max=True)
 
@@ -366,8 +375,8 @@ def plot_saliency_with_sounding(
 
 def plot_saliency_with_soundings(
         sounding_matrix, saliency_matrix, saliency_metadata_dict,
-        sounding_field_names, pressure_levels_mb, output_dir_name,
-        saliency_option_dict=None, temp_directory_name=None):
+        sounding_field_names, output_dir_name, saliency_option_dict=None,
+        temp_directory_name=None):
     """For each storm object, plots sounding along with saliency values.
 
     f = number of sounding fields
@@ -381,7 +390,6 @@ def plot_saliency_with_soundings(
     :param saliency_metadata_dict: Dictionary returned by
         `saliency_maps.read_file`.
     :param sounding_field_names: See doc for `plot_saliency_for_sounding`.
-    :param pressure_levels_mb: Same.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :param saliency_option_dict: See doc for `plot_saliency_with_sounding`.
@@ -408,6 +416,12 @@ def plot_saliency_with_soundings(
             saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
             TIME_FORMAT)
 
+        if saliency_metadata_dict[saliency_maps.SOUNDING_PRESSURES_KEY] is None:
+            these_pressure_levels_pascals = None
+        else:
+            these_pressure_levels_pascals = saliency_metadata_dict[
+                saliency_maps.SOUNDING_PRESSURES_KEY][i, ...]
+
         this_sounding_title_string = 'Storm "{0:s}" at {1:s}'.format(
             this_storm_id, this_storm_time_string)
         this_saliency_title_string = 'Saliency'
@@ -422,10 +436,10 @@ def plot_saliency_with_soundings(
             sounding_matrix=sounding_matrix[i, ...],
             saliency_matrix=saliency_matrix[i, ...],
             sounding_field_names=sounding_field_names,
-            pressure_levels_mb=pressure_levels_mb,
             output_file_name=this_figure_file_name,
             sounding_title_string=this_sounding_title_string,
             saliency_title_string=this_saliency_title_string,
+            pressure_levels_pascals=these_pressure_levels_pascals,
             saliency_option_dict=saliency_option_dict,
             sounding_option_dict=sounding_option_dict,
             temp_directory_name=temp_directory_name)
