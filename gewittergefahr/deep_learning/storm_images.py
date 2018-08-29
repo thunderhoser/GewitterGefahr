@@ -1497,25 +1497,21 @@ def extract_storm_images_gridrad(
         radar_heights_m_agl=radar_heights_m_agl)
 
     # Find elevation of each storm object.
-    if radar_utils.REFL_NAME in radar_field_names:
-        print 'Finding elevation of each storm object...'
-        storm_elevations_m_asl = geodetic_utils.get_elevations(
-            latitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LAT_COLUMN].values,
-            longitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values,
-            working_dir_name=ELEVATION_DIR_NAME)
+    print 'Finding elevation of each storm object...'
+    storm_elevations_m_asl = geodetic_utils.get_elevations(
+        latitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LAT_COLUMN].values,
+        longitudes_deg=storm_object_table[
+            tracking_utils.CENTROID_LNG_COLUMN].values,
+        working_dir_name=ELEVATION_DIR_NAME)
 
-        storm_object_table = storm_object_table.assign(
-            **{ELEVATION_COLUMN: storm_elevations_m_asl})
+    storm_object_table = storm_object_table.assign(
+        **{ELEVATION_COLUMN: storm_elevations_m_asl})
 
-        radar_heights_m_asl = _find_input_heights_needed(
-            storm_elevations_m_asl=storm_elevations_m_asl,
-            desired_radar_heights_m_agl=radar_heights_m_agl,
-            radar_source=radar_utils.GRIDRAD_SOURCE_ID)
-    else:
-        radar_heights_m_agl = numpy.array([], dtype=int)
-        radar_heights_m_asl = numpy.array([], dtype=int)
+    radar_heights_m_asl = _find_input_heights_needed(
+        storm_elevations_m_asl=storm_elevations_m_asl,
+        desired_radar_heights_m_agl=radar_heights_m_agl,
+        radar_source=radar_utils.GRIDRAD_SOURCE_ID)
 
     num_heights_agl = len(radar_heights_m_agl)
     num_heights_asl = len(radar_heights_m_asl)
