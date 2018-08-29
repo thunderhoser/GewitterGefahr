@@ -319,9 +319,7 @@ def get_valid_heights(data_source, field_name=None):
 
     check_data_source(data_source)
     if data_source == GRIDRAD_SOURCE_ID:
-        first_heights_m_asl = numpy.linspace(500, 7000, num=14, dtype=int)
-        second_heights_m_asl = numpy.linspace(8000, 22000, num=15, dtype=int)
-        return numpy.concatenate((first_heights_m_asl, second_heights_m_asl))
+        return numpy.linspace(500, 14500, num=29, dtype=int)
 
     check_field_name(field_name)
     if field_name == STORM_ID_NAME:
