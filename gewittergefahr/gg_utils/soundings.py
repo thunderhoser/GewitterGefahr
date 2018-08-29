@@ -971,6 +971,9 @@ def interp_soundings_to_storm_objects(
     sounding_dict_pressure_coords.update(
         {STORM_ELEVATIONS_KEY: storm_elevations_m_asl})
 
+    print sounding_dict_pressure_coords[FIELD_NAMES_KEY]
+    print sounding_dict_pressure_coords[SOUNDING_MATRIX_KEY][0, ...]
+
     print ('Converting soundings from pressure to ground-relative height '
            'coordinates...\n')
     sounding_dict_height_coords = _pressure_to_height_coords(
