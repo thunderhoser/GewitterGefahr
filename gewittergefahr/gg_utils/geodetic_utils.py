@@ -1,10 +1,12 @@
 """Methods for geodetic calculations."""
 
+import os
 import numpy
 import srtm
 import geopy
 from geopy.distance import VincentyDistance
 from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 RADIANS_TO_DEGREES = 180. / numpy.pi
@@ -24,20 +26,101 @@ VALID_LONGITUDE_SIGN_ARGS = [
     POSITIVE_LONGITUDE_ARG, NEGATIVE_LONGITUDE_ARG, EITHER_SIGN_LONGITUDE_ARG]
 
 
-def _get_elevation(latitude_deg, longitude_deg, srtm_data_object=None):
+class ElevationFileHandler:
+    """File-handler for elevation data.
+
+    This class mimics the class `FileHandler` in main.py of the `srtm` package.
+    """
+
+    working_dir_name = ''
+
+    def __init__(self, working_dir_name=None):
+        """Creates new instance.
+
+        :param working_dir_name: Path to working directory.  Elevation files
+            will be read from here and, if necessary, downloaded to here.  If
+            `working_dir_name is None`, will try to create subdirectory
+            ".cache/srtm" in the home directory.
+        :raises: ValueError: if `working_dir_name is None` and this method
+            cannot create ".cache/srtm" in the home directory.
+        """
+
+        if working_dir_name is None:
+            if 'HOME' in os.environ:
+                top_working_dir_name = os.environ['HOME']
+            elif 'HOMEPATH' in os.environ:
+                top_working_dir_name = os.environ['HOMEPATH']
+            else:
+                raise ValueError('Cannot find home directory.')
+
+            working_dir_name = '{0:s}/.cache/srtm'.format(top_working_dir_name)
+
+        file_system_utils.mkdir_recursive_if_necessary(
+            directory_name=working_dir_name)
+        self.working_dir_name = working_dir_name
+
+    def get_srtm_dir(self):
+        """Returns path to working directory.
+
+        :return: working_dir_name: See doc for `__init__`.
+        """
+
+        return self.working_dir_name
+
+    def exists(self, file_name):
+        """Returns flag, indicating whether or not a file exists.
+
+        :param file_name: Pathless file name.
+        :return: does_file_exist: Boolean flag.
+        """
+
+        full_file_name = '{0:s}/{1:s}'.format(self.get_srtm_dir(), file_name)
+        return os.path.isfile(full_file_name)
+
+    def write(self, file_name, contents):
+        """Writes elevation file to working directory.
+
+        :param file_name: Pathless file name.
+        :param contents: Stuff to be written.
+        """
+
+        full_file_name = '{0:s}/{1:s}'.format(self.get_srtm_dir(), file_name)
+        with open(full_file_name, 'wb') as f:
+            f.write(contents)
+
+    def read(self, file_name):
+        """Reads elevation file from working directory.
+
+        :param file_name: Pathless file name.
+        :return: contents: Stuff contained in file.
+        """
+
+        full_file_name = '{0:s}/{1:s}'.format(self.get_srtm_dir(), file_name)
+        with open(full_file_name, 'rb') as f:
+            return f.read()
+
+
+def _get_elevation(
+        latitude_deg, longitude_deg, srtm_data_object=None,
+        working_dir_name=None):
     """Gets elevation at a single point.
 
     WARNING: Input longitudes in western hemisphere must be negative.
 
+    If `srtm_data_object is None`, it will be created on the fly.
+
     :param latitude_deg: Latitude (deg N).
     :param longitude_deg: Longitude (deg E).
     :param srtm_data_object: Instance of `srtm.data.GeoElevationData`.
+    :param working_dir_name: See doc for `__init__` in class
+        `ElevationFileHandler`.
     :return: elevation_m_asl: Elevation (metres above sea level).
     :return: srtm_data_object: Instance of `srtm.data.GeoElevationData`.
     """
 
     if srtm_data_object is None:
-        srtm_data_object = srtm.get_data()
+        srtm_data_object = srtm.get_data(
+            file_handler=ElevationFileHandler(working_dir_name))
 
     elevation_m_asl = srtm_data_object.get_elevation(
         latitude=latitude_deg, longitude=longitude_deg)
@@ -143,13 +226,15 @@ def get_latlng_centroid(latitudes_deg, longitudes_deg, allow_nan=True):
     return numpy.nanmean(latitudes_deg), numpy.nanmean(longitudes_deg)
 
 
-def get_elevations(latitudes_deg, longitudes_deg):
+def get_elevations(latitudes_deg, longitudes_deg, working_dir_name=None):
     """Returns elevation of each point.
 
     N = number of points
 
     :param latitudes_deg: length-N numpy array of latitudes (deg N).
     :param longitudes_deg: length-N numpy array of longitudes (deg E).
+    :param working_dir_name: See doc for `__init__` in class
+        `ElevationFileHandler`.
     :return: elevations_m_asl: length-N numpy array of elevations (metres above
         sea level).
     """
@@ -169,7 +254,8 @@ def get_elevations(latitudes_deg, longitudes_deg):
     for i in range(num_points):
         elevations_m_asl[i], srtm_data_object = _get_elevation(
             latitude_deg=latitudes_deg[i], longitude_deg=longitudes_deg[i],
-            srtm_data_object=srtm_data_object)
+            srtm_data_object=srtm_data_object,
+            working_dir_name=working_dir_name)
 
     return elevations_m_asl
 

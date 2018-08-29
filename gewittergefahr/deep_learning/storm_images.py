@@ -31,6 +31,7 @@ AZ_SHEAR_GRID_SPACING_MULTIPLIER = 2
 
 LABEL_FILE_EXTENSION = '.nc'
 ELEVATION_COLUMN = 'elevation_m_asl'
+ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
 GRIDRAD_TIME_INTERVAL_SEC = 300
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
@@ -1177,7 +1178,8 @@ def extract_storm_images_myrorss_or_mrms(
             latitudes_deg=storm_object_table[
                 tracking_utils.CENTROID_LAT_COLUMN].values,
             longitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values)
+                tracking_utils.CENTROID_LNG_COLUMN].values,
+            working_dir_name=ELEVATION_DIR_NAME)
 
         storm_object_table = storm_object_table.assign(
             **{ELEVATION_COLUMN: storm_elevations_m_asl})
@@ -1501,7 +1503,8 @@ def extract_storm_images_gridrad(
             latitudes_deg=storm_object_table[
                 tracking_utils.CENTROID_LAT_COLUMN].values,
             longitudes_deg=storm_object_table[
-                tracking_utils.CENTROID_LNG_COLUMN].values)
+                tracking_utils.CENTROID_LNG_COLUMN].values,
+            working_dir_name=ELEVATION_DIR_NAME)
 
         storm_object_table = storm_object_table.assign(
             **{ELEVATION_COLUMN: storm_elevations_m_asl})

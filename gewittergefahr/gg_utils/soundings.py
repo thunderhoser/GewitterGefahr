@@ -35,6 +35,7 @@ TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
 MB_TO_PASCALS = 100
 PERCENT_TO_UNITLESS = 0.01
+ELEVATION_DIR_NAME = '/condo/swatwork/ralager/elevation'
 
 PRESSURE_LEVEL_KEY = 'pressure_level_mb'
 LEAD_TIME_KEY = 'lead_time_seconds'
@@ -82,7 +83,7 @@ V_WIND_COLUMN_METPY = 'v_winds_kt'
 
 DEFAULT_LEAD_TIMES_SEC = numpy.array([0], dtype=int)
 DEFAULT_LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC = 1800
-DEFAULT_HEIGHT_LEVELS_M_AGL = numpy.linspace(0., 12000., num=49)
+DEFAULT_HEIGHT_LEVELS_M_AGL = numpy.linspace(0, 12000, num=49, dtype=int)
 
 
 def _get_nwp_fields_for_sounding(
@@ -955,7 +956,8 @@ def interp_soundings_to_storm_objects(
         latitudes_deg=storm_object_table[
             tracking_utils.CENTROID_LAT_COLUMN].values,
         longitudes_deg=storm_object_table[
-            tracking_utils.CENTROID_LNG_COLUMN].values)
+            tracking_utils.CENTROID_LNG_COLUMN].values,
+        working_dir_name=ELEVATION_DIR_NAME)
 
     these_indices = tracking_utils.find_storm_objects(
         all_storm_ids=storm_object_table[

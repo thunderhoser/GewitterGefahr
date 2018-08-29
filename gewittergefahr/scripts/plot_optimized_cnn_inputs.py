@@ -18,7 +18,7 @@ from gewittergefahr.plotting import \
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DEFAULT_TEMP_DIRECTORY_NAME = '/condo/swatwork/ralager/temporary_soundings'
-SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0.
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
 ONE_FIG_PER_COMPONENT_ARG_NAME = 'one_figure_per_component'
