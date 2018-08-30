@@ -14,7 +14,7 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
-LATITUDE_TOLERANCE_DEG = 1e-4
+LATITUDE_TOLERANCE_DEG = 0.01
 LONGITUDE_TOLERANCE_DEG = 0.01
 
 YEAR_FORMAT = '%Y'
