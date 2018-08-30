@@ -86,10 +86,10 @@ DEFAULT_MIN_PERCENTILE_LEVEL = 0.1
 DEFAULT_MAX_PERCENTILE_LEVEL = 99.9
 DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'storm_images_rotated')
+    'storm_images_ground-relative')
 DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'soundings')
+    'soundings_ground-relative')
 DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME = (
     '/condo/swatcommon/common/myrorss_40dbz_echo_tops/final_tracks/reanalyzed/'
     'storm_images')
