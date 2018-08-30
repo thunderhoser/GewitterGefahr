@@ -232,7 +232,7 @@ def get_distance_buffer_columns(storm_object_table):
 
 def find_storm_objects(
         all_storm_ids, all_times_unix_sec, storm_ids_to_keep,
-        times_to_keep_unix_sec):
+        times_to_keep_unix_sec, allow_missing=False):
     """Finds storm objects.
 
     N = total number of storm objects
@@ -242,6 +242,11 @@ def find_storm_objects(
     :param all_times_unix_sec: length-N numpy array of valid times.
     :param storm_ids_to_keep: length-n list of storm IDs (strings).
     :param times_to_keep_unix_sec: length-n numpy array of valid times.
+    :param allow_missing: Boolean flag.  If True, this method will allow storm
+        objects to be missing (i.e., some objects defined by `storm_ids_to_keep`
+        and `storm_ids_to_keep` may not be present in `all_storm_ids` and
+        `all_times_unix_sec`).  If False, this method will error out if it finds
+        missing objects.
     :return: relevant_indices: length-n numpy array of indices.
         [all_storm_ids[k] for k in relevant_indices] = storm_ids_to_keep
         all_times_unix_sec[relevant_indices] = times_to_keep_unix_sec
@@ -249,6 +254,8 @@ def find_storm_objects(
         duplicate pairs.
     :raises: ValueError: if any desired storm object is not found.
     """
+
+    error_checking.assert_is_boolean(allow_missing)
 
     error_checking.assert_is_numpy_array(
         numpy.array(all_storm_ids), num_dimensions=1)
@@ -282,8 +289,6 @@ def find_storm_objects(
 
     all_object_ids_numpy = numpy.array(all_object_ids, dtype='object')
     object_ids_to_keep_numpy = numpy.array(object_ids_to_keep, dtype='object')
-    print len(all_object_ids_numpy)
-    print len(object_ids_to_keep_numpy)
 
     sort_indices = numpy.argsort(all_object_ids_numpy)
     relevant_indices = numpy.searchsorted(
@@ -291,6 +296,13 @@ def find_storm_objects(
         side='left'
     ).astype(int)
     relevant_indices = sort_indices[relevant_indices]
+
+    if allow_missing:
+        bad_indices = numpy.where(
+            all_object_ids_numpy[relevant_indices] != object_ids_to_keep_numpy
+        )[0]
+        relevant_indices[bad_indices] = -1
+        return relevant_indices
 
     if not numpy.array_equal(all_object_ids_numpy[relevant_indices],
                              object_ids_to_keep_numpy):

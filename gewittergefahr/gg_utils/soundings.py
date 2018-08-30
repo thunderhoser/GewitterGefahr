@@ -1240,7 +1240,9 @@ def read_soundings(
         these_indices = tracking_utils.find_storm_objects(
             all_storm_ids=storm_ids, all_times_unix_sec=init_times_unix_sec,
             storm_ids_to_keep=storm_ids_to_keep,
-            times_to_keep_unix_sec=init_times_to_keep_unix_sec)
+            times_to_keep_unix_sec=init_times_to_keep_unix_sec,
+            allow_missing=True)
+        these_indices = these_indices[these_indices != -1]
 
         storm_ids = [storm_ids[i] for i in these_indices]
         init_times_unix_sec = init_times_unix_sec[these_indices]
