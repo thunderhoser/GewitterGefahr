@@ -59,7 +59,7 @@ SOUNDING_INTERVAL_DICT = {
 }
 
 RADAR_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
-REFLECTIVITY_HEIGHTS_M_AGL = RADAR_HEIGHTS_M_AGL + 0.
+REFLECTIVITY_HEIGHTS_M_AGL = RADAR_HEIGHTS_M_AGL + 0
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 
 SOUNDING_FIELD_NAMES = [
@@ -119,17 +119,21 @@ RADAR_IMAGE_DIR_HELP_STRING = (
     '`storm_images.read_storm_images`.  Default is "{0:s}" for MYRORSS data, '
     '"{1:s}" for GridRad.'
 ).format(DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME, DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME)
+
 RADAR_SOURCE_HELP_STRING = (
     'Source of radar data.  Must be in the following list.\n{0:s}'
 ).format(str(radar_utils.DATA_SOURCE_IDS))
+
 MIN_PERCENTILE_HELP_STRING = (
     'Minimum percentile level.  The "minimum value" for each field will '
     'actually be the [q]th percentile, where q = `{0:s}`.'
 ).format(MIN_PERCENTILE_ARG_NAME)
+
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile level.  The "max value" for each field will actually be the'
     ' [q]th percentile, where q = `{0:s}`.'
 ).format(MAX_PERCENTILE_ARG_NAME)
+
 SOUNDING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-centered soundings.  Files therein '
     'will be found by `soundings.find_sounding_file` and read by '
@@ -137,10 +141,12 @@ SOUNDING_DIR_HELP_STRING = (
     '"{1:s}" for GridRad.'
 ).format(DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME,
          DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME)
+
 SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Normalization '
     'params will be based on all data from `{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List of radar fields (each must be accepted by `radar_utils.'
     'check_field_name`).  Normalization params will be computed for each of '
@@ -149,6 +155,7 @@ RADAR_FIELD_NAMES_HELP_STRING = (
     '\n{1:s}\nDefault fields for GridRad:\n{2:s}'
 ).format(str(RADAR_HEIGHTS_M_AGL), str(DEFAULT_MYRORSS_FIELD_NAMES),
          str(DEFAULT_GRIDRAD_FIELD_NAMES))
+
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `deep_learning_utils.'
     'write_normalization_params_to_file`).')
