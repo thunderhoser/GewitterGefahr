@@ -613,7 +613,8 @@ def _run(
                 )[0]
 
                 print (
-                    'Updating normalization params for "{0:s}" at {1:d} mb...'
+                    'Updating normalization params for "{0:s}" at {1:d} km '
+                    'AGL...'
                 ).format(SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k])
 
                 sounding_z_score_dict_with_height[

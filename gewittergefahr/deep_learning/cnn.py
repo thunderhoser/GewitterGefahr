@@ -34,9 +34,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.gg_io import netcdf_io
-from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -48,6 +46,10 @@ VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([49], dtype=int)
 DEFAULT_L2_WEIGHT = 1e-3
 DEFAULT_CONV_LAYER_DROPOUT_FRACTION = 0.25
 DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = 0.5
+
+DEFAULT_NUM_RADAR_FILTERS = 32
+DEFAULT_NUM_SOUNDING_FILTERS = 16
+DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS = 3
 
 CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
     'accuracy': keras_metrics.accuracy,
@@ -128,12 +130,15 @@ NUM_CLASSES_KEY = 'num_classes'
 
 def _check_architecture_args(
         num_radar_rows, num_radar_columns, num_radar_dimensions,
-        num_radar_conv_layer_sets, num_conv_layers_per_set, num_classes,
+        num_radar_conv_layer_sets, num_conv_layers_per_set,
+        num_radar_filters_in_first_layer, num_classes,
         conv_layer_activation_func_string, use_batch_normalization,
         alpha_for_elu=None, alpha_for_relu=None, num_radar_channels=None,
         num_radar_fields=None, num_radar_heights=None,
         conv_layer_dropout_fraction=None, dense_layer_dropout_fraction=None,
-        l2_weight=None, num_sounding_heights=None, num_sounding_fields=None):
+        l2_weight=None, num_sounding_fields=None, num_sounding_heights=None,
+        num_sounding_conv_layer_sets=None,
+        num_sounding_filters_in_first_layer=None):
     """Error-checking of input args for model architecture.
 
     :param num_radar_rows: Number of pixel rows per storm-centered radar image.
@@ -144,6 +149,8 @@ def _check_architecture_args(
         radar image (example: from 32 x 32 x 12 to 16 x 16 x 6, then
         8 x 8 x 3, then 4 x 4 x 1).
     :param num_conv_layers_per_set: Number of conv layers in each set.
+    :param num_radar_filters_in_first_layer: Number of filters produced by the
+        first conv layer for radar data.
     :param num_classes: Number of classes for target variable.
     :param conv_layer_activation_func_string: Activation function for conv
         layers.  Must be accepted by `cnn_utils.check_activation_function`.
@@ -166,8 +173,12 @@ def _check_architecture_args(
         connected layers).
     :param l2_weight: L2-regularization weight.  Will be used for each
         convolutional layer.
-    :param num_sounding_heights: Number of heights per storm-centered sounding.
-    :param num_sounding_fields: Number of fields per sounding.
+    :param num_sounding_fields: Number of fields per storm-centered sounding.
+    :param num_sounding_heights: Number of heights per sounding.
+    :param num_sounding_conv_layer_sets: Number of sets of conv layers for
+        sounding data.
+    :param num_sounding_filters_in_first_layer: Number of filters produced by the
+        first conv layer for sounding data.
     :raises: ValueError: if
         `num_sounding_heights not in VALID_NUMBERS_OF_SOUNDING_HEIGHTS`.
     """
@@ -194,8 +205,8 @@ def _check_architecture_args(
     error_checking.assert_is_geq(num_radar_conv_layer_sets, 2)
     error_checking.assert_is_integer(num_conv_layers_per_set)
     error_checking.assert_is_geq(num_conv_layers_per_set, 1)
-    error_checking.assert_is_integer(num_classes)
-    error_checking.assert_is_geq(num_classes, 2)
+    error_checking.assert_is_integer(num_radar_filters_in_first_layer)
+    error_checking.assert_is_geq(num_radar_filters_in_first_layer, 1)
 
     num_rows_after_last_conv = float(num_radar_rows)
     num_columns_after_last_conv = float(num_radar_columns)
@@ -215,6 +226,9 @@ def _check_architecture_args(
     if num_radar_dimensions == 3:
         error_checking.assert_is_geq(num_heights_after_last_conv, 1)
 
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_geq(num_classes, 2)
+
     if conv_layer_dropout_fraction is not None:
         error_checking.assert_is_greater(conv_layer_dropout_fraction, 0.)
         error_checking.assert_is_less_than(conv_layer_dropout_fraction, 1.)
@@ -225,7 +239,7 @@ def _check_architecture_args(
     if l2_weight is not None:
         error_checking.assert_is_greater(l2_weight, 0.)
 
-    if num_sounding_heights is not None and num_sounding_fields is not None:
+    if num_sounding_fields is not None:
         error_checking.assert_is_integer(num_sounding_fields)
         error_checking.assert_is_geq(num_sounding_fields, 1)
         error_checking.assert_is_integer(num_sounding_heights)
@@ -237,6 +251,18 @@ def _check_architecture_args(
             ).format(str(VALID_NUMBERS_OF_SOUNDING_HEIGHTS),
                      num_sounding_heights)
             raise ValueError(error_string)
+
+        error_checking.assert_is_integer(num_sounding_conv_layer_sets)
+        error_checking.assert_is_geq(num_sounding_conv_layer_sets, 2)
+        error_checking.assert_is_integer(num_sounding_filters_in_first_layer)
+        error_checking.assert_is_geq(num_sounding_filters_in_first_layer, 1)
+
+        num_heights_after_last_conv = float(num_sounding_heights)
+        for _ in range(num_sounding_conv_layer_sets):
+            num_heights_after_last_conv = numpy.floor(
+                num_heights_after_last_conv / 2)
+
+        error_checking.assert_is_geq(num_heights_after_last_conv, 1)
 
 
 def _check_training_args(
@@ -297,18 +323,17 @@ def _check_training_args(
 
 def _get_sounding_layers(
         num_sounding_heights, num_sounding_fields, num_filters_in_first_layer,
-        num_conv_layers_per_set, pooling_type_string, dropout_fraction,
-        regularizer_object, conv_layer_activation_func_string, alpha_for_elu,
-        alpha_for_relu, use_batch_normalization):
+        num_conv_layer_sets, num_conv_layers_per_set, pooling_type_string,
+        dropout_fraction, regularizer_object, conv_layer_activation_func_string,
+        alpha_for_elu, alpha_for_relu, use_batch_normalization):
     """Returns the part of a CNN that convolves over sounding data.
 
     :param num_sounding_heights: See doc for `_check_architecture_args`.
     :param num_sounding_fields: Same.
-    :param num_filters_in_first_layer: Number of filters in first set of conv
-        layers.  This will be double with each successive set of conv layers.
-    :param num_conv_layers_per_set: Number of conv layers per set (there are 3
-        sets).
-    :param pooling_type_string: See doc for `_check_architecture_args`.
+    :param num_filters_in_first_layer: Same.
+    :param num_conv_layer_sets: Same.
+    :param num_conv_layers_per_set: Same.
+    :param pooling_type_string: Same.
     :param dropout_fraction: Same.
     :param regularizer_object: Instance of `keras.regularizers.l1_l2`.  Will be
         applied to each convolutional layer.
@@ -327,7 +352,7 @@ def _get_sounding_layers(
     sounding_layer_object = None
     this_num_output_filters = num_filters_in_first_layer + 0
 
-    for _ in range(3):
+    for _ in range(num_conv_layer_sets):
         if sounding_layer_object is None:
             sounding_layer_object = sounding_input_layer_object
         else:
@@ -428,10 +453,8 @@ def get_2d_mnist_architecture(
     :param num_radar_columns: Same.
     :param num_radar_channels: Same.
     :param num_classes: Same.
-    :param num_filters_in_first_layer: Number of filters in first convolutional
-        layer.  Number of filters will double for each successive convolutional
-        layer.
-    :param l2_weight: See doc for `_check_architecture_args`.
+    :param num_filters_in_first_layer: Same.
+    :param l2_weight: Same.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -440,8 +463,10 @@ def get_2d_mnist_architecture(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
         num_radar_channels=num_radar_channels, num_radar_dimensions=2,
         num_radar_conv_layer_sets=2, num_conv_layers_per_set=1,
+        num_radar_filters_in_first_layer=num_filters_in_first_layer,
         num_classes=num_classes, conv_layer_activation_func_string='relu',
-        use_batch_normalization=False, l2_weight=l2_weight)
+        use_batch_normalization=False, l2_weight=l2_weight,
+        alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU)
 
     if l2_weight is None:
         regularizer_object = None
@@ -512,11 +537,14 @@ def get_2d_swirlnet_architecture(
         conv_layer_activation_func_string=cnn_utils.RELU_FUNCTION_STRING,
         alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
-        use_batch_normalization=True, num_radar_filters_in_first_layer=16,
+        use_batch_normalization=True,
+        num_radar_filters_in_first_layer=DEFAULT_NUM_RADAR_FILTERS,
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_layer=16):
+        num_sounding_fields=None,
+        num_sounding_conv_layer_sets=DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS,
+        num_sounding_filters_in_first_layer=DEFAULT_NUM_SOUNDING_FILTERS):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -535,17 +563,14 @@ def get_2d_swirlnet_architecture(
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
-    :param num_radar_filters_in_first_layer: Number of filters in first conv
-        layer for radar images.  Number of filters will double with each
-        successive conv layer.
-    :param conv_layer_dropout_fraction: See doc for `_check_architecture_args`.
+    :param num_radar_filters_in_first_layer: Same.
+    :param conv_layer_dropout_fraction: Same.
     :param dense_layer_dropout_fraction: Same.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
-    :param num_sounding_filters_in_first_layer: Number of filters in first conv
-        layer for soundings.  Number of filters will double with each successive
-        conv layer.
+    :param num_sounding_conv_layer_sets: Same.
+    :param num_sounding_filters_in_first_layer: Same.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -555,6 +580,7 @@ def get_2d_swirlnet_architecture(
         num_radar_channels=num_radar_channels, num_radar_dimensions=2,
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,
+        num_radar_filters_in_first_layer=num_radar_filters_in_first_layer,
         num_classes=num_classes,
         conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
@@ -562,7 +588,9 @@ def get_2d_swirlnet_architecture(
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
         dense_layer_dropout_fraction=dense_layer_dropout_fraction,
         l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
-        num_sounding_fields=num_sounding_fields)
+        num_sounding_fields=num_sounding_fields,
+        num_sounding_conv_layer_sets=num_sounding_conv_layer_sets,
+        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
 
     if l2_weight is None:
         regularizer_object = None
@@ -622,6 +650,7 @@ def get_2d_swirlnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_layer=num_sounding_filters_in_first_layer,
+            num_conv_layer_sets=num_sounding_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
             pooling_type_string=pooling_type_string,
             dropout_fraction=conv_layer_dropout_fraction,
@@ -668,11 +697,14 @@ def get_3d_swirlnet_architecture(
         conv_layer_activation_func_string=cnn_utils.RELU_FUNCTION_STRING,
         alpha_for_elu=cnn_utils.DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=cnn_utils.DEFAULT_ALPHA_FOR_RELU,
-        use_batch_normalization=True, num_radar_filters_in_first_layer=16,
+        use_batch_normalization=True,
+        num_radar_filters_in_first_layer=DEFAULT_NUM_RADAR_FILTERS,
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_layer=16):
+        num_sounding_fields=None,
+        num_sounding_conv_layer_sets=DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS,
+        num_sounding_filters_in_first_layer=DEFAULT_NUM_SOUNDING_FILTERS):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -692,15 +724,14 @@ def get_3d_swirlnet_architecture(
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
-    :param num_radar_filters_in_first_layer: See doc for
-        `get_2d_swirlnet_architecture`.
-    :param conv_layer_dropout_fraction: See doc for `_check_architecture_args`.
+    :param num_radar_filters_in_first_layer: Same.
+    :param conv_layer_dropout_fraction: Same.
     :param dense_layer_dropout_fraction: Same.
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
-    :param num_sounding_filters_in_first_layer: See doc for
-        `get_2d_swirlnet_architecture`.
+    :param num_sounding_conv_layer_sets: Same.
+    :param num_sounding_filters_in_first_layer: Same.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -711,6 +742,7 @@ def get_3d_swirlnet_architecture(
         num_radar_dimensions=3,
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
         num_conv_layers_per_set=num_conv_layers_per_set,
+        num_radar_filters_in_first_layer=num_radar_filters_in_first_layer,
         num_classes=num_classes,
         conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
@@ -718,7 +750,9 @@ def get_3d_swirlnet_architecture(
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
         dense_layer_dropout_fraction=dense_layer_dropout_fraction,
         l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
-        num_sounding_fields=num_sounding_fields)
+        num_sounding_fields=num_sounding_fields,
+        num_sounding_conv_layer_sets=num_sounding_conv_layer_sets,
+        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
 
     if l2_weight is None:
         regularizer_object = None
@@ -781,6 +815,7 @@ def get_3d_swirlnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_layer=num_sounding_filters_in_first_layer,
+            num_conv_layer_sets=num_sounding_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
             pooling_type_string=pooling_type_string,
             dropout_fraction=conv_layer_dropout_fraction,
@@ -833,7 +868,9 @@ def get_2d3d_swirlnet_architecture(
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_heights=None,
-        num_sounding_fields=None, num_sounding_filters_in_first_layer=16):
+        num_sounding_fields=None,
+        num_sounding_conv_layer_sets=DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS,
+        num_sounding_filters_in_first_layer=DEFAULT_NUM_SOUNDING_FILTERS):
     """Creates CNN with architecture similar to the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -875,19 +912,20 @@ def get_2d3d_swirlnet_architecture(
     :param l2_weight: Same.
     :param num_sounding_heights: Same.
     :param num_sounding_fields: Same.
-    :param num_sounding_filters_in_first_layer: See doc for
-        `get_2d_swirlnet_architecture`.
+    :param num_sounding_conv_layer_sets: Same.
+    :param num_sounding_filters_in_first_layer: Same.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
 
-    # Check input args.
+    # Check args for the part that convolves over reflectivity.
     _check_architecture_args(
         num_radar_rows=num_reflectivity_rows,
         num_radar_columns=num_reflectivity_columns,
         num_radar_heights=num_reflectivity_heights, num_radar_fields=1,
         num_radar_dimensions=3, num_radar_conv_layer_sets=3,
         num_conv_layers_per_set=num_conv_layers_per_set,
+        num_radar_filters_in_first_layer=num_refl_filters_in_first_layer,
         num_classes=num_classes,
         conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
@@ -895,19 +933,11 @@ def get_2d3d_swirlnet_architecture(
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
         dense_layer_dropout_fraction=dense_layer_dropout_fraction,
         l2_weight=l2_weight, num_sounding_heights=num_sounding_heights,
-        num_sounding_fields=num_sounding_fields)
+        num_sounding_fields=num_sounding_fields,
+        num_sounding_conv_layer_sets=num_sounding_conv_layer_sets,
+        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
 
-    _check_architecture_args(
-        num_radar_rows=num_reflectivity_rows,
-        num_radar_columns=num_reflectivity_columns,
-        num_radar_channels=num_reflectivity_heights, num_radar_dimensions=2,
-        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
-        num_conv_layers_per_set=num_conv_layers_per_set,
-        num_classes=num_classes,
-        conv_layer_activation_func_string=conv_layer_activation_func_string,
-        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
-        use_batch_normalization=use_batch_normalization)
-
+    # Check args for the part that convolves over azimuthal shear.
     num_azimuthal_shear_rows = 2 * num_reflectivity_rows
     num_azimuthal_shear_columns = 2 * num_reflectivity_columns
 
@@ -915,8 +945,25 @@ def get_2d3d_swirlnet_architecture(
         num_radar_rows=num_azimuthal_shear_rows,
         num_radar_columns=num_azimuthal_shear_columns,
         num_radar_channels=num_azimuthal_shear_fields, num_radar_dimensions=2,
-        num_radar_conv_layer_sets=2,
+        num_radar_conv_layer_sets=1,
+        num_radar_filters_in_first_layer=num_shear_filters_in_first_layer,
         num_conv_layers_per_set=num_conv_layers_per_set,
+        num_classes=num_classes,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization)
+
+    # Check args for the part that convolves over reflectivity and az shear.
+    num_radar_channels = (
+        num_shear_filters_in_first_layer + num_refl_filters_in_first_layer * 8)
+
+    _check_architecture_args(
+        num_radar_rows=num_reflectivity_rows,
+        num_radar_columns=num_reflectivity_columns,
+        num_radar_channels=num_radar_channels, num_radar_dimensions=2,
+        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        num_radar_filters_in_first_layer=num_radar_channels * 2,
         num_classes=num_classes,
         conv_layer_activation_func_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
@@ -1075,6 +1122,7 @@ def get_2d3d_swirlnet_architecture(
             num_sounding_heights=num_sounding_heights,
             num_sounding_fields=num_sounding_fields,
             num_filters_in_first_layer=num_sounding_filters_in_first_layer,
+            num_conv_layer_sets=num_sounding_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
             pooling_type_string=pooling_type_string,
             dropout_fraction=conv_layer_dropout_fraction,
