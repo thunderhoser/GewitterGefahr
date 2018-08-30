@@ -1038,8 +1038,9 @@ def interp_soundings_to_storm_objects(
     return sounding_dict_by_lead_time
 
 
-def write_soundings(netcdf_file_name, sounding_dict_height_coords,
-                    lag_time_for_convective_contamination_sec):
+def write_soundings(
+        netcdf_file_name, sounding_dict_height_coords, lead_time_seconds,
+        lag_time_for_convective_contamination_sec):
     """Writes soundings to NetCDF file.
 
     This file may contain soundings with one lead time only.
@@ -1047,22 +1048,27 @@ def write_soundings(netcdf_file_name, sounding_dict_height_coords,
     :param netcdf_file_name: Path to output file.
     :param sounding_dict_height_coords: Dictionary created by
         `interp_soundings_to_storm_objects`.
-    :param lag_time_for_convective_contamination_sec: See doc for
-        `interp_soundings_to_storm_objects`.
+    :param lead_time_seconds: Lead time for all soundings.
+    :param lag_time_for_convective_contamination_sec: Lag time for all soundings
+        (see doc for `interp_soundings_to_storm_objects`).
     :raises: ValueError: if `sounding_dict_height_coords` contains more than one
         unique lead time.
+    :raises: ValueError: if lead time in `sounding_dict_height_coords` does not
+        match the input arg `lead_time_seconds`.
     """
 
+    error_checking.assert_is_integer(lead_time_seconds)
+    error_checking.assert_is_geq(lead_time_seconds, 0)
     error_checking.assert_is_integer(lag_time_for_convective_contamination_sec)
     error_checking.assert_is_geq(lag_time_for_convective_contamination_sec, 0)
 
     unique_lead_times_seconds = numpy.unique(
         sounding_dict_height_coords[LEAD_TIMES_KEY])
-    if len(unique_lead_times_seconds) > 1:
+    if not numpy.all(unique_lead_times_seconds == lead_time_seconds):
         error_string = (
-            'Sounding dictionary should contain only one unique lead time.  '
-            'Instead, contains {0:d}, listed below (in seconds).\n{1:s}'
-        ).format(len(unique_lead_times_seconds), str(unique_lead_times_seconds))
+            'All lead times in sounding dictionary should be {0:d} seconds.  '
+            'Instead, got lead times listed below.\n{1:s}'
+        ).format(lead_time_seconds, str(unique_lead_times_seconds))
         raise ValueError(error_string)
 
     # Create file and set global attributes.
@@ -1070,7 +1076,7 @@ def write_soundings(netcdf_file_name, sounding_dict_height_coords,
     netcdf_dataset = netCDF4.Dataset(
         netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
 
-    netcdf_dataset.setncattr(LEAD_TIME_KEY, unique_lead_times_seconds[0])
+    netcdf_dataset.setncattr(LEAD_TIME_KEY, lead_time_seconds)
     netcdf_dataset.setncattr(
         LAG_TIME_KEY, lag_time_for_convective_contamination_sec)
 

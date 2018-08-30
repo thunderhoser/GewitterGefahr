@@ -201,6 +201,7 @@ def _interp_soundings(
         soundings.write_soundings(
             netcdf_file_name=this_sounding_file_name,
             sounding_dict_height_coords=sounding_dict_by_lead_time[k],
+            lead_time_seconds=lead_times_seconds[k],
             lag_time_for_convective_contamination_sec=
             lag_time_for_convective_contamination_sec)
 
