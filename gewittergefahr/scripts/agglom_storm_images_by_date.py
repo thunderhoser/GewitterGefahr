@@ -10,6 +10,8 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import storm_images
 
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
 STORM_IMAGE_DIR_ARG_NAME = 'storm_image_dir_name'
 RADAR_SOURCE_ARG_NAME = 'radar_source'
 SPC_DATE_ARG_NAME = 'spc_date_string'
@@ -121,6 +123,8 @@ def _run(
         num_times = image_file_name_matrix.shape[0]
         num_field_height_pairs = image_file_name_matrix.shape[1]
 
+    print SEPARATOR_STRING
+
     for j in range(num_field_height_pairs):
         storm_image_dict = None
 
@@ -178,7 +182,7 @@ def _run(
             rotated_grid_spacing_metres=storm_image_dict[
                 storm_images.ROTATED_GRID_SPACING_KEY])
 
-        print '\n'
+        print SEPARATOR_STRING
 
 
 if __name__ == '__main__':
