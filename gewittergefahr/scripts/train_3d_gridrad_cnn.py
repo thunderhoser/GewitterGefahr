@@ -41,7 +41,7 @@ NORMALIZATION_FILE_HELP_STRING = (
 
 DEFAULT_NORMALIZATION_FILE_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'normalization_params_gridrad_20110101-20180101.p')
+    'normalization_ground-relative_20110101-20180101.p')
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_RADAR_FILTERS_ARG_NAME, type=int, required=False,
