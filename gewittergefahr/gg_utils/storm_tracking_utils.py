@@ -295,6 +295,11 @@ def find_storm_objects(
         all_object_ids_numpy[sort_indices], object_ids_to_keep_numpy,
         side='left'
     ).astype(int)
+
+    relevant_indices[relevant_indices < 0] = 0
+    relevant_indices[
+        relevant_indices >= len(all_object_ids_numpy)
+    ] = len(all_object_ids_numpy) - 1
     relevant_indices = sort_indices[relevant_indices]
 
     if allow_missing:
