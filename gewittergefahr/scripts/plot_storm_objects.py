@@ -179,7 +179,7 @@ INPUT_ARG_PARSER.add_argument(
     help=SOUNDING_LAG_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + SOUNDING_LEAD_TIME_ARG_NAME, type=int, required=False, default=-1,
+    '--' + SOUNDING_LEAD_TIME_ARG_NAME, type=int, required=False, default=0,
     help=SOUNDING_LEAD_TIME_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
