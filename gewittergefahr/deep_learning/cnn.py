@@ -94,7 +94,6 @@ VALIDATION_FILE_NAMES_KEY = 'radar_fn_matrix_validation'
 VALIDATION_FILE_NAMES_POS_TARGETS_KEY = (
     'radar_fn_matrix_validation_pos_targets_only')
 SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
-TOP_SOUNDING_DIR_NAME_KEY = 'top_sounding_dir_name'
 SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
 USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
 RADAR_SOURCE_KEY = 'radar_source'
@@ -113,9 +112,8 @@ MODEL_METADATA_KEYS = [
     TRAINING_FRACTION_BY_CLASS_KEY, VALIDATION_FRACTION_BY_CLASS_KEY,
     NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILE_NAMES_KEY,
     VALIDATION_FILE_NAMES_POS_TARGETS_KEY, SOUNDING_FIELD_NAMES_KEY,
-    TOP_SOUNDING_DIR_NAME_KEY, SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY,
-    RADAR_SOURCE_KEY, RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY,
-    REFLECTIVITY_HEIGHTS_KEY
+    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
+    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
 ]
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
@@ -1145,7 +1143,7 @@ def write_model_metadata(
         validation_fraction_by_class_dict=None,
         num_validation_batches_per_epoch=None, radar_fn_matrix_validation=None,
         radar_fn_matrix_validation_pos_targets_only=None,
-        sounding_field_names=None, top_sounding_dir_name=None,
+        sounding_field_names=None,
         sounding_lag_time_for_convective_contamination_sec=None):
     """Writes metadata for CNN to Pickle file.
 
@@ -1198,8 +1196,6 @@ def write_model_metadata(
         `radar_fn_matrix_training_pos_targets_only`, but for validation.
     :param sounding_field_names: 1-D list with names of sounding fields.  Each
         must be accepted by `soundings.check_field_name`.
-    :param top_sounding_dir_name: See doc for
-        `training_validation_io.find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     """
 
@@ -1234,7 +1230,6 @@ def write_model_metadata(
         VALIDATION_FILE_NAMES_POS_TARGETS_KEY:
             radar_fn_matrix_validation_pos_targets_only,
         SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
-        TOP_SOUNDING_DIR_NAME_KEY: top_sounding_dir_name,
         SOUNDING_LAG_TIME_KEY:
             sounding_lag_time_for_convective_contamination_sec,
     }
@@ -1258,58 +1253,6 @@ def read_model_metadata(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     model_metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
-
-    if USE_2D3D_CONVOLUTION_KEY not in model_metadata_dict:
-        model_metadata_dict.update({USE_2D3D_CONVOLUTION_KEY: False})
-
-    if RADAR_SOURCE_KEY not in model_metadata_dict:
-        radar_file_name_matrix_for_training = model_metadata_dict[
-            TRAINING_FILE_NAMES_KEY]
-        num_fields = radar_file_name_matrix_for_training.shape[1]
-        num_heights = radar_file_name_matrix_for_training.shape[2]
-        radar_field_names = [''] * num_fields
-        radar_heights_m_agl = numpy.full(num_heights, -1, dtype=int)
-
-        for j in range(num_fields):
-            radar_field_names[j] = storm_images.image_file_name_to_field(
-                radar_file_name_matrix_for_training[0, j, 0])
-
-        for k in range(num_heights):
-            radar_heights_m_agl[k] = storm_images.image_file_name_to_height(
-                radar_file_name_matrix_for_training[0, 0, k])
-
-        model_metadata_dict.update({
-            RADAR_SOURCE_KEY: radar_utils.GRIDRAD_SOURCE_ID,
-            RADAR_FIELD_NAMES_KEY: radar_field_names,
-            RADAR_HEIGHTS_KEY: radar_heights_m_agl,
-            REFLECTIVITY_HEIGHTS_KEY: None
-        })
-
-    if MONITOR_STRING_KEY not in model_metadata_dict:
-        model_metadata_dict.update({MONITOR_STRING_KEY: LOSS_AS_MONITOR_STRING})
-
-    if TRAINING_FILE_NAMES_POS_TARGETS_KEY not in model_metadata_dict:
-        model_metadata_dict.update({
-            TRAINING_FILE_NAMES_POS_TARGETS_KEY: None,
-            VALIDATION_FILE_NAMES_POS_TARGETS_KEY: None
-        })
-
-    if REFL_MASKING_THRESHOLD_KEY not in model_metadata_dict:
-        model_metadata_dict.update({REFL_MASKING_THRESHOLD_KEY: 0.})
-
-    if NORMALIZATION_TYPE_KEY not in model_metadata_dict:
-        model_metadata_dict.update({
-            NORMALIZATION_TYPE_KEY: dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
-            MIN_NORMALIZED_VALUE_KEY: 0.,
-            MAX_NORMALIZED_VALUE_KEY: 1.,
-            NORMALIZATION_FILE_NAME_KEY: None,
-        })
-
-    if NUM_ROWS_TO_KEEP_KEY not in model_metadata_dict:
-        model_metadata_dict.update({
-            NUM_ROWS_TO_KEEP_KEY: None,
-            NUM_COLUMNS_TO_KEEP_KEY: None
-        })
 
     expected_keys_as_set = set(MODEL_METADATA_KEYS)
     actual_keys_as_set = set(model_metadata_dict.keys())

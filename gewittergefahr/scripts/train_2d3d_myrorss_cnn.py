@@ -251,7 +251,6 @@ def _train_cnn(
         radar_fn_matrix_validation_pos_targets_only=
         radar_fn_matrix_validation_pos_targets_only,
         sounding_field_names=sounding_field_names,
-        top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
         sounding_lag_time_for_convective_contamination_sec)
 

@@ -233,7 +233,6 @@ def _train_cnn(
         validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
         radar_fn_matrix_validation=radar_fn_matrix_validation,
         sounding_field_names=sounding_field_names,
-        top_sounding_dir_name=top_sounding_dir_name,
         sounding_lag_time_for_convective_contamination_sec=
         sounding_lag_time_for_convective_contamination_sec)
 
