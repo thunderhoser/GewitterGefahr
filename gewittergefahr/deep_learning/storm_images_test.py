@@ -21,7 +21,10 @@ DESIRED_MYRORSS_HEIGHTS_M_ASL = numpy.array(
      5500, 6000, 6500, 7000, 7500, 8000, 8500, 9000, 10000, 11000, 12000, 13000,
      14000, 15000, 16000, 17000],
     dtype=int)
-DESIRED_GRIDRAD_HEIGHTS_M_ASL = numpy.linspace(1000, 14500, num=28, dtype=int)
+DESIRED_GRIDRAD_HEIGHTS_M_ASL = numpy.array(
+    [1000, 1500, 2000, 2500, 3000, 3500, 4000, 4500, 5000, 5500, 6000, 6500,
+     7000, 8000, 9000, 10000, 11000, 12000, 13000, 14000, 15000, 16000, 17000],
+    dtype=int)
 
 # The following constants are used to test _fields_and_heights_to_pairs.
 RADAR_FIELD_NAMES = [

@@ -14,6 +14,9 @@ from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 
+LATITUDE_TOLERANCE_DEG = 1e-4
+LONGITUDE_TOLERANCE_DEG = 0.01
+
 YEAR_FORMAT = '%Y'
 TIME_FORMAT_IN_FILE_NAMES = '%Y%m%dT%H%M%SZ'
 PATHLESS_FILE_NAME_PREFIX = 'nexrad_3d_4_1'
@@ -21,10 +24,6 @@ FILE_EXTENSION = '.nc'
 
 KM_TO_METRES = 1000
 ZERO_TIME_UNIX_SEC = 978307200
-
-MIN_GRID_POINT_HEIGHT_COLUMN = 'lowest_grid_point_height_m_asl'
-HEIGHT_SPACING_COLUMN = 'height_spacing_metres'
-NUM_HEIGHTS_COLUMN = 'num_heights_in_grid'
 
 LATITUDE_NAME_ORIG = 'Latitude'
 LONGITUDE_NAME_ORIG = 'Longitude'
@@ -57,6 +56,68 @@ def _get_pathless_file_name(unix_time_sec):
         time_conversion.unix_sec_to_string(
             unix_time_sec, TIME_FORMAT_IN_FILE_NAMES),
         FILE_EXTENSION)
+
+
+def _check_grid_points(
+        grid_point_latitudes_deg, grid_point_longitudes_deg, metadata_dict):
+    """Ensures that grid is regular in lat-long coordinates.
+
+    M = number of rows (unique grid-point latitudes)
+    N = number of columns (unique grid-point longitudes)
+
+    :param grid_point_latitudes_deg: length-M numpy array of grid-point
+        latitudes (deg N).
+    :param grid_point_longitudes_deg: length-N numpy array of grid-point
+        longitudes (deg E).
+    :param metadata_dict: Dictionary created by
+        `read_metadata_from_full_grid_file`.
+    :raises: ValueError: if the grid is not regular in lat-long coordinates.
+    """
+
+    min_latitude_deg = metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
+        metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+        (metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)
+    )
+    (expected_latitudes_deg, expected_longitudes_deg
+    ) = grids.get_latlng_grid_points(
+        min_latitude_deg=min_latitude_deg,
+        min_longitude_deg=metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+        lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+        lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
+        num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
+        num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN])
+
+    if not numpy.allclose(grid_point_latitudes_deg, expected_latitudes_deg,
+                          atol=LATITUDE_TOLERANCE_DEG):
+
+        for i in range(len(grid_point_latitudes_deg)):
+            print (
+                'Expected latitude = {0:.4f} deg N ... actual = {1:.4f} deg N'
+            ).format(expected_latitudes_deg[i], grid_point_latitudes_deg[i])
+
+        max_latitude_diff_deg = numpy.max(numpy.absolute(
+            expected_latitudes_deg - grid_point_latitudes_deg))
+        error_string = (
+            '\n\nAs shown above, lat-long grid is irregular.  There is a max '
+            'difference of {0:f} deg N between expected and actual latitudes.'
+        ).format(max_latitude_diff_deg)
+        raise ValueError(error_string)
+
+    if not numpy.allclose(grid_point_longitudes_deg, expected_longitudes_deg,
+                          atol=LONGITUDE_TOLERANCE_DEG):
+
+        for i in range(len(grid_point_longitudes_deg)):
+            print (
+                'Expected longitude = {0:.4f} deg E ... actual = {1:.4f} deg E'
+            ).format(expected_longitudes_deg[i], grid_point_longitudes_deg[i])
+
+        max_longitude_diff_deg = numpy.max(numpy.absolute(
+            expected_longitudes_deg - grid_point_longitudes_deg))
+        error_string = (
+            '\n\nAs shown above, lat-long grid is irregular.  There is a max '
+            'difference of {0:f} deg E between expected and actual longitudes.'
+        ).format(max_longitude_diff_deg)
+        raise ValueError(error_string)
 
 
 def file_name_to_time(gridrad_file_name):
@@ -118,18 +179,12 @@ def read_metadata_from_full_grid_file(
         grid point.
     metadata_dict['nw_grid_point_lng_deg']: Longitude (deg E) of
         northwesternmost grid point.
-    metadata_dict['lowest_grid_point_height_m_asl']: Height (metres above sea
-        level) of lowest grid point.
     metadata_dict['lat_spacing_deg']: Spacing (deg N) between adjacent rows.
     metadata_dict['lng_spacing_deg']: Spacing (deg E) between adjacent columns.
-    metadata_dict['height_spacing_metres']: Spacing between adjacent height
-        levels.
     metadata_dict['num_lat_in_grid']: Number of rows (unique grid-point
         latitudes).
     metadata_dict['num_lng_in_grid']: Number of columns (unique grid-point
         longitudes).
-    metadata_dict['num_heights_in_grid']: Number of height levels (unique grid
-        point heights).
     metadata_dict['unix_time_sec']: Valid time.
     """
 
@@ -141,8 +196,6 @@ def read_metadata_from_full_grid_file(
 
     grid_point_latitudes_deg = netcdf_dataset.variables[LATITUDE_NAME_ORIG]
     grid_point_longitudes_deg = netcdf_dataset.variables[LONGITUDE_NAME_ORIG]
-    grid_point_heights_m_asl = KM_TO_METRES * numpy.array(
-        netcdf_dataset.variables[HEIGHT_NAME_ORIG])
 
     metadata_dict = {
         radar_utils.NW_GRID_POINT_LAT_COLUMN:
@@ -150,16 +203,12 @@ def read_metadata_from_full_grid_file(
         radar_utils.NW_GRID_POINT_LNG_COLUMN:
             lng_conversion.convert_lng_positive_in_west(
                 numpy.min(grid_point_longitudes_deg)),
-        MIN_GRID_POINT_HEIGHT_COLUMN: numpy.min(grid_point_heights_m_asl),
         radar_utils.LAT_SPACING_COLUMN: numpy.absolute(
             grid_point_latitudes_deg[1] - grid_point_latitudes_deg[0]),
         radar_utils.LNG_SPACING_COLUMN: numpy.absolute(
             grid_point_longitudes_deg[1] - grid_point_longitudes_deg[0]),
-        HEIGHT_SPACING_COLUMN: numpy.absolute(
-            grid_point_heights_m_asl[1] - grid_point_heights_m_asl[0]),
         radar_utils.NUM_LAT_COLUMN: len(grid_point_latitudes_deg),
         radar_utils.NUM_LNG_COLUMN: len(grid_point_longitudes_deg),
-        NUM_HEIGHTS_COLUMN: len(grid_point_heights_m_asl),
         radar_utils.UNIX_TIME_COLUMN: _time_from_gridrad_to_unix(
             netcdf_dataset.variables[TIME_NAME_ORIG][0])
     }
@@ -187,21 +236,20 @@ def read_field_from_full_grid_file(
         opened, this method will raise an error.  If False and file cannot be
         opened, will return None for all output variables.
     :return: field_matrix: H-by-M-by-N numpy array with values of radar field.
-    :return: unique_grid_point_heights_m_asl: length-H numpy array of grid-point
-        heights (metres above sea level).  If array is increasing
-        (decreasing), height increases (decreases) with the first index of
-        field_matrix.
-    :return: unique_grid_point_lat_deg: length-M numpy array of grid-point
+    :return: grid_point_heights_m_asl: length-H numpy array of height levels
+        (integer metres above sea level).  If array is increasing (decreasing),
+        height increases (decreases) with the first index of field_matrix.
+    :return: grid_point_latitudes_deg: length-M numpy array of grid-point
         latitudes (deg N).  If array is increasing (decreasing), latitude
         increases (decreases) with the second index of field_matrix.
-    :return: unique_grid_point_lng_deg: length-N numpy array of grid-point
-        longitudes (deg E).  If array is increasing (decreasing), longitude
+    :return: grid_point_longitudes_deg: length-N numpy array of grid-point
+        longitudes (deg N).  If array is increasing (decreasing), latitude
         increases (decreases) with the third index of field_matrix.
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
-                                           raise_error_if_fails)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name, raise_error_if_fails)
     if netcdf_dataset is None:
         return None, None, None, None
 
@@ -210,26 +258,20 @@ def read_field_from_full_grid_file(
     field_matrix = numpy.array(
         netcdf_dataset.variables[field_name_orig][0, :, :, :])
 
-    min_latitude_deg = metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] - (
-        metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
-        (metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1))
-    unique_grid_point_lat_deg, unique_grid_point_lng_deg = (
-        grids.get_latlng_grid_points(
-            min_latitude_deg=min_latitude_deg,
-            min_longitude_deg=
-            metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-            lat_spacing_deg=metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-            lng_spacing_deg=metadata_dict[radar_utils.LNG_SPACING_COLUMN],
-            num_rows=metadata_dict[radar_utils.NUM_LAT_COLUMN],
-            num_columns=metadata_dict[radar_utils.NUM_LNG_COLUMN]))
+    grid_point_latitudes_deg = numpy.array(
+        netcdf_dataset.variables[LATITUDE_NAME_ORIG])
+    grid_point_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        numpy.array(netcdf_dataset.variables[LONGITUDE_NAME_ORIG]))
 
-    max_height_m_asl = metadata_dict[MIN_GRID_POINT_HEIGHT_COLUMN] + (
-        metadata_dict[HEIGHT_SPACING_COLUMN] *
-        (metadata_dict[NUM_HEIGHTS_COLUMN] - 1))
-    unique_grid_point_heights_m_asl = numpy.linspace(
-        metadata_dict[MIN_GRID_POINT_HEIGHT_COLUMN], max_height_m_asl,
-        num=metadata_dict[NUM_HEIGHTS_COLUMN])
+    _check_grid_points(
+        grid_point_latitudes_deg=grid_point_latitudes_deg,
+        grid_point_longitudes_deg=grid_point_longitudes_deg,
+        metadata_dict=metadata_dict)
+
+    grid_point_heights_m_asl = KM_TO_METRES * numpy.array(
+        netcdf_dataset.variables[HEIGHT_NAME_ORIG])
+    grid_point_heights_m_asl = numpy.round(grid_point_heights_m_asl).astype(int)
 
     netcdf_dataset.close()
-    return (field_matrix, unique_grid_point_heights_m_asl,
-            unique_grid_point_lat_deg, unique_grid_point_lng_deg)
+    return (field_matrix, grid_point_heights_m_asl, grid_point_latitudes_deg,
+            grid_point_longitudes_deg)
