@@ -282,6 +282,8 @@ def find_storm_objects(
 
     all_object_ids_numpy = numpy.array(all_object_ids, dtype='object')
     object_ids_to_keep_numpy = numpy.array(object_ids_to_keep, dtype='object')
+    print len(all_object_ids_numpy)
+    print len(object_ids_to_keep_numpy)
 
     sort_indices = numpy.argsort(all_object_ids_numpy)
     relevant_indices = numpy.searchsorted(
