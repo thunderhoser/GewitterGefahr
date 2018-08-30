@@ -631,6 +631,8 @@ def _fill_nans_in_soundings(
     [2] NaN's have been replaced
     """
 
+    # TODO(thunderhoser): Remove surface pressure of NaN.
+
     field_names = sounding_dict_pressure_coords[FIELD_NAMES_KEY]
     sounding_matrix = sounding_dict_pressure_coords[SOUNDING_MATRIX_KEY]
     height_index = field_names.index(GEOPOTENTIAL_HEIGHT_NAME)
@@ -951,7 +953,7 @@ def interp_soundings_to_storm_objects(
     print SEPARATOR_STRING
     interp_table = _interp_soundings_from_nwp(
         target_point_table=target_point_table,
-        top_grib_directory_name=top_grib_directory_name, include_surface=True,
+        top_grib_directory_name=top_grib_directory_name, include_surface=False,
         model_name=model_name, use_all_grids=use_all_grids, grid_id=grid_id,
         wgrib_exe_name=wgrib_exe_name, wgrib2_exe_name=wgrib2_exe_name,
         raise_error_if_missing=raise_error_if_missing)
@@ -960,7 +962,7 @@ def interp_soundings_to_storm_objects(
     print 'Converting interpolated values to soundings...'
     sounding_dict_pressure_coords = _convert_interp_table_to_soundings(
         interp_table=interp_table, target_point_table=target_point_table,
-        model_name=model_name, include_surface=True)
+        model_name=model_name, include_surface=False)
 
     print 'Converting fields and units in each sounding...'
     orig_num_soundings = len(sounding_dict_pressure_coords[STORM_IDS_KEY])
@@ -990,9 +992,6 @@ def interp_soundings_to_storm_objects(
     storm_elevations_m_asl = storm_elevations_m_asl[these_indices]
     sounding_dict_pressure_coords.update(
         {STORM_ELEVATIONS_KEY: storm_elevations_m_asl})
-
-    print sounding_dict_pressure_coords[FIELD_NAMES_KEY]
-    print sounding_dict_pressure_coords[SOUNDING_MATRIX_KEY][0, ...]
 
     print ('Converting soundings from pressure to ground-relative height '
            'coordinates...\n')
