@@ -189,24 +189,25 @@ def read_metadata_from_full_grid_file(
     """
 
     error_checking.assert_file_exists(netcdf_file_name)
-    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name,
-                                           raise_error_if_fails)
+    netcdf_dataset = netcdf_io.open_netcdf(
+        netcdf_file_name, raise_error_if_fails)
     if netcdf_dataset is None:
         return None
 
-    grid_point_latitudes_deg = netcdf_dataset.variables[LATITUDE_NAME_ORIG]
-    grid_point_longitudes_deg = netcdf_dataset.variables[LONGITUDE_NAME_ORIG]
+    grid_point_latitudes_deg = numpy.array(
+        netcdf_dataset.variables[LATITUDE_NAME_ORIG])
+    grid_point_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        numpy.array(netcdf_dataset.variables[LONGITUDE_NAME_ORIG]))
 
     metadata_dict = {
         radar_utils.NW_GRID_POINT_LAT_COLUMN:
             numpy.max(grid_point_latitudes_deg),
         radar_utils.NW_GRID_POINT_LNG_COLUMN:
-            lng_conversion.convert_lng_positive_in_west(
-                numpy.min(grid_point_longitudes_deg)),
-        radar_utils.LAT_SPACING_COLUMN: numpy.absolute(
-            grid_point_latitudes_deg[1] - grid_point_latitudes_deg[0]),
-        radar_utils.LNG_SPACING_COLUMN: numpy.absolute(
-            grid_point_longitudes_deg[1] - grid_point_longitudes_deg[0]),
+            numpy.min(grid_point_longitudes_deg),
+        radar_utils.LAT_SPACING_COLUMN:
+            numpy.mean(numpy.diff(grid_point_latitudes_deg)),
+        radar_utils.LNG_SPACING_COLUMN:
+            numpy.mean(numpy.diff(grid_point_longitudes_deg)),
         radar_utils.NUM_LAT_COLUMN: len(grid_point_latitudes_deg),
         radar_utils.NUM_LNG_COLUMN: len(grid_point_longitudes_deg),
         radar_utils.UNIX_TIME_COLUMN: _time_from_gridrad_to_unix(
