@@ -1092,7 +1092,7 @@ def write_soundings(
     storm_id_lengths = [
         len(this_id) for this_id in sounding_dict_height_coords[STORM_IDS_KEY]
     ]
-    num_storm_id_chars = max(storm_id_lengths + [0])
+    num_storm_id_chars = max(storm_id_lengths + [1])
     netcdf_dataset.createDimension(
         STORM_ID_CHAR_DIMENSION_KEY, num_storm_id_chars)
 
