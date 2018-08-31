@@ -8,6 +8,7 @@ Field in 3-D images = reflectivity
 
 import argparse
 import numpy
+from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import labels
@@ -15,6 +16,9 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import deep_learning_helper as dl_helper
+
+K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+    intra_op_parallelism_threads=7, inter_op_parallelism_threads=7)))
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
