@@ -13,8 +13,8 @@ from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_RADAR_ROWS = 24
-NUM_RADAR_COLUMNS = 24
+NUM_RADAR_ROWS = 32
+NUM_RADAR_COLUMNS = 32
 NUM_SOUNDING_HEIGHTS = 49
 RADAR_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
 

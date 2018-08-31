@@ -2380,6 +2380,11 @@ def find_many_files_gridrad(
             end_time_unix_sec=end_time_unix_sec,
             time_interval_sec=GRIDRAD_TIME_INTERVAL_SEC, include_endpoint=True)
 
+        good_indices = numpy.where(numpy.logical_and(
+            all_times_unix_sec >= start_time_unix_sec,
+            all_times_unix_sec <= end_time_unix_sec))[0]
+        all_times_unix_sec = all_times_unix_sec[good_indices]
+
         all_spc_date_strings = [
             time_conversion.time_to_spc_date_string(t)
             for t in all_times_unix_sec
