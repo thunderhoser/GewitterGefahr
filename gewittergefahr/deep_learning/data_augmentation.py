@@ -6,9 +6,125 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 PADDING_VALUE = 0.
+MIN_ABSOLUTE_ROTATION_ANGLE_DEG = 1.
+MAX_ABSOLUTE_ROTATION_ANGLE_DEG = 90.
+MIN_NOISE_STANDARD_DEVIATION = 1e-9
+MAX_NOISE_STANDARD_DEVIATION = 0.25
 
-# TODO(thunderhoser): This module still needs unit tests.  I am hoping to do
-# this in Boulder.
+
+def get_translations(
+        num_translations, max_translation_pixels, num_grid_rows,
+        num_grid_columns):
+    """Creates an array of x- and y-translations.
+
+    These translations ("offsets") are meant for use in `shift_radar_images`.
+
+    N = number of translations
+
+    :param num_translations: Number of translations.  Image will be translated
+        in only the x- and y-directions, not the z-direction.
+    :param max_translation_pixels: Max translation in either direction.  Must be
+        an integer.
+    :param num_grid_rows: Number of rows in the image.
+    :param num_grid_columns: Number of columns in the image.
+    :return: x_offsets_pixels: length-N numpy array of x-translations
+        (integers).
+    :return: y_offsets_pixels: length-N numpy array of y-translations
+        (integers).
+    """
+
+    error_checking.assert_is_integer(num_translations)
+    if num_translations == 0:
+        return numpy.array([], dtype=int), numpy.array([], dtype=int)
+
+    error_checking.assert_is_greater(num_translations, 0)
+    error_checking.assert_is_integer(num_grid_rows)
+    error_checking.assert_is_geq(num_grid_rows, 2)
+    error_checking.assert_is_integer(num_grid_columns)
+    error_checking.assert_is_geq(num_grid_columns, 2)
+    error_checking.assert_is_integer(max_translation_pixels)
+    error_checking.assert_is_greater(max_translation_pixels, 0)
+
+    smallest_horiz_dimension = min([num_grid_rows, num_grid_columns])
+    max_max_translation_pixels = int(numpy.floor(
+        float(smallest_horiz_dimension) / 2))
+    error_checking.assert_is_leq(
+        max_translation_pixels, max_max_translation_pixels)
+
+    x_offsets_pixels = numpy.random.random_integers(
+        low=-max_translation_pixels, high=max_translation_pixels,
+        size=num_translations * 4)
+    y_offsets_pixels = numpy.random.random_integers(
+        low=-max_translation_pixels, high=max_translation_pixels,
+        size=num_translations * 4)
+
+    good_indices = numpy.where(
+        numpy.absolute(x_offsets_pixels) + numpy.absolute(y_offsets_pixels) > 0
+    )[0]
+    good_indices = numpy.random.choice(
+        good_indices, size=num_translations, replace=False)
+
+    return x_offsets_pixels[good_indices], y_offsets_pixels[good_indices]
+
+
+def get_rotations(num_rotations, max_absolute_rotation_angle_deg):
+    """Creates an array of rotation angles.
+
+    These angles are meant for use in `rotate_radar_images`.
+
+    N = number of rotations
+
+    :param num_rotations: Number of rotations.  Image will be rotated only in
+        the xy-plane (about the z-axis).
+    :param max_absolute_rotation_angle_deg: Max absolute rotation angle
+        (degrees).  In general, the image will be rotated both clockwise and
+        counterclockwise, up to this angle.
+    :return: ccw_rotation_angles_deg: length-N numpy array of counterclockwise
+        rotation angles (degrees).
+    """
+
+    error_checking.assert_is_integer(num_rotations)
+    if num_rotations == 0:
+        return numpy.array([], dtype=float)
+
+    error_checking.assert_is_greater(num_rotations, 0)
+    error_checking.assert_is_geq(
+        max_absolute_rotation_angle_deg, MIN_ABSOLUTE_ROTATION_ANGLE_DEG)
+    error_checking.assert_is_leq(
+        max_absolute_rotation_angle_deg, MAX_ABSOLUTE_ROTATION_ANGLE_DEG)
+
+    absolute_rotation_angles_deg = numpy.random.uniform(
+        low=1., high=max_absolute_rotation_angle_deg, size=num_rotations)
+
+    possible_signs = numpy.array([-1, 1], dtype=int)
+    return absolute_rotation_angles_deg * numpy.random.choice(
+        possible_signs, size=num_rotations, replace=True)
+
+
+def get_noisings(num_noisings, max_standard_deviation):
+    """Creates an array of standard deviations for Gaussian noising.
+
+    These standard deviations are meant for use in `noise_radar_images`.
+
+    N = number of noisings
+
+    :param num_noisings: Number of times to noise the image.
+    :param max_standard_deviation: Max standard deviation of Gaussian noise.
+    :return: standard_deviations: length-N numpy array of standard deviations.
+    """
+
+    error_checking.assert_is_integer(num_noisings)
+    if num_noisings == 0:
+        return numpy.array([], dtype=float)
+
+    error_checking.assert_is_greater(num_noisings, 0)
+    error_checking.assert_is_geq(
+        max_standard_deviation, MIN_NOISE_STANDARD_DEVIATION)
+    error_checking.assert_is_leq(
+        max_standard_deviation, MAX_NOISE_STANDARD_DEVIATION)
+
+    return numpy.random.uniform(
+        low=0., high=max_standard_deviation, size=num_noisings)
 
 
 def shift_radar_images(radar_image_matrix, x_offset_pixels, y_offset_pixels):

@@ -1,8 +1,8 @@
 """Unit tests for data_augmentation.py."""
 
-import copy
 import unittest
 import numpy
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import data_augmentation
 
 TOLERANCE = 1e-6
@@ -18,6 +18,18 @@ RADAR_MATRIX_3D_NO_SHIFT = numpy.stack(
     (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 RADAR_MATRIX_4D_NO_SHIFT = numpy.stack((RADAR_MATRIX_3D_NO_SHIFT,) * 6, axis=-1)
 RADAR_MATRIX_5D_NO_SHIFT = numpy.stack((RADAR_MATRIX_4D_NO_SHIFT,) * 5, axis=-2)
+
+# The following constants are used to test get_translations.
+NUM_TRANSLATIONS = 8
+MAX_TRANSLATION_PIXELS = 3
+
+# The following constants are used to test get_rotations.
+NUM_ROTATIONS = 9
+MAX_ABSOLUTE_ROTATION_ANGLE_DEG = 15.
+
+# The following constants are used to test get_noisings.
+NUM_NOISINGS = 10
+MAX_NOISE_STANDARD_DEVIATION = 0.1
 
 # The following constants are used to test shift_radar_images.
 POSITIVE_X_OFFSET_PIXELS = 2
@@ -106,6 +118,62 @@ RADAR_MATRIX_5D_NEG_ROTATION = numpy.stack(
 
 class DataAugmentationTests(unittest.TestCase):
     """Each method is a unit test for data_augmentation.py."""
+
+    def test_get_translations(self):
+        """Ensures correct output from get_translations."""
+
+        (these_x_offsets_pixels, these_y_offsets_pixels
+        ) = data_augmentation.get_translations(
+            num_translations=NUM_TRANSLATIONS,
+            max_translation_pixels=MAX_TRANSLATION_PIXELS,
+            num_grid_rows=2 * MAX_TRANSLATION_PIXELS,
+            num_grid_columns=2 * MAX_TRANSLATION_PIXELS)
+
+        self.assertTrue(len(these_x_offsets_pixels) == NUM_TRANSLATIONS)
+        error_checking.assert_is_geq_numpy_array(
+            these_x_offsets_pixels, -MAX_TRANSLATION_PIXELS)
+        error_checking.assert_is_leq_numpy_array(
+            these_x_offsets_pixels, MAX_TRANSLATION_PIXELS)
+
+        self.assertTrue(len(these_y_offsets_pixels) == NUM_TRANSLATIONS)
+        error_checking.assert_is_geq_numpy_array(
+            these_y_offsets_pixels, -MAX_TRANSLATION_PIXELS)
+        error_checking.assert_is_leq_numpy_array(
+            these_y_offsets_pixels, MAX_TRANSLATION_PIXELS)
+
+        error_checking.assert_is_greater_numpy_array(
+            numpy.absolute(these_x_offsets_pixels) +
+            numpy.absolute(these_y_offsets_pixels), 0)
+
+    def test_get_rotations(self):
+        """Ensures correct output from get_rotations."""
+
+        these_ccw_rotation_angles_deg = data_augmentation.get_rotations(
+            num_rotations=NUM_ROTATIONS,
+            max_absolute_rotation_angle_deg=MAX_ABSOLUTE_ROTATION_ANGLE_DEG)
+
+        self.assertTrue(len(these_ccw_rotation_angles_deg) == NUM_ROTATIONS)
+        error_checking.assert_is_geq_numpy_array(
+            numpy.absolute(these_ccw_rotation_angles_deg),
+            data_augmentation.MIN_ABSOLUTE_ROTATION_ANGLE_DEG)
+        error_checking.assert_is_leq_numpy_array(
+            numpy.absolute(these_ccw_rotation_angles_deg),
+            data_augmentation.MAX_ABSOLUTE_ROTATION_ANGLE_DEG)
+
+    def test_get_noisings(self):
+        """Ensures correct output get_noisings."""
+
+        these_standard_deviations = data_augmentation.get_noisings(
+            num_noisings=NUM_NOISINGS,
+            max_standard_deviation=MAX_NOISE_STANDARD_DEVIATION)
+
+        self.assertTrue(len(these_standard_deviations) == NUM_NOISINGS)
+        error_checking.assert_is_geq_numpy_array(
+            these_standard_deviations,
+            data_augmentation.MIN_NOISE_STANDARD_DEVIATION)
+        error_checking.assert_is_leq_numpy_array(
+            these_standard_deviations,
+            data_augmentation.MAX_NOISE_STANDARD_DEVIATION)
 
     def test_shift_radar_images_3d_positive(self):
         """Ensures correct output from shift_radar_images.
@@ -204,7 +272,7 @@ class DataAugmentationTests(unittest.TestCase):
         """
 
         this_radar_matrix = data_augmentation.shift_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_3D_NO_SHIFT),
+            radar_image_matrix=RADAR_MATRIX_3D_NO_SHIFT,
             x_offset_pixels=0, y_offset_pixels=0)
 
         self.assertTrue(numpy.allclose(
@@ -217,7 +285,7 @@ class DataAugmentationTests(unittest.TestCase):
         """
 
         this_radar_matrix = data_augmentation.shift_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_NO_SHIFT),
+            radar_image_matrix=RADAR_MATRIX_4D_NO_SHIFT,
             x_offset_pixels=0, y_offset_pixels=0)
 
         self.assertTrue(numpy.allclose(
@@ -230,7 +298,7 @@ class DataAugmentationTests(unittest.TestCase):
         """
 
         this_radar_matrix = data_augmentation.shift_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_NO_SHIFT),
+            radar_image_matrix=RADAR_MATRIX_5D_NO_SHIFT,
             x_offset_pixels=0, y_offset_pixels=0)
 
         self.assertTrue(numpy.allclose(
@@ -327,7 +395,7 @@ class DataAugmentationTests(unittest.TestCase):
         """
 
         this_radar_matrix = data_augmentation.rotate_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_3D_NO_ROTATION),
+            radar_image_matrix=RADAR_MATRIX_3D_NO_ROTATION,
             ccw_rotation_angle_deg=0.)
 
         self.assertTrue(numpy.allclose(
@@ -340,7 +408,7 @@ class DataAugmentationTests(unittest.TestCase):
         """
 
         this_radar_matrix = data_augmentation.rotate_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_4D_NO_ROTATION),
+            radar_image_matrix=RADAR_MATRIX_4D_NO_ROTATION,
             ccw_rotation_angle_deg=0.)
 
         self.assertTrue(numpy.allclose(
@@ -353,7 +421,7 @@ class DataAugmentationTests(unittest.TestCase):
         """
 
         this_radar_matrix = data_augmentation.rotate_radar_images(
-            radar_image_matrix=copy.deepcopy(RADAR_MATRIX_5D_NO_ROTATION),
+            radar_image_matrix=RADAR_MATRIX_5D_NO_ROTATION,
             ccw_rotation_angle_deg=0.)
 
         self.assertTrue(numpy.allclose(

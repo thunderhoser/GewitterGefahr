@@ -26,6 +26,7 @@ import numpy
 import keras
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
+from gewittergefahr.deep_learning import data_augmentation
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import labels
@@ -42,6 +43,22 @@ TARGET_VALUES_KEY = 'target_values'
 
 STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
+
+NUM_TRANSLATIONS_KEY = 'num_translations'
+MAX_TRANSLATION_KEY = 'max_translation_pixels'
+NUM_ROTATIONS_KEY = 'num_rotations'
+MAX_ROTATION_KEY = 'max_absolute_rotation_angle_deg'
+NUM_NOISINGS_KEY = 'num_noisings'
+MAX_NOISE_KEY = 'max_noise_standard_deviation'
+
+DEFAULT_AUGMENTATION_OPTION_DICT = {
+    NUM_TRANSLATIONS_KEY: 0,
+    MAX_TRANSLATION_KEY: 3,
+    NUM_ROTATIONS_KEY: 0,
+    MAX_ROTATION_KEY: 15.,
+    NUM_NOISINGS_KEY: 0,
+    MAX_NOISE_KEY: 0.02
+}
 
 
 def _get_num_examples_per_batch_by_class(
@@ -607,6 +624,120 @@ def _read_input_files_2d3d(
     }
 
 
+def _augment_radar_images(
+        list_of_predictor_matrices, target_array, option_dict=None):
+    """Applies one or more data augmentations to each radar image.
+
+    Q = total number of translations applied to each image.
+    e = original number of examples
+    E = number of examples after augmentation = e * (1 + Q)
+
+    P = number of predictor matrices
+
+    Currently this method applies each translation separately.  At some point I
+    may apply multiple translations to the same image in series.
+
+    :param list_of_predictor_matrices: length-P list, where each item is a numpy
+        array of predictors (either radar images or soundings).  The first axis
+        of each array must have length e.
+    :param target_array: See doc for `storm_image_generator_2d`.  If the array
+        is 1-D, it has length e.  If 2-D, it has dimensions e x K.
+    :param option_dict: Dictionary with the following keys.
+    option_dict['num_translations']: See doc for
+        `data_augmentation.get_translations`.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: See doc for `data_augmentation.get_rotations`.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: See doc for `data_augmentation.get_noisings`.
+    option_dict['max_noise_standard_deviation']: Same.
+
+    :return: list_of_predictor_matrices: Same as input, except that the first
+        axis of each array now has length E.
+    :return: target_array: See doc for `storm_image_generator_2d`.  If the array
+        is 1-D, it has length E.  If 2-D, it has dimensions E x K.
+    """
+
+    if option_dict is None:
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
+
+    option_dict = DEFAULT_AUGMENTATION_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    last_num_dimensions = len(list_of_predictor_matrices[-1].shape)
+    soundings_included = last_num_dimensions == 3
+    num_radar_matrices = (
+        len(list_of_predictor_matrices) - int(soundings_included)
+    )
+
+    x_offsets_pixels, y_offsets_pixels = data_augmentation.get_translations(
+        num_translations=option_dict[NUM_TRANSLATIONS_KEY],
+        max_translation_pixels=option_dict[MAX_TRANSLATION_KEY],
+        num_grid_rows=list_of_predictor_matrices[0].shape[1],
+        num_grid_columns=list_of_predictor_matrices[0].shape[2])
+
+    ccw_rotation_angles_deg = data_augmentation.get_rotations(
+        num_rotations=option_dict[NUM_ROTATIONS_KEY],
+        max_absolute_rotation_angle_deg=option_dict[MAX_ROTATION_KEY])
+
+    noise_standard_deviations = data_augmentation.get_noisings(
+        num_noisings=option_dict[NUM_NOISINGS_KEY],
+        max_standard_deviation=option_dict[MAX_NOISE_KEY])
+
+    print (
+        'Augmenting radar images with {0:d} translations, {1:d} rotations, and '
+        '{2:d} noisings each...'
+    ).format(option_dict[NUM_TRANSLATIONS_KEY], option_dict[NUM_ROTATIONS_KEY],
+             option_dict[NUM_NOISINGS_KEY])
+
+    orig_num_examples = list_of_predictor_matrices[0].shape[0]
+
+    for i in range(option_dict[NUM_TRANSLATIONS_KEY]):
+        for j in range(num_radar_matrices):
+            this_multiplier = j + 1  # Handles azimuthal shear.
+
+            this_image_matrix = data_augmentation.shift_radar_images(
+                radar_image_matrix=
+                list_of_predictor_matrices[j][:orig_num_examples, ...],
+                x_offset_pixels=this_multiplier * x_offsets_pixels[i],
+                y_offset_pixels=this_multiplier * y_offsets_pixels[i])
+
+            list_of_predictor_matrices[j] = numpy.concatenate(
+                (list_of_predictor_matrices[j], this_image_matrix), axis=0)
+
+        target_array = numpy.concatenate(
+            (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
+    for i in range(option_dict[NUM_ROTATIONS_KEY]):
+        for j in range(num_radar_matrices):
+            this_image_matrix = data_augmentation.rotate_radar_images(
+                radar_image_matrix=
+                list_of_predictor_matrices[j][:orig_num_examples, ...],
+                ccw_rotation_angle_deg=ccw_rotation_angles_deg[i])
+
+            list_of_predictor_matrices[j] = numpy.concatenate(
+                (list_of_predictor_matrices[j], this_image_matrix), axis=0)
+
+        target_array = numpy.concatenate(
+            (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
+    for i in range(option_dict[NUM_NOISINGS_KEY]):
+        for j in range(num_radar_matrices):
+            this_image_matrix = data_augmentation.noise_radar_images(
+                radar_image_matrix=
+                list_of_predictor_matrices[j][:orig_num_examples, ...],
+                standard_deviation=noise_standard_deviations[i])
+
+            list_of_predictor_matrices[j] = numpy.concatenate(
+                (list_of_predictor_matrices[j], this_image_matrix), axis=0)
+
+        target_array = numpy.concatenate(
+            (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
+    return list_of_predictor_matrices, target_array
+
+
 def check_input_args(
         num_examples_per_batch, num_examples_per_file, radar_file_name_matrix,
         num_radar_dimensions, binarize_target,
@@ -1103,7 +1234,7 @@ def storm_image_generator_2d(
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
-        loop_thru_files_once=False):
+        loop_thru_files_once=False, augmentation_option_dict=None):
     """Generates examples with 2-D radar images.
 
     Each example consists of storm-centered 2-D radar images, and possibly the
@@ -1144,6 +1275,8 @@ def storm_image_generator_2d(
         loop through `radar_file_name_matrix` only once.  If False, once this
         generator has reached the end of `radar_file_name_matrix`, it will go
         back to the beginning and keep looping.
+    :param augmentation_option_dict: See doc for `_augment_radar_images`.  If
+        you do not want data augmentation, leave this as `None`.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1348,6 +1481,10 @@ def storm_image_generator_2d(
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
 
+        list_of_predictor_matrices, target_array = _augment_radar_images(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            target_array=target_array, option_dict=augmentation_option_dict)
+
         radar_image_matrix = list_of_predictor_matrices[0]
         sounding_matrix = list_of_predictor_matrices[1]
 
@@ -1379,7 +1516,7 @@ def storm_image_generator_3d(
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
-        loop_thru_files_once=False):
+        loop_thru_files_once=False, augmentation_option_dict=None):
     """Generates examples with 3-D radar images.
 
     Each example consists of storm-centered 3-D radar images, and possibly the
@@ -1408,6 +1545,8 @@ def storm_image_generator_3d(
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param loop_thru_files_once: Same.
+    :param augmentation_option_dict: See doc for `_augment_radar_images`.  If
+        you do not want data augmentation, leave this as `None`.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1611,6 +1750,10 @@ def storm_image_generator_3d(
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
 
+        list_of_predictor_matrices, target_array = _augment_radar_images(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            target_array=target_array, option_dict=augmentation_option_dict)
+
         radar_image_matrix = list_of_predictor_matrices[0]
         sounding_matrix = list_of_predictor_matrices[1]
 
@@ -1641,7 +1784,7 @@ def storm_image_generator_2d3d_myrorss(
         sampling_fraction_by_class_dict=None, sounding_field_names=None,
         top_sounding_dir_name=None,
         sounding_lag_time_for_convective_contamination_sec=None,
-        loop_thru_files_once=False):
+        loop_thru_files_once=False, augmentation_option_dict=None):
     """Generates examples with 2-D and 3-D radar images.
 
     Each example consists of a storm-centered 3-D reflectivity image, storm-
@@ -1673,6 +1816,8 @@ def storm_image_generator_2d3d_myrorss(
     :param top_sounding_dir_name: See doc for `find_sounding_files`.
     :param sounding_lag_time_for_convective_contamination_sec: Same.
     :param loop_thru_files_once: Same.
+    :param augmentation_option_dict: See doc for `_augment_radar_images`.  If
+        you do not want data augmentation, leave this as `None`.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1909,6 +2054,10 @@ def storm_image_generator_2d3d_myrorss(
             target_values=all_target_values,
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
+
+        list_of_predictor_matrices, target_array = _augment_radar_images(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            target_array=target_array, option_dict=augmentation_option_dict)
 
         reflectivity_matrix_dbz = list_of_predictor_matrices[0]
         azimuthal_shear_matrix_s01 = list_of_predictor_matrices[1]
