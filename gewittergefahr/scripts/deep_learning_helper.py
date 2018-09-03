@@ -4,13 +4,14 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import cnn_utils
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 MODEL_DIRECTORY_ARG_NAME = 'output_model_dir_name'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
 NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_FILE_ARG_NAME = 'num_examples_per_file'
 NUM_TRAIN_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
-RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
+RADAR_DIRECTORY_ARG_NAME = 'input_radar_image_dir_name'
 RADAR_DIRECTORY_POS_TARGETS_ARG_NAME = 'input_radar_dir_name_pos_targets_only'
 FIRST_TRAINING_DATE_ARG_NAME = 'first_train_spc_date_string'
 LAST_TRAINING_DATE_ARG_NAME = 'last_train_spc_date_string'
@@ -42,9 +43,14 @@ FIRST_VALIDATION_DATE_ARG_NAME = 'first_validn_spc_date_string'
 LAST_VALIDATION_DATE_ARG_NAME = 'last_validn_spc_date_string'
 SOUNDING_FIELD_NAMES_ARG_NAME = 'sounding_field_names'
 SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
-SOUNDING_LAG_TIME_ARG_NAME = (
-    'sounding_lag_time_for_convective_contamination_sec')
+SOUNDING_LAG_TIME_ARG_NAME = 'sounding_lag_time_sec'
 NUM_SOUNDING_FILTERS_ARG_NAME = 'num_sounding_filters_in_first_layer'
+NUM_TRANSLATIONS_ARG_NAME = 'num_translations'
+MAX_TRANSLATION_ARG_NAME = 'max_translation_pixels'
+NUM_ROTATIONS_ARG_NAME = 'num_rotations'
+MAX_ROTATION_ARG_NAME = 'max_absolute_rotation_angle_deg'
+NUM_NOISINGS_ARG_NAME = 'num_noisings'
+MAX_NOISE_ARG_NAME = 'max_noise_standard_deviation'
 
 DEFAULT_NUM_EPOCHS = 25
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
@@ -69,7 +75,20 @@ DEFAULT_SOUNDING_FIELD_NAMES = [
     soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 DEFAULT_SOUNDING_LAG_TIME_SEC = 1800
-DEFAULT_NUM_SOUNDING_FILTERS = 48
+DEFAULT_NUM_SOUNDING_FILTERS = 16
+
+DEFAULT_NUM_TRANSLATIONS = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
+    trainval_io.NUM_TRANSLATIONS_KEY]
+DEFAULT_MAX_TRANSLATION_PIXELS = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
+    trainval_io.MAX_TRANSLATION_KEY]
+DEFAULT_NUM_ROTATIONS = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
+    trainval_io.NUM_ROTATIONS_KEY]
+DEFAULT_MAX_ABS_ROTATION_ANGLE_DEG = (
+    trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[trainval_io.MAX_ROTATION_KEY])
+DEFAULT_NUM_NOISINGS = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
+    trainval_io.NUM_NOISINGS_KEY]
+DEFAULT_MAX_NOISE_STDEV = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
+    trainval_io.MAX_NOISE_KEY]
 
 MODEL_DIRECTORY_HELP_STRING = (
     'Name of output directory.  The model, training history, and TensorBoard '
@@ -229,6 +248,30 @@ SOUNDING_LAG_TIME_HELP_STRING = (
 NUM_SOUNDING_FILTERS_HELP_STRING = (
     'Number of sounding filters in first convolutional layer.  Number of '
     'filters will double for each successive layer convolving over soundings.')
+
+NUM_TRANSLATIONS_HELP_STRING = (
+    'Number of translations for each storm-centered radar image.  See '
+    '`data_augmentation.get_translations` for more details.')
+
+MAX_TRANSLATION_HELP_STRING = (
+    'Max translation for storm-centered radar images.  See '
+    '`data_augmentation.get_translations` for more details.')
+
+NUM_ROTATIONS_HELP_STRING = (
+    'Number of rotations for each storm-centered radar image.  See '
+    '`data_augmentation.get_rotations` for more details.')
+
+MAX_ROTATION_HELP_STRING = (
+    'Max rotation for storm-centered radar images.  See '
+    '`data_augmentation.get_rotations` for more details.')
+
+NUM_NOISINGS_HELP_STRING = (
+    'Number of noisings for each storm-centered radar image.  See '
+    '`data_augmentation.get_noisings` for more details.')
+
+MAX_NOISE_HELP_STRING = (
+    'Max Gaussian noise for storm-centered radar images.  See '
+    '`data_augmentation.get_noisings` for more details.')
 
 
 def add_input_arguments(argument_parser_object):
@@ -409,5 +452,31 @@ def add_input_arguments(argument_parser_object):
         '--' + NUM_SOUNDING_FILTERS_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_SOUNDING_FILTERS,
         help=NUM_SOUNDING_FILTERS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_TRANSLATIONS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_TRANSLATIONS, help=NUM_TRANSLATIONS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MAX_TRANSLATION_ARG_NAME, type=int, required=False,
+        default=DEFAULT_MAX_TRANSLATION_PIXELS,
+        help=MAX_TRANSLATION_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_ROTATIONS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_ROTATIONS, help=NUM_ROTATIONS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MAX_ROTATION_ARG_NAME, type=float, required=False,
+        default=DEFAULT_MAX_ABS_ROTATION_ANGLE_DEG,
+        help=MAX_ROTATION_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_NOISINGS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_NOISINGS, help=NUM_NOISINGS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MAX_NOISE_ARG_NAME, type=float, required=False,
+        default=DEFAULT_MAX_NOISE_STDEV, help=MAX_NOISE_HELP_STRING)
 
     return argument_parser_object

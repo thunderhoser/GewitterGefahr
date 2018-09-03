@@ -41,14 +41,12 @@ NORMALIZATION_FILE_ARG_NAME = 'normalization_param_file_name'
 NUM_REFL_FILTERS_HELP_STRING = (
     'Number of reflectivity filters in first convolutional layer.  Number of '
     'filters will double for each successive layer convolving over reflectivity'
-    ' images.'
-)
+    ' images.')
 
 NUM_SHEAR_FILTERS_HELP_STRING = (
     'Number of azimuthal-shear filters in first convolutional layer.  Number of'
     ' filters will double for each successive layer convolving over '
-    'azimuthal-shear images.'
-)
+    'azimuthal-shear images.')
 
 NORMALIZATION_FILE_HELP_STRING = (
     '[used only if {0:s} is not empty] Path to file with normalization params.'
@@ -88,7 +86,9 @@ def _train_cnn(
         num_validation_batches_per_epoch, first_validn_spc_date_string,
         last_validn_spc_date_string, sounding_field_names,
         top_sounding_dir_name, sounding_lag_time_sec,
-        num_sounding_filters_in_first_layer):
+        num_sounding_filters_in_first_layer, num_translations,
+        max_translation_pixels, num_rotations, max_absolute_rotation_angle_deg,
+        num_noisings, max_noise_standard_deviation):
     """Trains CNN with 2-D and 3-D images from MYRORSS.
 
     :param output_model_dir_name: See documentation at the top of
@@ -137,6 +137,12 @@ def _train_cnn(
     :param top_sounding_dir_name: Same.
     :param sounding_lag_time_sec: Same.
     :param num_sounding_filters_in_first_layer: Same.
+    :param num_translations: Same.
+    :param max_translation_pixels: Same.
+    :param num_rotations: Same.
+    :param max_absolute_rotation_angle_deg: Same.
+    :param num_noisings: Same.
+    :param max_noise_standard_deviation: Same.
     """
 
     # Verify and convert input args.
@@ -273,7 +279,13 @@ def _train_cnn(
         cnn.RADAR_SOURCE_KEY: radar_utils.MYRORSS_SOURCE_ID,
         cnn.RADAR_FIELDS_KEY: RADAR_FIELD_NAMES,
         cnn.REFLECTIVITY_HEIGHTS_KEY: REFLECTIVITY_HEIGHTS_M_AGL,
-        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL
+        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL,
+        cnn.NUM_TRANSLATIONS_KEY: num_translations,
+        cnn.MAX_TRANSLATION_KEY: max_translation_pixels,
+        cnn.NUM_ROTATIONS_KEY: num_rotations,
+        cnn.MAX_ROTATION_KEY: max_absolute_rotation_angle_deg,
+        cnn.NUM_NOISINGS_KEY: num_noisings,
+        cnn.MAX_NOISE_KEY: max_noise_standard_deviation
     }
 
     cnn.write_model_metadata(
@@ -323,6 +335,12 @@ def _train_cnn(
         trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
         trainval_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
         trainval_io.LOOP_ONCE_KEY: False,
+        trainval_io.NUM_TRANSLATIONS_KEY: num_translations,
+        trainval_io.MAX_TRANSLATION_KEY: max_translation_pixels,
+        trainval_io.NUM_ROTATIONS_KEY: num_rotations,
+        trainval_io.MAX_ROTATION_KEY: max_absolute_rotation_angle_deg,
+        trainval_io.NUM_NOISINGS_KEY: num_noisings,
+        trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation
     }
 
     cnn.train_2d3d_cnn(
@@ -422,4 +440,17 @@ if __name__ == '__main__':
         sounding_lag_time_sec=getattr(
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_LAG_TIME_ARG_NAME),
         num_sounding_filters_in_first_layer=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_SOUNDING_FILTERS_ARG_NAME))
+            INPUT_ARG_OBJECT, dl_helper.NUM_SOUNDING_FILTERS_ARG_NAME),
+        num_translations=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_TRANSLATIONS_ARG_NAME),
+        max_translation_pixels=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_TRANSLATION_ARG_NAME),
+        num_rotations=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_ROTATIONS_ARG_NAME),
+        max_absolute_rotation_angle_deg=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_ROTATION_ARG_NAME),
+        num_noisings=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),
+        max_noise_standard_deviation=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_NOISE_ARG_NAME)
+    )
