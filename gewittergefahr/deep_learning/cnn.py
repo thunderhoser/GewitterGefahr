@@ -1392,19 +1392,6 @@ def train_2d_cnn(
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
 
-    embedding_layer_names = [
-        this_layer.name for this_layer in model_object.layers if
-        this_layer.name.startswith('dense') or
-        this_layer.name.startswith('conv')
-    ]
-
-    tensorboard_object = keras.callbacks.TensorBoard(
-        log_dir=tensorboard_dir_name, histogram_freq=0,
-        batch_size=training_option_dict[
-            trainval_io.NUM_EXAMPLES_PER_BATCH_KEY],
-        write_graph=True, write_grads=True, write_images=True,
-        embeddings_freq=1, embeddings_layer_names=embedding_layer_names)
-
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
@@ -1415,7 +1402,7 @@ def train_2d_cnn(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object])
+            callbacks=[checkpoint_object, history_object])
 
     else:
         validation_option_dict = copy.deepcopy(training_option_dict)
@@ -1430,7 +1417,7 @@ def train_2d_cnn(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object],
+            callbacks=[checkpoint_object, history_object],
             validation_data=trainval_io.storm_image_generator_2d(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
@@ -1485,19 +1472,6 @@ def train_3d_cnn(
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
 
-    embedding_layer_names = [
-        this_layer.name for this_layer in model_object.layers if
-        this_layer.name.startswith('dense') or
-        this_layer.name.startswith('conv')
-    ]
-
-    tensorboard_object = keras.callbacks.TensorBoard(
-        log_dir=tensorboard_dir_name, histogram_freq=0,
-        batch_size=training_option_dict[
-            trainval_io.NUM_EXAMPLES_PER_BATCH_KEY],
-        write_graph=True, write_grads=True, write_images=True,
-        embeddings_freq=1, embeddings_layer_names=embedding_layer_names)
-
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
@@ -1508,7 +1482,7 @@ def train_3d_cnn(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object])
+            callbacks=[checkpoint_object, history_object])
 
     else:
         validation_option_dict = copy.deepcopy(training_option_dict)
@@ -1523,7 +1497,7 @@ def train_3d_cnn(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object],
+            callbacks=[checkpoint_object, history_object],
             validation_data=trainval_io.storm_image_generator_3d(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
@@ -1578,19 +1552,6 @@ def train_2d3d_cnn(
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
 
-    embedding_layer_names = [
-        this_layer.name for this_layer in model_object.layers if
-        this_layer.name.startswith('dense') or
-        this_layer.name.startswith('conv')
-    ]
-
-    tensorboard_object = keras.callbacks.TensorBoard(
-        log_dir=tensorboard_dir_name, histogram_freq=0,
-        batch_size=training_option_dict[
-            trainval_io.NUM_EXAMPLES_PER_BATCH_KEY],
-        write_graph=True, write_grads=True, write_images=True,
-        embeddings_freq=1, embeddings_layer_names=embedding_layer_names)
-
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
@@ -1601,7 +1562,7 @@ def train_2d3d_cnn(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object])
+            callbacks=[checkpoint_object, history_object])
 
     else:
         validation_option_dict = copy.deepcopy(training_option_dict)
@@ -1616,7 +1577,7 @@ def train_2d3d_cnn(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object, tensorboard_object],
+            callbacks=[checkpoint_object, history_object],
             validation_data=trainval_io.storm_image_generator_2d3d_myrorss(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
