@@ -751,7 +751,11 @@ def _augment_radar_images(
 
         target_array = numpy.concatenate(
             (target_array, target_array[:orig_num_examples, ...]), axis=0)
-        print target_array.shape
+        if soundings_included:
+            list_of_predictor_matrices[-1] = numpy.concatenate(
+                (list_of_predictor_matrices[-1],
+                 list_of_predictor_matrices[-1][:orig_num_examples, ...]),
+                axis=0)
 
     for i in range(option_dict[NUM_ROTATIONS_KEY]):
         for j in range(num_radar_matrices):
@@ -765,6 +769,11 @@ def _augment_radar_images(
 
         target_array = numpy.concatenate(
             (target_array, target_array[:orig_num_examples, ...]), axis=0)
+        if soundings_included:
+            list_of_predictor_matrices[-1] = numpy.concatenate(
+                (list_of_predictor_matrices[-1],
+                 list_of_predictor_matrices[-1][:orig_num_examples, ...]),
+                axis=0)
 
     for i in range(option_dict[NUM_NOISINGS_KEY]):
         for j in range(num_radar_matrices):
@@ -778,6 +787,11 @@ def _augment_radar_images(
 
         target_array = numpy.concatenate(
             (target_array, target_array[:orig_num_examples, ...]), axis=0)
+        if soundings_included:
+            list_of_predictor_matrices[-1] = numpy.concatenate(
+                (list_of_predictor_matrices[-1],
+                 list_of_predictor_matrices[-1][:orig_num_examples, ...]),
+                axis=0)
 
     return list_of_predictor_matrices, target_array
 
