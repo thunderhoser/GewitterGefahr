@@ -260,77 +260,86 @@ def read_storms_one_spc_date(
         sounding_field_names_to_read = copy.deepcopy(sounding_field_names)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        example_dict = deployment_io.create_storm_images_2d3d_myrorss(
-            radar_file_name_matrix=radar_file_name_matrix[
-                [spc_date_index], ...],
-            num_examples_per_file=LARGE_INTEGER,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            return_target=False,
-            target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
-            num_columns_to_keep=model_metadata_dict[
-                cnn.NUM_COLUMNS_TO_KEEP_KEY],
-            sounding_field_names=sounding_field_names_to_read,
-            top_sounding_dir_name=top_sounding_dir_name,
-            sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+        example_dict = deployment_io.create_storm_images_2d3d_myrorss({
+            deployment_io.RADAR_FILE_NAMES_KEY:
+                radar_file_name_matrix[[spc_date_index], ...],
+            deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+            deployment_io.NUM_ROWS_TO_KEEP_KEY:
+                model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+                model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+            deployment_io.NORMALIZATION_TYPE_KEY:
+                model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+            deployment_io.MIN_NORMALIZED_VALUE_KEY:
+                model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+            deployment_io.MAX_NORMALIZED_VALUE_KEY:
+                model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+            deployment_io.NORMALIZATION_FILE_KEY:
+                model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+            deployment_io.RETURN_TARGET_KEY: False,
+            deployment_io.TARGET_NAME_KEY:
+                model_metadata_dict[cnn.TARGET_NAME_KEY],
+            deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
+            deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+            deployment_io.SOUNDING_LAG_TIME_KEY:
+                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+        })
     else:
         num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
+            model_metadata_dict[cnn.TRAINING_FILES_KEY].shape)
 
         if num_radar_dimensions == 3:
-            example_dict = deployment_io.create_storm_images_3d(
-                radar_file_name_matrix=radar_file_name_matrix[
-                    [spc_date_index], ...],
-                num_examples_per_file=LARGE_INTEGER,
-                normalization_type_string=model_metadata_dict[
-                    cnn.NORMALIZATION_TYPE_KEY],
-                min_normalized_value=model_metadata_dict[
-                    cnn.MIN_NORMALIZED_VALUE_KEY],
-                max_normalized_value=model_metadata_dict[
-                    cnn.MAX_NORMALIZED_VALUE_KEY],
-                normalization_param_file_name=model_metadata_dict[
-                    cnn.NORMALIZATION_FILE_NAME_KEY],
-                return_target=False,
-                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
-                num_columns_to_keep=model_metadata_dict[
-                    cnn.NUM_COLUMNS_TO_KEEP_KEY],
-                refl_masking_threshold_dbz=model_metadata_dict[
-                    cnn.REFL_MASKING_THRESHOLD_KEY],
-                sounding_field_names=sounding_field_names_to_read,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+            example_dict = deployment_io.create_storm_images_3d({
+                deployment_io.RADAR_FILE_NAMES_KEY:
+                    radar_file_name_matrix[[spc_date_index], ...],
+                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                deployment_io.NUM_ROWS_TO_KEEP_KEY:
+                    model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+                    model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+                deployment_io.NORMALIZATION_TYPE_KEY:
+                    model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+                deployment_io.MIN_NORMALIZED_VALUE_KEY:
+                    model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+                deployment_io.MAX_NORMALIZED_VALUE_KEY:
+                    model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+                deployment_io.NORMALIZATION_FILE_KEY:
+                    model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+                deployment_io.RETURN_TARGET_KEY: False,
+                deployment_io.TARGET_NAME_KEY:
+                    model_metadata_dict[cnn.TARGET_NAME_KEY],
+                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
+                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                deployment_io.SOUNDING_LAG_TIME_KEY:
+                    model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
+                deployment_io.REFLECTIVITY_MASK_KEY:
+                    model_metadata_dict[cnn.REFL_MASKING_THRESHOLD_KEY]
+            })
         else:
-            example_dict = deployment_io.create_storm_images_2d(
-                radar_file_name_matrix=radar_file_name_matrix[
-                    [spc_date_index], ...],
-                num_examples_per_file=LARGE_INTEGER,
-                normalization_type_string=model_metadata_dict[
-                    cnn.NORMALIZATION_TYPE_KEY],
-                min_normalized_value=model_metadata_dict[
-                    cnn.MIN_NORMALIZED_VALUE_KEY],
-                max_normalized_value=model_metadata_dict[
-                    cnn.MAX_NORMALIZED_VALUE_KEY],
-                normalization_param_file_name=model_metadata_dict[
-                    cnn.NORMALIZATION_FILE_NAME_KEY],
-                return_target=False,
-                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-                num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
-                num_columns_to_keep=model_metadata_dict[
-                    cnn.NUM_COLUMNS_TO_KEEP_KEY],
-                sounding_field_names=sounding_field_names_to_read,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+            example_dict = deployment_io.create_storm_images_2d({
+                deployment_io.RADAR_FILE_NAMES_KEY:
+                    radar_file_name_matrix[[spc_date_index], ...],
+                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                deployment_io.NUM_ROWS_TO_KEEP_KEY:
+                    model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+                    model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+                deployment_io.NORMALIZATION_TYPE_KEY:
+                    model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+                deployment_io.MIN_NORMALIZED_VALUE_KEY:
+                    model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+                deployment_io.MAX_NORMALIZED_VALUE_KEY:
+                    model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+                deployment_io.NORMALIZATION_FILE_KEY:
+                    model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+                deployment_io.RETURN_TARGET_KEY: False,
+                deployment_io.TARGET_NAME_KEY:
+                    model_metadata_dict[cnn.TARGET_NAME_KEY],
+                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
+                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                deployment_io.SOUNDING_LAG_TIME_KEY:
+                    model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+            })
 
     if example_dict is None:
         return None
@@ -392,7 +401,7 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
     """
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        radar_field_names = model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY]
+        radar_field_names = model_metadata_dict[cnn.RADAR_FIELDS_KEY]
         azimuthal_shear_indices = numpy.where(numpy.array(
             [f in radar_utils.SHEAR_NAMES for f in radar_field_names]))[0]
         azimuthal_shear_field_names = [
@@ -404,7 +413,7 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY],
             normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
+                cnn.NORMALIZATION_FILE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[
@@ -416,14 +425,14 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY],
             normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
+                cnn.NORMALIZATION_FILE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[
                 cnn.MAX_NORMALIZED_VALUE_KEY])
     else:
         radar_file_name_matrix = model_metadata_dict[
-            cnn.TRAINING_FILE_NAMES_KEY]
+            cnn.TRAINING_FILES_KEY]
         num_channels = radar_file_name_matrix.shape[1]
         field_name_by_channel = [''] * num_channels
 
@@ -443,7 +452,7 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY],
             normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
+                cnn.NORMALIZATION_FILE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[
@@ -456,7 +465,7 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             normalization_type_string=model_metadata_dict[
                 cnn.NORMALIZATION_TYPE_KEY],
             normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
+                cnn.NORMALIZATION_FILE_KEY],
             min_normalized_value=model_metadata_dict[
                 cnn.MIN_NORMALIZED_VALUE_KEY],
             max_normalized_value=model_metadata_dict[

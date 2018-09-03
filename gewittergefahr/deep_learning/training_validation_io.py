@@ -38,8 +38,27 @@ RADAR_IMAGE_MATRIX_KEY = 'radar_image_matrix'
 REFLECTIVITY_IMAGE_MATRIX_KEY = 'reflectivity_image_matrix_dbz'
 AZ_SHEAR_IMAGE_MATRIX_KEY = 'azimuthal_shear_image_matrix_s01'
 SOUNDING_MATRIX_KEY = 'sounding_matrix'
-SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
+SOUNDING_FIELDS_KEY = 'sounding_field_names'
 TARGET_VALUES_KEY = 'target_values'
+
+RADAR_FILE_NAMES_KEY = 'radar_file_name_matrix'
+TARGET_DIRECTORY_KEY = 'top_target_dir_name'
+NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+NUM_EXAMPLES_PER_FILE_KEY = 'num_examples_per_file'
+TARGET_NAME_KEY = 'target_name'
+NUM_ROWS_TO_KEEP_KEY = 'num_rows_to_keep'
+NUM_COLUMNS_TO_KEEP_KEY = 'num_columns_to_keep'
+NORMALIZATION_TYPE_KEY = 'normalization_type_string'
+MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
+MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
+NORMALIZATION_FILE_KEY = 'normalization_param_file_name'
+POSITIVE_RADAR_FILE_NAMES_KEY = 'radar_file_name_matrix_pos_targets_only'
+BINARIZE_TARGET_KEY = 'binarize_target'
+SAMPLING_FRACTIONS_KEY = 'sampling_fraction_by_class_dict'
+SOUNDING_DIRECTORY_KEY = 'top_sounding_dir_name'
+SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_sec'
+LOOP_ONCE_KEY = 'loop_thru_files_once'
+REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
 
 STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
@@ -51,6 +70,28 @@ MAX_ROTATION_KEY = 'max_absolute_rotation_angle_deg'
 NUM_NOISINGS_KEY = 'num_noisings'
 MAX_NOISE_KEY = 'max_noise_standard_deviation'
 
+DEFAULT_GENERATOR_OPTION_DICT = {
+    RADAR_FILE_NAMES_KEY: '',
+    TARGET_DIRECTORY_KEY: '',
+    NUM_EXAMPLES_PER_BATCH_KEY: '',
+    NUM_EXAMPLES_PER_FILE_KEY: '',
+    TARGET_NAME_KEY: '',
+    NUM_ROWS_TO_KEEP_KEY: None,
+    NUM_COLUMNS_TO_KEEP_KEY: None,
+    NORMALIZATION_TYPE_KEY: None,
+    MIN_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+    MAX_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+    NORMALIZATION_FILE_KEY: None,
+    POSITIVE_RADAR_FILE_NAMES_KEY: None,
+    BINARIZE_TARGET_KEY: False,
+    SAMPLING_FRACTIONS_KEY: None,
+    SOUNDING_FIELDS_KEY: None,
+    SOUNDING_DIRECTORY_KEY: None,
+    SOUNDING_LAG_TIME_KEY: None,
+    LOOP_ONCE_KEY: False,
+    REFLECTIVITY_MASK_KEY: dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ
+}
+
 DEFAULT_AUGMENTATION_OPTION_DICT = {
     NUM_TRANSLATIONS_KEY: 0,
     MAX_TRANSLATION_KEY: 3,
@@ -59,6 +100,8 @@ DEFAULT_AUGMENTATION_OPTION_DICT = {
     NUM_NOISINGS_KEY: 0,
     MAX_NOISE_KEY: 0.02
 }
+
+DEFAULT_GENERATOR_OPTION_DICT.update(DEFAULT_AUGMENTATION_OPTION_DICT)
 
 
 def _get_num_examples_per_batch_by_class(
@@ -267,7 +310,7 @@ def _need_negative_target_values(num_examples_left_by_class_dict):
 
 
 def _read_input_files_2d(
-        radar_file_names, top_target_directory_name, target_name,
+        radar_file_names, top_target_dir_name, target_name,
         num_examples_left_by_class_dict, num_rows_to_keep, num_columns_to_keep,
         radar_file_names_pos_targets_only=None, sounding_file_name=None,
         sounding_field_names=None):
@@ -278,9 +321,9 @@ def _read_input_files_2d(
     :param radar_file_names: length-C list of paths to radar files.  Each file
         should be readable by `storm_images.read_storm_images` and contain
         storm-centered radar images for a different field/height pair at t_0.
-    :param top_target_directory_name: Name of top-level directory with target
-        values (storm-hazard labels).  Files within this directory should be
-        findable by `labels.find_label_file`.
+    :param top_target_dir_name: Name of top-level directory with target values
+        (storm-hazard labels).  Files within this directory should be findable
+        by `labels.find_label_file`.
     :param target_name: Name of target variable.
     :param num_examples_left_by_class_dict: Dictionary created by
         `_get_num_examples_left_by_class`.
@@ -310,7 +353,7 @@ def _read_input_files_2d(
 
     label_file_name = storm_images.find_storm_label_file(
         storm_image_file_name=radar_file_names[0],
-        top_label_dir_name=top_target_directory_name, label_name=target_name,
+        top_label_dir_name=top_target_dir_name, label_name=target_name,
         raise_error_if_missing=True)
 
     if radar_file_names_pos_targets_only is not None:
@@ -374,12 +417,12 @@ def _read_input_files_2d(
             tuple_of_image_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names
+        SOUNDING_FIELDS_KEY: sounding_field_names
     }
 
 
 def _read_input_files_3d(
-        radar_file_name_matrix, top_target_directory_name, target_name,
+        radar_file_name_matrix, top_target_dir_name, target_name,
         num_examples_left_by_class_dict, num_rows_to_keep, num_columns_to_keep,
         radar_file_name_matrix_pos_targets_only=None, sounding_file_name=None,
         sounding_field_names=None):
@@ -391,7 +434,7 @@ def _read_input_files_3d(
         files.  Each file should be readable by `storm_images.read_storm_images`
         and contain storm-centered radar images for a different field/height
         pair at t_0.
-    :param top_target_directory_name: See doc for `_read_input_files_2d`.
+    :param top_target_dir_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
     :param num_rows_to_keep: Same.
@@ -410,7 +453,7 @@ def _read_input_files_3d(
 
     label_file_name = storm_images.find_storm_label_file(
         storm_image_file_name=radar_file_name_matrix[0, 0],
-        top_label_dir_name=top_target_directory_name, label_name=target_name,
+        top_label_dir_name=top_target_dir_name, label_name=target_name,
         raise_error_if_missing=True)
 
     if radar_file_name_matrix_pos_targets_only is not None:
@@ -482,13 +525,13 @@ def _read_input_files_3d(
             tuple_of_4d_image_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names
+        SOUNDING_FIELDS_KEY: sounding_field_names
     }
 
 
 def _read_input_files_2d3d(
         reflectivity_file_names, azimuthal_shear_file_names,
-        top_target_directory_name, target_name, num_examples_left_by_class_dict,
+        top_target_dir_name, target_name, num_examples_left_by_class_dict,
         num_rows_to_keep, num_columns_to_keep,
         refl_file_names_pos_targets_only=None,
         az_shear_file_names_pos_targets_only=None, sounding_file_name=None,
@@ -511,7 +554,7 @@ def _read_input_files_2d3d(
         azimuthal-shear files.  Each file should be readable by
         `storm_images.read_storm_images` and contain storm-centered
         azimuthal-shear images at t_0.
-    :param top_target_directory_name: See doc for `_read_input_files_2d`.
+    :param top_target_dir_name: See doc for `_read_input_files_2d`.
     :param target_name: Same.
     :param num_examples_left_by_class_dict: Same.
     :param num_rows_to_keep: Same.
@@ -535,7 +578,7 @@ def _read_input_files_2d3d(
 
     label_file_name = storm_images.find_storm_label_file(
         storm_image_file_name=reflectivity_file_names[0],
-        top_label_dir_name=top_target_directory_name, label_name=target_name,
+        top_label_dir_name=top_target_dir_name, label_name=target_name,
         raise_error_if_missing=True)
 
     if refl_file_names_pos_targets_only is not None:
@@ -607,8 +650,8 @@ def _read_input_files_2d3d(
             netcdf_file_name=azimuthal_shear_file_names[j],
             storm_ids_to_keep=storm_ids_to_keep,
             valid_times_to_keep_unix_sec=storm_times_to_keep_unix_sec,
-            num_rows_to_keep=num_rows_to_keep,
-            num_columns_to_keep=num_columns_to_keep)
+            num_rows_to_keep=num_rows_to_keep * 2,
+            num_columns_to_keep=num_columns_to_keep * 2)
 
         tuple_of_3d_az_shear_matrices += (
             this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],)
@@ -620,7 +663,7 @@ def _read_input_files_2d3d(
             tuple_of_3d_az_shear_matrices),
         TARGET_VALUES_KEY: target_values,
         SOUNDING_MATRIX_KEY: sounding_matrix,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names
+        SOUNDING_FIELDS_KEY: sounding_field_names
     }
 
 
@@ -1222,61 +1265,60 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     return sounding_dict, radar_image_dict
 
 
-def storm_image_generator_2d(
-        radar_file_name_matrix, top_target_directory_name,
-        num_examples_per_batch, num_examples_per_file, target_name,
-        num_rows_to_keep=None, num_columns_to_keep=None,
-        normalization_type_string=None,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        normalization_param_file_name=None,
-        radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
-        sampling_fraction_by_class_dict=None, sounding_field_names=None,
-        top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None,
-        loop_thru_files_once=False, augmentation_option_dict=None):
+def storm_image_generator_2d(option_dict=None):
     """Generates examples with 2-D radar images.
 
-    Each example consists of storm-centered 2-D radar images, and possibly the
-    storm-centered sounding, for one storm object.
+    Each example consists of the following data for one storm object:
 
-    :param radar_file_name_matrix: T-by-C numpy array of paths to radar files,
-        created by `find_radar_files_2d`.
-    :param top_target_directory_name: Name of top-level directory with target
-        values (storm-hazard labels).  Files within this directory should be
-        findable by `labels.find_label_file`.
-    :param num_examples_per_batch: See doc for `check_input_args`.
-    :param num_examples_per_file: Same.
-    :param target_name: Name of target variable.
-    :param num_rows_to_keep: Number of rows to keep from each storm-centered
-        radar image.  If less than total number of rows, images will be cropped
-        around the center.
-    :param num_columns_to_keep: Number of columns to keep from each storm-
-        centered radar image.
-    :param normalization_type_string: Normalization type (must be accepted by
-        `dl_utils._check_normalization_type`).  If you don't want to normalize,
-        leave this as None.
-    :param min_normalized_value: See doc for `dl_utils.normalize_radar_images`
-        or `dl_utils.normalize_soundings`.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param radar_file_name_matrix_pos_targets_only: [may be None]
-        See doc for `find_radar_files_2d`.
-    :param binarize_target: See doc for `_select_batch`.
-    :param sampling_fraction_by_class_dict: Dictionary, where each key is
-        the integer representing a class (-2 for "dead storm") and each value is
-        the corresponding sampling fraction.  Sampling fractions will be applied
-        to each batch.
-    :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by `soundings.check_field_name`.
-    :param top_sounding_dir_name: See doc for `find_sounding_files`.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param loop_thru_files_once: Boolean flag.  If True, this generator will
-        loop through `radar_file_name_matrix` only once.  If False, once this
-        generator has reached the end of `radar_file_name_matrix`, it will go
-        back to the beginning and keep looping.
-    :param augmentation_option_dict: See doc for `_augment_radar_images`.  If
-        you do not want data augmentation, leave this as `None`.
+    - Storm-centered 2-D radar images (one per field)
+    - One storm-centered sounding (maybe)
+    - Target class
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['radar_file_name_matrix']: T-by-C numpy array of paths to radar
+        files, created by `find_radar_files_2d`.
+    option_dict['top_target_dir_name']: Name of top-level directory with target
+        values (storm-hazard labels).  Files within this directory will be found
+        by `labels.find_label_file`.
+    option_dict['num_examples_per_batch']: See doc for `check_input_args`.
+    option_dict['num_examples_per_file']: Same.
+    option_dict['target_name']: Name of target variable.
+    option_dict['num_rows_to_keep']: Number of rows to keep in each storm-
+        centered radar image.  If less than total number of rows, images will be
+        cropped around the center (so images will always have the same center,
+        regardless of `num_rows_to_keep`).
+    option_dict['num_columns_to_keep']: Same as above, but for columns.
+    option_dict['normalization_type_string']: Normalization type (must be
+        accepted by `dl_utils.check_normalization_type`).  If you don't want to
+        normalize, leave this alone.
+    option_dict['min_normalized_value']: See doc for
+        `dl_utils.normalize_radar_images` or `dl_utils.normalize_soundings`.
+    option_dict['max_normalized_value']: Same.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['radar_file_name_matrix_pos_targets_only']: See doc for
+        `find_radar_files_2d`.  If you want to use only one set of radar files
+        (most cases), leave this alone.
+    option_dict['binarize_target']: See doc for `_select_batch`.
+    option_dict['sampling_fraction_by_class_dict']: Dictionary, where each key
+        is the integer for a target class (-2 for "dead storm") and each value
+        is the corresponding sampling fraction.  Sampling fractions will be
+        applied to each batch.
+    option_dict['sounding_field_names']: list (length F_s) with names of
+        sounding fields.  Each must be accepted by `soundings.check_field_name`.
+    option_dict['top_sounding_dir_name']:
+        [used iff `sounding_field_names is not None`]
+        See doc for `find_sounding_files`.
+    option_dict['sounding_lag_time_sec']: Same.
+    option_dict['loop_thru_files_once']: Boolean flag.  If True, this generator
+        will loop through files only once.  If False, once this generator has
+        reached the last file, it will go back to the beginning and keep
+        looping.
+    option_dict['num_translations']: See doc for `_augment_radar_images`.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: Same.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: Same.
+    option_dict['max_noise_standard_deviation']: Same.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1300,7 +1342,25 @@ def storm_image_generator_2d(
     :return: target_array: See documentation above.
     """
 
+    if option_dict is None:
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
+
+    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     error_checking.assert_is_boolean(loop_thru_files_once)
+
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+    num_examples_per_file = option_dict[NUM_EXAMPLES_PER_FILE_KEY]
+    radar_file_name_matrix = option_dict[RADAR_FILE_NAMES_KEY]
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    radar_file_name_matrix_pos_targets_only = option_dict[
+        POSITIVE_RADAR_FILE_NAMES_KEY]
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file=num_examples_per_file,
@@ -1310,15 +1370,26 @@ def storm_image_generator_2d(
         radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
 
+    target_name = option_dict[TARGET_NAME_KEY]
+    top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
+    num_rows_to_keep = option_dict[NUM_ROWS_TO_KEEP_KEY]
+    num_columns_to_keep = option_dict[NUM_COLUMNS_TO_KEEP_KEY]
+    sampling_fraction_by_class_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
+    min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
+    normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
+
     if sounding_field_names is None:
         sounding_file_names = None
     else:
         sounding_file_names = find_sounding_files(
-            top_sounding_dir_name=top_sounding_dir_name,
+            top_sounding_dir_name=option_dict[SOUNDING_DIRECTORY_KEY],
             radar_file_name_matrix=radar_file_name_matrix,
             target_name=target_name,
             lag_time_for_convective_contamination_sec=
-            sounding_lag_time_for_convective_contamination_sec)
+            option_dict[SOUNDING_LAG_TIME_KEY])
 
     num_channels = radar_file_name_matrix.shape[1]
     field_name_by_channel = [''] * num_channels
@@ -1397,7 +1468,7 @@ def storm_image_generator_2d(
             this_example_dict = _read_input_files_2d(
                 radar_file_names=radar_file_name_matrix[
                     file_time_index, ...].tolist(),
-                top_target_directory_name=top_target_directory_name,
+                top_target_dir_name=top_target_dir_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
                 num_rows_to_keep=num_rows_to_keep,
@@ -1413,7 +1484,7 @@ def storm_image_generator_2d(
                 continue
 
             num_file_times_in_memory += 1
-            sounding_field_names = this_example_dict[SOUNDING_FIELD_NAMES_KEY]
+            sounding_field_names = this_example_dict[SOUNDING_FIELDS_KEY]
 
             if all_target_values is None:
                 all_target_values = this_example_dict[TARGET_VALUES_KEY] + 0
@@ -1483,7 +1554,7 @@ def storm_image_generator_2d(
 
         list_of_predictor_matrices, target_array = _augment_radar_images(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            target_array=target_array, option_dict=augmentation_option_dict)
+            target_array=target_array, option_dict=option_dict)
 
         radar_image_matrix = list_of_predictor_matrices[0]
         sounding_matrix = list_of_predictor_matrices[1]
@@ -1503,50 +1574,46 @@ def storm_image_generator_2d(
             yield ([radar_image_matrix, sounding_matrix], target_array)
 
 
-def storm_image_generator_3d(
-        radar_file_name_matrix, top_target_directory_name,
-        num_examples_per_batch, num_examples_per_file, target_name,
-        num_rows_to_keep=None, num_columns_to_keep=None,
-        normalization_type_string=None,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        normalization_param_file_name=None,
-        radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
-        refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
-        sampling_fraction_by_class_dict=None, sounding_field_names=None,
-        top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None,
-        loop_thru_files_once=False, augmentation_option_dict=None):
+def storm_image_generator_3d(option_dict):
     """Generates examples with 3-D radar images.
 
-    Each example consists of storm-centered 3-D radar images, and possibly the
-    storm-centered sounding, for one storm object.
+    Each example consists of the following data for one storm object:
 
-    :param radar_file_name_matrix: numpy array (T x F_r x H_r) of paths to
-        radar-image files, created by `find_radar_files_3d`.
-    :param top_target_directory_name: See doc for `storm_image_generator_2d`.
-    :param num_examples_per_batch: Same.
-    :param num_examples_per_file: Same.
-    :param target_name: Same.
-    :param num_rows_to_keep: Same.
-    :param num_columns_to_keep: Same.
-    :param normalization_type_string: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param radar_file_name_matrix_pos_targets_only: Same.
-    :param binarize_target: Same.
-    :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
-        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).  If
-        you want no masking, leave this as None.
-    :param sampling_fraction_by_class_dict: See doc for
-        `storm_image_generator_2d`.
-    :param sounding_field_names: Same.
-    :param top_sounding_dir_name: See doc for `find_sounding_files`.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param loop_thru_files_once: Same.
-    :param augmentation_option_dict: See doc for `_augment_radar_images`.  If
-        you do not want data augmentation, leave this as `None`.
+    - Storm-centered 3-D radar images (one per field)
+    - One storm-centered sounding (maybe)
+    - Target class
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['radar_file_name_matrix']: numpy array (T x F_r x H_r) of paths
+        to radar files, created by `find_radar_files_3d`.
+    option_dict['top_target_dir_name']: See doc for `storm_image_generator_2d`.
+    option_dict['num_examples_per_batch']: Same.
+    option_dict['num_examples_per_file']: Same.
+    option_dict['target_name']: Same.
+    option_dict['num_rows_to_keep']: Same.
+    option_dict['num_columns_to_keep']: Same.
+    option_dict['normalization_type_string']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['radar_file_name_matrix_pos_targets_only']: See doc for
+        `find_radar_files_3d`.  If you want to use only one set of radar files
+        (most cases), leave this alone.
+    option_dict['binarize_target']: See doc for `storm_image_generator_2d`.
+    option_dict['sampling_fraction_by_class_dict']: Same.
+    option_dict['sounding_field_names']: Same.
+    option_dict['top_sounding_dir_name']: Same.
+    option_dict['sounding_lag_time_sec']: Same.
+    option_dict['loop_thru_files_once']: Same.
+    option_dict['num_translations']: Same.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: Same.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: Same.
+    option_dict['max_noise_standard_deviation']: Same.
+    option_dict['refl_masking_threshold_dbz']: All pixels with reflectivity <
+        `refl_masking_threshold_dbz` will be masked.  If you don't want a
+        reflectivity mask, leave this alone.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1563,7 +1630,25 @@ def storm_image_generator_3d(
     :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
+    if option_dict is None:
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
+
+    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     error_checking.assert_is_boolean(loop_thru_files_once)
+
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+    num_examples_per_file = option_dict[NUM_EXAMPLES_PER_FILE_KEY]
+    radar_file_name_matrix = option_dict[RADAR_FILE_NAMES_KEY]
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    radar_file_name_matrix_pos_targets_only = option_dict[
+        POSITIVE_RADAR_FILE_NAMES_KEY]
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file=num_examples_per_file,
@@ -1573,15 +1658,27 @@ def storm_image_generator_3d(
         radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
 
+    target_name = option_dict[TARGET_NAME_KEY]
+    top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
+    num_rows_to_keep = option_dict[NUM_ROWS_TO_KEEP_KEY]
+    num_columns_to_keep = option_dict[NUM_COLUMNS_TO_KEEP_KEY]
+    sampling_fraction_by_class_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
+    min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
+    normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
+    refl_masking_threshold_dbz = option_dict[REFLECTIVITY_MASK_KEY]
+
     if sounding_field_names is None:
         sounding_file_names = None
     else:
         sounding_file_names = find_sounding_files(
-            top_sounding_dir_name=top_sounding_dir_name,
+            top_sounding_dir_name=option_dict[SOUNDING_DIRECTORY_KEY],
             radar_file_name_matrix=radar_file_name_matrix,
             target_name=target_name,
             lag_time_for_convective_contamination_sec=
-            sounding_lag_time_for_convective_contamination_sec)
+            option_dict[SOUNDING_LAG_TIME_KEY])
 
     num_fields = radar_file_name_matrix.shape[1]
     radar_field_names = [''] * num_fields
@@ -1660,7 +1757,7 @@ def storm_image_generator_3d(
             this_example_dict = _read_input_files_3d(
                 radar_file_name_matrix=radar_file_name_matrix[
                     file_time_index, ...],
-                top_target_directory_name=top_target_directory_name,
+                top_target_dir_name=top_target_dir_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
                 num_rows_to_keep=num_rows_to_keep,
@@ -1676,7 +1773,7 @@ def storm_image_generator_3d(
                 continue
 
             num_file_times_in_memory += 1
-            sounding_field_names = this_example_dict[SOUNDING_FIELD_NAMES_KEY]
+            sounding_field_names = this_example_dict[SOUNDING_FIELDS_KEY]
 
             if all_target_values is None:
                 all_target_values = this_example_dict[TARGET_VALUES_KEY] + 0
@@ -1752,7 +1849,7 @@ def storm_image_generator_3d(
 
         list_of_predictor_matrices, target_array = _augment_radar_images(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            target_array=target_array, option_dict=augmentation_option_dict)
+            target_array=target_array, option_dict=option_dict)
 
         radar_image_matrix = list_of_predictor_matrices[0]
         sounding_matrix = list_of_predictor_matrices[1]
@@ -1772,24 +1869,15 @@ def storm_image_generator_3d(
             yield ([radar_image_matrix, sounding_matrix], target_array)
 
 
-def storm_image_generator_2d3d_myrorss(
-        radar_file_name_matrix, top_target_directory_name,
-        num_examples_per_batch, num_examples_per_file, target_name,
-        num_rows_to_keep=None, num_columns_to_keep=None,
-        normalization_type_string=None,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        normalization_param_file_name=None,
-        radar_file_name_matrix_pos_targets_only=None, binarize_target=False,
-        sampling_fraction_by_class_dict=None, sounding_field_names=None,
-        top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None,
-        loop_thru_files_once=False, augmentation_option_dict=None):
+def storm_image_generator_2d3d_myrorss(option_dict):
     """Generates examples with 2-D and 3-D radar images.
 
-    Each example consists of a storm-centered 3-D reflectivity image, storm-
-    centered 2-D azimuthal-shear images, and possibly the storm-centered
-    sounding, for one storm object.
+    Each example consists of the following data for one storm object:
+
+    - One storm-centered 3-D reflectivity image
+    - Storm-centered 2-D azimuthal-shear images (one per field)
+    - One storm-centered sounding (maybe)
+    - Target class
 
     F_a = number of azimuthal-shear fields
     m = number of rows per reflectivity image
@@ -1798,26 +1886,32 @@ def storm_image_generator_2d3d_myrorss(
     M = number of rows per azimuthal-shear image
     N = number of columns per azimuthal-shear image
 
-    :param radar_file_name_matrix: See doc for `storm_image_generator_2d`.
-    :param top_target_directory_name: Same.
-    :param num_examples_per_batch: Same.
-    :param num_examples_per_file: Same.
-    :param target_name: Same.
-    :param num_rows_to_keep: Same.
-    :param num_columns_to_keep: Same.
-    :param normalization_type_string: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param radar_file_name_matrix_pos_targets_only: Same.
-    :param binarize_target: Same.
-    :param sampling_fraction_by_class_dict: Same.
-    :param sounding_field_names: Same.
-    :param top_sounding_dir_name: See doc for `find_sounding_files`.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
-    :param loop_thru_files_once: Same.
-    :param augmentation_option_dict: See doc for `_augment_radar_images`.  If
-        you do not want data augmentation, leave this as `None`.
+    :param option_dict: Dictionary with the following keys.
+    option_dict['radar_file_name_matrix']: See doc for
+        `storm_image_generator_2d`.
+    option_dict['top_target_dir_name']: Same
+    option_dict['num_examples_per_batch']: Same.
+    option_dict['num_examples_per_file']: Same.
+    option_dict['target_name']: Same.
+    option_dict['num_rows_to_keep']: Same.
+    option_dict['num_columns_to_keep']: Same.
+    option_dict['normalization_type_string']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['radar_file_name_matrix_pos_targets_only']: Same.
+    option_dict['binarize_target']: See doc for `storm_image_generator_2d`.
+    option_dict['sampling_fraction_by_class_dict']: Same.
+    option_dict['sounding_field_names']: Same.
+    option_dict['top_sounding_dir_name']: Same.
+    option_dict['sounding_lag_time_sec']: Same.
+    option_dict['loop_thru_files_once']: Same.
+    option_dict['num_translations']: Same.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: Same.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: Same.
+    option_dict['max_noise_standard_deviation']: Same.
 
     If `sounding_field_names is None`, this method returns...
 
@@ -1839,7 +1933,25 @@ def storm_image_generator_2d3d_myrorss(
     :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
+    if option_dict is None:
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
+
+    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     error_checking.assert_is_boolean(loop_thru_files_once)
+
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+    num_examples_per_file = option_dict[NUM_EXAMPLES_PER_FILE_KEY]
+    radar_file_name_matrix = option_dict[RADAR_FILE_NAMES_KEY]
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    radar_file_name_matrix_pos_targets_only = option_dict[
+        POSITIVE_RADAR_FILE_NAMES_KEY]
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+
     check_input_args(
         num_examples_per_batch=num_examples_per_batch,
         num_examples_per_file=num_examples_per_file,
@@ -1849,15 +1961,26 @@ def storm_image_generator_2d3d_myrorss(
         radar_file_name_matrix_pos_targets_only,
         sounding_field_names=sounding_field_names)
 
+    target_name = option_dict[TARGET_NAME_KEY]
+    top_target_dir_name = option_dict[TARGET_DIRECTORY_KEY]
+    num_rows_to_keep = option_dict[NUM_ROWS_TO_KEEP_KEY]
+    num_columns_to_keep = option_dict[NUM_COLUMNS_TO_KEEP_KEY]
+    sampling_fraction_by_class_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
+    min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
+    normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
+
     if sounding_field_names is None:
         sounding_file_names = None
     else:
         sounding_file_names = find_sounding_files(
-            top_sounding_dir_name=top_sounding_dir_name,
+            top_sounding_dir_name=option_dict[SOUNDING_DIRECTORY_KEY],
             radar_file_name_matrix=radar_file_name_matrix,
             target_name=target_name,
             lag_time_for_convective_contamination_sec=
-            sounding_lag_time_for_convective_contamination_sec)
+            option_dict[SOUNDING_LAG_TIME_KEY])
 
     (reflectivity_file_name_matrix, az_shear_file_name_matrix
     ) = separate_radar_files_2d3d(radar_file_name_matrix)
@@ -1941,17 +2064,19 @@ def storm_image_generator_2d3d_myrorss(
             else:
                 these_refl_file_names_pos_targets_only = (
                     refl_file_name_matrix_pos_targets_only[
-                        file_time_index, ...].tolist())
+                        file_time_index, ...].tolist()
+                )
                 these_az_shear_file_names_pos_targets_only = (
                     az_shear_file_name_matrix_pos_targets_only[
-                        file_time_index, ...].tolist())
+                        file_time_index, ...].tolist()
+                )
 
             this_example_dict = _read_input_files_2d3d(
                 reflectivity_file_names=reflectivity_file_name_matrix[
                     file_time_index, ...].tolist(),
                 azimuthal_shear_file_names=az_shear_file_name_matrix[
                     file_time_index, ...].tolist(),
-                top_target_directory_name=top_target_directory_name,
+                top_target_dir_name=top_target_dir_name,
                 target_name=target_name,
                 num_examples_left_by_class_dict=num_examples_left_by_class_dict,
                 num_rows_to_keep=num_rows_to_keep,
@@ -1969,7 +2094,7 @@ def storm_image_generator_2d3d_myrorss(
                 continue
 
             num_file_times_in_memory += 1
-            sounding_field_names = this_example_dict[SOUNDING_FIELD_NAMES_KEY]
+            sounding_field_names = this_example_dict[SOUNDING_FIELDS_KEY]
 
             if all_target_values is None:
                 all_target_values = this_example_dict[TARGET_VALUES_KEY] + 0
@@ -2057,7 +2182,7 @@ def storm_image_generator_2d3d_myrorss(
 
         list_of_predictor_matrices, target_array = _augment_radar_images(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            target_array=target_array, option_dict=augmentation_option_dict)
+            target_array=target_array, option_dict=option_dict)
 
         reflectivity_matrix_dbz = list_of_predictor_matrices[0]
         azimuthal_shear_matrix_s01 = list_of_predictor_matrices[1]

@@ -112,7 +112,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
             storm_elevations_m_asl=storm_elevations_m_asl)
 
     training_radar_file_name_matrix = model_metadata_dict[
-        cnn.TRAINING_FILE_NAMES_KEY]
+        cnn.TRAINING_FILES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 3:

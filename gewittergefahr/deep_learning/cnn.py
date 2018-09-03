@@ -23,6 +23,7 @@ K = number of classes for target variable
 T = number of file times (time steps or SPC dates)
 """
 
+import copy
 import pickle
 import numpy
 import netCDF4
@@ -72,51 +73,68 @@ LIST_OF_METRIC_FUNCTIONS = [
 ]
 
 NUM_EPOCHS_KEY = 'num_epochs'
+NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
+MONITOR_STRING_KEY = 'monitor_string'
+WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
+NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
+VALIDATION_FILES_KEY = 'validn_file_name_matrix'
+POSITIVE_VALIDATION_FILES_KEY = 'validn_file_name_matrix_pos_targets_only'
+TRAINING_FILES_KEY = 'training_file_name_matrix'
+POSITIVE_TRAINING_FILES_KEY = 'training_file_name_matrix_pos_targets_only'
+USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
 NUM_EXAMPLES_PER_FILE_KEY = 'num_examples_per_file'
-NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
-TRAINING_FILE_NAMES_KEY = 'radar_fn_matrix_training'
-TRAINING_FILE_NAMES_POS_TARGETS_KEY = (
-    'radar_fn_matrix_training_pos_targets_only')
-WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
-MONITOR_STRING_KEY = 'monitor_string'
 TARGET_NAME_KEY = 'target_name'
-BINARIZE_TARGET_KEY = 'binarize_target'
-NUM_ROWS_TO_KEEP_KEY = 'num_radar_rows'
-NUM_COLUMNS_TO_KEEP_KEY = 'num_radar_columns'
+NUM_ROWS_TO_KEEP_KEY = 'num_rows_to_keep'
+NUM_COLUMNS_TO_KEEP_KEY = 'num_columns_to_keep'
 NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
 MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
-NORMALIZATION_FILE_NAME_KEY = 'normalization_param_file_name'
-REFL_MASKING_THRESHOLD_KEY = 'reflectivity_masking_threshold_dbz'
-TRAINING_FRACTION_BY_CLASS_KEY = 'training_fraction_by_class_dict'
-VALIDATION_FRACTION_BY_CLASS_KEY = 'validation_fraction_by_class_dict'
-NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
-VALIDATION_FILE_NAMES_KEY = 'radar_fn_matrix_validation'
-VALIDATION_FILE_NAMES_POS_TARGETS_KEY = (
-    'radar_fn_matrix_validation_pos_targets_only')
+NORMALIZATION_FILE_KEY = 'normalization_param_file_name'
+BINARIZE_TARGET_KEY = 'binarize_target'
+SAMPLING_FRACTIONS_KEY = 'sampling_fraction_by_class_dict'
 SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
-SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_for_convective_contamination_sec'
-USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
+SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_sec'
+NUM_TRANSLATIONS_KEY = 'num_translations'
+MAX_TRANSLATION_KEY = 'max_translation_pixels'
+NUM_ROTATIONS_KEY = 'num_rotations'
+MAX_ROTATION_KEY = 'max_absolute_rotation_angle_deg'
+NUM_NOISINGS_KEY = 'num_noisings'
+MAX_NOISE_KEY = 'max_noise_standard_deviation'
+REFL_MASKING_THRESHOLD_KEY = 'refl_masking_threshold_dbz'
 RADAR_SOURCE_KEY = 'radar_source'
-RADAR_FIELD_NAMES_KEY = 'radar_field_names'
+RADAR_FIELDS_KEY = 'radar_field_names'
 RADAR_HEIGHTS_KEY = 'radar_heights_m_agl'
 REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_agl'
+SOUNDING_HEIGHTS_KEY = 'sounding_heights_m_agl'
 
 MODEL_METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_KEY,
-    NUM_TRAINING_BATCHES_KEY, TRAINING_FILE_NAMES_KEY,
-    TRAINING_FILE_NAMES_POS_TARGETS_KEY, WEIGHT_LOSS_FUNCTION_KEY,
-    MONITOR_STRING_KEY, TARGET_NAME_KEY, BINARIZE_TARGET_KEY,
+    NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, MONITOR_STRING_KEY,
+    WEIGHT_LOSS_FUNCTION_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILES_KEY,
+    POSITIVE_VALIDATION_FILES_KEY, TRAINING_FILES_KEY,
+    POSITIVE_TRAINING_FILES_KEY, USE_2D3D_CONVOLUTION_KEY,
+    NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_KEY, TARGET_NAME_KEY,
     NUM_ROWS_TO_KEEP_KEY, NUM_COLUMNS_TO_KEEP_KEY, NORMALIZATION_TYPE_KEY,
-    MIN_NORMALIZED_VALUE_KEY, MAX_NORMALIZED_VALUE_KEY,
-    NORMALIZATION_FILE_NAME_KEY, REFL_MASKING_THRESHOLD_KEY,
-    TRAINING_FRACTION_BY_CLASS_KEY, VALIDATION_FRACTION_BY_CLASS_KEY,
-    NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILE_NAMES_KEY,
-    VALIDATION_FILE_NAMES_POS_TARGETS_KEY, SOUNDING_FIELD_NAMES_KEY,
-    SOUNDING_LAG_TIME_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
-    RADAR_FIELD_NAMES_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY
+    MIN_NORMALIZED_VALUE_KEY, MAX_NORMALIZED_VALUE_KEY, NORMALIZATION_FILE_KEY,
+    BINARIZE_TARGET_KEY, SAMPLING_FRACTIONS_KEY, SOUNDING_FIELD_NAMES_KEY,
+    SOUNDING_LAG_TIME_KEY, NUM_TRANSLATIONS_KEY, MAX_TRANSLATION_KEY,
+    NUM_ROTATIONS_KEY, MAX_ROTATION_KEY, NUM_NOISINGS_KEY, MAX_NOISE_KEY,
+    REFL_MASKING_THRESHOLD_KEY, RADAR_SOURCE_KEY, RADAR_FIELDS_KEY,
+    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY, SOUNDING_HEIGHTS_KEY
 ]
+
+DEFAULT_METADATA_DICT = {
+    VALIDATION_FILES_KEY: None,
+    POSITIVE_VALIDATION_FILES_KEY: None,
+    POSITIVE_TRAINING_FILES_KEY: None,
+    SOUNDING_LAG_TIME_KEY: None,
+    REFL_MASKING_THRESHOLD_KEY: None,
+    RADAR_HEIGHTS_KEY: None,
+    REFLECTIVITY_HEIGHTS_KEY: None,
+    SOUNDING_HEIGHTS_KEY: None
+}
+
+DEFAULT_METADATA_DICT.update(trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT)
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
@@ -270,28 +288,28 @@ def _check_training_args(
         num_validation_batches_per_epoch, weight_loss_function, target_name,
         binarize_target, training_fraction_by_class_dict, model_file_name,
         history_file_name, tensorboard_dir_name):
-    """Error-checking of input args for training.
+    """Error-checks input args for training.
 
     :param num_epochs: Number of epochs.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
     :param weight_loss_function: Boolean flag.  If False, classes will be
-        weighted equally in the loss function.  If True, classes will be
-        weighted differently in the loss function (inversely proportional to
-        their sampling fractions, specified in
-        `training_fraction_by_class_dict`).
-    :param target_name: See doc for
+        equally weighted in the loss function.  If True, classes will be
+        weighted differently (inversely proportional to their sampling
+        fractions, specified in `training_fraction_by_class_dict`).
+    :param target_name: Name of target variable.
+    :param binarize_target: Boolean flag.  If True, target variable will be
+        binarized so that the highest class = 1 and all other classes = 0.
+    :param training_fraction_by_class_dict: See doc for
         `deep_learning_utils.class_fractions_to_weights`.
-    :param binarize_target: Same.
-    :param training_fraction_by_class_dict: Same.
     :param model_file_name: Path to output file (HDF5 format).  Model will be
         saved here after each epoch.
     :param history_file_name: Path to output file (CSV format).  Training
         history will be saved here after each epoch.
     :param tensorboard_dir_name: Path to output directory for TensorBoard log
         files.
-    :return: loss_function_weight_by_class_dict: See doc for
+    :return: lf_weight_by_class_dict: Dictionary created by
         `deep_learning_utils.class_fractions_to_weights`.
     """
 
@@ -299,26 +317,24 @@ def _check_training_args(
     error_checking.assert_is_geq(num_epochs, 1)
     error_checking.assert_is_integer(num_training_batches_per_epoch)
     error_checking.assert_is_geq(num_training_batches_per_epoch, 1)
-    if num_validation_batches_per_epoch is not None:
-        error_checking.assert_is_integer(num_validation_batches_per_epoch)
-        error_checking.assert_is_geq(num_validation_batches_per_epoch, 1)
+    error_checking.assert_is_integer(num_validation_batches_per_epoch)
+    error_checking.assert_is_geq(num_validation_batches_per_epoch, 0)
 
     error_checking.assert_is_boolean(weight_loss_function)
     error_checking.assert_is_boolean(binarize_target)
     if weight_loss_function:
-        loss_function_weight_by_class_dict = (
-            dl_utils.class_fractions_to_weights(
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                target_name=target_name, binarize_target=binarize_target))
+        lf_weight_by_class_dict = dl_utils.class_fractions_to_weights(
+            sampling_fraction_by_class_dict=training_fraction_by_class_dict,
+            target_name=target_name, binarize_target=binarize_target)
     else:
-        loss_function_weight_by_class_dict = None
+        lf_weight_by_class_dict = None
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
     file_system_utils.mkdir_recursive_if_necessary(file_name=history_file_name)
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=tensorboard_dir_name)
 
-    return loss_function_weight_by_class_dict
+    return lf_weight_by_class_dict
 
 
 def _get_sounding_layers(
@@ -419,6 +435,52 @@ def _get_output_layer_and_loss_function(num_classes):
         activation_function_string=activation_function_string)
 
     return dense_layer_object, activation_layer_object, loss_function
+
+
+def _get_checkpoint_object(
+        output_model_file_name, monitor_string, use_validation):
+    """Creates checkpoint object for Keras model.
+
+    The checkpoint object determines, after each epoch, whether or not the new
+    model will be saved.  If the model is saved, the checkpoint object also
+    determines *where* the model will be saved.
+
+    :param output_model_file_name: Path to output file (HDF5 format).
+    :param monitor_string: Evaluation function reported after each epoch.  Valid
+        options are in the list `VALID_MONITOR_STRINGS`.
+    :param use_validation: Boolean flag.  If True, after each epoch
+        `monitor_string` will be computed for the validation data and the new
+        model will be saved only if `monitor_string` has improved.  If False,
+        after each epoch `monitor_string` will be computed for the training
+        data and the new model will be saved regardless of the value of
+        `monitor_string`.
+    :return: checkpoint_object: Instance of `keras.callbacks.ModelCheckpoint`.
+    :raises: ValueError: if `monitor_string not in VALID_MONITOR_STRINGS`.
+    """
+
+    error_checking.assert_is_string(monitor_string)
+    if monitor_string not in VALID_MONITOR_STRINGS:
+        error_string = (
+            '\n\n{0:s}\nValid monitors (listed above) do not include "{1:s}".'
+        ).format(str(VALID_MONITOR_STRINGS), monitor_string)
+        raise ValueError(error_string)
+
+    if monitor_string == LOSS_AS_MONITOR_STRING:
+        mode_string = 'min'
+    else:
+        mode_string = 'max'
+
+    if use_validation:
+        return keras.callbacks.ModelCheckpoint(
+            filepath=output_model_file_name,
+            monitor='val_{0:s}'.format(monitor_string), verbose=1,
+            save_best_only=True, save_weights_only=False, mode=mode_string,
+            period=1)
+
+    return keras.callbacks.ModelCheckpoint(
+        filepath=output_model_file_name, monitor=monitor_string, verbose=1,
+        save_best_only=False, save_weights_only=False, mode=mode_string,
+        period=1)
 
 
 def model_to_feature_generator(model_object, output_layer_name):
@@ -1176,115 +1238,85 @@ def read_model(hdf5_file_name):
         hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
 
 
-def write_model_metadata(
-        pickle_file_name, num_epochs, num_examples_per_batch,
-        num_examples_per_file, num_training_batches_per_epoch,
-        radar_fn_matrix_training, weight_loss_function,
-        monitor_string, target_name, binarize_target, normalization_type_string,
-        use_2d3d_convolution, radar_source, radar_field_names,
-        num_rows_to_keep=None, num_columns_to_keep=None,
-        radar_heights_m_agl=None, reflectivity_heights_m_agl=None,
-        min_normalized_value=None, max_normalized_value=None,
-        normalization_param_file_name=None, refl_masking_threshold_dbz=0.,
-        radar_fn_matrix_training_pos_targets_only=None,
-        training_fraction_by_class_dict=None,
-        validation_fraction_by_class_dict=None,
-        num_validation_batches_per_epoch=None, radar_fn_matrix_validation=None,
-        radar_fn_matrix_validation_pos_targets_only=None,
-        sounding_field_names=None,
-        sounding_lag_time_for_convective_contamination_sec=None):
+def write_model_metadata(pickle_file_name, metadata_dict):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param num_epochs: Number of training epochs.
-    :param num_examples_per_batch: Number of examples (storm objects) per
-        training batch.
-    :param num_examples_per_file: Number of examples (storm objects) per file.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param radar_fn_matrix_training: numpy array created by
+    :param metadata_dict: Dictionary with the following keys.
+    metadata_dict['num_epochs']: Number of epochs.
+    metadata_dict['num_training_batches_per_epoch']: Number of training batches
+        per epoch.
+    metadata_dict['monitor_string']: See doc for `_get_checkpoint_object`.
+    metadata_dict['weight_loss_function']: See doc for `_check_training_args`.
+    metadata_dict['num_validation_batches_per_epoch']: Number of validation
+        batches per epoch.
+    metadata_dict['validn_file_name_matrix']: numpy array created by
+        `training_validation_io.find_radar_files_2d` or
+        `training_validation_io.find_radar_files_3d`, for validation only.
+    metadata_dict['validn_file_name_matrix_pos_targets_only']: Same as
+        "validn_file_name_matrix", but containing only examples with target
+        class = 1.
+    metadata_dict['training_file_name_matrix']: numpy array created by
+        `training_validation_io.find_radar_files_2d` or
+        `training_validation_io.find_radar_files_3d`, for training only.
+    metadata_dict['training_file_name_matrix_pos_targets_only']: Same as
+        "training_file_name_matrix", but containing only examples with target
+        class = 1.
+    metadata_dict['use_2d3d_convolution']: Boolean flag.  If True, the network
+        performs a hybrid of 2-D and 3-D convolution, so the data-generator is
+        `training_validation_io.storm_image_generator_2d3d_myrorss`.
+    metadata_dict['num_examples_per_batch']: Number of examples (storm objects)
+        per batch.
+    metadata_dict['num_examples_per_file']: Number of examples (storm objects)
+        per file.
+    metadata_dict['target_name']: Name of target variable.
+    metadata_dict['num_rows_to_keep']: See doc for
+        `training_validation_io.storm_image_generator_2d`.
+    metadata_dict['num_columns_to_keep']: Same.
+    metadata_dict['normalization_type_string']: Same.
+    metadata_dict['min_normalized_value']: Same.
+    metadata_dict['max_normalized_value']: Same.
+    metadata_dict['normalization_param_file_name']: Same.
+    metadata_dict['binarize_target']: Same.
+    metadata_dict['sampling_fraction_by_class_dict']: Same.
+    metadata_dict['sounding_field_names']: Same.
+    metadata_dict['sounding_lag_time_sec']: Same.
+    metadata_dict['num_translations']: Same.
+    metadata_dict['max_translation_pixels']: Same.
+    metadata_dict['num_rotations']: Same.
+    metadata_dict['max_absolute_rotation_angle_deg']: Same.
+    metadata_dict['num_noisings']: Same.
+    metadata_dict['max_noise_standard_deviation']: Same.
+    metadata_dict['refl_masking_threshold_dbz']: See doc for
+        `training_validation_io.storm_image_generator_3d`.
+    metadata_dict['radar_source']: Data source (must be accepted by
+        `radar_utils.check_field_name`).
+    metadata_dict['radar_field_names']: See doc for
         `training_validation_io.find_radar_files_2d` or
         `training_validation_io.find_radar_files_3d`.
-    :param weight_loss_function: See doc for `_check_training_args`.
-    :param monitor_string: See doc for `_get_checkpoint_object`.
-    :param target_name: Name of target variable.
-    :param binarize_target: See doc for `_check_training_args`.
-    :param normalization_type_string: See doc for `train_2d_cnn`.
-    :param use_2d3d_convolution: Boolean flag, indicating whether or not the
-        network used a hybrid of 2-D and 3-D convolution.
-    :param radar_source: Data source (must be accepted by
-        `radar_utils.check_data_source`).
-    :param radar_field_names: 1-D list with names of radar fields.  Each must be
-        accepted by `radar_utils.check_field_name`.
-    :param num_rows_to_keep: See doc for `train_2d_cnn`.
-    :param num_columns_to_keep: Same.
-    :param radar_heights_m_agl: [used iff radar_source = "gridrad"]
-        1-D numpy array of heights (metres above ground level).  These apply to
-        each field.
-    :param reflectivity_heights_m_agl: [used iff radar_source != "gridrad"]
-        1-D numpy array of heights (metres above ground level).  These apply
-        only to the field "reflectivity_dbz".
-    :param min_normalized_value: See doc for `train_2d_cnn`.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param refl_masking_threshold_dbz: See doc for
-        `deep_learning_utils.mask_low_reflectivity_pixels`.
-    :param radar_fn_matrix_training_pos_targets_only: Same as
-        `radar_fn_matrix_training`, but only for storm objects with positive
-        target values.
-    :param training_fraction_by_class_dict: Used for class-conditional sampling
-        of training data (see `training_validation_io.storm_image_generator_2d`
-        for details).
-    :param validation_fraction_by_class_dict: Same as
-        `training_fraction_by_class_dict`, but for validation.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param radar_fn_matrix_validation: Same as `radar_fn_matrix_training`, but
-        for validation.
-    :param radar_fn_matrix_validation_pos_targets_only: Same as
-        `radar_fn_matrix_training_pos_targets_only`, but for validation.
-    :param sounding_field_names: 1-D list with names of sounding fields.  Each
-        must be accepted by `soundings.check_field_name`.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    metadata_dict['radar_heights_m_agl']: Same.
+    metadata_dict['reflectivity_heights_m_agl']: Same.
+    metadata_dict['sounding_heights_m_agl']: 1-D numpy array of sounding heights
+        (integer metres above ground level).
+
+    :raises: ValueError: if any expected keys are missing from `metadata_dict`.
     """
 
-    model_metadata_dict = {
-        NUM_EPOCHS_KEY: num_epochs,
-        NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
-        TRAINING_FILE_NAMES_KEY: radar_fn_matrix_training,
-        WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
-        MONITOR_STRING_KEY: monitor_string,
-        TARGET_NAME_KEY: target_name,
-        BINARIZE_TARGET_KEY: binarize_target,
-        NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
-        NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
-        NORMALIZATION_TYPE_KEY: normalization_type_string,
-        USE_2D3D_CONVOLUTION_KEY: use_2d3d_convolution,
-        RADAR_SOURCE_KEY: radar_source,
-        RADAR_FIELD_NAMES_KEY: radar_field_names,
-        RADAR_HEIGHTS_KEY: radar_heights_m_agl,
-        REFLECTIVITY_HEIGHTS_KEY: reflectivity_heights_m_agl,
-        MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
-        MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
-        NORMALIZATION_FILE_NAME_KEY: normalization_param_file_name,
-        REFL_MASKING_THRESHOLD_KEY: refl_masking_threshold_dbz,
-        TRAINING_FILE_NAMES_POS_TARGETS_KEY:
-            radar_fn_matrix_training_pos_targets_only,
-        TRAINING_FRACTION_BY_CLASS_KEY: training_fraction_by_class_dict,
-        VALIDATION_FRACTION_BY_CLASS_KEY: validation_fraction_by_class_dict,
-        NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
-        VALIDATION_FILE_NAMES_KEY: radar_fn_matrix_validation,
-        VALIDATION_FILE_NAMES_POS_TARGETS_KEY:
-            radar_fn_matrix_validation_pos_targets_only,
-        SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
-        SOUNDING_LAG_TIME_KEY:
-            sounding_lag_time_for_convective_contamination_sec,
-    }
+    orig_metadata_dict = metadata_dict.copy()
+    metadata_dict = DEFAULT_METADATA_DICT.copy()
+    metadata_dict.update(orig_metadata_dict)
+
+    missing_keys = list(set(MODEL_METADATA_KEYS) - set(metadata_dict.keys()))
+    if len(missing_keys):
+        error_string = (
+            'The following expected keys are missing from the dictionary.'
+            '\n{0:s}'
+        ).format(str(missing_keys))
+        raise ValueError(error_string)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(model_metadata_dict, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -1292,156 +1324,68 @@ def read_model_metadata(pickle_file_name):
     """Reads metadata from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: model_metadata_dict: Dictionary with all keys in the list
-        `MODEL_METADATA_KEYS`.
-    :raises: ValueError: if dictionary does not contain all keys in the list
-        `MODEL_METADATA_KEYS`.
+    :return: metadata_dict: See doc for `write_model_metadata`.
+    :raises: ValueError: if any expected keys are missing from `metadata_dict`.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    model_metadata_dict = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    expected_keys_as_set = set(MODEL_METADATA_KEYS)
-    actual_keys_as_set = set(model_metadata_dict.keys())
-    if not set(expected_keys_as_set).issubset(actual_keys_as_set):
+    missing_keys = list(set(MODEL_METADATA_KEYS) - set(metadata_dict.keys()))
+    if len(missing_keys):
         error_string = (
-            '\n\n{0:s}\nExpected keys are listed above.  Keys found in file '
-            '("{1:s}") are listed below.  Some expected keys were not found.'
-            '\n{2:s}\n').format(MODEL_METADATA_KEYS, pickle_file_name,
-                                model_metadata_dict.keys())
-
+            'The following expected keys are missing from the dictionary.'
+            '\n{0:s}'
+        ).format(str(missing_keys))
         raise ValueError(error_string)
 
-    return model_metadata_dict
-
-
-def _get_checkpoint_object(
-        output_model_file_name, monitor_string, use_validation):
-    """Creates checkpoint object for Keras model.
-
-    The checkpoint object determines, after each epoch, whether or not the new
-    model will be saved.  If the model is saved, the checkpoint object also
-    determines *where* the model will be saved.
-
-    :param output_model_file_name: Path to output file (HDF5 format).
-    :param monitor_string: Evaluation function reported after each epoch.  Valid
-        options are in the list `VALID_MONITOR_STRINGS`.
-    :param use_validation: Boolean flag.  If True, after each epoch
-        `monitor_string` will be computed for the validation data and the new
-        model will be saved only if `monitor_string` has improved.  If False,
-        after each epoch `monitor_string` will be computed for the training
-        data and the new model will be saved regardless of the value of
-        `monitor_string`.
-    :return: checkpoint_object: Instance of `keras.callbacks.ModelCheckpoint`.
-    :raises: ValueError: if `monitor_string not in VALID_MONITOR_STRINGS`.
-    """
-
-    error_checking.assert_is_string(monitor_string)
-    if monitor_string not in VALID_MONITOR_STRINGS:
-        error_string = (
-            '\n\n{0:s}\nValid monitors (listed above) do not include "{1:s}".'
-        ).format(str(VALID_MONITOR_STRINGS), monitor_string)
-        raise ValueError(error_string)
-
-    if monitor_string == LOSS_AS_MONITOR_STRING:
-        mode_string = 'min'
-    else:
-        mode_string = 'max'
-
-    if use_validation:
-        return keras.callbacks.ModelCheckpoint(
-            filepath=output_model_file_name,
-            monitor='val_{0:s}'.format(monitor_string), verbose=1,
-            save_best_only=True, save_weights_only=False, mode=mode_string,
-            period=1)
-
-    return keras.callbacks.ModelCheckpoint(
-        filepath=output_model_file_name, monitor=monitor_string, verbose=1,
-        save_best_only=False, save_weights_only=False, mode=mode_string,
-        period=1)
+    return metadata_dict
 
 
 def train_2d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_examples_per_batch, num_examples_per_file,
-        num_training_batches_per_epoch, radar_fn_matrix_training,
-        target_name, top_target_directory_name, num_rows_to_keep=None,
-        num_columns_to_keep=None, normalization_type_string=None,
-        normalization_param_file_name=None,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        radar_fn_matrix_training_pos_targets_only=None,
-        monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
-        weight_loss_function=False, training_fraction_by_class_dict=None,
-        num_validation_batches_per_epoch=None,
-        validation_fraction_by_class_dict=None, radar_fn_matrix_validation=None,
-        radar_fn_matrix_validation_pos_targets_only=None,
-        sounding_field_names=None, top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None):
+        num_epochs, num_training_batches_per_epoch,
+        monitor_string=LOSS_AS_MONITOR_STRING, weight_loss_function=False,
+        training_option_dict=None, num_validation_batches_per_epoch=0,
+        validn_file_name_matrix=None,
+        validn_file_name_matrix_pos_targets_only=None):
     """Trains CNN with 2-D radar images.
-
-    T = number of storm times (initial times) for training
-    V = number of storm times (initial times) for validation
 
     :param model_object: Instance of `keras.models.Sequential`.
     :param model_file_name: See doc for `_check_training_args`.
     :param history_file_name: Same.
     :param tensorboard_dir_name: Same.
     :param num_epochs: Number of epochs.
-    :param num_examples_per_batch: Number of examples (storm objects) per batch.
-    :param num_examples_per_file: Number of examples (storm objects) per file.
     :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param radar_fn_matrix_training: T-by-C numpy array of paths to
-        radar files.  Should be created by
-        `training_validation_io.find_radar_files_2d`.
-    :param target_name: Name of target variable.
-    :param top_target_directory_name: Name of top-level directory with target
-        values (storm-hazard labels).  Files within this directory should be
-        findable by `labels.find_label_file`.
-    :param num_rows_to_keep: Number of rows to keep from each storm-centered
-        radar image.  If less than total number of rows, images will be cropped
-        around the center.
-    :param num_columns_to_keep: Number of columns to keep from each storm-
-        centered radar image.
-    :param normalization_type_string: Normalization type (must be accepted by
-        `dl_utils._check_normalization_type`).  If you don't want to normalize,
-        leave this as None.
-    :param normalization_param_file_name: See doc for
-        `dl_utils.normalize_radar_images` or `dl_utils.normalize_soundings`.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param radar_fn_matrix_training_pos_targets_only: Same as
-        `radar_fn_matrix_training`, but only for storm objects with
-        positive target values.
-    :param monitor_string: See doc for `_get_checkpoint_object`.
-    :param binarize_target: Same.
-    :param weight_loss_function: Same.
-    :param training_fraction_by_class_dict: Same.
+    :param monitor_string: Number of training batches per epoch.
+    :param weight_loss_function: See doc for `_check_training_args`.
+    :param training_option_dict: See doc for
+        `training_validation_io.storm_image_generator_2d`.  This exact
+        dictionary will be used to generate training data.  If
+        `num_validation_batches_per_epoch > 0`, the next 3 arguments will be
+        used to change the dictionary to generate validation data.
     :param num_validation_batches_per_epoch: Number of validation batches per
         epoch.
-    :param validation_fraction_by_class_dict: Same as
-        `training_fraction_by_class_dict`, but for validation data.
-    :param radar_fn_matrix_validation: V-by-C numpy array of paths to
-        radar files.  Should be created by
-        `training_validation_io.find_radar_files_2d`.
-    :param radar_fn_matrix_validation_pos_targets_only: Same as
-        `radar_fn_matrix_validation`, but only for storm objects with
-        positive target values.
-    :param sounding_field_names: list (length F_s) with names of sounding
-        fields.  Each must be accepted by `soundings.check_field_name`.
-    :param top_sounding_dir_name: See doc for
-        `training_validation_io.find_sounding_files`.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param validn_file_name_matrix:
+        [used iff num_validation_batches_per_epoch > 0]
+        See doc for `radar_file_name_matrix` in
+        `training_validation_io.storm_image_generator_2d`.
+    :param validn_file_name_matrix_pos_targets_only:
+        [used iff num_validation_batches_per_epoch > 0]
+        See doc for `radar_file_name_matrix_pos_targets_only` in
+        `training_validation_io.storm_image_generator_2d`.
     """
 
-    loss_function_weight_by_class_dict = _check_training_args(
+    lf_weight_by_class_dict = _check_training_args(
         num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function, target_name=target_name,
-        binarize_target=binarize_target,
-        training_fraction_by_class_dict=training_fraction_by_class_dict,
+        weight_loss_function=weight_loss_function,
+        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
+        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
+        training_fraction_by_class_dict=training_option_dict[
+            trainval_io.SAMPLING_FRACTIONS_KEY],
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
 
@@ -1451,160 +1395,90 @@ def train_2d_cnn(
     embedding_layer_names = [
         this_layer.name for this_layer in model_object.layers if
         this_layer.name.startswith('dense') or
-        this_layer.name.startswith('conv')]
+        this_layer.name.startswith('conv')
+    ]
 
     tensorboard_object = keras.callbacks.TensorBoard(
         log_dir=tensorboard_dir_name, histogram_freq=0,
-        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
-        write_images=True, embeddings_freq=1,
-        embeddings_layer_names=embedding_layer_names)
+        batch_size=training_option_dict[
+            trainval_io.NUM_EXAMPLES_PER_BATCH_KEY],
+        write_graph=True, write_grads=True, write_images=True,
+        embeddings_freq=1, embeddings_layer_names=embedding_layer_names)
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
-    if num_validation_batches_per_epoch is None:
+    if num_validation_batches_per_epoch > 0:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
-                radar_file_name_matrix=radar_fn_matrix_training,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_training_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=loss_function_weight_by_class_dict,
+            verbose=1, class_weight=lf_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
+        validation_option_dict = copy.deepcopy(training_option_dict)
+        validation_option_dict[
+            trainval_io.RADAR_FILE_NAMES_KEY] = validn_file_name_matrix
+        validation_option_dict[
+            trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY
+        ] = validn_file_name_matrix_pos_targets_only
+
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d(
-                radar_file_name_matrix=radar_fn_matrix_training,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_training_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=loss_function_weight_by_class_dict,
+            verbose=1, class_weight=lf_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d(
-                radar_file_name_matrix=radar_fn_matrix_validation,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_validation_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                sampling_fraction_by_class_dict=
-                validation_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
 
 
 def train_3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_examples_per_batch, num_examples_per_file,
-        num_training_batches_per_epoch, radar_fn_matrix_training,
-        target_name, top_target_directory_name, num_rows_to_keep=None,
-        num_columns_to_keep=None, normalization_type_string=None,
-        normalization_param_file_name=None,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        refl_masking_threshold_dbz=dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
-        radar_fn_matrix_training_pos_targets_only=None,
-        monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
-        weight_loss_function=False, training_fraction_by_class_dict=None,
-        num_validation_batches_per_epoch=None,
-        validation_fraction_by_class_dict=None,
-        radar_fn_matrix_validation=None,
-        radar_fn_matrix_validation_pos_targets_only=None,
-        sounding_field_names=None, top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None):
+        num_epochs, num_training_batches_per_epoch,
+        monitor_string=LOSS_AS_MONITOR_STRING, weight_loss_function=False,
+        training_option_dict=None, num_validation_batches_per_epoch=0,
+        validn_file_name_matrix=None,
+        validn_file_name_matrix_pos_targets_only=None):
     """Trains CNN with 3-D radar images.
 
-    T = number of storm times (initial times) for training
-    V = number of storm times (initial times) for validation
-
-    :param model_object: See doc for `train_2d_cnn`.
-    :param model_file_name: Same.
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param model_file_name: See doc for `_check_training_args`.
     :param history_file_name: Same.
     :param tensorboard_dir_name: Same.
-    :param num_epochs: Same.
-    :param num_examples_per_batch: Same.
-    :param num_examples_per_file: Same.
-    :param num_training_batches_per_epoch: Same.
-    :param radar_fn_matrix_training: T-by-F-by-H numpy array of paths
-        to radar files.  Should be created by
-        `training_validation_io.find_radar_files_3d`.
-    :param target_name: See doc for `train_2d_cnn`.
-    :param top_target_directory_name: Same.
-    :param num_rows_to_keep: Same.
-    :param num_columns_to_keep: Same.
-    :param normalization_type_string: Same.
-    :param normalization_param_file_name: Same.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param refl_masking_threshold_dbz: Used to mask pixels with low reflectivity
-        (see doc for `deep_learning_utils.mask_low_reflectivity_pixels`).
-    :param radar_fn_matrix_training_pos_targets_only: See doc for
-        `train_2d_cnn`.
-    :param monitor_string: See doc for `_get_checkpoint_object`.
-    :param binarize_target: See doc for `train_2d_cnn`.
-    :param weight_loss_function: Same.
-    :param training_fraction_by_class_dict: Same.
-    :param num_validation_batches_per_epoch: Same.
-    :param validation_fraction_by_class_dict: Same.
-    :param radar_fn_matrix_validation: V-by-F-by-H numpy array of paths
-        to radar files.  Should be created by
-        `training_validation_io.find_radar_files_3d`.
-    :param radar_fn_matrix_validation_pos_targets_only: See doc for
-        `train_2d_cnn`.
-    :param sounding_field_names: Same.
-    :param top_sounding_dir_name: Same.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param num_epochs: Number of epochs.
+    :param num_training_batches_per_epoch: Number of training batches per epoch.
+    :param monitor_string: Number of training batches per epoch.
+    :param weight_loss_function: See doc for `_check_training_args`.
+    :param training_option_dict: See doc for
+        `training_validation_io.storm_image_generator_3d`.  This exact
+        dictionary will be used to generate training data.  If
+        `num_validation_batches_per_epoch > 0`, the next 3 arguments will be
+        used to change the dictionary to generate validation data.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
+    :param validn_file_name_matrix:
+        [used iff num_validation_batches_per_epoch > 0]
+        See doc for `radar_file_name_matrix` in
+        `training_validation_io.storm_image_generator_3d`.
+    :param validn_file_name_matrix_pos_targets_only:
+        [used iff num_validation_batches_per_epoch > 0]
+        See doc for `radar_file_name_matrix_pos_targets_only` in
+        `training_validation_io.storm_image_generator_3d`.
     """
 
-    loss_function_weight_by_class_dict = _check_training_args(
+    lf_weight_by_class_dict = _check_training_args(
         num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function, target_name=target_name,
-        binarize_target=binarize_target,
-        training_fraction_by_class_dict=training_fraction_by_class_dict,
+        weight_loss_function=weight_loss_function,
+        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
+        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
+        training_fraction_by_class_dict=training_option_dict[
+            trainval_io.SAMPLING_FRACTIONS_KEY],
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
 
@@ -1614,13 +1488,15 @@ def train_3d_cnn(
     embedding_layer_names = [
         this_layer.name for this_layer in model_object.layers if
         this_layer.name.startswith('dense') or
-        this_layer.name.startswith('conv')]
+        this_layer.name.startswith('conv')
+    ]
 
     tensorboard_object = keras.callbacks.TensorBoard(
         log_dir=tensorboard_dir_name, histogram_freq=0,
-        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
-        write_images=True, embeddings_freq=1,
-        embeddings_layer_names=embedding_layer_names)
+        batch_size=training_option_dict[
+            trainval_io.NUM_EXAMPLES_PER_BATCH_KEY],
+        write_graph=True, write_grads=True, write_images=True,
+        embeddings_freq=1, embeddings_layer_names=embedding_layer_names)
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
@@ -1629,144 +1505,73 @@ def train_3d_cnn(
     if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
-                radar_file_name_matrix=radar_fn_matrix_training,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_training_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                refl_masking_threshold_dbz=refl_masking_threshold_dbz,
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=loss_function_weight_by_class_dict,
+            verbose=1, class_weight=lf_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
+        validation_option_dict = copy.deepcopy(training_option_dict)
+        validation_option_dict[
+            trainval_io.RADAR_FILE_NAMES_KEY] = validn_file_name_matrix
+        validation_option_dict[
+            trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY
+        ] = validn_file_name_matrix_pos_targets_only
+
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_3d(
-                radar_file_name_matrix=radar_fn_matrix_training,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_training_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                refl_masking_threshold_dbz=refl_masking_threshold_dbz,
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=loss_function_weight_by_class_dict,
+            verbose=1, class_weight=lf_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_3d(
-                radar_file_name_matrix=radar_fn_matrix_validation,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_validation_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                refl_masking_threshold_dbz=refl_masking_threshold_dbz,
-                sampling_fraction_by_class_dict=
-                validation_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
 
 
 def train_2d3d_cnn(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_examples_per_batch, num_examples_per_file,
-        num_training_batches_per_epoch, radar_fn_matrix_training,
-        target_name, top_target_directory_name, num_rows_to_keep=None,
-        num_columns_to_keep=None, normalization_type_string=None,
-        normalization_param_file_name=None,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        radar_fn_matrix_training_pos_targets_only=None,
-        monitor_string=LOSS_AS_MONITOR_STRING, binarize_target=False,
-        weight_loss_function=False, training_fraction_by_class_dict=None,
-        num_validation_batches_per_epoch=None,
-        validation_fraction_by_class_dict=None,
-        radar_fn_matrix_validation=None,
-        radar_fn_matrix_validation_pos_targets_only=None,
-        sounding_field_names=None, top_sounding_dir_name=None,
-        sounding_lag_time_for_convective_contamination_sec=None):
-    """Trains CNN with 2-D azimuthal-shear images and 3-D reflectivity images.
+        num_epochs, num_training_batches_per_epoch,
+        monitor_string=LOSS_AS_MONITOR_STRING, weight_loss_function=False,
+        training_option_dict=None, num_validation_batches_per_epoch=0,
+        validn_file_name_matrix=None,
+        validn_file_name_matrix_pos_targets_only=None):
+    """Trains CNN with 2-D and 3-D radar images.
 
-    T = number of storm times (initial times) for training
-    V = number of storm times (initial times) for validation
-    F_a = number of azimuthal-shear fields
-    H_r = number of heights per reflectivity image
-
-    :param model_object: See doc for `train_2d_cnn`.
-    :param model_file_name: Same.
+    :param model_object: Instance of `keras.models.Sequential`.
+    :param model_file_name: See doc for `_check_training_args`.
     :param history_file_name: Same.
     :param tensorboard_dir_name: Same.
-    :param num_epochs: Same.
-    :param num_examples_per_batch: Same.
-    :param num_examples_per_file: Same.
-    :param num_training_batches_per_epoch: Same.
-    :param radar_fn_matrix_training: numpy array (T x [H_r + F_a]) of
-        paths to image files.  This should be created by `find_radar_files_2d`.
-    :param target_name: See doc for `train_2d_cnn`.
-    :param top_target_directory_name: Same.
-    :param num_rows_to_keep: Same.
-    :param num_columns_to_keep: Same.
-    :param normalization_type_string: Same.
-    :param normalization_param_file_name: Same.
-    :param max_normalized_value: Same.
-    :param normalization_param_file_name: Same.
-    :param radar_fn_matrix_training_pos_targets_only: Same.
-    :param monitor_string: See doc for `_get_checkpoint_object`.
-    :param binarize_target: See doc for `train_2d_cnn`.
-    :param weight_loss_function: Same.
-    :param training_fraction_by_class_dict: Same.
-    :param num_validation_batches_per_epoch: Same.
-    :param validation_fraction_by_class_dict: Same.
-    :param radar_fn_matrix_validation: numpy array (V x [H_r + F_a]) of
-        paths to image files.  This should be created by `find_radar_files_2d`.
-    :param radar_fn_matrix_validation_pos_targets_only: See doc for
-        `train_2d_cnn`.
-    :param sounding_field_names: Same.
-    :param top_sounding_dir_name: Same.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param num_epochs: Number of epochs.
+    :param num_training_batches_per_epoch: Number of training batches per epoch.
+    :param monitor_string: Number of training batches per epoch.
+    :param weight_loss_function: See doc for `_check_training_args`.
+    :param training_option_dict: See doc for
+        `training_validation_io.storm_image_generator_2d3d_myrorss`.  This exact
+        dictionary will be used to generate training data.  If
+        `num_validation_batches_per_epoch > 0`, the next 3 arguments will be
+        used to change the dictionary to generate validation data.
+    :param num_validation_batches_per_epoch: Number of validation batches per
+        epoch.
+    :param validn_file_name_matrix:
+        [used iff num_validation_batches_per_epoch > 0]
+        See doc for `radar_file_name_matrix` in
+        `training_validation_io.storm_image_generator_2d3d_myrorss`.
+    :param validn_file_name_matrix_pos_targets_only:
+        [used iff num_validation_batches_per_epoch > 0]
+        See doc for `radar_file_name_matrix_pos_targets_only` in
+        `training_validation_io.storm_image_generator_2d3d_myrorss`.
     """
 
-    loss_function_weight_by_class_dict = _check_training_args(
+    lf_weight_by_class_dict = _check_training_args(
         num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function, target_name=target_name,
-        binarize_target=binarize_target,
-        training_fraction_by_class_dict=training_fraction_by_class_dict,
+        weight_loss_function=weight_loss_function,
+        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
+        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
+        training_fraction_by_class_dict=training_option_dict[
+            trainval_io.SAMPLING_FRACTIONS_KEY],
         model_file_name=model_file_name, history_file_name=history_file_name,
         tensorboard_dir_name=tensorboard_dir_name)
 
@@ -1776,13 +1581,15 @@ def train_2d3d_cnn(
     embedding_layer_names = [
         this_layer.name for this_layer in model_object.layers if
         this_layer.name.startswith('dense') or
-        this_layer.name.startswith('conv')]
+        this_layer.name.startswith('conv')
+    ]
 
     tensorboard_object = keras.callbacks.TensorBoard(
         log_dir=tensorboard_dir_name, histogram_freq=0,
-        batch_size=num_examples_per_batch, write_graph=True, write_grads=True,
-        write_images=True, embeddings_freq=1,
-        embeddings_layer_names=embedding_layer_names)
+        batch_size=training_option_dict[
+            trainval_io.NUM_EXAMPLES_PER_BATCH_KEY],
+        write_graph=True, write_grads=True, write_images=True,
+        embeddings_freq=1, embeddings_layer_names=embedding_layer_names)
 
     checkpoint_object = _get_checkpoint_object(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
@@ -1791,72 +1598,27 @@ def train_2d3d_cnn(
     if num_validation_batches_per_epoch is None:
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                radar_file_name_matrix=radar_fn_matrix_training,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_training_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=loss_function_weight_by_class_dict,
+            verbose=1, class_weight=lf_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object])
 
     else:
+        validation_option_dict = copy.deepcopy(training_option_dict)
+        validation_option_dict[
+            trainval_io.RADAR_FILE_NAMES_KEY] = validn_file_name_matrix
+        validation_option_dict[
+            trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY
+        ] = validn_file_name_matrix_pos_targets_only
+
         model_object.fit_generator(
             generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                radar_file_name_matrix=radar_fn_matrix_training,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_training_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=loss_function_weight_by_class_dict,
+            verbose=1, class_weight=lf_weight_by_class_dict,
             callbacks=[checkpoint_object, history_object, tensorboard_object],
             validation_data=trainval_io.storm_image_generator_2d3d_myrorss(
-                radar_file_name_matrix=radar_fn_matrix_validation,
-                radar_file_name_matrix_pos_targets_only=
-                radar_fn_matrix_validation_pos_targets_only,
-                top_target_directory_name=top_target_directory_name,
-                num_examples_per_batch=num_examples_per_batch,
-                num_examples_per_file=num_examples_per_file,
-                target_name=target_name, binarize_target=binarize_target,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
-                sampling_fraction_by_class_dict=
-                validation_fraction_by_class_dict,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_for_convective_contamination_sec),
+                validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
 
 

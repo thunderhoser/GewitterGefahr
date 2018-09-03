@@ -270,20 +270,23 @@ def _read_inputs(
                 time_conversion.spc_date_string_to_unix_sec(
                     unique_spc_date_strings_numpy[i]),
                 one_file_per_time_step=False, shuffle_times=False)[0]
+
+
             print MINOR_SEPARATOR_STRING
 
-            this_storm_object_dict = deployment_io.create_storm_images_3d(
-                radar_file_name_matrix=this_radar_file_name_matrix,
-                num_examples_per_file=LARGE_INTEGER,
-                normalization_type_string=None, return_target=False,
-                target_name=dummy_target_name,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                refl_masking_threshold_dbz=None,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_sec)
+            this_storm_object_dict = deployment_io.create_storm_images_3d({
+                deployment_io.RADAR_FILE_NAMES_KEY: this_radar_file_name_matrix,
+                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                deployment_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+                deployment_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+                deployment_io.NORMALIZATION_TYPE_KEY: None,
+                deployment_io.RETURN_TARGET_KEY: False,
+                deployment_io.TARGET_NAME_KEY: dummy_target_name,
+                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                deployment_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
+                deployment_io.REFLECTIVITY_MASK_KEY: None
+            })
         else:
             this_radar_file_name_matrix = trainval_io.find_radar_files_2d(
                 top_directory_name=top_radar_image_dir_name,
@@ -308,17 +311,18 @@ def _read_inputs(
                     this_radar_file_name_matrix[0, :]
                 ], dtype=int)
 
-            this_storm_object_dict = deployment_io.create_storm_images_2d(
-                radar_file_name_matrix=this_radar_file_name_matrix,
-                num_examples_per_file=LARGE_INTEGER,
-                normalization_type_string=None, return_target=False,
-                target_name=dummy_target_name,
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep,
-                sounding_field_names=sounding_field_names,
-                top_sounding_dir_name=top_sounding_dir_name,
-                sounding_lag_time_for_convective_contamination_sec=
-                sounding_lag_time_sec)
+            this_storm_object_dict = deployment_io.create_storm_images_2d({
+                deployment_io.RADAR_FILE_NAMES_KEY: this_radar_file_name_matrix,
+                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                deployment_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+                deployment_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+                deployment_io.NORMALIZATION_TYPE_KEY: None,
+                deployment_io.RETURN_TARGET_KEY: False,
+                deployment_io.TARGET_NAME_KEY: dummy_target_name,
+                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                deployment_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec
+            })
 
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i])[0]
@@ -526,7 +530,7 @@ def _run(
         model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
         radar_source = model_metadata_dict[cnn.RADAR_SOURCE_KEY]
-        radar_field_names = model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY]
+        radar_field_names = model_metadata_dict[cnn.RADAR_FIELDS_KEY]
         radar_heights_m_agl = model_metadata_dict[cnn.RADAR_HEIGHTS_KEY]
         refl_heights_m_agl = model_metadata_dict[cnn.REFLECTIVITY_HEIGHTS_KEY]
         num_rows_to_keep = model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY]

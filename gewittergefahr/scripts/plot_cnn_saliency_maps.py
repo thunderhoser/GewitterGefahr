@@ -142,7 +142,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
 
     # Plot saliency maps.
     training_radar_file_name_matrix = model_metadata_dict[
-        cnn.TRAINING_FILE_NAMES_KEY]
+        cnn.TRAINING_FILES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 3:

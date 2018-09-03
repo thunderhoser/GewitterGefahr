@@ -306,7 +306,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
             mean=0., standard_deviation=1.)
 
     training_radar_file_name_matrix = model_metadata_dict[
-        cnn.TRAINING_FILE_NAMES_KEY]
+        cnn.TRAINING_FILES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 2:
@@ -324,7 +324,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
 
     return feature_optimization.create_climo_initializer(
         normalization_param_file_name=model_metadata_dict[
-            cnn.NORMALIZATION_FILE_NAME_KEY],
+            cnn.NORMALIZATION_FILE_KEY],
         normalization_type_string=model_metadata_dict[
             cnn.NORMALIZATION_TYPE_KEY],
         min_normalized_value=model_metadata_dict[
@@ -334,8 +334,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
         sounding_field_names=model_metadata_dict[
             cnn.SOUNDING_FIELD_NAMES_KEY],
         sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
-        radar_field_names=model_metadata_dict[
-            cnn.RADAR_FIELD_NAMES_KEY],
+        radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
         radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         radar_field_name_by_channel=radar_field_name_by_channel,
         radar_height_by_channel_m_agl=radar_height_by_channel_m_agl)

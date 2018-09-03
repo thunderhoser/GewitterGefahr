@@ -192,15 +192,14 @@ def _run(
 
     # Find model input.
     num_radar_dimensions = len(
-        model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
+        model_metadata_dict[cnn.TRAINING_FILES_KEY].shape)
     print SEPARATOR_STRING
 
     if num_radar_dimensions == 2:
         radar_file_name_matrix = trainval_io.find_radar_files_2d(
             top_directory_name=top_radar_image_dir_name,
             radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-            radar_field_names=model_metadata_dict[
-                cnn.RADAR_FIELD_NAMES_KEY],
+            radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
             first_file_time_unix_sec=numpy.min(desired_storm_times_unix_sec),
             last_file_time_unix_sec=numpy.max(desired_storm_times_unix_sec),
             one_file_per_time_step=False, shuffle_times=False,
@@ -211,8 +210,7 @@ def _run(
         radar_file_name_matrix = trainval_io.find_radar_files_3d(
             top_directory_name=top_radar_image_dir_name,
             radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-            radar_field_names=model_metadata_dict[
-                cnn.RADAR_FIELD_NAMES_KEY],
+            radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
             radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
             first_file_time_unix_sec=numpy.min(desired_storm_times_unix_sec),
             last_file_time_unix_sec=numpy.max(desired_storm_times_unix_sec),

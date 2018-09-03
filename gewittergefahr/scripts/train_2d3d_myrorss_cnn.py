@@ -13,7 +13,9 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
@@ -22,9 +24,7 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_REFLECTIVITY_ROWS = 32
-NUM_REFLECTIVITY_COLUMNS = 32
-NUM_SOUNDING_HEIGHTS = 49
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 REFLECTIVITY_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
 
 AZIMUTHAL_SHEAR_FIELD_NAMES = radar_utils.SHEAR_NAMES
@@ -41,11 +41,15 @@ NORMALIZATION_FILE_ARG_NAME = 'normalization_param_file_name'
 NUM_REFL_FILTERS_HELP_STRING = (
     'Number of reflectivity filters in first convolutional layer.  Number of '
     'filters will double for each successive layer convolving over reflectivity'
-    ' images.')
+    ' images.'
+)
+
 NUM_SHEAR_FILTERS_HELP_STRING = (
     'Number of azimuthal-shear filters in first convolutional layer.  Number of'
     ' filters will double for each successive layer convolving over '
-    'azimuthal-shear images.')
+    'azimuthal-shear images.'
+)
+
 NORMALIZATION_FILE_HELP_STRING = (
     '[used only if {0:s} is not empty] Path to file with normalization params.'
     '  Will be read by `deep_learning_utils.read_normalization_params_from_file'
@@ -83,8 +87,7 @@ def _train_cnn(
         sampling_fraction_dict_values, weight_loss_function,
         num_validation_batches_per_epoch, first_validn_spc_date_string,
         last_validn_spc_date_string, sounding_field_names,
-        top_sounding_dir_name,
-        sounding_lag_time_for_convective_contamination_sec,
+        top_sounding_dir_name, sounding_lag_time_sec,
         num_sounding_filters_in_first_layer):
     """Trains CNN with 2-D and 3-D images from MYRORSS.
 
@@ -132,7 +135,7 @@ def _train_cnn(
     :param last_validn_spc_date_string: Same.
     :param sounding_field_names: Same.
     :param top_sounding_dir_name: Same.
-    :param sounding_lag_time_for_convective_contamination_sec: Same.
+    :param sounding_lag_time_sec: Same.
     :param num_sounding_filters_in_first_layer: Same.
     """
 
@@ -187,6 +190,7 @@ def _train_cnn(
     # Set locations of output files.
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_model_dir_name)
+
     model_file_name = '{0:s}/model.h5'.format(output_model_dir_name)
     history_file_name = '{0:s}/model_history.csv'.format(output_model_dir_name)
     tensorboard_dir_name = '{0:s}/tensorboard'.format(output_model_dir_name)
@@ -196,8 +200,8 @@ def _train_cnn(
     if top_storm_radar_image_dir_name_pos_targets_only == 'None':
         top_storm_radar_image_dir_name_pos_targets_only = None
 
-    (radar_fn_matrix_training,
-     radar_fn_matrix_training_pos_targets_only
+    (training_file_name_matrix,
+     training_file_name_matrix_pos_targets_only
     ) = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -211,11 +215,11 @@ def _train_cnn(
     print SEPARATOR_STRING
 
     if num_validation_batches_per_epoch is None:
-        radar_fn_matrix_validation = None
-        radar_fn_matrix_validation_pos_targets_only = None
+        validn_file_name_matrix = None
+        validn_file_name_matrix_pos_targets_only = None
     else:
-        (radar_fn_matrix_validation,
-         radar_fn_matrix_validation_pos_targets_only
+        (validn_file_name_matrix,
+         validn_file_name_matrix_pos_targets_only
         ) = trainval_io.find_radar_files_2d(
             top_directory_name=top_storm_radar_image_dir_name,
             radar_source=radar_utils.MYRORSS_SOURCE_ID,
@@ -228,35 +232,52 @@ def _train_cnn(
             reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL)
         print SEPARATOR_STRING
 
+    this_storm_image_dict = storm_images.read_storm_images(
+        netcdf_file_name=training_file_name_matrix[0, 0],
+        num_rows_to_keep=num_rows_to_keep,
+        num_columns_to_keep=num_columns_to_keep)
+
+    this_storm_image_matrix = this_storm_image_dict[
+        storm_images.STORM_IMAGE_MATRIX_KEY]
+    num_reflectivity_rows = this_storm_image_matrix.shape[1]
+    num_reflectivity_columns = this_storm_image_matrix.shape[2]
+
     print 'Writing metadata to: "{0:s}"...\n'.format(metadata_file_name)
+
+    metadata_dict = {
+        cnn.NUM_EPOCHS_KEY: num_epochs,
+        cnn.NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
+        cnn.MONITOR_STRING_KEY: monitor_string,
+        cnn.WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
+        cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
+        cnn.VALIDATION_FILES_KEY: validn_file_name_matrix,
+        cnn.POSITIVE_VALIDATION_FILES_KEY:
+            validn_file_name_matrix_pos_targets_only,
+        cnn.TRAINING_FILES_KEY: training_file_name_matrix,
+        cnn.POSITIVE_TRAINING_FILES_KEY:
+            training_file_name_matrix_pos_targets_only,
+        cnn.USE_2D3D_CONVOLUTION_KEY: True,
+        cnn.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        cnn.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        cnn.TARGET_NAME_KEY: target_name,
+        cnn.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+        cnn.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+        cnn.NORMALIZATION_TYPE_KEY: normalization_type_string,
+        cnn.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
+        cnn.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
+        cnn.NORMALIZATION_FILE_KEY: normalization_param_file_name,
+        cnn.BINARIZE_TARGET_KEY: binarize_target,
+        cnn.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
+        cnn.SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
+        cnn.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
+        cnn.RADAR_SOURCE_KEY: radar_utils.MYRORSS_SOURCE_ID,
+        cnn.RADAR_FIELDS_KEY: RADAR_FIELD_NAMES,
+        cnn.REFLECTIVITY_HEIGHTS_KEY: REFLECTIVITY_HEIGHTS_M_AGL,
+        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL
+    }
+
     cnn.write_model_metadata(
-        pickle_file_name=metadata_file_name, num_epochs=num_epochs,
-        num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file=num_examples_per_file,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        radar_fn_matrix_training=radar_fn_matrix_training,
-        weight_loss_function=weight_loss_function,
-        monitor_string=monitor_string, target_name=target_name,
-        binarize_target=binarize_target, num_rows_to_keep=num_rows_to_keep,
-        num_columns_to_keep=num_columns_to_keep,
-        normalization_type_string=normalization_type_string,
-        use_2d3d_convolution=True, radar_source=radar_utils.MYRORSS_SOURCE_ID,
-        radar_field_names=RADAR_FIELD_NAMES,
-        reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL,
-        min_normalized_value=min_normalized_value,
-        max_normalized_value=max_normalized_value,
-        normalization_param_file_name=normalization_param_file_name,
-        radar_fn_matrix_training_pos_targets_only=
-        radar_fn_matrix_training_pos_targets_only,
-        training_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        radar_fn_matrix_validation=radar_fn_matrix_validation,
-        radar_fn_matrix_validation_pos_targets_only=
-        radar_fn_matrix_validation_pos_targets_only,
-        sounding_field_names=sounding_field_names,
-        sounding_lag_time_for_convective_contamination_sec=
-        sounding_lag_time_for_convective_contamination_sec)
+        pickle_file_name=metadata_file_name, metadata_dict=metadata_dict)
 
     if binarize_target:
         num_classes_to_predict = 2
@@ -265,8 +286,8 @@ def _train_cnn(
             column_name=target_name, include_dead_storms=False)
 
     model_object = cnn.get_2d3d_swirlnet_architecture(
-        num_reflectivity_rows=NUM_REFLECTIVITY_ROWS,
-        num_reflectivity_columns=NUM_REFLECTIVITY_COLUMNS,
+        num_reflectivity_rows=num_reflectivity_rows,
+        num_reflectivity_columns=num_reflectivity_columns,
         num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_AGL),
         num_azimuthal_shear_fields=len(AZIMUTHAL_SHEAR_FIELD_NAMES),
         num_radar_conv_layer_sets=num_radar_conv_layer_sets,
@@ -280,40 +301,40 @@ def _train_cnn(
         num_shear_filters_in_first_layer=num_shear_filters_in_first_layer,
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
         dense_layer_dropout_fraction=dense_layer_dropout_fraction,
-        l2_weight=l2_weight, num_sounding_heights=NUM_SOUNDING_HEIGHTS,
+        l2_weight=l2_weight, num_sounding_heights=len(SOUNDING_HEIGHTS_M_AGL),
         num_sounding_fields=num_sounding_fields,
         num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
 
+    training_option_dict = {
+        trainval_io.RADAR_FILE_NAMES_KEY: training_file_name_matrix,
+        trainval_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        trainval_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        trainval_io.TARGET_NAME_KEY: target_name,
+        trainval_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+        trainval_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+        trainval_io.NORMALIZATION_TYPE_KEY: normalization_type_string,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
+        trainval_io.NORMALIZATION_FILE_KEY: normalization_param_file_name,
+        trainval_io.BINARIZE_TARGET_KEY: binarize_target,
+        trainval_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+        trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        trainval_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
+        trainval_io.LOOP_ONCE_KEY: False,
+    }
+
     cnn.train_2d3d_cnn(
         model_object=model_object, model_file_name=model_file_name,
         history_file_name=history_file_name,
-        tensorboard_dir_name=tensorboard_dir_name,
-        num_epochs=num_epochs, num_examples_per_batch=num_examples_per_batch,
-        num_examples_per_file=num_examples_per_file,
+        tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
-        radar_fn_matrix_training=radar_fn_matrix_training,
-        target_name=target_name, top_target_directory_name=top_target_dir_name,
-        num_rows_to_keep=num_rows_to_keep,
-        num_columns_to_keep=num_columns_to_keep,
-        normalization_type_string=normalization_type_string,
-        normalization_param_file_name=normalization_param_file_name,
-        min_normalized_value=min_normalized_value,
-        max_normalized_value=max_normalized_value,
-        radar_fn_matrix_training_pos_targets_only=
-        radar_fn_matrix_training_pos_targets_only,
-        monitor_string=monitor_string, binarize_target=binarize_target,
+        monitor_string=monitor_string,
         weight_loss_function=weight_loss_function,
-        training_fraction_by_class_dict=sampling_fraction_by_class_dict,
+        training_option_dict=training_option_dict,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        validation_fraction_by_class_dict=sampling_fraction_by_class_dict,
-        radar_fn_matrix_validation=radar_fn_matrix_validation,
-        radar_fn_matrix_validation_pos_targets_only=
-        radar_fn_matrix_validation_pos_targets_only,
-        sounding_field_names=sounding_field_names,
-        top_sounding_dir_name=top_sounding_dir_name,
-        sounding_lag_time_for_convective_contamination_sec=
-        sounding_lag_time_for_convective_contamination_sec)
+        validn_file_name_matrix=validn_file_name_matrix)
 
 
 if __name__ == '__main__':
@@ -398,7 +419,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_FIELD_NAMES_ARG_NAME),
         top_sounding_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_DIRECTORY_ARG_NAME),
-        sounding_lag_time_for_convective_contamination_sec=getattr(
+        sounding_lag_time_sec=getattr(
             INPUT_ARG_OBJECT, dl_helper.SOUNDING_LAG_TIME_ARG_NAME),
         num_sounding_filters_in_first_layer=getattr(
             INPUT_ARG_OBJECT, dl_helper.NUM_SOUNDING_FILTERS_ARG_NAME))

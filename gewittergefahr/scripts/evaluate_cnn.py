@@ -126,7 +126,7 @@ def _create_forecast_observation_pairs_2d(
     radar_file_name_matrix = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-        radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
+        radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
         first_file_time_unix_sec=first_eval_time_unix_sec,
         last_file_time_unix_sec=last_eval_time_unix_sec,
         one_file_per_time_step=False,
@@ -134,6 +134,32 @@ def _create_forecast_observation_pairs_2d(
         reflectivity_heights_m_agl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     print SEPARATOR_STRING
+
+    option_dict = {
+        deployment_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        deployment_io.NUM_ROWS_TO_KEEP_KEY:
+            model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+        deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+            model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+        deployment_io.NORMALIZATION_TYPE_KEY:
+            model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+        deployment_io.MIN_NORMALIZED_VALUE_KEY:
+            model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+        deployment_io.MAX_NORMALIZED_VALUE_KEY:
+            model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+        deployment_io.NORMALIZATION_FILE_KEY:
+            model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+        deployment_io.RETURN_TARGET_KEY: True,
+        deployment_io.TARGET_NAME_KEY: model_metadata_dict[cnn.TARGET_NAME_KEY],
+        deployment_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        deployment_io.BINARIZE_TARGET_KEY:
+            model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+        deployment_io.SOUNDING_FIELDS_KEY:
+            model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+        deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        deployment_io.SOUNDING_LAG_TIME_KEY:
+            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+    }
 
     forecast_probabilities = numpy.array([])
     observed_labels = numpy.array([], dtype=int)
@@ -148,29 +174,10 @@ def _create_forecast_observation_pairs_2d(
         if len(observed_labels) > num_storm_objects:
             break
 
-        this_example_dict = deployment_io.create_storm_images_2d(
-            radar_file_name_matrix=radar_file_name_matrix[[i], ...],
-            num_examples_per_file=num_examples_per_file,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            return_target=True,
-            target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
-            top_target_directory_name=top_target_dir_name,
-            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
-            num_columns_to_keep=model_metadata_dict[
-                cnn.NUM_COLUMNS_TO_KEEP_KEY],
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
-            top_sounding_dir_name=top_sounding_dir_name,
-            sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+        option_dict.update({
+            deployment_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
+        })
+        this_example_dict = deployment_io.create_storm_images_2d(option_dict)
 
         print MINOR_SEPARATOR_STRING
         if this_example_dict is None:
@@ -222,12 +229,40 @@ def _create_forecast_observation_pairs_3d(
     radar_file_name_matrix = trainval_io.find_radar_files_3d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-        radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
+        radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
         radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
         first_file_time_unix_sec=first_eval_time_unix_sec,
         last_file_time_unix_sec=last_eval_time_unix_sec,
         one_file_per_time_step=False)[0]
     print SEPARATOR_STRING
+
+    option_dict = {
+        deployment_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        deployment_io.NUM_ROWS_TO_KEEP_KEY:
+            model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+        deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+            model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+        deployment_io.NORMALIZATION_TYPE_KEY:
+            model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+        deployment_io.MIN_NORMALIZED_VALUE_KEY:
+            model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+        deployment_io.MAX_NORMALIZED_VALUE_KEY:
+            model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+        deployment_io.NORMALIZATION_FILE_KEY:
+            model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+        deployment_io.RETURN_TARGET_KEY: True,
+        deployment_io.TARGET_NAME_KEY: model_metadata_dict[cnn.TARGET_NAME_KEY],
+        deployment_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        deployment_io.BINARIZE_TARGET_KEY:
+            model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+        deployment_io.SOUNDING_FIELDS_KEY:
+            model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+        deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        deployment_io.SOUNDING_LAG_TIME_KEY:
+            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
+        deployment_io.REFLECTIVITY_MASK_KEY: model_metadata_dict[
+            cnn.REFL_MASKING_THRESHOLD_KEY]
+    }
 
     forecast_probabilities = numpy.array([])
     observed_labels = numpy.array([], dtype=int)
@@ -242,31 +277,10 @@ def _create_forecast_observation_pairs_3d(
         if len(observed_labels) > num_storm_objects:
             break
 
-        this_example_dict = deployment_io.create_storm_images_3d(
-            radar_file_name_matrix=radar_file_name_matrix[[i], ...],
-            num_examples_per_file=num_examples_per_file,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            return_target=True,
-            target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
-            top_target_directory_name=top_target_dir_name,
-            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
-            num_columns_to_keep=model_metadata_dict[
-                cnn.NUM_COLUMNS_TO_KEEP_KEY],
-            refl_masking_threshold_dbz=model_metadata_dict[
-                cnn.REFL_MASKING_THRESHOLD_KEY],
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
-            top_sounding_dir_name=top_sounding_dir_name,
-            sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+        option_dict.update({
+            deployment_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
+        })
+        this_example_dict = deployment_io.create_storm_images_3d(option_dict)
 
         print MINOR_SEPARATOR_STRING
         if this_example_dict is None:
@@ -318,7 +332,7 @@ def _create_forecast_observation_pairs_2d3d(
     radar_file_name_matrix = trainval_io.find_radar_files_2d(
         top_directory_name=top_storm_radar_image_dir_name,
         radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-        radar_field_names=model_metadata_dict[cnn.RADAR_FIELD_NAMES_KEY],
+        radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
         first_file_time_unix_sec=first_eval_time_unix_sec,
         last_file_time_unix_sec=last_eval_time_unix_sec,
         one_file_per_time_step=False,
@@ -326,6 +340,32 @@ def _create_forecast_observation_pairs_2d3d(
         reflectivity_heights_m_agl=model_metadata_dict[
             cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     print SEPARATOR_STRING
+
+    option_dict = {
+        deployment_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        deployment_io.NUM_ROWS_TO_KEEP_KEY:
+            model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+        deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+            model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+        deployment_io.NORMALIZATION_TYPE_KEY:
+            model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+        deployment_io.MIN_NORMALIZED_VALUE_KEY:
+            model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+        deployment_io.MAX_NORMALIZED_VALUE_KEY:
+            model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+        deployment_io.NORMALIZATION_FILE_KEY:
+            model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+        deployment_io.RETURN_TARGET_KEY: True,
+        deployment_io.TARGET_NAME_KEY: model_metadata_dict[cnn.TARGET_NAME_KEY],
+        deployment_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        deployment_io.BINARIZE_TARGET_KEY:
+            model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+        deployment_io.SOUNDING_FIELDS_KEY:
+            model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+        deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        deployment_io.SOUNDING_LAG_TIME_KEY:
+            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+    }
 
     forecast_probabilities = numpy.array([])
     observed_labels = numpy.array([], dtype=int)
@@ -340,29 +380,11 @@ def _create_forecast_observation_pairs_2d3d(
         if len(observed_labels) > num_storm_objects:
             break
 
+        option_dict.update({
+            deployment_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
+        })
         this_example_dict = deployment_io.create_storm_images_2d3d_myrorss(
-            radar_file_name_matrix=radar_file_name_matrix[[i], ...],
-            num_examples_per_file=num_examples_per_file,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_NAME_KEY],
-            return_target=True,
-            target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
-            binarize_target=model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
-            num_rows_to_keep=model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
-            num_columns_to_keep=model_metadata_dict[
-                cnn.NUM_COLUMNS_TO_KEEP_KEY],
-            top_target_directory_name=top_target_dir_name,
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
-            top_sounding_dir_name=top_sounding_dir_name,
-            sounding_lag_time_for_convective_contamination_sec=
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY])
+            option_dict)
 
         print MINOR_SEPARATOR_STRING
         if this_example_dict is None:
@@ -452,7 +474,7 @@ def _evaluate_model(
                 model_metadata_dict=model_metadata_dict))
     else:
         num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILE_NAMES_KEY].shape)
+            model_metadata_dict[cnn.TRAINING_FILES_KEY].shape)
         if num_radar_dimensions == 2:
             forecast_probabilities, observed_labels = (
                 _create_forecast_observation_pairs_2d(
