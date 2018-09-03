@@ -331,6 +331,7 @@ def _train_cnn(
         trainval_io.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
         trainval_io.NORMALIZATION_FILE_KEY: normalization_param_file_name,
         trainval_io.BINARIZE_TARGET_KEY: binarize_target,
+        trainval_io.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
         trainval_io.SOUNDING_FIELDS_KEY: sounding_field_names,
         trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
         trainval_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
