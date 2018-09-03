@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import saliency_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -136,13 +137,15 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         raise TypeError('This script cannot yet handle models that do 2-D and '
                         '3-D convolution.')
 
     # Plot saliency maps.
-    training_radar_file_name_matrix = model_metadata_dict[
-        cnn.TRAINING_FILES_KEY]
+    training_radar_file_name_matrix = training_option_dict[
+        trainval_io.RADAR_FILE_NAMES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 3:
@@ -186,13 +189,13 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
 
     print SEPARATOR_STRING
 
-    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
+    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None:
         saliency_plotting.plot_saliency_with_soundings(
             sounding_matrix=list_of_input_matrices[-1],
             saliency_matrix=list_of_saliency_matrices[-1],
             saliency_metadata_dict=saliency_metadata_dict,
-            sounding_field_names=model_metadata_dict[
-                cnn.SOUNDING_FIELD_NAMES_KEY],
+            sounding_field_names=training_option_dict[
+                trainval_io.SOUNDING_FIELDS_KEY],
             output_dir_name=output_dir_name,
             saliency_option_dict=saliency_option_dict,
             temp_directory_name=temp_directory_name)

@@ -11,6 +11,7 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import deployment_io
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 LARGE_INTEGER = int(1e10)
 
@@ -248,7 +249,8 @@ def read_storms_one_spc_date(
         storm_ids = [desired_storm_ids[k] for k in valid_indices]
         storm_times_unix_sec = desired_storm_times_unix_sec[valid_indices]
 
-    sounding_field_names = model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY]
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     read_pressure_separately = (
         sounding_field_names is not None and
         soundings.PRESSURE_NAME not in sounding_field_names
@@ -265,28 +267,28 @@ def read_storms_one_spc_date(
                 radar_file_name_matrix[[spc_date_index], ...],
             deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
             deployment_io.NUM_ROWS_TO_KEEP_KEY:
-                model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
             deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
-                model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+                training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
             deployment_io.NORMALIZATION_TYPE_KEY:
-                model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+                training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
             deployment_io.MIN_NORMALIZED_VALUE_KEY:
-                model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+                training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
             deployment_io.MAX_NORMALIZED_VALUE_KEY:
-                model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+                training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
             deployment_io.NORMALIZATION_FILE_KEY:
-                model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+                training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
             deployment_io.RETURN_TARGET_KEY: False,
             deployment_io.TARGET_NAME_KEY:
-                model_metadata_dict[cnn.TARGET_NAME_KEY],
+                training_option_dict[trainval_io.TARGET_NAME_KEY],
             deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
             deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
             deployment_io.SOUNDING_LAG_TIME_KEY:
-                model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+                training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY]
         })
     else:
         num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILES_KEY].shape)
+            training_option_dict[trainval_io.RADAR_FILE_NAMES_KEY].shape)
 
         if num_radar_dimensions == 3:
             example_dict = deployment_io.create_storm_images_3d({
@@ -294,26 +296,26 @@ def read_storms_one_spc_date(
                     radar_file_name_matrix[[spc_date_index], ...],
                 deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
                 deployment_io.NUM_ROWS_TO_KEEP_KEY:
-                    model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                    training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
                 deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
-                    model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+                    training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
                 deployment_io.NORMALIZATION_TYPE_KEY:
-                    model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+                    training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
                 deployment_io.MIN_NORMALIZED_VALUE_KEY:
-                    model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+                    training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
                 deployment_io.MAX_NORMALIZED_VALUE_KEY:
-                    model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+                    training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 deployment_io.NORMALIZATION_FILE_KEY:
-                    model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+                    training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
                 deployment_io.RETURN_TARGET_KEY: False,
                 deployment_io.TARGET_NAME_KEY:
-                    model_metadata_dict[cnn.TARGET_NAME_KEY],
+                    training_option_dict[trainval_io.TARGET_NAME_KEY],
                 deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
                 deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
                 deployment_io.SOUNDING_LAG_TIME_KEY:
-                    model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
+                    training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY],
                 deployment_io.REFLECTIVITY_MASK_KEY:
-                    model_metadata_dict[cnn.REFL_MASKING_THRESHOLD_KEY]
+                    training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
             })
         else:
             example_dict = deployment_io.create_storm_images_2d({
@@ -321,24 +323,24 @@ def read_storms_one_spc_date(
                     radar_file_name_matrix[[spc_date_index], ...],
                 deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
                 deployment_io.NUM_ROWS_TO_KEEP_KEY:
-                    model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+                    training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
                 deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
-                    model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+                    training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
                 deployment_io.NORMALIZATION_TYPE_KEY:
-                    model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+                    training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
                 deployment_io.MIN_NORMALIZED_VALUE_KEY:
-                    model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+                    training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
                 deployment_io.MAX_NORMALIZED_VALUE_KEY:
-                    model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+                    training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 deployment_io.NORMALIZATION_FILE_KEY:
-                    model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+                    training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
                 deployment_io.RETURN_TARGET_KEY: False,
                 deployment_io.TARGET_NAME_KEY:
-                    model_metadata_dict[cnn.TARGET_NAME_KEY],
+                    training_option_dict[trainval_io.TARGET_NAME_KEY],
                 deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
                 deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
                 deployment_io.SOUNDING_LAG_TIME_KEY:
-                    model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+                    training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY]
             })
 
     if example_dict is None:
@@ -400,6 +402,8 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
         dimensions).
     """
 
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         radar_field_names = model_metadata_dict[cnn.RADAR_FIELDS_KEY]
         azimuthal_shear_indices = numpy.where(numpy.array(
@@ -410,29 +414,29 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
         list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[0],
             field_names=[radar_utils.REFL_NAME],
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
+            normalization_type_string=training_option_dict[
+                trainval_io.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=training_option_dict[
+                trainval_io.NORMALIZATION_FILE_KEY],
+            min_normalized_value=training_option_dict[
+                trainval_io.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=training_option_dict[
+                trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
         list_of_input_matrices[1] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[1],
             field_names=azimuthal_shear_field_names,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
+            normalization_type_string=training_option_dict[
+                trainval_io.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=training_option_dict[
+                trainval_io.NORMALIZATION_FILE_KEY],
+            min_normalized_value=training_option_dict[
+                trainval_io.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=training_option_dict[
+                trainval_io.MAX_NORMALIZED_VALUE_KEY])
     else:
-        radar_file_name_matrix = model_metadata_dict[
-            cnn.TRAINING_FILES_KEY]
+        radar_file_name_matrix = training_option_dict[
+            trainval_io.RADAR_FILE_NAMES_KEY]
         num_channels = radar_file_name_matrix.shape[1]
         field_name_by_channel = [''] * num_channels
 
@@ -449,26 +453,26 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
         list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[0],
             field_names=field_name_by_channel,
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
+            normalization_type_string=training_option_dict[
+                trainval_io.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=training_option_dict[
+                trainval_io.NORMALIZATION_FILE_KEY],
+            min_normalized_value=training_option_dict[
+                trainval_io.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=training_option_dict[
+                trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
-    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is not None:
+    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None:
         list_of_input_matrices[-1] = dl_utils.denormalize_soundings(
             sounding_matrix=list_of_input_matrices[-1],
-            field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
-            normalization_type_string=model_metadata_dict[
-                cnn.NORMALIZATION_TYPE_KEY],
-            normalization_param_file_name=model_metadata_dict[
-                cnn.NORMALIZATION_FILE_KEY],
-            min_normalized_value=model_metadata_dict[
-                cnn.MIN_NORMALIZED_VALUE_KEY],
-            max_normalized_value=model_metadata_dict[
-                cnn.MAX_NORMALIZED_VALUE_KEY])
+            field_names=training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
+            normalization_type_string=training_option_dict[
+                trainval_io.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=training_option_dict[
+                trainval_io.NORMALIZATION_FILE_KEY],
+            min_normalized_value=training_option_dict[
+                trainval_io.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=training_option_dict[
+                trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
     return list_of_input_matrices

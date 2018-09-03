@@ -18,6 +18,7 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
@@ -267,27 +268,32 @@ def _create_gg_initializer(init_function_name, model_file_name):
 
     metadata_file_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0])
+
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     used_minmax_norm = (
-        model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY] ==
+        training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY] ==
         dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
     )
 
     if init_function_name == feature_optimization.CONSTANT_INIT_FUNCTION_NAME:
         if used_minmax_norm:
             return feature_optimization.create_constant_initializer(
-                (model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
-                 model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY]) / 2)
+                (training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY] -
+                 training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY])
+                / 2)
 
         return feature_optimization.create_constant_initializer(0.)
 
     if init_function_name == feature_optimization.UNIFORM_INIT_FUNCTION_NAME:
         if used_minmax_norm:
             return feature_optimization.create_uniform_random_initializer(
-                min_value=model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
-                max_value=model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY])
+                min_value=training_option_dict[
+                    trainval_io.MIN_NORMALIZED_VALUE_KEY],
+                max_value=training_option_dict[
+                    trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
         return feature_optimization.create_uniform_random_initializer(
             min_value=0., max_value=1.)
@@ -295,18 +301,20 @@ def _create_gg_initializer(init_function_name, model_file_name):
     if init_function_name == feature_optimization.GAUSSIAN_INIT_FUNCTION_NAME:
         if used_minmax_norm:
             return feature_optimization.create_gaussian_initializer(
-                mean=(model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
-                      model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY]) / 2,
+                mean=
+                (training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY] -
+                 training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY])
+                / 2,
                 standard_deviation=
-                (model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY] -
-                 model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY]) / 6
+                (training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY] -
+                 training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]) / 6
             )
 
         return feature_optimization.create_gaussian_initializer(
             mean=0., standard_deviation=1.)
 
-    training_radar_file_name_matrix = model_metadata_dict[
-        cnn.TRAINING_FILES_KEY]
+    training_radar_file_name_matrix = training_option_dict[
+        trainval_io.RADAR_FILE_NAMES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 2:
@@ -323,16 +331,16 @@ def _create_gg_initializer(init_function_name, model_file_name):
         radar_height_by_channel_m_agl = None
 
     return feature_optimization.create_climo_initializer(
-        normalization_param_file_name=model_metadata_dict[
-            cnn.NORMALIZATION_FILE_KEY],
-        normalization_type_string=model_metadata_dict[
-            cnn.NORMALIZATION_TYPE_KEY],
-        min_normalized_value=model_metadata_dict[
-            cnn.MIN_NORMALIZED_VALUE_KEY],
-        max_normalized_value=model_metadata_dict[
-            cnn.MAX_NORMALIZED_VALUE_KEY],
-        sounding_field_names=model_metadata_dict[
-            cnn.SOUNDING_FIELD_NAMES_KEY],
+        normalization_param_file_name=training_option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY],
+        normalization_type_string=training_option_dict[
+            trainval_io.NORMALIZATION_TYPE_KEY],
+        min_normalized_value=training_option_dict[
+            trainval_io.MIN_NORMALIZED_VALUE_KEY],
+        max_normalized_value=training_option_dict[
+            trainval_io.MAX_NORMALIZED_VALUE_KEY],
+        sounding_field_names=training_option_dict[
+            trainval_io.SOUNDING_FIELDS_KEY],
         sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
         radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
         radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],

@@ -184,15 +184,16 @@ def _run(
     # Read model and metadata.
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
-
     metadata_file_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0])
+
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     # Find model input.
     num_radar_dimensions = len(
-        model_metadata_dict[cnn.TRAINING_FILES_KEY].shape)
+        training_option_dict[trainval_io.RADAR_FILE_NAMES_KEY].shape)
     print SEPARATOR_STRING
 
     if num_radar_dimensions == 2:

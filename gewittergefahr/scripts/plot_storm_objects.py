@@ -528,17 +528,21 @@ def _run(
 
         print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
         model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
+        training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
         radar_source = model_metadata_dict[cnn.RADAR_SOURCE_KEY]
         radar_field_names = model_metadata_dict[cnn.RADAR_FIELDS_KEY]
         radar_heights_m_agl = model_metadata_dict[cnn.RADAR_HEIGHTS_KEY]
         refl_heights_m_agl = model_metadata_dict[cnn.REFLECTIVITY_HEIGHTS_KEY]
-        num_rows_to_keep = model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY]
-        num_columns_to_keep = model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY]
-        sounding_lag_time_sec = model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY]
+        num_rows_to_keep = training_option_dict[
+            trainval_io.NUM_ROWS_TO_KEEP_KEY]
+        num_columns_to_keep = training_option_dict[
+            trainval_io.NUM_COLUMNS_TO_KEEP_KEY]
+        sounding_lag_time_sec = training_option_dict[
+            trainval_io.SOUNDING_LAG_TIME_KEY]
 
         target_param_dict = labels.column_name_to_label_params(
-            model_metadata_dict[cnn.TARGET_NAME_KEY])
+            training_option_dict[trainval_io.TARGET_NAME_KEY])
         min_lead_time_sec = target_param_dict[labels.MIN_LEAD_TIME_KEY]
         max_lead_time_sec = target_param_dict[labels.MAX_LEAD_TIME_KEY]
         sounding_lead_time_sec = int(numpy.round(

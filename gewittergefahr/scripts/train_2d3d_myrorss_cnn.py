@@ -259,37 +259,44 @@ def _train_cnn(
         cnn.VALIDATION_FILES_KEY: validn_file_name_matrix,
         cnn.POSITIVE_VALIDATION_FILES_KEY:
             validn_file_name_matrix_pos_targets_only,
-        cnn.TRAINING_FILES_KEY: training_file_name_matrix,
-        cnn.POSITIVE_TRAINING_FILES_KEY:
-            training_file_name_matrix_pos_targets_only,
         cnn.USE_2D3D_CONVOLUTION_KEY: True,
-        cnn.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        cnn.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        cnn.TARGET_NAME_KEY: target_name,
-        cnn.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
-        cnn.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
-        cnn.NORMALIZATION_TYPE_KEY: normalization_type_string,
-        cnn.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
-        cnn.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
-        cnn.NORMALIZATION_FILE_KEY: normalization_param_file_name,
-        cnn.BINARIZE_TARGET_KEY: binarize_target,
-        cnn.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
-        cnn.SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
-        cnn.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
         cnn.RADAR_SOURCE_KEY: radar_utils.MYRORSS_SOURCE_ID,
         cnn.RADAR_FIELDS_KEY: RADAR_FIELD_NAMES,
         cnn.REFLECTIVITY_HEIGHTS_KEY: REFLECTIVITY_HEIGHTS_M_AGL,
-        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL,
-        cnn.NUM_TRANSLATIONS_KEY: num_translations,
-        cnn.MAX_TRANSLATION_KEY: max_translation_pixels,
-        cnn.NUM_ROTATIONS_KEY: num_rotations,
-        cnn.MAX_ROTATION_KEY: max_absolute_rotation_angle_deg,
-        cnn.NUM_NOISINGS_KEY: num_noisings,
-        cnn.MAX_NOISE_KEY: max_noise_standard_deviation
+        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL
+    }
+
+    training_option_dict = {
+        trainval_io.RADAR_FILE_NAMES_KEY: training_file_name_matrix,
+        trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY:
+            training_file_name_matrix_pos_targets_only,
+        trainval_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
+        trainval_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        trainval_io.TARGET_NAME_KEY: target_name,
+        trainval_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+        trainval_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+        trainval_io.NORMALIZATION_TYPE_KEY: normalization_type_string,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
+        trainval_io.NORMALIZATION_FILE_KEY: normalization_param_file_name,
+        trainval_io.BINARIZE_TARGET_KEY: binarize_target,
+        trainval_io.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
+        trainval_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+        trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        trainval_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
+        trainval_io.LOOP_ONCE_KEY: False,
+        trainval_io.NUM_TRANSLATIONS_KEY: num_translations,
+        trainval_io.MAX_TRANSLATION_KEY: max_translation_pixels,
+        trainval_io.NUM_ROTATIONS_KEY: num_rotations,
+        trainval_io.MAX_ROTATION_KEY: max_absolute_rotation_angle_deg,
+        trainval_io.NUM_NOISINGS_KEY: num_noisings,
+        trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation
     }
 
     cnn.write_model_metadata(
-        pickle_file_name=metadata_file_name, metadata_dict=metadata_dict)
+        pickle_file_name=metadata_file_name, metadata_dict=metadata_dict,
+        training_option_dict=training_option_dict)
 
     if binarize_target:
         num_classes_to_predict = 2
@@ -317,32 +324,6 @@ def _train_cnn(
         num_sounding_fields=num_sounding_fields,
         num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
-
-    training_option_dict = {
-        trainval_io.RADAR_FILE_NAMES_KEY: training_file_name_matrix,
-        trainval_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
-        trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        trainval_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        trainval_io.TARGET_NAME_KEY: target_name,
-        trainval_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
-        trainval_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
-        trainval_io.NORMALIZATION_TYPE_KEY: normalization_type_string,
-        trainval_io.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
-        trainval_io.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
-        trainval_io.NORMALIZATION_FILE_KEY: normalization_param_file_name,
-        trainval_io.BINARIZE_TARGET_KEY: binarize_target,
-        trainval_io.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
-        trainval_io.SOUNDING_FIELDS_KEY: sounding_field_names,
-        trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-        trainval_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
-        trainval_io.LOOP_ONCE_KEY: False,
-        trainval_io.NUM_TRANSLATIONS_KEY: num_translations,
-        trainval_io.MAX_TRANSLATION_KEY: max_translation_pixels,
-        trainval_io.NUM_ROTATIONS_KEY: num_rotations,
-        trainval_io.MAX_ROTATION_KEY: max_absolute_rotation_angle_deg,
-        trainval_io.NUM_NOISINGS_KEY: num_noisings,
-        trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation
-    }
 
     cnn.train_2d3d_cnn(
         model_object=model_object, model_file_name=model_file_name,

@@ -242,61 +242,12 @@ def _train_cnn(
         cnn.WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         cnn.VALIDATION_FILES_KEY: validn_file_name_matrix,
-        cnn.TRAINING_FILES_KEY: training_file_name_matrix,
         cnn.USE_2D3D_CONVOLUTION_KEY: True,
-        cnn.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        cnn.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        cnn.TARGET_NAME_KEY: target_name,
-        cnn.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
-        cnn.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
-        cnn.NORMALIZATION_TYPE_KEY: normalization_type_string,
-        cnn.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
-        cnn.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
-        cnn.NORMALIZATION_FILE_KEY: normalization_param_file_name,
-        cnn.BINARIZE_TARGET_KEY: binarize_target,
-        cnn.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
-        cnn.SOUNDING_FIELD_NAMES_KEY: sounding_field_names,
-        cnn.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
-        cnn.REFL_MASKING_THRESHOLD_KEY: refl_masking_threshold_dbz,
         cnn.RADAR_SOURCE_KEY: radar_utils.MYRORSS_SOURCE_ID,
         cnn.RADAR_FIELDS_KEY: radar_field_names,
         cnn.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,
-        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL,
-        cnn.NUM_TRANSLATIONS_KEY: num_translations,
-        cnn.MAX_TRANSLATION_KEY: max_translation_pixels,
-        cnn.NUM_ROTATIONS_KEY: num_rotations,
-        cnn.MAX_ROTATION_KEY: max_absolute_rotation_angle_deg,
-        cnn.NUM_NOISINGS_KEY: num_noisings,
-        cnn.MAX_NOISE_KEY: max_noise_standard_deviation
+        cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL
     }
-
-    cnn.write_model_metadata(
-        pickle_file_name=metadata_file_name, metadata_dict=metadata_dict)
-
-    if binarize_target:
-        num_classes_to_predict = 2
-    else:
-        num_classes_to_predict = labels.column_name_to_num_classes(
-            column_name=target_name, include_dead_storms=False)
-
-    model_object = cnn.get_3d_swirlnet_architecture(
-        num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
-        num_radar_heights=len(RADAR_HEIGHTS_M_AGL),
-        num_radar_fields=len(radar_field_names),
-        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
-        num_conv_layers_per_set=num_conv_layers_per_set,
-        pooling_type_string=pooling_type_string,
-        num_classes=num_classes_to_predict,
-        conv_layer_activation_func_string=conv_layer_activation_func_string,
-        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
-        use_batch_normalization=use_batch_normalization,
-        num_radar_filters_in_first_layer=num_radar_filters_in_first_layer,
-        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
-        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
-        l2_weight=l2_weight, num_sounding_heights=len(SOUNDING_HEIGHTS_M_AGL),
-        num_sounding_fields=num_sounding_fields,
-        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
-    print SEPARATOR_STRING
 
     training_option_dict = {
         trainval_io.RADAR_FILE_NAMES_KEY: training_file_name_matrix,
@@ -324,6 +275,35 @@ def _train_cnn(
         trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation,
         trainval_io.REFLECTIVITY_MASK_KEY: refl_masking_threshold_dbz
     }
+
+    cnn.write_model_metadata(
+        pickle_file_name=metadata_file_name, metadata_dict=metadata_dict,
+        training_option_dict=training_option_dict)
+
+    if binarize_target:
+        num_classes_to_predict = 2
+    else:
+        num_classes_to_predict = labels.column_name_to_num_classes(
+            column_name=target_name, include_dead_storms=False)
+
+    model_object = cnn.get_3d_swirlnet_architecture(
+        num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
+        num_radar_heights=len(RADAR_HEIGHTS_M_AGL),
+        num_radar_fields=len(radar_field_names),
+        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        pooling_type_string=pooling_type_string,
+        num_classes=num_classes_to_predict,
+        conv_layer_activation_func_string=conv_layer_activation_func_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        num_radar_filters_in_first_layer=num_radar_filters_in_first_layer,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l2_weight=l2_weight, num_sounding_heights=len(SOUNDING_HEIGHTS_M_AGL),
+        num_sounding_fields=num_sounding_fields,
+        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
+    print SEPARATOR_STRING
 
     cnn.train_3d_cnn(
         model_object=model_object, model_file_name=model_file_name,

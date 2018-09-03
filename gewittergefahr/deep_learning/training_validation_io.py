@@ -1280,7 +1280,7 @@ def read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     return sounding_dict, radar_image_dict
 
 
-def storm_image_generator_2d(option_dict=None):
+def storm_image_generator_2d(option_dict):
     """Generates examples with 2-D radar images.
 
     Each example consists of the following data for one storm object:
@@ -1357,11 +1357,7 @@ def storm_image_generator_2d(option_dict=None):
     :return: target_array: See documentation above.
     """
 
-    if option_dict is None:
-        orig_option_dict = {}
-    else:
-        orig_option_dict = option_dict.copy()
-
+    orig_option_dict = option_dict.copy()
     option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
@@ -1645,11 +1641,7 @@ def storm_image_generator_3d(option_dict):
     :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
-    if option_dict is None:
-        orig_option_dict = {}
-    else:
-        orig_option_dict = option_dict.copy()
-
+    orig_option_dict = option_dict.copy()
     option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
@@ -1948,11 +1940,7 @@ def storm_image_generator_2d3d_myrorss(option_dict):
     :return: target_array: See output doc for `storm_image_generator_2d`.
     """
 
-    if option_dict is None:
-        orig_option_dict = {}
-    else:
-        orig_option_dict = option_dict.copy()
-
+    orig_option_dict = option_dict.copy()
     option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 

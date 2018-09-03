@@ -79,56 +79,25 @@ WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 VALIDATION_FILES_KEY = 'validn_file_name_matrix'
 POSITIVE_VALIDATION_FILES_KEY = 'validn_file_name_matrix_pos_targets_only'
-TRAINING_FILES_KEY = 'training_file_name_matrix'
-POSITIVE_TRAINING_FILES_KEY = 'training_file_name_matrix_pos_targets_only'
 USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
-NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
-NUM_EXAMPLES_PER_FILE_KEY = 'num_examples_per_file'
-TARGET_NAME_KEY = 'target_name'
-NUM_ROWS_TO_KEEP_KEY = 'num_rows_to_keep'
-NUM_COLUMNS_TO_KEEP_KEY = 'num_columns_to_keep'
-NORMALIZATION_TYPE_KEY = 'normalization_type_string'
-MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
-MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
-NORMALIZATION_FILE_KEY = 'normalization_param_file_name'
-BINARIZE_TARGET_KEY = 'binarize_target'
-SAMPLING_FRACTIONS_KEY = 'sampling_fraction_by_class_dict'
-SOUNDING_FIELD_NAMES_KEY = 'sounding_field_names'
-SOUNDING_LAG_TIME_KEY = 'sounding_lag_time_sec'
-NUM_TRANSLATIONS_KEY = 'num_translations'
-MAX_TRANSLATION_KEY = 'max_translation_pixels'
-NUM_ROTATIONS_KEY = 'num_rotations'
-MAX_ROTATION_KEY = 'max_absolute_rotation_angle_deg'
-NUM_NOISINGS_KEY = 'num_noisings'
-MAX_NOISE_KEY = 'max_noise_standard_deviation'
-REFL_MASKING_THRESHOLD_KEY = 'refl_masking_threshold_dbz'
 RADAR_SOURCE_KEY = 'radar_source'
 RADAR_FIELDS_KEY = 'radar_field_names'
 RADAR_HEIGHTS_KEY = 'radar_heights_m_agl'
 REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_agl'
 SOUNDING_HEIGHTS_KEY = 'sounding_heights_m_agl'
+TRAINING_OPTION_DICT_KEY = 'training_option_dict'
 
-MODEL_METADATA_KEYS = [
+REQUIRED_METADATA_KEYS = [
     NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, MONITOR_STRING_KEY,
     WEIGHT_LOSS_FUNCTION_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILES_KEY,
-    POSITIVE_VALIDATION_FILES_KEY, TRAINING_FILES_KEY,
-    POSITIVE_TRAINING_FILES_KEY, USE_2D3D_CONVOLUTION_KEY,
-    NUM_EXAMPLES_PER_BATCH_KEY, NUM_EXAMPLES_PER_FILE_KEY, TARGET_NAME_KEY,
-    NUM_ROWS_TO_KEEP_KEY, NUM_COLUMNS_TO_KEEP_KEY, NORMALIZATION_TYPE_KEY,
-    MIN_NORMALIZED_VALUE_KEY, MAX_NORMALIZED_VALUE_KEY, NORMALIZATION_FILE_KEY,
-    BINARIZE_TARGET_KEY, SAMPLING_FRACTIONS_KEY, SOUNDING_FIELD_NAMES_KEY,
-    SOUNDING_LAG_TIME_KEY, NUM_TRANSLATIONS_KEY, MAX_TRANSLATION_KEY,
-    NUM_ROTATIONS_KEY, MAX_ROTATION_KEY, NUM_NOISINGS_KEY, MAX_NOISE_KEY,
-    REFL_MASKING_THRESHOLD_KEY, RADAR_SOURCE_KEY, RADAR_FIELDS_KEY,
-    RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY, SOUNDING_HEIGHTS_KEY
+    POSITIVE_VALIDATION_FILES_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
+    RADAR_FIELDS_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY,
+    SOUNDING_HEIGHTS_KEY
 ]
 
 DEFAULT_METADATA_DICT = {
     VALIDATION_FILES_KEY: None,
     POSITIVE_VALIDATION_FILES_KEY: None,
-    POSITIVE_TRAINING_FILES_KEY: None,
-    SOUNDING_LAG_TIME_KEY: None,
-    REFL_MASKING_THRESHOLD_KEY: None,
     RADAR_HEIGHTS_KEY: None,
     REFLECTIVITY_HEIGHTS_KEY: None,
     SOUNDING_HEIGHTS_KEY: None
@@ -139,7 +108,8 @@ DEFAULT_METADATA_DICT.update(trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT)
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
 SPATIAL_DIMENSION_KEYS = [
-    'spatial_dimension1', 'spatial_dimension2', 'spatial_dimension3']
+    'spatial_dimension1', 'spatial_dimension2', 'spatial_dimension3'
+]
 
 FEATURE_MATRIX_KEY = 'feature_matrix'
 TARGET_VALUES_KEY = 'target_values'
@@ -1238,7 +1208,7 @@ def read_model(hdf5_file_name):
         hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
 
 
-def write_model_metadata(pickle_file_name, metadata_dict):
+def write_model_metadata(pickle_file_name, metadata_dict, training_option_dict):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
@@ -1256,39 +1226,9 @@ def write_model_metadata(pickle_file_name, metadata_dict):
     metadata_dict['validn_file_name_matrix_pos_targets_only']: Same as
         "validn_file_name_matrix", but containing only examples with target
         class = 1.
-    metadata_dict['training_file_name_matrix']: numpy array created by
-        `training_validation_io.find_radar_files_2d` or
-        `training_validation_io.find_radar_files_3d`, for training only.
-    metadata_dict['training_file_name_matrix_pos_targets_only']: Same as
-        "training_file_name_matrix", but containing only examples with target
-        class = 1.
     metadata_dict['use_2d3d_convolution']: Boolean flag.  If True, the network
         performs a hybrid of 2-D and 3-D convolution, so the data-generator is
         `training_validation_io.storm_image_generator_2d3d_myrorss`.
-    metadata_dict['num_examples_per_batch']: Number of examples (storm objects)
-        per batch.
-    metadata_dict['num_examples_per_file']: Number of examples (storm objects)
-        per file.
-    metadata_dict['target_name']: Name of target variable.
-    metadata_dict['num_rows_to_keep']: See doc for
-        `training_validation_io.storm_image_generator_2d`.
-    metadata_dict['num_columns_to_keep']: Same.
-    metadata_dict['normalization_type_string']: Same.
-    metadata_dict['min_normalized_value']: Same.
-    metadata_dict['max_normalized_value']: Same.
-    metadata_dict['normalization_param_file_name']: Same.
-    metadata_dict['binarize_target']: Same.
-    metadata_dict['sampling_fraction_by_class_dict']: Same.
-    metadata_dict['sounding_field_names']: Same.
-    metadata_dict['sounding_lag_time_sec']: Same.
-    metadata_dict['num_translations']: Same.
-    metadata_dict['max_translation_pixels']: Same.
-    metadata_dict['num_rotations']: Same.
-    metadata_dict['max_absolute_rotation_angle_deg']: Same.
-    metadata_dict['num_noisings']: Same.
-    metadata_dict['max_noise_standard_deviation']: Same.
-    metadata_dict['refl_masking_threshold_dbz']: See doc for
-        `training_validation_io.storm_image_generator_3d`.
     metadata_dict['radar_source']: Data source (must be accepted by
         `radar_utils.check_field_name`).
     metadata_dict['radar_field_names']: See doc for
@@ -1299,6 +1239,8 @@ def write_model_metadata(pickle_file_name, metadata_dict):
     metadata_dict['sounding_heights_m_agl']: 1-D numpy array of sounding heights
         (integer metres above ground level).
 
+    :param training_option_dict: Input to generator (e.g.,
+        `training_validation_io.storm_image_generator_2d`) for training data.
     :raises: ValueError: if any expected keys are missing from `metadata_dict`.
     """
 
@@ -1306,13 +1248,18 @@ def write_model_metadata(pickle_file_name, metadata_dict):
     metadata_dict = DEFAULT_METADATA_DICT.copy()
     metadata_dict.update(orig_metadata_dict)
 
-    missing_keys = list(set(MODEL_METADATA_KEYS) - set(metadata_dict.keys()))
+    missing_keys = list(set(REQUIRED_METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys):
         error_string = (
             'The following expected keys are missing from the dictionary.'
             '\n{0:s}'
         ).format(str(missing_keys))
         raise ValueError(error_string)
+
+    orig_training_option_dict = training_option_dict.copy()
+    training_option_dict = trainval_io.DEFAULT_GENERATOR_OPTION_DICT.copy()
+    training_option_dict.update(orig_training_option_dict)
+    metadata_dict.update({TRAINING_OPTION_DICT_KEY: training_option_dict})
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
@@ -1325,20 +1272,11 @@ def read_model_metadata(pickle_file_name):
 
     :param pickle_file_name: Path to input file.
     :return: metadata_dict: See doc for `write_model_metadata`.
-    :raises: ValueError: if any expected keys are missing from `metadata_dict`.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
-
-    missing_keys = list(set(MODEL_METADATA_KEYS) - set(metadata_dict.keys()))
-    if len(missing_keys):
-        error_string = (
-            'The following expected keys are missing from the dictionary.'
-            '\n{0:s}'
-        ).format(str(missing_keys))
-        raise ValueError(error_string)
 
     return metadata_dict
 

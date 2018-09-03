@@ -162,38 +162,41 @@ def _extract_2d_cnn_features(
             cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     print SEPARATOR_STRING
 
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     generator_object = trainval_io.storm_image_generator_2d({
         trainval_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix,
         trainval_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
         trainval_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_batch,
-        trainval_io.TARGET_NAME_KEY: model_metadata_dict[cnn.TARGET_NAME_KEY],
+        trainval_io.TARGET_NAME_KEY:
+            training_option_dict[trainval_io.TARGET_NAME_KEY],
         trainval_io.NUM_ROWS_TO_KEEP_KEY:
-            model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
         trainval_io.NUM_COLUMNS_TO_KEEP_KEY:
-            model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+            training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
         trainval_io.NORMALIZATION_TYPE_KEY:
-            model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+            training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
         trainval_io.MIN_NORMALIZED_VALUE_KEY:
-            model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+            training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
         trainval_io.MAX_NORMALIZED_VALUE_KEY:
-            model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+            training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
         trainval_io.NORMALIZATION_FILE_KEY:
-            model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+            training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
         trainval_io.BINARIZE_TARGET_KEY:
-            model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+            training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
         trainval_io.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
         trainval_io.SOUNDING_FIELDS_KEY:
-            model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
         trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
         trainval_io.SOUNDING_LAG_TIME_KEY:
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
+            training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY],
         trainval_io.LOOP_ONCE_KEY: True
     })
 
     num_examples_read = 0
-    use_soundings = model_metadata_dict[
-        cnn.SOUNDING_FIELD_NAMES_KEY] is not None
+    use_soundings = training_option_dict[
+        trainval_io.SOUNDING_FIELDS_KEY] is not None
 
     while num_examples_read < num_examples_total:
         print (
@@ -246,11 +249,11 @@ def _extract_2d_cnn_features(
         print 'Writing features and target values to: "{0:s}"...'.format(
             output_netcdf_file_name)
 
-        if model_metadata_dict[cnn.BINARIZE_TARGET_KEY]:
+        if training_option_dict[trainval_io.BINARIZE_TARGET_KEY]:
             num_classes_in_file = 2
         else:
             num_classes_in_file = labels.column_name_to_num_classes(
-                model_metadata_dict[cnn.TARGET_NAME_KEY])
+                training_option_dict[trainval_io.TARGET_NAME_KEY])
 
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
@@ -293,40 +296,43 @@ def _extract_3d_cnn_features(
         one_file_per_time_step=one_file_per_time_step, shuffle_times=False)[0]
     print SEPARATOR_STRING
 
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     generator_object = trainval_io.storm_image_generator_3d({
         trainval_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix,
         trainval_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
         trainval_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_batch,
-        trainval_io.TARGET_NAME_KEY: model_metadata_dict[cnn.TARGET_NAME_KEY],
+        trainval_io.TARGET_NAME_KEY:
+            training_option_dict[trainval_io.TARGET_NAME_KEY],
         trainval_io.NUM_ROWS_TO_KEEP_KEY:
-            model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
         trainval_io.NUM_COLUMNS_TO_KEEP_KEY:
-            model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+            training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
         trainval_io.NORMALIZATION_TYPE_KEY:
-            model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+            training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
         trainval_io.MIN_NORMALIZED_VALUE_KEY:
-            model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+            training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
         trainval_io.MAX_NORMALIZED_VALUE_KEY:
-            model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+            training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
         trainval_io.NORMALIZATION_FILE_KEY:
-            model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+            training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
         trainval_io.BINARIZE_TARGET_KEY:
-            model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+            training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
         trainval_io.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
         trainval_io.SOUNDING_FIELDS_KEY:
-            model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
         trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
         trainval_io.SOUNDING_LAG_TIME_KEY:
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
+            training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY],
         trainval_io.LOOP_ONCE_KEY: True,
         trainval_io.REFLECTIVITY_MASK_KEY:
-            model_metadata_dict[cnn.REFL_MASKING_THRESHOLD_KEY]
+            training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
     })
 
     num_examples_read = 0
-    use_soundings = model_metadata_dict[
-        cnn.SOUNDING_FIELD_NAMES_KEY] is not None
+    use_soundings = training_option_dict[
+        trainval_io.SOUNDING_FIELDS_KEY] is not None
 
     while num_examples_read < num_examples_total:
         print (
@@ -379,11 +385,11 @@ def _extract_3d_cnn_features(
         print 'Writing features and target values to: "{0:s}"...'.format(
             output_netcdf_file_name)
 
-        if model_metadata_dict[cnn.BINARIZE_TARGET_KEY]:
+        if training_option_dict[trainval_io.BINARIZE_TARGET_KEY]:
             num_classes_in_file = 2
         else:
             num_classes_in_file = labels.column_name_to_num_classes(
-                model_metadata_dict[cnn.TARGET_NAME_KEY])
+                training_option_dict[trainval_io.TARGET_NAME_KEY])
 
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
@@ -428,38 +434,41 @@ def _extract_2d3d_cnn_features(
             cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
     print SEPARATOR_STRING
 
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     generator_object = trainval_io.storm_image_generator_2d3d_myrorss({
         trainval_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix,
         trainval_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
         trainval_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_batch,
-        trainval_io.TARGET_NAME_KEY: model_metadata_dict[cnn.TARGET_NAME_KEY],
+        trainval_io.TARGET_NAME_KEY:
+            training_option_dict[trainval_io.TARGET_NAME_KEY],
         trainval_io.NUM_ROWS_TO_KEEP_KEY:
-            model_metadata_dict[cnn.NUM_ROWS_TO_KEEP_KEY],
+            training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
         trainval_io.NUM_COLUMNS_TO_KEEP_KEY:
-            model_metadata_dict[cnn.NUM_COLUMNS_TO_KEEP_KEY],
+            training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
         trainval_io.NORMALIZATION_TYPE_KEY:
-            model_metadata_dict[cnn.NORMALIZATION_TYPE_KEY],
+            training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
         trainval_io.MIN_NORMALIZED_VALUE_KEY:
-            model_metadata_dict[cnn.MIN_NORMALIZED_VALUE_KEY],
+            training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
         trainval_io.MAX_NORMALIZED_VALUE_KEY:
-            model_metadata_dict[cnn.MAX_NORMALIZED_VALUE_KEY],
+            training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
         trainval_io.NORMALIZATION_FILE_KEY:
-            model_metadata_dict[cnn.NORMALIZATION_FILE_KEY],
+            training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
         trainval_io.BINARIZE_TARGET_KEY:
-            model_metadata_dict[cnn.BINARIZE_TARGET_KEY],
+            training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
         trainval_io.SAMPLING_FRACTIONS_KEY: sampling_fraction_by_class_dict,
         trainval_io.SOUNDING_FIELDS_KEY:
-            model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
         trainval_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
         trainval_io.SOUNDING_LAG_TIME_KEY:
-            model_metadata_dict[cnn.SOUNDING_LAG_TIME_KEY],
+            training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY],
         trainval_io.LOOP_ONCE_KEY: True
     })
 
     num_examples_read = 0
-    use_soundings = model_metadata_dict[
-        cnn.SOUNDING_FIELD_NAMES_KEY] is not None
+    use_soundings = training_option_dict[
+        trainval_io.SOUNDING_FIELDS_KEY] is not None
 
     while num_examples_read < num_examples_total:
         print (
@@ -505,11 +514,11 @@ def _extract_2d3d_cnn_features(
         print 'Writing features and target values to: "{0:s}"...'.format(
             output_netcdf_file_name)
 
-        if model_metadata_dict[cnn.BINARIZE_TARGET_KEY]:
+        if training_option_dict[trainval_io.BINARIZE_TARGET_KEY]:
             num_classes_in_file = 2
         else:
             num_classes_in_file = labels.column_name_to_num_classes(
-                model_metadata_dict[cnn.TARGET_NAME_KEY])
+                training_option_dict[trainval_io.TARGET_NAME_KEY])
 
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
@@ -574,8 +583,10 @@ def _extract_features(
     # Read metadata for trained model.
     model_directory_name, _ = os.path.split(model_file_name)
     metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
+
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         _extract_2d3d_cnn_features(
@@ -594,7 +605,7 @@ def _extract_features(
             model_metadata_dict=model_metadata_dict)
     else:
         num_radar_dimensions = len(
-            model_metadata_dict[cnn.TRAINING_FILES_KEY].shape)
+            training_option_dict[trainval_io.RADAR_FILE_NAMES_KEY].shape)
 
         if num_radar_dimensions == 2:
             _extract_2d_cnn_features(

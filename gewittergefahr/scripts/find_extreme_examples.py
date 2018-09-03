@@ -24,6 +24,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -150,11 +151,15 @@ def _read_target_values(
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    target_name = model_metadata_dict[cnn.TARGET_NAME_KEY]
+    target_name = training_option_dict[trainval_io.TARGET_NAME_KEY]
     num_classes = labels.column_name_to_num_classes(target_name)
     binarize_target = (
-        model_metadata_dict[cnn.BINARIZE_TARGET_KEY] and num_classes > 2)
+        training_option_dict[trainval_io.BINARIZE_TARGET_KEY] and
+        num_classes > 2
+    )
+
     if num_classes > 2 and not binarize_target:
         error_string = (
             'The target variable ("{0:s}") is multiclass, which this script '

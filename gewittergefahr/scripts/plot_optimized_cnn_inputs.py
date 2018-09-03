@@ -12,6 +12,7 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import \
     feature_optimization_plotting as fopt_plotting
 
@@ -89,6 +90,8 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
 
     print 'Reading metadata from: "{0:s}"...'.format(model_metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         raise TypeError('This script cannot yet handle models that do 2-D and '
                         '3-D convolution.')
@@ -99,7 +102,7 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
         model_metadata_dict=model_metadata_dict)
     print SEPARATOR_STRING
 
-    if model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY] is None:
+    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is None:
         list_of_metpy_dictionaries = None
     else:
         num_storm_objects = list_of_optimized_input_matrices[-1].shape[0]
@@ -107,12 +110,12 @@ def _run(input_file_name, one_figure_per_component, num_panel_rows,
 
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_optimized_input_matrices[-1],
-            field_names=model_metadata_dict[cnn.SOUNDING_FIELD_NAMES_KEY],
+            field_names=training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
             height_levels_m_agl=model_metadata_dict[cnn.SOUNDING_HEIGHTS_KEY],
             storm_elevations_m_asl=storm_elevations_m_asl)
 
-    training_radar_file_name_matrix = model_metadata_dict[
-        cnn.TRAINING_FILES_KEY]
+    training_radar_file_name_matrix = training_option_dict[
+        trainval_io.RADAR_FILE_NAMES_KEY]
     num_radar_dimensions = len(training_radar_file_name_matrix.shape)
 
     if num_radar_dimensions == 3:
