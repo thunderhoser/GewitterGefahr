@@ -243,7 +243,7 @@ def _train_cnn(
         cnn.WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         cnn.VALIDATION_FILES_KEY: validn_file_name_matrix,
-        cnn.USE_2D3D_CONVOLUTION_KEY: True,
+        cnn.USE_2D3D_CONVOLUTION_KEY: False,
         cnn.RADAR_SOURCE_KEY: radar_utils.MYRORSS_SOURCE_ID,
         cnn.RADAR_FIELDS_KEY: radar_field_names,
         cnn.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,

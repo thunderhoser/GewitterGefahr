@@ -16,7 +16,7 @@ DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS = 3
 
 VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([49], dtype=int)
 
-LIST_OF_METRIC_FUNCTIONS = [
+DEFAULT_METRIC_FUNCTION_LIST = [
     keras_metrics.accuracy, keras_metrics.binary_accuracy,
     keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
     keras_metrics.binary_pod, keras_metrics.binary_pofd,
@@ -269,7 +269,8 @@ def _get_output_layer_and_loss_function(num_classes):
 
 def get_2d_mnist_architecture(
         num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
-        init_num_filters, l2_weight=None):
+        init_num_filters, l2_weight=None,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
     """Creates 2-D CNN with architecture inspired by the following example.
 
     https://github.com/keras-team/keras/blob/master/examples/mnist_cnn.py
@@ -280,6 +281,11 @@ def get_2d_mnist_architecture(
     :param num_classes: Same.
     :param init_num_filters: Same.
     :param l2_weight: Same.
+    :param list_of_metric_functions: 1-D list of metric functions.  These will
+        be used during training and printed to the log file after each batch.
+        Each metric must take one target tensor and one prediction tensor and
+        return a single number.  See `keras_metrics.binary_accuracy` for an
+        example.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -350,7 +356,7 @@ def get_2d_mnist_architecture(
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=LIST_OF_METRIC_FUNCTIONS)
+        metrics=list_of_metric_functions)
 
     model_object.summary()
     return model_object
@@ -370,7 +376,8 @@ def get_2d_swirlnet_architecture(
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_fields=None,
         num_sounding_heights=None,
         num_sounding_conv_layer_sets=DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS,
-        init_num_sounding_filters=INIT_NUM_SOUNDING_FILTERS_DEFAULT):
+        init_num_sounding_filters=INIT_NUM_SOUNDING_FILTERS_DEFAULT,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
     """Creates 2-D CNN with architecture inspired by the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -395,6 +402,7 @@ def get_2d_swirlnet_architecture(
     :param num_sounding_fields: Same.
     :param num_sounding_conv_layer_sets: Same.
     :param init_num_sounding_filters: Same.
+    :param list_of_metric_functions: See doc for `get_2d_mnist_architecture`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -512,7 +520,7 @@ def get_2d_swirlnet_architecture(
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=LIST_OF_METRIC_FUNCTIONS)
+        metrics=list_of_metric_functions)
 
     model_object.summary()
     return model_object
@@ -532,7 +540,8 @@ def get_3d_swirlnet_architecture(
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_fields=None,
         num_sounding_heights=None,
         num_sounding_conv_layer_sets=DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS,
-        init_num_sounding_filters=INIT_NUM_SOUNDING_FILTERS_DEFAULT):
+        init_num_sounding_filters=INIT_NUM_SOUNDING_FILTERS_DEFAULT,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
     """Creates 3-D CNN with architecture inspired by the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -558,6 +567,7 @@ def get_3d_swirlnet_architecture(
     :param num_sounding_fields: Same.
     :param num_sounding_conv_layer_sets: Same.
     :param init_num_sounding_filters: Same.
+    :param list_of_metric_functions: See doc for `get_2d_mnist_architecture`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -679,7 +689,7 @@ def get_3d_swirlnet_architecture(
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=LIST_OF_METRIC_FUNCTIONS)
+        metrics=list_of_metric_functions)
 
     model_object.summary()
     return model_object
@@ -700,7 +710,8 @@ def get_2d3d_swirlnet_architecture(
         l2_weight=DEFAULT_L2_WEIGHT, num_sounding_fields=None,
         num_sounding_heights=None,
         num_sounding_conv_layer_sets=DEFAULT_NUM_SOUNDING_CONV_LAYER_SETS,
-        init_num_sounding_filters=INIT_NUM_SOUNDING_FILTERS_DEFAULT):
+        init_num_sounding_filters=INIT_NUM_SOUNDING_FILTERS_DEFAULT,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
     """Creates CNN with architecture inspired by the following example.
 
     https://github.com/djgagne/swirlnet/blob/master/notebooks/
@@ -743,6 +754,7 @@ def get_2d3d_swirlnet_architecture(
     :param num_sounding_fields: Same.
     :param num_sounding_conv_layer_sets: Same.
     :param init_num_sounding_filters: Same.
+    :param list_of_metric_functions: See doc for `get_2d_mnist_architecture`.
     :return: model_object: `keras.models.Sequential` object with the
         aforementioned architecture.
     """
@@ -998,7 +1010,7 @@ def get_2d3d_swirlnet_architecture(
 
     model_object.compile(
         loss=loss_function, optimizer=keras.optimizers.Adam(),
-        metrics=LIST_OF_METRIC_FUNCTIONS)
+        metrics=list_of_metric_functions)
 
     model_object.summary()
     return model_object
