@@ -27,7 +27,7 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
-RADAR_DIRECTORY_ARG_NAME = 'input_storm_radar_image_dir_name'
+RADAR_DIRECTORY_ARG_NAME = 'input_radar_image_dir_name'
 SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
 TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
 NUM_EXAMPLES_PER_FILE_ARG_NAME = 'num_examples_per_file'
