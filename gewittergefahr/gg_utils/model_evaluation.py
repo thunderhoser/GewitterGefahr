@@ -76,13 +76,14 @@ PEIRCE_SCORE_KEY = 'peirce_score'
 HEIDKE_SCORE_KEY = 'heidke_score'
 AUC_KEY = 'auc'
 SCIKIT_LEARN_AUC_KEY = 'scikit_learn_auc'
+AUPD_KEY = 'aupd'
 BSS_DICTIONARY_KEY = 'bss_dict'
 
 EVALUATION_DICT_KEYS = [
     FORECAST_PROBABILITIES_KEY, OBSERVED_LABELS_KEY, BINARIZATION_THRESHOLD_KEY,
     POD_KEY, POFD_KEY, SUCCESS_RATIO_KEY, FOCN_KEY, ACCURACY_KEY, CSI_KEY,
     FREQUENCY_BIAS_KEY, PEIRCE_SCORE_KEY, HEIDKE_SCORE_KEY, AUC_KEY,
-    SCIKIT_LEARN_AUC_KEY, BSS_DICTIONARY_KEY]
+    SCIKIT_LEARN_AUC_KEY, AUPD_KEY, BSS_DICTIONARY_KEY]
 
 MIN_BINARIZATION_THRESHOLD = 0.
 MAX_BINARIZATION_THRESHOLD = 1. + TOLERANCE
@@ -628,48 +629,6 @@ def get_cross_entropy(forecast_probabilities=None, observed_labels=None):
         (1 - observed_labels) * numpy.log2(1 - forecast_probabilities))
 
 
-def get_area_under_roc_curve(pofd_by_threshold, pod_by_threshold):
-    """Computes area under ROC curve.
-
-    This calculation ignores NaN's.  If you use `sklearn.metrics.auc` without
-    this wrapper, if either input array contains any NaN, the result will be
-    NaN.
-
-    T = number of binarization thresholds
-
-    :param pofd_by_threshold: length-T numpy array of POFD values.
-    :param pod_by_threshold: length-T numpy array of corresponding POD values.
-    :return: area_under_curve: Area under ROC curve.
-    """
-
-    error_checking.assert_is_numpy_array(pofd_by_threshold, num_dimensions=1)
-    error_checking.assert_is_geq_numpy_array(
-        pofd_by_threshold, 0., allow_nan=True)
-    error_checking.assert_is_leq_numpy_array(
-        pofd_by_threshold, 1., allow_nan=True)
-    num_thresholds = len(pofd_by_threshold)
-
-    error_checking.assert_is_numpy_array(
-        pod_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
-    error_checking.assert_is_geq_numpy_array(
-        pod_by_threshold, 0., allow_nan=True)
-    error_checking.assert_is_leq_numpy_array(
-        pod_by_threshold, 1., allow_nan=True)
-
-    sort_indices = numpy.argsort(-pofd_by_threshold)
-    pofd_by_threshold = pofd_by_threshold[sort_indices]
-    pod_by_threshold = pod_by_threshold[sort_indices]
-
-    nan_flags = numpy.logical_or(
-        numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold))
-    if numpy.all(nan_flags):
-        return numpy.nan
-
-    real_indices = numpy.where(numpy.invert(nan_flags))[0]
-    return sklearn.metrics.auc(
-        pofd_by_threshold[real_indices], pod_by_threshold[real_indices])
-
-
 def get_points_in_roc_curve(
         forecast_probabilities=None, observed_labels=None, threshold_arg=None,
         unique_forecast_precision=DEFAULT_PRECISION_FOR_THRESHOLDS):
@@ -712,6 +671,48 @@ def get_points_in_roc_curve(
         pod_by_threshold[i] = get_pod(this_contingency_table_as_dict)
 
     return pofd_by_threshold, pod_by_threshold
+
+
+def get_area_under_roc_curve(pofd_by_threshold, pod_by_threshold):
+    """Computes area under ROC curve.
+
+    This calculation ignores NaN's.  If you use `sklearn.metrics.auc` without
+    this wrapper, if either input array contains any NaN, the result will be
+    NaN.
+
+    T = number of binarization thresholds
+
+    :param pofd_by_threshold: length-T numpy array of POFD values.
+    :param pod_by_threshold: length-T numpy array of corresponding POD values.
+    :return: area_under_curve: Area under ROC curve.
+    """
+
+    error_checking.assert_is_numpy_array(pofd_by_threshold, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(
+        pofd_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        pofd_by_threshold, 1., allow_nan=True)
+    num_thresholds = len(pofd_by_threshold)
+
+    error_checking.assert_is_numpy_array(
+        pod_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
+    error_checking.assert_is_geq_numpy_array(
+        pod_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        pod_by_threshold, 1., allow_nan=True)
+
+    sort_indices = numpy.argsort(-pofd_by_threshold)
+    pofd_by_threshold = pofd_by_threshold[sort_indices]
+    pod_by_threshold = pod_by_threshold[sort_indices]
+
+    nan_flags = numpy.logical_or(
+        numpy.isnan(pofd_by_threshold), numpy.isnan(pod_by_threshold))
+    if numpy.all(nan_flags):
+        return numpy.nan
+
+    real_indices = numpy.where(numpy.invert(nan_flags))[0]
+    return sklearn.metrics.auc(
+        pofd_by_threshold[real_indices], pod_by_threshold[real_indices])
 
 
 def bootstrap_roc_curve(
@@ -863,6 +864,46 @@ def get_points_in_performance_diagram(
         pod_by_threshold[i] = get_pod(this_contingency_table_as_dict)
 
     return success_ratio_by_threshold, pod_by_threshold
+
+
+def get_area_under_perf_diagram(success_ratio_by_threshold, pod_by_threshold):
+    """Computes area under performance diagram.
+
+    T = number of binarization thresholds
+
+    :param success_ratio_by_threshold: length-T numpy array of success ratios.
+    :param pod_by_threshold: length-T numpy array of corresponding POD values.
+    :return: area_under_curve: Area under performance diagram.
+    """
+
+    error_checking.assert_is_numpy_array(
+        success_ratio_by_threshold, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(
+        success_ratio_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        success_ratio_by_threshold, 1., allow_nan=True)
+    num_thresholds = len(success_ratio_by_threshold)
+
+    error_checking.assert_is_numpy_array(
+        pod_by_threshold, exact_dimensions=numpy.array([num_thresholds]))
+    error_checking.assert_is_geq_numpy_array(
+        pod_by_threshold, 0., allow_nan=True)
+    error_checking.assert_is_leq_numpy_array(
+        pod_by_threshold, 1., allow_nan=True)
+
+    sort_indices = numpy.argsort(success_ratio_by_threshold)
+    success_ratio_by_threshold = success_ratio_by_threshold[sort_indices]
+    pod_by_threshold = pod_by_threshold[sort_indices]
+
+    nan_flags = numpy.logical_or(
+        numpy.isnan(success_ratio_by_threshold), numpy.isnan(pod_by_threshold))
+    if numpy.all(nan_flags):
+        return numpy.nan
+
+    real_indices = numpy.where(numpy.invert(nan_flags))[0]
+    return sklearn.metrics.auc(
+        success_ratio_by_threshold[real_indices],
+        pod_by_threshold[real_indices])
 
 
 def bootstrap_performance_diagram(
@@ -1403,7 +1444,7 @@ def get_no_resolution_line_for_reliability_curve(mean_observed_label):
 def write_results(
         forecast_probabilities, observed_labels, binarization_threshold, pod,
         pofd, success_ratio, focn, accuracy, csi, frequency_bias, peirce_score,
-        heidke_score, auc, scikit_learn_auc, bss_dict, pickle_file_name):
+        heidke_score, auc, scikit_learn_auc, aupd, bss_dict, pickle_file_name):
     """Writes results to Pickle file.
 
     :param forecast_probabilities: See documentation for
@@ -1422,6 +1463,7 @@ def write_results(
     :param heidke_score: Heidke score.
     :param auc: Area under ROC curve (computed by GewitterGefahr).
     :param scikit_learn_auc: AUC computed by scikit-learn.
+    :param aupd: Area under performance diagram.
     :param bss_dict: Dictionary created by `get_brier_skill_score`.
     :param pickle_file_name: Path to output file.
     """
@@ -1441,6 +1483,7 @@ def write_results(
         HEIDKE_SCORE_KEY: heidke_score,
         AUC_KEY: auc,
         SCIKIT_LEARN_AUC_KEY: scikit_learn_auc,
+        AUPD_KEY: aupd,
         BSS_DICTIONARY_KEY: bss_dict
     }
 
@@ -1463,6 +1506,9 @@ def read_results(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     evaluation_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if AUPD_KEY not in evaluation_dict.keys():
+        evaluation_dict.update({AUPD_KEY: numpy.nan})
 
     expected_keys_as_set = set(EVALUATION_DICT_KEYS)
     actual_keys_as_set = set(evaluation_dict.keys())

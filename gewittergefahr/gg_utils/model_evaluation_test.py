@@ -509,6 +509,22 @@ class ModelEvaluationTests(unittest.TestCase):
         self.assertTrue(numpy.isclose(
             this_cross_entropy, CROSS_ENTROPY, atol=TOLERANCE))
 
+    def test_get_points_in_roc_curve(self):
+        """Ensures correct output from get_points_in_roc_curve."""
+
+        these_pofd_by_threshold, these_pod_by_threshold = (
+            model_eval.get_points_in_roc_curve(
+                forecast_probabilities=FORECAST_PROBABILITIES,
+                observed_labels=OBSERVED_LABELS,
+                threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
+                unique_forecast_precision=
+                UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS))
+
+        self.assertTrue(numpy.allclose(
+            these_pofd_by_threshold, POFD_BY_THRESHOLD, atol=TOLERANCE))
+        self.assertTrue(numpy.allclose(
+            these_pod_by_threshold, POD_BY_THRESHOLD, atol=TOLERANCE))
+
     def test_get_area_under_roc_curve_no_nan(self):
         """Ensures correct output from get_area_under_roc_curve.
 
@@ -549,22 +565,6 @@ class ModelEvaluationTests(unittest.TestCase):
         this_auc = model_eval.get_area_under_roc_curve(
             these_pofd_by_threshold, these_pod_by_threshold)
         self.assertTrue(numpy.isnan(this_auc))
-
-    def test_get_points_in_roc_curve(self):
-        """Ensures correct output from get_points_in_roc_curve."""
-
-        these_pofd_by_threshold, these_pod_by_threshold = (
-            model_eval.get_points_in_roc_curve(
-                forecast_probabilities=FORECAST_PROBABILITIES,
-                observed_labels=OBSERVED_LABELS,
-                threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
-                unique_forecast_precision=
-                UNIQUE_FORECAST_PRECISION_FOR_THRESHOLDS))
-
-        self.assertTrue(numpy.allclose(
-            these_pofd_by_threshold, POFD_BY_THRESHOLD, atol=TOLERANCE))
-        self.assertTrue(numpy.allclose(
-            these_pod_by_threshold, POD_BY_THRESHOLD, atol=TOLERANCE))
 
     def test_get_points_in_performance_diagram(self):
         """Ensures correct output from get_points_in_performance_diagram."""

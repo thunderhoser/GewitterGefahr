@@ -75,6 +75,7 @@ def _create_performance_diagram(
     :param forecast_probabilities: See doc for `run_evaluation`.
     :param observed_labels: Same.
     :param output_dir_name: Same.
+    :return: aupd: Area under performance diagram.
     """
 
     success_ratio_by_threshold, pod_by_threshold = (
@@ -83,6 +84,13 @@ def _create_performance_diagram(
             observed_labels=observed_labels,
             threshold_arg=model_eval.THRESHOLD_ARG_FOR_UNIQUE_FORECASTS,
             unique_forecast_precision=FORECAST_PRECISION_FOR_THRESHOLDS))
+
+    aupd = model_eval.get_area_under_perf_diagram(
+        success_ratio_by_threshold=success_ratio_by_threshold,
+        pod_by_threshold=pod_by_threshold)
+
+    title_string = 'AUPD = {0:.4f}'.format(aupd)
+    print title_string
 
     figure_file_name = '{0:s}/performance_diagram.jpg'.format(output_dir_name)
     print 'Saving performance diagram to: "{0:s}"...\n'.format(figure_file_name)
@@ -93,8 +101,11 @@ def _create_performance_diagram(
         axes_object=axes_object, pod_by_threshold=pod_by_threshold,
         success_ratio_by_threshold=success_ratio_by_threshold)
 
+    pyplot.title(title_string)
     pyplot.savefig(figure_file_name, dpi=DOTS_PER_INCH)
     pyplot.close()
+
+    return aupd
 
 
 def _create_attributes_diagram(
@@ -234,6 +245,11 @@ def run_evaluation(forecast_probabilities, observed_labels, output_dir_name):
         observed_labels=observed_labels, output_dir_name=output_dir_name)
     print '\n'
 
+    aupd = _create_performance_diagram(
+        forecast_probabilities=forecast_probabilities,
+        observed_labels=observed_labels, output_dir_name=output_dir_name)
+    print '\n'
+
     evaluation_file_name = '{0:s}/model_evaluation.p'.format(output_dir_name)
     print 'Writing results to: "{0:s}"...'.format(evaluation_file_name)
     model_eval.write_results(
@@ -243,8 +259,4 @@ def run_evaluation(forecast_probabilities, observed_labels, output_dir_name):
         success_ratio=success_ratio, focn=focn, accuracy=accuracy, csi=csi,
         frequency_bias=frequency_bias, peirce_score=peirce_score,
         heidke_score=heidke_score, auc=auc, scikit_learn_auc=scikit_learn_auc,
-        bss_dict=bss_dict, pickle_file_name=evaluation_file_name)
-
-    _create_performance_diagram(
-        forecast_probabilities=forecast_probabilities,
-        observed_labels=observed_labels, output_dir_name=output_dir_name)
+        aupd=aupd, bss_dict=bss_dict, pickle_file_name=evaluation_file_name)
