@@ -2,7 +2,8 @@
 
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import cnn_utils
+from gewittergefahr.deep_learning import cnn_architecture
+from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -59,13 +60,19 @@ DEFAULT_MONITOR_STRING = cnn.LOSS_AS_MONITOR_STRING
 DEFAULT_BINARIZE_TARGET_FLAG = 0
 DEFAULT_NUM_CONV_LAYER_SETS = 3
 DEFAULT_NUM_CONV_LAYERS_PER_SET = 1
-DEFAULT_POOLING_TYPE_STRING = cnn_utils.MAX_POOLING_TYPE
-DEFAULT_CONV_LAYER_ACTIVATION_FUNC_STRING = cnn_utils.RELU_FUNCTION_STRING
-DEFAULT_ALPHA_FOR_ELU = cnn_utils.DEFAULT_ALPHA_FOR_ELU
-DEFAULT_ALPHA_FOR_RELU = cnn_utils.DEFAULT_ALPHA_FOR_RELU
+DEFAULT_POOLING_TYPE_STRING = architecture_utils.MAX_POOLING_TYPE
+DEFAULT_CONV_LAYER_ACTIVATION_FUNC_STRING = (
+    architecture_utils.RELU_FUNCTION_STRING
+)
+DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
+DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
 DEFAULT_USE_BATCH_NORM_FLAG = 0
-DEFAULT_CONV_LAYER_DROPOUT_FRACTION = cnn.DEFAULT_CONV_LAYER_DROPOUT_FRACTION
-DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = cnn.DEFAULT_DENSE_LAYER_DROPOUT_FRACTION
+DEFAULT_CONV_LAYER_DROPOUT_FRACTION = (
+    cnn_architecture.DEFAULT_CONV_LAYER_DROPOUT_FRACTION
+)
+DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = (
+    cnn_architecture.DEFAULT_DENSE_LAYER_DROPOUT_FRACTION
+)
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 DEFAULT_L2_WEIGHT = 1e-3
 DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH = 16
@@ -165,12 +172,12 @@ NUM_CONV_LAYER_SETS_HELP_STRING = (
 NUM_CONV_LAYERS_PER_SET_HELP_STRING = 'Number of conv layers in each set.'
 POOLING_TYPE_HELP_STRING = (
     'Pooling type.  Must be in the following list.\n{0:s}'
-).format(str(cnn_utils.VALID_POOLING_TYPES))
+).format(str(architecture_utils.VALID_POOLING_TYPES))
 
 ACTIVATION_FUNC_HELP_STRING = (
     'Activation function for conv layers.  Must be in the following list.'
     '\n{0:s}'
-).format(str(cnn_utils.VALID_CONV_LAYER_ACTIV_FUNC_STRINGS))
+).format(str(architecture_utils.VALID_CONV_LAYER_ACTIV_FUNC_STRINGS))
 
 ALPHA_FOR_ELU_HELP_STRING = (
     'Slope for negative inputs to eLU (exponential linear unit) activation '

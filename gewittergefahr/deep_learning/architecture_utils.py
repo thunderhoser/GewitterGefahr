@@ -1,4 +1,4 @@
-"""Helper methods for CNN (convolutional neural network).
+"""Helper methods for CNN (convolutional neural network) architecture.
 
 --- NOTATION ---
 

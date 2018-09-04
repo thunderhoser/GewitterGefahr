@@ -15,6 +15,7 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import cnn_architecture
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import deep_learning_helper as dl_helper
@@ -304,7 +305,7 @@ def _train_cnn(
         num_classes_to_predict = labels.column_name_to_num_classes(
             column_name=target_name, include_dead_storms=False)
 
-    model_object = cnn.get_2d3d_swirlnet_architecture(
+    model_object = cnn_architecture.get_2d3d_swirlnet_architecture(
         num_reflectivity_rows=num_reflectivity_rows,
         num_reflectivity_columns=num_reflectivity_columns,
         num_reflectivity_heights=len(REFLECTIVITY_HEIGHTS_M_AGL),
@@ -313,16 +314,16 @@ def _train_cnn(
         num_conv_layers_per_set=num_conv_layers_per_set,
         pooling_type_string=pooling_type_string,
         num_classes=num_classes_to_predict,
-        conv_layer_activation_func_string=conv_layer_activation_func_string,
+        conv_activation_function_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
-        num_refl_filters_in_first_layer=num_refl_filters_in_first_layer,
-        num_shear_filters_in_first_layer=num_shear_filters_in_first_layer,
+        init_num_reflectivity_filters=num_refl_filters_in_first_layer,
+        init_num_shear_filters=num_shear_filters_in_first_layer,
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
         dense_layer_dropout_fraction=dense_layer_dropout_fraction,
         l2_weight=l2_weight, num_sounding_heights=len(SOUNDING_HEIGHTS_M_AGL),
         num_sounding_fields=num_sounding_fields,
-        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
+        init_num_sounding_filters=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
 
     cnn.train_2d3d_cnn(

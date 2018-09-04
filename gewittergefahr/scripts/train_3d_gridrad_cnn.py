@@ -9,6 +9,7 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import cnn_architecture
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -286,7 +287,7 @@ def _train_cnn(
         num_classes_to_predict = labels.column_name_to_num_classes(
             column_name=target_name, include_dead_storms=False)
 
-    model_object = cnn.get_3d_swirlnet_architecture(
+    model_object = cnn_architecture.get_3d_swirlnet_architecture(
         num_radar_rows=num_radar_rows, num_radar_columns=num_radar_columns,
         num_radar_heights=len(RADAR_HEIGHTS_M_AGL),
         num_radar_fields=len(radar_field_names),
@@ -294,15 +295,15 @@ def _train_cnn(
         num_conv_layers_per_set=num_conv_layers_per_set,
         pooling_type_string=pooling_type_string,
         num_classes=num_classes_to_predict,
-        conv_layer_activation_func_string=conv_layer_activation_func_string,
+        conv_activation_function_string=conv_layer_activation_func_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
-        num_radar_filters_in_first_layer=num_radar_filters_in_first_layer,
+        init_num_radar_filters=num_radar_filters_in_first_layer,
         conv_layer_dropout_fraction=conv_layer_dropout_fraction,
         dense_layer_dropout_fraction=dense_layer_dropout_fraction,
         l2_weight=l2_weight, num_sounding_heights=len(SOUNDING_HEIGHTS_M_AGL),
         num_sounding_fields=num_sounding_fields,
-        num_sounding_filters_in_first_layer=num_sounding_filters_in_first_layer)
+        init_num_sounding_filters=num_sounding_filters_in_first_layer)
     print SEPARATOR_STRING
 
     cnn.train_3d_cnn(
