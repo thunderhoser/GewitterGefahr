@@ -244,7 +244,7 @@ def _train_cnn(
         cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
         cnn.VALIDATION_FILES_KEY: validn_file_name_matrix,
         cnn.USE_2D3D_CONVOLUTION_KEY: False,
-        cnn.RADAR_SOURCE_KEY: radar_utils.MYRORSS_SOURCE_ID,
+        cnn.RADAR_SOURCE_KEY: radar_utils.GRIDRAD_SOURCE_ID,
         cnn.RADAR_FIELDS_KEY: radar_field_names,
         cnn.RADAR_HEIGHTS_KEY: RADAR_HEIGHTS_M_AGL,
         cnn.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL
