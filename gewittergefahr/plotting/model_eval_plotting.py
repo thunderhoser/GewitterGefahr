@@ -38,7 +38,6 @@ PIXEL_PADDING_FOR_FREQ_BIAS_LABELS = 10
 LEVELS_FOR_FREQ_BIAS_CONTOURS = numpy.array(
     [0.25, 0.5, 0.75, 1., 1.5, 2., 3., 5.])
 
-DEFAULT_CSI_COLOUR_MAP = pyplot.cm.Blues
 LEVELS_FOR_CSI_CONTOURS = numpy.array(
     [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.])
 
@@ -73,6 +72,31 @@ pyplot.rc('xtick', labelsize=FONT_SIZE)
 pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
+
+
+def _get_csi_colour_scheme():
+    """Returns colour scheme for CSI (critical success index).
+
+    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
+    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    """
+
+    this_colour_map_object = pyplot.cm.Blues
+    this_colour_norm_object = matplotlib.colors.BoundaryNorm(
+        LEVELS_FOR_CSI_CONTOURS, this_colour_map_object.N)
+
+    rgba_matrix = this_colour_map_object(this_colour_norm_object(
+        LEVELS_FOR_CSI_CONTOURS))
+    colour_list = [
+        rgba_matrix[i, ..., :-1] for i in range(rgba_matrix.shape[0])
+    ]
+
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.array([1, 1, 1]))
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        LEVELS_FOR_CSI_CONTOURS, colour_map_object.N)
+
+    return colour_map_object, colour_norm_object
 
 
 def _confidence_interval_to_polygon(
@@ -364,8 +388,7 @@ def plot_performance_diagram(
         line_colour=DEFAULT_PERF_DIAG_LINE_COLOUR,
         line_width=DEFAULT_PERF_DIAG_LINE_WIDTH,
         bias_line_colour=DEFAULT_FREQ_BIAS_LINE_COLOUR,
-        bias_line_width=DEFAULT_FREQ_BIAS_LINE_WIDTH,
-        csi_colour_map=DEFAULT_CSI_COLOUR_MAP):
+        bias_line_width=DEFAULT_FREQ_BIAS_LINE_WIDTH):
     """Plots performance diagram.
 
     T = number of binarization thresholds
@@ -382,8 +405,6 @@ def plot_performance_diagram(
     :param line_width: Line width (real positive number).
     :param bias_line_colour: Colour of contour lines for frequency bias.
     :param bias_line_width: Width of contour lines for frequency bias.
-    :param csi_colour_map: Colour map (instance of `matplotlib.pyplot.cm`) for
-        CSI (critical success index) contours.
     """
 
     error_checking.assert_is_numpy_array(pod_by_threshold, num_dimensions=1)
@@ -407,13 +428,18 @@ def plot_performance_diagram(
     frequency_bias_matrix = model_eval.frequency_bias_from_sr_and_pod(
         success_ratio_matrix, pod_matrix)
 
+    this_colour_map_object, this_colour_norm_object = _get_csi_colour_scheme()
+
     pyplot.contourf(
         success_ratio_matrix, pod_matrix, csi_matrix, LEVELS_FOR_CSI_CONTOURS,
-        cmap=csi_colour_map, vmin=0., vmax=1., axes=axes_object)
-    colour_bar_object = plotting_utils.add_linear_colour_bar(
+        cmap=this_colour_map_object, norm=this_colour_norm_object, vmin=0.,
+        vmax=1., axes=axes_object)
+
+    colour_bar_object = plotting_utils.add_colour_bar(
         axes_object_or_list=axes_object, values_to_colour=csi_matrix,
-        colour_map=csi_colour_map, colour_min=0., colour_max=1.,
-        orientation='vertical', extend_min=False, extend_max=False)
+        colour_map=this_colour_map_object,
+        colour_norm_object=this_colour_norm_object, orientation='vertical',
+        extend_min=False, extend_max=False)
     colour_bar_object.set_label('CSI (critical success index)')
 
     bias_colour_tuple = ()
@@ -450,8 +476,7 @@ def plot_bootstrapped_performance_diagram(
         line_colour=DEFAULT_PERF_DIAG_LINE_COLOUR,
         line_width=DEFAULT_PERF_DIAG_LINE_WIDTH,
         bias_line_colour=DEFAULT_FREQ_BIAS_LINE_COLOUR,
-        bias_line_width=DEFAULT_FREQ_BIAS_LINE_WIDTH,
-        csi_colour_map=DEFAULT_CSI_COLOUR_MAP):
+        bias_line_width=DEFAULT_FREQ_BIAS_LINE_WIDTH):
     """Bootstrapped version of plot_performance_diagram.
 
     :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
@@ -469,8 +494,6 @@ def plot_bootstrapped_performance_diagram(
         interval).
     :param bias_line_colour: Colour of contour lines for frequency bias.
     :param bias_line_width: Width of contour lines for frequency bias.
-    :param csi_colour_map: Colour map (instance of `matplotlib.pyplot.cm`) for
-        CSI (critical success index) contours.
     """
 
     plot_performance_diagram(
@@ -480,8 +503,7 @@ def plot_bootstrapped_performance_diagram(
         success_ratio_by_threshold=performance_diagram_dict_mean[
             model_eval.SUCCESS_RATIO_BY_THRESHOLD_KEY],
         line_colour=line_colour, line_width=line_width,
-        bias_line_colour=bias_line_colour, bias_line_width=bias_line_width,
-        csi_colour_map=csi_colour_map)
+        bias_line_colour=bias_line_colour, bias_line_width=bias_line_width)
 
     polygon_object = _confidence_interval_to_polygon(
         x_coords_bottom=performance_diagram_dict_bottom[
