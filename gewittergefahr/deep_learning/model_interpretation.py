@@ -257,7 +257,7 @@ def read_storms_one_spc_date(
     )
     if read_pressure_separately:
         sounding_field_names_to_read = (
-            sounding_field_names + soundings.PRESSURE_NAME)
+            sounding_field_names + [soundings.PRESSURE_NAME])
     else:
         sounding_field_names_to_read = copy.deepcopy(sounding_field_names)
 
