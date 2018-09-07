@@ -375,7 +375,7 @@ def read_storms_one_spc_date(
         sounding_pressure_matrix_pascals = example_dict[
             deployment_io.SOUNDING_MATRIX_KEY][relevant_indices, ..., -1]
         example_dict[deployment_io.SOUNDING_MATRIX_KEY] = example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY][relevant_indices, ..., :-1]
+            deployment_io.SOUNDING_MATRIX_KEY][..., :-1]
     else:
         sounding_pressure_matrix_pascals = None
 
