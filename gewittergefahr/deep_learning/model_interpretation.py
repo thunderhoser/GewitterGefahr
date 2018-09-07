@@ -255,6 +255,7 @@ def read_storms_one_spc_date(
         sounding_field_names is not None and
         soundings.PRESSURE_NAME not in sounding_field_names
     )
+
     if read_pressure_separately:
         sounding_field_names_to_read = (
             sounding_field_names + [soundings.PRESSURE_NAME])
@@ -391,15 +392,23 @@ def read_storms_one_spc_date(
     }
 
 
-def denormalize_data(list_of_input_matrices, model_metadata_dict):
+def denormalize_data(list_of_input_matrices, model_metadata_dict,
+                     sounding_pressure_matrix_pascals=None):
     """Denormalizes input data for a Keras model.
+
+    E = number of examples (storm objects)
+    H = number of height levels per sounding
 
     :param list_of_input_matrices: length-T list of input matrices (numpy
         arrays), where T = number of input tensors to the model.
     :param model_metadata_dict: Dictionary with metadata for the relevant model,
         created by `cnn.read_model_metadata`.
+    :param sounding_pressure_matrix_pascals: E-by-H numpy array of normalized
+        pressure levels.  This may be None.
     :return: list_of_input_matrices: Denormalized version of input (same
         dimensions).
+    :return: sounding_pressure_matrix_pascals: Denormalized version of input.
+        If the input value is None, this is None.
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
@@ -462,7 +471,9 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             max_normalized_value=training_option_dict[
                 trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
-    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None:
+    if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is None:
+        sounding_pressure_matrix_pascals = None
+    else:
         list_of_input_matrices[-1] = dl_utils.denormalize_soundings(
             sounding_matrix=list_of_input_matrices[-1],
             field_names=training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
@@ -475,4 +486,23 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             max_normalized_value=training_option_dict[
                 trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
-    return list_of_input_matrices
+    if sounding_pressure_matrix_pascals is not None:
+        sounding_pressure_matrix_pascals = numpy.expand_dims(
+            sounding_pressure_matrix_pascals, axis=-1)
+
+        sounding_pressure_matrix_pascals = dl_utils.denormalize_soundings(
+            sounding_matrix=sounding_pressure_matrix_pascals,
+            field_names=[soundings.PRESSURE_NAME],
+            normalization_type_string=training_option_dict[
+                trainval_io.NORMALIZATION_TYPE_KEY],
+            normalization_param_file_name=training_option_dict[
+                trainval_io.NORMALIZATION_FILE_KEY],
+            min_normalized_value=training_option_dict[
+                trainval_io.MIN_NORMALIZED_VALUE_KEY],
+            max_normalized_value=training_option_dict[
+                trainval_io.MAX_NORMALIZED_VALUE_KEY])
+
+        sounding_pressure_matrix_pascals = sounding_pressure_matrix_pascals[
+            ..., 0]
+
+    return list_of_input_matrices, sounding_pressure_matrix_pascals

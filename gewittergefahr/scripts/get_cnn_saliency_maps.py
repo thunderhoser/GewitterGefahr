@@ -8,6 +8,7 @@ import os.path
 import argparse
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
@@ -192,30 +193,44 @@ def _run(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     # Find model input.
+    desired_spc_dates_unix_sec = numpy.array([
+        time_conversion.time_to_spc_date_unix_sec(t)
+        for t in desired_storm_times_unix_sec
+    ], dtype=int)
+    unique_spc_dates_unix_sec = numpy.unique(desired_spc_dates_unix_sec)
+    radar_file_name_matrix = None
+
     num_radar_dimensions = len(
         training_option_dict[trainval_io.RADAR_FILE_NAMES_KEY].shape)
     print SEPARATOR_STRING
 
-    if num_radar_dimensions == 2:
-        radar_file_name_matrix = trainval_io.find_radar_files_2d(
-            top_directory_name=top_radar_image_dir_name,
-            radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-            radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
-            first_file_time_unix_sec=numpy.min(desired_storm_times_unix_sec),
-            last_file_time_unix_sec=numpy.max(desired_storm_times_unix_sec),
-            one_file_per_time_step=False, shuffle_times=False,
-            radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-            reflectivity_heights_m_agl=model_metadata_dict[
-                cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
-    else:
-        radar_file_name_matrix = trainval_io.find_radar_files_3d(
-            top_directory_name=top_radar_image_dir_name,
-            radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
-            radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
-            radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-            first_file_time_unix_sec=numpy.min(desired_storm_times_unix_sec),
-            last_file_time_unix_sec=numpy.max(desired_storm_times_unix_sec),
-            one_file_per_time_step=False, shuffle_times=False)[0]
+    for this_spc_date_unix_sec in unique_spc_dates_unix_sec:
+        if num_radar_dimensions == 2:
+            this_file_name_matrix = trainval_io.find_radar_files_2d(
+                top_directory_name=top_radar_image_dir_name,
+                radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
+                radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
+                first_file_time_unix_sec=this_spc_date_unix_sec,
+                last_file_time_unix_sec=this_spc_date_unix_sec,
+                one_file_per_time_step=False, shuffle_times=False,
+                radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+                reflectivity_heights_m_agl=model_metadata_dict[
+                    cnn.REFLECTIVITY_HEIGHTS_KEY])[0]
+        else:
+            this_file_name_matrix = trainval_io.find_radar_files_3d(
+                top_directory_name=top_radar_image_dir_name,
+                radar_source=model_metadata_dict[cnn.RADAR_SOURCE_KEY],
+                radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
+                radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
+                first_file_time_unix_sec=this_spc_date_unix_sec,
+                last_file_time_unix_sec=this_spc_date_unix_sec,
+                one_file_per_time_step=False, shuffle_times=False)[0]
+
+        if radar_file_name_matrix is None:
+            radar_file_name_matrix = copy.deepcopy(this_file_name_matrix)
+        else:
+            radar_file_name_matrix = numpy.concatenate(
+                (radar_file_name_matrix, this_file_name_matrix), axis=0)
 
     print SEPARATOR_STRING
 
@@ -330,7 +345,8 @@ def _run(
     print 'Denormalizing model inputs...'
     model_interpretation.denormalize_data(
         list_of_input_matrices=list_of_input_matrices,
-        model_metadata_dict=model_metadata_dict)
+        model_metadata_dict=model_metadata_dict,
+        sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
 
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
     saliency_maps.write_file(
