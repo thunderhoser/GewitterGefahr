@@ -182,12 +182,25 @@ def _get_default_spectrum_width_colour_scheme():
         this case, units are metres per second.
     """
 
-    main_colour_list = _get_friendly_colour_list()
+    main_colour_list = [
+        numpy.array([0, 0, 128.]), numpy.array([0, 54.3, 105.4]),
+        numpy.array([0, 169.4, 255]), numpy.array([0, 253.6, 215.6]),
+        numpy.array([0, 253.8, 41.8]), numpy.array([107.8, 219.1, 0]),
+        numpy.array([168.6, 255, 43.8]), numpy.array([255, 245.2, 0]),
+        numpy.array([255, 198.3, 8.6]), numpy.array([255, 6.6, 0]),
+        numpy.array([255, 0, 141.7]), numpy.array([165.5, 44.8, 255]),
+        numpy.array([239.8, 155.3, 241.8]), numpy.array([254, 248, 254.])
+    ]
+
+    for i in range(len(main_colour_list)):
+        main_colour_list[i] /= 255
+
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object.set_under(numpy.array([1, 1, 1.]))
+    colour_map_object.set_over(numpy.array([1, 1, 1.]))
 
     main_colour_bounds_m_s01 = numpy.array(
-        [0.1, 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 5., 6., 7., 8., 9., 10.])
+        [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_m_s01, colour_map_object.N)
 
@@ -206,27 +219,32 @@ def _get_default_vorticity_colour_scheme():
     """
 
     main_colour_list = [
-        numpy.array([152., 50., 203.]), numpy.array([0., 45., 254.]),
-        numpy.array([0., 152., 254.]), numpy.array([152., 203., 254.]),
-        numpy.array([255., 255., 255.]), numpy.array([0., 101., 0.]),
-        numpy.array([0., 152., 0.]), numpy.array([0., 203., 0.]),
-        numpy.array([0., 254., 101.]), numpy.array([254., 254., 50.]),
-        numpy.array([254., 203., 0.]), numpy.array([254., 152., 0.]),
-        numpy.array([254., 101., 0.]), numpy.array([254., 0., 0.]),
-        numpy.array([254., 0., 152.])]
+        numpy.array([0, 0, 76.5]), numpy.array([0, 0, 118.5]),
+        numpy.array([0, 0, 163.3]), numpy.array([0, 0, 208.1]),
+        numpy.array([0, 0, 252.9]), numpy.array([61, 61, 255.]),
+        numpy.array([125, 125, 255.]), numpy.array([189, 189, 255.]),
+        numpy.array([253, 253, 255.]), numpy.array([255, 193, 193.]),
+        numpy.array([255, 129, 129.]), numpy.array([255, 65, 65.]),
+        numpy.array([255, 1, 1.]), numpy.array([223.5, 0, 0]),
+        numpy.array([191.5, 0, 0]), numpy.array([159.5, 0, 0]),
+        numpy.array([127.5, 0, 0]), numpy.array([95.5, 0, 0])
+    ]
 
     for i in range(len(main_colour_list)):
         main_colour_list[i] /= 255
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_map_object.set_under(numpy.array([1, 1, 1.]))
+    colour_map_object.set_over(numpy.array([1, 1, 1.]))
 
-    main_colour_bounds_s01 = 0.001 * numpy.array(
-        [-6., -5., -4., -3., -2., -1., -0.5, 0., 0.5, 1., 2., 3., 4., 5., 6.])
+    main_colour_bounds_s01 = numpy.array(
+        [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7]
+    ) / 1000
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_s01, colour_map_object.N)
 
     colour_bounds_s01 = numpy.concatenate((
-        numpy.array([-100.]), main_colour_bounds_s01, numpy.array([100.])))
+        numpy.array([-0.1]), main_colour_bounds_s01, numpy.array([0.1])))
     return colour_map_object, colour_norm_object, colour_bounds_s01
 
 
@@ -239,11 +257,51 @@ def _get_default_divergence_colour_scheme():
         this case, units are seconds^-1.
     """
 
-    return _get_default_vorticity_colour_scheme()
+    return _get_default_shear_colour_scheme()
 
 
 def _get_default_shear_colour_scheme():
     """Returns default colour scheme for azimuthal shear.
+
+    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
+    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
+        this case, units are seconds^-1.
+    """
+
+    main_colour_list = [
+        numpy.array([0, 0, 76.5]), numpy.array([0, 0, 118.5]),
+        numpy.array([0, 0, 163.3]), numpy.array([0, 0, 208.1]),
+        numpy.array([0, 0, 252.9]), numpy.array([61, 61, 255.]),
+        numpy.array([125, 125, 255.]), numpy.array([189, 189, 255.]),
+        numpy.array([253, 253, 255.]), numpy.array([255, 193, 193.]),
+        numpy.array([255, 129, 129.]), numpy.array([255, 65, 65.]),
+        numpy.array([255, 1, 1.]), numpy.array([223.5, 0, 0]),
+        numpy.array([191.5, 0, 0]), numpy.array([159.5, 0, 0]),
+        numpy.array([127.5, 0, 0]), numpy.array([95.5, 0, 0])
+    ]
+
+    for i in range(len(main_colour_list)):
+        main_colour_list[i] /= 255
+
+    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_map_object.set_under(numpy.array([1, 1, 1.]))
+    colour_map_object.set_over(numpy.array([1, 1, 1.]))
+
+    main_colour_bounds_s01 = numpy.array(
+        [-20, -17.5, -15, -12.5, -10, -7.5, -5, -3, -1, 1, 3, 5, 7.5, 10, 12.5,
+         15, 17.5, 20]
+    ) / 1000
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        main_colour_bounds_s01, colour_map_object.N)
+
+    colour_bounds_s01 = numpy.concatenate((
+        numpy.array([-0.1]), main_colour_bounds_s01, numpy.array([0.1])))
+    return colour_map_object, colour_norm_object, colour_bounds_s01
+
+
+def _get_old_shear_colour_scheme():
+    """Returns old colour scheme for azimuthal shear.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
