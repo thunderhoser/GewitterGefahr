@@ -10,8 +10,13 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
+SHEAR_VORT_DIV_NAMES = [
+    radar_utils.VORTICITY_NAME, radar_utils.DIVERGENCE_NAME,
+    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
+]
+
 REFL_PLOTTING_UNIT_STRING = 'dBZ'
-SHEAR_PLOTTING_UNIT_STRING = 's^-1'
+SHEAR_VORT_DIV_PLOTTING_UNIT_STRING = 'ks^-1'
 ECHO_TOP_PLOTTING_UNIT_STRING = 'kft'
 MESH_PLOTTING_UNIT_STRING = 'mm'
 SHI_PLOTTING_UNIT_STRING = ''
@@ -19,6 +24,7 @@ VIL_PLOTTING_UNIT_STRING = 'mm'
 
 KM_TO_KILOFEET = 3.2808
 METRES_TO_KM = 1e-3
+PER_SECOND_TO_PER_KILOSECOND = 1e3
 
 DEFAULT_FIGURE_WIDTH_INCHES = 15.
 DEFAULT_FIGURE_HEIGHT_INCHES = 15.
@@ -182,24 +188,12 @@ def _get_default_spectrum_width_colour_scheme():
         this case, units are metres per second.
     """
 
-    main_colour_list = [
-        numpy.array([0, 0, 128.]), numpy.array([0, 54.3, 105.4]),
-        numpy.array([0, 169.4, 255]), numpy.array([0, 253.6, 215.6]),
-        numpy.array([0, 253.8, 41.8]), numpy.array([107.8, 219.1, 0]),
-        numpy.array([168.6, 255, 43.8]), numpy.array([255, 245.2, 0]),
-        numpy.array([255, 198.3, 8.6]), numpy.array([255, 6.6, 0]),
-        numpy.array([255, 0, 141.7]), numpy.array([165.5, 44.8, 255]),
-        numpy.array([239.8, 155.3, 241.8]), numpy.array([254, 248, 254.])
-    ]
-
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
-
+    main_colour_list = _get_friendly_colour_list()
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1, 1, 1.]))
+    colour_map_object.set_under(numpy.array([1., 1., 1.]))
 
     main_colour_bounds_m_s01 = numpy.array(
-        [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10])
+        [0.1, 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 5., 6., 7., 8., 9., 10.])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
         main_colour_bounds_m_s01, colour_map_object.N)
 
@@ -213,8 +207,8 @@ def _get_default_vorticity_colour_scheme():
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
-        this case, units are seconds^-1.
+    :return: colour_bounds_ks01: See doc for `get_default_colour_scheme`.  In
+        this case, units are kiloseconds^-1.
     """
 
     main_colour_list = [
@@ -233,15 +227,14 @@ def _get_default_vorticity_colour_scheme():
         main_colour_list[i] /= 255
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    main_colour_bounds_s01 = numpy.array(
-        [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7]
-    ) / 1000
+    main_colour_bounds_ks01 = numpy.array(
+        [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_s01, colour_map_object.N)
+        main_colour_bounds_ks01, colour_map_object.N)
 
-    colour_bounds_s01 = numpy.concatenate((
-        numpy.array([-0.1]), main_colour_bounds_s01, numpy.array([0.1])))
-    return colour_map_object, colour_norm_object, colour_bounds_s01
+    colour_bounds_ks01 = numpy.concatenate((
+        numpy.array([-0.1]), main_colour_bounds_ks01, numpy.array([0.1])))
+    return colour_map_object, colour_norm_object, colour_bounds_ks01
 
 
 def _get_default_divergence_colour_scheme():
@@ -249,8 +242,8 @@ def _get_default_divergence_colour_scheme():
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
-        this case, units are seconds^-1.
+    :return: colour_bounds_ks01: See doc for `get_default_colour_scheme`.  In
+        this case, units are kiloseconds^-1.
     """
 
     return _get_default_shear_colour_scheme()
@@ -261,8 +254,8 @@ def _get_default_shear_colour_scheme():
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
-        this case, units are seconds^-1.
+    :return: colour_bounds_ks01: See doc for `get_default_colour_scheme`.  In
+        this case, units are kiloseconds^-1.
     """
 
     main_colour_list = [
@@ -282,16 +275,15 @@ def _get_default_shear_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
 
-    main_colour_bounds_s01 = numpy.array(
+    main_colour_bounds_ks01 = numpy.array(
         [-20, -17.5, -15, -12.5, -10, -7.5, -5, -3, -1, 1, 3, 5, 7.5, 10, 12.5,
-         15, 17.5, 20]
-    ) / 1000
+         15, 17.5, 20])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_s01, colour_map_object.N)
+        main_colour_bounds_ks01, colour_map_object.N)
 
-    colour_bounds_s01 = numpy.concatenate((
-        numpy.array([-0.1]), main_colour_bounds_s01, numpy.array([0.1])))
-    return colour_map_object, colour_norm_object, colour_bounds_s01
+    colour_bounds_ks01 = numpy.concatenate((
+        numpy.array([-0.1]), main_colour_bounds_ks01, numpy.array([0.1])))
+    return colour_map_object, colour_norm_object, colour_bounds_ks01
 
 
 def _get_old_shear_colour_scheme():
@@ -478,6 +470,9 @@ def _convert_to_plotting_units(field_matrix, field_name):
     radar_utils.check_field_name(field_name)
     if field_name in radar_utils.ECHO_TOP_NAMES:
         return field_matrix * KM_TO_KILOFEET
+    
+    if field_name in SHEAR_VORT_DIV_NAMES:
+        return field_matrix * PER_SECOND_TO_PER_KILOSECOND
 
     return field_matrix
 
@@ -552,8 +547,8 @@ def get_plotting_units(field_name):
     if field_name in radar_utils.REFLECTIVITY_NAMES:
         return REFL_PLOTTING_UNIT_STRING
 
-    if field_name in radar_utils.SHEAR_NAMES:
-        return SHEAR_PLOTTING_UNIT_STRING
+    if field_name in SHEAR_VORT_DIV_NAMES:
+        return SHEAR_VORT_DIV_PLOTTING_UNIT_STRING
 
     if field_name in radar_utils.ECHO_TOP_NAMES:
         return ECHO_TOP_PLOTTING_UNIT_STRING
