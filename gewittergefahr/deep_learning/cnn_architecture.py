@@ -497,10 +497,14 @@ def get_2d_swirlnet_architecture(
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object])
 
-    (dense_layer_object, activation_layer_object, loss_function
-    ) = _get_output_layer_and_loss_function(num_classes)
-    layer_object = dense_layer_object(layer_object)
-
+    # TODO(thunderhoser): This intermediate dense layer is a HACK.
+    layer_object = architecture_utils.get_fully_connected_layer(
+        num_output_units=128
+    )(layer_object)
+    layer_object = architecture_utils.get_activation_layer(
+        activation_function_string=conv_activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+    )(layer_object)
     if use_batch_normalization:
         layer_object = architecture_utils.get_batch_normalization_layer()(
             layer_object)
@@ -508,6 +512,9 @@ def get_2d_swirlnet_architecture(
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction)(layer_object)
 
+    (dense_layer_object, activation_layer_object, loss_function
+    ) = _get_output_layer_and_loss_function(num_classes)
+    layer_object = dense_layer_object(layer_object)
     layer_object = activation_layer_object(layer_object)
 
     if num_sounding_fields is None:
