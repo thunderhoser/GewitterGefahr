@@ -197,7 +197,6 @@ def _get_default_spectrum_width_colour_scheme():
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
     colour_map_object.set_under(numpy.array([1, 1, 1.]))
-    colour_map_object.set_over(numpy.array([1, 1, 1.]))
 
     main_colour_bounds_m_s01 = numpy.array(
         [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10])
@@ -234,9 +233,6 @@ def _get_default_vorticity_colour_scheme():
         main_colour_list[i] /= 255
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1, 1, 1.]))
-    colour_map_object.set_over(numpy.array([1, 1, 1.]))
-
     main_colour_bounds_s01 = numpy.array(
         [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7]
     ) / 1000
@@ -285,8 +281,6 @@ def _get_default_shear_colour_scheme():
         main_colour_list[i] /= 255
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1, 1, 1.]))
-    colour_map_object.set_over(numpy.array([1, 1, 1.]))
 
     main_colour_bounds_s01 = numpy.array(
         [-20, -17.5, -15, -12.5, -10, -7.5, -5, -3, -1, 1, 3, 5, 7.5, 10, 12.5,
@@ -323,9 +317,6 @@ def _get_old_shear_colour_scheme():
         main_colour_list[i] /= 255
 
     colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([101., 0., 152.]) / 255)
-    colour_map_object.set_over(numpy.array([1., 1., 1.]))
-
     main_colour_bounds_s01 = numpy.array(
         [-10., -7.5, -5., -3., -1., 1., 2.5, 4., 5.5, 7., 8.5, 10., 12.5, 15.,
          17.5, 20.]) / 1000
