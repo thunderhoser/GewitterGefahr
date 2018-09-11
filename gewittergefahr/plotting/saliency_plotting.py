@@ -148,7 +148,7 @@ def plot_saliency_for_sounding(
     option_dict = DEFAULT_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
-    error_checking.assert_is_integer_numpy_array(pressure_levels_mb)
+    error_checking.assert_is_greater_numpy_array(pressure_levels_mb, 0.)
     error_checking.assert_is_numpy_array(pressure_levels_mb, num_dimensions=1)
     num_pressure_levels = len(pressure_levels_mb)
 
