@@ -66,7 +66,7 @@ def plot_wind_barbs(
     error_checking.assert_is_numpy_array(
         v_winds_m_s01, exact_dimensions=numpy.array([num_points]))
 
-    error_checking.assert_is_geq(colour_minimum_kt, 0.)
+    # error_checking.assert_is_geq(colour_minimum_kt, 0.)
     error_checking.assert_is_greater(colour_maximum_kt, colour_minimum_kt)
 
     x_coords_metres, y_coords_metres = basemap_object(

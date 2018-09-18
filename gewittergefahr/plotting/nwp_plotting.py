@@ -17,6 +17,7 @@ from mpl_toolkits.basemap import Basemap
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import projections
 from gewittergefahr.gg_utils import nwp_model_utils
+from gewittergefahr.gg_utils import longitude_conversion as lng_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import wind_plotting
 
@@ -130,6 +131,58 @@ def _get_grid_point_coords(
         LATITUDE_MATRIX_KEY: grid_point_lat_matrix_deg,
         LONGITUDE_MATRIX_KEY: grid_point_lng_matrix_deg,
     }
+
+
+def latlng_limits_to_rowcol_limits(
+        min_latitude_deg, max_latitude_deg, min_longitude_deg,
+        max_longitude_deg, model_name, grid_id=None):
+    """Converts lat-long limits to row-column limits in the given model grid.
+
+    :param min_latitude_deg: Minimum latitude (deg N).
+    :param max_latitude_deg: Max latitude (deg N).
+    :param min_longitude_deg: Minimum longitude (deg E).
+    :param max_longitude_deg: Max longitude (deg E).
+    :param model_name: Name of NWP model (must be accepted by
+        `nwp_model_utils.check_grid_id`).
+    :param grid_id: Grid for NWP model (must be accepted by
+        `nwp_model_utils.check_grid_id`).
+    :return: row_limits: length-2 numpy array, containing min and max rows in
+        model grid, respectively.
+    :return: column_limits: Same but for columns.
+    """
+
+    error_checking.assert_is_valid_latitude(min_latitude_deg)
+    error_checking.assert_is_valid_latitude(max_latitude_deg)
+    error_checking.assert_is_greater(max_latitude_deg, min_latitude_deg)
+
+    both_longitudes_deg = numpy.array([min_longitude_deg, max_longitude_deg])
+    both_longitudes_deg = lng_conversion.convert_lng_positive_in_west(
+        both_longitudes_deg)
+    min_longitude_deg = both_longitudes_deg[0]
+    max_longitude_deg = both_longitudes_deg[1]
+    error_checking.assert_is_greater(max_longitude_deg, min_longitude_deg)
+
+    (grid_point_lat_matrix_deg, grid_point_lng_matrix_deg
+    ) = nwp_model_utils.get_latlng_grid_point_matrices(
+        model_name=model_name, grid_id=grid_id)
+
+    good_lat_flag_matrix = numpy.logical_and(
+        grid_point_lat_matrix_deg >= min_latitude_deg,
+        grid_point_lat_matrix_deg <= max_latitude_deg)
+    good_lng_flag_matrix = numpy.logical_and(
+        grid_point_lng_matrix_deg >= min_longitude_deg,
+        grid_point_lng_matrix_deg <= max_longitude_deg)
+    good_row_indices, good_column_indices = numpy.where(
+        numpy.logical_and(good_lat_flag_matrix, good_lng_flag_matrix)
+    )
+
+    row_limits = numpy.array(
+        [numpy.min(good_row_indices), numpy.max(good_row_indices)], dtype=int)
+    column_limits = numpy.array(
+        [numpy.min(good_column_indices), numpy.max(good_column_indices)],
+        dtype=int)
+
+    return row_limits, column_limits
 
 
 def init_basemap(
