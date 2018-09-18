@@ -50,6 +50,11 @@ PADDING_FOR_VERTICAL_COLOUR_BAR = 0.05
 PADDING_FOR_HORIZ_COLOUR_BAR = 0.075
 DEFAULT_COLOUR_BAR_ORIENTATION = 'horizontal'
 
+DEFAULT_ANNOT_FONT_SIZE = 50
+DEFAULT_ANNOT_FONT_COLOUR = numpy.full(3, 0.)
+DEFAULT_ANNOT_X_IMAGE_RELATIVE = 0.
+DEFAULT_ANNOT_Y_IMAGE_RELATIVE = 1.
+
 FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
@@ -58,6 +63,29 @@ pyplot.rc('xtick', labelsize=FONT_SIZE)
 pyplot.rc('ytick', labelsize=FONT_SIZE)
 pyplot.rc('legend', fontsize=FONT_SIZE)
 pyplot.rc('figure', titlesize=FONT_SIZE)
+
+
+def annotate_axes(
+        axes_object, annotation_string, font_size=DEFAULT_ANNOT_FONT_SIZE,
+        font_colour=DEFAULT_ANNOT_FONT_COLOUR,
+        x_coord_image_relative=DEFAULT_ANNOT_X_IMAGE_RELATIVE,
+        y_coord_image_relative=DEFAULT_ANNOT_Y_IMAGE_RELATIVE):
+    """Adds text annotation to axes.
+
+    :param axes_object: Instance of `matplotlib.axes._subplots.AxesSubplot`.
+    :param annotation_string: Text annotation.
+    :param font_size: Font size.
+    :param font_colour: Font colour (in any format accepted by matplotlib).
+    :param x_coord_image_relative: Image-relative x-coordinate (from 0...1,
+        where 1 is the right side).
+    :param y_coord_image_relative: Image-relative y-coordinate (from 0...1,
+        where 1 is the top).
+    """
+
+    axes_object.text(
+        x_coord_image_relative, y_coord_image_relative, annotation_string,
+        fontsize=font_size, color=font_colour, horizontalalignment='right',
+        verticalalignment='bottom', transform=axes_object.transAxes)
 
 
 def init_panels(num_panel_rows, num_panel_columns, figure_width_inches,
