@@ -499,7 +499,7 @@ def add_colour_bar(
 def add_linear_colour_bar(
         axes_object_or_list, values_to_colour, colour_map, colour_min,
         colour_max, orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
-        extend_max=True):
+        extend_max=True, fraction_of_axis_length=1.):
     """Adds linear colour bar to existing plot.
 
     :param axes_object_or_list: `matplotlib.axes._subplots.AxesSubplot` object
@@ -510,8 +510,9 @@ def add_linear_colour_bar(
     :param colour_min: Minimum value for colour map.
     :param colour_max: Maximum value for colour map.
     :param orientation: Orientation (either "horizontal" or "vertical").
-    :param extend_min: See documentation for add_colour_bar.
-    :param extend_max: See documentation for add_colour_bar.
+    :param extend_min: See doc for `add_colour_bar`.
+    :param extend_max: Same.
+    :param fraction_of_axis_length: Same.
     :return: colour_bar_object: Instance of `matplotlib.pyplot.colorbar` created
         by this method.
     """
@@ -523,6 +524,8 @@ def add_linear_colour_bar(
     colour_bar_object = add_colour_bar(
         axes_object_or_list, values_to_colour=values_to_colour,
         colour_map=colour_map, colour_norm_object=colour_norm_object,
-        orientation=orientation, extend_min=extend_min, extend_max=extend_max)
+        orientation=orientation, extend_min=extend_min, extend_max=extend_max,
+        fraction_of_axis_length=fraction_of_axis_length)
+
     colour_bar_object.ax.tick_params(labelsize=FONT_SIZE)
     return colour_bar_object
