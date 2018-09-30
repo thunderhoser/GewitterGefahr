@@ -1,7 +1,6 @@
 """Methods for file-system access."""
 
 import os
-import os.path
 import errno
 from gewittergefahr.gg_utils import error_checking
 
