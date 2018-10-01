@@ -276,10 +276,6 @@ def plot_subgrid(
     num_rows_in_subgrid = field_matrix.shape[0]
     num_columns_in_subgrid = field_matrix.shape[1]
 
-    print field_matrix.shape
-    print first_row_in_full_grid
-    print first_row_in_full_grid + num_rows_in_subgrid - 1
-
     coordinate_dict = _get_grid_point_coords(
         model_name=model_name, grid_id=grid_id,
         first_row_in_full_grid=first_row_in_full_grid,
