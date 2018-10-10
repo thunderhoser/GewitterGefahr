@@ -442,7 +442,7 @@ def plot_meridians(
 def add_colour_bar(
         axes_object_or_list, values_to_colour, colour_map, colour_norm_object,
         orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
-        extend_max=True, fraction_of_axis_length=1.):
+        extend_max=True, fraction_of_axis_length=1., font_size=FONT_SIZE):
     """Adds colour bar to existing plot.
 
     :param axes_object_or_list: `matplotlib.axes._subplots.AxesSubplot` object
@@ -459,6 +459,7 @@ def add_colour_bar(
     :param fraction_of_axis_length: The colour bar will have this fraction of
         the length of the axis that it parallels.  For example, if the colour
         bar is vertical, it will have this fraction of the y-axis length.
+    :param font_size: Font size.
     :return: colour_bar_object: Instance of `matplotlib.pyplot.colorbar` created
         by this method.
     """
@@ -492,14 +493,14 @@ def add_colour_bar(
         orientation=orientation, pad=this_padding, extend=extend_argument,
         shrink=fraction_of_axis_length)
 
-    colour_bar_object.ax.tick_params(labelsize=FONT_SIZE)
+    colour_bar_object.ax.tick_params(labelsize=font_size)
     return colour_bar_object
 
 
 def add_linear_colour_bar(
         axes_object_or_list, values_to_colour, colour_map, colour_min,
         colour_max, orientation=DEFAULT_COLOUR_BAR_ORIENTATION, extend_min=True,
-        extend_max=True, fraction_of_axis_length=1.):
+        extend_max=True, fraction_of_axis_length=1., font_size=FONT_SIZE):
     """Adds linear colour bar to existing plot.
 
     :param axes_object_or_list: `matplotlib.axes._subplots.AxesSubplot` object
@@ -513,6 +514,7 @@ def add_linear_colour_bar(
     :param extend_min: See doc for `add_colour_bar`.
     :param extend_max: Same.
     :param fraction_of_axis_length: Same.
+    :param font_size: Font size.
     :return: colour_bar_object: Instance of `matplotlib.pyplot.colorbar` created
         by this method.
     """
@@ -521,11 +523,8 @@ def add_linear_colour_bar(
     colour_norm_object = matplotlib.colors.Normalize(
         vmin=colour_min, vmax=colour_max, clip=False)
 
-    colour_bar_object = add_colour_bar(
+    return add_colour_bar(
         axes_object_or_list, values_to_colour=values_to_colour,
         colour_map=colour_map, colour_norm_object=colour_norm_object,
         orientation=orientation, extend_min=extend_min, extend_max=extend_max,
-        fraction_of_axis_length=fraction_of_axis_length)
-
-    colour_bar_object.ax.tick_params(labelsize=FONT_SIZE)
-    return colour_bar_object
+        fraction_of_axis_length=fraction_of_axis_length, font_size=font_size)
