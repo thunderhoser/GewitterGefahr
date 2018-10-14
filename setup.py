@@ -28,8 +28,7 @@ CLASSIFIERS = [
     'Programming Language :: Python :: 2.7'
 ]
 
-# These packages are probably best to install via pip.
-PIP_REQUIREMENTS = [
+PACKAGE_REQUIREMENTS = [
     'numpy',
     'scipy',
     'tensorflow',
@@ -43,17 +42,10 @@ PIP_REQUIREMENTS = [
     'basemap',
     'pandas',
     'shapely',
-]
-
-# These packages are probably best to install from the GitHub repository.
-GITHUB_REQUIREMENTS = [
-    'ambhas',
     'descartes',
     'geopy',
     'metpy'
 ]
-
-PACKAGE_REQUIREMENTS = PIP_REQUIREMENTS + GITHUB_REQUIREMENTS
 
 if __name__ == '__main__':
     setup(name='GewitterGefahr',
