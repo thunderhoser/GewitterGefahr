@@ -113,9 +113,6 @@ END_LATITUDE_COLUMN = 'end_latitude_deg'
 START_LONGITUDE_COLUMN = 'start_longitude_deg'
 END_LONGITUDE_COLUMN = 'end_longitude_deg'
 
-DEFAULT_EAST_VELOCITY_M_S01 = 5.
-DEFAULT_NORTH_VELOCITY_M_S01 = 10.
-
 
 def _check_radar_field(radar_field_name):
     """Ensures that radar field is valid for echo-top-based tracking.
@@ -830,11 +827,6 @@ def _get_storm_velocities(storm_object_table, num_points_back):
                  unix_times_sec=storm_object_table[
                      tracking_utils.TIME_COLUMN].values[these_object_indices],
                  num_points_back=num_points_back))
-
-    east_velocities_m_s01[
-        numpy.isnan(east_velocities_m_s01)] = DEFAULT_EAST_VELOCITY_M_S01
-    north_velocities_m_s01[
-        numpy.isnan(north_velocities_m_s01)] = DEFAULT_NORTH_VELOCITY_M_S01
 
     argument_dict = {
         tracking_utils.EAST_VELOCITY_COLUMN: east_velocities_m_s01,
