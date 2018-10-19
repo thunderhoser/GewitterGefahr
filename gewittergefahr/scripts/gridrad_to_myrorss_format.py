@@ -182,22 +182,23 @@ def _convert_to_myrorss_format(
                     this_top_model_dir_name = top_ruc_dir_name
 
                 target_height_matrix_m_asl = (
-                    gridrad_utils.interp_temperature_sfc_from_nwp(
-                        radar_grid_point_lats_deg=
+                    gridrad_utils.interp_temperature_surface_from_nwp(
+                        radar_grid_point_latitudes_deg=
                         these_grid_point_latitudes_deg,
-                        radar_grid_point_lngs_deg=
+                        radar_grid_point_longitudes_deg=
                         these_grid_point_longitudes_deg,
-                        unix_time_sec=this_time_unix_sec,
-                        temperature_kelvins=TEMPERATURE_LEVEL_KELVINS,
-                        model_name=this_model_name,
+                        radar_time_unix_sec=this_time_unix_sec,
+                        critical_temperature_kelvins=TEMPERATURE_LEVEL_KELVINS,
+                        model_name=this_model_name, use_all_grids=False,
                         grid_id=nwp_model_utils.ID_FOR_130GRID,
-                        top_grib_directory_name=this_top_model_dir_name))
+                        top_grib_directory_name=this_top_model_dir_name)
+                )
 
                 last_hour_string = copy.deepcopy(this_hour_string)
 
             this_output_matrix = gridrad_utils.interp_reflectivity_to_heights(
                 reflectivity_matrix_dbz=this_refl_matrix_dbz,
-                unique_grid_point_heights_m_asl=these_grid_point_heights_m_asl,
+                grid_point_heights_m_asl=these_grid_point_heights_m_asl,
                 target_height_matrix_m_asl=target_height_matrix_m_asl)
 
         elif output_field_name == radar_utils.REFL_COLUMN_MAX_NAME:
@@ -206,7 +207,7 @@ def _convert_to_myrorss_format(
         else:
             this_output_matrix = gridrad_utils.get_echo_tops(
                 reflectivity_matrix_dbz=this_refl_matrix_dbz,
-                unique_grid_point_heights_m_asl=these_grid_point_heights_m_asl,
+                grid_point_heights_m_asl=these_grid_point_heights_m_asl,
                 critical_reflectivity_dbz=ECHO_TOP_REFLECTIVITY_DBZ)
 
         this_spc_date_string = time_conversion.time_to_spc_date_string(

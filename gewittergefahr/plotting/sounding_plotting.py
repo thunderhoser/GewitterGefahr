@@ -37,7 +37,7 @@ DEFAULT_OPTION_DICT = {
     FIGURE_HEIGHT_KEY: 15
 }
 
-FONT_SIZE = 20
+FONT_SIZE = 30
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
