@@ -17,12 +17,15 @@ SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Linkage info '
     'will be shared across all dates from `{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+
 INPUT_DIR_HELP_STRING = (
     'Name of top-level input directory with original linkage files (before '
     'sharing info across SPC dates).')
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory for new linkage files (after sharing '
     'across SPC dates).')
+
 EVENT_TYPE_HELP_STRING = (
     'Type of linkages to be handled (either "wind" or "tornado").')
 

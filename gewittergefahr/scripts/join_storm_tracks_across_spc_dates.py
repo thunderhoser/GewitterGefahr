@@ -29,18 +29,23 @@ SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Tracks will be '
     'joined across all dates from `{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+
 RADAR_SOURCE_HELP_STRING = (
     'Source of radar data.  Must be in the following list:\n{0:s}'
 ).format(str(radar_utils.DATA_SOURCE_IDS))
+
 ORIG_TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with original storm tracks (before joining).')
+
 NEW_TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory for new storm tracks (after joining).')
+
 START_TIME_HELP_STRING = (
     'Start time (format "yyyy-mm-dd-HHMMSS") of period to be processed.  This '
     'time must be in the first SPC date, given by `{0:s}`.  If "None", will '
     'default to the start of the first SPC date.'
 ).format(FIRST_SPC_DATE_ARG_NAME)
+
 END_TIME_HELP_STRING = (
     'End time (format "yyyy-mm-dd-HHMMSS") of period to be processed.  This '
     'time must be in the last SPC date, given by `{0:s}`.  If "None", will '
