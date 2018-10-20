@@ -891,7 +891,18 @@ def _read_storm_objects(tracking_file_names):
 
     storm_object_table = pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
-    return storm_object_table.assign(**{FILE_INDEX_COLUMN: file_indices})
+    storm_object_table = storm_object_table.assign(
+        **{FILE_INDEX_COLUMN: file_indices}
+    )
+
+    good_indices = numpy.where(numpy.invert(numpy.logical_or(
+        numpy.isnan(
+            storm_object_table[tracking_utils.EAST_VELOCITY_COLUMN].values),
+        numpy.isnan(
+            storm_object_table[tracking_utils.NORTH_VELOCITY_COLUMN].values)
+    )))[0]
+
+    return storm_object_table.iloc[good_indices]
 
 
 def _read_wind_observations(
