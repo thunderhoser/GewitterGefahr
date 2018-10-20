@@ -1150,7 +1150,8 @@ def read_example_file(
 
 def shuffle_and_write_examples(
         radar_file_name_matrix, target_file_names, target_name,
-        num_examples_per_in_file, top_output_dir_name, first_batch_number,
+        num_examples_per_in_file, top_output_dir_name,
+        first_output_batch_number,
         num_examples_per_out_chunk=DEFAULT_NUM_EXAMPLES_PER_OUT_CHUNK,
         num_examples_per_out_file=DEFAULT_NUM_EXAMPLES_PER_OUT_FILE,
         class_to_sampling_fraction_dict=None, sounding_file_names=None):
@@ -1170,8 +1171,8 @@ def shuffle_and_write_examples(
     :param top_output_dir_name: Name of top-level directory.  Files will be
         written here by `write_example_file`, to locations determined by
         `find_example_file`.
-    :param first_batch_number: First batch number (integer).  Used to determine
-        locations of output files.
+    :param first_output_batch_number: First batch number (integer).  Used to
+        determine locations of output files.
     :param num_examples_per_out_chunk: Number of examples per output chunk (all
         written to the same file).  Smaller `num_examples_per_out_chunk` =>
         fewer examples from the same or nearby time steps written to the same
@@ -1181,6 +1182,8 @@ def shuffle_and_write_examples(
     :param class_to_sampling_fraction_dict: Dictionary, where each key is the
         integer ID for a target class (-2 for "dead storm") and each value is
         the sampling fraction.  This allows for class-conditional sampling.
+        If `class_to_sampling_fraction_dict is None`, there will be no class-
+        conditional sampling.
     :param sounding_file_names: length-D list of paths to sounding files (will
         be read by `soundings.read_soundings`).  If
         `sounding_file_names is None`, examples will not include soundings.
@@ -1205,8 +1208,8 @@ def shuffle_and_write_examples(
 
     error_checking.assert_is_integer(num_examples_per_in_file)
     error_checking.assert_is_geq(num_examples_per_in_file, 1)
-    error_checking.assert_is_integer(first_batch_number)
-    error_checking.assert_is_geq(first_batch_number, 0)
+    error_checking.assert_is_integer(first_output_batch_number)
+    error_checking.assert_is_geq(first_output_batch_number, 0)
     error_checking.assert_is_integer(num_examples_per_out_chunk)
     error_checking.assert_is_geq(num_examples_per_out_chunk, 1)
     error_checking.assert_is_integer(num_examples_per_out_file)
@@ -1258,7 +1261,8 @@ def shuffle_and_write_examples(
         float(num_examples_to_use) / num_examples_per_out_file
     ))
     batch_numbers = numpy.linspace(
-        first_batch_number, first_batch_number + num_output_files - 1,
+        first_output_batch_number,
+        first_output_batch_number + num_output_files - 1,
         num=num_output_files, dtype=int)
 
     output_file_names = []
