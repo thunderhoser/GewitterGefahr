@@ -1874,19 +1874,10 @@ def read_storm_images(
         }
 
     filter_storms = not(
-        storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None)
+        storm_ids_to_keep is None or valid_times_to_keep_unix_sec is None
+    )
+
     if filter_storms:
-        error_checking.assert_is_string_list(storm_ids_to_keep)
-        error_checking.assert_is_numpy_array(
-            numpy.array(storm_ids_to_keep), num_dimensions=1)
-        num_storm_objects_to_keep = len(storm_ids_to_keep)
-
-        error_checking.assert_is_integer_numpy_array(
-            valid_times_to_keep_unix_sec)
-        error_checking.assert_is_numpy_array(
-            valid_times_to_keep_unix_sec,
-            exact_dimensions=numpy.array([num_storm_objects_to_keep]))
-
         indices_to_keep = tracking_utils.find_storm_objects(
             all_storm_ids=storm_ids, all_times_unix_sec=valid_times_unix_sec,
             storm_ids_to_keep=storm_ids_to_keep,
