@@ -161,12 +161,6 @@ def _create_2d_examples(
     if this_radar_image_dict is None:
         return None
 
-    this_radar_image_dict.update({storm_images.LABEL_VALUES_KEY: target_values})
-    this_radar_image_dict = remove_storms_with_undefined_target(
-        this_radar_image_dict)
-    if len(this_radar_image_dict[storm_images.STORM_IDS_KEY]) == 0:
-        return None
-
     if sounding_file_name is None:
         sounding_matrix = None
         sounding_field_names = None
@@ -262,12 +256,6 @@ def _create_3d_examples(
         valid_times_to_keep_unix_sec=storm_times_unix_sec)
 
     if this_radar_image_dict is None:
-        return None
-
-    this_radar_image_dict.update({storm_images.LABEL_VALUES_KEY: target_values})
-    this_radar_image_dict = remove_storms_with_undefined_target(
-        this_radar_image_dict)
-    if len(this_radar_image_dict[storm_images.STORM_IDS_KEY]) == 0:
         return None
 
     if sounding_file_name is None:
@@ -1234,6 +1222,11 @@ def shuffle_and_write_examples(
         target_values = numpy.concatenate((
             target_values, this_target_dict[labels.LABEL_VALUES_KEY]
         ))
+
+    good_indices = numpy.where(target_values != labels.INVALID_STORM_INTEGER)[0]
+    storm_ids = [storm_ids[k] for k in good_indices]
+    storm_times_unix_sec = storm_times_unix_sec[good_indices]
+    target_values = target_values[good_indices]
 
     print '\n'
     num_examples_found = len(storm_ids)
