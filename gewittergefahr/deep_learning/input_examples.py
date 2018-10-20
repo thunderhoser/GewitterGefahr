@@ -582,6 +582,12 @@ def find_storm_images_3d(
         last_spc_date_string)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
+        print top_directory_name
+        print radar_field_names
+        print radar_heights_m_agl
+        print first_spc_date_string
+        print last_spc_date_string
+
         file_dict = storm_images.find_many_files_gridrad(
             top_directory_name=top_directory_name,
             radar_field_names=radar_field_names,
