@@ -26,7 +26,8 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
-from gewittergefahr.deep_learning import training_validation_io as trainval_io
+
+# TODO(thunderhoser): Deal with azimuthal shear.
 
 DEFAULT_NUM_EXAMPLES_PER_OUT_CHUNK = 8
 DEFAULT_NUM_EXAMPLES_PER_OUT_FILE = 128
@@ -112,13 +113,6 @@ def _read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
         indices_to_keep.append(this_index)
 
     indices_to_keep = numpy.array(indices_to_keep, dtype=int)
-
-    radar_image_dict[storm_images.STORM_IDS_KEY] = sounding_dict[
-        soundings.STORM_IDS_KEY
-    ]
-    radar_image_dict[storm_images.VALID_TIMES_KEY] = sounding_dict[
-        soundings.INITIAL_TIMES_KEY
-    ]
     radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY] = radar_image_dict[
         storm_images.STORM_IMAGE_MATRIX_KEY
     ][indices_to_keep, ...]
@@ -126,20 +120,26 @@ def _read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
         storm_images.LABEL_VALUES_KEY
     ][indices_to_keep]
 
+    radar_image_dict[storm_images.STORM_IDS_KEY] = sounding_dict[
+        soundings.STORM_IDS_KEY
+    ]
+    radar_image_dict[storm_images.VALID_TIMES_KEY] = sounding_dict[
+        soundings.INITIAL_TIMES_KEY
+    ]
+
     return sounding_dict, radar_image_dict
 
 
-def _create_3d_examples(
-        radar_file_name_matrix, storm_ids, storm_times_unix_sec, target_values,
+def _create_2d_examples(
+        radar_file_names, storm_ids, storm_times_unix_sec, target_values,
         sounding_file_name=None, sounding_field_names=None):
-    """Creates 3-D examples for one file time.
+    """Creates 2-D examples for one file time.
 
     E = number of desired examples (storm objects)
     e = number of examples returned
 
-    :param radar_file_name_matrix: numpy array (F_r x H_r) of paths to storm-
-        centered radar images.  Files will be read by
-        `storm_images.read_storm_images`.
+    :param radar_file_names: length-C list of paths to storm-centered radar
+        images.  Files will be read by `storm_images.read_storm_images`.
     :param storm_ids: length-E list with storm IDs of objects to return.
     :param storm_times_unix_sec: length-E numpy array with valid times of storm
         objects to return.
@@ -153,6 +153,108 @@ def _create_3d_examples(
         key "target_name".
     """
 
+    print 'Reading data from: "{0:s}"...'.format(radar_file_names[0])
+    this_radar_image_dict = storm_images.read_storm_images(
+        netcdf_file_name=radar_file_names[0], storm_ids_to_keep=storm_ids,
+        valid_times_to_keep_unix_sec=storm_times_unix_sec)
+
+    if this_radar_image_dict is None:
+        return None
+
+    this_radar_image_dict.update({storm_images.LABEL_VALUES_KEY: target_values})
+    this_radar_image_dict = remove_storms_with_undefined_target(
+        this_radar_image_dict)
+    if len(this_radar_image_dict[storm_images.STORM_IDS_KEY]) == 0:
+        return None
+
+    if sounding_file_name is None:
+        sounding_matrix = None
+        sounding_field_names = None
+        sounding_heights_m_agl = None
+    else:
+        sounding_dict, this_radar_image_dict = _read_soundings(
+            sounding_file_name=sounding_file_name,
+            sounding_field_names=sounding_field_names,
+            radar_image_dict=this_radar_image_dict)
+
+        if this_radar_image_dict is None:
+            return None
+        if len(this_radar_image_dict[storm_images.STORM_IDS_KEY]) == 0:
+            return None
+
+        sounding_matrix = sounding_dict[soundings.SOUNDING_MATRIX_KEY]
+        sounding_field_names = sounding_dict[soundings.FIELD_NAMES_KEY]
+        sounding_heights_m_agl = sounding_dict[soundings.HEIGHT_LEVELS_KEY]
+
+    storm_ids = this_radar_image_dict[storm_images.STORM_IDS_KEY]
+    storm_times_unix_sec = this_radar_image_dict[storm_images.VALID_TIMES_KEY]
+    target_values = this_radar_image_dict[storm_images.LABEL_VALUES_KEY]
+
+    num_channels = len(radar_file_names)
+    tuple_of_image_matrices = ()
+
+    for j in range(num_channels):
+        if j != 0:
+            print 'Reading data from: "{0:s}"...'.format(radar_file_names[j])
+            this_radar_image_dict = storm_images.read_storm_images(
+                netcdf_file_name=radar_file_names[j],
+                storm_ids_to_keep=storm_ids,
+                valid_times_to_keep_unix_sec=storm_times_unix_sec)
+
+        tuple_of_image_matrices += (
+            this_radar_image_dict[storm_images.STORM_IMAGE_MATRIX_KEY],
+        )
+
+    radar_field_names = [
+        storm_images.image_file_name_to_field(f) for f in radar_file_names
+    ]
+    radar_heights_m_agl = numpy.array(
+        [storm_images.image_file_name_to_height(f) for f in radar_file_names],
+        dtype=int)
+
+    example_dict = {
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
+        RADAR_FIELDS_KEY: radar_field_names,
+        RADAR_HEIGHTS_KEY: radar_heights_m_agl,
+        ROTATED_GRIDS_KEY:
+            this_radar_image_dict[storm_images.ROTATED_GRIDS_KEY],
+        ROTATED_GRID_SPACING_KEY:
+            this_radar_image_dict[storm_images.ROTATED_GRID_SPACING_KEY],
+        RADAR_IMAGE_MATRIX_KEY: dl_utils.stack_radar_fields(
+            tuple_of_image_matrices),
+        TARGET_VALUES_KEY: target_values
+    }
+
+    if sounding_file_name is not None:
+        example_dict.update({
+            SOUNDING_FIELDS_KEY: sounding_field_names,
+            SOUNDING_HEIGHTS_KEY: sounding_heights_m_agl,
+            SOUNDING_MATRIX_KEY: sounding_matrix
+        })
+
+    return example_dict
+
+
+def _create_3d_examples(
+        radar_file_name_matrix, storm_ids, storm_times_unix_sec, target_values,
+        sounding_file_name=None, sounding_field_names=None):
+    """Creates 3-D examples for one file time.
+
+    E = number of desired examples (storm objects)
+    e = number of examples returned
+
+    :param radar_file_name_matrix: numpy array (F_r x H_r) of paths to storm-
+        centered radar images.  Files will be read by
+        `storm_images.read_storm_images`.
+    :param storm_ids: See doc for `_create_2d_examples`.
+    :param storm_times_unix_sec: Same.
+    :param target_values: Same.
+    :param sounding_file_name: Same.
+    :param sounding_field_names: Same.
+    :return: example_dict: Same.
+    """
+
     print 'Reading data from: "{0:s}"...'.format(radar_file_name_matrix[0, 0])
     this_radar_image_dict = storm_images.read_storm_images(
         netcdf_file_name=radar_file_name_matrix[0, 0],
@@ -163,9 +265,7 @@ def _create_3d_examples(
         return None
 
     this_radar_image_dict.update({storm_images.LABEL_VALUES_KEY: target_values})
-
-    # TODO(thunderhoser): Move this method.
-    this_radar_image_dict = trainval_io.remove_storms_with_undefined_target(
+    this_radar_image_dict = remove_storms_with_undefined_target(
         this_radar_image_dict)
     if len(this_radar_image_dict[storm_images.STORM_IDS_KEY]) == 0:
         return None
@@ -219,11 +319,11 @@ def _create_3d_examples(
 
     radar_field_names = [
         storm_images.image_file_name_to_field(f)
-        for f in radar_file_name_matrix[0, :, 0]
+        for f in radar_file_name_matrix[:, 0]
     ]
     radar_heights_m_agl = numpy.array([
         storm_images.image_file_name_to_height(f)
-        for f in radar_file_name_matrix[0, 0, :]
+        for f in radar_file_name_matrix[0, :]
     ], dtype=int)
 
     example_dict = {
@@ -351,6 +451,36 @@ def _compare_metadata(netcdf_dataset, example_dict):
         )
 
         raise ValueError(error_string)
+
+
+def remove_storms_with_undefined_target(radar_image_dict):
+    """Removes storm objects with undefined target value.
+
+    :param radar_image_dict: Dictionary created by
+        `storm_images.read_storm_images`.
+    :return: radar_image_dict: Same as input, maybe with fewer storm objects.
+    """
+
+    valid_indices = numpy.where(
+        radar_image_dict[storm_images.LABEL_VALUES_KEY] !=
+        labels.INVALID_STORM_INTEGER
+    )[0]
+
+    keys_to_change = [
+        storm_images.STORM_IMAGE_MATRIX_KEY, storm_images.STORM_IDS_KEY,
+        storm_images.VALID_TIMES_KEY, storm_images.LABEL_VALUES_KEY,
+    ]
+
+    for this_key in keys_to_change:
+        if this_key == storm_images.STORM_IDS_KEY:
+            radar_image_dict[this_key] = [
+                radar_image_dict[this_key][i] for i in valid_indices
+            ]
+        else:
+            radar_image_dict[this_key] = radar_image_dict[this_key][
+                valid_indices, ...]
+
+    return radar_image_dict
 
 
 def find_storm_images_2d(
@@ -860,6 +990,164 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     return
 
 
+def read_example_file(
+        netcdf_file_name, radar_field_names_to_keep=None,
+        radar_heights_to_keep_m_agl=None, sounding_field_names_to_keep=None,
+        sounding_heights_to_keep_m_agl=None, num_rows_to_keep=None,
+        num_columns_to_keep=None):
+    """Reads input examples from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :param radar_field_names_to_keep: 1-D list of radar fields to keep.  If
+        None, all radar fields will be kept.
+    :param radar_heights_to_keep_m_agl: 1-D numpy array of radar heights to keep
+        (metres above ground level).  If None, all radar heights will be kept.
+    :param sounding_field_names_to_keep: 1-D list of sounding fields to keep.
+        If None, all sounding fields will be kept.
+    :param sounding_heights_to_keep_m_agl: 1-D numpy array of sounding heights
+        to keep (metres above ground level).  If None, all sounding heights will
+        be kept.
+    :param num_rows_to_keep: Number of rows to keep from each storm-centered
+        radar image.  If `num_rows_to_keep is None`, all rows will be kept.  If
+        `num_rows_to_keep is not None`, radar images will be center-cropped, so
+        the image center will always be the storm center.
+    :param num_columns_to_keep: Same but for columns.
+    :return: example_dict: See doc for `write_example_file`.
+    """
+
+    netcdf_dataset = netCDF4.Dataset(netcdf_file_name)
+
+    target_name = bool(getattr(netcdf_dataset, TARGET_NAME_KEY))
+    rotated_grids = bool(getattr(netcdf_dataset, ROTATED_GRIDS_KEY))
+    if rotated_grids:
+        rotated_grid_spacing_metres = getattr(
+            netcdf_dataset, ROTATED_GRID_SPACING_KEY)
+    else:
+        rotated_grid_spacing_metres = None
+
+    storm_ids = [
+        str(s) for s in netCDF4.chartostring(
+            netcdf_dataset.variables[STORM_IDS_KEY][:])
+    ]
+    storm_times_unix_sec = numpy.array(
+        netcdf_dataset.variables[STORM_TIMES_KEY][:], dtype=int)
+    target_values = numpy.array(
+        netcdf_dataset.variables[TARGET_VALUES_KEY][:], dtype=int)
+
+    # Check radar fields.
+    radar_field_names = [
+        str(s) for s in netCDF4.chartostring(
+            netcdf_dataset.variables[RADAR_FIELDS_KEY][:])
+    ]
+    if radar_field_names_to_keep is None:
+        radar_field_names_to_keep = radar_field_names + []
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(radar_field_names_to_keep), num_dimensions=1)
+
+    # Check radar heights.
+    radar_heights_m_agl = numpy.array(
+        netcdf_dataset.variables[RADAR_HEIGHTS_KEY][:], dtype=int)
+    if radar_heights_to_keep_m_agl is None:
+        radar_heights_to_keep_m_agl = radar_heights_m_agl + 0
+
+    radar_heights_to_keep_m_agl = numpy.round(
+        radar_heights_to_keep_m_agl).astype(int)
+    error_checking.assert_is_numpy_array(
+        radar_heights_to_keep_m_agl, num_dimensions=1)
+
+    radar_image_matrix = netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][:]
+    num_radar_dimensions = len(radar_image_matrix.shape) - 2
+
+    if num_radar_dimensions == 2:
+        these_indices = [
+            numpy.where(numpy.logical_and(
+                radar_field_names == f, radar_heights_m_agl == h
+            ))[0][0]
+            for f, h in
+            zip(radar_field_names_to_keep, radar_heights_to_keep_m_agl)
+        ]
+        these_indices = numpy.array(these_indices, dtype=int)
+        radar_image_matrix = radar_image_matrix[..., these_indices]
+    else:
+        these_field_indices = numpy.array(
+            [radar_field_names.index(f) for f in radar_field_names_to_keep],
+            dtype=int)
+        these_height_indices = numpy.array([
+            numpy.where(radar_heights_m_agl == h)[0][0]
+            for h in radar_heights_to_keep_m_agl
+        ], dtype=int)
+
+        radar_image_matrix = radar_image_matrix[
+            ..., these_field_indices, these_height_indices]
+
+    for j in range(len(radar_field_names_to_keep)):
+        radar_image_matrix[:, :, :, j, ...] = (
+            storm_images.downsize_storm_images(
+                storm_image_matrix=radar_image_matrix[:, :, :, j, ...],
+                radar_field_name=radar_field_names_to_keep[j],
+                num_rows_to_keep=num_rows_to_keep,
+                num_columns_to_keep=num_columns_to_keep)
+        )
+
+    example_dict = {
+        ROTATED_GRIDS_KEY: rotated_grids,
+        ROTATED_GRID_SPACING_KEY: rotated_grid_spacing_metres,
+        TARGET_NAME_KEY: target_name,
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
+        RADAR_FIELDS_KEY: radar_field_names_to_keep,
+        RADAR_HEIGHTS_KEY: radar_heights_to_keep_m_agl,
+        RADAR_IMAGE_MATRIX_KEY: radar_image_matrix,
+        TARGET_VALUES_KEY: target_values
+    }
+
+    include_soundings = SOUNDING_FIELDS_KEY in netcdf_dataset.variables
+    if not include_soundings:
+        netcdf_dataset.close()
+        return example_dict
+
+    # Check sounding fields.
+    sounding_field_names = [
+        str(s) for s in netCDF4.chartostring(
+            netcdf_dataset.variables[RADAR_FIELDS_KEY][:])
+    ]
+    if sounding_field_names_to_keep is None:
+        sounding_field_names_to_keep = sounding_field_names + []
+
+    # Check sounding heights.
+    sounding_heights_m_agl = numpy.array(
+        netcdf_dataset.variables[RADAR_HEIGHTS_KEY][:], dtype=int)
+    if sounding_heights_to_keep_m_agl is None:
+        sounding_heights_to_keep_m_agl = sounding_heights_m_agl + 0
+
+    sounding_heights_to_keep_m_agl = numpy.round(
+        sounding_heights_to_keep_m_agl).astype(int)
+    error_checking.assert_is_numpy_array(
+        sounding_heights_to_keep_m_agl, num_dimensions=1)
+
+    sounding_matrix = netcdf_dataset.variables[SOUNDING_MATRIX_KEY][:]
+
+    these_field_indices = numpy.array([
+        sounding_field_names.index(f) for f in sounding_field_names_to_keep
+    ], dtype=int)
+    these_height_indices = numpy.array([
+        numpy.where(sounding_heights_m_agl == h)[0][0]
+        for h in sounding_heights_to_keep_m_agl
+    ], dtype=int)
+    sounding_matrix = sounding_matrix[
+        ..., these_field_indices, these_height_indices]
+
+    netcdf_dataset.close()
+
+    example_dict.update({
+        SOUNDING_FIELDS_KEY: sounding_field_names_to_keep,
+        SOUNDING_HEIGHTS_KEY: sounding_heights_to_keep_m_agl,
+        SOUNDING_MATRIX_KEY: sounding_matrix
+    })
+    return example_dict
+
+
 def shuffle_and_write_examples(
         radar_file_name_matrix, target_file_names, target_name,
         num_examples_per_in_file, top_output_dir_name, first_batch_number,
@@ -981,11 +1269,11 @@ def shuffle_and_write_examples(
                 raise_error_if_missing=False)
         )
 
-    # TODO(thunderhoser): Deal with both 2-D and 3-D data.
     for i in range(num_file_times):
         this_time_unix_sec, this_spc_date_string = (
             storm_images.image_file_name_to_time(
-                radar_file_name_matrix[i, 0, 0])
+                numpy.ravel(radar_file_name_matrix[i, ...])[0]
+            )
         )
 
         if this_time_unix_sec is None:
@@ -1016,15 +1304,24 @@ def shuffle_and_write_examples(
         else:
             this_sounding_file_name = sounding_file_names[i]
 
-        this_example_dict = _create_3d_examples(
-            radar_file_name_matrix=radar_file_name_matrix[i, ...],
-            storm_ids=these_storm_ids,
-            storm_times_unix_sec=these_storm_times_unix_sec,
-            target_values=these_target_values,
-            sounding_file_name=this_sounding_file_name,
-            sounding_field_names=sounding_field_names)
-        print '\n'
+        if num_file_dimensions == 3:
+            this_example_dict = _create_3d_examples(
+                radar_file_name_matrix=radar_file_name_matrix[i, ...],
+                storm_ids=these_storm_ids,
+                storm_times_unix_sec=these_storm_times_unix_sec,
+                target_values=these_target_values,
+                sounding_file_name=this_sounding_file_name,
+                sounding_field_names=sounding_field_names)
+        else:
+            this_example_dict = _create_2d_examples(
+                radar_file_names=radar_file_name_matrix[i, ...].tolist(),
+                storm_ids=these_storm_ids,
+                storm_times_unix_sec=these_storm_times_unix_sec,
+                target_values=these_target_values,
+                sounding_file_name=this_sounding_file_name,
+                sounding_field_names=sounding_field_names)
 
+        print '\n'
         if this_example_dict is None:
             continue
 

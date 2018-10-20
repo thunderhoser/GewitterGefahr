@@ -921,72 +921,6 @@ def _extract_unrotated_storm_image(
         mode='constant', constant_values=PADDING_VALUE)
 
 
-def _downsize_storm_images(
-        storm_image_matrix, radar_field_name, num_rows_to_keep=None,
-        num_columns_to_keep=None):
-    """Downsizes storm-centered radar images.
-
-    :param storm_image_matrix: See doc for `_check_radar_images`.
-    :param radar_field_name: Same.
-    :param num_rows_to_keep: Number of rows to keep.  If `storm_image_matrix`
-        contains azimuthal shear, this will be doubled.
-    :param num_columns_to_keep: Number of columns to keep.  If
-        `storm_image_matrix` contains azimuthal shear, this will be doubled.
-    :return: storm_image_matrix: Same as input, but maybe with fewer rows and
-        columns.
-    :raises: ValueError: if downsized image cannot be centered in full image.
-    """
-
-    if num_rows_to_keep is None and num_columns_to_keep is None:
-        return storm_image_matrix
-
-    error_checking.assert_is_integer(num_rows_to_keep)
-    error_checking.assert_is_greater(num_rows_to_keep, 0)
-    error_checking.assert_is_integer(num_columns_to_keep)
-    error_checking.assert_is_greater(num_columns_to_keep, 0)
-
-    if radar_field_name in AZIMUTHAL_SHEAR_FIELD_NAMES:
-        num_rows_to_keep *= 2
-        num_columns_to_keep *= 2
-
-    num_rows_total = storm_image_matrix.shape[1]
-    num_columns_total = storm_image_matrix.shape[2]
-    if (num_rows_to_keep == num_rows_total and
-            num_columns_to_keep == num_columns_total):
-        return storm_image_matrix
-
-    error_checking.assert_is_less_than(num_rows_to_keep, num_rows_total)
-    error_checking.assert_is_less_than(num_columns_to_keep, num_columns_total)
-
-    num_rows_leftover = num_rows_total - num_rows_to_keep
-    if num_rows_leftover != rounder.round_to_nearest(num_rows_leftover, 2):
-        error_string = (
-            'Cannot downsize {0:d}-row image to {1:d} rows, because number of '
-            'rows left over ({2:d}) is odd.'
-        ).format(num_rows_total, num_rows_to_keep, num_rows_leftover)
-        raise ValueError(error_string)
-
-    num_columns_leftover = num_columns_total - num_columns_to_keep
-    if num_columns_leftover != rounder.round_to_nearest(
-            num_columns_leftover, 2):
-        error_string = (
-            'Cannot downsize {0:d}-row image to {1:d} columns, because number '
-            'of columns left over ({2:d}) is odd.'
-        ).format(num_columns_total, num_columns_to_keep, num_columns_leftover)
-        raise ValueError(error_string)
-
-    first_row_to_keep = num_rows_leftover / 2
-    last_row_to_keep = first_row_to_keep + num_rows_to_keep - 1
-    first_column_to_keep = num_columns_leftover / 2
-    last_column_to_keep = first_column_to_keep + num_columns_to_keep - 1
-
-    return storm_image_matrix[
-        :,
-        first_row_to_keep:(last_row_to_keep + 1),
-        first_column_to_keep:(last_column_to_keep + 1)
-    ]
-
-
 def _interp_storm_image_in_height(
         storm_image_matrix_3d, orig_heights_m_asl, new_heights_m_asl):
     """Interpolates 3-D storm-centered radar image to new heights.
@@ -1121,6 +1055,83 @@ def _find_many_files_one_spc_date(
                 image_file_name_matrix[i, j] = ''
 
     return image_file_name_matrix, valid_times_unix_sec
+
+
+def downsize_storm_images(
+        storm_image_matrix, radar_field_name, num_rows_to_keep=None,
+        num_columns_to_keep=None):
+    """Downsizes storm-centered radar images.
+
+    :param storm_image_matrix: See doc for `_check_storm_images`.
+    :param radar_field_name: Same.
+    :param num_rows_to_keep: Number of rows to keep.  If `storm_image_matrix`
+        contains azimuthal shear, this will be doubled.
+    :param num_columns_to_keep: Number of columns to keep.  If
+        `storm_image_matrix` contains azimuthal shear, this will be doubled.
+    :return: storm_image_matrix: Same as input, but maybe with fewer rows and
+        columns.
+    :raises: ValueError: if downsized image cannot be centered in full image.
+    """
+
+    if num_rows_to_keep is None and num_columns_to_keep is None:
+        return storm_image_matrix
+
+    error_checking.assert_is_numpy_array_without_nan(storm_image_matrix)
+    num_dimensions = len(storm_image_matrix.shape)
+    error_checking.assert_is_geq(num_dimensions, 3)
+
+    radar_utils.check_field_name(radar_field_name)
+    if radar_field_name in AZIMUTHAL_SHEAR_FIELD_NAMES:
+        num_rows_to_keep *= 2
+        num_columns_to_keep *= 2
+
+    if num_rows_to_keep is not None:
+        error_checking.assert_is_integer(num_rows_to_keep)
+        error_checking.assert_is_greater(num_rows_to_keep, 0)
+
+        num_rows_total = storm_image_matrix.shape[1]
+        error_checking.assert_is_less_than(num_rows_to_keep, num_rows_total)
+
+        num_rows_leftover = num_rows_total - num_rows_to_keep
+        if num_rows_leftover != rounder.round_to_nearest(num_rows_leftover, 2):
+            error_string = (
+                'Cannot downsize from {0:d} to {1:d} rows, because number of '
+                'rows left over ({2:d}) is odd.'
+            ).format(num_rows_total, num_rows_to_keep, num_rows_leftover)
+            raise ValueError(error_string)
+
+        first_row_to_keep = num_rows_leftover / 2
+        last_row_to_keep = first_row_to_keep + num_rows_to_keep - 1
+        storm_image_matrix = storm_image_matrix[
+            :, first_row_to_keep:(last_row_to_keep + 1), ...
+        ]
+
+    if num_columns_to_keep is not None:
+        error_checking.assert_is_integer(num_columns_to_keep)
+        error_checking.assert_is_greater(num_columns_to_keep, 0)
+
+        num_columns_total = storm_image_matrix.shape[2]
+        error_checking.assert_is_less_than(
+            num_columns_to_keep, num_columns_total)
+
+        num_columns_leftover = num_columns_total - num_columns_to_keep
+        if (num_columns_leftover !=
+                rounder.round_to_nearest(num_columns_leftover, 2)):
+            error_string = (
+                'Cannot downsize from {0:d} to {1:d} columns, because number of'
+                ' columns left over ({2:d}) is odd.'
+            ).format(
+                num_columns_total, num_columns_to_keep, num_columns_leftover
+            )
+            raise ValueError(error_string)
+
+        first_column_to_keep = num_columns_leftover / 2
+        last_column_to_keep = first_column_to_keep + num_columns_to_keep - 1
+        storm_image_matrix = storm_image_matrix[
+            :, :, first_column_to_keep:(last_column_to_keep + 1), ...
+        ]
+
+    return storm_image_matrix
 
 
 def extract_storm_images_myrorss_or_mrms(
@@ -1816,7 +1827,7 @@ def read_storm_images(
     :param valid_times_to_keep_unix_sec: [used iff `return_images = True`]
         length-L numpy array of storm times.
     :param num_rows_to_keep: [used iff `return_images = True`]
-        See doc for `_downsize_storm_images`.
+        See doc for `downsize_storm_images`.
     :param num_columns_to_keep: Same.
     :return: storm_image_dict: Dictionary with the following keys.
     storm_image_dict['storm_image_matrix']: See doc for `_check_storm_images`.
@@ -1898,7 +1909,7 @@ def read_storm_images(
 
     netcdf_dataset.close()
 
-    storm_image_matrix = _downsize_storm_images(
+    storm_image_matrix = downsize_storm_images(
         storm_image_matrix=storm_image_matrix,
         radar_field_name=radar_field_name, num_rows_to_keep=num_rows_to_keep,
         num_columns_to_keep=num_columns_to_keep)

@@ -267,28 +267,6 @@ STORM_IMAGE_MATRIX_UNROTATED_EDGE = numpy.array(
     [[75, 0, 0, 0],
      [0, 0, 0, 0]], dtype=float)
 
-# The following constants are used to test _downsize_storm_images.
-THIS_FIRST_MATRIX = numpy.array([[0, 1, 2, 3, 4, 5],
-                                 [2, 3, 4, 5, 6, 7],
-                                 [3, 4, 5, 6, 7, 8],
-                                 [4, 5, 6, 7, 8, 9]], dtype=float)
-THIS_SECOND_MATRIX = numpy.array([[0, 1, 2, 3, 4, 5],
-                                  [6, 7, 8, 9, 10, 11],
-                                  [12, 13, 14, 15, 16, 17],
-                                  [18, 19, 20, 21, 22, 23]], dtype=float)
-FULL_STORM_IMAGE_MATRIX = numpy.stack(
-    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
-
-NUM_ROWS_TO_KEEP = 2
-NUM_COLUMNS_TO_KEEP = 4
-
-THIS_FIRST_MATRIX = numpy.array([[3, 4, 5, 6],
-                                 [4, 5, 6, 7]], dtype=float)
-THIS_SECOND_MATRIX = numpy.array([[7, 8, 9, 10],
-                                  [13, 14, 15, 16]], dtype=float)
-DOWNSIZED_STORM_IMAGE_MATRIX = numpy.stack(
-    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
-
 # The following constants are used to test _interp_storm_image_in_height.
 THIS_MATRIX_HEIGHT1 = numpy.array([[0, 1, 2, 3],
                                    [4, 5, 6, 7],
@@ -309,6 +287,28 @@ INTERP_IMAGE_MATRIX_3D = numpy.stack(
      THIS_MATRIX_HEIGHT1 + 48, THIS_MATRIX_HEIGHT1 + 52,
      THIS_MATRIX_HEIGHT1 + 56),
     axis=-1)
+
+# The following constants are used to test downsize_storm_images.
+THIS_FIRST_MATRIX = numpy.array([[0, 1, 2, 3, 4, 5],
+                                 [2, 3, 4, 5, 6, 7],
+                                 [3, 4, 5, 6, 7, 8],
+                                 [4, 5, 6, 7, 8, 9]], dtype=float)
+THIS_SECOND_MATRIX = numpy.array([[0, 1, 2, 3, 4, 5],
+                                  [6, 7, 8, 9, 10, 11],
+                                  [12, 13, 14, 15, 16, 17],
+                                  [18, 19, 20, 21, 22, 23]], dtype=float)
+FULL_STORM_IMAGE_MATRIX = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+
+NUM_ROWS_TO_KEEP = 2
+NUM_COLUMNS_TO_KEEP = 4
+
+THIS_FIRST_MATRIX = numpy.array([[3, 4, 5, 6],
+                                 [4, 5, 6, 7]], dtype=float)
+THIS_SECOND_MATRIX = numpy.array([[7, 8, 9, 10],
+                                  [13, 14, 15, 16]], dtype=float)
+DOWNSIZED_STORM_IMAGE_MATRIX = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
 
 # The following constants are used to test find_storm_image_file,
 # find_storm_label_file, image_file_name_to_time, image_file_name_to_field,
@@ -777,12 +777,12 @@ class StormImagesTests(unittest.TestCase):
             atol=TOLERANCE))
 
     def test_downsize_storm_images_non_az_shear(self):
-        """Ensures correct output from _downsize_storm_images.
+        """Ensures correct output from downsize_storm_images.
 
         In this case, radar field is *not* azimuthal shear.
         """
 
-        this_storm_image_matrix = storm_images._downsize_storm_images(
+        this_storm_image_matrix = storm_images.downsize_storm_images(
             storm_image_matrix=FULL_STORM_IMAGE_MATRIX,
             radar_field_name=radar_utils.REFL_NAME,
             num_rows_to_keep=NUM_ROWS_TO_KEEP,
@@ -793,12 +793,12 @@ class StormImagesTests(unittest.TestCase):
             atol=TOLERANCE))
 
     def test_downsize_storm_images_az_shear(self):
-        """Ensures correct output from _downsize_storm_images.
+        """Ensures correct output from downsize_storm_images.
 
         In this case, radar field is azimuthal shear.
         """
 
-        this_storm_image_matrix = storm_images._downsize_storm_images(
+        this_storm_image_matrix = storm_images.downsize_storm_images(
             storm_image_matrix=FULL_STORM_IMAGE_MATRIX,
             radar_field_name=radar_utils.LOW_LEVEL_SHEAR_NAME,
             num_rows_to_keep=NUM_ROWS_TO_KEEP / 2,
@@ -809,14 +809,14 @@ class StormImagesTests(unittest.TestCase):
             atol=TOLERANCE))
 
     def test_downsize_storm_images_no_storms(self):
-        """Ensures correct output from _downsize_storm_images.
+        """Ensures correct output from downsize_storm_images.
 
         In this case, there are no storm objects.
         """
 
         these_object_indices = numpy.array([], dtype=int)
         this_input_matrix = FULL_STORM_IMAGE_MATRIX[these_object_indices, ...]
-        this_output_matrix = storm_images._downsize_storm_images(
+        this_output_matrix = storm_images.downsize_storm_images(
             storm_image_matrix=this_input_matrix,
             radar_field_name=radar_utils.REFL_NAME,
             num_rows_to_keep=NUM_ROWS_TO_KEEP,
