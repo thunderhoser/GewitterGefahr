@@ -8,6 +8,8 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import input_examples
 
 # TODO(thunderhoser): Allow this script to handle 2-D radar images.
+# agglom_storm_images_by_date.py is a good guide for this.
+
 # TODO(thunderhoser): Allow downsampling based on multiple target variables.
 
 STORM_IMAGE_DIR_ARG_NAME = 'input_storm_image_dir_name'
