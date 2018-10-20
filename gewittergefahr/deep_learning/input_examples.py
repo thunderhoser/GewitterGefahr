@@ -161,6 +161,8 @@ def _create_2d_examples(
     if this_radar_image_dict is None:
         return None
 
+    this_radar_image_dict.update({storm_images.LABEL_VALUES_KEY: target_values})
+
     if sounding_file_name is None:
         sounding_matrix = None
         sounding_field_names = None
@@ -257,6 +259,8 @@ def _create_3d_examples(
 
     if this_radar_image_dict is None:
         return None
+
+    this_radar_image_dict.update({storm_images.LABEL_VALUES_KEY: target_values})
 
     if sounding_file_name is None:
         sounding_matrix = None
