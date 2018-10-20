@@ -859,7 +859,6 @@ def _read_storm_objects(tracking_file_names):
     for i in range(num_files):
         print 'Reading storm objects from file: "{0:s}"...'.format(
             tracking_file_names[i])
-
         list_of_storm_object_tables[i] = tracking_io.read_processed_file(
             tracking_file_names[i])
 
@@ -883,8 +882,8 @@ def _read_storm_objects(tracking_file_names):
             if distance_buffer_columns is not None:
                 columns_to_read += distance_buffer_columns
 
-        list_of_storm_object_tables[i] = tracking_io.read_processed_file(
-            tracking_file_names[i])[columns_to_read]
+        list_of_storm_object_tables[i] = list_of_storm_object_tables[i][
+            columns_to_read]
 
         these_file_indices = numpy.full(
             len(list_of_storm_object_tables[i].index), i, dtype=int)
@@ -895,7 +894,8 @@ def _read_storm_objects(tracking_file_names):
 
         list_of_storm_object_tables[i], _ = (
             list_of_storm_object_tables[i].align(
-                list_of_storm_object_tables[0], axis=1))
+                list_of_storm_object_tables[0], axis=1)
+        )
 
     storm_object_table = pandas.concat(
         list_of_storm_object_tables, axis=0, ignore_index=True)
