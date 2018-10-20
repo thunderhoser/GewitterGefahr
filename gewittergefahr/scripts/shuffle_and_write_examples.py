@@ -288,7 +288,7 @@ if __name__ == '__main__':
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
         target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
-        top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
         sounding_lag_time_sec=getattr(INPUT_ARG_OBJECT, LAG_TIME_ARG_NAME),
         num_examples_per_in_file=getattr(
             INPUT_ARG_OBJECT, NUM_EXAMPLES_PER_IN_FILE_ARG_NAME),
