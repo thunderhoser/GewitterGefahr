@@ -850,7 +850,7 @@ def _read_storm_objects(tracking_file_names):
         object came from tracking_file_names[j].
     """
 
-    columns_to_read = None
+    columns_to_read = REQUIRED_STORM_COLUMNS + []
     file_indices = numpy.array([])
 
     num_files = len(tracking_file_names)
@@ -860,23 +860,31 @@ def _read_storm_objects(tracking_file_names):
         print 'Reading storm objects from file: "{0:s}"...'.format(
             tracking_file_names[i])
 
-        if i == 0:
-            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
-                tracking_file_names[i])
+        list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+            tracking_file_names[i])
 
+        good_indices = numpy.where(numpy.invert(numpy.logical_or(
+            numpy.isnan(
+                list_of_storm_object_tables[i][
+                    tracking_utils.EAST_VELOCITY_COLUMN].values),
+            numpy.isnan(
+                list_of_storm_object_tables[i][
+                    tracking_utils.NORTH_VELOCITY_COLUMN].values)
+        )))[0]
+
+        list_of_storm_object_tables[i] = list_of_storm_object_tables[i].iloc[
+            good_indices]
+
+        if i == 0:
             distance_buffer_columns = (
                 tracking_utils.get_distance_buffer_columns(
-                    list_of_storm_object_tables[i]))
-            if distance_buffer_columns is None:
-                distance_buffer_columns = []
+                    list_of_storm_object_tables[i])
+            )
+            if distance_buffer_columns is not None:
+                columns_to_read += distance_buffer_columns
 
-            columns_to_read = (
-                REQUIRED_STORM_COLUMNS + distance_buffer_columns)
-            list_of_storm_object_tables[i] = list_of_storm_object_tables[i][
-                columns_to_read]
-        else:
-            list_of_storm_object_tables[i] = tracking_io.read_processed_file(
-                tracking_file_names[i])[columns_to_read]
+        list_of_storm_object_tables[i] = tracking_io.read_processed_file(
+            tracking_file_names[i])[columns_to_read]
 
         these_file_indices = numpy.full(
             len(list_of_storm_object_tables[i].index), i, dtype=int)
