@@ -430,7 +430,6 @@ def _compare_metadata(netcdf_dataset, example_dict):
             str(s) for s in netCDF4.chartostring(
                 netcdf_dataset.variables[SOUNDING_FIELDS_KEY][:])
         ]
-        print netcdf_dataset.variables[SOUNDING_FIELDS_KEY]
         orig_example_dict[SOUNDING_HEIGHTS_KEY] = numpy.array(
             netcdf_dataset.variables[SOUNDING_HEIGHTS_KEY][:], dtype=int)
 
@@ -948,6 +947,8 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
     num_sounding_heights = example_dict[SOUNDING_MATRIX_KEY].shape[1]
     num_sounding_fields = example_dict[SOUNDING_MATRIX_KEY].shape[2]
+    print example_dict[SOUNDING_MATRIX_KEY].shape
+    print example_dict[SOUNDING_FIELDS_KEY]
 
     num_sounding_field_chars = 1
     for j in range(num_sounding_fields):
