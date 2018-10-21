@@ -6,6 +6,9 @@ One "input example" is one storm object.
 
 The following letters will be used throughout this module.
 
+E = number of examples (storm objects)
+M = number of rows in each radar image
+N = number of columns in each radar image
 H_r = number of radar heights
 F_r = number of radar fields (or "variables" or "channels")
 H_s = number of sounding heights
@@ -760,7 +763,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     example_dict['rotated_grid_spacing_metres']: Spacing of rotated grids.  If
         grids are not rotated, this should be None.
     example_dict['radar_image_matrix']: numpy array
-        (E x M x N x C or E x M x N x F_r x H_r) of storm-centered radar images.
+        (E x M x N x C or E x M x N x H_r x F_r) of storm-centered radar images.
     example_dict['target_name']: Name of target variable.  Must be accepted by
         `labels.check_label_name`.
     example_dict['target_values']: length-E numpy array of target values
@@ -769,7 +772,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         Each item must be accepted by `soundings.check_field_name`.
     example_dict['sounding_heights_m_agl']: numpy array (length H_s) of sounding
         heights (metres above ground level).
-    example_dict['sounding_matrix']: numpy array (E x F_s x H_s) of storm-
+    example_dict['sounding_matrix']: numpy array (E x H_s x F_s) of storm-
         centered soundings.
 
     :param append_to_file: Boolean flag.  If True, this method will append to an
@@ -832,8 +835,8 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     num_radar_dimensions = len(example_dict[RADAR_IMAGE_MATRIX_KEY].shape) - 2
 
     if num_radar_dimensions == 3:
-        num_radar_fields = example_dict[RADAR_IMAGE_MATRIX_KEY].shape[3]
-        num_radar_heights = example_dict[RADAR_IMAGE_MATRIX_KEY].shape[4]
+        num_radar_heights = example_dict[RADAR_IMAGE_MATRIX_KEY].shape[3]
+        num_radar_fields = example_dict[RADAR_IMAGE_MATRIX_KEY].shape[4]
     else:
         num_radar_channels = example_dict[RADAR_IMAGE_MATRIX_KEY].shape[3]
 
@@ -847,12 +850,9 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     num_radar_field_chars = 1
     if num_radar_dimensions == 3:
         this_loop_max = num_radar_fields + 0
-        print num_radar_fields
-        this_loop_max
     else:
         this_loop_max = num_radar_channels + 0
 
-    print example_dict[RADAR_FIELDS_KEY]
     for j in range(this_loop_max):
         num_radar_field_chars = max([
             num_radar_field_chars, len(example_dict[RADAR_FIELDS_KEY][j])
@@ -927,7 +927,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     if num_radar_dimensions == 3:
         these_dimensions = (
             EXAMPLE_DIMENSION_KEY, ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY,
-            RADAR_FIELD_DIM_KEY, RADAR_HEIGHT_DIM_KEY
+            RADAR_HEIGHT_DIM_KEY, RADAR_FIELD_DIM_KEY
         )
     else:
         these_dimensions = (
@@ -981,8 +981,8 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     netcdf_dataset.createVariable(
         SOUNDING_MATRIX_KEY, datatype=numpy.float32,
         dimensions=(
-            EXAMPLE_DIMENSION_KEY, SOUNDING_FIELD_DIM_KEY,
-            SOUNDING_HEIGHT_DIM_KEY
+            EXAMPLE_DIMENSION_KEY, SOUNDING_HEIGHT_DIM_KEY,
+            SOUNDING_FIELD_DIM_KEY
         )
     )
     netcdf_dataset.variables[SOUNDING_MATRIX_KEY][:] = example_dict[
@@ -1081,16 +1081,14 @@ def read_example_file(
         ], dtype=int)
 
         radar_image_matrix = radar_image_matrix[
-            ..., these_field_indices, these_height_indices]
+            ..., these_height_indices, these_field_indices]
 
-    for j in range(len(radar_field_names_to_keep)):
-        radar_image_matrix[:, :, :, j, ...] = (
-            storm_images.downsize_storm_images(
-                storm_image_matrix=radar_image_matrix[:, :, :, j, ...],
-                radar_field_name=radar_field_names_to_keep[j],
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep)
-        )
+    for k in range(len(radar_field_names_to_keep)):
+        radar_image_matrix[..., k] = storm_images.downsize_storm_images(
+            storm_image_matrix=radar_image_matrix[..., k],
+            radar_field_name=radar_field_names_to_keep[k],
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
 
     example_dict = {
         ROTATED_GRIDS_KEY: rotated_grids,
@@ -1138,7 +1136,7 @@ def read_example_file(
         for h in sounding_heights_to_keep_m_agl
     ], dtype=int)
     sounding_matrix = sounding_matrix[
-        ..., these_field_indices, these_height_indices]
+        ..., these_height_indices, these_field_indices]
 
     netcdf_dataset.close()
 
