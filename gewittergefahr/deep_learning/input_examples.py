@@ -794,9 +794,8 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         )
         num_examples_to_add = len(example_dict[STORM_TIMES_KEY])
 
-        print netcdf_dataset.dimensions[STORM_ID_CHAR_DIM_KEY]
         this_string_type = 'S{0:d}'.format(
-            netcdf_dataset.dimensions[STORM_ID_CHAR_DIM_KEY])
+            netcdf_dataset.dimensions[STORM_ID_CHAR_DIM_KEY].size)
         example_dict[STORM_IDS_KEY] = netCDF4.stringtochar(numpy.array(
             example_dict[STORM_IDS_KEY], dtype=this_string_type))
 
