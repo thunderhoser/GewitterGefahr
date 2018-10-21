@@ -430,6 +430,7 @@ def _compare_metadata(netcdf_dataset, example_dict):
             str(s) for s in netCDF4.chartostring(
                 netcdf_dataset.variables[SOUNDING_FIELDS_KEY][:])
         ]
+        print netcdf_dataset.variables[SOUNDING_FIELDS_KEY]
         orig_example_dict[SOUNDING_HEIGHTS_KEY] = numpy.array(
             netcdf_dataset.variables[SOUNDING_HEIGHTS_KEY][:], dtype=int)
 
