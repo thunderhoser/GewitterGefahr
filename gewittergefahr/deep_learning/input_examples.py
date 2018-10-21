@@ -31,6 +31,7 @@ from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 # TODO(thunderhoser): Deal with azimuthal shear.
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DEFAULT_NUM_EXAMPLES_PER_OUT_CHUNK = 8
 DEFAULT_NUM_EXAMPLES_PER_OUT_FILE = 128
@@ -1019,7 +1020,7 @@ def read_example_file(
 
     netcdf_dataset = netCDF4.Dataset(netcdf_file_name)
 
-    target_name = bool(getattr(netcdf_dataset, TARGET_NAME_KEY))
+    target_name = str(getattr(netcdf_dataset, TARGET_NAME_KEY))
     rotated_grids = bool(getattr(netcdf_dataset, ROTATED_GRIDS_KEY))
     if rotated_grids:
         rotated_grid_spacing_metres = getattr(
@@ -1075,13 +1076,13 @@ def read_example_file(
         these_field_indices = numpy.array(
             [radar_field_names.index(f) for f in radar_field_names_to_keep],
             dtype=int)
+        radar_image_matrix = radar_image_matrix[..., these_field_indices]
+
         these_height_indices = numpy.array([
             numpy.where(radar_heights_m_agl == h)[0][0]
             for h in radar_heights_to_keep_m_agl
         ], dtype=int)
-
-        radar_image_matrix = radar_image_matrix[
-            ..., these_height_indices, these_field_indices]
+        radar_image_matrix = radar_image_matrix[..., these_height_indices, :]
 
     for k in range(len(radar_field_names_to_keep)):
         radar_image_matrix[..., k] = storm_images.downsize_storm_images(
@@ -1110,14 +1111,14 @@ def read_example_file(
     # Check sounding fields.
     sounding_field_names = [
         str(s) for s in netCDF4.chartostring(
-            netcdf_dataset.variables[RADAR_FIELDS_KEY][:])
+            netcdf_dataset.variables[SOUNDING_FIELDS_KEY][:])
     ]
     if sounding_field_names_to_keep is None:
         sounding_field_names_to_keep = sounding_field_names + []
 
     # Check sounding heights.
     sounding_heights_m_agl = numpy.array(
-        netcdf_dataset.variables[RADAR_HEIGHTS_KEY][:], dtype=int)
+        netcdf_dataset.variables[SOUNDING_HEIGHTS_KEY][:], dtype=int)
     if sounding_heights_to_keep_m_agl is None:
         sounding_heights_to_keep_m_agl = sounding_heights_m_agl + 0
 
@@ -1131,12 +1132,13 @@ def read_example_file(
     these_field_indices = numpy.array([
         sounding_field_names.index(f) for f in sounding_field_names_to_keep
     ], dtype=int)
+    sounding_matrix = sounding_matrix[..., these_field_indices]
+
     these_height_indices = numpy.array([
         numpy.where(sounding_heights_m_agl == h)[0][0]
         for h in sounding_heights_to_keep_m_agl
     ], dtype=int)
-    sounding_matrix = sounding_matrix[
-        ..., these_height_indices, these_field_indices]
+    sounding_matrix = sounding_matrix[..., these_height_indices, :]
 
     netcdf_dataset.close()
 
@@ -1262,6 +1264,12 @@ def shuffle_and_write_examples(
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
 
+    unique_target_values, unique_counts = numpy.unique(
+        target_values, return_counts=True)
+    for k in range(len(unique_target_values)):
+        print '{0:d} examples with target class = {1:d}'.format(
+            unique_counts[k], unique_target_values[k])
+
     num_output_files = int(numpy.ceil(
         float(num_examples_to_use) / num_examples_per_out_file
     ))
@@ -1340,3 +1348,4 @@ def shuffle_and_write_examples(
         _write_examples_to_many_files(
             example_dict=this_example_dict, output_file_names=output_file_names,
             num_examples_per_out_chunk=num_examples_per_out_chunk)
+        print SEPARATOR_STRING
