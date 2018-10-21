@@ -374,8 +374,13 @@ def _write_examples_to_many_files(
             if this_key == SOUNDING_MATRIX_KEY and this_key not in example_dict:
                 continue
 
-            this_example_dict[this_key] = example_dict[this_key][
-                these_example_indices, ...]
+            if this_key == STORM_IDS_KEY:
+                this_example_dict[this_key] = [
+                    example_dict[this_key][k] for k in these_example_indices
+                ]
+            else:
+                this_example_dict[this_key] = example_dict[this_key][
+                    these_example_indices, ...]
 
         this_output_file_name = random.choice(output_file_names)
         print 'Writing shuffled examples to: "{0:s}"...'.format(
