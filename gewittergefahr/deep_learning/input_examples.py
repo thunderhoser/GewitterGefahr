@@ -1269,6 +1269,7 @@ def shuffle_and_write_examples(
     for k in range(len(unique_target_values)):
         print '{0:d} examples with target class = {1:d}'.format(
             unique_counts[k], unique_target_values[k])
+    print '\n'
 
     num_output_files = int(numpy.ceil(
         float(num_examples_to_use) / num_examples_per_out_file
