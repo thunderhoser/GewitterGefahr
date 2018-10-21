@@ -794,6 +794,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         )
         num_examples_to_add = len(example_dict[STORM_TIMES_KEY])
 
+        print netcdf_dataset.dimensions[STORM_ID_CHAR_DIM_KEY]
         this_string_type = 'S{0:d}'.format(
             netcdf_dataset.dimensions[STORM_ID_CHAR_DIM_KEY])
         example_dict[STORM_IDS_KEY] = netCDF4.stringtochar(numpy.array(
@@ -1272,11 +1273,13 @@ def shuffle_and_write_examples(
 
     output_file_names = []
     for k in batch_numbers:
-        output_file_names.append(
-            find_example_file(
-                top_directory_name=top_output_dir_name, batch_number=k,
-                raise_error_if_missing=False)
-        )
+        this_file_name = find_example_file(
+            top_directory_name=top_output_dir_name, batch_number=k,
+            raise_error_if_missing=False)
+
+        if os.path.isfile(this_file_name):
+            os.remove(this_file_name)
+        output_file_names.append(this_file_name)
 
     for i in range(num_file_times):
         this_time_unix_sec, this_spc_date_string = (
