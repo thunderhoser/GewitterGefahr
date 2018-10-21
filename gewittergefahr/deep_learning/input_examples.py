@@ -1333,5 +1333,5 @@ def shuffle_and_write_examples(
 
         this_example_dict.update({TARGET_NAME_KEY: target_name})
         _write_examples_to_many_files(
-            example_dict=this_example_dict, output_file_names=this_example_dict,
+            example_dict=this_example_dict, output_file_names=output_file_names,
             num_examples_per_out_chunk=num_examples_per_out_chunk)
