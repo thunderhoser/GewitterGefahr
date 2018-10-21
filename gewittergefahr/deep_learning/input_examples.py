@@ -847,6 +847,8 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     num_radar_field_chars = 1
     if num_radar_dimensions == 3:
         this_loop_max = num_radar_fields + 0
+        print num_radar_fields
+        this_loop_max
     else:
         this_loop_max = num_radar_channels + 0
 
