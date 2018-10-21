@@ -947,8 +947,6 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
     num_sounding_heights = example_dict[SOUNDING_MATRIX_KEY].shape[1]
     num_sounding_fields = example_dict[SOUNDING_MATRIX_KEY].shape[2]
-    print example_dict[SOUNDING_MATRIX_KEY].shape
-    print example_dict[SOUNDING_FIELDS_KEY]
 
     num_sounding_field_chars = 1
     for j in range(num_sounding_fields):
@@ -970,7 +968,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
     netcdf_dataset.createVariable(
         SOUNDING_FIELDS_KEY, datatype='S1',
-        dimensions=(EXAMPLE_DIMENSION_KEY, SOUNDING_FIELD_CHAR_DIM_KEY))
+        dimensions=(SOUNDING_FIELD_DIM_KEY, SOUNDING_FIELD_CHAR_DIM_KEY))
     netcdf_dataset.variables[SOUNDING_FIELDS_KEY][:] = numpy.array(
         sounding_field_names_char_array)
 
