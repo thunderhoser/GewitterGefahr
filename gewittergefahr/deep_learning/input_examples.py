@@ -850,6 +850,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     else:
         this_loop_max = num_radar_channels + 0
 
+    print example_dict[RADAR_FIELDS_KEY]
     for j in range(this_loop_max):
         num_radar_field_chars = max([
             num_radar_field_chars, len(example_dict[RADAR_FIELDS_KEY][j])
