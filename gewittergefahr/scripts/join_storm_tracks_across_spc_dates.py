@@ -8,18 +8,19 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import echo_top_tracking
 
-# TODO(thunderhoser): All input args to
-# `echo_top_tracking.join_tracks_across_spc_dates` should be input args to this
-# script.
-
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+MYRORSS_START_TIME_STRING = '1990-01-01-000000'
+MYRORSS_END_TIME_STRING = '2012-01-01-000813'
+
+MYRORSS_START_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
+    MYRORSS_START_TIME_STRING, TIME_FORMAT)
 MYRORSS_END_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
-    '2012-01-01-000813', TIME_FORMAT)
-MYRORSS_START_TIME_UNIX_SEC = 0
+    MYRORSS_END_TIME_STRING, TIME_FORMAT)
 
 FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 RADAR_SOURCE_ARG_NAME = 'radar_source'
+FOR_CLIMATOLOGY_ARG_NAME = 'for_storm_climatology'
 ORIG_TRACKING_DIR_ARG_NAME = 'orig_tracking_dir_name'
 NEW_TRACKING_DIR_ARG_NAME = 'new_tracking_dir_name'
 START_TIME_ARG_NAME = 'start_time_string'
@@ -33,6 +34,12 @@ SPC_DATE_HELP_STRING = (
 RADAR_SOURCE_HELP_STRING = (
     'Source of radar data.  Must be in the following list:\n{0:s}'
 ).format(str(radar_utils.DATA_SOURCE_IDS))
+
+FOR_CLIMATOLOGY_HELP_STRING = (
+    'Boolean flag.  If 1, tracks joined will be used for storm climatology, in '
+    'which case the tracking period will be set to `{0:s}`...`{1:s}`.  If 0, '
+    'the tracking period will just be the period on which this script operates.'
+).format(MYRORSS_START_TIME_STRING, MYRORSS_END_TIME_STRING)
 
 ORIG_TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with original storm tracks (before joining).')
@@ -66,6 +73,10 @@ INPUT_ARG_PARSER.add_argument(
     default=radar_utils.MYRORSS_SOURCE_ID, help=RADAR_SOURCE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + FOR_CLIMATOLOGY_ARG_NAME, type=int, required=False,
+    default=0, help=FOR_CLIMATOLOGY_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + ORIG_TRACKING_DIR_ARG_NAME, type=str, required=True,
     help=ORIG_TRACKING_DIR_HELP_STRING)
 
@@ -84,15 +95,19 @@ INPUT_ARG_PARSER.add_argument(
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
     RADAR_SOURCE_NAME = getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_ARG_NAME)
-    START_TIME_STRING = getattr(INPUT_ARG_OBJECT, START_TIME_ARG_NAME)
-    END_TIME_STRING = getattr(INPUT_ARG_OBJECT, END_TIME_ARG_NAME)
+    FOR_STORM_CLIMATOLOGY = bool(
+        getattr(INPUT_ARG_OBJECT, FOR_CLIMATOLOGY_ARG_NAME))
 
-    if RADAR_SOURCE_NAME == radar_utils.MYRORSS_SOURCE_ID:
-        TRACKING_START_TIME_UNIX_SEC = MYRORSS_START_TIME_UNIX_SEC
-        TRACKING_END_TIME_UNIX_SEC = MYRORSS_END_TIME_UNIX_SEC
+    if (FOR_STORM_CLIMATOLOGY and
+            RADAR_SOURCE_NAME == radar_utils.MYRORSS_SOURCE_ID):
+        TRACKING_START_TIME_UNIX_SEC = MYRORSS_START_TIME_UNIX_SEC + 0
+        TRACKING_END_TIME_UNIX_SEC = MYRORSS_END_TIME_UNIX_SEC + 0
     else:
         TRACKING_START_TIME_UNIX_SEC = None
         TRACKING_END_TIME_UNIX_SEC = None
+
+    START_TIME_STRING = getattr(INPUT_ARG_OBJECT, START_TIME_ARG_NAME)
+    END_TIME_STRING = getattr(INPUT_ARG_OBJECT, END_TIME_ARG_NAME)
 
     if START_TIME_STRING == 'None' and END_TIME_STRING == 'None':
         START_TIME_UNIX_SEC = None
