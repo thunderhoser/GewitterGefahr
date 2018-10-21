@@ -945,8 +945,8 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         netcdf_dataset.close()
         return
 
-    num_sounding_fields = example_dict[SOUNDING_MATRIX_KEY].shape[1]
-    num_sounding_heights = example_dict[SOUNDING_MATRIX_KEY].shape[2]
+    num_sounding_heights = example_dict[SOUNDING_MATRIX_KEY].shape[1]
+    num_sounding_fields = example_dict[SOUNDING_MATRIX_KEY].shape[2]
 
     num_sounding_field_chars = 1
     for j in range(num_sounding_fields):
