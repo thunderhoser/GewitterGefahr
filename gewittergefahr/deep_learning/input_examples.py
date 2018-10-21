@@ -816,7 +816,9 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
     # Set global attributes.
     netcdf_dataset.setncattr(TARGET_NAME_KEY, example_dict[TARGET_NAME_KEY])
-    netcdf_dataset.setncattr(ROTATED_GRIDS_KEY, example_dict[ROTATED_GRIDS_KEY])
+    netcdf_dataset.setncattr(
+        ROTATED_GRIDS_KEY, int(example_dict[ROTATED_GRIDS_KEY])
+    )
     if example_dict[ROTATED_GRIDS_KEY]:
         netcdf_dataset.setncattr(
             ROTATED_GRID_SPACING_KEY,
