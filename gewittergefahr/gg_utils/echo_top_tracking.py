@@ -397,20 +397,24 @@ def _find_radar_and_tracking_files(
     # Error-checking.
     _check_radar_field(echo_top_field_name)
     _check_radar_data_source(data_source)
-    _ = time_conversion.spc_date_string_to_unix_sec(start_spc_date_string)
-    _ = time_conversion.spc_date_string_to_unix_sec(end_spc_date_string)
+    
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=start_spc_date_string,
+        last_spc_date_string=end_spc_date_string)
 
     if start_time_unix_sec is None:
         start_time_unix_sec = (
             time_conversion.MIN_SECONDS_INTO_SPC_DATE +
             time_conversion.string_to_unix_sec(
-                start_spc_date_string, time_conversion.SPC_DATE_FORMAT))
+                start_spc_date_string, time_conversion.SPC_DATE_FORMAT)
+        )
 
     if end_time_unix_sec is None:
         end_time_unix_sec = (
             time_conversion.MAX_SECONDS_INTO_SPC_DATE +
             time_conversion.string_to_unix_sec(
-                end_spc_date_string, time_conversion.SPC_DATE_FORMAT))
+                end_spc_date_string, time_conversion.SPC_DATE_FORMAT)
+        )
 
     if not time_conversion.is_time_in_spc_date(
             start_time_unix_sec, start_spc_date_string):
@@ -430,24 +434,11 @@ def _find_radar_and_tracking_files(
 
     error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
 
-    # Create list of SPC dates in period.
-    start_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        start_spc_date_string)
-    end_spc_date_unix_sec = time_conversion.spc_date_string_to_unix_sec(
-        end_spc_date_string)
-
-    num_spc_dates = int(
-        1 + (end_spc_date_unix_sec - start_spc_date_unix_sec) / DAYS_TO_SECONDS)
-    spc_dates_unix_sec = numpy.linspace(
-        start_spc_date_unix_sec, end_spc_date_unix_sec, num=num_spc_dates,
-        dtype=int)
-    spc_date_strings = [time_conversion.time_to_spc_date_string(t)
-                        for t in spc_dates_unix_sec]
-
     # Find radar files.
     input_radar_file_names = []
     output_tracking_file_names = []
     unix_times_sec = numpy.array([], dtype=int)
+    num_spc_dates = len(spc_date_strings)
 
     for i in range(num_spc_dates):
         these_radar_file_names = (
@@ -455,26 +446,33 @@ def _find_radar_and_tracking_files(
                 spc_date_string=spc_date_strings[i],
                 field_name=echo_top_field_name,
                 data_source=data_source, top_directory_name=top_radar_dir_name,
-                raise_error_if_missing=True))
+                raise_error_if_missing=True)
+        )
+        
+        if i == 0:
+            this_start_time_unix_sec = start_time_unix_sec + 0
+        else:
+            this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
+                spc_date_strings[i])
+        
+        if i == num_spc_dates - 1:
+            this_end_time_unix_sec = end_time_unix_sec + 0
+        else:
+            this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
+                spc_date_strings[i])
 
         # TODO(thunderhoser): stop using protected method.
         these_times_unix_sec = numpy.array(
             [myrorss_and_mrms_io._raw_file_name_to_time(f)
              for f in these_radar_file_names], dtype=int)
 
-        if i == 0:
-            keep_time_indices = numpy.where(
-                these_times_unix_sec >= start_time_unix_sec)[0]
-            these_times_unix_sec = these_times_unix_sec[keep_time_indices]
-            these_radar_file_names = [
-                these_radar_file_names[k] for k in keep_time_indices]
-
-        if i == num_spc_dates - 1:
-            keep_time_indices = numpy.where(
-                these_times_unix_sec <= end_time_unix_sec)[0]
-            these_times_unix_sec = these_times_unix_sec[keep_time_indices]
-            these_radar_file_names = [
-                these_radar_file_names[k] for k in keep_time_indices]
+        good_indices = numpy.where(numpy.logical_and(
+            these_times_unix_sec >= this_start_time_unix_sec,
+            these_times_unix_sec <= this_end_time_unix_sec
+        ))[0]
+        these_times_unix_sec = these_times_unix_sec[good_indices]
+        these_radar_file_names = [
+            these_radar_file_names[k] for k in good_indices]
 
         this_num_times = len(these_times_unix_sec)
         these_tracking_file_names = [''] * this_num_times
