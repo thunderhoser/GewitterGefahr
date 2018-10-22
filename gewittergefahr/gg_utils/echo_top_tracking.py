@@ -397,7 +397,7 @@ def _find_radar_and_tracking_files(
     # Error-checking.
     _check_radar_field(echo_top_field_name)
     _check_radar_data_source(data_source)
-    
+
     spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=start_spc_date_string,
         last_spc_date_string=end_spc_date_string)
@@ -448,13 +448,13 @@ def _find_radar_and_tracking_files(
                 data_source=data_source, top_directory_name=top_radar_dir_name,
                 raise_error_if_missing=True)
         )
-        
+
         if i == 0:
             this_start_time_unix_sec = start_time_unix_sec + 0
         else:
             this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
                 spc_date_strings[i])
-        
+
         if i == num_spc_dates - 1:
             this_end_time_unix_sec = end_time_unix_sec + 0
         else:
