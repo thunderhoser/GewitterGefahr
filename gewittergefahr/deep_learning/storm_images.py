@@ -2011,7 +2011,8 @@ def find_storm_image_file(
     time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     radar_utils.check_data_source(radar_source)
     radar_utils.check_field_name(radar_field_name)
-    error_checking.assert_is_integer(radar_height_m_agl)
+
+    radar_height_m_agl = int(numpy.round(radar_height_m_agl))
     error_checking.assert_is_greater(radar_height_m_agl, 0)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
