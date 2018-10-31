@@ -510,7 +510,7 @@ def find_many_raw_files(
         UNIQUE_TIMES_KEY: unique_times_unix_sec,
         SPC_DATES_AT_UNIQUE_TIMES_KEY: spc_dates_at_unique_times_unix_sec,
         FIELD_NAME_BY_PAIR_KEY: field_name_by_pair,
-        HEIGHT_BY_PAIR_KEY: height_by_pair_m_asl
+        HEIGHT_BY_PAIR_KEY: numpy.round(height_by_pair_m_asl).astype(int)
     }
 
 
