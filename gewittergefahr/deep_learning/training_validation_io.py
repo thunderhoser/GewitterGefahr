@@ -604,6 +604,9 @@ def example_generator_2d3d_myrorss(option_dict):
     - Storm-centered sounding (optional)
     - Target class
 
+    M = number of rows in each reflectivity image
+    N = number of columns in each reflectivity image
+
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for `example_generator_2d_or_3d`.
     option_dict['first_storm_time_unix_sec']: Same.
@@ -635,7 +638,7 @@ def example_generator_2d3d_myrorss(option_dict):
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
         (E x M x N x H_r x 1) of storm-centered reflectivity images.
-    predictor_list[1] = az_shear_image_matrix_s01: numpy array (E x M x N x C)
+    predictor_list[1] = az_shear_image_matrix_s01: numpy array (E x 2M x 2N x C)
         of storm-centered azimuthal-shear images.
     predictor_list[2] = sounding_matrix: numpy array (E x H_s x F_s) of storm-
         centered soundings.  If `sounding_field_names is None`, this item does

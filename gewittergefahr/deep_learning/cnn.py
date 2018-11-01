@@ -2,25 +2,18 @@
 
 * convolutional neural network
 
-Some variables in this module contain the string "pos_targets_only", which means
-that they pertain only to storm objects with positive target values.  For
-details on how to separate storm objects with positive target values, see
-separate_myrorss_images_with_positive_targets.py.
-
 --- NOTATION ---
 
 The following letters will be used throughout this module.
 
 E = number of examples (storm objects)
-M = number of rows per radar image
-N = number of columns per radar image
-H_r = number of heights per radar image
-F_r = number of radar fields (not including different heights)
-H_s = number of height levels per sounding
-F_s = number of sounding fields (not including different heights)
-C = number of field/height pairs per radar image
-K = number of classes for target variable
-T = number of file times (time steps or SPC dates)
+M = number of rows in each radar image
+N = number of columns in each radar image
+H_r = number of radar heights
+F_r = number of radar fields (or "variables" or "channels")
+H_s = number of sounding heights
+F_s = number of sounding fields (or "variables" or "channels")
+C = number of radar field/height pairs
 """
 
 import copy
@@ -34,15 +27,16 @@ import keras.callbacks
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import keras_metrics
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-LOSS_AS_MONITOR_STRING = 'loss'
-PEIRCE_SCORE_AS_MONITOR_STRING = 'binary_peirce_score'
-VALID_MONITOR_STRINGS = [LOSS_AS_MONITOR_STRING, PEIRCE_SCORE_AS_MONITOR_STRING]
+LOSS_FUNCTION_STRING = 'loss'
+PEIRCE_SCORE_STRING = 'binary_peirce_score'
+VALID_MONITOR_STRINGS = [LOSS_FUNCTION_STRING, PEIRCE_SCORE_STRING]
 
-CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
+PERFORMANCE_METRIC_DICT = {
     'accuracy': keras_metrics.accuracy,
     'binary_accuracy': keras_metrics.binary_accuracy,
     'binary_csi': keras_metrics.binary_csi,
@@ -56,36 +50,21 @@ CUSTOM_OBJECT_DICT_FOR_READING_MODEL = {
 
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
+NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
 MONITOR_STRING_KEY = 'monitor_string'
 WEIGHT_LOSS_FUNCTION_KEY = 'weight_loss_function'
-NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
-VALIDATION_FILES_KEY = 'validn_file_name_matrix'
-POSITIVE_VALIDATION_FILES_KEY = 'validn_file_name_matrix_pos_targets_only'
 USE_2D3D_CONVOLUTION_KEY = 'use_2d3d_convolution'
-RADAR_SOURCE_KEY = 'radar_source'
-RADAR_FIELDS_KEY = 'radar_field_names'
-RADAR_HEIGHTS_KEY = 'radar_heights_m_agl'
-REFLECTIVITY_HEIGHTS_KEY = 'reflectivity_heights_m_agl'
-SOUNDING_HEIGHTS_KEY = 'sounding_heights_m_agl'
+VALIDATION_FILES_KEY = 'validation_file_names'
+FIRST_VALIDN_TIME_KEY = 'first_validn_time_unix_sec'
+LAST_VALIDN_TIME_KEY = 'last_validn_time_unix_sec'
 TRAINING_OPTION_DICT_KEY = 'training_option_dict'
 
 REQUIRED_METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, MONITOR_STRING_KEY,
-    WEIGHT_LOSS_FUNCTION_KEY, NUM_VALIDATION_BATCHES_KEY, VALIDATION_FILES_KEY,
-    POSITIVE_VALIDATION_FILES_KEY, USE_2D3D_CONVOLUTION_KEY, RADAR_SOURCE_KEY,
-    RADAR_FIELDS_KEY, RADAR_HEIGHTS_KEY, REFLECTIVITY_HEIGHTS_KEY,
-    SOUNDING_HEIGHTS_KEY
+    NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, NUM_VALIDATION_BATCHES_KEY,
+    MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY, USE_2D3D_CONVOLUTION_KEY,
+    VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY, LAST_VALIDN_TIME_KEY,
+    TRAINING_OPTION_DICT_KEY
 ]
-
-DEFAULT_METADATA_DICT = {
-    VALIDATION_FILES_KEY: None,
-    POSITIVE_VALIDATION_FILES_KEY: None,
-    RADAR_HEIGHTS_KEY: None,
-    REFLECTIVITY_HEIGHTS_KEY: None,
-    SOUNDING_HEIGHTS_KEY: None
-}
-
-DEFAULT_METADATA_DICT.update(trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT)
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
@@ -99,34 +78,42 @@ NUM_CLASSES_KEY = 'num_classes'
 
 
 def _check_training_args(
-        num_epochs, num_training_batches_per_epoch,
-        num_validation_batches_per_epoch, weight_loss_function, target_name,
-        binarize_target, training_fraction_by_class_dict, model_file_name,
-        history_file_name, tensorboard_dir_name):
-    """Error-checks input args for training.
+        model_file_name, history_file_name, tensorboard_dir_name, num_epochs,
+        num_training_batches_per_epoch, num_validation_batches_per_epoch,
+        training_option_dict, weight_loss_function):
+    """Error-checks input arguments for training.
 
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param weight_loss_function: Boolean flag.  If False, classes will be
-        equally weighted in the loss function.  If True, classes will be
-        weighted differently (inversely proportional to their sampling
-        fractions, specified in `training_fraction_by_class_dict`).
-    :param target_name: Name of target variable.
-    :param binarize_target: Boolean flag.  If True, target variable will be
-        binarized so that the highest class = 1 and all other classes = 0.
-    :param training_fraction_by_class_dict: See doc for
-        `deep_learning_utils.class_fractions_to_weights`.
-    :param model_file_name: Path to output file (HDF5 format).  Model will be
-        saved here after each epoch.
+    :param model_file_name: Path to output file (HDF5 format).  The model will
+        be saved here after each epoch.
     :param history_file_name: Path to output file (CSV format).  Training
-        history will be saved here after each epoch.
+        history (performance metrics) will be saved here after each epoch.
     :param tensorboard_dir_name: Path to output directory for TensorBoard log
         files.
-    :return: lf_weight_by_class_dict: Dictionary created by
-        `deep_learning_utils.class_fractions_to_weights`.
+    :param num_epochs: Number of epochs.
+    :param num_training_batches_per_epoch: Number of training batches in each
+        epoch.
+    :param num_validation_batches_per_epoch: Number of validation batches in
+        each epoch.
+    :param training_option_dict: See doc for
+        `training_validation_io.example_generator_2d_or_3d`.
+    :param weight_loss_function: Boolean flag.  If False, classes will be
+        weighted equally in the loss function.  If True, classes will be
+        weighted differently (inversely proportional to their sampling
+        fractions).
+    :return: class_to_weight_dict: Dictionary, where each key is the integer ID
+        for a target class (-2 for "dead storm") and each value is the weight
+        for the loss function.  If None, classes will be equally weighted in the
+        loss function.
     """
+
+    orig_option_dict = training_option_dict.copy()
+    training_option_dict = trainval_io.DEFAULT_GENERATOR_OPTION_DICT.copy()
+    training_option_dict.update(orig_option_dict)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(file_name=history_file_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=tensorboard_dir_name)
 
     error_checking.assert_is_integer(num_epochs)
     error_checking.assert_is_geq(num_epochs, 1)
@@ -136,20 +123,22 @@ def _check_training_args(
     error_checking.assert_is_geq(num_validation_batches_per_epoch, 0)
 
     error_checking.assert_is_boolean(weight_loss_function)
-    error_checking.assert_is_boolean(binarize_target)
-    if weight_loss_function:
-        lf_weight_by_class_dict = dl_utils.class_fractions_to_weights(
-            sampling_fraction_by_class_dict=training_fraction_by_class_dict,
-            target_name=target_name, binarize_target=binarize_target)
-    else:
-        lf_weight_by_class_dict = None
+    if not weight_loss_function:
+        return None
 
-    file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
-    file_system_utils.mkdir_recursive_if_necessary(file_name=history_file_name)
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=tensorboard_dir_name)
+    class_to_sampling_fraction_dict = training_option_dict[
+        trainval_io.SAMPLING_FRACTIONS_KEY]
+    if class_to_sampling_fraction_dict is None:
+        return None
 
-    return lf_weight_by_class_dict
+    this_example_dict = input_examples.read_example_file(
+        training_option_dict[trainval_io.EXAMPLE_FILES_KEY][0])
+    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
+    return dl_utils.class_fractions_to_weights(
+        sampling_fraction_by_class_dict=class_to_sampling_fraction_dict,
+        target_name=target_name,
+        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY])
 
 
 def _get_checkpoint_object(
@@ -180,7 +169,7 @@ def _get_checkpoint_object(
         ).format(str(VALID_MONITOR_STRINGS), monitor_string)
         raise ValueError(error_string)
 
-    if monitor_string == LOSS_AS_MONITOR_STRING:
+    if monitor_string == LOSS_FUNCTION_STRING:
         mode_string = 'min'
     else:
         mode_string = 'max'
@@ -226,61 +215,49 @@ def read_model(hdf5_file_name):
 
     error_checking.assert_file_exists(hdf5_file_name)
     return keras.models.load_model(
-        hdf5_file_name, custom_objects=CUSTOM_OBJECT_DICT_FOR_READING_MODEL)
+        hdf5_file_name, custom_objects=PERFORMANCE_METRIC_DICT)
 
 
-def write_model_metadata(pickle_file_name, metadata_dict, training_option_dict):
+def write_model_metadata(
+        pickle_file_name, metadata_dict, training_option_dict):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
     :param metadata_dict: Dictionary with the following keys.
     metadata_dict['num_epochs']: Number of epochs.
     metadata_dict['num_training_batches_per_epoch']: Number of training batches
-        per epoch.
+        in each epoch.
+    metadata_dict['num_validation_batches_per_epoch']: Number of validation
+        batches in each epoch.
     metadata_dict['monitor_string']: See doc for `_get_checkpoint_object`.
     metadata_dict['weight_loss_function']: See doc for `_check_training_args`.
-    metadata_dict['num_validation_batches_per_epoch']: Number of validation
-        batches per epoch.
-    metadata_dict['validn_file_name_matrix']: numpy array created by
-        `training_validation_io.find_radar_files_2d` or
-        `training_validation_io.find_radar_files_3d`, for validation only.
-    metadata_dict['validn_file_name_matrix_pos_targets_only']: Same as
-        "validn_file_name_matrix", but containing only examples with target
-        class = 1.
-    metadata_dict['use_2d3d_convolution']: Boolean flag.  If True, the network
-        performs a hybrid of 2-D and 3-D convolution, so the data-generator is
-        `training_validation_io.storm_image_generator_2d3d_myrorss`.
-    metadata_dict['radar_source']: Data source (must be accepted by
-        `radar_utils.check_field_name`).
-    metadata_dict['radar_field_names']: See doc for
-        `training_validation_io.find_radar_files_2d` or
-        `training_validation_io.find_radar_files_3d`.
-    metadata_dict['radar_heights_m_agl']: Same.
-    metadata_dict['reflectivity_heights_m_agl']: Same.
-    metadata_dict['sounding_heights_m_agl']: 1-D numpy array of sounding heights
-        (integer metres above ground level).
+    metadata_dict['use_2d3d_convolution']: Boolean flag.  If True, the net
+        convolves over both 2-D and 3-D radar images, so was trained with
+        `train_cnn_2d3d_myrorss`.  If False, the net convolves over only 2-D or
+        only 3-D images, so was trained with `train_cnn_2d_or_3d`.
+    metadata_dict['validation_file_names']: See doc for `train_cnn_2d_or_3d` or
+        `train_cnn_2d3d_myrorss`.
+    metadata_dict['first_validn_time_unix_sec']: Same.
+    metadata_dict['last_validn_time_unix_sec']: Same.
 
-    :param training_option_dict: Input to generator (e.g.,
-        `training_validation_io.storm_image_generator_2d`) for training data.
-    :raises: ValueError: if any expected keys are missing from `metadata_dict`.
+    :param training_option_dict: See doc for
+        `training_validation_io.example_generator_2d_or_3d` or
+        `training_validation_io.example_generator_2d3d_myrorss`.
+    :raises: ValueError: if any of the aforelisted keys are missing from
+        `metadata_dict`.
     """
-
-    orig_metadata_dict = metadata_dict.copy()
-    metadata_dict = DEFAULT_METADATA_DICT.copy()
-    metadata_dict.update(orig_metadata_dict)
-
-    missing_keys = list(set(REQUIRED_METADATA_KEYS) - set(metadata_dict.keys()))
-    if len(missing_keys):
-        error_string = (
-            'The following expected keys are missing from the dictionary.'
-            '\n{0:s}'
-        ).format(str(missing_keys))
-        raise ValueError(error_string)
 
     orig_training_option_dict = training_option_dict.copy()
     training_option_dict = trainval_io.DEFAULT_GENERATOR_OPTION_DICT.copy()
     training_option_dict.update(orig_training_option_dict)
     metadata_dict.update({TRAINING_OPTION_DICT_KEY: training_option_dict})
+
+    missing_keys = list(set(REQUIRED_METADATA_KEYS) - set(metadata_dict.keys()))
+    if len(missing_keys):
+        error_string = (
+            'The following keys are missing from `metadata_dict`.\n{0:s}'
+        ).format(str(missing_keys))
+        raise ValueError(error_string)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
@@ -302,51 +279,48 @@ def read_model_metadata(pickle_file_name):
     return metadata_dict
 
 
-def train_2d_cnn(
+def train_cnn_2d_or_3d(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_training_batches_per_epoch,
-        monitor_string=LOSS_AS_MONITOR_STRING, weight_loss_function=False,
-        training_option_dict=None, num_validation_batches_per_epoch=0,
-        validn_file_name_matrix=None,
-        validn_file_name_matrix_pos_targets_only=None):
-    """Trains CNN with 2-D radar images.
+        num_epochs, num_training_batches_per_epoch, training_option_dict,
+        monitor_string=LOSS_FUNCTION_STRING, weight_loss_function=False,
+        num_validation_batches_per_epoch=0, validation_file_names=None,
+        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+    """Trains CNN with radar images, which are either all 2-D or all 3-D.
 
-    :param model_object: Instance of `keras.models.Sequential`.
+    :param model_object: Instance of `keras.models.Model` or
+        `keras.models.Sequential`, containing the architecture of the net to be
+        trained.
     :param model_file_name: See doc for `_check_training_args`.
     :param history_file_name: Same.
     :param tensorboard_dir_name: Same.
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param monitor_string: Number of training batches per epoch.
-    :param weight_loss_function: See doc for `_check_training_args`.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
     :param training_option_dict: See doc for
-        `training_validation_io.storm_image_generator_2d`.  This exact
-        dictionary will be used to generate training data.  If
-        `num_validation_batches_per_epoch > 0`, the next 3 arguments will be
-        used to change the dictionary to generate validation data.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param validn_file_name_matrix:
-        [used iff num_validation_batches_per_epoch > 0]
-        See doc for `radar_file_name_matrix` in
-        `training_validation_io.storm_image_generator_2d`.
-    :param validn_file_name_matrix_pos_targets_only:
-        [used iff num_validation_batches_per_epoch > 0]
-        See doc for `radar_file_name_matrix_pos_targets_only` in
-        `training_validation_io.storm_image_generator_2d`.
+        `training_validation_io.example_generator_2d_or_3d`.
+    :param monitor_string: See doc for `_get_checkpoint_object`.
+    :param weight_loss_function: See doc for `_check_training_args`.
+    :param num_validation_batches_per_epoch: Same.
+    :param validation_file_names:
+        [used only if num_validation_batches_per_epoch > 0]
+        1-D list of paths to files with validation examples.  These will be read
+        by `input_examples.read_example_file`.
+
+    :param first_validn_time_unix_sec:
+        [used only if num_validation_batches_per_epoch > 0]
+        Start of validation period.  Examples before this time will not be used.
+
+    :param last_validn_time_unix_sec: Same.
+        [used only if num_validation_batches_per_epoch > 0]
+        End of validation period.  Examples after this time will not be used.
     """
 
-    lf_weight_by_class_dict = _check_training_args(
-        num_epochs=num_epochs,
+    class_to_weight_dict = _check_training_args(
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function,
-        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
-        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
-        training_fraction_by_class_dict=training_option_dict[
-            trainval_io.SAMPLING_FRACTIONS_KEY],
-        model_file_name=model_file_name, history_file_name=history_file_name,
-        tensorboard_dir_name=tensorboard_dir_name)
+        training_option_dict=training_option_dict,
+        weight_loss_function=weight_loss_function)
 
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
@@ -356,77 +330,62 @@ def train_2d_cnn(
         use_validation=num_validation_batches_per_epoch is not None)
 
     if num_validation_batches_per_epoch > 0:
-        model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_2d(
-                training_option_dict),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object])
-
-    else:
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
-            trainval_io.RADAR_FILE_NAMES_KEY] = validn_file_name_matrix
+            trainval_io.EXAMPLE_FILES_KEY] = validation_file_names
         validation_option_dict[
-            trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY
-        ] = validn_file_name_matrix_pos_targets_only
+            trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
+        validation_option_dict[
+            trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
 
         model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_2d(
+            generator=trainval_io.example_generator_2d_or_3d(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=lf_weight_by_class_dict,
+            verbose=1, class_weight=class_to_weight_dict,
             callbacks=[checkpoint_object, history_object],
-            validation_data=trainval_io.storm_image_generator_2d(
+            validation_data=trainval_io.example_generator_2d_or_3d(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
+    else:
+        model_object.fit_generator(
+            generator=trainval_io.example_generator_2d_or_3d(
+                training_option_dict),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_to_weight_dict,
+            callbacks=[checkpoint_object, history_object])
 
 
-def train_3d_cnn(
+def train_cnn_2d3d_myrorss(
         model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_training_batches_per_epoch,
-        monitor_string=LOSS_AS_MONITOR_STRING, weight_loss_function=False,
-        training_option_dict=None, num_validation_batches_per_epoch=0,
-        validn_file_name_matrix=None,
-        validn_file_name_matrix_pos_targets_only=None):
-    """Trains CNN with 3-D radar images.
+        num_epochs, num_training_batches_per_epoch, training_option_dict,
+        monitor_string=LOSS_FUNCTION_STRING, weight_loss_function=False,
+        num_validation_batches_per_epoch=0, validation_file_names=None,
+        first_validn_time_unix_sec=None, last_validn_time_unix_sec=None):
+    """Trains CNN with both 2-D and 3-D radar images.
 
-    :param model_object: Instance of `keras.models.Sequential`.
-    :param model_file_name: See doc for `_check_training_args`.
+    :param model_object: See doc for `train_cnn_2d_or_3d`.
+    :param model_file_name: Same.
     :param history_file_name: Same.
     :param tensorboard_dir_name: Same.
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param monitor_string: Number of training batches per epoch.
-    :param weight_loss_function: See doc for `_check_training_args`.
-    :param training_option_dict: See doc for
-        `training_validation_io.storm_image_generator_3d`.  This exact
-        dictionary will be used to generate training data.  If
-        `num_validation_batches_per_epoch > 0`, the next 3 arguments will be
-        used to change the dictionary to generate validation data.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param validn_file_name_matrix:
-        [used iff num_validation_batches_per_epoch > 0]
-        See doc for `radar_file_name_matrix` in
-        `training_validation_io.storm_image_generator_3d`.
-    :param validn_file_name_matrix_pos_targets_only:
-        [used iff num_validation_batches_per_epoch > 0]
-        See doc for `radar_file_name_matrix_pos_targets_only` in
-        `training_validation_io.storm_image_generator_3d`.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param training_option_dict: Same.
+    :param monitor_string: Same.
+    :param weight_loss_function: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param validation_file_names: Same.
+    :param first_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec: Same.
     """
 
-    lf_weight_by_class_dict = _check_training_args(
-        num_epochs=num_epochs,
+    class_to_weight_dict = _check_training_args(
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function,
-        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
-        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
-        training_fraction_by_class_dict=training_option_dict[
-            trainval_io.SAMPLING_FRACTIONS_KEY],
-        model_file_name=model_file_name, history_file_name=history_file_name,
-        tensorboard_dir_name=tensorboard_dir_name)
+        training_option_dict=training_option_dict,
+        weight_loss_function=weight_loss_function)
 
     history_object = keras.callbacks.CSVLogger(
         filename=history_file_name, separator=',', append=False)
@@ -435,111 +394,31 @@ def train_3d_cnn(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
-    if num_validation_batches_per_epoch is None:
-        model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_3d(
-                training_option_dict),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object])
-
-    else:
+    if num_validation_batches_per_epoch > 0:
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
-            trainval_io.RADAR_FILE_NAMES_KEY] = validn_file_name_matrix
+            trainval_io.EXAMPLE_FILES_KEY] = validation_file_names
         validation_option_dict[
-            trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY
-        ] = validn_file_name_matrix_pos_targets_only
+            trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
+        validation_option_dict[
+            trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
 
         model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_3d(
+            generator=trainval_io.example_generator_2d3d_myrorss(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=lf_weight_by_class_dict,
+            verbose=1, class_weight=class_to_weight_dict,
             callbacks=[checkpoint_object, history_object],
-            validation_data=trainval_io.storm_image_generator_3d(
+            validation_data=trainval_io.example_generator_2d3d_myrorss(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
-
-
-def train_2d3d_cnn(
-        model_object, model_file_name, history_file_name, tensorboard_dir_name,
-        num_epochs, num_training_batches_per_epoch,
-        monitor_string=LOSS_AS_MONITOR_STRING, weight_loss_function=False,
-        training_option_dict=None, num_validation_batches_per_epoch=0,
-        validn_file_name_matrix=None,
-        validn_file_name_matrix_pos_targets_only=None):
-    """Trains CNN with 2-D and 3-D radar images.
-
-    :param model_object: Instance of `keras.models.Sequential`.
-    :param model_file_name: See doc for `_check_training_args`.
-    :param history_file_name: Same.
-    :param tensorboard_dir_name: Same.
-    :param num_epochs: Number of epochs.
-    :param num_training_batches_per_epoch: Number of training batches per epoch.
-    :param monitor_string: Number of training batches per epoch.
-    :param weight_loss_function: See doc for `_check_training_args`.
-    :param training_option_dict: See doc for
-        `training_validation_io.storm_image_generator_2d3d_myrorss`.  This exact
-        dictionary will be used to generate training data.  If
-        `num_validation_batches_per_epoch > 0`, the next 3 arguments will be
-        used to change the dictionary to generate validation data.
-    :param num_validation_batches_per_epoch: Number of validation batches per
-        epoch.
-    :param validn_file_name_matrix:
-        [used iff num_validation_batches_per_epoch > 0]
-        See doc for `radar_file_name_matrix` in
-        `training_validation_io.storm_image_generator_2d3d_myrorss`.
-    :param validn_file_name_matrix_pos_targets_only:
-        [used iff num_validation_batches_per_epoch > 0]
-        See doc for `radar_file_name_matrix_pos_targets_only` in
-        `training_validation_io.storm_image_generator_2d3d_myrorss`.
-    """
-
-    lf_weight_by_class_dict = _check_training_args(
-        num_epochs=num_epochs,
-        num_training_batches_per_epoch=num_training_batches_per_epoch,
-        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
-        weight_loss_function=weight_loss_function,
-        target_name=training_option_dict[trainval_io.TARGET_NAME_KEY],
-        binarize_target=training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
-        training_fraction_by_class_dict=training_option_dict[
-            trainval_io.SAMPLING_FRACTIONS_KEY],
-        model_file_name=model_file_name, history_file_name=history_file_name,
-        tensorboard_dir_name=tensorboard_dir_name)
-
-    history_object = keras.callbacks.CSVLogger(
-        filename=history_file_name, separator=',', append=False)
-
-    checkpoint_object = _get_checkpoint_object(
-        output_model_file_name=model_file_name, monitor_string=monitor_string,
-        use_validation=num_validation_batches_per_epoch is not None)
-
-    if num_validation_batches_per_epoch is None:
-        model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_2d3d_myrorss(
-                training_option_dict),
-            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object])
-
     else:
-        validation_option_dict = copy.deepcopy(training_option_dict)
-        validation_option_dict[
-            trainval_io.RADAR_FILE_NAMES_KEY] = validn_file_name_matrix
-        validation_option_dict[
-            trainval_io.POSITIVE_RADAR_FILE_NAMES_KEY
-        ] = validn_file_name_matrix_pos_targets_only
-
         model_object.fit_generator(
-            generator=trainval_io.storm_image_generator_2d3d_myrorss(
+            generator=trainval_io.example_generator_2d3d_myrorss(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
-            verbose=1, class_weight=lf_weight_by_class_dict,
-            callbacks=[checkpoint_object, history_object],
-            validation_data=trainval_io.storm_image_generator_2d3d_myrorss(
-                validation_option_dict),
-            validation_steps=num_validation_batches_per_epoch)
+            verbose=1, class_weight=class_to_weight_dict,
+            callbacks=[checkpoint_object, history_object])
 
 
 def apply_2d_cnn(
@@ -547,22 +426,22 @@ def apply_2d_cnn(
         return_features=False, output_layer_name=None):
     """Applies CNN to 2-D radar images.
 
-    If return_features = True, this method will return only features
-    (activations from an intermediate layer H).  If return_features = False,
-    this method will return predictions.
-
-    :param model_object: Instance of `keras.models.Sequential`.
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
     :param radar_image_matrix: E-by-M-by-N-by-C numpy array of storm-centered
         radar images.
     :param sounding_matrix: [may be None]
-        numpy array (E x H_s x F_s) of storm-centered soundings.
-    :param return_features: See general discussion above.
+        numpy array (E x H_s x F_s) of storm-centered sounding.
+    :param return_features: Boolean flag.  If True, this method will return
+        features (activations of an intermediate layer).  If False, this method
+        will return probabilistic predictions.
     :param output_layer_name: [used only if return_features = True]
-        Name of intermediate layer from which activations will be returned.
+        Name of layer for which features will be returned.
 
     If return_features = True...
 
-    :return: feature_matrix: numpy array of features.
+    :return: feature_matrix: E-by-Z numpy array of features, where Z = number of
+        outputs from the given layer.
 
     If return_features = False...
 
@@ -576,9 +455,10 @@ def apply_2d_cnn(
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
         max_num_dimensions=4)
-    num_examples = radar_image_matrix.shape[0]
 
     error_checking.assert_is_boolean(return_features)
+    num_examples = radar_image_matrix.shape[0]
+
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
@@ -613,9 +493,10 @@ def apply_3d_cnn(
         return_features=False, output_layer_name=None):
     """Applies CNN to 3-D radar images.
 
-    :param model_object: Instance of `keras.models.Sequential`.
-    :param radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
-        centered radar images.
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param radar_image_matrix: numpy array (E x M x N x H_r x F_r) of
+        storm-centered radar images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
     :param return_features: Same.
     :param output_layer_name: Same.
@@ -632,13 +513,14 @@ def apply_3d_cnn(
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=5,
         max_num_dimensions=5)
+
+    error_checking.assert_is_boolean(return_features)
     num_examples = radar_image_matrix.shape[0]
 
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
 
-    error_checking.assert_is_boolean(return_features)
     if return_features:
         intermediate_model_object = model_to_feature_generator(
             model_object=model_object, output_layer_name=output_layer_name)
@@ -665,15 +547,18 @@ def apply_3d_cnn(
 
 
 def apply_2d3d_cnn(
-        model_object, reflectivity_image_matrix_dbz,
-        azimuthal_shear_image_matrix_s01, sounding_matrix=None,
-        return_features=False, output_layer_name=None):
-    """Applies CNN to 2-D azimuthal-shear images and 3-D reflectivity images.
+        model_object, reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
+        sounding_matrix=None, return_features=False, output_layer_name=None):
+    """Applies CNN to both 2-D and 3-D radar images.
 
-    :param model_object: Instance of `keras.models.Sequential`.
-    :param reflectivity_image_matrix_dbz: numpy array (E x m x n x H_r x 1) of
+    M = number of rows in each reflectivity image
+    N = number of columns in each reflectivity image
+
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param reflectivity_image_matrix_dbz: numpy array (E x M x N x H_r x 1) of
         storm-centered reflectivity images.
-    :param azimuthal_shear_image_matrix_s01: numpy array (E x M x N x F_a) of
+    :param az_shear_image_matrix_s01: numpy array (E x 2M x 2N x C) of
         storm-centered azimuthal-shear images.
     :param sounding_matrix: See doc for `apply_2d_cnn`.
     :param return_features: Same.
@@ -692,21 +577,22 @@ def apply_2d3d_cnn(
         radar_image_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
         max_num_dimensions=5)
     dl_utils.check_radar_images(
-        radar_image_matrix=azimuthal_shear_image_matrix_s01,
+        radar_image_matrix=az_shear_image_matrix_s01,
         min_num_dimensions=4, max_num_dimensions=4)
+
+    num_examples = reflectivity_image_matrix_dbz.shape[0]
+    error_checking.assert_is_boolean(return_features)
 
     expected_dimensions = numpy.array(
         reflectivity_image_matrix_dbz.shape[:-1] + (1,))
     error_checking.assert_is_numpy_array(
         reflectivity_image_matrix_dbz, exact_dimensions=expected_dimensions)
 
-    num_examples = reflectivity_image_matrix_dbz.shape[0]
     expected_dimensions = numpy.array(
-        (num_examples,) + azimuthal_shear_image_matrix_s01[1:])
+        (num_examples,) + az_shear_image_matrix_s01[1:])
     error_checking.assert_is_numpy_array(
-        azimuthal_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
+        az_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
 
-    error_checking.assert_is_boolean(return_features)
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
@@ -717,21 +603,21 @@ def apply_2d3d_cnn(
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 [reflectivity_image_matrix_dbz,
-                 azimuthal_shear_image_matrix_s01],
+                 az_shear_image_matrix_s01],
                 batch_size=num_examples)
 
         return intermediate_model_object.predict(
-            [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+            [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
              sounding_matrix],
             batch_size=num_examples)
 
     if sounding_matrix is None:
         these_probabilities = model_object.predict(
-            [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01],
+            [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01],
             batch_size=num_examples)
     else:
         these_probabilities = model_object.predict(
-            [reflectivity_image_matrix_dbz, azimuthal_shear_image_matrix_s01,
+            [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
              sounding_matrix],
             batch_size=num_examples)
 
