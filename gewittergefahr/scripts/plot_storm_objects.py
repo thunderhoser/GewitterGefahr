@@ -16,7 +16,7 @@ from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
-from gewittergefahr.deep_learning import deployment_io
+from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import cnn
@@ -274,18 +274,18 @@ def _read_inputs(
 
             print MINOR_SEPARATOR_STRING
 
-            this_storm_object_dict = deployment_io.create_storm_images_3d({
-                deployment_io.RADAR_FILE_NAMES_KEY: this_radar_file_name_matrix,
-                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
-                deployment_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
-                deployment_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
-                deployment_io.NORMALIZATION_TYPE_KEY: None,
-                deployment_io.RETURN_TARGET_KEY: False,
-                deployment_io.TARGET_NAME_KEY: dummy_target_name,
-                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names,
-                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-                deployment_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
-                deployment_io.REFLECTIVITY_MASK_KEY: None
+            this_storm_object_dict = testing_io.create_storm_images_3d({
+                testing_io.RADAR_FILE_NAMES_KEY: this_radar_file_name_matrix,
+                testing_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                testing_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+                testing_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+                testing_io.NORMALIZATION_TYPE_KEY: None,
+                testing_io.RETURN_TARGET_KEY: False,
+                testing_io.TARGET_NAME_KEY: dummy_target_name,
+                testing_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+                testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                testing_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec,
+                testing_io.REFLECTIVITY_MASK_KEY: None
             })
         else:
             this_radar_file_name_matrix = trainval_io.find_radar_files_2d(
@@ -311,17 +311,17 @@ def _read_inputs(
                     this_radar_file_name_matrix[0, :]
                 ], dtype=int)
 
-            this_storm_object_dict = deployment_io.create_storm_images_2d({
-                deployment_io.RADAR_FILE_NAMES_KEY: this_radar_file_name_matrix,
-                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
-                deployment_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
-                deployment_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
-                deployment_io.NORMALIZATION_TYPE_KEY: None,
-                deployment_io.RETURN_TARGET_KEY: False,
-                deployment_io.TARGET_NAME_KEY: dummy_target_name,
-                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names,
-                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-                deployment_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec
+            this_storm_object_dict = testing_io.create_storm_images_2d({
+                testing_io.RADAR_FILE_NAMES_KEY: this_radar_file_name_matrix,
+                testing_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                testing_io.NUM_ROWS_TO_KEEP_KEY: num_rows_to_keep,
+                testing_io.NUM_COLUMNS_TO_KEEP_KEY: num_columns_to_keep,
+                testing_io.NORMALIZATION_TYPE_KEY: None,
+                testing_io.RETURN_TARGET_KEY: False,
+                testing_io.TARGET_NAME_KEY: dummy_target_name,
+                testing_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+                testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                testing_io.SOUNDING_LAG_TIME_KEY: sounding_lag_time_sec
             })
 
         these_indices = numpy.where(
@@ -331,30 +331,30 @@ def _read_inputs(
 
         # TODO(thunderhoser): Handle possibility of missing storm objects.
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=this_storm_object_dict[deployment_io.STORM_IDS_KEY],
+            all_storm_ids=this_storm_object_dict[testing_io.STORM_IDS_KEY],
             all_times_unix_sec=this_storm_object_dict[
-                deployment_io.STORM_TIMES_KEY],
+                testing_io.STORM_TIMES_KEY],
             storm_ids_to_keep=[storm_ids[k] for k in these_indices],
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
 
         if radar_image_matrix is None:
             radar_image_matrix = this_storm_object_dict[
-                deployment_io.RADAR_IMAGE_MATRIX_KEY][these_indices, ...] + 0.
+                testing_io.RADAR_IMAGE_MATRIX_KEY][these_indices, ...] + 0.
 
             if read_soundings:
                 sounding_matrix = this_storm_object_dict[
-                    deployment_io.SOUNDING_MATRIX_KEY][these_indices, ...] + 0.
+                    testing_io.SOUNDING_MATRIX_KEY][these_indices, ...] + 0.
         else:
             radar_image_matrix = numpy.concatenate(
                 (radar_image_matrix,
-                 this_storm_object_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY][
+                 this_storm_object_dict[testing_io.RADAR_IMAGE_MATRIX_KEY][
                      these_indices, ...]),
                 axis=0)
 
             if read_soundings:
                 sounding_matrix = numpy.concatenate(
                     (sounding_matrix,
-                     this_storm_object_dict[deployment_io.SOUNDING_MATRIX_KEY][
+                     this_storm_object_dict[testing_io.SOUNDING_MATRIX_KEY][
                          these_indices, ...]),
                     axis=0)
 

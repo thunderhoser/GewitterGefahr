@@ -13,7 +13,7 @@ from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import deployment_io
+from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import model_evaluation_helper as model_eval_helper
 
@@ -138,29 +138,29 @@ def _create_forecast_observation_pairs_2d(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     option_dict = {
-        deployment_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        deployment_io.NUM_ROWS_TO_KEEP_KEY:
+        testing_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        testing_io.NUM_ROWS_TO_KEEP_KEY:
             training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
-        deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+        testing_io.NUM_COLUMNS_TO_KEEP_KEY:
             training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
-        deployment_io.NORMALIZATION_TYPE_KEY:
+        testing_io.NORMALIZATION_TYPE_KEY:
             training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
-        deployment_io.MIN_NORMALIZED_VALUE_KEY:
+        testing_io.MIN_NORMALIZED_VALUE_KEY:
             training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
-        deployment_io.MAX_NORMALIZED_VALUE_KEY:
+        testing_io.MAX_NORMALIZED_VALUE_KEY:
             training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
-        deployment_io.NORMALIZATION_FILE_KEY:
+        testing_io.NORMALIZATION_FILE_KEY:
             training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
-        deployment_io.RETURN_TARGET_KEY: True,
-        deployment_io.TARGET_NAME_KEY:
+        testing_io.RETURN_TARGET_KEY: True,
+        testing_io.TARGET_NAME_KEY:
             training_option_dict[trainval_io.TARGET_NAME_KEY],
-        deployment_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
-        deployment_io.BINARIZE_TARGET_KEY:
+        testing_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        testing_io.BINARIZE_TARGET_KEY:
             training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
-        deployment_io.SOUNDING_FIELDS_KEY:
+        testing_io.SOUNDING_FIELDS_KEY:
             training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
-        deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-        deployment_io.SOUNDING_LAG_TIME_KEY:
+        testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        testing_io.SOUNDING_LAG_TIME_KEY:
             training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY]
     }
 
@@ -178,20 +178,20 @@ def _create_forecast_observation_pairs_2d(
             break
 
         option_dict.update({
-            deployment_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
+            testing_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
         })
-        this_example_dict = deployment_io.create_storm_images_2d(option_dict)
+        this_example_dict = testing_io.create_storm_images_2d(option_dict)
 
         print MINOR_SEPARATOR_STRING
         if this_example_dict is None:
             continue
 
         this_radar_image_matrix = this_example_dict[
-            deployment_io.RADAR_IMAGE_MATRIX_KEY]
+            testing_io.RADAR_IMAGE_MATRIX_KEY]
         this_sounding_matrix = this_example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY]
+            testing_io.SOUNDING_MATRIX_KEY]
         these_observed_labels = this_example_dict[
-            deployment_io.TARGET_VALUES_KEY]
+            testing_io.TARGET_VALUES_KEY]
 
         this_probability_matrix = cnn.apply_2d_cnn(
             model_object=model_object,
@@ -242,31 +242,31 @@ def _create_forecast_observation_pairs_3d(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     option_dict = {
-        deployment_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        deployment_io.NUM_ROWS_TO_KEEP_KEY:
+        testing_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        testing_io.NUM_ROWS_TO_KEEP_KEY:
             training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
-        deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+        testing_io.NUM_COLUMNS_TO_KEEP_KEY:
             training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
-        deployment_io.NORMALIZATION_TYPE_KEY:
+        testing_io.NORMALIZATION_TYPE_KEY:
             training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
-        deployment_io.MIN_NORMALIZED_VALUE_KEY:
+        testing_io.MIN_NORMALIZED_VALUE_KEY:
             training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
-        deployment_io.MAX_NORMALIZED_VALUE_KEY:
+        testing_io.MAX_NORMALIZED_VALUE_KEY:
             training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
-        deployment_io.NORMALIZATION_FILE_KEY:
+        testing_io.NORMALIZATION_FILE_KEY:
             training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
-        deployment_io.RETURN_TARGET_KEY: True,
-        deployment_io.TARGET_NAME_KEY:
+        testing_io.RETURN_TARGET_KEY: True,
+        testing_io.TARGET_NAME_KEY:
             training_option_dict[trainval_io.TARGET_NAME_KEY],
-        deployment_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
-        deployment_io.BINARIZE_TARGET_KEY:
+        testing_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        testing_io.BINARIZE_TARGET_KEY:
             training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
-        deployment_io.SOUNDING_FIELDS_KEY:
+        testing_io.SOUNDING_FIELDS_KEY:
             training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
-        deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-        deployment_io.SOUNDING_LAG_TIME_KEY:
+        testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        testing_io.SOUNDING_LAG_TIME_KEY:
             training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY],
-        deployment_io.REFLECTIVITY_MASK_KEY:
+        testing_io.REFLECTIVITY_MASK_KEY:
             training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
     }
 
@@ -284,20 +284,20 @@ def _create_forecast_observation_pairs_3d(
             break
 
         option_dict.update({
-            deployment_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
+            testing_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
         })
-        this_example_dict = deployment_io.create_storm_images_3d(option_dict)
+        this_example_dict = testing_io.create_storm_images_3d(option_dict)
 
         print MINOR_SEPARATOR_STRING
         if this_example_dict is None:
             continue
 
         this_radar_image_matrix = this_example_dict[
-            deployment_io.RADAR_IMAGE_MATRIX_KEY]
+            testing_io.RADAR_IMAGE_MATRIX_KEY]
         this_sounding_matrix = this_example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY]
+            testing_io.SOUNDING_MATRIX_KEY]
         these_observed_labels = this_example_dict[
-            deployment_io.TARGET_VALUES_KEY]
+            testing_io.TARGET_VALUES_KEY]
 
         this_probability_matrix = cnn.apply_3d_cnn(
             model_object=model_object,
@@ -350,29 +350,29 @@ def _create_forecast_observation_pairs_2d3d(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     option_dict = {
-        deployment_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
-        deployment_io.NUM_ROWS_TO_KEEP_KEY:
+        testing_io.NUM_EXAMPLES_PER_FILE_KEY: num_examples_per_file,
+        testing_io.NUM_ROWS_TO_KEEP_KEY:
             training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
-        deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+        testing_io.NUM_COLUMNS_TO_KEEP_KEY:
             training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
-        deployment_io.NORMALIZATION_TYPE_KEY:
+        testing_io.NORMALIZATION_TYPE_KEY:
             training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
-        deployment_io.MIN_NORMALIZED_VALUE_KEY:
+        testing_io.MIN_NORMALIZED_VALUE_KEY:
             training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
-        deployment_io.MAX_NORMALIZED_VALUE_KEY:
+        testing_io.MAX_NORMALIZED_VALUE_KEY:
             training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
-        deployment_io.NORMALIZATION_FILE_KEY:
+        testing_io.NORMALIZATION_FILE_KEY:
             training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
-        deployment_io.RETURN_TARGET_KEY: True,
-        deployment_io.TARGET_NAME_KEY:
+        testing_io.RETURN_TARGET_KEY: True,
+        testing_io.TARGET_NAME_KEY:
             training_option_dict[trainval_io.TARGET_NAME_KEY],
-        deployment_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
-        deployment_io.BINARIZE_TARGET_KEY:
+        testing_io.TARGET_DIRECTORY_KEY: top_target_dir_name,
+        testing_io.BINARIZE_TARGET_KEY:
             training_option_dict[trainval_io.BINARIZE_TARGET_KEY],
-        deployment_io.SOUNDING_FIELDS_KEY:
+        testing_io.SOUNDING_FIELDS_KEY:
             training_option_dict[trainval_io.SOUNDING_FIELDS_KEY],
-        deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-        deployment_io.SOUNDING_LAG_TIME_KEY:
+        testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+        testing_io.SOUNDING_LAG_TIME_KEY:
             training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY]
     }
 
@@ -390,9 +390,9 @@ def _create_forecast_observation_pairs_2d3d(
             break
 
         option_dict.update({
-            deployment_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
+            testing_io.RADAR_FILE_NAMES_KEY: radar_file_name_matrix[[i], ...]
         })
-        this_example_dict = deployment_io.create_storm_images_2d3d_myrorss(
+        this_example_dict = testing_io.create_storm_images_2d3d_myrorss(
             option_dict)
 
         print MINOR_SEPARATOR_STRING
@@ -400,13 +400,13 @@ def _create_forecast_observation_pairs_2d3d(
             continue
 
         this_reflectivity_matrix_dbz = this_example_dict[
-            deployment_io.REFLECTIVITY_MATRIX_KEY]
+            testing_io.REFLECTIVITY_MATRIX_KEY]
         this_azimuthal_shear_matrix_s01 = this_example_dict[
-            deployment_io.AZ_SHEAR_MATRIX_KEY]
+            testing_io.AZ_SHEAR_MATRIX_KEY]
         this_sounding_matrix = this_example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY]
+            testing_io.SOUNDING_MATRIX_KEY]
         these_observed_labels = this_example_dict[
-            deployment_io.TARGET_VALUES_KEY]
+            testing_io.TARGET_VALUES_KEY]
 
         this_probability_matrix = cnn.apply_2d3d_cnn(
             model_object=model_object,

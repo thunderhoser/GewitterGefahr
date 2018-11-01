@@ -10,7 +10,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
-from gewittergefahr.deep_learning import deployment_io
+from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 LARGE_INTEGER = int(1e10)
@@ -263,28 +263,28 @@ def read_storms_one_spc_date(
         sounding_field_names_to_read = copy.deepcopy(sounding_field_names)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        example_dict = deployment_io.create_storm_images_2d3d_myrorss({
-            deployment_io.RADAR_FILE_NAMES_KEY:
+        example_dict = testing_io.create_storm_images_2d3d_myrorss({
+            testing_io.RADAR_FILE_NAMES_KEY:
                 radar_file_name_matrix[[spc_date_index], ...],
-            deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
-            deployment_io.NUM_ROWS_TO_KEEP_KEY:
+            testing_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+            testing_io.NUM_ROWS_TO_KEEP_KEY:
                 training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
-            deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+            testing_io.NUM_COLUMNS_TO_KEEP_KEY:
                 training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
-            deployment_io.NORMALIZATION_TYPE_KEY:
+            testing_io.NORMALIZATION_TYPE_KEY:
                 training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
-            deployment_io.MIN_NORMALIZED_VALUE_KEY:
+            testing_io.MIN_NORMALIZED_VALUE_KEY:
                 training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
-            deployment_io.MAX_NORMALIZED_VALUE_KEY:
+            testing_io.MAX_NORMALIZED_VALUE_KEY:
                 training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
-            deployment_io.NORMALIZATION_FILE_KEY:
+            testing_io.NORMALIZATION_FILE_KEY:
                 training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
-            deployment_io.RETURN_TARGET_KEY: False,
-            deployment_io.TARGET_NAME_KEY:
+            testing_io.RETURN_TARGET_KEY: False,
+            testing_io.TARGET_NAME_KEY:
                 training_option_dict[trainval_io.TARGET_NAME_KEY],
-            deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
-            deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-            deployment_io.SOUNDING_LAG_TIME_KEY:
+            testing_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
+            testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+            testing_io.SOUNDING_LAG_TIME_KEY:
                 training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY]
         })
     else:
@@ -292,55 +292,55 @@ def read_storms_one_spc_date(
             training_option_dict[trainval_io.RADAR_FILE_NAMES_KEY].shape)
 
         if num_radar_dimensions == 3:
-            example_dict = deployment_io.create_storm_images_3d({
-                deployment_io.RADAR_FILE_NAMES_KEY:
+            example_dict = testing_io.create_storm_images_3d({
+                testing_io.RADAR_FILE_NAMES_KEY:
                     radar_file_name_matrix[[spc_date_index], ...],
-                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
-                deployment_io.NUM_ROWS_TO_KEEP_KEY:
+                testing_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                testing_io.NUM_ROWS_TO_KEEP_KEY:
                     training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
-                deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+                testing_io.NUM_COLUMNS_TO_KEEP_KEY:
                     training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
-                deployment_io.NORMALIZATION_TYPE_KEY:
+                testing_io.NORMALIZATION_TYPE_KEY:
                     training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
-                deployment_io.MIN_NORMALIZED_VALUE_KEY:
+                testing_io.MIN_NORMALIZED_VALUE_KEY:
                     training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
-                deployment_io.MAX_NORMALIZED_VALUE_KEY:
+                testing_io.MAX_NORMALIZED_VALUE_KEY:
                     training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
-                deployment_io.NORMALIZATION_FILE_KEY:
+                testing_io.NORMALIZATION_FILE_KEY:
                     training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
-                deployment_io.RETURN_TARGET_KEY: False,
-                deployment_io.TARGET_NAME_KEY:
+                testing_io.RETURN_TARGET_KEY: False,
+                testing_io.TARGET_NAME_KEY:
                     training_option_dict[trainval_io.TARGET_NAME_KEY],
-                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
-                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-                deployment_io.SOUNDING_LAG_TIME_KEY:
+                testing_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
+                testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                testing_io.SOUNDING_LAG_TIME_KEY:
                     training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY],
-                deployment_io.REFLECTIVITY_MASK_KEY:
+                testing_io.REFLECTIVITY_MASK_KEY:
                     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
             })
         else:
-            example_dict = deployment_io.create_storm_images_2d({
-                deployment_io.RADAR_FILE_NAMES_KEY:
+            example_dict = testing_io.create_storm_images_2d({
+                testing_io.RADAR_FILE_NAMES_KEY:
                     radar_file_name_matrix[[spc_date_index], ...],
-                deployment_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
-                deployment_io.NUM_ROWS_TO_KEEP_KEY:
+                testing_io.NUM_EXAMPLES_PER_FILE_KEY: LARGE_INTEGER,
+                testing_io.NUM_ROWS_TO_KEEP_KEY:
                     training_option_dict[trainval_io.NUM_ROWS_TO_KEEP_KEY],
-                deployment_io.NUM_COLUMNS_TO_KEEP_KEY:
+                testing_io.NUM_COLUMNS_TO_KEEP_KEY:
                     training_option_dict[trainval_io.NUM_COLUMNS_TO_KEEP_KEY],
-                deployment_io.NORMALIZATION_TYPE_KEY:
+                testing_io.NORMALIZATION_TYPE_KEY:
                     training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY],
-                deployment_io.MIN_NORMALIZED_VALUE_KEY:
+                testing_io.MIN_NORMALIZED_VALUE_KEY:
                     training_option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY],
-                deployment_io.MAX_NORMALIZED_VALUE_KEY:
+                testing_io.MAX_NORMALIZED_VALUE_KEY:
                     training_option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY],
-                deployment_io.NORMALIZATION_FILE_KEY:
+                testing_io.NORMALIZATION_FILE_KEY:
                     training_option_dict[trainval_io.NORMALIZATION_FILE_KEY],
-                deployment_io.RETURN_TARGET_KEY: False,
-                deployment_io.TARGET_NAME_KEY:
+                testing_io.RETURN_TARGET_KEY: False,
+                testing_io.TARGET_NAME_KEY:
                     training_option_dict[trainval_io.TARGET_NAME_KEY],
-                deployment_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
-                deployment_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
-                deployment_io.SOUNDING_LAG_TIME_KEY:
+                testing_io.SOUNDING_FIELDS_KEY: sounding_field_names_to_read,
+                testing_io.SOUNDING_DIRECTORY_KEY: top_sounding_dir_name,
+                testing_io.SOUNDING_LAG_TIME_KEY:
                     training_option_dict[trainval_io.SOUNDING_LAG_TIME_KEY]
             })
 
@@ -348,41 +348,41 @@ def read_storms_one_spc_date(
         return None
 
     if return_all_storm_objects:
-        storm_ids = example_dict[deployment_io.STORM_IDS_KEY]
-        storm_times_unix_sec = example_dict[deployment_io.STORM_TIMES_KEY]
+        storm_ids = example_dict[testing_io.STORM_IDS_KEY]
+        storm_times_unix_sec = example_dict[testing_io.STORM_TIMES_KEY]
         relevant_indices = numpy.linspace(
             0, len(storm_ids) - 1, num=len(storm_ids), dtype=int)
     else:
         relevant_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=example_dict[deployment_io.STORM_IDS_KEY],
-            all_times_unix_sec=example_dict[deployment_io.STORM_TIMES_KEY],
+            all_storm_ids=example_dict[testing_io.STORM_IDS_KEY],
+            all_times_unix_sec=example_dict[testing_io.STORM_TIMES_KEY],
             storm_ids_to_keep=storm_ids,
             times_to_keep_unix_sec=storm_times_unix_sec)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         list_of_input_matrices = [
-            example_dict[deployment_io.REFLECTIVITY_MATRIX_KEY][
+            example_dict[testing_io.REFLECTIVITY_MATRIX_KEY][
                 relevant_indices, ...],
-            example_dict[deployment_io.AZ_SHEAR_MATRIX_KEY][
+            example_dict[testing_io.AZ_SHEAR_MATRIX_KEY][
                 relevant_indices, ...]
         ]
     else:
         list_of_input_matrices = [
-            example_dict[deployment_io.RADAR_IMAGE_MATRIX_KEY][
+            example_dict[testing_io.RADAR_IMAGE_MATRIX_KEY][
                 relevant_indices, ...]
         ]
 
     if read_pressure_separately:
         sounding_pressure_matrix_pascals = example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY][relevant_indices, ..., -1]
-        example_dict[deployment_io.SOUNDING_MATRIX_KEY] = example_dict[
-            deployment_io.SOUNDING_MATRIX_KEY][..., :-1]
+            testing_io.SOUNDING_MATRIX_KEY][relevant_indices, ..., -1]
+        example_dict[testing_io.SOUNDING_MATRIX_KEY] = example_dict[
+            testing_io.SOUNDING_MATRIX_KEY][..., :-1]
     else:
         sounding_pressure_matrix_pascals = None
 
-    if example_dict[deployment_io.SOUNDING_MATRIX_KEY] is not None:
+    if example_dict[testing_io.SOUNDING_MATRIX_KEY] is not None:
         list_of_input_matrices.append(
-            example_dict[deployment_io.SOUNDING_MATRIX_KEY][
+            example_dict[testing_io.SOUNDING_MATRIX_KEY][
                 relevant_indices, ...])
 
     return {
