@@ -995,6 +995,9 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         existing file if necessary.
     """
 
+    # TODO(thunderhoser): Documentation for this method (how it can handle files
+    # with 2-D only, 3-D only, or 2-D and 3-D images) could be better.
+
     error_checking.assert_is_boolean(append_to_file)
     include_soundings = SOUNDING_MATRIX_KEY in example_dict
 
@@ -1249,6 +1252,13 @@ def read_example_file(
         num_columns_to_keep=None):
     """Reads input examples from NetCDF file.
 
+    If the file contains both 2-D and 3-D radar images:
+
+    - `radar_field_names_to_keep` is interpreted as a list of non-reflectivity
+      fields to keep (reflectivity is always kept).
+    - `radar_heights_to_keep_m_agl` is interpreted as an array of reflectivity
+      heights to keep.
+
     :param netcdf_file_name: Path to input file.
     :param radar_field_names_to_keep: 1-D list of radar fields to keep.  If
         None, all radar fields will be kept.
@@ -1270,6 +1280,9 @@ def read_example_file(
     :param num_columns_to_keep: Same but for columns.
     :return: example_dict: See doc for `write_example_file`.
     """
+
+    # TODO(thunderhoser): Documentation for this method (how it can handle files
+    # with 2-D only, 3-D only, or 2-D and 3-D images) could be better.
 
     # Check times.
     if first_time_to_keep_unix_sec is None:
@@ -1309,20 +1322,20 @@ def read_example_file(
     radar_heights_m_agl = numpy.array(
         netcdf_dataset.variables[RADAR_HEIGHTS_KEY][:], dtype=int)
 
+    # Error-check desired radar fields and heights.
+    if radar_field_names_to_keep is None:
+        radar_field_names_to_keep = radar_field_names + []
+    if radar_heights_to_keep_m_agl is None:
+        radar_heights_to_keep_m_agl = radar_heights_m_agl + 0
+
+    error_checking.assert_is_numpy_array(
+        numpy.array(radar_field_names_to_keep), num_dimensions=1)
+    radar_heights_to_keep_m_agl = numpy.round(
+        radar_heights_to_keep_m_agl).astype(int)
+    error_checking.assert_is_numpy_array(
+        radar_heights_to_keep_m_agl, num_dimensions=1)
+
     if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
-
-        # Error-check desired radar fields and heights.
-        if radar_field_names_to_keep is None:
-            radar_field_names_to_keep = radar_field_names + []
-        if radar_heights_to_keep_m_agl is None:
-            radar_heights_to_keep_m_agl = radar_heights_m_agl + 0
-
-        error_checking.assert_is_numpy_array(
-            numpy.array(radar_field_names_to_keep), num_dimensions=1)
-        radar_heights_to_keep_m_agl = numpy.round(
-            radar_heights_to_keep_m_agl).astype(int)
-        error_checking.assert_is_numpy_array(
-            radar_heights_to_keep_m_agl, num_dimensions=1)
 
         # Subset radar fields and heights.
         radar_image_matrix = netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][:]
@@ -1352,20 +1365,32 @@ def read_example_file(
             radar_image_matrix = radar_image_matrix[
                 ..., these_height_indices, :]
 
-        radar_field_names = radar_field_names_to_keep + []
-        radar_heights_m_agl = radar_heights_to_keep_m_agl + 0
-
-        for k in range(len(radar_field_names)):
+        for k in range(len(radar_field_names_to_keep)):
             radar_image_matrix[..., k] = storm_images.downsize_storm_images(
                 storm_image_matrix=radar_image_matrix[..., k],
-                radar_field_name=radar_field_names[k],
+                radar_field_name=radar_field_names_to_keep[k],
                 num_rows_to_keep=num_rows_to_keep,
                 num_columns_to_keep=num_columns_to_keep)
     else:
+
+        # Subset radar fields and heights.
         reflectivity_image_matrix_dbz = numpy.expand_dims(
             netcdf_dataset.variables[REFL_IMAGE_MATRIX_KEY][:], axis=-1)
         az_shear_image_matrix_s01 = netcdf_dataset.variables[
             AZ_SHEAR_IMAGE_MATRIX_KEY][:]
+
+        these_height_indices = numpy.array([
+            numpy.where(radar_heights_m_agl == h)[0][0]
+            for h in radar_heights_to_keep_m_agl
+        ], dtype=int)
+        reflectivity_image_matrix_dbz = reflectivity_image_matrix_dbz[
+            ..., these_height_indices, :]
+
+        these_field_indices = numpy.array(
+            [radar_field_names.index(f) for f in radar_field_names_to_keep],
+            dtype=int)
+        az_shear_image_matrix_s01 = az_shear_image_matrix_s01[
+            ..., these_field_indices]
 
         reflectivity_image_matrix_dbz = storm_images.downsize_storm_images(
             storm_image_matrix=reflectivity_image_matrix_dbz,
@@ -1373,11 +1398,11 @@ def read_example_file(
             num_rows_to_keep=num_rows_to_keep,
             num_columns_to_keep=num_columns_to_keep)
 
-        for k in range(len(radar_field_names)):
+        for k in range(len(radar_field_names_to_keep)):
             az_shear_image_matrix_s01[..., k] = (
                 storm_images.downsize_storm_images(
                     storm_image_matrix=az_shear_image_matrix_s01[..., k],
-                    radar_field_name=radar_field_names[k],
+                    radar_field_name=radar_field_names_to_keep[k],
                     num_rows_to_keep=num_rows_to_keep,
                     num_columns_to_keep=num_columns_to_keep)
             )
@@ -1388,8 +1413,8 @@ def read_example_file(
         TARGET_NAME_KEY: target_name,
         STORM_IDS_KEY: storm_ids,
         STORM_TIMES_KEY: storm_times_unix_sec,
-        RADAR_FIELDS_KEY: radar_field_names,
-        RADAR_HEIGHTS_KEY: radar_heights_m_agl,
+        RADAR_FIELDS_KEY: radar_field_names_to_keep,
+        RADAR_HEIGHTS_KEY: radar_heights_to_keep_m_agl,
         TARGET_VALUES_KEY: target_values
     }
 

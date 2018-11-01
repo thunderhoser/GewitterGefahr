@@ -20,7 +20,10 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import data_augmentation
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
+
+# TODO(thunderhoser): Implement data augmentation in generators.
 
 EXAMPLE_FILES_KEY = 'example_file_names'
 FIRST_STORM_TIME_KEY = 'first_storm_time_unix_sec'
@@ -42,18 +45,9 @@ LOOP_ONCE_KEY = 'loop_thru_files_once'
 REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
 
 DEFAULT_GENERATOR_OPTION_DICT = {
-    EXAMPLE_FILES_KEY: '',
-    FIRST_STORM_TIME_KEY: '',
-    LAST_STORM_TIME_KEY: '',
-    NUM_EXAMPLES_PER_BATCH_KEY: '',
-    RADAR_FIELDS_KEY: None,
-    RADAR_HEIGHTS_KEY: None,
-    SOUNDING_FIELDS_KEY: None,
-    SOUNDING_HEIGHTS_KEY: None,
     NUM_ROWS_KEY: None,
     NUM_COLUMNS_KEY: None,
-    NORMALIZATION_TYPE_KEY: None,
-    NORMALIZATION_FILE_KEY: None,
+    NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
     MIN_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
     MAX_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
     BINARIZE_TARGET_KEY: False,
@@ -347,13 +341,14 @@ def _augment_radar_images(
     return list_of_predictor_matrices, target_array
 
 
-def example_generator_3d(option_dict):
-    """Generates examples with 2-D radar images.
+def example_generator_2d_or_3d(option_dict):
+    """Generates examples with either all 2-D or all 3-D radar images.
 
     Each example corresponds to one storm object and contains the following
     data:
 
-    - Storm-centered 2-D radar images (one for each variable)
+    - Storm-centered radar images (either one 2-D image for each storm object
+      and field/height pair, or one 3-D image for each storm object and field)
     - Storm-centered sounding (optional)
     - Target class
 
@@ -373,7 +368,7 @@ def example_generator_3d(option_dict):
     option_dict['sounding_heights_m_agl']: Same.
     option_dict['num_grid_rows']: Number of rows in each storm-centered radar
         image.  See doc for `input_examples.read_example_file`.
-    option_dict['num_grid_columns']: Samem but for columns.
+    option_dict['num_grid_columns']: Same but for columns.
     option_dict['normalization_type_string']: Used to normalize radar images and
         soundings.  See doc for either
         `deep_learning_utils.normalize_radar_images` or
@@ -391,10 +386,11 @@ def example_generator_3d(option_dict):
     option_dict['loop_thru_files_once']: Boolean flag.  If True, this generator
         will loop through files only once.  If False, generator will go back to
         the first file after reading the last file.
-    option_dict['refl_masking_threshold_dbz']: Reflectivity-masking threshold.
-        For any grid cell with reflectivity < `refl_masking_threshold_dbz`, all
-        radar variables will be masked.  If None, there will be no reflectivity-
-        masking.
+    option_dict['refl_masking_threshold_dbz']:
+        (used only if `example_file_names` contain 3-D radar images)
+        Reflectivity-masking threshold.  For any grid cell with reflectivity <
+        `refl_masking_threshold_dbz`, all radar variables will be masked.  If
+        None, there will be no reflectivity-masking.
     option_dict['num_translations']: See doc for `_augment_radar_images`.
     option_dict['max_translation_pixels']: Same.
     option_dict['num_rotations']: Same.
@@ -404,8 +400,8 @@ def example_generator_3d(option_dict):
 
     If `sounding_field_names is None`, this method returns the following.
 
-    :return: radar_image_matrix: numpy array (E x M x N x H_r x F_r) of storm-
-        centered radar images.
+    :return: radar_image_matrix: numpy array (E x M x N x C or
+        E x M x N x H_r x F_r) of storm-centered radar images.
     :return: target_array: If the problem is multiclass and
         `binarize_target = False`, this is an E-by-K numpy array with only zeros
         and ones (though technically the type is "float64").  If
@@ -422,8 +418,6 @@ def example_generator_3d(option_dict):
         centered soundings.
     :return: target_array: See above.
     """
-
-    # TODO(thunderhoser): Use first and last storm times.
 
     orig_option_dict = option_dict.copy()
     option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
@@ -447,6 +441,8 @@ def example_generator_3d(option_dict):
     radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
     sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
+    first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
+    last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[NUM_ROWS_KEY]
     num_grid_columns = option_dict[NUM_COLUMNS_KEY]
 
@@ -467,17 +463,19 @@ def example_generator_3d(option_dict):
     num_classes = labels.column_name_to_num_classes(
         column_name=target_name, include_dead_storms=False)
 
-    file_index = 0
     radar_image_matrix = None
     sounding_matrix = None
     target_values = None
+
+    file_index = 0
     include_soundings = False
+    num_radar_dimensions = -1
 
     while True:
-        stop_generator = False
         if loop_thru_files_once and file_index >= len(example_file_names):
             raise StopIteration
 
+        stop_generator = False
         while not stop_generator:
             if file_index == len(example_file_names):
                 if loop_thru_files_once:
@@ -495,6 +493,8 @@ def example_generator_3d(option_dict):
                 radar_heights_to_keep_m_agl=radar_heights_m_agl,
                 sounding_field_names_to_keep=sounding_field_names,
                 sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
+                first_time_to_keep_unix_sec=first_storm_time_unix_sec,
+                last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns)
 
@@ -502,6 +502,9 @@ def example_generator_3d(option_dict):
             include_soundings = (
                 input_examples.SOUNDING_MATRIX_KEY in this_example_dict
             )
+            num_radar_dimensions = len(
+                this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape
+            ) - 2
 
             if target_values is None:
                 radar_image_matrix = (
@@ -549,7 +552,7 @@ def example_generator_3d(option_dict):
             if include_soundings:
                 sounding_matrix = sounding_matrix[indices_to_keep, ...]
 
-        if refl_masking_threshold_dbz is not None:
+        if refl_masking_threshold_dbz is not None and num_radar_dimensions == 3:
             radar_image_matrix = dl_utils.mask_low_reflectivity_pixels(
                 radar_image_matrix_3d=radar_image_matrix,
                 field_names=radar_field_names,
@@ -587,3 +590,242 @@ def example_generator_3d(option_dict):
             yield (list_of_predictor_matrices, target_array)
         else:
             yield (list_of_predictor_matrices[0], target_array)
+
+
+def example_generator_2d3d_myrorss(option_dict):
+    """Generates examples with both 2-D and 3-D radar images.
+
+    Each example corresponds to one storm object and contains the following
+    data:
+
+    - Storm-centered azimuthal-shear images (one 2-D image for each
+      azimuthal-shear field)
+    - Storm-centered reflectivity image (3-D)
+    - Storm-centered sounding (optional)
+    - Target class
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['example_file_names']: See doc for `example_generator_2d_or_3d`.
+    option_dict['first_storm_time_unix_sec']: Same.
+    option_dict['last_storm_time_unix_sec']: Same.
+    option_dict['num_examples_per_batch']: Same.
+    option_dict['radar_field_names']: Same.
+    option_dict['radar_heights_m_agl']: Same.
+    option_dict['sounding_field_names']: Same.
+    option_dict['sounding_heights_m_agl']: Same.
+    option_dict['num_grid_rows']: Number of rows in each storm-centered
+        reflectivity image (see doc for `input_examples.read_example_file`).
+        This will be doubled for azimuthal-shear images.
+    option_dict['num_grid_columns']: Same but for columns.
+    option_dict['normalization_type_string']: See doc for
+        `example_generator_2d_or_3d`.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['binarize_target']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
+    option_dict['loop_thru_files_once']: Same.
+    option_dict['num_translations']: See doc for `_augment_radar_images`.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: Same.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: Same.
+    option_dict['max_noise_standard_deviation']: Same.
+
+    :return: predictor_list: List with the following items.
+    predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
+        (E x M x N x H_r x 1) of storm-centered reflectivity images.
+    predictor_list[1] = az_shear_image_matrix_s01: numpy array (E x M x N x C)
+        of storm-centered azimuthal-shear images.
+    predictor_list[2] = sounding_matrix: numpy array (E x H_s x F_s) of storm-
+        centered soundings.  If `sounding_field_names is None`, this item does
+        not exist.
+
+    :return: target_array: See doc for `example_generator_2d_or_3d`.
+    """
+
+    # TODO(thunderhoser): Documentation for this method could be a bit better.
+
+    orig_option_dict = option_dict.copy()
+    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    example_file_names = option_dict[EXAMPLE_FILES_KEY]
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
+
+    error_checking.assert_is_string_list(example_file_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(example_file_names), num_dimensions=1)
+
+    error_checking.assert_is_integer(num_examples_per_batch)
+    error_checking.assert_is_geq(num_examples_per_batch, 32)
+    error_checking.assert_is_boolean(binarize_target)
+    error_checking.assert_is_boolean(loop_thru_files_once)
+
+    azimuthal_shear_field_names = option_dict[RADAR_FIELDS_KEY]
+    reflectivity_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
+    first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
+    last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
+    num_grid_rows = option_dict[NUM_ROWS_KEY]
+    num_grid_columns = option_dict[NUM_COLUMNS_KEY]
+
+    normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
+    normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
+    min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
+
+    class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+    this_example_dict = input_examples.read_example_file(example_file_names[0])
+    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
+    class_to_num_ex_per_batch_dict = _get_num_ex_per_batch_by_class(
+        num_examples_per_batch=num_examples_per_batch, target_name=target_name,
+        class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
+
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+
+    reflectivity_image_matrix_dbz = None
+    az_shear_image_matrix_s01 = None
+    sounding_matrix = None
+    target_values = None
+
+    file_index = 0
+    include_soundings = False
+
+    while True:
+        if loop_thru_files_once and file_index >= len(example_file_names):
+            raise StopIteration
+
+        stop_generator = False
+        while not stop_generator:
+            if file_index == len(example_file_names):
+                if loop_thru_files_once:
+                    if target_values is None:
+                        raise StopIteration
+                    break
+
+                file_index = 0
+
+            print 'Reading data from: "{0:s}"...'.format(
+                example_file_names[file_index])
+            this_example_dict = input_examples.read_example_file(
+                netcdf_file_name=example_file_names[file_index],
+                radar_field_names_to_keep=azimuthal_shear_field_names,
+                radar_heights_to_keep_m_agl=reflectivity_heights_m_agl,
+                sounding_field_names_to_keep=sounding_field_names,
+                sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
+                first_time_to_keep_unix_sec=first_storm_time_unix_sec,
+                last_time_to_keep_unix_sec=last_storm_time_unix_sec,
+                num_rows_to_keep=num_grid_rows,
+                num_columns_to_keep=num_grid_columns)
+
+            file_index += 1
+            include_soundings = (
+                input_examples.SOUNDING_MATRIX_KEY in this_example_dict
+            )
+
+            if target_values is None:
+                reflectivity_image_matrix_dbz = (
+                    this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY] + 0.
+                )
+                az_shear_image_matrix_s01 = (
+                    this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
+                    + 0.
+                )
+                target_values = (
+                    this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
+
+                if include_soundings:
+                    sounding_matrix = (
+                        this_example_dict[input_examples.SOUNDING_MATRIX_KEY]
+                        + 0.
+                    )
+            else:
+                reflectivity_image_matrix_dbz = numpy.concatenate(
+                    (reflectivity_image_matrix_dbz,
+                     this_example_dict[input_examples.REFL_IMAGE_MATRIX_KEY]),
+                    axis=0)
+                az_shear_image_matrix_s01 = numpy.concatenate((
+                    az_shear_image_matrix_s01,
+                    this_example_dict[input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY]
+                ), axis=0)
+                target_values = numpy.concatenate((
+                    target_values,
+                    this_example_dict[input_examples.TARGET_VALUES_KEY]
+                ))
+
+                if include_soundings:
+                    sounding_matrix = numpy.concatenate(
+                        (sounding_matrix,
+                         this_example_dict[input_examples.SOUNDING_MATRIX_KEY]),
+                        axis=0)
+
+            stop_generator = _check_stopping_criterion(
+                num_examples_per_batch=num_examples_per_batch,
+                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+                class_to_sampling_fraction_dict=class_to_sampling_fraction_dict,
+                target_values_in_memory=target_values)
+
+        if class_to_sampling_fraction_dict is not None:
+            indices_to_keep = dl_utils.sample_by_class(
+                sampling_fraction_by_class_dict=class_to_sampling_fraction_dict,
+                target_name=target_name, target_values=target_values,
+                num_examples_total=num_examples_per_batch)
+
+            reflectivity_image_matrix_dbz = reflectivity_image_matrix_dbz[
+                indices_to_keep, ...]
+            az_shear_image_matrix_s01 = az_shear_image_matrix_s01[
+                indices_to_keep, ...]
+            target_values = target_values[indices_to_keep]
+            if include_soundings:
+                sounding_matrix = sounding_matrix[indices_to_keep, ...]
+
+        if normalization_type_string is not None:
+            reflectivity_image_matrix_dbz = dl_utils.normalize_radar_images(
+                radar_image_matrix=reflectivity_image_matrix_dbz,
+                field_names=[radar_utils.REFL_NAME],
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
+
+            az_shear_image_matrix_s01 = dl_utils.normalize_radar_images(
+                radar_image_matrix=az_shear_image_matrix_s01,
+                field_names=azimuthal_shear_field_names,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
+
+            if include_soundings:
+                sounding_matrix = dl_utils.normalize_soundings(
+                    sounding_matrix=sounding_matrix,
+                    field_names=sounding_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value).astype('float32')
+
+        list_of_predictor_matrices, target_array = _select_batch(
+            list_of_predictor_matrices=[
+                reflectivity_image_matrix_dbz, az_shear_image_matrix_s01,
+                sounding_matrix
+            ],
+            target_values=target_values,
+            num_examples_per_batch=num_examples_per_batch,
+            binarize_target=binarize_target, num_classes=num_classes)
+
+        reflectivity_image_matrix_dbz = None
+        az_shear_image_matrix_s01 = None
+        sounding_matrix = None
+        target_values = None
+
+        if include_soundings:
+            yield (list_of_predictor_matrices, target_array)
+        else:
+            yield (list_of_predictor_matrices[:-1], target_array)
