@@ -528,6 +528,8 @@ def mask_low_reflectivity_pixels(
     :raises: ValueError: if `"reflectivity_dbz" not in field_names`.
     """
 
+    # TODO(thunderhoser): Maybe values shouldn't always be set to zero?
+
     check_radar_images(
         radar_image_matrix=radar_image_matrix_3d, min_num_dimensions=5,
         max_num_dimensions=5)

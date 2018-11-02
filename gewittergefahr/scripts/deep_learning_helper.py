@@ -7,45 +7,33 @@ from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
+# TODO(thunderhoser): Allow architecture to be read from a file.  Actually,
+# maybe this should be the only way to specify architecture.
+
 MODEL_DIRECTORY_ARG_NAME = 'output_model_dir_name'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
-NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
-NUM_EXAMPLES_PER_FILE_ARG_NAME = 'num_examples_per_file'
-NUM_TRAIN_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
-RADAR_DIRECTORY_ARG_NAME = 'input_radar_image_dir_name'
-RADAR_DIRECTORY_POS_TARGETS_ARG_NAME = 'input_radar_dir_name_pos_targets_only'
-FIRST_TRAINING_DATE_ARG_NAME = 'first_train_spc_date_string'
-LAST_TRAINING_DATE_ARG_NAME = 'last_train_spc_date_string'
+NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
+TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
+FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
+LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
+NUM_VALIDN_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
+VALIDATION_DIR_ARG_NAME = 'input_validation_dir_name'
+FIRST_VALIDN_TIME_ARG_NAME = 'first_validation_time_string'
+LAST_VALIDN_TIME_ARG_NAME = 'last_validation_time_string'
 MONITOR_STRING_ARG_NAME = 'monitor_string'
-RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
-TARGET_NAME_ARG_NAME = 'target_name'
-TARGET_DIRECTORY_ARG_NAME = 'input_target_dir_name'
-BINARIZE_TARGET_ARG_NAME = 'binarize_target'
-NUM_ROWS_TO_KEEP_ARG_NAME = 'num_rows_to_keep'
-NUM_COLUMNS_TO_KEEP_ARG_NAME = 'num_columns_to_keep'
-NUM_CONV_LAYER_SETS_ARG_NAME = 'num_radar_conv_layer_sets'
-NUM_CONV_LAYERS_PER_SET_ARG_NAME = 'num_conv_layers_per_set'
-POOLING_TYPE_ARG_NAME = 'pooling_type_string'
-ACTIVATION_FUNC_ARG_NAME = 'conv_layer_activation_func_string'
-ALPHA_FOR_ELU_ARG_NAME = 'alpha_for_elu'
-ALPHA_FOR_RELU_ARG_NAME = 'alpha_for_relu'
-USE_BATCH_NORM_ARG_NAME = 'use_batch_normalization'
-CONV_LAYER_DROPOUT_ARG_NAME = 'conv_layer_dropout_fraction'
-DENSE_LAYER_DROPOUT_ARG_NAME = 'dense_layer_dropout_fraction'
+WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
+
+NUM_EXAMPLES_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
+RADAR_FIELDS_ARG_NAME = 'radar_field_names'
+SOUNDING_FIELDS_ARG_NAME = 'sounding_field_names'
+NUM_ROWS_ARG_NAME = 'num_grid_rows'
+NUM_COLUMNS_ARG_NAME = 'num_grid_columns'
 NORMALIZATION_TYPE_ARG_NAME = 'normalization_type_string'
-MIN_NORMALIZED_VALUE_ARG_NAME = 'min_normalized_value'
-MAX_NORMALIZED_VALUE_ARG_NAME = 'max_normalized_value'
-L2_WEIGHT_ARG_NAME = 'l2_weight'
+MIN_NORM_VALUE_ARG_NAME = 'min_normalized_value'
+MAX_NORM_VALUE_ARG_NAME = 'max_normalized_value'
+BINARIZE_TARGET_ARG_NAME = 'binarize_target'
 SAMPLING_FRACTION_KEYS_ARG_NAME = 'sampling_fraction_keys'
 SAMPLING_FRACTION_VALUES_ARG_NAME = 'sampling_fraction_values'
-WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
-NUM_VALIDN_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
-FIRST_VALIDATION_DATE_ARG_NAME = 'first_validn_spc_date_string'
-LAST_VALIDATION_DATE_ARG_NAME = 'last_validn_spc_date_string'
-SOUNDING_FIELD_NAMES_ARG_NAME = 'sounding_field_names'
-SOUNDING_DIRECTORY_ARG_NAME = 'input_sounding_dir_name'
-SOUNDING_LAG_TIME_ARG_NAME = 'sounding_lag_time_sec'
-NUM_SOUNDING_FILTERS_ARG_NAME = 'num_sounding_filters_in_first_layer'
 NUM_TRANSLATIONS_ARG_NAME = 'num_translations'
 MAX_TRANSLATION_ARG_NAME = 'max_translation_pixels'
 NUM_ROTATIONS_ARG_NAME = 'num_rotations'
@@ -53,36 +41,34 @@ MAX_ROTATION_ARG_NAME = 'max_absolute_rotation_angle_deg'
 NUM_NOISINGS_ARG_NAME = 'num_noisings'
 MAX_NOISE_ARG_NAME = 'max_noise_standard_deviation'
 
-DEFAULT_NUM_EPOCHS = 25
-DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
+NUM_CONV_LAYER_SETS_ARG_NAME = 'num_radar_conv_layer_sets'
+NUM_CONV_LAYERS_PER_SET_ARG_NAME = 'num_conv_layers_per_set'
+POOLING_TYPE_ARG_NAME = 'pooling_type_string'
+ACTIVATION_FUNCTION_ARG_NAME = 'activation_function_string'
+ALPHA_FOR_ELU_ARG_NAME = 'alpha_for_elu'
+ALPHA_FOR_RELU_ARG_NAME = 'alpha_for_relu'
+USE_BATCH_NORM_ARG_NAME = 'use_batch_normalization'
+CONV_LAYER_DROPOUT_ARG_NAME = 'conv_layer_dropout_fraction'
+DENSE_LAYER_DROPOUT_ARG_NAME = 'dense_layer_dropout_fraction'
+L2_WEIGHT_ARG_NAME = 'l2_weight'
+NUM_SOUNDING_FILTERS_ARG_NAME = 'first_num_sounding_filters'
+
+DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH = 32
-DEFAULT_MONITOR_STRING = cnn.LOSS_AS_MONITOR_STRING
-DEFAULT_BINARIZE_TARGET_FLAG = 0
-DEFAULT_NUM_CONV_LAYER_SETS = 3
-DEFAULT_NUM_CONV_LAYERS_PER_SET = 1
-DEFAULT_POOLING_TYPE_STRING = architecture_utils.MAX_POOLING_TYPE
-DEFAULT_CONV_LAYER_ACTIVATION_FUNC_STRING = (
-    architecture_utils.RELU_FUNCTION_STRING
-)
-DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
-DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
-DEFAULT_USE_BATCH_NORM_FLAG = 0
-DEFAULT_CONV_LAYER_DROPOUT_FRACTION = (
-    cnn_architecture.DEFAULT_CONV_LAYER_DROPOUT_FRACTION
-)
-DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = (
-    cnn_architecture.DEFAULT_DENSE_LAYER_DROPOUT_FRACTION
-)
-DEFAULT_WEIGHT_LOSS_FLAG = 0
-DEFAULT_L2_WEIGHT = 1e-3
 DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH = 16
+DEFAULT_MONITOR_STRING = cnn.LOSS_FUNCTION_STRING
+DEFAULT_WEIGHT_LOSS_FLAG = 0
+
+DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
 DEFAULT_SOUNDING_FIELD_NAMES = [
     soundings.RELATIVE_HUMIDITY_NAME, soundings.SPECIFIC_HUMIDITY_NAME,
     soundings.U_WIND_NAME, soundings.V_WIND_NAME,
     soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
-DEFAULT_SOUNDING_LAG_TIME_SEC = 1800
-DEFAULT_NUM_SOUNDING_FILTERS = 16
+DEFAULT_NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING
+DEFAULT_MIN_NORM_VALUE = -1.
+DEFAULT_MAX_NORM_VALUE = 1.
+DEFAULT_BINARIZE_TARGET_FLAG = 0
 
 DEFAULT_NUM_TRANSLATIONS = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
     trainval_io.NUM_TRANSLATIONS_KEY]
@@ -97,171 +83,116 @@ DEFAULT_NUM_NOISINGS = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
 DEFAULT_MAX_NOISE_STDEV = trainval_io.DEFAULT_AUGMENTATION_OPTION_DICT[
     trainval_io.MAX_NOISE_KEY]
 
+DEFAULT_NUM_CONV_LAYER_SETS = 3
+DEFAULT_NUM_CONV_LAYERS_PER_SET = 1
+DEFAULT_POOLING_TYPE_STRING = architecture_utils.MAX_POOLING_TYPE
+DEFAULT_ACTIVATION_FUNCTION_STRING = architecture_utils.RELU_FUNCTION_STRING
+DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
+DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
+DEFAULT_USE_BATCH_NORM_FLAG = 0
+DEFAULT_CONV_LAYER_DROPOUT_FRACTION = (
+    cnn_architecture.DEFAULT_CONV_LAYER_DROPOUT_FRACTION)
+DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = (
+    cnn_architecture.DEFAULT_DENSE_LAYER_DROPOUT_FRACTION)
+
+DEFAULT_L2_WEIGHT = 0.001
+DEFAULT_NUM_SOUNDING_FILTERS = 16
+
 MODEL_DIRECTORY_HELP_STRING = (
     'Name of output directory.  The model, training history, and TensorBoard '
-    'log files will be saved here after every epoch.')
+    'files will be saved here after each epoch.')
 
-NUM_EPOCHS_HELP_STRING = 'Number of epochs.'
-NUM_EXAMPLES_PER_BATCH_HELP_STRING = (
-    'Number of examples (storm objects) per batch.')
+NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
 
-NUM_EXAMPLES_PER_FILE_HELP_STRING = (
-    'Number of examples (storm objects) per file.  This should be significantly'
-    ' lower than `{0:s}` and `{1:s}`, to ensure diversity within each batch.'
-).format(NUM_TRAIN_BATCHES_ARG_NAME, NUM_VALIDN_BATCHES_ARG_NAME)
+NUM_TRAINING_BATCHES_HELP_STRING = 'Number of training batches per epoch.'
 
-NUM_TRAIN_BATCHES_HELP_STRING = 'Number of training batches per epoch.'
-RADAR_DIRECTORY_HELP_STRING = (
-    'Name of top-level directory with storm-centered radar images.  Files '
-    'therein will be found by `training_validation_io.find_radar_files_2d` or '
-    '`training_validation_io.find_radar_files_3d`.')
+TRAINING_DIR_HELP_STRING = (
+    'Name of top-level directory with training examples.  Shuffled files '
+    'therein will be found by `input_examples.find_example_file` and read by '
+    '`input_examples.read_example_file`.')
 
-RADAR_DIRECTORY_POS_TARGETS_HELP_STRING = (
-    'Same as `{0:s}`, except that this directory contains files only for storm '
-    'objects with positive target values.  This may be left as "None", in which'
-    ' case storm-centered radar images will be read only from `{0:s}`.  For '
-    'details on how to separate storm objects with positive target values, see '
-    'separate_myrorss_images_with_positive_targets.py.'
-).format(RADAR_DIRECTORY_ARG_NAME)
+TRAINING_TIME_HELP_STRING = (
+    'First training time (format "yyyy-mm-dd-HHMMSS").  Only examples in the '
+    'period `{0:s}`...`{1:s}` will be used for training.'
+).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
 
-TRAINING_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  The model will '
-    'be trained with storm objects from `{0:s}`...`{1:s}`.'
-).format(FIRST_TRAINING_DATE_ARG_NAME, LAST_TRAINING_DATE_ARG_NAME)
+NUM_VALIDN_BATCHES_HELP_STRING = 'Number of validation batches per epoch.'
+
+VALIDATION_DIR_HELP_STRING = (
+    'Name of top-level directory with validation examples.  Shuffled files '
+    'therein will be found by `input_examples.find_example_file` and read by '
+    '`input_examples.read_example_file`.')
+
+VALIDATION_TIME_HELP_STRING = (
+    'First validation time (format "yyyy-mm-dd-HHMMSS").  Only examples in the '
+    'period `{0:s}`...`{1:s}` will be used for validation.'
+).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
 
 MONITOR_STRING_HELP_STRING = (
-    'Evaluation function reported after each epoch.  If `{0:s}` > 0, after each'
-    ' epoch `{1:s}` will be computed for validation data and the new model will'
-    ' be saved only if `{1:s}` has improved.  If `{0:s}` = 0, after each epoch '
-    '`{1:s}` will be computed for training data and the new model will be saved'
-    ' regardless.  Valid options for `{1:s}` are listed below.\n{2:s}'
-).format(NUM_VALIDN_BATCHES_ARG_NAME, MONITOR_STRING_ARG_NAME,
-         str(cnn.VALID_MONITOR_STRINGS))
-
-RADAR_FIELD_NAMES_HELP_STRING = (
-    'List with names of radar fields.  Each name must be accepted by '
-    '`radar_utils.check_field_name`.')
-
-TARGET_NAME_HELP_STRING = (
-    'Name of target variable (must be accepted by '
-    '`labels.column_name_to_label_params`).')
-
-TARGET_DIRECTORY_HELP_STRING = (
-    'Name of top-level directory with labels (target values).  Files therein '
-    'will be found by `labels.find_label_file`.')
-
-BINARIZE_TARGET_HELP_STRING = (
-    'Boolean flag.  If 1, will binarize target variable, so that the highest '
-    'class becomes 1 and all other classes become 0.')
-
-NUM_ROWS_TO_KEEP_HELP_STRING = (
-    'Number of rows to keep from each storm-centered radar image.  If less than'
-    ' total number of rows, images will be cropped around the center.  To use '
-    'the full images, leave this alone.')
-
-NUM_COLUMNS_TO_KEEP_HELP_STRING = (
-    'Number of columns to keep from each storm-centered radar image.  If less '
-    'than total number of columns, images will be cropped around the center.  '
-    'To use the full images, leave this alone.')
-
-NUM_CONV_LAYER_SETS_HELP_STRING = (
-    'Number of sets of conv layers for radar data.  Each successive conv-layer '
-    'set will halve the dimensions of the radar image (example -- from'
-    '32 x 32 x 12 to 16 x 16 x 6, then 8 x 8 x 3, then 4 x 4 x 1).')
-
-NUM_CONV_LAYERS_PER_SET_HELP_STRING = 'Number of conv layers in each set.'
-POOLING_TYPE_HELP_STRING = (
-    'Pooling type.  Must be in the following list.\n{0:s}'
-).format(str(architecture_utils.VALID_POOLING_TYPES))
-
-ACTIVATION_FUNC_HELP_STRING = (
-    'Activation function for conv layers.  Must be in the following list.'
-    '\n{0:s}'
-).format(str(architecture_utils.VALID_CONV_LAYER_ACTIV_FUNC_STRINGS))
-
-ALPHA_FOR_ELU_HELP_STRING = (
-    'Slope for negative inputs to eLU (exponential linear unit) activation '
-    'function.')
-
-ALPHA_FOR_RELU_HELP_STRING = (
-    'Slope for negative inputs to ReLU (rectified linear unit) activation '
-    'function.')
-
-USE_BATCH_NORM_HELP_STRING = (
-    'Boolean flag.  If 1, a batch-normalization layer will be included after'
-    ' each conv or fully connected layer.')
-
-CONV_LAYER_DROPOUT_HELP_STRING = 'Dropout fraction for convolutional layers.'
-DENSE_LAYER_DROPOUT_HELP_STRING = (
-    'Dropout fraction for dense (fully connected) layer.')
-
-NORMALIZATION_TYPE_HELP_STRING = (
-    'Normalization type.  If you do not want to normalize, use the empty string'
-    '.  If you want to normalize, this must be in the following list.\n{0:s}'
-).format(str(dl_utils.VALID_NORMALIZATION_TYPE_STRINGS))
-
-MIN_NORMALIZED_VALUE_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Minimum normalized value.'
-).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
-
-MAX_NORMALIZED_VALUE_HELP_STRING = (
-    '[used only if {0:s} = "{1:s}"] Max normalized value.'
-).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
-
-L2_WEIGHT_HELP_STRING = (
-    'L2-regularization weight.  Will be applied to each convolutional layer.  '
-    'Set to -1 for no L2 regularization.')
-
-SAMPLING_FRACTION_KEYS_HELP_STRING = (
-    'List of keys.  Each key is the integer representing a class (-2 for '
-    '"dead storm").  Corresponding values in `{0:s}` are sampling fractions, '
-    'which will be applied to each batch.  This can be used to achieve over- '
-    'and undersampling of different classes.  Leave default for no special '
-    'sampling.'
-).format(SAMPLING_FRACTION_VALUES_ARG_NAME)
-
-SAMPLING_FRACTION_VALUES_HELP_STRING = 'See documentation for `{0:s}`.'.format(
-    SAMPLING_FRACTION_KEYS_ARG_NAME)
+    'Performance metric used to monitor performance (must be accepted by '
+    '`cnn._get_checkpoint_object`).  If `{0:s}` > 0, this performance metric '
+    'will be computed on validation data after each epoch, and the new model '
+    'will be saved only if validation performance is better than all previous '
+    'epochs.  If `{0:s}` = 0, `{1:s}` will be reported after each epoch but the'
+    ' new model will be saved regardless.'
+).format(NUM_VALIDN_BATCHES_ARG_NAME, MONITOR_STRING_ARG_NAME)
 
 WEIGHT_LOSS_HELP_STRING = (
     'Boolean flag.  If 0, all classes will be weighted equally in the loss '
-    'function.  If 1, each class will be weighted differently (inversely '
-    'proportional with its sampling fraction in `{0:s}`).'
+    'function.  If 1, each class will be weighted differently (by the inverse '
+    'of its sampling fraction, specified by `{0:s}` and `{1:s}`).'
+).format(SAMPLING_FRACTION_KEYS_ARG_NAME, SAMPLING_FRACTION_VALUES_ARG_NAME)
+
+NUM_EXAMPLES_PER_BATCH_HELP_STRING = 'Number of examples per batch.'
+
+RADAR_FIELDS_HELP_STRING = (
+    'List of radar fields to use for training.  Each field must be accepted by '
+    '`radar_utils.check_field_name`.')
+
+SOUNDING_FIELDS_HELP_STRING = (
+    'List of sounding fields to use for training.  Each field must be accepted '
+    'by `soundings.check_field_name`.')
+
+NUM_ROWS_HELP_STRING = (
+    'Number of rows in each storm-centered radar image.  This will be doubled '
+    'for MYRORSS azimuthal shear.')
+
+NUM_COLUMNS_HELP_STRING = 'Same as `{0:s}` but for columns.'.format(
+    NUM_ROWS_ARG_NAME)
+
+NORMALIZATION_TYPE_HELP_STRING = (
+    'Normalization type (used for each radar and sounding variable).  Must be '
+    'accepted by `deep_learning_utils._check_normalization_type`.  For no '
+    'normalization, make this the empty string ("").')
+
+MIN_NORM_VALUE_HELP_STRING = (
+    '[used only if `{0:s}` = "{1:s}"] Minimum value after normalization.'
+).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
+
+MAX_NORM_VALUE_HELP_STRING = (
+    '[used only if `{0:s}` = "{1:s}"] Max value after normalization.'
+).format(NORMALIZATION_TYPE_ARG_NAME, dl_utils.MINMAX_NORMALIZATION_TYPE_STRING)
+
+BINARIZE_TARGET_HELP_STRING = (
+    'Boolean flag.  If 1, target variable will be binarized, so that highest '
+    'class is positive and all others are negative.')
+
+SAMPLING_FRACTION_KEYS_HELP_STRING = (
+    'List of keys.  Each key is the integer encoding a class (-2 for "dead '
+    'storm").  Corresponding values in `{0:s}` are sampling fractions and will '
+    'be used for downsampling.  If you want no downsampling, leave this arg '
+    'alone.'
 ).format(SAMPLING_FRACTION_VALUES_ARG_NAME)
 
-NUM_VALIDN_BATCHES_HELP_STRING = (
-    'Number of validation batches per epoch.  If you make this 0, on-the-fly '
-    'validation will be done with training data.')
-
-VALIDATION_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  The model will '
-    'be validated on the fly (monitored) with storm objects from `{0:s}`...'
-    '`{1:s}`.'
-).format(FIRST_VALIDATION_DATE_ARG_NAME, LAST_VALIDATION_DATE_ARG_NAME)
-
-SOUNDING_FIELD_NAMES_HELP_STRING = (
-    'List with names of sounding fields.  Each name must be accepted by '
-    '`soundings.check_field_name`.  To train without soundings, make this a'
-    '1-item list with the string "None".')
-
-SOUNDING_DIRECTORY_HELP_STRING = (
-    'Name of top-level directory with storm-centered soundings.  Files therein '
-    'will be found by `training_validation_io.find_sounding_files`.')
-
-SOUNDING_LAG_TIME_HELP_STRING = (
-    'Lag time for soundings (see `soundings.interp_soundings_to_storm_objects` '
-    'for details).  This will be used to locate sounding files.')
-
-NUM_SOUNDING_FILTERS_HELP_STRING = (
-    'Number of sounding filters in first convolutional layer.  Number of '
-    'filters will double for each successive layer convolving over soundings.')
+SAMPLING_FRACTION_VALUES_HELP_STRING = 'See doc for `{0:s}`.'.format(
+    SAMPLING_FRACTION_KEYS_ARG_NAME)
 
 NUM_TRANSLATIONS_HELP_STRING = (
     'Number of translations for each storm-centered radar image.  See '
     '`data_augmentation.get_translations` for more details.')
 
 MAX_TRANSLATION_HELP_STRING = (
-    'Max translation for storm-centered radar images.  See '
+    'Max translation for each storm-centered radar image.  See '
     '`data_augmentation.get_translations` for more details.')
 
 NUM_ROTATIONS_HELP_STRING = (
@@ -269,7 +200,7 @@ NUM_ROTATIONS_HELP_STRING = (
     '`data_augmentation.get_rotations` for more details.')
 
 MAX_ROTATION_HELP_STRING = (
-    'Max rotation for storm-centered radar images.  See '
+    'Max rotation for each storm-centered radar image.  See '
     '`data_augmentation.get_rotations` for more details.')
 
 NUM_NOISINGS_HELP_STRING = (
@@ -277,8 +208,45 @@ NUM_NOISINGS_HELP_STRING = (
     '`data_augmentation.get_noisings` for more details.')
 
 MAX_NOISE_HELP_STRING = (
-    'Max Gaussian noise for storm-centered radar images.  See '
+    'Max noising for each storm-centered radar image.  See '
     '`data_augmentation.get_noisings` for more details.')
+
+NUM_CONV_LAYER_SETS_HELP_STRING = (
+    'Number of convolutional-layer sets for radar data.  Each set consists of '
+    '`{0:s}` layers, uninterrupted by pooling.'
+).format(NUM_CONV_LAYERS_PER_SET_ARG_NAME)
+
+NUM_CONV_LAYERS_PER_SET_HELP_STRING = (
+    'Number of convolutional layers in each set.')
+
+POOLING_TYPE_HELP_STRING = (
+    'Pooling type (must be accepted by '
+    '`architecture_utils._check_input_args_for_pooling_layer`).')
+
+ACTIVATION_FUNCTION_HELP_STRING = (
+    'Activation function for all layers other than the output (must be accepted'
+    ' by `architecture_utils.check_activation_function`).')
+
+ALPHA_FOR_ELU_HELP_STRING = (
+    'Slope (alpha parameter) for activation function "{0:s}".'
+).format(architecture_utils.ELU_FUNCTION_STRING)
+
+ALPHA_FOR_RELU_HELP_STRING = (
+    'Slope (alpha parameter) for activation function "{0:s}".'
+).format(architecture_utils.RELU_FUNCTION_STRING)
+
+USE_BATCH_NORM_HELP_STRING = (
+    'Boolean flag.  If 1, batch normalization will be used after each '
+    'convolutional and dense layer.')
+
+CONV_LAYER_DROPOUT_HELP_STRING = 'Dropout fraction for convolutional layers.'
+
+DENSE_LAYER_DROPOUT_HELP_STRING = 'Dropout fraction for dense layers.'
+
+L2_WEIGHT_HELP_STRING = 'L2 regularization weight for all convolutional layers.'
+
+NUM_SOUNDING_FILTERS_HELP_STRING = (
+    'Number of filters in first convolutional layer for soundings.')
 
 
 def add_input_arguments(argument_parser_object):
@@ -299,122 +267,84 @@ def add_input_arguments(argument_parser_object):
         default=DEFAULT_NUM_EPOCHS, help=NUM_EPOCHS_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + NUM_EXAMPLES_PER_BATCH_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_EXAMPLES_PER_BATCH,
-        help=NUM_EXAMPLES_PER_BATCH_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_EXAMPLES_PER_FILE_ARG_NAME, type=int, required=True,
-        help=NUM_EXAMPLES_PER_FILE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_TRAIN_BATCHES_ARG_NAME, type=int, required=False,
+        '--' + NUM_TRAINING_BATCHES_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_TRAIN_BATCHES_PER_EPOCH,
-        help=NUM_TRAIN_BATCHES_HELP_STRING)
+        help=NUM_TRAINING_BATCHES_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + RADAR_DIRECTORY_ARG_NAME, type=str, required=True,
-        help=RADAR_DIRECTORY_HELP_STRING)
+        '--' + TRAINING_DIR_ARG_NAME, type=str, required=True,
+        help=TRAINING_DIR_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + RADAR_DIRECTORY_POS_TARGETS_ARG_NAME, type=str, required=False,
-        default='None', help=RADAR_DIRECTORY_POS_TARGETS_HELP_STRING)
+        '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=True,
+        help=TRAINING_TIME_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + FIRST_TRAINING_DATE_ARG_NAME, type=str, required=True,
-        help=TRAINING_DATE_HELP_STRING)
+        '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=True,
+        help=TRAINING_TIME_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + LAST_TRAINING_DATE_ARG_NAME, type=str, required=True,
-        help=TRAINING_DATE_HELP_STRING)
+        '--' + NUM_VALIDN_BATCHES_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH,
+        help=NUM_VALIDN_BATCHES_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + VALIDATION_DIR_ARG_NAME, type=str, required=True,
+        help=VALIDATION_DIR_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + FIRST_VALIDN_TIME_ARG_NAME, type=str, required=True,
+        help=VALIDATION_TIME_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + LAST_VALIDN_TIME_ARG_NAME, type=str, required=True,
+        help=VALIDATION_TIME_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + MONITOR_STRING_ARG_NAME, type=str, required=False,
         default=DEFAULT_MONITOR_STRING, help=MONITOR_STRING_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
-        default=[''], help=RADAR_FIELD_NAMES_HELP_STRING)
+        '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_WEIGHT_LOSS_FLAG, help=WEIGHT_LOSS_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + TARGET_NAME_ARG_NAME, type=str, required=True,
-        help=TARGET_NAME_HELP_STRING)
+        '--' + NUM_EXAMPLES_PER_BATCH_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_EXAMPLES_PER_BATCH,
+        help=NUM_EXAMPLES_PER_BATCH_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + TARGET_DIRECTORY_ARG_NAME, type=str, required=True,
-        help=TARGET_DIRECTORY_HELP_STRING)
+        '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=True,
+        help=RADAR_FIELDS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + SOUNDING_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
+        default=DEFAULT_SOUNDING_FIELD_NAMES, help=SOUNDING_FIELDS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_ROWS_ARG_NAME, type=int, required=True,
+        help=NUM_ROWS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_COLUMNS_ARG_NAME, type=int, required=True,
+        help=NUM_COLUMNS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NORMALIZATION_TYPE_ARG_NAME, type=str, required=False,
+        default=DEFAULT_NORMALIZATION_TYPE_STRING,
+        help=NORMALIZATION_TYPE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MIN_NORM_VALUE_ARG_NAME, type=int, required=False,
+        default=DEFAULT_MIN_NORM_VALUE, help=MIN_NORM_VALUE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + MAX_NORM_VALUE_ARG_NAME, type=int, required=False,
+        default=DEFAULT_MAX_NORM_VALUE, help=MAX_NORM_VALUE_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + BINARIZE_TARGET_ARG_NAME, type=int, required=False,
         default=DEFAULT_BINARIZE_TARGET_FLAG, help=BINARIZE_TARGET_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_ROWS_TO_KEEP_ARG_NAME, type=int, required=False,
-        default=-1, help=NUM_ROWS_TO_KEEP_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_COLUMNS_TO_KEEP_ARG_NAME, type=int, required=False,
-        default=-1, help=NUM_COLUMNS_TO_KEEP_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_CONV_LAYER_SETS_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_CONV_LAYER_SETS,
-        help=NUM_CONV_LAYER_SETS_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_CONV_LAYERS_PER_SET_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_CONV_LAYERS_PER_SET,
-        help=NUM_CONV_LAYERS_PER_SET_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + POOLING_TYPE_ARG_NAME, type=str, required=False,
-        default=DEFAULT_POOLING_TYPE_STRING, help=POOLING_TYPE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + ACTIVATION_FUNC_ARG_NAME, type=str, required=False,
-        default=DEFAULT_CONV_LAYER_ACTIVATION_FUNC_STRING,
-        help=ACTIVATION_FUNC_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + ALPHA_FOR_ELU_ARG_NAME, type=float, required=False,
-        default=DEFAULT_ALPHA_FOR_ELU, help=ALPHA_FOR_ELU_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + ALPHA_FOR_RELU_ARG_NAME, type=float, required=False,
-        default=DEFAULT_ALPHA_FOR_RELU, help=ALPHA_FOR_RELU_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + USE_BATCH_NORM_ARG_NAME, type=int, required=False,
-        default=DEFAULT_USE_BATCH_NORM_FLAG, help=USE_BATCH_NORM_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + CONV_LAYER_DROPOUT_ARG_NAME, type=float, required=False,
-        default=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
-        help=CONV_LAYER_DROPOUT_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + DENSE_LAYER_DROPOUT_ARG_NAME, type=float, required=False,
-        default=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
-        help=DENSE_LAYER_DROPOUT_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NORMALIZATION_TYPE_ARG_NAME, type=str, required=False,
-        default=dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
-        help=NORMALIZATION_TYPE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + MIN_NORMALIZED_VALUE_ARG_NAME, type=float, required=False,
-        default=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        help=MIN_NORMALIZED_VALUE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + MAX_NORMALIZED_VALUE_ARG_NAME, type=float, required=False,
-        default=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        help=MAX_NORMALIZED_VALUE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + L2_WEIGHT_ARG_NAME, type=float, required=False,
-        default=DEFAULT_L2_WEIGHT, help=L2_WEIGHT_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + SAMPLING_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
@@ -423,42 +353,6 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + SAMPLING_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
         required=False, default=[0.], help=SAMPLING_FRACTION_VALUES_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + WEIGHT_LOSS_ARG_NAME, type=int, required=False,
-        default=DEFAULT_WEIGHT_LOSS_FLAG, help=WEIGHT_LOSS_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_VALIDN_BATCHES_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_VALIDN_BATCHES_PER_EPOCH,
-        help=NUM_VALIDN_BATCHES_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + FIRST_VALIDATION_DATE_ARG_NAME, type=str, required=False,
-        default='', help=VALIDATION_DATE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + LAST_VALIDATION_DATE_ARG_NAME, type=str, required=False,
-        default='', help=VALIDATION_DATE_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + SOUNDING_FIELD_NAMES_ARG_NAME, type=str, nargs='+',
-        required=False, default=DEFAULT_SOUNDING_FIELD_NAMES,
-        help=SOUNDING_FIELD_NAMES_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + SOUNDING_DIRECTORY_ARG_NAME, type=str, required=False,
-        default='', help=SOUNDING_DIRECTORY_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + SOUNDING_LAG_TIME_ARG_NAME, type=int, required=False,
-        default=DEFAULT_SOUNDING_LAG_TIME_SEC,
-        help=SOUNDING_LAG_TIME_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + NUM_SOUNDING_FILTERS_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_SOUNDING_FILTERS,
-        help=NUM_SOUNDING_FILTERS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NUM_TRANSLATIONS_ARG_NAME, type=int, required=False,
@@ -485,5 +379,55 @@ def add_input_arguments(argument_parser_object):
     argument_parser_object.add_argument(
         '--' + MAX_NOISE_ARG_NAME, type=float, required=False,
         default=DEFAULT_MAX_NOISE_STDEV, help=MAX_NOISE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_CONV_LAYER_SETS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_CONV_LAYER_SETS,
+        help=NUM_CONV_LAYER_SETS_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_CONV_LAYERS_PER_SET_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_CONV_LAYERS_PER_SET,
+        help=NUM_CONV_LAYERS_PER_SET_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + POOLING_TYPE_ARG_NAME, type=str, required=False,
+        default=DEFAULT_POOLING_TYPE_STRING, help=POOLING_TYPE_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + ACTIVATION_FUNCTION_ARG_NAME, type=str, required=False,
+        default=DEFAULT_ACTIVATION_FUNCTION_STRING,
+        help=ACTIVATION_FUNCTION_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + ALPHA_FOR_ELU_ARG_NAME, type=float, required=False,
+        default=DEFAULT_ALPHA_FOR_ELU, help=ALPHA_FOR_ELU_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + ALPHA_FOR_RELU_ARG_NAME, type=float, required=False,
+        default=DEFAULT_ALPHA_FOR_RELU, help=ALPHA_FOR_RELU_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + USE_BATCH_NORM_ARG_NAME, type=int, required=False,
+        default=DEFAULT_USE_BATCH_NORM_FLAG, help=USE_BATCH_NORM_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + CONV_LAYER_DROPOUT_ARG_NAME, type=float, required=False,
+        default=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        help=CONV_LAYER_DROPOUT_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + DENSE_LAYER_DROPOUT_ARG_NAME, type=float, required=False,
+        default=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
+        help=DENSE_LAYER_DROPOUT_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + L2_WEIGHT_ARG_NAME, type=float, required=False,
+        default=DEFAULT_L2_WEIGHT, help=L2_WEIGHT_HELP_STRING)
+
+    argument_parser_object.add_argument(
+        '--' + NUM_SOUNDING_FILTERS_ARG_NAME, type=int, required=False,
+        default=DEFAULT_NUM_SOUNDING_FILTERS,
+        help=NUM_SOUNDING_FILTERS_HELP_STRING)
 
     return argument_parser_object

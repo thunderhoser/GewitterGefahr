@@ -2,10 +2,8 @@
 
 import random
 import os.path
-import warnings
 import argparse
 import numpy
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import input_examples
 
@@ -92,31 +90,18 @@ def _find_input_files(
     :return: num_input_examples: Total number of examples in these files.
     """
 
-    spc_date_strings = time_conversion.get_spc_dates_in_range(
+    input_example_file_names = input_examples.find_many_example_files(
+        top_directory_name=top_input_dir_name, shuffled=False,
         first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string)
+        last_spc_date_string=last_spc_date_string,
+        raise_error_if_any_missing=False)
 
-    input_example_file_names = []
     num_input_examples = 0
 
-    for this_spc_date_string in spc_date_strings:
-        this_file_name = input_examples.find_example_file(
-            top_directory_name=top_input_dir_name, shuffled=False,
-            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
-
-        if not os.path.isfile(this_file_name):
-            warning_string = (
-                'POTENTIAL PROBLEM.  Cannot find file expected at: "{0:s}"'
-            ).format(this_file_name)
-            warnings.warn(warning_string)
-            continue
-
-        input_example_file_names.append(this_file_name)
-
-        print 'Reading data from: "{0:s}"...'.format(
-            input_example_file_names[-1])
+    for this_file_name in input_example_file_names:
+        print 'Reading data from: "{0:s}"...'.format(this_file_name)
         this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=input_example_file_names[-1], metadata_only=True)
+            netcdf_file_name=this_file_name, metadata_only=True)
 
         num_input_examples += len(
             this_example_dict[input_examples.STORM_IDS_KEY])

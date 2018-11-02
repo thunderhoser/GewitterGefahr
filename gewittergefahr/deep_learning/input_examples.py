@@ -957,6 +957,83 @@ def find_example_file(
     return example_file_name
 
 
+def find_many_example_files(
+        top_directory_name, shuffled=True, first_spc_date_string=None,
+        last_spc_date_string=None, first_batch_number=None,
+        last_batch_number=None, raise_error_if_any_missing=True):
+    """Looks for many files with input examples.
+
+    :param top_directory_name: See doc for `find_example_file`.
+    :param shuffled: Same.
+    :param first_spc_date_string: [used only if `shuffled = False`]
+        First SPC date (format "yyyymmdd").  This method will look for all SPC
+        dates from `first_spc_date_string`...`last_spc_date_string`.
+    :param last_spc_date_string: See above.
+    :param first_batch_number: [used only if `shuffled = True`]
+        First batch number (integer).  This method will look for all batches
+        from `first_batch_number`...`last_batch_number`.
+    :param last_batch_number: See above.
+    :param raise_error_if_any_missing: Boolean flag.  If *any* desired file is
+        not found and `raise_error_if_any_missing = True`, this method will
+        error out.
+    :return: example_file_names: 1-D list of paths to example files.
+    :raises: ValueError: if no files are found.
+    """
+
+    error_checking.assert_is_boolean(shuffled)
+
+    if shuffled:
+        error_checking.assert_is_integer(first_batch_number)
+        error_checking.assert_is_integer(last_batch_number)
+        error_checking.assert_is_geq(first_batch_number, 0)
+
+        batch_numbers = numpy.linspace(
+            first_batch_number, last_batch_number,
+            num=last_batch_number - first_batch_number + 1, dtype=int)
+
+        example_file_names = []
+        for this_batch_number in batch_numbers:
+            this_file_name = find_example_file(
+                top_directory_name=top_directory_name, shuffled=True,
+                batch_number=this_batch_number,
+                raise_error_if_missing=raise_error_if_any_missing)
+
+            if not os.path.isfile(this_file_name):
+                continue
+            example_file_names.append(this_file_name)
+
+        if len(example_file_names) == 0:
+            error_string = (
+                'Cannot find any files with batch number from {0:d}...{1:d}.'
+            ).format(first_batch_number, last_batch_number)
+            raise ValueError(error_string)
+
+        return example_file_names
+
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
+
+    example_file_names = []
+    for this_spc_date_string in spc_date_strings:
+        this_file_name = find_example_file(
+            top_directory_name=top_directory_name, shuffled=False,
+            spc_date_string=this_spc_date_string,
+            raise_error_if_missing=raise_error_if_any_missing)
+
+        if not os.path.isfile(this_file_name):
+            continue
+        example_file_names.append(this_file_name)
+
+    if len(example_file_names) == 0:
+        error_string = (
+            'Cannot find any file with SPC date from {0:s} to {1:s}.'
+        ).format(first_spc_date_string, last_spc_date_string)
+        raise ValueError(error_string)
+
+    return example_file_names
+
+
 def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     """Writes input examples to NetCDF file.
 
