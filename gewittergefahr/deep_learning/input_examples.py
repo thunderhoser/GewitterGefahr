@@ -16,7 +16,6 @@ F_s = number of sounding fields (or "variables" or "channels")
 C = number of radar field/height pairs
 """
 
-import random
 import os.path
 import numpy
 import netCDF4
@@ -30,6 +29,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
+TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 DEFAULT_NUM_EXAMPLES_PER_OUT_CHUNK = 8
@@ -489,58 +489,6 @@ def _create_2d3d_examples_myrorss(
     return example_dict
 
 
-def _write_examples_to_many_files(
-        example_dict, output_file_names, num_examples_per_out_chunk):
-    """Writes examples to random output files.
-
-    :param example_dict: See doc for `write_example_file`.
-    :param output_file_names: 1-D list of paths to output (NetCDF) files.
-    :param num_examples_per_out_chunk: See doc for `shuffle_and_write_examples`.
-    """
-
-    num_examples = len(example_dict[STORM_IDS_KEY])
-
-    for j in xrange(0, num_examples, num_examples_per_out_chunk):
-        this_first_index = j
-        this_last_index = min(
-            [j + num_examples_per_out_chunk - 1, num_examples - 1]
-        )
-        these_example_indices = numpy.linspace(
-            this_first_index, this_last_index,
-            num=this_last_index - this_first_index + 1, dtype=int)
-
-        this_example_dict = dict()
-        for this_key in METADATA_KEYS:
-            if (this_key in [SOUNDING_FIELDS_KEY, SOUNDING_HEIGHTS_KEY]
-                    and this_key not in example_dict):
-                continue
-
-            this_example_dict[this_key] = example_dict[this_key]
-
-        for this_key in MAIN_KEYS:
-            if (this_key not in REQUIRED_MAIN_KEYS
-                    and this_key not in example_dict):
-                continue
-
-            if this_key == STORM_IDS_KEY:
-                this_example_dict[this_key] = [
-                    example_dict[this_key][k] for k in these_example_indices
-                ]
-            else:
-                this_example_dict[this_key] = example_dict[this_key][
-                    these_example_indices, ...]
-
-        this_output_file_name = random.choice(output_file_names)
-        print 'Writing shuffled examples to: "{0:s}"...'.format(
-            this_output_file_name)
-
-        write_example_file(
-            netcdf_file_name=this_output_file_name,
-            example_dict=this_example_dict,
-            append_to_file=os.path.isfile(this_output_file_name)
-        )
-
-
 def _compare_metadata(netcdf_dataset, example_dict):
     """Compares metadata between existing NetCDF file and new batch of examples.
 
@@ -903,14 +851,75 @@ def find_target_files(top_target_dir_name, radar_file_name_matrix, target_name):
     return target_file_names
 
 
+def subset_examples(example_dict, indices_to_keep, create_new_dict=False):
+    """Subsets examples in dictionary.
+
+    :param example_dict: See doc for `write_example_file`.
+    :param indices_to_keep: 1-D numpy array with indices of examples to keep.
+    :param create_new_dict: Boolean flag.  If True, this method will create a
+        new dictionary, leaving the input dictionary untouched.
+    :return: example_dict: Same as input, but possibly with fewer examples.
+    """
+
+    error_checking.assert_is_integer_numpy_array(indices_to_keep)
+    error_checking.assert_is_numpy_array(indices_to_keep, num_dimensions=1)
+    error_checking.assert_is_boolean(create_new_dict)
+
+    if not create_new_dict:
+        for this_key in MAIN_KEYS:
+            if (this_key not in REQUIRED_MAIN_KEYS
+                    and this_key not in example_dict):
+                continue
+
+            if this_key == STORM_IDS_KEY:
+                example_dict[this_key] = [
+                    example_dict[this_key][k] for k in indices_to_keep
+                ]
+            else:
+                example_dict[this_key] = example_dict[this_key][
+                    indices_to_keep, ...]
+
+        return example_dict
+
+    new_example_dict = {}
+    for this_key in METADATA_KEYS:
+        if (this_key in [SOUNDING_FIELDS_KEY, SOUNDING_HEIGHTS_KEY]
+                and this_key not in example_dict):
+            continue
+
+        new_example_dict[this_key] = example_dict[this_key]
+
+    for this_key in MAIN_KEYS:
+        if this_key not in REQUIRED_MAIN_KEYS and this_key not in example_dict:
+            continue
+
+        if this_key == STORM_IDS_KEY:
+            new_example_dict[this_key] = [
+                example_dict[this_key][k] for k in indices_to_keep
+            ]
+        else:
+            new_example_dict[this_key] = example_dict[this_key][
+                indices_to_keep, ...]
+
+    return new_example_dict
+
+
 def find_example_file(
-        top_directory_name, batch_number=None, raise_error_if_missing=True):
-    """Locates file with input examples.
+        top_directory_name, shuffled=True, spc_date_string=None,
+        batch_number=None, raise_error_if_missing=True):
+    """Looks for file with input examples.
+
+    If `shuffled = True`, this method looks for a file with shuffled examples
+    (from many different times).  If `shuffled = False`, this method looks for a
+    file with examples from one SPC date.
 
     :param top_directory_name: Name of top-level directory with input examples.
-    :param batch_number: Batch number (integer).
-    :param raise_error_if_missing: Boolean flag.  If file is missing and
-        `raise_error_if_missing = True`, this method will error out.
+    :param shuffled: Boolean flag.  The role of this flag is explained in the
+        general discussion above.
+    :param spc_date_string: [used only if `shuffled = False`]
+        SPC date (format "yyyymmdd").
+    :param batch_number: [used only if `shuffled = True`]
+        Batch number (integer).
     :return: example_file_name: Path to file with input examples.  If file is
         missing and `raise_error_if_missing = False`, this is the *expected*
         path.
@@ -918,18 +927,27 @@ def find_example_file(
     """
 
     error_checking.assert_is_string(top_directory_name)
-    error_checking.assert_is_integer(batch_number)
-    error_checking.assert_is_geq(batch_number, 0)
+    error_checking.assert_is_boolean(shuffled)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
-    first_batch_number = int(number_rounding.floor_to_nearest(
-        batch_number, NUM_BATCHES_PER_DIRECTORY))
-    last_batch_number = first_batch_number + NUM_BATCHES_PER_DIRECTORY - 1
+    if shuffled:
+        error_checking.assert_is_integer(batch_number)
+        error_checking.assert_is_geq(batch_number, 0)
 
-    example_file_name = (
-        '{0:s}/batches{1:07d}-{2:07d}/input_examples_batch{3:07d}.nc'
-    ).format(top_directory_name, first_batch_number, last_batch_number,
-             batch_number)
+        first_batch_number = int(number_rounding.floor_to_nearest(
+            batch_number, NUM_BATCHES_PER_DIRECTORY))
+        last_batch_number = first_batch_number + NUM_BATCHES_PER_DIRECTORY - 1
+
+        example_file_name = (
+            '{0:s}/batches{1:07d}-{2:07d}/input_examples_batch{3:07d}.nc'
+        ).format(top_directory_name, first_batch_number, last_batch_number,
+                 batch_number)
+    else:
+        time_conversion.spc_date_string_to_unix_sec(spc_date_string)
+
+        example_file_name = (
+            '{0:s}/{1:s}/input_examples_{2:s}.nc'
+        ).format(top_directory_name, spc_date_string[:4], spc_date_string)
 
     if raise_error_if_missing and not os.path.isfile(example_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
@@ -1245,7 +1263,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
 
 def read_example_file(
-        netcdf_file_name, radar_field_names_to_keep=None,
+        netcdf_file_name, metadata_only=False, radar_field_names_to_keep=None,
         radar_heights_to_keep_m_agl=None, sounding_field_names_to_keep=None,
         sounding_heights_to_keep_m_agl=None, first_time_to_keep_unix_sec=None,
         last_time_to_keep_unix_sec=None, num_rows_to_keep=None,
@@ -1259,7 +1277,12 @@ def read_example_file(
     - `radar_heights_to_keep_m_agl` is interpreted as an array of reflectivity
       heights to keep.
 
+    If `metadata_only = False`, all subsequent input args are unused.
+
     :param netcdf_file_name: Path to input file.
+    :param metadata_only: Boolean flag.  If False, this method will read
+        everything.  If True, will read everything except predictor and target
+        variables.
     :param radar_field_names_to_keep: 1-D list of radar fields to keep.  If
         None, all radar fields will be kept.
     :param radar_heights_to_keep_m_agl: 1-D numpy array of radar heights to keep
@@ -1284,16 +1307,7 @@ def read_example_file(
     # TODO(thunderhoser): Documentation for this method (how it can handle files
     # with 2-D only, 3-D only, or 2-D and 3-D images) could be better.
 
-    # Check times.
-    if first_time_to_keep_unix_sec is None:
-        first_time_to_keep_unix_sec = 0
-    if last_time_to_keep_unix_sec is None:
-        last_time_to_keep_unix_sec = int(1e12)
-
-    error_checking.assert_is_integer(first_time_to_keep_unix_sec)
-    error_checking.assert_is_integer(last_time_to_keep_unix_sec)
-    error_checking.assert_is_geq(
-        last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
+    error_checking.assert_is_boolean(metadata_only)
 
     # Open file and read metadata.
     netcdf_dataset = netCDF4.Dataset(netcdf_file_name)
@@ -1312,8 +1326,6 @@ def read_example_file(
     ]
     storm_times_unix_sec = numpy.array(
         netcdf_dataset.variables[STORM_TIMES_KEY][:], dtype=int)
-    target_values = numpy.array(
-        netcdf_dataset.variables[TARGET_VALUES_KEY][:], dtype=int)
 
     radar_field_names = [
         str(s) for s in netCDF4.chartostring(
@@ -1321,6 +1333,48 @@ def read_example_file(
     ]
     radar_heights_m_agl = numpy.array(
         netcdf_dataset.variables[RADAR_HEIGHTS_KEY][:], dtype=int)
+
+    if metadata_only:
+        example_dict = {
+            ROTATED_GRIDS_KEY: rotated_grids,
+            ROTATED_GRID_SPACING_KEY: rotated_grid_spacing_metres,
+            TARGET_NAME_KEY: target_name,
+            STORM_IDS_KEY: storm_ids,
+            STORM_TIMES_KEY: storm_times_unix_sec,
+            RADAR_FIELDS_KEY: radar_field_names,
+            RADAR_HEIGHTS_KEY: radar_heights_m_agl
+        }
+
+        include_soundings = SOUNDING_FIELDS_KEY in netcdf_dataset.variables
+        if include_soundings:
+            sounding_field_names = [
+                str(s) for s in netCDF4.chartostring(
+                    netcdf_dataset.variables[SOUNDING_FIELDS_KEY][:])
+            ]
+            sounding_heights_m_agl = numpy.array(
+                netcdf_dataset.variables[SOUNDING_HEIGHTS_KEY][:], dtype=int)
+
+            example_dict.update({
+                SOUNDING_FIELDS_KEY: sounding_field_names,
+                SOUNDING_HEIGHTS_KEY: sounding_heights_m_agl
+            })
+
+        netcdf_dataset.close()
+        return example_dict
+
+    target_values = numpy.array(
+        netcdf_dataset.variables[TARGET_VALUES_KEY][:], dtype=int)
+
+    # Check times.
+    if first_time_to_keep_unix_sec is None:
+        first_time_to_keep_unix_sec = 0
+    if last_time_to_keep_unix_sec is None:
+        last_time_to_keep_unix_sec = int(1e12)
+
+    error_checking.assert_is_integer(first_time_to_keep_unix_sec)
+    error_checking.assert_is_integer(last_time_to_keep_unix_sec)
+    error_checking.assert_is_geq(
+        last_time_to_keep_unix_sec, first_time_to_keep_unix_sec)
 
     # Error-check desired radar fields and heights.
     if radar_field_names_to_keep is None:
@@ -1477,29 +1531,16 @@ def read_example_file(
         example_dict[STORM_TIMES_KEY] <= last_time_to_keep_unix_sec
     ))[0]
 
-    for this_key in MAIN_KEYS:
-        if this_key not in REQUIRED_MAIN_KEYS and this_key not in example_dict:
-            continue
-
-        if this_key == STORM_IDS_KEY:
-            example_dict[this_key] = [
-                example_dict[this_key][k] for k in time_indices
-            ]
-        else:
-            example_dict[this_key] = example_dict[this_key][time_indices, ...]
-
-    return example_dict
+    return subset_examples(
+        example_dict=example_dict, indices_to_keep=time_indices)
 
 
-def shuffle_and_write_examples(
+def create_examples(
         target_file_names, target_name, num_examples_per_in_file,
-        top_output_dir_name, first_output_batch_number,
-        radar_file_name_matrix=None, reflectivity_file_name_matrix=None,
-        az_shear_file_name_matrix=None,
-        num_examples_per_out_chunk=DEFAULT_NUM_EXAMPLES_PER_OUT_CHUNK,
-        num_examples_per_out_file=DEFAULT_NUM_EXAMPLES_PER_OUT_FILE,
+        top_output_dir_name, radar_file_name_matrix=None,
+        reflectivity_file_name_matrix=None, az_shear_file_name_matrix=None,
         class_to_sampling_fraction_dict=None, sounding_file_names=None):
-    """Writes many example files.
+    """Creates many input examples.
 
     If `radar_file_name_matrix is None`, both `reflectivity_file_name_matrix`
     and `az_shear_file_name_matrix` must be specified.
@@ -1515,20 +1556,12 @@ def shuffle_and_write_examples(
     :param top_output_dir_name: Name of top-level directory.  Files will be
         written here by `write_example_file`, to locations determined by
         `find_example_file`.
-    :param first_output_batch_number: First batch number (integer).  Used to
-        determine locations of output files.
     :param radar_file_name_matrix: numpy array created by either
         `find_storm_images_2d` or `find_storm_images_3d`.  Length of the first
         axis is D.
     :param reflectivity_file_name_matrix: numpy array created by
         `find_storm_images_2d3d_myrorss`.  Length of the first axis is D.
     :param az_shear_file_name_matrix: Same.
-    :param num_examples_per_out_chunk: Number of examples per output chunk (all
-        written to the same file).  Smaller `num_examples_per_out_chunk` =>
-        fewer examples from the same or nearby time steps written to the same
-        file => more temporal shuffling.
-    :param num_examples_per_out_file: Number of examples to write to each output
-        file.
     :param class_to_sampling_fraction_dict: Dictionary, where each key is the
         integer ID for a target class (-2 for "dead storm") and each value is
         the sampling fraction.  This allows for class-conditional sampling.
@@ -1568,13 +1601,6 @@ def shuffle_and_write_examples(
 
     error_checking.assert_is_integer(num_examples_per_in_file)
     error_checking.assert_is_geq(num_examples_per_in_file, 1)
-    error_checking.assert_is_integer(first_output_batch_number)
-    error_checking.assert_is_geq(first_output_batch_number, 0)
-    error_checking.assert_is_integer(num_examples_per_out_chunk)
-    error_checking.assert_is_geq(num_examples_per_out_chunk, 1)
-    error_checking.assert_is_integer(num_examples_per_out_file)
-    error_checking.assert_is_geq(
-        num_examples_per_out_file, num_examples_per_out_chunk)
 
     storm_ids = []
     storm_times_unix_sec = numpy.array([], dtype=int)
@@ -1616,7 +1642,6 @@ def shuffle_and_write_examples(
             target_name=target_name, target_values=target_values,
             num_examples_total=num_examples_to_use)
 
-    num_examples_to_use = len(indices_to_keep)
     storm_ids = [storm_ids[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
@@ -1628,23 +1653,25 @@ def shuffle_and_write_examples(
             unique_counts[k], unique_target_values[k])
     print '\n'
 
-    num_output_files = int(numpy.ceil(
-        float(num_examples_to_use) / num_examples_per_out_file
-    ))
-    batch_numbers = numpy.linspace(
-        first_output_batch_number,
-        first_output_batch_number + num_output_files - 1,
-        num=num_output_files, dtype=int)
+    first_spc_date_string = time_conversion.time_to_spc_date_string(
+        numpy.min(storm_times_unix_sec))
+    last_spc_date_string = time_conversion.time_to_spc_date_string(
+        numpy.max(storm_times_unix_sec))
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
 
-    output_file_names = []
-    for k in batch_numbers:
+    spc_date_to_out_file_dict = {}
+    for this_spc_date_string in spc_date_strings:
         this_file_name = find_example_file(
-            top_directory_name=top_output_dir_name, batch_number=k,
+            top_directory_name=top_output_dir_name, shuffled=False,
+            spc_date_string=this_spc_date_string,
             raise_error_if_missing=False)
 
         if os.path.isfile(this_file_name):
             os.remove(this_file_name)
-        output_file_names.append(this_file_name)
+
+        spc_date_to_out_file_dict[this_spc_date_string] = this_file_name
 
     for i in range(num_file_times):
         if radar_file_name_matrix is None:
@@ -1717,7 +1744,11 @@ def shuffle_and_write_examples(
             continue
 
         this_example_dict.update({TARGET_NAME_KEY: target_name})
-        _write_examples_to_many_files(
-            example_dict=this_example_dict, output_file_names=output_file_names,
-            num_examples_per_out_chunk=num_examples_per_out_chunk)
-        print SEPARATOR_STRING
+        this_output_file_name = spc_date_to_out_file_dict[this_spc_date_string]
+
+        print 'Writing examples to: "{0:s}"...'.format(this_output_file_name)
+        write_example_file(
+            netcdf_file_name=this_output_file_name,
+            example_dict=this_example_dict,
+            append_to_file=os.path.isfile(this_output_file_name)
+        )
