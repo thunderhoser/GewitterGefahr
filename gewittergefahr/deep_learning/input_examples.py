@@ -1587,6 +1587,7 @@ def read_example_file(
 
     if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
         print netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY]
+        print example_indices_to_keep
         radar_image_matrix = netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][
             example_indices_to_keep, ...]
         num_radar_dimensions = len(radar_image_matrix.shape) - 2
