@@ -1073,9 +1073,6 @@ def downsize_storm_images(
     :raises: ValueError: if downsized image cannot be centered in full image.
     """
 
-    if num_rows_to_keep is None and num_columns_to_keep is None:
-        return storm_image_matrix
-
     error_checking.assert_is_numpy_array_without_nan(storm_image_matrix)
     num_dimensions = len(storm_image_matrix.shape)
     error_checking.assert_is_geq(num_dimensions, 3)
@@ -1085,12 +1082,17 @@ def downsize_storm_images(
         num_rows_to_keep *= 2
         num_columns_to_keep *= 2
 
+    num_rows_total = storm_image_matrix.shape[1]
+    if num_rows_to_keep == num_rows_total:
+        num_rows_to_keep = None
+
+    num_columns_total = storm_image_matrix.shape[2]
+    if num_columns_to_keep == num_columns_total:
+        num_columns_to_keep = None
+
     if num_rows_to_keep is not None:
         error_checking.assert_is_integer(num_rows_to_keep)
         error_checking.assert_is_greater(num_rows_to_keep, 0)
-
-        num_rows_total = storm_image_matrix.shape[1]
-        error_checking.assert_is_less_than(num_rows_to_keep, num_rows_total)
 
         num_rows_leftover = num_rows_total - num_rows_to_keep
         if num_rows_leftover != rounder.round_to_nearest(num_rows_leftover, 2):
@@ -1109,10 +1111,6 @@ def downsize_storm_images(
     if num_columns_to_keep is not None:
         error_checking.assert_is_integer(num_columns_to_keep)
         error_checking.assert_is_greater(num_columns_to_keep, 0)
-
-        num_columns_total = storm_image_matrix.shape[2]
-        error_checking.assert_is_less_than(
-            num_columns_to_keep, num_columns_total)
 
         num_columns_leftover = num_columns_total - num_columns_to_keep
         if (num_columns_leftover !=
