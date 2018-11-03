@@ -4,6 +4,9 @@ import unittest
 import numpy
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
+# TODO(thunderhoser): Variable names in this file are confusing.  I need to
+# simplify.
+
 TOLERANCE = 1e-6
 
 # The following constants are used to test _get_num_ex_per_batch_by_class.

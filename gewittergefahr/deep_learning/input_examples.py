@@ -1586,6 +1586,7 @@ def read_example_file(
         radar_heights_to_keep_m_agl, num_dimensions=1)
 
     if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
+        print netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY]
         radar_image_matrix = netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][
             example_indices_to_keep, ...]
         num_radar_dimensions = len(radar_image_matrix.shape) - 2
