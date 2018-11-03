@@ -45,8 +45,6 @@ LOOP_ONCE_KEY = 'loop_thru_files_once'
 REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
 
 DEFAULT_GENERATOR_OPTION_DICT = {
-    NUM_ROWS_KEY: None,
-    NUM_COLUMNS_KEY: None,
     NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
     MIN_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
     MAX_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
@@ -341,6 +339,30 @@ def _augment_radar_images(
     return list_of_predictor_matrices, target_array
 
 
+def check_generator_input_args(option_dict):
+    """Error-checks input arguments for generator.
+
+    :param option_dict: See doc for `example_generator_2d_or_3d` or
+        `example_generator_2d3d_myrorss`.
+    :return: option_dict: Same as input, except that defaults have been added.
+    """
+
+    orig_option_dict = option_dict.copy()
+    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    error_checking.assert_is_string_list(option_dict[EXAMPLE_FILES_KEY])
+    error_checking.assert_is_numpy_array(
+        numpy.array(option_dict[EXAMPLE_FILES_KEY]), num_dimensions=1)
+
+    error_checking.assert_is_integer(option_dict[NUM_EXAMPLES_PER_BATCH_KEY])
+    error_checking.assert_is_geq(option_dict[NUM_EXAMPLES_PER_BATCH_KEY], 32)
+    error_checking.assert_is_boolean(option_dict[BINARIZE_TARGET_KEY])
+    error_checking.assert_is_boolean(option_dict[LOOP_ONCE_KEY])
+
+    return option_dict
+
+
 def example_generator_2d_or_3d(option_dict):
     """Generates examples with either all 2-D or all 3-D radar images.
 
@@ -419,23 +441,12 @@ def example_generator_2d_or_3d(option_dict):
     :return: target_array: See above.
     """
 
-    orig_option_dict = option_dict.copy()
-    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
-    option_dict.update(orig_option_dict)
+    option_dict = check_generator_input_args(option_dict)
 
     example_file_names = option_dict[EXAMPLE_FILES_KEY]
     num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
-
-    error_checking.assert_is_string_list(example_file_names)
-    error_checking.assert_is_numpy_array(
-        numpy.array(example_file_names), num_dimensions=1)
-
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 32)
-    error_checking.assert_is_boolean(binarize_target)
-    error_checking.assert_is_boolean(loop_thru_files_once)
 
     radar_field_names = option_dict[RADAR_FIELDS_KEY]
     radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
@@ -649,23 +660,12 @@ def example_generator_2d3d_myrorss(option_dict):
 
     # TODO(thunderhoser): Documentation for this method could be a bit better.
 
-    orig_option_dict = option_dict.copy()
-    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
-    option_dict.update(orig_option_dict)
+    option_dict = check_generator_input_args(option_dict)
 
     example_file_names = option_dict[EXAMPLE_FILES_KEY]
     num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
-
-    error_checking.assert_is_string_list(example_file_names)
-    error_checking.assert_is_numpy_array(
-        numpy.array(example_file_names), num_dimensions=1)
-
-    error_checking.assert_is_integer(num_examples_per_batch)
-    error_checking.assert_is_geq(num_examples_per_batch, 32)
-    error_checking.assert_is_boolean(binarize_target)
-    error_checking.assert_is_boolean(loop_thru_files_once)
 
     azimuthal_shear_field_names = option_dict[RADAR_FIELDS_KEY]
     reflectivity_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]

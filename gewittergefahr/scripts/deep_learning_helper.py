@@ -2,13 +2,14 @@
 
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import cnn_architecture
 from gewittergefahr.deep_learning import architecture_utils
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 # TODO(thunderhoser): Allow architecture to be read from a file.  Actually,
 # maybe this should be the only way to specify architecture.
+
+INPUT_TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 MODEL_DIRECTORY_ARG_NAME = 'output_model_dir_name'
 NUM_EPOCHS_ARG_NAME = 'num_epochs'
@@ -90,10 +91,8 @@ DEFAULT_ACTIVATION_FUNCTION_STRING = architecture_utils.RELU_FUNCTION_STRING
 DEFAULT_ALPHA_FOR_ELU = architecture_utils.DEFAULT_ALPHA_FOR_ELU
 DEFAULT_ALPHA_FOR_RELU = architecture_utils.DEFAULT_ALPHA_FOR_RELU
 DEFAULT_USE_BATCH_NORM_FLAG = 0
-DEFAULT_CONV_LAYER_DROPOUT_FRACTION = (
-    cnn_architecture.DEFAULT_CONV_LAYER_DROPOUT_FRACTION)
-DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = (
-    cnn_architecture.DEFAULT_DENSE_LAYER_DROPOUT_FRACTION)
+DEFAULT_CONV_LAYER_DROPOUT_FRACTION = -1.
+DEFAULT_DENSE_LAYER_DROPOUT_FRACTION = 0.25
 
 DEFAULT_L2_WEIGHT = 0.001
 DEFAULT_NUM_SOUNDING_FILTERS = 16
@@ -151,7 +150,8 @@ RADAR_FIELDS_HELP_STRING = (
 
 SOUNDING_FIELDS_HELP_STRING = (
     'List of sounding fields to use for training.  Each field must be accepted '
-    'by `soundings.check_field_name`.')
+    'by `soundings.check_field_name`.  If you do not want to use soundings, '
+    'make this a list with only one item, the empty string ("").')
 
 NUM_ROWS_HELP_STRING = (
     'Number of rows in each storm-centered radar image.  This will be doubled '
@@ -212,12 +212,12 @@ MAX_NOISE_HELP_STRING = (
     '`data_augmentation.get_noisings` for more details.')
 
 NUM_CONV_LAYER_SETS_HELP_STRING = (
-    'Number of convolutional-layer sets for radar data.  Each set consists of '
+    'Number of convolution-layer sets for radar data.  Each set consists of '
     '`{0:s}` layers, uninterrupted by pooling.'
 ).format(NUM_CONV_LAYERS_PER_SET_ARG_NAME)
 
 NUM_CONV_LAYERS_PER_SET_HELP_STRING = (
-    'Number of convolutional layers in each set.')
+    'Number of convolution layers in each set.')
 
 POOLING_TYPE_HELP_STRING = (
     'Pooling type (must be accepted by '
@@ -237,16 +237,20 @@ ALPHA_FOR_RELU_HELP_STRING = (
 
 USE_BATCH_NORM_HELP_STRING = (
     'Boolean flag.  If 1, batch normalization will be used after each '
-    'convolutional and dense layer.')
+    'convolution and dense layer.')
 
-CONV_LAYER_DROPOUT_HELP_STRING = 'Dropout fraction for convolutional layers.'
+CONV_LAYER_DROPOUT_HELP_STRING = (
+    'Dropout fraction for convolution layers.  Make this <= 0 for no dropout.')
 
-DENSE_LAYER_DROPOUT_HELP_STRING = 'Dropout fraction for dense layers.'
+DENSE_LAYER_DROPOUT_HELP_STRING = (
+    'Dropout fraction for dense layers.  Make this <= 0 for no dropout.')
 
-L2_WEIGHT_HELP_STRING = 'L2 regularization weight for all convolutional layers.'
+L2_WEIGHT_HELP_STRING = (
+    'L2 regularization weight for all convolution layers.  Make this <= 0 for '
+    'no regularization.')
 
 NUM_SOUNDING_FILTERS_HELP_STRING = (
-    'Number of filters in first convolutional layer for soundings.')
+    'Number of filters in first convolution layer for soundings.')
 
 
 def add_input_arguments(argument_parser_object):
@@ -314,8 +318,8 @@ def add_input_arguments(argument_parser_object):
         help=NUM_EXAMPLES_PER_BATCH_HELP_STRING)
 
     argument_parser_object.add_argument(
-        '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=True,
-        help=RADAR_FIELDS_HELP_STRING)
+        '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
+        default=[''], help=RADAR_FIELDS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + SOUNDING_FIELDS_ARG_NAME, type=str, nargs='+', required=False,

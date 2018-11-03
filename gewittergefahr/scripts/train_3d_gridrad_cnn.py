@@ -35,7 +35,9 @@ REFL_MASK_ARG_NAME = 'refl_masking_threshold_dbz'
 NORMALIZATION_FILE_ARG_NAME = 'normalization_param_file_name'
 
 NUM_RADAR_FILTERS_HELP_STRING = (
-    'Number of filters in first convolutional layer for radar images.')
+    'Number of filters in first convolutional layer for radar images.  If you '
+    'make this <= 0, it will be automatically determined by '
+    'cnn_architecture.py.')
 
 REFL_MASK_HELP_STRING = (
     'Threshold for reflectivity mask.  All radar values at pixels with '
@@ -55,7 +57,7 @@ DEFAULT_NORMALIZATION_FILE_NAME = (
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_RADAR_FILTERS_ARG_NAME, type=int, required=False,
-    default=16, help=NUM_RADAR_FILTERS_HELP_STRING)
+    default=-1, help=NUM_RADAR_FILTERS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + REFL_MASK_ARG_NAME, type=float, required=False,
@@ -151,7 +153,7 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
     error_checking.assert_is_greater(
         last_validn_time_unix_sec, first_validn_time_unix_sec)
 
-    if sounding_field_names[0] in ['', 'None']:
+    if sounding_field_names[0] == '':
         sounding_field_names = None
         num_sounding_fields = None
     else:
@@ -173,6 +175,8 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
         dense_layer_dropout_fraction = None
     if l2_weight <= 0:
         l2_weight = None
+    if first_num_radar_filters <= 0:
+        first_num_radar_filters = None
 
     # Set output locations.
     file_system_utils.mkdir_recursive_if_necessary(
@@ -255,23 +259,38 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
         num_classes_to_predict = labels.column_name_to_num_classes(
             column_name=target_name, include_dead_storms=False)
 
+    radar_option_dict = {
+        cnn_architecture.NUM_ROWS_KEY: num_grid_rows,
+        cnn_architecture.NUM_COLUMNS_KEY: num_grid_columns,
+        cnn_architecture.NUM_FIELDS_KEY: len(radar_field_names),
+        cnn_architecture.NUM_HEIGHTS_KEY: len(RADAR_HEIGHTS_M_AGL),
+        cnn_architecture.NUM_CLASSES_KEY: num_classes_to_predict,
+        cnn_architecture.NUM_CONV_LAYER_SETS_KEY: num_radar_conv_layer_sets,
+        cnn_architecture.NUM_CONV_LAYERS_PER_SET_KEY: num_conv_layers_per_set,
+        cnn_architecture.NUM_DENSE_LAYERS_KEY: 2,
+        cnn_architecture.ACTIVATION_FUNCTION_KEY: activation_function_string,
+        cnn_architecture.ALPHA_FOR_ELU_KEY: alpha_for_elu,
+        cnn_architecture.ALPHA_FOR_RELU_KEY: alpha_for_relu,
+        cnn_architecture.USE_BATCH_NORM_KEY: use_batch_normalization,
+        cnn_architecture.FIRST_NUM_FILTERS_KEY: first_num_radar_filters,
+        cnn_architecture.CONV_LAYER_DROPOUT_KEY: conv_layer_dropout_fraction,
+        cnn_architecture.DENSE_LAYER_DROPOUT_KEY: dense_layer_dropout_fraction,
+        cnn_architecture.L2_WEIGHT_KEY: l2_weight
+    }
+
+    if num_sounding_fields is None:
+        sounding_option_dict = None
+    else:
+        sounding_option_dict = {
+            cnn_architecture.NUM_FIELDS_KEY: len(sounding_field_names),
+            cnn_architecture.NUM_HEIGHTS_KEY: len(SOUNDING_HEIGHTS_M_AGL),
+            cnn_architecture.FIRST_NUM_FILTERS_KEY: first_num_sounding_filters
+        }
+
     model_object = cnn_architecture.get_3d_swirlnet_architecture(
-        num_radar_rows=num_grid_rows, num_radar_columns=num_grid_columns,
-        num_radar_heights=len(RADAR_HEIGHTS_M_AGL),
-        num_radar_fields=len(radar_field_names),
-        num_radar_conv_layer_sets=num_radar_conv_layer_sets,
-        num_conv_layers_per_set=num_conv_layers_per_set,
-        pooling_type_string=pooling_type_string,
-        num_classes=num_classes_to_predict,
-        conv_activation_function_string=activation_function_string,
-        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
-        use_batch_normalization=use_batch_normalization,
-        init_num_radar_filters=first_num_radar_filters,
-        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
-        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
-        l2_weight=l2_weight, num_sounding_heights=len(SOUNDING_HEIGHTS_M_AGL),
-        num_sounding_fields=num_sounding_fields,
-        init_num_sounding_filters=first_num_sounding_filters)
+        radar_option_dict=radar_option_dict,
+        sounding_option_dict=sounding_option_dict,
+        pooling_type_string=pooling_type_string)
     print SEPARATOR_STRING
 
     cnn.train_cnn_2d_or_3d(
