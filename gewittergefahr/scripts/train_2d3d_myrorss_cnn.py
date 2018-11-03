@@ -159,7 +159,7 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
     error_checking.assert_is_greater(
         last_validn_time_unix_sec, first_validn_time_unix_sec)
 
-    if sounding_field_names[0] == '':
+    if sounding_field_names[0] == 'None':
         sounding_field_names = None
         num_sounding_fields = None
     else:

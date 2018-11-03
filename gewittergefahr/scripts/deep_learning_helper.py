@@ -151,7 +151,7 @@ RADAR_FIELDS_HELP_STRING = (
 SOUNDING_FIELDS_HELP_STRING = (
     'List of sounding fields to use for training.  Each field must be accepted '
     'by `soundings.check_field_name`.  If you do not want to use soundings, '
-    'make this a list with only one item, the empty string ("").')
+    'make this a list with only one item ("None").')
 
 NUM_ROWS_HELP_STRING = (
     'Number of rows in each storm-centered radar image.  This will be doubled '
@@ -319,7 +319,7 @@ def add_input_arguments(argument_parser_object):
 
     argument_parser_object.add_argument(
         '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
-        default=[''], help=RADAR_FIELDS_HELP_STRING)
+        default=['None'], help=RADAR_FIELDS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + SOUNDING_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
