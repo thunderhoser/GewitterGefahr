@@ -22,6 +22,7 @@ Lagerquist, R. (2016): "Using machine learning to predict damaging straight-line
     Oklahoma.
 """
 
+import numpy
 import keras
 import keras.initializers
 import keras.optimizers
@@ -223,6 +224,53 @@ def check_activation_function(
         error_checking.assert_is_geq(alpha_for_elu, 0.)
     if activation_function_string == RELU_FUNCTION_STRING:
         error_checking.assert_is_geq(alpha_for_relu, 0.)
+
+
+def get_dense_layer_dimensions(num_input_units, num_classes, num_dense_layers):
+    """Returns dimensions (number of input and output units) for each dense lyr.
+
+    D = number of dense layers
+
+    :param num_input_units: Number of input units (features created by
+        flattening layer).
+    :param num_classes: Number of output classes (possible values of target
+        variable).
+    :param num_dense_layers: Number of dense layers.
+    :return: num_inputs_by_layer: length-D numpy array with number of input
+        units by dense layer.
+    :return: num_outputs_by_layer: length-D numpy array with number of output
+        units by dense layer.
+    """
+
+    error_checking.assert_is_integer(num_classes)
+    error_checking.assert_is_greater(num_classes, 0)
+    error_checking.assert_is_integer(num_input_units)
+    error_checking.assert_is_greater(num_input_units, num_classes)
+    error_checking.assert_is_integer(num_dense_layers)
+    error_checking.assert_is_greater(num_dense_layers, 0)
+
+    if num_classes == 2:
+        num_output_units = 1
+    else:
+        num_output_units = num_classes + 0
+
+    e_folding_param = (
+        float(-1 * num_dense_layers) /
+        numpy.log(float(num_output_units) / num_input_units)
+    )
+
+    dense_layer_indices = numpy.linspace(
+        0, num_dense_layers - 1, num=num_dense_layers, dtype=float)
+    num_inputs_by_layer = num_input_units * numpy.exp(
+        -1 * dense_layer_indices / e_folding_param)
+    num_inputs_by_layer = numpy.round(num_inputs_by_layer).astype(int)
+
+    num_outputs_by_layer = numpy.concatenate((
+        num_inputs_by_layer[1:],
+        numpy.array([num_output_units], dtype=int)
+    ))
+
+    return num_inputs_by_layer, num_outputs_by_layer
 
 
 def get_weight_regularizer(
