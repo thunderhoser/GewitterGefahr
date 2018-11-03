@@ -1563,6 +1563,8 @@ def read_example_file(
         target_values=example_dict[TARGET_VALUES_KEY][example_indices_to_keep],
         class_to_num_examples_dict=class_to_num_examples_dict)
     example_indices_to_keep = example_indices_to_keep[subindices_to_keep]
+    if len(example_indices_to_keep) == 0:
+        return None
 
     example_dict[STORM_IDS_KEY] = [
         example_dict[STORM_IDS_KEY][k] for k in example_indices_to_keep
@@ -1586,8 +1588,6 @@ def read_example_file(
         radar_heights_to_keep_m_agl, num_dimensions=1)
 
     if RADAR_IMAGE_MATRIX_KEY in netcdf_dataset.variables:
-        print netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY]
-        print example_indices_to_keep
         radar_image_matrix = netcdf_dataset.variables[RADAR_IMAGE_MATRIX_KEY][
             example_indices_to_keep, ...]
         num_radar_dimensions = len(radar_image_matrix.shape) - 2

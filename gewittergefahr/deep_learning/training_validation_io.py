@@ -546,6 +546,9 @@ def example_generator_2d_or_3d(option_dict):
                 class_to_num_examples_dict=class_to_num_ex_to_read_dict)
 
             file_index += 1
+            if this_example_dict is None:
+                continue
+
             include_soundings = (
                 input_examples.SOUNDING_MATRIX_KEY in this_example_dict
             )
@@ -771,6 +774,9 @@ def example_generator_2d3d_myrorss(option_dict):
                 class_to_num_examples_dict=class_to_num_ex_to_read_dict)
 
             file_index += 1
+            if this_example_dict is None:
+                continue
+
             include_soundings = (
                 input_examples.SOUNDING_MATRIX_KEY in this_example_dict
             )
