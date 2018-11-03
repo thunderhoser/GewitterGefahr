@@ -670,43 +670,6 @@ def _get_unrotated_storm_image_coords(
     }
 
 
-def _filter_storm_objects_by_label(
-        label_values, num_storm_objects_class_dict, test_mode=False):
-    """Filters storm objects by hazard label (target variable).
-
-    L = number of storm objects
-
-    :param label_values: length-L numpy array with hazard label (class integer)
-        for each storm object.
-    :param num_storm_objects_class_dict: See doc for
-        `read_storm_images_and_labels`.
-    :param test_mode: Leave this argument alone.
-    :return: indices_to_keep: 1-D numpy array with indices of storm objects to
-        keep.
-    """
-
-    indices_to_keep = numpy.array([], dtype=int)
-    for this_class_integer in num_storm_objects_class_dict.keys():
-        this_num_storm_objects = num_storm_objects_class_dict[
-            this_class_integer]
-
-        these_indices = numpy.where(label_values == this_class_integer)[0]
-        this_num_storm_objects = min(
-            [this_num_storm_objects, len(these_indices)])
-        if this_num_storm_objects == 0:
-            continue
-
-        if test_mode:
-            these_indices = these_indices[:this_num_storm_objects]
-        else:
-            these_indices = numpy.random.choice(
-                these_indices, size=this_num_storm_objects, replace=False)
-
-        indices_to_keep = numpy.concatenate((indices_to_keep, these_indices))
-
-    return indices_to_keep
-
-
 def _subset_xy_grid_for_interp(
         field_matrix, grid_point_x_coords_metres, grid_point_y_coords_metres,
         query_x_coords_metres, query_y_coords_metres):
@@ -1917,72 +1880,6 @@ def read_storm_images(
         ROTATED_GRIDS_KEY: rotated_grids,
         ROTATED_GRID_SPACING_KEY: rotated_grid_spacing_metres
     }
-
-
-def read_storm_images_and_labels(
-        image_file_name, label_file_name, label_name,
-        num_storm_objects_class_dict=None, num_rows_to_keep=None,
-        num_columns_to_keep=None):
-    """Reads storm-centered radar images and corresponding hazard labels.
-
-    If no desired storm objects are found, this method returns `None`.
-
-    :param image_file_name: Path to file with storm-centered radar images (will
-        be read by `read_storm_images`).
-    :param label_file_name: Path to file with storm-hazard labels (will be read
-        by `labels.read_labels_from_netcdf`).
-    :param label_name: Name of hazard label (target variable).
-    :param num_storm_objects_class_dict: Dictionary, where each key is a class
-        integer (-2 for "dead storm") and each value is the desired number of
-        storm objects from the class.
-    :param num_rows_to_keep: See doc for `read_storm_images`.
-    :param num_columns_to_keep: Same.
-    :return: storm_image_dict: Dictionary with the following keys.
-    storm_image_dict['storm_image_matrix']: See doc for `_check_storm_images`.
-    storm_image_dict['storm_ids']: Same.
-    storm_image_dict['valid_times_unix_sec']: Same.
-    storm_image_dict['radar_field_name']: Same.
-    storm_image_dict['radar_height_m_agl']: Same.
-    storm_image_dict['rotated_grids']: Same.
-    storm_image_dict['rotated_grid_spacing_key']: Same.
-    storm_image_dict['label_values']: 1-D numpy array with hazard label (class
-        integer) for each storm object.
-    """
-
-    storm_label_dict = labels.read_labels_from_netcdf(
-        netcdf_file_name=label_file_name, label_name=label_name)
-    storm_image_dict = read_storm_images(
-        netcdf_file_name=image_file_name, return_images=False)
-
-    these_indices = tracking_utils.find_storm_objects(
-        all_storm_ids=storm_label_dict[labels.STORM_IDS_KEY],
-        all_times_unix_sec=storm_label_dict[labels.VALID_TIMES_KEY],
-        storm_ids_to_keep=storm_image_dict[STORM_IDS_KEY],
-        times_to_keep_unix_sec=storm_image_dict[VALID_TIMES_KEY])
-    label_values = storm_label_dict[labels.LABEL_VALUES_KEY][these_indices]
-
-    if num_storm_objects_class_dict is None:
-        indices_to_keep = numpy.linspace(
-            0, len(label_values) - 1, num=len(label_values), dtype=int)
-    else:
-        indices_to_keep = _filter_storm_objects_by_label(
-            label_values=label_values,
-            num_storm_objects_class_dict=num_storm_objects_class_dict)
-
-    if len(indices_to_keep) == 0:
-        return None
-
-    storm_image_dict = read_storm_images(
-        netcdf_file_name=image_file_name, return_images=True,
-        storm_ids_to_keep=[
-            storm_image_dict[STORM_IDS_KEY][k] for k in indices_to_keep],
-        valid_times_to_keep_unix_sec=storm_image_dict[
-            VALID_TIMES_KEY][indices_to_keep],
-        num_rows_to_keep=num_rows_to_keep,
-        num_columns_to_keep=num_columns_to_keep)
-
-    storm_image_dict.update({LABEL_VALUES_KEY: label_values[indices_to_keep]})
-    return storm_image_dict
 
 
 def find_storm_image_file(

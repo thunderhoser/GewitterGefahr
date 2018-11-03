@@ -9,6 +9,26 @@ from gewittergefahr.deep_learning import input_examples
 
 TOLERANCE = 1e-6
 
+# The following constants are used to test _filter_examples_by_class.
+TARGET_VALUES_TORNADO = numpy.array(
+    [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int)
+
+FIRST_TORNADO_CLASS_TO_NUM_EX_DICT = {0: 2, 1: 50}
+SECOND_TORNADO_CLASS_TO_NUM_EX_DICT = {0: 0, 1: 50}
+FIRST_TORNADO_INDICES_TO_KEEP = numpy.array([0, 1, 2, 4, 6], dtype=int)
+SECOND_TORNADO_INDICES_TO_KEEP = numpy.array([2, 4, 6], dtype=int)
+
+TARGET_VALUES_WIND = numpy.array(
+    [0, -2, 0, 5, 2, 1, 3, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 2, -2, 0, 1,
+     3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0], dtype=int)
+
+FIRST_WIND_CLASS_TO_NUM_EX_DICT = {-2: 5, 0: 1, 1: 2, 2: 3, 3: 4, 4: 25, 5: 100}
+SECOND_WIND_CLASS_TO_NUM_EX_DICT = {-2: 0, 0: 1, 1: 0, 2: 3, 3: 0, 4: 25, 5: 0}
+
+FIRST_WIND_INDICES_TO_KEEP = numpy.array(
+    [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int)
+SECOND_WIND_INDICES_TO_KEEP = numpy.array([0, 4, 13, 20, 26, 34], dtype=int)
+
 # The following constants are used to test remove_storms_with_undefined_target.
 STORM_IDS = ['Matthews', 'Tavares', 'Marner', 'Nylander']
 STORM_TIMES_UNIX_SEC = numpy.array([1, 2, 3, 4], dtype=int)
@@ -236,6 +256,66 @@ def _compare_example_dicts(first_example_dict, second_example_dict):
 
 class InputExamplesTests(unittest.TestCase):
     """Each method is a unit test for input_examples.py."""
+
+    def test_filter_examples_by_class_tornado_first(self):
+        """Ensures correct output from _filter_examples_by_class.
+
+        In this case, the target phenomenon is tornadogenesis and the number of
+        desired examples from all classes is non-zero.
+        """
+
+        these_indices_to_keep = input_examples._filter_examples_by_class(
+            target_values=TARGET_VALUES_TORNADO,
+            class_to_num_examples_dict=FIRST_TORNADO_CLASS_TO_NUM_EX_DICT,
+            test_mode=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices_to_keep, FIRST_TORNADO_INDICES_TO_KEEP))
+
+    def test_filter_examples_by_class_tornado_second(self):
+        """Ensures correct output from _filter_examples_by_class.
+
+        In this case, the target phenomenon is tornadogenesis and the number of
+        desired examples from some classes is zero.
+        """
+
+        these_indices_to_keep = input_examples._filter_examples_by_class(
+            target_values=TARGET_VALUES_TORNADO,
+            class_to_num_examples_dict=SECOND_TORNADO_CLASS_TO_NUM_EX_DICT,
+            test_mode=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices_to_keep, SECOND_TORNADO_INDICES_TO_KEEP))
+
+    def test_filter_examples_by_class_wind_first(self):
+        """Ensures correct output from _filter_examples_by_class.
+
+        In this case, the target phenomenon is wind speed and the number of
+        desired examples from all classes is non-zero.
+        """
+
+        these_indices_to_keep = input_examples._filter_examples_by_class(
+            target_values=TARGET_VALUES_WIND,
+            class_to_num_examples_dict=FIRST_WIND_CLASS_TO_NUM_EX_DICT,
+            test_mode=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices_to_keep, FIRST_WIND_INDICES_TO_KEEP))
+
+    def test_filter_examples_by_class_wind_second(self):
+        """Ensures correct output from _filter_examples_by_class.
+
+        In this case, the target phenomenon is wind speed and the number of
+        desired examples from some classes is zero.
+        """
+
+        these_indices_to_keep = input_examples._filter_examples_by_class(
+            target_values=TARGET_VALUES_WIND,
+            class_to_num_examples_dict=SECOND_WIND_CLASS_TO_NUM_EX_DICT,
+            test_mode=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices_to_keep, SECOND_WIND_INDICES_TO_KEEP))
 
     def test_remove_storms_with_undefined_target(self):
         """Ensures correct output from remove_storms_with_undefined_target."""

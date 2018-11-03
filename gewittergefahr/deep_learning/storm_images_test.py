@@ -182,29 +182,6 @@ STORM_IMAGE_COORD_DICT_BOTTOM_RIGHT = {
     storm_images.NUM_RIGHT_PADDING_COLS_KEY: 22
 }
 
-# The following constants are used to test _filter_storm_objects_by_label.
-TORNADO_LABELS_TO_FILTER = numpy.array(
-    [0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 0, 0], dtype=int)
-
-NUM_OBJECTS_BY_TORNADO_CLASS_DICT_NONZERO = {0: 2, 1: 50}
-NUM_OBJECTS_BY_TORNADO_CLASS_DICT_ONE_ZERO = {0: 0, 1: 50}
-INDICES_TO_KEEP_FOR_TORNADO_NONZERO = numpy.array([0, 1, 2, 4, 6], dtype=int)
-INDICES_TO_KEEP_FOR_TORNADO_ONE_ZERO = numpy.array([2, 4, 6], dtype=int)
-
-WIND_LABELS_TO_FILTER = numpy.array(
-    [0, -2, 0, 5, 2, 1, 3, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 3, 0, 2, -2, 0, 1,
-     3, 2, 4, 1, 0, 0, 1, 0, 0, -2, 4, -2, 0, 0, -2, 0], dtype=int)
-
-NUM_OBJECTS_BY_WIND_CLASS_DICT_NONZERO = {
-    -2: 5, 0: 1, 1: 2, 2: 3, 3: 4, 4: 25, 5: 100}
-NUM_OBJECTS_BY_WIND_CLASS_DICT_SOME_ZERO = {
-    -2: 0, 0: 1, 1: 0, 2: 3, 3: 0, 4: 25, 5: 0}
-
-INDICES_TO_KEEP_FOR_WIND_NONZERO = numpy.array(
-    [0, 5, 7, 4, 13, 20, 6, 18, 24, 26, 34, 3, 1, 21, 33, 35, 38], dtype=int)
-INDICES_TO_KEEP_FOR_WIND_SOME_ZERO = numpy.array(
-    [0, 4, 13, 20, 26, 34], dtype=int)
-
 # The following constants are used to test _subset_xy_grid_for_interp.
 NON_SUBSET_X_COORDS_METRES = numpy.array([0, 1, 2, 3, 4, 5, 6, 7], dtype=float)
 NON_SUBSET_Y_COORDS_METRES = numpy.array([-10, -5, 0, 5, 10, 15], dtype=float)
@@ -326,15 +303,6 @@ STORM_IMAGE_FILE_NAME_ONE_TIME = (
 STORM_IMAGE_FILE_NAME_ONE_SPC_DATE = (
     'storm_images/myrorss/2018/echo_top_40dbz_km/00250_metres_agl/'
     'storm_images_20180123.nc')
-
-TOP_LABEL_DIR_NAME = 'labels'
-LABEL_NAME = (
-    'wind-speed_percentile=100.0_lead-time=0000-3600sec_distance=00000-10000m_'
-    'cutoffs=10-20-30-40-50kt')
-
-STORM_LABEL_FILE_NAME_ONE_TIME = (
-    'labels/2018/20180123/wind_labels_2018-01-23-232345.nc')
-STORM_LABEL_FILE_NAME_ONE_SPC_DATE = 'labels/2018/wind_labels_20180123.nc'
 
 
 class StormImagesTests(unittest.TestCase):
@@ -648,66 +616,6 @@ class StormImagesTests(unittest.TestCase):
 
         self.assertTrue(this_coord_dict == STORM_IMAGE_COORD_DICT_BOTTOM_RIGHT)
 
-    def test_filter_storm_objects_by_label_tornado_nonzero(self):
-        """Ensures correct output from _filter_storm_objects_by_label.
-
-        In this case, target variable is tornado occurrence and desired number
-        of storm objects is non-zero for all classes.
-        """
-
-        these_indices = storm_images._filter_storm_objects_by_label(
-            label_values=TORNADO_LABELS_TO_FILTER,
-            num_storm_objects_class_dict=
-            NUM_OBJECTS_BY_TORNADO_CLASS_DICT_NONZERO, test_mode=True)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, INDICES_TO_KEEP_FOR_TORNADO_NONZERO))
-
-    def test_filter_storm_objects_by_label_tornado_one_zero(self):
-        """Ensures correct output from _filter_storm_objects_by_label.
-
-        In this case, target variable is tornado occurrence and desired number
-        of storm objects is zero for one class.
-        """
-
-        these_indices = storm_images._filter_storm_objects_by_label(
-            label_values=TORNADO_LABELS_TO_FILTER,
-            num_storm_objects_class_dict=
-            NUM_OBJECTS_BY_TORNADO_CLASS_DICT_ONE_ZERO, test_mode=True)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, INDICES_TO_KEEP_FOR_TORNADO_ONE_ZERO))
-
-    def test_filter_storm_objects_by_label_wind_nonzero(self):
-        """Ensures correct output from _filter_storm_objects_by_label.
-
-        In this case, target variable is wind-speed category and desired number
-        of storm objects is non-zero for all classes.
-        """
-
-        these_indices = storm_images._filter_storm_objects_by_label(
-            label_values=WIND_LABELS_TO_FILTER,
-            num_storm_objects_class_dict=
-            NUM_OBJECTS_BY_WIND_CLASS_DICT_NONZERO, test_mode=True)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, INDICES_TO_KEEP_FOR_WIND_NONZERO))
-
-    def test_filter_storm_objects_by_label_wind_some_zero(self):
-        """Ensures correct output from _filter_storm_objects_by_label.
-
-        In this case, target variable is wind-speed category and desired number
-        of storm objects is zero for some classes.
-        """
-
-        these_indices = storm_images._filter_storm_objects_by_label(
-            label_values=WIND_LABELS_TO_FILTER,
-            num_storm_objects_class_dict=
-            NUM_OBJECTS_BY_WIND_CLASS_DICT_SOME_ZERO, test_mode=True)
-
-        self.assertTrue(numpy.array_equal(
-            these_indices, INDICES_TO_KEEP_FOR_WIND_SOME_ZERO))
-
     def test_subset_xy_grid_for_interp(self):
         """Ensures correct output from _subset_xy_grid_for_interp."""
 
@@ -927,32 +835,6 @@ class StormImagesTests(unittest.TestCase):
         this_height_m_agl = storm_images.image_file_name_to_height(
             STORM_IMAGE_FILE_NAME_ONE_SPC_DATE)
         self.assertTrue(this_height_m_agl == RADAR_HEIGHT_M_AGL)
-
-    def test_find_storm_label_file_one_time(self):
-        """Ensures correct output from find_storm_label_file.
-
-        In this case, file name is for one time step.
-        """
-
-        this_file_name = storm_images.find_storm_label_file(
-            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_TIME,
-            top_label_dir_name=TOP_LABEL_DIR_NAME, label_name=LABEL_NAME,
-            raise_error_if_missing=False, warn_if_missing=False)
-
-        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_TIME)
-
-    def test_find_storm_label_file_one_spc_date(self):
-        """Ensures correct output from find_storm_label_file.
-
-        In this case, file name is for one SPC date.
-        """
-
-        this_file_name = storm_images.find_storm_label_file(
-            storm_image_file_name=STORM_IMAGE_FILE_NAME_ONE_SPC_DATE,
-            top_label_dir_name=TOP_LABEL_DIR_NAME, label_name=LABEL_NAME,
-            raise_error_if_missing=False, warn_if_missing=False)
-
-        self.assertTrue(this_file_name == STORM_LABEL_FILE_NAME_ONE_SPC_DATE)
 
 
 if __name__ == '__main__':

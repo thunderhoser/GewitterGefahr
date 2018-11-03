@@ -11,8 +11,8 @@ NUM_EXAMPLES_PER_BATCH = 100
 TORNADO_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00001-05000m'
 
 TORNADO_CLASS_TO_FRACTION_DICT = {0: 0.8, 1: 0.2}
-TORNADO_CLASS_TO_SMALL_NUM_EX_DICT = {0: 80, 1: 20}
-TORNADO_CLASS_TO_LARGE_NUM_EX_DICT = {
+TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS = {0: 80, 1: 20}
+TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_NO_DS = {
     0: NUM_EXAMPLES_PER_BATCH, 1: NUM_EXAMPLES_PER_BATCH
 }
 
@@ -20,7 +20,7 @@ WIND_TARGET_NAME = (
     'wind-speed_percentile=100.0_lead-time=1800-3600sec_distance=00001-05000m'
     '_cutoffs=30-50kt')
 WIND_CLASS_TO_FRACTION_DICT = {-2: 0.3, 0: 0.4, 1: 0.2, 2: 0.1}
-WIND_CLASS_TO_NUM_EXAMPLES_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
+WIND_CLASS_TO_NUM_PER_BATCH_DICT = {-2: 30, 0: 40, 1: 20, 2: 10}
 
 # The following constants are used to test _check_stopping_criterion.
 TARGET_VALUES_50ZEROS = numpy.full(50, 0, dtype=int)
@@ -53,7 +53,7 @@ class TrainingValidationIoTests(unittest.TestCase):
             target_name=TORNADO_TARGET_NAME,
             class_to_sampling_fraction_dict=TORNADO_CLASS_TO_FRACTION_DICT)
 
-        self.assertTrue(this_dict == TORNADO_CLASS_TO_SMALL_NUM_EX_DICT)
+        self.assertTrue(this_dict == TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS)
 
     def test_get_num_ex_per_batch_by_class_wind(self):
         """Ensures correct output from _get_num_ex_per_batch_by_class.
@@ -66,7 +66,7 @@ class TrainingValidationIoTests(unittest.TestCase):
             target_name=WIND_TARGET_NAME,
             class_to_sampling_fraction_dict=WIND_CLASS_TO_FRACTION_DICT)
 
-        self.assertTrue(this_dict == WIND_CLASS_TO_NUM_EXAMPLES_DICT)
+        self.assertTrue(this_dict == WIND_CLASS_TO_NUM_PER_BATCH_DICT)
 
     def test_get_num_ex_per_batch_by_class_no_downsampling(self):
         """Ensures correct output from _get_num_ex_per_batch_by_class.
@@ -79,7 +79,7 @@ class TrainingValidationIoTests(unittest.TestCase):
             target_name=TORNADO_TARGET_NAME,
             class_to_sampling_fraction_dict=None)
 
-        self.assertTrue(this_dict == TORNADO_CLASS_TO_LARGE_NUM_EX_DICT)
+        self.assertTrue(this_dict == TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_NO_DS)
 
     def test_check_stopping_criterion_tor_need_examples(self):
         """Ensures correct output from _check_stopping_criterion.
@@ -89,7 +89,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_SMALL_NUM_EX_DICT,
+            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS,
             class_to_sampling_fraction_dict=None,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
@@ -103,7 +103,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_EXAMPLES_DICT,
+            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
             class_to_sampling_fraction_dict=None,
             target_values_in_memory=TARGET_VALUES_50ZEROS)
 
@@ -118,7 +118,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_SMALL_NUM_EX_DICT,
+            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS,
             class_to_sampling_fraction_dict=None,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -133,7 +133,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_EXAMPLES_DICT,
+            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
             class_to_sampling_fraction_dict=None,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -149,7 +149,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_SMALL_NUM_EX_DICT,
+            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS,
             class_to_sampling_fraction_dict=TORNADO_CLASS_TO_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -165,7 +165,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_EXAMPLES_DICT,
+            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
             class_to_sampling_fraction_dict=WIND_CLASS_TO_FRACTION_DICT,
             target_values_in_memory=TARGET_VALUES_200ZEROS)
 
@@ -180,7 +180,7 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_SMALL_NUM_EX_DICT,
+            class_to_num_ex_per_batch_dict=TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS,
             class_to_sampling_fraction_dict=TORNADO_CLASS_TO_FRACTION_DICT,
             target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
 
@@ -195,11 +195,65 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         this_flag = trainval_io._check_stopping_criterion(
             num_examples_per_batch=NUM_EXAMPLES_PER_BATCH,
-            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_EXAMPLES_DICT,
+            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
             class_to_sampling_fraction_dict=WIND_CLASS_TO_FRACTION_DICT,
             target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
         self.assertTrue(this_flag)
+
+    def test_get_num_examples_to_read_by_class_tor_no_data(self):
+        """Ensures correct output from _get_num_examples_to_read_by_class.
+
+        In this case, target variable is tornado and there are no data in
+        memory.
+        """
+
+        this_dict = trainval_io._get_num_examples_to_read_by_class(
+            class_to_num_ex_per_batch_dict=
+            TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS,
+            target_values_in_memory=None)
+
+        self.assertTrue(this_dict == TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS)
+
+    def test_get_num_examples_to_read_by_class_tor_enough(self):
+        """Ensures correct output from _get_num_examples_to_read_by_class.
+
+        In this case, target variable is tornado and there are enough data in
+        memory from both classes.
+        """
+
+        this_dict = trainval_io._get_num_examples_to_read_by_class(
+            class_to_num_ex_per_batch_dict=
+            TORNADO_CLASS_TO_NUM_PER_BATCH_DICT_DS,
+            target_values_in_memory=TORNADO_TARGET_VALUES_ENOUGH_ONES)
+
+        self.assertTrue(this_dict == {0: 0, 1: 0})
+
+    def test_get_num_examples_to_read_by_class_wind_no_data(self):
+        """Ensures correct output from _get_num_examples_to_read_by_class.
+
+        In this case, target variable is wind and there are no data in
+        memory.
+        """
+
+        this_dict = trainval_io._get_num_examples_to_read_by_class(
+            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
+            target_values_in_memory=None)
+
+        self.assertTrue(this_dict == WIND_CLASS_TO_NUM_PER_BATCH_DICT)
+
+    def test_get_num_examples_to_read_by_class_wind_enough(self):
+        """Ensures correct output from _get_num_examples_to_read_by_class.
+
+        In this case, target variable is wind and there are enough data in
+        memory from both classes.
+        """
+
+        this_dict = trainval_io._get_num_examples_to_read_by_class(
+            class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
+            target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
+
+        self.assertTrue(this_dict == {0: 0, 1: 0})
 
 
 if __name__ == '__main__':

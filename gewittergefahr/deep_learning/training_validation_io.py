@@ -113,6 +113,35 @@ def _get_num_ex_per_batch_by_class(
         target_name=target_name, num_examples_total=num_examples_per_batch)
 
 
+def _get_num_examples_to_read_by_class(
+        class_to_num_ex_per_batch_dict, target_values_in_memory):
+    """Returns number of examples desired in next file for each class.
+
+    :param class_to_num_ex_per_batch_dict: Dictionary created by
+        `_get_num_ex_per_batch_by_class`.
+    :param target_values_in_memory: 1-D numpy array of target values (integer
+        class labels) in memory.
+    :return: class_to_num_ex_to_read_dict: Dictionary, where each key
+        is the integer ID for a target class (-2 for "dead storm") and each
+        value is the number of examples to read.
+    """
+
+    if target_values_in_memory is None:
+        return class_to_num_ex_per_batch_dict
+
+    class_to_num_ex_to_read_dict = {}
+
+    for this_class in class_to_num_ex_per_batch_dict.keys():
+        this_num_examples = (
+            class_to_num_ex_per_batch_dict[this_class] -
+            numpy.sum(target_values_in_memory == this_class)
+        )
+        this_num_examples = max([this_num_examples, 0])
+        class_to_num_ex_to_read_dict.update({this_class: this_num_examples})
+
+    return class_to_num_ex_to_read_dict
+
+
 def _check_stopping_criterion(
         num_examples_per_batch, class_to_num_ex_per_batch_dict,
         class_to_sampling_fraction_dict, target_values_in_memory):
@@ -497,6 +526,10 @@ def example_generator_2d_or_3d(option_dict):
 
                 file_index = 0
 
+            class_to_num_ex_to_read_dict = _get_num_examples_to_read_by_class(
+                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+                target_values_in_memory=target_values)
+
             print 'Reading data from: "{0:s}"...'.format(
                 example_file_names[file_index])
             this_example_dict = input_examples.read_example_file(
@@ -509,7 +542,8 @@ def example_generator_2d_or_3d(option_dict):
                 first_time_to_keep_unix_sec=first_storm_time_unix_sec,
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
-                num_columns_to_keep=num_grid_columns)
+                num_columns_to_keep=num_grid_columns,
+                class_to_num_examples_dict=class_to_num_ex_to_read_dict)
 
             file_index += 1
             include_soundings = (
@@ -717,6 +751,10 @@ def example_generator_2d3d_myrorss(option_dict):
 
                 file_index = 0
 
+            class_to_num_ex_to_read_dict = _get_num_examples_to_read_by_class(
+                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+                target_values_in_memory=target_values)
+
             print 'Reading data from: "{0:s}"...'.format(
                 example_file_names[file_index])
             this_example_dict = input_examples.read_example_file(
@@ -729,7 +767,8 @@ def example_generator_2d3d_myrorss(option_dict):
                 first_time_to_keep_unix_sec=first_storm_time_unix_sec,
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
-                num_columns_to_keep=num_grid_columns)
+                num_columns_to_keep=num_grid_columns,
+                class_to_num_examples_dict=class_to_num_ex_to_read_dict)
 
             file_index += 1
             include_soundings = (
