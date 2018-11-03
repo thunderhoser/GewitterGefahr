@@ -451,6 +451,9 @@ def example_generator_2d_or_3d(option_dict):
     radar_field_names = option_dict[RADAR_FIELDS_KEY]
     radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
     sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+    print '\n\n\n'
+    print sounding_field_names
+    print '\n\n\n'
     sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
