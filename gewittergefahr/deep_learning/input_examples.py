@@ -16,6 +16,7 @@ F_s = number of sounding fields (or "variables" or "channels")
 C = number of radar field/height pairs
 """
 
+import glob
 import os.path
 import numpy
 import netCDF4
@@ -29,8 +30,10 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
-TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+BATCH_NUMBER_REGEX = '[0-9][0-9][0-9][0-9][0-9][0-9][0-9]'
+TIME_FORMAT_IN_FILE_NAMES = '%Y-%m-%d-%H%M%S'
 
 DEFAULT_NUM_EXAMPLES_PER_OUT_CHUNK = 8
 DEFAULT_NUM_EXAMPLES_PER_OUT_FILE = 128
@@ -546,6 +549,19 @@ def _compare_metadata(netcdf_dataset, example_dict):
         raise ValueError(error_string)
 
 
+def _file_name_to_batch_number(example_file_name):
+    """Parses batch number from file.
+
+    :param example_file_name: See doc for `find_example_file`.
+    :return: batch_number: Integer.
+    :raises: ValueError: if batch number cannot be parsed from file name.
+    """
+
+    pathless_file_name = os.path.split(example_file_name)[-1]
+    extensionless_file_name = os.path.splitext(pathless_file_name)[0]
+    return int(extensionless_file_name.split('input_examples_batch')[-1])
+
+
 def remove_storms_with_undefined_target(radar_image_dict):
     """Removes storm objects with undefined target value.
 
@@ -920,6 +936,8 @@ def find_example_file(
         SPC date (format "yyyymmdd").
     :param batch_number: [used only if `shuffled = True`]
         Batch number (integer).
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
     :return: example_file_name: Path to file with input examples.  If file is
         missing and `raise_error_if_missing = False`, this is the *expected*
         path.
@@ -986,21 +1004,23 @@ def find_many_example_files(
         error_checking.assert_is_integer(first_batch_number)
         error_checking.assert_is_integer(last_batch_number)
         error_checking.assert_is_geq(first_batch_number, 0)
+        error_checking.assert_is_geq(last_batch_number, first_batch_number)
 
-        batch_numbers = numpy.linspace(
-            first_batch_number, last_batch_number,
-            num=last_batch_number - first_batch_number + 1, dtype=int)
+        example_file_pattern = (
+            '{0:s}/batches{1:s}-{1:s}/input_examples_batch{1:s}.nc'
+        ).format(top_directory_name, BATCH_NUMBER_REGEX)
+        example_file_names = glob.glob(example_file_pattern)
 
-        example_file_names = []
-        for this_batch_number in batch_numbers:
-            this_file_name = find_example_file(
-                top_directory_name=top_directory_name, shuffled=True,
-                batch_number=this_batch_number,
-                raise_error_if_missing=raise_error_if_any_missing)
+        if len(example_file_names) > 0:
+            batch_numbers = numpy.array(
+                [_file_name_to_batch_number(f) for f in example_file_names],
+                dtype=int)
+            good_indices = numpy.where(numpy.logical_and(
+                batch_numbers >= first_batch_number,
+                batch_numbers <= last_batch_number
+            ))[0]
 
-            if not os.path.isfile(this_file_name):
-                continue
-            example_file_names.append(this_file_name)
+            example_file_names = [example_file_names[k] for k in good_indices]
 
         if len(example_file_names) == 0:
             error_string = (

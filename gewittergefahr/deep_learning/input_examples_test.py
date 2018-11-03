@@ -158,7 +158,8 @@ EXAMPLE_DICT_2D3D_SUBSET[
     input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY
 ] = THIS_AZ_SHEAR_IMAGE_MATRIX_S01[INDICES_TO_KEEP, ...]
 
-# The following constants are used to test find_example_file.
+# The following constants are used to test find_example_file and
+# _file_name_to_batch_number.
 TOP_DIRECTORY_NAME = 'foo'
 BATCH_NUMBER = 1967
 SPC_DATE_STRING = '19670502'
@@ -309,6 +310,29 @@ class InputExamplesTests(unittest.TestCase):
             spc_date_string=SPC_DATE_STRING, raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == EXAMPLE_FILE_NAME_UNSHUFFLED)
+
+    def test_file_name_to_batch_number_shuffled(self):
+        """Ensures correct output from _file_name_to_batch_number.
+
+        In this case the input file is shuffled, so _file_name_to_batch_number
+        should return a batch number.
+        """
+
+        this_batch_number = input_examples._file_name_to_batch_number(
+            EXAMPLE_FILE_NAME_SHUFFLED)
+        self.assertTrue(this_batch_number == BATCH_NUMBER)
+
+    def test_file_name_to_batch_number_unshuffled(self):
+        """Ensures correct output from _file_name_to_batch_number.
+
+        In this case the input file is *not* shuffled, so
+        _file_name_to_batch_number should be unable to find a batch number, thus
+        return an error.
+        """
+
+        with self.assertRaises(ValueError):
+            input_examples._file_name_to_batch_number(
+                EXAMPLE_FILE_NAME_UNSHUFFLED)
 
 
 if __name__ == '__main__':
