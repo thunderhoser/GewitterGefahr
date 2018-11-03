@@ -674,6 +674,7 @@ def get_3d_swirlnet_architecture(
             this_num_filters *= 2
 
         for _ in range(num_conv_layers_per_set):
+            print radar_layer_object
             radar_layer_object = architecture_utils.get_3d_conv_layer(
                 num_output_filters=this_num_filters,
                 num_kernel_rows=3, num_kernel_columns=3, num_kernel_depths=3,
