@@ -290,29 +290,29 @@ def create_climo_initializer(
         error_checking.assert_is_numpy_array(
             numpy.array(sounding_field_names), num_dimensions=1)
 
-        error_checking.assert_is_integer_numpy_array(sounding_heights_m_agl)
         error_checking.assert_is_numpy_array(
             sounding_heights_m_agl, num_dimensions=1)
+        sounding_heights_m_agl = numpy.round(sounding_heights_m_agl).astype(int)
 
     if radar_field_names is not None:
         error_checking.assert_is_string_list(radar_field_names)
         error_checking.assert_is_numpy_array(
             numpy.array(radar_field_names), num_dimensions=1)
 
-        error_checking.assert_is_integer_numpy_array(radar_heights_m_agl)
         error_checking.assert_is_numpy_array(
             radar_heights_m_agl, num_dimensions=1)
+        radar_heights_m_agl = numpy.round(radar_heights_m_agl).astype(int)
 
     if radar_field_name_by_channel is not None:
         error_checking.assert_is_string_list(radar_field_name_by_channel)
         error_checking.assert_is_numpy_array(
             numpy.array(radar_field_name_by_channel), num_dimensions=1)
 
-        error_checking.assert_is_integer_numpy_array(
-            radar_height_by_channel_m_agl)
         error_checking.assert_is_numpy_array(
             radar_height_by_channel_m_agl,
             exact_dimensions=numpy.array([len(radar_field_name_by_channel)]))
+        radar_height_by_channel_m_agl = numpy.round(
+            radar_height_by_channel_m_agl).astype(int)
 
     def init_function(array_dimensions):
         """Initializes numpy array with climatological means.

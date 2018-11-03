@@ -160,12 +160,11 @@ def _check_extraction_args(
     radar_utils.check_data_source(radar_source)
 
     if radar_source == radar_utils.GRIDRAD_SOURCE_ID:
-        error_checking.assert_is_integer_numpy_array(radar_heights_m_agl)
         error_checking.assert_is_greater_numpy_array(radar_heights_m_agl, 0)
         error_checking.assert_is_numpy_array(
             numpy.array(radar_heights_m_agl), num_dimensions=1)
+
     elif reflectivity_heights_m_agl is not None:
-        error_checking.assert_is_integer_numpy_array(reflectivity_heights_m_agl)
         error_checking.assert_is_greater_numpy_array(
             reflectivity_heights_m_agl, 0)
         error_checking.assert_is_numpy_array(
@@ -262,7 +261,6 @@ def _check_storm_images(
         valid_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects]))
 
     radar_utils.check_field_name(radar_field_name)
-    error_checking.assert_is_integer(radar_height_m_agl)
     error_checking.assert_is_geq(radar_height_m_agl, 0)
 
     error_checking.assert_is_boolean(rotated_grids)
@@ -336,8 +334,6 @@ def _fields_and_heights_to_pairs(
 
     for this_field_name in radar_field_names:
         if this_field_name == radar_utils.REFL_NAME:
-            error_checking.assert_is_integer_numpy_array(
-                reflectivity_heights_m_agl)
             error_checking.assert_is_greater_numpy_array(
                 reflectivity_heights_m_agl, 0)
             error_checking.assert_is_numpy_array(
@@ -352,6 +348,10 @@ def _fields_and_heights_to_pairs(
 
             field_name_by_pair.append(this_field_name)
             height_by_pair_m_agl.append(this_height_m_agl)
+
+    height_by_pair_m_agl = numpy.round(
+        numpy.array(height_by_pair_m_agl)
+    ).astype(int)
 
     return field_name_by_pair, height_by_pair_m_agl
 
@@ -1182,6 +1182,9 @@ def extract_storm_images_myrorss_or_mrms(
         radar_field_names=radar_field_names, radar_source=radar_source,
         reflectivity_heights_m_agl=reflectivity_heights_m_agl)
 
+    reflectivity_heights_m_agl = numpy.round(
+        reflectivity_heights_m_agl).astype(int)
+
     # Find elevation of each storm object.
     if radar_utils.REFL_NAME in radar_field_names:
         print 'Finding elevation of each storm object...'
@@ -1506,6 +1509,8 @@ def extract_storm_images_gridrad(
         radar_field_names=radar_field_names,
         radar_source=radar_utils.GRIDRAD_SOURCE_ID,
         radar_heights_m_agl=radar_heights_m_agl)
+
+    radar_heights_m_agl = numpy.round(radar_heights_m_agl).astype(int)
 
     # Find elevation of each storm object.
     print 'Finding elevation of each storm object...'
@@ -2372,8 +2377,9 @@ def find_many_files_gridrad(
         radar_utils.check_field_name(this_field_name)
 
     error_checking.assert_is_numpy_array(radar_heights_m_agl, num_dimensions=1)
-    error_checking.assert_is_integer_numpy_array(radar_heights_m_agl)
     error_checking.assert_is_greater_numpy_array(radar_heights_m_agl, 0)
+    radar_heights_m_agl = numpy.round(radar_heights_m_agl).astype(int)
+
     error_checking.assert_is_boolean(one_file_per_time_step)
     error_checking.assert_is_boolean(raise_error_if_all_missing)
 

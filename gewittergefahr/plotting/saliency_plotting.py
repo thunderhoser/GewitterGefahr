@@ -543,11 +543,11 @@ def plot_saliency_with_radar_2d_fields(
         numpy.array(field_name_by_pair),
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
-    error_checking.assert_is_integer_numpy_array(height_by_pair_m_agl)
     error_checking.assert_is_geq_numpy_array(height_by_pair_m_agl, 0)
     error_checking.assert_is_numpy_array(
         height_by_pair_m_agl,
         exact_dimensions=numpy.array([num_field_height_pairs]))
+    height_by_pair_m_agl = numpy.round(height_by_pair_m_agl).astype(int)
 
     error_checking.assert_is_boolean(one_fig_per_storm_object)
     error_checking.assert_is_integer(num_panel_rows)
@@ -721,10 +721,10 @@ def plot_saliency_with_radar_3d_fields(
         numpy.array(radar_field_names),
         exact_dimensions=numpy.array([num_fields]))
 
-    error_checking.assert_is_integer_numpy_array(radar_heights_m_agl)
     error_checking.assert_is_geq_numpy_array(radar_heights_m_agl, 0)
     error_checking.assert_is_numpy_array(
         radar_heights_m_agl, exact_dimensions=numpy.array([num_heights]))
+    radar_heights_m_agl = numpy.round(radar_heights_m_agl).astype(int)
 
     error_checking.assert_is_boolean(one_fig_per_storm_object)
     error_checking.assert_is_integer(num_panel_rows)

@@ -783,9 +783,9 @@ def _pressure_to_height_coords(
     sounding_dict_height_coords['field_names']: length-F list of field names.
     """
 
-    error_checking.assert_is_integer_numpy_array(height_levels_m_agl)
     error_checking.assert_is_numpy_array(height_levels_m_agl, num_dimensions=1)
     error_checking.assert_is_geq_numpy_array(height_levels_m_agl, 0)
+    height_levels_m_agl = numpy.round(height_levels_m_agl).astype(int)
 
     sounding_dict_height_coords = {
         STORM_IDS_KEY: sounding_dict_pressure_coords[STORM_IDS_KEY],

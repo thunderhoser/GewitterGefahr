@@ -51,8 +51,9 @@ def get_echo_tops(unix_time_sec, spc_date_string, top_directory_name,
     """
 
     error_checking.assert_is_greater(critical_reflectivity_dbz, 0.)
-    error_checking.assert_is_integer(top_height_to_consider_m_asl)
     error_checking.assert_is_greater(top_height_to_consider_m_asl, 0)
+    top_height_to_consider_m_asl = int(
+        numpy.round(top_height_to_consider_m_asl))
 
     if lowest_refl_to_consider_dbz is None:
         lowest_refl_to_consider_dbz = 0.

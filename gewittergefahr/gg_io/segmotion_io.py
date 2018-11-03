@@ -367,9 +367,11 @@ def unzip_1day_tar_file(
     _ = time_conversion.spc_date_string_to_unix_sec(spc_date_string)
     error_checking.assert_file_exists(tar_file_name)
     error_checking.assert_is_greater_numpy_array(scales_to_extract_metres2, 0)
-    error_checking.assert_is_integer_numpy_array(scales_to_extract_metres2)
     error_checking.assert_is_numpy_array(
         scales_to_extract_metres2, num_dimensions=1)
+
+    scales_to_extract_metres2 = numpy.round(
+        scales_to_extract_metres2).astype(int)
 
     num_scales_to_extract = len(scales_to_extract_metres2)
     directory_names_to_unzip = []

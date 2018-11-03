@@ -715,11 +715,11 @@ def plot_many_2d_grids_without_coords(
         numpy.array(field_name_by_pair),
         exact_dimensions=numpy.array([num_field_height_pairs]))
 
-    error_checking.assert_is_integer_numpy_array(height_by_pair_metres)
     error_checking.assert_is_geq_numpy_array(height_by_pair_metres, 0)
     error_checking.assert_is_numpy_array(
         height_by_pair_metres,
         exact_dimensions=numpy.array([num_field_height_pairs]))
+    height_by_pair_metres = numpy.round(height_by_pair_metres).astype(int)
 
     error_checking.assert_is_boolean(ground_relative)
     error_checking.assert_is_integer(num_panel_rows)
@@ -791,10 +791,11 @@ def plot_3d_grid_without_coords(
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
 
     num_heights = field_matrix.shape[2]
-    error_checking.assert_is_integer_numpy_array(grid_point_heights_metres)
     error_checking.assert_is_geq_numpy_array(grid_point_heights_metres, 0)
     error_checking.assert_is_numpy_array(
         grid_point_heights_metres, exact_dimensions=numpy.array([num_heights]))
+    grid_point_heights_metres = numpy.round(
+        grid_point_heights_metres).astype(int)
 
     error_checking.assert_is_boolean(ground_relative)
     error_checking.assert_is_integer(num_panel_rows)

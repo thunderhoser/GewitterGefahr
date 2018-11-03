@@ -740,7 +740,6 @@ def soundings_to_metpy_dictionaries(
         pressure_index = field_names.index(soundings.PRESSURE_NAME)
         pressure_matrix_pascals = sounding_matrix[..., pressure_index]
     except ValueError:
-        error_checking.assert_is_integer_numpy_array(height_levels_m_agl)
         error_checking.assert_is_geq_numpy_array(height_levels_m_agl, 0)
         error_checking.assert_is_numpy_array(
             height_levels_m_agl, num_dimensions=1)

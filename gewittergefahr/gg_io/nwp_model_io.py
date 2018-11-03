@@ -2,6 +2,7 @@
 
 import os
 import copy
+import numpy
 from gewittergefahr.gg_io import grib_io
 from gewittergefahr.gg_io import downloads
 from gewittergefahr.gg_utils import nwp_model_utils
@@ -21,9 +22,8 @@ def _lead_time_to_string(lead_time_hours):
     :return: lead_time_hour_string: Lead time (format "HHH").
     """
 
-    error_checking.assert_is_integer(lead_time_hours)
     error_checking.assert_is_geq(lead_time_hours, 0)
-    return '{0:03d}'.format(lead_time_hours)
+    return '{0:03d}'.format(int(numpy.round(lead_time_hours)))
 
 
 def _get_pathless_file_name_prefixes(model_name, grid_id=None):

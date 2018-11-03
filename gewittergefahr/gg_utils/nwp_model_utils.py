@@ -736,7 +736,7 @@ def get_times_needed_for_interp(query_times_unix_sec=None,
     error_checking.assert_is_integer_numpy_array(query_times_unix_sec)
     error_checking.assert_is_numpy_array_without_nan(query_times_unix_sec)
     error_checking.assert_is_numpy_array(query_times_unix_sec, num_dimensions=1)
-    error_checking.assert_is_integer(model_time_step_hours)
+    model_time_step_hours = int(numpy.round(model_time_step_hours))
     error_checking.assert_is_string(method_string)
 
     model_time_step_sec = model_time_step_hours * HOURS_TO_SECONDS
