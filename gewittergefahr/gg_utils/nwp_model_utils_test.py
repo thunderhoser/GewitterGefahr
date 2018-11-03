@@ -1,5 +1,6 @@
 """Unit tests for nwp_model_utils.py."""
 
+import os.path
 import unittest
 import numpy
 import pandas
@@ -13,22 +14,24 @@ FAKE_GRID_DIMENSIONS = numpy.array([1, 2])
 
 MAX_MEAN_DISTANCE_ERROR_RAP_METRES = 100.
 MAX_MAX_DISTANCE_ERROR_RAP_METRES = 500.
-GRID130_LATLNG_FILE_NAME = 'grid_point_latlng_grid130.data'
-GRID252_LATLNG_FILE_NAME = 'grid_point_latlng_grid252.data'
-
-MAX_MEAN_DISTANCE_ERROR_RUC_METRES = 100.
-MAX_MAX_DISTANCE_ERROR_RUC_METRES = 200.
-GRID236_LATLNG_FILE_NAME = 'grid_point_latlng_grid236.data'
+GRID130_LATLNG_FILE_NAME = '{0:s}/grid_point_latlng_grid130.data'.format(
+    os.path.dirname(__file__))
+GRID252_LATLNG_FILE_NAME = '{0:s}/grid_point_latlng_grid252.data'.format(
+    os.path.dirname(__file__))
 
 MAX_MEAN_DISTANCE_ERROR_NARR_METRES = 250.
 MAX_MAX_DISTANCE_ERROR_NARR_METRES = 1000.
-NARR_LATLNG_FILE_NAME = 'grid_point_latlng_grid221.data'
+NARR_LATLNG_FILE_NAME = '{0:s}/grid_point_latlng_grid221.data'.format(
+    os.path.dirname(__file__))
 
 MAX_MEAN_SIN_OR_COS_ERROR = 1e-5
 MAX_MAX_SIN_OR_COS_ERROR = 1e-4
-GRID130_WIND_ROTATION_FILE_NAME = 'wind_rotation_angles_grid130.data'
-GRID252_WIND_ROTATION_FILE_NAME = 'wind_rotation_angles_grid252.data'
-GRID236_WIND_ROTATION_FILE_NAME = 'wind_rotation_angles_grid236.data'
+GRID130_WIND_ROTATION_FILE_NAME = (
+    '{0:s}/wind_rotation_angles_grid130.data'
+).format(os.path.dirname(__file__))
+GRID252_WIND_ROTATION_FILE_NAME = (
+    '{0:s}/wind_rotation_angles_grid252.data'
+).format(os.path.dirname(__file__))
 
 # The following constants are used to test get_times_needed_for_interp.
 MODEL_TIME_STEP_HOURS = 3
@@ -205,13 +208,6 @@ class NwpModelUtilsTests(unittest.TestCase):
         nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
                                       nwp_model_utils.ID_FOR_252GRID)
 
-    def test_check_grid_id_rap236(self):
-        """Ensures correct output from check_grid_id for RAP on 236 grid."""
-
-        with self.assertRaises(ValueError):
-            nwp_model_utils.check_grid_id(nwp_model_utils.RAP_MODEL_NAME,
-                                          nwp_model_utils.ID_FOR_236GRID)
-
     def test_check_grid_id_ruc130(self):
         """Ensures correct output from check_grid_id for RUC on 130 grid."""
 
@@ -223,12 +219,6 @@ class NwpModelUtilsTests(unittest.TestCase):
 
         nwp_model_utils.check_grid_id(nwp_model_utils.RUC_MODEL_NAME,
                                       nwp_model_utils.ID_FOR_252GRID)
-
-    def test_check_grid_id_ruc236(self):
-        """Ensures correct output from check_grid_id for RUC on 236 grid."""
-
-        nwp_model_utils.check_grid_id(nwp_model_utils.RUC_MODEL_NAME,
-                                      nwp_model_utils.ID_FOR_236GRID)
 
     def test_dimensions_to_grid_id_221(self):
         """Ensures correct output from dimensions_to_grid_id for 221 grid."""
@@ -256,15 +246,6 @@ class NwpModelUtilsTests(unittest.TestCase):
 
         this_grid_id = nwp_model_utils.dimensions_to_grid_id(these_dimensions)
         self.assertTrue(this_grid_id == nwp_model_utils.ID_FOR_252GRID)
-
-    def test_dimensions_to_grid_id_236(self):
-        """Ensures correct output from dimensions_to_grid_id for 236 grid."""
-
-        these_dimensions = numpy.array(nwp_model_utils.get_grid_dimensions(
-            nwp_model_utils.RUC_MODEL_NAME, nwp_model_utils.ID_FOR_236GRID))
-
-        this_grid_id = nwp_model_utils.dimensions_to_grid_id(these_dimensions)
-        self.assertTrue(this_grid_id == nwp_model_utils.ID_FOR_236GRID)
 
     def test_dimensions_to_grid_id_fake(self):
         """Ensures correct output from dimensions_to_grid_id for fake grid."""
@@ -557,47 +538,6 @@ class NwpModelUtilsTests(unittest.TestCase):
             distance_error_matrix_metres) <= MAX_MEAN_DISTANCE_ERROR_RAP_METRES)
         self.assertTrue(numpy.max(
             distance_error_matrix_metres) <= MAX_MAX_DISTANCE_ERROR_RAP_METRES)
-
-    def test_projection_grid236(self):
-        """Ensures approx correctness of Lambert projection for NCEP 236 grid.
-
-        See documentation for test_projection_grid130.
-        """
-
-        num_grid_rows, num_grid_columns = nwp_model_utils.get_grid_dimensions(
-            model_name=nwp_model_utils.RUC_MODEL_NAME,
-            grid_id=nwp_model_utils.ID_FOR_236GRID)
-
-        (grid_point_lng_vector_deg, grid_point_lat_vector_deg) = numpy.loadtxt(
-            GRID236_LATLNG_FILE_NAME, unpack=True)
-        grid_point_lat_matrix_deg = numpy.reshape(
-            grid_point_lat_vector_deg, (num_grid_rows, num_grid_columns))
-        grid_point_lng_matrix_deg = numpy.reshape(
-            grid_point_lng_vector_deg, (num_grid_rows, num_grid_columns))
-
-        grid_point_x_matrix_metres, grid_point_y_matrix_metres = (
-            nwp_model_utils.project_latlng_to_xy(
-                grid_point_lat_matrix_deg, grid_point_lng_matrix_deg,
-                model_name=nwp_model_utils.RUC_MODEL_NAME,
-                grid_id=nwp_model_utils.ID_FOR_236GRID))
-
-        (expected_grid_point_x_matrix_metres,
-         expected_grid_point_y_matrix_metres) = (
-             nwp_model_utils.get_xy_grid_point_matrices(
-                 model_name=nwp_model_utils.RUC_MODEL_NAME,
-                 grid_id=nwp_model_utils.ID_FOR_236GRID))
-
-        x_error_matrix_metres = (
-            grid_point_x_matrix_metres - expected_grid_point_x_matrix_metres)
-        y_error_matrix_metres = (
-            grid_point_y_matrix_metres - expected_grid_point_y_matrix_metres)
-        distance_error_matrix_metres = numpy.sqrt(
-            x_error_matrix_metres ** 2 + y_error_matrix_metres ** 2)
-
-        self.assertTrue(numpy.mean(
-            distance_error_matrix_metres) <= MAX_MEAN_DISTANCE_ERROR_RUC_METRES)
-        self.assertTrue(numpy.max(
-            distance_error_matrix_metres) <= MAX_MAX_DISTANCE_ERROR_RUC_METRES)
 
     def test_projection_narr(self):
         """Ensures approx correctness of Lambert projection for NARR grid.

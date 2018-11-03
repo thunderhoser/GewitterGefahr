@@ -43,7 +43,7 @@ REFLECTIVITY_MATRIX_DBZ = numpy.stack(
     (THIS_REFL_MATRIX_1KM_DBZ, THIS_REFL_MATRIX_2KM_DBZ,
      THIS_REFL_MATRIX_3KM_DBZ), axis=0)
 
-UNIQUE_GRID_POINT_HEIGHTS_M_ASL = numpy.array([1000., 2000., 3000.])
+GRID_POINT_HEIGHTS_M_ASL = numpy.array([1000., 2000., 3000.])
 TARGET_HEIGHT_MATRIX_M_ASL = numpy.array(
     [[500., 1000.], [1500., 2500.], [3000., 3500.]])
 INTERP_REFL_MATRIX_DBZ = numpy.array(
@@ -88,7 +88,7 @@ class GridradUtilsTests(unittest.TestCase):
 
         this_interp_matrix_dbz = gridrad_utils.interp_reflectivity_to_heights(
             reflectivity_matrix_dbz=REFLECTIVITY_MATRIX_DBZ,
-            unique_grid_point_heights_m_asl=UNIQUE_GRID_POINT_HEIGHTS_M_ASL,
+            grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
             target_height_matrix_m_asl=TARGET_HEIGHT_MATRIX_M_ASL)
 
         self.assertTrue(numpy.allclose(
@@ -109,7 +109,7 @@ class GridradUtilsTests(unittest.TestCase):
 
         this_echo_top_matrix_m_asl = gridrad_utils.get_echo_tops(
             reflectivity_matrix_dbz=REFL_MATRIX_FOR_ECHO_TOPS_DBZ,
-            unique_grid_point_heights_m_asl=UNIQUE_GRID_POINT_HEIGHTS_M_ASL,
+            grid_point_heights_m_asl=GRID_POINT_HEIGHTS_M_ASL,
             critical_reflectivity_dbz=CRIT_REFL_FOR_ECHO_TOPS_DBZ)
 
         self.assertTrue(numpy.allclose(

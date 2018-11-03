@@ -11,10 +11,10 @@ FAKE_COLUMNS_IN_DATAFRAME = ['foo', 'bar', 'moo']
 DATAFRAME = pandas.DataFrame.from_dict(
     {'foo': numpy.array([]), 'bar': numpy.array([])})
 
-GRID_POINT_FILE_NAME = 'grid_point_latlng_grid130.data'
-GRID_POINT_DIR_NAME = os.path.dirname(os.path.realpath(GRID_POINT_FILE_NAME))
-FAKE_FILE_NAME = GRID_POINT_FILE_NAME + '-_=+'
-FAKE_DIR_NAME = GRID_POINT_DIR_NAME + '-_=+'
+THIS_FILE_NAME = __file__
+THIS_DIRECTORY_NAME = os.path.split(THIS_FILE_NAME)[0]
+FAKE_FILE_NAME = THIS_FILE_NAME + '-_=+'
+FAKE_DIRECTORY_NAME = THIS_DIRECTORY_NAME + '-_=+'
 
 SINGLE_INTEGER = 1959
 SINGLE_FLOAT = 1959.
@@ -437,7 +437,7 @@ class ErrorCheckingTests(unittest.TestCase):
         """Checks assert_file_exists when input is directory."""
 
         with self.assertRaises(ValueError):
-            error_checking.assert_file_exists(GRID_POINT_DIR_NAME)
+            error_checking.assert_file_exists(THIS_DIRECTORY_NAME)
 
     def test_assert_file_exists_fake(self):
         """Checks assert_file_exists when input is fake file."""
@@ -448,24 +448,24 @@ class ErrorCheckingTests(unittest.TestCase):
     def test_assert_file_exists_true(self):
         """Checks assert_file_exists when input is existent file."""
 
-        error_checking.assert_file_exists(GRID_POINT_FILE_NAME)
+        error_checking.assert_file_exists(THIS_FILE_NAME)
 
     def test_assert_directory_exists_file(self):
         """Checks assert_directory_exists when input is file."""
 
         with self.assertRaises(ValueError):
-            error_checking.assert_directory_exists(GRID_POINT_FILE_NAME)
+            error_checking.assert_directory_exists(THIS_FILE_NAME)
 
     def test_assert_directory_exists_fake(self):
         """Checks assert_directory_exists when input is fake directory."""
 
         with self.assertRaises(ValueError):
-            error_checking.assert_directory_exists(FAKE_DIR_NAME)
+            error_checking.assert_directory_exists(FAKE_DIRECTORY_NAME)
 
     def test_assert_directory_exists_true(self):
         """Checks assert_directory_exists when input is existent directory."""
 
-        error_checking.assert_directory_exists(GRID_POINT_DIR_NAME)
+        error_checking.assert_directory_exists(THIS_DIRECTORY_NAME)
 
     def test_assert_is_integer_too_many_inputs(self):
         """Checks assert_is_integer when input is array of integers."""
