@@ -1360,11 +1360,11 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
 
 
 def read_example_file(
-        netcdf_file_name, metadata_only=False, radar_field_names_to_keep=None,
-        radar_heights_to_keep_m_agl=None, sounding_field_names_to_keep=None,
-        sounding_heights_to_keep_m_agl=None, first_time_to_keep_unix_sec=None,
-        last_time_to_keep_unix_sec=None, num_rows_to_keep=None,
-        num_columns_to_keep=None):
+        netcdf_file_name, metadata_only=False, include_soundings=True,
+        radar_field_names_to_keep=None, radar_heights_to_keep_m_agl=None,
+        sounding_field_names_to_keep=None, sounding_heights_to_keep_m_agl=None,
+        first_time_to_keep_unix_sec=None, last_time_to_keep_unix_sec=None,
+        num_rows_to_keep=None, num_columns_to_keep=None):
     """Reads input examples from NetCDF file.
 
     If the file contains both 2-D and 3-D radar images:
@@ -1377,6 +1377,8 @@ def read_example_file(
     If `metadata_only = False`, all subsequent input args are unused.
 
     :param netcdf_file_name: Path to input file.
+    :param include_soundings: Boolean flag.  If True and the file contains
+        soundings, this method will return soundings.  Otherwise, no soundings.
     :param metadata_only: Boolean flag.  If False, this method will read
         everything.  If True, will read everything except predictor and target
         variables.
@@ -1404,10 +1406,16 @@ def read_example_file(
     # TODO(thunderhoser): Documentation for this method (how it can handle files
     # with 2-D only, 3-D only, or 2-D and 3-D images) could be better.
 
+    error_checking.assert_is_boolean(include_soundings)
     error_checking.assert_is_boolean(metadata_only)
 
     # Open file and read metadata.
     netcdf_dataset = netCDF4.Dataset(netcdf_file_name)
+    include_soundings = (
+        include_soundings and
+        SOUNDING_FIELDS_KEY in netcdf_dataset.variables
+    )
+
     target_name = str(getattr(netcdf_dataset, TARGET_NAME_KEY))
     rotated_grids = bool(getattr(netcdf_dataset, ROTATED_GRIDS_KEY))
 
@@ -1442,7 +1450,6 @@ def read_example_file(
             RADAR_HEIGHTS_KEY: radar_heights_m_agl
         }
 
-        include_soundings = SOUNDING_FIELDS_KEY in netcdf_dataset.variables
         if include_soundings:
             sounding_field_names = [
                 str(s) for s in netCDF4.chartostring(
@@ -1577,7 +1584,6 @@ def read_example_file(
             AZ_SHEAR_IMAGE_MATRIX_KEY: az_shear_image_matrix_s01
         })
 
-    include_soundings = SOUNDING_FIELDS_KEY in netcdf_dataset.variables
     if include_soundings:
 
         # Error-check desired sounding fields and heights.

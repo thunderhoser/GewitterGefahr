@@ -451,9 +451,6 @@ def example_generator_2d_or_3d(option_dict):
     radar_field_names = option_dict[RADAR_FIELDS_KEY]
     radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
     sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
-    print '\n\n\n'
-    print sounding_field_names
-    print '\n\n\n'
     sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
@@ -467,7 +464,8 @@ def example_generator_2d_or_3d(option_dict):
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
-    this_example_dict = input_examples.read_example_file(example_file_names[0])
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     class_to_num_ex_per_batch_dict = _get_num_ex_per_batch_by_class(
@@ -503,6 +501,7 @@ def example_generator_2d_or_3d(option_dict):
                 example_file_names[file_index])
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
+                include_soundings=sounding_field_names is not None,
                 radar_field_names_to_keep=radar_field_names,
                 radar_heights_to_keep_m_agl=radar_heights_m_agl,
                 sounding_field_names_to_keep=sounding_field_names,
@@ -685,7 +684,8 @@ def example_generator_2d3d_myrorss(option_dict):
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
-    this_example_dict = input_examples.read_example_file(example_file_names[0])
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     class_to_num_ex_per_batch_dict = _get_num_ex_per_batch_by_class(
@@ -721,6 +721,7 @@ def example_generator_2d3d_myrorss(option_dict):
                 example_file_names[file_index])
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
+                include_soundings=sounding_field_names is not None,
                 radar_field_names_to_keep=azimuthal_shear_field_names,
                 radar_heights_to_keep_m_agl=reflectivity_heights_m_agl,
                 sounding_field_names_to_keep=sounding_field_names,

@@ -132,7 +132,8 @@ def _check_training_args(
         return None
 
     this_example_dict = input_examples.read_example_file(
-        training_option_dict[trainval_io.EXAMPLE_FILES_KEY][0])
+        netcdf_file_name=training_option_dict[trainval_io.EXAMPLE_FILES_KEY][0],
+        metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     return dl_utils.class_fractions_to_weights(

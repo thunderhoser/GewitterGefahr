@@ -61,11 +61,6 @@ DEFAULT_MONITOR_STRING = cnn.LOSS_FUNCTION_STRING
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 
 DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
-DEFAULT_SOUNDING_FIELD_NAMES = [
-    soundings.RELATIVE_HUMIDITY_NAME, soundings.SPECIFIC_HUMIDITY_NAME,
-    soundings.U_WIND_NAME, soundings.V_WIND_NAME,
-    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
-]
 DEFAULT_NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING
 DEFAULT_MIN_NORM_VALUE = -1.
 DEFAULT_MAX_NORM_VALUE = 1.
@@ -319,11 +314,11 @@ def add_input_arguments(argument_parser_object):
 
     argument_parser_object.add_argument(
         '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
-        default=['None'], help=RADAR_FIELDS_HELP_STRING)
+        default=[''], help=RADAR_FIELDS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + SOUNDING_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
-        default=DEFAULT_SOUNDING_FIELD_NAMES, help=SOUNDING_FIELDS_HELP_STRING)
+        default=[''], help=SOUNDING_FIELDS_HELP_STRING)
 
     argument_parser_object.add_argument(
         '--' + NUM_ROWS_ARG_NAME, type=int, required=True,
