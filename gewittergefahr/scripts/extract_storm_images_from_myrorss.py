@@ -159,7 +159,8 @@ def _extract_storm_images(
 
     # Untar files with azimuthal shear.
     az_shear_field_names = list(
-        set(radar_field_names) & set(ALL_AZ_SHEAR_FIELD_NAMES))
+        set(radar_field_names) & set(ALL_AZ_SHEAR_FIELD_NAMES)
+    )
 
     if len(az_shear_field_names):
         az_shear_tar_file_name = (
@@ -174,7 +175,8 @@ def _extract_storm_images(
 
     # Untar files with other radar fields.
     non_shear_field_names = list(
-        set(radar_field_names) - set(ALL_AZ_SHEAR_FIELD_NAMES))
+        set(radar_field_names) - set(ALL_AZ_SHEAR_FIELD_NAMES)
+    )
 
     if len(non_shear_field_names):
         non_shear_tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
@@ -195,7 +197,8 @@ def _extract_storm_images(
         tracking_scale_metres2=tracking_scale_metres2)[0]
 
     storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
+        tracking_file_names
+    )[storm_images.STORM_COLUMNS_NEEDED]
     print SEPARATOR_STRING
 
     # Extract storm-centered radar images.

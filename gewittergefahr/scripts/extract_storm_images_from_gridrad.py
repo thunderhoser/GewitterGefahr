@@ -145,7 +145,8 @@ def _extract_storm_images(
 
     # Read storm objects on the given SPC date.
     storm_object_table = tracking_io.read_many_processed_files(
-        tracking_file_names)
+        tracking_file_names
+    )[storm_images.STORM_COLUMNS_NEEDED]
     print SEPARATOR_STRING
 
     # Extract storm-centered radar images.
