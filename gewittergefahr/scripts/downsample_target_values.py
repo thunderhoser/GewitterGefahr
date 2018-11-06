@@ -3,6 +3,7 @@
 import os.path
 import argparse
 import numpy
+import pandas
 from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -174,17 +175,17 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
         these_indices = these_indices[these_indices >= 0]
 
-        this_target_dict = dict()
-        this_target_dict[labels.STORM_IDS_KEY] = [
-            target_dict_by_file[i][labels.STORM_IDS_KEY][k]
-            for k in these_indices
-        ]
-        this_target_dict[
-            labels.VALID_TIMES_KEY
-        ] = target_dict_by_file[i][labels.VALID_TIMES_KEY][these_indices]
-        this_target_dict[
-            labels.LABEL_VALUES_KEY
-        ] = target_dict_by_file[i][labels.LABEL_VALUES_KEY][these_indices]
+        this_output_dict = {
+            tracking_utils.STORM_ID_COLUMN: [
+                target_dict_by_file[i][labels.STORM_IDS_KEY][k]
+                for k in these_indices
+            ],
+            tracking_utils.TIME_COLUMN:
+                target_dict_by_file[i][labels.VALID_TIMES_KEY][these_indices],
+            target_name:
+                target_dict_by_file[i][labels.LABEL_VALUES_KEY][these_indices]
+        }
+        this_output_table = pandas.DataFrame.from_dict(this_output_dict)
 
         this_new_file_name = labels.find_label_file(
             top_directory_name=top_output_dir_name,
@@ -196,10 +197,14 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             'Writing {0:d} downsampled storm objects (out of {1:d} total) to: '
             '"{2:s}"...'
         ).format(
-            len(this_target_dict[labels.STORM_IDS_KEY]),
+            len(this_output_table.index),
             len(target_dict_by_file[i][labels.STORM_IDS_KEY]),
             this_new_file_name
         )
+
+        labels.write_labels_to_netcdf(
+            storm_to_events_table=this_output_table, label_names=[target_name],
+            netcdf_file_name=this_new_file_name)
 
 
 if __name__ == '__main__':
