@@ -171,7 +171,10 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             this_id in storm_ids
             for this_id in target_dict_by_file[i][labels.STORM_IDS_KEY]
         ], dtype=bool)
+
         these_indices = numpy.where(these_flags)[0]
+        if len(these_indices) == 0:
+            continue
 
         this_output_dict = {
             tracking_utils.STORM_ID_COLUMN: [
