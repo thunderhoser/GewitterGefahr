@@ -160,6 +160,20 @@ TIMES_TO_KEEP_UNIX_SEC_ONE_MISSING = numpy.array(
     [0, 0, 1, 1, 2, 1, 2], dtype=int)
 RELEVANT_INDICES_ONE_MISSING = numpy.array([0, 2, 4, 6, 8, 6, -1], dtype=int)
 
+# The following constants are used to test find_storm_cells.
+STORM_ID_BY_OBJECT = [
+    'a', 'b', 'c', 'd', 'e', 'a', 'b', 'c', 'e', 'f', 'a', 'b', 'e', 'f', 'a',
+    'b', 'f', 'g', 'b', 'f', 'g'
+]
+DESIRED_CELL_IDS_NONE_MISSING = [
+    'a', 'a', 'a', 'a', 'd', 'd', 'd', 'c', 'c', 'c',
+]
+DESIRED_CELL_IDS_SOME_MISSING = [
+    'a', 'a', 'a', 'a', 'd', 'd', 'd', 'h', 'h', 'c', 'c', 'c', 'i'
+]
+
+RELEVANT_INDICES_FOR_CELLS = numpy.array([0, 2, 3, 5, 7, 10, 14], dtype=int)
+
 # The following constants are used to test merge_storms_at_two_scales.
 NUM_STORMS_LARGE_SCALE = 3
 STORM_IDS_LARGE_SCALE = ['a', 'b', 'c']
@@ -415,6 +429,47 @@ class StormTrackingUtilsTests(unittest.TestCase):
 
         self.assertTrue(numpy.array_equal(
             these_indices, RELEVANT_INDICES_ONE_MISSING))
+
+    def test_find_storm_cells_none_missing(self):
+        """Ensures correct output from find_storm_cells.
+
+        In this case, no desired storm IDs are missing.
+        """
+
+        these_indices = tracking_utils.find_storm_cells(
+            storm_id_by_object=STORM_ID_BY_OBJECT,
+            desired_storm_ids=DESIRED_CELL_IDS_NONE_MISSING,
+            allow_missing=False)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, RELEVANT_INDICES_FOR_CELLS))
+
+    def test_find_storm_cells_allow_missing(self):
+        """Ensures correct output from find_storm_cells.
+
+        In this case, some desired storm IDs are missing and this is allowed.
+        """
+
+        these_indices = tracking_utils.find_storm_cells(
+            storm_id_by_object=STORM_ID_BY_OBJECT,
+            desired_storm_ids=DESIRED_CELL_IDS_SOME_MISSING,
+            allow_missing=True)
+
+        self.assertTrue(numpy.array_equal(
+            these_indices, RELEVANT_INDICES_FOR_CELLS))
+
+    def test_find_storm_cells_disallow_missing(self):
+        """Ensures correct output from find_storm_cells.
+
+        In this case, some desired storm IDs are missing and this is *not*
+        allowed.
+        """
+
+        with self.assertRaises(ValueError):
+            tracking_utils.find_storm_cells(
+                storm_id_by_object=STORM_ID_BY_OBJECT,
+                desired_storm_ids=DESIRED_CELL_IDS_SOME_MISSING,
+                allow_missing=False)
 
     def test_merge_storms_at_two_scales(self):
         """Ensures correct output from merge_storms_at_two_scales."""

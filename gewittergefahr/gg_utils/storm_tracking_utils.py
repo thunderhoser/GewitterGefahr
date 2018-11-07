@@ -324,6 +324,54 @@ def find_storm_objects(
     return relevant_indices
 
 
+def find_storm_cells(
+        storm_id_by_object, desired_storm_ids, allow_missing=False):
+    """Finds storm cells.
+
+    N = number of input storm objects
+    n = number of storm objects to keep
+
+    :param storm_id_by_object: length-N list of storm IDs (strings).
+    :param desired_storm_ids: 1-D list of desired storm IDs.
+    :param allow_missing: Boolean flag.  If True, this method will allow for
+        missing storm cells (i.e., some items in `desired_storm_ids` may be
+        absent from `storm_id_by_object`).  If False, this method will error out
+        if there are missing cells.
+    :return: relevant_indices: length-n numpy array of indices.  These are
+        indices into `storm_id_by_object`, covering all items in
+        `storm_id_by_object` that are also in `desired_storm_ids`.
+    :raises: ValueError: if storm cell is missing and `allow_missing = False`.
+    """
+
+    error_checking.assert_is_boolean(allow_missing)
+    error_checking.assert_is_string_list(storm_id_by_object)
+    error_checking.assert_is_numpy_array(
+        numpy.array(storm_id_by_object), num_dimensions=1)
+
+    error_checking.assert_is_string_list(desired_storm_ids)
+    error_checking.assert_is_numpy_array(
+        numpy.array(desired_storm_ids), num_dimensions=1)
+
+    desired_storm_ids = numpy.unique(numpy.array(desired_storm_ids))
+
+    relevant_flags = numpy.in1d(
+        numpy.array(storm_id_by_object), desired_storm_ids, assume_unique=False)
+    relevant_indices = numpy.where(relevant_flags)[0]
+    if allow_missing:
+        return relevant_indices
+
+    found_storm_ids = numpy.unique(
+        numpy.array(storm_id_by_object)[relevant_indices])
+    if numpy.array_equal(found_storm_ids, desired_storm_ids):
+        return relevant_indices
+
+    error_string = (
+        '\nDesired storm IDs:\n{0:s}\nFound storm IDs:\n{1:s}\nNot all desired '
+        'storm IDs were found, as shown above.'
+    ).format(str(desired_storm_ids), str(found_storm_ids))
+    raise ValueError(error_string)
+
+
 def merge_storms_at_two_scales(storm_object_table_small_scale=None,
                                storm_object_table_large_scale=None,
                                num_grid_rows=None, num_grid_columns=None):

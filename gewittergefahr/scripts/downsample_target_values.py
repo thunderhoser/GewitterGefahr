@@ -119,6 +119,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     target_dict_by_file = [None] * num_files
 
     storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
     target_values = numpy.array([], dtype=int)
 
     for i in range(num_files):
@@ -128,6 +129,9 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             netcdf_file_name=input_target_file_names[i], label_name=target_name)
 
         storm_ids += target_dict_by_file[i][labels.STORM_IDS_KEY]
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec, target_dict_by_file[i][labels.VALID_TIMES_KEY]
+        ))
         target_values = numpy.concatenate((
             target_values, target_dict_by_file[i][labels.LABEL_VALUES_KEY]
         ))
@@ -136,6 +140,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
     good_indices = numpy.where(target_values != labels.INVALID_STORM_INTEGER)[0]
     storm_ids = [storm_ids[k] for k in good_indices]
+    storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
 
     unique_target_values, unique_counts = numpy.unique(
@@ -150,13 +155,12 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         target_name=target_name, target_values=target_values,
         num_examples_total=LARGE_INTEGER)
 
-    storm_ids_to_keep = [storm_ids[k] for k in indices_to_keep]
-
-    keep_storm_object_flags = numpy.array(
-        [this_id in storm_ids_to_keep for this_id in storm_ids], dtype=bool)
-    indices_to_keep = numpy.where(keep_storm_object_flags)[0]
+    indices_to_keep = tracking_utils.find_storm_cells(
+        storm_id_by_object=storm_ids,
+        desired_storm_ids=[storm_ids[k] for k in indices_to_keep])
 
     storm_ids = [storm_ids[k] for k in indices_to_keep]
+    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
     target_values = target_values[indices_to_keep]
 
     unique_target_values, unique_counts = numpy.unique(
@@ -167,12 +171,13 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     print '\n'
 
     for i in range(num_files):
-        these_flags = numpy.array([
-            this_id in storm_ids
-            for this_id in target_dict_by_file[i][labels.STORM_IDS_KEY]
-        ], dtype=bool)
+        these_indices = tracking_utils.find_storm_objects(
+            all_storm_ids=target_dict_by_file[i][labels.STORM_IDS_KEY],
+            all_times_unix_sec=target_dict_by_file[i][labels.VALID_TIMES_KEY],
+            storm_ids_to_keep=storm_ids,
+            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
 
-        these_indices = numpy.where(these_flags)[0]
+        these_indices = these_indices[these_indices >= 0]
         if len(these_indices) == 0:
             continue
 
