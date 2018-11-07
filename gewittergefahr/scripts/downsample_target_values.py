@@ -166,13 +166,9 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         storm_id_by_object=storm_ids,
         desired_storm_ids=[storm_ids[k] for k in highest_class_indices])
 
-    print first_indices_to_keep.shape
-    print second_indices_to_keep.shape
-    print first_indices_to_keep.dtype
-    print second_indices_to_keep.dtype
-
-    indices_to_keep = numpy.unique(numpy.concatenate(
-        first_indices_to_keep, second_indices_to_keep))
+    indices_to_keep = numpy.unique(numpy.concatenate((
+        first_indices_to_keep, second_indices_to_keep
+    )))
 
     storm_ids = [storm_ids[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
