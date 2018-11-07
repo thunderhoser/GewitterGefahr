@@ -160,7 +160,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     highest_class_indices = numpy.where(
         target_values[first_indices_to_keep] == num_classes - 1
     )[0]
-    highest_class_indices = highest_class_indices[first_indices_to_keep]
+    first_indices_to_keep = first_indices_to_keep[highest_class_indices]
 
     second_indices_to_keep = tracking_utils.find_storm_cells(
         storm_id_by_object=storm_ids,
