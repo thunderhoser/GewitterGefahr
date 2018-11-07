@@ -150,14 +150,24 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
             unique_counts[k], unique_target_values[k])
     print '\n'
 
-    indices_to_keep = dl_utils.sample_by_class(
+    first_indices_to_keep = dl_utils.sample_by_class(
         sampling_fraction_by_class_dict=class_fraction_dict,
         target_name=target_name, target_values=target_values,
         num_examples_total=LARGE_INTEGER)
 
-    indices_to_keep = tracking_utils.find_storm_cells(
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+    highest_class_indices = numpy.where(
+        target_values[first_indices_to_keep] == num_classes - 1
+    )[0]
+    highest_class_indices = highest_class_indices[first_indices_to_keep]
+
+    second_indices_to_keep = tracking_utils.find_storm_cells(
         storm_id_by_object=storm_ids,
-        desired_storm_ids=[storm_ids[k] for k in indices_to_keep])
+        desired_storm_ids=[storm_ids[k] for k in highest_class_indices])
+
+    indices_to_keep = numpy.unique(numpy.concatenate(
+        first_indices_to_keep, second_indices_to_keep))
 
     storm_ids = [storm_ids[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
