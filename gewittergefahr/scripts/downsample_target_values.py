@@ -12,6 +12,8 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+FRACTION_LOWER_CLASS_TIMES_TO_OMIT = 0.8
+
 INPUT_DIR_ARG_NAME = 'input_target_dir_name'
 TARGET_NAME_ARG_NAME = 'target_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
@@ -74,6 +76,141 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+
+def _report_class_fractions(target_values):
+    """Reports fraction of examples in each class.
+
+    :param target_values: length-N numpy array of corresponding target values
+        (integer class labels).
+    """
+
+    unique_target_values, unique_counts = numpy.unique(
+        target_values, return_counts=True)
+
+    print '\n'
+    for k in range(len(unique_target_values)):
+        print '{0:d} examples in class = {1:d}'.format(
+            unique_counts[k], unique_target_values[k])
+    print '\n'
+
+
+def _find_uncovered_times(all_times_unix_sec, covered_times_unix_sec):
+    """Finds times in set 1 that are not in set 2.
+
+    :param all_times_unix_sec: 1-D numpy array with all times.
+    :param covered_times_unix_sec: 1-D numpy array of covered times.
+    :return: uncovered_indices: 1-D numpy array of indices, such that
+        `all_times_unix_sec[uncovered_indices]` yields all times in
+        `all_times_unix_sec` that are not in `covered_times_unix_sec`, including
+        duplicates.
+    :raises: ValueError: if not all covered times were found in
+        `all_times_unix_sec`.
+    """
+
+    covered_times_unix_sec = numpy.unique(covered_times_unix_sec)
+
+    covered_flags = numpy.in1d(
+        all_times_unix_sec, covered_times_unix_sec, assume_unique=False)
+    covered_indices = numpy.where(covered_flags)[0]
+
+    found_times_unix_sec = numpy.unique(all_times_unix_sec[covered_indices])
+    if numpy.array_equal(found_times_unix_sec, covered_times_unix_sec):
+        return numpy.where(numpy.invert(covered_flags))[0]
+
+    error_string = (
+        '\nCovered times:\n{0:s}\nCovered times found in all_times_unix_sec:\n'
+        '{1:s}\nNot all covered times were found, as shown above.'
+    ).format(str(covered_times_unix_sec), str(found_times_unix_sec))
+    raise ValueError(error_string)
+
+
+def _downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
+                class_fraction_dict):
+    """Nitty-gritty downsampling calculations.
+
+    N = original number of storm objects
+    n = number of storm objects after downsampling
+
+    :param storm_ids: length-N list of storm IDs (strings).
+    :param storm_times_unix_sec: length-N numpy array of corresponding times.
+    :param target_values: length-N numpy array of corresponding target values
+        (integer class labels).
+    :param target_name: See documentation at top of file.
+    :param class_fraction_dict: Same.
+    :return: storm_ids: length-n list of storm IDs (strings).
+    :return: storm_times_unix_sec: length-n numpy array of corresponding times.
+    :return: target_values: length-n numpy array of corresponding target values.
+    """
+
+    _report_class_fractions(target_values)
+
+    num_storm_objects = len(storm_ids)
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+
+    # Find storm *objects* in highest class.
+    print (
+        'Finding storm *objects* in class {0:d} (the highest class)...'
+    ).format(num_classes - 1)
+
+    highest_class_indices = numpy.where(target_values == num_classes - 1)[0]
+
+    print '{0:d} of {1:d} storm objects are in highest class.'.format(
+        len(highest_class_indices), num_storm_objects)
+
+    # Find storm *cells* with at least one object in highest class.
+    print 'Finding storm *cells* with at least one object in highest class...'
+    highest_class_indices = tracking_utils.find_storm_cells(
+        storm_id_by_object=storm_ids,
+        desired_storm_ids=[storm_ids[k] for k in highest_class_indices])
+
+    print 'These cells include {0:d} of {1:d} objects.'.format(
+        len(highest_class_indices), num_storm_objects)
+
+    # Find "lower-class times" (times with no cells having at least one object
+    # in highest class).
+    print ('Finding "lower-class times" (times with no cells having at least '
+           'one object in highest class)...')
+
+    lower_class_times_unix_sec = (
+        set(storm_times_unix_sec.tolist()) -
+        set(storm_times_unix_sec[highest_class_indices].tolist())
+    )
+
+    # Randomly remove some of these "lower-class times".
+    print 'Randomly removing {0:.1f}% of lower-class times...'.format(
+        FRACTION_LOWER_CLASS_TIMES_TO_OMIT * 100)
+
+    this_num_times = int(numpy.round(
+        FRACTION_LOWER_CLASS_TIMES_TO_OMIT * len(lower_class_times_unix_sec)
+    ))
+    times_to_remove_unix_sec = numpy.random.choice(
+        lower_class_times_unix_sec, size=this_num_times, replace=False)
+
+    # Find all storm objects from remaining times.
+    indices_to_keep = _find_uncovered_times(
+        all_times_unix_sec=storm_times_unix_sec,
+        covered_times_unix_sec=times_to_remove_unix_sec)
+
+    storm_ids = [storm_ids[k] for k in indices_to_keep]
+    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
+    target_values = target_values[indices_to_keep]
+    _report_class_fractions(target_values)
+
+    # Now downsample storm objects themselves.
+    print 'Finally downsampling storm objects themselves...'
+    indices_to_keep = dl_utils.sample_by_class(
+        sampling_fraction_by_class_dict=class_fraction_dict,
+        target_name=target_name, target_values=target_values,
+        num_examples_total=LARGE_INTEGER)
+
+    storm_ids = [storm_ids[k] for k in indices_to_keep]
+    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
+    target_values = target_values[indices_to_keep]
+    _report_class_fractions(target_values)
+
+    return storm_ids, storm_times_unix_sec, target_values
 
 
 def _run(top_input_dir_name, target_name, first_spc_date_string,
@@ -143,43 +280,10 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
 
-    unique_target_values, unique_counts = numpy.unique(
-        target_values, return_counts=True)
-    for k in range(len(unique_target_values)):
-        print '{0:d} examples with target class = {1:d}'.format(
-            unique_counts[k], unique_target_values[k])
-    print '\n'
-
-    first_indices_to_keep = dl_utils.sample_by_class(
-        sampling_fraction_by_class_dict=class_fraction_dict,
-        target_name=target_name, target_values=target_values,
-        num_examples_total=LARGE_INTEGER)
-
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
-    highest_class_indices = numpy.where(
-        target_values[first_indices_to_keep] == num_classes - 1
-    )[0]
-    highest_class_indices = first_indices_to_keep[highest_class_indices]
-
-    second_indices_to_keep = tracking_utils.find_storm_cells(
-        storm_id_by_object=storm_ids,
-        desired_storm_ids=[storm_ids[k] for k in highest_class_indices])
-
-    indices_to_keep = numpy.unique(numpy.concatenate((
-        first_indices_to_keep, second_indices_to_keep
-    )))
-
-    storm_ids = [storm_ids[k] for k in indices_to_keep]
-    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
-    target_values = target_values[indices_to_keep]
-
-    unique_target_values, unique_counts = numpy.unique(
-        target_values, return_counts=True)
-    for k in range(len(unique_target_values)):
-        print '{0:d} examples with target class = {1:d}'.format(
-            unique_counts[k], unique_target_values[k])
-    print '\n'
+    storm_ids, storm_times_unix_sec, target_values = _downsample(
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        target_values=target_values, target_name=target_name,
+        class_fraction_dict=class_fraction_dict)
 
     for i in range(num_files):
         these_indices = tracking_utils.find_storm_objects(
