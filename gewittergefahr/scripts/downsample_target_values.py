@@ -95,6 +95,41 @@ def _report_class_fractions(target_values):
     print '\n'
 
 
+def _find_storm_cells(storm_id_by_object, desired_storm_cell_ids):
+    """Finds storm IDs from set 2 in set 1.
+
+    N = number of storm objects
+    n = number of desired storm cells
+
+    :param storm_id_by_object: length-N list of storm IDs (strings).
+    :param desired_storm_cell_ids: length-n list of storm IDs (strings).
+    :return: relevant_indices: 1-D numpy array of indices, such that
+        `storm_id_by_object[relevant_indices]` yields all IDs in
+        `storm_id_by_object` that are in `desired_storm_cell_ids`, including
+        duplicates.
+    :raises: ValueError: if not all desired ID were found in
+        `storm_id_by_object`.
+    """
+
+    desired_storm_cell_ids = numpy.unique(numpy.array(desired_storm_cell_ids))
+
+    relevant_flags = numpy.in1d(
+        numpy.array(storm_id_by_object), desired_storm_cell_ids,
+        assume_unique=False)
+    relevant_indices = numpy.where(relevant_flags)[0]
+
+    found_storm_ids = numpy.unique(
+        numpy.array(storm_id_by_object)[relevant_indices])
+    if numpy.array_equal(found_storm_ids, desired_storm_cell_ids):
+        return relevant_indices
+
+    error_string = (
+        '\nDesired storm IDs:\n{0:s}\nFound storm IDs:\n{1:s}\nNot all desired '
+        'storm IDs were found, as shown above.'
+    ).format(str(desired_storm_cell_ids), str(found_storm_ids))
+    raise ValueError(error_string)
+
+
 def _find_uncovered_times(all_times_unix_sec, covered_times_unix_sec):
     """Finds times in set 1 that are not in set 2.
 
@@ -161,9 +196,9 @@ def _downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
 
     # Find storm *cells* with at least one object in highest class.
     print 'Finding storm *cells* with at least one object in highest class...'
-    highest_class_indices = tracking_utils.find_storm_cells(
+    highest_class_indices = _find_storm_cells(
         storm_id_by_object=storm_ids,
-        desired_storm_ids=[storm_ids[k] for k in highest_class_indices])
+        desired_storm_cell_ids=[storm_ids[k] for k in highest_class_indices])
 
     print 'These cells include {0:d} of {1:d} objects.'.format(
         len(highest_class_indices), num_storm_objects)
