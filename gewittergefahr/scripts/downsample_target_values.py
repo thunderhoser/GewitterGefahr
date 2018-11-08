@@ -177,6 +177,8 @@ def _downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
         set(storm_times_unix_sec.tolist()) -
         set(storm_times_unix_sec[highest_class_indices].tolist())
     )
+    lower_class_times_unix_sec = numpy.array(
+        list(lower_class_times_unix_sec), dtype=int)
 
     # Randomly remove some of these "lower-class times".
     print 'Randomly removing {0:.1f}% of lower-class times...'.format(
