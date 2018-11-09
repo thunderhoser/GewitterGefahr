@@ -1041,8 +1041,10 @@ def downsize_storm_images(
 
     radar_utils.check_field_name(radar_field_name)
     if radar_field_name in AZIMUTHAL_SHEAR_FIELD_NAMES:
-        num_rows_to_keep *= 2
-        num_columns_to_keep *= 2
+        if num_rows_to_keep is not None:
+            num_rows_to_keep *= 2
+        if num_columns_to_keep is not None:
+            num_columns_to_keep *= 2
 
     num_rows_total = storm_image_matrix.shape[1]
     if num_rows_to_keep == num_rows_total:
