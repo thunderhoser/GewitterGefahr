@@ -53,8 +53,9 @@ def _estimate_melting_levels(latitudes_deg, valid_time_unix_sec):
         time_conversion.unix_sec_to_string(valid_time_unix_sec, '%m'))
 
     return (
-        MELT_LEVEL_INTERCEPT_BY_MONTH_M_ASL[month_index] +
-        MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01 * numpy.absolute(latitudes_deg)
+        MELT_LEVEL_INTERCEPT_BY_MONTH_M_ASL[month_index - 1] +
+        MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01[month_index - 1] *
+        numpy.absolute(latitudes_deg)
     )
 
 
@@ -122,7 +123,8 @@ def _get_peakedness_thresholds(reflectivity_matrix_dbz):
     """
 
     this_matrix = 10. - (reflectivity_matrix_dbz ** 2) / 337.5
-    return (this_matrix > 4.).astype(float)
+    this_matrix[this_matrix < 4.] = 4.
+    return this_matrix
 
 
 def _apply_convective_criterion1(
@@ -140,8 +142,6 @@ def _apply_convective_criterion1(
         latitudes (deg N) at grid points.
     grid_metadata_dict['grid_point_longitudes_deg']: length-N numpy array of
         longitudes (deg E) at grid points.
-    grid_metadata_dict['grid_point_heights_m_asl']: length-H numpy array of
-        heights (metres above sea level) at grid points.
 
     :return: convective_flag_matrix: M-by-N numpy array of Boolean flags (True
         if convective, False if not).
@@ -182,7 +182,7 @@ def _apply_convective_criterion2(
     :return: convective_flag_matrix: Updated version of input.
     """
 
-    latitude_matrix_deg, _, height_matrix_m_asl = numpy.meshgrid(
+    _, latitude_matrix_deg, height_matrix_m_asl = numpy.meshgrid(
         grid_metadata_dict[LONGITUDES_KEY], grid_metadata_dict[LATITUDES_KEY],
         grid_metadata_dict[HEIGHTS_KEY])
 
@@ -304,10 +304,8 @@ def find_convective_pixels(
         (deg E) over all grid points.
     grid_metadata_dict['longitude_spacing_deg']: Spacing (deg E) between grid
         points in adjacent columns.
-    grid_metadata_dict['min_grid_point_height_m_asl']: Minimum height (metres
-        above sea level) over all grid points.
-    grid_metadata_dict['height_spacing_metres']: Spacing (metres) between grid
-        points at adjacent heights.
+    grid_metadata_dict['grid_point_heights_m_asl']: length-H numpy array of
+        heights (metres above sea level) at grid points.
 
     :param valid_time_unix_sec: Valid time.
     :param peakedness_neigh_metres: Neighbourhood radius for peakedness
@@ -344,18 +342,19 @@ def find_convective_pixels(
     error_checking.assert_is_greater(min_composite_refl_dbz, 0.)
     error_checking.assert_is_greater(min_composite_refl_above_melting_dbz, 0.)
 
-    min_height_m_asl = int(numpy.round(grid_metadata_dict[MIN_HEIGHT_KEY]))
-    height_spacing_metres = int(
-        numpy.round(grid_metadata_dict[HEIGHT_SPACING_KEY]))
+    grid_point_heights_m_asl = numpy.round(
+        grid_metadata_dict[HEIGHTS_KEY]).astype(int)
 
-    error_checking.assert_is_geq(min_height_m_asl, 0)
-    error_checking.assert_is_greater(height_spacing_metres, 0)
+    error_checking.assert_is_numpy_array(
+        grid_point_heights_m_asl, num_dimensions=1)
+    error_checking.assert_is_geq_numpy_array(grid_point_heights_m_asl, 0)
+    error_checking.assert_is_greater_numpy_array(
+        numpy.diff(grid_point_heights_m_asl), 0)  # Must be in ascending order.
 
     # Compute grid-point coordinates.
     reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
     num_rows = reflectivity_matrix_dbz.shape[0]
     num_columns = reflectivity_matrix_dbz.shape[1]
-    num_heights = reflectivity_matrix_dbz.shape[2]
 
     grid_point_latitudes_deg, grid_point_longitudes_deg = (
         grids.get_latlng_grid_points(
@@ -366,15 +365,8 @@ def find_convective_pixels(
             num_rows=num_rows, num_columns=num_columns)
     )
 
-    max_height_m_asl = (
-        min_height_m_asl + (num_heights - 1) * height_spacing_metres
-    )
-    grid_point_heights_m_asl = numpy.linspace(
-        min_height_m_asl, max_height_m_asl, num=num_heights, dtype=int)
-
     grid_metadata_dict[LATITUDES_KEY] = grid_point_latitudes_deg
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
-    grid_metadata_dict[HEIGHTS_KEY] = grid_point_heights_m_asl
 
     convective_flag_matrix = _apply_convective_criterion1(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
