@@ -115,21 +115,23 @@ THIS_MATRIX = numpy.stack(
 PEAKEDNESS_MATRIX_DBZ = REFLECTIVITY_MATRIX_DBZ - THIS_MATRIX
 
 # The following constants are used to test _apply_convective_criterion1.
+MAX_PEAKEDNESS_HEIGHT_M_ASL = 9000.
+
 CRITERION1_FLAG_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
-                                      [0, 0, 0, 0, 0, 0, 1]], dtype=bool)
+                                      [1, 0, 0, 0, 0, 0, 1]], dtype=bool)
 
 # The following constants are used to test _apply_convective_criterion2.
 VALID_TIME_UNIX_SEC = 1541823287  # 041447 UTC 10 Nov 2018
-MIN_COMPOSITE_REFL_ABOVE_MELTING_DBZ = 15.
+MIN_COMPOSITE_REFL_AML_DBZ = 15.
 
 CRITERION2_FLAG_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 1],
-                                      [0, 0, 0, 1, 1, 1, 1]], dtype=bool)
+                                      [1, 0, 0, 1, 1, 1, 1]], dtype=bool)
 
 # The following constants are used to test _apply_convective_criterion3.
 MIN_ECHO_TOP_M_ASL = 6000.
@@ -139,7 +141,7 @@ CRITERION3_FLAG_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 0, 0, 0],
                                       [0, 0, 0, 0, 1, 1, 1],
-                                      [0, 1, 1, 1, 1, 1, 1]], dtype=bool)
+                                      [1, 1, 1, 1, 1, 1, 1]], dtype=bool)
 
 # The following constants are used to test _apply_convective_criterion4.
 CRITERION4_FLAG_MATRIX = copy.deepcopy(CRITERION3_FLAG_MATRIX)
@@ -222,6 +224,7 @@ class EchoClassificationTests(unittest.TestCase):
         this_flag_matrix = echo_classifn._apply_convective_criterion1(
             reflectivity_matrix_dbz=REFLECTIVITY_MATRIX_DBZ,
             peakedness_neigh_metres=NEIGH_RADIUS_METRES,
+            max_peakedness_height_m_asl=MAX_PEAKEDNESS_HEIGHT_M_ASL,
             grid_metadata_dict=GRID_METADATA_DICT)
 
         self.assertTrue(numpy.array_equal(
@@ -235,8 +238,7 @@ class EchoClassificationTests(unittest.TestCase):
             convective_flag_matrix=CRITERION1_FLAG_MATRIX,
             grid_metadata_dict=GRID_METADATA_DICT,
             valid_time_unix_sec=VALID_TIME_UNIX_SEC,
-            min_composite_refl_above_melting_dbz=
-            MIN_COMPOSITE_REFL_ABOVE_MELTING_DBZ)
+            min_composite_refl_aml_dbz=MIN_COMPOSITE_REFL_AML_DBZ)
 
         self.assertTrue(numpy.array_equal(
             this_flag_matrix, CRITERION2_FLAG_MATRIX))
@@ -299,11 +301,11 @@ class EchoClassificationTests(unittest.TestCase):
             grid_metadata_dict=GRID_METADATA_DICT,
             valid_time_unix_sec=VALID_TIME_UNIX_SEC,
             peakedness_neigh_metres=NEIGH_RADIUS_METRES,
+            max_peakedness_height_m_asl=MAX_PEAKEDNESS_HEIGHT_M_ASL,
             min_echo_top_m_asl=MIN_ECHO_TOP_M_ASL,
             echo_top_level_dbz=ECHO_TOP_LEVEL_DBZ,
             min_composite_refl_dbz=MIN_COMPOSITE_REFL_DBZ,
-            min_composite_refl_above_melting_dbz=
-            MIN_COMPOSITE_REFL_ABOVE_MELTING_DBZ)
+            min_composite_refl_aml_dbz=MIN_COMPOSITE_REFL_AML_DBZ)
 
         self.assertTrue(numpy.array_equal(
             this_flag_matrix, CRITERION5_FLAG_MATRIX))

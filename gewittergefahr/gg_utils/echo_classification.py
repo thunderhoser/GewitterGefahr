@@ -36,6 +36,13 @@ MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01 = numpy.array(
     [-124, -152, -160, -128, -100, -65, -39, -44, -67, -137, -160, -147],
     dtype=float)
 
+DEFAULT_PEAKEDNESS_NEIGH_METRES = 12000.
+DEFAULT_MAX_PEAKEDNESS_HEIGHT_M_ASL = 9000.
+DEFAULT_MIN_ECHO_TOP_M_ASL = 10000.
+DEFAULT_ECHO_TOP_LEVEL_DBZ = 25.
+DEFAULT_MIN_COMPOSITE_REFL_DBZ = 25.
+DEFAULT_MIN_COMPOSITE_REFL_AML_DBZ = 45.
+
 
 def _estimate_melting_levels(latitudes_deg, valid_time_unix_sec):
     """Estimates melting level at each point.
@@ -128,7 +135,8 @@ def _get_peakedness_thresholds(reflectivity_matrix_dbz):
 
 
 def _apply_convective_criterion1(
-        reflectivity_matrix_dbz, peakedness_neigh_metres, grid_metadata_dict):
+        reflectivity_matrix_dbz, peakedness_neigh_metres,
+        max_peakedness_height_m_asl, grid_metadata_dict):
     """Applies criterion 1 for convective classification.
 
     Criterion 1 states: the pixel is convective if >= 50% of values in the
@@ -136,6 +144,7 @@ def _apply_convective_criterion1(
 
     :param reflectivity_matrix_dbz: See doc for `find_convective_pixels`.
     :param peakedness_neigh_metres: Same.
+    :param max_peakedness_height_m_asl: Same.
     :param grid_metadata_dict: Dictionary with keys listed in doc for
         `find_convective_pixels`, plus the following extras.
     grid_metadata_dict['grid_point_latitudes_deg']: length-M numpy array of
@@ -151,23 +160,38 @@ def _apply_convective_criterion1(
         neigh_radius_metres=peakedness_neigh_metres,
         grid_metadata_dict=grid_metadata_dict)
 
+    aloft_indices = numpy.where(
+        grid_metadata_dict[HEIGHTS_KEY] >= max_peakedness_height_m_asl
+    )[0]
+
+    if len(aloft_indices) == 0:
+        max_height_index = len(grid_metadata_dict[HEIGHTS_KEY]) - 1
+    else:
+        max_height_index = aloft_indices[0]
+
+    near_surface_refl_matrix_dbz = reflectivity_matrix_dbz[
+        ..., :(max_height_index + 1)]
+
     peakedness_matrix_dbz = _get_peakedness(
-        reflectivity_matrix_dbz=reflectivity_matrix_dbz,
+        reflectivity_matrix_dbz=near_surface_refl_matrix_dbz,
         num_rows_in_neigh=num_rows_in_neigh,
         num_columns_in_neigh=num_columns_in_neigh)
 
     peakedness_threshold_matrix_dbz = _get_peakedness_thresholds(
-        reflectivity_matrix_dbz)
+        near_surface_refl_matrix_dbz)
 
-    fractional_exceedance_matrix = numpy.mean(
+    numerator = numpy.sum(
         peakedness_matrix_dbz > peakedness_threshold_matrix_dbz, axis=-1)
+    denominator = numpy.sum(
+        (near_surface_refl_matrix_dbz > 0).astype(int), axis=-1)
 
+    fractional_exceedance_matrix = numerator.astype(float) / denominator
     return fractional_exceedance_matrix >= 0.5
 
 
 def _apply_convective_criterion2(
         reflectivity_matrix_dbz, convective_flag_matrix, grid_metadata_dict,
-        valid_time_unix_sec, min_composite_refl_above_melting_dbz):
+        valid_time_unix_sec, min_composite_refl_aml_dbz):
     """Applies criterion 2 for convective classification.
 
     Criterion 2 states: the pixel is convective if already marked convective OR
@@ -178,7 +202,7 @@ def _apply_convective_criterion2(
         if convective, False if not).
     :param grid_metadata_dict: See doc for `_apply_convective_criterion1`.
     :param valid_time_unix_sec: See doc for `find_convective_pixels`.
-    :param min_composite_refl_above_melting_dbz: Same.
+    :param min_composite_refl_aml_dbz: Same.
     :return: convective_flag_matrix: Updated version of input.
     """
 
@@ -190,16 +214,14 @@ def _apply_convective_criterion2(
         latitudes_deg=latitude_matrix_deg,
         valid_time_unix_sec=valid_time_unix_sec)
 
-    comp_above_melting_refl_matrix_dbz = numpy.max(
+    composite_refl_matrix_aml_dbz = numpy.max(
         (height_matrix_m_asl >= melting_level_matrix_m_asl + 1000).astype(int) *
         reflectivity_matrix_dbz,
         axis=-1)
 
     return numpy.logical_or(
         convective_flag_matrix,
-        comp_above_melting_refl_matrix_dbz >=
-        min_composite_refl_above_melting_dbz
-    )
+        composite_refl_matrix_aml_dbz >= min_composite_refl_aml_dbz)
 
 
 def _apply_convective_criterion3(
@@ -287,8 +309,12 @@ def _apply_convective_criterion5(
 
 def find_convective_pixels(
         reflectivity_matrix_dbz, grid_metadata_dict, valid_time_unix_sec,
-        peakedness_neigh_metres, min_echo_top_m_asl, echo_top_level_dbz,
-        min_composite_refl_dbz, min_composite_refl_above_melting_dbz):
+        peakedness_neigh_metres=DEFAULT_PEAKEDNESS_NEIGH_METRES,
+        max_peakedness_height_m_asl=DEFAULT_MAX_PEAKEDNESS_HEIGHT_M_ASL,
+        min_echo_top_m_asl=DEFAULT_MIN_ECHO_TOP_M_ASL,
+        echo_top_level_dbz=DEFAULT_ECHO_TOP_LEVEL_DBZ,
+        min_composite_refl_dbz=DEFAULT_MIN_COMPOSITE_REFL_DBZ,
+        min_composite_refl_aml_dbz=DEFAULT_MIN_COMPOSITE_REFL_AML_DBZ):
     """Classifies pixels (horiz grid points) as convective or non-convective.
 
     :param reflectivity_matrix_dbz: M-by-N-by-H numpy array of reflectivity
@@ -310,37 +336,38 @@ def find_convective_pixels(
     :param valid_time_unix_sec: Valid time.
     :param peakedness_neigh_metres: Neighbourhood radius for peakedness
         calculations (metres), used for criterion 1.
+    :param max_peakedness_height_m_asl: Max height (metres above sea level) for
+        peakedness calculations, used in criterion 1.
     :param min_echo_top_m_asl: Minimum echo top (metres above sea level), used
         for criterion 3.
     :param echo_top_level_dbz: Critical reflectivity (used to compute echo top
         for criterion 3).
     :param min_composite_refl_dbz: Minimum composite (column-max) reflectivity,
         used for criterion 5.
-    :param min_composite_refl_above_melting_dbz: Minimum composite reflectivity
-        above melting level, used for criterion 2.
+    :param min_composite_refl_aml_dbz: Minimum composite reflectivity above
+        melting level, used for criterion 2.
     :return: convective_flag_matrix: M-by-N numpy array of Boolean flags (True
         if convective, False if not).
     """
-
-    # TODO(thunderhoser): May have to handle NaN's in some other way than just
-    # setting them to zero.
 
     # Error-checking.
     error_checking.assert_is_numpy_array(
         reflectivity_matrix_dbz, num_dimensions=3)
 
     peakedness_neigh_metres = float(peakedness_neigh_metres)
+    max_peakedness_height_m_asl = float(max_peakedness_height_m_asl)
     min_echo_top_m_asl = int(numpy.round(min_echo_top_m_asl))
     echo_top_level_dbz = float(echo_top_level_dbz)
     min_composite_refl_dbz = float(min_composite_refl_dbz)
-    min_composite_refl_above_melting_dbz = float(
-        min_composite_refl_above_melting_dbz)
+    min_composite_refl_aml_dbz = float(
+        min_composite_refl_aml_dbz)
 
     error_checking.assert_is_greater(peakedness_neigh_metres, 0.)
+    error_checking.assert_is_greater(max_peakedness_height_m_asl, 0.)
     error_checking.assert_is_greater(min_echo_top_m_asl, 0)
     error_checking.assert_is_greater(echo_top_level_dbz, 0.)
     error_checking.assert_is_greater(min_composite_refl_dbz, 0.)
-    error_checking.assert_is_greater(min_composite_refl_above_melting_dbz, 0.)
+    error_checking.assert_is_greater(min_composite_refl_aml_dbz, 0.)
 
     grid_point_heights_m_asl = numpy.round(
         grid_metadata_dict[HEIGHTS_KEY]).astype(int)
@@ -352,7 +379,6 @@ def find_convective_pixels(
         numpy.diff(grid_point_heights_m_asl), 0)  # Must be in ascending order.
 
     # Compute grid-point coordinates.
-    reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
     num_rows = reflectivity_matrix_dbz.shape[0]
     num_columns = reflectivity_matrix_dbz.shape[1]
 
@@ -367,10 +393,12 @@ def find_convective_pixels(
 
     grid_metadata_dict[LATITUDES_KEY] = grid_point_latitudes_deg
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
+    reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
     convective_flag_matrix = _apply_convective_criterion1(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
+        max_peakedness_height_m_asl=max_peakedness_height_m_asl,
         grid_metadata_dict=grid_metadata_dict)
 
     convective_flag_matrix = _apply_convective_criterion2(
@@ -378,8 +406,8 @@ def find_convective_pixels(
         convective_flag_matrix=convective_flag_matrix,
         grid_metadata_dict=grid_metadata_dict,
         valid_time_unix_sec=valid_time_unix_sec,
-        min_composite_refl_above_melting_dbz=
-        min_composite_refl_above_melting_dbz)
+        min_composite_refl_aml_dbz=
+        min_composite_refl_aml_dbz)
 
     convective_flag_matrix = _apply_convective_criterion3(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
