@@ -40,7 +40,8 @@ DEFAULT_PEAKEDNESS_NEIGH_METRES = 12000.
 DEFAULT_MAX_PEAKEDNESS_HEIGHT_M_ASL = 9000.
 DEFAULT_MIN_ECHO_TOP_M_ASL = 10000.
 DEFAULT_ECHO_TOP_LEVEL_DBZ = 25.
-DEFAULT_MIN_COMPOSITE_REFL_DBZ = 25.
+DEFAULT_MIN_COMPOSITE_REFL_CRITERION1_DBZ = 25.
+DEFAULT_MIN_COMPOSITE_REFL_CRITERION5_DBZ = 25.
 DEFAULT_MIN_COMPOSITE_REFL_AML_DBZ = 45.
 
 
@@ -110,6 +111,7 @@ def _get_peakedness(
     peakedness_matrix_dbz = numpy.full(reflectivity_matrix_dbz.shape, numpy.nan)
 
     for k in range(num_heights):
+        print k
         this_filtered_matrix_dbz = median_filter(
             reflectivity_matrix_dbz[..., k],
             size=(num_rows_in_neigh, num_columns_in_neigh),
@@ -136,15 +138,18 @@ def _get_peakedness_thresholds(reflectivity_matrix_dbz):
 
 def _apply_convective_criterion1(
         reflectivity_matrix_dbz, peakedness_neigh_metres,
-        max_peakedness_height_m_asl, grid_metadata_dict):
+        max_peakedness_height_m_asl, min_composite_refl_dbz,
+        grid_metadata_dict):
     """Applies criterion 1 for convective classification.
 
     Criterion 1 states: the pixel is convective if >= 50% of values in the
-    column exceed the peakedness threshold.
+    column exceed the peakedness threshold AND composite reflectivity >=
+    threshold.
 
     :param reflectivity_matrix_dbz: See doc for `find_convective_pixels`.
     :param peakedness_neigh_metres: Same.
     :param max_peakedness_height_m_asl: Same.
+    :param min_composite_refl_dbz: Same.  Keep in mind that this may be None.
     :param grid_metadata_dict: Dictionary with keys listed in doc for
         `find_convective_pixels`, plus the following extras.
     grid_metadata_dict['grid_point_latitudes_deg']: length-M numpy array of
@@ -186,7 +191,14 @@ def _apply_convective_criterion1(
         (near_surface_refl_matrix_dbz > 0).astype(int), axis=-1)
 
     fractional_exceedance_matrix = numerator.astype(float) / denominator
-    return fractional_exceedance_matrix >= 0.5
+    convective_flag_matrix = fractional_exceedance_matrix >= 0.5
+    if min_composite_refl_dbz is None:
+        return convective_flag_matrix
+
+    composite_refl_matrix_dbz = numpy.max(reflectivity_matrix_dbz, axis=-1)
+    return numpy.logical_and(
+        convective_flag_matrix,
+        composite_refl_matrix_dbz >= min_composite_refl_dbz)
 
 
 def _apply_convective_criterion2(
@@ -313,7 +325,10 @@ def find_convective_pixels(
         max_peakedness_height_m_asl=DEFAULT_MAX_PEAKEDNESS_HEIGHT_M_ASL,
         min_echo_top_m_asl=DEFAULT_MIN_ECHO_TOP_M_ASL,
         echo_top_level_dbz=DEFAULT_ECHO_TOP_LEVEL_DBZ,
-        min_composite_refl_dbz=DEFAULT_MIN_COMPOSITE_REFL_DBZ,
+        min_composite_refl_criterion1_dbz=
+        DEFAULT_MIN_COMPOSITE_REFL_CRITERION1_DBZ,
+        min_composite_refl_criterion5_dbz=
+        DEFAULT_MIN_COMPOSITE_REFL_CRITERION5_DBZ,
         min_composite_refl_aml_dbz=DEFAULT_MIN_COMPOSITE_REFL_AML_DBZ):
     """Classifies pixels (horiz grid points) as convective or non-convective.
 
@@ -342,8 +357,10 @@ def find_convective_pixels(
         for criterion 3.
     :param echo_top_level_dbz: Critical reflectivity (used to compute echo top
         for criterion 3).
-    :param min_composite_refl_dbz: Minimum composite (column-max) reflectivity,
-        used for criterion 5.
+    :param min_composite_refl_criterion1_dbz: Minimum composite (column-max)
+        reflectivity for criterion 1.  This may be None.
+    :param min_composite_refl_criterion5_dbz: Minimum composite reflectivity for
+        criterion 5.
     :param min_composite_refl_aml_dbz: Minimum composite reflectivity above
         melting level, used for criterion 2.
     :return: convective_flag_matrix: M-by-N numpy array of Boolean flags (True
@@ -358,7 +375,7 @@ def find_convective_pixels(
     max_peakedness_height_m_asl = float(max_peakedness_height_m_asl)
     min_echo_top_m_asl = int(numpy.round(min_echo_top_m_asl))
     echo_top_level_dbz = float(echo_top_level_dbz)
-    min_composite_refl_dbz = float(min_composite_refl_dbz)
+    min_composite_refl_criterion5_dbz = float(min_composite_refl_criterion5_dbz)
     min_composite_refl_aml_dbz = float(
         min_composite_refl_aml_dbz)
 
@@ -366,8 +383,13 @@ def find_convective_pixels(
     error_checking.assert_is_greater(max_peakedness_height_m_asl, 0.)
     error_checking.assert_is_greater(min_echo_top_m_asl, 0)
     error_checking.assert_is_greater(echo_top_level_dbz, 0.)
-    error_checking.assert_is_greater(min_composite_refl_dbz, 0.)
+    error_checking.assert_is_greater(min_composite_refl_criterion5_dbz, 0.)
     error_checking.assert_is_greater(min_composite_refl_aml_dbz, 0.)
+
+    if min_composite_refl_criterion1_dbz is not None:
+        min_composite_refl_criterion1_dbz = float(
+            min_composite_refl_criterion1_dbz)
+        error_checking.assert_is_greater(min_composite_refl_criterion1_dbz, 0.)
 
     grid_point_heights_m_asl = numpy.round(
         grid_metadata_dict[HEIGHTS_KEY]).astype(int)
@@ -395,12 +417,18 @@ def find_convective_pixels(
     grid_metadata_dict[LONGITUDES_KEY] = grid_point_longitudes_deg
     reflectivity_matrix_dbz[numpy.isnan(reflectivity_matrix_dbz)] = 0.
 
+    print 'Applying criterion 1 for convective classification...'
     convective_flag_matrix = _apply_convective_criterion1(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
         max_peakedness_height_m_asl=max_peakedness_height_m_asl,
+        min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict)
 
+    print 'Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix))
+
+    print 'Applying criterion 2 for convective classification...'
     convective_flag_matrix = _apply_convective_criterion2(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,
@@ -409,6 +437,10 @@ def find_convective_pixels(
         min_composite_refl_aml_dbz=
         min_composite_refl_aml_dbz)
 
+    print 'Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix))
+
+    print 'Applying criterion 3 for convective classification...'
     convective_flag_matrix = _apply_convective_criterion3(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,
@@ -416,10 +448,18 @@ def find_convective_pixels(
         min_echo_top_m_asl=min_echo_top_m_asl,
         echo_top_level_dbz=echo_top_level_dbz)
 
+    print 'Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix))
+
+    print 'Applying criterion 4 for convective classification...'
     convective_flag_matrix = _apply_convective_criterion4(
         convective_flag_matrix)
 
+    print 'Number of convective pixels = {0:d}'.format(
+        numpy.sum(convective_flag_matrix))
+
+    print 'Applying criterion 5 for convective classification...'
     return _apply_convective_criterion5(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,
-        min_composite_refl_dbz=min_composite_refl_dbz)
+        min_composite_refl_dbz=min_composite_refl_criterion5_dbz)

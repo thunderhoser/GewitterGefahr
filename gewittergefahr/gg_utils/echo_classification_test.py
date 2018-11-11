@@ -225,6 +225,7 @@ class EchoClassificationTests(unittest.TestCase):
             reflectivity_matrix_dbz=REFLECTIVITY_MATRIX_DBZ,
             peakedness_neigh_metres=NEIGH_RADIUS_METRES,
             max_peakedness_height_m_asl=MAX_PEAKEDNESS_HEIGHT_M_ASL,
+            min_composite_refl_dbz=None,
             grid_metadata_dict=GRID_METADATA_DICT)
 
         self.assertTrue(numpy.array_equal(
@@ -304,7 +305,8 @@ class EchoClassificationTests(unittest.TestCase):
             max_peakedness_height_m_asl=MAX_PEAKEDNESS_HEIGHT_M_ASL,
             min_echo_top_m_asl=MIN_ECHO_TOP_M_ASL,
             echo_top_level_dbz=ECHO_TOP_LEVEL_DBZ,
-            min_composite_refl_dbz=MIN_COMPOSITE_REFL_DBZ,
+            min_composite_refl_criterion1_dbz=None,
+            min_composite_refl_criterion5_dbz=MIN_COMPOSITE_REFL_DBZ,
             min_composite_refl_aml_dbz=MIN_COMPOSITE_REFL_AML_DBZ)
 
         self.assertTrue(numpy.array_equal(
