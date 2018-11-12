@@ -167,6 +167,11 @@ CRITERION5_FLAG_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 0],
                                       [1, 1, 1, 1, 1, 1, 1],
                                       [1, 1, 1, 1, 1, 1, 1]], dtype=bool)
 
+# The following constants are used to test find_classification_file.
+TOP_DIRECTORY_NAME = 'foo'
+CLASSIFICATION_FILE_NAME = (
+    'foo/2018/20181109/echo_classification_2018-11-10-041447.nc')
+
 
 class EchoClassificationTests(unittest.TestCase):
     """Each method is a unit test for echo_classification.py."""
@@ -225,6 +230,7 @@ class EchoClassificationTests(unittest.TestCase):
             reflectivity_matrix_dbz=REFLECTIVITY_MATRIX_DBZ,
             peakedness_neigh_metres=NEIGH_RADIUS_METRES,
             max_peakedness_height_m_asl=MAX_PEAKEDNESS_HEIGHT_M_ASL,
+            halve_resolution_for_peakedness=False,
             min_composite_refl_dbz=None,
             grid_metadata_dict=GRID_METADATA_DICT)
 
@@ -297,20 +303,35 @@ class EchoClassificationTests(unittest.TestCase):
     def test_find_convective_pixels(self):
         """Ensures correct output from find_convective_pixels."""
 
+        option_dict = {
+            echo_classifn.PEAKEDNESS_NEIGH_KEY: NEIGH_RADIUS_METRES,
+            echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY:
+                MAX_PEAKEDNESS_HEIGHT_M_ASL,
+            echo_classifn.MIN_ECHO_TOP_KEY: MIN_ECHO_TOP_M_ASL,
+            echo_classifn.ECHO_TOP_LEVEL_KEY: ECHO_TOP_LEVEL_DBZ,
+            echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY: None,
+            echo_classifn.MIN_COMPOSITE_REFL_CRITERION5_KEY:
+                MIN_COMPOSITE_REFL_DBZ,
+            echo_classifn.MIN_COMPOSITE_REFL_AML_KEY: MIN_COMPOSITE_REFL_AML_DBZ
+        }
+
         this_flag_matrix = echo_classifn.find_convective_pixels(
             reflectivity_matrix_dbz=REFLECTIVITY_MATRIX_DBZ,
             grid_metadata_dict=GRID_METADATA_DICT,
-            valid_time_unix_sec=VALID_TIME_UNIX_SEC,
-            peakedness_neigh_metres=NEIGH_RADIUS_METRES,
-            max_peakedness_height_m_asl=MAX_PEAKEDNESS_HEIGHT_M_ASL,
-            min_echo_top_m_asl=MIN_ECHO_TOP_M_ASL,
-            echo_top_level_dbz=ECHO_TOP_LEVEL_DBZ,
-            min_composite_refl_criterion1_dbz=None,
-            min_composite_refl_criterion5_dbz=MIN_COMPOSITE_REFL_DBZ,
-            min_composite_refl_aml_dbz=MIN_COMPOSITE_REFL_AML_DBZ)
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, option_dict=option_dict)
 
         self.assertTrue(numpy.array_equal(
             this_flag_matrix, CRITERION5_FLAG_MATRIX))
+
+    def test_find_classification_file(self):
+        """Ensures correct output from find_classification_file."""
+
+        this_file_name = echo_classifn.find_classification_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == CLASSIFICATION_FILE_NAME)
 
 
 if __name__ == '__main__':

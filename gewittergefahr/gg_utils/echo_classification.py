@@ -9,13 +9,19 @@ N = number of columns (unique grid-point longitudes)
 H = number of depths (unique grid-point heights)
 """
 
+import os.path
 import numpy
+import netCDF4
+from scipy.interpolate import RectBivariateSpline
 from scipy.ndimage.filters import median_filter, convolve
+from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 DEGREES_LAT_TO_METRES = 60 * 1852.
 
 MIN_LATITUDE_KEY = 'min_grid_point_latitude_deg'
@@ -36,13 +42,77 @@ MELT_LEVEL_SLOPE_BY_MONTH_M_DEG01 = numpy.array(
     [-124, -152, -160, -128, -100, -65, -39, -44, -67, -137, -160, -147],
     dtype=float)
 
-DEFAULT_PEAKEDNESS_NEIGH_METRES = 12000.
-DEFAULT_MAX_PEAKEDNESS_HEIGHT_M_ASL = 9000.
-DEFAULT_MIN_ECHO_TOP_M_ASL = 10000.
-DEFAULT_ECHO_TOP_LEVEL_DBZ = 25.
-DEFAULT_MIN_COMPOSITE_REFL_CRITERION1_DBZ = 25.
-DEFAULT_MIN_COMPOSITE_REFL_CRITERION5_DBZ = 25.
-DEFAULT_MIN_COMPOSITE_REFL_AML_DBZ = 45.
+PEAKEDNESS_NEIGH_KEY = 'peakedness_neigh_metres'
+MAX_PEAKEDNESS_HEIGHT_KEY = 'max_peakedness_height_m_asl'
+HALVE_RESOLUTION_KEY = 'halve_resolution_for_peakedness'
+MIN_ECHO_TOP_KEY = 'min_echo_top_m_asl'
+ECHO_TOP_LEVEL_KEY = 'echo_top_level_dbz'
+MIN_COMPOSITE_REFL_CRITERION1_KEY = 'min_composite_refl_criterion1_dbz'
+MIN_COMPOSITE_REFL_CRITERION5_KEY = 'min_composite_refl_criterion5_dbz'
+MIN_COMPOSITE_REFL_AML_KEY = 'min_composite_refl_aml_dbz'
+
+DEFAULT_OPTION_DICT = {
+    PEAKEDNESS_NEIGH_KEY: 12000.,
+    MAX_PEAKEDNESS_HEIGHT_KEY: 9000.,
+    HALVE_RESOLUTION_KEY: False,
+    MIN_ECHO_TOP_KEY: 10000.,
+    ECHO_TOP_LEVEL_KEY: 25.,
+    MIN_COMPOSITE_REFL_CRITERION1_KEY: 25.,
+    MIN_COMPOSITE_REFL_CRITERION5_KEY: 25.,
+    MIN_COMPOSITE_REFL_AML_KEY: 45.
+}
+
+VALID_TIME_KEY = 'valid_time_unix_sec'
+
+ROW_DIMENSION_KEY = 'grid_row'
+COLUMN_DIMENSION_KEY = 'grid_column'
+FLAG_MATRIX_KEY = 'convective_flag_matrix'
+
+
+def _check_input_args(option_dict):
+    """Error-checks input arguments.
+
+    :param option_dict: See doc for `find_convective_pixels`.
+    :return: option_dict: Same as input, except that defaults might have been
+        added.
+    """
+
+    if option_dict is None:
+        orig_option_dict = {}
+    else:
+        orig_option_dict = option_dict.copy()
+
+    option_dict = DEFAULT_OPTION_DICT.copy()
+    option_dict.update(orig_option_dict)
+
+    option_dict[PEAKEDNESS_NEIGH_KEY] = float(option_dict[PEAKEDNESS_NEIGH_KEY])
+    option_dict[MAX_PEAKEDNESS_HEIGHT_KEY] = float(
+        option_dict[MAX_PEAKEDNESS_HEIGHT_KEY])
+    option_dict[MIN_ECHO_TOP_KEY] = int(numpy.round(
+        option_dict[MIN_ECHO_TOP_KEY]))
+    option_dict[ECHO_TOP_LEVEL_KEY] = float(option_dict[ECHO_TOP_LEVEL_KEY])
+    option_dict[MIN_COMPOSITE_REFL_CRITERION5_KEY] = float(
+        option_dict[MIN_COMPOSITE_REFL_CRITERION5_KEY])
+    option_dict[MIN_COMPOSITE_REFL_AML_KEY] = float(
+        option_dict[MIN_COMPOSITE_REFL_AML_KEY])
+
+    error_checking.assert_is_greater(option_dict[PEAKEDNESS_NEIGH_KEY], 0.)
+    error_checking.assert_is_greater(option_dict[MAX_PEAKEDNESS_HEIGHT_KEY], 0.)
+    error_checking.assert_is_boolean(option_dict[HALVE_RESOLUTION_KEY])
+    error_checking.assert_is_greater(option_dict[MIN_ECHO_TOP_KEY], 0)
+    error_checking.assert_is_greater(option_dict[ECHO_TOP_LEVEL_KEY], 0.)
+    error_checking.assert_is_greater(
+        option_dict[MIN_COMPOSITE_REFL_CRITERION5_KEY], 0.)
+    error_checking.assert_is_greater(
+        option_dict[MIN_COMPOSITE_REFL_AML_KEY], 0.)
+
+    if option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY] is not None:
+        option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY] = float(
+            option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY])
+        error_checking.assert_is_greater(
+            option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY], 0.)
+
+    return option_dict
 
 
 def _estimate_melting_levels(latitudes_deg, valid_time_unix_sec):
@@ -136,10 +206,89 @@ def _get_peakedness_thresholds(reflectivity_matrix_dbz):
     return this_matrix
 
 
+def _halve_refl_resolution(
+        fine_reflectivity_matrix_dbz, fine_grid_point_latitudes_deg,
+        fine_grid_point_longitudes_deg):
+    """Halves horizontal resolution of reflectivity grid.
+
+    M = number of rows in fine-scale grid
+    N = number of columns in fine-scale grid
+    m = number of rows in coarse grid
+    n = number of rows in coarse grid
+
+    :param fine_reflectivity_matrix_dbz: M-by-N-by-H numpy array of reflectivity
+        values, with latitude increasing along the first axis and longitude
+        increasing along the second axis.
+    :param fine_grid_point_latitudes_deg: length-M numpy array of latitudes
+        (deg N), in increasing order.
+    :param fine_grid_point_longitudes_deg: length-N numpy array of longitudes
+        (deg E), in increasing order.
+
+    :return: coarse_reflectivity_matrix_dbz: Same as input, except dimensions
+        are m x n x H.
+    :return: coarse_grid_point_latitudes_deg: Same as input, except length is m.
+    :return: coarse_grid_point_longitudes_deg: Same as input, except length is
+        n.
+    """
+
+    coarse_grid_point_latitudes_deg = fine_grid_point_latitudes_deg[::2]
+    coarse_grid_point_longitudes_deg = fine_grid_point_longitudes_deg[::2]
+
+    num_coarse_latitudes = len(coarse_grid_point_latitudes_deg)
+    num_coarse_longitudes = len(coarse_grid_point_longitudes_deg)
+    num_heights = fine_reflectivity_matrix_dbz.shape[-1]
+    coarse_reflectivity_matrix_dbz = numpy.full(
+        (num_coarse_latitudes, num_coarse_longitudes, num_heights), numpy.nan)
+
+    for k in range(num_heights):
+        this_interp_object = RectBivariateSpline(
+            fine_grid_point_latitudes_deg, fine_grid_point_longitudes_deg,
+            fine_reflectivity_matrix_dbz[..., k], kx=1, ky=1, s=0)
+        coarse_reflectivity_matrix_dbz[..., k] = this_interp_object(
+            coarse_grid_point_latitudes_deg, coarse_grid_point_longitudes_deg,
+            grid=True)
+
+    return (coarse_reflectivity_matrix_dbz, coarse_grid_point_latitudes_deg,
+            coarse_grid_point_longitudes_deg)
+
+
+def _double_class_resolution(
+        coarse_convective_flag_matrix, coarse_grid_point_latitudes_deg,
+        coarse_grid_point_longitudes_deg, fine_grid_point_latitudes_deg,
+        fine_grid_point_longitudes_deg):
+    """Doubles resolution of 2-D echo-classification grid.
+
+    M = number of rows in fine-scale grid
+    N = number of columns in fine-scale grid
+    m = number of rows in coarse grid
+    n = number of rows in coarse grid
+
+    :param coarse_convective_flag_matrix: m-by-n numpy array of Boolean flags
+        (True if convective, False if not).
+    :param coarse_grid_point_latitudes_deg: See doc for
+        `_halve_refl_resolution`.
+    :param coarse_grid_point_longitudes_deg: Same.
+    :param fine_grid_point_latitudes_deg: Same.
+    :param fine_grid_point_longitudes_deg: Same.
+    :return: fine_convective_flag_matrix: Same as input, except dimensions are
+        M x N.
+    """
+
+    interp_object = RectBivariateSpline(
+        coarse_grid_point_latitudes_deg, coarse_grid_point_longitudes_deg,
+        coarse_convective_flag_matrix.astype(float), kx=1, ky=1, s=0)
+
+    fine_convective_flag_matrix = interp_object(
+        fine_grid_point_latitudes_deg, fine_grid_point_longitudes_deg,
+        grid=True)
+
+    return numpy.round(fine_convective_flag_matrix).astype(bool)
+
+
 def _apply_convective_criterion1(
         reflectivity_matrix_dbz, peakedness_neigh_metres,
-        max_peakedness_height_m_asl, min_composite_refl_dbz,
-        grid_metadata_dict):
+        max_peakedness_height_m_asl, halve_resolution_for_peakedness,
+        min_composite_refl_dbz, grid_metadata_dict):
     """Applies criterion 1 for convective classification.
 
     Criterion 1 states: the pixel is convective if >= 50% of values in the
@@ -149,6 +298,7 @@ def _apply_convective_criterion1(
     :param reflectivity_matrix_dbz: See doc for `find_convective_pixels`.
     :param peakedness_neigh_metres: Same.
     :param max_peakedness_height_m_asl: Same.
+    :param halve_resolution_for_peakedness: Same.
     :param min_composite_refl_dbz: Same.  Keep in mind that this may be None.
     :param grid_metadata_dict: Dictionary with keys listed in doc for
         `find_convective_pixels`, plus the following extras.
@@ -161,10 +311,6 @@ def _apply_convective_criterion1(
         if convective, False if not).
     """
 
-    num_rows_in_neigh, num_columns_in_neigh = _neigh_metres_to_rowcol(
-        neigh_radius_metres=peakedness_neigh_metres,
-        grid_metadata_dict=grid_metadata_dict)
-
     aloft_indices = numpy.where(
         grid_metadata_dict[HEIGHTS_KEY] >= max_peakedness_height_m_asl
     )[0]
@@ -174,24 +320,63 @@ def _apply_convective_criterion1(
     else:
         max_height_index = aloft_indices[0]
 
-    near_surface_refl_matrix_dbz = reflectivity_matrix_dbz[
-        ..., :(max_height_index + 1)]
+    if halve_resolution_for_peakedness:
+        (coarse_reflectivity_matrix_dbz, coarse_grid_point_latitudes_deg,
+         coarse_grid_point_longitudes_deg
+        ) = _halve_refl_resolution(
+            fine_reflectivity_matrix_dbz=reflectivity_matrix_dbz,
+            fine_grid_point_latitudes_deg=grid_metadata_dict[LATITUDES_KEY],
+            fine_grid_point_longitudes_deg=grid_metadata_dict[LONGITUDES_KEY])
+
+        coarse_grid_metadata_dict = {
+            MIN_LATITUDE_KEY: numpy.min(coarse_grid_point_latitudes_deg),
+            LATITUDE_SPACING_KEY: (coarse_grid_point_latitudes_deg[1] -
+                                   coarse_grid_point_latitudes_deg[0]),
+            LATITUDES_KEY: coarse_grid_point_latitudes_deg,
+            MIN_LONGITUDE_KEY: numpy.min(coarse_grid_point_longitudes_deg),
+            LONGITUDE_SPACING_KEY: (coarse_grid_point_longitudes_deg[1] -
+                                    coarse_grid_point_longitudes_deg[0]),
+            LONGITUDES_KEY: coarse_grid_point_longitudes_deg
+        }
+
+        this_reflectivity_matrix_dbz = coarse_reflectivity_matrix_dbz[
+            ..., :(max_height_index + 1)]
+
+        num_rows_in_neigh, num_columns_in_neigh = _neigh_metres_to_rowcol(
+            neigh_radius_metres=peakedness_neigh_metres,
+            grid_metadata_dict=coarse_grid_metadata_dict)
+    else:
+        this_reflectivity_matrix_dbz = reflectivity_matrix_dbz[
+            ..., :(max_height_index + 1)]
+
+        num_rows_in_neigh, num_columns_in_neigh = _neigh_metres_to_rowcol(
+            neigh_radius_metres=peakedness_neigh_metres,
+            grid_metadata_dict=grid_metadata_dict)
 
     peakedness_matrix_dbz = _get_peakedness(
-        reflectivity_matrix_dbz=near_surface_refl_matrix_dbz,
+        reflectivity_matrix_dbz=this_reflectivity_matrix_dbz,
         num_rows_in_neigh=num_rows_in_neigh,
         num_columns_in_neigh=num_columns_in_neigh)
 
     peakedness_threshold_matrix_dbz = _get_peakedness_thresholds(
-        near_surface_refl_matrix_dbz)
+        this_reflectivity_matrix_dbz)
 
     numerator = numpy.sum(
         peakedness_matrix_dbz > peakedness_threshold_matrix_dbz, axis=-1)
     denominator = numpy.sum(
-        (near_surface_refl_matrix_dbz > 0).astype(int), axis=-1)
+        (this_reflectivity_matrix_dbz > 0).astype(int), axis=-1)
 
     fractional_exceedance_matrix = numerator.astype(float) / denominator
     convective_flag_matrix = fractional_exceedance_matrix >= 0.5
+
+    if halve_resolution_for_peakedness:
+        convective_flag_matrix = _double_class_resolution(
+            coarse_convective_flag_matrix=convective_flag_matrix,
+            coarse_grid_point_latitudes_deg=coarse_grid_point_latitudes_deg,
+            coarse_grid_point_longitudes_deg=coarse_grid_point_longitudes_deg,
+            fine_grid_point_latitudes_deg=grid_metadata_dict[LATITUDES_KEY],
+            fine_grid_point_longitudes_deg=grid_metadata_dict[LONGITUDES_KEY])
+
     if min_composite_refl_dbz is None:
         return convective_flag_matrix
 
@@ -319,23 +504,15 @@ def _apply_convective_criterion5(
     return numpy.logical_or(convective_flag_matrix, new_convective_flag_matrix)
 
 
-def find_convective_pixels(
-        reflectivity_matrix_dbz, grid_metadata_dict, valid_time_unix_sec,
-        peakedness_neigh_metres=DEFAULT_PEAKEDNESS_NEIGH_METRES,
-        max_peakedness_height_m_asl=DEFAULT_MAX_PEAKEDNESS_HEIGHT_M_ASL,
-        min_echo_top_m_asl=DEFAULT_MIN_ECHO_TOP_M_ASL,
-        echo_top_level_dbz=DEFAULT_ECHO_TOP_LEVEL_DBZ,
-        min_composite_refl_criterion1_dbz=
-        DEFAULT_MIN_COMPOSITE_REFL_CRITERION1_DBZ,
-        min_composite_refl_criterion5_dbz=
-        DEFAULT_MIN_COMPOSITE_REFL_CRITERION5_DBZ,
-        min_composite_refl_aml_dbz=DEFAULT_MIN_COMPOSITE_REFL_AML_DBZ):
+def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
+                           valid_time_unix_sec, option_dict):
     """Classifies pixels (horiz grid points) as convective or non-convective.
 
     :param reflectivity_matrix_dbz: M-by-N-by-H numpy array of reflectivity
         values.  Latitude should increase along the first axis; longitude should
         increase along the second axis; height should increase along the third
         axis.  MAKE SURE NOT TO FLIP YOUR LATITUDES.
+
     :param grid_metadata_dict: Dictionary with the following keys.
     grid_metadata_dict['min_grid_point_latitude_deg']: Minimum latitude (deg N)
         over all grid points.
@@ -349,20 +526,25 @@ def find_convective_pixels(
         heights (metres above sea level) at grid points.
 
     :param valid_time_unix_sec: Valid time.
-    :param peakedness_neigh_metres: Neighbourhood radius for peakedness
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['peakedness_neigh_metres'] Neighbourhood radius for peakedness
         calculations (metres), used for criterion 1.
-    :param max_peakedness_height_m_asl: Max height (metres above sea level) for
-        peakedness calculations, used in criterion 1.
-    :param min_echo_top_m_asl: Minimum echo top (metres above sea level), used
-        for criterion 3.
-    :param echo_top_level_dbz: Critical reflectivity (used to compute echo top
-        for criterion 3).
-    :param min_composite_refl_criterion1_dbz: Minimum composite (column-max)
-        reflectivity for criterion 1.  This may be None.
-    :param min_composite_refl_criterion5_dbz: Minimum composite reflectivity for
-        criterion 5.
-    :param min_composite_refl_aml_dbz: Minimum composite reflectivity above
-        melting level, used for criterion 2.
+    option_dict['max_peakedness_height_m_asl'] Max height (metres above sea
+        level) for peakedness calculations, used in criterion 1.
+    option_dict['halve_resolution_for_peakedness'] Boolean flag.  If True,
+        horizontal grid resolution will be halved for peakedness calculations.
+    option_dict['min_echo_top_m_asl'] Minimum echo top (metres above sea level),
+        used for criterion 3.
+    option_dict['echo_top_level_dbz'] Critical reflectivity (used to compute
+        echo top for criterion 3).
+    option_dict['min_composite_refl_criterion1_dbz'] Minimum composite
+        (column-max) reflectivity for criterion 1.  This may be None.
+    option_dict['min_composite_refl_criterion5_dbz'] Minimum composite
+        reflectivity for criterion 5.
+    option_dict['min_composite_refl_aml_dbz'] Minimum composite reflectivity
+        above melting level, used for criterion 2.
+
     :return: convective_flag_matrix: M-by-N numpy array of Boolean flags (True
         if convective, False if not).
     """
@@ -371,25 +553,18 @@ def find_convective_pixels(
     error_checking.assert_is_numpy_array(
         reflectivity_matrix_dbz, num_dimensions=3)
 
-    peakedness_neigh_metres = float(peakedness_neigh_metres)
-    max_peakedness_height_m_asl = float(max_peakedness_height_m_asl)
-    min_echo_top_m_asl = int(numpy.round(min_echo_top_m_asl))
-    echo_top_level_dbz = float(echo_top_level_dbz)
-    min_composite_refl_criterion5_dbz = float(min_composite_refl_criterion5_dbz)
-    min_composite_refl_aml_dbz = float(
-        min_composite_refl_aml_dbz)
+    option_dict = _check_input_args(option_dict)
 
-    error_checking.assert_is_greater(peakedness_neigh_metres, 0.)
-    error_checking.assert_is_greater(max_peakedness_height_m_asl, 0.)
-    error_checking.assert_is_greater(min_echo_top_m_asl, 0)
-    error_checking.assert_is_greater(echo_top_level_dbz, 0.)
-    error_checking.assert_is_greater(min_composite_refl_criterion5_dbz, 0.)
-    error_checking.assert_is_greater(min_composite_refl_aml_dbz, 0.)
-
-    if min_composite_refl_criterion1_dbz is not None:
-        min_composite_refl_criterion1_dbz = float(
-            min_composite_refl_criterion1_dbz)
-        error_checking.assert_is_greater(min_composite_refl_criterion1_dbz, 0.)
+    peakedness_neigh_metres = option_dict[PEAKEDNESS_NEIGH_KEY]
+    max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
+    halve_resolution_for_peakedness = option_dict[HALVE_RESOLUTION_KEY]
+    min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
+    echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
+    min_composite_refl_criterion1_dbz = option_dict[
+        MIN_COMPOSITE_REFL_CRITERION1_KEY]
+    min_composite_refl_criterion5_dbz = option_dict[
+        MIN_COMPOSITE_REFL_CRITERION5_KEY]
+    min_composite_refl_aml_dbz = option_dict[MIN_COMPOSITE_REFL_AML_KEY]
 
     grid_point_heights_m_asl = numpy.round(
         grid_metadata_dict[HEIGHTS_KEY]).astype(int)
@@ -422,6 +597,7 @@ def find_convective_pixels(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         peakedness_neigh_metres=peakedness_neigh_metres,
         max_peakedness_height_m_asl=max_peakedness_height_m_asl,
+        halve_resolution_for_peakedness=halve_resolution_for_peakedness,
         min_composite_refl_dbz=min_composite_refl_criterion1_dbz,
         grid_metadata_dict=grid_metadata_dict)
 
@@ -463,3 +639,177 @@ def find_convective_pixels(
         reflectivity_matrix_dbz=reflectivity_matrix_dbz,
         convective_flag_matrix=convective_flag_matrix,
         min_composite_refl_dbz=min_composite_refl_criterion5_dbz)
+
+
+def find_classification_file(
+        top_directory_name, valid_time_unix_sec, raise_error_if_missing=True):
+    """Finds file with echo classifications.
+
+    :param top_directory_name: Name of top-level directory.
+    :param valid_time_unix_sec: Valid time.
+    :param raise_error_if_missing: Boolean flag.  If file is missing and
+        `raise_error_if_missing = True`, this method will error out.
+    :return: classification_file_name: Path to classification file.  If file is
+        missing and `raise_error_if_missing = True`, this will be *expected*
+        path.
+    :raises: ValueError: if file is missing and `raise_error_if_missing = True`.
+    """
+
+    error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(raise_error_if_missing)
+
+    spc_date_string = time_conversion.time_to_spc_date_string(
+        valid_time_unix_sec)
+
+    classification_file_name = (
+        '{0:s}/{1:s}/{2:s}/echo_classification_{3:s}.nc'
+    ).format(
+        top_directory_name, spc_date_string[:4], spc_date_string,
+        time_conversion.unix_sec_to_string(valid_time_unix_sec, TIME_FORMAT)
+    )
+
+    if raise_error_if_missing and not os.path.isfile(classification_file_name):
+        error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
+            classification_file_name)
+        raise ValueError(error_string)
+
+    return classification_file_name
+
+
+def write_classifications(convective_flag_matrix, grid_metadata_dict,
+                          valid_time_unix_sec, option_dict, netcdf_file_name):
+    """Writes echo classifications to NetCDF file.
+
+    :param convective_flag_matrix: M-by-N numpy array of Boolean flags (True
+        if convective, False if not).
+    :param grid_metadata_dict: See doc for `find_convective_pixels`.
+    :param valid_time_unix_sec: Same.
+    :param option_dict: Same.
+    :param netcdf_file_name: Path to output file.
+    """
+
+    # Error-checking.
+    error_checking.assert_is_boolean_numpy_array(convective_flag_matrix)
+    error_checking.assert_is_numpy_array(
+        convective_flag_matrix, num_dimensions=2)
+    error_checking.assert_is_integer(valid_time_unix_sec)
+
+    option_dict = _check_input_args(option_dict)
+
+    peakedness_neigh_metres = option_dict[PEAKEDNESS_NEIGH_KEY]
+    max_peakedness_height_m_asl = option_dict[MAX_PEAKEDNESS_HEIGHT_KEY]
+    halve_resolution_for_peakedness = option_dict[HALVE_RESOLUTION_KEY]
+    min_echo_top_m_asl = option_dict[MIN_ECHO_TOP_KEY]
+    echo_top_level_dbz = option_dict[ECHO_TOP_LEVEL_KEY]
+    min_composite_refl_criterion1_dbz = option_dict[
+        MIN_COMPOSITE_REFL_CRITERION1_KEY]
+    min_composite_refl_criterion5_dbz = option_dict[
+        MIN_COMPOSITE_REFL_CRITERION5_KEY]
+    min_composite_refl_aml_dbz = option_dict[MIN_COMPOSITE_REFL_AML_KEY]
+
+    if min_composite_refl_criterion1_dbz is None:
+        min_composite_refl_criterion1_dbz = -1.
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=netcdf_file_name)
+    netcdf_dataset = netCDF4.Dataset(
+        netcdf_file_name, 'w', format='NETCDF3_64BIT_OFFSET')
+
+    netcdf_dataset.setncattr(PEAKEDNESS_NEIGH_KEY, peakedness_neigh_metres)
+    netcdf_dataset.setncattr(
+        MAX_PEAKEDNESS_HEIGHT_KEY, max_peakedness_height_m_asl)
+    netcdf_dataset.setncattr(
+        HALVE_RESOLUTION_KEY, int(halve_resolution_for_peakedness))
+    netcdf_dataset.setncattr(MIN_ECHO_TOP_KEY, min_echo_top_m_asl)
+    netcdf_dataset.setncattr(ECHO_TOP_LEVEL_KEY, echo_top_level_dbz)
+    netcdf_dataset.setncattr(
+        MIN_COMPOSITE_REFL_CRITERION1_KEY, min_composite_refl_criterion1_dbz)
+    netcdf_dataset.setncattr(
+        MIN_COMPOSITE_REFL_CRITERION5_KEY, min_composite_refl_criterion5_dbz)
+    netcdf_dataset.setncattr(
+        MIN_COMPOSITE_REFL_AML_KEY, min_composite_refl_aml_dbz)
+    netcdf_dataset.setncattr(VALID_TIME_KEY, valid_time_unix_sec)
+
+    netcdf_dataset.createDimension(
+        ROW_DIMENSION_KEY, convective_flag_matrix.shape[0])
+    netcdf_dataset.createDimension(
+        COLUMN_DIMENSION_KEY, convective_flag_matrix.shape[1])
+
+    grid_point_latitudes_deg, grid_point_longitudes_deg = (
+        grids.get_latlng_grid_points(
+            min_latitude_deg=grid_metadata_dict[MIN_LATITUDE_KEY],
+            min_longitude_deg=grid_metadata_dict[MIN_LONGITUDE_KEY],
+            lat_spacing_deg=grid_metadata_dict[LATITUDE_SPACING_KEY],
+            lng_spacing_deg=grid_metadata_dict[LONGITUDE_SPACING_KEY],
+            num_rows=convective_flag_matrix.shape[0],
+            num_columns=convective_flag_matrix.shape[1])
+    )
+
+    netcdf_dataset.createVariable(
+        LATITUDES_KEY, datatype=numpy.float32, dimensions=ROW_DIMENSION_KEY)
+    netcdf_dataset.variables[LATITUDES_KEY][:] = grid_point_latitudes_deg
+
+    netcdf_dataset.createVariable(
+        LONGITUDES_KEY, datatype=numpy.float32, dimensions=COLUMN_DIMENSION_KEY)
+    netcdf_dataset.variables[LONGITUDES_KEY][:] = grid_point_longitudes_deg
+
+    netcdf_dataset.createVariable(
+        FLAG_MATRIX_KEY, datatype=numpy.int32,
+        dimensions=(ROW_DIMENSION_KEY, COLUMN_DIMENSION_KEY)
+    )
+    netcdf_dataset.variables[FLAG_MATRIX_KEY][:] = convective_flag_matrix
+
+    netcdf_dataset.close()
+
+
+def read_classifications(netcdf_file_name):
+    """Reads echo classifications from NetCDF file.
+
+    :param netcdf_file_name: Path to input file.
+    :return: convective_flag_matrix: M-by-N numpy array of Boolean flags (True
+        if convective, False if not).
+    :return: other_metadata_dict: Dictionary with the following keys.
+    other_metadata_dict['valid_time_unix_sec']: Valid time.
+    other_metadata_dict['grid_point_latitudes_deg']: length-M numpy array with
+        latitudes (deg N) of grid points.
+    other_metadata_dict['grid_point_longitudes_deg']: length-N numpy array with
+        longitudes (deg E) of grid points.
+
+    :return: option_dict: Same.
+    """
+
+    netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
+
+    option_dict = {
+        PEAKEDNESS_NEIGH_KEY: getattr(netcdf_dataset, PEAKEDNESS_NEIGH_KEY),
+        MAX_PEAKEDNESS_HEIGHT_KEY:
+            getattr(netcdf_dataset, MAX_PEAKEDNESS_HEIGHT_KEY),
+        HALVE_RESOLUTION_KEY:
+            bool(getattr(netcdf_dataset, HALVE_RESOLUTION_KEY)),
+        MIN_ECHO_TOP_KEY: getattr(netcdf_dataset, MIN_ECHO_TOP_KEY),
+        ECHO_TOP_LEVEL_KEY: getattr(netcdf_dataset, ECHO_TOP_LEVEL_KEY),
+        MIN_COMPOSITE_REFL_CRITERION1_KEY:
+            getattr(netcdf_dataset, MIN_COMPOSITE_REFL_CRITERION1_KEY),
+        MIN_COMPOSITE_REFL_CRITERION5_KEY:
+            getattr(netcdf_dataset, MIN_COMPOSITE_REFL_CRITERION5_KEY),
+        MIN_COMPOSITE_REFL_AML_KEY:
+            getattr(netcdf_dataset, MIN_COMPOSITE_REFL_AML_KEY)
+    }
+
+    if option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY] < 0:
+        option_dict[MIN_COMPOSITE_REFL_CRITERION1_KEY] = None
+
+    option_dict = _check_input_args(option_dict)
+
+    other_metadata_dict = {
+        VALID_TIME_KEY: int(getattr(netcdf_dataset, VALID_TIME_KEY)),
+        LATITUDES_KEY: numpy.array(
+            netcdf_dataset.variables[LATITUDES_KEY][:], dtype=float),
+        LONGITUDES_KEY: numpy.array(
+            netcdf_dataset.variables[LONGITUDES_KEY][:], dtype=float)
+    }
+
+    convective_flag_matrix = numpy.array(
+        netcdf_dataset.variables[FLAG_MATRIX_KEY][:], dtype=bool)
+    netcdf_dataset.close()
+
+    return convective_flag_matrix, other_metadata_dict, option_dict
