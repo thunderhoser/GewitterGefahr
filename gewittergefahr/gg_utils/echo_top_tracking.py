@@ -362,7 +362,7 @@ def _find_input_radar_files(
 
     :param top_radar_dir_name: Name of top-level directory with radar files.
         Files therein will be found by
-        `myrorss_and_mrms_io.find_many_raw_files`.
+        `myrorss_and_mrms_io.find_raw_files_one_spc_date`.
     :param echo_top_field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
     :param radar_source_name: Data source (must be accepted by
@@ -1399,7 +1399,7 @@ def run_tracking(
     :param radar_source_name: Same.
     :param top_echo_classifn_dir_name: Name of top-level directory with echo
         classifications.  If None, echo classifications will not be used.  If
-        True, files therein will be found by
+        specified, files therein will be found by
         `echo_classification.find_classification_file` and read by
         `echo_classification.read_classifications` and tracking will be run only
         on convective pixels.

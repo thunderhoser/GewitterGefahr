@@ -1,110 +1,90 @@
-"""Runs echo-top-based storm-tracking algorithm with default parameters.
-
-This algorithm is discussed in Section 3c of Homeyer et al. (2017) and the
-documentation for `echo_top_tracking.py`.
-
---- REFERENCES ---
-
-Homeyer, C.R., and J.D. McAuliffe, and K.M. Bedka, 2017: "On the development of
-    above-anvil cirrus plumes in extratropical convection". Journal of the
-    Atmospheric Sciences, 74 (5), 1617-1633.
-"""
+"""Runs echo-top-based storm-tracking."""
 
 import argparse
 from gewittergefahr.gg_utils import echo_top_tracking
 
-# TODO(thunderhoser): All input args to echo-top-based tracking should be input
-# args to this script.  In other words, allow for other than default params.
+RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
+ECHO_CLASSIFN_DIR_ARG_NAME = 'input_echo_classifn_dir_name'
+OUTPUT_DIR_ARG_NAME = 'output_tracking_dir_name'
+FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
+LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
 
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+RADAR_DIR_HELP_STRING = (
+    'Name of top-level directory with radar files.  Files therein will be found'
+    ' by `myrorss_and_mrms_io.find_raw_files_one_spc_date`.')
 
-FIRST_SPC_DATE_INPUT_ARG = 'first_spc_date_string'
-LAST_SPC_DATE_INPUT_ARG = 'last_spc_date_string'
-RADAR_DIR_INPUT_ARG = 'input_radar_dir_name'
-TRACKING_DIR_INPUT_ARG = 'output_tracking_dir_name'
+ECHO_CLASSIFN_DIR_HELP_STRING = (
+    'Name of top-level directory with echo classifications.  If empty (""), '
+    'echo classifications will not be used.  If non-empty, files therein will '
+    'be found by `echo_classification.find_classification_file` and read by '
+    '`echo_classification.read_classifications` and tracking will be run only '
+    'on convective pixels.')
+
+OUTPUT_DIR_HELP_STRING = (
+    'Name of top-level output directory.  Files will be written by '
+    '`storm_tracking_io.write_processed_file`, to locations therein determined '
+    'by `storm_tracking_io.find_processed_file`.')
 
 SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Tracking will be'
-    ' run for all dates from `{0:s}`...`{1:s}`.').format(
-        FIRST_SPC_DATE_INPUT_ARG, LAST_SPC_DATE_INPUT_ARG)
-RADAR_DIR_HELP_STRING = 'Name of top-level directory with radar data.'
-TRACKING_DIR_HELP_STRING = (
-    'Name of top-level directory for storm-tracking data.')
+    'SPC date (format "yyyymmdd").  Echo-top-tracking will be done for dates '
+    '`{0:s}`...`{1:s}`.'
+).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_SPC_DATE_INPUT_ARG, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_DIR_INPUT_ARG, type=str, required=True,
+    '--' + RADAR_DIR_ARG_NAME, type=str, required=True,
     help=RADAR_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
-    help=TRACKING_DIR_HELP_STRING)
+    '--' + ECHO_CLASSIFN_DIR_ARG_NAME, type=str, required=False, default='',
+    help=ECHO_CLASSIFN_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
+    help=SPC_DATE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
+    help=SPC_DATE_HELP_STRING)
 
 
-def _run_echo_top_tracking(
-        first_spc_date_string, last_spc_date_string, top_radar_dir_name,
-        top_tracking_dir_name):
-    """Runs echo-top-based storm-tracking algorithm with default parameters.
+def _run(top_radar_dir_name, top_echo_classifn_dir_name, top_output_dir_name,
+         first_spc_date_string, last_spc_date_string):
+    """Runs echo-top-based storm-tracking.
 
-    :param first_spc_date_string: SPC (Storm Prediction Center) date in format
-        "yyyymmdd".  Tracking will be run for all dates from
-        `first_spc_date_string`...`last_spc_date_string`.
-    :param last_spc_date_string: See above.
-    :param top_radar_dir_name: [input] Name of top-level directory with radar
-        data.
-    :param top_tracking_dir_name: [output] Name of top-level directory for
-        storm-tracking data.
+    This is effectively the main method.
+
+    :param top_radar_dir_name: See documentation at top of file.
+    :param top_echo_classifn_dir_name: Same.
+    :param top_output_dir_name: Same.
+    :param first_spc_date_string: Same.
+    :param last_spc_date_string: Same.
     """
 
-    storm_object_table, file_dictionary = echo_top_tracking.run_tracking(
+    if top_echo_classifn_dir_name in ['', 'None']:
+        top_echo_classifn_dir_name = None
+
+    echo_top_tracking.run_tracking(
         top_radar_dir_name=top_radar_dir_name,
-        top_tracking_dir_name=top_tracking_dir_name,
-        start_spc_date_string=first_spc_date_string,
-        end_spc_date_string=last_spc_date_string)
-    print SEPARATOR_STRING
-
-    echo_top_tracking.write_storm_objects(storm_object_table, file_dictionary)
-
-
-def add_input_arguments(argument_parser_object):
-    """Adds input args for this script to `argparse.ArgumentParser` object.
-
-    :param argument_parser_object: `argparse.ArgumentParser` object, which may
-        or may not already contain input args.
-    :return: argument_parser_object: Same as input object, but with new input
-        args added.
-    """
-
-    argument_parser_object.add_argument(
-        '--' + RADAR_DIR_INPUT_ARG, type=str, required=True,
-        help=RADAR_DIR_HELP_STRING)
-
-    argument_parser_object.add_argument(
-        '--' + TRACKING_DIR_INPUT_ARG, type=str, required=True,
-        help=TRACKING_DIR_HELP_STRING)
-
-    return argument_parser_object
+        top_output_dir_name=top_output_dir_name,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        top_echo_classifn_dir_name=top_echo_classifn_dir_name)
 
 
 if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
-    FIRST_SPC_DATE_STRING = getattr(
-        INPUT_ARG_OBJECT, FIRST_SPC_DATE_INPUT_ARG)
-    LAST_SPC_DATE_STRING = getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_INPUT_ARG)
-    TOP_RADAR_DIR_NAME = getattr(INPUT_ARG_OBJECT, RADAR_DIR_INPUT_ARG)
-    TOP_TRACKING_DIR_NAME = getattr(INPUT_ARG_OBJECT, TRACKING_DIR_INPUT_ARG)
-
-    _run_echo_top_tracking(
-        first_spc_date_string=FIRST_SPC_DATE_STRING,
-        last_spc_date_string=LAST_SPC_DATE_STRING,
-        top_radar_dir_name=TOP_RADAR_DIR_NAME,
-        top_tracking_dir_name=TOP_TRACKING_DIR_NAME)
+    _run(
+        top_radar_dir_name=getattr(INPUT_ARG_OBJECT, RADAR_DIR_ARG_NAME),
+        top_echo_classifn_dir_name=getattr(
+            INPUT_ARG_OBJECT, ECHO_CLASSIFN_DIR_ARG_NAME),
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
+        first_spc_date_string=getattr(
+            INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
+        last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME)
+    )
