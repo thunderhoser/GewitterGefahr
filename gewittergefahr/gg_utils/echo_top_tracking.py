@@ -1278,6 +1278,8 @@ def _write_storm_objects(
         this_output_file_name = tracking_io.find_processed_file(
             top_processed_dir_name=top_output_dir_name,
             unix_time_sec=this_time_unix_sec,
+            spc_date_string=time_conversion.time_to_spc_date_string(
+                this_time_unix_sec),
             tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
             data_source=tracking_utils.SEGMOTION_SOURCE_ID,
             raise_error_if_missing=False)
