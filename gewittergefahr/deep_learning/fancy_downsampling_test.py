@@ -1,8 +1,8 @@
-"""Unit tests for downsample_target_values.py."""
+"""Unit tests for fancy_downsampling.py."""
 
 import unittest
 import numpy
-from gewittergefahr.scripts import downsample_target_values
+from gewittergefahr.deep_learning import fancy_downsampling
 
 # The following constants are used to test _find_uncovered_times.
 ALL_TIMES_UNIX_SEC = numpy.array(
@@ -28,8 +28,8 @@ DESIRED_CELL_IDS_SOME_MISSING = [
 DESIRED_OBJECT_INDICES = numpy.array([0, 2, 3, 5, 7, 10, 14], dtype=int)
 
 
-class DownsampleTargetValuesTests(unittest.TestCase):
-    """Each method is a unit test for downsample_target_values.py."""
+class FancyDownsamplingTests(unittest.TestCase):
+    """Each method is a unit test for fancy_downsampling.py."""
 
     def test_find_storm_cells_none_good(self):
         """Ensures correct output from find_storm_cells.
@@ -37,7 +37,7 @@ class DownsampleTargetValuesTests(unittest.TestCase):
         In this case no desired storm IDs are missing.
         """
 
-        these_indices = downsample_target_values._find_storm_cells(
+        these_indices = fancy_downsampling._find_storm_cells(
             storm_id_by_object=STORM_ID_BY_OBJECT,
             desired_storm_cell_ids=DESIRED_CELL_IDS_NONE_MISSING)
 
@@ -51,7 +51,7 @@ class DownsampleTargetValuesTests(unittest.TestCase):
         """
 
         with self.assertRaises(ValueError):
-            downsample_target_values._find_storm_cells(
+            fancy_downsampling._find_storm_cells(
                 storm_id_by_object=STORM_ID_BY_OBJECT,
                 desired_storm_cell_ids=DESIRED_CELL_IDS_SOME_MISSING)
 
@@ -62,7 +62,7 @@ class DownsampleTargetValuesTests(unittest.TestCase):
         (`all_times_unix_sec`).
         """
 
-        these_indices = downsample_target_values._find_uncovered_times(
+        these_indices = fancy_downsampling._find_uncovered_times(
             all_times_unix_sec=ALL_TIMES_UNIX_SEC,
             covered_times_unix_sec=COVERED_TIMES_UNIX_SEC)
 
@@ -81,7 +81,7 @@ class DownsampleTargetValuesTests(unittest.TestCase):
             COVERED_TIMES_UNIX_SEC, extra_times_unix_sec))
 
         with self.assertRaises(ValueError):
-            downsample_target_values._find_uncovered_times(
+            fancy_downsampling._find_uncovered_times(
                 all_times_unix_sec=ALL_TIMES_UNIX_SEC,
                 covered_times_unix_sec=these_covered_times_unix_sec)
 
