@@ -47,6 +47,7 @@ DUMMY_TIME_UNIX_SEC = -10000
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
 
 DEGREES_LAT_TO_METRES = 60 * 1852
 CENTRAL_PROJ_LATITUDE_DEG = 35.
@@ -352,34 +353,21 @@ def _link_local_maxima_in_time(
     return current_to_previous_indices
 
 
-def _find_input_radar_files(
-        top_radar_dir_name, echo_top_field_name, radar_source_name,
-        first_spc_date_string, last_spc_date_string, first_time_unix_sec,
-        last_time_unix_sec):
-    """Finds radar files (inputs to tracking algorithm).
+def _check_time_period(first_spc_date_string, last_spc_date_string,
+                       first_time_unix_sec=None, last_time_unix_sec=None):
+    """Error-checks input arguments.
 
-    N = number of files found
-
-    :param top_radar_dir_name: Name of top-level directory with radar files.
-        Files therein will be found by
-        `myrorss_and_mrms_io.find_raw_files_one_spc_date`.
-    :param echo_top_field_name: Name of radar field (must be accepted by
-        `radar_utils.check_field_name`).
-    :param radar_source_name: Data source (must be accepted by
-        `_check_radar_source`).
     :param first_spc_date_string: First SPC date in period (format "yyyymmdd").
     :param last_spc_date_string: Last SPC date in period (format "yyyymmdd").
     :param first_time_unix_sec: First time in period.  Default is 120000 UTC at
         beginning of first SPC date.
     :param last_time_unix_sec: Last time in period.  Default is 115959 UTC at
         end of first SPC date.
-    :return: radar_file_names: length-N list of paths to radar files.
-    :return: valid_times_unix_sec: length-N numpy array of valid times.
+    :return: spc_date_strings: 1-D list of SPC dates (format "yyyymmdd").
+    :return: first_time_unix_sec: Same as input, except that default may have
+        been set to replace None.
+    :return: last_time_unix_sec: See above.
     """
-
-    # Error-checking.
-    _check_radar_field(echo_top_field_name)
-    _check_radar_source(radar_source_name)
 
     spc_date_strings = time_conversion.get_spc_dates_in_range(
         first_spc_date_string=first_spc_date_string,
@@ -405,7 +393,43 @@ def _find_input_radar_files(
     assert time_conversion.is_time_in_spc_date(
         last_time_unix_sec, last_spc_date_string)
 
-    # Find files.
+    return spc_date_strings, first_time_unix_sec, last_time_unix_sec
+
+
+def _find_input_radar_files(
+        top_radar_dir_name, echo_top_field_name, radar_source_name,
+        first_spc_date_string, last_spc_date_string, first_time_unix_sec,
+        last_time_unix_sec):
+    """Finds radar files (inputs to tracking algorithm).
+
+    N = number of files found
+
+    :param top_radar_dir_name: Name of top-level directory with radar files.
+        Files therein will be found by
+        `myrorss_and_mrms_io.find_raw_files_one_spc_date`.
+    :param echo_top_field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :param radar_source_name: Data source (must be accepted by
+        `_check_radar_source`).
+    :param first_spc_date_string: See doc for `_check_time_period`.
+    :param last_spc_date_string: Same.
+    :param first_time_unix_sec: Same.
+    :param last_time_unix_sec: Same.
+    :return: radar_file_names: length-N list of paths to radar files.
+    :return: valid_times_unix_sec: length-N numpy array of valid times.
+    """
+
+    _check_radar_field(echo_top_field_name)
+    _check_radar_source(radar_source_name)
+
+    spc_date_strings, first_time_unix_sec, last_time_unix_sec = (
+        _check_time_period(
+            first_spc_date_string=first_spc_date_string,
+            last_spc_date_string=last_spc_date_string,
+            first_time_unix_sec=first_time_unix_sec,
+            last_time_unix_sec=last_time_unix_sec)
+    )
+
     radar_file_names = []
     valid_times_unix_sec = numpy.array([], dtype=int)
     num_spc_dates = len(spc_date_strings)
@@ -447,6 +471,83 @@ def _find_input_radar_files(
     radar_file_names = [radar_file_names[k] for k in sort_indices]
 
     return radar_file_names, valid_times_unix_sec
+
+
+def _find_input_tracking_files(
+        top_tracking_dir_name, first_spc_date_string, last_spc_date_string,
+        first_time_unix_sec=None, last_time_unix_sec=None):
+    """Finds tracking files (inputs to reanalysis algorithm).
+
+    D = number of SPC dates
+    n = number of time steps for a given SPC date
+
+    :param top_tracking_dir_name: Name of top-level input directory.  Files
+        therein will be found by
+        `storm_tracking_io.find_processed_files_one_spc_date`.
+    :param first_spc_date_string: See doc for `_check_time_period`.
+    :param last_spc_date_string: Same.
+    :param first_time_unix_sec: Same.
+    :param last_time_unix_sec: Same.
+    :return: spc_date_strings: length-D list of SPC dates (format "yyyymmdd").
+    :return: input_file_names_by_date: length-D list, where each item is a
+        length-n list of paths to input files.
+    :return: valid_times_by_date_unix_sec: length-D list, where each item is a
+        length-n numpy array of valid times.
+    """
+
+    spc_date_strings, first_time_unix_sec, last_time_unix_sec = (
+        _check_time_period(
+            first_spc_date_string=first_spc_date_string,
+            last_spc_date_string=last_spc_date_string,
+            first_time_unix_sec=first_time_unix_sec,
+            last_time_unix_sec=last_time_unix_sec)
+    )
+
+    num_spc_dates = len(spc_date_strings)
+    input_file_names_by_date = [['']] * num_spc_dates
+    valid_times_by_date_unix_sec = [numpy.array([], dtype=int)] * num_spc_dates
+
+    for i in range(num_spc_dates):
+        these_file_names = tracking_io.find_processed_files_one_spc_date(
+            spc_date_string=spc_date_strings[i],
+            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            top_processed_dir_name=top_tracking_dir_name,
+            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2
+        )[0]
+
+        if i == 0:
+            this_first_time_unix_sec = first_time_unix_sec + 0
+        else:
+            this_first_time_unix_sec = time_conversion.get_start_of_spc_date(
+                spc_date_strings[i])
+
+        if i == num_spc_dates - 1:
+            this_last_time_unix_sec = last_time_unix_sec + 0
+        else:
+            this_last_time_unix_sec = time_conversion.get_end_of_spc_date(
+                spc_date_strings[i])
+
+        these_times_unix_sec = numpy.array([
+            tracking_io.processed_file_name_to_time(f)
+            for f in these_file_names
+        ], dtype=int)
+        
+        sort_indices = numpy.argsort(these_times_unix_sec)
+        these_file_names = [these_file_names[k] for k in sort_indices]
+        these_times_unix_sec = these_times_unix_sec[sort_indices]
+
+        good_indices = numpy.where(numpy.logical_and(
+            these_times_unix_sec >= this_first_time_unix_sec,
+            these_times_unix_sec <= this_last_time_unix_sec
+        ))[0]
+
+        input_file_names_by_date[i] = [
+            these_file_names[k] for k in good_indices
+        ]
+        valid_times_by_date_unix_sec[i] = these_times_unix_sec[good_indices]
+
+    return (spc_date_strings, input_file_names_by_date,
+            valid_times_by_date_unix_sec)
 
 
 def _create_storm_id(
@@ -1294,7 +1395,69 @@ def _write_storm_objects(
         )
 
 
-def reanalyze_tracks(
+def _shuffle_tracking_data(
+        input_file_names_by_date, valid_times_by_date_unix_sec,
+        storm_object_table_by_date, current_date_index, top_output_dir_name):
+    """Shuffles tracking data into and out of memory.
+
+    D = number of SPC dates
+
+    :param input_file_names_by_date: See doc for `_find_input_tracking_files`.
+    :param valid_times_by_date_unix_sec: Same.
+    :param storm_object_table_by_date: length-D list of pandas DataFrames.  Each
+        item is either an empty DataFrame or one containing the columns listed
+        in `storm_tracking_io.write_processed_file`.
+    :param current_date_index: Index of current SPC date.  Must be in
+        0...(D - 1).
+    :param top_output_dir_name: See doc for `_write_storm_objects`.
+    :return: storm_object_table_by_date: Same as input, except that different
+        items are empty, because data have been shuffled.
+    """
+
+    num_spc_dates = len(input_file_names_by_date)
+
+    # Write tracks that are no longer needed in memory.
+    if current_date_index == num_spc_dates:
+        for j in [num_spc_dates - 2, num_spc_dates - 1]:
+            _write_storm_objects(
+                storm_object_table=storm_object_table_by_date[j],
+                top_output_dir_name=top_output_dir_name,
+                output_times_unix_sec=valid_times_by_date_unix_sec[
+                    current_date_index])
+
+            print '\n'
+            storm_object_table_by_date[j] = pandas.DataFrame()
+
+        return storm_object_table_by_date
+
+    if current_date_index >= 2:
+        _write_storm_objects(
+            storm_object_table=storm_object_table_by_date[
+                current_date_index - 2],
+            top_output_dir_name=top_output_dir_name,
+            output_times_unix_sec=valid_times_by_date_unix_sec[
+                current_date_index - 2])
+        print '\n'
+
+        storm_object_table_by_date[current_date_index - 2] = pandas.DataFrame()
+
+    # Read tracks that are now needed in memory.
+    for j in [current_date_index - 1, current_date_index,
+              current_date_index + 1]:
+
+        if j < 0 or j >= num_spc_dates:
+            continue
+        if not storm_object_table_by_date[j].empty:
+            continue
+
+        storm_object_table_by_date[j] = tracking_io.read_many_processed_files(
+            input_file_names_by_date[j])
+        print '\n'
+
+    return storm_object_table_by_date
+
+
+def _reanalyze_tracks(
         storm_object_table, max_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
         max_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01):
     """Joins pairs of tracks that are spatiotemporally nearby.
@@ -1326,8 +1489,9 @@ def reanalyze_tracks(
     num_storm_tracks = len(storm_track_table.index)
 
     for i in range(num_storm_tracks):
-        print 'Reanalyzing {0:d}th of {1:d} tracks...'.format(
-            i + 1, num_storm_tracks)
+        if numpy.mod(i, 50) == 0:
+            print 'Have reanalyzed {0:d} of {1:d} tracks...'.format(
+                i, num_storm_tracks)
 
         # If this track has been removed (joined with another), skip it.
         this_storm_id = storm_track_table[
@@ -1368,6 +1532,7 @@ def reanalyze_tracks(
                 storm_track_table=storm_track_table,
                 recompute_for_id=this_storm_id)
 
+    print 'Have reanalyzed all {0:d} tracks!'.format(num_storm_tracks)
     return storm_object_table
 
 
@@ -1581,3 +1746,192 @@ def run_tracking(
         storm_object_table=storm_object_table,
         top_output_dir_name=top_output_dir_name,
         output_times_unix_sec=valid_times_unix_sec)
+
+
+def reanalyze_tracks_across_spc_dates(
+        top_input_dir_name, top_output_dir_name, first_spc_date_string,
+        last_spc_date_string, first_time_unix_sec=None, last_time_unix_sec=None,
+        tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
+        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
+        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
+        max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
+        max_reanal_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01,
+        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS,
+        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
+    """Reanalyzes tracks across SPC dates.
+
+    :param top_input_dir_name: See doc for `_find_input_tracking_files`.
+    :param top_output_dir_name: See doc for `_write_storm_objects`.
+    :param first_spc_date_string: See doc for `_find_input_tracking_files`.
+    :param last_spc_date_string: Same.
+    :param first_time_unix_sec: Same.
+    :param last_time_unix_sec: Same.
+    :param tracking_start_time_unix_sec: Start of tracking period.  Default is
+        earliest time in input tracks.
+    :param tracking_end_time_unix_sec: End of tracking period.  Default is
+        latest time in input tracks.
+    :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
+    :param max_link_distance_m_s01: Same.
+    :param max_reanal_join_time_sec: See doc for `_reanalyze_tracks`.
+    :param max_reanal_extrap_error_m_s01: Same.
+    :param min_track_duration_seconds: See doc for `_remove_short_tracks`.
+    :param num_points_back_for_velocity: See doc for
+        `_get_velocities_one_storm_track`.
+    """
+
+    spc_date_strings, input_file_names_by_date, valid_times_by_date_unix_sec = (
+        _find_input_tracking_files(
+            top_tracking_dir_name=top_input_dir_name,
+            first_spc_date_string=first_spc_date_string,
+            last_spc_date_string=last_spc_date_string,
+            first_time_unix_sec=first_time_unix_sec,
+            last_time_unix_sec=last_time_unix_sec)
+    )
+
+    spc_dates_unix_sec = numpy.array([
+        time_conversion.spc_date_string_to_unix_sec(d) for d in spc_date_strings
+    ], dtype=int)
+
+    if (tracking_start_time_unix_sec is None
+            or tracking_end_time_unix_sec is None):
+
+        these_times_unix_sec = numpy.array(
+            [numpy.min(t) for t in valid_times_by_date_unix_sec], dtype=int)
+        tracking_start_time_unix_sec = numpy.min(these_times_unix_sec)
+
+        these_times_unix_sec = numpy.array(
+            [numpy.max(t) for t in valid_times_by_date_unix_sec], dtype=int)
+        tracking_end_time_unix_sec = numpy.max(these_times_unix_sec)
+
+    else:
+        time_conversion.unix_sec_to_string(
+            tracking_start_time_unix_sec, TIME_FORMAT)
+        time_conversion.unix_sec_to_string(
+            tracking_end_time_unix_sec, TIME_FORMAT)
+        error_checking.assert_is_greater(
+            tracking_end_time_unix_sec, tracking_start_time_unix_sec)
+
+    projection_object = projections.init_azimuthal_equidistant_projection(
+        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
+        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
+
+    num_spc_dates = len(spc_date_strings)
+    if num_spc_dates == 1:
+        storm_object_table = tracking_io.read_many_processed_files(
+            input_file_names_by_date[0])
+        print SEPARATOR_STRING
+
+        print 'Reanalyzing tracks for {0:s}...'.format(spc_date_strings[0])
+        storm_object_table = _reanalyze_tracks(
+            storm_object_table=storm_object_table,
+            max_join_time_sec=max_reanal_join_time_sec,
+            max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
+        print SEPARATOR_STRING
+
+        print 'Removing tracks that last < {0:d} seconds...'.format(
+            int(min_track_duration_seconds))
+        storm_object_table = _remove_short_tracks(
+            storm_object_table=storm_object_table,
+            min_duration_seconds=min_track_duration_seconds)
+
+        print 'Recomputing storm ages...'
+        storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=storm_object_table,
+            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
+            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
+            max_extrap_time_for_breakup_sec=max_link_time_seconds,
+            max_join_time_sec=max_reanal_join_time_sec)
+
+        print 'Recomputing storm velocities...'
+        storm_object_table = _get_storm_velocities(
+            storm_object_table=storm_object_table,
+            num_points_back=num_points_back_for_velocity)
+
+        _write_storm_objects(
+            storm_object_table=storm_object_table,
+            top_output_dir_name=top_output_dir_name,
+            output_times_unix_sec=valid_times_by_date_unix_sec[0])
+        return
+
+    storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
+
+    for i in range(num_spc_dates + 1):
+        storm_object_table_by_date = _shuffle_tracking_data(
+            input_file_names_by_date=input_file_names_by_date,
+            valid_times_by_date_unix_sec=valid_times_by_date_unix_sec,
+            storm_object_table_by_date=storm_object_table_by_date,
+            current_date_index=i, top_output_dir_name=top_output_dir_name)
+        print SEPARATOR_STRING
+
+        if i == num_spc_dates:
+            break
+
+        if i != num_spc_dates - 1:
+            print 'Joining tracks between {0:s} and {1:s}...'.format(
+                spc_date_strings[i], spc_date_strings[i + 1])
+
+            storm_object_table_by_date[i + 1] = _join_tracks_between_periods(
+                early_storm_object_table=storm_object_table_by_date[i],
+                late_storm_object_table=storm_object_table_by_date[i + 1],
+                projection_object=projection_object,
+                max_link_time_seconds=max_link_time_seconds,
+                max_link_distance_m_s01=max_link_distance_m_s01)
+
+            print 'Reanalyzing tracks for {0:s} and {1:s}...'.format(
+                spc_date_strings[i], spc_date_strings[i + 1])
+
+            indices_to_concat = numpy.array([i, i + 1], dtype=int)
+            concat_storm_object_table = pandas.concat(
+                [storm_object_table_by_date[k] for k in indices_to_concat],
+                axis=0, ignore_index=True)
+
+            concat_storm_object_table = _reanalyze_tracks(
+                storm_object_table=concat_storm_object_table,
+                max_join_time_sec=max_reanal_join_time_sec,
+                max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
+            print MINOR_SEPARATOR_STRING
+
+            storm_object_table_by_date[i] = concat_storm_object_table.loc[
+                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                spc_dates_unix_sec[i]
+            ]
+            storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
+                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+                spc_dates_unix_sec[i + 1]
+            ]
+
+        if i == 0:
+            indices_to_concat = numpy.array([i, i + 1], dtype=int)
+        elif i == num_spc_dates - 1:
+            indices_to_concat = numpy.array([i - 1, i], dtype=int)
+        else:
+            indices_to_concat = numpy.array([i - 1, i, i + 1], dtype=int)
+
+        concat_storm_object_table = pandas.concat(
+            [storm_object_table_by_date[k] for k in indices_to_concat],
+            axis=0, ignore_index=True)
+
+        print 'Removing tracks that last < {0:d} seconds...'.format(
+            int(min_track_duration_seconds))
+        concat_storm_object_table = _remove_short_tracks(
+            storm_object_table=concat_storm_object_table,
+            min_duration_seconds=min_track_duration_seconds)
+
+        print 'Recomputing storm ages...'
+        concat_storm_object_table = best_tracks.get_storm_ages(
+            storm_object_table=concat_storm_object_table,
+            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
+            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
+            max_extrap_time_for_breakup_sec=max_link_time_seconds,
+            max_join_time_sec=max_reanal_join_time_sec)
+
+        print 'Recomputing storm velocities...'
+        concat_storm_object_table = _get_storm_velocities(
+            storm_object_table=concat_storm_object_table,
+            num_points_back=num_points_back_for_velocity)
+
+        storm_object_table_by_date[i] = concat_storm_object_table.loc[
+            concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
+            spc_dates_unix_sec[i]
+        ]
+        print SEPARATOR_STRING

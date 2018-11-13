@@ -320,7 +320,7 @@ EXTRAP_ERROR_D_TO_A_METRES = vincenty((53.5, 113.8), (53.5, 113.5)).meters
 EXTRAP_ERROR_E_TO_A_METRES = vincenty((47.6, 307.3), (53.5, 113.5)).meters
 
 # The following constants are used to test _find_nearby_tracks and
-# reanalyze_tracks.
+# _reanalyze_tracks.
 MAX_JOIN_TIME_SECONDS = 2
 MAX_EXTRAP_ERROR_M_S01 = 1000.
 
@@ -848,11 +848,11 @@ class EchoTopTrackingTests(unittest.TestCase):
         self.assertTrue(these_nearby_ids == NEARBY_IDS_FOR_E)
 
     def test_reanalyze_tracks(self):
-        """Ensures correct output from reanalyze_tracks."""
+        """Ensures correct output from _reanalyze_tracks."""
 
         this_storm_object_table = copy.deepcopy(
             STORM_OBJECT_TABLE_BEFORE_REANALYSIS)
-        this_storm_object_table = echo_top_tracking.reanalyze_tracks(
+        this_storm_object_table = echo_top_tracking._reanalyze_tracks(
             storm_object_table=this_storm_object_table,
             max_join_time_sec=MAX_JOIN_TIME_SECONDS,
             max_extrap_error_m_s01=MAX_EXTRAP_ERROR_M_S01)
