@@ -46,6 +46,7 @@ def create_examples_2d_or_3d(option_dict, num_examples_per_file):
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
     option_dict['binarize_target']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
 
     If `sounding_field_names is None`, this method returns the following.
 
@@ -69,7 +70,6 @@ def create_examples_2d_or_3d(option_dict, num_examples_per_file):
 
     option_dict.update({
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_file,
-        trainval_io.SAMPLING_FRACTIONS_KEY: None,
         trainval_io.LOOP_ONCE_KEY: True,
         trainval_io.NUM_TRANSLATIONS_KEY: 0,
         trainval_io.NUM_ROTATIONS_KEY: 0,
@@ -135,6 +135,7 @@ def create_examples_2d3d_myrorss(option_dict, num_examples_per_file):
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
     option_dict['binarize_target']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
 
     :return: predictor_list: See doc for
         `training_validation_io.example_generator_2d3d_myrorss`.
@@ -150,7 +151,6 @@ def create_examples_2d3d_myrorss(option_dict, num_examples_per_file):
 
     option_dict.update({
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_file,
-        trainval_io.SAMPLING_FRACTIONS_KEY: None,
         trainval_io.LOOP_ONCE_KEY: True,
         trainval_io.NUM_TRANSLATIONS_KEY: 0,
         trainval_io.NUM_ROTATIONS_KEY: 0,
