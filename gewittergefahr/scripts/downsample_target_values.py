@@ -8,7 +8,9 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import fancy_downsampling
+from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
+LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 INPUT_DIR_ARG_NAME = 'input_target_dir_name'
@@ -17,6 +19,7 @@ FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
 CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
+FOR_TRAINING_ARG_NAME = 'for_training'
 OUTPUT_DIR_ARG_NAME = 'output_target_dir_name'
 
 INPUT_DIR_HELP_STRING = (
@@ -39,6 +42,14 @@ CLASS_FRACTION_KEYS_HELP_STRING = (
 
 CLASS_FRACTION_VALUES_HELP_STRING = 'See doc for `{0:s}`.'.format(
     CLASS_FRACTION_KEYS_ARG_NAME)
+
+FOR_TRAINING_HELP_STRING = (
+    'Boolean flag.  If 1, will downsample for training, using '
+    '`fancy_downsampling.downsample`, which preserves "interesting" negative '
+    'examples (time steps from a hazardous storm cell that are not associated '
+    'with said hazard -- e.g., non-tornadic time steps from a tornadic cell).  '
+    'If 0, will downsample for training or validation, using '
+    '`deep_learning_utils.sample_by_class`.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory for downsampled target values.  New '
@@ -71,13 +82,34 @@ INPUT_ARG_PARSER.add_argument(
     required=True, help=CLASS_FRACTION_VALUES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + FOR_TRAINING_ARG_NAME, type=int, required=True,
+    help=FOR_TRAINING_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
 
 
+def _report_class_fractions(target_values):
+    """Reports fraction of examples in each class.
+
+    :param target_values: 1-D numpy array of target values (integer class
+        labels).
+    """
+
+    unique_target_values, unique_counts = numpy.unique(
+        target_values, return_counts=True)
+
+    print '\n'
+    for k in range(len(unique_target_values)):
+        print '{0:d} examples in class = {1:d}'.format(
+            unique_counts[k], unique_target_values[k])
+    print '\n'
+
+
 def _run(top_input_dir_name, target_name, first_spc_date_string,
          last_spc_date_string, class_fraction_keys, class_fraction_values,
-         top_output_dir_name):
+         for_training, top_output_dir_name):
     """Downsamples storm objects, based on target values.
 
     This is effectively the main method.
@@ -88,6 +120,7 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     :param last_spc_date_string: Same.
     :param class_fraction_keys: Same.
     :param class_fraction_values: Same.
+    :param for_training: Same.
     :param top_output_dir_name: Same.
     """
 
@@ -142,12 +175,27 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
 
-    storm_ids, storm_times_unix_sec, target_values = (
-        fancy_downsampling.downsample(
-            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
-            target_values=target_values, target_name=target_name,
-            class_fraction_dict=class_fraction_dict)
-    )
+    if for_training:
+        storm_ids, storm_times_unix_sec, target_values = (
+            fancy_downsampling.downsample(
+                storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+                target_values=target_values, target_name=target_name,
+                class_fraction_dict=class_fraction_dict)
+        )
+    else:
+        _report_class_fractions(target_values)
+
+        good_indices = dl_utils.sample_by_class(
+            sampling_fraction_by_class_dict=class_fraction_dict,
+            target_name=target_name, target_values=target_values,
+            num_examples_total=LARGE_INTEGER)
+
+        storm_ids = [storm_ids[k] for k in good_indices]
+        storm_times_unix_sec = storm_times_unix_sec[good_indices]
+        target_values = target_values[good_indices]
+
+        _report_class_fractions(target_values)
+
     print SEPARATOR_STRING
 
     for i in range(num_files):
@@ -206,5 +254,6 @@ if __name__ == '__main__':
         class_fraction_values=numpy.array(
             getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
             dtype=float),
+        for_training=bool(getattr(INPUT_ARG_OBJECT, FOR_TRAINING_ARG_NAME)),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
