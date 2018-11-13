@@ -178,7 +178,7 @@ def _run_for_gridrad(
     num_times = len(valid_times_unix_sec)
 
     for i in range(num_times):
-        print 'Reading data from: "{0:s}"...'.format(radar_file_names[i])
+        print 'Reading data from: "{0:s}"...\n'.format(radar_file_names[i])
         radar_metadata_dict = gridrad_io.read_metadata_from_full_grid_file(
             netcdf_file_name=radar_file_names[i])
 
