@@ -1645,7 +1645,6 @@ def run_tracking(
             metadata_dict=this_metadata_dict,
             ignore_if_below=min_echo_top_height_km_asl
         )[0]
-        this_new_echo_top_matrix_km_asl = this_orig_echo_top_matrix_km_asl + 0.
 
         if echo_classifn_file_names is not None:
             print 'Reading data from: "{0:s}"...'.format(
@@ -1656,7 +1655,7 @@ def run_tracking(
             this_convective_flag_matrix = numpy.flip(
                 this_convective_flag_matrix, axis=0)
 
-            this_new_echo_top_matrix_km_asl[
+            this_orig_echo_top_matrix_km_asl[
                 this_convective_flag_matrix == False] = 0.
 
         print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
@@ -1666,7 +1665,7 @@ def run_tracking(
             radar_utils.LAT_SPACING_COLUMN]
 
         this_new_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
-            radar_matrix=this_new_echo_top_matrix_km_asl,
+            radar_matrix=this_orig_echo_top_matrix_km_asl,
             e_folding_radius_pixels=
             e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg
         )

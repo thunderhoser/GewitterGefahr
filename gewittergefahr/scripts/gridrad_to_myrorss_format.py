@@ -59,19 +59,23 @@ GRIDRAD_DIR_HELP_STRING = (
     'Name of top-level directory with GridRad data (files readable by'
     ' `gridrad_io.read_field_from_full_grid_file`).  All .nc files in this '
     'directory will be processed, including in subdirectories at any depth.')
+
 MYRORSS_DIR_HELP_STRING = (
     'Name of top-level directory for MYRORSS data (after conversion; files will'
     ' be written by `myrorss_and_mrms_io.write_field_to_myrorss_file`).')
+
 RUC_DIR_HELP_STRING = (
     'Name of top-level directory with RUC (Rapid Update Cycle) files (readable '
     'by `nwp_model_io.read_field_from_grib_file`).  Will be used to compute'
     ' "{0:s}" for times < {1:s}.'
 ).format(radar_utils.REFL_M10CELSIUS_NAME, RAP_RUC_CUTOFF_TIME_STRING)
+
 RAP_DIR_HELP_STRING = (
     'Name of top-level directory with RAP (Rapid Refresh) files (readable by'
     ' `nwp_model_io.read_field_from_grib_file`).  Will be used to compute'
     ' "{0:s}" for times >= {1:s}.'
 ).format(radar_utils.REFL_M10CELSIUS_NAME, RAP_RUC_CUTOFF_TIME_STRING)
+
 OUTPUT_FIELD_HELP_STRING = (
     'Name of output field (will be written to MYRORSS files).  Must be in the '
     'following list:\n{0:s}').format(str(VALID_OUTPUT_FIELD_NAMES))
