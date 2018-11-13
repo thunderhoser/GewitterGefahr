@@ -106,19 +106,6 @@ def _get_pathless_raw_file_name(unix_time_sec, zipped=True):
         UNZIPPED_FILE_EXTENSION)
 
 
-def _raw_file_name_to_time(raw_file_name):
-    """Parses time from file name.
-
-    :param raw_file_name: Path to raw file.
-    :return: unix_time_sec: Valid time.
-    """
-
-    _, time_string = os.path.split(raw_file_name)
-    time_string = time_string.replace(ZIPPED_FILE_EXTENSION, '').replace(
-        UNZIPPED_FILE_EXTENSION, '')
-    return time_conversion.string_to_unix_sec(time_string, TIME_FORMAT_SECONDS)
-
-
 def _remove_sentinels_from_sparse_grid(
         sparse_grid_table, field_name, sentinel_values):
     """Removes sentinel values from sparse grid.
@@ -244,6 +231,22 @@ def find_raw_file(
     return raw_file_name
 
 
+def raw_file_name_to_time(raw_file_name):
+    """Parses time from file name.
+
+    :param raw_file_name: Path to raw file.
+    :return: unix_time_sec: Valid time.
+    """
+
+    error_checking.assert_is_string(raw_file_name)
+
+    _, time_string = os.path.split(raw_file_name)
+    time_string = time_string.replace(ZIPPED_FILE_EXTENSION, '').replace(
+        UNZIPPED_FILE_EXTENSION, '')
+
+    return time_conversion.string_to_unix_sec(time_string, TIME_FORMAT_SECONDS)
+
+
 def find_raw_file_inexact_time(
         desired_time_unix_sec, spc_date_string, field_name, data_source,
         top_directory_name, height_m_asl=None, max_time_offset_sec=None,
@@ -318,7 +321,7 @@ def find_raw_file_inexact_time(
 
     file_times_unix_sec = []
     for this_raw_file_name in raw_file_names:
-        file_times_unix_sec.append(_raw_file_name_to_time(this_raw_file_name))
+        file_times_unix_sec.append(raw_file_name_to_time(this_raw_file_name))
 
     if len(file_times_unix_sec):
         file_times_unix_sec = numpy.array(file_times_unix_sec)

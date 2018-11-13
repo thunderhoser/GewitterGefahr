@@ -39,27 +39,26 @@ from gewittergefahr.gg_utils import polygons
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import best_tracks
+from gewittergefahr.gg_utils import echo_classification as echo_classifn
 from gewittergefahr.gg_utils import error_checking
 
 TOLERANCE = 1e-6
 DUMMY_TIME_UNIX_SEC = -10000
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
-LINE_OF_STARS = '\n\n' + '*' * 50 + '\n\n'
-LINE_OF_DASHES = '\n\n' + '-' * 50 + '\n\n'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-DAYS_TO_SECONDS = 86400
 DEGREES_LAT_TO_METRES = 60 * 1852
-DEGREES_TO_RADIANS = numpy.pi / 180
-
 CENTRAL_PROJ_LATITUDE_DEG = 35.
 CENTRAL_PROJ_LONGITUDE_DEG = 265.
 
 VALID_RADAR_FIELDS = [
     radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_40DBZ_NAME,
-    radar_utils.ECHO_TOP_50DBZ_NAME]
-VALID_RADAR_DATA_SOURCES = [
-    radar_utils.MYRORSS_SOURCE_ID, radar_utils.MRMS_SOURCE_ID]
+    radar_utils.ECHO_TOP_50DBZ_NAME
+]
+VALID_RADAR_SOURCE_NAMES = [
+    radar_utils.MYRORSS_SOURCE_ID, radar_utils.MRMS_SOURCE_ID
+]
 
 DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL = 4.
 DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
@@ -77,9 +76,7 @@ DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS = 900
 DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY = 3
 DUMMY_TRACKING_SCALE_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
 
-RADAR_FILE_NAMES_KEY = 'input_radar_file_names'
 TRACKING_FILE_NAMES_KEY = 'output_tracking_file_names'
-RADAR_METADATA_DICTS_KEY = 'list_of_radar_metadata_dicts'
 VALID_TIMES_KEY = 'unix_times_sec'
 
 LATITUDES_KEY = 'latitudes_deg'
@@ -90,11 +87,6 @@ Y_COORDS_KEY = 'y_coords_metres'
 VALID_TIME_KEY = 'unix_time_sec'
 CURRENT_TO_PREV_INDICES_KEY = 'current_to_previous_indices'
 STORM_IDS_KEY = 'storm_ids'
-
-SPC_DATE_STRINGS_KEY = 'spc_date_strings'
-INPUT_FILE_NAMES_BY_DATE_KEY = 'input_file_names_by_date'
-OUTPUT_FILE_NAMES_BY_DATE_KEY = 'output_file_names_by_date'
-VALID_TIMES_BY_DATE_KEY = 'times_by_date_unix_sec'
 
 CENTROID_X_COLUMN = 'centroid_x_metres'
 CENTROID_Y_COLUMN = 'centroid_y_metres'
@@ -122,6 +114,7 @@ def _check_radar_field(radar_field_name):
     """
 
     error_checking.assert_is_string(radar_field_name)
+
     if radar_field_name not in VALID_RADAR_FIELDS:
         error_string = (
             '\n\n{0:s}\n\nValid radar fields (listed above) do not include '
@@ -129,18 +122,20 @@ def _check_radar_field(radar_field_name):
         raise ValueError(error_string)
 
 
-def _check_radar_data_source(radar_data_source):
-    """Ensures that data source is valid for echo-top-based tracking.
+def _check_radar_source(radar_source_name):
+    """Error-checks source of radar data.
 
-    :param radar_data_source: Data source (string).
-    :raises: ValueError: if `radar_data_source not in VALID_RADAR_DATA_SOURCES`.
+    :param radar_source_name: Data source (must be in list
+        `VALID_RADAR_SOURCE_NAMES`).
+    :raises: ValueError: if `radar_source_name not in VALID_RADAR_SOURCE_NAMES`.
     """
 
-    error_checking.assert_is_string(radar_data_source)
-    if radar_data_source not in VALID_RADAR_DATA_SOURCES:
+    error_checking.assert_is_string(radar_source_name)
+
+    if radar_source_name not in VALID_RADAR_SOURCE_NAMES:
         error_string = (
             '\n\n{0:s}\n\nValid data sources (listed above) do not include '
-            '"{1:s}".').format(VALID_RADAR_DATA_SOURCES, radar_data_source)
+            '"{1:s}".').format(VALID_RADAR_SOURCE_NAMES, radar_source_name)
         raise ValueError(error_string)
 
 
@@ -357,150 +352,101 @@ def _link_local_maxima_in_time(
     return current_to_previous_indices
 
 
-def _find_radar_and_tracking_files(
-        echo_top_field_name, data_source, top_radar_dir_name,
-        top_tracking_dir_name, tracking_scale_metres2, start_spc_date_string,
-        end_spc_date_string, start_time_unix_sec=None, end_time_unix_sec=None):
-    """Finds input radar files and creates paths for output tracking files.
+def _find_input_radar_files(
+        top_radar_dir_name, echo_top_field_name, radar_source_name,
+        first_spc_date_string, last_spc_date_string, first_time_unix_sec,
+        last_time_unix_sec):
+    """Finds radar files (inputs to tracking algorithm).
 
-    N = number of time steps
+    N = number of files found
 
-    :param echo_top_field_name: Name of radar field to use for tracking.  Must
-        be an echo-top field.
-    :param data_source: Data source (must be either "myrorss" or "mrms").
-    :param top_radar_dir_name: [input] Name of top-level directory with radar
-        data from the given source.
-    :param top_tracking_dir_name: [output] Name of top-level directory for
-        storm tracks.
-    :param tracking_scale_metres2: Tracking scale (storm-object area).  This
-        determines names of output tracking files.
-    :param start_spc_date_string: First SPC date in period (format "yyyymmdd").
-    :param end_spc_date_string: Last SPC date in period (format "yyyymmdd").
-    :param start_time_unix_sec: Start of time period.  Default is 1200 UTC at
-        beginning of the given SPC date (e.g., if SPC date is "20180124", this
-        will be 1200 UTC 24 Jan 2018).
-    :param end_time_unix_sec: End of time period.  Default is 1200 UTC at end of
-        the given SPC date (e.g., if SPC date is "20180124", this will be 1200
-        UTC 25 Jan 2018).
-    :return: file_dictionary: Dictionary with the following keys.
-    file_dictionary['input_radar_file_names']: length-N list of paths to radar
-        files.
-    file_dictionary['output_tracking_file_names']: length-N list of paths to
-        tracking files.
-    file_dictionary['unix_times_sec']: length-N numpy array of time steps.
-
-    :raises: ValueError: if `start_time_unix_sec` is not in
-        `start_spc_date_string` or `end_time_unix_sec` is not in
-        `end_spc_date_string`.
+    :param top_radar_dir_name: Name of top-level directory with radar files.
+        Files therein will be found by
+        `myrorss_and_mrms_io.find_many_raw_files`.
+    :param echo_top_field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :param radar_source_name: Data source (must be accepted by
+        `_check_radar_source`).
+    :param first_spc_date_string: First SPC date in period (format "yyyymmdd").
+    :param last_spc_date_string: Last SPC date in period (format "yyyymmdd").
+    :param first_time_unix_sec: First time in period.  Default is 120000 UTC at
+        beginning of first SPC date.
+    :param last_time_unix_sec: Last time in period.  Default is 115959 UTC at
+        end of first SPC date.
+    :return: radar_file_names: length-N list of paths to radar files.
+    :return: valid_times_unix_sec: length-N numpy array of valid times.
     """
 
     # Error-checking.
     _check_radar_field(echo_top_field_name)
-    _check_radar_data_source(data_source)
+    _check_radar_source(radar_source_name)
 
     spc_date_strings = time_conversion.get_spc_dates_in_range(
-        first_spc_date_string=start_spc_date_string,
-        last_spc_date_string=end_spc_date_string)
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
 
-    if start_time_unix_sec is None:
-        start_time_unix_sec = (
+    if first_time_unix_sec is None:
+        first_time_unix_sec = (
             time_conversion.MIN_SECONDS_INTO_SPC_DATE +
             time_conversion.string_to_unix_sec(
-                start_spc_date_string, time_conversion.SPC_DATE_FORMAT)
+                first_spc_date_string, time_conversion.SPC_DATE_FORMAT)
         )
 
-    if end_time_unix_sec is None:
-        end_time_unix_sec = (
+    if last_time_unix_sec is None:
+        last_time_unix_sec = (
             time_conversion.MAX_SECONDS_INTO_SPC_DATE +
             time_conversion.string_to_unix_sec(
-                end_spc_date_string, time_conversion.SPC_DATE_FORMAT)
+                last_spc_date_string, time_conversion.SPC_DATE_FORMAT)
         )
 
-    if not time_conversion.is_time_in_spc_date(
-            start_time_unix_sec, start_spc_date_string):
-        error_string = (
-            'Start time ({0:s}) is not in first SPC date ({1:s}).'.format(
-                time_conversion.unix_sec_to_string(
-                    start_time_unix_sec, TIME_FORMAT), start_spc_date_string))
-        raise ValueError(error_string)
+    error_checking.assert_is_greater(last_time_unix_sec, first_time_unix_sec)
+    assert time_conversion.is_time_in_spc_date(
+        first_time_unix_sec, first_spc_date_string)
+    assert time_conversion.is_time_in_spc_date(
+        last_time_unix_sec, last_spc_date_string)
 
-    if not time_conversion.is_time_in_spc_date(
-            end_time_unix_sec, end_spc_date_string):
-        error_string = (
-            'End time ({0:s}) is not in last SPC date ({1:s}).'.format(
-                time_conversion.unix_sec_to_string(
-                    end_time_unix_sec, TIME_FORMAT), end_spc_date_string))
-        raise ValueError(error_string)
-
-    error_checking.assert_is_greater(end_time_unix_sec, start_time_unix_sec)
-
-    # Find radar files.
-    input_radar_file_names = []
-    output_tracking_file_names = []
-    unix_times_sec = numpy.array([], dtype=int)
+    # Find files.
+    radar_file_names = []
+    valid_times_unix_sec = numpy.array([], dtype=int)
     num_spc_dates = len(spc_date_strings)
 
     for i in range(num_spc_dates):
-        these_radar_file_names = (
-            myrorss_and_mrms_io.find_raw_files_one_spc_date(
-                spc_date_string=spc_date_strings[i],
-                field_name=echo_top_field_name,
-                data_source=data_source, top_directory_name=top_radar_dir_name,
-                raise_error_if_missing=True)
-        )
+        these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
+            spc_date_string=spc_date_strings[i],
+            field_name=echo_top_field_name, data_source=radar_source_name,
+            top_directory_name=top_radar_dir_name, raise_error_if_missing=True)
 
         if i == 0:
-            this_start_time_unix_sec = start_time_unix_sec + 0
+            this_first_time_unix_sec = first_time_unix_sec + 0
         else:
-            this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
+            this_first_time_unix_sec = time_conversion.get_start_of_spc_date(
                 spc_date_strings[i])
 
         if i == num_spc_dates - 1:
-            this_end_time_unix_sec = end_time_unix_sec + 0
+            this_last_time_unix_sec = last_time_unix_sec + 0
         else:
-            this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
+            this_last_time_unix_sec = time_conversion.get_end_of_spc_date(
                 spc_date_strings[i])
 
-        # TODO(thunderhoser): stop using protected method.
-        these_times_unix_sec = numpy.array(
-            [myrorss_and_mrms_io._raw_file_name_to_time(f)
-             for f in these_radar_file_names], dtype=int)
+        these_times_unix_sec = numpy.array([
+            myrorss_and_mrms_io.raw_file_name_to_time(f)
+            for f in these_file_names
+        ], dtype=int)
 
         good_indices = numpy.where(numpy.logical_and(
-            these_times_unix_sec >= this_start_time_unix_sec,
-            these_times_unix_sec <= this_end_time_unix_sec
+            these_times_unix_sec >= this_first_time_unix_sec,
+            these_times_unix_sec <= this_last_time_unix_sec
         ))[0]
-        these_times_unix_sec = these_times_unix_sec[good_indices]
-        these_radar_file_names = [
-            these_radar_file_names[k] for k in good_indices]
 
-        this_num_times = len(these_times_unix_sec)
-        these_tracking_file_names = [''] * this_num_times
-        for j in range(this_num_times):
-            these_tracking_file_names[j] = tracking_io.find_processed_file(
-                unix_time_sec=these_times_unix_sec[j],
-                data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-                top_processed_dir_name=top_tracking_dir_name,
-                tracking_scale_metres2=int(numpy.round(tracking_scale_metres2)),
-                spc_date_string=spc_date_strings[i],
-                raise_error_if_missing=False)
+        radar_file_names += [these_file_names[k] for k in good_indices]
+        valid_times_unix_sec = numpy.concatenate((
+            valid_times_unix_sec, these_times_unix_sec[good_indices]))
 
-        input_radar_file_names += these_radar_file_names
-        output_tracking_file_names += these_tracking_file_names
-        unix_times_sec = numpy.concatenate((
-            unix_times_sec, these_times_unix_sec))
+    sort_indices = numpy.argsort(valid_times_unix_sec)
+    valid_times_unix_sec = valid_times_unix_sec[sort_indices]
+    radar_file_names = [radar_file_names[k] for k in sort_indices]
 
-    sort_indices = numpy.argsort(unix_times_sec)
-    unix_times_sec = unix_times_sec[sort_indices]
-    input_radar_file_names = [input_radar_file_names[k] for k in sort_indices]
-    output_tracking_file_names = [
-        output_tracking_file_names[k] for k in sort_indices]
-
-    return {
-        RADAR_FILE_NAMES_KEY: input_radar_file_names,
-        TRACKING_FILE_NAMES_KEY: output_tracking_file_names,
-        VALID_TIMES_KEY: unix_times_sec
-    }
+    return radar_file_names, valid_times_unix_sec
 
 
 def _create_storm_id(
@@ -1018,138 +964,6 @@ def _local_maxima_to_polygons(
     return local_max_dict
 
 
-def _find_input_and_output_tracking_files(
-        first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        tracking_scale_metres2, top_output_dir_name, start_time_unix_sec=None,
-        end_time_unix_sec=None):
-    """Finds input and output tracking files.
-
-    These files will be used by `join_tracks_across_spc_dates`.
-
-    N = number of SPC dates
-
-    :param first_spc_date_string: First SPC date (format "yyyymmdd").
-    :param last_spc_date_string: Last SPC date (format "yyyymmdd").
-    :param top_input_dir_name: Name of top-level directory with original
-        tracking files (before joining across SPC dates).
-    :param tracking_scale_metres2: Tracking scale (minimum storm area).  This
-        will be used to find files.
-    :param top_output_dir_name: Name of top-level directory for new tracking
-        files (after joining).
-    :param start_time_unix_sec: Start time.  If None, defaults to beginning of
-        `first_spc_date_string`.
-    :param end_time_unix_sec: End time.  If None, defaults to end of
-        `last_spc_date_string`.
-
-    :return: tracking_file_dict: Dictionary with the following keys.
-    tracking_file_dict['spc_date_strings']: length-N list of SPC dates (format
-        "yyyymmdd").
-    tracking_file_dict['input_file_names_by_date']: length-N list, where the
-        [i]th element is a 1-D list of paths to input files for the [i]th SPC
-        date.
-    tracking_file_dict['output_file_names_by_date']: Same but for output files.
-    tracking_file_dict['times_by_date_unix_sec']: length-N list, where the
-        [i]th element is a 1-D numpy array of valid times for the [i]th SPC
-        date.
-
-    :raises: ValueError: if `start_time_unix_sec` not in `first_spc_date_string`
-        or `end_time_unix_sec` not in `last_spc_date_string`.
-    """
-
-    if start_time_unix_sec is None:
-        start_time_unix_sec = time_conversion.get_start_of_spc_date(
-            first_spc_date_string)
-
-    if end_time_unix_sec is None:
-        end_time_unix_sec = time_conversion.get_end_of_spc_date(
-            last_spc_date_string)
-
-    this_valid_flag = time_conversion.is_time_in_spc_date(
-        unix_time_sec=start_time_unix_sec,
-        spc_date_string=first_spc_date_string)
-    if not this_valid_flag:
-        start_time_string = time_conversion.unix_sec_to_string(
-            start_time_unix_sec, TIME_FORMAT)
-        error_string = 'Start time ({0:s}) is not in SPC date "{1:s}".'.format(
-            start_time_string, first_spc_date_string)
-        raise ValueError(error_string)
-
-    this_valid_flag = time_conversion.is_time_in_spc_date(
-        unix_time_sec=end_time_unix_sec,
-        spc_date_string=last_spc_date_string)
-    if not this_valid_flag:
-        end_time_string = time_conversion.unix_sec_to_string(
-            end_time_unix_sec, TIME_FORMAT)
-        error_string = 'End time ({0:s}) is not in SPC date "{1:s}".'.format(
-            end_time_string, last_spc_date_string)
-        raise ValueError(error_string)
-
-    spc_date_strings = time_conversion.get_spc_dates_in_range(
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string)
-    num_spc_dates = len(spc_date_strings)
-
-    tracking_file_dict = {
-        SPC_DATE_STRINGS_KEY: spc_date_strings,
-        INPUT_FILE_NAMES_BY_DATE_KEY: [[]] * num_spc_dates,
-        OUTPUT_FILE_NAMES_BY_DATE_KEY: [[]] * num_spc_dates,
-        VALID_TIMES_BY_DATE_KEY: [[]] * num_spc_dates
-    }
-
-    for i in range(num_spc_dates):
-        (these_input_file_names, _
-        ) = tracking_io.find_processed_files_one_spc_date(
-            spc_date_string=spc_date_strings[i],
-            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-            top_processed_dir_name=top_input_dir_name,
-            tracking_scale_metres2=tracking_scale_metres2)
-
-        these_times_unix_sec = numpy.array(
-            [tracking_io.processed_file_name_to_time(f)
-             for f in these_input_file_names], dtype=int)
-
-        if i == 0:
-            these_valid_indices = numpy.where(
-                these_times_unix_sec >= start_time_unix_sec)[0]
-            these_times_unix_sec = these_times_unix_sec[these_valid_indices]
-            these_input_file_names = [
-                these_input_file_names[k] for k in these_valid_indices]
-
-        if i == num_spc_dates - 1:
-            these_valid_indices = numpy.where(
-                these_times_unix_sec <= end_time_unix_sec)[0]
-            these_times_unix_sec = these_times_unix_sec[these_valid_indices]
-            these_input_file_names = [
-                these_input_file_names[k] for k in these_valid_indices]
-
-        sort_indices = numpy.argsort(these_times_unix_sec)
-        these_times_unix_sec = these_times_unix_sec[sort_indices]
-        these_input_file_names = [
-            these_input_file_names[k] for k in sort_indices]
-
-        if top_output_dir_name == top_input_dir_name:
-            these_output_file_names = copy.deepcopy(these_input_file_names)
-        else:
-            these_output_file_names = []
-            for this_time_unix_sec in these_times_unix_sec:
-                these_output_file_names.append(
-                    tracking_io.find_processed_file(
-                        unix_time_sec=this_time_unix_sec,
-                        data_source=tracking_utils.SEGMOTION_SOURCE_ID,
-                        top_processed_dir_name=top_output_dir_name,
-                        tracking_scale_metres2=tracking_scale_metres2,
-                        spc_date_string=spc_date_strings[i],
-                        raise_error_if_missing=False))
-
-        tracking_file_dict[INPUT_FILE_NAMES_BY_DATE_KEY][
-            i] = these_input_file_names
-        tracking_file_dict[OUTPUT_FILE_NAMES_BY_DATE_KEY][
-            i] = these_output_file_names
-        tracking_file_dict[VALID_TIMES_BY_DATE_KEY][i] = these_times_unix_sec
-
-    return tracking_file_dict
-
-
 def _join_tracks_between_periods(
         early_storm_object_table, late_storm_object_table, projection_object,
         max_link_time_seconds, max_link_distance_m_s01):
@@ -1448,6 +1262,36 @@ def _find_nearby_tracks(
     return nearby_track_indices[sort_indices]
 
 
+def _write_storm_objects(
+        storm_object_table, top_output_dir_name, output_times_unix_sec):
+    """Writes storm objects to files (one Pickle file per time step).
+
+    :param storm_object_table: See doc for
+        `storm_tracking_io.write_processed_file`.
+    :param top_output_dir_name: Name of top-level output directory.  Files
+        will be written by `storm_tracking_io.write_processed_file`, to
+        locations therein determined by `storm_tracking_io.find_processed_file`.
+    :param output_times_unix_sec: 1-D numpy array of output times.
+    """
+
+    for this_time_unix_sec in output_times_unix_sec:
+        this_output_file_name = tracking_io.find_processed_file(
+            top_processed_dir_name=top_output_dir_name,
+            unix_time_sec=this_time_unix_sec,
+            tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+            data_source=tracking_utils.SEGMOTION_SOURCE_ID,
+            raise_error_if_missing=False)
+
+        print 'Writing data to file: "{0:s}"...'.format(this_output_file_name)
+        tracking_io.write_processed_file(
+            storm_object_table=storm_object_table.loc[
+                storm_object_table[tracking_utils.TIME_COLUMN] ==
+                this_time_unix_sec
+                ],
+            pickle_file_name=this_output_file_name
+        )
+
+
 def reanalyze_tracks(
         storm_object_table, max_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
         max_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01):
@@ -1526,11 +1370,12 @@ def reanalyze_tracks(
 
 
 def run_tracking(
-        top_radar_dir_name, top_tracking_dir_name, start_spc_date_string,
-        end_spc_date_string,
+        top_radar_dir_name, top_output_dir_name,
+        first_spc_date_string, last_spc_date_string,
+        first_time_unix_sec=None, last_time_unix_sec=None,
         echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
-        radar_data_source=radar_utils.MYRORSS_SOURCE_ID,
-        start_time_unix_sec=None, end_time_unix_sec=None,
+        radar_source_name=radar_utils.MYRORSS_SOURCE_ID,
+        top_echo_classifn_dir_name=None,
         min_echo_top_height_km_asl=DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL,
         e_fold_radius_for_smoothing_deg_lat=
         DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT,
@@ -1542,17 +1387,22 @@ def run_tracking(
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
-    """Runs tracking algorithm for the given time period and radar field.
+    """This is effectively the main method for echo-top-tracking.
 
-    :param top_radar_dir_name: See doc for `_find_radar_and_tracking_files`.
-    :param top_tracking_dir_name: See doc for `_find_radar_and_tracking_files`.
-    :param start_spc_date_string: See doc for `_find_radar_and_tracking_files`.
-    :param end_spc_date_string: See doc for `_find_radar_and_tracking_files`.
-    :param echo_top_field_name: See documentation for
-        `_find_radar_and_tracking_files`.
-    :param radar_data_source: See doc for `_find_radar_and_tracking_files`.
-    :param start_time_unix_sec: See doc for `_find_radar_and_tracking_files`.
-    :param end_time_unix_sec: See doc for `_find_radar_and_tracking_files`.
+    :param top_radar_dir_name: See doc for `_find_input_radar_files`.
+    :param top_output_dir_name: See doc for `write_storm_objects`.
+    :param first_spc_date_string: See doc for `_find_input_radar_files`.
+    :param last_spc_date_string: Same.
+    :param first_time_unix_sec: Same.
+    :param last_time_unix_sec: Same.
+    :param echo_top_field_name: Same.
+    :param radar_source_name: Same.
+    :param top_echo_classifn_dir_name: Name of top-level directory with echo
+        classifications.  If None, echo classifications will not be used.  If
+        True, files therein will be found by
+        `echo_classification.find_classification_file` and read by
+        `echo_classification.read_classifications` and tracking will be run only
+        on convective pixels.
     :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
         level).  Only local maxima >= `min_echo_top_height_km_asl` will be
         tracked.
@@ -1570,86 +1420,113 @@ def run_tracking(
         storms will be removed.
     :param num_points_back_for_velocity: See doc for
         `_get_velocities_one_storm_track`.
-    :return: storm_object_table: pandas DataFrame with columns listed in
-        `storm_tracking_io.write_processed_file`.
-    :return: file_dictionary: See documentation for
-        `_find_radar_and_tracking_files`.
     """
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
-    file_dictionary = _find_radar_and_tracking_files(
-        echo_top_field_name=echo_top_field_name, data_source=radar_data_source,
+    radar_file_names, valid_times_unix_sec = _find_input_radar_files(
         top_radar_dir_name=top_radar_dir_name,
-        top_tracking_dir_name=top_tracking_dir_name,
-        tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
-        start_spc_date_string=start_spc_date_string,
-        end_spc_date_string=end_spc_date_string,
-        start_time_unix_sec=start_time_unix_sec,
-        end_time_unix_sec=end_time_unix_sec)
+        echo_top_field_name=echo_top_field_name,
+        radar_source_name=radar_source_name,
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string,
+        first_time_unix_sec=first_time_unix_sec,
+        last_time_unix_sec=last_time_unix_sec)
 
-    input_radar_file_names = file_dictionary[RADAR_FILE_NAMES_KEY]
-    unix_times_sec = file_dictionary[VALID_TIMES_KEY]
+    num_times = len(valid_times_unix_sec)
+    valid_time_strings = [
+        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
+        for t in valid_times_unix_sec
+    ]
+
+    if top_echo_classifn_dir_name is None:
+        echo_classifn_file_names = None
+    else:
+        echo_classifn_file_names = [''] * num_times
+
+        for i in range(num_times):
+            echo_classifn_file_names[i] = (
+                echo_classifn.find_classification_file(
+                    top_directory_name=top_echo_classifn_dir_name,
+                    valid_time_unix_sec=valid_times_unix_sec[i])
+            )
 
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
-    time_strings = [time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-                    for t in unix_times_sec]
-
-    num_times = len(unix_times_sec)
     local_max_dict_by_time = [{}] * num_times
-    file_dictionary[RADAR_METADATA_DICTS_KEY] = [{}] * num_times
 
     for i in range(num_times):
-        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
-            echo_top_field_name, time_strings[i])
-
-        file_dictionary[RADAR_METADATA_DICTS_KEY][i] = (
-            myrorss_and_mrms_io.read_metadata_from_raw_file(
-                input_radar_file_names[i], data_source=radar_data_source))
+        print 'Reading data from: "{0:s}"...'.format(radar_file_names[i])
+        this_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
+            netcdf_file_name=radar_file_names[i], data_source=radar_source_name)
 
         this_sparse_grid_table = (
             myrorss_and_mrms_io.read_data_from_sparse_grid_file(
-                input_radar_file_names[i],
-                field_name_orig=file_dictionary[RADAR_METADATA_DICTS_KEY][i][
+                netcdf_file_name=radar_file_names[i],
+                field_name_orig=this_metadata_dict[
                     myrorss_and_mrms_io.FIELD_NAME_COLUMN_ORIG],
-                data_source=radar_data_source,
-                sentinel_values=file_dictionary[RADAR_METADATA_DICTS_KEY][i][
-                    radar_utils.SENTINEL_VALUE_COLUMN]))
+                data_source=radar_source_name,
+                sentinel_values=this_metadata_dict[
+                    radar_utils.SENTINEL_VALUE_COLUMN]
+            )
+        )
 
-        this_echo_top_matrix_km_asl, _, _ = radar_s2f.sparse_to_full_grid(
-            this_sparse_grid_table,
-            file_dictionary[RADAR_METADATA_DICTS_KEY][i],
-            ignore_if_below=min_echo_top_height_km_asl)
+        this_orig_echo_top_matrix_km_asl = radar_s2f.sparse_to_full_grid(
+            sparse_grid_table=this_sparse_grid_table,
+            metadata_dict=this_metadata_dict,
+            ignore_if_below=min_echo_top_height_km_asl
+        )[0]
+        this_new_echo_top_matrix_km_asl = this_orig_echo_top_matrix_km_asl + 0.
 
-        this_latitude_spacing_deg = file_dictionary[RADAR_METADATA_DICTS_KEY][
-            i][radar_utils.LAT_SPACING_COLUMN]
-        this_e_folding_radius_pixels = (
-            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
-        this_smooth_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
-            this_echo_top_matrix_km_asl,
-            e_folding_radius_pixels=this_e_folding_radius_pixels)
+        if echo_classifn_file_names is not None:
+            print 'Reading data from: "{0:s}"...'.format(
+                echo_classifn_file_names[i])
+            this_convective_flag_matrix = echo_classifn.read_classifications(
+                echo_classifn_file_names[i]
+            )[0]
+            this_convective_flag_matrix = numpy.flip(
+                this_convective_flag_matrix, axis=0)
+
+            this_new_echo_top_matrix_km_asl[
+                this_convective_flag_matrix == False] = 0.
+
+        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
+            echo_top_field_name, valid_time_strings[i])
+
+        this_latitude_spacing_deg = this_metadata_dict[
+            radar_utils.LAT_SPACING_COLUMN]
+
+        this_new_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
+            radar_matrix=this_new_echo_top_matrix_km_asl,
+            e_folding_radius_pixels=
+            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg
+        )
 
         this_half_width_in_pixels = int(numpy.round(
             half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
+
         local_max_dict_by_time[i] = _find_local_maxima(
-            this_smooth_echo_top_matrix_km_asl,
-            file_dictionary[RADAR_METADATA_DICTS_KEY][i],
+            radar_matrix=this_new_echo_top_matrix_km_asl,
+            radar_metadata_dict=this_metadata_dict,
             neigh_half_width_in_pixels=this_half_width_in_pixels)
 
         local_max_dict_by_time[i] = _remove_redundant_local_maxima(
-            local_max_dict_by_time[i], projection_object=projection_object,
+            local_max_dict_latlng=local_max_dict_by_time[i],
+            projection_object=projection_object,
             min_distance_between_maxima_metres=
-            min_distance_between_maxima_metres)
-        local_max_dict_by_time[i].update({VALID_TIME_KEY: unix_times_sec[i]})
+            min_distance_between_maxima_metres
+        )
+
+        local_max_dict_by_time[i].update(
+            {VALID_TIME_KEY: valid_times_unix_sec[i]})
 
         local_max_dict_by_time[i] = _local_maxima_to_polygons(
             local_max_dict=local_max_dict_by_time[i],
-            echo_top_matrix_km_asl=this_echo_top_matrix_km_asl,
+            echo_top_matrix_km_asl=this_orig_echo_top_matrix_km_asl,
             min_echo_top_height_km_asl=min_echo_top_height_km_asl,
-            radar_metadata_dict=file_dictionary[RADAR_METADATA_DICTS_KEY][i],
+            radar_metadata_dict=this_metadata_dict,
             min_distance_between_maxima_metres=
             min_distance_between_maxima_metres)
 
@@ -1661,8 +1538,8 @@ def run_tracking(
                 max_link_distance_m_s01=max_link_distance_m_s01)
         else:
             print (
-                'Linking local maxima at {0:s} with those at {1:s}...\n'.format(
-                    time_strings[i], time_strings[i - 1]))
+                'Linking local maxima at {0:s} with those at {1:s}...\n'
+            ).format(valid_time_strings[i], valid_time_strings[i - 1])
 
             these_current_to_prev_indices = _link_local_maxima_in_time(
                 current_local_max_dict=local_max_dict_by_time[i],
@@ -1673,305 +1550,32 @@ def run_tracking(
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
 
-    print ('Converting time series of local "{0:s}" maxima to storm '
-           'tracks...').format(echo_top_field_name)
+    print SEPARATOR_STRING
+    print 'Converting time series of "{0:s}" maxima to storm tracks...'.format(
+        echo_top_field_name)
     storm_object_table = _local_maxima_to_storm_tracks(local_max_dict_by_time)
 
-    print 'Removing tracks with duration < {0:d} seconds...'.format(
+    print 'Removing tracks that last < {0:d} seconds...'.format(
         int(min_track_duration_seconds))
     storm_object_table = _remove_short_tracks(
-        storm_object_table, min_duration_seconds=min_track_duration_seconds)
+        storm_object_table=storm_object_table,
+        min_duration_seconds=min_track_duration_seconds)
 
     print 'Computing storm ages...'
     storm_object_table = best_tracks.get_storm_ages(
         storm_object_table=storm_object_table,
-        best_track_start_time_unix_sec=unix_times_sec[0],
-        best_track_end_time_unix_sec=unix_times_sec[-1],
+        best_track_start_time_unix_sec=valid_times_unix_sec[0],
+        best_track_end_time_unix_sec=valid_times_unix_sec[-1],
         max_extrap_time_for_breakup_sec=max_link_time_seconds,
         max_join_time_sec=max_link_time_seconds)
 
-    print 'Computing velocity for each storm object...\n'
+    print 'Computing storm velocities...'
     storm_object_table = _get_storm_velocities(
-        storm_object_table, num_points_back=num_points_back_for_velocity)
-    return storm_object_table, file_dictionary
+        storm_object_table=storm_object_table,
+        num_points_back=num_points_back_for_velocity)
 
-
-def join_tracks_across_spc_dates(
-        first_spc_date_string, last_spc_date_string, top_input_dir_name,
-        top_output_dir_name, start_time_unix_sec=None, end_time_unix_sec=None,
-        tracking_start_time_unix_sec=None, tracking_end_time_unix_sec=None,
-        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
-        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
-        max_reanal_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01,
-        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS,
-        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
-    """Joins storm tracks across SPC dates.
-
-    This method assumes that the initial tracks were created separately for each
-    SPC date (period of 1200-1200 UTC).  This leads to artificial truncations at
-    1200 UTC, where storm objects on date k could not be linked with objects on
-    date (k + 1).  This method fixes said truncations by joining tracks from
-    each consecutive pair of SPC dates.
-
-    :param first_spc_date_string: First SPC date (format "yyyymmdd").  This
-        method joins tracks for all SPC dates from `first_spc_date_string`...
-        `last_spc_date_string`.
-    :param last_spc_date_string: See above.
-    :param top_input_dir_name: Name of top-level input directory (with original
-        tracking files).
-    :param top_output_dir_name: Name of top-level output directory (for new
-        tracking files).
-    :param start_time_unix_sec: Start of period to be processed.  This time must
-        be in the first SPC date, given by `first_spc_date_string`.  If None,
-        will default to the start of the first SPC date.
-    :param end_time_unix_sec: End of period to be processed.  This time must be
-        in the last SPC date, given by `last_spc_date_string`.  If None, will
-        default to the end of `last_spc_date_string`.
-    :param tracking_start_time_unix_sec: Start of tracking period.
-    :param tracking_end_time_unix_sec: End of tracking period.
-    :param max_link_time_seconds: See documentation for
-        `_link_local_maxima_in_time`.
-    :param max_link_distance_m_s01: Same.
-    :param max_reanal_join_time_sec: See documentation for `reanalyze_tracks`.
-    :param max_reanal_extrap_error_m_s01: Same.
-    :param min_track_duration_seconds: See documentation for
-        `_remove_short_tracks`.
-    :param num_points_back_for_velocity: See documentation for
-        `_get_velocities_one_storm_track`.
-    :return: tracking_file_dict: Dictionary created by
-        `_find_input_and_output_tracking_files`.
-    :raises: ValueError: if `storm_object_table` for SPC date k contains any SPC
-        dates other than k.
-    """
-
-    # Find input files and target locations for output files.
-    tracking_file_dict = _find_input_and_output_tracking_files(
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string,
-        top_input_dir_name=top_input_dir_name,
-        tracking_scale_metres2=DUMMY_TRACKING_SCALE_METRES2,
+    print SEPARATOR_STRING
+    _write_storm_objects(
+        storm_object_table=storm_object_table,
         top_output_dir_name=top_output_dir_name,
-        start_time_unix_sec=start_time_unix_sec,
-        end_time_unix_sec=end_time_unix_sec)
-
-    spc_date_strings = tracking_file_dict[SPC_DATE_STRINGS_KEY]
-    spc_dates_unix_sec = numpy.array(
-        [time_conversion.spc_date_string_to_unix_sec(s)
-         for s in spc_date_strings])
-    num_spc_dates = len(spc_date_strings)
-
-    input_file_names_by_spc_date = tracking_file_dict[
-        INPUT_FILE_NAMES_BY_DATE_KEY]
-    output_file_names_by_spc_date = tracking_file_dict[
-        OUTPUT_FILE_NAMES_BY_DATE_KEY]
-    times_by_spc_date_unix_sec = tracking_file_dict[VALID_TIMES_BY_DATE_KEY]
-
-    # Find or verify tracking period.
-    if (tracking_start_time_unix_sec is None
-            or tracking_end_time_unix_sec is None):
-        tracking_start_time_unix_sec = numpy.min(times_by_spc_date_unix_sec[0])
-        tracking_end_time_unix_sec = numpy.max(times_by_spc_date_unix_sec[-1])
-
-    else:
-        time_conversion.unix_sec_to_string(
-            tracking_start_time_unix_sec, TIME_FORMAT)
-        time_conversion.unix_sec_to_string(
-            tracking_end_time_unix_sec, TIME_FORMAT)
-        error_checking.assert_is_greater(
-            tracking_end_time_unix_sec, tracking_start_time_unix_sec)
-
-    # Initialize equidistant projection.
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
-
-    if num_spc_dates == 1:
-        storm_object_table = tracking_io.read_many_processed_files(
-            input_file_names_by_spc_date[0])
-        print LINE_OF_STARS
-
-        print 'Reanalyzing tracks for SPC date "{0:s}"...'.format(
-            spc_date_strings[0])
-
-        storm_object_table = reanalyze_tracks(
-            storm_object_table=storm_object_table,
-            max_join_time_sec=max_reanal_join_time_sec,
-            max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
-        print LINE_OF_STARS
-
-        print 'Removing tracks with duration < {0:d} seconds...'.format(
-            int(min_track_duration_seconds))
-        storm_object_table = _remove_short_tracks(
-            storm_object_table, min_duration_seconds=min_track_duration_seconds)
-
-        print 'Recomputing storm ages...'
-        storm_object_table = best_tracks.get_storm_ages(
-            storm_object_table=storm_object_table,
-            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
-            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
-            max_extrap_time_for_breakup_sec=max_link_time_seconds,
-            max_join_time_sec=max_reanal_join_time_sec)
-
-        print 'Recomputing velocity for each storm object...'
-        storm_object_table = _get_storm_velocities(
-            storm_object_table, num_points_back=num_points_back_for_velocity)
-        print LINE_OF_STARS
-
-        this_file_dictionary = {
-            VALID_TIMES_KEY: times_by_spc_date_unix_sec[0],
-            TRACKING_FILE_NAMES_KEY: output_file_names_by_spc_date[0]}
-        write_storm_objects(storm_object_table, this_file_dictionary)
-        return
-
-    # Main loop.
-    storm_object_table_by_date = [pandas.DataFrame()] * num_spc_dates
-
-    for i in range(num_spc_dates + 1):
-        if i == num_spc_dates:
-
-            # Write new tracks for the last two SPC dates.
-            for j in [num_spc_dates - 2, num_spc_dates - 1]:
-                this_file_dictionary = {
-                    VALID_TIMES_KEY: times_by_spc_date_unix_sec[j],
-                    TRACKING_FILE_NAMES_KEY: output_file_names_by_spc_date[j]}
-                write_storm_objects(
-                    storm_object_table_by_date[j], this_file_dictionary)
-                print '\n'
-
-            print LINE_OF_STARS
-            break
-
-        # Write and clear new tracks for the [i - 2]th SPC date.
-        if i >= 2:
-            this_file_dictionary = {
-                VALID_TIMES_KEY: times_by_spc_date_unix_sec[i - 2],
-                TRACKING_FILE_NAMES_KEY: output_file_names_by_spc_date[i - 2]}
-            write_storm_objects(
-                storm_object_table_by_date[i - 2], this_file_dictionary)
-            print '\n'
-
-            storm_object_table_by_date[i - 2] = pandas.DataFrame()
-
-        # Read tracks for the [i - 1]th, [i]th, and [i + 1]th SPC dates.
-        for j in [i - 1, i, i + 1]:
-            if j < 0 or j >= num_spc_dates:
-                continue
-            if not storm_object_table_by_date[j].empty:
-                continue
-
-            storm_object_table_by_date[j] = (
-                tracking_io.read_many_processed_files(
-                    input_file_names_by_spc_date[j]))
-            print '\n'
-
-            these_spc_dates_unix_sec = storm_object_table_by_date[j][
-                tracking_utils.SPC_DATE_COLUMN].values
-
-            if not numpy.all(these_spc_dates_unix_sec == spc_dates_unix_sec[j]):
-                these_spc_dates_unix_sec = numpy.unique(
-                    these_spc_dates_unix_sec)
-                these_spc_date_strings = [
-                    time_conversion.time_to_spc_date_string(t)
-                    for t in these_spc_dates_unix_sec]
-
-                error_string = (
-                    'storm_object_table for SPC date "{0:s}" contains other SPC'
-                    ' dates (shown below).\n\n{1:s}'
-                ).format(spc_date_strings[i], these_spc_date_strings)
-                raise ValueError(error_string)
-
-        # Join tracks between [i]th and [i + 1]th SPC dates.
-        if i != num_spc_dates - 1:
-            print (
-                'Joining tracks between SPC dates "{0:s}" and "{1:s}"...'
-            ).format(spc_date_strings[i], spc_date_strings[i + 1])
-
-            storm_object_table_by_date[i + 1] = _join_tracks_between_periods(
-                early_storm_object_table=storm_object_table_by_date[i],
-                late_storm_object_table=storm_object_table_by_date[i + 1],
-                projection_object=projection_object,
-                max_link_time_seconds=max_link_time_seconds,
-                max_link_distance_m_s01=max_link_distance_m_s01)
-
-            print (
-                'Reanalyzing tracks for SPC dates "{0:s}" and "{1:s}"...'
-            ).format(spc_date_strings[i], spc_date_strings[i + 1])
-
-            indices_to_concat = numpy.array([i, i + 1], dtype=int)
-            concat_storm_object_table = pandas.concat(
-                [storm_object_table_by_date[k] for k in indices_to_concat],
-                axis=0, ignore_index=True)
-
-            concat_storm_object_table = reanalyze_tracks(
-                storm_object_table=concat_storm_object_table,
-                max_join_time_sec=max_reanal_join_time_sec,
-                max_extrap_error_m_s01=max_reanal_extrap_error_m_s01)
-            print LINE_OF_DASHES
-
-            storm_object_table_by_date[i] = concat_storm_object_table.loc[
-                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_dates_unix_sec[i]]
-            storm_object_table_by_date[i + 1] = concat_storm_object_table.loc[
-                concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-                spc_dates_unix_sec[i + 1]]
-
-        # Recompute track properties for the [i]th and [i - 1]th SPC dates.
-        if i == 0:
-            indices_to_concat = numpy.array([i, i + 1], dtype=int)
-        elif i == num_spc_dates - 1:
-            indices_to_concat = numpy.array([i - 1, i], dtype=int)
-        else:
-            indices_to_concat = numpy.array([i - 1, i, i + 1], dtype=int)
-
-        concat_storm_object_table = pandas.concat(
-            [storm_object_table_by_date[k] for k in indices_to_concat],
-            axis=0, ignore_index=True)
-
-        print 'Removing tracks with duration < {0:d} seconds...'.format(
-            int(min_track_duration_seconds))
-        concat_storm_object_table = _remove_short_tracks(
-            concat_storm_object_table,
-            min_duration_seconds=min_track_duration_seconds)
-
-        print 'Recomputing storm ages...'
-        concat_storm_object_table = best_tracks.get_storm_ages(
-            storm_object_table=concat_storm_object_table,
-            best_track_start_time_unix_sec=tracking_start_time_unix_sec,
-            best_track_end_time_unix_sec=tracking_end_time_unix_sec,
-            max_extrap_time_for_breakup_sec=max_link_time_seconds,
-            max_join_time_sec=max_reanal_join_time_sec)
-
-        print 'Recomputing velocity for each storm object...'
-        concat_storm_object_table = _get_storm_velocities(
-            concat_storm_object_table,
-            num_points_back=num_points_back_for_velocity)
-
-        storm_object_table_by_date[i] = concat_storm_object_table.loc[
-            concat_storm_object_table[tracking_utils.SPC_DATE_COLUMN] ==
-            spc_dates_unix_sec[i]]
-
-        print LINE_OF_STARS
-
-
-def write_storm_objects(storm_object_table, file_dictionary):
-    """Writes storm objects to one Pickle file per time step.
-
-    :param storm_object_table: pandas DataFrame created by `run_tracking`.
-    :param file_dictionary: Dictionary created by
-        `_find_radar_and_tracking_files`.
-    """
-
-    pickle_file_names = file_dictionary[TRACKING_FILE_NAMES_KEY]
-    file_times_unix_sec = file_dictionary[VALID_TIMES_KEY]
-    num_files = len(pickle_file_names)
-
-    for i in range(num_files):
-        print 'Writing storm objects to file: "{0:s}"...'.format(
-            pickle_file_names[i])
-
-        this_storm_object_table = storm_object_table.loc[
-            storm_object_table[tracking_utils.TIME_COLUMN] ==
-            file_times_unix_sec[i]]
-        tracking_io.write_processed_file(
-            this_storm_object_table, pickle_file_names[i])
+        output_times_unix_sec=valid_times_unix_sec)
