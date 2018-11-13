@@ -1640,11 +1640,22 @@ def run_tracking(
             )
         )
 
-        this_orig_echo_top_matrix_km_asl = radar_s2f.sparse_to_full_grid(
+        this_echo_top_matrix_km_asl = radar_s2f.sparse_to_full_grid(
             sparse_grid_table=this_sparse_grid_table,
             metadata_dict=this_metadata_dict,
             ignore_if_below=min_echo_top_height_km_asl
         )[0]
+
+        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
+            echo_top_field_name, valid_time_strings[i])
+
+        this_latitude_spacing_deg = this_metadata_dict[
+            radar_utils.LAT_SPACING_COLUMN]
+
+        this_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
+            radar_matrix=this_echo_top_matrix_km_asl,
+            e_folding_radius_pixels=
+            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
 
         if echo_classifn_file_names is not None:
             print 'Reading data from: "{0:s}"...'.format(
@@ -1655,26 +1666,14 @@ def run_tracking(
             this_convective_flag_matrix = numpy.flip(
                 this_convective_flag_matrix, axis=0)
 
-            this_orig_echo_top_matrix_km_asl[
+            this_echo_top_matrix_km_asl[
                 this_convective_flag_matrix == False] = 0.
-
-        print 'Finding local maxima in "{0:s}" at {1:s}...'.format(
-            echo_top_field_name, valid_time_strings[i])
-
-        this_latitude_spacing_deg = this_metadata_dict[
-            radar_utils.LAT_SPACING_COLUMN]
-
-        this_new_echo_top_matrix_km_asl = _gaussian_smooth_radar_field(
-            radar_matrix=this_orig_echo_top_matrix_km_asl,
-            e_folding_radius_pixels=
-            e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg
-        )
 
         this_half_width_in_pixels = int(numpy.round(
             half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
 
         local_max_dict_by_time[i] = _find_local_maxima(
-            radar_matrix=this_new_echo_top_matrix_km_asl,
+            radar_matrix=this_echo_top_matrix_km_asl,
             radar_metadata_dict=this_metadata_dict,
             neigh_half_width_in_pixels=this_half_width_in_pixels)
 
@@ -1690,7 +1689,7 @@ def run_tracking(
 
         local_max_dict_by_time[i] = _local_maxima_to_polygons(
             local_max_dict=local_max_dict_by_time[i],
-            echo_top_matrix_km_asl=this_orig_echo_top_matrix_km_asl,
+            echo_top_matrix_km_asl=this_echo_top_matrix_km_asl,
             min_echo_top_height_km_asl=min_echo_top_height_km_asl,
             radar_metadata_dict=this_metadata_dict,
             min_distance_between_maxima_metres=
