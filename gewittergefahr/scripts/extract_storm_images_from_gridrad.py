@@ -5,6 +5,7 @@ import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
+from gewittergefahr.gg_utils import labels
 from gewittergefahr.deep_learning import storm_images
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -19,50 +20,72 @@ SPC_DATE_ARG_NAME = 'spc_date_string'
 RADAR_DIR_ARG_NAME = 'input_radar_dir_name'
 TRACKING_DIR_ARG_NAME = 'input_tracking_dir_name'
 TRACKING_SCALE_ARG_NAME = 'tracking_scale_metres2'
+TARGET_NAME_ARG_NAME = 'target_name'
+TARGET_DIR_ARG_NAME = 'input_target_dir_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 NUM_ROWS_HELP_STRING = (
     'Number of pixel rows in each storm-centered radar image.')
+
 NUM_COLUMNS_HELP_STRING = (
     'Number of pixel columns in each storm-centered radar image.')
+
 ROTATE_GRIDS_HELP_STRING = (
     'Boolean flag.  If 1, each grid will be rotated so that storm motion is in '
     'the +x-direction; thus, storm-centered grids will be equidistant.  If '
     'False, each storm-centered grid will be a contiguous rectangle extracted '
     'from the full grid; thus, storm-centered grids will be lat-long.')
+
 GRID_SPACING_HELP_STRING = (
     '[used only if `{0:s}` = 1] Spacing between grid points in adjacent rows or'
     ' columns.'
 ).format(ROTATE_GRIDS_ARG_NAME)
+
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  For more details, see documentation for'
-    ' `{0:s}`.').format(SPC_DATE_ARG_NAME)
+    ' `{0:s}`.'
+).format(SPC_DATE_ARG_NAME)
+
 RADAR_HEIGHTS_HELP_STRING = (
     'List of radar heights (metres above ground level).  For more details, see '
-    'documentation for `{0:s}`.').format(SPC_DATE_ARG_NAME)
+    'documentation for `{0:s}`.'
+).format(SPC_DATE_ARG_NAME)
+
 SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  An image will be'
     ' created for each field, height, and storm object on this date.  Fields '
     'and heights are determined by defaults in'
     ' `storm_images.extract_storm_images_gridrad`.')
+
 RADAR_DIR_HELP_STRING = (
     'Name of top-level directory with GridRad data (files readable by'
     ' `gridrad_io.read_field_from_full_grid_file`).')
+
 TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with storm-tracking data.')
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum storm area).  This argument is used to find the '
-    'specific tracking files in `{0:s}`.').format(TRACKING_DIR_ARG_NAME)
+    'specific tracking files in `{0:s}`.'
+).format(TRACKING_DIR_ARG_NAME)
+
+TARGET_NAME_HELP_STRING = (
+    'Name of target variable (must be accepted by '
+    '`labels.column_name_to_label_params`).  If specified, images will be '
+    'created only for labeled storm objects (those with a target value).  If '
+    '*not* specified (i.e., if you leave this argument), images will be created'
+    ' for all storm objects.')
+
+TARGET_DIR_HELP_STRING = (
+    '[used only if `{0:s}` is not empty] Name of top-level directory.  Files '
+    'therein will be located by `labels.find_label_file` and read by '
+    '`labels.read_labels_from_netcdf`.'
+).format(TARGET_NAME_ARG_NAME)
+
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level directory for storm-centered radar images.')
 
 DEFAULT_RADAR_DIR_NAME = '/condo/swatcommon/common/gridrad_final/native_format'
-DEFAULT_TRACKING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed')
-DEFAULT_OUTPUT_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'storm_images')
-
 DEFAULT_TRACKING_SCALE_METRES2 = int(numpy.round(
     echo_top_tracking.DUMMY_TRACKING_SCALE_METRES2))
 
@@ -104,23 +127,32 @@ INPUT_ARG_PARSER.add_argument(
     default=DEFAULT_RADAR_DIR_NAME, help=RADAR_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TRACKING_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TRACKING_DIR_NAME, help=TRACKING_DIR_HELP_STRING)
+    '--' + TRACKING_DIR_ARG_NAME, type=str, required=True,
+    help=TRACKING_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + TRACKING_SCALE_ARG_NAME, type=int, required=False,
     default=DEFAULT_TRACKING_SCALE_METRES2, help=TRACKING_SCALE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_OUTPUT_DIR_NAME, help=OUTPUT_DIR_HELP_STRING)
+    '--' + TARGET_NAME_ARG_NAME, type=str, required=False, default='',
+    help=TARGET_NAME_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=False, default='',
+    help=TARGET_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
+    help=OUTPUT_DIR_HELP_STRING)
 
 
 def _extract_storm_images(
         num_image_rows, num_image_columns, rotate_grids,
         rotated_grid_spacing_metres, radar_field_names, radar_heights_m_agl,
         spc_date_string, top_radar_dir_name, top_tracking_dir_name,
-        tracking_scale_metres2, top_output_dir_name):
+        tracking_scale_metres2, target_name, top_target_dir_name,
+        top_output_dir_name):
     """Extracts storm-centered radar images from GridRad data.
 
     :param num_image_rows: See documentation at top of file.
@@ -133,8 +165,25 @@ def _extract_storm_images(
     :param top_radar_dir_name: Same.
     :param top_tracking_dir_name: Same.
     :param tracking_scale_metres2: Same.
+    :param target_name: Same.
+    :param top_target_dir_name: Same.
     :param top_output_dir_name: Same.
     """
+
+    if target_name in ['', 'None']:
+        target_name = None
+
+    if target_name is not None:
+        target_param_dict = labels.column_name_to_label_params(target_name)
+        target_file_name = labels.find_label_file(
+            top_directory_name=top_target_dir_name,
+            event_type_string=target_param_dict[labels.EVENT_TYPE_KEY],
+            file_extension='.nc', spc_date_string=spc_date_string)
+
+        print 'Reading data from: "{0:s}"...'.format(target_file_name)
+        target_dict = labels.read_labels_from_netcdf(
+            netcdf_file_name=target_file_name, label_name=target_name)
+        print '\n'
 
     # Find storm objects on the given SPC date.
     tracking_file_names = tracking_io.find_processed_files_one_spc_date(
@@ -148,6 +197,28 @@ def _extract_storm_images(
         tracking_file_names
     )[storm_images.STORM_COLUMNS_NEEDED]
     print SEPARATOR_STRING
+
+    if target_name is not None:
+        print (
+            'Removing storm objects without target values (variable = '
+            '"{0:s}")...'
+        ).format(target_name)
+
+        these_indices = tracking_utils.find_storm_objects(
+            all_storm_ids=storm_object_table[
+                tracking_utils.STORM_ID_COLUMN].values.tolist(),
+            all_times_unix_sec=storm_object_table[
+                tracking_utils.TIME_COLUMN].values.astype(int),
+            storm_ids_to_keep=target_dict[labels.STORM_IDS_KEY],
+            times_to_keep_unix_sec=target_dict[labels.VALID_TIMES_KEY],
+            allow_missing=False)
+
+        num_storm_objects_orig = len(storm_object_table.index)
+        storm_object_table = storm_object_table.iloc[these_indices]
+        num_storm_objects = len(storm_object_table.index)
+
+        print 'Removed {0:d} of {1:d} storm objects!\n'.format(
+            num_storm_objects_orig - num_storm_objects, num_storm_objects_orig)
 
     # Extract storm-centered radar images.
     storm_images.extract_storm_images_gridrad(
@@ -178,4 +249,7 @@ if __name__ == '__main__':
         top_tracking_dir_name=getattr(INPUT_ARG_OBJECT, TRACKING_DIR_ARG_NAME),
         tracking_scale_metres2=getattr(
             INPUT_ARG_OBJECT, TRACKING_SCALE_ARG_NAME),
-        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        target_name=getattr(INPUT_ARG_OBJECT, TARGET_NAME_ARG_NAME),
+        top_target_dir_name=getattr(INPUT_ARG_OBJECT, TARGET_DIR_ARG_NAME),
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )
