@@ -25,21 +25,26 @@ STORM_IMAGE_DIR_HELP_STRING = (
     'files will be read therefrom by `storm_images.write_storm_images`; and '
     'one-day files will be written thereto by `storm_images.read_storm_images`.'
 )
+
 RADAR_SOURCE_HELP_STRING = (
     'Data source.  Must belong to the following list.\n{0:s}'
 ).format(str(radar_utils.DATA_SOURCE_IDS))
+
 SPC_DATE_HELP_STRING = (
     'SPC (Storm Prediction Center) date in format "yyyymmdd".  Files will be '
     'agglomerated for each field, height, and storm object on this date.'
 )
+
 RADAR_FIELD_NAMES_HELP_STRING = (
     'List with names of radar fields.  Each must belong to the following list.'
     '\n{0:s}'
 ).format(str(radar_utils.RADAR_FIELD_NAMES))
+
 RADAR_HEIGHTS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] List of radar heights (metres above ground '
     'level).'
 ).format(RADAR_SOURCE_ARG_NAME, radar_utils.GRIDRAD_SOURCE_ID)
+
 REFL_HEIGHTS_HELP_STRING = (
     '[used only if {0:s} != "{1:s}"] List of reflectivity heights (metres above'
     ' ground level).'
