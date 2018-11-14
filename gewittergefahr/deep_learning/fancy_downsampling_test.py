@@ -27,6 +27,42 @@ DESIRED_CELL_IDS_SOME_MISSING = [
 
 DESIRED_OBJECT_INDICES = numpy.array([0, 2, 3, 5, 7, 10, 14], dtype=int)
 
+# The following constants are used to test downsample_for_non_training.
+TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
+CLASS_FRACTION_DICT = {0: 0.5, 1: 0.5}
+
+MAIN_STORM_IDS = [
+    'b', 'b', 'b', 'b', 'e', 'e', 'f', 'd', 'f', 'd', 'f',
+    'a', 'c', 'd', 'f', 'a', 'c', 'd', 'f', 'a', 'c', 'd', 'f',
+    'a', 'c', 'a', 'c', 'c', 'c'
+]
+MAIN_STORM_TIMES_UNIX_SEC = numpy.array(
+    [1, 2, 3, 4, 5, 6, 8, 9, 9, 10, 10,
+     11, 11, 11, 11, 12, 12, 12, 12, 13, 13, 13, 13,
+     14, 14, 15, 15, 16, 17],
+    dtype=int)
+MAIN_TARGET_VALUES = numpy.array(
+    [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+     0, 0, 1, 1, 0, 0, 1, 1, 1, 0, 0, 1,
+     1, 1, 0, 1, 0, 0],
+    dtype=int)
+
+THESE_INDICES = numpy.array(
+    [5, 6, 7, 8, 9, 10, 11, 12, 15, 13, 14, 17, 18, 19, 22, 23, 24, 26],
+    dtype=int)
+
+NON_TRAINING_STORM_IDS = [MAIN_STORM_IDS[k] for k in THESE_INDICES]
+NON_TRAINING_TIMES_UNIX_SEC = MAIN_STORM_TIMES_UNIX_SEC[THESE_INDICES]
+NON_TRAINING_TARGET_VALUES = MAIN_TARGET_VALUES[THESE_INDICES]
+
+# The following constants are used to test downsample_for_training.
+THESE_INDICES = numpy.linspace(
+    5, len(MAIN_STORM_IDS) - 1, num=len(MAIN_STORM_IDS) - 5, dtype=int)
+
+TRAINING_STORM_IDS = [MAIN_STORM_IDS[k] for k in THESE_INDICES]
+TRAINING_TIMES_UNIX_SEC = MAIN_STORM_TIMES_UNIX_SEC[THESE_INDICES]
+TRAINING_TARGET_VALUES = MAIN_TARGET_VALUES[THESE_INDICES]
+
 
 class FancyDownsamplingTests(unittest.TestCase):
     """Each method is a unit test for fancy_downsampling.py."""
@@ -84,6 +120,40 @@ class FancyDownsamplingTests(unittest.TestCase):
             fancy_downsampling._find_uncovered_times(
                 all_times_unix_sec=ALL_TIMES_UNIX_SEC,
                 covered_times_unix_sec=these_covered_times_unix_sec)
+
+    def test_downsample_for_non_training(self):
+        """Ensures correct output from downsample_for_non_training."""
+
+        these_storm_ids, these_times_unix_sec, these_target_values = (
+            fancy_downsampling.downsample_for_non_training(
+                storm_ids=MAIN_STORM_IDS + [],
+                storm_times_unix_sec=MAIN_STORM_TIMES_UNIX_SEC + 0,
+                target_values=MAIN_TARGET_VALUES + 0, target_name=TARGET_NAME,
+                class_fraction_dict=CLASS_FRACTION_DICT, test_mode=True)
+        )
+
+        self.assertTrue(NON_TRAINING_STORM_IDS == these_storm_ids)
+        self.assertTrue(numpy.array_equal(
+            NON_TRAINING_TIMES_UNIX_SEC, these_times_unix_sec))
+        self.assertTrue(numpy.array_equal(
+            NON_TRAINING_TARGET_VALUES, these_target_values))
+
+    def test_downsample_for_training(self):
+        """Ensures correct output from downsample_for_training."""
+
+        these_storm_ids, these_times_unix_sec, these_target_values = (
+            fancy_downsampling.downsample_for_training(
+                storm_ids=MAIN_STORM_IDS + [],
+                storm_times_unix_sec=MAIN_STORM_TIMES_UNIX_SEC + 0,
+                target_values=MAIN_TARGET_VALUES + 0, target_name=TARGET_NAME,
+                class_fraction_dict=CLASS_FRACTION_DICT, test_mode=True)
+        )
+
+        self.assertTrue(TRAINING_STORM_IDS == these_storm_ids)
+        self.assertTrue(numpy.array_equal(
+            TRAINING_TIMES_UNIX_SEC, these_times_unix_sec))
+        self.assertTrue(numpy.array_equal(
+            TRAINING_TARGET_VALUES, these_target_values))
 
 
 if __name__ == '__main__':

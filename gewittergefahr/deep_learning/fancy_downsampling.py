@@ -2,6 +2,7 @@
 
 import numpy
 from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 LARGE_INTEGER = int(1e12)
@@ -90,12 +91,12 @@ def _find_uncovered_times(all_times_unix_sec, covered_times_unix_sec):
     raise ValueError(error_string)
 
 
-def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
-               class_fraction_dict):
-    """Does very fancy downsampling.
+def _downsampling_base(
+        storm_ids, storm_times_unix_sec, target_values, target_name,
+        class_fraction_dict, test_mode=False):
+    """Base for `downsample_for_training` and `downsample_for_non_training`.
 
-    This is effectively the "main method" of this file.  The downsampling
-    procedure is summarized below.
+    The procedure is described below.
 
     [1] Find all storm objects in the highest class (e.g., tornadic).  Call this
         set {s_highest}.
@@ -106,12 +107,10 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
     [4] Randomly remove a large fraction of time steps NOT in {t_highest}.
     [5] Downsample remaining storm objects, leaving a prescribed fraction in
         each class (according to `class_fraction_dict`).
-    [6a] Repeat step 1 on time steps NOT in {t_highest}.
-    [6b] Repeat step 2 on time steps NOT in {t_highest}.  Add all storm objects
-         from cells in {S_highest} to the selected set.
 
     N = number of storm objects before downsampling
-    n = number of storm objects after downsampling
+    K = number of storm objects after intermediate downsampling
+    n = number of storm objects after final downsampling
 
     :param storm_ids: length-N list of storm IDs (strings).
     :param storm_times_unix_sec: length-N numpy array of corresponding times.
@@ -122,12 +121,17 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
     :param class_fraction_dict: Dictionary, where each key is an integer class
         label (-2 for "dead storm") and the corresponding value is the
         sampling fraction.
-    :return: storm_ids: length-n list of storm IDs (strings).
-    :return: storm_times_unix_sec: length-n numpy array of corresponding times.
-    :return: target_values: length-n numpy array of corresponding target values.
+    :param test_mode: Never mind.  Just leave this alone.
+    :return: storm_ids: length-K list of storm IDs (strings).
+    :return: storm_times_unix_sec: length-K numpy array of corresponding times.
+    :return: target_values: length-K numpy array of corresponding target values.
+    :return: indices_to_keep: length-n numpy array of indices to keep.  These
+        are indices are into the output arrays `storm_ids`,
+        `storm_times_unix_sec`, and `target_values`.
     """
 
     _report_class_fractions(target_values)
+    error_checking.assert_is_boolean(test_mode)
 
     num_storm_objects = len(storm_ids)
     num_classes = labels.column_name_to_num_classes(
@@ -172,8 +176,12 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
     this_num_times = int(numpy.round(
         FRACTION_UNINTERESTING_TIMES_TO_OMIT * len(lower_class_times_unix_sec)
     ))
-    times_to_remove_unix_sec = numpy.random.choice(
-        lower_class_times_unix_sec, size=this_num_times, replace=False)
+
+    if test_mode:
+        times_to_remove_unix_sec = lower_class_times_unix_sec[:this_num_times]
+    else:
+        times_to_remove_unix_sec = numpy.random.choice(
+            lower_class_times_unix_sec, size=this_num_times, replace=False)
 
     indices_to_keep = _find_uncovered_times(
         all_times_unix_sec=storm_times_unix_sec,
@@ -190,9 +198,84 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
     indices_to_keep = dl_utils.sample_by_class(
         sampling_fraction_by_class_dict=class_fraction_dict,
         target_name=target_name, target_values=target_values,
-        num_examples_total=LARGE_INTEGER)
+        num_examples_total=LARGE_INTEGER, test_mode=test_mode)
 
-    # Step 6a.
+    return storm_ids, storm_times_unix_sec, target_values, indices_to_keep
+
+
+def downsample_for_non_training(
+        storm_ids, storm_times_unix_sec, target_values, target_name,
+        class_fraction_dict, test_mode=False):
+    """Fancy downsampling to create validation or testing data.
+
+    The procedure is described in `_downsampling_base`.
+
+    N = number of storm objects before downsampling
+    n = number of storm objects after final downsampling
+
+    :param storm_ids: See doc for `_downsampling_base`.
+    :param storm_times_unix_sec: Same.
+    :param target_values: Same.
+    :param target_name: Same.
+    :param class_fraction_dict: Same.
+    :param test_mode: Same.
+    :return: storm_ids: length-K list of storm IDs (strings).
+    :return: storm_times_unix_sec: length-K numpy array of corresponding times.
+    :return: target_values: length-K numpy array of corresponding target values.
+    """
+
+    storm_ids, storm_times_unix_sec, target_values, indices_to_keep = (
+        _downsampling_base(
+            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+            target_values=target_values, target_name=target_name,
+            class_fraction_dict=class_fraction_dict, test_mode=test_mode)
+    )
+
+    storm_ids = [storm_ids[k] for k in indices_to_keep]
+    storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
+    target_values = target_values[indices_to_keep]
+
+    _report_class_fractions(target_values)
+
+    return storm_ids, storm_times_unix_sec, target_values
+
+
+def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
+                            target_name, class_fraction_dict, test_mode=False):
+    """Fancy downsampling to create training data.
+
+    The procedure is described below.
+
+    [1-5] Run `downsample_for_non_training`.
+    [6] Find remaining storm objects in the highest class (e.g., tornadic).
+        Call this set {s_highest}.
+    [7] Find remaining storm cells with at least one object in {s_highest}.
+        Call this set {S_highest}.  Add storm objects from {S_highest} to the
+        selected set.
+
+    :param storm_ids: See doc for `_downsampling_base`.
+    :param storm_times_unix_sec: Same.
+    :param target_values: Same.
+    :param target_name: Same.
+    :param class_fraction_dict: Same.
+    :param test_mode: Same.
+    :return: storm_ids: Same.
+    :return: storm_times_unix_sec: Same.
+    :return: target_values: Same.
+    """
+
+    storm_ids, storm_times_unix_sec, target_values, indices_to_keep = (
+        _downsampling_base(
+            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+            target_values=target_values, target_name=target_name,
+            class_fraction_dict=class_fraction_dict, test_mode=test_mode)
+    )
+
+    num_storm_objects = len(storm_ids)
+    num_classes = labels.column_name_to_num_classes(
+        column_name=target_name, include_dead_storms=False)
+
+    # Step 6.
     print (
         'Finding storm objects in class {0:d} (the highest class), yielding set'
         ' {{s_highest}}...'
@@ -203,7 +286,7 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
     print '{{s_highest}} contains {0:d} of {1:d} storm objects.'.format(
         len(highest_class_indices), num_storm_objects)
 
-    # Step 6b.
+    # Step 7.
     print ('Finding storm cells with at least one object in {{s_highest}}, '
            'yielding set {{S_highest}}...')
     highest_class_indices = _find_storm_cells(
