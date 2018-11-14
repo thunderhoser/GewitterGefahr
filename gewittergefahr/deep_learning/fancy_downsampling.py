@@ -106,6 +106,9 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
     [4] Randomly remove a large fraction of time steps NOT in {t_highest}.
     [5] Downsample remaining storm objects, leaving a prescribed fraction in
         each class (according to `class_fraction_dict`).
+    [6a] Repeat step 1 on time steps NOT in {t_highest}.
+    [6b] Repeat step 2 on time steps NOT in {t_highest}.  Add all storm objects
+         from cells in {S_highest} to the selected set.
 
     N = number of storm objects before downsampling
     n = number of storm objects after downsampling
@@ -188,6 +191,32 @@ def downsample(storm_ids, storm_times_unix_sec, target_values, target_name,
         sampling_fraction_by_class_dict=class_fraction_dict,
         target_name=target_name, target_values=target_values,
         num_examples_total=LARGE_INTEGER)
+
+    # Step 6a.
+    print (
+        'Finding storm objects in class {0:d} (the highest class), yielding set'
+        ' {{s_highest}}...'
+    ).format(num_classes - 1)
+
+    highest_class_indices = numpy.where(target_values == num_classes - 1)[0]
+
+    print '{{s_highest}} contains {0:d} of {1:d} storm objects.'.format(
+        len(highest_class_indices), num_storm_objects)
+
+    # Step 6b.
+    print ('Finding storm cells with at least one object in {{s_highest}}, '
+           'yielding set {{S_highest}}...')
+    highest_class_indices = _find_storm_cells(
+        storm_id_by_object=storm_ids,
+        desired_storm_cell_ids=[storm_ids[k] for k in highest_class_indices])
+
+    print '{{S_highest}} contains {0:d} of {1:d} storm objects.'.format(
+        len(highest_class_indices), num_storm_objects)
+
+    indices_to_keep = (
+        set(indices_to_keep.tolist()) | set(highest_class_indices.tolist())
+    )
+    indices_to_keep = numpy.array(list(indices_to_keep), dtype=int)
 
     storm_ids = [storm_ids[k] for k in indices_to_keep]
     storm_times_unix_sec = storm_times_unix_sec[indices_to_keep]
