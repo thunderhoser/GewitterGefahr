@@ -8,7 +8,6 @@ from gewittergefahr.gg_utils import labels
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import fancy_downsampling
-from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
 LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -177,24 +176,18 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
     if for_training:
         storm_ids, storm_times_unix_sec, target_values = (
-            fancy_downsampling.downsample(
+            fancy_downsampling.downsample_for_training(
                 storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
                 target_values=target_values, target_name=target_name,
                 class_fraction_dict=class_fraction_dict)
         )
     else:
-        _report_class_fractions(target_values)
-
-        good_indices = dl_utils.sample_by_class(
-            sampling_fraction_by_class_dict=class_fraction_dict,
-            target_name=target_name, target_values=target_values,
-            num_examples_total=LARGE_INTEGER)
-
-        storm_ids = [storm_ids[k] for k in good_indices]
-        storm_times_unix_sec = storm_times_unix_sec[good_indices]
-        target_values = target_values[good_indices]
-
-        _report_class_fractions(target_values)
+        storm_ids, storm_times_unix_sec, target_values = (
+            fancy_downsampling.downsample_for_non_training(
+                storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+                target_values=target_values, target_name=target_name,
+                class_fraction_dict=class_fraction_dict)
+        )
 
     print SEPARATOR_STRING
 
