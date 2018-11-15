@@ -32,6 +32,9 @@ from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
+NUM_EPOCHS_FOR_EARLY_STOPPING = 5
+MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
+
 LOSS_FUNCTION_STRING = 'loss'
 PEIRCE_SCORE_STRING = 'binary_peirce_score'
 VALID_MONITOR_STRINGS = [LOSS_FUNCTION_STRING, PEIRCE_SCORE_STRING]
@@ -330,6 +333,13 @@ def train_cnn_2d_or_3d(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
+    early_stopping_object = keras.callbacks.EarlyStopping(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+    list_of_callback_objects = [
+        checkpoint_object, history_object, early_stopping_object]
+
     if num_validation_batches_per_epoch > 0:
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -344,7 +354,7 @@ def train_cnn_2d_or_3d(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
-            callbacks=[checkpoint_object, history_object],
+            callbacks=list_of_callback_objects,
             validation_data=trainval_io.example_generator_2d_or_3d(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
@@ -354,7 +364,7 @@ def train_cnn_2d_or_3d(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
-            callbacks=[checkpoint_object, history_object])
+            callbacks=list_of_callback_objects,)
 
 
 def train_cnn_2d3d_myrorss(
@@ -395,6 +405,13 @@ def train_cnn_2d3d_myrorss(
         output_model_file_name=model_file_name, monitor_string=monitor_string,
         use_validation=num_validation_batches_per_epoch is not None)
 
+    early_stopping_object = keras.callbacks.EarlyStopping(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+    list_of_callback_objects = [
+        checkpoint_object, history_object, early_stopping_object]
+
     if num_validation_batches_per_epoch > 0:
         validation_option_dict = copy.deepcopy(training_option_dict)
         validation_option_dict[
@@ -409,7 +426,7 @@ def train_cnn_2d3d_myrorss(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
-            callbacks=[checkpoint_object, history_object],
+            callbacks=list_of_callback_objects,
             validation_data=trainval_io.example_generator_2d3d_myrorss(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
@@ -419,7 +436,7 @@ def train_cnn_2d3d_myrorss(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
-            callbacks=[checkpoint_object, history_object])
+            callbacks=list_of_callback_objects)
 
 
 def apply_2d_cnn(
