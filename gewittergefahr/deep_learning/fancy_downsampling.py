@@ -149,8 +149,8 @@ def _downsampling_base(
         len(highest_class_indices), num_storm_objects)
 
     # Step 2.
-    print ('Finding storm cells with at least one object in {{s_highest}}, '
-           'yielding set {{S_highest}}...')
+    print ('Finding storm cells with at least one object in {s_highest}, '
+           'yielding set {S_highest}...')
     highest_class_indices = _find_storm_cells(
         storm_id_by_object=storm_ids,
         desired_storm_cell_ids=[storm_ids[k] for k in highest_class_indices])
@@ -160,7 +160,7 @@ def _downsampling_base(
 
     # Step 3.
     print ('Finding all time steps with at least one storm cell in '
-           '{{S_highest}}, yielding set {{t_highest}}...')
+           '{S_highest}, yielding set {t_highest}...')
 
     lower_class_times_unix_sec = (
         set(storm_times_unix_sec.tolist()) -
@@ -287,8 +287,8 @@ def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
         len(highest_class_indices), num_storm_objects)
 
     # Step 7.
-    print ('Finding storm cells with at least one object in {{s_highest}}, '
-           'yielding set {{S_highest}}...')
+    print ('Finding storm cells with at least one object in {s_highest}, '
+           'yielding set {S_highest}...')
     highest_class_indices = _find_storm_cells(
         storm_id_by_object=storm_ids,
         desired_storm_cell_ids=[storm_ids[k] for k in highest_class_indices])

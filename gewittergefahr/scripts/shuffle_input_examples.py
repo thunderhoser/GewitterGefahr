@@ -13,6 +13,7 @@ INPUT_DIR_ARG_NAME = 'input_example_dir_name'
 FIRST_DATE_ARG_NAME = 'first_spc_date_string'
 LAST_DATE_ARG_NAME = 'last_spc_date_string'
 OUTPUT_DIR_ARG_NAME = 'output_example_dir_name'
+RADAR_FIELDS_ARG_NAME = 'radar_field_names'
 FIRST_BATCH_NUM_ARG_NAME = 'first_output_batch_number'
 NUM_EXAMPLES_PER_CHUNK_ARG_NAME = 'num_examples_per_out_chunk'
 NUM_EXAMPLES_PER_OUT_FILE_ARG_NAME = 'num_examples_per_out_file'
@@ -33,6 +34,11 @@ OUTPUT_DIR_HELP_STRING = (
     'examples).  Files will be written by `input_examples.write_example_file`, '
     'to locations in this directory determined by '
     '`input_examples.find_example_file`.')
+
+RADAR_FIELDS_HELP_STRING = (
+    'List of radar fields to output.  Each field must be accepted by '
+    '`radar_utils.check_field_name`.  If you leave this argument, all radar '
+    'fields will be output.')
 
 FIRST_BATCH_NUM_HELP_STRING = (
     'First batch number (integer).  Used to determine locations of output '
@@ -63,6 +69,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
+    default=[''], help=RADAR_FIELDS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + FIRST_BATCH_NUM_ARG_NAME, type=int, required=True,
@@ -147,18 +157,21 @@ def _set_output_locations(
     return output_example_file_names
 
 
-def _shuffle_one_input_file(input_example_file_name, num_examples_per_out_chunk,
-                            output_example_file_names):
+def _shuffle_one_input_file(
+        input_example_file_name, radar_field_names, num_examples_per_out_chunk,
+        output_example_file_names):
     """Shuffles examples from one input file to many output files.
 
     :param input_example_file_name: Path to input file.
-    :param num_examples_per_out_chunk: See documentation at top of this file.
+    :param radar_field_names: See documentation at top of file.
+    :param num_examples_per_out_chunk: Same.
     :param output_example_file_names: 1-D list of paths to output files.
     """
 
     print 'Reading data from: "{0:s}"...'.format(input_example_file_name)
     example_dict = input_examples.read_example_file(
-        netcdf_file_name=input_example_file_name)
+        netcdf_file_name=input_example_file_name,
+        radar_field_names_to_keep=radar_field_names)
 
     num_examples = len(example_dict[input_examples.STORM_IDS_KEY])
     shuffled_indices = numpy.linspace(
@@ -193,7 +206,7 @@ def _shuffle_one_input_file(input_example_file_name, num_examples_per_out_chunk,
 
 
 def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
-         top_output_dir_name, first_output_batch_number,
+         top_output_dir_name, radar_field_names, first_output_batch_number,
          num_examples_per_out_chunk, num_examples_per_out_file):
     """Shuffles input examples in time and writes them to new file.
 
@@ -203,10 +216,14 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
     :param first_spc_date_string: Same.
     :param last_spc_date_string: Same.
     :param top_output_dir_name: Same.
+    :param radar_field_names: Same.
     :param first_output_batch_number: Same.
     :param num_examples_per_out_chunk: Same.
     :param num_examples_per_out_file: Same.
     """
+
+    if radar_field_names[0] in ['', 'None']:
+        radar_field_names = None
 
     error_checking.assert_is_geq(num_examples_per_out_chunk, 2)
     error_checking.assert_is_geq(num_examples_per_out_file, 100)
@@ -227,6 +244,7 @@ def _run(top_input_dir_name, first_spc_date_string, last_spc_date_string,
     for this_file_name in input_example_file_names:
         _shuffle_one_input_file(
             input_example_file_name=this_file_name,
+            radar_field_names=radar_field_names,
             num_examples_per_out_chunk=num_examples_per_out_chunk,
             output_example_file_names=output_example_file_names)
         print '\n'
@@ -240,6 +258,7 @@ if __name__ == '__main__':
         first_spc_date_string=getattr(INPUT_ARG_OBJECT, FIRST_DATE_ARG_NAME),
         last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_DATE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME),
+        radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         first_output_batch_number=getattr(
             INPUT_ARG_OBJECT, FIRST_BATCH_NUM_ARG_NAME),
         num_examples_per_out_chunk=getattr(
