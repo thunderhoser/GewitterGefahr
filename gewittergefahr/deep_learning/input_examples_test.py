@@ -178,6 +178,108 @@ EXAMPLE_DICT_2D3D_SUBSET[
     input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY
 ] = THIS_AZ_SHEAR_IMAGE_MATRIX_S01[INDICES_TO_KEEP, ...]
 
+# The following constants are used to test _check_layer_operation.
+OPERATION_DICT_3D_GOOD = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.DIFFERENTIAL_REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1000,
+    input_examples.MAX_HEIGHT_KEY: 6000
+}
+
+OPERATION_DICT_3D_BAD = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.DIFFERENTIAL_REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1000,
+    input_examples.MAX_HEIGHT_KEY: 7000
+}
+
+OPERATION_DICT_2D3D_GOOD = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1000,
+    input_examples.MAX_HEIGHT_KEY: 6000
+}
+
+OPERATION_DICT_2D3D_BAD = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.DIFFERENTIAL_REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1000,
+    input_examples.MAX_HEIGHT_KEY: 6000
+}
+
+# The following constants are used to test _apply_layer_operation.
+THESE_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.DIFFERENTIAL_REFL_NAME]
+THESE_HEIGHTS_M_AGL = numpy.array(
+    [1000, 2000, 3000, 4000, 5000, 6000], dtype=int)
+
+THIS_HEIGHT1_MATRIX = numpy.array([[1, 2, 3, 4, 5, 6],
+                                   [7, 8, 9, 10, 11, 12],
+                                   [13, 14, 15, 16, 17, 18],
+                                   [19, 20, 21, 22, 23, 24]])
+
+THIS_EXAMPLE1_MATRIX = numpy.stack(
+    (THIS_HEIGHT1_MATRIX, THIS_HEIGHT1_MATRIX + 6, THIS_HEIGHT1_MATRIX + 12,
+     THIS_HEIGHT1_MATRIX + 18, THIS_HEIGHT1_MATRIX + 24,
+     THIS_HEIGHT1_MATRIX + 30),
+    axis=-1)
+
+THIS_REFL_MATRIX_DBZ = numpy.stack(
+    (THIS_EXAMPLE1_MATRIX, THIS_EXAMPLE1_MATRIX - 10,
+     THIS_EXAMPLE1_MATRIX + 10),
+    axis=0)
+
+THIS_RADAR_IMAGE_MATRIX = numpy.stack(
+    (THIS_REFL_MATRIX_DBZ, THIS_REFL_MATRIX_DBZ - 1000), axis=-1
+).astype(float)
+
+# First operation to verify.
+PRE_OPERATION_EXAMPLE_DICT = {
+    input_examples.RADAR_FIELDS_KEY: THESE_FIELD_NAMES,
+    input_examples.RADAR_HEIGHTS_KEY: THESE_HEIGHTS_M_AGL,
+    input_examples.RADAR_IMAGE_MATRIX_KEY: THIS_RADAR_IMAGE_MATRIX
+}
+
+MAX_REFL_OPERATION_DICT_ORIG = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1750,
+    input_examples.MAX_HEIGHT_KEY: 5666
+}
+
+MAX_REFL_OPERATION_DICT_NEW = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MAX_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1000,
+    input_examples.MAX_HEIGHT_KEY: 6000
+}
+
+MAX_REFL_MATRIX_DBZ = numpy.stack(
+    (THIS_HEIGHT1_MATRIX + 30, THIS_HEIGHT1_MATRIX + 20,
+     THIS_HEIGHT1_MATRIX + 40),
+    axis=0
+).astype(float)
+
+# Second operation to verify.
+MIN_DIFF_REFL_OPERATION_DICT_ORIG = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.DIFFERENTIAL_REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MIN_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1111,
+    input_examples.MAX_HEIGHT_KEY: 5555
+}
+
+MIN_DIFF_REFL_OPERATION_DICT_NEW = {
+    input_examples.RADAR_FIELD_KEY: radar_utils.DIFFERENTIAL_REFL_NAME,
+    input_examples.OPERATION_NAME_KEY: input_examples.MIN_OPERATION_NAME,
+    input_examples.MIN_HEIGHT_KEY: 1000,
+    input_examples.MAX_HEIGHT_KEY: 6000
+}
+
+MIN_DIFF_REFL_MATRIX_DB = numpy.stack(
+    (THIS_HEIGHT1_MATRIX - 1000, THIS_HEIGHT1_MATRIX - 1010,
+     THIS_HEIGHT1_MATRIX - 990),
+    axis=0
+).astype(float)
+
 # The following constants are used to test find_example_file and
 # _file_name_to_batch_number.
 TOP_DIRECTORY_NAME = 'foo'
@@ -366,6 +468,86 @@ class InputExamplesTests(unittest.TestCase):
 
         self.assertTrue(_compare_example_dicts(
             this_example_dict, EXAMPLE_DICT_2D3D_SUBSET))
+
+    def test_check_layer_operation_3d_good(self):
+        """Ensures correct output from _check_layer_operation.
+
+        In this case, radar images are 3-D only and the dictionary is correctly
+        formatted.
+        """
+
+        input_examples._check_layer_operation(
+            example_dict=EXAMPLE_DICT_3D_ORIG,
+            operation_dict=OPERATION_DICT_3D_GOOD)
+
+    def test_check_layer_operation_3d_bad(self):
+        """Ensures correct output from _check_layer_operation.
+
+        In this case, radar images are 3-D only and the dictionary is *not*
+        correctly formatted.
+        """
+
+        with self.assertRaises(ValueError):
+            input_examples._check_layer_operation(
+                example_dict=EXAMPLE_DICT_3D_ORIG,
+                operation_dict=OPERATION_DICT_3D_BAD)
+
+    def test_check_layer_operation_2d3d_good(self):
+        """Ensures correct output from _check_layer_operation.
+
+        In this case, radar images are 2D/3D and the dictionary is correctly
+        formatted.
+        """
+
+        input_examples._check_layer_operation(
+            example_dict=EXAMPLE_DICT_2D3D_ORIG,
+            operation_dict=OPERATION_DICT_2D3D_GOOD)
+
+    def test_check_layer_operation_2d3d_bad(self):
+        """Ensures correct output from _check_layer_operation.
+
+        In this case, radar images are 2D/3D and the dictionary is *not*
+        correctly formatted.
+        """
+
+        with self.assertRaises(ValueError):
+            input_examples._check_layer_operation(
+                example_dict=EXAMPLE_DICT_2D3D_ORIG,
+                operation_dict=OPERATION_DICT_2D3D_BAD)
+
+    def test_apply_layer_operation_max_refl(self):
+        """Ensures correct output from _apply_layer_operation.
+
+        In this case the layer operation is max reflectivity.
+        """
+
+        this_radar_matrix, this_operation_dict = (
+            input_examples._apply_layer_operation(
+                example_dict=PRE_OPERATION_EXAMPLE_DICT,
+                operation_dict=copy.deepcopy(MAX_REFL_OPERATION_DICT_ORIG)
+            )
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, MAX_REFL_MATRIX_DBZ, atol=TOLERANCE))
+        self.assertTrue(this_operation_dict == MAX_REFL_OPERATION_DICT_NEW)
+
+    def test_apply_layer_operation_min_diff_refl(self):
+        """Ensures correct output from _apply_layer_operation.
+
+        In this case the layer operation is minimum differential reflectivity.
+        """
+
+        this_radar_matrix, this_operation_dict = (
+            input_examples._apply_layer_operation(
+                example_dict=PRE_OPERATION_EXAMPLE_DICT,
+                operation_dict=copy.deepcopy(MIN_DIFF_REFL_OPERATION_DICT_ORIG)
+            )
+        )
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, MIN_DIFF_REFL_MATRIX_DB, atol=TOLERANCE))
+        self.assertTrue(this_operation_dict == MIN_DIFF_REFL_OPERATION_DICT_NEW)
 
     def test_find_example_file_shuffled(self):
         """Ensures correct output from find_example_file.

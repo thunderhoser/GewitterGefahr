@@ -89,6 +89,28 @@ STORM_ID_CHAR_DIM_KEY = 'storm_id_character'
 RADAR_FIELD_CHAR_DIM_KEY = 'radar_field_name_character'
 SOUNDING_FIELD_CHAR_DIM_KEY = 'sounding_field_name_character'
 
+RADAR_FIELD_KEY = 'radar_field_name'
+OPERATION_NAME_KEY = 'operation_name'
+MIN_HEIGHT_KEY = 'min_height_m_agl'
+MAX_HEIGHT_KEY = 'max_height_m_agl'
+
+MIN_OPERATION_NAME = 'min'
+MAX_OPERATION_NAME = 'max'
+MEAN_OPERATION_NAME = 'mean'
+VALID_LAYER_OPERATION_NAMES = [
+    MIN_OPERATION_NAME, MAX_OPERATION_NAME, MEAN_OPERATION_NAME
+]
+
+OPERATION_NAME_TO_FUNCTION_DICT = {
+    MIN_OPERATION_NAME: numpy.min,
+    MAX_OPERATION_NAME: numpy.max,
+    MEAN_OPERATION_NAME: numpy.mean
+}
+
+MIN_RADAR_HEIGHTS_KEY = 'min_radar_heights_m_agl'
+MAX_RADAR_HEIGHTS_KEY = 'max_radar_heights_m_agl'
+RADAR_LAYER_OPERATION_NAMES_KEY = 'radar_layer_operation_names'
+
 
 def _read_soundings(sounding_file_name, sounding_field_names, radar_image_dict):
     """Reads storm-centered soundings and matches w storm-centered radar imgs.
@@ -678,6 +700,115 @@ def _file_name_to_batch_number(example_file_name):
     return int(extensionless_file_name.split('input_examples_batch')[-1])
 
 
+def _check_layer_operation(example_dict, operation_dict):
+    """Error-checks layer operation.
+
+    Such operations are used for dimensionality reduction (to convert radar data
+    from 3-D to 2-D).
+
+    :param example_dict: See doc for `reduce_examples_3d_to_2d`.
+    :param operation_dict: Dictionary with the following keys.
+    operation_dict["radar_field_name"]: Field to which operation will be
+        applied.
+    operation_dict["operation_name"]: Name of operation (must be in list
+        `VALID_LAYER_OPERATION_NAMES`).
+    operation_dict["min_height_m_agl"]: Minimum height of layer over which
+        operation will be applied.
+    operation_dict["max_height_m_agl"]: Max height of layer over which operation
+        will be applied.
+
+    :raises: ValueError: if something is wrong with the operation params.
+    """
+
+    if operation_dict[RADAR_FIELD_KEY] in AZIMUTHAL_SHEAR_FIELD_NAMES:
+        error_string = (
+            'Layer operations cannot be applied to azimuthal-shear fields '
+            '(such as "{0:s}").'
+        ).format(operation_dict[RADAR_FIELD_KEY])
+
+        raise ValueError(error_string)
+
+    if (operation_dict[RADAR_FIELD_KEY] == radar_utils.REFL_NAME
+            and REFL_IMAGE_MATRIX_KEY in example_dict):
+        pass
+
+    else:
+        if (operation_dict[RADAR_FIELD_KEY]
+                not in example_dict[RADAR_FIELDS_KEY]):
+            error_string = (
+                '\n{0:s}\nExamples contain only radar fields listed above, '
+                'which do not include "{1:s}".'
+            ).format(str(example_dict[RADAR_FIELDS_KEY]),
+                     operation_dict[RADAR_FIELD_KEY])
+
+            raise ValueError(error_string)
+
+    if operation_dict[OPERATION_NAME_KEY] not in VALID_LAYER_OPERATION_NAMES:
+        error_string = (
+            '\n{0:s}\nValid operations (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VALID_LAYER_OPERATION_NAMES),
+                 operation_dict[OPERATION_NAME_KEY])
+
+        raise ValueError(error_string)
+
+    min_height_m_agl = operation_dict[MIN_HEIGHT_KEY]
+    max_height_m_agl = operation_dict[MAX_HEIGHT_KEY]
+
+    error_checking.assert_is_geq(
+        min_height_m_agl, numpy.min(example_dict[RADAR_HEIGHTS_KEY])
+    )
+    error_checking.assert_is_leq(
+        max_height_m_agl, numpy.max(example_dict[RADAR_HEIGHTS_KEY])
+    )
+    error_checking.assert_is_greater(max_height_m_agl, min_height_m_agl)
+
+
+def _apply_layer_operation(example_dict, operation_dict):
+    """Applies layer operation to radar data.
+
+    :param example_dict: See doc for `reduce_examples_3d_to_2d`.
+    :param operation_dict: See doc for `_check_layer_operation`.
+    :return: new_radar_matrix: E-by-M-by-N numpy array resulting from layer
+        operation.
+    """
+
+    _check_layer_operation(example_dict=example_dict,
+                           operation_dict=operation_dict)
+
+    height_diffs_metres = (
+        example_dict[RADAR_HEIGHTS_KEY] - operation_dict[MIN_HEIGHT_KEY]
+    ).astype(float)
+    height_diffs_metres[height_diffs_metres > 0] = -numpy.inf
+    min_height_index = numpy.argmax(height_diffs_metres)
+
+    height_diffs_metres = (
+        operation_dict[MAX_HEIGHT_KEY] - example_dict[RADAR_HEIGHTS_KEY]
+    ).astype(float)
+    height_diffs_metres[height_diffs_metres > 0] = -numpy.inf
+    max_height_index = numpy.argmax(height_diffs_metres)
+
+    operation_dict[MIN_HEIGHT_KEY] = example_dict[
+        RADAR_HEIGHTS_KEY][min_height_index]
+    operation_dict[MAX_HEIGHT_KEY] = example_dict[
+        RADAR_HEIGHTS_KEY][max_height_index]
+
+    operation_name = operation_dict[OPERATION_NAME_KEY]
+    operation_function = OPERATION_NAME_TO_FUNCTION_DICT[operation_name]
+
+    if REFL_IMAGE_MATRIX_KEY in example_dict:
+        orig_matrix = example_dict[REFL_IMAGE_MATRIX_KEY][
+            ..., min_height_index:(max_height_index + 1), 0]
+    else:
+        field_index = example_dict[RADAR_FIELDS_KEY].index(
+            operation_dict[RADAR_FIELD_KEY])
+
+        orig_matrix = example_dict[RADAR_IMAGE_MATRIX_KEY][
+            ..., min_height_index:(max_height_index + 1), field_index]
+
+    return operation_function(orig_matrix, axis=-1), operation_dict
+
+
 def remove_storms_with_undefined_target(radar_image_dict):
     """Removes storm objects with undefined target value.
 
@@ -1179,43 +1310,62 @@ def find_many_example_files(
 def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
     """Writes input examples to NetCDF file.
 
-    If examples do not include soundings, the following keys are not required in
-    `example_dict`.
+    The following keys are required in `example_dict` only if the examples
+    include soundings:
 
     - "sounding_field_names"
     - "sounding_heights_m_agl"
     - "sounding_matrix"
 
-    If examples contain both 2-D and 3-D radar images, the following keys are
-    required in `example_dict`, while "radar_image_matrix" is not required.
+    If the examples contain both 2-D azimuthal-shear images and 3-D
+    reflectivity images:
 
-    - "reflectivity_image_matrix_dbz"
-    - "az_shear_image_matrix_s01"
+    - Keys "reflectivity_image_matrix_dbz" and "az_shear_image_matrix_s01" are
+      required.
+    - "radar_heights_m_agl" should contain only reflectivity heights.
+    - "radar_field_names" should contain only the names of azimuthal-shear
+      fields.
 
-    In this case, "radar_heights_m_agl" should contain only reflectivity heights
-    and "radar_field_names" should contain only the names of azimuthal-shear
-    fields.
+    If the examples contain 2-D radar images and no 3-D images:
+
+    - Key "radar_image_matrix" is required.
+    - The [j]th element of "radar_field_names" should be the name of the [j]th
+      radar field.
+    - The [j]th element of "radar_heights_m_agl" should be the corresponding
+      height.
+    - Thus, there are C elements in "radar_field_names", C elements in
+      "radar_heights_m_agl", and C field-height pairs.
+
+    If the examples contain 3-D radar images and no 2-D images:
+
+    - Key "radar_image_matrix" is required.
+    - Each field in "radar_field_names" appears at each height in
+      "radar_heights_m_agl".
+    - Thus, there are F_r elements in "radar_field_names", H_r elements in
+      "radar_heights_m_agl", and F_r * H_r field-height pairs.
 
     :param netcdf_file_name: Path to output file.
     :param example_dict: Dictionary with the following keys.
     example_dict['storm_ids']: length-E list of storm IDs (strings).
     example_dict['storm_times_unix_sec']: length-E list of valid times.
-    example_dict['radar_field_names']: List of radar fields (length C if radar
-        images are 2-D, length F_r if 3-D).  Each item must be accepted by
-        `radar_utils.check_field_name`.
-    example_dict['radar_heights_m_agl']: numpy array of radar heights
-        (metres above ground level) (length C if radar images are 2-D, length
-        H_r if 3-D).
+    example_dict['radar_field_names']: List of radar fields (see general
+        discussion above).
+    example_dict['radar_heights_m_agl']: numpy array of radar heights (see
+        general discussion above).
     example_dict['rotated_grids']: Boolean flag.  If True, storm-centered radar
         grids are rotated so that storm motion is in the +x-direction.
     example_dict['rotated_grid_spacing_metres']: Spacing of rotated grids.  If
         grids are not rotated, this should be None.
-    example_dict['radar_image_matrix']: numpy array
-        (E x M x N x C or E x M x N x H_r x F_r) of storm-centered radar images.
-    example_dict['reflectivity_image_matrix_dbz']: numpy array
-        (E x M x N x H_r x 1) of storm-centered reflectivity images.
-    example_dict['az_shear_image_matrix_s01']: numpy array (E x M x N x 2) of
-        storm-centered azimuthal-shear images.
+    example_dict['radar_image_matrix']: See general discussion above.  For 2-D
+        images, this should be a numpy array with dimensions E x M x N x C.
+        For 3-D images, this should be a numpy array with dimensions
+        E x M x N x H_r x F_r.
+    example_dict['reflectivity_image_matrix_dbz']: See general discussion above.
+        Dimensions should be E x M x N x H_refl x 1, where H_refl = number of
+        reflectivity heights.
+    example_dict['az_shear_image_matrix_s01']: See general discussion above.
+        Dimensions should be E x M x N x F_as, where F_as = number of
+        azimuthal-shear fields.
     example_dict['target_name']: Name of target variable.  Must be accepted by
         `labels.check_label_name`.
     example_dict['target_values']: length-E numpy array of target values
@@ -1231,9 +1381,6 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         existing file.  If False, will create a new file, overwriting the
         existing file if necessary.
     """
-
-    # TODO(thunderhoser): Documentation for this method (how it can handle files
-    # with 2-D only, 3-D only, or 2-D and 3-D images) could be better.
 
     error_checking.assert_is_boolean(append_to_file)
     include_soundings = SOUNDING_MATRIX_KEY in example_dict
@@ -1490,30 +1637,54 @@ def read_example_file(
         class_to_num_examples_dict=None):
     """Reads input examples from NetCDF file.
 
-    If the file contains both 2-D and 3-D radar images:
+    If the file contains soundings:
 
-    - `radar_field_names_to_keep` is interpreted as a list of non-reflectivity
-      fields to keep (reflectivity is always kept).
-    - `radar_heights_to_keep_m_agl` is interpreted as an array of reflectivity
-      heights to keep.
+    - `sounding_field_names_to_keep` is a list of fields to keep.  If None, all
+      sounding fields will be kept.
+    - `sounding_heights_to_keep_m_agl` is a list of heights to keep.  If None,
+      all sounding heights will be kept.
+    - Thus, there are F_s elements in `sounding_field_names_to_keep`, H_s
+      elements in `sounding_heights_to_keep_m_agl`, and F_s * H_s field-height
+      pairs.
 
-    If `metadata_only = False`, all subsequent input args are unused.
+    If the file contains both 2-D azimuthal-shear images and 3-D
+    reflectivity images:
+
+    - `radar_field_names_to_keep` is a list of azimuthal-shear fields to keep.
+      If None, all azimuthal-shear fields will be kept.
+    - `radar_heights_to_keep_m_agl` is a list of reflectivity heights to keep.
+      If None, all reflectivity heights will be kept.
+
+    If the file contains 2-D radar images and no 3-D images:
+
+    - `radar_field_names_to_keep` is a list of fields to keep.  If None, all
+      fields will be kept.
+    - `radar_heights_to_keep_m_agl` is a list of reflectivity heights to keep.
+      If None, all reflectivity heights will be kept.
+    - Thus, there are C elements in `radar_field_names_to_keep`, C elements in
+      `radar_heights_to_keep_m_agl`, and C field-height pairs.
+
+    If the file contains 3-D radar images and no 2-D images:
+
+    - `radar_field_names_to_keep` is a list of fields to keep.  If None, all
+      fields will be kept.
+    - `radar_heights_to_keep_m_agl` is a list of heights to keep.  If None, all
+      heights will be kept.
+    - Thus, there are F_r elements in `radar_field_names_to_keep`, H_r elements
+      in `radar_heights_to_keep_m_agl`, and F_r * H_r field-height pairs.
+
+    If `metadata_only = True`, all further input arguments are ignored.
 
     :param netcdf_file_name: Path to input file.
-    :param include_soundings: Boolean flag.  If True and the file contains
-        soundings, this method will return soundings.  Otherwise, no soundings.
     :param metadata_only: Boolean flag.  If False, this method will read
         everything.  If True, will read everything except predictor and target
         variables.
-    :param radar_field_names_to_keep: 1-D list of radar fields to keep.  If
-        None, all radar fields will be kept.
-    :param radar_heights_to_keep_m_agl: 1-D numpy array of radar heights to keep
-        (metres above ground level).  If None, all radar heights will be kept.
-    :param sounding_field_names_to_keep: 1-D list of sounding fields to keep.
-        If None, all sounding fields will be kept.
-    :param sounding_heights_to_keep_m_agl: 1-D numpy array of sounding heights
-        to keep (metres above ground level).  If None, all sounding heights will
-        be kept.
+    :param include_soundings: Boolean flag.  If True and the file contains
+        soundings, this method will return soundings.  Otherwise, no soundings.
+    :param radar_field_names_to_keep: See general discussion above.
+    :param radar_heights_to_keep_m_agl: Same.
+    :param sounding_field_names_to_keep: Same.
+    :param sounding_heights_to_keep_m_agl: Same.
     :param first_time_to_keep_unix_sec: First time to keep.  If
         `first_time_to_keep_unix_sec is None`, all storm objects will be kept.
     :param last_time_to_keep_unix_sec: Last time to keep.  If
@@ -1711,6 +1882,106 @@ def read_example_file(
     })
 
     netcdf_dataset.close()
+    return example_dict
+
+
+def reduce_examples_3d_to_2d(example_dict, list_of_operation_dicts):
+    """Reduces examples from 3-D to 2-D.
+
+    If the examples contain both 2-D azimuthal-shear images and 3-D
+    reflectivity images:
+
+    - Keys "reflectivity_image_matrix_dbz" and "az_shear_image_matrix_s01" are
+      required.
+    - "radar_heights_m_agl" should contain only reflectivity heights.
+    - "radar_field_names" should contain only the names of azimuthal-shear
+      fields.
+
+    If the examples contain 3-D radar images and no 2-D images:
+
+    - Key "radar_image_matrix" is required.
+    - Each field in "radar_field_names" appears at each height in
+      "radar_heights_m_agl".
+    - Thus, there are F_r elements in "radar_field_names", H_r elements in
+      "radar_heights_m_agl", and F_r * H_r field-height pairs.
+
+    After dimensionality reduction (from 3-D to 2-D):
+
+    - Keys "reflectivity_image_matrix_dbz", "az_shear_image_matrix_s01", and
+      "radar_heights_m_agl" will be absent.
+    - Key "radar_image_matrix" will be present.  The dimensions will be
+      E x M x N x C.
+    - Key "radar_field_names" will be a length-C list, where the [j]th item is
+      the field name for the [j]th channel of radar_image_matrix
+      (radar_image_matrix[..., j]).
+    - Key "min_radar_heights_m_agl" will be a length-C numpy array, where the
+      [j]th item is the MINIMUM height for the [j]th channel of
+      radar_image_matrix.
+    - Key "max_radar_heights_m_agl" will be a length-C numpy array, where the
+      [j]th item is the MAX height for the [j]th channel of radar_image_matrix.
+    - Key "radar_layer_operation_names" will be a length-C list, where the [j]th
+      item is the name of the operation used to create the [j]th channel of
+      radar_image_matrix.
+
+    :param example_dict: See doc for `write_example_file`.
+    :param list_of_operation_dicts: See doc for `_check_layer_operations`.
+    :return: example_dict: See general discussion above, for how the input
+        `example_dict` is changed to the output `example_dict`.
+    """
+
+    if RADAR_IMAGE_MATRIX_KEY in example_dict:
+        num_radar_dimensions = len(
+            example_dict[RADAR_IMAGE_MATRIX_KEY].shape) - 2
+        assert num_radar_dimensions == 2
+
+    new_radar_image_matrix = None
+    new_field_names = []
+    new_min_heights_m_agl = []
+    new_max_heights_m_agl = []
+    new_operation_names = []
+
+    if AZ_SHEAR_IMAGE_MATRIX_KEY in example_dict:
+        new_radar_image_matrix = example_dict[AZ_SHEAR_IMAGE_MATRIX_KEY] + 0.
+
+        for this_field_name in example_dict[RADAR_FIELDS_KEY]:
+            new_field_names.append(this_field_name)
+            new_operation_names.append(MAX_OPERATION_NAME)
+
+            if this_field_name == radar_utils.LOW_LEVEL_SHEAR_NAME:
+                new_min_heights_m_agl.append(0)
+                new_max_heights_m_agl.append(2000)
+            else:
+                new_min_heights_m_agl.append(3000)
+                new_max_heights_m_agl.append(6000)
+
+    for this_operation_dict in list_of_operation_dicts:
+        this_new_matrix, this_operation_dict = _apply_layer_operation(
+            example_dict=example_dict, operation_dict=this_operation_dict)
+
+        this_new_matrix = numpy.expand_dims(this_new_matrix, axis=-1)
+        if new_radar_image_matrix is None:
+            new_radar_image_matrix = this_new_matrix + 0.
+        else:
+            new_radar_image_matrix = numpy.concatenate(
+                (new_radar_image_matrix, this_new_matrix), axis=-1)
+
+        new_field_names.append(this_operation_dict[RADAR_FIELD_KEY])
+        new_min_heights_m_agl.append(this_operation_dict[MIN_HEIGHT_KEY])
+        new_max_heights_m_agl.append(this_operation_dict[MAX_HEIGHT_KEY])
+        new_operation_names.append(this_operation_dict[OPERATION_NAME_KEY])
+
+    example_dict.pop(REFL_IMAGE_MATRIX_KEY, None)
+    example_dict.pop(AZ_SHEAR_IMAGE_MATRIX_KEY, None)
+    example_dict.pop(RADAR_HEIGHTS_KEY, None)
+
+    example_dict[RADAR_IMAGE_MATRIX_KEY] = new_radar_image_matrix
+    example_dict[RADAR_FIELDS_KEY] = new_field_names
+    example_dict[MIN_RADAR_HEIGHTS_KEY] = numpy.array(
+        new_min_heights_m_agl, dtype=int)
+    example_dict[MAX_RADAR_HEIGHTS_KEY] = numpy.array(
+        new_max_heights_m_agl, dtype=int)
+    example_dict[RADAR_LAYER_OPERATION_NAMES_KEY] = new_operation_names
+
     return example_dict
 
 
