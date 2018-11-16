@@ -1789,12 +1789,11 @@ def read_example_file(
             radar_image_matrix = radar_image_matrix[
                 ..., these_height_indices, :]
 
-        for k in range(len(radar_field_names_to_keep)):
-            radar_image_matrix[..., k] = storm_images.downsize_storm_images(
-                storm_image_matrix=radar_image_matrix[..., k],
-                radar_field_name=radar_field_names_to_keep[k],
-                num_rows_to_keep=num_rows_to_keep,
-                num_columns_to_keep=num_columns_to_keep)
+        radar_image_matrix = storm_images.downsize_storm_images(
+            storm_image_matrix=radar_image_matrix,
+            radar_field_name=radar_field_names_to_keep[0],
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
 
         example_dict.update({RADAR_IMAGE_MATRIX_KEY: radar_image_matrix})
 
@@ -1826,14 +1825,11 @@ def read_example_file(
             num_rows_to_keep=num_rows_to_keep,
             num_columns_to_keep=num_columns_to_keep)
 
-        for k in range(len(radar_field_names_to_keep)):
-            az_shear_image_matrix_s01[..., k] = (
-                storm_images.downsize_storm_images(
-                    storm_image_matrix=az_shear_image_matrix_s01[..., k],
-                    radar_field_name=radar_field_names_to_keep[k],
-                    num_rows_to_keep=num_rows_to_keep,
-                    num_columns_to_keep=num_columns_to_keep)
-            )
+        az_shear_image_matrix_s01 = storm_images.downsize_storm_images(
+            storm_image_matrix=az_shear_image_matrix_s01,
+            radar_field_name=radar_field_names_to_keep[0],
+            num_rows_to_keep=num_rows_to_keep,
+            num_columns_to_keep=num_columns_to_keep)
 
         example_dict.update({
             REFL_IMAGE_MATRIX_KEY: reflectivity_image_matrix_dbz,
