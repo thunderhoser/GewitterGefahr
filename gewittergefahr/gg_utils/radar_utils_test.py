@@ -254,6 +254,8 @@ class RadarUtilsTests(unittest.TestCase):
         this_field_name_gridrad = radar_utils.field_name_new_to_orig(
             radar_utils.DIFFERENTIAL_REFL_NAME,
             data_source=radar_utils.GRIDRAD_SOURCE_ID)
+
+        print this_field_name_gridrad
         self.assertTrue(this_field_name_gridrad ==
                         radar_utils.DIFFERENTIAL_REFL_NAME_GRIDRAD)
 
@@ -267,6 +269,27 @@ class RadarUtilsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             radar_utils.field_name_new_to_orig(
                 LL_SHEAR_NAME_NEW, data_source=radar_utils.GRIDRAD_SOURCE_ID)
+
+    def test_field_name_to_echo_top_refl_good(self):
+        """Ensures correct output from field_name_to_echo_top_refl.
+
+        In this case the input is actually an echo-top field.
+        """
+
+        this_critical_refl_dbz = radar_utils.field_name_to_echo_top_refl(
+            radar_utils.ECHO_TOP_25DBZ_NAME)
+
+        self.assertTrue(numpy.isclose(
+            this_critical_refl_dbz, 25, atol=TOLERANCE))
+
+    def test_field_name_to_echo_top_refl_bad(self):
+        """Ensures correct output from field_name_to_echo_top_refl.
+
+        In this case the input is *not* an echo-top field.
+        """
+
+        with self.assertRaises(ValueError):
+            radar_utils.field_name_to_echo_top_refl(radar_utils.VIL_NAME)
 
     def test_get_valid_heights_myrorss_shear(self):
         """Ensures correct output from get_valid_heights.

@@ -42,12 +42,13 @@ RAP_RUC_CUTOFF_TIME_UNIX_SEC = time_conversion.string_to_unix_sec(
     RAP_RUC_CUTOFF_TIME_STRING, TIME_FORMAT_HOUR)
 
 TEMPERATURE_LEVEL_KELVINS = 263.15
-ECHO_TOP_REFLECTIVITY_DBZ = 40.
-
 INPUT_FIELD_NAME = radar_utils.REFL_NAME
+
 VALID_OUTPUT_FIELD_NAMES = [
     radar_utils.REFL_M10CELSIUS_NAME, radar_utils.REFL_COLUMN_MAX_NAME,
-    radar_utils.ECHO_TOP_40DBZ_NAME]
+    radar_utils.ECHO_TOP_15DBZ_NAME, radar_utils.ECHO_TOP_20DBZ_NAME,
+    radar_utils.ECHO_TOP_25DBZ_NAME, radar_utils.ECHO_TOP_40DBZ_NAME
+]
 
 GRIDRAD_DIR_ARG_NAME = 'input_gridrad_dir_name'
 MYRORSS_DIR_ARG_NAME = 'output_myrorss_dir_name'
@@ -212,7 +213,9 @@ def _convert_to_myrorss_format(
             this_output_matrix = gridrad_utils.get_echo_tops(
                 reflectivity_matrix_dbz=this_refl_matrix_dbz,
                 grid_point_heights_m_asl=these_grid_point_heights_m_asl,
-                critical_reflectivity_dbz=ECHO_TOP_REFLECTIVITY_DBZ)
+                critical_reflectivity_dbz=
+                radar_utils.field_name_to_echo_top_refl(output_field_name)
+            )
 
         this_spc_date_string = time_conversion.time_to_spc_date_string(
             this_time_unix_sec)
