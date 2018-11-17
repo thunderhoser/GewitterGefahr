@@ -65,6 +65,7 @@ DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL = 4.
 DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT = 0.024
 DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT = 0.06
 DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES = 0.1 * DEGREES_LAT_TO_METRES
+DEFAULT_MIN_GRID_CELLS_IN_POLYGON = 0
 DEFAULT_MAX_LINK_TIME_SECONDS = 305
 DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
     0.125 * DEGREES_LAT_TO_METRES / DEFAULT_MAX_LINK_TIME_SECONDS)
@@ -72,8 +73,6 @@ DEFAULT_MAX_LINK_DISTANCE_M_S01 = (
 DEFAULT_MAX_REANAL_JOIN_TIME_SEC = 600
 DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01 = 20.
 
-DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS = 0
-DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS = 900
 DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY = 3
 DUMMY_TRACKING_SCALE_METRES2 = numpy.pi * 1e8  # Radius of 10 km.
 
@@ -531,7 +530,7 @@ def _find_input_tracking_files(
             tracking_io.processed_file_name_to_time(f)
             for f in these_file_names
         ], dtype=int)
-        
+
         sort_indices = numpy.argsort(these_times_unix_sec)
         these_file_names = [these_file_names[k] for k in sort_indices]
         these_times_unix_sec = these_times_unix_sec[sort_indices]
@@ -926,19 +925,23 @@ def _get_grid_points_in_radius(
 
 def _local_maxima_to_polygons(
         local_max_dict, echo_top_matrix_km_asl, min_echo_top_height_km_asl,
-        radar_metadata_dict, min_distance_between_maxima_metres):
+        radar_metadata_dict, min_distance_between_maxima_metres,
+        min_grid_cells_in_polygon=None):
     """Converts local maxima at one time step from points to polygons.
 
-    P = number of local maxima
-    M = number of rows (unique grid-point latitudes)
-    N = number of columns (unique grid-point longitudes)
+    P = original number of local maxima
+    p = final number of local maxima
     G_i = number of grid points in the [i]th polygon
+
+    M = number of rows (unique latitudes) in full grid
+    N = number of columns (unique longitudes) in full grid
 
     :param local_max_dict: Dictionary with at least the following keys.
     local_max_dict['latitudes_deg']: length-P numpy array with latitudes (deg N)
         of local maxima.
     local_max_dict['longitudes_deg']: length-P numpy array with longitudes
         (deg E) of local maxima.
+
     :param echo_top_matrix_km_asl: M-by-N numpy array of echo tops (km above sea
         level).
     :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
@@ -947,8 +950,11 @@ def _local_maxima_to_polygons(
         by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
     :param min_distance_between_maxima_metres: Minimum distance between two
         local maxima.
+    :param min_grid_cells_in_polygon: Minimum number of grid cells in a polygon.
+        Polygons with fewer grid cells will be removed.
+
     :return: local_max_dict: Same as input, but with extra keys listed below.
-    local_max_dict['list_of_grid_point_rows']: length-N list, where the [i]th
+    local_max_dict['list_of_grid_point_rows']: length-p list, where the [i]th
         element is a numpy array (length G_i) with row indices of grid points in
         polygon.
     local_max_dict['list_of_grid_point_columns']: Same but for columns.
@@ -956,18 +962,22 @@ def _local_maxima_to_polygons(
         (deg N).
     local_max_dict['list_of_grid_point_longitudes_deg']: Same but for longitudes
         (deg E).
-    local_max_dict['polygon_objects_rowcol']: length-N list, where each element
+    local_max_dict['polygon_objects_rowcol']: length-p list, where each element
         is an instance of `shapely.geometry.Polygon` with vertices in row-column
         coordinates.
     local_max_dict['polygon_objects_latlng']: Same but for lat-long coordinates.
     """
 
-    # TODO(thunderhoser): I may want to let this influence centroids... ?
+    # TODO(thunderhoser): I may want to let this influence centroids.
 
+    latitude_extent_deg = (
+        radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
+        (radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)
+    )
     min_grid_point_latitude_deg = (
         radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN] -
-        (radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN] *
-         (radar_metadata_dict[radar_utils.NUM_LAT_COLUMN] - 1)))
+        latitude_extent_deg
+    )
 
     grid_point_latitudes_deg, grid_point_longitudes_deg = (
         grids.get_latlng_grid_points(
@@ -977,7 +987,9 @@ def _local_maxima_to_polygons(
             lat_spacing_deg=radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
             lng_spacing_deg=radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN],
             num_rows=radar_metadata_dict[radar_utils.NUM_LAT_COLUMN],
-            num_columns=radar_metadata_dict[radar_utils.NUM_LNG_COLUMN]))
+            num_columns=radar_metadata_dict[radar_utils.NUM_LNG_COLUMN])
+    )
+
     grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
 
     num_maxima = len(local_max_dict[LATITUDES_KEY])
@@ -990,6 +1002,10 @@ def _local_maxima_to_polygons(
     local_max_dict[POLYGON_OBJECTS_LATLNG_KEY] = numpy.full(
         num_maxima, numpy.nan, dtype=object)
 
+    indices_to_keep = []
+    if min_grid_cells_in_polygon is None:
+        min_grid_cells_in_polygon = 0
+
     for i in range(num_maxima):
         this_echo_top_submatrix_km_asl, this_row_offset, this_column_offset = (
             grids.extract_latlng_subgrid(
@@ -999,20 +1015,29 @@ def _local_maxima_to_polygons(
                 center_latitude_deg=local_max_dict[LATITUDES_KEY][i],
                 center_longitude_deg=local_max_dict[LONGITUDES_KEY][i],
                 max_distance_from_center_metres=
-                min_distance_between_maxima_metres))
+                min_distance_between_maxima_metres)
+        )
 
         this_echo_top_submatrix_km_asl[
             numpy.isnan(this_echo_top_submatrix_km_asl)] = 0.
 
         (local_max_dict[GRID_POINT_ROWS_KEY][i],
-         local_max_dict[GRID_POINT_COLUMNS_KEY][i]) = numpy.where(
-             this_echo_top_submatrix_km_asl >= min_echo_top_height_km_asl)
+         local_max_dict[GRID_POINT_COLUMNS_KEY][i]
+        ) = numpy.where(
+            this_echo_top_submatrix_km_asl >= min_echo_top_height_km_asl)
+
+        this_num_grid_cells = local_max_dict[GRID_POINT_ROWS_KEY][i]
+        if this_num_grid_cells < min_grid_cells_in_polygon:
+            continue
+        indices_to_keep.append(i)
 
         if not len(local_max_dict[GRID_POINT_ROWS_KEY][i]):
             this_row = numpy.floor(
-                float(this_echo_top_submatrix_km_asl.shape[0]) / 2)
+                float(this_echo_top_submatrix_km_asl.shape[0]) / 2
+            )
             this_column = numpy.floor(
-                float(this_echo_top_submatrix_km_asl.shape[1]) / 2)
+                float(this_echo_top_submatrix_km_asl.shape[1]) / 2
+            )
 
             local_max_dict[GRID_POINT_ROWS_KEY][i] = numpy.array(
                 [this_row], dtype=int)
@@ -1027,21 +1052,22 @@ def _local_maxima_to_polygons(
         these_vertex_rows, these_vertex_columns = (
             polygons.grid_points_in_poly_to_vertices(
                 local_max_dict[GRID_POINT_ROWS_KEY][i],
-                local_max_dict[GRID_POINT_COLUMNS_KEY][i]))
+                local_max_dict[GRID_POINT_COLUMNS_KEY][i])
+        )
 
         (local_max_dict[GRID_POINT_LATITUDES_KEY][i],
-         local_max_dict[GRID_POINT_LONGITUDES_KEY][i]) = (
-             radar_utils.rowcol_to_latlng(
-                 local_max_dict[GRID_POINT_ROWS_KEY][i],
-                 local_max_dict[GRID_POINT_COLUMNS_KEY][i],
-                 nw_grid_point_lat_deg=
-                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
-                 nw_grid_point_lng_deg=
-                 radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
-                 lat_spacing_deg=
-                 radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
-                 lng_spacing_deg=
-                 radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+         local_max_dict[GRID_POINT_LONGITUDES_KEY][i]
+        ) = radar_utils.rowcol_to_latlng(
+            local_max_dict[GRID_POINT_ROWS_KEY][i],
+            local_max_dict[GRID_POINT_COLUMNS_KEY][i],
+            nw_grid_point_lat_deg=
+            radar_metadata_dict[radar_utils.NW_GRID_POINT_LAT_COLUMN],
+            nw_grid_point_lng_deg=
+            radar_metadata_dict[radar_utils.NW_GRID_POINT_LNG_COLUMN],
+            lat_spacing_deg=
+            radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
+            lng_spacing_deg=
+            radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
 
         these_vertex_latitudes_deg, these_vertex_longitudes_deg = (
             radar_utils.rowcol_to_latlng(
@@ -1053,14 +1079,26 @@ def _local_maxima_to_polygons(
                 lat_spacing_deg=
                 radar_metadata_dict[radar_utils.LAT_SPACING_COLUMN],
                 lng_spacing_deg=
-                radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN]))
+                radar_metadata_dict[radar_utils.LNG_SPACING_COLUMN])
+        )
 
         local_max_dict[POLYGON_OBJECTS_ROWCOL_KEY][i] = (
             polygons.vertex_arrays_to_polygon_object(
-                these_vertex_columns, these_vertex_rows))
+                these_vertex_columns, these_vertex_rows)
+        )
         local_max_dict[POLYGON_OBJECTS_LATLNG_KEY][i] = (
             polygons.vertex_arrays_to_polygon_object(
-                these_vertex_longitudes_deg, these_vertex_latitudes_deg))
+                these_vertex_longitudes_deg, these_vertex_latitudes_deg)
+        )
+
+    indices_to_keep = numpy.array(indices_to_keep, dtype=int)
+    for this_key in local_max_dict:
+        if isinstance(local_max_dict[this_key], list):
+            local_max_dict[this_key] = [
+                local_max_dict[this_key][k] for k in indices_to_keep
+            ]
+        else:
+            local_max_dict[this_key] = local_max_dict[this_key][indices_to_keep]
 
     return local_max_dict
 
@@ -1550,14 +1588,15 @@ def run_tracking(
         DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT,
         min_distance_between_maxima_metres=
         DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
+        min_grid_cells_in_polygon=DEFAULT_MIN_GRID_CELLS_IN_POLYGON,
         max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_SHORT_SECONDS,
+        min_track_duration_seconds=0,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
     """This is effectively the main method for echo-top-tracking.
 
     :param top_radar_dir_name: See doc for `_find_input_radar_files`.
-    :param top_output_dir_name: See doc for `write_storm_objects`.
+    :param top_output_dir_name: See doc for `_write_storm_objects`.
     :param first_spc_date_string: See doc for `_find_input_radar_files`.
     :param last_spc_date_string: Same.
     :param first_time_unix_sec: Same.
@@ -1581,6 +1620,7 @@ def run_tracking(
         `_find_local_maxima`.  Units are degrees of latitude.
     :param min_distance_between_maxima_metres: See doc for
         `_remove_redundant_local_maxima`.
+    :param min_grid_cells_in_polygon: See doc for `_local_maxima_to_polygons`.
     :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
     :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
     :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
@@ -1693,7 +1733,8 @@ def run_tracking(
             min_echo_top_height_km_asl=min_echo_top_height_km_asl,
             radar_metadata_dict=this_metadata_dict,
             min_distance_between_maxima_metres=
-            min_distance_between_maxima_metres)
+            min_distance_between_maxima_metres,
+            min_grid_cells_in_polygon=min_grid_cells_in_polygon)
 
         if i == 0:
             these_current_to_prev_indices = _link_local_maxima_in_time(
@@ -1754,7 +1795,7 @@ def reanalyze_tracks_across_spc_dates(
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
         max_reanal_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01,
-        min_track_duration_seconds=DEFAULT_MIN_TRACK_DURATION_LONG_SECONDS,
+        min_track_duration_seconds=900,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
     """Reanalyzes tracks across SPC dates.
 
