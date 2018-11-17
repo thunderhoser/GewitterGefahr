@@ -31,7 +31,7 @@ L2_WEIGHT_KEY = 'l2_weight'
 
 DEFAULT_RADAR_OPTION_DICT = {
     NUM_CONV_LAYERS_PER_SET_KEY: 1,
-    NUM_DENSE_LAYERS_KEY: 1,
+    NUM_DENSE_LAYERS_KEY: 2,
     ACTIVATION_FUNCTION_KEY: architecture_utils.RELU_FUNCTION_STRING,
     ALPHA_FOR_ELU_KEY: architecture_utils.DEFAULT_ALPHA_FOR_ELU,
     ALPHA_FOR_RELU_KEY: architecture_utils.DEFAULT_ALPHA_FOR_RELU,
@@ -112,16 +112,16 @@ def _get_sounding_layers(
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(sounding_layer_object)
 
+            if dropout_fraction is not None:
+                sounding_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=dropout_fraction
+                )(sounding_layer_object)
+
             if use_batch_normalization:
                 sounding_layer_object = (
                     architecture_utils.get_batch_normalization_layer()(
                         sounding_layer_object)
                 )
-
-            if dropout_fraction is not None:
-                sounding_layer_object = architecture_utils.get_dropout_layer(
-                    dropout_fraction=dropout_fraction
-                )(sounding_layer_object)
 
         sounding_layer_object = architecture_utils.get_1d_pooling_layer(
             num_pixels_in_window=2, pooling_type=pooling_type_string,
@@ -519,16 +519,16 @@ def get_2d_swirlnet_architecture(
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(radar_layer_object)
 
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
+
             if use_batch_normalization:
                 radar_layer_object = (
                     architecture_utils.get_batch_normalization_layer()(
                         radar_layer_object)
                 )
-
-            if conv_layer_dropout_fraction is not None:
-                radar_layer_object = architecture_utils.get_dropout_layer(
-                    dropout_fraction=conv_layer_dropout_fraction
-                )(radar_layer_object)
 
         radar_layer_object = architecture_utils.get_2d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
@@ -575,25 +575,25 @@ def get_2d_swirlnet_architecture(
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
         )(layer_object)
 
-        if use_batch_normalization:
-            layer_object = architecture_utils.get_batch_normalization_layer()(
-                layer_object)
-
         if dense_layer_dropout_fraction is not None:
             layer_object = architecture_utils.get_dropout_layer(
                 dropout_fraction=dense_layer_dropout_fraction
             )(layer_object)
 
-    dense_layer_object, activation_layer_object, loss_function = (
-        _get_output_layer_and_loss(num_classes)
-    )
-    layer_object = dense_layer_object(layer_object)
-    layer_object = activation_layer_object(layer_object)
+        if use_batch_normalization:
+            layer_object = architecture_utils.get_batch_normalization_layer()(
+                layer_object)
 
-    if dense_layer_dropout_fraction is not None:
+    dense_layer_object, activation_layer_object, loss_function = (
+        _get_output_layer_and_loss(num_classes))
+    layer_object = dense_layer_object(layer_object)
+
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
 
     if sounding_option_dict is None:
         model_object = keras.models.Model(
@@ -689,16 +689,16 @@ def get_3d_swirlnet_architecture(
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(radar_layer_object)
 
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
+
             if use_batch_normalization:
                 radar_layer_object = (
                     architecture_utils.get_batch_normalization_layer()(
                         radar_layer_object)
                 )
-
-            if conv_layer_dropout_fraction is not None:
-                radar_layer_object = architecture_utils.get_dropout_layer(
-                    dropout_fraction=conv_layer_dropout_fraction
-                )(radar_layer_object)
 
         radar_layer_object = architecture_utils.get_3d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
@@ -746,25 +746,25 @@ def get_3d_swirlnet_architecture(
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
         )(layer_object)
 
-        if use_batch_normalization:
-            layer_object = architecture_utils.get_batch_normalization_layer()(
-                layer_object)
-
         if dense_layer_dropout_fraction is not None:
             layer_object = architecture_utils.get_dropout_layer(
                 dropout_fraction=dense_layer_dropout_fraction
             )(layer_object)
 
-    dense_layer_object, activation_layer_object, loss_function = (
-        _get_output_layer_and_loss(num_classes)
-    )
-    layer_object = dense_layer_object(layer_object)
-    layer_object = activation_layer_object(layer_object)
+        if use_batch_normalization:
+            layer_object = architecture_utils.get_batch_normalization_layer()(
+                layer_object)
 
-    if dense_layer_dropout_fraction is not None:
+    dense_layer_object, activation_layer_object, loss_function = (
+        _get_output_layer_and_loss(num_classes))
+    layer_object = dense_layer_object(layer_object)
+
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
 
     if sounding_option_dict is None:
         model_object = keras.models.Model(
@@ -894,17 +894,17 @@ def get_2d3d_swirlnet_architecture(
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(reflectivity_layer_object)
 
-            if use_batch_normalization:
-                reflectivity_layer_object = (
-                    architecture_utils.get_batch_normalization_layer()(
-                        reflectivity_layer_object)
-                )
-
             if conv_layer_dropout_fraction is not None:
                 reflectivity_layer_object = (
                     architecture_utils.get_dropout_layer(
                         dropout_fraction=conv_layer_dropout_fraction
                     )(reflectivity_layer_object)
+                )
+
+            if use_batch_normalization:
+                reflectivity_layer_object = (
+                    architecture_utils.get_batch_normalization_layer()(
+                        reflectivity_layer_object)
                 )
 
         reflectivity_layer_object = architecture_utils.get_2d_pooling_layer(
@@ -948,16 +948,16 @@ def get_2d3d_swirlnet_architecture(
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
         )(azimuthal_shear_layer_object)
 
+        if conv_layer_dropout_fraction is not None:
+            azimuthal_shear_layer_object = architecture_utils.get_dropout_layer(
+                dropout_fraction=conv_layer_dropout_fraction
+            )(azimuthal_shear_layer_object)
+
         if use_batch_normalization:
             azimuthal_shear_layer_object = (
                 architecture_utils.get_batch_normalization_layer()(
                     azimuthal_shear_layer_object)
             )
-
-        if conv_layer_dropout_fraction is not None:
-            azimuthal_shear_layer_object = architecture_utils.get_dropout_layer(
-                dropout_fraction=conv_layer_dropout_fraction
-            )(azimuthal_shear_layer_object)
 
     azimuthal_shear_layer_object = architecture_utils.get_2d_pooling_layer(
         num_rows_in_window=2, num_columns_in_window=2,
@@ -991,16 +991,16 @@ def get_2d3d_swirlnet_architecture(
                 alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
             )(radar_layer_object)
 
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
+
             if use_batch_normalization:
                 radar_layer_object = (
                     architecture_utils.get_batch_normalization_layer()(
                         radar_layer_object)
                 )
-
-            if conv_layer_dropout_fraction is not None:
-                radar_layer_object = architecture_utils.get_dropout_layer(
-                    dropout_fraction=conv_layer_dropout_fraction
-                )(radar_layer_object)
 
         radar_layer_object = architecture_utils.get_2d_pooling_layer(
             num_rows_in_window=2, num_columns_in_window=2,
@@ -1048,25 +1048,25 @@ def get_2d3d_swirlnet_architecture(
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
         )(layer_object)
 
-        if use_batch_normalization:
-            layer_object = architecture_utils.get_batch_normalization_layer()(
-                layer_object)
-
         if dense_layer_dropout_fraction is not None:
             layer_object = architecture_utils.get_dropout_layer(
                 dropout_fraction=dense_layer_dropout_fraction
             )(layer_object)
 
-    dense_layer_object, activation_layer_object, loss_function = (
-        _get_output_layer_and_loss(num_classes)
-    )
-    layer_object = dense_layer_object(layer_object)
-    layer_object = activation_layer_object(layer_object)
+        if use_batch_normalization:
+            layer_object = architecture_utils.get_batch_normalization_layer()(
+                layer_object)
 
-    if dense_layer_dropout_fraction is not None:
+    dense_layer_object, activation_layer_object, loss_function = (
+        _get_output_layer_and_loss(num_classes))
+    layer_object = dense_layer_object(layer_object)
+
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
 
     if sounding_option_dict is None:
         model_object = keras.models.Model(
