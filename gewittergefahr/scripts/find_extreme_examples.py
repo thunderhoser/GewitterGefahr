@@ -48,32 +48,36 @@ ACTIVATION_FILE_HELP_STRING = (
     'each example.  Will be read by `model_activation.read_file`.  If the file '
     'contains activations for more than one model component, this script will '
     'error out.')
+
 NUM_LOW_HELP_STRING = 'Number of low-activation examples to keep.'
+
 NUM_HIGH_HELP_STRING = 'Number of high-activation examples to keep.'
+
 NUM_HITS_HELP_STRING = (
     'Number of best hits (highest-activated examples with target = 1) to keep.')
+
 NUM_MISSES_HELP_STRING = (
     'Number of worst misses (lowest-activated examples with target = 1) to '
     'keep.')
+
 NUM_FALSE_ALARMS_HELP_STRING = (
     'Number of worst false alarms (highest-activated examples with target = 0) '
     'to keep.')
+
 NUM_CORRECT_NULLS_HELP_STRING = (
     'Number of best correct nulls (lowest-activated examples with target = 0) '
     'to keep.')
+
 TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with target values (storm-hazard labels).  '
     'Files therein will be found by `labels.find_label_file` and read by '
     '`labels.read_labels_from_netcdf`.')
+
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  For each type of extreme example (high '
     'activation, low activation, best hit, worst miss, worst false alarm, best '
     'correct null), a single Pickle file will be saved here with storm ID-time '
     'pairs.')
-
-DEFAULT_TOP_TARGET_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'tornado_linkages/reanalyzed/labels')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -105,8 +109,8 @@ INPUT_ARG_PARSER.add_argument(
     help=NUM_CORRECT_NULLS_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + TARGET_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_TARGET_DIR_NAME, help=TARGET_DIR_HELP_STRING)
+    '--' + TARGET_DIR_ARG_NAME, type=str, required=True,
+    help=TARGET_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -153,7 +157,7 @@ def _read_target_values(
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    target_name = training_option_dict[trainval_io.TARGET_NAME_KEY]
+    target_name = model_metadata_dict[cnn.TARGET_NAME_KEY]
     num_classes = labels.column_name_to_num_classes(target_name)
     binarize_target = (
         training_option_dict[trainval_io.BINARIZE_TARGET_KEY] and
@@ -187,7 +191,8 @@ def _read_target_values(
             netcdf_file_name=this_target_file_name, label_name=target_name)
 
         these_indices = numpy.where(
-            storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i])[0]
+            storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i]
+        )[0]
         sort_indices_for_storm_id = numpy.concatenate((
             sort_indices_for_storm_id, these_indices))
 
@@ -196,9 +201,11 @@ def _read_target_values(
             all_times_unix_sec=this_target_value_dict[labels.VALID_TIMES_KEY],
             storm_ids_to_keep=[storm_ids[k] for k in these_indices],
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
+
         storm_target_values = numpy.concatenate((
             storm_target_values,
-            this_target_value_dict[labels.LABEL_VALUES_KEY][these_indices]))
+            this_target_value_dict[labels.LABEL_VALUES_KEY][these_indices]
+        ))
 
     good_indices = numpy.where(
         storm_target_values != labels.INVALID_STORM_INTEGER)[0]
@@ -207,7 +214,8 @@ def _read_target_values(
 
     if binarize_target:
         storm_target_values = (
-            storm_target_values == num_classes - 1).astype(int)
+            storm_target_values == num_classes - 1
+        ).astype(int)
 
     return {
         STORM_IDS_KEY: [storm_ids[k] for k in sort_indices_for_storm_id],

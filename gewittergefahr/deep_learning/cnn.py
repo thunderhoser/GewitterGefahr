@@ -51,6 +51,7 @@ PERFORMANCE_METRIC_DICT = {
     'binary_focn': keras_metrics.binary_focn
 }
 
+TARGET_NAME_KEY = 'target_name'
 NUM_EPOCHS_KEY = 'num_epochs'
 NUM_TRAINING_BATCHES_KEY = 'num_training_batches_per_epoch'
 NUM_VALIDATION_BATCHES_KEY = 'num_validation_batches_per_epoch'
@@ -63,11 +64,13 @@ LAST_VALIDN_TIME_KEY = 'last_validn_time_unix_sec'
 TRAINING_OPTION_DICT_KEY = 'training_option_dict'
 
 REQUIRED_METADATA_KEYS = [
-    NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY, NUM_VALIDATION_BATCHES_KEY,
-    MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY, USE_2D3D_CONVOLUTION_KEY,
-    VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY, LAST_VALIDN_TIME_KEY,
-    TRAINING_OPTION_DICT_KEY
+    TARGET_NAME_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
+    NUM_VALIDATION_BATCHES_KEY, MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY,
+    USE_2D3D_CONVOLUTION_KEY, VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY,
+    LAST_VALIDN_TIME_KEY, TRAINING_OPTION_DICT_KEY
 ]
+
+DEFAULT_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
 
 STORM_OBJECT_DIMENSION_KEY = 'storm_object'
 FEATURE_DIMENSION_KEY = 'feature'
@@ -228,6 +231,8 @@ def write_model_metadata(
 
     :param pickle_file_name: Path to output file.
     :param metadata_dict: Dictionary with the following keys.
+    metadata_dict['target_name']: Name of target variable (must be accepted by
+        `labels.column_name_to_label_params`).
     metadata_dict['num_epochs']: Number of epochs.
     metadata_dict['num_training_batches_per_epoch']: Number of training batches
         in each epoch.
@@ -279,6 +284,9 @@ def read_model_metadata(pickle_file_name):
     pickle_file_handle = open(pickle_file_name, 'rb')
     metadata_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
+
+    if TARGET_NAME_KEY not in metadata_dict:
+        metadata_dict[TARGET_NAME_KEY] = DEFAULT_TARGET_NAME
 
     return metadata_dict
 

@@ -205,7 +205,12 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
         last_validn_time_unix_sec = None
 
     # Write metadata.
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=training_file_names[0], metadata_only=True)
+    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
     metadata_dict = {
+        cnn.TARGET_NAME_KEY: target_name,
         cnn.NUM_EPOCHS_KEY: num_epochs,
         cnn.NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
@@ -248,10 +253,6 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
     cnn.write_model_metadata(
         pickle_file_name=metadata_file_name, metadata_dict=metadata_dict,
         training_option_dict=training_option_dict)
-
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=training_file_names[0], metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
     if binarize_target:
         num_classes_to_predict = 2

@@ -168,32 +168,33 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
 
     for _ in range(len(example_file_names)):
         try:
-            these_predictor_matrices, these_target_values = next(
-                generator_object)
+            this_storm_object_dict = next(generator_object)
             print SEPARATOR_STRING
         except StopIteration:
             break
 
         observed_labels = numpy.concatenate((
-            observed_labels, these_target_values))
+            observed_labels, this_storm_object_dict[testing_io.TARGET_ARRAY_KEY]
+        ))
+
+        these_predictor_matrices = this_storm_object_dict[
+            testing_io.INPUT_MATRICES_KEY]
 
         if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
             if len(these_predictor_matrices) == 3:
-                this_sounding_matrix = these_predictor_matrices[-1]
+                this_sounding_matrix = these_predictor_matrices[2]
             else:
                 this_sounding_matrix = None
 
             this_probability_matrix = cnn.apply_2d3d_cnn(
                 model_object=model_object,
                 reflectivity_image_matrix_dbz=these_predictor_matrices[0],
-                az_shear_image_matrix_s01=these_predictor_matrices[-1],
+                az_shear_image_matrix_s01=these_predictor_matrices[1],
                 sounding_matrix=this_sounding_matrix)
         else:
-            if isinstance(these_predictor_matrices, list):
-                this_radar_matrix = these_predictor_matrices[0]
+            if len(these_predictor_matrices) == 2:
                 this_sounding_matrix = these_predictor_matrices[1]
             else:
-                this_radar_matrix = these_predictor_matrices
                 this_sounding_matrix = None
 
             num_radar_dimensions = len(these_predictor_matrices[0].shape) - 2
@@ -201,12 +202,12 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
             if num_radar_dimensions == 2:
                 this_probability_matrix = cnn.apply_2d_cnn(
                     model_object=model_object,
-                    radar_image_matrix=this_radar_matrix,
+                    radar_image_matrix=these_predictor_matrices[0],
                     sounding_matrix=this_sounding_matrix)
             else:
                 this_probability_matrix = cnn.apply_3d_cnn(
                     model_object=model_object,
-                    radar_image_matrix=this_radar_matrix,
+                    radar_image_matrix=these_predictor_matrices[0],
                     sounding_matrix=this_sounding_matrix)
 
         forecast_probabilities = numpy.concatenate((
