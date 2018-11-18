@@ -296,7 +296,7 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
             this_sounding_matrix = this_example_dict[
                 input_examples.SOUNDING_MATRIX_KEY]
             if soundings.PRESSURE_NAME not in sounding_field_names:
-                this_sounding_matrix = this_sounding_matrix[..., -1]
+                this_sounding_matrix = this_sounding_matrix[..., :-1]
 
         if target_values is None:
             radar_image_matrix = (

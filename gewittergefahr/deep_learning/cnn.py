@@ -32,7 +32,8 @@ from gewittergefahr.gg_io import netcdf_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
-NUM_EPOCHS_FOR_EARLY_STOPPING = 5
+NUM_EPOCHS_FOR_PLATEAU = 3
+NUM_EPOCHS_FOR_EARLY_STOPPING = 6
 MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING = 0.005
 
 LOSS_FUNCTION_STRING = 'loss'
@@ -346,7 +347,7 @@ def train_cnn_2d_or_3d(
         patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
 
     plateau_object = keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_EARLY_STOPPING,
+        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_PLATEAU,
         verbose=1, mode='min')
 
     list_of_callback_objects = [
@@ -423,7 +424,7 @@ def train_cnn_2d3d_myrorss(
         patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
 
     plateau_object = keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_EARLY_STOPPING,
+        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_PLATEAU,
         verbose=1, mode='min')
 
     list_of_callback_objects = [
