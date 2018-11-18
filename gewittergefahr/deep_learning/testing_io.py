@@ -99,7 +99,7 @@ def _find_examples_to_read(option_dict, num_examples_total):
 
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[i], include_soundings=False,
-            radar_field_names_to_keep=radar_field_names[[0]],
+            radar_field_names_to_keep=[radar_field_names[0]],
             radar_heights_to_keep_m_agl=radar_heights_m_agl[[0]],
             first_time_to_keep_unix_sec=first_storm_time_unix_sec,
             last_time_to_keep_unix_sec=last_storm_time_unix_sec,
