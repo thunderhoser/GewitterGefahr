@@ -241,6 +241,31 @@ CRITICAL_RADIUS_METRES = 5.
 ROWS_WITHIN_RADIUS = numpy.array([0, 0, 0, 1, 1, 1], dtype=int)
 COLUMNS_WITHIN_RADIUS = numpy.array([1, 2, 3, 0, 1, 2])
 
+# The following constants are used to test _remove_small_polygons.
+THIS_LIST_OF_ROW_ARRAYS = [
+    numpy.array([0, 0, 0, 0, 1, 1, 2, 2, 2], dtype=int),
+    numpy.array([-5, -4, -3], dtype=int),
+    numpy.array([0, 1, 1, 2, 3, 5, 8, 13, 6, 6, 6], dtype=int)
+]
+
+LOCAL_MAX_DICT_WITH_SMALL = {
+    echo_top_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
+    echo_top_tracking.LATITUDES_KEY: numpy.array([51.1, 53.5, 60]),
+    echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 246.5, 250])
+}
+
+MIN_GRID_CELLS_IN_POLYGON = 5
+THIS_LIST_OF_ROW_ARRAYS = [
+    numpy.array([0, 0, 0, 0, 1, 1, 2, 2, 2], dtype=int),
+    numpy.array([0, 1, 1, 2, 3, 5, 8, 13, 6, 6, 6], dtype=int)
+]
+
+LOCAL_MAX_DICT_WITHOUT_SMALL = {
+    echo_top_tracking.GRID_POINT_ROWS_KEY: THIS_LIST_OF_ROW_ARRAYS,
+    echo_top_tracking.LATITUDES_KEY: numpy.array([51.1, 60]),
+    echo_top_tracking.LONGITUDES_KEY: numpy.array([246, 250])
+}
+
 # The following constants are used to test _join_tracks_between_periods.
 THESE_STORM_IDS = ['a', 'b', 'a', 'b']
 THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 300, 300], dtype=int)
@@ -357,6 +382,41 @@ THIS_DICT = {
     echo_top_tracking.END_LONGITUDE_COLUMN: THESE_END_LONGITUDES_DEG
 }
 STORM_TRACK_TABLE_AFTER_REANALYSIS = pandas.DataFrame.from_dict(THIS_DICT)
+
+
+def _compare_maxima_with_sans_small_polygons(
+        first_local_max_dict, second_local_max_dict):
+    """Compares local maxima before and after removing small polygons.
+
+    :param first_local_max_dict: First dictionary.
+    :param second_local_max_dict: Second dictionary.
+    :return: are_dicts_equal: Boolean flag.
+    """
+
+    first_keys = first_local_max_dict.keys()
+    second_keys = second_local_max_dict.keys()
+    if set(first_keys) != set(second_keys):
+        return False
+
+    for this_key in first_keys:
+        if this_key == echo_top_tracking.GRID_POINT_ROWS_KEY:
+            first_length = len(first_local_max_dict[this_key])
+            second_length = len(second_local_max_dict[this_key])
+            if first_length != second_length:
+                return False
+
+            for i in range(first_length):
+                if not numpy.array_equal(first_local_max_dict[this_key][i],
+                                         second_local_max_dict[this_key][i]):
+                    return False
+
+        else:
+            if not numpy.allclose(first_local_max_dict[this_key],
+                                  second_local_max_dict[this_key],
+                                  atol=TOLERANCE):
+                return False
+
+    return True
 
 
 class EchoTopTrackingTests(unittest.TestCase):
@@ -668,6 +728,32 @@ class EchoTopTrackingTests(unittest.TestCase):
             these_row_indices, ROWS_WITHIN_RADIUS))
         self.assertTrue(numpy.array_equal(
             these_column_indices, COLUMNS_WITHIN_RADIUS))
+
+    def test_remove_small_polygons_min0(self):
+        """Ensures correct output from _remove_small_polygons.
+
+        In this case polygons with >= 0 grid cells should be kept.
+        """
+
+        this_local_max_dict = echo_top_tracking._remove_small_polygons(
+            local_max_dict=copy.deepcopy(LOCAL_MAX_DICT_WITH_SMALL),
+            min_grid_cells_in_polygon=0)
+
+        self.assertTrue(_compare_maxima_with_sans_small_polygons(
+            this_local_max_dict, LOCAL_MAX_DICT_WITH_SMALL))
+
+    def test_remove_small_polygons_min5(self):
+        """Ensures correct output from _remove_small_polygons.
+
+        In this case polygons with >= 5 grid cells should be kept.
+        """
+
+        this_local_max_dict = echo_top_tracking._remove_small_polygons(
+            local_max_dict=copy.deepcopy(LOCAL_MAX_DICT_WITH_SMALL),
+            min_grid_cells_in_polygon=MIN_GRID_CELLS_IN_POLYGON)
+
+        self.assertTrue(_compare_maxima_with_sans_small_polygons(
+            this_local_max_dict, LOCAL_MAX_DICT_WITHOUT_SMALL))
 
     def test_join_tracks_between_periods(self):
         """Ensures correct output from _join_tracks_between_periods."""

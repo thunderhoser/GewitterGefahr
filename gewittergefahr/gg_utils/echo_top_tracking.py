@@ -925,8 +925,7 @@ def _get_grid_points_in_radius(
 
 def _local_maxima_to_polygons(
         local_max_dict, echo_top_matrix_km_asl, min_echo_top_height_km_asl,
-        radar_metadata_dict, min_distance_between_maxima_metres,
-        min_grid_cells_in_polygon=None):
+        radar_metadata_dict, min_distance_between_maxima_metres):
     """Converts local maxima at one time step from points to polygons.
 
     P = original number of local maxima
@@ -950,8 +949,6 @@ def _local_maxima_to_polygons(
         by `myrorss_and_mrms_io.read_metadata_from_raw_file`.
     :param min_distance_between_maxima_metres: Minimum distance between two
         local maxima.
-    :param min_grid_cells_in_polygon: Minimum number of grid cells in a polygon.
-        Polygons with fewer grid cells will be removed.
 
     :return: local_max_dict: Same as input, but with extra keys listed below.
     local_max_dict['list_of_grid_point_rows']: length-p list, where the [i]th
@@ -1002,10 +999,6 @@ def _local_maxima_to_polygons(
     local_max_dict[POLYGON_OBJECTS_LATLNG_KEY] = numpy.full(
         num_maxima, numpy.nan, dtype=object)
 
-    indices_to_keep = []
-    if min_grid_cells_in_polygon is None:
-        min_grid_cells_in_polygon = 0
-
     for i in range(num_maxima):
         this_echo_top_submatrix_km_asl, this_row_offset, this_column_offset = (
             grids.extract_latlng_subgrid(
@@ -1025,11 +1018,6 @@ def _local_maxima_to_polygons(
          local_max_dict[GRID_POINT_COLUMNS_KEY][i]
         ) = numpy.where(
             this_echo_top_submatrix_km_asl >= min_echo_top_height_km_asl)
-
-        this_num_grid_cells = local_max_dict[GRID_POINT_ROWS_KEY][i]
-        if this_num_grid_cells < min_grid_cells_in_polygon:
-            continue
-        indices_to_keep.append(i)
 
         if not len(local_max_dict[GRID_POINT_ROWS_KEY][i]):
             this_row = numpy.floor(
@@ -1091,7 +1079,32 @@ def _local_maxima_to_polygons(
                 these_vertex_longitudes_deg, these_vertex_latitudes_deg)
         )
 
-    indices_to_keep = numpy.array(indices_to_keep, dtype=int)
+    return local_max_dict
+
+
+def _remove_small_polygons(local_max_dict, min_grid_cells_in_polygon):
+    """Removes small polygons (storm objects) at one time.
+
+    P = original number of polygons
+    p = new number of polygons
+
+    :param local_max_dict: Dictionary created by `_local_maxima_to_polygons`.
+        All values must be either a length-P list or a length-P numpy array.
+    :param min_grid_cells_in_polygon: Size threshold.  Smaller polygons will be
+        removed.
+    :return: local_max_dict: Same as input, except that all values are either a
+        length-p list or a length-p numpy array.
+    """
+
+    if min_grid_cells_in_polygon == 0:
+        return local_max_dict
+
+    num_grid_cells_by_polygon = numpy.array(
+        [len(r) for r in local_max_dict[GRID_POINT_ROWS_KEY]], dtype=int)
+    indices_to_keep = numpy.where(
+        num_grid_cells_by_polygon >= min_grid_cells_in_polygon
+    )[0]
+
     for this_key in local_max_dict:
         if isinstance(local_max_dict[this_key], list):
             local_max_dict[this_key] = [
@@ -1631,6 +1644,11 @@ def run_tracking(
 
     error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
 
+    if min_grid_cells_in_polygon is None:
+        min_grid_cells_in_polygon = 0
+    error_checking.assert_is_integer(min_grid_cells_in_polygon)
+    error_checking.assert_is_geq(min_grid_cells_in_polygon, 0)
+
     radar_file_names, valid_times_unix_sec = _find_input_radar_files(
         top_radar_dir_name=top_radar_dir_name,
         echo_top_field_name=echo_top_field_name,
@@ -1733,7 +1751,10 @@ def run_tracking(
             min_echo_top_height_km_asl=min_echo_top_height_km_asl,
             radar_metadata_dict=this_metadata_dict,
             min_distance_between_maxima_metres=
-            min_distance_between_maxima_metres,
+            min_distance_between_maxima_metres)
+
+        local_max_dict_by_time[i] = _remove_small_polygons(
+            local_max_dict=local_max_dict_by_time[i],
             min_grid_cells_in_polygon=min_grid_cells_in_polygon)
 
         if i == 0:
