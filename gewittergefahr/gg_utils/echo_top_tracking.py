@@ -1106,6 +1106,7 @@ def _remove_small_polygons(local_max_dict, min_grid_cells_in_polygon):
     )[0]
 
     for this_key in local_max_dict:
+        print this_key
         if isinstance(local_max_dict[this_key], list):
             local_max_dict[this_key] = [
                 local_max_dict[this_key][k] for k in indices_to_keep
