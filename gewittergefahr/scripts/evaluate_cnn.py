@@ -189,11 +189,11 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
                 sounding_matrix=this_sounding_matrix)
         else:
             if isinstance(these_predictor_matrices, list):
-                this_radar_matrix = these_predictor_matrices
-                this_sounding_matrix = None
-            else:
                 this_radar_matrix = these_predictor_matrices[0]
                 this_sounding_matrix = these_predictor_matrices[1]
+            else:
+                this_radar_matrix = these_predictor_matrices
+                this_sounding_matrix = None
 
             num_radar_dimensions = len(these_predictor_matrices[0].shape) - 2
 
