@@ -337,8 +337,14 @@ def train_cnn_2d_or_3d(
         monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
         patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
 
+    plateau_object = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        factor=0.2, patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1,
+        mode='min')
+
     list_of_callback_objects = [
-        checkpoint_object, history_object, early_stopping_object]
+        checkpoint_object, history_object, early_stopping_object, plateau_object
+    ]
 
     if num_validation_batches_per_epoch > 0:
         validation_option_dict = copy.deepcopy(training_option_dict)
@@ -409,8 +415,14 @@ def train_cnn_2d3d_myrorss(
         monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
         patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
 
+    plateau_object = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        factor=0.2, patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1,
+        mode='min')
+
     list_of_callback_objects = [
-        checkpoint_object, history_object, early_stopping_object]
+        checkpoint_object, history_object, early_stopping_object, plateau_object
+    ]
 
     if num_validation_batches_per_epoch > 0:
         validation_option_dict = copy.deepcopy(training_option_dict)
