@@ -157,7 +157,8 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     ] = time_conversion.spc_date_string_to_unix_sec(last_spc_date_string)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        pass
+        generator_object = testing_io.example_generator_2d3d_myrorss(
+            option_dict=training_option_dict, num_examples_total=num_examples)
     else:
         generator_object = testing_io.example_generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
