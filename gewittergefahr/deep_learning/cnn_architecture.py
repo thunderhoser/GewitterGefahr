@@ -588,7 +588,7 @@ def get_2d_swirlnet_architecture(
         _get_output_layer_and_loss(num_classes))
     layer_object = dense_layer_object(layer_object)
 
-    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
+    if dense_layer_dropout_fraction is not None:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
@@ -759,7 +759,7 @@ def get_3d_swirlnet_architecture(
         _get_output_layer_and_loss(num_classes))
     layer_object = dense_layer_object(layer_object)
 
-    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
+    if dense_layer_dropout_fraction is not None:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
@@ -1061,7 +1061,7 @@ def get_2d3d_swirlnet_architecture(
         _get_output_layer_and_loss(num_classes))
     layer_object = dense_layer_object(layer_object)
 
-    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
+    if dense_layer_dropout_fraction is not None:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
