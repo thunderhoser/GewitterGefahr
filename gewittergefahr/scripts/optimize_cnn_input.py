@@ -3,7 +3,6 @@
 CNN = convolutional neural network
 """
 
-import copy
 import os.path
 import argparse
 import numpy
@@ -14,16 +13,21 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
-    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1)))
+    intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
+)))
 
-MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
+NEURON_COMPONENT_TYPE_STRING = model_interpretation.NEURON_COMPONENT_TYPE_STRING
+CHANNEL_COMPONENT_TYPE_STRING = (
+    model_interpretation.CHANNEL_COMPONENT_TYPE_STRING)
 
 SWIRLNET_FIELD_MEANS = numpy.array([20.745745, -0.718525, 1.929636])
 SWIRLNET_FIELD_STANDARD_DEVIATIONS = numpy.array(
@@ -35,8 +39,10 @@ VALID_SWIRLNET_FUNCTION_NAMES = [
 ]
 
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
-VALID_GG_FUNCTION_NAMES = VALID_SWIRLNET_FUNCTION_NAMES + [
-    feature_optimization.CLIMO_INIT_FUNCTION_NAME]
+VALID_GG_FUNCTION_NAMES = (
+    VALID_SWIRLNET_FUNCTION_NAMES +
+    [feature_optimization.CLIMO_INIT_FUNCTION_NAME]
+)
 
 MODEL_FILE_ARG_NAME = 'model_file_name'
 IS_SWIRLNET_ARG_NAME = 'is_model_swirlnet'
@@ -54,57 +60,62 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 MODEL_FILE_HELP_STRING = (
     'Path to input file, containing trained CNN.  Will be read by '
     '`cnn.read_model`.')
+
 IS_SWIRLNET_HELP_STRING = (
     'Boolean flag.  If 1, this script will assume that `{0:s}` contains a '
     'Swirlnet model from D.J. Gagne.  If 0, will assume that `{0:s}` contains a'
     ' GewitterGefahr model.  This determines how the model will be read, and '
     'the wrong assumption will cause the script to crash.'
 ).format(MODEL_FILE_ARG_NAME)
+
 COMPONENT_TYPE_HELP_STRING = (
     'Component type.  Input data may be optimized for class prediction, neuron '
     'activation, or channel activation.  Valid options are listed below.\n{0:s}'
 ).format(str(model_interpretation.VALID_COMPONENT_TYPE_STRINGS))
+
 TARGET_CLASS_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Input data will be optimized for prediction'
     ' of class k, where k = `{2:s}`.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING,
+).format(COMPONENT_TYPE_ARG_NAME, CLASS_COMPONENT_TYPE_STRING,
          TARGET_CLASS_ARG_NAME)
+
 NUM_ITERATIONS_HELP_STRING = 'Number of iterations for optimization procedure.'
+
 LEARNING_RATE_HELP_STRING = 'Learning rate for optimization procedure.'
+
 INIT_FUNCTION_HELP_STRING = (
     'Initialization function, used to initialize model inputs before '
     'optimization.  Must be in the following list.\n{0:s}'
 ).format(str(VALID_GG_FUNCTION_NAMES))
+
 LAYER_NAME_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] Name of layer with neuron or '
     'channel whose activation is to be maximized.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.NEURON_COMPONENT_TYPE_STRING,
-         model_interpretation.CLASS_COMPONENT_TYPE_STRING)
+).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
+         CLASS_COMPONENT_TYPE_STRING)
+
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] The loss function will be '
     '(neuron_activation - ideal_activation)**2 or [max(channel_activations) - '
     'ideal_activation]**2.  If {3:s} = -1, the loss function will be '
     '-sign(neuron_activation) * neuron_activation**2 or '
     '-sign(max(channel_activations)) * max(channel_activations)**2.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.NEURON_COMPONENT_TYPE_STRING,
-         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
-         IDEAL_ACTIVATION_ARG_NAME)
+).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
+         CHANNEL_COMPONENT_TYPE_STRING, IDEAL_ACTIVATION_ARG_NAME)
+
 NEURON_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Indices for each neuron whose activation is'
     ' to be maximized.  For example, to maximize activation for neuron '
     '(0, 0, 2), this argument should be "0 0 2".  To maximize activations for '
     'neurons (0, 0, 2) and (1, 1, 2), this list should be "0 0 2 -1 1 1 2".  In'
     ' other words, use -1 to separate neurons.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.NEURON_COMPONENT_TYPE_STRING)
+).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING)
+
 CHANNEL_INDICES_HELP_STRING = (
     '[used only if {0:s} = "{1:s}"] Index for each channel whose activation is '
     'to be maximized.'
-).format(COMPONENT_TYPE_ARG_NAME,
-         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING)
+).format(COMPONENT_TYPE_ARG_NAME, CHANNEL_COMPONENT_TYPE_STRING)
+
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by '
     '`feature_optimization.write_file`).')
@@ -214,7 +225,8 @@ def _denormalize_swirlnet_data(input_matrix):
     for j in range(num_fields):
         input_matrix[..., j] = (
             SWIRLNET_FIELD_MEANS[j] +
-            input_matrix[..., j] * SWIRLNET_FIELD_STANDARD_DEVIATIONS[j])
+            input_matrix[..., j] * SWIRLNET_FIELD_STANDARD_DEVIATIONS[j]
+        )
 
     return input_matrix
 
@@ -296,7 +308,7 @@ def _create_gg_initializer(init_function_name, model_file_name):
                     trainval_io.MAX_NORMALIZED_VALUE_KEY])
 
         return feature_optimization.create_uniform_random_initializer(
-            min_value=0., max_value=1.)
+            min_value=-3., max_value=3.)
 
     if init_function_name == feature_optimization.GAUSSIAN_INIT_FUNCTION_NAME:
         if used_minmax_norm:
@@ -313,39 +325,9 @@ def _create_gg_initializer(init_function_name, model_file_name):
         return feature_optimization.create_gaussian_initializer(
             mean=0., standard_deviation=1.)
 
-    training_radar_file_name_matrix = training_option_dict[
-        trainval_io.RADAR_FILE_NAMES_KEY]
-    num_radar_dimensions = len(training_radar_file_name_matrix.shape)
-
-    if num_radar_dimensions == 2:
-        radar_field_name_by_channel = [
-            storm_images.image_file_name_to_field(f) for f in
-            training_radar_file_name_matrix[0, :]
-        ]
-        radar_height_by_channel_m_agl = numpy.array(
-            [storm_images.image_file_name_to_height(f)
-             for f in training_radar_file_name_matrix[0, :]],
-            dtype=int)
-    else:
-        radar_field_name_by_channel = None
-        radar_height_by_channel_m_agl = None
-
     return feature_optimization.create_climo_initializer(
-        normalization_param_file_name=training_option_dict[
-            trainval_io.NORMALIZATION_FILE_KEY],
-        normalization_type_string=training_option_dict[
-            trainval_io.NORMALIZATION_TYPE_KEY],
-        min_normalized_value=training_option_dict[
-            trainval_io.MIN_NORMALIZED_VALUE_KEY],
-        max_normalized_value=training_option_dict[
-            trainval_io.MAX_NORMALIZED_VALUE_KEY],
-        sounding_field_names=training_option_dict[
-            trainval_io.SOUNDING_FIELDS_KEY],
-        sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
-        radar_field_names=model_metadata_dict[cnn.RADAR_FIELDS_KEY],
-        radar_heights_m_agl=model_metadata_dict[cnn.RADAR_HEIGHTS_KEY],
-        radar_field_name_by_channel=radar_field_name_by_channel,
-        radar_height_by_channel_m_agl=radar_height_by_channel_m_agl)
+        training_option_dict=training_option_dict,
+        myrorss_2d3d=model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY])
 
 
 def _run(
@@ -379,8 +361,7 @@ def _run(
     if ideal_activation <= 0:
         ideal_activation = None
 
-    if (component_type_string ==
-            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
+    if component_type_string == NEURON_COMPONENT_TYPE_STRING:
         neuron_indices_flattened = neuron_indices_flattened.astype(float)
         neuron_indices_flattened[neuron_indices_flattened < 0] = numpy.nan
 
@@ -390,19 +371,18 @@ def _run(
     else:
         neuron_index_matrix = None
 
-    if (component_type_string ==
-            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
+    if component_type_string == CHANNEL_COMPONENT_TYPE_STRING:
         error_checking.assert_is_geq_numpy_array(channel_indices, 0)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=output_file_name)
 
     # Read model.
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
+
     if is_model_swirlnet:
+        custom_dict = {'brier_skill_score_keras': _brier_skill_score_keras}
         model_object = keras.models.load_model(
-            model_file_name,
-            custom_objects={
-                'brier_skill_score_keras': _brier_skill_score_keras})
+            model_file_name, custom_objects=custom_dict)
 
         init_function = _create_swirlnet_initializer(init_function_name)
     else:
@@ -412,14 +392,13 @@ def _run(
             model_file_name=model_file_name)
 
     # Do feature optimization.
-    print MINOR_SEPARATOR_STRING
+    print SEPARATOR_STRING
     list_of_optimized_input_matrices = None
 
-    if (component_type_string ==
-            model_interpretation.CLASS_COMPONENT_TYPE_STRING):
-
-        print '\nOptimizing inputs for target class {0:d}...'.format(
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        print 'Optimizing inputs for target class {0:d}...'.format(
             target_class)
+
         list_of_optimized_input_matrices = (
             feature_optimization.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
@@ -427,12 +406,10 @@ def _run(
                 learning_rate=learning_rate)
         )
 
-    elif (component_type_string ==
-          model_interpretation.NEURON_COMPONENT_TYPE_STRING):
-
+    elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
         for j in range(neuron_index_matrix.shape[0]):
             print (
-                '\nOptimizing inputs for neuron {0:s} in layer "{1:s}"...'
+                'Optimizing inputs for neuron {0:s} in layer "{1:s}"...'
             ).format(str(neuron_index_matrix[j, :]), layer_name)
 
             these_matrices = (
@@ -441,10 +418,11 @@ def _run(
                     neuron_indices=neuron_index_matrix[j, :],
                     init_function=init_function, num_iterations=num_iterations,
                     learning_rate=learning_rate,
-                    ideal_activation=ideal_activation))
+                    ideal_activation=ideal_activation)
+            )
 
             if list_of_optimized_input_matrices is None:
-                list_of_optimized_input_matrices = copy.deepcopy(these_matrices)
+                list_of_optimized_input_matrices = these_matrices + []
             else:
                 for k in range(len(list_of_optimized_input_matrices)):
                     list_of_optimized_input_matrices[k] = numpy.concatenate(
@@ -454,7 +432,7 @@ def _run(
     else:
         for this_channel_index in channel_indices:
             print (
-                '\nOptimizing inputs for channel {0:d} in layer "{1:s}"...'
+                'Optimizing inputs for channel {0:d} in layer "{1:s}"...'
             ).format(this_channel_index, layer_name)
 
             these_matrices = (
@@ -464,17 +442,18 @@ def _run(
                     init_function=init_function,
                     stat_function_for_neuron_activations=K.max,
                     num_iterations=num_iterations, learning_rate=learning_rate,
-                    ideal_activation=ideal_activation))
+                    ideal_activation=ideal_activation)
+            )
 
             if list_of_optimized_input_matrices is None:
-                list_of_optimized_input_matrices = copy.deepcopy(these_matrices)
+                list_of_optimized_input_matrices = these_matrices + []
             else:
                 for k in range(len(list_of_optimized_input_matrices)):
                     list_of_optimized_input_matrices[k] = numpy.concatenate(
                         (list_of_optimized_input_matrices[k],
                          these_matrices[k]), axis=0)
 
-    print MINOR_SEPARATOR_STRING
+    print SEPARATOR_STRING
     print 'Writing optimized input matrices to file: "{0:s}"...'.format(
         output_file_name)
 
@@ -507,4 +486,5 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
         channel_indices=numpy.array(
             getattr(INPUT_ARG_OBJECT, CHANNEL_INDICES_ARG_NAME), dtype=int),
-        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+    )

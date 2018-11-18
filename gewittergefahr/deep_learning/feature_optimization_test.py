@@ -7,6 +7,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import feature_optimization
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 TOLERANCE = 1e-6
 
@@ -36,22 +37,43 @@ CONSTANT_MATRIX_4D = numpy.full(ARRAY_DIMENSIONS_4D, 2.)
 CONSTANT_MATRIX_5D = numpy.full(ARRAY_DIMENSIONS_5D, 2.)
 
 # The following constants are used to test create_climo_initializer.
-NORMALIZATION_TYPE_STRING = dl_utils.MINMAX_NORMALIZATION_TYPE_STRING
-MIN_NORMALIZED_VALUE = 0.
-MAX_NORMALIZED_VALUE = 1.
-
-RADAR_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME]
-RADAR_HEIGHTS_M_AGL = numpy.array([1000, 2000, 3000], dtype=int)
-
-RADAR_FIELD_NAME_BY_CHANNEL = [
-    radar_utils.REFL_NAME, radar_utils.REFL_NAME, radar_utils.REFL_NAME,
-    radar_utils.REFL_COLUMN_MAX_NAME]
-RADAR_HEIGHT_BY_CHANNEL_M_AGL = numpy.array([1000, 2000, 3000, 250], dtype=int)
-
 SOUNDING_FIELD_NAMES = [
     soundings.TEMPERATURE_NAME, soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME
 ]
 SOUNDING_HEIGHTS_M_AGL = numpy.array([0, 500, 1000, 1500], dtype=int)
+
+THESE_FIELD_NAMES = [radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME]
+THESE_HEIGHTS_M_AGL = numpy.array([1000, 2000, 3000], dtype=int)
+
+TRAINING_OPTION_DICT_3D = {
+    trainval_io.RADAR_FIELDS_KEY: THESE_FIELD_NAMES,
+    trainval_io.RADAR_HEIGHTS_KEY: THESE_HEIGHTS_M_AGL,
+    trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES,
+    trainval_io.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL,
+    trainval_io.NORMALIZATION_TYPE_KEY:
+        dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+    trainval_io.MIN_NORMALIZED_VALUE_KEY: 0.,
+    trainval_io.MAX_NORMALIZED_VALUE_KEY: 1.,
+    trainval_io.NORMALIZATION_FILE_KEY: 'foo'
+}
+
+THESE_FIELD_NAMES = [
+    radar_utils.REFL_NAME, radar_utils.REFL_NAME, radar_utils.REFL_NAME,
+    radar_utils.REFL_COLUMN_MAX_NAME
+]
+THESE_HEIGHTS_M_AGL = numpy.array([1000, 2000, 3000, 250], dtype=int)
+
+TRAINING_OPTION_DICT_2D = {
+    trainval_io.RADAR_FIELDS_KEY: THESE_FIELD_NAMES,
+    trainval_io.RADAR_HEIGHTS_KEY: THESE_HEIGHTS_M_AGL,
+    trainval_io.SOUNDING_FIELDS_KEY: SOUNDING_FIELD_NAMES,
+    trainval_io.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL,
+    trainval_io.NORMALIZATION_TYPE_KEY:
+        dl_utils.MINMAX_NORMALIZATION_TYPE_STRING,
+    trainval_io.MIN_NORMALIZED_VALUE_KEY: 0.,
+    trainval_io.MAX_NORMALIZED_VALUE_KEY: 1.,
+    trainval_io.NORMALIZATION_FILE_KEY: 'foo'
+}
 
 RADAR_NORMALIZATION_DICT = {
     (radar_utils.REFL_NAME, 1000): numpy.array([8.65, 1, 0, 0]),
@@ -269,17 +291,8 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            normalization_param_file_name=None, test_mode=True,
-            normalization_type_string=NORMALIZATION_TYPE_STRING,
-            min_normalized_value=MIN_NORMALIZED_VALUE,
-            max_normalized_value=MAX_NORMALIZED_VALUE,
-            sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
-            radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
-            radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
-            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
+            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(SOUNDING_DIMENSIONS)
@@ -293,17 +306,8 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            normalization_param_file_name=None, test_mode=True,
-            normalization_type_string=NORMALIZATION_TYPE_STRING,
-            min_normalized_value=MIN_NORMALIZED_VALUE,
-            max_normalized_value=MAX_NORMALIZED_VALUE,
-            sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
-            radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
-            radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
-            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            training_option_dict=TRAINING_OPTION_DICT_2D, myrorss_2d3d=False,
+            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(RADAR_DIMENSIONS_4D)
@@ -317,17 +321,8 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            normalization_param_file_name=None, test_mode=True,
-            normalization_type_string=NORMALIZATION_TYPE_STRING,
-            min_normalized_value=MIN_NORMALIZED_VALUE,
-            max_normalized_value=MAX_NORMALIZED_VALUE,
-            sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
-            radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
-            radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
-            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
+            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(RADAR_DIMENSIONS_5D)
@@ -341,17 +336,8 @@ class FeatureOptimizationTests(unittest.TestCase):
         """
 
         this_init_function = feature_optimization.create_climo_initializer(
-            normalization_param_file_name=None, test_mode=True,
-            normalization_type_string=NORMALIZATION_TYPE_STRING,
-            min_normalized_value=MIN_NORMALIZED_VALUE,
-            max_normalized_value=MAX_NORMALIZED_VALUE,
-            sounding_field_names=SOUNDING_FIELD_NAMES,
-            sounding_heights_m_agl=SOUNDING_HEIGHTS_M_AGL,
-            radar_field_names=RADAR_FIELD_NAMES,
-            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
-            radar_field_name_by_channel=RADAR_FIELD_NAME_BY_CHANNEL,
-            radar_height_by_channel_m_agl=RADAR_HEIGHT_BY_CHANNEL_M_AGL,
-            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
+            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_2D)

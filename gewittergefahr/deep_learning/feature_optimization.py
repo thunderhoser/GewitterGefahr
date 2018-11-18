@@ -10,10 +10,12 @@ Olah, C., A. Mordvintsev, and L. Schubert, 2017: Feature visualization. Distill,
 import pickle
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
+from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 DEFAULT_IDEAL_ACTIVATION = 2.
 DEFAULT_LEARNING_RATE = 0.01
@@ -221,12 +223,7 @@ def create_constant_initializer(constant_value):
 
 
 def create_climo_initializer(
-        normalization_param_file_name, normalization_type_string,
-        min_normalized_value=dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-        max_normalized_value=dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-        test_mode=False, sounding_field_names=None, sounding_heights_m_agl=None,
-        radar_field_names=None, radar_heights_m_agl=None,
-        radar_field_name_by_channel=None, radar_height_by_channel_m_agl=None,
+        training_option_dict, myrorss_2d3d, test_mode=False,
         radar_normalization_table=None, sounding_normalization_table=None):
     """Creates climatological initializer.
 
@@ -246,135 +243,135 @@ def create_climo_initializer(
 
     C = number of radar channels (field/height pairs) in model input
 
-    :param normalization_param_file_name: See doc for
-        `dl_utils.read_normalization_params_from_file`.
-    :param normalization_type_string: Same.
-    :param min_normalized_value: Same.
-    :param max_normalized_value: Same.
-    :param test_mode: For testing only.  Leave this alone.
-    :param sounding_field_names:
-        [if model input does not contain soundings, leave this as `None`]
-        List (length F_s) with names of sounding fields, in the order that they
-        appear in the corresponding input tensor.
-    :param sounding_heights_m_agl:
-        [if model input does not contain soundings, leave this as `None`]
-        numpy array (length H_s) of sounding heights (metres above ground
-        level), in the order that they appear in the corresponding input tensor.
-    :param radar_field_names: [used iff model input contains 3-D radar images]
-        List (length F_r) with names of radar fields, in the order that they
-        appear in the corresponding input tensor.
-    :param radar_heights_m_agl: [used iff model input contains 3-D radar images]
-        numpy array (length H_r) of radar heights (metres above ground level),
-        in the order that they appear in the corresponding input tensor.
-    :param radar_field_name_by_channel:
-        [used iff model input contains 2-D radar images]
-        Length-C list of radar fields, in the order that they appear in the
-        corresponding input tensor.
-    :param radar_height_by_channel_m_agl:
-        [used iff model input contains 2-D radar images]
-        Length-C numpy array of radar heights (metres above ground level), in
-        the order that they appear in the corresponding input tensor.
+    :param training_option_dict: See doc for
+        `training_validation_io.example_generator_2d_or_3d` or
+        `training_validation_io.example_generator_2d3d_myrorss`.
+    :param myrorss_2d3d: Boolean flag.  If True, this method will assume that
+        2-D images contain azimuthal shear and 3-D images contain reflectivity.
+        In other words, it will treat `training_option_dict` the same way that
+        `example_generator_2d3d_myrorss` does.  If False, this method will treat
+        `training_option_dict` the same way that `example_generator_2d_or_3d`
+        does.
+    :param test_mode: Never mind.  Leave this alone.
     :param radar_normalization_table: For testing only.  Leave this alone.
     :param sounding_normalization_table: For testing only.  Leave this alone.
     :return: init_function: Function (see below).
     """
 
+    error_checking.assert_is_boolean(myrorss_2d3d)
     error_checking.assert_is_boolean(test_mode)
+
     if not test_mode:
-        (radar_normalization_table, _, sounding_normalization_table, _
-        ) = dl_utils.read_normalization_params_from_file(
-            normalization_param_file_name)
-
-    if sounding_field_names is not None:
-        error_checking.assert_is_string_list(sounding_field_names)
-        error_checking.assert_is_numpy_array(
-            numpy.array(sounding_field_names), num_dimensions=1)
-
-        error_checking.assert_is_numpy_array(
-            sounding_heights_m_agl, num_dimensions=1)
-        sounding_heights_m_agl = numpy.round(sounding_heights_m_agl).astype(int)
-
-    if radar_field_names is not None:
-        error_checking.assert_is_string_list(radar_field_names)
-        error_checking.assert_is_numpy_array(
-            numpy.array(radar_field_names), num_dimensions=1)
-
-        error_checking.assert_is_numpy_array(
-            radar_heights_m_agl, num_dimensions=1)
-        radar_heights_m_agl = numpy.round(radar_heights_m_agl).astype(int)
-
-    if radar_field_name_by_channel is not None:
-        error_checking.assert_is_string_list(radar_field_name_by_channel)
-        error_checking.assert_is_numpy_array(
-            numpy.array(radar_field_name_by_channel), num_dimensions=1)
-
-        error_checking.assert_is_numpy_array(
-            radar_height_by_channel_m_agl,
-            exact_dimensions=numpy.array([len(radar_field_name_by_channel)]))
-        radar_height_by_channel_m_agl = numpy.round(
-            radar_height_by_channel_m_agl).astype(int)
+        radar_normalization_table, _, sounding_normalization_table, _ = (
+            dl_utils.read_normalization_params_from_file(
+                training_option_dict[trainval_io.NORMALIZATION_FILE_KEY]
+            )
+        )
 
     def init_function(array_dimensions):
         """Initializes numpy array with climatological means.
 
-        If len(array_dimensions) = 3, this method assumes that the corresponding
-        input tensor contains soundings.
-        If len(array_dimensions) = 4 ... 2-D radar images.
-        If len(array_dimensions) = 5 ... 3-D radar images.
+        If len(array_dimensions) = 3, this method creates initial soundings.
+
+        If len(array_dimensions) = 4 and myrorss_2d3d = False, this method
+        creates initial 2-D radar images with all fields in
+        training_option_dict.
+
+        If len(array_dimensions) = 4 and myrorss_2d3d = True, this method
+        creates initial 2-D radar images with only azimuthal-shear fields in
+        training_option_dict.
+
+        If len(array_dimensions) = 5 and myrorss_2d3d = False, this method
+        creates initial 3-D radar images with all fields in
+        training_option_dict.
+
+        If len(array_dimensions) = 5 and myrorss_2d3d = True, this method
+        creates initial 3-D radar images with only reflectivity.
 
         :param array_dimensions: numpy array of dimensions.
         :return: array: Array with the given dimensions.
         """
 
         array = numpy.full(array_dimensions, numpy.nan)
+
         if len(array_dimensions) == 5:
+            if myrorss_2d3d:
+                radar_field_names = [radar_utils.REFL_NAME]
+            else:
+                radar_field_names = training_option_dict[
+                    trainval_io.RADAR_FIELDS_KEY]
+
+            radar_heights_m_agl = training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY]
+
             for j in range(len(radar_field_names)):
                 for k in range(len(radar_heights_m_agl)):
                     this_key = (radar_field_names[j], radar_heights_m_agl[k])
-                    # this_key = radar_field_names[j]
                     array[..., k, j] = radar_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_radar_images(
                 radar_image_matrix=array, field_names=radar_field_names,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                test_mode=test_mode, min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
+                normalization_type_string=training_option_dict[
+                    trainval_io.NORMALIZATION_TYPE_KEY],
+                normalization_param_file_name=training_option_dict[
+                    trainval_io.NORMALIZATION_FILE_KEY],
+                test_mode=test_mode,
+                min_normalized_value=training_option_dict[
+                    trainval_io.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=training_option_dict[
+                    trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 normalization_table=radar_normalization_table)
 
         if len(array_dimensions) == 4:
-            for j in range(len(radar_field_name_by_channel)):
-                this_key = (radar_field_name_by_channel[j],
-                            radar_height_by_channel_m_agl[j])
-                # this_key = radar_field_name_by_channel[j]
+            radar_field_names = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
+            radar_heights_m_agl = training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY]
+
+            for j in range(len(radar_field_names)):
+                this_key = (radar_field_names[j], radar_heights_m_agl[j])
                 array[..., j] = radar_normalization_table[
                     dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_radar_images(
-                radar_image_matrix=array,
-                field_names=radar_field_name_by_channel,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                test_mode=test_mode, min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
+                radar_image_matrix=array, field_names=radar_field_names,
+                normalization_type_string=training_option_dict[
+                    trainval_io.NORMALIZATION_TYPE_KEY],
+                normalization_param_file_name=training_option_dict[
+                    trainval_io.NORMALIZATION_FILE_KEY],
+                test_mode=test_mode,
+                min_normalized_value=training_option_dict[
+                    trainval_io.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=training_option_dict[
+                    trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 normalization_table=radar_normalization_table)
 
         if len(array_dimensions) == 3:
+            sounding_field_names = training_option_dict[
+                trainval_io.SOUNDING_FIELDS_KEY]
+            sounding_heights_m_agl = training_option_dict[
+                trainval_io.SOUNDING_HEIGHTS_KEY]
+
             for j in range(len(sounding_field_names)):
                 for k in range(len(sounding_heights_m_agl)):
                     this_key = (
-                        sounding_field_names[j], sounding_heights_m_agl[k])
-                    # this_key = sounding_field_names[j]
+                        sounding_field_names[j], sounding_heights_m_agl[k]
+                    )
                     array[..., k, j] = sounding_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_soundings(
                 sounding_matrix=array, field_names=sounding_field_names,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                test_mode=test_mode, min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value,
+                normalization_type_string=training_option_dict[
+                    trainval_io.NORMALIZATION_TYPE_KEY],
+                normalization_param_file_name=training_option_dict[
+                    trainval_io.NORMALIZATION_FILE_KEY],
+                test_mode=test_mode,
+                min_normalized_value=training_option_dict[
+                    trainval_io.MIN_NORMALIZED_VALUE_KEY],
+                max_normalized_value=training_option_dict[
+                    trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 normalization_table=sounding_normalization_table)
 
         return None
