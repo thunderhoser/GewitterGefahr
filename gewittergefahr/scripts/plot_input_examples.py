@@ -11,6 +11,7 @@ from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
@@ -51,39 +52,49 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ACTIVATION_FILE_HELP_STRING = (
     'Path to activation file.  If this argument is non-empty, the file will be '
-    'read by `model_activation.read_file` and all input arguments other than '
-    'this and `{0:s}` will be ignored.'
-).format(EXAMPLE_DIR_ARG_NAME)
+    'read by `model_activation.read_file`.')
 
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input examples.  Files therein will be '
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
 
-STORM_IDS_HELP_STRING = 'List of storm IDs (one per example).'
+STORM_IDS_HELP_STRING = (
+    '[used only if `{0:s}` is empty] List of storm IDs (one per example).'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 STORM_TIMES_HELP_STRING = (
-    'List of storm times (format "yyyy-mm-dd-HHMMSS"; one per example).')
+    '[used only if `{0:s}` is empty] List of storm times (format '
+    '"yyyy-mm-dd-HHMMSS"; one per example).'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 RADAR_FIELDS_HELP_STRING = (
-    'List of radar fields (used as input to `input_examples.read_example_file`)'
-    '.  If you want to plot all radar fields, leave this argument empty.')
+    '[used only if `{0:s}` is empty] List of radar fields (used as input to '
+    '`input_examples.read_example_file`).  If you want to plot all radar '
+    'fields, leave this argument empty.'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 RADAR_HEIGHTS_HELP_STRING = (
-    'List of radar heights (used as input to `input_examples.read_example_file`'
-    ').  If you want to plot all radar heights, leave this argument empty.')
+    '[used only if `{0:s}` is empty] List of radar heights (used as input to '
+    '`input_examples.read_example_file`).  If you want to plot all radar '
+    'heights, leave this argument empty.'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 PLOT_SOUNDINGS_HELP_STRING = (
     'Boolean flag.  If 1, will plot sounding for each example.  If 0, will not '
     'plot soundings.')
 
 NUM_ROWS_HELP_STRING = (
-    'Number of rows in each storm-centered radar grid.  If you want to plot the'
-    ' largest grids available, leave this argument empty.')
+    '[used only if `{0:s}` is empty] Number of rows in each storm-centered '
+    'radar grid.  If you want to plot the largest grids available, leave this '
+    'argument empty.'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 NUM_COLUMNS_HELP_STRING = (
-    'Number of columns in each storm-centered radar grid.  If you want to plot '
-    'the largest grids available, leave this argument empty.')
+    '[used only if `{0:s}` is empty] Number of columns in each storm-centered '
+    'radar grid.  If you want to plot the largest grids available, leave this '
+    'argument empty.'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of output directory (figures will be saved here).')
@@ -330,10 +341,47 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
         one model component.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
     myrorss_2d3d = None
     storm_activations = None
 
     if activation_file_name in ['', 'None']:
+        if len(storm_ids) != len(storm_time_strings):
+            error_string = (
+                'Number of storm IDs ({0:d}) must equal number of storm times '
+                '({1:d}).'
+            ).format(len(storm_ids), len(storm_time_strings))
+
+            raise ValueError(error_string)
+
+        storm_times_unix_sec = numpy.array([
+            time_conversion.string_to_unix_sec(s, TIME_FORMAT)
+            for s in storm_time_strings
+        ], dtype=int)
+
+        training_option_dict = dict()
+        training_option_dict[trainval_io.RADAR_FIELDS_KEY] = radar_field_names
+        training_option_dict[
+            trainval_io.RADAR_HEIGHTS_KEY] = radar_heights_m_agl
+
+        if plot_soundings:
+            training_option_dict[
+                trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
+            training_option_dict[
+                trainval_io.SOUNDING_HEIGHTS_KEY] = SOUNDING_HEIGHTS_M_AGL
+        else:
+            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
+            training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] = None
+
+        training_option_dict[trainval_io.NUM_ROWS_KEY] = num_radar_rows
+        training_option_dict[trainval_io.NUM_COLUMNS_KEY] = num_radar_columns
+        training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY] = None
+        training_option_dict[trainval_io.BINARIZE_TARGET_KEY] = False
+        training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
+        training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
+    else:
         print 'Reading data from: "{0:s}"...'.format(activation_file_name)
         activation_matrix, activation_metadata_dict = (
             model_activation.read_file(activation_file_name))
@@ -373,40 +421,6 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
                 trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
 
         print SEPARATOR_STRING
-    else:
-        if len(storm_ids) != len(storm_time_strings):
-            error_string = (
-                'Number of storm IDs ({0:d}) must equal number of storm times '
-                '({1:d}).'
-            ).format(len(storm_ids), len(storm_time_strings))
-
-            raise ValueError(error_string)
-
-        storm_times_unix_sec = numpy.array([
-            time_conversion.string_to_unix_sec(s, TIME_FORMAT)
-            for s in storm_time_strings
-        ], dtype=int)
-
-        training_option_dict = dict()
-        training_option_dict[trainval_io.RADAR_FIELDS_KEY] = radar_field_names
-        training_option_dict[
-            trainval_io.RADAR_HEIGHTS_KEY] = radar_heights_m_agl
-
-        if plot_soundings:
-            training_option_dict[
-                trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
-            training_option_dict[
-                trainval_io.SOUNDING_HEIGHTS_KEY] = SOUNDING_HEIGHTS_M_AGL
-        else:
-            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
-            training_option_dict[trainval_io.SOUNDING_HEIGHTS_KEY] = None
-
-        training_option_dict[trainval_io.NUM_ROWS_KEY] = num_radar_rows
-        training_option_dict[trainval_io.NUM_COLUMNS_KEY] = num_radar_columns
-        training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY] = None
-        training_option_dict[trainval_io.BINARIZE_TARGET_KEY] = False
-        training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
-        training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     storm_spc_dates_unix_sec = numpy.array([
         time_conversion.time_to_spc_date_unix_sec(t)
