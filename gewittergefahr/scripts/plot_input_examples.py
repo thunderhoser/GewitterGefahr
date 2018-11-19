@@ -32,6 +32,8 @@ SOUNDING_FIELD_NAMES = [
 ]
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
 
+ACTIVATIONS_KEY = 'storm_activations'
+
 NUM_PANEL_ROWS = 3
 TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
@@ -160,6 +162,10 @@ def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
             storm_times_unix_sec[i], TIME_FORMAT)
         this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
             storm_ids[i], this_time_string)
+
+        if ACTIVATIONS_KEY in storm_object_dict:
+            this_base_title_string += ' (activation = {0:.3f})'.format(
+                storm_object_dict[ACTIVATIONS_KEY][i])
 
         this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
             output_dir_name, storm_ids[i].replace('_', '-'), this_time_string)
@@ -324,6 +330,9 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
         one model component.
     """
 
+    myrorss_2d3d = None
+    storm_activations = None
+
     if activation_file_name in ['', 'None']:
         print 'Reading data from: "{0:s}"...'.format(activation_file_name)
         activation_matrix, activation_metadata_dict = (
@@ -341,8 +350,6 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
         storm_ids = activation_metadata_dict[model_activation.STORM_IDS_KEY]
         storm_times_unix_sec = activation_metadata_dict[
             model_activation.STORM_TIMES_KEY]
-
-        # TODO(thunderhoser): Use this variable.
         storm_activations = activation_matrix[:, 0]
 
         model_file_name = activation_metadata_dict[
@@ -407,7 +414,6 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
     ], dtype=int)
 
     unique_spc_dates_unix_sec = numpy.unique(storm_spc_dates_unix_sec)
-    myrorss_2d3d = None
 
     for this_spc_date_unix_sec in unique_spc_dates_unix_sec:
         this_spc_date_string = time_conversion.time_to_spc_date_string(
@@ -450,6 +456,10 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
             storm_times_unix_sec >= this_start_time_unix_sec,
             storm_times_unix_sec <= this_end_time_unix_sec
         ))[0]
+
+        if storm_activations is not None:
+            these_activations = storm_activations[these_indices]
+            this_storm_object_dict[ACTIVATIONS_KEY] = these_activations
 
         these_indices = tracking_utils.find_storm_objects(
             all_storm_ids=this_storm_object_dict[testing_io.STORM_IDS_KEY],
