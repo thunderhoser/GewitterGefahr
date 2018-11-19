@@ -204,6 +204,7 @@ def _run(
 
     desired_storm_ids, desired_storm_times_unix_sec = _read_storm_metadata(
         input_storm_dict_file_name)
+    print desired_storm_ids
 
     # Create saliency map for each storm object.
     desired_spc_dates_unix_sec = numpy.array([
