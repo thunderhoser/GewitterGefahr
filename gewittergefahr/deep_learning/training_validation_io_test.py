@@ -256,7 +256,8 @@ class TrainingValidationIoTests(unittest.TestCase):
             class_to_num_ex_per_batch_dict=WIND_CLASS_TO_NUM_PER_BATCH_DICT,
             target_values_in_memory=WIND_TARGET_VALUES_ENOUGH)
 
-        self.assertTrue(this_dict == {0: 0, 1: 0})
+        print this_dict
+        self.assertTrue(this_dict == {-2: 0, 0: 0, 1: 0, 2: 0})
 
 
 if __name__ == '__main__':
