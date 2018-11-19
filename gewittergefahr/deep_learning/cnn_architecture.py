@@ -588,7 +588,7 @@ def get_2d_swirlnet_architecture(
         _get_output_layer_and_loss(num_classes))
     layer_object = dense_layer_object(layer_object)
 
-    if dense_layer_dropout_fraction is not None:
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
@@ -759,7 +759,7 @@ def get_3d_swirlnet_architecture(
         _get_output_layer_and_loss(num_classes))
     layer_object = dense_layer_object(layer_object)
 
-    if dense_layer_dropout_fraction is not None:
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
@@ -1061,7 +1061,7 @@ def get_2d3d_swirlnet_architecture(
         _get_output_layer_and_loss(num_classes))
     layer_object = dense_layer_object(layer_object)
 
-    if dense_layer_dropout_fraction is not None:
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
         layer_object = architecture_utils.get_dropout_layer(
             dropout_fraction=dense_layer_dropout_fraction
         )(layer_object)
@@ -1076,6 +1076,179 @@ def get_2d3d_swirlnet_architecture(
         model_object = keras.models.Model(
             inputs=[refl_input_layer_object, az_shear_input_layer_object,
                     sounding_input_layer_object],
+            outputs=layer_object)
+
+    model_object.compile(
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=list_of_metric_functions)
+
+    model_object.summary()
+    return model_object
+
+
+def get_2d_separable_architecture(
+        radar_option_dict, num_depthwise_filters_per_spatial_filter,
+        sounding_option_dict=None,
+        pooling_type_string=architecture_utils.MAX_POOLING_TYPE,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
+    """Same as `get_2d_swirlnet_architecture` but with depthwise-separable conv.
+
+    :param radar_option_dict: See doc for `check_radar_input_args`.
+    :param num_depthwise_filters_per_spatial_filter: Number of depthwise filters
+        for each spatial filter.  Number of output channels for one layer =
+        num_spatial_filters * num_depthwise_filters_per_spatial_filter.
+    :param sounding_option_dict: See doc for `check_sounding_input_args`.  If
+        you do not want soundings, leave this as None.
+    :param pooling_type_string: Pooling type (must be in
+        `architecture_utils.VALID_POOLING_TYPES`).
+    :param list_of_metric_functions: See doc for `get_2d_mnist_architecture`.
+    :return: model_object: Untrained instance of `keras.models.Sequential` with
+        the aforementioned architecture.
+    """
+
+    # TODO(thunderhoser): Verify this method.
+
+    error_checking.assert_is_integer(num_depthwise_filters_per_spatial_filter)
+    error_checking.assert_is_greater(
+        num_depthwise_filters_per_spatial_filter, 0)
+
+    radar_option_dict[NUM_DIMENSIONS_KEY] = 2
+    radar_option_dict = check_radar_input_args(radar_option_dict)
+
+    l2_weight = radar_option_dict[L2_WEIGHT_KEY]
+    num_radar_rows = radar_option_dict[NUM_ROWS_KEY]
+    num_radar_columns = radar_option_dict[NUM_COLUMNS_KEY]
+    num_radar_channels = radar_option_dict[NUM_CHANNELS_KEY]
+    first_num_radar_filters = radar_option_dict[FIRST_NUM_FILTERS_KEY]
+    num_radar_conv_layer_sets = radar_option_dict[NUM_CONV_LAYER_SETS_KEY]
+    num_conv_layers_per_set = radar_option_dict[NUM_CONV_LAYERS_PER_SET_KEY]
+    num_dense_layers = radar_option_dict[NUM_DENSE_LAYERS_KEY]
+
+    activation_function_string = radar_option_dict[ACTIVATION_FUNCTION_KEY]
+    alpha_for_elu = radar_option_dict[ALPHA_FOR_ELU_KEY]
+    alpha_for_relu = radar_option_dict[ALPHA_FOR_RELU_KEY]
+    use_batch_normalization = radar_option_dict[USE_BATCH_NORM_KEY]
+    conv_layer_dropout_fraction = radar_option_dict[CONV_LAYER_DROPOUT_KEY]
+    dense_layer_dropout_fraction = radar_option_dict[DENSE_LAYER_DROPOUT_KEY]
+    num_classes = radar_option_dict[NUM_CLASSES_KEY]
+
+    if l2_weight is None:
+        regularizer_object = None
+    else:
+        regularizer_object = architecture_utils.get_weight_regularizer(
+            l1_penalty=0, l2_penalty=l2_weight)
+
+    radar_input_layer_object = keras.layers.Input(
+        shape=(num_radar_rows, num_radar_columns, num_radar_channels))
+
+    radar_layer_object = None
+    this_num_filters = first_num_radar_filters + 0
+
+    for _ in range(num_radar_conv_layer_sets):
+        if radar_layer_object is None:
+            radar_layer_object = radar_input_layer_object
+        else:
+            this_num_filters *= 2
+
+        for _ in range(num_conv_layers_per_set):
+            radar_layer_object = architecture_utils.get_2d_separable_conv_layer(
+                num_spatial_filters=this_num_filters,
+                num_depthwise_filters_per_spatial_filter=
+                num_depthwise_filters_per_spatial_filter,
+                num_kernel_rows=3, num_kernel_columns=3,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                padding_type=architecture_utils.NO_PADDING_TYPE,
+                kernel_weight_regularizer=regularizer_object,
+                is_first_layer=False
+            )(radar_layer_object)
+
+            radar_layer_object = architecture_utils.get_activation_layer(
+                activation_function_string=activation_function_string,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(radar_layer_object)
+
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
+
+            if use_batch_normalization:
+                radar_layer_object = (
+                    architecture_utils.get_batch_normalization_layer()(
+                        radar_layer_object)
+                )
+
+        radar_layer_object = architecture_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            pooling_type=pooling_type_string, num_rows_per_stride=2,
+            num_columns_per_stride=2
+        )(radar_layer_object)
+
+    these_dimensions = numpy.array(
+        radar_layer_object.get_shape().as_list()[1:], dtype=int)
+    num_radar_features = numpy.prod(these_dimensions)
+
+    radar_layer_object = architecture_utils.get_flattening_layer()(
+        radar_layer_object)
+
+    if sounding_option_dict is None:
+        layer_object = radar_layer_object
+        num_sounding_features = 0
+    else:
+        sounding_option_dict = check_sounding_input_args(sounding_option_dict)
+        (sounding_input_layer_object, sounding_layer_object,
+         num_sounding_features
+        ) = _get_sounding_layers(
+            radar_option_dict=radar_option_dict,
+            sounding_option_dict=sounding_option_dict,
+            pooling_type_string=pooling_type_string,
+            regularizer_object=regularizer_object)
+
+        layer_object = keras.layers.concatenate(
+            [radar_layer_object, sounding_layer_object])
+
+    _, num_outputs_by_dense_layer = (
+        architecture_utils.get_dense_layer_dimensions(
+            num_input_units=num_radar_features + num_sounding_features,
+            num_classes=num_classes, num_dense_layers=num_dense_layers)
+    )
+
+    for k in range(num_dense_layers - 1):
+        layer_object = architecture_utils.get_fully_connected_layer(
+            num_output_units=num_outputs_by_dense_layer[k]
+        )(layer_object)
+
+        layer_object = architecture_utils.get_activation_layer(
+            activation_function_string=activation_function_string,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+        )(layer_object)
+
+        if dense_layer_dropout_fraction is not None:
+            layer_object = architecture_utils.get_dropout_layer(
+                dropout_fraction=dense_layer_dropout_fraction
+            )(layer_object)
+
+        if use_batch_normalization:
+            layer_object = architecture_utils.get_batch_normalization_layer()(
+                layer_object)
+
+    dense_layer_object, activation_layer_object, loss_function = (
+        _get_output_layer_and_loss(num_classes))
+    layer_object = dense_layer_object(layer_object)
+
+    if dense_layer_dropout_fraction is not None and num_dense_layers == 1:
+        layer_object = architecture_utils.get_dropout_layer(
+            dropout_fraction=dense_layer_dropout_fraction
+        )(layer_object)
+
+    layer_object = activation_layer_object(layer_object)
+
+    if sounding_option_dict is None:
+        model_object = keras.models.Model(
+            inputs=radar_input_layer_object, outputs=layer_object)
+    else:
+        model_object = keras.models.Model(
+            inputs=[radar_input_layer_object, sounding_input_layer_object],
             outputs=layer_object)
 
     model_object.compile(

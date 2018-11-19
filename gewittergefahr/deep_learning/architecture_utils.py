@@ -359,6 +359,156 @@ def get_1d_conv_layer(
         bias_regularizer=bias_weight_regularizer)
 
 
+def get_1d_separable_conv_layer(
+        num_spatial_filters, num_depthwise_filters_per_spatial_filter,
+        num_kernel_pixels, num_pixels_per_stride, padding_type=YES_PADDING_TYPE,
+        kernel_weight_regularizer=None, bias_weight_regularizer=None,
+        is_first_layer=False, num_input_pixels=None, num_input_channels=None):
+    """Creates layer for 1-D separable convolution.
+
+    :param num_spatial_filters: Number of spatial filters (applied independently
+        to each channel).
+    :param num_depthwise_filters_per_spatial_filter: Number of depthwise filters
+        per spatial filter.  Number of output channels =
+        `num_spatial_filters * num_depthwise_filters_per_spatial_filter`.
+    :param num_kernel_pixels: Number of pixels in kernel (or "kernel length").
+    :param num_pixels_per_stride: "Step size" for kernel.  The kernel translates
+        by this many pixels at once.
+    :param padding_type: See doc for `get_3d_conv_layer`.
+    :param kernel_weight_regularizer: Same.
+    :param bias_weight_regularizer: Same.
+    :param is_first_layer: Boolean flag.  If True, this is the first layer in
+        the network.
+    :param num_input_pixels: [used only if `is_first_layer`]
+        Input length (number of pixels per example).
+    :param num_input_channels: [used only if `is_first_layer`]
+        Input depth (number of channels per example).
+    :return: layer_object: Instance of `keras.layers.SeparableConv1D`.
+    """
+
+    # TODO(thunderhoser): Doc for padding and regularizers should be elsewhere.
+    # TODO(thunderhoser): Verify this method.
+
+    error_checking.assert_is_integer(num_depthwise_filters_per_spatial_filter)
+    error_checking.assert_is_greater(
+        num_depthwise_filters_per_spatial_filter, 0)
+
+    num_output_filters = (
+        num_spatial_filters * num_depthwise_filters_per_spatial_filter)
+
+    _check_input_args_for_conv_layer(
+        num_output_filters=num_output_filters,
+        num_kernel_rows=num_kernel_pixels,
+        num_rows_per_stride=num_pixels_per_stride, padding_type=padding_type,
+        is_first_layer=is_first_layer, num_input_rows=num_input_pixels,
+        num_input_channels=num_input_channels)
+
+    if is_first_layer:
+        return keras.layers.SeparableConv1D(
+            filters=num_output_filters, kernel_size=num_kernel_pixels,
+            strides=num_pixels_per_stride, padding=padding_type,
+            data_format='channels_last', dilation_rate=(1,),
+            depth_multiplier=num_depthwise_filters_per_spatial_filter,
+            activation=None, use_bias=True,
+            depthwise_regularizer=kernel_weight_regularizer,
+            pointwise_regularizer=kernel_weight_regularizer,
+            bias_regularizer=bias_weight_regularizer,
+            input_shape=(num_input_pixels, num_input_channels)
+        )
+
+    return keras.layers.SeparableConv1D(
+        filters=num_output_filters, kernel_size=num_kernel_pixels,
+        strides=num_pixels_per_stride, padding=padding_type,
+        data_format='channels_last', dilation_rate=(1,),
+        depth_multiplier=num_depthwise_filters_per_spatial_filter,
+        activation=None, use_bias=True,
+        depthwise_regularizer=kernel_weight_regularizer,
+        pointwise_regularizer=kernel_weight_regularizer,
+        bias_regularizer=bias_weight_regularizer)
+
+
+def get_2d_separable_conv_layer(
+        num_spatial_filters, num_depthwise_filters_per_spatial_filter,
+        num_kernel_rows, num_kernel_columns, num_rows_per_stride,
+        num_columns_per_stride, padding_type=YES_PADDING_TYPE,
+        kernel_weight_regularizer=None, bias_weight_regularizer=None,
+        is_first_layer=False, num_input_rows=None, num_input_columns=None,
+        num_input_channels=None):
+    """Creates layer for 2-D separable convolution.
+
+    :param num_spatial_filters: Number of spatial filters (applied independently
+        to each channel).
+    :param num_depthwise_filters_per_spatial_filter: Number of depthwise filters
+        per spatial filter.  Number of output channels =
+        `num_spatial_filters * num_depthwise_filters_per_spatial_filter`.
+    :param num_kernel_rows: Number of rows in kernel.
+    :param num_kernel_columns: Number of columns in kernel.
+    :param num_rows_per_stride: First dimension of kernel's "step size".  The
+        kernel translates by this many rows at once.
+    :param num_columns_per_stride: Second dimension of kernel's "step size".
+        The kernel translates by this many columns at once.
+    :param padding_type: See doc for `get_3d_conv_layer`.
+    :param kernel_weight_regularizer: Same.
+    :param bias_weight_regularizer: Same.
+    :param is_first_layer: Boolean flag.  If True, this is the first layer in
+        the network.
+    :param is_first_layer: Boolean flag.  If True, this is the first layer in
+        the network.
+    :param num_input_rows: [used only if `is_first_layer`]
+        Height (number of rows) for each input example.
+    :param num_input_columns: [used only if `is_first_layer`]
+        Width (number of columns) for each input example.
+    :param num_input_channels: [used only if `is_first_layer`]
+        Depth (number of channels) for each input example.
+    :return: layer_object: Instance of `keras.layers.SeparableConv2D`.
+    """
+
+    # TODO(thunderhoser): Verify this method.
+
+    error_checking.assert_is_integer(num_depthwise_filters_per_spatial_filter)
+    error_checking.assert_is_greater(
+        num_depthwise_filters_per_spatial_filter, 0)
+
+    num_output_filters = (
+        num_spatial_filters * num_depthwise_filters_per_spatial_filter)
+
+    _check_input_args_for_conv_layer(
+        num_output_filters=num_output_filters,
+        num_kernel_rows=num_kernel_rows, num_kernel_columns=num_kernel_columns,
+        num_rows_per_stride=num_rows_per_stride,
+        num_columns_per_stride=num_columns_per_stride,
+        padding_type=padding_type, is_first_layer=is_first_layer,
+        num_input_rows=num_input_rows, num_input_columns=num_input_columns,
+        num_input_channels=num_input_channels)
+
+    if is_first_layer:
+        return keras.layers.SeparableConv2D(
+            filters=num_output_filters,
+            kernel_size=(num_kernel_rows, num_kernel_columns),
+            strides=(num_rows_per_stride, num_columns_per_stride),
+            padding=padding_type, data_format='channels_last',
+            dilation_rate=(1, 1),
+            depth_multiplier=num_depthwise_filters_per_spatial_filter,
+            activation=None, use_bias=True,
+            depthwise_regularizer=kernel_weight_regularizer,
+            pointwise_regularizer=kernel_weight_regularizer,
+            bias_regularizer=bias_weight_regularizer,
+            input_shape=(num_input_rows, num_input_columns, num_input_channels)
+        )
+
+    return keras.layers.SeparableConv2D(
+        filters=num_output_filters,
+        kernel_size=(num_kernel_rows, num_kernel_columns),
+        strides=(num_rows_per_stride, num_columns_per_stride),
+        padding=padding_type, data_format='channels_last',
+        dilation_rate=(1, 1),
+        depth_multiplier=num_depthwise_filters_per_spatial_filter,
+        activation=None, use_bias=True,
+        depthwise_regularizer=kernel_weight_regularizer,
+        pointwise_regularizer=kernel_weight_regularizer,
+        bias_regularizer=bias_weight_regularizer)
+
+
 def get_2d_conv_layer(
         num_output_filters, num_kernel_rows, num_kernel_columns,
         num_rows_per_stride, num_columns_per_stride,
