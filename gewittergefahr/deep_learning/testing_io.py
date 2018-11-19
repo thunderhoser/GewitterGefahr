@@ -14,6 +14,7 @@ F_s = number of sounding fields (or "variables" or "channels")
 C = number of radar field/height pairs
 """
 
+import copy
 import numpy
 import keras.utils
 from gewittergefahr.deep_learning import input_examples
@@ -368,7 +369,8 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
             TARGET_ARRAY_KEY: target_array,
             STORM_IDS_KEY: this_example_dict[input_examples.STORM_IDS_KEY],
             STORM_TIMES_KEY: this_example_dict[input_examples.STORM_TIMES_KEY],
-            SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals + 0.
+            SOUNDING_PRESSURES_KEY:
+                copy.deepcopy(sounding_pressure_matrix_pascals)
         }
 
         radar_image_matrix = None
