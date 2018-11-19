@@ -544,7 +544,7 @@ def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
                 ][..., this_height_index, this_field_index]
 
                 print (
-                    'Updating normalization params for "{0:s}" at {1:d} km '
+                    'Updating normalization params for "{0:s}" at {1:d} m '
                     'AGL...'
                 ).format(sounding_field_names[j], sounding_heights_m_agl[k])
 

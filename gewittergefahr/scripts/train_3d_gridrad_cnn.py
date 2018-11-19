@@ -52,8 +52,9 @@ NORMALIZATION_FILE_HELP_STRING = (
     '`deep_learning_utils.normalize_soundings`.')
 
 DEFAULT_NORMALIZATION_FILE_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'normalization_ground-relative_20110101-20180101.p')
+    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
+    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
+    'shuffled/single_pol_2011-2015/normalization_params.p')
 
 INPUT_ARG_PARSER.add_argument(
     '--' + NUM_RADAR_FILTERS_ARG_NAME, type=int, required=False,
