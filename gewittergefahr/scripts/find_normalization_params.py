@@ -11,15 +11,16 @@ import pandas
 from scipy.interpolate import interp1d
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
-from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
-from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import storm_images
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
-from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
+LARGE_INTEGER = int(1e12)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
-MINOR_SEPARATOR_STRING = '\n\n' + '-' * 50 + '\n\n'
+
+# TODO(thunderhoser): Make these input args.
+NUM_RADAR_ROWS = 24
+NUM_RADAR_COLUMNS = 24
 
 NUM_VALUES_KEY = 'num_values'
 MEAN_VALUE_KEY = 'mean_value'
@@ -58,140 +59,40 @@ SOUNDING_INTERVAL_DICT = {
     soundings.RELATIVE_HUMIDITY_NAME: 1e-4  # unitless
 }
 
-RADAR_HEIGHTS_M_AGL = numpy.linspace(1000, 12000, num=12, dtype=int)
-REFLECTIVITY_HEIGHTS_M_AGL = RADAR_HEIGHTS_M_AGL + 0
-SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
-
-SOUNDING_FIELD_NAMES = [
-    soundings.PRESSURE_NAME, soundings.TEMPERATURE_NAME,
-    soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME,
-    soundings.U_WIND_NAME, soundings.V_WIND_NAME,
-    soundings.SPECIFIC_HUMIDITY_NAME, soundings.RELATIVE_HUMIDITY_NAME
-]
-
-DUMMY_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
-LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC = 1800
-
-RADAR_IMAGE_DIR_ARG_NAME = 'input_radar_image_dir_name'
-RADAR_SOURCE_ARG_NAME = 'radar_source'
+EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 MIN_PERCENTILE_ARG_NAME = 'min_percentile_level'
 MAX_PERCENTILE_ARG_NAME = 'max_percentile_level'
-SOUNDING_DIR_ARG_NAME = 'input_sounding_dir_name'
-FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
-LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
-RADAR_FIELD_NAMES_ARG_NAME = 'radar_field_names'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
-DEFAULT_MIN_PERCENTILE_LEVEL = 0.1
-DEFAULT_MAX_PERCENTILE_LEVEL = 99.9
-DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'storm_images_ground-relative')
-DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/reanalyzed/'
-    'soundings_ground-relative')
-DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME = (
-    '/condo/swatcommon/common/myrorss_40dbz_echo_tops/final_tracks/reanalyzed/'
-    'storm_images')
-DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME = (
-    '/condo/swatwork/ralager/myrorss_40dbz_echo_tops/final_tracks/reanalyzed/'
-    'soundings')
-
-DEFAULT_GRIDRAD_FIELD_NAMES = [
-    radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
-    radar_utils.DIVERGENCE_NAME, radar_utils.VORTICITY_NAME,
-    radar_utils.DIFFERENTIAL_REFL_NAME, radar_utils.CORRELATION_COEFF_NAME,
-    radar_utils.SPEC_DIFF_PHASE_NAME
-]
-
-DEFAULT_MYRORSS_FIELD_NAMES = [
-    radar_utils.ECHO_TOP_18DBZ_NAME, radar_utils.ECHO_TOP_50DBZ_NAME,
-    radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME,
-    radar_utils.REFL_NAME, radar_utils.REFL_COLUMN_MAX_NAME,
-    radar_utils.REFL_0CELSIUS_NAME, radar_utils.REFL_M10CELSIUS_NAME,
-    radar_utils.REFL_M20CELSIUS_NAME, radar_utils.REFL_LOWEST_ALTITUDE_NAME,
-    radar_utils.MESH_NAME, radar_utils.SHI_NAME, radar_utils.VIL_NAME
-]
-
-RADAR_IMAGE_DIR_HELP_STRING = (
-    'Name of top-level directory with storm-centered radar images.  Files '
-    'therein will be found by `storm_images.find_storm_image_file` and read by '
-    '`storm_images.read_storm_images`.  Default is "{0:s}" for MYRORSS data, '
-    '"{1:s}" for GridRad.'
-).format(DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME, DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME)
-
-RADAR_SOURCE_HELP_STRING = (
-    'Source of radar data.  Must be in the following list.\n{0:s}'
-).format(str(radar_utils.DATA_SOURCE_IDS))
+EXAMPLE_DIR_HELP_STRING = (
+    'Name of top-level directory with input examples.  Shuffled files therein '
+    'will be found by `input_examples.find_many_example_files` and read by '
+    '`input_examples.read_example_file`.')
 
 MIN_PERCENTILE_HELP_STRING = (
     'Minimum percentile level.  The "minimum value" for each field will '
-    'actually be the [q]th percentile, where q = `{0:s}`.'
-).format(MIN_PERCENTILE_ARG_NAME)
+    'actually be this percentile.')
 
 MAX_PERCENTILE_HELP_STRING = (
-    'Max percentile level.  The "max value" for each field will actually be the'
-    ' [q]th percentile, where q = `{0:s}`.'
-).format(MAX_PERCENTILE_ARG_NAME)
-
-SOUNDING_DIR_HELP_STRING = (
-    'Name of top-level directory with storm-centered soundings.  Files therein '
-    'will be found by `soundings.find_sounding_file` and read by '
-    '`soundings.read_soundings`.  Default is "{0:s}" for MYRORSS data, '
-    '"{1:s}" for GridRad.'
-).format(DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME,
-         DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME)
-
-SPC_DATE_HELP_STRING = (
-    'SPC (Storm Prediction Center) date in format "yyyymmdd".  Normalization '
-    'params will be based on all data from `{0:s}`...`{1:s}`.'
-).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
-
-RADAR_FIELD_NAMES_HELP_STRING = (
-    'List of radar fields (each must be accepted by `radar_utils.'
-    'check_field_name`).  Normalization params will be computed for each of '
-    'these fields, once over all heights and once at each height (metres above '
-    'ground level) in the following list.\n{0:s}\nDefault fields for MYRORSS:'
-    '\n{1:s}\nDefault fields for GridRad:\n{2:s}'
-).format(str(RADAR_HEIGHTS_M_AGL), str(DEFAULT_MYRORSS_FIELD_NAMES),
-         str(DEFAULT_GRIDRAD_FIELD_NAMES))
+    'Max percentile level.  The "max value" for each field will actually be '
+    'this percentile.')
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `deep_learning_utils.'
-    'write_normalization_params_to_file`).')
+    'write_normalization_params`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_IMAGE_DIR_ARG_NAME, type=str, required=False, default='',
-    help=RADAR_IMAGE_DIR_HELP_STRING)
+    '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
+    help=EXAMPLE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_SOURCE_ARG_NAME, type=str, required=True,
-    help=RADAR_SOURCE_HELP_STRING)
+    '--' + MIN_PERCENTILE_ARG_NAME, type=float, required=False, default=0.1,
+    help=MIN_PERCENTILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_PERCENTILE_ARG_NAME, type=float, required=False,
-    default=DEFAULT_MIN_PERCENTILE_LEVEL, help=MIN_PERCENTILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
-    default=DEFAULT_MAX_PERCENTILE_LEVEL, help=MAX_PERCENTILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + SOUNDING_DIR_ARG_NAME, type=str, required=False, default='',
-    help=SOUNDING_DIR_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + RADAR_FIELD_NAMES_ARG_NAME, type=str, nargs='+', required=False,
-    default=[''], help=RADAR_FIELD_NAMES_HELP_STRING)
+    '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False, default=99.9,
+    help=MAX_PERCENTILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -375,85 +276,79 @@ def _convert_normalization_params(
         columns=column_dict_old_to_new, inplace=False)
 
 
-def _run(
-        top_radar_image_dir_name, radar_source, min_percentile_level,
-        max_percentile_level, top_sounding_dir_name, first_spc_date_string,
-        last_spc_date_string, radar_field_names, output_file_name):
+def _run(top_example_dir_name, min_percentile_level, max_percentile_level,
+         output_file_name):
     """Finds normalization parameters for GridRad data.
 
     This is effectively the main method.
 
-    :param top_radar_image_dir_name: See documentation at top of file.
-    :param radar_source: Same.
+    :param top_example_dir_name: See documentation at top of file.
     :param min_percentile_level: Same.
     :param max_percentile_level: Same.
-    :param top_sounding_dir_name: Same.
-    :param first_spc_date_string: Same.
-    :param last_spc_date_string: Same.
-    :param radar_field_names: Same.
     :param output_file_name: Same.
     """
 
-    error_checking.assert_is_greater(max_percentile_level, min_percentile_level)
+    example_file_names = input_examples.find_many_example_files(
+        top_directory_name=top_example_dir_name, shuffled=True,
+        first_batch_number=0, last_batch_number=LARGE_INTEGER,
+        raise_error_if_any_missing=False)
 
-    # Find radar files.
-    if radar_source == radar_utils.MYRORSS_SOURCE_ID:
-        if radar_field_names == ['']:
-            radar_field_names = DEFAULT_MYRORSS_FIELD_NAMES + []
-        if top_radar_image_dir_name == '':
-            top_radar_image_dir_name = DEFAULT_TOP_MYRORSS_RADAR_DIR_NAME + ''
-        if top_sounding_dir_name == '':
-            top_sounding_dir_name = DEFAULT_TOP_MYRORSS_SOUNDING_DIR_NAME + ''
+    this_example_dict = input_examples.read_example_file(example_file_names[0])
+    sounding_field_names = this_example_dict[input_examples.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = this_example_dict[
+        input_examples.SOUNDING_HEIGHTS_KEY]
 
-        radar_file_name_matrix = trainval_io.find_radar_files_2d(
-            top_directory_name=top_radar_image_dir_name,
-            radar_source=radar_source, radar_field_names=radar_field_names,
-            reflectivity_heights_m_agl=REFLECTIVITY_HEIGHTS_M_AGL,
-            first_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(first_spc_date_string),
-            last_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(last_spc_date_string),
-            one_file_per_time_step=False, shuffle_times=False)[0]
+    if input_examples.REFL_IMAGE_MATRIX_KEY in this_example_dict:
+        num_radar_dimensions = -1
+    else:
+        num_radar_dimensions = (
+            len(this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY].shape)
+            - 2
+        )
+
+    # TODO(thunderhoser): Put this in separate method.
+    if num_radar_dimensions == 3:
+        radar_field_names = this_example_dict[input_examples.RADAR_FIELDS_KEY]
+        radar_heights_m_agl = this_example_dict[
+            input_examples.RADAR_HEIGHTS_KEY]
+
+        radar_field_name_by_pair = []
+        radar_height_by_pair_m_agl = numpy.array([], dtype=int)
+
+        for this_field_name in radar_field_names:
+            radar_field_name_by_pair += (
+                [this_field_name] * len(radar_heights_m_agl)
+            )
+            radar_height_by_pair_m_agl = numpy.concatenate((
+                radar_height_by_pair_m_agl, radar_heights_m_agl))
+
+    elif num_radar_dimensions == 2:
+        radar_field_name_by_pair = this_example_dict[
+            input_examples.RADAR_FIELDS_KEY]
+        radar_height_by_pair_m_agl = this_example_dict[
+            input_examples.RADAR_HEIGHTS_KEY]
+
+        radar_field_names = list(set(radar_field_name_by_pair))
+        radar_field_names.sort()
 
     else:
-        if radar_field_names == ['']:
-            radar_field_names = DEFAULT_GRIDRAD_FIELD_NAMES + []
-        if top_radar_image_dir_name == '':
-            top_radar_image_dir_name = DEFAULT_TOP_GRIDRAD_RADAR_DIR_NAME + ''
-        if top_sounding_dir_name == '':
-            top_sounding_dir_name = DEFAULT_TOP_GRIDRAD_SOUNDING_DIR_NAME + ''
+        az_shear_field_names = this_example_dict[
+            input_examples.RADAR_FIELDS_KEY]
+        radar_field_names = [radar_utils.REFL_NAME] + az_shear_field_names
 
-        radar_file_name_matrix = trainval_io.find_radar_files_2d(
-            top_directory_name=top_radar_image_dir_name,
-            radar_source=radar_source, radar_field_names=radar_field_names,
-            radar_heights_m_agl=RADAR_HEIGHTS_M_AGL,
-            first_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(first_spc_date_string),
-            last_file_time_unix_sec=
-            time_conversion.spc_date_string_to_unix_sec(last_spc_date_string),
-            one_file_per_time_step=False, shuffle_times=False)[0]
+        refl_heights_m_agl = this_example_dict[input_examples.RADAR_HEIGHTS_KEY]
+        radar_field_name_by_pair = (
+            [radar_utils.REFL_NAME] * len(refl_heights_m_agl) +
+            az_shear_field_names
+        )
 
-    print SEPARATOR_STRING
+        az_shear_heights_m_agl = numpy.full(
+            len(az_shear_field_names), radar_utils.SHEAR_NAMES)
+        radar_height_by_pair_m_agl = numpy.concatenate((
+            refl_heights_m_agl, az_shear_heights_m_agl
+        )).astype(int)
 
-    field_name_by_pair = [
-        storm_images.image_file_name_to_field(f) for f in
-        radar_file_name_matrix[0, :]
-    ]
-    height_by_pair_m_agl = numpy.array(
-        [storm_images.image_file_name_to_height(f)
-         for f in radar_file_name_matrix[0, :]
-        ], dtype=int)
-
-    # Find sounding files.
-    sounding_file_names = trainval_io.find_sounding_files(
-        top_sounding_dir_name=top_sounding_dir_name,
-        radar_file_name_matrix=radar_file_name_matrix,
-        target_name=DUMMY_TARGET_NAME,
-        lag_time_for_convective_contamination_sec=
-        LAG_TIME_FOR_CONVECTIVE_CONTAMINATION_SEC)
-    print SEPARATOR_STRING
-
-    # Initialize normalization params.
+    # Initialize parameters.
     orig_parameter_dict = {
         NUM_VALUES_KEY: 0, MEAN_VALUE_KEY: 0., MEAN_OF_SQUARES_KEY: 0.
     }
@@ -461,176 +356,207 @@ def _run(
     radar_z_score_dict_no_height = {}
     radar_z_score_dict_with_height = {}
     radar_freq_dict_no_height = {}
-    num_unique_fields = len(radar_field_names)
-    num_field_height_pairs = len(field_name_by_pair)
+    num_radar_fields = len(radar_field_names)
+    num_radar_field_height_pairs = len(radar_field_name_by_pair)
 
-    for j in range(num_unique_fields):
+    for j in range(num_radar_fields):
         radar_z_score_dict_no_height[radar_field_names[j]] = copy.deepcopy(
             orig_parameter_dict)
         radar_freq_dict_no_height[radar_field_names[j]] = {}
 
-    for k in range(num_field_height_pairs):
+    for k in range(num_radar_field_height_pairs):
         radar_z_score_dict_with_height[
-            field_name_by_pair[k], height_by_pair_m_agl[k]
+            radar_field_name_by_pair[k], radar_height_by_pair_m_agl[k]
         ] = copy.deepcopy(orig_parameter_dict)
 
     sounding_z_score_dict_no_height = {}
     sounding_z_score_dict_with_height = {}
     sounding_freq_dict_no_height = {}
-    num_sounding_fields = len(SOUNDING_FIELD_NAMES)
-    num_sounding_heights = len(SOUNDING_HEIGHTS_M_AGL)
+    num_sounding_fields = len(sounding_field_names)
+    num_sounding_heights = len(sounding_heights_m_agl)
 
     for j in range(num_sounding_fields):
-        sounding_z_score_dict_no_height[
-            SOUNDING_FIELD_NAMES[j]
-        ] = copy.deepcopy(orig_parameter_dict)
-        sounding_freq_dict_no_height[SOUNDING_FIELD_NAMES[j]] = {}
+        sounding_z_score_dict_no_height[sounding_field_names[j]] = (
+            copy.deepcopy(orig_parameter_dict))
+        sounding_freq_dict_no_height[sounding_field_names[j]] = {}
 
         for k in range(num_sounding_heights):
             sounding_z_score_dict_with_height[
-                SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k]
+                sounding_field_names[j], sounding_heights_m_agl[k]
             ] = copy.deepcopy(orig_parameter_dict)
 
-    # Update normalization params.
-    num_spc_dates = len(sounding_file_names)
-    for i in range(num_spc_dates):
-        print 'Reading data from: "{0:s}"...'.format(
-            radar_file_name_matrix[i, 0])
-        this_radar_image_dict = storm_images.read_storm_images(
-            netcdf_file_name=radar_file_name_matrix[i, 0], return_images=True)
+    for this_example_file_name in example_file_names:
+        print 'Reading data from: "{0:s}"...'.format(this_example_file_name)
+        this_example_dict = input_examples.read_example_file(
+            netcdf_file_name=this_example_file_name,
+            num_rows_to_keep=NUM_RADAR_ROWS,
+            num_columns_to_keep=NUM_RADAR_COLUMNS)
 
-        these_storm_ids = this_radar_image_dict[storm_images.STORM_IDS_KEY]
-        these_storm_times_unix_sec = this_radar_image_dict[
-            storm_images.VALID_TIMES_KEY]
-        this_matrix_by_field_dict = {}
-
-        for k in range(num_field_height_pairs):
-            if not len(these_storm_ids):
-                continue
-
-            if k != 0:
-                print 'Reading data from: "{0:s}"...'.format(
-                    radar_file_name_matrix[i, k])
-                this_radar_image_dict = storm_images.read_storm_images(
-                    netcdf_file_name=radar_file_name_matrix[i, k],
-                    return_images=True, storm_ids_to_keep=these_storm_ids,
-                    valid_times_to_keep_unix_sec=these_storm_times_unix_sec)
-
-            this_field_height_matrix = this_radar_image_dict[
-                storm_images.STORM_IMAGE_MATRIX_KEY]
-
-            if field_name_by_pair[k] in this_matrix_by_field_dict:
-                this_matrix_by_field_dict[
-                    field_name_by_pair[k]
-                ] = numpy.concatenate(
-                    (this_matrix_by_field_dict[field_name_by_pair[k]],
-                     numpy.expand_dims(this_field_height_matrix, axis=-1)),
-                    axis=-1)
-            else:
-                this_matrix_by_field_dict[
-                    field_name_by_pair[k]
-                ] = numpy.expand_dims(
-                    this_field_height_matrix, axis=-1)
-
-            print (
-                'Updating normalization params for "{0:s}" at {1:d} metres '
-                'AGL...'
-            ).format(field_name_by_pair[k], height_by_pair_m_agl[k])
-
-            radar_z_score_dict_with_height[
-                field_name_by_pair[k], height_by_pair_m_agl[k]
-            ] = _update_z_score_params(
-                z_score_param_dict=radar_z_score_dict_with_height[
-                    field_name_by_pair[k], height_by_pair_m_agl[k]],
-                new_data_matrix=this_field_height_matrix)
-
-        print MINOR_SEPARATOR_STRING
-
-        for j in range(num_unique_fields):
-            if not len(these_storm_ids):
-                continue
-
+        for j in range(num_radar_fields):
             print 'Updating normalization params for "{0:s}"...'.format(
                 radar_field_names[j])
 
-            radar_z_score_dict_no_height[
-                radar_field_names[j]
+            if num_radar_dimensions == 3:
+                this_field_index = this_example_dict[
+                    input_examples.RADAR_FIELDS_KEY
+                ].index(radar_field_names[j])
+
+                this_radar_matrix = this_example_dict[
+                    input_examples.RADAR_IMAGE_MATRIX_KEY
+                ][..., this_field_index]
+
+            elif num_radar_dimensions == 2:
+                all_field_names = numpy.array(
+                    this_example_dict[input_examples.RADAR_FIELDS_KEY])
+
+                these_field_indices = numpy.where(
+                    all_field_names == radar_field_names[j]
+                )[0]
+
+                this_radar_matrix = this_example_dict[
+                    input_examples.RADAR_IMAGE_MATRIX_KEY
+                ][..., these_field_indices]
+
+            else:
+                if radar_field_names[j] == radar_utils.REFL_NAME:
+                    this_radar_matrix = this_example_dict[
+                        input_examples.REFL_IMAGE_MATRIX_KEY][..., 0]
+                else:
+                    this_field_index = this_example_dict[
+                        input_examples.RADAR_FIELDS_KEY
+                    ].index(radar_field_names[j])
+
+                    this_radar_matrix = this_example_dict[
+                        input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY
+                    ][..., this_field_index]
+
+            radar_z_score_dict_no_height[radar_field_names[j]] = (
+                _update_z_score_params(
+                    z_score_param_dict=radar_z_score_dict_no_height[
+                        radar_field_names[j]],
+                    new_data_matrix=this_radar_matrix)
+            )
+
+            radar_freq_dict_no_height[radar_field_names[j]] = (
+                _update_frequency_dict(
+                    frequency_dict=radar_freq_dict_no_height[
+                        radar_field_names[j]],
+                    new_data_matrix=this_radar_matrix,
+                    rounding_base=RADAR_INTERVAL_DICT[radar_field_names[j]])
+            )
+
+        for k in range(num_radar_field_height_pairs):
+            print (
+                'Updating normalization params for "{0:s}" at {1:d} metres '
+                'AGL...'
+            ).format(radar_field_name_by_pair[k], radar_height_by_pair_m_agl[k])
+
+            if num_radar_dimensions == 3:
+                this_field_index = this_example_dict[
+                    input_examples.RADAR_FIELDS_KEY
+                ].index(radar_field_name_by_pair[k])
+
+                this_height_index = numpy.where(
+                    this_example_dict[input_examples.RADAR_HEIGHTS_KEY] ==
+                    radar_height_by_pair_m_agl[k]
+                )[0][0]
+
+                this_radar_matrix = this_example_dict[
+                    input_examples.RADAR_IMAGE_MATRIX_KEY
+                ][..., this_height_index, this_field_index]
+
+            elif num_radar_dimensions == 2:
+                all_field_names = numpy.array(
+                    this_example_dict[input_examples.RADAR_FIELDS_KEY])
+                all_heights_m_agl = this_example_dict[
+                    input_examples.RADAR_HEIGHTS_KEY]
+
+                this_index = numpy.where(numpy.logical_and(
+                    all_field_names == radar_field_name_by_pair[k],
+                    all_heights_m_agl == radar_height_by_pair_m_agl[k]
+                ))[0][0]
+
+                this_radar_matrix = this_example_dict[
+                    input_examples.RADAR_IMAGE_MATRIX_KEY][..., this_index]
+
+            else:
+                if radar_field_name_by_pair[k] == radar_utils.REFL_NAME:
+                    this_height_index = numpy.where(
+                        this_example_dict[input_examples.RADAR_HEIGHTS_KEY] ==
+                        radar_height_by_pair_m_agl[k]
+                    )[0][0]
+
+                    this_radar_matrix = this_example_dict[
+                        input_examples.REFL_IMAGE_MATRIX_KEY
+                    ][..., this_height_index, 0]
+                else:
+                    this_field_index = this_example_dict[
+                        input_examples.RADAR_FIELDS_KEY
+                    ].index(radar_field_name_by_pair[k])
+
+                    this_radar_matrix = this_example_dict[
+                        input_examples.AZ_SHEAR_IMAGE_MATRIX_KEY
+                    ][..., this_field_index]
+
+            radar_z_score_dict_with_height[
+                radar_field_name_by_pair[k], radar_height_by_pair_m_agl[k]
             ] = _update_z_score_params(
-                z_score_param_dict=radar_z_score_dict_no_height[
-                    radar_field_names[j]],
-                new_data_matrix=this_matrix_by_field_dict[radar_field_names[j]])
-
-            radar_freq_dict_no_height[
-                radar_field_names[j]
-            ] = _update_frequency_dict(
-                frequency_dict=radar_freq_dict_no_height[radar_field_names[j]],
-                new_data_matrix=this_matrix_by_field_dict[radar_field_names[j]],
-                rounding_base=RADAR_INTERVAL_DICT[radar_field_names[j]])
-
-        print MINOR_SEPARATOR_STRING
-
-        print 'Reading data from: "{0:s}"...'.format(sounding_file_names[i])
-        this_sounding_dict = soundings.read_soundings(
-            netcdf_file_name=sounding_file_names[i],
-            field_names_to_keep=SOUNDING_FIELD_NAMES,
-            storm_ids_to_keep=these_storm_ids,
-            init_times_to_keep_unix_sec=these_storm_times_unix_sec)[0]
-
-        this_num_storm_objects = len(
-            this_sounding_dict[soundings.STORM_IDS_KEY])
+                z_score_param_dict=radar_z_score_dict_with_height[
+                    radar_field_name_by_pair[k], radar_height_by_pair_m_agl[k]],
+                new_data_matrix=this_radar_matrix)
 
         for j in range(num_sounding_fields):
-            if this_num_storm_objects == 0:
-                continue
-
-            this_field_index = this_sounding_dict[
-                soundings.FIELD_NAMES_KEY].index(SOUNDING_FIELD_NAMES[j])
-
             print 'Updating normalization params for "{0:s}"...'.format(
-                SOUNDING_FIELD_NAMES[j])
+                sounding_field_names[j])
 
-            sounding_z_score_dict_no_height[
-                SOUNDING_FIELD_NAMES[j]
-            ] = _update_z_score_params(
-                z_score_param_dict=sounding_z_score_dict_no_height[
-                    SOUNDING_FIELD_NAMES[j]],
-                new_data_matrix=this_sounding_dict[
-                    soundings.SOUNDING_MATRIX_KEY][..., this_field_index])
+            this_field_index = this_example_dict[
+                input_examples.SOUNDING_FIELDS_KEY
+            ].index(sounding_field_names[j])
 
-            sounding_freq_dict_no_height[
-                SOUNDING_FIELD_NAMES[j]
-            ] = _update_frequency_dict(
-                frequency_dict=sounding_freq_dict_no_height[
-                    SOUNDING_FIELD_NAMES[j]],
-                new_data_matrix=this_sounding_dict[
-                    soundings.SOUNDING_MATRIX_KEY][..., this_field_index],
-                rounding_base=SOUNDING_INTERVAL_DICT[SOUNDING_FIELD_NAMES[j]])
+            this_sounding_matrix = this_example_dict[
+                input_examples.SOUNDING_MATRIX_KEY][..., this_field_index]
+
+            sounding_z_score_dict_no_height[sounding_field_names[j]] = (
+                _update_z_score_params(
+                    z_score_param_dict=sounding_z_score_dict_no_height[
+                        sounding_field_names[j]],
+                    new_data_matrix=this_sounding_matrix)
+            )
+
+            sounding_freq_dict_no_height[sounding_field_names[j]] = (
+                _update_frequency_dict(
+                    frequency_dict=sounding_freq_dict_no_height[
+                        sounding_field_names[j]],
+                    new_data_matrix=this_sounding_matrix,
+                    rounding_base=SOUNDING_INTERVAL_DICT[
+                        sounding_field_names[j]]
+                )
+            )
 
             for k in range(num_sounding_heights):
                 this_height_index = numpy.where(
-                    this_sounding_dict[soundings.HEIGHT_LEVELS_KEY] ==
-                    SOUNDING_HEIGHTS_M_AGL[k]
-                )[0]
+                    this_example_dict[input_examples.SOUNDING_HEIGHTS_KEY] ==
+                    sounding_heights_m_agl[k]
+                )[0][0]
+
+                this_sounding_matrix = this_example_dict[
+                    input_examples.SOUNDING_MATRIX_KEY
+                ][..., this_height_index, this_field_index]
 
                 print (
                     'Updating normalization params for "{0:s}" at {1:d} km '
                     'AGL...'
-                ).format(SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k])
+                ).format(sounding_field_names[j], sounding_heights_m_agl[k])
 
                 sounding_z_score_dict_with_height[
-                    SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k]
+                    sounding_field_names[j], sounding_heights_m_agl[k]
                 ] = _update_z_score_params(
                     z_score_param_dict=sounding_z_score_dict_with_height[
-                        SOUNDING_FIELD_NAMES[j], SOUNDING_HEIGHTS_M_AGL[k]
+                        sounding_field_names[j], sounding_heights_m_agl[k]
                     ],
-                    new_data_matrix=this_sounding_dict[
-                        soundings.SOUNDING_MATRIX_KEY][
-                            ..., this_height_index, this_field_index])
+                    new_data_matrix=this_sounding_matrix)
 
-        if i == num_spc_dates - 1:
-            print SEPARATOR_STRING
-        else:
-            print MINOR_SEPARATOR_STRING
+        print SEPARATOR_STRING
 
     # Convert dictionaries to pandas DataFrames.
     radar_table_no_height = _convert_normalization_params(
@@ -638,11 +564,13 @@ def _run(
         frequency_dict_dict=radar_freq_dict_no_height,
         min_percentile_level=min_percentile_level,
         max_percentile_level=max_percentile_level)
+
     print 'Normalization params for each radar field:\n{0:s}\n\n'.format(
         str(radar_table_no_height))
 
     radar_table_with_height = _convert_normalization_params(
         z_score_dict_dict=radar_z_score_dict_with_height)
+
     print (
         'Normalization params for each radar field/height pair:\n{0:s}\n\n'
     ).format(str(radar_table_with_height))
@@ -652,18 +580,20 @@ def _run(
         frequency_dict_dict=sounding_freq_dict_no_height,
         min_percentile_level=min_percentile_level,
         max_percentile_level=max_percentile_level)
+
     print 'Normalization params for each sounding field:\n{0:s}\n\n'.format(
         str(sounding_table_no_height))
 
     sounding_table_with_height = _convert_normalization_params(
         z_score_dict_dict=sounding_z_score_dict_with_height)
+
     print (
         'Normalization params for each sounding field/height pair:\n{0:s}\n\n'
     ).format(str(sounding_table_with_height))
 
     print 'Writing normalization params to file: "{0:s}"...'.format(
         output_file_name)
-    dl_utils.write_normalization_params_to_file(
+    dl_utils.write_normalization_params(
         pickle_file_name=output_file_name,
         radar_table_no_height=radar_table_no_height,
         radar_table_with_height=radar_table_with_height,
@@ -675,14 +605,8 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        top_radar_image_dir_name=getattr(
-            INPUT_ARG_OBJECT, RADAR_IMAGE_DIR_ARG_NAME),
-        radar_source=getattr(INPUT_ARG_OBJECT, RADAR_SOURCE_ARG_NAME),
+        top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         min_percentile_level=getattr(INPUT_ARG_OBJECT, MIN_PERCENTILE_ARG_NAME),
         max_percentile_level=getattr(INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
-        top_sounding_dir_name=getattr(INPUT_ARG_OBJECT, SOUNDING_DIR_ARG_NAME),
-        first_spc_date_string=getattr(
-            INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
-        last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
-        radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELD_NAMES_ARG_NAME),
-        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME))
+        output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
+    )

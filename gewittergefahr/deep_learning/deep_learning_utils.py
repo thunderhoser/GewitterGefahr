@@ -909,7 +909,7 @@ def sample_by_class(
     return indices_to_keep
 
 
-def write_normalization_params_to_file(
+def write_normalization_params(
         pickle_file_name, radar_table_no_height, radar_table_with_height,
         sounding_table_no_height, sounding_table_with_height):
     """Writes normalization parameters to Pickle file.
@@ -963,8 +963,7 @@ def read_normalization_params_from_file(pickle_file_name):
     """Reads normalization parameters from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: radar_table_no_height: See doc for
-        `write_normalization_params_to_file`.
+    :return: radar_table_no_height: See doc for `write_normalization_params`.
     :return: radar_table_with_height: Same.
     :return: sounding_table_no_height: Same.
     :return: sounding_table_with_height: Same.
