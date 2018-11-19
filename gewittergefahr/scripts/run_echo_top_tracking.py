@@ -62,7 +62,7 @@ INPUT_ARG_PARSER.add_argument(
     help=ECHO_CLASSIFN_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + MIN_ECHO_TOP_ARG_NAME, type=int, required=False, default=4,
+    '--' + MIN_ECHO_TOP_ARG_NAME, type=float, required=False, default=4.,
     help=MIN_ECHO_TOP_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
