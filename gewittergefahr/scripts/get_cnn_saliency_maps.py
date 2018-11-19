@@ -253,8 +253,8 @@ def _run(
         this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
             this_spc_date_string)
         these_indices = numpy.where(numpy.logical_and(
-            storm_times_unix_sec >= this_start_time_unix_sec,
-            storm_times_unix_sec <= this_end_time_unix_sec
+            desired_storm_times_unix_sec >= this_start_time_unix_sec,
+            desired_storm_times_unix_sec <= this_end_time_unix_sec
         ))[0]
 
         print 'First indices = {0:s}'.format(str(these_indices))
