@@ -330,11 +330,10 @@ def _create_gg_initializer(init_function_name, model_file_name):
         myrorss_2d3d=model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY])
 
 
-def _run(
-        model_file_name, is_model_swirlnet, component_type_string, target_class,
-        num_iterations, learning_rate, init_function_name, layer_name,
-        ideal_activation, neuron_indices_flattened, channel_indices,
-        output_file_name):
+def _run(model_file_name, is_model_swirlnet, component_type_string,
+         target_class, num_iterations, learning_rate, init_function_name,
+         layer_name, ideal_activation, neuron_indices_flattened,
+         channel_indices, output_file_name):
     """Finds optimal input for one class, neuron, or channel of a CNN.
 
     This is effectively the main method.

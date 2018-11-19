@@ -185,12 +185,10 @@ def _run(
 
     training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
     training_option_dict[trainval_io.EXAMPLE_FILES_KEY] = example_file_names
-    training_option_dict[
-        trainval_io.FIRST_STORM_TIME_KEY
-    ] = time_conversion.spc_date_string_to_unix_sec(first_spc_date_string)
-    training_option_dict[
-        trainval_io.LAST_STORM_TIME_KEY
-    ] = time_conversion.spc_date_string_to_unix_sec(last_spc_date_string)
+    training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
+        time_conversion.get_start_of_spc_date(first_spc_date_string))
+    training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
+        time_conversion.get_end_of_spc_date(last_spc_date_string))
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         generator_object = testing_io.example_generator_2d3d_myrorss(

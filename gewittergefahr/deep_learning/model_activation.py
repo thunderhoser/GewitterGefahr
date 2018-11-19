@@ -414,7 +414,9 @@ def read_file(pickle_file_name):
     :param pickle_file_name: Path to input file.
     :return: activation_matrix: See doc for `write_file`.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['model_file_name']: See doc for `write_file`.
+    metadata_dict['storm_ids']: See doc for `write_file`.
+    metadata_dict['storm_times_unix_sec']: Same.
+    metadata_dict['model_file_name']: Same.
     metadata_dict['component_type_string']: Same.
     metadata_dict['target_class']: Same.
     metadata_dict['layer_name']: Same.

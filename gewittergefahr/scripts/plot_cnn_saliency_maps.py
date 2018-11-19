@@ -3,14 +3,13 @@
 import os.path
 import argparse
 import numpy
+from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
-from gewittergefahr.deep_learning import storm_images
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import saliency_plotting
 
-SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -139,56 +138,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
     model_metadata_dict = cnn.read_model_metadata(model_metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        raise TypeError('This script cannot yet handle models that do 2-D and '
-                        '3-D convolution.')
-
     # Plot saliency maps.
-    training_radar_file_name_matrix = training_option_dict[
-        trainval_io.RADAR_FILE_NAMES_KEY]
-    num_radar_dimensions = len(training_radar_file_name_matrix.shape)
-
-    if num_radar_dimensions == 3:
-        radar_field_names = [
-            storm_images.image_file_name_to_field(f) for f in
-            training_radar_file_name_matrix[0, :, 0]
-        ]
-        radar_heights_m_agl = numpy.array(
-            [storm_images.image_file_name_to_height(f)
-             for f in training_radar_file_name_matrix[0, 0, :]],
-            dtype=int)
-
-        saliency_plotting.plot_saliency_with_radar_3d_fields(
-            radar_matrix=list_of_input_matrices[0],
-            saliency_matrix=list_of_saliency_matrices[0],
-            saliency_metadata_dict=saliency_metadata_dict,
-            radar_field_names=radar_field_names,
-            radar_heights_m_agl=radar_heights_m_agl,
-            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-            output_dir_name=output_dir_name,
-            saliency_option_dict=saliency_option_dict)
-    else:
-        field_name_by_pair = [
-            storm_images.image_file_name_to_field(f) for f in
-            training_radar_file_name_matrix[0, :]
-        ]
-        height_by_pair_m_agl = numpy.array(
-            [storm_images.image_file_name_to_height(f)
-             for f in training_radar_file_name_matrix[0, :]],
-            dtype=int)
-
-        saliency_plotting.plot_saliency_with_radar_2d_fields(
-            radar_matrix=list_of_input_matrices[0],
-            saliency_matrix=list_of_saliency_matrices[0],
-            saliency_metadata_dict=saliency_metadata_dict,
-            field_name_by_pair=field_name_by_pair,
-            height_by_pair_m_agl=height_by_pair_m_agl,
-            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-            output_dir_name=output_dir_name,
-            saliency_option_dict=saliency_option_dict)
-
-    print SEPARATOR_STRING
-
     if training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] is not None:
         saliency_plotting.plot_saliency_with_soundings(
             sounding_matrix=list_of_input_matrices[-1],
@@ -200,7 +150,61 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             saliency_option_dict=saliency_option_dict,
             temp_directory_name=temp_directory_name)
 
-    print SEPARATOR_STRING
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        saliency_plotting.plot_saliency_with_radar_3d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
+            saliency_metadata_dict=saliency_metadata_dict,
+            radar_field_names=[radar_utils.REFL_NAME],
+            radar_heights_m_agl=training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY],
+            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict)
+
+        these_heights_m_agl = numpy.full(
+            len(training_option_dict[trainval_io.RADAR_FIELDS_KEY]),
+            radar_utils.SHEAR_HEIGHT_M_ASL)
+
+        saliency_plotting.plot_saliency_with_radar_2d_fields(
+            radar_matrix=list_of_input_matrices[1],
+            saliency_matrix=list_of_saliency_matrices[1],
+            saliency_metadata_dict=saliency_metadata_dict,
+            field_name_by_pair=training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY],
+            height_by_pair_m_agl=these_heights_m_agl,
+            one_fig_per_storm_object=True, num_panel_rows=1,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict)
+
+        return
+
+    num_radar_dimensions = len(list_of_input_matrices[0].shape) - 2
+
+    if num_radar_dimensions == 3:
+        saliency_plotting.plot_saliency_with_radar_3d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
+            saliency_metadata_dict=saliency_metadata_dict,
+            radar_field_names=training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY],
+            radar_heights_m_agl=training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY],
+            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict)
+    else:
+        saliency_plotting.plot_saliency_with_radar_2d_fields(
+            radar_matrix=list_of_input_matrices[0],
+            saliency_matrix=list_of_saliency_matrices[0],
+            saliency_metadata_dict=saliency_metadata_dict,
+            field_name_by_pair=training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY],
+            height_by_pair_m_agl=training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY],
+            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
+            output_dir_name=output_dir_name,
+            saliency_option_dict=saliency_option_dict)
 
 
 if __name__ == '__main__':
@@ -213,4 +217,5 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, MAX_COLOUR_PRCTILE_ARG_NAME),
         num_panel_rows=getattr(INPUT_ARG_OBJECT, NUM_PANEL_ROWS_ARG_NAME),
         temp_directory_name=getattr(INPUT_ARG_OBJECT, TEMP_DIRECTORY_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME))
+        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+    )
