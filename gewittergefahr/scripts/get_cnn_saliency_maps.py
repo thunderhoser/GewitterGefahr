@@ -141,6 +141,33 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
+def _read_storm_metadata(pickle_file_name):
+    """Reads storm metadata (IDs and times) from Pickle file.
+    
+    N = number of storm objects
+    
+    :param pickle_file_name: Path to input file.
+    :return: storm_ids: length-N list of storm IDs (strings).
+    :return: storm_times_unix_sec: length-N numpy array of valid times.
+    :raises: ValueError: if dictionary cannot be found in Pickle file.
+    """
+
+    print 'Reading storm metadata from: "{0:s}"...'.format(pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    while True:
+        storm_metadata_dict = pickle.load(pickle_file_handle)
+        if isinstance(storm_metadata_dict, dict):
+            break
+
+    pickle_file_handle.close()
+    if not isinstance(storm_metadata_dict, dict):
+        raise ValueError('Cannot find dictionary in file.')
+
+    return (storm_metadata_dict[STORM_IDS_KEY],
+            storm_metadata_dict[STORM_TIMES_KEY])
+
+
 def _run(
         model_file_name, component_type_string, target_class, layer_name,
         ideal_activation, neuron_indices, channel_index, top_example_dir_name,
@@ -174,16 +201,9 @@ def _run(
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    
-    print 'Reading storm metadata from: "{0:s}"...'.format(
+
+    desired_storm_ids, desired_storm_times_unix_sec = _read_storm_metadata(
         input_storm_dict_file_name)
-
-    this_file_handle = open(input_storm_dict_file_name, 'rb')
-    storm_metadata_dict = pickle.load(this_file_handle)
-    this_file_handle.close()
-
-    desired_storm_ids = storm_metadata_dict[STORM_IDS_KEY]
-    desired_storm_times_unix_sec = storm_metadata_dict[STORM_TIMES_KEY]
 
     # Create saliency map for each storm object.
     desired_spc_dates_unix_sec = numpy.array([
