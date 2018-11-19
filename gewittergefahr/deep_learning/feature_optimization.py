@@ -262,7 +262,7 @@ def create_climo_initializer(
     error_checking.assert_is_boolean(test_mode)
 
     if not test_mode:
-        radar_normalization_table, _, sounding_normalization_table, _ = (
+        _, radar_normalization_table, _, sounding_normalization_table = (
             dl_utils.read_normalization_params_from_file(
                 training_option_dict[trainval_io.NORMALIZATION_FILE_KEY]
             )
@@ -307,7 +307,6 @@ def create_climo_initializer(
             for j in range(len(radar_field_names)):
                 for k in range(len(radar_heights_m_agl)):
                     this_key = (radar_field_names[j], radar_heights_m_agl[k])
-                    print radar_normalization_table
                     array[..., k, j] = radar_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
