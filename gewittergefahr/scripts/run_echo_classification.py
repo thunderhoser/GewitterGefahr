@@ -280,8 +280,8 @@ def _run_for_myrorss(
 
     for i in range(num_times):
         reflectivity_matrix_dbz = None
-        grid_point_latitudes_deg = None
-        grid_point_longitudes_deg = None
+        fine_grid_point_latitudes_deg = None
+        fine_grid_point_longitudes_deg = None
 
         for j in range(num_heights):
             print 'Reading data from: "{0:s}"...'.format(
@@ -304,14 +304,14 @@ def _run_for_myrorss(
                 )
             )
 
-            (this_refl_matrix_dbz, grid_point_latitudes_deg,
-             grid_point_longitudes_deg
+            (this_refl_matrix_dbz, fine_grid_point_latitudes_deg,
+             fine_grid_point_longitudes_deg
             ) = radar_s2f.sparse_to_full_grid(
                 sparse_grid_table=this_sparse_grid_table,
                 metadata_dict=this_metadata_dict)
 
             this_refl_matrix_dbz = numpy.expand_dims(
-                this_refl_matrix_dbz, axis=-1)
+                this_refl_matrix_dbz[::2, ::2], axis=-1)
 
             if reflectivity_matrix_dbz is None:
                 reflectivity_matrix_dbz = this_refl_matrix_dbz + 0.
@@ -320,28 +320,55 @@ def _run_for_myrorss(
                     (reflectivity_matrix_dbz, this_refl_matrix_dbz), axis=-1)
 
         print '\n'
-        reflectivity_matrix_dbz = numpy.flip(reflectivity_matrix_dbz, axis=0)
-        grid_point_latitudes_deg = grid_point_latitudes_deg[::-1]
 
-        grid_metadata_dict = {
-            echo_classifn.MIN_LATITUDE_KEY: numpy.min(grid_point_latitudes_deg),
+        reflectivity_matrix_dbz = numpy.flip(reflectivity_matrix_dbz, axis=0)
+        fine_grid_point_latitudes_deg = fine_grid_point_latitudes_deg[::-1]
+        coarse_grid_point_latitudes_deg = fine_grid_point_latitudes_deg[::2]
+        coarse_grid_point_longitudes_deg = fine_grid_point_longitudes_deg[::2]
+
+        coarse_grid_metadata_dict = {
+            echo_classifn.MIN_LATITUDE_KEY:
+                numpy.min(coarse_grid_point_latitudes_deg),
             echo_classifn.LATITUDE_SPACING_KEY:
-                grid_point_latitudes_deg[1] - grid_point_latitudes_deg[0],
+                (coarse_grid_point_latitudes_deg[1] -
+                 coarse_grid_point_latitudes_deg[0]),
             echo_classifn.MIN_LONGITUDE_KEY:
-                numpy.min(grid_point_longitudes_deg),
+                numpy.min(coarse_grid_point_longitudes_deg),
             echo_classifn.LONGITUDE_SPACING_KEY:
-                grid_point_longitudes_deg[1] - grid_point_longitudes_deg[0],
+                (coarse_grid_point_longitudes_deg[1] -
+                 coarse_grid_point_longitudes_deg[0]),
+            echo_classifn.HEIGHTS_KEY: RADAR_HEIGHTS_M_ASL
+        }
+
+        fine_grid_metadata_dict = {
+            echo_classifn.MIN_LATITUDE_KEY:
+                numpy.min(fine_grid_point_latitudes_deg),
+            echo_classifn.LATITUDE_SPACING_KEY:
+                (fine_grid_point_latitudes_deg[1] -
+                 fine_grid_point_latitudes_deg[0]),
+            echo_classifn.MIN_LONGITUDE_KEY:
+                numpy.min(fine_grid_point_longitudes_deg),
+            echo_classifn.LONGITUDE_SPACING_KEY:
+                (fine_grid_point_longitudes_deg[1] -
+                 fine_grid_point_longitudes_deg[0]),
             echo_classifn.HEIGHTS_KEY: RADAR_HEIGHTS_M_ASL
         }
 
         convective_flag_matrix = echo_classifn.find_convective_pixels(
             reflectivity_matrix_dbz=reflectivity_matrix_dbz,
-            grid_metadata_dict=grid_metadata_dict,
+            grid_metadata_dict=coarse_grid_metadata_dict,
             valid_time_unix_sec=valid_times_unix_sec[i],
             option_dict=option_dict)
 
         print 'Number of convective pixels = {0:d}\n'.format(
             numpy.sum(convective_flag_matrix))
+
+        convective_flag_matrix = echo_classifn._double_class_resolution(
+            coarse_convective_flag_matrix=convective_flag_matrix,
+            coarse_grid_point_latitudes_deg=coarse_grid_point_latitudes_deg,
+            coarse_grid_point_longitudes_deg=coarse_grid_point_longitudes_deg,
+            fine_grid_point_latitudes_deg=fine_grid_point_latitudes_deg,
+            fine_grid_point_longitudes_deg=fine_grid_point_longitudes_deg)
 
         this_output_file_name = echo_classifn.find_classification_file(
             top_directory_name=top_output_dir_name,
@@ -353,7 +380,7 @@ def _run_for_myrorss(
 
         echo_classifn.write_classifications(
             convective_flag_matrix=convective_flag_matrix,
-            grid_metadata_dict=grid_metadata_dict,
+            grid_metadata_dict=fine_grid_metadata_dict,
             valid_time_unix_sec=valid_times_unix_sec[i],
             option_dict=option_dict, netcdf_file_name=this_output_file_name)
 
@@ -396,8 +423,8 @@ def _run(radar_source_name, spc_date_string, top_radar_dir_name_tarred,
     option_dict = {
         echo_classifn.PEAKEDNESS_NEIGH_KEY: peakedness_neigh_metres,
         echo_classifn.MAX_PEAKEDNESS_HEIGHT_KEY: max_peakedness_height_m_asl,
-        echo_classifn.HALVE_RESOLUTION_KEY:
-            radar_source_name != radar_utils.GRIDRAD_SOURCE_ID,
+        echo_classifn.HALVE_RESOLUTION_KEY: False,
+        # radar_source_name != radar_utils.GRIDRAD_SOURCE_ID,
         echo_classifn.MIN_ECHO_TOP_KEY: min_echo_top_m_asl,
         echo_classifn.ECHO_TOP_LEVEL_KEY: echo_top_level_dbz,
         echo_classifn.MIN_COMPOSITE_REFL_CRITERION1_KEY:
