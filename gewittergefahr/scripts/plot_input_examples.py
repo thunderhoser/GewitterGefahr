@@ -415,10 +415,10 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
         training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
         if plot_soundings:
-            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
-        else:
             training_option_dict[
                 trainval_io.SOUNDING_FIELDS_KEY] = SOUNDING_FIELD_NAMES
+        else:
+            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
 
         print SEPARATOR_STRING
 

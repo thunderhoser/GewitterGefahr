@@ -3,6 +3,7 @@
 CNN = convolutional neural network
 """
 
+import pickle
 import os.path
 import argparse
 import numpy
@@ -24,6 +25,9 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 LARGE_INTEGER = int(1e10)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+
 CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
 NEURON_COMPONENT_TYPE_STRING = model_interpretation.NEURON_COMPONENT_TYPE_STRING
 CHANNEL_COMPONENT_TYPE_STRING = (
@@ -37,8 +41,7 @@ IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
 CHANNEL_INDEX_ARG_NAME = 'channel_index'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
-STORM_IDS_ARG_NAME = 'storm_ids'
-STORM_TIMES_ARG_NAME = 'storm_times_unix_sec'
+STORM_DICT_FILE_ARG_NAME = 'input_storm_dict_file_name'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -87,15 +90,10 @@ EXAMPLE_DIR_HELP_STRING = (
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
 
-STORM_IDS_HELP_STRING = (
-    'List of storm IDs (must have the same length as `{0:s}`).  Saliency maps '
-    'will be computed for each storm object.'
-).format(STORM_TIMES_ARG_NAME)
-
-STORM_TIMES_HELP_STRING = (
-    'List of storm times (must have the same length as `{0:s}`).  Saliency maps'
-    ' will be computed for each storm object.'
-).format(STORM_IDS_ARG_NAME)
+STORM_DICT_FILE_HELP_STRING = (
+    'Path to Pickle file with "storm dictionary".  This file should contain '
+    'only one dictionary, containing at least the keys "{0:s}" and "{1:s}".'
+).format(STORM_IDS_KEY, STORM_TIMES_KEY)
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `saliency_maps.write_file`).')
@@ -135,12 +133,8 @@ INPUT_ARG_PARSER.add_argument(
     help=EXAMPLE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_IDS_ARG_NAME, type=str, nargs='+', required=True,
-    help=STORM_IDS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_TIMES_ARG_NAME, type=int, nargs='+', required=True,
-    help=STORM_TIMES_HELP_STRING)
+    '--' + STORM_DICT_FILE_ARG_NAME, type=str, required=True,
+    help=STORM_DICT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
@@ -150,7 +144,7 @@ INPUT_ARG_PARSER.add_argument(
 def _run(
         model_file_name, component_type_string, target_class, layer_name,
         ideal_activation, neuron_indices, channel_index, top_example_dir_name,
-        desired_storm_ids, desired_storm_times_unix_sec, output_file_name):
+        input_storm_dict_file_name, output_file_name):
     """Computes saliency map for each storm object and each model component.
 
     This is effectively the main method.
@@ -163,8 +157,7 @@ def _run(
     :param neuron_indices: Same.
     :param channel_index: Same.
     :param top_example_dir_name: Same.
-    :param desired_storm_ids: Same.
-    :param desired_storm_times_unix_sec: Same.
+    :param input_storm_dict_file_name: Same.
     :param output_file_name: Same.
     """
 
@@ -181,6 +174,16 @@ def _run(
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    
+    print 'Reading storm metadata from: "{0:s}"...'.format(
+        input_storm_dict_file_name)
+
+    this_file_handle = open(input_storm_dict_file_name, 'rb')
+    storm_metadata_dict = pickle.load(this_file_handle)
+    this_file_handle.close()
+
+    desired_storm_ids = storm_metadata_dict[STORM_IDS_KEY]
+    desired_storm_times_unix_sec = storm_metadata_dict[STORM_TIMES_KEY]
 
     # Create saliency map for each storm object.
     desired_spc_dates_unix_sec = numpy.array([
@@ -359,8 +362,7 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
         channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
-        desired_storm_ids=getattr(INPUT_ARG_OBJECT, STORM_IDS_ARG_NAME),
-        desired_storm_times_unix_sec=numpy.array(
-            getattr(INPUT_ARG_OBJECT, STORM_TIMES_ARG_NAME), dtype=int),
+        input_storm_dict_file_name=getattr(
+            INPUT_ARG_OBJECT, STORM_DICT_FILE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )
