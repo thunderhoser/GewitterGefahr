@@ -257,8 +257,6 @@ def _run(
             desired_storm_times_unix_sec <= this_end_time_unix_sec
         ))[0]
 
-        print 'First indices = {0:s}'.format(str(these_indices))
-
         these_indices = tracking_utils.find_storm_objects(
             all_storm_ids=this_storm_object_dict[testing_io.STORM_IDS_KEY],
             all_times_unix_sec=this_storm_object_dict[
@@ -266,8 +264,6 @@ def _run(
             storm_ids_to_keep=[desired_storm_ids[k] for k in these_indices],
             times_to_keep_unix_sec=desired_storm_times_unix_sec[these_indices],
             allow_missing=False)
-
-        print 'Second indices = {0:s}'.format(str(these_indices))
 
         these_storm_ids = [
             this_storm_object_dict[testing_io.STORM_IDS_KEY][k]

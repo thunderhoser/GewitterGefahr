@@ -126,7 +126,7 @@ INPUT_ARG_PARSER.add_argument(
     help=MODEL_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + IS_SWIRLNET_ARG_NAME, type=int, required=True,
+    '--' + IS_SWIRLNET_ARG_NAME, type=int, required=False, default=0,
     help=IS_SWIRLNET_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(

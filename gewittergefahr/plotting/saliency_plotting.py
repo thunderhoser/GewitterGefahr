@@ -427,7 +427,7 @@ def plot_saliency_with_soundings(
         this_saliency_title_string = 'Saliency'
 
         this_figure_file_name = (
-            '{0:s}/sounding-saliency_{1:s}_{2:s}.jpg'
+            '{0:s}/saliency_{1:s}_{2:s}_soundings.jpg'
         ).format(output_dir_name, this_storm_id.replace('_', '-'),
                  this_storm_time_string)
 
@@ -612,7 +612,7 @@ def plot_saliency_with_radar_2d_fields(
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_figure_file_name = (
-                '{0:s}/radar-saliency_{1:s}_{2:s}.jpg'
+                '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'
             ).format(output_dir_name, this_storm_id.replace('_', '-'),
                      this_storm_time_string)
 
