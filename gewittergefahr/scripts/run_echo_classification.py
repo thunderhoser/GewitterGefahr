@@ -255,16 +255,30 @@ def _run_for_myrorss(
         refl_heights_m_asl=RADAR_HEIGHTS_M_ASL)
     print SEPARATOR_STRING
 
-    desired_times_unix_sec = time_periods.range_and_interval_to_list(
-        start_time_unix_sec=time_conversion.get_start_of_spc_date(
-            spc_date_string),
-        end_time_unix_sec=time_conversion.get_end_of_spc_date(
-            spc_date_string),
-        time_interval_sec=TIME_INTERVAL_SEC, include_endpoint=True)
+    these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
+        spc_date_string=spc_date_string, field_name=radar_utils.REFL_NAME,
+        data_source=radar_utils.MYRORSS_SOURCE_ID,
+        top_directory_name=top_radar_dir_name_untarred,
+        height_m_asl=RADAR_HEIGHTS_M_ASL[0], raise_error_if_missing=True)
+
+    valid_times_unix_sec = numpy.array([
+        myrorss_and_mrms_io.raw_file_name_to_time(f) for f in these_file_names
+    ], dtype=int)
+
+    valid_times_unix_sec = numpy.sort(valid_times_unix_sec)
+    start_time_unix_sec = time_conversion.get_start_of_spc_date(spc_date_string)
+    end_time_unix_sec = time_conversion.get_end_of_spc_date(spc_date_string)
+
+    good_indices = numpy.where(numpy.logical_and(
+        valid_times_unix_sec >= start_time_unix_sec,
+        valid_times_unix_sec <= end_time_unix_sec
+    ))[0]
+
+    valid_times_unix_sec = valid_times_unix_sec[good_indices]
 
     radar_file_dict = myrorss_and_mrms_io.find_many_raw_files(
-        desired_times_unix_sec=desired_times_unix_sec,
-        spc_date_strings=[spc_date_string] * len(desired_times_unix_sec),
+        desired_times_unix_sec=valid_times_unix_sec,
+        spc_date_strings=[spc_date_string] * len(valid_times_unix_sec),
         data_source=radar_utils.MYRORSS_SOURCE_ID,
         field_names=[radar_utils.REFL_NAME],
         top_directory_name=top_radar_dir_name_untarred,
