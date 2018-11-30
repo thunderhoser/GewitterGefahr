@@ -56,3 +56,39 @@ def unzip_gzip(gzip_file_name, extracted_file_name):
     if exit_code != 0:
         raise ValueError('\nUnix command failed (log messages shown above '
                          'should explain why).')
+
+
+def gzip_file(input_file_name, output_file_name=None, delete_input_file=True):
+    """Creates gzip archive with one file.
+
+    :param input_file_name: Path to input file (will be gzipped).
+    :param output_file_name: Path to output file (extension must be ".gz").  If
+        `output_file_name is None`, will simply append ".gz" to name of input
+        file.
+    :param delete_input_file: Boolean flag.  If True, will delete input file
+        after gzipping.
+    :raises: ValueError: if `output_file_name` does not end with ".gz".
+    :raises: ValueError: if the Unix command fails.
+    """
+
+    error_checking.assert_file_exists(input_file_name)
+    error_checking.assert_is_boolean(delete_input_file)
+    if output_file_name is None:
+        output_file_name = '{0:s}.gz'.format(input_file_name)
+
+    if not output_file_name.endswith('.gz'):
+        error_string = (
+            'Output file ("{0:s}") should have extension ".gz".'
+        ).format(output_file_name)
+        raise ValueError(error_string)
+
+    unix_command_string = 'gzip -v -c "{0:s}" > "{1:s}"'.format(
+        input_file_name, output_file_name)
+    exit_code = os.system(unix_command_string)
+
+    if exit_code != 0:
+        raise ValueError('\nUnix command failed (log messages shown above '
+                         'should explain why).')
+
+    if delete_input_file:
+        os.remove(input_file_name)

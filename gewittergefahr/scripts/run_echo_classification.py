@@ -9,6 +9,7 @@ from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
+from gewittergefahr.gg_utils import unzipping
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import echo_classification as echo_classifn
 
@@ -383,6 +384,9 @@ def _run_for_myrorss(
             grid_metadata_dict=fine_grid_metadata_dict,
             valid_time_unix_sec=valid_times_unix_sec[i],
             option_dict=option_dict, netcdf_file_name=this_output_file_name)
+
+        unzipping.gzip_file(input_file_name=this_output_file_name,
+                            delete_input_file=True)
 
         print SEPARATOR_STRING
 
