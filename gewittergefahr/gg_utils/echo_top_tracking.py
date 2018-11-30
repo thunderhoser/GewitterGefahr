@@ -1471,11 +1471,13 @@ def _shuffle_tracking_data(
     # Write tracks that are no longer needed in memory.
     if current_date_index == num_spc_dates:
         for j in [num_spc_dates - 2, num_spc_dates - 1]:
+            if j < 0:
+                continue
+
             _write_storm_objects(
                 storm_object_table=storm_object_table_by_date[j],
                 top_output_dir_name=top_output_dir_name,
-                output_times_unix_sec=valid_times_by_date_unix_sec[
-                    current_date_index])
+                output_times_unix_sec=valid_times_by_date_unix_sec[j])
 
             print '\n'
             storm_object_table_by_date[j] = pandas.DataFrame()
