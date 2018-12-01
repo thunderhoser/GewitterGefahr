@@ -14,7 +14,9 @@ I will use s to denote a storm object.
 
 import copy
 import pickle
+import shutil
 import os.path
+import warnings
 import numpy
 import pandas
 from gewittergefahr.gg_io import raw_wind_io
@@ -1104,6 +1106,116 @@ def _read_input_tornado_reports(
     return tornado_table
 
 
+def _share_linkages_between_periods(
+        early_storm_to_events_table, late_storm_to_events_table):
+    """Shares linkages between two periods.
+
+    The motivation behind this method is explained in the documentation for
+    `share_linkages_across_spc_dates`.
+
+    :param early_storm_to_events_table: pandas DataFrame created by
+        `_reverse_wind_linkages` or `_reverse_tornado_linkages`.
+    :param late_storm_to_events_table: Same but for a later period.
+    :return: early_storm_to_events_table: Same as input but maybe with more
+        linkages.
+    :return: late_storm_to_events_table: Same as input but maybe with more
+        linkages.
+    """
+
+    unique_early_storm_ids = numpy.unique(
+        early_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+    ).tolist()
+    unique_late_storm_ids = numpy.unique(
+        late_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+    ).tolist()
+
+    common_storm_ids = list(
+        set(unique_early_storm_ids) & set(unique_late_storm_ids)
+    )
+
+    columns_to_change = [
+        EVENT_LATITUDES_COLUMN, EVENT_LONGITUDES_COLUMN,
+        LINKAGE_DISTANCES_COLUMN, RELATIVE_EVENT_TIMES_COLUMN
+    ]
+
+    if FUJITA_RATINGS_COLUMN in early_storm_to_events_table:
+        columns_to_change += [FUJITA_RATINGS_COLUMN]
+    else:
+        columns_to_change += [
+            WIND_STATION_IDS_COLUMN, U_WINDS_COLUMN, V_WINDS_COLUMN
+        ]
+
+    for this_storm_id in common_storm_ids:
+        i = numpy.where(
+            early_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id
+        )[0][0]
+
+        these_event_times_unix_sec = (
+            early_storm_to_events_table[tracking_utils.TIME_COLUMN].values[i] +
+            early_storm_to_events_table[RELATIVE_EVENT_TIMES_COLUMN].values[i]
+        )
+
+        these_late_indices = numpy.where(
+            late_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id
+        )[0]
+
+        for j in these_late_indices:
+            for this_column in columns_to_change:
+                if this_column == RELATIVE_EVENT_TIMES_COLUMN:
+                    these_relative_times_sec = (
+                        these_event_times_unix_sec -
+                        late_storm_to_events_table[
+                            tracking_utils.TIME_COLUMN].values[j]
+                    )
+
+                    late_storm_to_events_table[this_column].values[j] = (
+                        numpy.concatenate((
+                            late_storm_to_events_table[this_column].values[j],
+                            these_relative_times_sec
+                        ))
+                    )
+
+                else:
+                    late_storm_to_events_table[this_column].values[j] = (
+                        numpy.concatenate((
+                            late_storm_to_events_table[this_column].values[j],
+                            early_storm_to_events_table[this_column].values[i]
+                        ))
+                    )
+
+        j = numpy.where(
+            late_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id
+        )[0][0]
+
+        these_event_times_unix_sec = (
+            late_storm_to_events_table[tracking_utils.TIME_COLUMN].values[j] +
+            late_storm_to_events_table[RELATIVE_EVENT_TIMES_COLUMN].values[j]
+        )
+
+        these_early_indices = numpy.where(
+            early_storm_to_events_table[tracking_utils.STORM_ID_COLUMN].values
+            == this_storm_id
+        )[0]
+
+        for i in these_early_indices:
+            for this_column in columns_to_change:
+                if this_column == RELATIVE_EVENT_TIMES_COLUMN:
+                    early_storm_to_events_table[this_column].values[i] = (
+                        these_event_times_unix_sec -
+                        early_storm_to_events_table[
+                            tracking_utils.TIME_COLUMN].values[i]
+                    )
+                else:
+                    early_storm_to_events_table[this_column].values[i] = (
+                        late_storm_to_events_table[this_column].values[j]
+                    )
+
+    return early_storm_to_events_table, late_storm_to_events_table
+
+
 def check_event_type(event_type_string):
     """Error-checks event type.
 
@@ -1278,6 +1390,114 @@ def link_storms_to_tornadoes(
     return _reverse_tornado_linkages(
         storm_object_table=storm_object_table,
         tornado_to_storm_table=tornado_to_storm_table)
+
+
+def share_linkages_across_spc_dates(
+        top_input_dir_name, first_spc_date_string, last_spc_date_string,
+        top_output_dir_name, event_type_string):
+    """Shares linkages across SPC dates.
+
+    This is important because linkage is usually done for one SPC date at a
+    time, using either `link_storms_to_winds` or `link_storms_to_tornadoes`.
+    These methods have no way of sharing info with the next or previous SPC
+    dates.  Thus, if event E is linked to storm cell S on day D, the files for
+    days D - 1 and D + 1 will not contain this linkage, even if storm cell S
+    exists on day D - 1 or D + 1.
+
+    :param top_input_dir_name: Name of top-level input directory.  Files therein
+        will be found by `find_linkage_file` and read by `read_linkage_file`.
+    :param first_spc_date_string: First SPC date (format "yyyymmdd").  Linkages
+        will be shared for all dates in the period `first_spc_date_string`...
+        `last_spc_date_string`.
+    :param last_spc_date_string: See above.
+    :param top_output_dir_name: Name of top-level output directory.  Files will
+        be written by `write_linkage_file` to locations therein, determined by
+        `find_linkage_file`.
+    :param event_type_string: Event type (must be accepted by
+        `check_event_type`).
+    """
+
+    spc_date_strings = time_conversion.get_spc_dates_in_range(
+        first_spc_date_string=first_spc_date_string,
+        last_spc_date_string=last_spc_date_string)
+
+    num_spc_dates = len(spc_date_strings)
+    orig_linkage_file_names = [''] * num_spc_dates
+    new_linkage_file_names = [''] * num_spc_dates
+
+    for i in range(num_spc_dates):
+        orig_linkage_file_names[i] = find_linkage_file(
+            top_directory_name=top_input_dir_name,
+            event_type_string=event_type_string, raise_error_if_missing=True,
+            spc_date_string=spc_date_strings[i])
+
+        new_linkage_file_names[i] = find_linkage_file(
+            top_directory_name=top_output_dir_name,
+            event_type_string=event_type_string, raise_error_if_missing=False,
+            spc_date_string=spc_date_strings[i])
+
+    if num_spc_dates == 1:
+        warning_string = (
+            'There is only one SPC date ("{0:s}"), so the method '
+            '`share_linkages_across_spc_dates` has nothing to do.'
+        ).format(spc_date_strings[0])
+        warnings.warn(warning_string)
+
+        if orig_linkage_file_names[0] == new_linkage_file_names[0]:
+            return
+
+        print 'Copying file from "{0:s}" to "{1:s}"...'.format(
+            orig_linkage_file_names[0], new_linkage_file_names[0])
+
+        file_system_utils.mkdir_recursive_if_necessary(
+            file_name=new_linkage_file_names[0])
+        shutil.copyfile(orig_linkage_file_names[0], new_linkage_file_names[0])
+
+    storm_to_events_table_by_date = [pandas.DataFrame()] * num_spc_dates
+
+    for i in range(num_spc_dates + 1):
+        if i == num_spc_dates:
+            for j in [num_spc_dates - 2, num_spc_dates - 1]:
+                print 'Writing new linkages to: "{0:s}"...'.format(
+                    new_linkage_file_names[j])
+
+                write_linkage_file(
+                    storm_to_events_table=storm_to_events_table_by_date[j],
+                    pickle_file_name=new_linkage_file_names[j])
+
+            break
+
+        if i >= 2:
+            print 'Writing new linkages to: "{0:s}"...'.format(
+                new_linkage_file_names[i - 2])
+
+            write_linkage_file(
+                storm_to_events_table=storm_to_events_table_by_date[i - 2],
+                pickle_file_name=new_linkage_file_names[i - 2])
+
+            storm_to_events_table_by_date[i - 2] = pandas.DataFrame()
+
+        for j in [i - 1, i, i + 1]:
+            if j < 0 or j >= num_spc_dates:
+                continue
+
+            if not storm_to_events_table_by_date[j].empty:
+                continue
+
+            print 'Reading original linkages from: "{0:s}"...'.format(
+                orig_linkage_file_names[j])
+
+            storm_to_events_table_by_date[j] = read_linkage_file(
+                orig_linkage_file_names[j])
+
+        if i != num_spc_dates - 1:
+            (storm_to_events_table_by_date[i],
+             storm_to_events_table_by_date[i + 1]
+            ) = _share_linkages_between_periods(
+                early_storm_to_events_table=storm_to_events_table_by_date[i],
+                late_storm_to_events_table=storm_to_events_table_by_date[i + 1])
+
+            print SEPARATOR_STRING
 
 
 def find_linkage_file(

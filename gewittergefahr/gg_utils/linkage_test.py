@@ -876,6 +876,23 @@ class LinkageTests(unittest.TestCase):
         self.assertTrue(_compare_storm_to_events_tables(
             this_storm_to_winds_table, STORM_TO_WINDS_TABLE))
 
+    def test_share_linkages_between_periods(self):
+        """Ensures correct output from _share_linkages_between_periods."""
+
+        this_early_table, this_late_table = (
+            linkage._share_linkages_between_periods(
+                early_storm_to_events_table=copy.deepcopy(
+                    EARLY_STORM_TO_TORNADOES_TABLE_SANS_SHARING),
+                late_storm_to_events_table=copy.deepcopy(
+                    LATE_STORM_TO_TORNADOES_TABLE_SANS_SHARING)
+            )
+        )
+
+        self.assertTrue(_compare_storm_to_events_tables(
+            this_early_table, EARLY_STORM_TO_TORNADOES_TABLE_WITH_SHARING))
+        self.assertTrue(_compare_storm_to_events_tables(
+            this_late_table, LATE_STORM_TO_TORNADOES_TABLE_WITH_SHARING))
+
     def test_find_linkage_file_wind_one_time(self):
         """Ensures correct output from find_linkage_file.
 
