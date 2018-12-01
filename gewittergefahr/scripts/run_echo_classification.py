@@ -298,6 +298,8 @@ def _run_for_myrorss(
         fine_grid_point_latitudes_deg = None
         fine_grid_point_longitudes_deg = None
 
+        found_corrupt_file = False
+
         for j in range(num_heights):
             print 'Reading data from: "{0:s}"...'.format(
                 radar_file_name_matrix[i, j])
@@ -307,6 +309,10 @@ def _run_for_myrorss(
                     netcdf_file_name=radar_file_name_matrix[i, j],
                     data_source=radar_utils.MYRORSS_SOURCE_ID)
             )
+
+            if this_metadata_dict is None:
+                found_corrupt_file = True
+                break
 
             this_sparse_grid_table = (
                 myrorss_and_mrms_io.read_data_from_sparse_grid_file(
@@ -335,6 +341,8 @@ def _run_for_myrorss(
                     (reflectivity_matrix_dbz, this_refl_matrix_dbz), axis=-1)
 
         print '\n'
+        if found_corrupt_file:
+            continue
 
         reflectivity_matrix_dbz = numpy.flip(reflectivity_matrix_dbz, axis=0)
         fine_grid_point_latitudes_deg = fine_grid_point_latitudes_deg[::-1]

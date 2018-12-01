@@ -774,7 +774,7 @@ def read_classifications(netcdf_file_name):
     other_metadata_dict['grid_point_longitudes_deg']: length-N numpy array with
         longitudes (deg E) of grid points.
 
-    :return: option_dict: Same.
+    :return: option_dict: See doc for `find_convective_pixels`.
     """
 
     netcdf_dataset = netcdf_io.open_netcdf(netcdf_file_name)
