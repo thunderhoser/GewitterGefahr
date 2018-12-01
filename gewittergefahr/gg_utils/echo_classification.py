@@ -642,11 +642,14 @@ def find_convective_pixels(reflectivity_matrix_dbz, grid_metadata_dict,
 
 
 def find_classification_file(
-        top_directory_name, valid_time_unix_sec, raise_error_if_missing=True):
+        top_directory_name, valid_time_unix_sec, allow_zipped=False,
+        raise_error_if_missing=True):
     """Finds file with echo classifications.
 
     :param top_directory_name: Name of top-level directory.
     :param valid_time_unix_sec: Valid time.
+    :param allow_zipped: Boolean flag.  If True, the file may be zipped (with
+        extension ".gz").
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :return: classification_file_name: Path to classification file.  If file is
@@ -656,6 +659,7 @@ def find_classification_file(
     """
 
     error_checking.assert_is_string(top_directory_name)
+    error_checking.assert_is_boolean(allow_zipped)
     error_checking.assert_is_boolean(raise_error_if_missing)
 
     spc_date_string = time_conversion.time_to_spc_date_string(
@@ -668,7 +672,15 @@ def find_classification_file(
         time_conversion.unix_sec_to_string(valid_time_unix_sec, TIME_FORMAT)
     )
 
-    if raise_error_if_missing and not os.path.isfile(classification_file_name):
+    if allow_zipped:
+        classification_file_name += '.gz'
+    if not raise_error_if_missing:
+        return classification_file_name
+
+    if not os.path.isfile(classification_file_name):
+        classification_file_name = classification_file_name[:-3]
+
+    if not os.path.isfile(classification_file_name):
         error_string = 'Cannot find file.  Expected at: "{0:s}"'.format(
             classification_file_name)
         raise ValueError(error_string)

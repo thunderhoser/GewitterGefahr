@@ -169,8 +169,10 @@ CRITERION5_FLAG_MATRIX = numpy.array([[0, 0, 0, 0, 0, 0, 0],
 
 # The following constants are used to test find_classification_file.
 TOP_DIRECTORY_NAME = 'foo'
-CLASSIFICATION_FILE_NAME = (
+CLASSIFN_FILE_NAME_UNZIPPED = (
     'foo/2018/20181109/echo_classification_2018-11-10-041447.nc')
+CLASSIFN_FILE_NAME_ZIPPED = (
+    'foo/2018/20181109/echo_classification_2018-11-10-041447.nc.gz')
 
 
 class EchoClassificationTests(unittest.TestCase):
@@ -323,15 +325,31 @@ class EchoClassificationTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_flag_matrix, CRITERION5_FLAG_MATRIX))
 
-    def test_find_classification_file(self):
-        """Ensures correct output from find_classification_file."""
+    def test_find_classification_file_unzipped(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case the file is unzipped.
+        """
 
         this_file_name = echo_classifn.find_classification_file(
             top_directory_name=TOP_DIRECTORY_NAME,
-            valid_time_unix_sec=VALID_TIME_UNIX_SEC,
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, allow_zipped=False,
             raise_error_if_missing=False)
 
-        self.assertTrue(this_file_name == CLASSIFICATION_FILE_NAME)
+        self.assertTrue(this_file_name == CLASSIFN_FILE_NAME_UNZIPPED)
+
+    def test_find_classification_file_zipped(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case the file is zipped.
+        """
+
+        this_file_name = echo_classifn.find_classification_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, allow_zipped=True,
+            raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == CLASSIFN_FILE_NAME_ZIPPED)
 
 
 if __name__ == '__main__':
