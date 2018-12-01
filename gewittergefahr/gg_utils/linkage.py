@@ -1227,7 +1227,8 @@ def check_event_type(event_type_string):
 
     if event_type_string not in VALID_EVENT_TYPE_STRINGS:
         error_string = (
-            '\n{0:s}\nValid event types (listed above) do not include "{1:s}".'
+            '\n\n{0:s}\nValid event types (listed above) do not include '
+            '"{1:s}".'
         ).format(VALID_EVENT_TYPE_STRINGS, event_type_string)
 
         raise ValueError(error_string)
@@ -1501,17 +1502,17 @@ def share_linkages_across_spc_dates(
 
 
 def find_linkage_file(
-        top_directory_name, event_type_string, raise_error_if_missing=True,
-        unix_time_sec=None, spc_date_string=None):
+        top_directory_name, event_type_string, spc_date_string,
+        raise_error_if_missing=True, unix_time_sec=None):
     """Finds linkage file for either one time or one SPC date.
 
     :param top_directory_name: Name of top-level directory with linkage files.
     :param event_type_string: Event type (must be accepted by
         `check_event_type`).
+    :param spc_date_string: SPC date (format "yyyymmdd").
     :param raise_error_if_missing: Boolean flag.  If file is missing and
         `raise_error_if_missing = True`, this method will error out.
     :param unix_time_sec: Valid time.
-    :param spc_date_string: SPC date (format "yyyymmdd").
     :return: linkage_file_name: Path to linkage file.  If file is missing and
         `raise_error_if_missing = False`, this will be the *expected* path.
     :raises: ValueError: if file is missing and `raise_error_if_missing = True`.

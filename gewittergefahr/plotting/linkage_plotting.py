@@ -1,12 +1,8 @@
-"""Methods for plotting event linkages.
-
-"Linkage" = association of a storm cell with other phenomena (e.g., severe
-convective wind or tornadoes).  See link_events_to_storms.py for details.
-"""
+"""Plots linkages between hazardous events and storms."""
 
 import numpy
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import link_events_to_storms as events2storms
+from gewittergefahr.gg_utils import linkage
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import error_checking
@@ -99,19 +95,19 @@ def plot_wind_linkages(
 
         these_wind_latitudes_deg = numpy.concatenate(tuple(
             [storm_to_winds_table[
-                events2storms.EVENT_LATITUDES_COLUMN
+                linkage.EVENT_LATITUDES_COLUMN
             ].values[j] for j in these_object_indices]))
         these_wind_longitudes_deg = numpy.concatenate(tuple(
             [storm_to_winds_table[
-                events2storms.EVENT_LONGITUDES_COLUMN
+                linkage.EVENT_LONGITUDES_COLUMN
             ].values[j] for j in these_object_indices]))
         these_u_winds_m_s01 = numpy.concatenate(tuple(
             [storm_to_winds_table[
-                events2storms.U_WINDS_COLUMN
+                linkage.U_WINDS_COLUMN
             ].values[j] for j in these_object_indices]))
         these_v_winds_m_s01 = numpy.concatenate(tuple(
             [storm_to_winds_table[
-                events2storms.V_WINDS_COLUMN
+                linkage.V_WINDS_COLUMN
             ].values[j] for j in these_object_indices]))
 
         wind_plotting.plot_wind_barbs(
@@ -176,30 +172,9 @@ def plot_tornado_linkages(
             ].values[these_object_indices],
             line_colour=storm_colour, line_width=storm_line_width)
 
-        # these_times_unix_sec = storm_to_tornadoes_table[
-        #     tracking_utils.TIME_COLUMN].values[these_object_indices]
-        # this_start_time_index = these_object_indices[
-        #     numpy.argmin(these_times_unix_sec)]
-        # this_end_time_index = these_object_indices[
-        #     numpy.argmax(these_times_unix_sec)]
-        #
-        # storm_plotting.plot_storm_outline_unfilled(
-        #     basemap_object=basemap_object, axes_object=axes_object,
-        #     polygon_object_latlng=storm_to_tornadoes_table[
-        #         tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
-        #     ].values[this_start_time_index],
-        #     exterior_colour=storm_colour, exterior_line_width=storm_line_width)
-        #
-        # storm_plotting.plot_storm_outline_unfilled(
-        #     basemap_object=basemap_object, axes_object=axes_object,
-        #     polygon_object_latlng=storm_to_tornadoes_table[
-        #         tracking_utils.POLYGON_OBJECT_LATLNG_COLUMN
-        #     ].values[this_end_time_index],
-        #     exterior_colour=storm_colour, exterior_line_width=storm_line_width)
-
         these_tornado_latitudes_deg = numpy.concatenate(tuple(
             [storm_to_tornadoes_table[
-                events2storms.EVENT_LATITUDES_COLUMN
+                linkage.EVENT_LATITUDES_COLUMN
             ].values[j] for j in these_object_indices]))
 
         this_num_tornadoes = len(these_tornado_latitudes_deg)
@@ -208,12 +183,12 @@ def plot_tornado_linkages(
 
         these_tornado_longitudes_deg = numpy.concatenate(tuple(
             [storm_to_tornadoes_table[
-                events2storms.EVENT_LONGITUDES_COLUMN
+                linkage.EVENT_LONGITUDES_COLUMN
             ].values[j] for j in these_object_indices]))
         these_tornado_times_unix_sec = numpy.concatenate(tuple(
             [storm_to_tornadoes_table[tracking_utils.TIME_COLUMN].values[j] +
              storm_to_tornadoes_table[
-                 events2storms.RELATIVE_EVENT_TIMES_COLUMN
+                 linkage.RELATIVE_EVENT_TIMES_COLUMN
              ].values[j] for j in these_object_indices]))
 
         (these_tornado_latitudes_deg, these_tornado_longitudes_deg,
