@@ -1819,7 +1819,7 @@ def reanalyze_tracks_across_spc_dates(
         max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
         max_reanal_join_time_sec=DEFAULT_MAX_REANAL_JOIN_TIME_SEC,
         max_reanal_extrap_error_m_s01=DEFAULT_MAX_REANAL_EXTRAP_ERROR_M_S01,
-        min_track_duration_seconds=900,
+        min_track_duration_seconds=890,
         num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
     """Reanalyzes tracks across SPC dates.
 
