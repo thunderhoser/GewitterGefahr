@@ -24,6 +24,8 @@ Lakshmanan, V., and T. Smith, 2010: "Evaluating a storm tracking algorithm".
 """
 
 import copy
+import os.path
+import warnings
 import numpy
 import pandas
 from scipy.ndimage.filters import gaussian_filter
@@ -1667,19 +1669,6 @@ def run_tracking(
         for t in valid_times_unix_sec
     ]
 
-    if top_echo_classifn_dir_name is None:
-        echo_classifn_file_names = None
-    else:
-        echo_classifn_file_names = [''] * num_times
-
-        for i in range(num_times):
-            echo_classifn_file_names[i] = (
-                echo_classifn.find_classification_file(
-                    top_directory_name=top_echo_classifn_dir_name,
-                    valid_time_unix_sec=valid_times_unix_sec[i],
-                    allow_zipped=True)
-            )
-
     projection_object = projections.init_azimuthal_equidistant_projection(
         central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
@@ -1687,6 +1676,25 @@ def run_tracking(
     local_max_dict_by_time = [{}] * num_times
 
     for i in range(num_times):
+        if top_echo_classifn_dir_name is None:
+            this_echo_classifn_file_name = None
+        else:
+            this_echo_classifn_file_name = (
+                echo_classifn.find_classification_file(
+                    top_directory_name=top_echo_classifn_dir_name,
+                    valid_time_unix_sec=valid_times_unix_sec[i],
+                    allow_zipped=True, raise_error_if_missing=False)
+            )
+
+            if not os.path.isfile(this_echo_classifn_file_name):
+                warning_string = (
+                    'POTENTIAL PROBLEM.  Cannot find echo-classification file.'
+                    '  Expected at: "{0:s}"'
+                ).format(this_echo_classifn_file_name)
+
+                warnings.warn(warning_string)
+                continue
+
         print 'Reading data from: "{0:s}"...'.format(radar_file_names[i])
         this_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
             netcdf_file_name=radar_file_names[i], data_source=radar_source_name)
@@ -1719,11 +1727,11 @@ def run_tracking(
             e_folding_radius_pixels=
             e_fold_radius_for_smoothing_deg_lat / this_latitude_spacing_deg)
 
-        if echo_classifn_file_names is not None:
+        if this_echo_classifn_file_name is not None:
             print 'Reading data from: "{0:s}"...'.format(
-                echo_classifn_file_names[i])
+                this_echo_classifn_file_name)
             this_convective_flag_matrix = echo_classifn.read_classifications(
-                echo_classifn_file_names[i]
+                this_echo_classifn_file_name
             )[0]
             this_convective_flag_matrix = numpy.flip(
                 this_convective_flag_matrix, axis=0)
