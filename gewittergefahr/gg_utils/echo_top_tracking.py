@@ -1676,7 +1676,8 @@ def run_tracking(
             echo_classifn_file_names[i] = (
                 echo_classifn.find_classification_file(
                     top_directory_name=top_echo_classifn_dir_name,
-                    valid_time_unix_sec=valid_times_unix_sec[i])
+                    valid_time_unix_sec=valid_times_unix_sec[i],
+                    allow_zipped=True)
             )
 
     projection_object = projections.init_azimuthal_equidistant_projection(
