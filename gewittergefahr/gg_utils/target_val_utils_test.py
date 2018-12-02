@@ -1,5 +1,6 @@
 """Unit tests for target_val_utils.py."""
 
+import copy
 import unittest
 import numpy
 import pandas
@@ -96,6 +97,52 @@ WIND_CLASSIFICATION_PARAM_DICT_0LEAD = {
     target_val_utils.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
     target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
 }
+
+# The following constants are used to test create_tornado_targets.
+THESE_STORM_IDS = ['a', 'c', 'a', 'b', 'c']
+THESE_TIMES_UNIX_SEC = numpy.array([0, 0, 1, 1, 1], dtype=int)
+THESE_END_TIMES_UNIX_SEC = numpy.array(
+    [3600, 3600, 3600, 3600, 3600], dtype=int)
+
+THESE_EVENT_LATITUDES_DEG = [numpy.full(2, 53.5)] * len(THESE_STORM_IDS)
+THESE_EVENT_LONGITUDES_DEG = [numpy.full(2, 246.5)] * len(THESE_STORM_IDS)
+THESE_FUJITA_RATINGS = [['F5', 'EF5']] * len(THESE_STORM_IDS)
+
+THESE_LINK_DIST_METRES = [
+    numpy.array([1000, 2000]), numpy.array([0, 0]),
+    numpy.array([1000, 2000]), numpy.array([5000, 10000]), numpy.array([0, 0])
+]
+THESE_RELATIVE_TIMES_UNIX_SEC = [
+    numpy.array([600, 1200]), numpy.array([3000, 3600]),
+    numpy.array([0, 300]), numpy.array([1200, 1500]), numpy.array([2400, 3000])
+]
+
+for k in range(len(THESE_STORM_IDS)):
+    THESE_LINK_DIST_METRES[k] = THESE_LINK_DIST_METRES[k].astype(float)
+    THESE_RELATIVE_TIMES_UNIX_SEC[k] = THESE_RELATIVE_TIMES_UNIX_SEC[k].astype(
+        int)
+
+THIS_DICT = {
+    tracking_utils.STORM_ID_COLUMN: THESE_STORM_IDS,
+    tracking_utils.TIME_COLUMN: THESE_TIMES_UNIX_SEC,
+    tracking_utils.TRACKING_END_TIME_COLUMN: THESE_END_TIMES_UNIX_SEC,
+    linkage.EVENT_LATITUDES_COLUMN: THESE_EVENT_LATITUDES_DEG,
+    linkage.EVENT_LONGITUDES_COLUMN: THESE_EVENT_LONGITUDES_DEG,
+    linkage.LINKAGE_DISTANCES_COLUMN: THESE_LINK_DIST_METRES,
+    linkage.RELATIVE_EVENT_TIMES_COLUMN: THESE_RELATIVE_TIMES_UNIX_SEC,
+    linkage.FUJITA_RATINGS_COLUMN: THESE_FUJITA_RATINGS
+}
+
+STORM_TO_TORNADOES_TABLE = pandas.DataFrame.from_dict(THIS_DICT)
+
+TARGET_NAME = target_val_utils.target_params_to_name(
+    min_lead_time_sec=MIN_LEAD_TIME_SEC, max_lead_time_sec=MAX_LEAD_TIME_SEC,
+    min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
+    max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
+
+INVALID_STORM_INTEGER = target_val_utils.INVALID_STORM_INTEGER
+TARGET_VALUES = numpy.array(
+    [1, 0, INVALID_STORM_INTEGER, 1, INVALID_STORM_INTEGER], dtype=int)
 
 # The following constants are used to test find_target_file.
 TOP_DIRECTORY_NAME = 'target_values'
@@ -279,6 +326,19 @@ class TargetValUtilsTests(unittest.TestCase):
         this_dict = target_val_utils.target_name_to_params(TORNADO_TARGET_NAME)
         self.assertTrue(_compare_target_param_dicts(
             this_dict, TORNADO_PARAM_DICT))
+
+    def test_create_tornado_targets(self):
+        """Ensures correct output from create_tornado_targets."""
+
+        this_storm_to_tornadoes_table = target_val_utils.create_tornado_targets(
+            storm_to_tornadoes_table=copy.deepcopy(STORM_TO_TORNADOES_TABLE),
+            min_lead_time_sec=MIN_LEAD_TIME_SEC,
+            max_lead_time_sec=MAX_LEAD_TIME_SEC,
+            min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
+            max_link_distance_metres=MAX_LINK_DISTANCE_METRES)
+
+        these_target_values = this_storm_to_tornadoes_table[TARGET_NAME].values
+        self.assertTrue(numpy.array_equal(these_target_values, TARGET_VALUES))
 
     def test_find_target_file_wind_one_time(self):
         """Ensures correct output from find_target_file.
