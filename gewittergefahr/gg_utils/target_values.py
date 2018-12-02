@@ -129,7 +129,7 @@ def _check_target_params(
         error_checking.assert_is_geq(wind_speed_percentile_level, 0.)
         error_checking.assert_is_leq(wind_speed_percentile_level, 100.)
 
-    if wind_speed_cutoffs_kt:
+    if wind_speed_cutoffs_kt is not None:
         wind_speed_cutoffs_kt = number_rounding.round_to_nearest(
             wind_speed_cutoffs_kt, WIND_SPEED_CUTOFF_PRECISION_KT)
         wind_speed_cutoffs_kt = classifn_utils.classification_cutoffs_to_ranges(
@@ -297,7 +297,7 @@ def target_name_to_params(target_name):
     if not target_name_parts[1].startswith('lead-time='):
         return None
 
-    if not target_name_parts[1].endswith('sec='):
+    if not target_name_parts[1].endswith('sec'):
         return None
 
     lead_time_parts = target_name_parts[1].replace(
