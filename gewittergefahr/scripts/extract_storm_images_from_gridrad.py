@@ -5,7 +5,7 @@ import numpy
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import echo_top_tracking
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.deep_learning import storm_images
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -71,15 +71,15 @@ TRACKING_SCALE_HELP_STRING = (
 
 TARGET_NAME_HELP_STRING = (
     'Name of target variable (must be accepted by '
-    '`labels.column_name_to_label_params`).  If specified, images will be '
+    '`target_val_utils.target_name_to_params`).  If specified, images will be '
     'created only for labeled storm objects (those with a target value).  If '
     '*not* specified (i.e., if you leave this argument), images will be created'
     ' for all storm objects.')
 
 TARGET_DIR_HELP_STRING = (
     '[used only if `{0:s}` is not empty] Name of top-level directory.  Files '
-    'therein will be located by `labels.find_label_file` and read by '
-    '`labels.read_labels_from_netcdf`.'
+    'therein will be located by `target_val_utils.find_target_file` and read by'
+    ' `target_val_utils.read_target_values`.'
 ).format(TARGET_NAME_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
@@ -174,15 +174,16 @@ def _extract_storm_images(
         target_name = None
 
     if target_name is not None:
-        target_param_dict = labels.column_name_to_label_params(target_name)
-        target_file_name = labels.find_label_file(
+        target_param_dict = target_val_utils.target_name_to_params(target_name)
+        target_file_name = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
-            event_type_string=target_param_dict[labels.EVENT_TYPE_KEY],
-            file_extension='.nc', spc_date_string=spc_date_string)
+            event_type_string=target_param_dict[
+                target_val_utils.EVENT_TYPE_KEY],
+            spc_date_string=spc_date_string)
 
         print 'Reading data from: "{0:s}"...'.format(target_file_name)
-        target_dict = labels.read_labels_from_netcdf(
-            netcdf_file_name=target_file_name, label_name=target_name)
+        target_dict = target_val_utils.read_target_values(
+            netcdf_file_name=target_file_name, target_name=target_name)
         print '\n'
 
     # Find storm objects on the given SPC date.
@@ -209,8 +210,9 @@ def _extract_storm_images(
                 tracking_utils.STORM_ID_COLUMN].values.tolist(),
             all_times_unix_sec=storm_object_table[
                 tracking_utils.TIME_COLUMN].values.astype(int),
-            storm_ids_to_keep=target_dict[labels.STORM_IDS_KEY],
-            times_to_keep_unix_sec=target_dict[labels.VALID_TIMES_KEY],
+            storm_ids_to_keep=target_dict[target_val_utils.STORM_IDS_KEY],
+            times_to_keep_unix_sec=target_dict[
+                target_val_utils.VALID_TIMES_KEY],
             allow_missing=False)
 
         num_storm_objects_orig = len(storm_object_table.index)

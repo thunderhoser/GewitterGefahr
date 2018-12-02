@@ -3,7 +3,7 @@
 import argparse
 import numpy
 from keras import backend as K
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -258,8 +258,8 @@ def _run(output_model_dir_name, num_epochs, num_training_batches_per_epoch,
     if binarize_target:
         num_classes_to_predict = 2
     else:
-        num_classes_to_predict = labels.column_name_to_num_classes(
-            column_name=target_name, include_dead_storms=False)
+        num_classes_to_predict = target_val_utils.target_name_to_num_classes(
+            target_name=target_name, include_dead_storms=False)
 
     radar_option_dict = {
         cnn_architecture.NUM_ROWS_KEY: num_grid_rows,

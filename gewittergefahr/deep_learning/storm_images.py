@@ -12,7 +12,7 @@ from gewittergefahr.gg_io import myrorss_and_mrms_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import radar_sparse_to_full as radar_s2f
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import time_periods
@@ -2022,9 +2022,6 @@ def find_storm_label_file(
         raise_error_if_missing=True, warn_if_missing=True):
     """Finds file with storm-hazard labels.
 
-    This should be a file created by `labels.write_wind_speed_labels` or
-    `labels.write_tornado_labels`.
-
     :param storm_image_file_name: Path to file with storm-centered radar images.
     :param top_label_dir_name: Name of top-level directory with hazard labels.
     :param label_name: Name of hazard labels.
@@ -2043,13 +2040,12 @@ def find_storm_label_file(
     unix_time_sec, spc_date_string = image_file_name_to_time(
         storm_image_file_name)
 
-    parameter_dict = labels.column_name_to_label_params(label_name)
-    storm_label_file_name = labels.find_label_file(
+    target_param_dict = target_val_utils.target_name_to_params(label_name)
+    storm_label_file_name = target_val_utils.find_target_file(
         top_directory_name=top_label_dir_name,
-        event_type_string=parameter_dict[labels.EVENT_TYPE_KEY],
-        file_extension=LABEL_FILE_EXTENSION,
-        raise_error_if_missing=raise_error_if_missing,
-        unix_time_sec=unix_time_sec, spc_date_string=spc_date_string)
+        event_type_string=target_param_dict[target_val_utils.EVENT_TYPE_KEY],
+        spc_date_string=spc_date_string, unix_time_sec=unix_time_sec,
+        raise_error_if_missing=raise_error_if_missing)
 
     if not os.path.isfile(storm_label_file_name) and warn_if_missing:
         warning_string = (

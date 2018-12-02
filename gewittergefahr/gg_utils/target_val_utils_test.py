@@ -1,10 +1,10 @@
-"""Unit tests for target_values.py."""
+"""Unit tests for target_val_utils.py."""
 
 import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_utils import linkage
-from gewittergefahr.gg_utils import target_values
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 
 TOLERANCE = 1e-6
@@ -58,43 +58,43 @@ WIND_CLASSIFICATION_NAME_0LEAD = (
 
 # The following constants are used to test target_name_to_params.
 WIND_REGRESSION_PARAM_DICT = {
-    target_values.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
-    target_values.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    target_values.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    target_values.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    target_values.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
-    target_values.WIND_SPEED_CUTOFFS_KEY: None,
-    target_values.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
+    target_val_utils.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
+    target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
+    target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
 }
 
 WIND_CLASSIFICATION_PARAM_DICT = {
-    target_values.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
-    target_values.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    target_values.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    target_values.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    target_values.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
-    target_values.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
-    target_values.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
+    target_val_utils.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
+    target_val_utils.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
+    target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
 }
 
 TORNADO_PARAM_DICT = {
-    target_values.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
-    target_values.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    target_values.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    target_values.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    target_values.PERCENTILE_LEVEL_KEY: None,
-    target_values.WIND_SPEED_CUTOFFS_KEY: None,
-    target_values.EVENT_TYPE_KEY: linkage.TORNADO_EVENT_STRING
+    target_val_utils.MIN_LEAD_TIME_KEY: MIN_LEAD_TIME_SEC,
+    target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.PERCENTILE_LEVEL_KEY: None,
+    target_val_utils.WIND_SPEED_CUTOFFS_KEY: None,
+    target_val_utils.EVENT_TYPE_KEY: linkage.TORNADO_EVENT_STRING
 }
 
 WIND_CLASSIFICATION_PARAM_DICT_0LEAD = {
-    target_values.MIN_LEAD_TIME_KEY: 0,
-    target_values.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
-    target_values.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
-    target_values.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
-    target_values.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
-    target_values.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
-    target_values.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
+    target_val_utils.MIN_LEAD_TIME_KEY: 0,
+    target_val_utils.MAX_LEAD_TIME_KEY: MAX_LEAD_TIME_SEC,
+    target_val_utils.MIN_LINKAGE_DISTANCE_KEY: MIN_LINK_DISTANCE_METRES,
+    target_val_utils.MAX_LINKAGE_DISTANCE_KEY: MAX_LINK_DISTANCE_METRES,
+    target_val_utils.PERCENTILE_LEVEL_KEY: WIND_SPEED_PERCENTILE_LEVEL,
+    target_val_utils.WIND_SPEED_CUTOFFS_KEY: WIND_SPEED_CUTOFFS_KT,
+    target_val_utils.EVENT_TYPE_KEY: linkage.WIND_EVENT_STRING
 }
 
 # The following constants are used to test find_target_file.
@@ -119,12 +119,12 @@ def _compare_target_param_dicts(first_dict, second_dict):
     """
 
     exact_keys = [
-        target_values.MIN_LEAD_TIME_KEY, target_values.MAX_LEAD_TIME_KEY,
-        target_values.EVENT_TYPE_KEY
+        target_val_utils.MIN_LEAD_TIME_KEY, target_val_utils.MAX_LEAD_TIME_KEY,
+        target_val_utils.EVENT_TYPE_KEY
     ]
     float_keys = [
-        target_values.MIN_LINKAGE_DISTANCE_KEY,
-        target_values.MAX_LINKAGE_DISTANCE_KEY
+        target_val_utils.MIN_LINKAGE_DISTANCE_KEY,
+        target_val_utils.MAX_LINKAGE_DISTANCE_KEY
     ]
 
     first_keys = first_dict.keys()
@@ -154,13 +154,13 @@ def _compare_target_param_dicts(first_dict, second_dict):
     return True
 
 
-class TargetValuesTests(unittest.TestCase):
-    """Each method is a unit test for target_values.py."""
+class TargetValUtilsTests(unittest.TestCase):
+    """Each method is a unit test for target_val_utils.py."""
 
     def test_find_storms_near_end_of_period(self):
         """Ensures correct output from _find_storms_near_end_of_period."""
 
-        these_indices = target_values._find_storms_near_end_of_period(
+        these_indices = target_val_utils._find_storms_near_end_of_period(
             storm_to_events_table=STORM_TO_EVENTS_TABLE_END_OF_PERIOD,
             max_lead_time_sec=MAX_LEAD_TIME_SEC)
 
@@ -169,7 +169,7 @@ class TargetValuesTests(unittest.TestCase):
     def test_find_dead_storms(self):
         """Ensures correct output from _find_dead_storms."""
 
-        these_indices = target_values._find_dead_storms(
+        these_indices = target_val_utils._find_dead_storms(
             storm_to_events_table=STORM_TO_EVENTS_TABLE_WITH_DEAD,
             min_lead_time_sec=MIN_LEAD_TIME_FOR_DEAD_SEC)
 
@@ -181,7 +181,7 @@ class TargetValuesTests(unittest.TestCase):
         In this case, target variable is based on wind-speed regression.
         """
 
-        this_target_name = target_values.target_params_to_name(
+        this_target_name = target_val_utils.target_params_to_name(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -196,7 +196,7 @@ class TargetValuesTests(unittest.TestCase):
         In this case, target variable is based on wind-speed classification.
         """
 
-        this_target_name = target_values.target_params_to_name(
+        this_target_name = target_val_utils.target_params_to_name(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -213,7 +213,7 @@ class TargetValuesTests(unittest.TestCase):
         minimum lead time is zero.
         """
 
-        this_target_name = target_values.target_params_to_name(
+        this_target_name = target_val_utils.target_params_to_name(
             min_lead_time_sec=0,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -229,7 +229,7 @@ class TargetValuesTests(unittest.TestCase):
         In this case, target variable is based on tornado occurrence.
         """
 
-        this_target_name = target_values.target_params_to_name(
+        this_target_name = target_val_utils.target_params_to_name(
             min_lead_time_sec=MIN_LEAD_TIME_SEC,
             max_lead_time_sec=MAX_LEAD_TIME_SEC,
             min_link_distance_metres=MIN_LINK_DISTANCE_METRES,
@@ -243,7 +243,7 @@ class TargetValuesTests(unittest.TestCase):
         In this case, target variable is based on wind-speed regression.
         """
 
-        this_dict = target_values.target_name_to_params(WIND_REGRESSION_NAME)
+        this_dict = target_val_utils.target_name_to_params(WIND_REGRESSION_NAME)
         self.assertTrue(_compare_target_param_dicts(
             this_dict, WIND_REGRESSION_PARAM_DICT))
 
@@ -253,7 +253,7 @@ class TargetValuesTests(unittest.TestCase):
         In this case, target variable is based on wind-speed classification.
         """
 
-        this_dict = target_values.target_name_to_params(
+        this_dict = target_val_utils.target_name_to_params(
             WIND_CLASSIFICATION_NAME)
         self.assertTrue(_compare_target_param_dicts(
             this_dict, WIND_CLASSIFICATION_PARAM_DICT))
@@ -265,7 +265,7 @@ class TargetValuesTests(unittest.TestCase):
         minimum lead time is zero.
         """
 
-        this_dict = target_values.target_name_to_params(
+        this_dict = target_val_utils.target_name_to_params(
             WIND_CLASSIFICATION_NAME_0LEAD)
         self.assertTrue(_compare_target_param_dicts(
             this_dict, WIND_CLASSIFICATION_PARAM_DICT_0LEAD))
@@ -276,7 +276,7 @@ class TargetValuesTests(unittest.TestCase):
         In this case, target variable is based on tornado occurrence.
         """
 
-        this_dict = target_values.target_name_to_params(TORNADO_TARGET_NAME)
+        this_dict = target_val_utils.target_name_to_params(TORNADO_TARGET_NAME)
         self.assertTrue(_compare_target_param_dicts(
             this_dict, TORNADO_PARAM_DICT))
 
@@ -287,7 +287,7 @@ class TargetValuesTests(unittest.TestCase):
         one time step.
         """
 
-        this_file_name = target_values.find_target_file(
+        this_file_name = target_val_utils.find_target_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             event_type_string=linkage.WIND_EVENT_STRING,
             spc_date_string=FILE_SPC_DATE_STRING,
@@ -302,7 +302,7 @@ class TargetValuesTests(unittest.TestCase):
         one SPC date.
         """
 
-        this_file_name = target_values.find_target_file(
+        this_file_name = target_val_utils.find_target_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             event_type_string=linkage.WIND_EVENT_STRING,
             spc_date_string=FILE_SPC_DATE_STRING,
@@ -317,7 +317,7 @@ class TargetValuesTests(unittest.TestCase):
         contains one time step.
         """
 
-        this_file_name = target_values.find_target_file(
+        this_file_name = target_val_utils.find_target_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             event_type_string=linkage.TORNADO_EVENT_STRING,
             spc_date_string=FILE_SPC_DATE_STRING,
@@ -332,7 +332,7 @@ class TargetValuesTests(unittest.TestCase):
         contains one SPC date.
         """
 
-        this_file_name = target_values.find_target_file(
+        this_file_name = target_val_utils.find_target_file(
             top_directory_name=TOP_DIRECTORY_NAME,
             event_type_string=linkage.TORNADO_EVENT_STRING,
             spc_date_string=FILE_SPC_DATE_STRING,

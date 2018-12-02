@@ -1,7 +1,7 @@
 """Very fancy downsampling."""
 
 import numpy
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
@@ -117,7 +117,7 @@ def _downsampling_base(
     :param target_values: length-N numpy array of corresponding target values
         (integer class labels).
     :param target_name: Name of target variable (must be accepted by
-        `labels.column_name_to_label_params`).
+        `target_val_utils.target_name_to_params`).
     :param class_fraction_dict: Dictionary, where each key is an integer class
         label (-2 for "dead storm") and the corresponding value is the
         sampling fraction.
@@ -134,8 +134,8 @@ def _downsampling_base(
     error_checking.assert_is_boolean(test_mode)
 
     num_storm_objects = len(storm_ids)
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
 
     # Step 1.
     print (
@@ -272,8 +272,8 @@ def downsample_for_training(storm_ids, storm_times_unix_sec, target_values,
     )
 
     num_storm_objects = len(storm_ids)
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
 
     # Step 6.
     print (

@@ -19,7 +19,7 @@ import keras
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import data_augmentation
 from gewittergefahr.deep_learning import input_examples
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -79,23 +79,24 @@ def _get_num_ex_per_batch_by_class(
 
     :param num_examples_per_batch: Total number of examples per batch.
     :param target_name: Name of target variable.  Must be accepted by
-        `labels.column_name_to_label_params`.
+        `target_val_utils.target_name_to_params`.
     :param class_to_sampling_fraction_dict: See doc for `example_generator_3d`.
     :return: class_to_num_ex_per_batch_dict: Dictionary, where each key
         is the integer ID for a target class (-2 for "dead storm") and each
         value is the number of examples needed per batch.
     """
 
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=True)
+    num_extended_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=True)
 
     if class_to_sampling_fraction_dict is None:
-        num_classes = labels.column_name_to_num_classes(
-            column_name=target_name, include_dead_storms=False)
+        num_classes = target_val_utils.target_name_to_num_classes(
+            target_name=target_name, include_dead_storms=False)
         include_dead_storms = num_extended_classes > num_classes
 
         if include_dead_storms:
-            first_keys = numpy.array([labels.DEAD_STORM_INTEGER], dtype=int)
+            first_keys = numpy.array(
+                [target_val_utils.DEAD_STORM_INTEGER], dtype=int)
             second_keys = numpy.linspace(
                 0, num_classes - 1, num=num_classes, dtype=int)
             keys = numpy.concatenate((first_keys, second_keys))
@@ -217,7 +218,7 @@ def _select_batch(
         list_of_predictor_matrices[i] = list_of_predictor_matrices[
             i][batch_indices, ...].astype('float32')
 
-    target_values[target_values == labels.DEAD_STORM_INTEGER] = 0
+    target_values[target_values == target_val_utils.DEAD_STORM_INTEGER] = 0
     if binarize_target:
         target_values = (target_values == num_classes - 1).astype(int)
         num_classes_to_predict = 2
@@ -501,8 +502,8 @@ def example_generator_2d_or_3d(option_dict):
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
 
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
 
     radar_image_matrix = None
     sounding_matrix = None
@@ -729,8 +730,8 @@ def example_generator_2d3d_myrorss(option_dict):
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
 
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
 
     reflectivity_image_matrix_dbz = None
     az_shear_image_matrix_s01 = None

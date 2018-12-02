@@ -19,7 +19,7 @@ T = number of file times (time steps or SPC dates)
 import copy
 import pickle
 import numpy
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import moisture_conversions
@@ -81,21 +81,21 @@ def check_class_fractions(sampling_fraction_by_class_dict, target_name):
         the integer representing a class (-2 for "dead storm") and each value is
         the corresponding sampling fraction.
     :param target_name: Name of target variable (must be accepted by
-        `labels.column_name_to_num_classes`).
+        `target_val_utils.target_name_to_params`).
     :raises: KeyError: if dictionary does not contain the expected keys (class
         integers).
     :raises: ValueError: if sum(class_fractions) != 1.
     """
 
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
-    num_extended_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=True)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
+    num_extended_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=True)
 
     expected_keys = numpy.linspace(
         0, num_classes - 1, num=num_classes, dtype=int).tolist()
     if num_extended_classes > num_classes:
-        expected_keys.append(labels.DEAD_STORM_INTEGER)
+        expected_keys.append(target_val_utils.DEAD_STORM_INTEGER)
 
     if set(expected_keys) != set(sampling_fraction_by_class_dict.keys()):
         error_string = (
@@ -193,11 +193,15 @@ def class_fractions_to_weights(
         new_sampling_fraction_dict = copy.deepcopy(
             sampling_fraction_by_class_dict)
 
-        if labels.DEAD_STORM_INTEGER in sampling_fraction_by_class_dict.keys():
+        if (target_val_utils.DEAD_STORM_INTEGER in
+                sampling_fraction_by_class_dict.keys()):
+
             new_sampling_fraction_dict[0] = (
                 new_sampling_fraction_dict[0] +
-                new_sampling_fraction_dict[labels.DEAD_STORM_INTEGER])
-            del new_sampling_fraction_dict[labels.DEAD_STORM_INTEGER]
+                new_sampling_fraction_dict[target_val_utils.DEAD_STORM_INTEGER]
+            )
+
+            del new_sampling_fraction_dict[target_val_utils.DEAD_STORM_INTEGER]
 
     loss_function_weights = (
         1. / numpy.array(new_sampling_fraction_dict.values()))
@@ -295,7 +299,7 @@ def check_target_array(target_array, num_dimensions, num_classes):
         error_checking.assert_is_integer_numpy_array(target_array)
 
         live_storm_object_indices = numpy.where(
-            target_array != labels.DEAD_STORM_INTEGER)[0]
+            target_array != target_val_utils.DEAD_STORM_INTEGER)[0]
         error_checking.assert_is_geq_numpy_array(
             target_array[live_storm_object_indices], 0)
         error_checking.assert_is_less_than_numpy_array(
@@ -856,8 +860,8 @@ def sample_by_class(
         sampling_fraction_by_class_dict=sampling_fraction_by_class_dict,
         target_name=target_name, num_examples_total=num_examples_total)
 
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
     check_target_array(
         target_array=target_values, num_dimensions=1, num_classes=num_classes)
 

@@ -20,7 +20,7 @@ import keras.utils
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
@@ -45,7 +45,7 @@ def _finalize_targets(target_values, binarize_target, num_classes):
         `example_generator_2d3d_myrorss`.
     """
 
-    target_values[target_values == labels.DEAD_STORM_INTEGER] = 0
+    target_values[target_values == target_val_utils.DEAD_STORM_INTEGER] = 0
 
     if binarize_target:
         target_values = (target_values == num_classes - 1).astype(int)
@@ -126,7 +126,7 @@ def _find_examples_to_read(option_dict, num_examples_total):
         ))
 
     indices_to_keep = numpy.where(
-        target_values != labels.INVALID_STORM_INTEGER
+        target_values != target_val_utils.INVALID_STORM_INTEGER
     )[0]
 
     storm_ids = [storm_ids[k] for k in indices_to_keep]
@@ -229,8 +229,8 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
 
     if sounding_field_names is None:
         sounding_field_names_to_read = None
@@ -449,8 +449,8 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
-    num_classes = labels.column_name_to_num_classes(
-        column_name=target_name, include_dead_storms=False)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
 
     if sounding_field_names is None:
         sounding_field_names_to_read = None

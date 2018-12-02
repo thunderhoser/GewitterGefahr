@@ -22,7 +22,7 @@ import numpy
 import netCDF4
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import number_rounding
 from gewittergefahr.gg_utils import file_system_utils
@@ -819,7 +819,7 @@ def remove_storms_with_undefined_target(radar_image_dict):
 
     valid_indices = numpy.where(
         radar_image_dict[storm_images.LABEL_VALUES_KEY] !=
-        labels.INVALID_STORM_INTEGER
+        target_val_utils.INVALID_STORM_INTEGER
     )[0]
 
     keys_to_change = [
@@ -1034,7 +1034,7 @@ def find_sounding_files(
         `find_storm_images_2d` or `find_storm_images_3d`.  Length of the first
         axis is D.
     :param target_name: Name of target variable (must be accepted by
-        `labels.check_label_name`).
+        `target_val_utils.target_name_to_params`).
     :param lag_time_for_convective_contamination_sec: See doc for
         `soundings.read_soundings`.
     :return: sounding_file_names: length-D list of file paths.
@@ -1045,9 +1045,9 @@ def find_sounding_files(
     error_checking.assert_is_geq(num_file_dimensions, 2)
     error_checking.assert_is_leq(num_file_dimensions, 3)
 
-    target_param_dict = labels.column_name_to_label_params(target_name)
-    min_lead_time_sec = target_param_dict[labels.MIN_LEAD_TIME_KEY]
-    max_lead_time_sec = target_param_dict[labels.MAX_LEAD_TIME_KEY]
+    target_param_dict = target_val_utils.target_name_to_params(target_name)
+    min_lead_time_sec = target_param_dict[target_val_utils.MIN_LEAD_TIME_KEY]
+    max_lead_time_sec = target_param_dict[target_val_utils.MAX_LEAD_TIME_KEY]
 
     mean_lead_time_sec = numpy.mean(
         numpy.array([min_lead_time_sec, max_lead_time_sec], dtype=float)
@@ -1083,12 +1083,12 @@ def find_target_files(top_target_dir_name, radar_file_name_matrix, target_name):
     D = number of SPC dates in time period
 
     :param top_target_dir_name: Name of top-level directory.  Files therein
-        will be found by `labels.find_label_file`.
+        will be found by `target_val_utils.find_target_file`.
     :param radar_file_name_matrix: numpy array created by either
         `find_storm_images_2d` or `find_storm_images_3d`.  Length of the first
         axis is D.
     :param target_name: Name of target variable (must be accepted by
-        `labels.check_label_name`).
+        `target_val_utils.target_name_to_params`).
     :return: target_file_names: length-D list of file paths.
     """
 
@@ -1097,7 +1097,7 @@ def find_target_files(top_target_dir_name, radar_file_name_matrix, target_name):
     error_checking.assert_is_geq(num_file_dimensions, 2)
     error_checking.assert_is_leq(num_file_dimensions, 3)
 
-    target_param_dict = labels.column_name_to_label_params(target_name)
+    target_param_dict = target_val_utils.target_name_to_params(target_name)
 
     num_file_times = radar_file_name_matrix.shape[0]
     target_file_names = [''] * num_file_times
@@ -1111,11 +1111,11 @@ def find_target_files(top_target_dir_name, radar_file_name_matrix, target_name):
         _, this_spc_date_string = storm_images.image_file_name_to_time(
             this_file_name)
 
-        target_file_names[i] = labels.find_label_file(
+        target_file_names[i] = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
-            event_type_string=target_param_dict[labels.EVENT_TYPE_KEY],
-            file_extension='.nc', spc_date_string=this_spc_date_string,
-            raise_error_if_missing=True)
+            event_type_string=target_param_dict[
+                target_val_utils.EVENT_TYPE_KEY],
+            spc_date_string=this_spc_date_string, raise_error_if_missing=True)
 
     return target_file_names
 
@@ -1367,7 +1367,7 @@ def write_example_file(netcdf_file_name, example_dict, append_to_file=False):
         Dimensions should be E x M x N x F_as, where F_as = number of
         azimuthal-shear fields.
     example_dict['target_name']: Name of target variable.  Must be accepted by
-        `labels.check_label_name`.
+        `target_val_utils.target_name_to_params`.
     example_dict['target_values']: length-E numpy array of target values
         (integer class labels).
     example_dict['sounding_field_names']: list (length F_s) of sounding fields.
@@ -1996,7 +1996,7 @@ def create_examples(
     :param target_file_names: length-D list of paths to target files (will be
         read by `read_labels_from_netcdf`).
     :param target_name: Name of target variable (must be accepted by
-        `labels.check_label_name`).
+        `target_val_utils.target_name_to_params`).
     :param num_examples_per_in_file: Number of examples to read from each input
         file.
     :param top_output_dir_name: Name of top-level directory.  Files will be
@@ -2055,18 +2055,23 @@ def create_examples(
     for i in range(num_file_times):
         print 'Reading "{0:s}" from: "{1:s}"...'.format(
             target_name, target_file_names[i])
-        this_target_dict = labels.read_labels_from_netcdf(
-            netcdf_file_name=target_file_names[i], label_name=target_name)
 
-        storm_ids += this_target_dict[labels.STORM_IDS_KEY]
+        this_target_dict = target_val_utils.read_target_values(
+            netcdf_file_name=target_file_names[i], target_name=target_name)
+
+        storm_ids += this_target_dict[target_val_utils.STORM_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
-            storm_times_unix_sec, this_target_dict[labels.VALID_TIMES_KEY]
+            storm_times_unix_sec,
+            this_target_dict[target_val_utils.VALID_TIMES_KEY]
         ))
         target_values = numpy.concatenate((
-            target_values, this_target_dict[labels.LABEL_VALUES_KEY]
+            target_values, this_target_dict[target_val_utils.TARGET_VALUES_KEY]
         ))
 
-    good_indices = numpy.where(target_values != labels.INVALID_STORM_INTEGER)[0]
+    good_indices = numpy.where(
+        target_values != target_val_utils.INVALID_STORM_INTEGER
+    )[0]
+
     storm_ids = [storm_ids[k] for k in good_indices]
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]

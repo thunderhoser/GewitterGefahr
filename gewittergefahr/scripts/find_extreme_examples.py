@@ -18,7 +18,7 @@ import os.path
 import argparse
 import numpy
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
@@ -70,8 +70,8 @@ NUM_CORRECT_NULLS_HELP_STRING = (
 
 TARGET_DIR_HELP_STRING = (
     'Name of top-level directory with target values (storm-hazard labels).  '
-    'Files therein will be found by `labels.find_label_file` and read by '
-    '`labels.read_labels_from_netcdf`.')
+    'Files therein will be found by `target_val_utils.find_target_file` and '
+    'read by `target_val_utils.read_target_values`.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  For each type of extreme example (high '
@@ -158,7 +158,9 @@ def _read_target_values(
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     target_name = model_metadata_dict[cnn.TARGET_NAME_KEY]
-    num_classes = labels.column_name_to_num_classes(target_name)
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
+
     binarize_target = (
         training_option_dict[trainval_io.BINARIZE_TARGET_KEY] and
         num_classes > 2
@@ -171,8 +173,8 @@ def _read_target_values(
         ).format(target_name)
         raise ValueError(error_string)
 
-    event_type_string = labels.column_name_to_label_params(
-        target_name)[labels.EVENT_TYPE_KEY]
+    event_type_string = target_val_utils.target_name_to_params(target_name)[
+        target_val_utils.EVENT_TYPE_KEY]
 
     # Read target values.
     storm_target_values = numpy.array([], dtype=int)
@@ -180,15 +182,14 @@ def _read_target_values(
     num_spc_dates = len(unique_spc_date_strings_numpy)
 
     for i in range(num_spc_dates):
-        this_target_file_name = labels.find_label_file(
+        this_target_file_name = target_val_utils.find_target_file(
             top_directory_name=top_target_dir_name,
-            event_type_string=event_type_string, file_extension='.nc',
-            spc_date_string=unique_spc_date_strings_numpy[i],
-            raise_error_if_missing=True)
+            event_type_string=event_type_string,
+            spc_date_string=unique_spc_date_strings_numpy[i])
 
         print 'Reading data from: "{0:s}"...'.format(this_target_file_name)
-        this_target_value_dict = labels.read_labels_from_netcdf(
-            netcdf_file_name=this_target_file_name, label_name=target_name)
+        this_target_value_dict = target_val_utils.read_target_values(
+            netcdf_file_name=this_target_file_name, target_name=target_name)
 
         these_indices = numpy.where(
             storm_spc_date_strings_numpy == unique_spc_date_strings_numpy[i]
@@ -197,18 +198,23 @@ def _read_target_values(
             sort_indices_for_storm_id, these_indices))
 
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=this_target_value_dict[labels.STORM_IDS_KEY],
-            all_times_unix_sec=this_target_value_dict[labels.VALID_TIMES_KEY],
+            all_storm_ids=this_target_value_dict[
+                target_val_utils.STORM_IDS_KEY],
+            all_times_unix_sec=this_target_value_dict[
+                target_val_utils.VALID_TIMES_KEY],
             storm_ids_to_keep=[storm_ids[k] for k in these_indices],
             times_to_keep_unix_sec=storm_times_unix_sec[these_indices])
 
         storm_target_values = numpy.concatenate((
             storm_target_values,
-            this_target_value_dict[labels.LABEL_VALUES_KEY][these_indices]
+            this_target_value_dict[target_val_utils.TARGET_VALUES_KEY][
+                these_indices]
         ))
 
     good_indices = numpy.where(
-        storm_target_values != labels.INVALID_STORM_INTEGER)[0]
+        storm_target_values != target_val_utils.INVALID_STORM_INTEGER
+    )[0]
+
     storm_target_values = storm_target_values[good_indices]
     sort_indices_for_storm_id = sort_indices_for_storm_id[good_indices]
 

@@ -51,8 +51,6 @@ STORM_IDS_KEY = 'storm_ids'
 VALID_TIMES_KEY = 'valid_times_unix_sec'
 TARGET_VALUES_KEY = 'target_values'
 
-# TODO(thunderhoser): Add unit tests.
-
 
 def _check_learning_goal(goal_string):
     """Error-checks learning goal.

@@ -4,7 +4,7 @@ import os.path
 import argparse
 import numpy
 import pandas
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.deep_learning import fancy_downsampling
@@ -23,8 +23,8 @@ OUTPUT_DIR_ARG_NAME = 'output_target_dir_name'
 
 INPUT_DIR_HELP_STRING = (
     'Name of top-level input directory with target values.  Files therein will '
-    'be located by `labels.find_label_file` and read by '
-    '`labels.read_labels_from_netcdf`.')
+    'be located by `target_val_utils.find_target_file` and read by '
+    '`target_val_utils.read_target_values`.')
 
 TARGET_NAME_HELP_STRING = (
     'Name of target variable on which to base downsampling.')
@@ -52,8 +52,9 @@ FOR_TRAINING_HELP_STRING = (
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory for downsampled target values.  New '
-    'files will be written by `labels.write_labels_to_netcdf`, to locations in '
-    'this directory determined by `labels.find_label_file`.')
+    'files will be written by `target_val_utils.write_target_values`, to '
+    'locations in this directory determined by '
+    '`target_val_utils.find_target_file`.')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -128,17 +129,17 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
         last_spc_date_string=last_spc_date_string)
 
     class_fraction_dict = dict(zip(class_fraction_keys, class_fraction_values))
-    target_param_dict = labels.column_name_to_label_params(target_name)
+    target_param_dict = target_val_utils.target_name_to_params(target_name)
 
     input_target_file_names = []
     spc_date_string_by_file = []
 
     for this_spc_date_string in spc_date_strings:
-        this_file_name = labels.find_label_file(
+        this_file_name = target_val_utils.find_target_file(
             top_directory_name=top_input_dir_name,
-            event_type_string=target_param_dict[labels.EVENT_TYPE_KEY],
-            file_extension='.nc', spc_date_string=this_spc_date_string,
-            raise_error_if_missing=False)
+            event_type_string=target_param_dict[
+                target_val_utils.EVENT_TYPE_KEY],
+            spc_date_string=this_spc_date_string, raise_error_if_missing=False)
         if not os.path.isfile(this_file_name):
             continue
 
@@ -156,20 +157,26 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
     for i in range(num_files):
         print 'Reading "{0:s}" from: "{1:s}"...'.format(
             target_name, input_target_file_names[i])
-        target_dict_by_file[i] = labels.read_labels_from_netcdf(
-            netcdf_file_name=input_target_file_names[i], label_name=target_name)
+        target_dict_by_file[i] = target_val_utils.read_target_values(
+            netcdf_file_name=input_target_file_names[i],
+            target_name=target_name)
 
-        storm_ids += target_dict_by_file[i][labels.STORM_IDS_KEY]
+        storm_ids += target_dict_by_file[i][target_val_utils.STORM_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
-            storm_times_unix_sec, target_dict_by_file[i][labels.VALID_TIMES_KEY]
+            storm_times_unix_sec,
+            target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY]
         ))
         target_values = numpy.concatenate((
-            target_values, target_dict_by_file[i][labels.LABEL_VALUES_KEY]
+            target_values,
+            target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY]
         ))
 
     print SEPARATOR_STRING
 
-    good_indices = numpy.where(target_values != labels.INVALID_STORM_INTEGER)[0]
+    good_indices = numpy.where(
+        target_values != target_val_utils.INVALID_STORM_INTEGER
+    )[0]
+
     storm_ids = [storm_ids[k] for k in good_indices]
     storm_times_unix_sec = storm_times_unix_sec[good_indices]
     target_values = target_values[good_indices]
@@ -193,8 +200,10 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
     for i in range(num_files):
         these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=target_dict_by_file[i][labels.STORM_IDS_KEY],
-            all_times_unix_sec=target_dict_by_file[i][labels.VALID_TIMES_KEY],
+            all_storm_ids=target_dict_by_file[i][
+                target_val_utils.STORM_IDS_KEY],
+            all_times_unix_sec=target_dict_by_file[i][
+                target_val_utils.VALID_TIMES_KEY],
             storm_ids_to_keep=storm_ids,
             times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
 
@@ -204,33 +213,35 @@ def _run(top_input_dir_name, target_name, first_spc_date_string,
 
         this_output_dict = {
             tracking_utils.STORM_ID_COLUMN: [
-                target_dict_by_file[i][labels.STORM_IDS_KEY][k]
+                target_dict_by_file[i][target_val_utils.STORM_IDS_KEY][k]
                 for k in these_indices
             ],
             tracking_utils.TIME_COLUMN:
-                target_dict_by_file[i][labels.VALID_TIMES_KEY][these_indices],
+                target_dict_by_file[i][target_val_utils.VALID_TIMES_KEY][
+                    these_indices],
             target_name:
-                target_dict_by_file[i][labels.LABEL_VALUES_KEY][these_indices]
+                target_dict_by_file[i][target_val_utils.TARGET_VALUES_KEY][
+                    these_indices]
         }
         this_output_table = pandas.DataFrame.from_dict(this_output_dict)
 
-        this_new_file_name = labels.find_label_file(
+        this_new_file_name = target_val_utils.find_target_file(
             top_directory_name=top_output_dir_name,
-            event_type_string=target_param_dict[labels.EVENT_TYPE_KEY],
-            file_extension='.nc', spc_date_string=spc_date_strings[i],
-            raise_error_if_missing=False)
+            event_type_string=target_param_dict[
+                target_val_utils.EVENT_TYPE_KEY],
+            spc_date_string=spc_date_strings[i], raise_error_if_missing=False)
 
         print (
             'Writing {0:d} downsampled storm objects (out of {1:d} total) to: '
             '"{2:s}"...'
         ).format(
             len(this_output_table.index),
-            len(target_dict_by_file[i][labels.STORM_IDS_KEY]),
+            len(target_dict_by_file[i][target_val_utils.STORM_IDS_KEY]),
             this_new_file_name
         )
 
-        labels.write_labels_to_netcdf(
-            storm_to_events_table=this_output_table, label_names=[target_name],
+        target_val_utils.write_target_values(
+            storm_to_events_table=this_output_table, target_names=[target_name],
             netcdf_file_name=this_new_file_name)
 
 

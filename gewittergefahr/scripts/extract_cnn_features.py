@@ -8,7 +8,7 @@ import argparse
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import labels
+from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -46,7 +46,7 @@ SOUNDING_DIRECTORY_HELP_STRING = (
     'will be found by `training_validation_io.find_sounding_files`.')
 TARGET_DIRECTORY_HELP_STRING = (
     'Name of top-level directory with labels (target values).  Files therein '
-    'will be found by `labels.find_label_file`.')
+    'will be found by `target_val_utils.find_target_file`.')
 STORM_TIME_HELP_STRING = (
     'Storm time (format "yyyy-mm-dd-HHMMSS").  `{0:s}` storm objects will be '
     'drawn randomly from `{1:s}`...`{2:s}`.  The features and target value for '
@@ -252,8 +252,9 @@ def _extract_2d_cnn_features(
         if training_option_dict[trainval_io.BINARIZE_TARGET_KEY]:
             num_classes_in_file = 2
         else:
-            num_classes_in_file = labels.column_name_to_num_classes(
-                training_option_dict[trainval_io.TARGET_NAME_KEY])
+            num_classes_in_file = target_val_utils.target_name_to_num_classes(
+                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                include_dead_storms=False)
 
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
@@ -388,8 +389,9 @@ def _extract_3d_cnn_features(
         if training_option_dict[trainval_io.BINARIZE_TARGET_KEY]:
             num_classes_in_file = 2
         else:
-            num_classes_in_file = labels.column_name_to_num_classes(
-                training_option_dict[trainval_io.TARGET_NAME_KEY])
+            num_classes_in_file = target_val_utils.target_name_to_num_classes(
+                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                include_dead_storms=False)
 
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
@@ -517,8 +519,9 @@ def _extract_2d3d_cnn_features(
         if training_option_dict[trainval_io.BINARIZE_TARGET_KEY]:
             num_classes_in_file = 2
         else:
-            num_classes_in_file = labels.column_name_to_num_classes(
-                training_option_dict[trainval_io.TARGET_NAME_KEY])
+            num_classes_in_file = target_val_utils.target_name_to_num_classes(
+                target_name=model_metadata_dict[cnn.TARGET_NAME_KEY],
+                include_dead_storms=False)
 
         cnn.write_features(
             netcdf_file_name=output_netcdf_file_name,
