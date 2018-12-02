@@ -307,7 +307,8 @@ def _run_for_myrorss(
             this_metadata_dict = (
                 myrorss_and_mrms_io.read_metadata_from_raw_file(
                     netcdf_file_name=radar_file_name_matrix[i, j],
-                    data_source=radar_utils.MYRORSS_SOURCE_ID)
+                    data_source=radar_utils.MYRORSS_SOURCE_ID,
+                    raise_error_if_fails=False)
             )
 
             if this_metadata_dict is None:
