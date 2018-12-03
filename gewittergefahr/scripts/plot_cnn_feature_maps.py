@@ -334,10 +334,6 @@ def _run(model_file_name, layer_names, top_example_dir_name,
                         sounding_matrix=this_sounding_matrix,
                         return_features=True, output_layer_name=layer_names[k])
                 else:
-                    print layer_names
-                    print len(this_feature_matrix_by_layer)
-                    print len(these_predictor_matrices)
-
                     this_feature_matrix_by_layer[k] = cnn.apply_3d_cnn(
                         model_object=model_object,
                         radar_image_matrix=these_predictor_matrices[0],
