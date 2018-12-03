@@ -4,12 +4,17 @@ import random
 import os.path
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import feature_map_plotting
+from gewittergefahr.plotting import imagemagick_utils
 
 random.seed(6695)
 numpy.random.seed(6695)
@@ -18,7 +23,11 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
 )))
 
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+TITLE_FONT_SIZE = 20
+FIGURE_RESOLUTION_DPI = 300
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 LAYER_NAME_ARG_NAME = 'layer_name'
@@ -160,6 +169,8 @@ def _run(model_file_name, layer_name, top_example_dir_name,
             option_dict=training_option_dict, num_examples_total=num_examples)
 
     feature_matrix = None
+    storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
 
     for _ in range(len(example_file_names)):
         try:
@@ -204,19 +215,103 @@ def _run(model_file_name, layer_name, top_example_dir_name,
                     sounding_matrix=this_sounding_matrix,
                     return_features=True, output_layer_name=layer_name)
 
-        this_num_spatial_dim = len(this_feature_matrix.shape) - 2
-        if this_num_spatial_dim not in [2, 3]:
-            error_string = (
-                'Feature maps should have 2 or 3 spatial dimensions.  Instead, '
-                'got {0:d}.'
-            ).format(this_num_spatial_dim)
-            raise ValueError(error_string)
+        storm_ids += this_storm_object_dict[testing_io.STORM_IDS_KEY]
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec,
+            this_storm_object_dict[testing_io.STORM_TIMES_KEY]
+        ))
 
         if feature_matrix is None:
             feature_matrix = this_feature_matrix + 0.
+            num_spatial_dimensions = len(feature_matrix.shape) - 2
+
+            if num_spatial_dimensions not in [2, 3]:
+                error_string = (
+                    'Feature maps should have 2 or 3 spatial dimensions.  '
+                    'Instead, got {0:d}.'
+                ).format(num_spatial_dimensions)
+
+                raise ValueError(error_string)
+
         else:
             feature_matrix = numpy.concatenate(
                 (feature_matrix, this_feature_matrix), axis=0)
+
+    num_spatial_dimensions = len(feature_matrix.shape) - 2
+    num_storm_objects = feature_matrix.shape[0]
+    num_channels = feature_matrix.shape[-1]
+
+    if num_spatial_dimensions == 3:
+        num_heights = feature_matrix.shape[-2]
+    else:
+        num_heights = None
+
+    num_panel_rows = int(numpy.round(numpy.sqrt(num_channels)))
+    annotation_string_by_channel = [
+        'Channel {0:d}'.format(c + 1) for c in range(num_channels)
+    ]
+
+    max_colour_value = numpy.percentile(numpy.absolute(feature_matrix), 99)
+    min_colour_value = -1 * max_colour_value
+
+    for i in range(num_storm_objects):
+        this_time_string = time_conversion.unix_sec_to_string(
+            storm_times_unix_sec[i], TIME_FORMAT)
+
+        if num_spatial_dimensions == 2:
+            feature_map_plotting.plot_many_2d_feature_maps(
+                feature_matrix=feature_matrix[i, ...],
+                annotation_string_by_panel=annotation_string_by_channel,
+                num_panel_rows=num_panel_rows,
+                colour_map_object=pyplot.cm.seismic,
+                min_colour_value=min_colour_value,
+                max_colour_value=max_colour_value)
+
+            this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
+                layer_name, storm_ids[i], this_time_string)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+            this_figure_file_name = '{0:s}/{1:s}_{2:s}_features.jpg'.format(
+                output_dir_name, storm_ids[i].replace('_', '-'),
+                this_time_string)
+
+            print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
+            pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            imagemagick_utils.trim_whitespace(
+                input_file_name=this_figure_file_name,
+                output_file_name=this_figure_file_name)
+
+        else:
+            for k in range(num_heights):
+                feature_map_plotting.plot_many_2d_feature_maps(
+                    feature_matrix=feature_matrix[i, :, :, k, :],
+                    annotation_string_by_panel=annotation_string_by_channel,
+                    num_panel_rows=num_panel_rows,
+                    colour_map_object=pyplot.cm.seismic,
+                    min_colour_value=min_colour_value,
+                    max_colour_value=max_colour_value)
+
+                this_title_string = (
+                    'Layer "{0:s}", height {1:d} of {2:d}, storm "{3:s}" at '
+                    '{4:s}'
+                ).format(
+                    layer_name, k + 1, num_heights, storm_ids[i],
+                    this_time_string)
+
+                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+                this_figure_file_name = (
+                    '{0:s}/{1:s}_{2:s}_features_height{3:02d}.jpg'
+                ).format(
+                    output_dir_name, storm_ids[i].replace('_', '-'),
+                    this_time_string, k + 1)
+
+                print 'Saving figure to: "{0:s}"...'.format(
+                    this_figure_file_name)
+                pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+                imagemagick_utils.trim_whitespace(
+                    input_file_name=this_figure_file_name,
+                    output_file_name=this_figure_file_name)
 
 
 if __name__ == '__main__':
