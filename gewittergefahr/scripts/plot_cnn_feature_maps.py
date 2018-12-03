@@ -1,5 +1,6 @@
 """For each example (storm object), plots feature maps for one CNN layer."""
 
+import copy
 import random
 import os.path
 import argparse
@@ -221,12 +222,13 @@ def _run(model_file_name, layer_name, top_example_dir_name,
                     sounding_matrix=this_sounding_matrix,
                     return_features=True, output_layer_name=layer_name)
 
-        for this_key in training_option_dict.keys():
-            print '{0:s} ... {1:s}'.format(this_key, str(training_option_dict[this_key]))
+        # TODO(thunderhoser): This is a hideous hack.
+        this_training_option_dict = copy.deepcopy(training_option_dict)
+        this_training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
 
         plot_input_examples._plot_examples(
             storm_object_dict=this_storm_object_dict,
-            training_option_dict=training_option_dict,
+            training_option_dict=this_training_option_dict,
             output_dir_name=output_dir_name)
 
         storm_ids += this_storm_object_dict[testing_io.STORM_IDS_KEY]
