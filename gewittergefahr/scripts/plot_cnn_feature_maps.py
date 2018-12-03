@@ -156,7 +156,7 @@ def _plot_feature_maps_one_layer(
         if num_spatial_dimensions == 2:
             _, these_axes_objects = (
                 feature_map_plotting.plot_many_2d_feature_maps(
-                    feature_matrix=feature_matrix[i, ...],
+                    feature_matrix=numpy.flip(feature_matrix[i, ...], axis=0),
                     annotation_string_by_panel=annotation_string_by_channel,
                     num_panel_rows=num_panel_rows,
                     colour_map_object=pyplot.cm.seismic,
@@ -186,7 +186,8 @@ def _plot_feature_maps_one_layer(
             for k in range(num_heights):
                 _, these_axes_objects = (
                     feature_map_plotting.plot_many_2d_feature_maps(
-                        feature_matrix=feature_matrix[i, :, :, k, :],
+                        feature_matrix=numpy.flip(
+                            feature_matrix[i, :, :, k, :], axis=0),
                         annotation_string_by_panel=annotation_string_by_channel,
                         num_panel_rows=num_panel_rows,
                         colour_map_object=pyplot.cm.seismic,
