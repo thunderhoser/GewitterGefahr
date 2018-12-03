@@ -1736,8 +1736,10 @@ def run_tracking(
             this_convective_flag_matrix = numpy.flip(
                 this_convective_flag_matrix, axis=0)
 
+            print numpy.sum(this_echo_top_matrix_km_asl > 0.)
             this_echo_top_matrix_km_asl[
                 this_convective_flag_matrix == False] = 0.
+            print numpy.sum(this_echo_top_matrix_km_asl > 0.)
 
         this_half_width_in_pixels = int(numpy.round(
             half_width_for_max_filter_deg_lat / this_latitude_spacing_deg))
