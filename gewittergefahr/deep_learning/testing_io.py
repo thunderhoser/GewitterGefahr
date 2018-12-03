@@ -221,10 +221,11 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
     refl_masking_threshold_dbz = option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    normalization_param_file_name = option_dict[
-        trainval_io.NORMALIZATION_FILE_KEY]
-    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+    if normalization_type_string is not None:
+        normalization_param_file_name = option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY]
+        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -441,10 +442,11 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
     binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    normalization_param_file_name = option_dict[
-        trainval_io.NORMALIZATION_FILE_KEY]
-    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+    if normalization_type_string is not None:
+        normalization_param_file_name = option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY]
+        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
