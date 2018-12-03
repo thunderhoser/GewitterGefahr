@@ -15,7 +15,6 @@ from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
-from gewittergefahr.plotting import imagemagick_utils
 from gewittergefahr.plotting import feature_map_plotting
 
 random.seed(6695)
@@ -182,9 +181,6 @@ def _plot_feature_maps_one_layer(
 
             print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
-            imagemagick_utils.trim_whitespace(
-                input_file_name=this_figure_file_name,
-                output_file_name=this_figure_file_name)
 
         else:
             for k in range(num_heights):
@@ -223,9 +219,6 @@ def _plot_feature_maps_one_layer(
                 print 'Saving figure to: "{0:s}"...'.format(
                     this_figure_file_name)
                 pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
-                imagemagick_utils.trim_whitespace(
-                    input_file_name=this_figure_file_name,
-                    output_file_name=this_figure_file_name)
 
 
 def _run(model_file_name, layer_names, top_example_dir_name,
