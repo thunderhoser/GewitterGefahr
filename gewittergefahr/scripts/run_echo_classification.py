@@ -218,8 +218,8 @@ def _run_for_gridrad(
 
         this_output_file_name = echo_classifn.find_classification_file(
             top_directory_name=top_output_dir_name,
-            valid_time_unix_sec=valid_times_unix_sec[i],
-            raise_error_if_missing=False)
+            valid_time_unix_sec=valid_times_unix_sec[i], desire_zipped=False,
+            allow_zipped_or_unzipped=False, raise_error_if_missing=False)
 
         print 'Writing echo classifications to: "{0:s}"...'.format(
             this_output_file_name)
@@ -396,8 +396,8 @@ def _run_for_myrorss(
 
         this_output_file_name = echo_classifn.find_classification_file(
             top_directory_name=top_output_dir_name,
-            valid_time_unix_sec=valid_times_unix_sec[i],
-            raise_error_if_missing=False)
+            valid_time_unix_sec=valid_times_unix_sec[i], desire_zipped=False,
+            allow_zipped_or_unzipped=False, raise_error_if_missing=False)
 
         print 'Writing echo classifications to: "{0:s}"...'.format(
             this_output_file_name)

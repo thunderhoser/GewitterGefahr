@@ -325,31 +325,113 @@ class EchoClassificationTests(unittest.TestCase):
         self.assertTrue(numpy.array_equal(
             this_flag_matrix, CRITERION5_FLAG_MATRIX))
 
-    def test_find_classification_file_unzipped(self):
+    def test_find_file_desire_zipped_allow_either_no_raise(self):
         """Ensures correct output from find_classification_file.
 
-        In this case the file is unzipped.
+        In this case, desire_zipped = True; allow_zipped_or_unzipped = True;
+        and raise_error_if_missing = False.
         """
 
         this_file_name = echo_classifn.find_classification_file(
             top_directory_name=TOP_DIRECTORY_NAME,
-            valid_time_unix_sec=VALID_TIME_UNIX_SEC, allow_zipped=False,
-            raise_error_if_missing=False)
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=True,
+            allow_zipped_or_unzipped=True, raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == CLASSIFN_FILE_NAME_UNZIPPED)
 
-    def test_find_classification_file_zipped(self):
+    def test_find_file_desire_zipped_allow_zipped_no_raise(self):
         """Ensures correct output from find_classification_file.
 
-        In this case the file is zipped.
+        In this case, desire_zipped = True; allow_zipped_or_unzipped = False;
+        and raise_error_if_missing = False.
         """
 
         this_file_name = echo_classifn.find_classification_file(
             top_directory_name=TOP_DIRECTORY_NAME,
-            valid_time_unix_sec=VALID_TIME_UNIX_SEC, allow_zipped=True,
-            raise_error_if_missing=False)
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=True,
+            allow_zipped_or_unzipped=False, raise_error_if_missing=False)
 
         self.assertTrue(this_file_name == CLASSIFN_FILE_NAME_ZIPPED)
+
+    def test_find_file_desire_unzipped_allow_either_no_raise(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case, desire_zipped = False; allow_zipped_or_unzipped = True;
+        and raise_error_if_missing = False.
+        """
+
+        this_file_name = echo_classifn.find_classification_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=False,
+            allow_zipped_or_unzipped=True, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == CLASSIFN_FILE_NAME_ZIPPED)
+
+    def test_find_file_desire_unzipped_allow_unzipped_no_raise(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case, desire_zipped = False; allow_zipped_or_unzipped = True;
+        and raise_error_if_missing = False.
+        """
+
+        this_file_name = echo_classifn.find_classification_file(
+            top_directory_name=TOP_DIRECTORY_NAME,
+            valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=False,
+            allow_zipped_or_unzipped=False, raise_error_if_missing=False)
+
+        self.assertTrue(this_file_name == CLASSIFN_FILE_NAME_UNZIPPED)
+
+    def test_find_file_desire_zipped_allow_either_raise(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case, desire_zipped = True; allow_zipped_or_unzipped = True;
+        and raise_error_if_missing = True.
+        """
+
+        with self.assertRaises(ValueError):
+            echo_classifn.find_classification_file(
+                top_directory_name=TOP_DIRECTORY_NAME,
+                valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=True,
+                allow_zipped_or_unzipped=True, raise_error_if_missing=True)
+
+    def test_find_file_desire_zipped_allow_zipped_raise(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case, desire_zipped = True; allow_zipped_or_unzipped = False;
+        and raise_error_if_missing = True.
+        """
+
+        with self.assertRaises(ValueError):
+            echo_classifn.find_classification_file(
+                top_directory_name=TOP_DIRECTORY_NAME,
+                valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=True,
+                allow_zipped_or_unzipped=False, raise_error_if_missing=True)
+
+    def test_find_file_desire_unzipped_allow_either_raise(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case, desire_zipped = False; allow_zipped_or_unzipped = True;
+        and raise_error_if_missing = True.
+        """
+
+        with self.assertRaises(ValueError):
+            echo_classifn.find_classification_file(
+                top_directory_name=TOP_DIRECTORY_NAME,
+                valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=False,
+                allow_zipped_or_unzipped=True, raise_error_if_missing=True)
+
+    def test_find_file_desire_unzipped_allow_unzipped_raise(self):
+        """Ensures correct output from find_classification_file.
+
+        In this case, desire_zipped = False; allow_zipped_or_unzipped = True;
+        and raise_error_if_missing = True.
+        """
+
+        with self.assertRaises(ValueError):
+            echo_classifn.find_classification_file(
+                top_directory_name=TOP_DIRECTORY_NAME,
+                valid_time_unix_sec=VALID_TIME_UNIX_SEC, desire_zipped=False,
+                allow_zipped_or_unzipped=False, raise_error_if_missing=True)
 
 
 if __name__ == '__main__':
