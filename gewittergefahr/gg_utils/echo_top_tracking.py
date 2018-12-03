@@ -1674,16 +1674,19 @@ def run_tracking(
         central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
 
     local_max_dict_by_time = [{}] * num_times
+    keep_time_indices = []
 
     for i in range(num_times):
         if top_echo_classifn_dir_name is None:
             this_echo_classifn_file_name = None
+            keep_time_indices.append(i)
         else:
             this_echo_classifn_file_name = (
                 echo_classifn.find_classification_file(
                     top_directory_name=top_echo_classifn_dir_name,
                     valid_time_unix_sec=valid_times_unix_sec[i],
-                    allow_zipped=True, raise_error_if_missing=False)
+                    desire_zipped=True, allow_zipped_or_unzipped=True,
+                    raise_error_if_missing=False)
             )
 
             if not os.path.isfile(this_echo_classifn_file_name):
@@ -1694,6 +1697,8 @@ def run_tracking(
 
                 warnings.warn(warning_string)
                 continue
+
+            keep_time_indices.append(i)
 
         print 'Reading data from: "{0:s}"...'.format(radar_file_names[i])
         this_metadata_dict = myrorss_and_mrms_io.read_metadata_from_raw_file(
@@ -1790,6 +1795,12 @@ def run_tracking(
 
         local_max_dict_by_time[i].update(
             {CURRENT_TO_PREV_INDICES_KEY: these_current_to_prev_indices})
+
+    keep_time_indices = numpy.array(keep_time_indices, dtype=int)
+    valid_times_unix_sec = valid_times_unix_sec[keep_time_indices]
+    local_max_dict_by_time = [
+        local_max_dict_by_time[k] for k in keep_time_indices
+    ]
 
     print SEPARATOR_STRING
     print 'Converting time series of "{0:s}" maxima to storm tracks...'.format(
