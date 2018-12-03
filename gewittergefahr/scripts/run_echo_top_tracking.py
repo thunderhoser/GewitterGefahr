@@ -123,20 +123,22 @@ def _run(echo_top_field_name, top_radar_dir_name_tarred, top_radar_dir_name,
     :param last_spc_date_string: Same.
     """
 
-    spc_date_strings = time_conversion.get_spc_dates_in_range(
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string)
+    if echo_top_field_name in NATIVE_ECHO_TOP_FIELD_NAMES:
+        spc_date_strings = time_conversion.get_spc_dates_in_range(
+            first_spc_date_string=first_spc_date_string,
+            last_spc_date_string=last_spc_date_string)
 
-    for this_spc_date_string in spc_date_strings:
-        this_tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
-            top_radar_dir_name_tarred, this_spc_date_string[:4],
-            this_spc_date_string)
+        for this_spc_date_string in spc_date_strings:
+            this_tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
+                top_radar_dir_name_tarred, this_spc_date_string[:4],
+                this_spc_date_string)
 
-        myrorss_io.unzip_1day_tar_file(
-            tar_file_name=this_tar_file_name, field_names=[echo_top_field_name],
-            spc_date_string=this_spc_date_string,
-            top_target_directory_name=top_radar_dir_name)
-        print SEPARATOR_STRING
+            myrorss_io.unzip_1day_tar_file(
+                tar_file_name=this_tar_file_name,
+                field_names=[echo_top_field_name],
+                spc_date_string=this_spc_date_string,
+                top_target_directory_name=top_radar_dir_name)
+            print SEPARATOR_STRING
 
     if top_echo_classifn_dir_name in ['', 'None']:
         top_echo_classifn_dir_name = None
@@ -152,11 +154,12 @@ def _run(echo_top_field_name, top_radar_dir_name_tarred, top_radar_dir_name,
         min_grid_cells_in_polygon=min_grid_cells_in_polygon)
     print SEPARATOR_STRING
 
-    for this_spc_date_string in spc_date_strings:
-        myrorss_io.remove_unzipped_data_1day(
-            spc_date_string=this_spc_date_string,
-            top_directory_name=top_radar_dir_name,
-            field_names=[echo_top_field_name])
+    if echo_top_field_name in NATIVE_ECHO_TOP_FIELD_NAMES:
+        for this_spc_date_string in spc_date_strings:
+            myrorss_io.remove_unzipped_data_1day(
+                spc_date_string=this_spc_date_string,
+                top_directory_name=top_radar_dir_name,
+                field_names=[echo_top_field_name])
 
 
 if __name__ == '__main__':
