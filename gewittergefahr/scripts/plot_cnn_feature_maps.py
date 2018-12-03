@@ -230,6 +230,7 @@ def _run(model_file_name, layer_name, top_example_dir_name,
             storm_object_dict=this_storm_object_dict,
             training_option_dict=this_training_option_dict,
             output_dir_name=output_dir_name)
+        print SEPARATOR_STRING
 
         storm_ids += this_storm_object_dict[testing_io.STORM_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
@@ -321,7 +322,7 @@ def _run(model_file_name, layer_name, top_example_dir_name,
                 plotting_utils.add_linear_colour_bar(
                     axes_object_or_list=these_axes_objects,
                     values_to_colour=feature_matrix[i, :, :, k, :],
-                    colour_map=pyplot.cs.seismic, colour_min=min_colour_value,
+                    colour_map=pyplot.cm.seismic, colour_min=min_colour_value,
                     colour_max=max_colour_value, orientation='horizontal',
                     extend_min=True, extend_max=True)
 
