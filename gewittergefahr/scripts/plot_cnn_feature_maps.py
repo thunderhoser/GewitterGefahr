@@ -14,8 +14,10 @@ from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.plotting import feature_map_plotting
+from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import imagemagick_utils
+from gewittergefahr.plotting import feature_map_plotting
+from gewittergefahr.scripts import plot_input_examples
 
 random.seed(6695)
 numpy.random.seed(6695)
@@ -219,6 +221,11 @@ def _run(model_file_name, layer_name, top_example_dir_name,
                     sounding_matrix=this_sounding_matrix,
                     return_features=True, output_layer_name=layer_name)
 
+        plot_input_examples._plot_examples(
+            storm_object_dict=this_storm_object_dict,
+            training_option_dict=training_option_dict,
+            output_dir_name=output_dir_name)
+
         storm_ids += this_storm_object_dict[testing_io.STORM_IDS_KEY]
         storm_times_unix_sec = numpy.concatenate((
             storm_times_unix_sec,
@@ -263,13 +270,22 @@ def _run(model_file_name, layer_name, top_example_dir_name,
             storm_times_unix_sec[i], TIME_FORMAT)
 
         if num_spatial_dimensions == 2:
-            feature_map_plotting.plot_many_2d_feature_maps(
-                feature_matrix=feature_matrix[i, ...],
-                annotation_string_by_panel=annotation_string_by_channel,
-                num_panel_rows=num_panel_rows,
-                colour_map_object=pyplot.cm.seismic,
-                min_colour_value=min_colour_value,
-                max_colour_value=max_colour_value)
+            _, these_axes_objects = (
+                feature_map_plotting.plot_many_2d_feature_maps(
+                    feature_matrix=feature_matrix[i, ...],
+                    annotation_string_by_panel=annotation_string_by_channel,
+                    num_panel_rows=num_panel_rows,
+                    colour_map_object=pyplot.cm.seismic,
+                    min_colour_value=min_colour_value,
+                    max_colour_value=max_colour_value)
+            )
+
+            plotting_utils.add_linear_colour_bar(
+                axes_object_or_list=these_axes_objects,
+                values_to_colour=feature_matrix[i, ...],
+                colour_map=pyplot.cs.seismic, colour_min=min_colour_value,
+                colour_max=max_colour_value, orientation='horizontal',
+                extend_min=True, extend_max=True)
 
             this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
                 layer_name, storm_ids[i], this_time_string)
@@ -287,13 +303,22 @@ def _run(model_file_name, layer_name, top_example_dir_name,
 
         else:
             for k in range(num_heights):
-                feature_map_plotting.plot_many_2d_feature_maps(
-                    feature_matrix=feature_matrix[i, :, :, k, :],
-                    annotation_string_by_panel=annotation_string_by_channel,
-                    num_panel_rows=num_panel_rows,
-                    colour_map_object=pyplot.cm.seismic,
-                    min_colour_value=min_colour_value,
-                    max_colour_value=max_colour_value)
+                _, these_axes_objects = (
+                    feature_map_plotting.plot_many_2d_feature_maps(
+                        feature_matrix=feature_matrix[i, :, :, k, :],
+                        annotation_string_by_panel=annotation_string_by_channel,
+                        num_panel_rows=num_panel_rows,
+                        colour_map_object=pyplot.cm.seismic,
+                        min_colour_value=min_colour_value,
+                        max_colour_value=max_colour_value)
+                )
+
+                plotting_utils.add_linear_colour_bar(
+                    axes_object_or_list=these_axes_objects,
+                    values_to_colour=feature_matrix[i, :, :, k, :],
+                    colour_map=pyplot.cs.seismic, colour_min=min_colour_value,
+                    colour_max=max_colour_value, orientation='horizontal',
+                    extend_min=True, extend_max=True)
 
                 this_title_string = (
                     'Layer "{0:s}", height {1:d} of {2:d}, storm "{3:s}" at '
