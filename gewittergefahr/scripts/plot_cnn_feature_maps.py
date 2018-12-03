@@ -9,6 +9,7 @@ matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
@@ -127,6 +128,9 @@ def _run(model_file_name, layer_name, top_example_dir_name,
     :param output_dir_name: Same.
     :raises: ValueError: if feature maps do not have 2 or 3 spatial dimensions.
     """
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
