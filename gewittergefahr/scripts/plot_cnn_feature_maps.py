@@ -293,7 +293,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     storm_times_unix_sec = numpy.array([], dtype=int)
 
     for _ in range(len(example_file_names)):
-        this_feature_matrix_by_layer = [] * num_layers
+        this_feature_matrix_by_layer = [None] * num_layers
 
         try:
             this_storm_object_dict = next(generator_object)
