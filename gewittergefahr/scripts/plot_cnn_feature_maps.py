@@ -221,6 +221,9 @@ def _run(model_file_name, layer_name, top_example_dir_name,
                     sounding_matrix=this_sounding_matrix,
                     return_features=True, output_layer_name=layer_name)
 
+        for this_key in training_option_dict.keys():
+            print '{0:s} ... {1:s}'.format(this_key, str(training_option_dict[this_key]))
+
         plot_input_examples._plot_examples(
             storm_object_dict=this_storm_object_dict,
             training_option_dict=training_option_dict,
