@@ -118,7 +118,7 @@ def run_permutation_test(
 
     N = number of input matrices
     E = number of examples
-    C_i = number of channels (predictors) in the [i]th matrix
+    C_q = number of channels (predictors) in the [q]th matrix
     K = number of target classes
 
     :param model_object: Trained instance of `keras.models.Model` or
@@ -127,11 +127,11 @@ def run_permutation_test(
         the order that they were fed to the model for training.  In other words,
         if the order of training matrices was [radar images, soundings], the
         order of these matrices must be [radar images, soundings].  The first
-        axis of each matrix should have length E, and the last axis of the [i]th
-        matrix should have length C_i.
-    :param predictor_names_by_matrix: length-T list of lists.  The [i]th list
-        should be a list of predictor variables in the [i]th matrix, with length
-        C_i.
+        axis of each matrix should have length E, and the last axis of the [q]th
+        matrix should have length C_q.
+    :param predictor_names_by_matrix: length-T list of lists.  The [q]th list
+        should be a list of predictor variables in the [q]th matrix, with length
+        C_q.
     :param target_values: length-E numpy array of target values (integer class
         labels).
     :param prediction_function: Function used to generate predictions from the
@@ -171,31 +171,31 @@ def run_permutation_test(
     num_input_matrices = len(list_of_input_matrices)
     num_examples = len(target_values)
 
-    for i in range(num_input_matrices):
+    for q in range(num_input_matrices):
         error_checking.assert_is_numpy_array_without_nan(
-            list_of_input_matrices[i])
+            list_of_input_matrices[q])
 
-        this_num_dimensions = len(list_of_input_matrices[i].shape)
+        this_num_dimensions = len(list_of_input_matrices[q].shape)
         if this_num_dimensions < 3:
             error_string = (
                 '{0:d}th input matrix has {1:d} dimensions.  Should have at '
                 'least 3.'
-            ).format(i + 1, this_num_dimensions)
+            ).format(q + 1, this_num_dimensions)
 
             raise ValueError(error_string)
 
-        error_checking.assert_is_string_list(predictor_names_by_matrix[i])
-        this_num_predictors = len(predictor_names_by_matrix[i])
+        error_checking.assert_is_string_list(predictor_names_by_matrix[q])
+        this_num_predictors = len(predictor_names_by_matrix[q])
 
         these_expected_dimensions = (
-            (num_examples,) + list_of_input_matrices[i].shape[1:-1] +
+            (num_examples,) + list_of_input_matrices[q].shape[1:-1] +
             (this_num_predictors,)
         )
         these_expected_dimensions = numpy.array(
             these_expected_dimensions, dtype=int)
 
         error_checking.assert_is_numpy_array(
-            list_of_input_matrices[i],
+            list_of_input_matrices[q],
             exact_dimensions=these_expected_dimensions)
 
     # Get original cost (with no permutation).
@@ -219,11 +219,11 @@ def run_permutation_test(
 
         stopping_criterion = True
 
-        for i in range(num_input_matrices):
-            if len(remaining_predictor_names_by_matrix[i]) == 0:
+        for q in range(num_input_matrices):
+            if len(remaining_predictor_names_by_matrix[q]) == 0:
                 continue
 
-            for this_predictor_name in remaining_predictor_names_by_matrix[i]:
+            for this_predictor_name in remaining_predictor_names_by_matrix[q]:
                 stopping_criterion = False
 
                 print (
@@ -232,13 +232,14 @@ def run_permutation_test(
                 ).format(this_predictor_name, step_num)
 
                 these_input_matrices = copy.deepcopy(list_of_input_matrices)
-                this_predictor_index = predictor_names_by_matrix[i].index(
+                this_predictor_index = predictor_names_by_matrix[q].index(
                     this_predictor_name)
 
-                these_input_matrices[i][..., this_predictor_index] = (
-                    numpy.random.permutation(
-                        these_input_matrices[i][..., this_predictor_index])
-                )
+                for i in range(num_examples):
+                    these_input_matrices[q][
+                        i, ..., this_predictor_index
+                    ] = numpy.random.permutation(
+                        these_input_matrices[q][i, ..., this_predictor_index])
 
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
@@ -249,9 +250,9 @@ def run_permutation_test(
                     continue
 
                 highest_cost = this_cost + 0.
-                best_matrix_index = i
+                best_matrix_index = q
                 best_predictor_name = this_predictor_name + ''
-                best_predictor_permuted_values = these_input_matrices[i][
+                best_predictor_permuted_values = these_input_matrices[q][
                     ..., this_predictor_index]
 
         if stopping_criterion:  # No more predictors to permute.
