@@ -175,7 +175,9 @@ def _plot_feature_maps_one_layer(
                 layer_name, storm_ids[i], this_time_string)
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-            this_figure_file_name = '{0:s}/{1:s}_{2:s}_features.jpg'.format(
+            this_figure_file_name = (
+                '{0:s}/storm={1:s}_{2:s}_features.jpg'
+            ).format(
                 output_dir_name, storm_ids[i].replace('_', '-'),
                 this_time_string)
 
@@ -212,7 +214,7 @@ def _plot_feature_maps_one_layer(
                 pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
                 this_figure_file_name = (
-                    '{0:s}/{1:s}_{2:s}_features_height{3:02d}.jpg'
+                    '{0:s}/storm={1:s}_{2:s}_features_height{3:02d}.jpg'
                 ).format(
                     output_dir_name, storm_ids[i].replace('_', '-'),
                     this_time_string, k + 1)
