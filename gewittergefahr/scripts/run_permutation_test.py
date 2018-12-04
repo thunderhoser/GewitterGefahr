@@ -171,9 +171,14 @@ def _run(model_file_name, top_example_dir_name,
             storm_times_unix_sec,
             this_storm_object_dict[testing_io.STORM_TIMES_KEY]
         ))
+
+        these_target_values = this_storm_object_dict[
+            testing_io.TARGET_ARRAY_KEY]
+        if len(these_target_values.shape) > 1:
+            these_target_values = numpy.argmax(these_target_values, axis=1)
+
         target_values = numpy.concatenate((
-            target_values, this_storm_object_dict[testing_io.TARGET_ARRAY_KEY]
-        ))
+            target_values, these_target_values))
 
         these_predictor_matrices = this_storm_object_dict[
             testing_io.INPUT_MATRICES_KEY]
@@ -214,12 +219,21 @@ def _run(model_file_name, top_example_dir_name,
         else:
             prediction_function = permutation.prediction_function_3d_cnn
 
-    permutation.run_permutation_test(
+    result_dict = permutation.run_permutation_test(
         model_object=model_object,
         list_of_input_matrices=list_of_predictor_matrices,
         predictor_names_by_matrix=predictor_names_by_matrix,
         target_values=target_values, prediction_function=prediction_function,
         cost_function=permutation.cross_entropy_function)
+
+    result_dict[permutation.MODEL_FILE_KEY] = model_file_name
+    result_dict[permutation.TARGET_VALUES_KEY] = target_values
+    result_dict[permutation.STORM_IDS_KEY] = storm_ids
+    result_dict[permutation.STORM_TIMES_KEY] = storm_times_unix_sec
+
+    print 'Writing results to: "{0:s}"...'.format(output_file_name)
+    permutation.write_results(
+        result_dict=result_dict, pickle_file_name=output_file_name)
 
 
 if __name__ == '__main__':

@@ -12,16 +12,25 @@ Lakshmanan, V., C. Karstens, J. Krause, K. Elmore, A. Ryzhkov, and S. Berkseth,
 """
 
 import copy
+import pickle
 import numpy
 import keras.utils
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 
+# Mandatory keys in result dictionary (see `write_results`).
 SELECTED_PREDICTORS_KEY = 'selected_predictor_name_by_step'
 HIGHEST_COSTS_KEY = 'highest_cost_by_step'
 ORIGINAL_COST_KEY = 'original_cost'
 STEP1_PREDICTORS_KEY = 'predictor_names_step1'
 STEP1_COSTS_KEY = 'costs_step1'
+
+# Optional keys in result dictionary (see `write_results`).
+MODEL_FILE_KEY = 'model_file_name'
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+TARGET_VALUES_KEY = 'target_values'
 
 
 def prediction_function_2d_cnn(model_object, list_of_input_matrices):
@@ -311,3 +320,32 @@ def run_permutation_test(
         STEP1_PREDICTORS_KEY: predictor_names_step1,
         STEP1_COSTS_KEY: costs_step1
     }
+
+
+def write_results(result_dict, pickle_file_name):
+    """Writes results to Pickle file.
+
+    :param result_dict: Dictionary created by `run_permutation_test`, maybe with
+        additional keys.
+    :param pickle_file_name: Path to output file.
+    """
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(result_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_results(pickle_file_name):
+    """Reads results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: result_dict: Dictionary created by `run_permutation_test`, maybe with
+        additional keys.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    result_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return result_dict
