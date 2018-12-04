@@ -235,6 +235,7 @@ def run_permutation_test(
                 this_predictor_index = predictor_names_by_matrix[q].index(
                     this_predictor_name)
 
+                # Shuffle map for `this_predictor_name` within each example.
                 for i in range(num_examples):
                     these_input_matrices[q][
                         i, ..., this_predictor_index
