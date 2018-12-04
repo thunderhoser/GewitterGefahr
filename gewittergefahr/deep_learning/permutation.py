@@ -17,6 +17,12 @@ import keras.utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 
+SELECTED_PREDICTORS_KEY = 'selected_predictor_name_by_step'
+HIGHEST_COSTS_KEY = 'highest_cost_by_step'
+ORIGINAL_COST_KEY = 'original_cost'
+STEP1_PREDICTORS_KEY = 'predictor_names_step1'
+STEP1_COSTS_KEY = 'costs_step1'
+
 
 def prediction_function_2d_cnn(model_object, list_of_input_matrices):
     """Prediction function for 2-D GewitterGefahr CNN.
@@ -151,7 +157,19 @@ def run_permutation_test(
     Input: class_probability_matrix: Output from `prediction_function`.
     Output: cost: Scalar value.
 
-    :return: Not sure yet.
+    :return: result_dict: Dictionary with the following keys.  S = number of
+        steps (loops through predictor variables) taken by algorithm.  P = total
+        number of predictors.
+    result_dict['selected_predictor_name_by_step']: length-S list with name of
+        predictor selected at each step.
+    result_dict['highest_cost_by_step']: length-S numpy array with corresponding
+        cost at each step.
+    result_dict['original_cost']: Original cost (before permutation).
+    result_dict['predictor_names_step1']: length-P list of predictor names.
+    result_dict['costs_step1']: length-P list of corresponding costs after
+        permuting at step 1.  These represent results of the Breiman version of
+        the permutation test.
+
     :raises: ValueError: if length of `list_of_input_matrices` != length of
         `predictor_names_by_matrix`.
     :raises: ValueError: if any input matrix has < 3 dimensions.
@@ -208,6 +226,11 @@ def run_permutation_test(
         predictor_names_by_matrix)
     step_num = 0
 
+    selected_predictor_name_by_step = []
+    highest_cost_by_step = []
+    predictor_names_step1 = []
+    costs_step1 = []
+
     while True:
         print '\n'
         step_num += 1
@@ -247,6 +270,11 @@ def run_permutation_test(
                 this_cost = cost_function(
                     target_values, this_probability_matrix)
 
+                if step_num == 1:
+                    print 'Resulting cost = {0:.4e}'.format(this_cost)
+                    predictor_names_step1.append(this_predictor_name)
+                    costs_step1.append(this_cost)
+
                 if this_cost < highest_cost:
                     continue
 
@@ -258,6 +286,9 @@ def run_permutation_test(
 
         if stopping_criterion:  # No more predictors to permute.
             break
+
+        selected_predictor_name_by_step.append(best_predictor_name)
+        highest_cost_by_step.append(highest_cost)
 
         # Remove best predictor from list.
         remaining_predictor_names_by_matrix[best_matrix_index].remove(
@@ -272,3 +303,11 @@ def run_permutation_test(
 
         print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
             best_predictor_name, highest_cost)
+
+    return {
+        SELECTED_PREDICTORS_KEY: selected_predictor_name_by_step,
+        HIGHEST_COSTS_KEY: highest_cost_by_step,
+        ORIGINAL_COST_KEY: original_cost,
+        STEP1_PREDICTORS_KEY: predictor_names_step1,
+        STEP1_COSTS_KEY: costs_step1
+    }
