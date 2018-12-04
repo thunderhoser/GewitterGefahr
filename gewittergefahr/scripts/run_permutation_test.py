@@ -181,7 +181,7 @@ def _run(model_file_name, top_example_dir_name,
         if list_of_predictor_matrices is None:
             list_of_predictor_matrices = copy.deepcopy(these_predictor_matrices)
         else:
-            for k in range(list_of_predictor_matrices):
+            for k in range(len(list_of_predictor_matrices)):
                 list_of_predictor_matrices[k] = numpy.concatenate((
                     list_of_predictor_matrices[k], these_predictor_matrices[k]
                 ))
