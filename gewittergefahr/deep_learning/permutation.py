@@ -138,13 +138,13 @@ def run_permutation_test(
 
     :param model_object: Trained instance of `keras.models.Model` or
         `keras.models.Sequential`.
-    :param list_of_input_matrices: length-T list of matrices (numpy arrays), in
+    :param list_of_input_matrices: length-N list of matrices (numpy arrays), in
         the order that they were fed to the model for training.  In other words,
         if the order of training matrices was [radar images, soundings], the
         order of these matrices must be [radar images, soundings].  The first
         axis of each matrix should have length E, and the last axis of the [q]th
         matrix should have length C_q.
-    :param predictor_names_by_matrix: length-T list of lists.  The [q]th list
+    :param predictor_names_by_matrix: length-N list of lists.  The [q]th list
         should be a list of predictor variables in the [q]th matrix, with length
         C_q.
     :param target_values: length-E numpy array of target values (integer class
@@ -288,7 +288,7 @@ def run_permutation_test(
                     continue
 
                 highest_cost = this_cost + 0.
-                best_matrix_index = q
+                best_matrix_index = q + 0
                 best_predictor_name = this_predictor_name + ''
                 best_predictor_permuted_values = these_input_matrices[q][
                     ..., this_predictor_index]
@@ -315,10 +315,10 @@ def run_permutation_test(
 
     return {
         SELECTED_PREDICTORS_KEY: selected_predictor_name_by_step,
-        HIGHEST_COSTS_KEY: highest_cost_by_step,
+        HIGHEST_COSTS_KEY: numpy.array(highest_cost_by_step),
         ORIGINAL_COST_KEY: original_cost,
         STEP1_PREDICTORS_KEY: predictor_names_step1,
-        STEP1_COSTS_KEY: costs_step1
+        STEP1_COSTS_KEY: numpy.array(costs_step1)
     }
 
 
