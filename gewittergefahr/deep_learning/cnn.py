@@ -378,7 +378,7 @@ def train_cnn_2d_or_3d(
                 training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
-            callbacks=list_of_callback_objects,)
+            callbacks=list_of_callback_objects)
 
 
 def train_cnn_2d3d_myrorss(
