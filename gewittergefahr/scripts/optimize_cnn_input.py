@@ -401,8 +401,8 @@ def _run(model_file_name, is_model_swirlnet, component_type_string,
         list_of_optimized_input_matrices = (
             feature_optimization.optimize_input_for_class(
                 model_object=model_object, target_class=target_class,
-                init_function=init_function, num_iterations=num_iterations,
-                learning_rate=learning_rate)
+                init_function_or_matrices=init_function,
+                num_iterations=num_iterations, learning_rate=learning_rate)
         )
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
@@ -415,8 +415,8 @@ def _run(model_file_name, is_model_swirlnet, component_type_string,
                 feature_optimization.optimize_input_for_neuron_activation(
                     model_object=model_object, layer_name=layer_name,
                     neuron_indices=neuron_index_matrix[j, :],
-                    init_function=init_function, num_iterations=num_iterations,
-                    learning_rate=learning_rate,
+                    init_function_or_matrices=init_function,
+                    num_iterations=num_iterations, learning_rate=learning_rate,
                     ideal_activation=ideal_activation)
             )
 
@@ -438,7 +438,7 @@ def _run(model_file_name, is_model_swirlnet, component_type_string,
                 feature_optimization.optimize_input_for_channel_activation(
                     model_object=model_object, layer_name=layer_name,
                     channel_index=this_channel_index,
-                    init_function=init_function,
+                    init_function_or_matrices=init_function,
                     stat_function_for_neuron_activations=K.max,
                     num_iterations=num_iterations, learning_rate=learning_rate,
                     ideal_activation=ideal_activation)
@@ -460,7 +460,8 @@ def _run(model_file_name, is_model_swirlnet, component_type_string,
         pickle_file_name=output_file_name,
         list_of_optimized_input_matrices=list_of_optimized_input_matrices,
         model_file_name=model_file_name, num_iterations=num_iterations,
-        learning_rate=learning_rate, init_function_name=init_function_name,
+        learning_rate=learning_rate,
+        init_function_name_or_matrices=init_function_name,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, ideal_activation=ideal_activation,
         neuron_index_matrix=neuron_index_matrix,

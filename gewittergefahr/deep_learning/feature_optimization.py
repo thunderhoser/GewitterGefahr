@@ -7,6 +7,7 @@ Olah, C., A. Mordvintsev, and L. Schubert, 2017: Feature visualization. Distill,
     URL https://distill.pub/2017/feature-visualization.
 """
 
+import copy
 import pickle
 import numpy
 from keras import backend as K
@@ -25,7 +26,7 @@ MODEL_FILE_NAME_KEY = 'model_file_name'
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 COMPONENT_TYPE_KEY = 'component_type_string'
-INIT_FUNCTION_NAME_KEY = 'init_function_name'
+INIT_FUNCTION_KEY = 'init_function_name_or_matrices'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
@@ -39,14 +40,24 @@ CLIMO_INIT_FUNCTION_NAME = 'climo'
 
 
 def _do_gradient_descent(
-        model_object, loss_tensor, init_function, num_iterations,
+        model_object, loss_tensor, init_function_or_matrices, num_iterations,
         learning_rate):
     """Does gradient descent for feature optimization.
 
     :param model_object: Instance of `keras.models.Model`.
     :param loss_tensor: Keras tensor defining the loss function.
-    :param init_function: Function used to initialize input tensors.  See
-        `create_gaussian_initializer` for an example.
+    :param init_function_or_matrices: Either a function or a list of numpy
+        arrays.
+
+    If function, will be used to initialize input matrices.  See
+    `create_gaussian_initializer` for an example.
+
+    If list of numpy arrays, these *are* the input matrices to the optimization
+    procedure.  Matrices should be normalized (in the same way that training
+    data for the model were normalized).  Matrices must also be in the same
+    order as training matrices, and the [q]th matrix here must have the same
+    shape as the [q]th training matrix.
+
     :param num_iterations: Number of iterations (number of times that the input
         tensors will be adjusted).
     :param learning_rate: Learning rate.  At each iteration, each input value x
@@ -72,11 +83,19 @@ def _do_gradient_descent(
         list_of_input_tensors + [K.learning_phase()],
         ([loss_tensor] + list_of_gradient_tensors))
 
-    list_of_optimized_input_matrices = [None] * num_input_tensors
-    for i in range(num_input_tensors):
-        these_dimensions = numpy.array(
-            [1] + list_of_input_tensors[i].get_shape().as_list()[1:], dtype=int)
-        list_of_optimized_input_matrices[i] = init_function(these_dimensions)
+    if isinstance(init_function_or_matrices, list):
+        list_of_optimized_input_matrices = copy.deepcopy(
+            init_function_or_matrices)
+    else:
+        list_of_optimized_input_matrices = [None] * num_input_tensors
+
+        for i in range(num_input_tensors):
+            these_dimensions = numpy.array(
+                [1] + list_of_input_tensors[i].get_shape().as_list()[1:],
+                dtype=int)
+
+            list_of_optimized_input_matrices[i] = init_function_or_matrices(
+                these_dimensions)
 
     for j in range(num_iterations):
         these_outputs = inputs_to_loss_and_gradients(
@@ -380,7 +399,7 @@ def create_climo_initializer(
 
 
 def optimize_input_for_class(
-        model_object, target_class, init_function,
+        model_object, target_class, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE):
     """Optimizes synthetic input example for probability of target class.
@@ -388,7 +407,7 @@ def optimize_input_for_class(
     :param model_object: Instance of `keras.models.Model`.
     :param target_class: Synthetic input data will be optimized for this class.
         Must be an integer in 0...(K - 1), where K = number of classes.
-    :param init_function: See doc for `_do_gradient_descent`.
+    :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :return: list_of_optimized_input_matrices: See doc for
@@ -418,12 +437,12 @@ def optimize_input_for_class(
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
-        init_function=init_function, num_iterations=num_iterations,
-        learning_rate=learning_rate)
+        init_function_or_matrices=init_function_or_matrices,
+        num_iterations=num_iterations, learning_rate=learning_rate)
 
 
 def optimize_input_for_neuron_activation(
-        model_object, layer_name, neuron_indices, init_function,
+        model_object, layer_name, neuron_indices, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION):
@@ -435,7 +454,7 @@ def optimize_input_for_neuron_activation(
         Must have length K - 1, where K = number of dimensions in layer output.
         The first dimension of the layer output is the example dimension, for
         which the index in this case is always 0.
-    :param init_function: See doc for `_do_gradient_descent`.
+    :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
     :param ideal_activation: The loss function will be
@@ -472,12 +491,12 @@ def optimize_input_for_neuron_activation(
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
-        init_function=init_function, num_iterations=num_iterations,
-        learning_rate=learning_rate)
+        init_function_or_matrices=init_function_or_matrices,
+        num_iterations=num_iterations, learning_rate=learning_rate)
 
 
 def optimize_input_for_channel_activation(
-        model_object, layer_name, channel_index, init_function,
+        model_object, layer_name, channel_index, init_function_or_matrices,
         stat_function_for_neuron_activations,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE,
@@ -489,7 +508,7 @@ def optimize_input_for_channel_activation(
     :param channel_index: Index of the relevant channel.  This method optimizes
         synthetic input data for activation of the [j]th output channel of
         `layer_name`, where j = `channel_index`.
-    :param init_function: See doc for `_do_gradient_descent`.
+    :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param stat_function_for_neuron_activations: Function used to process neuron
         activations.  In general, a channel contains many neurons, so there is
         an infinite number of ways to maximize the "channel activation," because
@@ -534,14 +553,14 @@ def optimize_input_for_channel_activation(
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
-        init_function=init_function, num_iterations=num_iterations,
-        learning_rate=learning_rate)
+        init_function_or_matrices=init_function_or_matrices,
+        num_iterations=num_iterations, learning_rate=learning_rate)
 
 
 def write_file(
         pickle_file_name, list_of_optimized_input_matrices, model_file_name,
-        num_iterations, learning_rate, component_type_string,
-        init_function_name, target_class=None, layer_name=None,
+        init_function_name_or_matrices, num_iterations, learning_rate,
+        component_type_string, target_class=None, layer_name=None,
         ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
     """Writes optimized input data to Pickle file.
 
@@ -549,10 +568,12 @@ def write_file(
     :param list_of_optimized_input_matrices: List of optimized input matrices,
         created by `_do_gradient_descent`.
     :param model_file_name: Path to file with trained model.
+    :param init_function_name_or_matrices: See doc for `_do_gradient_descent`.
+        The only difference here is that the variable must be a function *name*
+        (rather than the function itself) or list of numpy arrays.
     :param num_iterations: See doc for `check_metadata`.
     :param learning_rate: Same.
     :param component_type_string: Same.
-    :param init_function_name: Same.
     :param target_class: Same.
     :param layer_name: Same.
     :param ideal_activation: Same.
@@ -582,7 +603,7 @@ def write_file(
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
         COMPONENT_TYPE_KEY: component_type_string,
-        INIT_FUNCTION_NAME_KEY: init_function_name,
+        INIT_FUNCTION_KEY: init_function_name_or_matrices,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
@@ -607,7 +628,7 @@ def read_file(pickle_file_name):
     metadata_dict['num_iterations']: Same.
     metadata_dict['learning_rate']: Same.
     metadata_dict['component_type_string']: Same.
-    metadata_dict['init_function_name']: Same.
+    metadata_dict['init_function_name_or_matrices']: Same.
     metadata_dict['target_class']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['ideal_activation']: Same.
