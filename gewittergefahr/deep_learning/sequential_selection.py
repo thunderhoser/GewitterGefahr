@@ -275,6 +275,7 @@ def create_training_function(num_training_examples_per_batch, num_epochs):
 
         return model_object.fit(
             x=list_of_training_matrices, y=training_target_array,
+            batch_size=num_training_examples_per_batch,
             epochs=num_epochs, verbose=1,
             validation_data=(list_of_validation_matrices,
                              validation_target_array),
