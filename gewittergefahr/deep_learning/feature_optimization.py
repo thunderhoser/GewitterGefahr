@@ -593,6 +593,12 @@ def write_file(
 
     for this_array in list_of_optimized_input_matrices:
         error_checking.assert_is_numpy_array(this_array)
+
+        # TODO(thunderhoser): Commenting out this code is a HACK.  Honestly,
+        # each file should probably contain optimized images for one model
+        # component and many examples, rather than one example and many
+        # components.  So I just need to fix the IO in this module.
+
         # these_expected_dim = numpy.array(
         #     (num_components,) + this_array.shape[1:], dtype=int)
         # error_checking.assert_is_numpy_array(

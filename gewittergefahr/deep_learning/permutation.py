@@ -281,8 +281,9 @@ def run_permutation_test(
                 this_cost = cost_function(
                     target_values, this_probability_matrix)
 
+                print 'Resulting cost = {0:.4e}'.format(this_cost)
+
                 if step_num == 1:
-                    print 'Resulting cost = {0:.4e}'.format(this_cost)
                     predictor_names_step1.append(this_predictor_name)
                     costs_step1.append(this_cost)
 
