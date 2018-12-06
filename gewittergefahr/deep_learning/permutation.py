@@ -114,6 +114,8 @@ def cross_entropy_function(target_values, class_probability_matrix):
     :return: cross_entropy: Scalar.
     """
 
+    # TODO(thunderhoser): Add unit test.
+
     num_examples = class_probability_matrix.shape[0]
     num_classes = class_probability_matrix.shape[1]
 

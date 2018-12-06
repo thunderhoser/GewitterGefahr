@@ -593,10 +593,10 @@ def write_file(
 
     for this_array in list_of_optimized_input_matrices:
         error_checking.assert_is_numpy_array(this_array)
-        these_expected_dim = numpy.array(
-            (num_components,) + this_array.shape[1:], dtype=int)
-        error_checking.assert_is_numpy_array(
-            this_array, exact_dimensions=these_expected_dim)
+        # these_expected_dim = numpy.array(
+        #     (num_components,) + this_array.shape[1:], dtype=int)
+        # error_checking.assert_is_numpy_array(
+        #     this_array, exact_dimensions=these_expected_dim)
 
     metadata_dict = {
         MODEL_FILE_NAME_KEY: model_file_name,

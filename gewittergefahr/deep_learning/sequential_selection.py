@@ -147,6 +147,8 @@ def _subset_input_matrices(
         of each matrix may be shorter.
     """
 
+    # TODO(thunderhoser): Add unit test.
+
     num_input_matrices = len(list_of_training_matrices)
     desired_indices_by_matrix = [[]] * num_input_matrices
 
@@ -195,6 +197,8 @@ def _eval_sfs_stopping_criterion(
     :raises: ValueError: if both `min_loss_decrease` and
         `min_percentage_loss_decrease` are None.
     """
+
+    # TODO(thunderhoser): Add unit test.
 
     if min_loss_decrease is None and min_percentage_loss_decrease is None:
         raise ValueError('Either min_loss_decrease or '
