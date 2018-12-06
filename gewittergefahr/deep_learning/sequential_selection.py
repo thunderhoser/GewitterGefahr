@@ -6,6 +6,7 @@ Sequential (forward or backward) selection is explained in Section xxx of Webb (
 import copy
 import pickle
 import numpy
+import keras.utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn_architecture
@@ -259,11 +260,24 @@ def create_training_function(num_training_examples_per_batch, num_epochs):
         :return: history_object: Instance of `keras.callbacks.History`.
         """
 
+        num_output_neurons = (
+            model_object.layers[-1].output.get_shape().as_list()[-1]
+        )
+
+        if num_output_neurons == 1:
+            training_target_array = training_target_values + 0
+            validation_target_array = validation_target_values + 0
+        else:
+            training_target_array = keras.utils.to_categorical(
+                y=training_target_values, num_classes=num_output_neurons)
+            validation_target_array = keras.utils.to_categorical(
+                y=validation_target_values, num_classes=num_output_neurons)
+
         return model_object.fit(
-            x=list_of_training_matrices, y=training_target_values,
+            x=list_of_training_matrices, y=training_target_array,
             epochs=num_epochs, verbose=1,
             validation_data=(list_of_validation_matrices,
-                             validation_target_values),
+                             validation_target_array),
             shuffle=False, initial_epoch=0)
 
     return training_function
