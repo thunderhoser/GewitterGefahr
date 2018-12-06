@@ -19,6 +19,9 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 
+MIN_PROBABILITY = 1e-15
+MAX_PROBABILITY = 1. - MIN_PROBABILITY
+
 # Mandatory keys in result dictionary (see `write_results`).
 SELECTED_PREDICTORS_KEY = 'selected_predictor_name_by_step'
 HIGHEST_COSTS_KEY = 'highest_cost_by_step'
@@ -104,24 +107,38 @@ def prediction_function_2d3d_cnn(model_object, list_of_input_matrices):
         sounding_matrix=sounding_matrix)
 
 
-def cross_entropy_function(target_values, class_probability_matrix):
+def cross_entropy_function(
+        target_values, class_probability_matrix, test_mode=False):
     """Cross-entropy cost function.
 
     This function works for binary or multi-class classification.
 
     :param target_values: See doc for `run_permutation_test`.
     :param class_probability_matrix: Same.
+    :param test_mode: Never mind.  Leave this alone.
     :return: cross_entropy: Scalar.
     """
 
-    # TODO(thunderhoser): Add unit test.
+    error_checking.assert_is_boolean(test_mode)
 
     num_examples = class_probability_matrix.shape[0]
     num_classes = class_probability_matrix.shape[1]
 
+    class_probability_matrix[
+        class_probability_matrix < MIN_PROBABILITY
+    ] = MIN_PROBABILITY
+    class_probability_matrix[
+        class_probability_matrix > MAX_PROBABILITY
+    ] = MAX_PROBABILITY
+
     target_matrix = keras.utils.to_categorical(
         target_values, num_classes
     ).astype(int)
+
+    if test_mode:
+        return -1 * numpy.sum(
+            target_matrix * numpy.log(class_probability_matrix)
+        ) / num_examples
 
     return -1 * numpy.sum(
         target_matrix * numpy.log2(class_probability_matrix)
