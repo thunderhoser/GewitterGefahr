@@ -518,8 +518,7 @@ def run_sfs(
                     )
                 )
 
-                this_model_object = model_builder(
-                    list_of_input_matrices=these_training_matrices)
+                this_model_object = model_builder(these_training_matrices)
 
                 this_history_object = training_function(
                     model_object=this_model_object,
