@@ -147,31 +147,29 @@ def _subset_input_matrices(
         of each matrix may be shorter.
     """
 
-    # TODO(thunderhoser): Add unit test.
-
     num_input_matrices = len(list_of_training_matrices)
-    desired_indices_by_matrix = [[]] * num_input_matrices
+    desired_indices_by_matrix = (
+        [numpy.array([], dtype=int)] * num_input_matrices
+    )
 
     for this_predictor_name in desired_predictor_names:
         for q in range(num_input_matrices):
             if this_predictor_name not in predictor_names_by_matrix[q]:
                 continue
 
-            desired_indices_by_matrix[q].append(
-                predictor_names_by_matrix[q].index(this_predictor_name)
-            )
+            this_index = predictor_names_by_matrix[q].index(this_predictor_name)
+            desired_indices_by_matrix[q] = numpy.concatenate((
+                desired_indices_by_matrix[q], numpy.array([this_index])
+            ))
 
     desired_training_matrices = [None] * num_input_matrices
     desired_validation_matrices = [None] * num_input_matrices
 
     for q in range(num_input_matrices):
-        these_desired_indices = numpy.array(
-            desired_indices_by_matrix[q], dtype=int)
-
         desired_training_matrices[q] = list_of_training_matrices[q][
-            ..., these_desired_indices]
+            ..., desired_indices_by_matrix[q]]
         desired_validation_matrices[q] = list_of_validation_matrices[q][
-            ..., these_desired_indices]
+            ..., desired_indices_by_matrix[q]]
 
     return desired_training_matrices, desired_validation_matrices
 
@@ -197,8 +195,6 @@ def _eval_sfs_stopping_criterion(
     :raises: ValueError: if both `min_loss_decrease` and
         `min_percentage_loss_decrease` are None.
     """
-
-    # TODO(thunderhoser): Add unit test.
 
     if min_loss_decrease is None and min_percentage_loss_decrease is None:
         raise ValueError('Either min_loss_decrease or '
