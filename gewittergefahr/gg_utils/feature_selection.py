@@ -149,8 +149,7 @@ def _forward_selection_step(
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
     :param cost_function: Cost function to be minimized by feature selection.
-        Inputs should be forecast_probabilities and observed_values (in that
-        order).  Output should be real-valued float.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_features_to_add: Number of features to add (L in the above
         discussion).
     :return: min_cost: Minimum cost given by adding any set of L features from
@@ -178,7 +177,7 @@ def _forward_selection_step(
             training_table[target_name].values)
 
         these_forecast_probabilities = new_estimator_object.predict_proba(
-            validation_table.as_matrix(columns=these_feature_names))[:, 1]
+            validation_table.as_matrix(columns=these_feature_names))
         cost_by_feature_combo[j] = cost_function(
             these_forecast_probabilities,
             validation_table[target_name].values)
@@ -208,8 +207,7 @@ def _backward_selection_step(
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
     :param cost_function: Cost function to be minimized by feature selection.
-        Inputs should be forecast_probabilities and observed_values (in that
-        order).  Output should be real-valued float.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_features_to_remove: Number of features to remove (R in the above
         discussion).
     :return: min_cost: Minimum cost given by removing any set of R features in
@@ -238,9 +236,9 @@ def _backward_selection_step(
             training_table.as_matrix(columns=these_feature_names),
             training_table[target_name].values)
 
-        these_forecast_probabilities = (
-            new_estimator_object.predict_proba(validation_table.as_matrix(
-                columns=these_feature_names))[:, 1])
+
+        these_forecast_probabilities = new_estimator_object.predict_proba(
+            validation_table.as_matrix(columns=these_feature_names))
         cost_by_feature_combo[j] = cost_function(
             these_forecast_probabilities,
             validation_table[target_name].values)
@@ -404,14 +402,15 @@ def _plot_selection_results(
 def _get_cross_entropy(forecast_probabilities, observed_labels):
     """Computes cross-entropy.
 
-    :param forecast_probabilities: length-N numpy array with forecast
-        probabilities of some event (e.g., tornado).
+    :param forecast_probabilities: a numpy array of shape (n, 2), where the 
+        first column has probabilities of 'no' events and the second has 'yes'
     :param observed_labels: length-N integer numpy array of observed labels
         (1 for "yes", 0 for "no").
     :return: cross_entropy: Cross-entropy.
     """
 
-    return model_eval.get_cross_entropy(forecast_probabilities, observed_labels)
+    return model_eval.get_cross_entropy(
+        forecast_probabilities[:, 1], observed_labels)
 
 
 def _get_negative_auc(forecast_probabilities, observed_labels):
@@ -427,7 +426,7 @@ def _get_negative_auc(forecast_probabilities, observed_labels):
     """
 
     return sklearn.metrics.roc_auc_score(
-        observed_labels, forecast_probabilities)
+        observed_labels, forecast_probabilities[:, 1])
 
 
 def sequential_forward_selection(
@@ -449,8 +448,8 @@ def sequential_forward_selection(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _forward_selection_step.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_features_to_add_per_step: Number of features to add at each step.
     :param min_fractional_cost_decrease: Stopping criterion.  Once the
         fractional cost decrease over one step is <
@@ -557,8 +556,8 @@ def sfs_with_backward_steps(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _forward_selection_step.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
@@ -717,8 +716,8 @@ def floating_sfs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _forward_selection_step.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_features_to_add_per_step: Number of features to add at each step.
     :param min_fractional_cost_decrease: See doc for
         sequential_forward_selection.
@@ -855,8 +854,8 @@ def sequential_backward_selection(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _backward_selection_step.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_features_to_remove_per_step: Number of features to remove at each
         step.
     :param min_fractional_cost_decrease: Stopping criterion.  Once the
@@ -967,8 +966,8 @@ def sbs_with_forward_steps(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _backward_selection_step.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
@@ -1135,8 +1134,8 @@ def floating_sbs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _backward_selection_step.
+    :param cost_function: Cost function to be minimized by feature selection.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :param num_features_to_remove_per_step: Number of features to remove at each
         step.
     :param min_fractional_cost_decrease: See doc for
@@ -1269,8 +1268,7 @@ def permutation_selection(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
     :param cost_function: Cost function to be minimized by feature selection.
-        Inputs should be forecast_probabilities and observed_values (in that
-        order).  Output should be real-valued float.
+        Should have form (forecase_probability_vectors,observed_values) -> float
     :return: permutation_table: pandas DataFrame with the following columns.
         Each row corresponds to one feature.  Order of rows = order in which
         features were permuted.  In other words, the feature in the [i]th row
@@ -1456,3 +1454,4 @@ def plot_permutation_results(
         validation_cost_before_permutn=orig_validation_cost,
         plot_feature_names=plot_feature_names, bar_face_colour=bar_face_colour,
         bar_edge_colour=bar_edge_colour, bar_edge_width=bar_edge_width)
+
