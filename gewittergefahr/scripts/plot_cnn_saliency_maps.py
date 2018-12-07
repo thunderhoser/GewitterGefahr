@@ -3,12 +3,24 @@
 import os.path
 import argparse
 import numpy
+import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
+from generalexam.plotting import saliency_plotting as ge_saliency_plotting
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
+from gewittergefahr.gg_utils import time_conversion
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.plotting import plotting_utils
+from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import saliency_plotting
+
+TITLE_FONT_SIZE = 20
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
+FIGURE_RESOLUTION_DPI = 300
 
 SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 
@@ -96,6 +108,9 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
         convolution.
     """
 
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=output_dir_name)
+
     # Check input args.
     if max_colour_value <= 0:
         max_colour_value = None
@@ -151,60 +166,224 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
             temp_directory_name=temp_directory_name)
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        saliency_plotting.plot_saliency_with_radar_3d_fields(
-            radar_matrix=list_of_input_matrices[0],
-            saliency_matrix=list_of_saliency_matrices[0],
-            saliency_metadata_dict=saliency_metadata_dict,
-            radar_field_names=[radar_utils.REFL_NAME],
-            radar_heights_m_agl=training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY],
-            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-            output_dir_name=output_dir_name,
-            saliency_option_dict=saliency_option_dict)
+        reflectivity_matrix_dbz = list_of_input_matrices[0]
+        refl_saliency_matrix = list_of_saliency_matrices[0]
+        azimuthal_shear_matrix_s01 = list_of_input_matrices[1]
+        az_shear_saliency_matrix = list_of_saliency_matrices[1]
 
-        these_heights_m_agl = numpy.full(
+        az_shear_heights_m_agl = numpy.full(
             len(training_option_dict[trainval_io.RADAR_FIELDS_KEY]),
             radar_utils.SHEAR_HEIGHT_M_ASL)
 
-        saliency_plotting.plot_saliency_with_radar_2d_fields(
-            radar_matrix=list_of_input_matrices[1],
-            saliency_matrix=list_of_saliency_matrices[1],
-            saliency_metadata_dict=saliency_metadata_dict,
-            field_name_by_pair=training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY],
-            height_by_pair_m_agl=these_heights_m_agl,
-            one_fig_per_storm_object=True, num_panel_rows=1,
-            output_dir_name=output_dir_name,
-            saliency_option_dict=saliency_option_dict)
+        num_examples = reflectivity_matrix_dbz.shape[0]
+
+        for i in range(num_examples):
+            this_storm_id = saliency_metadata_dict[
+                saliency_maps.STORM_IDS_KEY][i]
+            this_storm_time_string = time_conversion.unix_sec_to_string(
+                saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
+                TIME_FORMAT)
+
+            _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+                field_matrix=numpy.flip(
+                    reflectivity_matrix_dbz[i, ..., 0], axis=0),
+                field_name=radar_utils.REFL_NAME,
+                grid_point_heights_metres=training_option_dict[
+                    trainval_io.RADAR_HEIGHTS_KEY],
+                ground_relative=True, num_panel_rows=num_panel_rows)
+
+            # TODO(thunderhoser): Some things in this call need to be input args
+            # to the script.
+            ge_saliency_plotting.plot_many_2d_grids(
+                saliency_matrix_3d=numpy.flip(
+                    refl_saliency_matrix[i, ..., 0], axis=0),
+                axes_objects_2d_list=these_axes_objects,
+                colour_map_object=pyplot.cm.Greys,
+                max_absolute_contour_level=1., contour_interval=0.1)
+
+            this_colour_map_object, this_colour_norm_object, _ = (
+                radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
+            )
+
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=these_axes_objects,
+                values_to_colour=reflectivity_matrix_dbz[i, ..., 0],
+                colour_map=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation='horizontal', extend_min=True, extend_max=True)
+
+            this_title_string = (
+                'Reflectivity + saliency for storm "{0:s}" at {1:s}'
+            ).format(this_storm_id, this_storm_time_string)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+            this_figure_file_name = (
+                '{0:s}/saliency_{1:s}_{2:s}_reflectivity.jpg'
+            ).format(
+                output_dir_name, this_storm_id.replace('_', '-'),
+                this_storm_time_string
+            )
+
+            print 'Saving figure to file: "{0:s}"...'.format(
+                this_figure_file_name)
+            pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.close()
+
+            _, these_axes_objects = (
+                radar_plotting.plot_many_2d_grids_without_coords(
+                    field_matrix=numpy.flip(
+                        azimuthal_shear_matrix_s01[i, ...], axis=-1),
+                    field_name_by_pair=training_option_dict[
+                        trainval_io.RADAR_FIELDS_KEY],
+                    height_by_pair_metres=az_shear_heights_m_agl,
+                    ground_relative=True, num_panel_rows=num_panel_rows)
+            )
+
+            ge_saliency_plotting.plot_many_2d_grids(
+                saliency_matrix_3d=numpy.flip(
+                    az_shear_saliency_matrix[i, ...], axis=0),
+                axes_objects_2d_list=these_axes_objects,
+                colour_map_object=pyplot.cm.Greys,
+                max_absolute_contour_level=1., contour_interval=0.1)
+
+            this_colour_map_object, this_colour_norm_object, _ = (
+                radar_plotting.get_default_colour_scheme(
+                    radar_utils.LOW_LEVEL_SHEAR_NAME)
+            )
+
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=these_axes_objects,
+                values_to_colour=az_shear_saliency_matrix[i, ...],
+                colour_map=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation='horizontal', extend_min=True, extend_max=True)
+
+            this_title_string = (
+                'Azimuthal shear + saliency for storm "{0:s}" at {1:s}'
+            ).format(this_storm_id, this_storm_time_string)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+            this_figure_file_name = (
+                '{0:s}/saliency_{1:s}_{2:s}_azimuthal-shear.jpg'
+            ).format(
+                output_dir_name, this_storm_id.replace('_', '-'),
+                this_storm_time_string
+            )
+
+            print 'Saving figure to file: "{0:s}"...'.format(
+                this_figure_file_name)
+            pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.close()
 
         return
 
+    radar_matrix = list_of_input_matrices[0]
+    radar_saliency_matrix = list_of_saliency_matrices[0]
+
+    num_examples = radar_matrix.shape[0]
     num_radar_dimensions = len(list_of_input_matrices[0].shape) - 2
 
     if num_radar_dimensions == 3:
-        saliency_plotting.plot_saliency_with_radar_3d_fields(
-            radar_matrix=list_of_input_matrices[0],
-            saliency_matrix=list_of_saliency_matrices[0],
-            saliency_metadata_dict=saliency_metadata_dict,
-            radar_field_names=training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY],
-            radar_heights_m_agl=training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY],
-            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-            output_dir_name=output_dir_name,
-            saliency_option_dict=saliency_option_dict)
-    else:
-        saliency_plotting.plot_saliency_with_radar_2d_fields(
-            radar_matrix=list_of_input_matrices[0],
-            saliency_matrix=list_of_saliency_matrices[0],
-            saliency_metadata_dict=saliency_metadata_dict,
-            field_name_by_pair=training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY],
-            height_by_pair_m_agl=training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY],
-            one_fig_per_storm_object=True, num_panel_rows=num_panel_rows,
-            output_dir_name=output_dir_name,
-            saliency_option_dict=saliency_option_dict)
+        num_fields = radar_matrix.shape[-1]
+
+        for i in range(num_examples):
+            this_storm_id = saliency_metadata_dict[
+                saliency_maps.STORM_IDS_KEY][i]
+            this_storm_time_string = time_conversion.unix_sec_to_string(
+                saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
+                TIME_FORMAT)
+
+            for k in range(num_fields):
+                this_field_name = training_option_dict[
+                    trainval_io.RADAR_FIELDS_KEY][k]
+
+                _, these_axes_objects = (
+                    radar_plotting.plot_3d_grid_without_coords(
+                        field_matrix=numpy.flip(
+                            radar_matrix[i, ..., k], axis=0),
+                        field_name=this_field_name,
+                        grid_point_heights_metres=training_option_dict[
+                            trainval_io.RADAR_HEIGHTS_KEY],
+                        ground_relative=True, num_panel_rows=num_panel_rows)
+                )
+
+                ge_saliency_plotting.plot_many_2d_grids(
+                    saliency_matrix_3d=numpy.flip(
+                        radar_saliency_matrix[i, ..., k], axis=0),
+                    axes_objects_2d_list=these_axes_objects,
+                    colour_map_object=pyplot.cm.Greys,
+                    max_absolute_contour_level=1., contour_interval=0.1)
+
+                this_colour_map_object, this_colour_norm_object, _ = (
+                    radar_plotting.get_default_colour_scheme(this_field_name)
+                )
+
+                plotting_utils.add_colour_bar(
+                    axes_object_or_list=these_axes_objects,
+                    values_to_colour=radar_matrix[i, ..., k],
+                    colour_map=this_colour_map_object,
+                    colour_norm_object=this_colour_norm_object,
+                    orientation='horizontal', extend_min=True, extend_max=True)
+
+                this_title_string = (
+                    '{0:s} + saliency for storm "{1:s}" at {2:s}'
+                ).format(this_field_name, this_storm_id, this_storm_time_string)
+                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+                this_figure_file_name = (
+                    '{0:s}/saliency_{1:s}_{2:s}_{3:s}.jpg'
+                ).format(
+                    output_dir_name, this_storm_id.replace('_', '-'),
+                    this_storm_time_string, this_field_name.replace('_', '-')
+                )
+
+                print 'Saving figure to file: "{0:s}"...'.format(
+                    this_figure_file_name)
+                pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+                pyplot.close()
+
+        return
+
+    for i in range(num_examples):
+        this_storm_id = saliency_metadata_dict[
+            saliency_maps.STORM_IDS_KEY][i]
+        this_storm_time_string = time_conversion.unix_sec_to_string(
+            saliency_metadata_dict[saliency_maps.STORM_TIMES_KEY][i],
+            TIME_FORMAT)
+
+        _, these_axes_objects = (
+            radar_plotting.plot_many_2d_grids_without_coords(
+                field_matrix=numpy.flip(radar_matrix[i, ...], axis=-1),
+                field_name_by_pair=training_option_dict[
+                    trainval_io.RADAR_FIELDS_KEY],
+                height_by_pair_metres=training_option_dict[
+                    trainval_io.RADAR_HEIGHTS_KEY],
+                ground_relative=True, num_panel_rows=num_panel_rows)
+        )
+
+        ge_saliency_plotting.plot_many_2d_grids(
+            saliency_matrix_3d=numpy.flip(
+                radar_saliency_matrix[i, ...], axis=0),
+            axes_objects_2d_list=these_axes_objects,
+            colour_map_object=pyplot.cm.Greys,
+            max_absolute_contour_level=1., contour_interval=0.1)
+
+        this_title_string = (
+            'Radar + saliency for storm "{0:s}" at {1:s}'
+        ).format(this_storm_id, this_storm_time_string)
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
+        this_figure_file_name = (
+            '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'
+        ).format(
+            output_dir_name, this_storm_id.replace('_', '-'),
+            this_storm_time_string
+        )
+
+        print 'Saving figure to file: "{0:s}"...'.format(
+            this_figure_file_name)
+        pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.close()
 
 
 if __name__ == '__main__':
