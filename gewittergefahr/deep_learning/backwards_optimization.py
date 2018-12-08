@@ -43,9 +43,6 @@ VALID_INIT_FUNCTION_NAMES = [
     CONSTANT_INIT_FUNCTION_NAME, CLIMO_INIT_FUNCTION_NAME
 ]
 
-# TODO(thunderhoser): Documentation for non-IO methods needs to be cleaned up
-# (made consistent).
-
 
 def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
     """Error-checks input args for backwards optimization.
@@ -68,29 +65,33 @@ def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
 def _do_gradient_descent(
         model_object, loss_tensor, init_function_or_matrices, num_iterations,
         learning_rate):
-    """Does gradient descent for feature optimization.
+    """Does gradient descent (the nitty-gritty part of backwards optimization).
 
-    :param model_object: Instance of `keras.models.Model`.
-    :param loss_tensor: Keras tensor defining the loss function.
-    :param init_function_or_matrices: Either a function or a list of numpy
-        arrays.
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param loss_tensor: Keras tensor, defining the loss function to be
+        minimized.
+    :param init_function_or_matrices: Either a function or list of numpy arrays.
 
     If function, will be used to initialize input matrices.  See
     `create_gaussian_initializer` for an example.
 
-    If list of numpy arrays, these *are* the input matrices to the optimization
-    procedure.  Matrices should be normalized (in the same way that training
-    data for the model were normalized).  Matrices must also be in the same
-    order as training matrices, and the [q]th matrix here must have the same
+    If list of numpy arrays, these are the input matrices themselves.  Matrices
+    should be processed in the exact same way that training data were processed
+    (e.g., normalization method).  Matrices must also be in the same order as
+    training matrices, and the [q]th matrix in this list must have the same
     shape as the [q]th training matrix.
 
-    :param num_iterations: Number of iterations (number of times that the input
-        tensors will be adjusted).
+    :param num_iterations: Number of gradient-descent iterations (number of
+        times that the input matrices are adjusted).
     :param learning_rate: Learning rate.  At each iteration, each input value x
         will be decremented by `learning_rate * gradient`, where `gradient` is
-        the gradient of x with respect to the loss function.
+        the gradient of the loss function with respect to x.
     :return: list_of_optimized_input_matrices: length-T list of optimized input
         matrices (numpy arrays), where T = number of input tensors to the model.
+        If the input arg `init_function_or_matrices` is a list of numpy arrays
+        (rather than a function), `list_of_optimized_input_matrices` will have
+        the exact same shape, just with different values.
     """
 
     if isinstance(model_object.input, list):
@@ -98,16 +99,19 @@ def _do_gradient_descent(
     else:
         list_of_input_tensors = [model_object.input]
 
-    list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     num_input_tensors = len(list_of_input_tensors)
+
+    list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     for i in range(num_input_tensors):
         list_of_gradient_tensors[i] /= K.maximum(
             K.sqrt(K.mean(list_of_gradient_tensors[i] ** 2)),
-            K.epsilon())
+            K.epsilon()
+        )
 
     inputs_to_loss_and_gradients = K.function(
         list_of_input_tensors + [K.learning_phase()],
-        ([loss_tensor] + list_of_gradient_tensors))
+        ([loss_tensor] + list_of_gradient_tensors)
+    )
 
     if isinstance(init_function_or_matrices, list):
         list_of_optimized_input_matrices = copy.deepcopy(
@@ -128,14 +132,14 @@ def _do_gradient_descent(
             list_of_optimized_input_matrices + [0])
 
         if numpy.mod(j, 100) == 0:
-            print 'Loss at iteration {0:d} of {1:d}: {2:.2e}'.format(
+            print 'Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
                 j + 1, num_iterations, these_outputs[0])
 
         for i in range(num_input_tensors):
             list_of_optimized_input_matrices[i] -= (
                 these_outputs[i + 1] * learning_rate)
 
-    print 'Loss after all {0:d} iterations: {1:.2e}'.format(
+    print 'Loss after {0:d} iterations: {1:.2e}'.format(
         num_iterations, these_outputs[0])
     return list_of_optimized_input_matrices
 
@@ -162,21 +166,22 @@ def check_init_function(init_function_name):
 def create_gaussian_initializer(mean, standard_deviation):
     """Creates Gaussian initializer.
 
-    :param mean: Mean of Gaussian distribution.
-    :param standard_deviation: Standard deviation of Gaussian distribution.
+    :param mean: Mean of distribution (used to fill initialized model-input
+        matrix).
+    :param standard_deviation: Standard deviation of distribution.
     :return: init_function: Function (see below).
     """
 
-    def init_function(array_dimensions):
-        """Initializes numpy array with Gaussian distribution.
+    def init_function(matrix_dimensions):
+        """Initializes model input to Gaussian distribution.
 
-        :param array_dimensions: numpy array of dimensions.
-        :return: array: Array with the given dimensions.  For example, if
-            array_dimensions = [1, 5, 10], this array will be 1 x 5 x 10.
+        :param matrix_dimensions: numpy array with desired dimensions
+            for initialized model input.
+        :return: initial_matrix: numpy array with the given dimensions.
         """
 
         return numpy.random.normal(
-            loc=mean, scale=standard_deviation, size=array_dimensions)
+            loc=mean, scale=standard_deviation, size=matrix_dimensions)
 
     return init_function
 
@@ -184,20 +189,22 @@ def create_gaussian_initializer(mean, standard_deviation):
 def create_uniform_random_initializer(min_value, max_value):
     """Creates uniform-random initializer.
 
-    :param min_value: Minimum value in uniform distribution.
-    :param max_value: Max value in uniform distribution.
+    :param min_value: Minimum value in distribution (used to fill initialized
+        model-input matrix).
+    :param max_value: Max value in distribution.
     :return: init_function: Function (see below).
     """
 
-    def init_function(array_dimensions):
-        """Initializes numpy array with uniform distribution.
+    def init_function(matrix_dimensions):
+        """Initializes model input to uniform random distribution.
 
-        :param array_dimensions: numpy array of dimensions.
-        :return: array: Array with the given dimensions.
+        :param matrix_dimensions: numpy array with desired dimensions
+            for initialized model input.
+        :return: initial_matrix: numpy array with the given dimensions.
         """
 
         return numpy.random.uniform(
-            low=min_value, high=max_value, size=array_dimensions)
+            low=min_value, high=max_value, size=matrix_dimensions)
 
     return init_function
 
@@ -205,18 +212,20 @@ def create_uniform_random_initializer(min_value, max_value):
 def create_constant_initializer(constant_value):
     """Creates constant initializer.
 
-    :param constant_value: Constant value with which to fill numpy array.
+    :param constant_value: Constant value (repeated in initialized model-input
+        matrix).
     :return: init_function: Function (see below).
     """
 
-    def init_function(array_dimensions):
-        """Initializes numpy array with constant value.
+    def init_function(matrix_dimensions):
+        """Initializes model input to constant value.
 
-        :param array_dimensions: numpy array of dimensions.
-        :return: array: Array with the given dimensions.
+        :param matrix_dimensions: numpy array with desired dimensions
+            for initialized model input.
+        :return: initial_matrix: numpy array with the given dimensions.
         """
 
-        return numpy.full(array_dimensions, constant_value, dtype=float)
+        return numpy.full(matrix_dimensions, constant_value, dtype=float)
 
     return init_function
 
@@ -226,34 +235,19 @@ def create_climo_initializer(
         radar_normalization_table=None, sounding_normalization_table=None):
     """Creates climatological initializer.
 
-    Specifically, this function initializes each value to a climatological mean.
-    There is one mean for each radar field/height and each sounding
-    field/height.
-
-    F_s = number of sounding fields in model input
-    H_s = number of sounding heights in model input
-
-    The following letters are used only for 3-D radar images.
-
-    F_r = number of radar fields in model input
-    H_r = number of radar heights in model input
-
-    The following letters are used only for 2-D radar images.
-
-    C = number of radar channels (field/height pairs) in model input
-
     :param training_option_dict: See doc for
         `training_validation_io.example_generator_2d_or_3d` or
         `training_validation_io.example_generator_2d3d_myrorss`.
     :param myrorss_2d3d: Boolean flag.  If True, this method will assume that
-        2-D images contain azimuthal shear and 3-D images contain reflectivity.
-        In other words, it will treat `training_option_dict` the same way that
-        `example_generator_2d3d_myrorss` does.  If False, this method will treat
-        `training_option_dict` the same way that `example_generator_2d_or_3d`
-        does.
+        model input contains 2-D azimuthal-shear images and 3-D reflectivity
+        images.  In other words, this method will treat `training_option_dict`
+        in the same way that
+        `training_validation_io.example_generator_2d3d_myrorss` does.  If False,
+        will treat `training_option_dict` in the same way that
+        `training_validation_io.example_generator_2d_or_3d` does.
     :param test_mode: Never mind.  Leave this alone.
-    :param radar_normalization_table: For testing only.  Leave this alone.
-    :param sounding_normalization_table: For testing only.  Leave this alone.
+    :param radar_normalization_table: Never mind.  Leave this alone.
+    :param sounding_normalization_table: Never mind.  Leave this alone.
     :return: init_function: Function (see below).
     """
 
@@ -267,33 +261,36 @@ def create_climo_initializer(
             )
         )
 
-    def init_function(array_dimensions):
-        """Initializes numpy array with climatological means.
+    def init_function(matrix_dimensions):
+        """Initializes model input to climatological means.
 
-        If len(array_dimensions) = 3, this method creates initial soundings.
+        This function uses one mean for each radar field/height pair and each
+        sounding field/height pair, rather than one per field altogether, to
+        create "realistic" vertical profiles.
 
-        If len(array_dimensions) = 4 and myrorss_2d3d = False, this method
-        creates initial 2-D radar images with all fields in
-        training_option_dict.
+        If len(matrix_dimensions) = 3, this function creates initial soundings.
 
-        If len(array_dimensions) = 4 and myrorss_2d3d = True, this method
-        creates initial 2-D radar images with only azimuthal-shear fields in
-        training_option_dict.
+        If len(matrix_dimensions) = 4 and myrorss_2d3d = False, creates initial
+        2-D radar images with all fields in `training_option_dict`.
 
-        If len(array_dimensions) = 5 and myrorss_2d3d = False, this method
-        creates initial 3-D radar images with all fields in
-        training_option_dict.
+        If len(matrix_dimensions) = 4 and myrorss_2d3d = True, creates initial
+        2-D radar images with only azimuthal-shear fields in
+        `training_option_dict`.
 
-        If len(array_dimensions) = 5 and myrorss_2d3d = True, this method
-        creates initial 3-D radar images with only reflectivity.
+        If len(matrix_dimensions) = 5 and myrorss_2d3d = False, creates initial
+        3-D radar images with all fields in `training_option_dict`.
 
-        :param array_dimensions: numpy array of dimensions.
-        :return: array: Array with the given dimensions.
+        If len(matrix_dimensions) = 5 and myrorss_2d3d = True, creates initial
+        3-D reflectivity images.
+
+        :param matrix_dimensions: numpy array with desired dimensions
+            for initialized model input.
+        :return: initial_matrix: numpy array with the given dimensions.
         """
 
-        array = numpy.full(array_dimensions, numpy.nan)
+        initial_matrix = numpy.full(matrix_dimensions, numpy.nan)
 
-        if len(array_dimensions) == 5:
+        if len(matrix_dimensions) == 5:
             if myrorss_2d3d:
                 radar_field_names = [radar_utils.REFL_NAME]
             else:
@@ -306,11 +303,13 @@ def create_climo_initializer(
             for j in range(len(radar_field_names)):
                 for k in range(len(radar_heights_m_agl)):
                     this_key = (radar_field_names[j], radar_heights_m_agl[k])
-                    array[..., k, j] = radar_normalization_table[
+
+                    initial_matrix[..., k, j] = radar_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_radar_images(
-                radar_image_matrix=array, field_names=radar_field_names,
+                radar_image_matrix=initial_matrix,
+                field_names=radar_field_names,
                 normalization_type_string=training_option_dict[
                     trainval_io.NORMALIZATION_TYPE_KEY],
                 normalization_param_file_name=training_option_dict[
@@ -322,7 +321,7 @@ def create_climo_initializer(
                     trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 normalization_table=radar_normalization_table)
 
-        if len(array_dimensions) == 4:
+        if len(matrix_dimensions) == 4:
             radar_field_names = training_option_dict[
                 trainval_io.RADAR_FIELDS_KEY]
             radar_heights_m_agl = training_option_dict[
@@ -330,11 +329,13 @@ def create_climo_initializer(
 
             for j in range(len(radar_field_names)):
                 this_key = (radar_field_names[j], radar_heights_m_agl[j])
-                array[..., j] = radar_normalization_table[
+
+                initial_matrix[..., j] = radar_normalization_table[
                     dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_radar_images(
-                radar_image_matrix=array, field_names=radar_field_names,
+                radar_image_matrix=initial_matrix,
+                field_names=radar_field_names,
                 normalization_type_string=training_option_dict[
                     trainval_io.NORMALIZATION_TYPE_KEY],
                 normalization_param_file_name=training_option_dict[
@@ -346,7 +347,7 @@ def create_climo_initializer(
                     trainval_io.MAX_NORMALIZED_VALUE_KEY],
                 normalization_table=radar_normalization_table)
 
-        if len(array_dimensions) == 3:
+        if len(matrix_dimensions) == 3:
             sounding_field_names = training_option_dict[
                 trainval_io.SOUNDING_FIELDS_KEY]
             sounding_heights_m_agl = training_option_dict[
@@ -357,11 +358,13 @@ def create_climo_initializer(
                     this_key = (
                         sounding_field_names[j], sounding_heights_m_agl[k]
                     )
-                    array[..., k, j] = sounding_normalization_table[
+
+                    initial_matrix[..., k, j] = sounding_normalization_table[
                         dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
 
             return dl_utils.normalize_soundings(
-                sounding_matrix=array, field_names=sounding_field_names,
+                sounding_matrix=initial_matrix,
+                field_names=sounding_field_names,
                 normalization_type_string=training_option_dict[
                     trainval_io.NORMALIZATION_TYPE_KEY],
                 normalization_param_file_name=training_option_dict[
@@ -382,16 +385,16 @@ def optimize_input_for_class(
         model_object, target_class, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE):
-    """Optimizes synthetic input example for probability of target class.
+    """Creates synthetic input example to maximize probability of target class.
 
-    :param model_object: Instance of `keras.models.Model`.
-    :param target_class: Synthetic input data will be optimized for this class.
-        Must be an integer in 0...(K - 1), where K = number of classes.
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
+    :param target_class: Input data will be optimized for this class.  Must be
+        an integer in 0...(K - 1), where K = number of classes.
     :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
-    :return: list_of_optimized_input_matrices: See doc for
-        `_do_gradient_descent`.
+    :return: list_of_optimized_input_matrices: Same.
     """
 
     model_interpretation.check_component_metadata(
@@ -430,28 +433,29 @@ def optimize_input_for_class(
         num_iterations=num_iterations, learning_rate=learning_rate)
 
 
-def optimize_input_for_neuron_activation(
+def optimize_input_for_neuron(
         model_object, layer_name, neuron_indices, init_function_or_matrices,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION):
-    """Optimizes synthetic input example for activation of the given neuron.
+    """Creates synthetic input example to maximize activation of neuron.
 
-    :param model_object: Instance of `keras.models.Model`.
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
     :param layer_name: Name of layer containing the relevant neuron.
     :param neuron_indices: 1-D numpy array with indices of the relevant neuron.
-        Must have length K - 1, where K = number of dimensions in layer output.
-        The first dimension of the layer output is the example dimension, for
-        which the index in this case is always 0.
+        Must have length D - 1, where D = number of dimensions in layer output.
+        The first dimension of layer output is the example dimension, for which
+        the index in this case is always 0.
     :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
-    :param ideal_activation: The loss function will be
-        (neuron_activation - ideal_activation)** 2.  If
-        `ideal_activation is None`, the loss function will be
-        -sign(neuron_activation) * neuron_activation**2, or the negative signed
-        square of neuron_activation, so that loss always decreases as
-        neuron_activation increases.
+    :param ideal_activation: If this value is specified, the loss function will
+        be (neuron_activation - ideal_activation)^2.
+
+        If this value is None, the loss function will be
+        -sign(neuron_activation) * neuron_activation^2.
+
     :return: list_of_optimized_input_matrices: See doc for
         `_do_gradient_descent`.
     """
@@ -489,38 +493,36 @@ def optimize_input_for_neuron_activation(
         num_iterations=num_iterations, learning_rate=learning_rate)
 
 
-def optimize_input_for_channel_activation(
+def optimize_input_for_channel(
         model_object, layer_name, channel_index, init_function_or_matrices,
         stat_function_for_neuron_activations,
         num_iterations=DEFAULT_NUM_ITERATIONS,
         learning_rate=DEFAULT_LEARNING_RATE,
         ideal_activation=DEFAULT_IDEAL_ACTIVATION):
-    """Optimizes synthetic input example for activation of the given channel.
+    """Creates synthetic input example to maxx activation of neurons in channel.
 
-    :param model_object: Instance of `keras.models.Model`.
+    :param model_object: Trained instance of `keras.models.Model` or
+        `keras.models.Sequential`.
     :param layer_name: Name of layer containing the relevant channel.
-    :param channel_index: Index of the relevant channel.  This method optimizes
-        synthetic input data for activation of the [j]th output channel of
-        `layer_name`, where j = `channel_index`.
+    :param channel_index: Index of the relevant channel.  Will optimize for
+        activation of [j]th channel in layer, where j = `channel_index`.
     :param init_function_or_matrices: See doc for `_do_gradient_descent`.
-    :param stat_function_for_neuron_activations: Function used to process neuron
-        activations.  In general, a channel contains many neurons, so there is
-        an infinite number of ways to maximize the "channel activation," because
-        there is an infinite number of ways to define "channel activation".
-        This function must take a Keras tensor (containing neuron activations)
-        and return a single number.  Some examples are `keras.backend.max` and
-        `keras.backend.mean`.
+    :param stat_function_for_neuron_activations: Function used to convert all
+        neuron activations into a single number.  Some examples are
+        `keras.backend.max` and `keras.backend.mean`.  The exact format of this
+        function is given below.
+
+        Input: Keras tensor of neuron activations.
+        Output: Single number.
+
     :param num_iterations: See doc for `_do_gradient_descent`.
     :param learning_rate: Same.
-    :param ideal_activation: The loss function will be
-        abs(stat_function_for_neuron_activations(neuron_activations) -
-            ideal_activation).
+    :param ideal_activation: If this value is specified, the loss function will
+        be abs[stat_function_for_neuron_activations(neuron_activations) -
+               ideal_activation].
 
-        For example, if `stat_function_for_neuron_activations` is the mean,
-        loss function will be abs(mean(neuron_activations) - ideal_activation).
-        If `ideal_activation is None`, the loss function will be
-        -1 * abs(stat_function_for_neuron_activations(neuron_activations) -
-                 ideal_activation).
+    If this value is None, loss function will be
+    -abs[stat_function_for_neuron_activations(neuron_activations)].
 
     :return: list_of_optimized_input_matrices: See doc for
         `_do_gradient_descent`.

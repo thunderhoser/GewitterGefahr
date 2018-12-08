@@ -283,15 +283,13 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
                 ' "{3:s}"...'
             ).format(i + 1, num_examples, str(neuron_indices), layer_name)
 
-            these_optimized_matrices = (
-                backwards_opt.optimize_input_for_neuron_activation(
-                    model_object=model_object, layer_name=layer_name,
-                    neuron_indices=neuron_indices,
-                    init_function_or_matrices=this_init_arg,
-                    num_iterations=num_iterations, learning_rate=learning_rate,
-                    ideal_activation=ideal_activation
-                )[0]
-            )
+            these_optimized_matrices = backwards_opt.optimize_input_for_neuron(
+                model_object=model_object, layer_name=layer_name,
+                neuron_indices=neuron_indices,
+                init_function_or_matrices=this_init_arg,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                ideal_activation=ideal_activation
+            )[0]
 
         else:
             print (
@@ -299,16 +297,14 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
                 'layer "{3:s}"...'
             ).format(i + 1, num_examples, channel_index, layer_name)
 
-            these_optimized_matrices = (
-                backwards_opt.optimize_input_for_channel_activation(
-                    model_object=model_object, layer_name=layer_name,
-                    channel_index=channel_index,
-                    init_function_or_matrices=this_init_arg,
-                    stat_function_for_neuron_activations=K.max,
-                    num_iterations=num_iterations, learning_rate=learning_rate,
-                    ideal_activation=ideal_activation
-                )[0]
-            )
+            these_optimized_matrices = backwards_opt.optimize_input_for_channel(
+                model_object=model_object, layer_name=layer_name,
+                channel_index=channel_index,
+                init_function_or_matrices=this_init_arg,
+                stat_function_for_neuron_activations=K.max,
+                num_iterations=num_iterations, learning_rate=learning_rate,
+                ideal_activation=ideal_activation
+            )[0]
 
         if list_of_optimized_matrices is None:
             num_matrices = len(these_optimized_matrices)
