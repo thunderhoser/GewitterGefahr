@@ -277,6 +277,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
                 num_iterations=num_iterations, learning_rate=learning_rate
             )[0]
 
+            print len(these_optimized_matrices)
+
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
             print (
                 '\nOptimizing {0:d}th of {1:d} images for neuron {2:s} in layer'

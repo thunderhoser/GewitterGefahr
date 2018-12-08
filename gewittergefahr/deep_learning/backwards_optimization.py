@@ -100,7 +100,6 @@ def _do_gradient_descent(
         list_of_input_tensors = [model_object.input]
 
     num_input_tensors = len(list_of_input_tensors)
-    print num_input_tensors
 
     list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     for i in range(num_input_tensors):
@@ -142,7 +141,6 @@ def _do_gradient_descent(
 
     print 'Loss after {0:d} iterations: {1:.2e}'.format(
         num_iterations, these_outputs[0])
-    print len(list_of_optimized_input_matrices)
     return list_of_optimized_input_matrices
 
 
