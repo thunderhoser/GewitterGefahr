@@ -142,6 +142,7 @@ def _do_gradient_descent(
 
     print 'Loss after {0:d} iterations: {1:.2e}'.format(
         num_iterations, these_outputs[0])
+    print len(list_of_optimized_input_matrices)
     return list_of_optimized_input_matrices
 
 
