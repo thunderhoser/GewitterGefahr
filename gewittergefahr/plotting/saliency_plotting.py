@@ -9,11 +9,6 @@ from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
-DEFAULT_MIN_FONT_SIZE = 10.
-DEFAULT_MAX_FONT_SIZE = 25.
-DEFAULT_MIN_SOUNDING_FONT_SIZE = 24.
-DEFAULT_MAX_SOUNDING_FONT_SIZE = 60.
-
 WIND_NAME = 'wind_m_s01'
 WIND_COMPONENT_NAMES = [soundings.U_WIND_NAME, soundings.V_WIND_NAME]
 
@@ -21,7 +16,7 @@ WIND_BARB_LENGTH = 10.
 EMPTY_WIND_BARB_RADIUS = 0.2
 WIND_SALIENCY_MULTIPLIER = 52.5
 
-SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
+FIELD_NAME_TO_LATEX_DICT = {
     soundings.SPECIFIC_HUMIDITY_NAME: r'$q_{v}$',
     soundings.VIRTUAL_POTENTIAL_TEMPERATURE_NAME: r'$\theta_{v}$',
     soundings.TEMPERATURE_NAME: r'$T$',
@@ -31,6 +26,14 @@ SOUNDING_FIELD_NAME_TO_ABBREV_DICT = {
     soundings.PRESSURE_NAME: r'$p$',
     WIND_NAME: 'Wind'
 }
+
+FIGURE_WIDTH_INCHES = 15
+FIGURE_HEIGHT_INCHES = 15
+
+DEFAULT_MIN_FONT_SIZE = 10.
+DEFAULT_MAX_FONT_SIZE = 25.
+DEFAULT_MIN_SOUNDING_FONT_SIZE = 24.
+DEFAULT_MAX_SOUNDING_FONT_SIZE = 60.
 
 
 def _saliency_to_colour_and_size(
@@ -68,7 +71,7 @@ def _saliency_to_colour_and_size(
 
 
 def plot_saliency_for_sounding(
-        saliency_matrix, sounding_field_names, pressure_levels_mb, axes_object,
+        saliency_matrix, sounding_field_names, pressure_levels_mb,
         colour_map_object, max_absolute_colour_value,
         min_font_size=DEFAULT_MIN_SOUNDING_FONT_SIZE,
         max_font_size=DEFAULT_MAX_SOUNDING_FONT_SIZE):
@@ -80,7 +83,6 @@ def plot_saliency_for_sounding(
     :param saliency_matrix: P-by-F numpy array of saliency values.
     :param sounding_field_names: length-F list of field names.
     :param pressure_levels_mb: length-P list of pressure levels (millibars).
-    :param axes_object: See doc for `plot_2d_grid`.
     :param colour_map_object: Same.
     :param max_absolute_colour_value: Same.
     :param min_font_size: Same.
@@ -140,6 +142,10 @@ def plot_saliency_for_sounding(
         max_colour_value=max_absolute_colour_value,
         min_font_size_points=min_font_size, max_font_size_points=max_font_size)
 
+    _, axes_object = pyplot.subplots(
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+    )
+
     for k in range(num_sounding_fields):
         if sounding_field_names[k] == WIND_NAME:
             for j in range(num_pressure_levels):
@@ -186,7 +192,7 @@ def plot_saliency_for_sounding(
     x_tick_locations = numpy.linspace(
         0, num_sounding_fields - 1, num=num_sounding_fields, dtype=float)
     x_tick_labels = [
-        SOUNDING_FIELD_NAME_TO_ABBREV_DICT[f] for f in sounding_field_names
+        FIELD_NAME_TO_LATEX_DICT[f] for f in sounding_field_names
     ]
     pyplot.xticks(x_tick_locations, x_tick_labels)
 
