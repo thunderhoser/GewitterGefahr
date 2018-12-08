@@ -18,6 +18,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -483,27 +484,25 @@ def plot_2d_grid(saliency_matrix_2d, axes_object, colour_map_object,
 
     num_grid_rows = saliency_matrix_2d.shape[0]
     num_grid_columns = saliency_matrix_2d.shape[1]
-    y_coord_vector = numpy.linspace(
-        0, num_grid_rows - 1, num=num_grid_rows, dtype=float)
-    x_coord_vector = numpy.linspace(
-        0, num_grid_columns - 1, num=num_grid_columns, dtype=float)
-
-    x_coord_matrix, y_coord_matrix = numpy.meshgrid(
-        x_coord_vector, y_coord_vector)
-    x_coord_matrix += 0.5
-    y_coord_matrix += 0.5
+    x_coord_spacing = num_grid_columns ** -1
+    y_coord_spacing = num_grid_rows ** -1
+    
+    x_coords, y_coords = grids.get_xy_grid_points(
+        x_min_metres=x_coord_spacing / 2, y_min_metres=y_coord_spacing / 2,
+        x_spacing_metres=x_coord_spacing, y_spacing_metres=y_coord_spacing,
+        num_rows=num_grid_rows, num_columns=num_grid_columns)
 
     for i in range(num_grid_rows):
         for j in range(num_grid_columns):
             if saliency_matrix_2d[i, j] >= 0:
                 axes_object.text(
-                    x_coord_matrix[i, j], y_coord_matrix[i, j], '+',
+                    x_coords[i], y_coords[j], '+',
                     fontsize=font_size_matrix[i, j],
                     color=rgb_matrix[i, j, ...], horizontalalignment='center',
                     verticalalignment='center', transform=axes_object.transAxes)
             else:
                 axes_object.text(
-                    x_coord_matrix[i, j], y_coord_matrix[i, j], '_',
+                    x_coords[i], y_coords[j], '_',
                     fontsize=font_size_matrix[i, j],
                     color=rgb_matrix[i, j, ...], horizontalalignment='center',
                     verticalalignment='bottom', transform=axes_object.transAxes)
