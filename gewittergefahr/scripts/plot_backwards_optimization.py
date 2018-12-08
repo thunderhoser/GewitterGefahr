@@ -60,18 +60,18 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    print len(list_of_predictor_matrices)
-    print list_of_predictor_matrices[-1].shape
-
+    num_storms = list_of_predictor_matrices[0].shape[0]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     plot_soundings = sounding_field_names is not None
 
     if plot_soundings:
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_predictor_matrices[-1],
-            field_names=sounding_field_names)
+            field_names=sounding_field_names,
+            height_levels_m_agl=training_option_dict[
+                trainval_io.SOUNDING_HEIGHTS_KEY],
+            storm_elevations_m_asl=numpy.zeros(num_storms))
 
-    num_storms = list_of_predictor_matrices[0].shape[0]
     myrorss_2d3d = len(list_of_predictor_matrices) == 3
 
     if optimized:
