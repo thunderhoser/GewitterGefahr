@@ -531,7 +531,7 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    if sounding_field_names is not None:
+    # if sounding_field_names is not None:
         # _plot_sounding_saliency(
         #     sounding_matrix=list_of_input_matrices[-1],
         #     sounding_saliency_matrix=list_of_saliency_matrices[-1],
