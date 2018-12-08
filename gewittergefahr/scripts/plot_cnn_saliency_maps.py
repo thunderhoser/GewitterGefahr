@@ -434,7 +434,7 @@ def _plot_sounding_saliency(
         saliency_plotting.plot_saliency_for_sounding(
             saliency_matrix=sounding_saliency_matrix[i, ...],
             sounding_field_names=sounding_field_names,
-            pressure_levels_mb=metpy_dict_by_example[
+            pressure_levels_mb=metpy_dict_by_example[i][
                 soundings.PRESSURE_COLUMN_METPY],
             colour_map_object=SALIENCY_COLOUR_MAP_OBJECT,
             max_absolute_colour_value=max_absolute_colour_value)
