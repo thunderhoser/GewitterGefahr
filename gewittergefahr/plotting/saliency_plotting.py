@@ -29,6 +29,9 @@ FIELD_NAME_TO_LATEX_DICT = {
 
 FIGURE_WIDTH_INCHES = 15
 FIGURE_HEIGHT_INCHES = 15
+SOUNDING_SALIENCY_BACKGROUND_COLOUR = numpy.array(
+    [166, 206, 227], dtype=float
+) / 255
 
 DEFAULT_MIN_FONT_SIZE = 10.
 DEFAULT_MAX_FONT_SIZE = 25.
@@ -143,7 +146,8 @@ def plot_saliency_for_sounding(
         min_font_size_points=min_font_size, max_font_size_points=max_font_size)
 
     _, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES),
+        axisbg=SOUNDING_SALIENCY_BACKGROUND_COLOUR
     )
 
     for k in range(num_sounding_fields):
