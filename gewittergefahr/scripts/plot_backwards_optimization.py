@@ -60,6 +60,9 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
+    print len(list_of_predictor_matrices)
+    print list_of_predictor_matrices[-1].shape
+
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     plot_soundings = sounding_field_names is not None
 
@@ -250,8 +253,6 @@ def _run(input_file_name, top_output_dir_name):
     list_of_optimized_input_matrices, backwards_opt_metadata_dict = (
         backwards_opt.read_results(input_file_name)
     )
-
-    print list_of_optimized_input_matrices
 
     model_file_name = backwards_opt_metadata_dict[
         backwards_opt.MODEL_FILE_NAME_KEY]
