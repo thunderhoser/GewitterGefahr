@@ -63,6 +63,9 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     plot_soundings = sounding_field_names is not None
 
+    for this_matrix in list_of_predictor_matrices:
+        print this_matrix.shape
+
     if plot_soundings:
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_predictor_matrices[-1],
