@@ -146,9 +146,9 @@ def plot_saliency_for_sounding(
         min_font_size_points=min_font_size, max_font_size_points=max_font_size)
 
     _, axes_object = pyplot.subplots(
-        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES),
-        axisbg=SOUNDING_SALIENCY_BACKGROUND_COLOUR
+        1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
     )
+    axes_object.set_axis_bgcolor(SOUNDING_SALIENCY_BACKGROUND_COLOUR)
 
     for k in range(num_sounding_fields):
         if sounding_field_names[k] == WIND_NAME:
