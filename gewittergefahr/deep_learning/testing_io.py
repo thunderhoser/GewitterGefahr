@@ -16,6 +16,7 @@ C = number of radar field/height pairs
 
 import copy
 import numpy
+import netCDF4
 import keras.utils
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -23,6 +24,7 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import error_checking
 
@@ -31,6 +33,8 @@ TARGET_ARRAY_KEY = 'target_array'
 STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
+
+LARGE_INTEGER = int(1e10)
 
 
 def _finalize_targets(target_values, binarize_target, num_classes):
@@ -609,3 +613,121 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
         sounding_pressure_matrix_pascals = None
 
         yield storm_object_dict
+
+
+def read_specific_examples(desired_storm_ids, desired_times_unix_sec,
+                           training_option_dict, top_example_dir_name):
+    """Reads learning examples for specific storm objects.
+
+    E = number of desired storm objects
+
+    :param desired_storm_ids: length-E list of storm IDs.
+    :param desired_times_unix_sec: length-E numpy array of storm times.
+    :param training_option_dict: Dictionary returned by
+        `cnn.read_model_metadata`.  Data read by this method will be processed
+        in the exact same way as for the original model (e.g., cropping,
+        normalization, etc.).
+    :param top_example_dir_name: Name of top-level directory with learning
+        examples.  Files therein will be found by
+        `input_examples.find_example_file`.
+    :return: list_of_predictor_matrices: length-T list of numpy arrays, where
+        T = number of input tensors to the model.  The first dimension of each
+        array has length E.
+    """
+
+    desired_spc_date_strings = [
+        time_conversion.time_to_spc_date_string(t)
+        for t in desired_times_unix_sec
+    ]
+    unique_spc_date_strings = numpy.unique(
+        numpy.array(desired_spc_date_strings)
+    ).tolist()
+
+    myrorss_2d3d = None
+
+    storm_ids = []
+    storm_times_unix_sec = numpy.array([], dtype=int)
+    list_of_predictor_matrices = None
+
+    for this_spc_date_string in unique_spc_date_strings:
+        this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
+            this_spc_date_string)
+        this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
+            this_spc_date_string)
+
+        this_example_file_name = input_examples.find_example_file(
+            top_directory_name=top_example_dir_name, shuffled=False,
+            spc_date_string=this_spc_date_string)
+
+        training_option_dict[
+            trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
+        training_option_dict[
+            trainval_io.FIRST_STORM_TIME_KEY] = this_start_time_unix_sec
+        training_option_dict[
+            trainval_io.LAST_STORM_TIME_KEY] = this_end_time_unix_sec
+
+        if myrorss_2d3d is None:
+            netcdf_dataset = netCDF4.Dataset(this_example_file_name)
+            myrorss_2d3d = (
+                input_examples.REFL_IMAGE_MATRIX_KEY in netcdf_dataset.variables
+            )
+            netcdf_dataset.close()
+
+        if myrorss_2d3d:
+            this_generator = example_generator_2d3d_myrorss(
+                option_dict=training_option_dict,
+                num_examples_total=LARGE_INTEGER)
+        else:
+            this_generator = example_generator_2d_or_3d(
+                option_dict=training_option_dict,
+                num_examples_total=LARGE_INTEGER)
+
+        this_storm_object_dict = next(this_generator)
+
+        these_desired_indices = numpy.where(numpy.logical_and(
+            desired_times_unix_sec >= this_start_time_unix_sec,
+            desired_times_unix_sec <= this_end_time_unix_sec
+        ))[0]
+
+        these_indices = tracking_utils.find_storm_objects(
+            all_storm_ids=this_storm_object_dict[STORM_IDS_KEY],
+            all_times_unix_sec=this_storm_object_dict[STORM_TIMES_KEY],
+            storm_ids_to_keep=
+            [desired_storm_ids[k] for k in these_desired_indices],
+            times_to_keep_unix_sec=
+            desired_times_unix_sec[these_desired_indices],
+            allow_missing=False
+        )
+
+        storm_ids += [
+            this_storm_object_dict[STORM_IDS_KEY][k] for k in these_indices
+        ]
+        storm_times_unix_sec = numpy.concatenate((
+            storm_times_unix_sec,
+            this_storm_object_dict[STORM_TIMES_KEY][these_indices]
+        ))
+
+        if list_of_predictor_matrices is None:
+            num_matrices = len(this_storm_object_dict[INPUT_MATRICES_KEY])
+            list_of_predictor_matrices = [None] * num_matrices
+
+        for k in range(len(list_of_predictor_matrices)):
+            this_new_matrix = this_storm_object_dict[INPUT_MATRICES_KEY][k][
+                these_indices, ...]
+
+            if list_of_predictor_matrices[k] is None:
+                list_of_predictor_matrices[k] = this_new_matrix + 0.
+            else:
+                list_of_predictor_matrices[k] = numpy.concatenate(
+                    (list_of_predictor_matrices[k], this_new_matrix), axis=0)
+
+    sort_indices = tracking_utils.find_storm_objects(
+        all_storm_ids=storm_ids, all_times_unix_sec=storm_times_unix_sec,
+        storm_ids_to_keep=desired_storm_ids,
+        times_to_keep_unix_sec=desired_times_unix_sec, allow_missing=False)
+
+    for k in range(len(list_of_predictor_matrices)):
+        list_of_predictor_matrices[k] = list_of_predictor_matrices[k][
+            sort_indices, ...]
+
+    return list_of_predictor_matrices

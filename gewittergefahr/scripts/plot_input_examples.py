@@ -3,17 +3,14 @@
 import os.path
 import argparse
 import numpy
-import netCDF4
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import model_activation
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -22,7 +19,6 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 
-LARGE_INTEGER = int(1e10)
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -141,17 +137,24 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
-    """Plots one or more input examples.
+def _plot_examples(
+        list_of_predictor_matrices, storm_ids, storm_times_unix_sec,
+        training_option_dict, output_dir_name, storm_activations=None):
+    """Plots one or more learning examples.
 
-    :param storm_object_dict: Dictionary created by
-        `testing_io.example_generator_2d_or_3d` or
-        `testing_io.example_generator_2d3d_myrorss`.
-    :param training_option_dict: Input to
-        `testing_io.example_generator_2d_or_3d` or
-        `testing_io.example_generator_2d3d_myrorss`, used to generate
-        `storm_object_dict`.
-    :param output_dir_name: Same.
+    E = number of examples (storm objects)
+
+    :param list_of_predictor_matrices: List created by
+        `testing_io.read_specific_examples`.  Contains data to be plotted.
+    :param storm_ids: length-E list of storm IDs.
+    :param storm_times_unix_sec: length-E numpy array of storm times.
+    :param training_option_dict: Dictionary returned by
+        `cnn.read_model_metadata`.  Contains metadata for
+        `list_of_predictor_matrices`.
+    :param output_dir_name: Name of output directory (figures will be saved
+        here).
+    :param storm_activations: length-E numpy array of storm activations (may be
+        None).  Will be included in title of each figure.
     """
 
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
@@ -159,14 +162,11 @@ def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
 
     if plot_soundings:
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
-            sounding_matrix=storm_object_dict[
-                testing_io.INPUT_MATRICES_KEY][-1],
+            sounding_matrix=list_of_predictor_matrices[-1],
             field_names=sounding_field_names)
 
-    storm_ids = storm_object_dict[testing_io.STORM_IDS_KEY]
-    storm_times_unix_sec = storm_object_dict[testing_io.STORM_TIMES_KEY]
     num_storms = len(storm_ids)
-    myrorss_2d3d = len(storm_object_dict[testing_io.INPUT_MATRICES_KEY]) == 3
+    myrorss_2d3d = len(list_of_predictor_matrices) == 3
 
     for i in range(num_storms):
         this_time_string = time_conversion.unix_sec_to_string(
@@ -174,9 +174,9 @@ def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
         this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
             storm_ids[i], this_time_string)
 
-        if ACTIVATIONS_KEY in storm_object_dict:
+        if storm_activations is not None:
             this_base_title_string += ' (activation = {0:.3f})'.format(
-                storm_object_dict[ACTIVATIONS_KEY][i])
+                storm_activations[i])
 
         this_base_file_name = '{0:s}/storm={1:s}_{2:s}'.format(
             output_dir_name, storm_ids[i].replace('_', '-'), this_time_string)
@@ -193,8 +193,7 @@ def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
 
         if myrorss_2d3d:
             this_radar_matrix = numpy.flip(
-                storm_object_dict[testing_io.INPUT_MATRICES_KEY][0][i, ..., 0],
-                axis=0)
+                list_of_predictor_matrices[0][i, ..., 0], axis=0)
 
             _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
                 field_matrix=this_radar_matrix,
@@ -230,8 +229,7 @@ def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
                 radar_utils.SHEAR_HEIGHT_M_ASL)
 
             this_radar_matrix = numpy.flip(
-                storm_object_dict[testing_io.INPUT_MATRICES_KEY][1][i, ..., 0],
-                axis=0)
+                list_of_predictor_matrices[1][i, ..., 0], axis=0)
 
             _, these_axes_objects = (
                 radar_plotting.plot_many_2d_grids_without_coords(
@@ -265,11 +263,9 @@ def _plot_examples(storm_object_dict, training_option_dict, output_dir_name):
         radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
         radar_heights_m_agl = training_option_dict[
             trainval_io.RADAR_HEIGHTS_KEY]
-        this_radar_matrix = storm_object_dict[testing_io.INPUT_MATRICES_KEY][0]
 
-        num_radar_dimensions = (
-            len(storm_object_dict[testing_io.INPUT_MATRICES_KEY][0].shape) - 2
-        )
+        this_radar_matrix = list_of_predictor_matrices[0]
+        num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
         if num_radar_dimensions == 2:
             j_max = 1
@@ -344,7 +340,6 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
 
-    myrorss_2d3d = None
     storm_activations = None
 
     if activation_file_name in ['', 'None']:
@@ -407,7 +402,6 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
 
         print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
         model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
-        myrorss_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
 
         training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
         training_option_dict[trainval_io.NORMALIZATION_TYPE_KEY] = None
@@ -420,91 +414,20 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
         else:
             training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
 
-        print SEPARATOR_STRING
+    print SEPARATOR_STRING
+    list_of_predictor_matrices = testing_io.read_specific_examples(
+        desired_storm_ids=storm_ids,
+        desired_times_unix_sec=storm_times_unix_sec,
+        training_option_dict=training_option_dict,
+        top_example_dir_name=top_example_dir_name)
+    print SEPARATOR_STRING
 
-    storm_spc_dates_unix_sec = numpy.array([
-        time_conversion.time_to_spc_date_unix_sec(t)
-        for t in storm_times_unix_sec
-    ], dtype=int)
-
-    unique_spc_dates_unix_sec = numpy.unique(storm_spc_dates_unix_sec)
-
-    for this_spc_date_unix_sec in unique_spc_dates_unix_sec:
-        this_spc_date_string = time_conversion.time_to_spc_date_string(
-            this_spc_date_unix_sec)
-        this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
-            this_spc_date_string)
-        this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
-            this_spc_date_string)
-
-        this_example_file_name = input_examples.find_example_file(
-            top_directory_name=top_example_dir_name, shuffled=False,
-            spc_date_string=this_spc_date_string)
-
-        training_option_dict[
-            trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
-        training_option_dict[
-            trainval_io.FIRST_STORM_TIME_KEY] = this_start_time_unix_sec
-        training_option_dict[
-            trainval_io.LAST_STORM_TIME_KEY] = this_end_time_unix_sec
-
-        if myrorss_2d3d is None:
-            netcdf_dataset = netCDF4.Dataset(this_example_file_name)
-            myrorss_2d3d = (
-                input_examples.REFL_IMAGE_MATRIX_KEY in netcdf_dataset.variables
-            )
-            netcdf_dataset.close()
-
-        if myrorss_2d3d:
-            this_generator = testing_io.example_generator_2d3d_myrorss(
-                option_dict=training_option_dict,
-                num_examples_total=LARGE_INTEGER)
-        else:
-            this_generator = testing_io.example_generator_2d_or_3d(
-                option_dict=training_option_dict,
-                num_examples_total=LARGE_INTEGER)
-
-        this_storm_object_dict = next(this_generator)
-
-        these_indices = numpy.where(numpy.logical_and(
-            storm_times_unix_sec >= this_start_time_unix_sec,
-            storm_times_unix_sec <= this_end_time_unix_sec
-        ))[0]
-
-        if storm_activations is not None:
-            these_activations = storm_activations[these_indices]
-            this_storm_object_dict[ACTIVATIONS_KEY] = these_activations
-
-        these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=this_storm_object_dict[testing_io.STORM_IDS_KEY],
-            all_times_unix_sec=this_storm_object_dict[
-                testing_io.STORM_TIMES_KEY],
-            storm_ids_to_keep=[storm_ids[k] for k in these_indices],
-            times_to_keep_unix_sec=storm_times_unix_sec[these_indices],
-            allow_missing=False)
-
-        this_storm_object_dict[testing_io.STORM_IDS_KEY] = [
-            this_storm_object_dict[testing_io.STORM_IDS_KEY][k]
-            for k in these_indices
-        ]
-        this_storm_object_dict[testing_io.STORM_TIMES_KEY] = (
-            this_storm_object_dict[testing_io.STORM_TIMES_KEY][
-                these_indices]
-        )
-
-        this_num_matrices = len(
-            this_storm_object_dict[testing_io.INPUT_MATRICES_KEY])
-        for k in range(this_num_matrices):
-            this_storm_object_dict[testing_io.INPUT_MATRICES_KEY][k] = (
-                this_storm_object_dict[testing_io.INPUT_MATRICES_KEY][k][
-                    these_indices, ...]
-            )
-
-        _plot_examples(
-            storm_object_dict=this_storm_object_dict,
-            training_option_dict=training_option_dict,
-            output_dir_name=output_dir_name)
-        print SEPARATOR_STRING
+    _plot_examples(
+        list_of_predictor_matrices=list_of_predictor_matrices,
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        storm_activations=storm_activations,
+        training_option_dict=training_option_dict,
+        output_dir_name=output_dir_name)
 
 
 if __name__ == '__main__':
