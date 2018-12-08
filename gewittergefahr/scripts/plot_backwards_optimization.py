@@ -4,6 +4,7 @@ import os.path
 import argparse
 import numpy
 import matplotlib
+
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
@@ -11,6 +12,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
@@ -264,16 +266,28 @@ def _run(input_file_name, top_output_dir_name):
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
+    print 'Denormalizing optimized input data...'
+    list_of_optimized_input_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_optimized_input_matrices,
+        model_metadata_dict=model_metadata_dict)
+
     init_function_name_or_matrices = backwards_opt_metadata_dict[
         backwards_opt.INIT_FUNCTION_KEY]
 
     if isinstance(init_function_name_or_matrices, str):
+        print SEPARATOR_STRING
         _plot_examples(
             list_of_predictor_matrices=list_of_optimized_input_matrices,
             training_option_dict=training_option_dict, optimized=True,
             output_dir_name=top_output_dir_name)
 
         return
+
+    print 'Denormalizing original input data...'
+    init_function_name_or_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=init_function_name_or_matrices,
+        model_metadata_dict=model_metadata_dict)
+    print SEPARATOR_STRING
 
     original_output_dir_name = '{0:s}/original'.format(top_output_dir_name)
     _plot_examples(
