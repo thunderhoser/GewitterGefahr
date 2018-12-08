@@ -6,7 +6,6 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
-from generalexam.plotting import saliency_plotting as ge_saliency_plotting
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
@@ -192,15 +191,12 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
                     trainval_io.RADAR_HEIGHTS_KEY],
                 ground_relative=True, num_panel_rows=num_panel_rows)
 
-            # TODO(thunderhoser): Some things in this call need to be input args
-            # to the script.
-            ge_saliency_plotting.plot_many_2d_grids(
+            saliency_plotting.plot_many_2d_grids(
                 saliency_matrix_3d=numpy.flip(
                     refl_saliency_matrix[i, ..., 0], axis=0),
                 axes_objects_2d_list=these_axes_objects,
                 colour_map_object=pyplot.cm.Greys,
-                max_absolute_contour_level=max_colour_value,
-                contour_interval=0.5)
+                max_absolute_colour_value=max_colour_value)
 
             this_colour_map_object, this_colour_norm_object, _ = (
                 radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
@@ -240,13 +236,12 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
                     ground_relative=True, num_panel_rows=num_panel_rows)
             )
 
-            ge_saliency_plotting.plot_many_2d_grids(
+            saliency_plotting.plot_many_2d_grids(
                 saliency_matrix_3d=numpy.flip(
                     az_shear_saliency_matrix[i, ...], axis=0),
                 axes_objects_2d_list=these_axes_objects,
                 colour_map_object=pyplot.cm.Greys,
-                max_absolute_contour_level=max_colour_value,
-                contour_interval=0.5)
+                max_absolute_colour_value=max_colour_value)
 
             this_colour_map_object, this_colour_norm_object, _ = (
                 radar_plotting.get_default_colour_scheme(
@@ -309,13 +304,12 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
                         ground_relative=True, num_panel_rows=num_panel_rows)
                 )
 
-                ge_saliency_plotting.plot_many_2d_grids(
+                saliency_plotting.plot_many_2d_grids(
                     saliency_matrix_3d=numpy.flip(
                         radar_saliency_matrix[i, ..., k], axis=0),
                     axes_objects_2d_list=these_axes_objects,
                     colour_map_object=pyplot.cm.Greys,
-                    max_absolute_contour_level=max_colour_value,
-                    contour_interval=0.5)
+                    max_absolute_colour_value=max_colour_value)
 
                 this_colour_map_object, this_colour_norm_object, _ = (
                     radar_plotting.get_default_colour_scheme(this_field_name)
@@ -364,13 +358,12 @@ def _run(input_file_name, max_colour_value, max_colour_percentile,
                 ground_relative=True, num_panel_rows=num_panel_rows)
         )
 
-        ge_saliency_plotting.plot_many_2d_grids(
+        saliency_plotting.plot_many_2d_grids(
             saliency_matrix_3d=numpy.flip(
                 radar_saliency_matrix[i, ...], axis=0),
             axes_objects_2d_list=these_axes_objects,
             colour_map_object=pyplot.cm.Greys,
-            max_absolute_contour_level=max_colour_value,
-            contour_interval=0.5)
+            max_absolute_colour_value=max_colour_value)
 
         this_title_string = (
             'Radar + saliency for storm "{0:s}" at {1:s}'
