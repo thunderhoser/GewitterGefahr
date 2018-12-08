@@ -1,4 +1,4 @@
-"""Helper methods for feature optimization.
+"""Methods for backwards optimization (or "feature optimization").
 
 --- REFERENCES ---
 

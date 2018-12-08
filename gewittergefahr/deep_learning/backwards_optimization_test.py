@@ -1,11 +1,11 @@
-"""Unit tests for feature_optimization.py."""
+"""Unit tests for backwards_optimization.py."""
 
 import unittest
 import numpy
 import pandas
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
-from gewittergefahr.deep_learning import feature_optimization
+from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -171,7 +171,7 @@ INIT_RADAR_MATRIX_5D = numpy.expand_dims(INIT_RADAR_MATRIX_5D, axis=0)
 
 
 class FeatureOptimizationTests(unittest.TestCase):
-    """Each method is a unit test for feature_optimization.py."""
+    """Each method is a unit test for backwards_optimization.py."""
 
     def test_create_gaussian_initializer_3d(self):
         """Ensures correct output from create_gaussian_initializer.
@@ -179,8 +179,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 3-D.
         """
 
-        this_init_function = feature_optimization.create_gaussian_initializer(
+        this_init_function = backwards_opt.create_gaussian_initializer(
             mean=GAUSSIAN_MEAN, standard_deviation=GAUSSIAN_STANDARD_DEVIATION)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_3D)
         self.assertTrue(numpy.allclose(
             this_matrix, GAUSSIAN_MATRIX_3D, atol=TOLERANCE))
@@ -191,8 +192,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 4-D.
         """
 
-        this_init_function = feature_optimization.create_gaussian_initializer(
+        this_init_function = backwards_opt.create_gaussian_initializer(
             mean=GAUSSIAN_MEAN, standard_deviation=GAUSSIAN_STANDARD_DEVIATION)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
             this_matrix, GAUSSIAN_MATRIX_4D, atol=TOLERANCE))
@@ -203,8 +205,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 5-D.
         """
 
-        this_init_function = feature_optimization.create_gaussian_initializer(
+        this_init_function = backwards_opt.create_gaussian_initializer(
             mean=GAUSSIAN_MEAN, standard_deviation=GAUSSIAN_STANDARD_DEVIATION)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
             this_matrix, GAUSSIAN_MATRIX_5D, atol=TOLERANCE))
@@ -215,9 +218,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 3-D.
         """
 
-        this_init_function = (
-            feature_optimization.create_uniform_random_initializer(
-                min_value=MIN_UNIFORM_VALUE, max_value=MAX_UNIFORM_VALUE))
+        this_init_function = backwards_opt.create_uniform_random_initializer(
+            min_value=MIN_UNIFORM_VALUE, max_value=MAX_UNIFORM_VALUE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_3D)
         self.assertTrue(numpy.allclose(
             this_matrix, UNIFORM_MATRIX_3D, atol=TOLERANCE))
@@ -228,9 +231,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 4-D.
         """
 
-        this_init_function = (
-            feature_optimization.create_uniform_random_initializer(
-                min_value=MIN_UNIFORM_VALUE, max_value=MAX_UNIFORM_VALUE))
+        this_init_function = backwards_opt.create_uniform_random_initializer(
+            min_value=MIN_UNIFORM_VALUE, max_value=MAX_UNIFORM_VALUE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
             this_matrix, UNIFORM_MATRIX_4D, atol=TOLERANCE))
@@ -241,9 +244,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 5-D.
         """
 
-        this_init_function = (
-            feature_optimization.create_uniform_random_initializer(
-                min_value=MIN_UNIFORM_VALUE, max_value=MAX_UNIFORM_VALUE))
+        this_init_function = backwards_opt.create_uniform_random_initializer(
+            min_value=MIN_UNIFORM_VALUE, max_value=MAX_UNIFORM_VALUE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
             this_matrix, UNIFORM_MATRIX_5D, atol=TOLERANCE))
@@ -254,8 +257,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 3-D.
         """
 
-        this_init_function = feature_optimization.create_constant_initializer(
+        this_init_function = backwards_opt.create_constant_initializer(
             constant_value=CONSTANT_VALUE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_3D)
         self.assertTrue(numpy.allclose(
             this_matrix, CONSTANT_MATRIX_3D, atol=TOLERANCE))
@@ -266,8 +270,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 4-D.
         """
 
-        this_init_function = feature_optimization.create_constant_initializer(
+        this_init_function = backwards_opt.create_constant_initializer(
             constant_value=CONSTANT_VALUE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_4D)
         self.assertTrue(numpy.allclose(
             this_matrix, CONSTANT_MATRIX_4D, atol=TOLERANCE))
@@ -278,8 +283,9 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 5-D.
         """
 
-        this_init_function = feature_optimization.create_constant_initializer(
+        this_init_function = backwards_opt.create_constant_initializer(
             constant_value=CONSTANT_VALUE)
+
         this_matrix = this_init_function(ARRAY_DIMENSIONS_5D)
         self.assertTrue(numpy.allclose(
             this_matrix, CONSTANT_MATRIX_5D, atol=TOLERANCE))
@@ -290,7 +296,7 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 3-D.
         """
 
-        this_init_function = feature_optimization.create_climo_initializer(
+        this_init_function = backwards_opt.create_climo_initializer(
             training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
             test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
@@ -305,7 +311,7 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 4-D.
         """
 
-        this_init_function = feature_optimization.create_climo_initializer(
+        this_init_function = backwards_opt.create_climo_initializer(
             training_option_dict=TRAINING_OPTION_DICT_2D, myrorss_2d3d=False,
             test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
@@ -320,7 +326,7 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 5-D.
         """
 
-        this_init_function = feature_optimization.create_climo_initializer(
+        this_init_function = backwards_opt.create_climo_initializer(
             training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
             test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
@@ -335,7 +341,7 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 2-D (invalid).
         """
 
-        this_init_function = feature_optimization.create_climo_initializer(
+        this_init_function = backwards_opt.create_climo_initializer(
             training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
             test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)

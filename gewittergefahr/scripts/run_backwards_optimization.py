@@ -7,7 +7,7 @@ from keras import backend as K
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
-from gewittergefahr.deep_learning import feature_optimization as backwards_opt
+from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.scripts import get_cnn_saliency_maps
