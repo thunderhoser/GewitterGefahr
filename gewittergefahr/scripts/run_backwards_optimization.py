@@ -257,6 +257,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
+    print model_object.input
 
     list_of_optimized_matrices = None
 
@@ -276,8 +277,6 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
                 init_function_or_matrices=this_init_arg,
                 num_iterations=num_iterations, learning_rate=learning_rate
             )[0]
-            
-            print len(these_optimized_matrices)
 
         elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
             print (
