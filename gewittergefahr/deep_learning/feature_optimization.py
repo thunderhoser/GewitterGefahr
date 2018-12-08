@@ -30,13 +30,39 @@ INIT_FUNCTION_KEY = 'init_function_name_or_matrices'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
-NEURON_INDICES_KEY = 'neuron_index_matrix'
-CHANNEL_INDICES_KEY = 'channel_indices'
+NEURON_INDICES_KEY = 'neuron_indices'
+CHANNEL_INDEX_KEY = 'channel_index'
 
 GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
 UNIFORM_INIT_FUNCTION_NAME = 'uniform'
 CONSTANT_INIT_FUNCTION_NAME = 'constant'
 CLIMO_INIT_FUNCTION_NAME = 'climo'
+
+VALID_INIT_FUNCTION_NAMES = [
+    GAUSSIAN_INIT_FUNCTION_NAME, UNIFORM_INIT_FUNCTION_NAME,
+    CONSTANT_INIT_FUNCTION_NAME, CLIMO_INIT_FUNCTION_NAME
+]
+
+# TODO(thunderhoser): Documentation for non-IO methods needs to be cleaned up
+# (made consistent).
+
+
+def _check_input_args(num_iterations, learning_rate, ideal_activation=None):
+    """Error-checks input args for backwards optimization.
+
+    :param num_iterations: See doc for `_do_gradient_descent`.
+    :param learning_rate: Same.
+    :param ideal_activation: See doc for `optimize_input_for_neuron_activation`
+        or `optimize_input_for_channel_activation`.
+    """
+
+    error_checking.assert_is_integer(num_iterations)
+    error_checking.assert_is_greater(num_iterations, 0)
+    error_checking.assert_is_greater(learning_rate, 0.)
+    error_checking.assert_is_less_than(learning_rate, 1.)
+
+    if ideal_activation is not None:
+        error_checking.assert_is_greater(ideal_activation, 0.)
 
 
 def _do_gradient_descent(
@@ -114,69 +140,23 @@ def _do_gradient_descent(
     return list_of_optimized_input_matrices
 
 
-def check_metadata(
-        num_iterations, learning_rate, component_type_string, target_class=None,
-        layer_name=None, ideal_activation=None, neuron_index_matrix=None,
-        channel_indices=None):
-    """Error-checks metadata for feature optimization.
+def check_init_function(init_function_name):
+    """Error-checks initialization function.
 
-    C = number of model components (classes, neurons, or channels) for which
-        input data were optimized
-
-    :param num_iterations: See doc for `_do_gradient_descent`.
-    :param learning_rate: Same.
-    :param component_type_string: Component type (must be accepted by
-        `model_interpretation.check_component_type`).
-    :param target_class: See doc for `optimize_input_for_class`.
-    :param layer_name: See doc for `optimize_input_for_neuron_activation` or
-        `optimize_input_for_channel_activation`.
-    :param ideal_activation: Same.
-    :param neuron_index_matrix:
-        [used only if component_type_string = "neuron"]
-        C-by-? numpy array, where neuron_index_matrix[j, :] contains array
-        indices of the [j]th neuron for which input data were optimized.
-    :param channel_indices: [used only if component_type_string = "channel"]
-        length-C numpy array, where channel_indices[j] is the index of the [j]th
-        channel for which input data were optimized.
-    :return: num_components: Number of model components (classes, neurons, or
-        channels) for which input data were optimized.
+    :param init_function_name: Name of initialization function.
+    :raises: ValueError: if
+        `init_function_name not in VALID_INIT_FUNCTION_NAMES`.
     """
 
-    error_checking.assert_is_integer(num_iterations)
-    error_checking.assert_is_greater(num_iterations, 0)
-    error_checking.assert_is_greater(learning_rate, 0.)
-    error_checking.assert_is_less_than(learning_rate, 1.)
-    model_interpretation.check_component_type(component_type_string)
+    error_checking.assert_is_string(init_function_name)
 
-    if (component_type_string ==
-            model_interpretation.CLASS_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer(target_class)
-        error_checking.assert_is_geq(target_class, 0)
-        num_components = 1
+    if init_function_name not in VALID_INIT_FUNCTION_NAMES:
+        error_string = (
+            '\n{0:s}\nValid init functions (listed above) do not include '
+            '"{1:s}".'
+        ).format(str(VALID_INIT_FUNCTION_NAMES), init_function_name)
 
-    if component_type_string in [
-            model_interpretation.NEURON_COMPONENT_TYPE_STRING,
-            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING
-    ]:
-        error_checking.assert_is_string(layer_name)
-        if ideal_activation is not None:
-            error_checking.assert_is_greater(ideal_activation, 0.)
-
-    if (component_type_string ==
-            model_interpretation.NEURON_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer_numpy_array(neuron_index_matrix)
-        error_checking.assert_is_geq_numpy_array(neuron_index_matrix, 0)
-        error_checking.assert_is_numpy_array(
-            neuron_index_matrix, num_dimensions=2)
-        num_components = neuron_index_matrix.shape[0]
-
-    if (component_type_string ==
-            model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
-        error_checking.assert_is_integer_numpy_array(channel_indices)
-        error_checking.assert_is_geq_numpy_array(channel_indices, 0)
-        num_components = len(channel_indices)
-
-    return num_components
+        raise ValueError(error_string)
 
 
 def create_gaussian_initializer(mean, standard_deviation):
@@ -414,26 +394,35 @@ def optimize_input_for_class(
         `_do_gradient_descent`.
     """
 
-    check_metadata(
-        num_iterations=num_iterations, learning_rate=learning_rate,
-        component_type_string=model_interpretation.CLASS_COMPONENT_TYPE_STRING,
+    model_interpretation.check_component_metadata(
+        component_type_string=
+        model_interpretation.CLASS_COMPONENT_TYPE_STRING,
         target_class=target_class)
 
-    num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
-        -1]
+    _check_input_args(
+        num_iterations=num_iterations, learning_rate=learning_rate)
+
+    num_output_neurons = (
+        model_object.layers[-1].output.get_shape().as_list()[-1]
+    )
 
     if num_output_neurons == 1:
         error_checking.assert_is_leq(target_class, 1)
+
         if target_class == 1:
             loss_tensor = K.mean(
-                (model_object.layers[-1].output[..., 0] - 1) ** 2)
+                (model_object.layers[-1].output[..., 0] - 1) ** 2
+            )
         else:
             loss_tensor = K.mean(
-                model_object.layers[-1].output[..., 0] ** 2)
+                model_object.layers[-1].output[..., 0] ** 2
+            )
     else:
         error_checking.assert_is_less_than(target_class, num_output_neurons)
+
         loss_tensor = K.mean(
-            (model_object.layers[-1].output[..., target_class] - 1) ** 2)
+            (model_object.layers[-1].output[..., target_class] - 1) ** 2
+        )
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -467,11 +456,14 @@ def optimize_input_for_neuron_activation(
         `_do_gradient_descent`.
     """
 
-    check_metadata(
+    model_interpretation.check_component_metadata(
+        component_type_string=
+        model_interpretation.NEURON_COMPONENT_TYPE_STRING,
+        layer_name=layer_name, neuron_indices=neuron_indices)
+
+    _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
-        component_type_string=model_interpretation.NEURON_COMPONENT_TYPE_STRING,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_index_matrix=numpy.expand_dims(neuron_indices, axis=0))
+        ideal_activation=ideal_activation)
 
     neuron_indices_as_tuple = (0,) + tuple(neuron_indices)
 
@@ -479,7 +471,8 @@ def optimize_input_for_neuron_activation(
         loss_tensor = -(
             K.sign(
                 model_object.get_layer(name=layer_name).output[
-                    neuron_indices_as_tuple]) *
+                    neuron_indices_as_tuple]
+            ) *
             model_object.get_layer(name=layer_name).output[
                 neuron_indices_as_tuple] ** 2
         )
@@ -487,7 +480,8 @@ def optimize_input_for_neuron_activation(
         loss_tensor = (
             model_object.get_layer(name=layer_name).output[
                 neuron_indices_as_tuple] -
-            ideal_activation) ** 2
+            ideal_activation
+        ) ** 2
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -532,24 +526,28 @@ def optimize_input_for_channel_activation(
         `_do_gradient_descent`.
     """
 
-    check_metadata(
-        num_iterations=num_iterations, learning_rate=learning_rate,
+    model_interpretation.check_component_metadata(
         component_type_string=
         model_interpretation.CHANNEL_COMPONENT_TYPE_STRING,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        channel_indices=numpy.array([channel_index]))
+        layer_name=layer_name, channel_index=channel_index)
+
+    _check_input_args(
+        num_iterations=num_iterations, learning_rate=learning_rate,
+        ideal_activation=ideal_activation)
 
     if ideal_activation is None:
         loss_tensor = -K.abs(stat_function_for_neuron_activations(
             model_object.get_layer(name=layer_name).output[
-                0, ..., channel_index]))
+                0, ..., channel_index]
+        ))
     else:
         error_checking.assert_is_greater(ideal_activation, 0.)
         loss_tensor = K.abs(
             stat_function_for_neuron_activations(
                 model_object.get_layer(name=layer_name).output[
-                    0, ..., channel_index]) -
-            ideal_activation)
+                    0, ..., channel_index]
+            ) - ideal_activation
+        )
 
     return _do_gradient_descent(
         model_object=model_object, loss_tensor=loss_tensor,
@@ -557,52 +555,71 @@ def optimize_input_for_channel_activation(
         num_iterations=num_iterations, learning_rate=learning_rate)
 
 
-def write_file(
+def write_results(
         pickle_file_name, list_of_optimized_input_matrices, model_file_name,
         init_function_name_or_matrices, num_iterations, learning_rate,
         component_type_string, target_class=None, layer_name=None,
-        ideal_activation=None, neuron_index_matrix=None, channel_indices=None):
-    """Writes optimized input data to Pickle file.
+        neuron_indices=None, channel_index=None, ideal_activation=None):
+    """Writes results of backwards optimization to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param list_of_optimized_input_matrices: List of optimized input matrices,
-        created by `_do_gradient_descent`.
+    :param list_of_optimized_input_matrices: Optimized input data (see doc for
+        `_do_gradient_descent`).
     :param model_file_name: Path to file with trained model.
     :param init_function_name_or_matrices: See doc for `_do_gradient_descent`.
         The only difference here is that the variable must be a function *name*
         (rather than the function itself) or list of numpy arrays.
-    :param num_iterations: See doc for `check_metadata`.
+    :param num_iterations: See doc for `_do_gradient_descent`.
     :param learning_rate: Same.
-    :param component_type_string: Same.
+    :param component_type_string: See doc for
+        `model_interpretation.check_component_metadata`.
     :param target_class: Same.
     :param layer_name: Same.
-    :param ideal_activation: Same.
-    :param neuron_index_matrix: Same.
-    :param channel_indices: Same.
+    :param neuron_indices: Same.
+    :param channel_index: Same.
+    :param ideal_activation: See doc for `optimize_input_for_neuron_activation`
+        or `optimize_input_for_channel_activation`.
+    :raises: ValueError: if `init_function_name_or_matrices` is a list of numpy
+        arrays and has a different length than
+        `list_of_optimized_input_matrices`.
     """
 
-    num_components = check_metadata(
+    model_interpretation.check_component_metadata(
+        component_type_string=component_type_string,
+        target_class=target_class, layer_name=layer_name,
+        neuron_indices=neuron_indices, channel_index=channel_index)
+
+    _check_input_args(
         num_iterations=num_iterations, learning_rate=learning_rate,
-        component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_index_matrix=neuron_index_matrix,
-        channel_indices=channel_indices)
+        ideal_activation=ideal_activation)
 
     error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_list(list_of_optimized_input_matrices)
 
-    for this_array in list_of_optimized_input_matrices:
-        error_checking.assert_is_numpy_array(this_array)
+    if not isinstance(init_function_name_or_matrices, str):
+        num_init_matrices = len(init_function_name_or_matrices)
+        num_optimized_matrices = len(list_of_optimized_input_matrices)
 
-        # TODO(thunderhoser): Commenting out this code is a HACK.  Honestly,
-        # each file should probably contain optimized images for one model
-        # component and many examples, rather than one example and many
-        # components.  So I just need to fix the IO in this module.
+        if num_init_matrices != num_optimized_matrices:
+            error_string = (
+                'Number of initial matrices ({0:d}) should equal number of '
+                'optimized matrices ({1:d}).'
+            ).format(num_init_matrices, num_optimized_matrices)
 
-        # these_expected_dim = numpy.array(
-        #     (num_components,) + this_array.shape[1:], dtype=int)
-        # error_checking.assert_is_numpy_array(
-        #     this_array, exact_dimensions=these_expected_dim)
+            raise ValueError(error_string)
+
+    num_matrices = len(list_of_optimized_input_matrices)
+
+    for i in range(num_matrices):
+        error_checking.assert_is_numpy_array(
+            list_of_optimized_input_matrices[i])
+
+        if not isinstance(init_function_name_or_matrices, str):
+            error_checking.assert_is_numpy_array(
+                init_function_name_or_matrices[i],
+                exact_dimensions=numpy.array(
+                    list_of_optimized_input_matrices[i].shape)
+            )
 
     metadata_dict = {
         MODEL_FILE_NAME_KEY: model_file_name,
@@ -613,8 +630,8 @@ def write_file(
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
-        NEURON_INDICES_KEY: neuron_index_matrix,
-        CHANNEL_INDICES_KEY: channel_indices,
+        NEURON_INDICES_KEY: neuron_indices,
+        CHANNEL_INDEX_KEY: channel_index
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
@@ -624,8 +641,8 @@ def write_file(
     pickle_file_handle.close()
 
 
-def read_file(pickle_file_name):
-    """Reads optimized input data from Pickle file.
+def read_results(pickle_file_name):
+    """Reads results of backwards optimization from Pickle file.
 
     :param pickle_file_name: Path to input file.
     :return: list_of_optimized_input_matrices: See doc for `write_file`.
@@ -638,8 +655,8 @@ def read_file(pickle_file_name):
     metadata_dict['target_class']: Same.
     metadata_dict['layer_name']: Same.
     metadata_dict['ideal_activation']: Same.
-    metadata_dict['neuron_index_matrix']: Same.
-    metadata_dict['channel_indices']: Same.
+    metadata_dict['neuron_indices']: Same.
+    metadata_dict['channel_index']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
