@@ -239,6 +239,10 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
             get_cnn_saliency_maps._read_storm_metadata(storm_metafile_name)
         )
 
+        # TODO(thunderhoser): Get rid of this HACK.
+        storm_ids = storm_ids[:10]
+        storm_times_unix_sec = storm_times_unix_sec[:10]
+
         list_of_init_matrices = testing_io.read_specific_examples(
             desired_storm_ids=storm_ids,
             desired_times_unix_sec=storm_times_unix_sec,
