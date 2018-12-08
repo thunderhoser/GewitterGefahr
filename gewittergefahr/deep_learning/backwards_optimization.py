@@ -133,7 +133,7 @@ def _do_gradient_descent(
 
         if numpy.mod(j, 100) == 0:
             print 'Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
-                j + 1, num_iterations, these_outputs[0])
+                j, num_iterations, these_outputs[0])
 
         for i in range(num_input_tensors):
             list_of_optimized_input_matrices[i] -= (
