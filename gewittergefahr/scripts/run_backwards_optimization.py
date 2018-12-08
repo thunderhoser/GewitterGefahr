@@ -217,12 +217,11 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
     :param output_file_name: Same.
     """
 
+    model_interpretation.check_component_type(component_type_string)
     if ideal_activation <= 0:
         ideal_activation = None
     if init_function_name in ['', 'None']:
         init_function_name = None
-
-    model_interpretation.check_component_type(component_type_string)
 
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
@@ -239,9 +238,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
             get_cnn_saliency_maps._read_storm_metadata(storm_metafile_name)
         )
 
-        # TODO(thunderhoser): Get rid of this HACK.
-        storm_ids = storm_ids[:10]
-        storm_times_unix_sec = storm_times_unix_sec[:10]
+        # storm_ids = storm_ids[:10]
+        # storm_times_unix_sec = storm_times_unix_sec[:10]
 
         list_of_init_matrices = testing_io.read_specific_examples(
             desired_storm_ids=storm_ids,
