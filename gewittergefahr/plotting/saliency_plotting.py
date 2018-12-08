@@ -40,37 +40,44 @@ DEFAULT_MAX_SOUNDING_FONT_SIZE = 60.
 
 
 def _saliency_to_colour_and_size(
-        saliency_matrix, colour_map_object, max_colour_value,
-        min_font_size_points, max_font_size_points):
-    """Returns font size and colour for each saliency value.
+        saliency_matrix, colour_map_object, max_absolute_colour_value,
+        min_font_size, max_font_size):
+    """Returns colour and font size for each saliency value.
 
-    :param saliency_matrix: M-by-N numpy array of saliency values.
-    :param colour_map_object: See doc for `plot_saliency_for_radar`.
-    :param max_colour_value: Same.
-    :param min_font_size_points: Same.
-    :param max_font_size_points: Same.
-    :return: rgb_matrix: M-by-N-by-3 numpy array of colours.
-    :return: font_size_matrix_points: M-by-N numpy array of font sizes.
+    :param saliency_matrix: numpy array (any shape) of saliency values.
+    :param colour_map_object: See doc for `plot_2d_grid`.
+    :param max_absolute_colour_value: Same.
+    :param min_font_size: Same.
+    :param max_font_size: Same.
+    :return: rgb_matrix: numpy array of colours.  If dimensions of
+        `saliency_matrix` are M x N, this will be M x N x 3.  In general, number
+        of dimensions will increase by 1 and length of last axis will be 3
+        (corresponding to R, G, and B values).
+    :return: font_size_matrix: numpy array of font sizes (same shape as
+        `saliency_matrix`).
     """
 
-    error_checking.assert_is_greater(max_colour_value, 0.)
-    error_checking.assert_is_greater(min_font_size_points, 0.)
-    error_checking.assert_is_greater(max_font_size_points, min_font_size_points)
+    error_checking.assert_is_greater(max_absolute_colour_value, 0.)
+    error_checking.assert_is_greater(min_font_size, 0.)
+    error_checking.assert_is_greater(max_font_size, min_font_size)
 
-    colour_norm_object = pyplot.Normalize(vmin=0., vmax=max_colour_value)
-    rgba_matrix = colour_map_object(colour_norm_object(
-        numpy.absolute(saliency_matrix)))
-    rgb_matrix = rgba_matrix[..., :-1]
+    colour_norm_object = pyplot.Normalize(
+        vmin=0., vmax=max_absolute_colour_value)
+    rgb_matrix = colour_map_object(colour_norm_object(
+        numpy.absolute(saliency_matrix)
+    ))[..., :-1]
 
-    norm_abs_saliency_matrix = (
-        numpy.absolute(saliency_matrix) / max_colour_value)
-    norm_abs_saliency_matrix[norm_abs_saliency_matrix > 1.] = 1.
-    font_size_matrix_points = (
-        min_font_size_points + norm_abs_saliency_matrix *
-        (max_font_size_points - min_font_size_points)
+    normalized_saliency_matrix = (
+        numpy.absolute(saliency_matrix) / max_absolute_colour_value
+    )
+    normalized_saliency_matrix[normalized_saliency_matrix > 1.] = 1.
+
+    font_size_matrix = (
+        min_font_size + normalized_saliency_matrix *
+        (max_font_size - min_font_size)
     )
 
-    return rgb_matrix, font_size_matrix_points
+    return rgb_matrix, font_size_matrix
 
 
 def plot_saliency_for_sounding(
@@ -86,7 +93,7 @@ def plot_saliency_for_sounding(
     :param saliency_matrix: P-by-F numpy array of saliency values.
     :param sounding_field_names: length-F list of field names.
     :param pressure_levels_mb: length-P list of pressure levels (millibars).
-    :param colour_map_object: Same.
+    :param colour_map_object: See doc for `plot_2d_grid`.
     :param max_absolute_colour_value: Same.
     :param min_font_size: Same.
     :param max_font_size: Same.
@@ -142,8 +149,8 @@ def plot_saliency_for_sounding(
 
     rgb_matrix, font_size_matrix = _saliency_to_colour_and_size(
         saliency_matrix=saliency_matrix, colour_map_object=colour_map_object,
-        max_colour_value=max_absolute_colour_value,
-        min_font_size_points=min_font_size, max_font_size_points=max_font_size)
+        max_absolute_colour_value=max_absolute_colour_value,
+        min_font_size=min_font_size, max_font_size=max_font_size)
 
     _, axes_object = pyplot.subplots(
         1, 1, figsize=(FIGURE_WIDTH_INCHES, FIGURE_HEIGHT_INCHES)
@@ -234,14 +241,11 @@ def plot_2d_grid(saliency_matrix_2d, axes_object, colour_map_object,
 
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix_2d)
     error_checking.assert_is_numpy_array(saliency_matrix_2d, num_dimensions=2)
-    # error_checking.assert_is_greater(max_absolute_colour_value, 0.)
-    # error_checking.assert_is_greater(min_font_size, 0.)
-    # error_checking.assert_is_greater(max_font_size, min_font_size)
 
     rgb_matrix, font_size_matrix = _saliency_to_colour_and_size(
         saliency_matrix=saliency_matrix_2d, colour_map_object=colour_map_object,
-        max_colour_value=max_absolute_colour_value,
-        min_font_size_points=min_font_size, max_font_size_points=max_font_size)
+        max_absolute_colour_value=max_absolute_colour_value,
+        min_font_size=min_font_size, max_font_size=max_font_size)
 
     num_grid_rows = saliency_matrix_2d.shape[0]
     num_grid_columns = saliency_matrix_2d.shape[1]
