@@ -174,7 +174,7 @@ def plot_saliency_for_sounding(
                     verticalalignment='center')
             else:
                 axes_object.text(
-                    j, pressure_levels_mb[j], '_',
+                    k, pressure_levels_mb[j], '_',
                     fontsize=font_size_matrix[j, k],
                     color=rgb_matrix[j, k, ...], horizontalalignment='center',
                     verticalalignment='bottom')
