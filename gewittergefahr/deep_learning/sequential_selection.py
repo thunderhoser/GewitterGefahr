@@ -670,6 +670,22 @@ def run_sfs_on_sklearn_model(
         exact_dimensions=numpy.array([num_predictors])
     )
 
+    # Create climatological model.
+    num_classes = 1 + max(
+        [numpy.max(training_target_values), numpy.max(validation_target_values)]
+    )
+
+    climo_validation_prob_matrix = numpy.full(
+        (num_validation_examples, num_classes), numpy.nan)
+    for k in range(num_classes):
+        climo_validation_prob_matrix[..., k] = numpy.mean(
+            training_target_values == k)
+
+    climo_cost = cost_function(validation_target_values,
+                               climo_validation_prob_matrix)
+
+    print 'Cost of climatological model: {0:.4e}\n'.format(climo_cost)
+
     # Do dirty work.
     remaining_predictor_names = predictor_names + []
     selected_predictor_name_by_step = []
@@ -688,7 +704,6 @@ def run_sfs_on_sklearn_model(
             print (
                 'Trying predictor "{0:s}" at step {1:d} of SFS... '
             ).format(this_predictor_name, step_num)
-            print SEPARATOR_STRING
 
             these_indices = [
                 predictor_names.index(s)
@@ -703,16 +718,14 @@ def run_sfs_on_sklearn_model(
 
             new_model_object = sklearn.base.clone(model_object)
             new_model_object.fit(this_training_matrix, training_target_values)
-            print SEPARATOR_STRING
 
             this_validation_prob_matrix = new_model_object.predict_proba(
                 this_validation_matrix)
             this_cost = cost_function(validation_target_values,
                                       this_validation_prob_matrix)
 
-            print 'Validation loss after adding "{0:s}" = {1:.4e}'.format(
+            print 'Validation loss after adding "{0:s}" = {1:.4e}\n'.format(
                 this_predictor_name, this_cost)
-            print SEPARATOR_STRING
 
             if this_cost > lowest_cost:
                 continue
@@ -735,6 +748,7 @@ def run_sfs_on_sklearn_model(
 
         print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
             best_predictor_name, lowest_cost)
+        print SEPARATOR_STRING
 
     return {
         MIN_DECREASE_KEY: min_loss_decrease,
