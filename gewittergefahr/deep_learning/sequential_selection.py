@@ -7,6 +7,7 @@ import copy
 import pickle
 import numpy
 import keras.utils
+import sklearn.base
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn_architecture
@@ -572,6 +573,165 @@ def run_sfs(
 
         remaining_predictor_names_by_matrix[best_matrix_index].remove(
             best_predictor_name)
+
+        print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
+            best_predictor_name, lowest_cost)
+
+    return {
+        MIN_DECREASE_KEY: min_loss_decrease,
+        MIN_PERCENT_DECREASE_KEY: min_percentage_loss_decrease,
+        NUM_STEPS_FOR_DECREASE_KEY: num_steps_for_loss_decrease,
+        SELECTED_PREDICTORS_KEY: selected_predictor_name_by_step,
+        LOWEST_COSTS_KEY: lowest_cost_by_step
+    }
+
+
+def run_sfs_on_sklearn_model(
+        training_predictor_matrix, training_target_values,
+        validation_predictor_matrix, validation_target_values, predictor_names,
+        model_object, cost_function, min_loss_decrease=None,
+        min_percentage_loss_decrease=None,
+        num_steps_for_loss_decrease=DEFAULT_NUM_STEPS_FOR_LOSS_DECREASE):
+    """Runs sequential forward selection (SFS) on scikit-learn model.
+
+    T = number of training examples
+    V = number of validation examples
+    P = number of predictors
+
+    :param training_predictor_matrix: T-by-P numpy array of predictor values.
+    :param training_target_values: length-T numpy array of target values
+        (integer class labels, since this method supports only classification).
+    :param validation_predictor_matrix: V-by-P numpy array of predictor values.
+    :param validation_target_values: length-V numpy array of target values.
+    :param predictor_names: length-P list with names of predictor variables.
+    :param model_object: Instance of scikit-learn model.  Must implement the
+        methods `fit` and `predict_proba`.
+
+    :param cost_function: Cost function (used to assess model on validation
+        data).  Should have the following inputs and outputs.
+    Input: target_values: Same as input `validation_target_values` for this
+        method.
+    Input: class_probability_matrix: V-by-K matrix of class probabilities, where
+        K = number of classes.  class_probability_matrix[i, k] is the predicted
+        probability that the [i]th example belongs to the [k]th class.
+    Output: cost: Scalar value.
+
+    :param min_loss_decrease: Used to determine stopping criterion.  If the loss
+        has decreased by less than `min_loss_decrease` over the last
+        `num_steps_for_loss_decrease` steps of sequential selection, the
+        algorithm will stop.
+    :param min_percentage_loss_decrease:
+        [used only if `min_loss_decrease is None`]
+        Used to determine stopping criterion.  If the loss has decreased by less
+        than `min_percentage_loss_decrease` over the last
+        `num_steps_for_loss_decrease` steps of sequential selection, the
+        algorithm will stop.
+    :param num_steps_for_loss_decrease: See above.
+
+    :return: result_dict: See documentation for `run_sfs`.
+    """
+
+    # TODO(thunderhoser): This method does not involve deep learning, so
+    # shouldn't really be in this file.
+
+    # Check input args.
+    error_checking.assert_is_numpy_array_without_nan(training_predictor_matrix)
+    error_checking.assert_is_numpy_array(
+        training_predictor_matrix, num_dimensions=2)
+
+    num_training_examples = training_predictor_matrix.shape[0]
+    num_predictors = training_predictor_matrix.shape[1]
+
+    error_checking.assert_is_integer_numpy_array(training_target_values)
+    error_checking.assert_is_geq_numpy_array(training_target_values, 0)
+    error_checking.assert_is_numpy_array(
+        training_target_values,
+        exact_dimensions=numpy.array([num_training_examples])
+    )
+
+    error_checking.assert_is_numpy_array_without_nan(
+        validation_predictor_matrix)
+    num_validation_examples = validation_predictor_matrix.shape[0]
+    error_checking.assert_is_numpy_array(
+        validation_predictor_matrix,
+        exact_dimensions=numpy.array([num_validation_examples, num_predictors])
+    )
+
+    error_checking.assert_is_integer_numpy_array(validation_target_values)
+    error_checking.assert_is_geq_numpy_array(validation_target_values, 0)
+    error_checking.assert_is_numpy_array(
+        validation_target_values,
+        exact_dimensions=numpy.array([num_validation_examples])
+    )
+
+    error_checking.assert_is_string_list(predictor_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(predictor_names),
+        exact_dimensions=numpy.array([num_predictors])
+    )
+
+    # Do dirty work.
+    remaining_predictor_names = predictor_names + []
+    selected_predictor_name_by_step = []
+    lowest_cost_by_step = []
+
+    step_num = 0
+
+    while len(remaining_predictor_names) > 0:
+        print '\n'
+        step_num += 1
+
+        lowest_cost = numpy.inf
+        best_predictor_name = None
+
+        for this_predictor_name in remaining_predictor_names:
+            print (
+                'Trying predictor "{0:s}" at step {1:d} of SFS... '
+            ).format(this_predictor_name, step_num)
+            print SEPARATOR_STRING
+
+            these_indices = [
+                predictor_names.index(s)
+                for s in selected_predictor_name_by_step
+            ]
+            these_indices.append(predictor_names.index(this_predictor_name))
+            these_indices = numpy.array(these_indices, dtype=int)
+
+            this_training_matrix = training_predictor_matrix[..., these_indices]
+            this_validation_matrix = validation_predictor_matrix[
+                ..., these_indices]
+
+            new_model_object = sklearn.base.clone(model_object)
+            new_model_object.fit(this_training_matrix, training_target_values)
+            print SEPARATOR_STRING
+
+            this_validation_prob_matrix = new_model_object.predict_proba(
+                this_validation_matrix)
+            this_cost = cost_function(validation_target_values,
+                                      this_validation_prob_matrix)
+
+            print 'Validation loss after adding "{0:s}" = {1:.4e}'.format(
+                this_predictor_name, this_cost)
+            print SEPARATOR_STRING
+
+            if this_cost > lowest_cost:
+                continue
+
+            lowest_cost = this_cost + 0.
+            best_predictor_name = this_predictor_name + ''
+
+        stopping_criterion = _eval_sfs_stopping_criterion(
+            min_loss_decrease=min_loss_decrease,
+            min_percentage_loss_decrease=min_percentage_loss_decrease,
+            num_steps_for_loss_decrease=num_steps_for_loss_decrease,
+            lowest_cost_by_step=lowest_cost_by_step + [lowest_cost])
+
+        if stopping_criterion:
+            break
+
+        selected_predictor_name_by_step.append(best_predictor_name)
+        lowest_cost_by_step.append(lowest_cost)
+        remaining_predictor_names.remove(best_predictor_name)
 
         print 'Best predictor = "{0:s}" ... new cost = {1:.4e}'.format(
             best_predictor_name, lowest_cost)
