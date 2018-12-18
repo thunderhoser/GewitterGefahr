@@ -1,8 +1,5 @@
 """Implements various feature-selection algorithms.
 
-NOTE: Currently this module handles binary classification only.  At some point I
-may add methods that deal with multi-class classification or regression.
-
 --- REFERENCES ---
 
 Lakshmanan, V., C. Karstens, J. Krause, K. Elmore, A. Ryzhkov, and S. Berkseth,
@@ -17,6 +14,7 @@ import copy
 from itertools import combinations
 import numpy
 import pandas
+import keras.utils
 import sklearn.base
 import sklearn.metrics
 import matplotlib
@@ -25,8 +23,9 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import model_evaluation as model_eval
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): Allow user to choose cost function for any selection
-# algorithm.
+# TODO(thunderhoser): A lot of this module is "dead code" right now.  Some of it
+# assumes that the task is binary classification, and some of it assumes
+# classification in general (binary or multi-class).
 
 FONT_SIZE = 30
 FEATURE_NAME_FONT_SIZE = 18
@@ -68,6 +67,9 @@ VALIDATION_COST_BY_STEP_KEY = 'validation_cost_by_step'
 PERMUTATION_TYPE = 'permutation'
 FORWARD_SELECTION_TYPE = 'forward'
 BACKWARD_SELECTION_TYPE = 'backward'
+
+MIN_PROBABILITY = 1e-15
+MAX_PROBABILITY = 1. - MIN_PROBABILITY
 
 
 def _check_sequential_selection_inputs(
@@ -148,9 +150,15 @@ def _forward_selection_step(
     :param target_name: Name of target variable (predictand).
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized by feature selection.
-        Inputs should be forecast_probabilities and observed_values (in that
-        order).  Output should be real-valued float.
+    :param cost_function: Cost function to be minimized.  Should have the
+        following format.  E = number of examples, and K = number of classes.
+    Input: class_probability_matrix: E-by-K numpy array of predicted
+        probabilities, where class_probability_matrix[i, k] = probability that
+        [i]th example belongs to [k]th class.
+    Input: observed_values: length-E numpy array of observed values (integer
+        class labels).
+    Output: cost: Scalar value.
+
     :param num_features_to_add: Number of features to add (L in the above
         discussion).
     :return: min_cost: Minimum cost given by adding any set of L features from
@@ -177,11 +185,10 @@ def _forward_selection_step(
             training_table.as_matrix(columns=these_feature_names),
             training_table[target_name].values)
 
-        these_forecast_probabilities = new_estimator_object.predict_proba(
-            validation_table.as_matrix(columns=these_feature_names))[:, 1]
+        this_probability_matrix = new_estimator_object.predict_proba(
+            validation_table.as_matrix(columns=these_feature_names))
         cost_by_feature_combo[j] = cost_function(
-            these_forecast_probabilities,
-            validation_table[target_name].values)
+            this_probability_matrix, validation_table[target_name].values)
 
     min_cost = numpy.min(cost_by_feature_combo)
     best_index = numpy.argmin(cost_by_feature_combo)
@@ -207,9 +214,7 @@ def _backward_selection_step(
     :param target_name: Name of target variable (predictand).
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized by feature selection.
-        Inputs should be forecast_probabilities and observed_values (in that
-        order).  Output should be real-valued float.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_features_to_remove: Number of features to remove (R in the above
         discussion).
     :return: min_cost: Minimum cost given by removing any set of R features in
@@ -238,12 +243,10 @@ def _backward_selection_step(
             training_table.as_matrix(columns=these_feature_names),
             training_table[target_name].values)
 
-        these_forecast_probabilities = (
-            new_estimator_object.predict_proba(validation_table.as_matrix(
-                columns=these_feature_names))[:, 1])
+        this_probability_matrix = new_estimator_object.predict_proba(
+            validation_table.as_matrix(columns=these_feature_names))
         cost_by_feature_combo[j] = cost_function(
-            these_forecast_probabilities,
-            validation_table[target_name].values)
+            this_probability_matrix, validation_table[target_name].values)
 
     min_cost = numpy.min(cost_by_feature_combo)
     worst_index = numpy.argmin(cost_by_feature_combo)
@@ -401,38 +404,44 @@ def _plot_selection_results(
     axes_object.set_ylabel('Validation cost')
 
 
-def _get_cross_entropy(forecast_probabilities, observed_labels):
-    """Computes cross-entropy.
+def _cross_entropy_function(class_probability_matrix, observed_values):
+    """Cross-entropy cost function.
 
-    :param forecast_probabilities: length-N numpy array with forecast
-        probabilities of some event (e.g., tornado).
-    :param observed_labels: length-N integer numpy array of observed labels
-        (1 for "yes", 0 for "no").
-    :return: cross_entropy: Cross-entropy.
+    This function works for binary or multi-class classification.
+
+    E = number of examples
+    K = number of classes
+
+    :param class_probability_matrix: E-by-K numpy array of predicted
+        probabilities, where class_probability_matrix[i, k] = probability that
+        [i]th example belongs to [k]th class.
+    :param observed_values: length-E numpy array of observed values (integer
+        class labels).
+    :return: cross_entropy: Scalar.
     """
 
-    return model_eval.get_cross_entropy(forecast_probabilities, observed_labels)
+    num_examples = class_probability_matrix.shape[0]
+    num_classes = class_probability_matrix.shape[1]
 
+    class_probability_matrix[
+        class_probability_matrix < MIN_PROBABILITY
+        ] = MIN_PROBABILITY
+    class_probability_matrix[
+        class_probability_matrix > MAX_PROBABILITY
+        ] = MAX_PROBABILITY
 
-def _get_negative_auc(forecast_probabilities, observed_labels):
-    """Computes negative AUC (area under ROC curve).
+    target_matrix = keras.utils.to_categorical(
+        observed_values, num_classes
+    ).astype(int)
 
-    ROC = receiver operating characteristic
-
-    This function may be used as a cost function.
-
-    :param forecast_probabilities: See documentation for _get_cross_entropy.
-    :param observed_labels: See documentation for _get_cross_entropy.
-    :return: negative_auc: Negative area under ROC curve.
-    """
-
-    return sklearn.metrics.roc_auc_score(
-        observed_labels, forecast_probabilities)
+    return -1 * numpy.sum(
+        target_matrix * numpy.log2(class_probability_matrix)
+    ) / num_examples
 
 
 def sequential_forward_selection(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, cost_function=_get_cross_entropy,
+        target_name, estimator_object, cost_function=_cross_entropy_function,
         num_features_to_add_per_step=1, min_fractional_cost_decrease=
         MIN_FRACTIONAL_COST_DECREASE_SFS_DEFAULT):
     """Runs the SFS (sequential forward selection) algorithm.
@@ -449,8 +458,7 @@ def sequential_forward_selection(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _forward_selection_step.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_features_to_add_per_step: Number of features to add at each step.
     :param min_fractional_cost_decrease: Stopping criterion.  Once the
         fractional cost decrease over one step is <
@@ -531,7 +539,7 @@ def sequential_forward_selection(
 
 def sfs_with_backward_steps(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, cost_function=_get_cross_entropy,
+        target_name, estimator_object, cost_function=_cross_entropy_function,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SFS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SFS,
         num_features_to_add_per_forward_step=1,
@@ -557,8 +565,7 @@ def sfs_with_backward_steps(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _forward_selection_step.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
@@ -703,7 +710,7 @@ def sfs_with_backward_steps(
 
 def floating_sfs(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, cost_function=_get_cross_entropy,
+        target_name, estimator_object, cost_function=_cross_entropy_function,
         num_features_to_add_per_step=1, min_fractional_cost_decrease=
         MIN_FRACTIONAL_COST_DECREASE_SFS_DEFAULT):
     """Runs the SFFS (sequential forward floating selection) algorithm.
@@ -717,8 +724,7 @@ def floating_sfs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _forward_selection_step.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_features_to_add_per_step: Number of features to add at each step.
     :param min_fractional_cost_decrease: See doc for
         sequential_forward_selection.
@@ -839,7 +845,7 @@ def floating_sfs(
 
 def sequential_backward_selection(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, cost_function=_get_cross_entropy,
+        target_name, estimator_object, cost_function=_cross_entropy_function,
         num_features_to_remove_per_step=1, min_fractional_cost_decrease=
         MIN_FRACTIONAL_COST_DECREASE_SBS_DEFAULT):
     """Runs the SBS (sequential backward selection) algorithm.
@@ -855,8 +861,7 @@ def sequential_backward_selection(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _backward_selection_step.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_features_to_remove_per_step: Number of features to remove at each
         step.
     :param min_fractional_cost_decrease: Stopping criterion.  Once the
@@ -941,7 +946,7 @@ def sequential_backward_selection(
 
 def sbs_with_forward_steps(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, cost_function=_get_cross_entropy,
+        target_name, estimator_object, cost_function=_cross_entropy_function,
         num_forward_steps=DEFAULT_NUM_FORWARD_STEPS_FOR_SBS,
         num_backward_steps=DEFAULT_NUM_BACKWARD_STEPS_FOR_SBS,
         num_features_to_add_per_forward_step=1,
@@ -967,8 +972,7 @@ def sbs_with_forward_steps(
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: Instance of scikit-learn estimator.  Must implement
         the methods `fit` and `predict_proba`.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _backward_selection_step.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_forward_steps: l-value (number of forward steps per major step).
     :param num_backward_steps: r-value (number of backward steps per major
         step).
@@ -1121,7 +1125,7 @@ def sbs_with_forward_steps(
 
 def floating_sbs(
         training_table, validation_table, testing_table, feature_names,
-        target_name, estimator_object, cost_function=_get_cross_entropy,
+        target_name, estimator_object, cost_function=_cross_entropy_function,
         num_features_to_remove_per_step=1, min_fractional_cost_decrease=
         MIN_FRACTIONAL_COST_DECREASE_SBS_DEFAULT):
     """Runs the SBFS (sequential backward floating selection) algorithm.
@@ -1135,8 +1139,7 @@ def floating_sbs(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized.  For more details, see
-        doc for _backward_selection_step.
+    :param cost_function: See doc for `_forward_selection_step`.
     :param num_features_to_remove_per_step: Number of features to remove at each
         step.
     :param min_fractional_cost_decrease: See doc for
@@ -1259,7 +1262,7 @@ def floating_sbs(
 
 def permutation_selection(
         training_table, validation_table, feature_names, target_name,
-        estimator_object, cost_function=_get_cross_entropy):
+        estimator_object, cost_function=_cross_entropy_function):
     """Runs the permutation algorithm (Lakshmanan et al. 2015).
 
     :param training_table: See documentation for
@@ -1268,9 +1271,7 @@ def permutation_selection(
     :param feature_names: See doc for _check_sequential_selection_inputs.
     :param target_name: See doc for _check_sequential_selection_inputs.
     :param estimator_object: See doc for sequential_forward_selection.
-    :param cost_function: Cost function to be minimized by feature selection.
-        Inputs should be forecast_probabilities and observed_values (in that
-        order).  Output should be real-valued float.
+    :param cost_function: See doc for `_forward_selection_step`.
     :return: permutation_table: pandas DataFrame with the following columns.
         Each row corresponds to one feature.  Order of rows = order in which
         features were permuted.  In other words, the feature in the [i]th row
