@@ -246,15 +246,19 @@ def _run_for_myrorss(
         `echo_classification.find_convective_pixels`.
     """
 
-    tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
-        top_radar_dir_name_tarred, spc_date_string[:4], spc_date_string)
+    if top_radar_dir_name_tarred in ['', 'None']:
+        top_radar_dir_name_tarred = None
 
-    myrorss_io.unzip_1day_tar_file(
-        tar_file_name=tar_file_name, field_names=[radar_utils.REFL_NAME],
-        spc_date_string=spc_date_string,
-        top_target_directory_name=top_radar_dir_name_untarred,
-        refl_heights_m_asl=RADAR_HEIGHTS_M_ASL)
-    print SEPARATOR_STRING
+    if top_radar_dir_name_tarred is not None:
+        tar_file_name = '{0:s}/{1:s}/{2:s}.tar'.format(
+            top_radar_dir_name_tarred, spc_date_string[:4], spc_date_string)
+
+        myrorss_io.unzip_1day_tar_file(
+            tar_file_name=tar_file_name, field_names=[radar_utils.REFL_NAME],
+            spc_date_string=spc_date_string,
+            top_target_directory_name=top_radar_dir_name_untarred,
+            refl_heights_m_asl=RADAR_HEIGHTS_M_ASL)
+        print SEPARATOR_STRING
 
     these_file_names = myrorss_and_mrms_io.find_raw_files_one_spc_date(
         spc_date_string=spc_date_string, field_name=radar_utils.REFL_NAME,
@@ -412,6 +416,9 @@ def _run_for_myrorss(
                             delete_input_file=True)
 
         print SEPARATOR_STRING
+
+    if top_radar_dir_name_tarred is None:
+        return
 
     myrorss_io.remove_unzipped_data_1day(
         spc_date_string=spc_date_string,
