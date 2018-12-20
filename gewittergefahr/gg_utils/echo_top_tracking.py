@@ -1592,114 +1592,6 @@ def _reanalyze_tracks(
     return storm_object_table
 
 
-def run_tracking_dummy(
-        top_radar_dir_name, top_output_dir_name,
-        first_spc_date_string, last_spc_date_string,
-        first_time_unix_sec=None, last_time_unix_sec=None,
-        echo_top_field_name=radar_utils.ECHO_TOP_40DBZ_NAME,
-        radar_source_name=radar_utils.MYRORSS_SOURCE_ID,
-        top_echo_classifn_dir_name=None,
-        min_echo_top_height_km_asl=DEFAULT_MIN_ECHO_TOP_HEIGHT_KM_ASL,
-        e_fold_radius_for_smoothing_deg_lat=
-        DEFAULT_E_FOLD_RADIUS_FOR_SMOOTHING_DEG_LAT,
-        half_width_for_max_filter_deg_lat=
-        DEFAULT_HALF_WIDTH_FOR_MAX_FILTER_DEG_LAT,
-        min_distance_between_maxima_metres=
-        DEFAULT_MIN_DISTANCE_BETWEEN_MAXIMA_METRES,
-        min_grid_cells_in_polygon=DEFAULT_MIN_GRID_CELLS_IN_POLYGON,
-        max_link_time_seconds=DEFAULT_MAX_LINK_TIME_SECONDS,
-        max_link_distance_m_s01=DEFAULT_MAX_LINK_DISTANCE_M_S01,
-        min_track_duration_seconds=0,
-        num_points_back_for_velocity=DEFAULT_NUM_POINTS_BACK_FOR_VELOCITY):
-    """This is effectively the main method for echo-top-tracking.
-
-    :param top_radar_dir_name: See doc for `_find_input_radar_files`.
-    :param top_output_dir_name: See doc for `_write_storm_objects`.
-    :param first_spc_date_string: See doc for `_find_input_radar_files`.
-    :param last_spc_date_string: Same.
-    :param first_time_unix_sec: Same.
-    :param last_time_unix_sec: Same.
-    :param echo_top_field_name: Same.
-    :param radar_source_name: Same.
-    :param top_echo_classifn_dir_name: Name of top-level directory with echo
-        classifications.  If None, echo classifications will not be used.  If
-        specified, files therein will be found by
-        `echo_classification.find_classification_file` and read by
-        `echo_classification.read_classifications` and tracking will be run only
-        on convective pixels.
-    :param min_echo_top_height_km_asl: Minimum echo-top height (km above sea
-        level).  Only local maxima >= `min_echo_top_height_km_asl` will be
-        tracked.
-    :param e_fold_radius_for_smoothing_deg_lat: e-folding radius for
-        `_gaussian_smooth_radar_field`.  Units are degrees of latitude.  This
-        will be applied separately to the radar field at each time step, before
-        finding local maxima.
-    :param half_width_for_max_filter_deg_lat: Half-width for max filter used in
-        `_find_local_maxima`.  Units are degrees of latitude.
-    :param min_distance_between_maxima_metres: See doc for
-        `_remove_redundant_local_maxima`.
-    :param min_grid_cells_in_polygon: See doc for `_local_maxima_to_polygons`.
-    :param max_link_time_seconds: See doc for `_link_local_maxima_in_time`.
-    :param max_link_distance_m_s01: See doc for `_link_local_maxima_in_time`.
-    :param min_track_duration_seconds: Minimum track duration.  Shorter-lived
-        storms will be removed.
-    :param num_points_back_for_velocity: See doc for
-        `_get_velocities_one_storm_track`.
-    """
-
-    # TODO(thunderhoser): Get rid of this ugly HACK.
-
-    error_checking.assert_is_greater(min_echo_top_height_km_asl, 0.)
-
-    if min_grid_cells_in_polygon is None:
-        min_grid_cells_in_polygon = 0
-    error_checking.assert_is_integer(min_grid_cells_in_polygon)
-    error_checking.assert_is_geq(min_grid_cells_in_polygon, 0)
-
-    radar_file_names, valid_times_unix_sec = _find_input_radar_files(
-        top_radar_dir_name=top_radar_dir_name,
-        echo_top_field_name=echo_top_field_name,
-        radar_source_name=radar_source_name,
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string,
-        first_time_unix_sec=first_time_unix_sec,
-        last_time_unix_sec=last_time_unix_sec)
-
-    num_times = len(valid_times_unix_sec)
-    valid_time_strings = [
-        time_conversion.unix_sec_to_string(t, TIME_FORMAT)
-        for t in valid_times_unix_sec
-    ]
-
-    projection_object = projections.init_azimuthal_equidistant_projection(
-        central_latitude_deg=CENTRAL_PROJ_LATITUDE_DEG,
-        central_longitude_deg=CENTRAL_PROJ_LONGITUDE_DEG)
-
-    local_max_dict_by_time = [{}] * num_times
-    keep_time_indices = []
-
-    for i in range(num_times):
-        if top_echo_classifn_dir_name is None:
-            this_echo_classifn_file_name = None
-            keep_time_indices.append(i)
-        else:
-            this_echo_classifn_file_name = (
-                echo_classifn.find_classification_file(
-                    top_directory_name=top_echo_classifn_dir_name,
-                    valid_time_unix_sec=valid_times_unix_sec[i],
-                    desire_zipped=True, allow_zipped_or_unzipped=True,
-                    raise_error_if_missing=False)
-            )
-
-            if not os.path.isfile(this_echo_classifn_file_name):
-                error_string = (
-                    'POTENTIAL PROBLEM.  Cannot find echo-classification file.'
-                    '  Expected at: "{0:s}"'
-                ).format(this_echo_classifn_file_name)
-
-                raise ValueError(error_string)
-
-
 def run_tracking(
         top_radar_dir_name, top_output_dir_name,
         first_spc_date_string, last_spc_date_string,
@@ -1804,6 +1696,7 @@ def run_tracking(
                 ).format(this_echo_classifn_file_name)
 
                 warnings.warn(warning_string)
+                local_max_dict_by_time[i] = None
                 continue
 
             keep_time_indices.append(i)
