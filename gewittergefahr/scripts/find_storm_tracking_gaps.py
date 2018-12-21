@@ -23,14 +23,19 @@ SPC_DATE_HELP_STRING = (
     'temporal discontinuities between them) will be sought for all dates from '
     '`{0:s}`...`{1:s}`.'
 ).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
+
 TOP_TRACKING_DIR_HELP_STRING = (
     'Name of top-level directory with tracking files.')
+
 TRACKING_SCALE_HELP_STRING = (
     'Tracking scale (minimum object area).  This is used to find exact files in'
-    ' `{0:s}`.').format(TOP_TRACKING_DIR_ARG_NAME)
+    ' `{0:s}`.'
+).format(TOP_TRACKING_DIR_ARG_NAME)
+
 DATA_SOURCE_HELP_STRING = (
     'Data source.  Must be a string in the following list.\n{0:s}'
 ).format(str(tracking_utils.DATA_SOURCE_IDS))
+
 MIN_TIME_DIFF_HELP_STRING = (
     'Minimum time difference between successive files.  Any larger difference '
     'is considered a temporal discontinuity.')

@@ -136,7 +136,8 @@ def _run(top_input_dir_name, top_output_dir_name, first_spc_date_string,
         first_time_unix_sec=first_time_unix_sec,
         last_time_unix_sec=last_time_unix_sec,
         tracking_start_time_unix_sec=tracking_start_time_unix_sec,
-        tracking_end_time_unix_sec=tracking_end_time_unix_sec)
+        tracking_end_time_unix_sec=tracking_end_time_unix_sec,
+        min_track_duration_seconds=0)
 
 
 if __name__ == '__main__':
