@@ -14,7 +14,8 @@ NUM_SMOOTHING_FILTER_COLUMNS = 5
 
 
 def _create_smoothing_filter(
-        smoothing_radius_px, num_filter_rows, num_filter_columns, num_channels):
+        smoothing_radius_px, num_half_filter_rows, num_half_filter_columns,
+        num_channels):
     """Creates convolution filter for Gaussian smoothing.
 
     M = number of rows in filter
@@ -23,11 +24,42 @@ def _create_smoothing_filter(
         channel will be smoothed independently.
 
     :param smoothing_radius_px: e-folding radius (pixels).
-    :param num_filter_rows: M in the above discussion.
-    :param num_filter_columns: N in the above discussion.
+    :param num_half_filter_rows: Number of rows in one half of filter.  Total
+        number of rows will be 2 * `num_half_filter_rows` + 1.
+    :param num_half_filter_columns: Same but for columns.
     :param num_channels: C in the above discussion.
     :return: weight_matrix: M-by-N-by-C-by-C numpy array of convolution weights.
     """
+
+    num_filter_rows = 2 * num_half_filter_rows + 1
+    num_filter_columns = 2 * num_half_filter_columns + 1
+
+    row_offsets_unique = numpy.linspace(
+        -num_half_filter_rows, num_half_filter_rows, num=num_filter_rows,
+        dtype=float)
+    column_offsets_unique = numpy.linspace(
+        -num_half_filter_columns, num_half_filter_columns,
+        num=num_filter_columns, dtype=float)
+
+    column_offset_matrix, row_offset_matrix = numpy.meshgrid(
+        column_offsets_unique, row_offsets_unique)
+
+    pixel_offset_matrix = numpy.sqrt(
+        row_offset_matrix ** 2 + column_offset_matrix ** 2)
+
+    small_weight_matrix = numpy.exp(
+        -pixel_offset_matrix ** 2 / (2 * smoothing_radius_px ** 2)
+    )
+    small_weight_matrix = small_weight_matrix / numpy.sum(small_weight_matrix)
+
+    weight_matrix = numpy.zeros(
+        (num_filter_rows, num_filter_columns, num_channels, num_channels)
+    )
+
+    for k in range(num_channels):
+        weight_matrix[..., k, k] = small_weight_matrix
+
+    return weight_matrix
 
 
 def create_net(
@@ -36,9 +68,9 @@ def create_net(
         use_activation_for_out_layer=False, use_bn_for_out_layer=True,
         use_transposed_conv=False, smoothing_radius_px=None):
     """Creates (but does not train) upconvnet.
-    
+
     L = number of conv or deconv layers
-    
+
     :param num_input_features: Number of input features.
     :param first_num_rows: Number of rows in input to first deconv layer.  The
         input features will be reshaped into a grid with this many rows.
@@ -80,6 +112,13 @@ def create_net(
     if smoothing_radius_px is not None:
         error_checking.assert_is_integer(smoothing_radius_px)
         error_checking.assert_is_greater(smoothing_radius_px, 0)
+
+        num_half_smoothing_rows = int(numpy.round(
+            (NUM_SMOOTHING_FILTER_ROWS - 1) / 2
+        ))
+        num_half_smoothing_columns = int(numpy.round(
+            (NUM_SMOOTHING_FILTER_COLUMNS - 1) / 2
+        ))
 
     regularizer_object = keras.regularizers.l1_l2(l1=L1_WEIGHT, l2=L2_WEIGHT)
     input_layer_object = keras.layers.Input(shape=(num_input_features,))
@@ -132,6 +171,26 @@ def create_net(
                 dilation_rate=(1, 1), activation=None, use_bias=True,
                 kernel_initializer='glorot_uniform', bias_initializer='zeros',
                 kernel_regularizer=regularizer_object
+            )(layer_object)
+
+        if smoothing_radius_px is not None:
+            this_weight_matrix = _create_smoothing_filter(
+                smoothing_radius_px=smoothing_radius_px,
+                num_half_filter_rows=num_half_smoothing_rows,
+                num_half_filter_columns=num_half_smoothing_columns,
+                num_channels=current_num_filters)
+
+            this_bias_vector = numpy.zeros(current_num_filters)
+
+            layer_object = keras.layers.Conv2D(
+                filters=current_num_filters,
+                kernel_size=(NUM_SMOOTHING_FILTER_ROWS,
+                             NUM_SMOOTHING_FILTER_COLUMNS),
+                strides=(1, 1), padding='same', data_format='channels_last',
+                dilation_rate=(1, 1), activation=None, use_bias=True,
+                kernel_initializer='glorot_uniform', bias_initializer='zeros',
+                kernel_regularizer=regularizer_object, trainable=False,
+                weights=[this_weight_matrix, this_bias_vector]
             )(layer_object)
 
         if i < num_main_layers - 1 or use_activation_for_out_layer:
