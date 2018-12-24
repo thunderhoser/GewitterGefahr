@@ -161,7 +161,8 @@ def create_net(
             if this_upsampling_factor > 1:
                 layer_object = keras.layers.UpSampling2D(
                     size=(this_upsampling_factor, this_upsampling_factor),
-                    data_format='channels_last', interpolation='nearest'
+                    data_format='channels_last',
+                    # interpolation='nearest'
                 )(layer_object)
 
             layer_object = keras.layers.Conv2D(
@@ -172,6 +173,11 @@ def create_net(
                 kernel_initializer='glorot_uniform', bias_initializer='zeros',
                 kernel_regularizer=regularizer_object
             )(layer_object)
+
+            if this_upsampling_factor == 1:
+                layer_object = keras.layers.ZeroPadding2D(
+                    padding=(1, 1), data_format='channels_last'
+                )(layer_object)
 
         if smoothing_radius_px is not None:
             this_weight_matrix = _create_smoothing_filter(
