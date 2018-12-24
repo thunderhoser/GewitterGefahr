@@ -159,11 +159,16 @@ def create_net(
 
         else:
             if this_upsampling_factor > 1:
-                layer_object = keras.layers.UpSampling2D(
-                    size=(this_upsampling_factor, this_upsampling_factor),
-                    data_format='channels_last',
-                    # interpolation='nearest'
-                )(layer_object)
+                try:
+                    layer_object = keras.layers.UpSampling2D(
+                        size=(this_upsampling_factor, this_upsampling_factor),
+                        data_format='channels_last', interpolation='nearest'
+                    )(layer_object)
+                except:
+                    layer_object = keras.layers.UpSampling2D(
+                        size=(this_upsampling_factor, this_upsampling_factor),
+                        data_format='channels_last'
+                    )(layer_object)
 
             layer_object = keras.layers.Conv2D(
                 filters=current_num_filters,
