@@ -63,12 +63,13 @@ VALIDATION_FILES_KEY = 'validation_file_names'
 FIRST_VALIDN_TIME_KEY = 'first_validn_time_unix_sec'
 LAST_VALIDN_TIME_KEY = 'last_validn_time_unix_sec'
 TRAINING_OPTION_DICT_KEY = 'training_option_dict'
+LAYER_OPERATIONS_KEY = 'list_of_layer_operation_dicts'
 
 REQUIRED_METADATA_KEYS = [
     TARGET_NAME_KEY, NUM_EPOCHS_KEY, NUM_TRAINING_BATCHES_KEY,
     NUM_VALIDATION_BATCHES_KEY, MONITOR_STRING_KEY, WEIGHT_LOSS_FUNCTION_KEY,
     USE_2D3D_CONVOLUTION_KEY, VALIDATION_FILES_KEY, FIRST_VALIDN_TIME_KEY,
-    LAST_VALIDN_TIME_KEY, TRAINING_OPTION_DICT_KEY
+    LAST_VALIDN_TIME_KEY, TRAINING_OPTION_DICT_KEY, LAYER_OPERATIONS_KEY
 ]
 
 DEFAULT_TARGET_NAME = 'tornado_lead-time=0000-3600sec_distance=00000-10000m'
@@ -227,7 +228,8 @@ def read_model(hdf5_file_name):
 
 
 def write_model_metadata(
-        pickle_file_name, metadata_dict, training_option_dict):
+        pickle_file_name, metadata_dict, training_option_dict,
+        list_of_layer_operation_dicts=None):
     """Writes metadata for CNN to Pickle file.
 
     :param pickle_file_name: Path to output file.
@@ -253,6 +255,9 @@ def write_model_metadata(
     :param training_option_dict: See doc for
         `training_validation_io.example_generator_2d_or_3d` or
         `training_validation_io.example_generator_2d3d_myrorss`.
+    :param list_of_layer_operation_dicts: List of dictionaries, representing
+        layer operations used to reduce 3-D radar images to 2-D.  See doc for
+        `input_examples.reduce_examples_3d_to_2d`.
     :raises: ValueError: if any of the aforelisted keys are missing from
         `metadata_dict`.
     """
@@ -260,7 +265,9 @@ def write_model_metadata(
     orig_training_option_dict = training_option_dict.copy()
     training_option_dict = trainval_io.DEFAULT_GENERATOR_OPTION_DICT.copy()
     training_option_dict.update(orig_training_option_dict)
+
     metadata_dict.update({TRAINING_OPTION_DICT_KEY: training_option_dict})
+    metadata_dict.update({LAYER_OPERATIONS_KEY: list_of_layer_operation_dicts})
 
     missing_keys = list(set(REQUIRED_METADATA_KEYS) - set(metadata_dict.keys()))
     if len(missing_keys):
@@ -270,6 +277,7 @@ def write_model_metadata(
         raise ValueError(error_string)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
     pickle_file_handle = open(pickle_file_name, 'wb')
     pickle.dump(metadata_dict, pickle_file_handle)
     pickle_file_handle.close()
@@ -288,6 +296,8 @@ def read_model_metadata(pickle_file_name):
 
     if TARGET_NAME_KEY not in metadata_dict:
         metadata_dict[TARGET_NAME_KEY] = DEFAULT_TARGET_NAME
+    if LAYER_OPERATIONS_KEY not in metadata_dict:
+        metadata_dict[LAYER_OPERATIONS_KEY] = None
 
     return metadata_dict
 
@@ -458,6 +468,93 @@ def train_cnn_2d3d_myrorss(
             callbacks=list_of_callback_objects)
 
 
+def train_cnn_gridrad_2d_reduced(
+        model_object, model_file_name, history_file_name, tensorboard_dir_name,
+        num_epochs, num_training_batches_per_epoch, training_option_dict,
+        list_of_layer_operation_dicts, monitor_string=LOSS_FUNCTION_STRING,
+        weight_loss_function=False, num_validation_batches_per_epoch=0,
+        validation_file_names=None, first_validn_time_unix_sec=None,
+        last_validn_time_unix_sec=None):
+    """Trains CNN with 2-D GridRad images.
+
+    These 2-D images are produced by applying layer operations to the native 3-D
+    images.  The layer operations are specified by `list_of_operation_dicts`.
+
+    :param model_object: See doc for `train_cnn_2d_or_3d`.
+    :param model_file_name: Same.
+    :param history_file_name: Same.
+    :param tensorboard_dir_name: Same.
+    :param num_epochs: Same.
+    :param num_training_batches_per_epoch: Same.
+    :param training_option_dict: Same.
+    :param list_of_layer_operation_dicts: List of dictionaries, representing
+        layer operations used to reduce 3-D radar images to 2-D.  See doc for
+        `training_validation_io.gridrad_generator_2d_reduced`.
+    :param monitor_string: See doc for `train_cnn_2d_or_3d`.
+    :param weight_loss_function: Same.
+    :param num_validation_batches_per_epoch: Same.
+    :param validation_file_names: Same.
+    :param first_validn_time_unix_sec: Same.
+    :param last_validn_time_unix_sec: Same.
+    """
+
+    class_to_weight_dict = _check_training_args(
+        model_file_name=model_file_name, history_file_name=history_file_name,
+        tensorboard_dir_name=tensorboard_dir_name, num_epochs=num_epochs,
+        num_training_batches_per_epoch=num_training_batches_per_epoch,
+        num_validation_batches_per_epoch=num_validation_batches_per_epoch,
+        training_option_dict=training_option_dict,
+        weight_loss_function=weight_loss_function)
+
+    history_object = keras.callbacks.CSVLogger(
+        filename=history_file_name, separator=',', append=False)
+
+    checkpoint_object = _get_checkpoint_object(
+        output_model_file_name=model_file_name, monitor_string=monitor_string,
+        use_validation=num_validation_batches_per_epoch is not None)
+
+    early_stopping_object = keras.callbacks.EarlyStopping(
+        monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
+        patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
+
+    plateau_object = keras.callbacks.ReduceLROnPlateau(
+        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_PLATEAU,
+        verbose=1, mode='min')
+
+    list_of_callback_objects = [
+        checkpoint_object, history_object, early_stopping_object, plateau_object
+    ]
+
+    if num_validation_batches_per_epoch > 0:
+        validation_option_dict = copy.deepcopy(training_option_dict)
+        validation_option_dict[
+            trainval_io.EXAMPLE_FILES_KEY] = validation_file_names
+        validation_option_dict[
+            trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
+        validation_option_dict[
+            trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        model_object.fit_generator(
+            generator=trainval_io.gridrad_generator_2d_reduced(
+                option_dict=training_option_dict,
+                list_of_operation_dicts=list_of_layer_operation_dicts),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_to_weight_dict,
+            callbacks=list_of_callback_objects,
+            validation_data=trainval_io.gridrad_generator_2d_reduced(
+                option_dict=validation_option_dict,
+                list_of_operation_dicts=list_of_layer_operation_dicts),
+            validation_steps=num_validation_batches_per_epoch)
+    else:
+        model_object.fit_generator(
+            generator=trainval_io.gridrad_generator_2d_reduced(
+                option_dict=training_option_dict,
+                list_of_operation_dicts=list_of_layer_operation_dicts),
+            steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
+            verbose=1, class_weight=class_to_weight_dict,
+            callbacks=list_of_callback_objects)
+
+
 def apply_2d_cnn(
         model_object, radar_image_matrix, sounding_matrix=None,
         return_features=False, output_layer_name=None):
@@ -492,10 +589,9 @@ def apply_2d_cnn(
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=4,
         max_num_dimensions=4)
-
     error_checking.assert_is_boolean(return_features)
-    num_examples = radar_image_matrix.shape[0]
 
+    num_examples = radar_image_matrix.shape[0]
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
@@ -503,6 +599,7 @@ def apply_2d_cnn(
     if return_features:
         intermediate_model_object = model_to_feature_generator(
             model_object=model_object, output_layer_name=output_layer_name)
+
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -521,7 +618,8 @@ def apply_2d_cnn(
         return these_probabilities
 
     these_probabilities = numpy.reshape(
-        these_probabilities, (len(these_probabilities), 1))
+        these_probabilities, (len(these_probabilities), 1)
+    )
     return numpy.hstack((1. - these_probabilities, these_probabilities))
 
 
@@ -550,10 +648,9 @@ def apply_3d_cnn(
     dl_utils.check_radar_images(
         radar_image_matrix=radar_image_matrix, min_num_dimensions=5,
         max_num_dimensions=5)
-
     error_checking.assert_is_boolean(return_features)
-    num_examples = radar_image_matrix.shape[0]
 
+    num_examples = radar_image_matrix.shape[0]
     if sounding_matrix is not None:
         dl_utils.check_soundings(
             sounding_matrix=sounding_matrix, num_examples=num_examples)
@@ -561,6 +658,7 @@ def apply_3d_cnn(
     if return_features:
         intermediate_model_object = model_to_feature_generator(
             model_object=model_object, output_layer_name=output_layer_name)
+
         if sounding_matrix is None:
             return intermediate_model_object.predict(
                 radar_image_matrix, batch_size=num_examples)
@@ -579,7 +677,8 @@ def apply_3d_cnn(
         return these_probabilities
 
     these_probabilities = numpy.reshape(
-        these_probabilities, (len(these_probabilities), 1))
+        these_probabilities, (len(these_probabilities), 1)
+    )
     return numpy.hstack((1. - these_probabilities, these_probabilities))
 
 
@@ -613,11 +712,11 @@ def apply_2d3d_cnn(
     dl_utils.check_radar_images(
         radar_image_matrix=reflectivity_image_matrix_dbz, min_num_dimensions=5,
         max_num_dimensions=5)
+
     dl_utils.check_radar_images(
         radar_image_matrix=az_shear_image_matrix_s01,
         min_num_dimensions=4, max_num_dimensions=4)
 
-    num_examples = reflectivity_image_matrix_dbz.shape[0]
     error_checking.assert_is_boolean(return_features)
 
     expected_dimensions = numpy.array(
@@ -625,8 +724,10 @@ def apply_2d3d_cnn(
     error_checking.assert_is_numpy_array(
         reflectivity_image_matrix_dbz, exact_dimensions=expected_dimensions)
 
+    num_examples = reflectivity_image_matrix_dbz.shape[0]
     expected_dimensions = numpy.array(
-        (num_examples,) + az_shear_image_matrix_s01[1:])
+        (num_examples,) + az_shear_image_matrix_s01[1:]
+    )
     error_checking.assert_is_numpy_array(
         az_shear_image_matrix_s01, exact_dimensions=expected_dimensions)
 
@@ -637,10 +738,10 @@ def apply_2d3d_cnn(
     if return_features:
         intermediate_model_object = model_to_feature_generator(
             model_object=model_object, output_layer_name=output_layer_name)
+
         if sounding_matrix is None:
             return intermediate_model_object.predict(
-                [reflectivity_image_matrix_dbz,
-                 az_shear_image_matrix_s01],
+                [reflectivity_image_matrix_dbz, az_shear_image_matrix_s01],
                 batch_size=num_examples)
 
         return intermediate_model_object.predict(
@@ -662,7 +763,8 @@ def apply_2d3d_cnn(
         return these_probabilities
 
     these_probabilities = numpy.reshape(
-        these_probabilities, (len(these_probabilities), 1))
+        these_probabilities, (len(these_probabilities), 1)
+    )
     return numpy.hstack((1. - these_probabilities, these_probabilities))
 
 

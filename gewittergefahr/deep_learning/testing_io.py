@@ -398,7 +398,7 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
         yield storm_object_dict
 
 
-def generator_gridrad_2d_reduced(option_dict, list_of_operation_dicts,
+def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
                                  num_examples_total):
     """Generates examples with 2-D GridRad images.
 

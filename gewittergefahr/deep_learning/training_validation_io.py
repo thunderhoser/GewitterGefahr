@@ -862,7 +862,7 @@ def example_generator_2d3d_myrorss(option_dict):
             yield (list_of_predictor_matrices[:-1], target_array)
 
 
-def generator_gridrad_2d_reduced(option_dict, list_of_operation_dicts):
+def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     """Generates examples with 2-D GridRad images.
 
     These 2-D images are produced by applying layer operations to the native 3-D
