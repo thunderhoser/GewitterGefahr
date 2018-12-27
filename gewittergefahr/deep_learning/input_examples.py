@@ -1920,7 +1920,7 @@ def reduce_examples_3d_to_2d(example_dict, list_of_operation_dicts):
       radar_image_matrix.
 
     :param example_dict: See doc for `write_example_file`.
-    :param list_of_operation_dicts: See doc for `_check_layer_operations`.
+    :param list_of_operation_dicts: See doc for `_check_layer_operation`.
     :return: example_dict: See general discussion above, for how the input
         `example_dict` is changed to the output `example_dict`.
     """

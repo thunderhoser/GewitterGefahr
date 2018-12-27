@@ -34,6 +34,17 @@ STORM_IDS_KEY = 'storm_ids'
 STORM_TIMES_KEY = 'storm_times_unix_sec'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
+RADAR_FIELDS_KEY = input_examples.RADAR_FIELDS_KEY + ''
+MIN_RADAR_HEIGHTS_KEY = input_examples.MIN_RADAR_HEIGHTS_KEY + ''
+MAX_RADAR_HEIGHTS_KEY = input_examples.MAX_RADAR_HEIGHTS_KEY + ''
+RADAR_LAYER_OPERATION_NAMES_KEY = (
+    input_examples.RADAR_LAYER_OPERATION_NAMES_KEY + '')
+
+REDUCTION_METADATA_KEYS = [
+    RADAR_FIELDS_KEY, MIN_RADAR_HEIGHTS_KEY, MAX_RADAR_HEIGHTS_KEY,
+    RADAR_LAYER_OPERATION_NAMES_KEY
+]
+
 LARGE_INTEGER = int(1e10)
 
 
@@ -244,7 +255,8 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
             sounding_field_names_to_read = sounding_field_names + []
         else:
             sounding_field_names_to_read = (
-                sounding_field_names + [soundings.PRESSURE_NAME])
+                sounding_field_names + [soundings.PRESSURE_NAME]
+            )
 
     radar_image_matrix = None
     sounding_matrix = None
@@ -386,6 +398,224 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
         yield storm_object_dict
 
 
+def generator_gridrad_2d_reduced(option_dict, list_of_operation_dicts,
+                                 num_examples_total):
+    """Generates examples with 2-D GridRad images.
+
+    These 2-D images are produced by applying layer operations to the native 3-D
+    images.  The layer operations are specified by `list_of_operation_dicts`.
+
+    :param option_dict: Same as input to `example_generator_2d_or_3d`, but
+        without "refl_masking_threshold_dbz".
+    :param list_of_operation_dicts: See doc for
+        `input_examples.reduce_examples_3d_to_2d`.
+    :param num_examples_total: Total number of examples to generate.
+
+    :return: storm_object_dict: Dictionary with the following keys.
+    storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
+        where T = number of input tensors to the model.  The first dimension of
+        each array has length E.
+    storm_object_dict['storm_ids']: length-E list of storm IDs.
+    storm_object_dict['storm_times_unix_sec']: length-E list of storm times.
+    storm_object_dict['target_array']: See doc for `example_generator_2d_or_3d`.
+    storm_object_dict['sounding_pressure_matrix_pascals']: numpy array (E x H_s)
+        of pressures.  If soundings were not read, this is None.
+    storm_object_dict['radar_field_names']: length-C list of field names, where
+        the [j]th item corresponds to the [j]th channel of the 2-D radar images
+        returned in "list_of_input_matrices".
+    storm_object_dict['min_radar_heights_m_agl']: length-C numpy array with
+        minimum height for each layer operation (used to reduce 3-D radar images
+        to 2-D).
+    storm_object_dict['max_radar_heights_m_agl']: Same but with max heights.
+    storm_object_dict['radar_layer_operation_names']: length-C list with names
+        of layer operations.  Each name must be accepted by
+        `input_examples._check_layer_operation`.
+    """
+
+    storm_ids, storm_times_unix_sec = _find_examples_to_read(
+        option_dict=option_dict, num_examples_total=num_examples_total)
+    print '\n'
+
+    example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
+
+    radar_field_names_3d = option_dict[trainval_io.RADAR_FIELDS_KEY]
+    radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
+    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
+    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
+    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
+    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
+    normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
+
+    if normalization_type_string is not None:
+        normalization_param_file_name = option_dict[
+            trainval_io.NORMALIZATION_FILE_KEY]
+        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_names[0], metadata_only=True)
+    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
+
+    if sounding_field_names is None:
+        sounding_field_names_to_read = None
+    else:
+        if soundings.PRESSURE_NAME in sounding_field_names:
+            sounding_field_names_to_read = sounding_field_names + []
+        else:
+            sounding_field_names_to_read = (
+                sounding_field_names + [soundings.PRESSURE_NAME]
+            )
+
+    radar_image_matrix = None
+    sounding_matrix = None
+    target_values = None
+    sounding_pressure_matrix_pascals = None
+
+    reduction_metadata_dict = {}
+    file_index = 0
+
+    while True:
+        if file_index >= len(example_file_names):
+            raise StopIteration
+
+        print 'Reading data from: "{0:s}"...'.format(
+            example_file_names[file_index])
+        this_example_dict = input_examples.read_example_file(
+            netcdf_file_name=example_file_names[file_index],
+            include_soundings=sounding_field_names is not None,
+            radar_field_names_to_keep=radar_field_names_3d,
+            radar_heights_to_keep_m_agl=radar_heights_m_agl,
+            sounding_field_names_to_keep=sounding_field_names_to_read,
+            sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
+            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
+            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
+            num_rows_to_keep=num_grid_rows,
+            num_columns_to_keep=num_grid_columns)
+
+        file_index += 1
+        if this_example_dict is None:
+            continue
+
+        indices_to_keep = tracking_utils.find_storm_objects(
+            all_storm_ids=this_example_dict[input_examples.STORM_IDS_KEY],
+            all_times_unix_sec=this_example_dict[
+                input_examples.STORM_TIMES_KEY],
+            storm_ids_to_keep=storm_ids,
+            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
+
+        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
+        if len(indices_to_keep) == 0:
+            continue
+
+        this_example_dict = input_examples.subset_examples(
+            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
+
+        this_example_dict = input_examples.reduce_examples_3d_to_2d(
+            example_dict=this_example_dict,
+            list_of_operation_dicts=list_of_operation_dicts)
+
+        radar_field_names_2d = this_example_dict[
+            input_examples.RADAR_FIELDS_KEY]
+        for this_key in REDUCTION_METADATA_KEYS:
+            reduction_metadata_dict[this_key] = this_example_dict[this_key]
+
+        include_soundings = (
+            input_examples.SOUNDING_MATRIX_KEY in this_example_dict)
+
+        if include_soundings:
+            pressure_index = this_example_dict[
+                input_examples.SOUNDING_FIELDS_KEY
+            ].index(soundings.PRESSURE_NAME)
+
+            this_pressure_matrix_pascals = this_example_dict[
+                input_examples.SOUNDING_MATRIX_KEY][..., pressure_index]
+
+            this_sounding_matrix = this_example_dict[
+                input_examples.SOUNDING_MATRIX_KEY]
+            if soundings.PRESSURE_NAME not in sounding_field_names:
+                this_sounding_matrix = this_sounding_matrix[..., :-1]
+
+        if target_values is None:
+            radar_image_matrix = (
+                this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
+                + 0.
+            )
+            target_values = (
+                this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
+
+            if include_soundings:
+                sounding_matrix = this_sounding_matrix + 0.
+                sounding_pressure_matrix_pascals = (
+                    this_pressure_matrix_pascals + 0.)
+        else:
+            radar_image_matrix = numpy.concatenate(
+                (radar_image_matrix,
+                 this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
+                axis=0)
+            target_values = numpy.concatenate((
+                target_values,
+                this_example_dict[input_examples.TARGET_VALUES_KEY]
+            ))
+
+            if include_soundings:
+                sounding_matrix = numpy.concatenate(
+                    (sounding_matrix, this_sounding_matrix), axis=0)
+                sounding_pressure_matrix_pascals = numpy.concatenate(
+                    (sounding_pressure_matrix_pascals,
+                     this_pressure_matrix_pascals), axis=0)
+
+        if normalization_type_string is not None:
+            radar_image_matrix = dl_utils.normalize_radar_images(
+                radar_image_matrix=radar_image_matrix,
+                field_names=radar_field_names_2d,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
+
+            if include_soundings:
+                sounding_matrix = dl_utils.normalize_soundings(
+                    sounding_matrix=sounding_matrix,
+                    field_names=sounding_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value).astype('float32')
+
+        list_of_predictor_matrices = [radar_image_matrix]
+        if include_soundings:
+            list_of_predictor_matrices.append(sounding_matrix)
+
+        target_array = _finalize_targets(
+            target_values=target_values, binarize_target=binarize_target,
+            num_classes=num_classes)
+
+        storm_object_dict = {
+            INPUT_MATRICES_KEY: list_of_predictor_matrices,
+            TARGET_ARRAY_KEY: target_array,
+            STORM_IDS_KEY: this_example_dict[input_examples.STORM_IDS_KEY],
+            STORM_TIMES_KEY: this_example_dict[input_examples.STORM_TIMES_KEY],
+            SOUNDING_PRESSURES_KEY:
+                copy.deepcopy(sounding_pressure_matrix_pascals)
+        }
+
+        for this_key in REDUCTION_METADATA_KEYS:
+            storm_object_dict[this_key] = reduction_metadata_dict[this_key]
+
+        radar_image_matrix = None
+        sounding_matrix = None
+        target_values = None
+        sounding_pressure_matrix_pascals = None
+
+        yield storm_object_dict
+
+
 def example_generator_2d3d_myrorss(option_dict, num_examples_total):
     """Generates examples with both 2-D and 3-D radar images.
 
@@ -465,7 +695,8 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
             sounding_field_names_to_read = sounding_field_names + []
         else:
             sounding_field_names_to_read = (
-                sounding_field_names + [soundings.PRESSURE_NAME])
+                sounding_field_names + [soundings.PRESSURE_NAME]
+            )
 
     reflectivity_image_matrix_dbz = None
     az_shear_image_matrix_s01 = None
