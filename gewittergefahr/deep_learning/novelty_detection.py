@@ -90,7 +90,7 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix, num_modes_to_keep):
 
     error_checking.assert_is_integer(num_modes_to_keep)
     error_checking.assert_is_geq(num_modes_to_keep, 1)
-    error_checking.assert_is_less_than(
+    error_checking.assert_is_leq(
         num_modes_to_keep, baseline_feature_matrix.shape[1])
 
     combined_feature_matrix = numpy.concatenate(
