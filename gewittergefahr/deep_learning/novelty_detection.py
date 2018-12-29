@@ -6,7 +6,9 @@ Wagstaff, K., and J. Lee: "Interpretable discovery in large image data sets."
     arXiv e-prints, 1806, https://arxiv.org/abs/1806.08340.
 """
 
+import pickle
 import numpy
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
@@ -25,6 +27,19 @@ FEATURE_STDEVS_KEY = 'feature_standard_deviations'
 NOVEL_IMAGES_ACTUAL_KEY = 'novel_image_matrix_actual'
 NOVEL_IMAGES_UPCONV_KEY = 'novel_image_matrix_upconv'
 NOVEL_IMAGES_UPCONV_SVD_KEY = 'novel_image_matrix_upconv_svd'
+
+BASELINE_IMAGES_KEY = 'baseline_image_matrix'
+TEST_IMAGES_KEY = 'test_image_matrix'
+UCN_FILE_NAME_KEY = 'ucn_file_name'
+NUM_SVD_MODES_KEY = 'num_svd_modes'
+NORM_FUNCTION_KEY = 'norm_function_name'
+DENORM_FUNCTION_KEY = 'denorm_function_name'
+
+REQUIRED_KEYS = [
+    NOVEL_IMAGES_ACTUAL_KEY, NOVEL_IMAGES_UPCONV_KEY,
+    NOVEL_IMAGES_UPCONV_SVD_KEY, BASELINE_IMAGES_KEY, TEST_IMAGES_KEY,
+    UCN_FILE_NAME_KEY, NUM_SVD_MODES_KEY, NORM_FUNCTION_KEY, DENORM_FUNCTION_KEY
+]
 
 
 def _normalize_features(feature_matrix, feature_means=None,
@@ -329,6 +344,12 @@ def do_novelty_detection(
     novelty_dict['novel_image_matrix_upconv_svd']: Same as
         "novel_image_matrix_actual" but reconstructed by SVD (singular-value
         decomposition) and the upconvnet.
+
+    novelty_dict['baseline_image_matrix']: Same as input.
+    novelty_dict['test_image_matrix']: Same as input.
+    novelty_dict['num_svd_modes']: Same as input.
+    novelty_dict['norm_function_name']: Name of input `norm_function`.
+    novelty_dict['denorm_function_name']: Name of input `denorm_function`.
     """
 
     error_checking.assert_is_numpy_array_without_nan(baseline_image_matrix)
@@ -430,13 +451,76 @@ def do_novelty_detection(
 
     novel_indices = numpy.array(novel_indices, dtype=int)
 
-    if not inputs_normalized:
+    if inputs_normalized:
+        norm_function_name = None
+        denorm_function_name = None
+    else:
         novel_image_matrix_upconv = denorm_function(novel_image_matrix_upconv)
         novel_image_matrix_upconv_svd = denorm_function(
             novel_image_matrix_upconv_svd)
 
+        norm_function_name = norm_function.__name__
+        denorm_function_name = denorm_function.__name__
+
     return {
         NOVEL_IMAGES_ACTUAL_KEY: test_image_matrix[novel_indices, ...],
         NOVEL_IMAGES_UPCONV_KEY: novel_image_matrix_upconv,
-        NOVEL_IMAGES_UPCONV_SVD_KEY: novel_image_matrix_upconv_svd
+        NOVEL_IMAGES_UPCONV_SVD_KEY: novel_image_matrix_upconv_svd,
+        BASELINE_IMAGES_KEY: baseline_image_matrix,
+        TEST_IMAGES_KEY: test_image_matrix,
+        NUM_SVD_MODES_KEY: num_svd_modes_to_keep,
+        NORM_FUNCTION_KEY: norm_function_name,
+        DENORM_FUNCTION_KEY: denorm_function_name
     }
+
+
+def write_results(novelty_dict, pickle_file_name):
+    """Writes novelty-detection results to Pickle file.
+
+    :param novelty_dict: Dictionary created by `do_novelty_detection`, plus one
+        extra key.
+    novelty_dict['ucn_file_name']: Path to file with upconvnet used for novelty
+        detection.  This should be an HDF5 file, readable by
+        `keras.models.load_model`.
+
+    :param pickle_file_name: Path to output file.
+    :raises: ValueError: if any expected key is not found.
+    """
+
+    missing_keys = list(
+        set(REQUIRED_KEYS) - set(novelty_dict.keys())
+    )
+
+    if len(missing_keys) > 0:
+        error_string = 'Cannot find the following expected keys.\n{0:s}'.format(
+            str(missing_keys))
+        raise ValueError(error_string)
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(novelty_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_results(pickle_file_name):
+    """Reads novelty-detection results from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: novelty_dict: See doc for `write_results`.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    novelty_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(
+        set(REQUIRED_KEYS) - set(novelty_dict.keys())
+    )
+
+    if len(missing_keys) == 0:
+        return novelty_dict
+
+    error_string = 'Cannot find the following expected keys.\n{0:s}'.format(
+        str(missing_keys))
+    raise ValueError(error_string)
