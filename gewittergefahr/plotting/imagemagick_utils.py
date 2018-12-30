@@ -54,7 +54,8 @@ def trim_whitespace(
 def concatenate_images(
         input_file_names, output_file_name, num_panel_rows, num_panel_columns,
         border_width_pixels=50, output_size_pixels=None,
-        montage_exe_name=DEFAULT_MONTAGE_EXE_NAME):
+        montage_exe_name=DEFAULT_MONTAGE_EXE_NAME,
+        convert_exe_name=DEFAULT_CONVERT_EXE_NAME):
     """Concatenates images into one paneled image.
 
     :param input_file_names: 1-D list of paths to input files (may be image
@@ -71,6 +72,7 @@ def concatenate_images(
         function.  If you installed ImageMagick with root access, this should be
         "/usr/bin/montage".  Either way, the pathless file name should be
         "montage".
+    :param convert_exe_name: See doc for `trim_whitespace`.
     :raises: ValueError: if ImageMagick command (which is ultimately a Unix
         command) fails.
     """
@@ -94,13 +96,21 @@ def concatenate_images(
     for this_file_name in input_file_names:
         command_string += ' "{0:s}"'.format(this_file_name)
 
-    if output_size_pixels is not None:
-        error_checking.assert_is_integer(output_size_pixels)
-        error_checking.assert_is_greater(output_size_pixels, 0)
-        command_string += ' -resize {0:d}@'.format(output_size_pixels)
-
     command_string += ' -trim -bordercolor White -border {0:d} "{1:s}"'.format(
         border_width_pixels, output_file_name)
+
+    exit_code = os.system(command_string)
+    if exit_code != 0:
+        raise ValueError('\nUnix command failed (log messages shown '
+                         'above should explain why).')
+
+    if output_size_pixels is None:
+        return
+
+    error_checking.assert_is_integer(output_size_pixels)
+    error_checking.assert_is_greater(output_size_pixels, 0)
+    command_string = '"{0:s}" "{1:s}" -resize {2:d}@ "{1:s}"'.format(
+        convert_exe_name, output_file_name, output_size_pixels)
 
     exit_code = os.system(command_string)
     if exit_code != 0:
