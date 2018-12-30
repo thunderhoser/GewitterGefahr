@@ -17,7 +17,7 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 # tensor (e.g., models trained with only radar images, rather than radar images
 # and soundings).
 
-DEFAULT_NUM_SVD_MODES = 10
+DEFAULT_PCT_VARIANCE_TO_KEEP = 97.5
 NUM_EXAMPLES_PER_CNN_BATCH = 1000
 
 EOF_MATRIX_KEY = 'eof_matrix'
@@ -31,14 +31,15 @@ NOVEL_IMAGES_UPCONV_SVD_KEY = 'novel_image_matrix_upconv_svd'
 BASELINE_IMAGES_KEY = 'baseline_image_matrix'
 TEST_IMAGES_KEY = 'test_image_matrix'
 UCN_FILE_NAME_KEY = 'ucn_file_name'
-NUM_SVD_MODES_KEY = 'num_svd_modes'
+PERCENT_VARIANCE_KEY = 'percent_svd_variance_to_keep'
 NORM_FUNCTION_KEY = 'norm_function_name'
 DENORM_FUNCTION_KEY = 'denorm_function_name'
 
 REQUIRED_KEYS = [
     NOVEL_IMAGES_ACTUAL_KEY, NOVEL_IMAGES_UPCONV_KEY,
     NOVEL_IMAGES_UPCONV_SVD_KEY, BASELINE_IMAGES_KEY, TEST_IMAGES_KEY,
-    UCN_FILE_NAME_KEY, NUM_SVD_MODES_KEY, NORM_FUNCTION_KEY, DENORM_FUNCTION_KEY
+    UCN_FILE_NAME_KEY, PERCENT_VARIANCE_KEY, NORM_FUNCTION_KEY,
+    DENORM_FUNCTION_KEY
 ]
 
 
@@ -76,7 +77,8 @@ def _normalize_features(feature_matrix, feature_means=None,
     return feature_matrix, feature_means, feature_standard_deviations
 
 
-def _fit_svd(baseline_feature_matrix, test_feature_matrix, num_modes_to_keep):
+def _fit_svd(baseline_feature_matrix, test_feature_matrix,
+             percent_variance_to_keep):
     """Fits SVD (singular-value decomposition) model.
 
     B = number of baseline examples (storm objects)
@@ -92,8 +94,10 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix, num_modes_to_keep):
 
     :param baseline_feature_matrix: B-by-Z numpy array of features.
     :param test_feature_matrix: T-by-Z numpy array of features.
-    :param num_modes_to_keep: Number of modes (top eigenvectors) to use in SVD
-        model.  This is K in the above discussion.
+    :param percent_variance_to_keep: Percentage of variance to keep.  Determines
+        how many eigenvectors (K in the above discussion) will be used in the
+        SVD model.
+
     :return: svd_dictionary: Dictionary with the following keys.
     svd_dictionary['eof_matrix']: Z-by-K numpy array, where each column is an
         EOF (empirical orthogonal function).
@@ -103,10 +107,8 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix, num_modes_to_keep):
         standard deviation of each feature (before transformation).
     """
 
-    error_checking.assert_is_integer(num_modes_to_keep)
-    error_checking.assert_is_geq(num_modes_to_keep, 1)
-    error_checking.assert_is_leq(
-        num_modes_to_keep, baseline_feature_matrix.shape[1])
+    error_checking.assert_is_greater(percent_variance_to_keep, 0.)
+    error_checking.assert_is_leq(percent_variance_to_keep, 100.)
 
     combined_feature_matrix = numpy.concatenate(
         (baseline_feature_matrix, test_feature_matrix), axis=0)
@@ -119,7 +121,20 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix, num_modes_to_keep):
     baseline_feature_matrix = combined_feature_matrix[
         :num_baseline_examples, ...]
 
-    eof_matrix = numpy.linalg.svd(baseline_feature_matrix)[-1]
+    eigenvalues, eof_matrix = numpy.linalg.svd(baseline_feature_matrix)[1:]
+    eigenvalues = eigenvalues ** 2
+
+    explained_variances = eigenvalues / numpy.sum(eigenvalues)
+    cumulative_explained_variances = numpy.cumsum(explained_variances)
+
+    fraction_of_variance_to_keep = 0.01 * percent_variance_to_keep
+    num_modes_to_keep = 1 + numpy.where(
+        cumulative_explained_variances >= fraction_of_variance_to_keep
+    )[0][0]
+
+    print (
+        'Number of modes required to explain {0:f}% of variance: {1:d}'
+    ).format(percent_variance_to_keep, num_modes_to_keep)
 
     return {
         EOF_MATRIX_KEY: numpy.transpose(eof_matrix)[..., :num_modes_to_keep],
@@ -285,7 +300,7 @@ def do_novelty_detection(
         baseline_image_matrix, test_image_matrix, cnn_model_object,
         cnn_feature_layer_name, ucn_model_object, num_novel_test_images,
         norm_function, denorm_function,
-        num_svd_modes_to_keep=DEFAULT_NUM_SVD_MODES):
+        percent_svd_variance_to_keep=DEFAULT_PCT_VARIANCE_TO_KEEP):
     """Does novelty detection.
 
     Specifically, this method follows the procedure in Wagstaff et al. (2018)
@@ -332,8 +347,7 @@ def do_novelty_detection(
     Output: image_matrix_norm: numpy array (equivalent shape) of denormalized
         images.
 
-    :param num_svd_modes_to_keep: Number of modes to keep in SVD (singular-value
-        decomposition) of scalar features.  See `_fit_svd` for more details.
+    :param percent_svd_variance_to_keep: See doc for `_fit_svd`.
 
     :return: novelty_dict: Dictionary with the following keys.  In the following
         discussion, Q = number of novel test images found.
@@ -347,7 +361,7 @@ def do_novelty_detection(
 
     novelty_dict['baseline_image_matrix']: Same as input.
     novelty_dict['test_image_matrix']: Same as input.
-    novelty_dict['num_svd_modes']: Same as input.
+    novelty_dict['percent_svd_variance_to_keep']: Same as input.
     novelty_dict['norm_function_name']: Name of input `norm_function`.
     novelty_dict['denorm_function_name']: Name of input `denorm_function`.
     """
@@ -412,7 +426,7 @@ def do_novelty_detection(
         svd_dictionary = _fit_svd(
             baseline_feature_matrix=this_baseline_feature_matrix,
             test_feature_matrix=this_test_feature_matrix,
-            num_modes_to_keep=num_svd_modes_to_keep)
+            percent_variance_to_keep=percent_svd_variance_to_keep)
 
         svd_errors = numpy.full(num_test_examples, numpy.nan)
         test_feature_matrix_svd = numpy.full(
@@ -468,7 +482,7 @@ def do_novelty_detection(
         NOVEL_IMAGES_UPCONV_SVD_KEY: novel_image_matrix_upconv_svd,
         BASELINE_IMAGES_KEY: baseline_image_matrix,
         TEST_IMAGES_KEY: test_image_matrix,
-        NUM_SVD_MODES_KEY: num_svd_modes_to_keep,
+        PERCENT_VARIANCE_KEY: percent_svd_variance_to_keep,
         NORM_FUNCTION_KEY: norm_function_name,
         DENORM_FUNCTION_KEY: denorm_function_name
     }

@@ -68,7 +68,7 @@ class NoveltyDetectionTests(unittest.TestCase):
         this_svd_dictionary = novelty_detection._fit_svd(
             baseline_feature_matrix=BASELINE_FEATURE_MATRIX + 0.,
             test_feature_matrix=TEST_FEATURE_MATRIX + 0.,
-            num_modes_to_keep=NUM_MODES_TO_KEEP)
+            percent_variance_to_keep=100.)
 
         this_test_feature_matrix = numpy.full(
             TEST_FEATURE_MATRIX.shape, numpy.nan)
