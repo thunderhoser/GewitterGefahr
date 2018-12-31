@@ -25,6 +25,8 @@ from gewittergefahr.gg_utils import error_checking
 
 # TODO(thunderhoser): Implement data augmentation in generators.
 
+KM_TO_METRES = 1000
+
 EXAMPLE_FILES_KEY = 'example_file_names'
 FIRST_STORM_TIME_KEY = 'first_storm_time_unix_sec'
 LAST_STORM_TIME_KEY = 'last_storm_time_unix_sec'
@@ -869,7 +871,11 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     images.  The layer operations are specified by `list_of_operation_dicts`.
 
     :param option_dict: Same as input to `example_generator_2d_or_3d`, but
-        without "refl_masking_threshold_dbz".
+        without the following keys:
+    - "refl_masking_threshold_dbz"
+    - "radar_field_names"
+    - "radar_heights_m_agl"
+
     :param list_of_operation_dicts: See doc for
         `input_examples.reduce_examples_3d_to_2d`.
 
@@ -891,8 +897,6 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
 
-    radar_field_names_3d = option_dict[RADAR_FIELDS_KEY]
-    radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
     sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
     sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
@@ -904,6 +908,29 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
+
+    unique_radar_field_names = [
+        d[input_examples.RADAR_FIELD_KEY] for d in list_of_operation_dicts
+    ]
+    unique_radar_field_names = list(set(unique_radar_field_names))
+
+    min_heights_m_agl = numpy.array([
+        d[input_examples.MIN_HEIGHT_KEY] for d in list_of_operation_dicts
+    ], dtype=int)
+
+    max_heights_m_agl = numpy.array([
+        d[input_examples.MAX_HEIGHT_KEY] for d in list_of_operation_dicts
+    ], dtype=int)
+
+    min_overall_height_m_agl = numpy.min(min_heights_m_agl)
+    max_overall_height_m_agl = numpy.max(max_heights_m_agl)
+    num_overall_heights = 1 + int(numpy.round(
+        (max_overall_height_m_agl - min_overall_height_m_agl) / KM_TO_METRES
+    ))
+
+    unique_radar_heights_m_agl = numpy.linspace(
+        min_overall_height_m_agl, max_overall_height_m_agl,
+        num=num_overall_heights, dtype=int)
 
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
     this_example_dict = input_examples.read_example_file(
@@ -948,8 +975,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
             this_example_dict = input_examples.read_example_file(
                 netcdf_file_name=example_file_names[file_index],
                 include_soundings=sounding_field_names is not None,
-                radar_field_names_to_keep=radar_field_names_3d,
-                radar_heights_to_keep_m_agl=radar_heights_m_agl,
+                radar_field_names_to_keep=unique_radar_field_names,
+                radar_heights_to_keep_m_agl=unique_radar_heights_m_agl,
                 sounding_field_names_to_keep=sounding_field_names,
                 sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
                 first_time_to_keep_unix_sec=first_storm_time_unix_sec,

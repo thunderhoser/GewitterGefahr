@@ -401,29 +401,11 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
         cnn.LAST_VALIDN_TIME_KEY: last_validation_time_unix_sec
     }
 
-    # TODO(thunderhoser): Find more elegant way to do this.
-    unique_radar_field_names = list(set(radar_field_name_by_channel))
-
-    min_overall_height_m_agl = numpy.min(min_height_by_channel_m_agl)
-    max_overall_height_m_agl = numpy.max(max_height_by_channel_m_agl)
-    num_overall_heights = 1 + int(numpy.round(
-        (max_overall_height_m_agl - min_overall_height_m_agl) / KM_TO_METRES
-    ))
-
-    unique_radar_heights_m_agl = numpy.linspace(
-        min_overall_height_m_agl, max_overall_height_m_agl,
-        num=num_overall_heights, dtype=int)
-
-    print 'Unique radar heights (m AGL):\n{0:s}\n'.format(
-        str(unique_radar_heights_m_agl))
-
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        trainval_io.RADAR_FIELDS_KEY: unique_radar_field_names,
-        trainval_io.RADAR_HEIGHTS_KEY: unique_radar_heights_m_agl,
         trainval_io.SOUNDING_FIELDS_KEY: None,
         trainval_io.SOUNDING_HEIGHTS_KEY: None,
         trainval_io.NUM_ROWS_KEY: num_grid_rows,
