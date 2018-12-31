@@ -6,6 +6,8 @@ images.
 
 import argparse
 import numpy
+import keras.losses
+import keras.optimizers
 from keras.models import clone_model
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
@@ -13,6 +15,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
+from gewittergefahr.deep_learning import cnn_architecture
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -436,6 +439,12 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
     print 'Reading architecture from: "{0:s}"...'.format(input_model_file_name)
     model_object = cnn.read_model(input_model_file_name)
     model_object = clone_model(model_object)
+
+    # TODO(thunderhoser): This is a HACK.
+    model_object.compile(
+        loss=keras.losses.categorical_crossentropy,
+        optimizer=keras.optimizers.Adam(),
+        metrics=cnn_architecture.DEFAULT_METRIC_FUNCTION_LIST)
 
     print SEPARATOR_STRING
     model_object.summary()
