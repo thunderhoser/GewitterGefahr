@@ -517,12 +517,8 @@ def train_cnn_gridrad_2d_reduced(
         monitor='val_loss', min_delta=MIN_XENTROPY_CHANGE_FOR_EARLY_STOPPING,
         patience=NUM_EPOCHS_FOR_EARLY_STOPPING, verbose=1, mode='min')
 
-    plateau_object = keras.callbacks.ReduceLROnPlateau(
-        monitor='val_loss', factor=0.2, patience=NUM_EPOCHS_FOR_PLATEAU,
-        verbose=1, mode='min')
-
     list_of_callback_objects = [
-        checkpoint_object, history_object, early_stopping_object, plateau_object
+        checkpoint_object, history_object, early_stopping_object
     ]
 
     if num_validation_batches_per_epoch > 0:
