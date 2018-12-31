@@ -2,6 +2,8 @@
 
 import unittest
 import numpy
+from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 # TODO(thunderhoser): Variable names in this file are confusing.  I need to
@@ -40,6 +42,40 @@ WIND_TARGET_VALUES_ENOUGH = TARGET_VALUES_200ZEROS + 0
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[:30]] = 2
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[30:70]] = 1
 WIND_TARGET_VALUES_ENOUGH[THESE_INDICES[70:]] = -2
+
+# The following constants are used to test layer_ops_to_field_height_pairs.
+RADAR_FIELD_NAMES = (
+    [radar_utils.REFL_NAME] * 3 +
+    [radar_utils.SPECTRUM_WIDTH_NAME] * 3 +
+    [radar_utils.VORTICITY_NAME] * 3 +
+    [radar_utils.VORTICITY_NAME] * 3
+)
+
+MIN_HEIGHTS_M_AGL = numpy.array(
+    [1000] * 3 + [1000] * 3 + [2000] * 3 + [5000] * 3,
+    dtype=int
+)
+
+MAX_HEIGHTS_M_AGL = numpy.array(
+    [3000] * 3 + [3000] * 3 + [4000] * 3 + [8000] * 3,
+    dtype=int
+)
+
+LIST_OF_LAYER_OPERATION_DICTS = [
+    {
+        input_examples.RADAR_FIELD_KEY: RADAR_FIELD_NAMES[k],
+        input_examples.MIN_HEIGHT_KEY: MIN_HEIGHTS_M_AGL[k],
+        input_examples.MAX_HEIGHT_KEY: MAX_HEIGHTS_M_AGL[k]
+    } for k in range(len(RADAR_FIELD_NAMES))
+]
+
+UNIQUE_RADAR_FIELD_NAMES = [
+    radar_utils.REFL_NAME, radar_utils.SPECTRUM_WIDTH_NAME,
+    radar_utils.VORTICITY_NAME
+]
+
+UNIQUE_HEIGHTS_M_AGL = numpy.array(
+    [1000, 2000, 3000, 4000, 5000, 6000, 7000, 8000], dtype=int)
 
 
 class TrainingValidationIoTests(unittest.TestCase):
@@ -258,6 +294,19 @@ class TrainingValidationIoTests(unittest.TestCase):
 
         print this_dict
         self.assertTrue(this_dict == {-2: 0, 0: 0, 1: 0, 2: 0})
+
+    def test_layer_ops_to_field_height_pairs(self):
+        """Ensures correct output from layer_ops_to_field_height_pairs."""
+
+        these_field_names, these_heights_m_agl = (
+            trainval_io.layer_ops_to_field_height_pairs(
+                LIST_OF_LAYER_OPERATION_DICTS)
+        )
+
+        self.assertTrue(set(these_field_names) == set(UNIQUE_RADAR_FIELD_NAMES))
+        self.assertTrue(numpy.array_equal(
+            these_heights_m_agl, UNIQUE_HEIGHTS_M_AGL
+        ))
 
 
 if __name__ == '__main__':

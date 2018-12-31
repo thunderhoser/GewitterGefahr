@@ -864,6 +864,45 @@ def example_generator_2d3d_myrorss(option_dict):
             yield (list_of_predictor_matrices[:-1], target_array)
 
 
+def layer_ops_to_field_height_pairs(list_of_operation_dicts):
+    """Converts list of layer operations to list of field-height pairs.
+
+    These are the radar field-height pairs needed for input to the layer
+    operations.
+
+    :param list_of_operation_dicts: See doc for
+        `input_examples.reduce_examples_3d_to_2d`.
+    :return: unique_radar_field_names: 1-D list of field names.
+    :return: unique_radar_heights_m_agl: 1-D numpy array of unique heights
+        (metres above ground level).
+    """
+
+    unique_radar_field_names = [
+        d[input_examples.RADAR_FIELD_KEY] for d in list_of_operation_dicts
+    ]
+    unique_radar_field_names = list(set(unique_radar_field_names))
+
+    min_heights_m_agl = numpy.array([
+        d[input_examples.MIN_HEIGHT_KEY] for d in list_of_operation_dicts
+    ], dtype=int)
+
+    max_heights_m_agl = numpy.array([
+        d[input_examples.MAX_HEIGHT_KEY] for d in list_of_operation_dicts
+    ], dtype=int)
+
+    min_overall_height_m_agl = numpy.min(min_heights_m_agl)
+    max_overall_height_m_agl = numpy.max(max_heights_m_agl)
+    num_overall_heights = 1 + int(numpy.round(
+        (max_overall_height_m_agl - min_overall_height_m_agl) / KM_TO_METRES
+    ))
+
+    unique_radar_heights_m_agl = numpy.linspace(
+        min_overall_height_m_agl, max_overall_height_m_agl,
+        num=num_overall_heights, dtype=int)
+
+    return unique_radar_field_names, unique_radar_heights_m_agl
+
+
 def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     """Generates examples with 2-D GridRad images.
 
@@ -893,46 +932,24 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     option_dict = check_generator_input_args(option_dict)
 
     example_file_names = option_dict[EXAMPLE_FILES_KEY]
-    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
-    binarize_target = option_dict[BINARIZE_TARGET_KEY]
-    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
-
-    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[NUM_ROWS_KEY]
     num_grid_columns = option_dict[NUM_COLUMNS_KEY]
+
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
     normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
-    unique_radar_field_names = [
-        d[input_examples.RADAR_FIELD_KEY] for d in list_of_operation_dicts
-    ]
-    unique_radar_field_names = list(set(unique_radar_field_names))
-
-    min_heights_m_agl = numpy.array([
-        d[input_examples.MIN_HEIGHT_KEY] for d in list_of_operation_dicts
-    ], dtype=int)
-
-    max_heights_m_agl = numpy.array([
-        d[input_examples.MAX_HEIGHT_KEY] for d in list_of_operation_dicts
-    ], dtype=int)
-
-    min_overall_height_m_agl = numpy.min(min_heights_m_agl)
-    max_overall_height_m_agl = numpy.max(max_heights_m_agl)
-    num_overall_heights = 1 + int(numpy.round(
-        (max_overall_height_m_agl - min_overall_height_m_agl) / KM_TO_METRES
-    ))
-
-    unique_radar_heights_m_agl = numpy.linspace(
-        min_overall_height_m_agl, max_overall_height_m_agl,
-        num=num_overall_heights, dtype=int)
-
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
@@ -943,6 +960,10 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
 
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
+
+    unique_radar_field_names, unique_radar_heights_m_agl = (
+        layer_ops_to_field_height_pairs(list_of_operation_dicts)
+    )
 
     radar_image_matrix = None
     sounding_matrix = None

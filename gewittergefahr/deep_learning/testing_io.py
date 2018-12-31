@@ -406,10 +406,14 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
     images.  The layer operations are specified by `list_of_operation_dicts`.
 
     :param option_dict: Same as input to `example_generator_2d_or_3d`, but
-        without "refl_masking_threshold_dbz".
+        without the following keys:
+    - "refl_masking_threshold_dbz"
+    - "radar_field_names"
+    - "radar_heights_m_agl"
+
     :param list_of_operation_dicts: See doc for
         `input_examples.reduce_examples_3d_to_2d`.
-    :param num_examples_total: Total number of examples to generate.
+    :param num_examples_total: Number of examples to generate.
 
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
@@ -437,15 +441,13 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
     print '\n'
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-
-    radar_field_names_3d = option_dict[trainval_io.RADAR_FIELDS_KEY]
-    radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
     num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+
+    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
     binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
@@ -459,6 +461,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -471,6 +474,10 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
             sounding_field_names_to_read = (
                 sounding_field_names + [soundings.PRESSURE_NAME]
             )
+
+    unique_radar_field_names, unique_radar_heights_m_agl = (
+        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
+    )
 
     radar_image_matrix = None
     sounding_matrix = None
@@ -489,8 +496,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[file_index],
             include_soundings=sounding_field_names is not None,
-            radar_field_names_to_keep=radar_field_names_3d,
-            radar_heights_to_keep_m_agl=radar_heights_m_agl,
+            radar_field_names_to_keep=unique_radar_field_names,
+            radar_heights_to_keep_m_agl=unique_radar_heights_m_agl,
             sounding_field_names_to_keep=sounding_field_names_to_read,
             sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
             first_time_to_keep_unix_sec=first_storm_time_unix_sec,

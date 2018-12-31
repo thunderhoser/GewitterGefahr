@@ -1,4 +1,4 @@
-"""Evaluates CNN (convolutional neural net) predictions."""
+"""Evaluates predictions from CNN."""
 
 import random
 import os.path
@@ -115,32 +115,35 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
 
-    num_output_neurons = model_object.layers[-1].output.get_shape().as_list()[
-        -1]
+    num_output_neurons = (
+        model_object.layers[-1].output.get_shape().as_list()[-1]
+    )
+
     if num_output_neurons > 2:
         error_string = (
-            'The model has {0:d} output neurons, which suggests that it does '
-            '{0:d}-class classification.  This script works only for binary '
-            '(2-class) classification.'
+            'The model has {0:d} output neurons, which suggests {0:d}-class '
+            'classification.  This script handles only binary classification.'
         ).format(num_output_neurons)
 
         raise ValueError(error_string)
 
     model_directory_name, _ = os.path.split(model_file_name)
-    metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
+    model_metafile_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
-    print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
-    model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     if len(class_fraction_keys) > 1:
         class_to_sampling_fraction_dict = dict(zip(
-            class_fraction_keys, class_fraction_values))
+            class_fraction_keys, class_fraction_values
+        ))
     else:
         class_to_sampling_fraction_dict = None
 
     training_option_dict[
-        trainval_io.SAMPLING_FRACTIONS_KEY] = class_to_sampling_fraction_dict
+        trainval_io.SAMPLING_FRACTIONS_KEY
+    ] = class_to_sampling_fraction_dict
 
     example_file_names = input_examples.find_many_example_files(
         top_directory_name=top_example_dir_name, shuffled=False,
@@ -150,11 +153,21 @@ def _run(model_file_name, top_example_dir_name, first_spc_date_string,
 
     training_option_dict[trainval_io.EXAMPLE_FILES_KEY] = example_file_names
     training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
-        time_conversion.get_start_of_spc_date(first_spc_date_string))
+        time_conversion.get_start_of_spc_date(first_spc_date_string)
+    )
     training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
-        time_conversion.get_end_of_spc_date(last_spc_date_string))
+        time_conversion.get_end_of_spc_date(last_spc_date_string)
+    )
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
+        generator_object = testing_io.gridrad_generator_2d_reduced(
+            option_dict=training_option_dict,
+            list_of_operation_dicts=model_metadata_dict[
+                cnn.LAYER_OPERATIONS_KEY],
+            num_examples_total=num_examples
+        )
+
+    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         generator_object = testing_io.example_generator_2d3d_myrorss(
             option_dict=training_option_dict, num_examples_total=num_examples)
     else:
