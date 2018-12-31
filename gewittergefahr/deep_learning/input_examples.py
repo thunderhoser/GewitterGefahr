@@ -1927,8 +1927,10 @@ def reduce_examples_3d_to_2d(example_dict, list_of_operation_dicts):
 
     if RADAR_IMAGE_MATRIX_KEY in example_dict:
         num_radar_dimensions = len(
-            example_dict[RADAR_IMAGE_MATRIX_KEY].shape) - 2
-        assert num_radar_dimensions == 2
+            example_dict[RADAR_IMAGE_MATRIX_KEY].shape
+        ) - 2
+
+        assert num_radar_dimensions == 3
 
     new_radar_image_matrix = None
     new_field_names = []

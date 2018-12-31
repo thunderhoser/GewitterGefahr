@@ -400,7 +400,7 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
     unique_radar_field_names = list(set(radar_field_name_by_channel))
 
     min_overall_height_m_agl = numpy.min(min_height_by_channel_m_agl)
-    max_overall_height_m_agl = numpy.max(min_height_by_channel_m_agl)
+    max_overall_height_m_agl = numpy.max(max_height_by_channel_m_agl)
     num_overall_heights = 1 + int(numpy.round(
         (max_overall_height_m_agl - min_overall_height_m_agl) / KM_TO_METRES
     ))
