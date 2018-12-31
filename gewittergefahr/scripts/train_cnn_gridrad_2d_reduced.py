@@ -8,6 +8,7 @@ import argparse
 import numpy
 import keras.losses
 import keras.optimizers
+from keras import backend as K
 from keras.models import clone_model
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
@@ -21,6 +22,10 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 # TODO(thunderhoser): Allow this script to handle MYRORSS data.
 # TODO(thunderhoser): Allow this script to handle soundings.
+
+K.set_session(K.tf.Session(config=K.tf.ConfigProto(
+    intra_op_parallelism_threads=7, inter_op_parallelism_threads=7
+)))
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -195,7 +200,7 @@ DEFAULT_TOP_VALIDATION_DIR_NAME = (
 DEFAULT_FIRST_VALIDN_TIME_STRING = '2014-01-01-120000'
 DEFAULT_LAST_VALIDN_TIME_STRING = '2015-12-31-120000'
 
-DEFAULT_NUM_EXAMPLES_PER_BATCH = 1024
+DEFAULT_NUM_EXAMPLES_PER_BATCH = 512
 DEFAULT_NUM_EPOCHS = 100
 DEFAULT_NUM_TRAINING_BATCHES_PER_EPOCH = 32
 DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH = 16
@@ -444,7 +449,7 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
 
     # TODO(thunderhoser): This is a HACK.
     model_object.compile(
-        loss=keras.losses.categorical_crossentropy,
+        loss=keras.losses.binary_crossentropy,
         optimizer=keras.optimizers.Adam(),
         metrics=cnn_architecture.DEFAULT_METRIC_FUNCTION_LIST)
 
