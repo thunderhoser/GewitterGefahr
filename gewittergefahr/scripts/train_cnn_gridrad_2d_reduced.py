@@ -16,7 +16,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
-from gewittergefahr.deep_learning import cnn_architecture
+from gewittergefahr.deep_learning import cnn_setup
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -433,7 +433,7 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
     model_object.compile(
         loss=keras.losses.binary_crossentropy,
         optimizer=keras.optimizers.Adam(),
-        metrics=cnn_architecture.DEFAULT_METRIC_FUNCTION_LIST)
+        metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
 
     print SEPARATOR_STRING
     model_object.summary()
