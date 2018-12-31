@@ -146,12 +146,13 @@ DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.5])
 # ] * 6
 #
 # DEFAULT_MIN_HEIGHTS_M_AGL = numpy.array(
-#     [0] * 3 + [0] * 3 + [0] * 3 + [2] * 3 + [5] * 3 + [5] * 3,
+#     [0] * 3 + [0] * 3 + [0] * 3 + [2000] * 3 + [5000] * 3 + [5000] * 3,
 #     dtype=int
 # )
 #
 # DEFAULT_MAX_HEIGHTS_M_AGL = numpy.array(
-#     [3] * 3 + [3] * 3 + [3] * 3 + [4] * 3 + [8] * 3 + [8] * 3,
+#     [3000] * 3 + [3000] * 3 + [3000] * 3 + [4000] * 3 + [8000] * 3 +
+#     [8000] * 3,
 #     dtype=int
 # )
 
@@ -168,12 +169,12 @@ DEFAULT_LAYER_OPERATION_NAMES = [
 ] * 4
 
 DEFAULT_MIN_HEIGHTS_M_AGL = numpy.array(
-    [0] * 3 + [0] * 3 + [2] * 3 + [5] * 3,
+    [0] * 3 + [0] * 3 + [2000] * 3 + [5000] * 3,
     dtype=int
 )
 
 DEFAULT_MAX_HEIGHTS_M_AGL = numpy.array(
-    [3] * 3 + [3] * 3 + [4] * 3 + [8] * 3,
+    [3000] * 3 + [3000] * 3 + [4000] * 3 + [8000] * 3,
     dtype=int
 )
 
