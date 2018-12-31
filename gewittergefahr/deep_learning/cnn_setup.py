@@ -55,15 +55,16 @@ DEFAULT_METRIC_FUNCTION_LIST = [
 
 
 def _create_sounding_layers(
-        num_fields, num_heights, first_num_filters, num_conv_layer_sets,
+        num_fields, num_heights, num_conv_layer_sets,
         num_conv_layers_per_set, l1_weight, l2_weight, pooling_type_string,
         activation_function_string, alpha_for_elu, alpha_for_relu,
-        use_batch_normalization, dropout_fraction):
+        use_batch_normalization, dropout_fraction, do_separable_conv,
+        first_num_filters=None, first_num_spatial_filters=None,
+        num_non_spatial_filters=None):
     """Creates convolution and pooling layers to process sounding data.
 
     :param num_fields: See doc for `check_sounding_options`.
     :param num_heights: Same.
-    :param first_num_filters: Same.
     :param num_conv_layer_sets: See doc for `check_radar_options`.
     :param num_conv_layers_per_set: Same.
     :param l1_weight: Same.
@@ -74,6 +75,10 @@ def _create_sounding_layers(
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
     :param dropout_fraction: Same.
+    :param do_separable_conv: See doc for `check_sounding_options`.
+    :param first_num_filters: Same.
+    :param first_num_spatial_filters: Same.
+    :param num_non_spatial_filters: Same.
     :return: input_layer_object: Input layer (instance of `keras.layers.Input`),
         used to feed soundings into the CNN.
     :return: flattening_layer_object: Flattening layer (instance of
@@ -82,9 +87,12 @@ def _create_sounding_layers(
         flattening layer.
     """
 
-    first_num_filters = check_sounding_options(
+    first_num_filters, num_non_spatial_filters = check_sounding_options(
         num_fields=num_fields, num_heights=num_heights,
-        first_num_filters=first_num_filters)
+        do_separable_conv=do_separable_conv,
+        first_num_filters=first_num_filters,
+        first_num_spatial_filters=first_num_spatial_filters,
+        num_non_spatial_filters=num_non_spatial_filters)
 
     input_layer_object = keras.layers.Input(
         shape=(num_heights, num_fields)
@@ -95,22 +103,44 @@ def _create_sounding_layers(
 
     current_layer_object = None
     current_num_filters = None
+    current_num_spatial_filters = None
 
     for _ in range(num_conv_layer_sets):
         for _ in range(num_conv_layers_per_set):
-            if current_num_filters is None:
-                current_num_filters = first_num_filters + 0
+            if current_layer_object is None:
                 this_input_layer_object = input_layer_object
+
+                if do_separable_conv:
+                    current_num_spatial_filters = first_num_spatial_filters + 0
+                else:
+                    current_num_filters = first_num_filters + 0
             else:
-                current_num_filters *= 2
                 this_input_layer_object = current_layer_object
 
-            current_layer_object = architecture_utils.get_1d_conv_layer(
-                num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
-                num_rows_per_stride=1, num_filters=current_num_filters,
-                padding_type_string=architecture_utils.NO_PADDING_STRING,
-                weight_regularizer=regularizer_object
-            )(this_input_layer_object)
+                if do_separable_conv:
+                    current_num_spatial_filters *= 2
+                else:
+                    current_num_filters *= 2
+
+            if do_separable_conv:
+                current_layer_object = (
+                    architecture_utils.get_1d_separable_conv_layer(
+                        num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
+                        num_rows_per_stride=1,
+                        num_spatial_filters=current_num_spatial_filters,
+                        num_non_spatial_filters=num_non_spatial_filters,
+                        padding_type_string=
+                        architecture_utils.NO_PADDING_STRING,
+                        weight_regularizer=regularizer_object
+                    )(this_input_layer_object)
+                )
+            else:
+                current_layer_object = architecture_utils.get_1d_conv_layer(
+                    num_kernel_rows=NUM_CONV_KERNEL_HEIGHTS,
+                    num_rows_per_stride=1, num_filters=current_num_filters,
+                    padding_type_string=architecture_utils.NO_PADDING_STRING,
+                    weight_regularizer=regularizer_object
+                )(this_input_layer_object)
 
             current_layer_object = architecture_utils.get_activation_layer(
                 activation_function_string=activation_function_string,
@@ -245,8 +275,9 @@ def check_radar_options(
         conv_layer_dropout_fraction, num_dense_layers,
         dense_layer_dropout_fraction, l1_weight, l2_weight,
         activation_function_string, alpha_for_elu, alpha_for_relu,
-        use_batch_normalization, first_num_filters=None, num_channels=None,
-        num_fields=None, num_heights=None):
+        use_batch_normalization, do_separable_conv, first_num_filters=None,
+        first_num_spatial_filters=None, num_non_spatial_filters=None,
+        num_channels=None, num_fields=None, num_heights=None):
     """Checks options for part of CNN that handles radar data.
 
     :param num_grid_rows: Number of rows in each grid.
@@ -256,8 +287,6 @@ def check_radar_options(
     :param num_conv_layer_sets: Number of sets of convolution layers
         (uninterrupted by pooling).
     :param num_conv_layers_per_set: Number of convolution layers in each set.
-    :param first_num_filters: Number of filters produced by first convolution
-        layer.  The number of filters in each successive conv layer will double.
     :param conv_layer_dropout_fraction: Dropout fraction for convolution layers.
         This may be None.
     :param num_dense_layers: Number of dense (fully connected) layers at the
@@ -265,12 +294,6 @@ def check_radar_options(
     :param dense_layer_dropout_fraction: Dropout fraction for dense layers.
         This may be None.  Also, dropout will *not* be used for the last dense
         layer.
-    :param num_channels: [used only if num_dimensions = 2]
-        Number of channels (field/height pairs).
-    :param num_fields: [used only if num_dimensions = 3]
-        Number of fields.
-    :param num_heights: [used only if num_dimensions = 3]
-        Number of heights.
     :param l1_weight: L1 regularization weight (used for each conv or dense
         layer).
     :param l2_weight: L2 regularization weight (used for each conv or dense
@@ -283,9 +306,28 @@ def check_radar_options(
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Boolean flag.  If True, will use batch
         normalization after each conv or dense layer.
+    :param do_separable_conv: Boolean flag.  If True, will do depthwise-
+        separable convolution.  If False, will do traditional convolution.
+    :param first_num_filters: [used only if `do_separable_conv = False`]
+        Number of filters produced by first convolution layer.  The number of
+        filters in each successive conv layer will double.
+    :param first_num_spatial_filters: [used only if `do_separable_conv = True`]
+        Number of spatial filters (applied independently to each input channel)
+        produced by first convolution layer.  Will double with each successive
+        conv layer.
+    :param num_non_spatial_filters: [used only if `do_separable_conv = True`]
+        Number of non-spatial filters (applied independently to each spatial
+        position) produced by each conv layer.
+    :param num_channels: [used only if num_dimensions = 2]
+        Number of channels (field/height pairs).
+    :param num_fields: [used only if num_dimensions = 3]
+        Number of fields.
+    :param num_heights: [used only if num_dimensions = 3]
+        Number of heights.
 
     :return: first_num_filters: Same as input, except value may have been
         replaced with default.
+    :return: num_non_spatial_filters: Same.
     """
 
     error_checking.assert_is_integer(num_grid_rows)
@@ -312,15 +354,6 @@ def check_radar_options(
     error_checking.assert_is_integer(num_conv_layers_per_set)
     error_checking.assert_is_geq(num_conv_layers_per_set, 1)
 
-    if first_num_filters is None:
-        if num_dimensions == 2:
-            first_num_filters = 8 * num_channels
-        else:
-            first_num_filters = 8 * num_fields
-
-    error_checking.assert_is_integer(first_num_filters)
-    error_checking.assert_is_geq(first_num_filters, 4)
-
     if conv_layer_dropout_fraction is not None:
         error_checking.assert_is_greater(conv_layer_dropout_fraction, 0.)
         error_checking.assert_is_less_than(conv_layer_dropout_fraction, 1.)
@@ -340,19 +373,50 @@ def check_radar_options(
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu)
 
     error_checking.assert_is_boolean(use_batch_normalization)
+    error_checking.assert_is_boolean(do_separable_conv)
 
-    return first_num_filters
+    if not do_separable_conv:
+        if first_num_filters is None:
+            if num_dimensions == 2:
+                first_num_filters = 8 * num_channels
+            else:
+                first_num_filters = 8 * num_fields
+
+        error_checking.assert_is_integer(first_num_filters)
+        error_checking.assert_is_geq(first_num_filters, 4)
+
+        return first_num_filters, None
+
+    if num_non_spatial_filters is None:
+        if num_dimensions == 2:
+            num_non_spatial_filters = num_channels + 0
+        else:
+            num_non_spatial_filters = num_fields + 0
+
+    error_checking.assert_is_integer(first_num_spatial_filters)
+    error_checking.assert_is_greater(first_num_spatial_filters, 0)
+    error_checking.assert_is_integer(num_non_spatial_filters)
+    error_checking.assert_is_greater(num_non_spatial_filters, 0)
+    error_checking.assert_is_geq(
+        first_num_spatial_filters * num_non_spatial_filters, 4)
+
+    return None, num_non_spatial_filters
 
 
-def check_sounding_options(num_fields, num_heights, first_num_filters=None):
+def check_sounding_options(
+        num_fields, num_heights, do_separable_conv, first_num_filters=None,
+        first_num_spatial_filters=None, num_non_spatial_filters=None):
     """Checks options for part of CNN that handles sounding data.
 
     :param num_fields: Number of sounding fields (variables).
     :param num_heights: Number of sounding heights.
-    :param first_num_filters: Number of filters produced by first convolution
-        layer.  The number of filters in each successive conv layer will double.
+    :param do_separable_conv: See doc for `check_radar_options`.
+    :param first_num_filters: Same.
+    :param first_num_spatial_filters: Same.
+    :param num_non_spatial_filters: Same.
     :return: first_num_filters: Same as input, except value may have been
         replaced with default.
+    :return: num_non_spatial_filters: Same.
     """
 
     error_checking.assert_is_integer(num_fields)
@@ -367,13 +431,27 @@ def check_sounding_options(num_fields, num_heights, first_num_filters=None):
 
         raise ValueError(error_string)
 
-    if first_num_filters is None:
-        first_num_filters = 8 * num_fields
+    error_checking.assert_is_boolean(do_separable_conv)
+    if not do_separable_conv:
+        if first_num_filters is None:
+            first_num_filters = 8 * num_fields
 
-    error_checking.assert_is_integer(first_num_filters)
-    error_checking.assert_is_geq(first_num_filters, 4)
+        error_checking.assert_is_integer(first_num_filters)
+        error_checking.assert_is_geq(first_num_filters, 4)
 
-    return first_num_filters
+        return first_num_filters, None
+
+    if num_non_spatial_filters is None:
+        num_non_spatial_filters = num_fields + 0
+
+    error_checking.assert_is_integer(first_num_spatial_filters)
+    error_checking.assert_is_greater(first_num_spatial_filters, 0)
+    error_checking.assert_is_integer(num_non_spatial_filters)
+    error_checking.assert_is_greater(num_non_spatial_filters, 0)
+    error_checking.assert_is_geq(
+        first_num_spatial_filters * num_non_spatial_filters, 4)
+
+    return None, num_non_spatial_filters
 
 
 def create_2d_cnn(
@@ -382,7 +460,6 @@ def create_2d_cnn(
         pooling_type_string=architecture_utils.MAX_POOLING_STRING,
         num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
         num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
-        first_num_radar_filters=None, first_num_sounding_filters=None,
         conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
         num_dense_layers=DEFAULT_NUM_DENSE_LAYERS,
         dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
@@ -391,8 +468,11 @@ def create_2d_cnn(
         alpha_for_elu=architecture_utils.DEFAULT_ALPHA_FOR_ELU,
         alpha_for_relu=architecture_utils.DEFAULT_ALPHA_FOR_RELU,
         use_batch_normalization=DEFAULT_USE_BATCH_NORM_FLAG,
-        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST):
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST,
+        first_num_radar_filters=None, first_num_sounding_filters=None):
     """Creates CNN to take in 2-D radar data (and possibly soundings).
+
+    This CNN does *not* use depthwise-separable convolution.
 
     :param num_radar_rows: See doc for `check_radar_options`.
     :param num_radar_columns: Same.
@@ -404,9 +484,7 @@ def create_2d_cnn(
         `architecture_utils._check_pooling_options`).
     :param num_conv_layer_sets: See doc for `check_radar_options`.
     :param num_conv_layers_per_set: Same.
-    :param first_num_radar_filters: Same.
-    :param first_num_sounding_filters: See doc for `check_sounding_options`.
-    :param conv_layer_dropout_fraction: See doc for `check_radar_options`.
+    :param conv_layer_dropout_fraction: Same.
     :param num_dense_layers: Same.
     :param dense_layer_dropout_fraction: Same.
     :param l1_weight: Same.
@@ -415,6 +493,8 @@ def create_2d_cnn(
     :param alpha_for_elu: Same.
     :param alpha_for_relu: Same.
     :param use_batch_normalization: Same.
+    :param first_num_radar_filters: Same.
+    :param first_num_sounding_filters: See doc for `check_sounding_options`.
     :param list_of_metric_functions: List of Keras metrics.  Will be used to
         report performance during training.
     :return: cnn_model_object: Untrained instance of `keras.models.Model`.
@@ -424,7 +504,7 @@ def create_2d_cnn(
     error_checking.assert_is_integer(num_sounding_heights)
     include_soundings = num_sounding_fields > 0 or num_sounding_heights > 0
 
-    first_num_radar_filters = check_radar_options(
+    first_num_radar_filters, _ = check_radar_options(
         num_grid_rows=num_radar_rows, num_grid_columns=num_radar_columns,
         num_dimensions=2, num_classes=num_classes,
         num_conv_layer_sets=num_conv_layer_sets,
@@ -436,8 +516,8 @@ def create_2d_cnn(
         activation_function_string=activation_function_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
-        first_num_filters=first_num_radar_filters,
-        num_channels=num_radar_channels)
+        num_channels=num_radar_channels, do_separable_conv=False,
+        first_num_filters=first_num_radar_filters)
 
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_channels)
@@ -451,12 +531,12 @@ def create_2d_cnn(
 
     for _ in range(num_conv_layer_sets):
         for _ in range(num_conv_layers_per_set):
-            if current_num_filters is None:
-                current_num_filters = first_num_radar_filters + 0
+            if radar_layer_object is None:
                 this_input_layer_object = radar_input_layer_object
+                current_num_filters = first_num_radar_filters + 0
             else:
-                current_num_filters *= 2
                 this_input_layer_object = radar_layer_object
+                current_num_filters *= 2
 
             radar_layer_object = architecture_utils.get_2d_conv_layer(
                 num_filters=current_num_filters,
@@ -501,7 +581,6 @@ def create_2d_cnn(
          num_sounding_features
         ) = _create_sounding_layers(
             num_fields=num_sounding_fields, num_heights=num_sounding_heights,
-            first_num_filters=first_num_sounding_filters,
             num_conv_layer_sets=num_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
             l1_weight=l1_weight, l2_weight=l2_weight,
@@ -509,7 +588,192 @@ def create_2d_cnn(
             activation_function_string=activation_function_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization,
-            dropout_fraction=conv_layer_dropout_fraction)
+            dropout_fraction=conv_layer_dropout_fraction,
+            do_separable_conv=False,
+            first_num_filters=first_num_sounding_filters)
+
+        layer_object = keras.layers.concatenate(
+            [radar_layer_object, sounding_layer_object]
+        )
+
+    else:
+        layer_object = radar_layer_object
+        num_sounding_features = 0
+
+    layer_object = _create_dense_layers(
+        flattening_layer_object=layer_object,
+        num_scalar_features=num_radar_features + num_sounding_features,
+        num_classes=num_classes, num_dense_layers=num_dense_layers,
+        dropout_fraction=dense_layer_dropout_fraction,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization)
+
+    if include_soundings:
+        model_object = keras.models.Model(
+            inputs=[radar_input_layer_object, sounding_input_layer_object],
+            outputs=layer_object)
+    else:
+        model_object = keras.models.Model(
+            inputs=radar_input_layer_object, outputs=layer_object)
+
+    loss_function = _get_output_layer_and_loss(num_classes)[-1]
+    model_object.compile(
+        loss=loss_function, optimizer=keras.optimizers.Adam(),
+        metrics=list_of_metric_functions)
+
+    model_object.summary()
+    return model_object
+
+
+def create_separable_2d_cnn(
+        num_radar_rows, num_radar_columns, num_radar_channels, num_classes,
+        num_sounding_fields, num_sounding_heights,
+        pooling_type_string=architecture_utils.MAX_POOLING_STRING,
+        num_conv_layer_sets=DEFAULT_NUM_CONV_LAYER_SETS,
+        num_conv_layers_per_set=DEFAULT_NUM_CONV_LAYERS_PER_SET,
+        conv_layer_dropout_fraction=DEFAULT_CONV_LAYER_DROPOUT_FRACTION,
+        num_dense_layers=DEFAULT_NUM_DENSE_LAYERS,
+        dense_layer_dropout_fraction=DEFAULT_DENSE_LAYER_DROPOUT_FRACTION,
+        l1_weight=DEFAULT_L1_WEIGHT, l2_weight=DEFAULT_L2_WEIGHT,
+        activation_function_string=DEFAULT_ACTIVATION_FUNCTION_STRING,
+        alpha_for_elu=architecture_utils.DEFAULT_ALPHA_FOR_ELU,
+        alpha_for_relu=architecture_utils.DEFAULT_ALPHA_FOR_RELU,
+        use_batch_normalization=DEFAULT_USE_BATCH_NORM_FLAG,
+        list_of_metric_functions=DEFAULT_METRIC_FUNCTION_LIST,
+        first_num_spatial_radar_filters=None,
+        num_non_spatial_radar_filters=None,
+        first_num_spatial_sounding_filters=None,
+        num_non_spatial_sounding_filters=None):
+    """Creates CNN to take in 2-D radar data (and possibly soundings).
+
+    This CNN does depthwise-separable convolution.
+
+    :param num_radar_rows: See doc for `check_radar_options`.
+    :param num_radar_columns: Same.
+    :param num_radar_channels: Same.
+    :param num_classes: Same.
+    :param num_sounding_fields: See doc for `check_sounding_options`.
+    :param num_sounding_heights: Same.
+    :param pooling_type_string: Pooling type (see doc for
+        `architecture_utils._check_pooling_options`).
+    :param num_conv_layer_sets: See doc for `check_radar_options`.
+    :param num_conv_layers_per_set: Same.
+    :param conv_layer_dropout_fraction: Same.
+    :param num_dense_layers: Same.
+    :param dense_layer_dropout_fraction: Same.
+    :param l1_weight: Same.
+    :param l2_weight: Same.
+    :param activation_function_string: Same.
+    :param alpha_for_elu: Same.
+    :param alpha_for_relu: Same.
+    :param use_batch_normalization: Same.
+    :param first_num_spatial_radar_filters: Same.
+    :param num_non_spatial_radar_filters: Same.
+    :param first_num_spatial_sounding_filters: See doc for
+        `check_sounding_options`.
+    :param num_non_spatial_sounding_filters: Same.
+    :param list_of_metric_functions: List of Keras metrics.  Will be used to
+        report performance during training.
+    :return: cnn_model_object: Untrained instance of `keras.models.Model`.
+    """
+
+    error_checking.assert_is_integer(num_sounding_fields)
+    error_checking.assert_is_integer(num_sounding_heights)
+    include_soundings = num_sounding_fields > 0 or num_sounding_heights > 0
+
+    _, num_non_spatial_radar_filters = check_radar_options(
+        num_grid_rows=num_radar_rows, num_grid_columns=num_radar_columns,
+        num_dimensions=2, num_classes=num_classes,
+        num_conv_layer_sets=num_conv_layer_sets,
+        num_conv_layers_per_set=num_conv_layers_per_set,
+        conv_layer_dropout_fraction=conv_layer_dropout_fraction,
+        num_dense_layers=num_dense_layers,
+        dense_layer_dropout_fraction=dense_layer_dropout_fraction,
+        l1_weight=l1_weight, l2_weight=l2_weight,
+        activation_function_string=activation_function_string,
+        alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+        use_batch_normalization=use_batch_normalization,
+        num_channels=num_radar_channels, do_separable_conv=True,
+        first_num_spatial_filters=first_num_spatial_radar_filters,
+        num_non_spatial_filters=num_non_spatial_radar_filters)
+
+    radar_input_layer_object = keras.layers.Input(
+        shape=(num_radar_rows, num_radar_columns, num_radar_channels)
+    )
+
+    regularizer_object = architecture_utils.get_weight_regularizer(
+        l1_weight=l1_weight, l2_weight=l2_weight)
+
+    radar_layer_object = None
+    current_num_spatial_filters = None
+
+    for _ in range(num_conv_layer_sets):
+        for _ in range(num_conv_layers_per_set):
+            if radar_layer_object is None:
+                this_input_layer_object = radar_input_layer_object
+                current_num_spatial_filters = (
+                    first_num_spatial_radar_filters + 0)
+            else:
+                this_input_layer_object = radar_layer_object
+                current_num_spatial_filters *= 2
+
+            radar_layer_object = architecture_utils.get_2d_separable_conv_layer(
+                num_spatial_filters=current_num_spatial_filters,
+                num_kernel_rows=NUM_CONV_KERNEL_ROWS,
+                num_kernel_columns=NUM_CONV_KERNEL_COLUMNS,
+                num_rows_per_stride=1, num_columns_per_stride=1,
+                num_non_spatial_filters=num_non_spatial_radar_filters,
+                padding_type_string=
+                architecture_utils.NO_PADDING_STRING,
+                weight_regularizer=regularizer_object
+            )(this_input_layer_object)
+
+            radar_layer_object = architecture_utils.get_activation_layer(
+                activation_function_string=activation_function_string,
+                alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu
+            )(radar_layer_object)
+
+            if conv_layer_dropout_fraction is not None:
+                radar_layer_object = architecture_utils.get_dropout_layer(
+                    dropout_fraction=conv_layer_dropout_fraction
+                )(radar_layer_object)
+
+            if use_batch_normalization:
+                radar_layer_object = (
+                    architecture_utils.get_batch_norm_layer()(
+                        radar_layer_object)
+                )
+
+        radar_layer_object = architecture_utils.get_2d_pooling_layer(
+            num_rows_in_window=2, num_columns_in_window=2,
+            num_rows_per_stride=2, num_columns_per_stride=2,
+            pooling_type_string=pooling_type_string
+        )(radar_layer_object)
+
+    these_dimensions = numpy.array(
+        radar_layer_object.get_shape().as_list()[1:], dtype=int)
+    num_radar_features = numpy.prod(these_dimensions)
+
+    radar_layer_object = architecture_utils.get_flattening_layer()(
+        radar_layer_object)
+
+    if include_soundings:
+        (sounding_input_layer_object, sounding_layer_object,
+         num_sounding_features
+        ) = _create_sounding_layers(
+            num_fields=num_sounding_fields, num_heights=num_sounding_heights,
+            num_conv_layer_sets=num_conv_layer_sets,
+            num_conv_layers_per_set=num_conv_layers_per_set,
+            l1_weight=l1_weight, l2_weight=l2_weight,
+            pooling_type_string=pooling_type_string,
+            activation_function_string=activation_function_string,
+            alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
+            use_batch_normalization=use_batch_normalization,
+            dropout_fraction=conv_layer_dropout_fraction,
+            do_separable_conv=True,
+            first_num_spatial_filters=first_num_spatial_sounding_filters,
+            num_non_spatial_filters=num_non_spatial_sounding_filters)
 
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object]
@@ -606,8 +870,8 @@ def create_3d_cnn(
         activation_function_string=activation_function_string,
         alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
         use_batch_normalization=use_batch_normalization,
-        first_num_filters=first_num_radar_filters,
-        num_heights=num_radar_heights, num_fields=num_radar_fields)
+        num_heights=num_radar_heights, num_fields=num_radar_fields,
+        do_separable_conv=False, first_num_filters=first_num_radar_filters)
 
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_heights,
@@ -675,7 +939,6 @@ def create_3d_cnn(
          num_sounding_features
         ) = _create_sounding_layers(
             num_fields=num_sounding_fields, num_heights=num_sounding_heights,
-            first_num_filters=first_num_sounding_filters,
             num_conv_layer_sets=num_conv_layer_sets,
             num_conv_layers_per_set=num_conv_layers_per_set,
             l1_weight=l1_weight, l2_weight=l2_weight,
@@ -683,7 +946,9 @@ def create_3d_cnn(
             activation_function_string=activation_function_string,
             alpha_for_elu=alpha_for_elu, alpha_for_relu=alpha_for_relu,
             use_batch_normalization=use_batch_normalization,
-            dropout_fraction=conv_layer_dropout_fraction)
+            dropout_fraction=conv_layer_dropout_fraction,
+            do_separable_conv=False,
+            first_num_filters=first_num_sounding_filters)
 
         layer_object = keras.layers.concatenate(
             [radar_layer_object, sounding_layer_object]

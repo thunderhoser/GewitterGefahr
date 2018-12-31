@@ -142,7 +142,7 @@ def _check_pooling_options(
 
     if num_dimensions >= 2:
         error_checking.assert_is_integer(num_columns_in_window)
-        error_checking.assert_is_geq(num_columns_in_window, 3)
+        error_checking.assert_is_geq(num_columns_in_window, 2)
         error_checking.assert_is_integer(num_columns_per_stride)
         error_checking.assert_is_geq(num_columns_per_stride, 1)
         error_checking.assert_is_leq(num_columns_per_stride,
@@ -150,7 +150,7 @@ def _check_pooling_options(
 
     if num_dimensions == 3:
         error_checking.assert_is_integer(num_heights_in_window)
-        error_checking.assert_is_geq(num_heights_in_window, 3)
+        error_checking.assert_is_geq(num_heights_in_window, 2)
         error_checking.assert_is_integer(num_heights_per_stride)
         error_checking.assert_is_geq(num_heights_per_stride, 1)
         error_checking.assert_is_leq(num_heights_per_stride,
@@ -283,7 +283,6 @@ def get_1d_conv_layer(
         filters=num_filters, kernel_size=(num_kernel_rows,),
         strides=(num_rows_per_stride,), padding=padding_type_string,
         dilation_rate=(1,), activation=None, use_bias=True,
-        data_format='channels_last',
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
@@ -323,7 +322,7 @@ def get_1d_separable_conv_layer(
         filters=num_total_filters, kernel_size=num_kernel_rows,
         strides=num_rows_per_stride, depth_multiplier=num_non_spatial_filters,
         padding=padding_type_string, dilation_rate=(1,),
-        activation=None, use_bias=True, data_format='channels_last',
+        activation=None, use_bias=True,
         depthwise_initializer=KERNEL_INITIALIZER_NAME,
         pointwise_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
@@ -359,7 +358,7 @@ def get_2d_conv_layer(
         filters=num_filters, kernel_size=(num_kernel_rows, num_kernel_columns),
         strides=(num_rows_per_stride, num_columns_per_stride),
         padding=padding_type_string, dilation_rate=(1, 1),
-        activation=None, use_bias=True, data_format='channels_last',
+        activation=None, use_bias=True,
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
@@ -402,7 +401,7 @@ def get_2d_separable_conv_layer(
         strides=(num_rows_per_stride, num_columns_per_stride),
         depth_multiplier=num_non_spatial_filters,
         padding=padding_type_string, dilation_rate=(1, 1),
-        activation=None, use_bias=True, data_format='channels_last',
+        activation=None, use_bias=True,
         depthwise_initializer=KERNEL_INITIALIZER_NAME,
         pointwise_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
@@ -445,7 +444,7 @@ def get_3d_conv_layer(
         strides=(num_rows_per_stride, num_columns_per_stride,
                  num_heights_per_stride),
         padding=padding_type_string, dilation_rate=(1, 1, 1),
-        activation=None, use_bias=True, data_format='channels_last',
+        activation=None, use_bias=True,
         kernel_initializer=KERNEL_INITIALIZER_NAME,
         bias_initializer=BIAS_INITIALIZER_NAME,
         kernel_regularizer=weight_regularizer,
@@ -471,11 +470,11 @@ def get_1d_pooling_layer(num_rows_in_window, num_rows_per_stride,
     if pooling_type_string == MAX_POOLING_STRING:
         return keras.layers.MaxPooling1D(
             pool_size=num_rows_in_window, strides=num_rows_per_stride,
-            padding=NO_PADDING_STRING, data_format='channels_last')
+            padding=NO_PADDING_STRING)
 
     return keras.layers.AveragePooling1D(
         pool_size=num_rows_in_window, strides=num_rows_per_stride,
-        padding=NO_PADDING_STRING, data_format='channels_last')
+        padding=NO_PADDING_STRING)
 
 
 def get_2d_pooling_layer(
@@ -503,12 +502,12 @@ def get_2d_pooling_layer(
         return keras.layers.MaxPooling2D(
             pool_size=(num_rows_in_window, num_columns_in_window),
             strides=(num_rows_per_stride, num_columns_per_stride),
-            padding=NO_PADDING_STRING, data_format='channels_last')
+            padding=NO_PADDING_STRING)
 
     return keras.layers.AveragePooling2D(
         pool_size=(num_rows_in_window, num_columns_in_window),
         strides=(num_rows_per_stride, num_columns_per_stride),
-        padding=NO_PADDING_STRING, data_format='channels_last')
+        padding=NO_PADDING_STRING)
 
 
 def get_3d_pooling_layer(
@@ -543,14 +542,14 @@ def get_3d_pooling_layer(
                        num_heights_in_window),
             strides=(num_rows_per_stride, num_columns_per_stride,
                      num_heights_per_stride),
-            padding=NO_PADDING_STRING, data_format='channels_last')
+            padding=NO_PADDING_STRING)
 
     return keras.layers.AveragePooling2D(
         pool_size=(num_rows_in_window, num_columns_in_window,
                    num_heights_in_window),
         strides=(num_rows_per_stride, num_columns_per_stride,
                  num_heights_per_stride),
-        padding=NO_PADDING_STRING, data_format='channels_last')
+        padding=NO_PADDING_STRING)
 
 
 def get_dense_layer(num_output_units, weight_regularizer=None):
