@@ -123,8 +123,8 @@ OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  The newly trained CNN and metafiles will be '
     'saved here.')
 
-DEFAULT_NUM_GRID_ROWS = 24
-DEFAULT_NUM_GRID_COLUMNS = 24
+DEFAULT_NUM_GRID_ROWS = 32
+DEFAULT_NUM_GRID_COLUMNS = 32
 DEFAULT_DOWNSAMPLING_KEYS = numpy.array([0, 1], dtype=int)
 DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.5])
 
