@@ -36,9 +36,9 @@ INPUT_ARG_PARSER = dl_helper.add_input_args(argument_parser=INPUT_ARG_PARSER)
 def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          normalization_param_file_name, min_normalized_value,
          max_normalized_value, downsampling_keys, downsampling_fractions,
-         monitor_string, weight_loss_function, num_translations,
-         max_translation_pixels, num_rotations, max_rotation_angle_deg,
-         num_noisings, max_noise_standard_deviation, top_training_dir_name,
+         monitor_string, weight_loss_function, x_translations_pixels,
+         y_translations_pixels, ccw_rotation_angles_deg,
+         noise_standard_deviation, num_noisings, top_training_dir_name,
          first_training_time_string, last_training_time_string,
          top_validation_dir_name, first_validation_time_string,
          last_validation_time_string, num_examples_per_batch, num_epochs,
@@ -58,12 +58,11 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     :param downsampling_fractions: Same.
     :param monitor_string: Same.
     :param weight_loss_function: Same.
-    :param num_translations: Same.
-    :param max_translation_pixels: Same.
-    :param num_rotations: Same.
-    :param max_rotation_angle_deg: Same.
+    :param x_translations_pixels: Same.
+    :param y_translations_pixels: Same.
+    :param ccw_rotation_angles_deg: Same.
+    :param noise_standard_deviation: Same.
     :param num_noisings: Same.
-    :param max_noise_standard_deviation: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -97,6 +96,19 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         ))
     else:
         class_to_sampling_fraction_dict = None
+
+    if (len(x_translations_pixels) == 1 and
+            x_translations_pixels + y_translations_pixels == 0
+       ):
+        x_translations_pixels = None
+        y_translations_pixels = None
+
+    if len(ccw_rotation_angles_deg) == 1 and ccw_rotation_angles_deg[0] == 0:
+        ccw_rotation_angles_deg = None
+
+    if num_noisings <= 0:
+        num_noisings = 0
+        noise_standard_deviation = None
 
     # Set output locations.
     file_system_utils.mkdir_recursive_if_necessary(
@@ -177,12 +189,11 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         trainval_io.BINARIZE_TARGET_KEY: False,
         trainval_io.SAMPLING_FRACTIONS_KEY: class_to_sampling_fraction_dict,
         trainval_io.LOOP_ONCE_KEY: False,
-        trainval_io.NUM_TRANSLATIONS_KEY: num_translations,
-        trainval_io.MAX_TRANSLATION_KEY: max_translation_pixels,
-        trainval_io.NUM_ROTATIONS_KEY: num_rotations,
-        trainval_io.MAX_ROTATION_KEY: max_rotation_angle_deg,
-        trainval_io.NUM_NOISINGS_KEY: num_noisings,
-        trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation
+        trainval_io.X_TRANSLATIONS_KEY: x_translations_pixels,
+        trainval_io.Y_TRANSLATIONS_KEY: y_translations_pixels,
+        trainval_io.ROTATION_ANGLES_KEY: ccw_rotation_angles_deg,
+        trainval_io.NOISE_STDEV_KEY: noise_standard_deviation,
+        trainval_io.NUM_NOISINGS_KEY: num_noisings
     }
 
     print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
@@ -230,17 +241,15 @@ if __name__ == '__main__':
         monitor_string=getattr(INPUT_ARG_OBJECT, dl_helper.MONITOR_ARG_NAME),
         weight_loss_function=bool(getattr(
             INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME)),
-        num_translations=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_TRANSLATIONS_ARG_NAME),
-        max_translation_pixels=getattr(
-            INPUT_ARG_OBJECT, dl_helper.MAX_TRANSLATION_ARG_NAME),
-        num_rotations=getattr(
-            INPUT_ARG_OBJECT, dl_helper.NUM_ROTATIONS_ARG_NAME),
-        max_rotation_angle_deg=getattr(
-            INPUT_ARG_OBJECT, dl_helper.MAX_ROTATION_ARG_NAME),
+        x_translations_pixels=numpy.array(getattr(
+            INPUT_ARG_OBJECT, dl_helper.X_TRANSLATIONS_ARG_NAME), dtype=int),
+        y_translations_pixels=numpy.array(getattr(
+            INPUT_ARG_OBJECT, dl_helper.Y_TRANSLATIONS_ARG_NAME), dtype=int),
+        ccw_rotation_angles_deg=numpy.array(getattr(
+            INPUT_ARG_OBJECT, dl_helper.ROTATION_ANGLES_ARG_NAME), dtype=float),
+        noise_standard_deviation=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NOISE_STDEV_ARG_NAME),
         num_noisings=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),
-        max_noise_standard_deviation=getattr(
-            INPUT_ARG_OBJECT, dl_helper.MAX_NOISE_ARG_NAME),
         top_training_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(

@@ -21,12 +21,11 @@ DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 MONITOR_ARG_NAME = 'monitor_string'
 WEIGHT_LOSS_ARG_NAME = 'weight_loss_function'
 
-NUM_TRANSLATIONS_ARG_NAME = 'num_translations'
-MAX_TRANSLATION_ARG_NAME = 'max_translation_pixels'
-NUM_ROTATIONS_ARG_NAME = 'num_rotations'
-MAX_ROTATION_ARG_NAME = 'max_rotation_angle_deg'
+X_TRANSLATIONS_ARG_NAME = 'x_translations_px'
+Y_TRANSLATIONS_ARG_NAME = 'y_translations_px'
+ROTATION_ANGLES_ARG_NAME = 'ccw_rotation_angles_deg'
+NOISE_STDEV_ARG_NAME = 'noise_standard_deviation'
 NUM_NOISINGS_ARG_NAME = 'num_noisings'
-MAX_NOISE_ARG_NAME = 'max_noise_standard_deviation'
 
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
@@ -91,29 +90,30 @@ WEIGHT_LOSS_HELP_STRING = (
     'the inverse of its frequency in training data.  If 0, no such weighting '
     'will be done.')
 
-NUM_TRANSLATIONS_HELP_STRING = (
-    'Number of translations for data augmentation.  See doc for '
-    '`data_augmentation.get_translations`.')
+X_TRANSLATIONS_HELP_STRING = (
+    'x-translations for data augmentation (pixel units).  See doc for '
+    '`data_augmentation.shift_radar_images`.  If you do not want translation '
+    'augmentation, leave this alone.')
 
-MAX_TRANSLATION_HELP_STRING = (
-    'Max translation for data augmentation.  See doc for '
-    '`data_augmentation.get_translations`.')
+Y_TRANSLATIONS_HELP_STRING = (
+    'y-translations for data augmentation (pixel units).  See doc for '
+    '`data_augmentation.shift_radar_images`.  If you do not want translation '
+    'augmentation, leave this alone.')
 
-NUM_ROTATIONS_HELP_STRING = (
-    'Number of rotations for data augmentation.  See doc for '
-    '`data_augmentation.get_rotations`.')
+ROTATION_ANGLES_HELP_STRING = (
+    'Counterclockwise rotation angles for data augmentation.  See doc for '
+    '`data_augmentation.rotate_radar_images`.  If you do not want rotation '
+    'augmentation, leave this alone.')
 
-MAX_ROTATION_HELP_STRING = (
-    'Max rotation for data augmentation.  See doc for '
-    '`data_augmentation.get_rotations`.')
+NOISE_STDEV_HELP_STRING = (
+    'Standard deviation for Gaussian noise.  See doc for '
+    '`data_augmentation.noise_radar_images`.  If you do not want noising '
+    'augmentation, leave this alone.')
 
 NUM_NOISINGS_HELP_STRING = (
-    'Number of noisings for data augmentation.  See doc for '
-    '`data_augmentation.get_noisings`.')
-
-MAX_NOISE_HELP_STRING = (
-    'Max noising for data augmentation.  See doc for '
-    '`data_augmentation.get_noisings`.')
+    'Number of times to replicate each example with noise.  See doc for '
+    '`data_augmentation.noise_radar_images`.  If you do not want noising '
+    'augmentation, leave this alone.')
 
 TRAINING_DIR_HELP_STRING = (
     'Name of directory with training data.  Files therein will be found by '
@@ -167,12 +167,11 @@ DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.5])
 DEFAULT_MONITOR_STRING = cnn.LOSS_FUNCTION_STRING + ''
 DEFAULT_WEIGHT_LOSS_FLAG = 0
 
-DEFAULT_NUM_TRANSLATIONS = 0
-DEFAULT_MAX_TRANSLATION_PX = 3
-DEFAULT_NUM_ROTATIONS = 0
-DEFAULT_MAX_ROTATION_DEG = 15.
+DEFAULT_X_TRANSLATIONS_PX = numpy.array([0], dtype=int)
+DEFAULT_Y_TRANSLATIONS_PX = numpy.array([0], dtype=int)
+DEFAULT_CCW_ROTATION_ANGLES_DEG = numpy.array([0], dtype=float)
+DEFAULT_NOISE_STDEV = 0.05
 DEFAULT_NUM_NOISINGS = 0
-DEFAULT_MAX_NOISE_STDEV = 0.05
 
 DEFAULT_TOP_TRAINING_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
@@ -246,28 +245,25 @@ def add_input_args(argument_parser):
         default=DEFAULT_WEIGHT_LOSS_FLAG, help=WEIGHT_LOSS_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + NUM_TRANSLATIONS_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_TRANSLATIONS, help=NUM_TRANSLATIONS_HELP_STRING)
+        '--' + X_TRANSLATIONS_ARG_NAME, type=int, nargs='+', required=False,
+        default=DEFAULT_X_TRANSLATIONS_PX, help=X_TRANSLATIONS_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + MAX_TRANSLATION_ARG_NAME, type=int, required=False,
-        default=DEFAULT_MAX_TRANSLATION_PX, help=MAX_TRANSLATION_HELP_STRING)
+        '--' + Y_TRANSLATIONS_ARG_NAME, type=int, nargs='+', required=False,
+        default=DEFAULT_Y_TRANSLATIONS_PX, help=Y_TRANSLATIONS_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + NUM_ROTATIONS_ARG_NAME, type=int, required=False,
-        default=DEFAULT_NUM_ROTATIONS, help=NUM_ROTATIONS_HELP_STRING)
+        '--' + ROTATION_ANGLES_ARG_NAME, type=float, nargs='+', required=False,
+        default=DEFAULT_CCW_ROTATION_ANGLES_DEG,
+        help=ROTATION_ANGLES_HELP_STRING)
 
     argument_parser.add_argument(
-        '--' + MAX_ROTATION_ARG_NAME, type=float, required=False,
-        default=DEFAULT_MAX_ROTATION_DEG, help=MAX_ROTATION_HELP_STRING)
+        '--' + NOISE_STDEV_ARG_NAME, type=float, required=False,
+        default=DEFAULT_NOISE_STDEV, help=NOISE_STDEV_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + NUM_NOISINGS_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_NOISINGS, help=NUM_NOISINGS_HELP_STRING)
-
-    argument_parser.add_argument(
-        '--' + MAX_NOISE_ARG_NAME, type=float, required=False,
-        default=DEFAULT_MAX_NOISE_STDEV, help=MAX_NOISE_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,

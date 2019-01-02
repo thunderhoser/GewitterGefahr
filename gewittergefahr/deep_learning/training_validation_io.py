@@ -49,12 +49,11 @@ LOOP_ONCE_KEY = 'loop_thru_files_once'
 REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
 SAMPLING_FRACTIONS_KEY = 'class_to_sampling_fraction_dict'
 
-NUM_TRANSLATIONS_KEY = 'num_translations'
-MAX_TRANSLATION_KEY = 'max_translation_pixels'
-NUM_ROTATIONS_KEY = 'num_rotations'
-MAX_ROTATION_KEY = 'max_absolute_rotation_angle_deg'
+X_TRANSLATIONS_KEY = 'x_translations_pixels'
+Y_TRANSLATIONS_KEY = 'y_translations_pixels'
+ROTATION_ANGLES_KEY = 'ccw_rotation_angles_deg'
+NOISE_STDEV_KEY = 'noise_standard_deviation'
 NUM_NOISINGS_KEY = 'num_noisings'
-MAX_NOISE_KEY = 'max_noise_standard_deviation'
 
 DEFAULT_OPTION_DICT = {
     NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
@@ -64,12 +63,11 @@ DEFAULT_OPTION_DICT = {
     LOOP_ONCE_KEY: False,
     REFLECTIVITY_MASK_KEY: dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
     SAMPLING_FRACTIONS_KEY: None,
-    NUM_TRANSLATIONS_KEY: 0,
-    MAX_TRANSLATION_KEY: 3,
-    NUM_ROTATIONS_KEY: 0,
-    MAX_ROTATION_KEY: 15.,
-    NUM_NOISINGS_KEY: 0,
-    MAX_NOISE_KEY: 0.05
+    X_TRANSLATIONS_KEY: None,
+    Y_TRANSLATIONS_KEY: None,
+    ROTATION_ANGLES_KEY: None,
+    NOISE_STDEV_KEY: 0.05,
+    NUM_NOISINGS_KEY: 0
 }
 
 
@@ -247,15 +245,16 @@ def _select_batch(
 
 
 def _augment_radar_images(
-        list_of_predictor_matrices, target_array, num_translations,
-        max_translation_pixels, num_rotations, max_rotation_angle_deg,
-        num_noisings, max_noise_standard_deviation):
-    """Applies one or more data augmentations to each radar image
+        list_of_predictor_matrices, target_array, x_translations_pixels,
+        y_translations_pixels, ccw_rotation_angles_deg,
+        noise_standard_deviation, num_noisings):
+    """Applies one or more data augmentations to each radar image.
 
     P = number of predictor matrices
     T = number of translations applied to each image
+    Q = number of augmentations applied to each image
     e = original number of examples
-    E = e * (1 + T) = number of examples after augmentation
+    E = e * (1 + Q) = number of examples after augmentation
 
     This method applies each augmentation separately, so a given image can be
     translated *or* rotated *or* noised.
@@ -264,46 +263,60 @@ def _augment_radar_images(
         array with the first axis having length e.
     :param target_array: See output doc for `generator_2d_or_3d`.  May have
         length e or dimensions of e x K.
-    :param num_translations: See doc for `data_augmentation.get_translations`.
-    :param max_translation_pixels: Same.
-    :param num_rotations: See doc for `data_augmentation.get_rotations`.
-    :param max_rotation_angle_deg: Same.
-    :param num_noisings: See doc for `data_augmentation.get_noisings`.
-    :param max_noise_standard_deviation: Same.
+    :param x_translations_pixels: length-T numpy array of translations in
+        x-direction.  If you do not want translation, make this None.
+    :param y_translations_pixels: length-T numpy array of translations in
+        y-direction.  If you do not want translation, make this None.
+    :param ccw_rotation_angles_deg: 1-D numpy array of counterclockwise rotation
+        angles.  If you do not want rotation, make this None.
+    :param noise_standard_deviation: Standard deviation for Gaussian noise.  If
+        you do not want noising, make this None.
+    :param num_noisings: Number of times to replicate each example with noise.
+        If you do not want noising, make this None.
     :return: list_of_predictor_matrices: Same as input, except the first axis of
         each array now has length E.
     :return: target_array: Same as input, except dimensions are now either
         length-E or E x K.
     """
 
+    if x_translations_pixels is None and y_translations_pixels is None:
+        num_translations = 0
+    else:
+        error_checking.assert_is_integer_numpy_array(x_translations_pixels)
+        error_checking.assert_is_numpy_array(
+            x_translations_pixels, num_dimensions=1)
+        num_translations = len(x_translations_pixels)
+
+        error_checking.assert_is_integer_numpy_array(y_translations_pixels)
+        error_checking.assert_is_numpy_array(
+            y_translations_pixels,
+            exact_dimensions=numpy.array([num_translations])
+        )
+
+        error_checking.assert_is_greater_numpy_array(
+            numpy.absolute(x_translations_pixels) +
+            numpy.absolute(y_translations_pixels),
+            0
+        )
+
+    if ccw_rotation_angles_deg is None:
+        num_rotations = 0
+    else:
+        error_checking.assert_is_numpy_array_without_nan(
+            ccw_rotation_angles_deg)
+        error_checking.assert_is_numpy_array(
+            ccw_rotation_angles_deg, num_dimensions=1)
+
+        num_rotations = len(ccw_rotation_angles_deg)
+
+    error_checking.assert_is_integer(num_noisings)
+    error_checking.assert_is_geq(num_noisings, 0)
+
     last_num_dimensions = len(list_of_predictor_matrices[-1].shape)
     soundings_included = last_num_dimensions == 3
     num_radar_matrices = (
         len(list_of_predictor_matrices) - int(soundings_included)
     )
-
-    x_offsets_pixels, y_offsets_pixels = data_augmentation.get_translations(
-        num_translations=num_translations,
-        max_translation_pixels=max_translation_pixels,
-        num_grid_rows=list_of_predictor_matrices[0].shape[1],
-        num_grid_columns=list_of_predictor_matrices[0].shape[2])
-
-    print 'Pixel offsets: {0:s} and {1:s}'.format(
-        str(x_offsets_pixels), str(y_offsets_pixels)
-    )
-
-    ccw_rotation_angles_deg = data_augmentation.get_rotations(
-        num_rotations=num_rotations,
-        max_absolute_rotation_angle_deg=max_rotation_angle_deg)
-
-    print 'CCW rotation angles: {0:s}'.format(str(ccw_rotation_angles_deg))
-
-    noise_standard_deviations = data_augmentation.get_noisings(
-        num_noisings=num_noisings,
-        max_standard_deviation=max_noise_standard_deviation)
-
-    print 'Standard deviations for noise: {0:s}'.format(
-        str(noise_standard_deviations))
 
     print (
         'Augmenting radar images ({0:d} translations, {1:d} rotations, and '
@@ -319,8 +332,8 @@ def _augment_radar_images(
             this_image_matrix = data_augmentation.shift_radar_images(
                 radar_image_matrix=
                 list_of_predictor_matrices[j][:orig_num_examples, ...],
-                x_offset_pixels=this_multiplier * x_offsets_pixels[i],
-                y_offset_pixels=this_multiplier * y_offsets_pixels[i])
+                x_offset_pixels=this_multiplier * x_translations_pixels[i],
+                y_offset_pixels=this_multiplier * y_translations_pixels[i])
 
             list_of_predictor_matrices[j] = numpy.concatenate(
                 (list_of_predictor_matrices[j], this_image_matrix), axis=0)
@@ -358,7 +371,7 @@ def _augment_radar_images(
             this_image_matrix = data_augmentation.noise_radar_images(
                 radar_image_matrix=
                 list_of_predictor_matrices[j][:orig_num_examples, ...],
-                standard_deviation=noise_standard_deviations[i])
+                standard_deviation=noise_standard_deviation)
 
             list_of_predictor_matrices[j] = numpy.concatenate(
                 (list_of_predictor_matrices[j], this_image_matrix), axis=0)
@@ -505,12 +518,11 @@ def generator_2d_or_3d(option_dict):
     refl_masking_threshold_dbz = option_dict[REFLECTIVITY_MASK_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
 
-    num_translations = option_dict[NUM_TRANSLATIONS_KEY]
-    max_translation_pixels = option_dict[MAX_TRANSLATION_KEY]
-    num_rotations = option_dict[NUM_ROTATIONS_KEY]
-    max_rotation_angle_deg = option_dict[MAX_ROTATION_KEY]
+    x_translations_pixels = option_dict[X_TRANSLATIONS_KEY]
+    y_translations_pixels = option_dict[Y_TRANSLATIONS_KEY]
+    ccw_rotation_angles_deg = option_dict[ROTATION_ANGLES_KEY]
+    noise_standard_deviation = option_dict[NOISE_STDEV_KEY]
     num_noisings = option_dict[NUM_NOISINGS_KEY]
-    max_noise_standard_deviation = option_dict[MAX_NOISE_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -652,12 +664,12 @@ def generator_2d_or_3d(option_dict):
 
         list_of_predictor_matrices, target_array = _augment_radar_images(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            target_array=target_array, num_translations=num_translations,
-            max_translation_pixels=max_translation_pixels,
-            num_rotations=num_rotations,
-            max_rotation_angle_deg=max_rotation_angle_deg,
-            num_noisings=num_noisings,
-            max_noise_standard_deviation=max_noise_standard_deviation)
+            target_array=target_array,
+            x_translations_pixels=x_translations_pixels,
+            y_translations_pixels=y_translations_pixels,
+            ccw_rotation_angles_deg=ccw_rotation_angles_deg,
+            noise_standard_deviation=noise_standard_deviation,
+            num_noisings=num_noisings)
 
         radar_image_matrix = None
         sounding_matrix = None
@@ -747,12 +759,11 @@ def myrorss_generator_2d3d(option_dict):
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
 
-    num_translations = option_dict[NUM_TRANSLATIONS_KEY]
-    max_translation_pixels = option_dict[MAX_TRANSLATION_KEY]
-    num_rotations = option_dict[NUM_ROTATIONS_KEY]
-    max_rotation_angle_deg = option_dict[MAX_ROTATION_KEY]
+    x_translations_pixels = option_dict[X_TRANSLATIONS_KEY]
+    y_translations_pixels = option_dict[Y_TRANSLATIONS_KEY]
+    ccw_rotation_angles_deg = option_dict[ROTATION_ANGLES_KEY]
+    noise_standard_deviation = option_dict[NOISE_STDEV_KEY]
     num_noisings = option_dict[NUM_NOISINGS_KEY]
-    max_noise_standard_deviation = option_dict[MAX_NOISE_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -906,12 +917,12 @@ def myrorss_generator_2d3d(option_dict):
 
         list_of_predictor_matrices, target_array = _augment_radar_images(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            target_array=target_array, num_translations=num_translations,
-            max_translation_pixels=max_translation_pixels,
-            num_rotations=num_rotations,
-            max_rotation_angle_deg=max_rotation_angle_deg,
-            num_noisings=num_noisings,
-            max_noise_standard_deviation=max_noise_standard_deviation)
+            target_array=target_array,
+            x_translations_pixels=x_translations_pixels,
+            y_translations_pixels=y_translations_pixels,
+            ccw_rotation_angles_deg=ccw_rotation_angles_deg,
+            noise_standard_deviation=noise_standard_deviation,
+            num_noisings=num_noisings)
 
         reflectivity_image_matrix_dbz = None
         az_shear_image_matrix_s01 = None
@@ -1033,12 +1044,11 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
 
-    num_translations = option_dict[NUM_TRANSLATIONS_KEY]
-    max_translation_pixels = option_dict[MAX_TRANSLATION_KEY]
-    num_rotations = option_dict[NUM_ROTATIONS_KEY]
-    max_rotation_angle_deg = option_dict[MAX_ROTATION_KEY]
+    x_translations_pixels = option_dict[X_TRANSLATIONS_KEY]
+    y_translations_pixels = option_dict[Y_TRANSLATIONS_KEY]
+    ccw_rotation_angles_deg = option_dict[ROTATION_ANGLES_KEY]
+    noise_standard_deviation = option_dict[NOISE_STDEV_KEY]
     num_noisings = option_dict[NUM_NOISINGS_KEY]
-    max_noise_standard_deviation = option_dict[MAX_NOISE_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -1181,12 +1191,12 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
 
         list_of_predictor_matrices, target_array = _augment_radar_images(
             list_of_predictor_matrices=list_of_predictor_matrices,
-            target_array=target_array, num_translations=num_translations,
-            max_translation_pixels=max_translation_pixels,
-            num_rotations=num_rotations,
-            max_rotation_angle_deg=max_rotation_angle_deg,
-            num_noisings=num_noisings,
-            max_noise_standard_deviation=max_noise_standard_deviation)
+            target_array=target_array,
+            x_translations_pixels=x_translations_pixels,
+            y_translations_pixels=y_translations_pixels,
+            ccw_rotation_angles_deg=ccw_rotation_angles_deg,
+            noise_standard_deviation=noise_standard_deviation,
+            num_noisings=num_noisings)
 
         radar_image_matrix = None
         sounding_matrix = None
