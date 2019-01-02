@@ -38,12 +38,12 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
          max_normalized_value, downsampling_keys, downsampling_fractions,
          monitor_string, weight_loss_function, x_translations_pixels,
          y_translations_pixels, ccw_rotation_angles_deg,
-         noise_standard_deviation, num_noisings, top_training_dir_name,
-         first_training_time_string, last_training_time_string,
-         top_validation_dir_name, first_validation_time_string,
-         last_validation_time_string, num_examples_per_batch, num_epochs,
-         num_training_batches_per_epoch, num_validation_batches_per_epoch,
-         output_dir_name):
+         noise_standard_deviation, num_noisings, flip_in_x, flip_in_y,
+         top_training_dir_name, first_training_time_string,
+         last_training_time_string, top_validation_dir_name,
+         first_validation_time_string, last_validation_time_string,
+         num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
+         num_validation_batches_per_epoch, output_dir_name):
     """Trains CNN with native (3-D) GridRad images.
 
     This is effectively the main method.
@@ -63,6 +63,8 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
     :param ccw_rotation_angles_deg: Same.
     :param noise_standard_deviation: Same.
     :param num_noisings: Same.
+    :param flip_in_x: Same.
+    :param flip_in_y: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -193,7 +195,9 @@ def _run(input_model_file_name, sounding_field_names, normalization_type_string,
         trainval_io.Y_TRANSLATIONS_KEY: y_translations_pixels,
         trainval_io.ROTATION_ANGLES_KEY: ccw_rotation_angles_deg,
         trainval_io.NOISE_STDEV_KEY: noise_standard_deviation,
-        trainval_io.NUM_NOISINGS_KEY: num_noisings
+        trainval_io.NUM_NOISINGS_KEY: num_noisings,
+        trainval_io.FLIP_X_KEY: flip_in_x,
+        trainval_io.FLIP_Y_KEY: flip_in_y
     }
 
     print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
@@ -250,6 +254,8 @@ if __name__ == '__main__':
         noise_standard_deviation=getattr(
             INPUT_ARG_OBJECT, dl_helper.NOISE_STDEV_ARG_NAME),
         num_noisings=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),
+        flip_in_x=bool(getattr(INPUT_ARG_OBJECT, dl_helper.FLIP_X_ARG_NAME)),
+        flip_in_y=bool(getattr(INPUT_ARG_OBJECT, dl_helper.FLIP_Y_ARG_NAME)),
         top_training_dir_name=getattr(
             INPUT_ARG_OBJECT, dl_helper.TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(

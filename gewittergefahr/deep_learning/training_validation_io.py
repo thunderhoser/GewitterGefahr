@@ -54,6 +54,8 @@ Y_TRANSLATIONS_KEY = 'y_translations_pixels'
 ROTATION_ANGLES_KEY = 'ccw_rotation_angles_deg'
 NOISE_STDEV_KEY = 'noise_standard_deviation'
 NUM_NOISINGS_KEY = 'num_noisings'
+FLIP_X_KEY = 'flip_in_x'
+FLIP_Y_KEY = 'flip_in_y'
 
 DEFAULT_OPTION_DICT = {
     NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
@@ -67,7 +69,9 @@ DEFAULT_OPTION_DICT = {
     Y_TRANSLATIONS_KEY: None,
     ROTATION_ANGLES_KEY: None,
     NOISE_STDEV_KEY: 0.05,
-    NUM_NOISINGS_KEY: 0
+    NUM_NOISINGS_KEY: 0,
+    FLIP_X_KEY: False,
+    FLIP_Y_KEY: False
 }
 
 
@@ -247,7 +251,7 @@ def _select_batch(
 def _augment_radar_images(
         list_of_predictor_matrices, target_array, x_translations_pixels,
         y_translations_pixels, ccw_rotation_angles_deg,
-        noise_standard_deviation, num_noisings):
+        noise_standard_deviation, num_noisings, flip_in_x, flip_in_y):
     """Applies one or more data augmentations to each radar image.
 
     P = number of predictor matrices
@@ -273,6 +277,10 @@ def _augment_radar_images(
         you do not want noising, make this None.
     :param num_noisings: Number of times to replicate each example with noise.
         If you do not want noising, make this None.
+    :param flip_in_x: Boolean flag.  If True, each radar image will be flipped
+        in the x-direction.
+    :param flip_in_y: Boolean flag.  If True, each radar image will be flipped
+        in the y-direction.
     :return: list_of_predictor_matrices: Same as input, except the first axis of
         each array now has length E.
     :return: target_array: Same as input, except dimensions are now either
@@ -311,6 +319,8 @@ def _augment_radar_images(
 
     error_checking.assert_is_integer(num_noisings)
     error_checking.assert_is_geq(num_noisings, 0)
+    error_checking.assert_is_boolean(flip_in_x)
+    error_checking.assert_is_boolean(flip_in_y)
 
     last_num_dimensions = len(list_of_predictor_matrices[-1].shape)
     soundings_included = last_num_dimensions == 3
@@ -320,8 +330,11 @@ def _augment_radar_images(
 
     print (
         'Augmenting radar images ({0:d} translations, {1:d} rotations, and '
-        '{2:d} noisings each)...'
-    ).format(num_translations, num_rotations, num_noisings)
+        '{2:d} noisings, {3:d} x-flips, {4:d} y-flips each)...'
+    ).format(
+        num_translations, num_rotations, num_noisings, int(flip_in_x),
+        int(flip_in_y)
+    )
 
     orig_num_examples = list_of_predictor_matrices[0].shape[0]
 
@@ -372,6 +385,42 @@ def _augment_radar_images(
                 radar_image_matrix=
                 list_of_predictor_matrices[j][:orig_num_examples, ...],
                 standard_deviation=noise_standard_deviation)
+
+            list_of_predictor_matrices[j] = numpy.concatenate(
+                (list_of_predictor_matrices[j], this_image_matrix), axis=0)
+
+        target_array = numpy.concatenate(
+            (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
+        if soundings_included:
+            list_of_predictor_matrices[-1] = numpy.concatenate(
+                (list_of_predictor_matrices[-1],
+                 list_of_predictor_matrices[-1][:orig_num_examples, ...]),
+                axis=0)
+
+    if flip_in_x:
+        for j in range(num_radar_matrices):
+            this_image_matrix = data_augmentation.flip_radar_images_x(
+                list_of_predictor_matrices[j][:orig_num_examples, ...]
+            )
+
+            list_of_predictor_matrices[j] = numpy.concatenate(
+                (list_of_predictor_matrices[j], this_image_matrix), axis=0)
+
+        target_array = numpy.concatenate(
+            (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
+        if soundings_included:
+            list_of_predictor_matrices[-1] = numpy.concatenate(
+                (list_of_predictor_matrices[-1],
+                 list_of_predictor_matrices[-1][:orig_num_examples, ...]),
+                axis=0)
+
+    if flip_in_y:
+        for j in range(num_radar_matrices):
+            this_image_matrix = data_augmentation.flip_radar_images_y(
+                list_of_predictor_matrices[j][:orig_num_examples, ...]
+            )
 
             list_of_predictor_matrices[j] = numpy.concatenate(
                 (list_of_predictor_matrices[j], this_image_matrix), axis=0)
@@ -523,6 +572,8 @@ def generator_2d_or_3d(option_dict):
     ccw_rotation_angles_deg = option_dict[ROTATION_ANGLES_KEY]
     noise_standard_deviation = option_dict[NOISE_STDEV_KEY]
     num_noisings = option_dict[NUM_NOISINGS_KEY]
+    flip_in_x = option_dict[FLIP_X_KEY]
+    flip_in_y = option_dict[FLIP_Y_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -669,7 +720,7 @@ def generator_2d_or_3d(option_dict):
             y_translations_pixels=y_translations_pixels,
             ccw_rotation_angles_deg=ccw_rotation_angles_deg,
             noise_standard_deviation=noise_standard_deviation,
-            num_noisings=num_noisings)
+            num_noisings=num_noisings, flip_in_x=flip_in_x, flip_in_y=flip_in_y)
 
         radar_image_matrix = None
         sounding_matrix = None
@@ -764,6 +815,8 @@ def myrorss_generator_2d3d(option_dict):
     ccw_rotation_angles_deg = option_dict[ROTATION_ANGLES_KEY]
     noise_standard_deviation = option_dict[NOISE_STDEV_KEY]
     num_noisings = option_dict[NUM_NOISINGS_KEY]
+    flip_in_x = option_dict[FLIP_X_KEY]
+    flip_in_y = option_dict[FLIP_Y_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -922,7 +975,7 @@ def myrorss_generator_2d3d(option_dict):
             y_translations_pixels=y_translations_pixels,
             ccw_rotation_angles_deg=ccw_rotation_angles_deg,
             noise_standard_deviation=noise_standard_deviation,
-            num_noisings=num_noisings)
+            num_noisings=num_noisings, flip_in_x=flip_in_x, flip_in_y=flip_in_y)
 
         reflectivity_image_matrix_dbz = None
         az_shear_image_matrix_s01 = None
@@ -1049,6 +1102,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     ccw_rotation_angles_deg = option_dict[ROTATION_ANGLES_KEY]
     noise_standard_deviation = option_dict[NOISE_STDEV_KEY]
     num_noisings = option_dict[NUM_NOISINGS_KEY]
+    flip_in_x = option_dict[FLIP_X_KEY]
+    flip_in_y = option_dict[FLIP_Y_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
@@ -1196,7 +1251,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
             y_translations_pixels=y_translations_pixels,
             ccw_rotation_angles_deg=ccw_rotation_angles_deg,
             noise_standard_deviation=noise_standard_deviation,
-            num_noisings=num_noisings)
+            num_noisings=num_noisings, flip_in_x=flip_in_x, flip_in_y=flip_in_y)
 
         radar_image_matrix = None
         sounding_matrix = None

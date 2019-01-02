@@ -26,6 +26,8 @@ Y_TRANSLATIONS_ARG_NAME = 'y_translations_px'
 ROTATION_ANGLES_ARG_NAME = 'ccw_rotation_angles_deg'
 NOISE_STDEV_ARG_NAME = 'noise_standard_deviation'
 NUM_NOISINGS_ARG_NAME = 'num_noisings'
+FLIP_X_ARG_NAME = 'flip_in_x'
+FLIP_Y_ARG_NAME = 'flip_in_y'
 
 TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
 FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
@@ -115,6 +117,12 @@ NUM_NOISINGS_HELP_STRING = (
     '`data_augmentation.noise_radar_images`.  If you do not want noising '
     'augmentation, leave this alone.')
 
+FLIP_X_HELP_STRING = (
+    'Boolean flag.  If 1, will flip each radar image in the x-direction.')
+
+FLIP_Y_HELP_STRING = (
+    'Boolean flag.  If 1, will flip each radar image in the y-direction.')
+
 TRAINING_DIR_HELP_STRING = (
     'Name of directory with training data.  Files therein will be found by '
     '`input_examples.find_many_example_files` (with shuffled = True) and read '
@@ -172,6 +180,8 @@ DEFAULT_Y_TRANSLATIONS_PX = numpy.array([0], dtype=int)
 DEFAULT_CCW_ROTATION_ANGLES_DEG = numpy.array([0], dtype=float)
 DEFAULT_NOISE_STDEV = 0.05
 DEFAULT_NUM_NOISINGS = 0
+DEFAULT_FLIP_X_FLAG = 0
+DEFAULT_FLIP_Y_FLAG = 0
 
 DEFAULT_TOP_TRAINING_DIR_NAME = (
     '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
@@ -264,6 +274,14 @@ def add_input_args(argument_parser):
     argument_parser.add_argument(
         '--' + NUM_NOISINGS_ARG_NAME, type=int, required=False,
         default=DEFAULT_NUM_NOISINGS, help=NUM_NOISINGS_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + FLIP_X_ARG_NAME, type=int, required=False,
+        default=DEFAULT_FLIP_X_FLAG, help=FLIP_X_HELP_STRING)
+
+    argument_parser.add_argument(
+        '--' + FLIP_Y_ARG_NAME, type=int, required=False,
+        default=DEFAULT_FLIP_Y_FLAG, help=FLIP_Y_HELP_STRING)
 
     argument_parser.add_argument(
         '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,

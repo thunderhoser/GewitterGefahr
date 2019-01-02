@@ -115,6 +115,44 @@ RADAR_MATRIX_4D_NEG_ROTATION = numpy.stack(
 RADAR_MATRIX_5D_NEG_ROTATION = numpy.stack(
     (RADAR_MATRIX_4D_NEG_ROTATION,) * 5, axis=-2)
 
+# The following constants are used to test flip_radar_images_x and
+# flip_radar_images_y.
+THIS_FIRST_MATRIX = numpy.array([[0, 1, 2, 3],
+                                 [4, 5, 6, 7],
+                                 [8, 9, 10, 11]], dtype=float)
+THIS_SECOND_MATRIX = numpy.array([[2, 5, 8, 11],
+                                  [3, 6, 9, 12],
+                                  [4, 7, 10, 13]], dtype=float)
+
+RADAR_MATRIX_3D_NO_FLIP = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+RADAR_MATRIX_4D_NO_FLIP = numpy.stack((RADAR_MATRIX_3D_NO_FLIP,) * 6, axis=-1)
+RADAR_MATRIX_5D_NO_FLIP = numpy.stack((RADAR_MATRIX_4D_NO_FLIP,) * 5, axis=-2)
+
+THIS_FIRST_MATRIX = numpy.array([[3, 2, 1, 0],
+                                 [7, 6, 5, 4],
+                                 [11, 10, 9, 8]], dtype=float)
+THIS_SECOND_MATRIX = numpy.array([[11, 8, 5, 2],
+                                  [12, 9, 6, 3],
+                                  [13, 10, 7, 4]], dtype=float)
+
+RADAR_MATRIX_3D_X_FLIP = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+RADAR_MATRIX_4D_X_FLIP = numpy.stack((RADAR_MATRIX_3D_X_FLIP,) * 6, axis=-1)
+RADAR_MATRIX_5D_X_FLIP = numpy.stack((RADAR_MATRIX_4D_X_FLIP,) * 5, axis=-2)
+
+THIS_FIRST_MATRIX = numpy.array([[8, 9, 10, 11],
+                                 [4, 5, 6, 7],
+                                 [0, 1, 2, 3]], dtype=float)
+THIS_SECOND_MATRIX = numpy.array([[4, 7, 10, 13],
+                                  [3, 6, 9, 12],
+                                  [2, 5, 8, 11]], dtype=float)
+
+RADAR_MATRIX_3D_Y_FLIP = numpy.stack(
+    (THIS_FIRST_MATRIX, THIS_SECOND_MATRIX), axis=0)
+RADAR_MATRIX_4D_Y_FLIP = numpy.stack((RADAR_MATRIX_3D_Y_FLIP,) * 6, axis=-1)
+RADAR_MATRIX_5D_Y_FLIP = numpy.stack((RADAR_MATRIX_4D_Y_FLIP,) * 5, axis=-2)
+
 
 class DataAugmentationTests(unittest.TestCase):
     """Each method is a unit test for data_augmentation.py."""
@@ -426,6 +464,78 @@ class DataAugmentationTests(unittest.TestCase):
 
         self.assertTrue(numpy.allclose(
             this_radar_matrix, RADAR_MATRIX_5D_NO_ROTATION, atol=TOLERANCE))
+
+    def test_flip_radar_images_x_3d(self):
+        """Ensures correct output from flip_radar_images_x.
+
+        In this case the input matrix is 3-D.
+        """
+
+        this_radar_matrix = data_augmentation.flip_radar_images_x(
+            RADAR_MATRIX_3D_NO_FLIP)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_3D_X_FLIP, atol=TOLERANCE))
+
+    def test_flip_radar_images_x_4d(self):
+        """Ensures correct output from flip_radar_images_x.
+
+        In this case the input matrix is 4-D.
+        """
+
+        this_radar_matrix = data_augmentation.flip_radar_images_x(
+            RADAR_MATRIX_4D_NO_FLIP)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_4D_X_FLIP, atol=TOLERANCE))
+
+    def test_flip_radar_images_x_5d(self):
+        """Ensures correct output from flip_radar_images_x.
+
+        In this case the input matrix is 5-D.
+        """
+
+        this_radar_matrix = data_augmentation.flip_radar_images_x(
+            RADAR_MATRIX_5D_NO_FLIP)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_5D_X_FLIP, atol=TOLERANCE))
+
+    def test_flip_radar_images_y_3d(self):
+        """Ensures correct output from flip_radar_images_y.
+
+        In this case the input matrix is 3-D.
+        """
+
+        this_radar_matrix = data_augmentation.flip_radar_images_y(
+            RADAR_MATRIX_3D_NO_FLIP)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_3D_Y_FLIP, atol=TOLERANCE))
+
+    def test_flip_radar_images_y_4d(self):
+        """Ensures correct output from flip_radar_images_y.
+
+        In this case the input matrix is 4-D.
+        """
+
+        this_radar_matrix = data_augmentation.flip_radar_images_y(
+            RADAR_MATRIX_4D_NO_FLIP)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_4D_Y_FLIP, atol=TOLERANCE))
+
+    def test_flip_radar_images_y_5d(self):
+        """Ensures correct output from flip_radar_images_y.
+
+        In this case the input matrix is 5-D.
+        """
+
+        this_radar_matrix = data_augmentation.flip_radar_images_y(
+            RADAR_MATRIX_5D_NO_FLIP)
+
+        self.assertTrue(numpy.allclose(
+            this_radar_matrix, RADAR_MATRIX_5D_Y_FLIP, atol=TOLERANCE))
 
 
 if __name__ == '__main__':

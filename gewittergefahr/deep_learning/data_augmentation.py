@@ -236,3 +236,33 @@ def noise_radar_images(radar_image_matrix, standard_deviation):
     noise_matrix = numpy.random.normal(
         loc=0., scale=standard_deviation, size=radar_image_matrix.shape)
     return radar_image_matrix + noise_matrix
+
+
+def flip_radar_images_x(radar_image_matrix):
+    """Flips radar images in the x-direction.
+
+    :param radar_image_matrix: See doc for
+        `deep_learning_utils.check_radar_images`.
+    :return: flipped_image_matrix: Flipped version of input (same dimensions).
+    """
+
+    dl_utils.check_radar_images(
+        radar_image_matrix=radar_image_matrix, min_num_dimensions=3,
+        max_num_dimensions=5)
+
+    return numpy.flip(radar_image_matrix, axis=2)
+
+
+def flip_radar_images_y(radar_image_matrix):
+    """Flips radar images in the y-direction.
+
+    :param radar_image_matrix: See doc for
+        `deep_learning_utils.check_radar_images`.
+    :return: flipped_image_matrix: Flipped version of input (same dimensions).
+    """
+
+    dl_utils.check_radar_images(
+        radar_image_matrix=radar_image_matrix, min_num_dimensions=3,
+        max_num_dimensions=5)
+
+    return numpy.flip(radar_image_matrix, axis=1)
