@@ -28,33 +28,26 @@ from gewittergefahr.gg_utils import error_checking
 KM_TO_METRES = 1000
 
 EXAMPLE_FILES_KEY = 'example_file_names'
-FIRST_STORM_TIME_KEY = 'first_storm_time_unix_sec'
-LAST_STORM_TIME_KEY = 'last_storm_time_unix_sec'
 NUM_EXAMPLES_PER_BATCH_KEY = 'num_examples_per_batch'
+
 RADAR_FIELDS_KEY = 'radar_field_names'
 RADAR_HEIGHTS_KEY = 'radar_heights_m_agl'
 SOUNDING_FIELDS_KEY = 'sounding_field_names'
 SOUNDING_HEIGHTS_KEY = 'sounding_heights_m_agl'
+FIRST_STORM_TIME_KEY = 'first_storm_time_unix_sec'
+LAST_STORM_TIME_KEY = 'last_storm_time_unix_sec'
 NUM_ROWS_KEY = 'num_grid_rows'
 NUM_COLUMNS_KEY = 'num_grid_columns'
+
 NORMALIZATION_TYPE_KEY = 'normalization_type_string'
 NORMALIZATION_FILE_KEY = 'normalization_param_file_name'
 MIN_NORMALIZED_VALUE_KEY = 'min_normalized_value'
 MAX_NORMALIZED_VALUE_KEY = 'max_normalized_value'
+
 BINARIZE_TARGET_KEY = 'binarize_target'
-SAMPLING_FRACTIONS_KEY = 'class_to_sampling_fraction_dict'
 LOOP_ONCE_KEY = 'loop_thru_files_once'
 REFLECTIVITY_MASK_KEY = 'refl_masking_threshold_dbz'
-
-DEFAULT_GENERATOR_OPTION_DICT = {
-    NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
-    MIN_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
-    MAX_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
-    BINARIZE_TARGET_KEY: False,
-    SAMPLING_FRACTIONS_KEY: None,
-    LOOP_ONCE_KEY: False,
-    REFLECTIVITY_MASK_KEY: dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ
-}
+SAMPLING_FRACTIONS_KEY = 'class_to_sampling_fraction_dict'
 
 NUM_TRANSLATIONS_KEY = 'num_translations'
 MAX_TRANSLATION_KEY = 'max_translation_pixels'
@@ -63,29 +56,33 @@ MAX_ROTATION_KEY = 'max_absolute_rotation_angle_deg'
 NUM_NOISINGS_KEY = 'num_noisings'
 MAX_NOISE_KEY = 'max_noise_standard_deviation'
 
-DEFAULT_AUGMENTATION_OPTION_DICT = {
+DEFAULT_OPTION_DICT = {
+    NORMALIZATION_TYPE_KEY: dl_utils.Z_NORMALIZATION_TYPE_STRING,
+    MIN_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MIN_NORMALIZED_VALUE,
+    MAX_NORMALIZED_VALUE_KEY: dl_utils.DEFAULT_MAX_NORMALIZED_VALUE,
+    BINARIZE_TARGET_KEY: False,
+    LOOP_ONCE_KEY: False,
+    REFLECTIVITY_MASK_KEY: dl_utils.DEFAULT_REFL_MASK_THRESHOLD_DBZ,
+    SAMPLING_FRACTIONS_KEY: None,
     NUM_TRANSLATIONS_KEY: 0,
     MAX_TRANSLATION_KEY: 3,
     NUM_ROTATIONS_KEY: 0,
     MAX_ROTATION_KEY: 15.,
     NUM_NOISINGS_KEY: 0,
-    MAX_NOISE_KEY: 0.02
+    MAX_NOISE_KEY: 0.05
 }
 
-DEFAULT_GENERATOR_OPTION_DICT.update(DEFAULT_AUGMENTATION_OPTION_DICT)
 
-
-def _get_num_ex_per_batch_by_class(
+def _get_batch_size_by_class(
         num_examples_per_batch, target_name, class_to_sampling_fraction_dict):
-    """Returns number of examples needed for each class per batch.
+    """Returns number of examples needed per batch for each class.
 
     :param num_examples_per_batch: Total number of examples per batch.
-    :param target_name: Name of target variable.  Must be accepted by
-        `target_val_utils.target_name_to_params`.
-    :param class_to_sampling_fraction_dict: See doc for `example_generator_3d`.
-    :return: class_to_num_ex_per_batch_dict: Dictionary, where each key
-        is the integer ID for a target class (-2 for "dead storm") and each
-        value is the number of examples needed per batch.
+    :param target_name: Name of target variable.
+    :param class_to_sampling_fraction_dict: See doc for `generator_2d_or_3d`.
+    :return: class_to_batch_size_dict: Dictionary, where each key is the integer
+        representing a class (-2 for "dead storm") and the corresponding value
+        is the number of examples in each batch.
     """
 
     num_extended_classes = target_val_utils.target_name_to_num_classes(
@@ -94,13 +91,16 @@ def _get_num_ex_per_batch_by_class(
     if class_to_sampling_fraction_dict is None:
         num_classes = target_val_utils.target_name_to_num_classes(
             target_name=target_name, include_dead_storms=False)
+
         include_dead_storms = num_extended_classes > num_classes
 
         if include_dead_storms:
             first_keys = numpy.array(
                 [target_val_utils.DEAD_STORM_INTEGER], dtype=int)
+
             second_keys = numpy.linspace(
                 0, num_classes - 1, num=num_classes, dtype=int)
+
             keys = numpy.concatenate((first_keys, second_keys))
         else:
             keys = numpy.linspace(
@@ -116,66 +116,68 @@ def _get_num_ex_per_batch_by_class(
         target_name=target_name, num_examples_total=num_examples_per_batch)
 
 
-def _get_num_examples_to_read_by_class(
-        class_to_num_ex_per_batch_dict, target_values_in_memory):
-    """Returns number of examples desired in next file for each class.
+def _get_remaining_batch_size_by_class(
+        class_to_batch_size_dict, target_values_in_memory):
+    """Returns number of remaining examples needed for each class.
 
-    :param class_to_num_ex_per_batch_dict: Dictionary created by
-        `_get_num_ex_per_batch_by_class`.
+    :param class_to_batch_size_dict: Dictionary created by
+        `_get_batch_size_by_class`.
     :param target_values_in_memory: 1-D numpy array of target values (integer
-        class labels) in memory.
-    :return: class_to_num_ex_to_read_dict: Dictionary, where each key
-        is the integer ID for a target class (-2 for "dead storm") and each
-        value is the number of examples to read.
+        class labels).
+    :return: class_to_rem_batch_size_dict: Same as input
+        `class_to_batch_size_dict` but with different values.
     """
 
     if target_values_in_memory is None:
-        return class_to_num_ex_per_batch_dict
+        return class_to_batch_size_dict
 
-    class_to_num_ex_to_read_dict = {}
+    class_to_rem_batch_size_dict = {}
 
-    for this_class in class_to_num_ex_per_batch_dict.keys():
+    for this_class in class_to_batch_size_dict.keys():
         this_num_examples = (
-            class_to_num_ex_per_batch_dict[this_class] -
+            class_to_batch_size_dict[this_class] -
             numpy.sum(target_values_in_memory == this_class)
         )
-        this_num_examples = max([this_num_examples, 0])
-        class_to_num_ex_to_read_dict.update({this_class: this_num_examples})
 
-    return class_to_num_ex_to_read_dict
+        this_num_examples = max([this_num_examples, 0])
+        class_to_rem_batch_size_dict.update({this_class: this_num_examples})
+
+    return class_to_rem_batch_size_dict
 
 
 def _check_stopping_criterion(
-        num_examples_per_batch, class_to_num_ex_per_batch_dict,
+        num_examples_per_batch, class_to_batch_size_dict,
         class_to_sampling_fraction_dict, target_values_in_memory):
-    """Checks stopping criterion for generator.
+    """Evaluates stopping criterion for generator.
 
     :param num_examples_per_batch: Total number of examples per batch.
-    :param class_to_num_ex_per_batch_dict: Dictionary created by
-        `_get_num_ex_per_batch_by_class`.
-    :param class_to_sampling_fraction_dict: See doc for `example_generator_2d`.
+    :param class_to_batch_size_dict: Dictionary created by
+        `_get_batch_size_by_class`.
+    :param class_to_sampling_fraction_dict: Dictionary created by
+        `_get_remaining_batch_size_by_class`.
     :param target_values_in_memory: 1-D numpy array of target values (integer
-        class labels) currently in memory.
+        class labels).
     :return: stop_generator: Boolean flag.
     """
 
-    class_to_num_ex_in_memory_dict = {}
-    for this_key in class_to_num_ex_per_batch_dict:
-        this_value = numpy.sum(target_values_in_memory == this_key)
-        class_to_num_ex_in_memory_dict.update({this_key: this_value})
+    class_to_num_read_dict = {}
 
-    print 'Number of examples in memory by class:\n{0:s}\n'.format(
-        str(class_to_num_ex_in_memory_dict))
+    for this_key in class_to_batch_size_dict:
+        this_value = numpy.sum(target_values_in_memory == this_key)
+        class_to_num_read_dict.update({this_key: this_value})
+
+    print 'Number of examples in memory for each class:\n{0:s}\n'.format(
+        str(class_to_num_read_dict))
 
     num_examples_in_memory = len(target_values_in_memory)
     stop_generator = num_examples_in_memory >= num_examples_per_batch
 
     if stop_generator and class_to_sampling_fraction_dict is not None:
-        for this_key in class_to_num_ex_per_batch_dict.keys():
+        for this_key in class_to_batch_size_dict.keys():
             stop_generator = (
                 stop_generator and
-                class_to_num_ex_in_memory_dict[this_key] >=
-                class_to_num_ex_per_batch_dict[this_key]
+                class_to_num_read_dict[this_key] >=
+                class_to_batch_size_dict[this_key]
             )
 
     return stop_generator
@@ -193,14 +195,15 @@ def _select_batch(
         item should be a numpy array where the first axis has length E.
     :param target_values: length-E numpy array of target values (integer class
         labels).
-    :param num_examples_per_batch: Number of examples per batch.
-    :param binarize_target: Boolean flag.  If True, target variable will
-        be binarized.  Only the highest class will be considered positive, and
-        all others will be considered negative.
-    :param num_classes: Number of target classes.
-    :return: list_of_predictor_matrices: Same as input, but the first axis of
-        each numpy array now has length e.
-    :return: target_array: See output doc for `example_generator_2d`.
+    :param num_examples_per_batch: Total number of examples per batch.
+    :param binarize_target: Boolean flag.  If True, target variable will be
+        binarized, where the highest class becomes 1 and all other classes
+        become 0.  If False, the original classes will be kept, in which case
+        the prediction task may be binary or multiclass.
+    :param num_classes: Number of classes for target variable.
+    :return: list_of_predictor_matrices: Same as input, except the first axis of
+        each array has length e.
+    :return: target_array: See output doc for `generator_2d_or_3d`.
     """
 
     num_examples_in_memory = len(target_values)
@@ -221,6 +224,7 @@ def _select_batch(
             i][batch_indices, ...].astype('float32')
 
     target_values[target_values == target_val_utils.DEAD_STORM_INTEGER] = 0
+
     if binarize_target:
         target_values = (target_values == num_classes - 1).astype(int)
         num_classes_to_predict = 2
@@ -228,7 +232,7 @@ def _select_batch(
         num_classes_to_predict = num_classes + 0
 
     if num_classes_to_predict == 2:
-        print 'Fraction of target values in positive class: {0:.3f}'.format(
+        print 'Fraction of examples in positive class: {0:.3f}'.format(
             numpy.mean(target_values))
         return list_of_predictor_matrices, target_values
 
@@ -236,52 +240,41 @@ def _select_batch(
         target_values[batch_indices], num_classes_to_predict)
 
     class_fractions = numpy.mean(target_matrix, axis=0)
-    print 'Fraction of target values in each class: {0:s}\n'.format(
+    print 'Fraction of examples in each class: {0:s}\n'.format(
         str(class_fractions))
 
     return list_of_predictor_matrices, target_matrix
 
 
 def _augment_radar_images(
-        list_of_predictor_matrices, target_array, option_dict=None):
-    """Applies one or more data augmentations to each radar image.
-
-    Q = total number of translations applied to each image.
-    e = original number of examples
-    E = number of examples after augmentation = e * (1 + Q)
+        list_of_predictor_matrices, target_array, num_translations,
+        max_translation_pixels, num_rotations, max_rotation_angle_deg,
+        num_noisings, max_noise_standard_deviation):
+    """Applies one or more data augmentations to each radar image
 
     P = number of predictor matrices
+    T = number of translations applied to each image
+    e = original number of examples
+    E = e * (1 + T) = number of examples after augmentation
 
-    Currently this method applies each translation separately.  At some point I
-    may apply multiple translations to the same image in series.
+    This method applies each augmentation separately, so a given image can be
+    translated *or* rotated *or* noised.
 
     :param list_of_predictor_matrices: length-P list, where each item is a numpy
-        array of predictors (either radar images or soundings).  The first axis
-        of each array must have length e.
-    :param target_array: See doc for `storm_image_generator_2d`.  If the array
-        is 1-D, it has length e.  If 2-D, it has dimensions e x K.
-    :param option_dict: Dictionary with the following keys.
-    option_dict['num_translations']: See doc for
-        `data_augmentation.get_translations`.
-    option_dict['max_translation_pixels']: Same.
-    option_dict['num_rotations']: See doc for `data_augmentation.get_rotations`.
-    option_dict['max_absolute_rotation_angle_deg']: Same.
-    option_dict['num_noisings']: See doc for `data_augmentation.get_noisings`.
-    option_dict['max_noise_standard_deviation']: Same.
-
-    :return: list_of_predictor_matrices: Same as input, except that the first
-        axis of each array now has length E.
-    :return: target_array: See doc for `storm_image_generator_2d`.  If the array
-        is 1-D, it has length E.  If 2-D, it has dimensions E x K.
+        array with the first axis having length e.
+    :param target_array: See output doc for `generator_2d_or_3d`.  May have
+        length e or dimensions of e x K.
+    :param num_translations: See doc for `data_augmentation.get_translations`.
+    :param max_translation_pixels: Same.
+    :param num_rotations: See doc for `data_augmentation.get_rotations`.
+    :param max_rotation_angle_deg: Same.
+    :param num_noisings: See doc for `data_augmentation.get_noisings`.
+    :param max_noise_standard_deviation: Same.
+    :return: list_of_predictor_matrices: Same as input, except the first axis of
+        each array now has length E.
+    :return: target_array: Same as input, except dimensions are now either
+        length-E or E x K.
     """
-
-    if option_dict is None:
-        orig_option_dict = {}
-    else:
-        orig_option_dict = option_dict.copy()
-
-    option_dict = DEFAULT_AUGMENTATION_OPTION_DICT.copy()
-    option_dict.update(orig_option_dict)
 
     last_num_dimensions = len(list_of_predictor_matrices[-1].shape)
     soundings_included = last_num_dimensions == 3
@@ -290,28 +283,27 @@ def _augment_radar_images(
     )
 
     x_offsets_pixels, y_offsets_pixels = data_augmentation.get_translations(
-        num_translations=option_dict[NUM_TRANSLATIONS_KEY],
-        max_translation_pixels=option_dict[MAX_TRANSLATION_KEY],
+        num_translations=num_translations,
+        max_translation_pixels=max_translation_pixels,
         num_grid_rows=list_of_predictor_matrices[0].shape[1],
         num_grid_columns=list_of_predictor_matrices[0].shape[2])
 
     ccw_rotation_angles_deg = data_augmentation.get_rotations(
-        num_rotations=option_dict[NUM_ROTATIONS_KEY],
-        max_absolute_rotation_angle_deg=option_dict[MAX_ROTATION_KEY])
+        num_rotations=num_rotations,
+        max_absolute_rotation_angle_deg=max_rotation_angle_deg)
 
     noise_standard_deviations = data_augmentation.get_noisings(
-        num_noisings=option_dict[NUM_NOISINGS_KEY],
-        max_standard_deviation=option_dict[MAX_NOISE_KEY])
+        num_noisings=num_noisings,
+        max_standard_deviation=max_noise_standard_deviation)
 
     print (
-        'Augmenting radar images with {0:d} translations, {1:d} rotations, and '
-        '{2:d} noisings each...'
-    ).format(option_dict[NUM_TRANSLATIONS_KEY], option_dict[NUM_ROTATIONS_KEY],
-             option_dict[NUM_NOISINGS_KEY])
+        'Augmenting radar images ({0:d} translations, {1:d} rotations, and '
+        '{2:d} noisings each)...'
+    ).format(num_translations, num_rotations, num_noisings)
 
     orig_num_examples = list_of_predictor_matrices[0].shape[0]
 
-    for i in range(option_dict[NUM_TRANSLATIONS_KEY]):
+    for i in range(num_translations):
         for j in range(num_radar_matrices):
             this_multiplier = j + 1  # Handles azimuthal shear.
 
@@ -326,13 +318,14 @@ def _augment_radar_images(
 
         target_array = numpy.concatenate(
             (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
         if soundings_included:
             list_of_predictor_matrices[-1] = numpy.concatenate(
                 (list_of_predictor_matrices[-1],
                  list_of_predictor_matrices[-1][:orig_num_examples, ...]),
                 axis=0)
 
-    for i in range(option_dict[NUM_ROTATIONS_KEY]):
+    for i in range(num_rotations):
         for j in range(num_radar_matrices):
             this_image_matrix = data_augmentation.rotate_radar_images(
                 radar_image_matrix=
@@ -344,13 +337,14 @@ def _augment_radar_images(
 
         target_array = numpy.concatenate(
             (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
         if soundings_included:
             list_of_predictor_matrices[-1] = numpy.concatenate(
                 (list_of_predictor_matrices[-1],
                  list_of_predictor_matrices[-1][:orig_num_examples, ...]),
                 axis=0)
 
-    for i in range(option_dict[NUM_NOISINGS_KEY]):
+    for i in range(num_noisings):
         for j in range(num_radar_matrices):
             this_image_matrix = data_augmentation.noise_radar_images(
                 radar_image_matrix=
@@ -362,6 +356,7 @@ def _augment_radar_images(
 
         target_array = numpy.concatenate(
             (target_array, target_array[:orig_num_examples, ...]), axis=0)
+
         if soundings_included:
             list_of_predictor_matrices[-1] = numpy.concatenate(
                 (list_of_predictor_matrices[-1],
@@ -371,16 +366,15 @@ def _augment_radar_images(
     return list_of_predictor_matrices, target_array
 
 
-def check_generator_input_args(option_dict):
+def check_generator_args(option_dict):
     """Error-checks input arguments for generator.
 
-    :param option_dict: See doc for `example_generator_2d_or_3d` or
-        `example_generator_2d3d_myrorss`.
-    :return: option_dict: Same as input, except that defaults have been added.
+    :param option_dict: See doc for any generator in this file.
+    :return: option_dict: Same as input, except defaults may have been added.
     """
 
     orig_option_dict = option_dict.copy()
-    option_dict = DEFAULT_GENERATOR_OPTION_DICT.copy()
+    option_dict = DEFAULT_OPTION_DICT.copy()
     option_dict.update(orig_option_dict)
 
     error_checking.assert_is_string_list(option_dict[EXAMPLE_FILES_KEY])
@@ -395,56 +389,60 @@ def check_generator_input_args(option_dict):
     return option_dict
 
 
-def example_generator_2d_or_3d(option_dict):
-    """Generates examples with either all 2-D or all 3-D radar images.
+def generator_2d_or_3d(option_dict):
+    """Generates examples with either 2-D or 3-D radar images.
 
-    Each example corresponds to one storm object and contains the following
-    data:
+    Each example (storm object) consists of the following:
 
-    - Storm-centered radar images (either one 2-D image for each storm object
-      and field/height pair, or one 3-D image for each storm object and field)
+    - Storm-centered radar images (either one 2-D image for each field/height
+      pair or one 3-D image for each field)
     - Storm-centered sounding (optional)
-    - Target class
+    - Target value (class)
 
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: 1-D list of paths to input files (will be
-        read by `input_examples.read_example_file`.
-    option_dict['first_storm_time_unix_sec']: First storm time.  This generator
-        will throw out any examples not in the period
-        `first_storm_time_unix_sec`...`last_storm_time_unix_sec`.
-    option_dict['last_storm_time_unix_sec']: See above.
-    option_dict['num_examples_per_batch']: Number of examples in each training
-        or validation batch.
-    option_dict['radar_field_names']: Determines which radar fields are used.
-        See doc for `input_examples.read_example_file`.
-    option_dict['radar_heights_m_agl']: Determines which radar heights are used.
-        See doc for `input_examples.read_example_file`.
-    option_dict['sounding_field_names']: Determines which sounding fields (if
-        any) are used.  See doc for `input_examples.read_example_file`.
-    option_dict['sounding_heights_m_agl']: Determines which sounding heights (if
-        any) are used.  See doc for `input_examples.read_example_file`.
-    option_dict['num_grid_rows']: Number of rows in each radar image.  See doc
-        for `input_examples.read_example_file`.
-    option_dict['num_grid_columns']: Same but for columns.
-    option_dict['normalization_type_string']: Used to normalize radar images and
-        soundings.  See doc for `deep_learning_utils.normalize_radar_images` and
-        `deep_learning_utils.normalize_soundings`.
-    option_dict['normalization_param_file_name']: Same.
-    option_dict['min_normalized_value']: Same.
-    option_dict['max_normalized_value']: Same.
-    option_dict['binarize_target']: Boolean flag.  If True, the target variable
-        will be binarized, so that the highest class is positive (1) and all
-        other classes are negative (0).
-    option_dict['class_to_sampling_fraction_dict']: Used for downsampling based
-        on target variable.  See doc for `deep_learning_utils.sample_by_class`.
+        read by `input_examples.read_example_file`).
+    option_dict['num_examples_per_batch']: Number of examples in each batch.
+    option_dict['binarize_target']: Boolean flag.  If True, target variable will
+        be binarized, where the highest class becomes 1 and all other classes
+        become 0.  If False, the original classes will be kept, in which case
+        the prediction task may be binary or multiclass.
     option_dict['loop_thru_files_once']: Boolean flag.  If True, this generator
-        will loop through "example_file_names" only once.  If False, the
-        generator will loop indefinitely (as many times as it is called).
-    option_dict['refl_masking_threshold_dbz']:
-        [used only if "example_file_names" contain 3-D radar images]
-        Reflectivity-masking threshold.  All grid cells with reflectivity <
-        threshold will be masked out.  If `refl_masking_threshold_dbz is None`,
-        there will be no masking.
+        will read only once from each file.  If False, once this generator has
+        reached the last file, it will start over at the first file.
+    option_dict['radar_field_names']: 1-D list of radar fields.  See
+        `input_examples.read_example_file` for details.
+    option_dict['radar_heights_m_agl']: 1-D numpy array of radar heights (metres
+        above ground level).  See `input_examples.read_example_file` for
+        details.
+    option_dict['sounding_field_names']: 1-D list of sounding fields.  See
+        `input_examples.read_example_file` for details.  If you want do not want
+        to use soundings, make this None.
+    option_dict['sounding_heights_m_agl']: 1-D numpy array of sounding heights
+        (metres above ground level).  See `input_examples.read_example_file` for
+        details.
+    option_dict['first_storm_time_unix_sec']: First storm time.  This generator
+        will discard examples outside the period `first_storm_time_unix_sec`...
+        `last_storm_time_unix_sec`.
+    option_dict['last_storm_time_unix_sec']: See above.
+    option_dict['num_grid_rows']: Number of rows in each radar image.
+    option_dict['num_grid_columns']: Number of columns in each radar image.
+    option_dict['normalization_type_string']: Normalization type (used for both
+        radar images and soundings).  See
+        `deep_learning_utils.normalize_radar_images` or
+        `deep_learning_utils.normalize_soundings` for details.
+    option_dict['normalization_param_file_name']: Path to file with
+        normalization params.  See the above-mentioned methods for details.
+    option_dict['min_normalized_value']: Minimum value for min-max
+        normalization.  See the above-mentioned methods for details.
+    option_dict['max_normalized_value']: Max value for min-max normalization.
+        See the above-mentioned methods for details.
+    option_dict['class_to_sampling_fraction_dict']: Used for downsampling.  See
+        `deep_learning_utils.sample_by_class` for details.  If you do not want
+        downsampling, make this None.
+    option_dict['refl_masking_threshold_dbz']: Reflectivity mask, used only for
+        3-D images.  Any grid cell (voxel) with reflectivity < threshold is
+        masked out.
     option_dict['num_translations']: Used for data augmentation.  See doc for
         `_augment_radar_images`.
     option_dict['max_translation_pixels']: Same.
@@ -453,19 +451,19 @@ def example_generator_2d_or_3d(option_dict):
     option_dict['num_noisings']: Same.
     option_dict['max_noise_standard_deviation']: Same.
 
-    If `sounding_field_names is None`, this method returns the following.
+    If `sounding_field_names is None`...
 
     :return: radar_image_matrix: numpy array (E x M x N x C or
         E x M x N x H_r x F_r) of storm-centered radar images.
-    :return: target_array: If the problem is multiclass and
-        `binarize_target = False`, this is an E-by-K numpy array with only zeros
-        and ones (though technically the type is "float64").  If
-        target_array[i, k] = 1, the [i]th example belongs to the [k]th class.
+    :return: target_array: If problem is multiclass and
+        `binarize_target = False`, this is an E-by-K numpy array of zeros and
+        ones.  If target_array[i, k] = 1, the [i]th example belongs to the [k]th
+        class.
 
-        If the problem is binary or `binarize_target = True`, this is a length-E
-        numpy array of integers (0 for negative class, 1 for positive class).
+        If problem is binary or `binarize_target = True`, this is a length-E
+        numpy array of zeros and ones.
 
-    If `sounding_field_names is not None`, this method returns the following.
+    If `sounding_field_names is not None`...
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = radar_image_matrix: See above.
@@ -474,34 +472,42 @@ def example_generator_2d_or_3d(option_dict):
     :return: target_array: See above.
     """
 
-    option_dict = check_generator_input_args(option_dict)
+    option_dict = check_generator_args(option_dict)
 
     example_file_names = option_dict[EXAMPLE_FILES_KEY]
     num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
-    binarize_target = option_dict[BINARIZE_TARGET_KEY]
-    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
 
-    radar_field_names = option_dict[RADAR_FIELDS_KEY]
-    radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
-    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[NUM_ROWS_KEY]
     num_grid_columns = option_dict[NUM_COLUMNS_KEY]
+    radar_field_names = option_dict[RADAR_FIELDS_KEY]
+    radar_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
 
-    refl_masking_threshold_dbz = option_dict[REFLECTIVITY_MASK_KEY]
     normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
     normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
+    refl_masking_threshold_dbz = option_dict[REFLECTIVITY_MASK_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    num_translations = option_dict[NUM_TRANSLATIONS_KEY]
+    max_translation_pixels = option_dict[MAX_TRANSLATION_KEY]
+    num_rotations = option_dict[NUM_ROTATIONS_KEY]
+    max_rotation_angle_deg = option_dict[MAX_ROTATION_KEY]
+    num_noisings = option_dict[NUM_NOISINGS_KEY]
+    max_noise_standard_deviation = option_dict[MAX_NOISE_KEY]
+
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
-    class_to_num_ex_per_batch_dict = _get_num_ex_per_batch_by_class(
+    class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
 
@@ -530,8 +536,8 @@ def example_generator_2d_or_3d(option_dict):
 
                 file_index = 0
 
-            class_to_num_ex_to_read_dict = _get_num_examples_to_read_by_class(
-                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+            class_to_rem_batch_size_dict = _get_remaining_batch_size_by_class(
+                class_to_batch_size_dict=class_to_batch_size_dict,
                 target_values_in_memory=target_values)
 
             print 'Reading data from: "{0:s}"...'.format(
@@ -547,7 +553,7 @@ def example_generator_2d_or_3d(option_dict):
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns,
-                class_to_num_examples_dict=class_to_num_ex_to_read_dict)
+                class_to_num_examples_dict=class_to_rem_batch_size_dict)
 
             file_index += 1
             if this_example_dict is None:
@@ -590,7 +596,7 @@ def example_generator_2d_or_3d(option_dict):
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
-                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+                class_to_batch_size_dict=class_to_batch_size_dict,
                 class_to_sampling_fraction_dict=class_to_sampling_fraction_dict,
                 target_values_in_memory=target_values)
 
@@ -635,6 +641,15 @@ def example_generator_2d_or_3d(option_dict):
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
 
+        list_of_predictor_matrices, target_array = _augment_radar_images(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            target_array=target_array, num_translations=num_translations,
+            max_translation_pixels=max_translation_pixels,
+            num_rotations=num_rotations,
+            max_rotation_angle_deg=max_rotation_angle_deg,
+            num_noisings=num_noisings,
+            max_noise_standard_deviation=max_noise_standard_deviation)
+
         radar_image_matrix = None
         sounding_matrix = None
         target_values = None
@@ -645,29 +660,48 @@ def example_generator_2d_or_3d(option_dict):
             yield (list_of_predictor_matrices[0], target_array)
 
 
-def example_generator_2d3d_myrorss(option_dict):
+def myrorss_generator_2d3d(option_dict):
     """Generates examples with both 2-D and 3-D radar images.
 
-    Each example corresponds to one storm object and contains the following
-    data:
+    Each example (storm object) consists of the following:
 
-    - Storm-centered azimuthal-shear images (one 2-D image for each
-      azimuthal-shear field)
-    - Storm-centered reflectivity image (3-D)
+    - Storm-centered azimuthal shear (one 2-D image for each field)
+    - Storm-centered reflectivity (one 3-D image)
     - Storm-centered sounding (optional)
-    - Target class
+    - Target value (class)
 
     M = number of rows in each reflectivity image
     N = number of columns in each reflectivity image
 
-    :param option_dict: Same as input to `example_generator_2d_or_3d`, but with
-        two exceptions.
-
-    [1] No "refl_masking_threshold_dbz"
-    [2] "num_grid_rows" and "num_grid_columns" apply only to reflectivity
-        images.  They will be doubled for azimuthal-shear images (because
-        az-shear images have twice the resolution, or half the grid spacing, of
-        reflectivity images).
+    :param option_dict: Dictionary with the following keys.
+    option_dict['example_file_names']: See doc for `generator_2d_or_3d`.
+    option_dict['num_examples_per_batch']: Same.
+    option_dict['binarize_target']: Same.
+    option_dict['loop_thru_files_once']: Same.
+    option_dict['radar_field_names']: 1-D list of azimuthal-shear fields.  See
+        `input_examples.read_example_file` for details.
+    option_dict['radar_heights_m_agl']: 1-D numpy array of reflectivity heights
+        (metres above ground level).  See `input_examples.read_example_file` for
+        details.
+    option_dict['sounding_field_names']: See doc for `generator_2d_or_3d`.
+    option_dict['sounding_heights_m_agl']: Same.
+    option_dict['first_storm_time_unix_sec']: Same.
+    option_dict['last_storm_time_unix_sec']: Same.
+    option_dict['num_grid_rows']: Number of rows in each reflectivity image
+        (azimuthal-shear images will have twice as many rows).
+    option_dict['num_grid_columns']: Number of columns in each reflectivity
+        image (azimuthal-shear images will have twice as many columns).
+    option_dict['normalization_type_string']: See doc for `generator_2d_or_3d`.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
+    option_dict['num_translations']: Same.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: Same.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: Same.
+    option_dict['max_noise_standard_deviation']: Same.
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
@@ -678,15 +712,13 @@ def example_generator_2d3d_myrorss(option_dict):
         centered soundings.  If `sounding_field_names is None`, this item does
         not exist.
 
-    :return: target_array: See doc for `example_generator_2d_or_3d`.
+    :return: target_array: See doc for `generator_2d_or_3d`.
     """
 
-    option_dict = check_generator_input_args(option_dict)
+    option_dict = check_generator_args(option_dict)
 
     example_file_names = option_dict[EXAMPLE_FILES_KEY]
     num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
-    binarize_target = option_dict[BINARIZE_TARGET_KEY]
-    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
 
     azimuthal_shear_field_names = option_dict[RADAR_FIELDS_KEY]
     reflectivity_heights_m_agl = option_dict[RADAR_HEIGHTS_KEY]
@@ -702,12 +734,22 @@ def example_generator_2d3d_myrorss(option_dict):
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
+    binarize_target = option_dict[BINARIZE_TARGET_KEY]
+    loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    num_translations = option_dict[NUM_TRANSLATIONS_KEY]
+    max_translation_pixels = option_dict[MAX_TRANSLATION_KEY]
+    num_rotations = option_dict[NUM_ROTATIONS_KEY]
+    max_rotation_angle_deg = option_dict[MAX_ROTATION_KEY]
+    num_noisings = option_dict[NUM_NOISINGS_KEY]
+    max_noise_standard_deviation = option_dict[MAX_NOISE_KEY]
+
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
-    class_to_num_ex_per_batch_dict = _get_num_ex_per_batch_by_class(
+    class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
 
@@ -736,8 +778,8 @@ def example_generator_2d3d_myrorss(option_dict):
 
                 file_index = 0
 
-            class_to_num_ex_to_read_dict = _get_num_examples_to_read_by_class(
-                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+            class_to_rem_batch_size_dict = _get_remaining_batch_size_by_class(
+                class_to_batch_size_dict=class_to_batch_size_dict,
                 target_values_in_memory=target_values)
 
             print 'Reading data from: "{0:s}"...'.format(
@@ -753,7 +795,7 @@ def example_generator_2d3d_myrorss(option_dict):
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns,
-                class_to_num_examples_dict=class_to_num_ex_to_read_dict)
+                class_to_num_examples_dict=class_to_rem_batch_size_dict)
 
             file_index += 1
             if this_example_dict is None:
@@ -800,7 +842,7 @@ def example_generator_2d3d_myrorss(option_dict):
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
-                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+                class_to_batch_size_dict=class_to_batch_size_dict,
                 class_to_sampling_fraction_dict=class_to_sampling_fraction_dict,
                 target_values_in_memory=target_values)
 
@@ -852,6 +894,15 @@ def example_generator_2d3d_myrorss(option_dict):
             target_values=target_values,
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
+
+        list_of_predictor_matrices, target_array = _augment_radar_images(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            target_array=target_array, num_translations=num_translations,
+            max_translation_pixels=max_translation_pixels,
+            num_rotations=num_rotations,
+            max_rotation_angle_deg=max_rotation_angle_deg,
+            num_noisings=num_noisings,
+            max_noise_standard_deviation=max_noise_standard_deviation)
 
         reflectivity_image_matrix_dbz = None
         az_shear_image_matrix_s01 = None
@@ -909,52 +960,82 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     These 2-D images are produced by applying layer operations to the native 3-D
     images.  The layer operations are specified by `list_of_operation_dicts`.
 
-    :param option_dict: Same as input to `example_generator_2d_or_3d`, but
-        without the following keys:
-    - "refl_masking_threshold_dbz"
-    - "radar_field_names"
-    - "radar_heights_m_agl"
+    Each example (storm object) consists of the following:
+
+    - Storm-centered radar images (one 2-D image for each layer operation)
+    - Storm-centered sounding (optional)
+    - Target value (class)
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['example_file_names']: See doc for `generator_2d_or_3d`.
+    option_dict['num_examples_per_batch']: Same.
+    option_dict['binarize_target']: Same.
+    option_dict['loop_thru_files_once']: Same.
+    option_dict['sounding_field_names']: Same.
+    option_dict['sounding_heights_m_agl']: Same.
+    option_dict['first_storm_time_unix_sec']: Same.
+    option_dict['last_storm_time_unix_sec']: Same.
+    option_dict['num_grid_rows']: Same.
+    option_dict['num_grid_columns']: Same.
+    option_dict['normalization_type_string']: Same.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
+    option_dict['num_translations']: Same.
+    option_dict['max_translation_pixels']: Same.
+    option_dict['num_rotations']: Same.
+    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['num_noisings']: Same.
+    option_dict['max_noise_standard_deviation']: Same.
 
     :param list_of_operation_dicts: See doc for
         `input_examples.reduce_examples_3d_to_2d`.
 
     If `sounding_field_names is None`...
 
-    :return: radar_image_matrix: See doc for `example_generator_2d_or_3d`.
+    :return: radar_image_matrix: See doc for `generator_2d_or_3d`.
     :return: target_array: Same.
 
     If `sounding_field_names is not None`...
 
-    :return: predictor_list: See doc for `example_generator_2d_or_3d`.
+    :return: predictor_list: See doc for `generator_2d_or_3d`.
     :return: target_array: Same.
     """
 
-    option_dict = check_generator_input_args(option_dict)
+    option_dict = check_generator_args(option_dict)
 
     example_file_names = option_dict[EXAMPLE_FILES_KEY]
+    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
+
+    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[NUM_ROWS_KEY]
     num_grid_columns = option_dict[NUM_COLUMNS_KEY]
-
-    sounding_field_names = option_dict[SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[NORMALIZATION_TYPE_KEY]
     normalization_param_file_name = option_dict[NORMALIZATION_FILE_KEY]
     min_normalized_value = option_dict[MIN_NORMALIZED_VALUE_KEY]
     max_normalized_value = option_dict[MAX_NORMALIZED_VALUE_KEY]
 
-    num_examples_per_batch = option_dict[NUM_EXAMPLES_PER_BATCH_KEY]
     binarize_target = option_dict[BINARIZE_TARGET_KEY]
     loop_thru_files_once = option_dict[LOOP_ONCE_KEY]
     class_to_sampling_fraction_dict = option_dict[SAMPLING_FRACTIONS_KEY]
+
+    num_translations = option_dict[NUM_TRANSLATIONS_KEY]
+    max_translation_pixels = option_dict[MAX_TRANSLATION_KEY]
+    num_rotations = option_dict[NUM_ROTATIONS_KEY]
+    max_rotation_angle_deg = option_dict[MAX_ROTATION_KEY]
+    num_noisings = option_dict[NUM_NOISINGS_KEY]
+    max_noise_standard_deviation = option_dict[MAX_NOISE_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
 
-    class_to_num_ex_per_batch_dict = _get_num_ex_per_batch_by_class(
+    class_to_batch_size_dict = _get_batch_size_by_class(
         num_examples_per_batch=num_examples_per_batch, target_name=target_name,
         class_to_sampling_fraction_dict=class_to_sampling_fraction_dict)
 
@@ -987,8 +1068,8 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
 
                 file_index = 0
 
-            class_to_num_ex_to_read_dict = _get_num_examples_to_read_by_class(
-                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+            class_to_rem_batch_size_dict = _get_remaining_batch_size_by_class(
+                class_to_batch_size_dict=class_to_batch_size_dict,
                 target_values_in_memory=target_values)
 
             print 'Reading data from: "{0:s}"...'.format(
@@ -1004,7 +1085,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
                 last_time_to_keep_unix_sec=last_storm_time_unix_sec,
                 num_rows_to_keep=num_grid_rows,
                 num_columns_to_keep=num_grid_columns,
-                class_to_num_examples_dict=class_to_num_ex_to_read_dict)
+                class_to_num_examples_dict=class_to_rem_batch_size_dict)
 
             file_index += 1
             if this_example_dict is None:
@@ -1050,7 +1131,7 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
 
             stop_generator = _check_stopping_criterion(
                 num_examples_per_batch=num_examples_per_batch,
-                class_to_num_ex_per_batch_dict=class_to_num_ex_per_batch_dict,
+                class_to_batch_size_dict=class_to_batch_size_dict,
                 class_to_sampling_fraction_dict=class_to_sampling_fraction_dict,
                 target_values_in_memory=target_values)
 
@@ -1088,6 +1169,15 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
             target_values=target_values,
             num_examples_per_batch=num_examples_per_batch,
             binarize_target=binarize_target, num_classes=num_classes)
+
+        list_of_predictor_matrices, target_array = _augment_radar_images(
+            list_of_predictor_matrices=list_of_predictor_matrices,
+            target_array=target_array, num_translations=num_translations,
+            max_translation_pixels=max_translation_pixels,
+            num_rotations=num_rotations,
+            max_rotation_angle_deg=max_rotation_angle_deg,
+            num_noisings=num_noisings,
+            max_noise_standard_deviation=max_noise_standard_deviation)
 
         radar_image_matrix = None
         sounding_matrix = None

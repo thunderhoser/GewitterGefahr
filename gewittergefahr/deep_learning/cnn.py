@@ -115,7 +115,7 @@ def _check_training_args(
     """
 
     orig_option_dict = training_option_dict.copy()
-    training_option_dict = trainval_io.DEFAULT_GENERATOR_OPTION_DICT.copy()
+    training_option_dict = trainval_io.DEFAULT_OPTION_DICT.copy()
     training_option_dict.update(orig_option_dict)
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=model_file_name)
@@ -263,7 +263,7 @@ def write_model_metadata(
     """
 
     orig_training_option_dict = training_option_dict.copy()
-    training_option_dict = trainval_io.DEFAULT_GENERATOR_OPTION_DICT.copy()
+    training_option_dict = trainval_io.DEFAULT_OPTION_DICT.copy()
     training_option_dict.update(orig_training_option_dict)
 
     metadata_dict.update({TRAINING_OPTION_DICT_KEY: training_option_dict})
@@ -374,18 +374,16 @@ def train_cnn_2d_or_3d(
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
 
         model_object.fit_generator(
-            generator=trainval_io.example_generator_2d_or_3d(
-                training_option_dict),
+            generator=trainval_io.generator_2d_or_3d(training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
             callbacks=list_of_callback_objects,
-            validation_data=trainval_io.example_generator_2d_or_3d(
+            validation_data=trainval_io.generator_2d_or_3d(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
     else:
         model_object.fit_generator(
-            generator=trainval_io.example_generator_2d_or_3d(
-                training_option_dict),
+            generator=trainval_io.generator_2d_or_3d(training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
             callbacks=list_of_callback_objects)
@@ -451,18 +449,16 @@ def train_cnn_2d3d_myrorss(
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
 
         model_object.fit_generator(
-            generator=trainval_io.example_generator_2d3d_myrorss(
-                training_option_dict),
+            generator=trainval_io.myrorss_generator_2d3d(training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
             callbacks=list_of_callback_objects,
-            validation_data=trainval_io.example_generator_2d3d_myrorss(
+            validation_data=trainval_io.myrorss_generator_2d3d(
                 validation_option_dict),
             validation_steps=num_validation_batches_per_epoch)
     else:
         model_object.fit_generator(
-            generator=trainval_io.example_generator_2d3d_myrorss(
-                training_option_dict),
+            generator=trainval_io.myrorss_generator_2d3d(training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
             verbose=1, class_weight=class_to_weight_dict,
             callbacks=list_of_callback_objects)

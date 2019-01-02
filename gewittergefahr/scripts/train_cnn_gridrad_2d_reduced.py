@@ -297,9 +297,6 @@ def _run(input_model_file_name, radar_field_name_by_channel,
         trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation
     }
 
-    training_option_dict = trainval_io.check_generator_input_args(
-        training_option_dict)
-
     print 'Writing metadata to: "{0:s}"...'.format(model_metafile_name)
     cnn.write_model_metadata(
         pickle_file_name=model_metafile_name, metadata_dict=metadata_dict,
