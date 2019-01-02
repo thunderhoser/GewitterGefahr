@@ -418,7 +418,7 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
     list_of_predictor_matrices = testing_io.read_specific_examples(
         desired_storm_ids=storm_ids,
         desired_times_unix_sec=storm_times_unix_sec,
-        training_option_dict=training_option_dict,
+        option_dict=training_option_dict,
         top_example_dir_name=top_example_dir_name)
     print SEPARATOR_STRING
 

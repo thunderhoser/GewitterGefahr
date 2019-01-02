@@ -244,8 +244,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
         list_of_init_matrices = testing_io.read_specific_examples(
             desired_storm_ids=storm_ids,
             desired_times_unix_sec=storm_times_unix_sec,
-            training_option_dict=model_metadata_dict[
-                cnn.TRAINING_OPTION_DICT_KEY],
+            option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
             top_example_dir_name=top_example_dir_name)
 
         num_examples = list_of_init_matrices[0].shape[0]

@@ -277,10 +277,10 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     )
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        generator_object = testing_io.example_generator_2d3d_myrorss(
+        generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
     else:
-        generator_object = testing_io.example_generator_2d_or_3d(
+        generator_object = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
 
     num_layers = len(layer_names)

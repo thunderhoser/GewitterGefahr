@@ -191,10 +191,10 @@ def _run(
         time_conversion.get_end_of_spc_date(last_spc_date_string))
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        generator_object = testing_io.example_generator_2d3d_myrorss(
+        generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
     else:
-        generator_object = testing_io.example_generator_2d_or_3d(
+        generator_object = testing_io.generator_2d_or_3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
 
     # Compute activation for each example (storm object) and model component.

@@ -238,11 +238,11 @@ def _run(
             time_conversion.get_end_of_spc_date(this_spc_date_string))
 
         if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-            this_generator = testing_io.example_generator_2d3d_myrorss(
+            this_generator = testing_io.myrorss_generator_2d3d(
                 option_dict=training_option_dict,
                 num_examples_total=LARGE_INTEGER)
         else:
-            this_generator = testing_io.example_generator_2d_or_3d(
+            this_generator = testing_io.generator_2d_or_3d(
                 option_dict=training_option_dict,
                 num_examples_total=LARGE_INTEGER)
 

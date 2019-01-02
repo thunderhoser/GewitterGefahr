@@ -54,10 +54,11 @@ def _finalize_targets(target_values, binarize_target, num_classes):
     :param target_values: length-E numpy array of target values (integer class
         labels).
     :param binarize_target: Boolean flag.  If True, target variable will be
-        binarized, so that the highest class becomes 1 and all others become 0.
-    :param num_classes: Number of target classes.
-    :return: target_array: See output doc for `example_generator_2d_or_3d` or
-        `example_generator_2d3d_myrorss`.
+        binarized, where the highest class becomes 1 and all other classes
+        become 0.  If False, the original classes will be kept, in which case
+        the prediction task may be binary or multiclass.
+    :param num_classes: Number of classes for target variable.
+    :return: target_array: See output doc for `generator_2d_or_3d`.
     """
 
     target_values[target_values == target_val_utils.DEAD_STORM_INTEGER] = 0
@@ -69,43 +70,45 @@ def _finalize_targets(target_values, binarize_target, num_classes):
         num_classes_to_predict = num_classes + 0
 
     if num_classes_to_predict == 2:
-        print (
-            'Fraction of {0:d} target values in positive class: {1:.3f}'
-        ).format(len(target_values), numpy.mean(target_values))
+        print 'Fraction of {0:d} examples in positive class: {1:.3f}'.format(
+            len(target_values), numpy.mean(target_values)
+        )
         return target_values
 
     target_matrix = keras.utils.to_categorical(
         target_values, num_classes_to_predict)
 
     class_fractions = numpy.mean(target_matrix, axis=0)
-    print 'Fraction of {0:d} target values in each class: {1:s}\n'.format(
-        len(target_values), str(class_fractions))
+    print 'Fraction of {0:d} examples in each class: {1:s}\n'.format(
+        len(target_values), str(class_fractions)
+    )
 
     return target_matrix
 
 
 def _find_examples_to_read(option_dict, num_examples_total):
-    """Determines which examples (storm objects) will be read by a generator.
+    """Determines which examples to read.
 
-    N = number of examples to read
+    E = number of examples to read
 
-    :param option_dict: See doc for `example_generator_2d_or_3d` or
-        `example_generator_2d3d_myrorss`.
-    :param num_examples_total: Same.
-    :return: storm_ids: length-N list of storm IDs (strings).
-    :return: storm_times_unix_sec: length-N numpy array of storm times.
+    :param option_dict: See doc for any generator in this file.
+    :param num_examples_total: Number of examples to generate.
+    :return: storm_ids: length-E list of storm IDs (strings).
+    :return: storm_times_unix_sec: length-E numpy array of storm times.
     """
 
     error_checking.assert_is_integer(num_examples_total)
     error_checking.assert_is_greater(num_examples_total, 0)
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
+
     radar_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
     radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
     num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+
     class_to_sampling_fraction_dict = option_dict[
         trainval_io.SAMPLING_FRACTIONS_KEY]
 
@@ -168,51 +171,46 @@ def _find_examples_to_read(option_dict, num_examples_total):
     return storm_ids, storm_times_unix_sec
 
 
-def example_generator_2d_or_3d(option_dict, num_examples_total):
-    """Generates examples with either all 2-D or all 3-D radar images.
+def generator_2d_or_3d(option_dict, num_examples_total):
+    """Generates examples with either 2-D or 3-D radar images.
 
-    Each example corresponds to one storm object and contains the following
-    data:
+    Each example (storm object) consists of the following:
 
-    - Storm-centered radar images (either one 2-D image for each storm object
-      and field/height pair, or one 3-D image for each storm object and field)
+    - Storm-centered radar images (either one 2-D image for each field/height
+      pair or one 3-D image for each field)
     - Storm-centered sounding (optional)
-    - Target class
+    - Target value (class)
 
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
-        `training_validation_io.example_generator_2d_or_3d`.
-    option_dict['first_storm_time_unix_sec']: Same.
-    option_dict['last_storm_time_unix_sec']: Same.
+        `training_validation_io.generator_2d_or_3d`.
+    option_dict['binarize_target']: Same.
     option_dict['radar_field_names']: Same.
     option_dict['radar_heights_m_agl']: Same.
     option_dict['sounding_field_names']: Same.
     option_dict['sounding_heights_m_agl']: Same.
+    option_dict['first_storm_time_unix_sec']: Same,
+    option_dict['last_storm_time_unix_sec']: Same.
     option_dict['num_grid_rows']: Same.
     option_dict['num_grid_columns']: Same.
     option_dict['normalization_type_string']: Same.
     option_dict['normalization_param_file_name']: Same.
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
-    option_dict['binarize_target']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
     option_dict['refl_masking_threshold_dbz']: Same.
 
-    :param num_examples_total: Total number of examples to generate.
+    :param num_examples_total: Number of examples to generate.
+
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
-        where T = number of input tensors to the model.  The first dimension of
-        each array has length E.
+        where T = number of input tensors to model.  The first axis of each
+        array has length E.
     storm_object_dict['storm_ids']: length-E list of storm IDs.
-    storm_object_dict['storm_times_unix_sec']: length-E list of storm times.
-    storm_object_dict['target_array']: If the problem is multiclass and
-        `binarize_target = False`, this is an E-by-K numpy array with only zeros
-        and ones (though technically the type is "float64").  If
-        target_array[i, k] = 1, the [i]th example belongs to the [k]th class.
-
-        If the problem is binary or `binarize_target = True`, this is a length-E
-        numpy array of integers (0 for negative class, 1 for positive class).
-
+    storm_object_dict['storm_times_unix_sec']: length-E numpy array of storm
+        times.
+    storm_object_dict['target_array']: See output doc for
+        `training_validation_io.generator_2d_or_3d`.
     storm_object_dict['sounding_pressure_matrix_pascals']: numpy array (E x H_s)
         of pressures.  If soundings were not read, this is None.
     """
@@ -223,28 +221,28 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
 
-    radar_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
-    radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
     num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+    radar_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
+    radar_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
+
+    normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
+    normalization_param_file_name = option_dict[
+        trainval_io.NORMALIZATION_FILE_KEY]
+    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
 
     binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
     refl_masking_threshold_dbz = option_dict[trainval_io.REFLECTIVITY_MASK_KEY]
 
-    normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    if normalization_type_string is not None:
-        normalization_param_file_name = option_dict[
-            trainval_io.NORMALIZATION_FILE_KEY]
-        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
-
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -270,6 +268,7 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
 
         print 'Reading data from: "{0:s}"...'.format(
             example_file_names[file_index])
+
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[file_index],
             include_soundings=sounding_field_names is not None,
@@ -398,269 +397,45 @@ def example_generator_2d_or_3d(option_dict, num_examples_total):
         yield storm_object_dict
 
 
-def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
-                                 num_examples_total):
-    """Generates examples with 2-D GridRad images.
-
-    These 2-D images are produced by applying layer operations to the native 3-D
-    images.  The layer operations are specified by `list_of_operation_dicts`.
-
-    :param option_dict: Same as input to `example_generator_2d_or_3d`, but
-        without the following keys:
-    - "refl_masking_threshold_dbz"
-    - "radar_field_names"
-    - "radar_heights_m_agl"
-
-    :param list_of_operation_dicts: See doc for
-        `input_examples.reduce_examples_3d_to_2d`.
-    :param num_examples_total: Number of examples to generate.
-
-    :return: storm_object_dict: Dictionary with the following keys.
-    storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
-        where T = number of input tensors to the model.  The first dimension of
-        each array has length E.
-    storm_object_dict['storm_ids']: length-E list of storm IDs.
-    storm_object_dict['storm_times_unix_sec']: length-E list of storm times.
-    storm_object_dict['target_array']: See doc for `example_generator_2d_or_3d`.
-    storm_object_dict['sounding_pressure_matrix_pascals']: numpy array (E x H_s)
-        of pressures.  If soundings were not read, this is None.
-    storm_object_dict['radar_field_names']: length-C list of field names, where
-        the [j]th item corresponds to the [j]th channel of the 2-D radar images
-        returned in "list_of_input_matrices".
-    storm_object_dict['min_radar_heights_m_agl']: length-C numpy array with
-        minimum height for each layer operation (used to reduce 3-D radar images
-        to 2-D).
-    storm_object_dict['max_radar_heights_m_agl']: Same but with max heights.
-    storm_object_dict['radar_layer_operation_names']: length-C list with names
-        of layer operations.  Each name must be accepted by
-        `input_examples._check_layer_operation`.
-    """
-
-    storm_ids, storm_times_unix_sec = _find_examples_to_read(
-        option_dict=option_dict, num_examples_total=num_examples_total)
-    print '\n'
-
-    example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
-    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
-    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
-    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
-    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
-
-    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
-
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
-    normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-
-    if normalization_type_string is not None:
-        normalization_param_file_name = option_dict[
-            trainval_io.NORMALIZATION_FILE_KEY]
-        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
-
-    this_example_dict = input_examples.read_example_file(
-        netcdf_file_name=example_file_names[0], metadata_only=True)
-    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
-
-    num_classes = target_val_utils.target_name_to_num_classes(
-        target_name=target_name, include_dead_storms=False)
-
-    if sounding_field_names is None:
-        sounding_field_names_to_read = None
-    else:
-        if soundings.PRESSURE_NAME in sounding_field_names:
-            sounding_field_names_to_read = sounding_field_names + []
-        else:
-            sounding_field_names_to_read = (
-                sounding_field_names + [soundings.PRESSURE_NAME]
-            )
-
-    unique_radar_field_names, unique_radar_heights_m_agl = (
-        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
-    )
-
-    radar_image_matrix = None
-    sounding_matrix = None
-    target_values = None
-    sounding_pressure_matrix_pascals = None
-
-    reduction_metadata_dict = {}
-    file_index = 0
-
-    while True:
-        if file_index >= len(example_file_names):
-            raise StopIteration
-
-        print 'Reading data from: "{0:s}"...'.format(
-            example_file_names[file_index])
-        this_example_dict = input_examples.read_example_file(
-            netcdf_file_name=example_file_names[file_index],
-            include_soundings=sounding_field_names is not None,
-            radar_field_names_to_keep=unique_radar_field_names,
-            radar_heights_to_keep_m_agl=unique_radar_heights_m_agl,
-            sounding_field_names_to_keep=sounding_field_names_to_read,
-            sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
-            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
-            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
-            num_rows_to_keep=num_grid_rows,
-            num_columns_to_keep=num_grid_columns)
-
-        file_index += 1
-        if this_example_dict is None:
-            continue
-
-        indices_to_keep = tracking_utils.find_storm_objects(
-            all_storm_ids=this_example_dict[input_examples.STORM_IDS_KEY],
-            all_times_unix_sec=this_example_dict[
-                input_examples.STORM_TIMES_KEY],
-            storm_ids_to_keep=storm_ids,
-            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
-
-        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
-        if len(indices_to_keep) == 0:
-            continue
-
-        this_example_dict = input_examples.subset_examples(
-            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
-
-        this_example_dict = input_examples.reduce_examples_3d_to_2d(
-            example_dict=this_example_dict,
-            list_of_operation_dicts=list_of_operation_dicts)
-
-        radar_field_names_2d = this_example_dict[
-            input_examples.RADAR_FIELDS_KEY]
-        for this_key in REDUCTION_METADATA_KEYS:
-            reduction_metadata_dict[this_key] = this_example_dict[this_key]
-
-        include_soundings = (
-            input_examples.SOUNDING_MATRIX_KEY in this_example_dict)
-
-        if include_soundings:
-            pressure_index = this_example_dict[
-                input_examples.SOUNDING_FIELDS_KEY
-            ].index(soundings.PRESSURE_NAME)
-
-            this_pressure_matrix_pascals = this_example_dict[
-                input_examples.SOUNDING_MATRIX_KEY][..., pressure_index]
-
-            this_sounding_matrix = this_example_dict[
-                input_examples.SOUNDING_MATRIX_KEY]
-            if soundings.PRESSURE_NAME not in sounding_field_names:
-                this_sounding_matrix = this_sounding_matrix[..., :-1]
-
-        if target_values is None:
-            radar_image_matrix = (
-                this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
-                + 0.
-            )
-            target_values = (
-                this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
-
-            if include_soundings:
-                sounding_matrix = this_sounding_matrix + 0.
-                sounding_pressure_matrix_pascals = (
-                    this_pressure_matrix_pascals + 0.)
-        else:
-            radar_image_matrix = numpy.concatenate(
-                (radar_image_matrix,
-                 this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
-                axis=0)
-            target_values = numpy.concatenate((
-                target_values,
-                this_example_dict[input_examples.TARGET_VALUES_KEY]
-            ))
-
-            if include_soundings:
-                sounding_matrix = numpy.concatenate(
-                    (sounding_matrix, this_sounding_matrix), axis=0)
-                sounding_pressure_matrix_pascals = numpy.concatenate(
-                    (sounding_pressure_matrix_pascals,
-                     this_pressure_matrix_pascals), axis=0)
-
-        if normalization_type_string is not None:
-            radar_image_matrix = dl_utils.normalize_radar_images(
-                radar_image_matrix=radar_image_matrix,
-                field_names=radar_field_names_2d,
-                normalization_type_string=normalization_type_string,
-                normalization_param_file_name=normalization_param_file_name,
-                min_normalized_value=min_normalized_value,
-                max_normalized_value=max_normalized_value).astype('float32')
-
-            if include_soundings:
-                sounding_matrix = dl_utils.normalize_soundings(
-                    sounding_matrix=sounding_matrix,
-                    field_names=sounding_field_names,
-                    normalization_type_string=normalization_type_string,
-                    normalization_param_file_name=normalization_param_file_name,
-                    min_normalized_value=min_normalized_value,
-                    max_normalized_value=max_normalized_value).astype('float32')
-
-        list_of_predictor_matrices = [radar_image_matrix]
-        if include_soundings:
-            list_of_predictor_matrices.append(sounding_matrix)
-
-        target_array = _finalize_targets(
-            target_values=target_values, binarize_target=binarize_target,
-            num_classes=num_classes)
-
-        storm_object_dict = {
-            INPUT_MATRICES_KEY: list_of_predictor_matrices,
-            TARGET_ARRAY_KEY: target_array,
-            STORM_IDS_KEY: this_example_dict[input_examples.STORM_IDS_KEY],
-            STORM_TIMES_KEY: this_example_dict[input_examples.STORM_TIMES_KEY],
-            SOUNDING_PRESSURES_KEY:
-                copy.deepcopy(sounding_pressure_matrix_pascals)
-        }
-
-        for this_key in REDUCTION_METADATA_KEYS:
-            storm_object_dict[this_key] = reduction_metadata_dict[this_key]
-
-        radar_image_matrix = None
-        sounding_matrix = None
-        target_values = None
-        sounding_pressure_matrix_pascals = None
-
-        yield storm_object_dict
-
-
-def example_generator_2d3d_myrorss(option_dict, num_examples_total):
+def myrorss_generator_2d3d(option_dict, num_examples_total):
     """Generates examples with both 2-D and 3-D radar images.
 
-    Each example corresponds to one storm object and contains the following
-    data:
+    Each example (storm object) consists of the following:
 
-    - Storm-centered azimuthal-shear images (one 2-D image for each
-      azimuthal-shear field)
-    - Storm-centered reflectivity image (3-D)
+    - Storm-centered azimuthal shear (one 2-D image for each field)
+    - Storm-centered reflectivity (one 3-D image)
     - Storm-centered sounding (optional)
-    - Target class
+    - Target value (class)
 
     :param option_dict: Dictionary with the following keys.
     option_dict['example_file_names']: See doc for
-        `training_validation_io.example_generator_2d3d_myrorss`.
-    option_dict['first_storm_time_unix_sec']: Same.
-    option_dict['last_storm_time_unix_sec']: Same.
+        `training_validation_io.myrorss_generator_2d3d`.
+    option_dict['binarize_target']: Same.
     option_dict['radar_field_names']: Same.
     option_dict['radar_heights_m_agl']: Same.
     option_dict['sounding_field_names']: Same.
     option_dict['sounding_heights_m_agl']: Same.
+    option_dict['first_storm_time_unix_sec']: Same.
+    option_dict['last_storm_time_unix_sec']: Same.
     option_dict['num_grid_rows']: Same.
     option_dict['num_grid_columns']: Same.
-    option_dict['normalization_type_string']: Same.
+    option_dict['normalization_type_string']: See doc for `generator_2d_or_3d`.
     option_dict['normalization_param_file_name']: Same.
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
-    option_dict['binarize_target']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
 
     :param num_examples_total: Total number of examples to generate.
+
     :return: storm_object_dict: Dictionary with the following keys.
     storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
-        where T = number of input tensors to the model.  The first dimension of
-        each array has length E.
+        where T = number of input tensors to model.  The first axis of each
+        array has length E.
     storm_object_dict['storm_ids']: length-E list of storm IDs.
-    storm_object_dict['storm_times_unix_sec']: length-E list of storm times.
-    storm_object_dict['target_array']: See doc for `example_generator_2d_or_3d`.
+    storm_object_dict['storm_times_unix_sec']: length-E numpy array of storm
+        times.
+    storm_object_dict['target_array']: See output doc for
+        `training_validation_io.myrorss_generator_2d3d`.
     storm_object_dict['sounding_pressure_matrix_pascals']: numpy array (E x H_s)
         of pressures.  If soundings were not read, this is None.
     """
@@ -671,27 +446,27 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
 
     example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
 
-    azimuthal_shear_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
-    reflectivity_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
-    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
     first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
     last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
     num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
     num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
-
-    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
+    azimuthal_shear_field_names = option_dict[trainval_io.RADAR_FIELDS_KEY]
+    reflectivity_heights_m_agl = option_dict[trainval_io.RADAR_HEIGHTS_KEY]
+    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
 
     normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
-    if normalization_type_string is not None:
-        normalization_param_file_name = option_dict[
-            trainval_io.NORMALIZATION_FILE_KEY]
-        min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
-        max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+    normalization_param_file_name = option_dict[
+        trainval_io.NORMALIZATION_FILE_KEY]
+    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
 
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=example_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
     num_classes = target_val_utils.target_name_to_num_classes(
         target_name=target_name, include_dead_storms=False)
 
@@ -718,6 +493,7 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
 
         print 'Reading data from: "{0:s}"...'.format(
             example_file_names[file_index])
+
         this_example_dict = input_examples.read_example_file(
             netcdf_file_name=example_file_names[file_index],
             include_soundings=sounding_field_names is not None,
@@ -853,23 +629,267 @@ def example_generator_2d3d_myrorss(option_dict, num_examples_total):
         yield storm_object_dict
 
 
-def read_specific_examples(desired_storm_ids, desired_times_unix_sec,
-                           training_option_dict, top_example_dir_name):
-    """Reads learning examples for specific storm objects.
+def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
+                                 num_examples_total):
+    """Generates examples with 2-D GridRad images.
 
-    E = number of desired storm objects
+    These 2-D images are produced by applying layer operations to the native 3-D
+    images.  The layer operations are specified by `list_of_operation_dicts`.
 
-    :param desired_storm_ids: length-E list of storm IDs.
-    :param desired_times_unix_sec: length-E numpy array of storm times.
-    :param training_option_dict: Dictionary returned by
-        `cnn.read_model_metadata`.  Data read by this method will be processed
-        in the exact same way as for the original model (e.g., cropping,
-        normalization, etc.).
-    :param top_example_dir_name: Name of top-level directory with learning
+    Each example (storm object) consists of the following:
+
+    - Storm-centered radar images (one 2-D image for each layer operation)
+    - Storm-centered sounding (optional)
+    - Target value (class)
+
+    :param option_dict: Dictionary with the following keys.
+    option_dict['example_file_names']: See doc for
+        `training_validation_io.gridrad_generator_2d_reduced`.
+    option_dict['binarize_target']: Same.
+    option_dict['sounding_field_names']: Same.
+    option_dict['sounding_heights_m_agl']: Same.
+    option_dict['first_storm_time_unix_sec']: Same.
+    option_dict['last_storm_time_unix_sec']: Same.
+    option_dict['num_grid_rows']: Same.
+    option_dict['num_grid_columns']: Same.
+    option_dict['normalization_type_string']: Same.
+    option_dict['normalization_param_file_name']: Same.
+    option_dict['min_normalized_value']: Same.
+    option_dict['max_normalized_value']: Same.
+    option_dict['class_to_sampling_fraction_dict']: Same.
+
+    :param list_of_operation_dicts: See doc for
+        `input_examples.reduce_examples_3d_to_2d`.
+    :param num_examples_total: Number of examples to generate.
+
+    :return: storm_object_dict: Dictionary with the following keys.
+    storm_object_dict['list_of_input_matrices']: length-T list of numpy arrays,
+        where T = number of input tensors to model.  The first axis of each
+        array has length E.
+    storm_object_dict['storm_ids']: length-E list of storm IDs.
+    storm_object_dict['storm_times_unix_sec']: length-E numpy array of storm
+        times.
+    storm_object_dict['target_array']: See output doc for
+        `training_validation_io.gridrad_generator_2d_reduced`.
+    storm_object_dict['sounding_pressure_matrix_pascals']: numpy array (E x H_s)
+        of pressures.  If soundings were not read, this is None.
+    storm_object_dict['radar_field_names']: length-C list of field names, where
+        the [j]th item corresponds to the [j]th channel of the 2-D radar images
+        returned in "list_of_input_matrices".
+    storm_object_dict['min_radar_heights_m_agl']: length-C numpy array with
+        minimum height for each layer operation (used to reduce 3-D radar images
+        to 2-D).
+    storm_object_dict['max_radar_heights_m_agl']: Same but with max heights.
+    storm_object_dict['radar_layer_operation_names']: length-C list with names
+        of layer operations.  Each name must be accepted by
+        `input_examples._check_layer_operation`.
+    """
+
+    storm_ids, storm_times_unix_sec = _find_examples_to_read(
+        option_dict=option_dict, num_examples_total=num_examples_total)
+    print '\n'
+
+    example_file_names = option_dict[trainval_io.EXAMPLE_FILES_KEY]
+
+    first_storm_time_unix_sec = option_dict[trainval_io.FIRST_STORM_TIME_KEY]
+    last_storm_time_unix_sec = option_dict[trainval_io.LAST_STORM_TIME_KEY]
+    num_grid_rows = option_dict[trainval_io.NUM_ROWS_KEY]
+    num_grid_columns = option_dict[trainval_io.NUM_COLUMNS_KEY]
+    sounding_field_names = option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+    sounding_heights_m_agl = option_dict[trainval_io.SOUNDING_HEIGHTS_KEY]
+
+    normalization_type_string = option_dict[trainval_io.NORMALIZATION_TYPE_KEY]
+    normalization_param_file_name = option_dict[
+        trainval_io.NORMALIZATION_FILE_KEY]
+    min_normalized_value = option_dict[trainval_io.MIN_NORMALIZED_VALUE_KEY]
+    max_normalized_value = option_dict[trainval_io.MAX_NORMALIZED_VALUE_KEY]
+
+    binarize_target = option_dict[trainval_io.BINARIZE_TARGET_KEY]
+
+    this_example_dict = input_examples.read_example_file(
+        netcdf_file_name=example_file_names[0], metadata_only=True)
+    target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
+
+    num_classes = target_val_utils.target_name_to_num_classes(
+        target_name=target_name, include_dead_storms=False)
+
+    if sounding_field_names is None:
+        sounding_field_names_to_read = None
+    else:
+        if soundings.PRESSURE_NAME in sounding_field_names:
+            sounding_field_names_to_read = sounding_field_names + []
+        else:
+            sounding_field_names_to_read = (
+                sounding_field_names + [soundings.PRESSURE_NAME]
+            )
+
+    unique_radar_field_names, unique_radar_heights_m_agl = (
+        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
+    )
+
+    radar_image_matrix = None
+    sounding_matrix = None
+    target_values = None
+    sounding_pressure_matrix_pascals = None
+
+    reduction_metadata_dict = {}
+    file_index = 0
+
+    while True:
+        if file_index >= len(example_file_names):
+            raise StopIteration
+
+        print 'Reading data from: "{0:s}"...'.format(
+            example_file_names[file_index])
+
+        this_example_dict = input_examples.read_example_file(
+            netcdf_file_name=example_file_names[file_index],
+            include_soundings=sounding_field_names is not None,
+            radar_field_names_to_keep=unique_radar_field_names,
+            radar_heights_to_keep_m_agl=unique_radar_heights_m_agl,
+            sounding_field_names_to_keep=sounding_field_names_to_read,
+            sounding_heights_to_keep_m_agl=sounding_heights_m_agl,
+            first_time_to_keep_unix_sec=first_storm_time_unix_sec,
+            last_time_to_keep_unix_sec=last_storm_time_unix_sec,
+            num_rows_to_keep=num_grid_rows,
+            num_columns_to_keep=num_grid_columns)
+
+        file_index += 1
+        if this_example_dict is None:
+            continue
+
+        indices_to_keep = tracking_utils.find_storm_objects(
+            all_storm_ids=this_example_dict[input_examples.STORM_IDS_KEY],
+            all_times_unix_sec=this_example_dict[
+                input_examples.STORM_TIMES_KEY],
+            storm_ids_to_keep=storm_ids,
+            times_to_keep_unix_sec=storm_times_unix_sec, allow_missing=True)
+
+        indices_to_keep = indices_to_keep[indices_to_keep >= 0]
+        if len(indices_to_keep) == 0:
+            continue
+
+        this_example_dict = input_examples.subset_examples(
+            example_dict=this_example_dict, indices_to_keep=indices_to_keep)
+
+        this_example_dict = input_examples.reduce_examples_3d_to_2d(
+            example_dict=this_example_dict,
+            list_of_operation_dicts=list_of_operation_dicts)
+
+        radar_field_names_2d = this_example_dict[
+            input_examples.RADAR_FIELDS_KEY]
+        for this_key in REDUCTION_METADATA_KEYS:
+            reduction_metadata_dict[this_key] = this_example_dict[this_key]
+
+        include_soundings = (
+            input_examples.SOUNDING_MATRIX_KEY in this_example_dict)
+
+        if include_soundings:
+            pressure_index = this_example_dict[
+                input_examples.SOUNDING_FIELDS_KEY
+            ].index(soundings.PRESSURE_NAME)
+
+            this_pressure_matrix_pascals = this_example_dict[
+                input_examples.SOUNDING_MATRIX_KEY][..., pressure_index]
+
+            this_sounding_matrix = this_example_dict[
+                input_examples.SOUNDING_MATRIX_KEY]
+            if soundings.PRESSURE_NAME not in sounding_field_names:
+                this_sounding_matrix = this_sounding_matrix[..., :-1]
+
+        if target_values is None:
+            radar_image_matrix = (
+                this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]
+                + 0.
+            )
+            target_values = (
+                this_example_dict[input_examples.TARGET_VALUES_KEY] + 0)
+
+            if include_soundings:
+                sounding_matrix = this_sounding_matrix + 0.
+                sounding_pressure_matrix_pascals = (
+                    this_pressure_matrix_pascals + 0.)
+        else:
+            radar_image_matrix = numpy.concatenate(
+                (radar_image_matrix,
+                 this_example_dict[input_examples.RADAR_IMAGE_MATRIX_KEY]),
+                axis=0)
+            target_values = numpy.concatenate((
+                target_values,
+                this_example_dict[input_examples.TARGET_VALUES_KEY]
+            ))
+
+            if include_soundings:
+                sounding_matrix = numpy.concatenate(
+                    (sounding_matrix, this_sounding_matrix), axis=0)
+                sounding_pressure_matrix_pascals = numpy.concatenate(
+                    (sounding_pressure_matrix_pascals,
+                     this_pressure_matrix_pascals), axis=0)
+
+        if normalization_type_string is not None:
+            radar_image_matrix = dl_utils.normalize_radar_images(
+                radar_image_matrix=radar_image_matrix,
+                field_names=radar_field_names_2d,
+                normalization_type_string=normalization_type_string,
+                normalization_param_file_name=normalization_param_file_name,
+                min_normalized_value=min_normalized_value,
+                max_normalized_value=max_normalized_value).astype('float32')
+
+            if include_soundings:
+                sounding_matrix = dl_utils.normalize_soundings(
+                    sounding_matrix=sounding_matrix,
+                    field_names=sounding_field_names,
+                    normalization_type_string=normalization_type_string,
+                    normalization_param_file_name=normalization_param_file_name,
+                    min_normalized_value=min_normalized_value,
+                    max_normalized_value=max_normalized_value).astype('float32')
+
+        list_of_predictor_matrices = [radar_image_matrix]
+        if include_soundings:
+            list_of_predictor_matrices.append(sounding_matrix)
+
+        target_array = _finalize_targets(
+            target_values=target_values, binarize_target=binarize_target,
+            num_classes=num_classes)
+
+        storm_object_dict = {
+            INPUT_MATRICES_KEY: list_of_predictor_matrices,
+            TARGET_ARRAY_KEY: target_array,
+            STORM_IDS_KEY: this_example_dict[input_examples.STORM_IDS_KEY],
+            STORM_TIMES_KEY: this_example_dict[input_examples.STORM_TIMES_KEY],
+            SOUNDING_PRESSURES_KEY:
+                copy.deepcopy(sounding_pressure_matrix_pascals)
+        }
+
+        for this_key in REDUCTION_METADATA_KEYS:
+            storm_object_dict[this_key] = reduction_metadata_dict[this_key]
+
+        radar_image_matrix = None
+        sounding_matrix = None
+        target_values = None
+        sounding_pressure_matrix_pascals = None
+
+        yield storm_object_dict
+
+
+def read_specific_examples(
+        top_example_dir_name, desired_storm_ids, desired_times_unix_sec,
+        option_dict, list_of_layer_operation_dicts=None):
+    """Reads predictors for specific examples (storm objects).
+
+    E = number of desired examples
+
+    :param top_example_dir_name: Name of top-level directory with pre-processed
         examples.  Files therein will be found by
         `input_examples.find_example_file`.
+    :param desired_storm_ids: length-E list of storm IDs (strings).
+    :param desired_times_unix_sec: length-E numpy array of storm times.
+    :param option_dict: See doc for any generator in this file.
+    :param list_of_layer_operation_dicts: See doc for
+        `gridrad_generator_2d_reduced`.  If you do not want to reduce radar
+        images from 3-D to 2-D, leave this as None.
     :return: list_of_predictor_matrices: length-T list of numpy arrays, where
-        T = number of input tensors to the model.  The first dimension of each
+        T = number of input tensors to model.  The first dimension of each numpy
         array has length E.
     """
 
@@ -897,12 +917,9 @@ def read_specific_examples(desired_storm_ids, desired_times_unix_sec,
             top_directory_name=top_example_dir_name, shuffled=False,
             spc_date_string=this_spc_date_string)
 
-        training_option_dict[
-            trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
-        training_option_dict[
-            trainval_io.FIRST_STORM_TIME_KEY] = this_start_time_unix_sec
-        training_option_dict[
-            trainval_io.LAST_STORM_TIME_KEY] = this_end_time_unix_sec
+        option_dict[trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
+        option_dict[trainval_io.FIRST_STORM_TIME_KEY] = this_start_time_unix_sec
+        option_dict[trainval_io.LAST_STORM_TIME_KEY] = this_end_time_unix_sec
 
         if myrorss_2d3d is None:
             netcdf_dataset = netCDF4.Dataset(this_example_file_name)
@@ -911,14 +928,17 @@ def read_specific_examples(desired_storm_ids, desired_times_unix_sec,
             )
             netcdf_dataset.close()
 
-        if myrorss_2d3d:
-            this_generator = example_generator_2d3d_myrorss(
-                option_dict=training_option_dict,
+        if list_of_layer_operation_dicts is not None:
+            this_generator = gridrad_generator_2d_reduced(
+                option_dict=option_dict,
+                list_of_operation_dicts=list_of_layer_operation_dicts,
                 num_examples_total=LARGE_INTEGER)
+        elif myrorss_2d3d:
+            this_generator = myrorss_generator_2d3d(
+                option_dict=option_dict, num_examples_total=LARGE_INTEGER)
         else:
-            this_generator = example_generator_2d_or_3d(
-                option_dict=training_option_dict,
-                num_examples_total=LARGE_INTEGER)
+            this_generator = generator_2d_or_3d(
+                option_dict=option_dict, num_examples_total=LARGE_INTEGER)
 
         this_storm_object_dict = next(this_generator)
 
