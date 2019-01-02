@@ -288,13 +288,22 @@ def _augment_radar_images(
         num_grid_rows=list_of_predictor_matrices[0].shape[1],
         num_grid_columns=list_of_predictor_matrices[0].shape[2])
 
+    print 'Pixel offsets: {0:s} and {1:s}'.format(
+        str(x_offsets_pixels), str(y_offsets_pixels)
+    )
+
     ccw_rotation_angles_deg = data_augmentation.get_rotations(
         num_rotations=num_rotations,
         max_absolute_rotation_angle_deg=max_rotation_angle_deg)
 
+    print 'CCW rotation angles: {0:s}'.format(str(ccw_rotation_angles_deg))
+
     noise_standard_deviations = data_augmentation.get_noisings(
         num_noisings=num_noisings,
         max_standard_deviation=max_noise_standard_deviation)
+
+    print 'Standard deviations for noise: {0:s}'.format(
+        str(noise_standard_deviations))
 
     print (
         'Augmenting radar images ({0:d} translations, {1:d} rotations, and '
