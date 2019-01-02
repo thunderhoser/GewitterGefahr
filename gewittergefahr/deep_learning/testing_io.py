@@ -685,6 +685,13 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
         `input_examples._check_layer_operation`.
     """
 
+    unique_radar_field_names, unique_radar_heights_m_agl = (
+        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
+    )
+
+    option_dict[trainval_io.RADAR_FIELDS_KEY] = unique_radar_field_names
+    option_dict[trainval_io.RADAR_HEIGHTS_KEY] = unique_radar_heights_m_agl
+
     storm_ids, storm_times_unix_sec = _find_examples_to_read(
         option_dict=option_dict, num_examples_total=num_examples_total)
     print '\n'
@@ -722,10 +729,6 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts,
             sounding_field_names_to_read = (
                 sounding_field_names + [soundings.PRESSURE_NAME]
             )
-
-    unique_radar_field_names, unique_radar_heights_m_agl = (
-        trainval_io.layer_ops_to_field_height_pairs(list_of_operation_dicts)
-    )
 
     radar_image_matrix = None
     sounding_matrix = None
