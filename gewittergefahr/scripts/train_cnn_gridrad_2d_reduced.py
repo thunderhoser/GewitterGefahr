@@ -10,6 +10,7 @@ import keras.losses
 import keras.optimizers
 from keras import backend as K
 from keras.models import clone_model
+from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
@@ -17,11 +18,10 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import cnn_setup
-from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
+from gewittergefahr.scripts import deep_learning_helper as dl_helper
 
 # TODO(thunderhoser): Allow this script to handle MYRORSS data.
-# TODO(thunderhoser): Allow this script to handle soundings.
 
 K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=7, inter_op_parallelism_threads=7
@@ -32,49 +32,12 @@ SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 FIRST_BATCH_NUMBER = 0
 LAST_BATCH_NUMBER = int(1e12)
+SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL + 0
 
-MONITOR_STRING = cnn.LOSS_FUNCTION_STRING + ''
-WEIGHT_LOSS_FUNCTION = False
-KM_TO_METRES = 1000
-
-NORMALIZATION_TYPE_STRING = dl_utils.Z_NORMALIZATION_TYPE_STRING + ''
-NORMALIZATION_PARAM_FILE_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
-    'shuffled/single_pol_2011-2015/normalization_params.p')
-
-INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
-DOWNSAMPLING_KEYS_ARG_NAME = 'downsampling_keys'
-DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 RADAR_FIELDS_ARG_NAME = 'radar_field_name_by_channel'
 LAYER_OPERATIONS_ARG_NAME = 'layer_op_name_by_channel'
 MIN_HEIGHTS_ARG_NAME = 'min_height_by_channel_m_agl'
 MAX_HEIGHTS_ARG_NAME = 'max_height_by_channel_m_agl'
-TRAINING_DIR_ARG_NAME = 'input_training_dir_name'
-FIRST_TRAINING_TIME_ARG_NAME = 'first_training_time_string'
-LAST_TRAINING_TIME_ARG_NAME = 'last_training_time_string'
-VALIDATION_DIR_ARG_NAME = 'input_validation_dir_name'
-FIRST_VALIDATION_TIME_ARG_NAME = 'first_validation_time_string'
-LAST_VALIDATION_TIME_ARG_NAME = 'last_validation_time_string'
-NUM_EX_PER_BATCH_ARG_NAME = 'num_examples_per_batch'
-NUM_EPOCHS_ARG_NAME = 'num_epochs'
-NUM_TRAINING_BATCHES_ARG_NAME = 'num_training_batches_per_epoch'
-NUM_VALIDATION_BATCHES_ARG_NAME = 'num_validation_batches_per_epoch'
-OUTPUT_DIR_ARG_NAME = 'output_dir_name'
-
-INPUT_MODEL_FILE_HELP_STRING = (
-    'Path to input file (containing either trained or untrained CNN).  Will be '
-    'read by `cnn.read_model`.  The architecture of this CNN will be copied.')
-
-DOWNSAMPLING_KEYS_HELP_STRING = (
-    'Keys used to create downsampling dictionary.  Each key is the integer '
-    'encoding for a class (-2 for "dead storm"), and each value in `{0:s}` is '
-    'the corresponding frequency in training data.  If you do not want '
-    'downsampling, make this a one-item list.'
-).format(DOWNSAMPLING_FRACTIONS_ARG_NAME)
-
-DOWNSAMPLING_FRACTIONS_HELP_STRING = 'See doc for `{0:s}`.'.format(
-    DOWNSAMPLING_KEYS_ARG_NAME)
 
 RADAR_FIELDS_HELP_STRING = (
     'List of radar fields (one for each layer operation).  Each field must be '
@@ -86,45 +49,9 @@ LAYER_OPERATIONS_HELP_STRING = (
 ).format(str(input_examples.VALID_LAYER_OPERATION_NAMES))
 
 MIN_HEIGHTS_HELP_STRING = (
-    'List of minimum heights (one for each layer operations).')
+    'List of minimum heights (one for each layer operation).')
 
-MAX_HEIGHTS_HELP_STRING = 'List of max heights (one for each layer operations).'
-
-TRAINING_DIR_HELP_STRING = (
-    'Name of directory with training data.  Files therein will be found by '
-    '`input_examples.find_many_example_files` (with shuffled = True) and read '
-    'by `input_examples.read_example_file`.')
-
-TRAINING_TIME_HELP_STRING = (
-    'Time (format "yyyy-mm-dd-HHMMSS").  Only examples from the period '
-    '`{0:s}`...`{1:s}` will be used for training.'
-).format(FIRST_TRAINING_TIME_ARG_NAME, LAST_TRAINING_TIME_ARG_NAME)
-
-VALIDATION_DIR_HELP_STRING = (
-    'Same as `{0:s}` but for on-the-fly validation.'
-).format(TRAINING_DIR_ARG_NAME)
-
-VALIDATION_TIME_HELP_STRING = (
-    'Time (format "yyyy-mm-dd-HHMMSS").  Only examples from the period '
-    '`{0:s}`...`{1:s}` will be used for validation.'
-).format(FIRST_VALIDATION_TIME_ARG_NAME, LAST_VALIDATION_TIME_ARG_NAME)
-
-NUM_EX_PER_BATCH_HELP_STRING = (
-    'Number of examples in each training or validation batch.')
-
-NUM_EPOCHS_HELP_STRING = 'Number of training epochs.'
-
-NUM_TRAINING_BATCHES_HELP_STRING = 'Number of training batches in each epoch.'
-
-NUM_VALIDATION_BATCHES_HELP_STRING = (
-    'Number of validation batches in each epoch.')
-
-OUTPUT_DIR_HELP_STRING = (
-    'Path to output directory.  The newly trained CNN and metafiles will be '
-    'saved here.')
-
-DEFAULT_DOWNSAMPLING_KEYS = numpy.array([0, 1], dtype=int)
-DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.5])
+MAX_HEIGHTS_HELP_STRING = 'List of max heights (one for each layer operation).'
 
 # DEFAULT_RADAR_FIELD_NAMES = (
 #     [radar_utils.REFL_NAME] * 3 +
@@ -174,40 +101,8 @@ DEFAULT_MAX_HEIGHTS_M_AGL = numpy.array(
     dtype=int
 )
 
-DEFAULT_TOP_TRAINING_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
-    'shuffled/single_pol_2011-2015'
-)
-DEFAULT_FIRST_TRAINING_TIME_STRING = '2011-01-01-000000'
-DEFAULT_LAST_TRAINING_TIME_STRING = '2013-12-31-120000'
-
-DEFAULT_TOP_VALIDATION_DIR_NAME = (
-    '/condo/swatcommon/common/gridrad_final/myrorss_format/tracks/'
-    'correct_echo_tops/reanalyzed/downsampled/for_training/input_examples/'
-    'shuffled/single_pol_2011-2015'
-)
-DEFAULT_FIRST_VALIDN_TIME_STRING = '2014-01-01-120000'
-DEFAULT_LAST_VALIDN_TIME_STRING = '2015-12-31-120000'
-
-DEFAULT_NUM_EXAMPLES_PER_BATCH = 512
-DEFAULT_NUM_EPOCHS = 100
-DEFAULT_NUM_TRAINING_BATCHES_PER_EPOCH = 32
-DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH = 16
-
 INPUT_ARG_PARSER = argparse.ArgumentParser()
-INPUT_ARG_PARSER.add_argument(
-    '--' + INPUT_MODEL_FILE_ARG_NAME, type=str, required=True,
-    help=INPUT_MODEL_FILE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + DOWNSAMPLING_KEYS_ARG_NAME, type=int, nargs='+', required=False,
-    default=DEFAULT_DOWNSAMPLING_KEYS, help=DOWNSAMPLING_KEYS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + DOWNSAMPLING_FRACTIONS_ARG_NAME, type=float, nargs='+',
-    required=False, default=DEFAULT_DOWNSAMPLING_FRACTIONS,
-    help=DOWNSAMPLING_FRACTIONS_HELP_STRING)
+INPUT_ARG_PARSER = dl_helper.add_input_args(argument_parser=INPUT_ARG_PARSER)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
@@ -225,56 +120,15 @@ INPUT_ARG_PARSER.add_argument(
     '--' + MAX_HEIGHTS_ARG_NAME, type=int, nargs='+', required=False,
     default=DEFAULT_MAX_HEIGHTS_M_AGL, help=MAX_HEIGHTS_HELP_STRING)
 
-INPUT_ARG_PARSER.add_argument(
-    '--' + TRAINING_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_TRAINING_DIR_NAME, help=TRAINING_DIR_HELP_STRING)
 
-INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_FIRST_TRAINING_TIME_STRING, help=TRAINING_TIME_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_TRAINING_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_LAST_TRAINING_TIME_STRING, help=TRAINING_TIME_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + VALIDATION_DIR_ARG_NAME, type=str, required=False,
-    default=DEFAULT_TOP_VALIDATION_DIR_NAME, help=VALIDATION_DIR_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_FIRST_VALIDN_TIME_STRING, help=VALIDATION_TIME_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_VALIDATION_TIME_ARG_NAME, type=str, required=False,
-    default=DEFAULT_LAST_VALIDN_TIME_STRING, help=VALIDATION_TIME_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EX_PER_BATCH_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_EXAMPLES_PER_BATCH, help=NUM_EX_PER_BATCH_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EPOCHS_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_EPOCHS, help=NUM_EPOCHS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_TRAINING_BATCHES_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_TRAINING_BATCHES_PER_EPOCH,
-    help=NUM_TRAINING_BATCHES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_VALIDATION_BATCHES_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_VALIDATION_BATCHES_PER_EPOCH,
-    help=NUM_VALIDATION_BATCHES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
-    help=OUTPUT_DIR_HELP_STRING)
-
-
-def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
-         radar_field_name_by_channel, layer_op_name_by_channel,
-         min_height_by_channel_m_agl, max_height_by_channel_m_agl,
+def _run(input_model_file_name, radar_field_name_by_channel,
+         layer_op_name_by_channel, min_height_by_channel_m_agl,
+         max_height_by_channel_m_agl, sounding_field_names,
+         normalization_type_string, normalization_param_file_name,
+         min_normalized_value, max_normalized_value, downsampling_keys,
+         downsampling_fractions, monitor_string, weight_loss_function,
+         num_translations, max_translation_pixels, num_rotations,
+         max_rotation_angle_deg, num_noisings, max_noise_standard_deviation,
          top_training_dir_name, first_training_time_string,
          last_training_time_string, top_validation_dir_name,
          first_validation_time_string, last_validation_time_string,
@@ -285,12 +139,25 @@ def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
     This is effectively the main method.
 
     :param input_model_file_name: See documentation at top of file.
-    :param downsampling_keys: Same.
-    :param downsampling_fractions: Same.
     :param radar_field_name_by_channel: Same.
     :param layer_op_name_by_channel: Same.
     :param min_height_by_channel_m_agl: Same.
     :param max_height_by_channel_m_agl: Same.
+    :param sounding_field_names: Same.
+    :param normalization_type_string: Same.
+    :param normalization_param_file_name: Same.
+    :param min_normalized_value: Same.
+    :param max_normalized_value: Same.
+    :param downsampling_keys: Same.
+    :param downsampling_fractions: Same.
+    :param monitor_string: Same.
+    :param weight_loss_function: Same.
+    :param num_translations: Same.
+    :param max_translation_pixels: Same.
+    :param num_rotations: Same.
+    :param max_rotation_angle_deg: Same.
+    :param num_noisings: Same.
+    :param max_noise_standard_deviation: Same.
     :param top_training_dir_name: Same.
     :param first_training_time_string: Same.
     :param last_training_time_string: Same.
@@ -314,6 +181,9 @@ def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
         first_validation_time_string, TIME_FORMAT)
     last_validation_time_unix_sec = time_conversion.string_to_unix_sec(
         last_validation_time_string, TIME_FORMAT)
+
+    if sounding_field_names[0] in ['', 'None']:
+        sounding_field_names = None
 
     if len(downsampling_keys) > 1:
         class_to_sampling_fraction_dict = dict(zip(
@@ -388,8 +258,8 @@ def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
         cnn.NUM_EPOCHS_KEY: num_epochs,
         cnn.NUM_TRAINING_BATCHES_KEY: num_training_batches_per_epoch,
         cnn.NUM_VALIDATION_BATCHES_KEY: num_validation_batches_per_epoch,
-        cnn.MONITOR_STRING_KEY: MONITOR_STRING,
-        cnn.WEIGHT_LOSS_FUNCTION_KEY: WEIGHT_LOSS_FUNCTION,
+        cnn.MONITOR_STRING_KEY: monitor_string,
+        cnn.WEIGHT_LOSS_FUNCTION_KEY: weight_loss_function,
         cnn.USE_2D3D_CONVOLUTION_KEY: False,
         cnn.VALIDATION_FILES_KEY: validation_file_names,
         cnn.FIRST_VALIDN_TIME_KEY: first_validation_time_unix_sec,
@@ -408,14 +278,23 @@ def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
         trainval_io.FIRST_STORM_TIME_KEY: first_training_time_unix_sec,
         trainval_io.LAST_STORM_TIME_KEY: last_training_time_unix_sec,
         trainval_io.NUM_EXAMPLES_PER_BATCH_KEY: num_examples_per_batch,
-        trainval_io.SOUNDING_FIELDS_KEY: None,
-        trainval_io.SOUNDING_HEIGHTS_KEY: None,
+        trainval_io.SOUNDING_FIELDS_KEY: sounding_field_names,
+        trainval_io.SOUNDING_HEIGHTS_KEY: SOUNDING_HEIGHTS_M_AGL,
         trainval_io.NUM_ROWS_KEY: num_grid_rows,
         trainval_io.NUM_COLUMNS_KEY: num_grid_columns,
-        trainval_io.NORMALIZATION_TYPE_KEY: NORMALIZATION_TYPE_STRING,
-        trainval_io.NORMALIZATION_FILE_KEY: NORMALIZATION_PARAM_FILE_NAME,
+        trainval_io.NORMALIZATION_TYPE_KEY: normalization_type_string,
+        trainval_io.NORMALIZATION_FILE_KEY: normalization_param_file_name,
+        trainval_io.MIN_NORMALIZED_VALUE_KEY: min_normalized_value,
+        trainval_io.MAX_NORMALIZED_VALUE_KEY: max_normalized_value,
+        trainval_io.BINARIZE_TARGET_KEY: False,
         trainval_io.SAMPLING_FRACTIONS_KEY: class_to_sampling_fraction_dict,
-        trainval_io.REFLECTIVITY_MASK_KEY: None
+        trainval_io.LOOP_ONCE_KEY: False,
+        trainval_io.NUM_TRANSLATIONS_KEY: num_translations,
+        trainval_io.MAX_TRANSLATION_KEY: max_translation_pixels,
+        trainval_io.NUM_ROTATIONS_KEY: num_rotations,
+        trainval_io.MAX_ROTATION_KEY: max_rotation_angle_deg,
+        trainval_io.NUM_NOISINGS_KEY: num_noisings,
+        trainval_io.MAX_NOISE_KEY: max_noise_standard_deviation
     }
 
     training_option_dict = trainval_io.check_generator_input_args(
@@ -435,8 +314,8 @@ def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
         num_training_batches_per_epoch=num_training_batches_per_epoch,
         training_option_dict=training_option_dict,
         list_of_layer_operation_dicts=list_of_layer_operation_dicts,
-        monitor_string=MONITOR_STRING,
-        weight_loss_function=WEIGHT_LOSS_FUNCTION,
+        monitor_string=monitor_string,
+        weight_loss_function=weight_loss_function,
         num_validation_batches_per_epoch=num_validation_batches_per_epoch,
         validation_file_names=validation_file_names,
         first_validn_time_unix_sec=first_validation_time_unix_sec,
@@ -448,11 +327,7 @@ if __name__ == '__main__':
 
     _run(
         input_model_file_name=getattr(
-            INPUT_ARG_OBJECT, INPUT_MODEL_FILE_ARG_NAME),
-        downsampling_keys=numpy.array(getattr(
-            INPUT_ARG_OBJECT, DOWNSAMPLING_KEYS_ARG_NAME), dtype=int),
-        downsampling_fractions=numpy.array(getattr(
-            INPUT_ARG_OBJECT, DOWNSAMPLING_FRACTIONS_ARG_NAME), dtype=float),
+            INPUT_ARG_OBJECT, dl_helper.INPUT_MODEL_FILE_ARG_NAME),
         radar_field_name_by_channel=getattr(
             INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         layer_op_name_by_channel=getattr(
@@ -461,23 +336,55 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, MIN_HEIGHTS_ARG_NAME), dtype=int),
         max_height_by_channel_m_agl=numpy.array(getattr(
             INPUT_ARG_OBJECT, MAX_HEIGHTS_ARG_NAME), dtype=int),
-        top_training_dir_name=getattr(INPUT_ARG_OBJECT, TRAINING_DIR_ARG_NAME),
+        sounding_field_names=getattr(
+            INPUT_ARG_OBJECT, dl_helper.SOUNDING_FIELDS_ARG_NAME),
+        normalization_type_string=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_TYPE_ARG_NAME),
+        normalization_param_file_name=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NORMALIZATION_FILE_ARG_NAME),
+        min_normalized_value=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MIN_NORM_VALUE_ARG_NAME),
+        max_normalized_value=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_NORM_VALUE_ARG_NAME),
+        downsampling_keys=numpy.array(
+            getattr(INPUT_ARG_OBJECT, dl_helper.DOWNSAMPLING_KEYS_ARG_NAME),
+            dtype=int),
+        downsampling_fractions=numpy.array(
+            getattr(INPUT_ARG_OBJECT,
+                    dl_helper.DOWNSAMPLING_FRACTIONS_ARG_NAME),
+            dtype=float),
+        monitor_string=getattr(INPUT_ARG_OBJECT, dl_helper.MONITOR_ARG_NAME),
+        weight_loss_function=bool(getattr(
+            INPUT_ARG_OBJECT, dl_helper.WEIGHT_LOSS_ARG_NAME)),
+        num_translations=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_TRANSLATIONS_ARG_NAME),
+        max_translation_pixels=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_TRANSLATION_ARG_NAME),
+        num_rotations=getattr(
+            INPUT_ARG_OBJECT, dl_helper.NUM_ROTATIONS_ARG_NAME),
+        max_rotation_angle_deg=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_ROTATION_ARG_NAME),
+        num_noisings=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_NOISINGS_ARG_NAME),
+        max_noise_standard_deviation=getattr(
+            INPUT_ARG_OBJECT, dl_helper.MAX_NOISE_ARG_NAME),
+        top_training_dir_name=getattr(
+            INPUT_ARG_OBJECT, dl_helper.TRAINING_DIR_ARG_NAME),
         first_training_time_string=getattr(
-            INPUT_ARG_OBJECT, FIRST_TRAINING_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.FIRST_TRAINING_TIME_ARG_NAME),
         last_training_time_string=getattr(
-            INPUT_ARG_OBJECT, LAST_TRAINING_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.LAST_TRAINING_TIME_ARG_NAME),
         top_validation_dir_name=getattr(
-            INPUT_ARG_OBJECT, VALIDATION_DIR_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.VALIDATION_DIR_ARG_NAME),
         first_validation_time_string=getattr(
-            INPUT_ARG_OBJECT, FIRST_VALIDATION_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.FIRST_VALIDATION_TIME_ARG_NAME),
         last_validation_time_string=getattr(
-            INPUT_ARG_OBJECT, LAST_VALIDATION_TIME_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.LAST_VALIDATION_TIME_ARG_NAME),
         num_examples_per_batch=getattr(
-            INPUT_ARG_OBJECT, NUM_EX_PER_BATCH_ARG_NAME),
-        num_epochs=getattr(INPUT_ARG_OBJECT, NUM_EPOCHS_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_EX_PER_BATCH_ARG_NAME),
+        num_epochs=getattr(INPUT_ARG_OBJECT, dl_helper.NUM_EPOCHS_ARG_NAME),
         num_training_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT, NUM_TRAINING_BATCHES_ARG_NAME),
+            INPUT_ARG_OBJECT, dl_helper.NUM_TRAINING_BATCHES_ARG_NAME),
         num_validation_batches_per_epoch=getattr(
-            INPUT_ARG_OBJECT, NUM_VALIDATION_BATCHES_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+            INPUT_ARG_OBJECT, dl_helper.NUM_VALIDATION_BATCHES_ARG_NAME),
+        output_dir_name=getattr(INPUT_ARG_OBJECT, dl_helper.OUTPUT_DIR_ARG_NAME)
     )
