@@ -6,7 +6,7 @@ from gewittergefahr.deep_learning import upconvnet
 
 TOLERANCE = 1e-6
 
-# The following constants are used to test _create_smoothing_filter.
+# The following constants are used to test create_smoothing_filter.
 SMOOTHING_RADIUS_PX = 1
 NUM_HALF_FILTER_ROWS = 2
 NUM_HALF_FILTER_COLUMNS = 2
@@ -32,10 +32,10 @@ for k in range(NUM_CHANNELS):
 class UpconvnetTests(unittest.TestCase):
     """Each method is a unit test for upconvnet.py."""
 
-    def test_create_smoothing_filter(self):
-        """Ensures correct output from _create_smoothing_filter."""
+    def testcreate_smoothing_filter(self):
+        """Ensures correct output from create_smoothing_filter."""
 
-        this_weight_matrix = upconvnet._create_smoothing_filter(
+        this_weight_matrix = upconvnet.create_smoothing_filter(
             smoothing_radius_px=SMOOTHING_RADIUS_PX,
             num_half_filter_rows=NUM_HALF_FILTER_ROWS,
             num_half_filter_columns=NUM_HALF_FILTER_COLUMNS,

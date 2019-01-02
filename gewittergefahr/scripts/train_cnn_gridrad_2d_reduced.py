@@ -44,8 +44,6 @@ NORMALIZATION_PARAM_FILE_NAME = (
     'shuffled/single_pol_2011-2015/normalization_params.p')
 
 INPUT_MODEL_FILE_ARG_NAME = 'input_model_file_name'
-NUM_ROWS_ARG_NAME = 'num_grid_rows'
-NUM_COLUMNS_ARG_NAME = 'num_grid_columns'
 DOWNSAMPLING_KEYS_ARG_NAME = 'downsampling_keys'
 DOWNSAMPLING_FRACTIONS_ARG_NAME = 'downsampling_fractions'
 RADAR_FIELDS_ARG_NAME = 'radar_field_name_by_channel'
@@ -67,12 +65,6 @@ OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 INPUT_MODEL_FILE_HELP_STRING = (
     'Path to input file (containing either trained or untrained CNN).  Will be '
     'read by `cnn.read_model`.  The architecture of this CNN will be copied.')
-
-NUM_ROWS_HELP_STRING = (
-    'Number of rows in each example (storm-centered radar image).')
-
-NUM_COLUMNS_HELP_STRING = (
-    'Number of columns in each example (storm-centered radar image).')
 
 DOWNSAMPLING_KEYS_HELP_STRING = (
     'Keys used to create downsampling dictionary.  Each key is the integer '
@@ -131,8 +123,6 @@ OUTPUT_DIR_HELP_STRING = (
     'Path to output directory.  The newly trained CNN and metafiles will be '
     'saved here.')
 
-DEFAULT_NUM_GRID_ROWS = 32
-DEFAULT_NUM_GRID_COLUMNS = 32
 DEFAULT_DOWNSAMPLING_KEYS = numpy.array([0, 1], dtype=int)
 DEFAULT_DOWNSAMPLING_FRACTIONS = numpy.array([0.5, 0.5])
 
@@ -211,14 +201,6 @@ INPUT_ARG_PARSER.add_argument(
     help=INPUT_MODEL_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_ROWS_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_GRID_ROWS, help=NUM_ROWS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_COLUMNS_ARG_NAME, type=int, required=False,
-    default=DEFAULT_NUM_GRID_COLUMNS, help=NUM_COLUMNS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
     '--' + DOWNSAMPLING_KEYS_ARG_NAME, type=int, nargs='+', required=False,
     default=DEFAULT_DOWNSAMPLING_KEYS, help=DOWNSAMPLING_KEYS_HELP_STRING)
 
@@ -290,22 +272,19 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _run(input_model_file_name, num_grid_rows, num_grid_columns,
-         downsampling_keys, downsampling_fractions, radar_field_name_by_channel,
-         layer_op_name_by_channel, min_height_by_channel_m_agl,
-         max_height_by_channel_m_agl, top_training_dir_name,
-         first_training_time_string, last_training_time_string,
-         top_validation_dir_name, first_validation_time_string,
-         last_validation_time_string, num_examples_per_batch, num_epochs,
-         num_training_batches_per_epoch, num_validation_batches_per_epoch,
-         output_dir_name):
+def _run(input_model_file_name, downsampling_keys, downsampling_fractions,
+         radar_field_name_by_channel, layer_op_name_by_channel,
+         min_height_by_channel_m_agl, max_height_by_channel_m_agl,
+         top_training_dir_name, first_training_time_string,
+         last_training_time_string, top_validation_dir_name,
+         first_validation_time_string, last_validation_time_string,
+         num_examples_per_batch, num_epochs, num_training_batches_per_epoch,
+         num_validation_batches_per_epoch, output_dir_name):
     """Trains CNN with 2-D GridRad images.
 
     This is effectively the main method.
 
     :param input_model_file_name: See documentation at top of file.
-    :param num_grid_rows: Same.
-    :param num_grid_columns: Same.
     :param downsampling_keys: Same.
     :param downsampling_fractions: Same.
     :param radar_field_name_by_channel: Same.
@@ -384,6 +363,22 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
         first_batch_number=FIRST_BATCH_NUMBER,
         last_batch_number=LAST_BATCH_NUMBER, raise_error_if_any_missing=False)
 
+    # Read architecture.
+    print 'Reading architecture from: "{0:s}"...'.format(input_model_file_name)
+    model_object = cnn.read_model(input_model_file_name)
+    model_object = clone_model(model_object)
+
+    # TODO(thunderhoser): This is a HACK.
+    model_object.compile(
+        loss=keras.losses.binary_crossentropy,
+        optimizer=keras.optimizers.Adam(),
+        metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
+
+    print SEPARATOR_STRING
+    model_object.summary()
+    print SEPARATOR_STRING
+
+    # Write metadata.
     this_example_dict = input_examples.read_example_file(
         netcdf_file_name=training_file_names[0], metadata_only=True)
     target_name = this_example_dict[input_examples.TARGET_NAME_KEY]
@@ -400,6 +395,13 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
         cnn.FIRST_VALIDN_TIME_KEY: first_validation_time_unix_sec,
         cnn.LAST_VALIDN_TIME_KEY: last_validation_time_unix_sec
     }
+
+    input_tensor = model_object.input
+    if isinstance(input_tensor, list):
+        input_tensor = input_tensor[0]
+
+    num_grid_rows = input_tensor.get_shape().as_list()[1]
+    num_grid_columns = input_tensor.get_shape().as_list()[2]
 
     training_option_dict = {
         trainval_io.EXAMPLE_FILES_KEY: training_file_names,
@@ -425,20 +427,6 @@ def _run(input_model_file_name, num_grid_rows, num_grid_columns,
         training_option_dict=training_option_dict,
         list_of_layer_operation_dicts=list_of_layer_operation_dicts)
 
-    print 'Reading architecture from: "{0:s}"...'.format(input_model_file_name)
-    model_object = cnn.read_model(input_model_file_name)
-    model_object = clone_model(model_object)
-
-    # TODO(thunderhoser): This is a HACK.
-    model_object.compile(
-        loss=keras.losses.binary_crossentropy,
-        optimizer=keras.optimizers.Adam(),
-        metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
-
-    print SEPARATOR_STRING
-    model_object.summary()
-    print SEPARATOR_STRING
-
     cnn.train_cnn_gridrad_2d_reduced(
         model_object=model_object, model_file_name=output_model_file_name,
         history_file_name=history_file_name,
@@ -461,8 +449,6 @@ if __name__ == '__main__':
     _run(
         input_model_file_name=getattr(
             INPUT_ARG_OBJECT, INPUT_MODEL_FILE_ARG_NAME),
-        num_grid_rows=getattr(INPUT_ARG_OBJECT, NUM_ROWS_ARG_NAME),
-        num_grid_columns=getattr(INPUT_ARG_OBJECT, NUM_COLUMNS_ARG_NAME),
         downsampling_keys=numpy.array(getattr(
             INPUT_ARG_OBJECT, DOWNSAMPLING_KEYS_ARG_NAME), dtype=int),
         downsampling_fractions=numpy.array(getattr(
