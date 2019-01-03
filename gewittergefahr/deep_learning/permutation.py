@@ -295,11 +295,22 @@ def run_permutation_test(
                     this_predictor_name)
 
                 # Shuffle map for `this_predictor_name` within each example.
-                for i in range(num_examples):
+
+                # TODO(thunderhoser): This is another HACK.  Need input option.
+                these_example_indices = numpy.linspace(
+                    0, num_examples, num=num_examples - 1, dtype=int)
+                numpy.random.shuffle(these_example_indices)
+
+                these_input_matrices[q][..., this_predictor_index] = (
                     these_input_matrices[q][
-                        i, ..., this_predictor_index
-                    ] = numpy.random.permutation(
-                        these_input_matrices[q][i, ..., this_predictor_index])
+                        these_example_indices, ..., this_predictor_index]
+                )
+
+                # for i in range(num_examples):
+                #     these_input_matrices[q][
+                #         i, ..., this_predictor_index
+                #     ] = numpy.random.permutation(
+                #         these_input_matrices[q][i, ..., this_predictor_index])
 
                 this_probability_matrix = prediction_function(
                     model_object, these_input_matrices)
