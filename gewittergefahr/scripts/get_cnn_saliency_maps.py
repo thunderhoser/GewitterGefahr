@@ -168,10 +168,9 @@ def _read_storm_metadata(pickle_file_name):
             storm_metadata_dict[STORM_TIMES_KEY])
 
 
-def _run(
-        model_file_name, component_type_string, target_class, layer_name,
-        ideal_activation, neuron_indices, channel_index, top_example_dir_name,
-        input_storm_dict_file_name, output_file_name):
+def _run(model_file_name, component_type_string, target_class, layer_name,
+         ideal_activation, neuron_indices, channel_index, top_example_dir_name,
+         input_storm_dict_file_name, output_file_name):
     """Computes saliency map for each storm object and each model component.
 
     This is effectively the main method.
@@ -200,7 +199,9 @@ def _run(
 
     print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
     model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     desired_storm_ids, desired_storm_times_unix_sec = _read_storm_metadata(
         input_storm_dict_file_name)

@@ -50,8 +50,8 @@ def plot_2d_feature_map(
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
         axes_object.text(
-            0.5, 0.01, annotation_string, fontsize=20, color='k',
-            horizontalalignment='center', verticalalignment='bottom',
+            0.5, 0.01, annotation_string, fontsize=20, fontweight='bold',
+            color='k', horizontalalignment='center', verticalalignment='bottom',
             transform=axes_object.transAxes)
 
     axes_object.set_xticks([])

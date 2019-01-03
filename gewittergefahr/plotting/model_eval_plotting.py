@@ -38,8 +38,7 @@ PIXEL_PADDING_FOR_FREQ_BIAS_LABELS = 10
 LEVELS_FOR_FREQ_BIAS_CONTOURS = numpy.array(
     [0.25, 0.5, 0.75, 1., 1.5, 2., 3., 5.])
 
-LEVELS_FOR_CSI_CONTOURS = numpy.array(
-    [0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.])
+LEVELS_FOR_CSI_CONTOURS = numpy.linspace(0, 1, num=11, dtype=float)
 
 DEFAULT_RELIA_LINE_COLOUR = numpy.array([228., 26., 28.]) / 255
 DEFAULT_RELIA_LINE_WIDTH = 3.
