@@ -1,6 +1,7 @@
 """For each example (storm object), plots feature maps for one CNN layer."""
 
 import random
+import pickle
 import os.path
 import argparse
 import numpy
@@ -11,7 +12,6 @@ from keras import backend as K
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
@@ -27,17 +27,16 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+STORM_IDS_KEY = 'storm_ids'
+STORM_TIMES_KEY = 'storm_times_unix_sec'
+
 TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 LAYER_NAMES_ARG_NAME = 'layer_names'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
-FIRST_SPC_DATE_ARG_NAME = 'first_spc_date_string'
-LAST_SPC_DATE_ARG_NAME = 'last_spc_date_string'
-NUM_EXAMPLES_ARG_NAME = 'num_examples'
-CLASS_FRACTION_KEYS_ARG_NAME = 'class_fraction_keys'
-CLASS_FRACTION_VALUES_ARG_NAME = 'class_fraction_values'
+STORM_DICT_FILE_ARG_NAME = 'input_storm_dict_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -52,24 +51,10 @@ EXAMPLE_DIR_HELP_STRING = (
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
 
-SPC_DATE_HELP_STRING = (
-    'SPC date (format "yyyymmdd").  This script will evaluate predictions on '
-    'examples from the period `{0:s}`...`{1:s}`.'
-).format(FIRST_SPC_DATE_ARG_NAME, LAST_SPC_DATE_ARG_NAME)
-
-NUM_EXAMPLES_HELP_STRING = 'Number of examples to use.'
-
-CLASS_FRACTION_KEYS_HELP_STRING = (
-    'List of keys used to create input `class_to_sampling_fraction_dict` for '
-    '`deep_learning_utils.sample_by_class`.  If you do not want class-'
-    'conditional sampling, leave this alone.'
-)
-
-CLASS_FRACTION_VALUES_HELP_STRING = (
-    'List of values used to create input `class_to_sampling_fraction_dict` for '
-    '`deep_learning_utils.sample_by_class`.  If you do not want class-'
-    'conditional sampling, leave this alone.'
-)
+STORM_DICT_FILE_HELP_STRING = (
+    'Path to Pickle file with "storm dictionary".  This file should contain '
+    'only one dictionary, containing at least the keys "{0:s}" and "{1:s}".'
+).format(STORM_IDS_KEY, STORM_TIMES_KEY)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here (one '
@@ -89,28 +74,37 @@ INPUT_ARG_PARSER.add_argument(
     help=EXAMPLE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + FIRST_SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + LAST_SPC_DATE_ARG_NAME, type=str, required=True,
-    help=SPC_DATE_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=True,
-    help=NUM_EXAMPLES_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_KEYS_ARG_NAME, type=int, nargs='+',
-    required=False, default=[0], help=CLASS_FRACTION_KEYS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + CLASS_FRACTION_VALUES_ARG_NAME, type=float, nargs='+',
-    required=False, default=[0.], help=CLASS_FRACTION_VALUES_HELP_STRING)
+    '--' + STORM_DICT_FILE_ARG_NAME, type=str, required=True,
+    help=STORM_DICT_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
+
+
+def _read_storm_metadata(pickle_file_name):
+    """Reads storm metadata (IDs and times) from Pickle file.
+
+    N = number of storm objects
+
+    :param pickle_file_name: Path to input file.
+    :return: storm_ids: length-N list of storm IDs (strings).
+    :return: storm_times_unix_sec: length-N numpy array of valid times.
+    :raises: ValueError: if dictionary cannot be found in Pickle file.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    while True:
+        storm_metadata_dict = pickle.load(pickle_file_handle)
+        if isinstance(storm_metadata_dict, dict):
+            break
+
+    pickle_file_handle.close()
+    if not isinstance(storm_metadata_dict, dict):
+        raise ValueError('Cannot find dictionary in file.')
+
+    return (storm_metadata_dict[STORM_IDS_KEY],
+            storm_metadata_dict[STORM_TIMES_KEY])
 
 
 def _plot_feature_maps_one_layer(
@@ -225,8 +219,7 @@ def _plot_feature_maps_one_layer(
 
 
 def _run(model_file_name, layer_names, top_example_dir_name,
-         first_spc_date_string, last_spc_date_string, num_examples,
-         class_fraction_keys, class_fraction_values, top_output_dir_name):
+         input_storm_dict_file_name, top_output_dir_name):
     """Evaluates CNN (convolutional neural net) predictions.
 
     This is effectively the main method.
@@ -234,11 +227,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     :param model_file_name: See documentation at top of file.
     :param layer_names: Same.
     :param top_example_dir_name: Same.
-    :param first_spc_date_string: Same.
-    :param last_spc_date_string: Same.
-    :param num_examples: Same.
-    :param class_fraction_keys: Same.
-    :param class_fraction_values: Same.
+    :param input_storm_dict_file_name: Same.
     :param top_output_dir_name: Same.
     :raises: ValueError: if feature maps do not have 2 or 3 spatial dimensions.
     """
@@ -247,122 +236,63 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     model_object = cnn.read_model(model_file_name)
 
     model_directory_name, _ = os.path.split(model_file_name)
-    metadata_file_name = '{0:s}/model_metadata.p'.format(model_directory_name)
+    model_metafile_name = '{0:s}/model_metadata.p'.format(model_directory_name)
 
-    print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
-    model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
+
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
-    if len(class_fraction_keys) > 1:
-        class_to_sampling_fraction_dict = dict(zip(
-            class_fraction_keys, class_fraction_values))
-    else:
-        class_to_sampling_fraction_dict = None
+    print 'Reading storm metadata from: "{0:s}"...'.format(
+        input_storm_dict_file_name)
+    storm_ids, storm_times_unix_sec = _read_storm_metadata(
+        input_storm_dict_file_name)
+    print SEPARATOR_STRING
 
-    training_option_dict[
-        trainval_io.SAMPLING_FRACTIONS_KEY] = class_to_sampling_fraction_dict
-
-    example_file_names = input_examples.find_many_example_files(
-        top_directory_name=top_example_dir_name, shuffled=False,
-        first_spc_date_string=first_spc_date_string,
-        last_spc_date_string=last_spc_date_string,
-        raise_error_if_any_missing=False)
-
-    training_option_dict[trainval_io.EXAMPLE_FILES_KEY] = example_file_names
-    training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
-        time_conversion.get_start_of_spc_date(first_spc_date_string)
-    )
-    training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
-        time_conversion.get_end_of_spc_date(last_spc_date_string)
-    )
-
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-        generator_object = testing_io.myrorss_generator_2d3d(
-            option_dict=training_option_dict, num_examples_total=num_examples)
-    else:
-        generator_object = testing_io.generator_2d_or_3d(
-            option_dict=training_option_dict, num_examples_total=num_examples)
+    list_of_predictor_matrices = testing_io.read_specific_examples(
+        top_example_dir_name=top_example_dir_name,
+        desired_storm_ids=storm_ids,
+        desired_times_unix_sec=storm_times_unix_sec,
+        option_dict=training_option_dict)
+    print SEPARATOR_STRING
 
     num_layers = len(layer_names)
     feature_matrix_by_layer = [None] * num_layers
-    storm_ids = []
-    storm_times_unix_sec = numpy.array([], dtype=int)
 
-    for _ in range(len(example_file_names)):
-        this_feature_matrix_by_layer = [None] * num_layers
-
-        try:
-            this_storm_object_dict = next(generator_object)
-            print SEPARATOR_STRING
-        except StopIteration:
-            break
-
-        these_predictor_matrices = this_storm_object_dict[
-            testing_io.INPUT_MATRICES_KEY]
-
+    for k in range(num_layers):
         if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-            if len(these_predictor_matrices) == 3:
-                this_sounding_matrix = these_predictor_matrices[2]
+            if len(list_of_predictor_matrices) == 3:
+                sounding_matrix = list_of_predictor_matrices[-1]
             else:
-                this_sounding_matrix = None
+                sounding_matrix = None
 
-            for k in range(num_layers):
-                this_feature_matrix_by_layer[k] = cnn.apply_2d3d_cnn(
-                    model_object=model_object,
-                    reflectivity_image_matrix_dbz=these_predictor_matrices[0],
-                    az_shear_image_matrix_s01=these_predictor_matrices[1],
-                    sounding_matrix=this_sounding_matrix,
-                    return_features=True, output_layer_name=layer_names[k])
-
+            feature_matrix_by_layer[k] = cnn.apply_2d3d_cnn(
+                model_object=model_object,
+                reflectivity_image_matrix_dbz=list_of_predictor_matrices[0],
+                az_shear_image_matrix_s01=list_of_predictor_matrices[1],
+                sounding_matrix=sounding_matrix,
+                return_features=True, output_layer_name=layer_names[k])
         else:
-            if len(these_predictor_matrices) == 2:
-                this_sounding_matrix = these_predictor_matrices[1]
+            if len(list_of_predictor_matrices) == 2:
+                sounding_matrix = list_of_predictor_matrices[-1]
             else:
-                this_sounding_matrix = None
+                sounding_matrix = None
 
-            num_radar_dimensions = len(these_predictor_matrices[0].shape) - 2
+            num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
-            for k in range(num_layers):
-                if num_radar_dimensions == 2:
-                    this_feature_matrix_by_layer[k] = cnn.apply_2d_cnn(
-                        model_object=model_object,
-                        radar_image_matrix=these_predictor_matrices[0],
-                        sounding_matrix=this_sounding_matrix,
-                        return_features=True, output_layer_name=layer_names[k])
-                else:
-                    this_feature_matrix_by_layer[k] = cnn.apply_3d_cnn(
-                        model_object=model_object,
-                        radar_image_matrix=these_predictor_matrices[0],
-                        sounding_matrix=this_sounding_matrix,
-                        return_features=True, output_layer_name=layer_names[k])
-
-        storm_ids += this_storm_object_dict[testing_io.STORM_IDS_KEY]
-        storm_times_unix_sec = numpy.concatenate((
-            storm_times_unix_sec,
-            this_storm_object_dict[testing_io.STORM_TIMES_KEY]
-        ))
-
-        for k in range(num_layers):
-            if feature_matrix_by_layer[k] is None:
-                feature_matrix_by_layer[k] = (
-                    this_feature_matrix_by_layer[k] + 0.
-                )
-
-                num_spatial_dimensions = (
-                    len(feature_matrix_by_layer[k].shape) - 2
-                )
-
-                if num_spatial_dimensions not in [2, 3]:
-                    error_string = (
-                        'Feature maps should have 2 or 3 spatial dimensions.  '
-                        'Instead, got {0:d}.'
-                    ).format(num_spatial_dimensions)
-
-                    raise ValueError(error_string)
+            if num_radar_dimensions == 2:
+                feature_matrix_by_layer[k] = cnn.apply_2d_cnn(
+                    model_object=model_object,
+                    radar_image_matrix=list_of_predictor_matrices[0],
+                    sounding_matrix=sounding_matrix,
+                    return_features=True, output_layer_name=layer_names[k])
             else:
-                feature_matrix_by_layer[k] = numpy.concatenate(
-                    (feature_matrix_by_layer[k],
-                     this_feature_matrix_by_layer[k]), axis=0)
+                feature_matrix_by_layer[k] = cnn.apply_3d_cnn(
+                    model_object=model_object,
+                    radar_image_matrix=list_of_predictor_matrices[0],
+                    sounding_matrix=sounding_matrix,
+                    return_features=True, output_layer_name=layer_names[k])
 
     for k in range(num_layers):
         this_output_dir_name = '{0:s}/{1:s}'.format(
@@ -385,14 +315,7 @@ if __name__ == '__main__':
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
         layer_names=getattr(INPUT_ARG_OBJECT, LAYER_NAMES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
-        first_spc_date_string=getattr(
-            INPUT_ARG_OBJECT, FIRST_SPC_DATE_ARG_NAME),
-        last_spc_date_string=getattr(INPUT_ARG_OBJECT, LAST_SPC_DATE_ARG_NAME),
-        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
-        class_fraction_keys=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_KEYS_ARG_NAME), dtype=int),
-        class_fraction_values=numpy.array(
-            getattr(INPUT_ARG_OBJECT, CLASS_FRACTION_VALUES_ARG_NAME),
-            dtype=float),
+        input_storm_dict_file_name=getattr(
+            INPUT_ARG_OBJECT, STORM_DICT_FILE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
