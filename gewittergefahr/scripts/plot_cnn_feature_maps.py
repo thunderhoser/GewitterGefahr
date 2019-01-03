@@ -137,7 +137,7 @@ def _plot_feature_maps_one_layer(
 
     num_panel_rows = int(numpy.round(numpy.sqrt(num_channels)))
     annotation_string_by_channel = [
-        'Channel {0:d}'.format(c + 1) for c in range(num_channels)
+        'Filter {0:d}'.format(c + 1) for c in range(num_channels)
     ]
 
     max_colour_value = numpy.percentile(numpy.absolute(feature_matrix), 99)
