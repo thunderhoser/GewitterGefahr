@@ -203,6 +203,7 @@ def run_permutation_test(
     :raises: ValueError: if any input matrix has < 3 dimensions.
     """
 
+    # Check input args.
     error_checking.assert_is_integer_numpy_array(target_values)
     error_checking.assert_is_geq_numpy_array(target_values, 0)
 
@@ -250,10 +251,12 @@ def run_permutation_test(
     original_cost = cost_function(target_values, class_probability_matrix)
     print 'Original cost (no permutation): {0:.4e}'.format(original_cost)
 
+    # Initialize output variables.
     remaining_predictor_names_by_matrix = copy.deepcopy(
         predictor_names_by_matrix)
     step_num = 0
 
+    # Do dirty work.
     selected_predictor_name_by_step = []
     highest_cost_by_step = []
     predictor_names_step1 = []
@@ -271,6 +274,11 @@ def run_permutation_test(
         stopping_criterion = True
 
         for q in range(num_input_matrices):
+
+            # TODO(thunderhoser): Get rid of this HACK to ignore soundings.
+            if len(list_of_input_matrices[q].shape) == 3:
+                continue
+
             if len(remaining_predictor_names_by_matrix[q]) == 0:
                 continue
 
