@@ -298,7 +298,7 @@ def run_permutation_test(
 
                 # TODO(thunderhoser): This is another HACK.  Need input option.
                 these_example_indices = numpy.linspace(
-                    0, num_examples, num=num_examples - 1, dtype=int)
+                    0, num_examples - 1, num=num_examples, dtype=int)
                 numpy.random.shuffle(these_example_indices)
 
                 these_input_matrices[q][..., this_predictor_index] = (
