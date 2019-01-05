@@ -637,10 +637,12 @@ def plot_2d_grid_without_coords(
 
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
+
+        bounding_box_dict = {'facecolor': 'white', 'alpha': 0.5}
         axes_object.text(
             0.5, 0.01, annotation_string, fontsize=20, fontweight='bold',
-            color='k', horizontalalignment='center', verticalalignment='bottom',
-            transform=axes_object.transAxes)
+            bbox=bounding_box_dict, color='k', horizontalalignment='center',
+            verticalalignment='bottom', transform=axes_object.transAxes)
 
     axes_object.set_xticks([])
     axes_object.set_yticks([])
@@ -652,7 +654,8 @@ def plot_many_2d_grids_without_coords(
         field_matrix, field_name_by_pair, height_by_pair_metres,
         ground_relative, num_panel_rows,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
-        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES):
+        figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
+        plot_colour_bars=False):
     """Plots each 2-D grid as colour map (one per field/height pair).
 
     M = number of grid rows
@@ -673,6 +676,8 @@ def plot_many_2d_grids_without_coords(
         the number of grid rows).
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
+    :param plot_colour_bars: Boolean flag.  If True, colour bar will be plotted
+        for each panel.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where each item is an instance of
         `matplotlib.axes._subplots.AxesSubplot`.
@@ -692,6 +697,7 @@ def plot_many_2d_grids_without_coords(
     height_by_pair_metres = numpy.round(height_by_pair_metres).astype(int)
 
     error_checking.assert_is_boolean(ground_relative)
+    error_checking.assert_is_boolean(plot_colour_bars)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
     error_checking.assert_is_leq(num_panel_rows, num_field_height_pairs)
@@ -724,6 +730,9 @@ def plot_many_2d_grids_without_coords(
                     axes_object=axes_objects_2d_list[i][j],
                     annotation_string=this_annotation_string)
             )
+
+            if not plot_colour_bars:
+                continue
 
             this_extend_min_flag = (
                 field_name_by_pair[this_fh_pair_index] in SHEAR_VORT_DIV_NAMES
