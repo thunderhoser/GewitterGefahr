@@ -177,6 +177,7 @@ def _plot_feature_maps_one_layer(
 
             print 'Saving figure to: "{0:s}"...'.format(this_figure_file_name)
             pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.close()
 
         else:
             for k in range(num_heights):
@@ -216,6 +217,7 @@ def _plot_feature_maps_one_layer(
                 print 'Saving figure to: "{0:s}"...'.format(
                     this_figure_file_name)
                 pyplot.savefig(this_figure_file_name, dpi=FIGURE_RESOLUTION_DPI)
+                pyplot.close()
 
 
 def _run(model_file_name, layer_names, top_example_dir_name,
