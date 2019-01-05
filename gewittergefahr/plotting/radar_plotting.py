@@ -611,6 +611,10 @@ def plot_2d_grid_without_coords(
         If you want no annotation, leave this alone.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
+    :return: colour_map_object: Same as input, except default might have been
+        set.
+    :return: colour_norm_object: Same as input, except default might have been
+        set.
     """
 
     error_checking.assert_is_numpy_array_without_nan(field_matrix)
@@ -631,17 +635,17 @@ def plot_2d_grid_without_coords(
         vmax=colour_norm_object.boundaries[-1], shading='flat',
         edgecolors='None')
 
-    # TODO(thunderhoser): Commenting the code below is a HACK.
-
-    # if annotation_string is not None:
-    #     error_checking.assert_is_string(annotation_string)
-    #     axes_object.text(
-    #         0.5, 0.01, annotation_string, fontsize=20, fontweight='bold',
-    #         color='k', horizontalalignment='center', verticalalignment='bottom',
-    #         transform=axes_object.transAxes)
+    if annotation_string is not None:
+        error_checking.assert_is_string(annotation_string)
+        axes_object.text(
+            0.5, 0.01, annotation_string, fontsize=20, fontweight='bold',
+            color='k', horizontalalignment='center', verticalalignment='bottom',
+            transform=axes_object.transAxes)
 
     axes_object.set_xticks([])
     axes_object.set_yticks([])
+
+    return colour_map_object, colour_norm_object
 
 
 def plot_many_2d_grids_without_coords(
@@ -705,7 +709,7 @@ def plot_many_2d_grids_without_coords(
             if this_fh_pair_index >= num_field_height_pairs:
                 break
 
-            this_annotation_string = '{0:s}\nat {1:.1f} km'.format(
+            this_annotation_string = '{0:s}\nat {1:.2f} km'.format(
                 field_name_by_pair[this_fh_pair_index],
                 height_by_pair_metres[this_fh_pair_index] * METRES_TO_KM)
             if ground_relative:
@@ -713,11 +717,26 @@ def plot_many_2d_grids_without_coords(
             else:
                 this_annotation_string += ' ASL'
 
-            plot_2d_grid_without_coords(
-                field_matrix=field_matrix[..., this_fh_pair_index],
-                field_name=field_name_by_pair[this_fh_pair_index],
-                axes_object=axes_objects_2d_list[i][j],
-                annotation_string=this_annotation_string)
+            this_colour_map_object, this_colour_norm_object = (
+                plot_2d_grid_without_coords(
+                    field_matrix=field_matrix[..., this_fh_pair_index],
+                    field_name=field_name_by_pair[this_fh_pair_index],
+                    axes_object=axes_objects_2d_list[i][j],
+                    annotation_string=this_annotation_string)
+            )
+
+            this_extend_min_flag = (
+                field_name_by_pair[this_fh_pair_index] in SHEAR_VORT_DIV_NAMES
+            )
+
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=axes_objects_2d_list[i][j],
+                values_to_colour=field_matrix[..., this_fh_pair_index],
+                colour_map=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation='vertical',
+                extend_min=this_extend_min_flag, extend_max=True,
+                fraction_of_axis_length=0.8)
 
     return figure_object, axes_objects_2d_list
 
