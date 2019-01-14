@@ -274,11 +274,6 @@ def run_permutation_test(
         stopping_criterion = True
 
         for q in range(num_input_matrices):
-
-            # TODO(thunderhoser): Get rid of this HACK to ignore soundings.
-            if len(list_of_input_matrices[q].shape) == 3:
-                continue
-
             if len(remaining_predictor_names_by_matrix[q]) == 0:
                 continue
 

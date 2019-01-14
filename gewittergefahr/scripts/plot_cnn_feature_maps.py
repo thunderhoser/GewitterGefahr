@@ -252,10 +252,6 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         input_storm_dict_file_name)
     print SEPARATOR_STRING
 
-    # TODO(thunderhoser): This is a HACK.  Make it an input option.
-    storm_ids = storm_ids[:10]
-    storm_times_unix_sec = storm_times_unix_sec[:10]
-
     list_of_predictor_matrices = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
         desired_storm_ids=storm_ids,
