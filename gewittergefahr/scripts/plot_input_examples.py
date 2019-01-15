@@ -38,6 +38,7 @@ FIGURE_RESOLUTION_DPI = 300
 
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
+NUM_EXAMPLES_ARG_NAME = 'num_examples'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
 RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_agl'
@@ -56,6 +57,11 @@ STORM_METAFILE_HELP_STRING = (
     '`storm_tracking_io.read_ids_and_times`).  If this argument is empty, will '
     'use `{0:s}`.'
 ).format(ACTIVATION_FILE_ARG_NAME)
+
+NUM_EXAMPLES_HELP_STRING = (
+    'Number of examples (storm objects) to read from `{0:s}` or `{1:s}`.  If '
+    'you want to read all examples, make this non-positive.'
+).format(ACTIVATION_FILE_ARG_NAME, STORM_METAFILE_ARG_NAME)
 
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input examples.  Files therein will be '
@@ -101,6 +107,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_METAFILE_ARG_NAME, type=str, required=False, default='',
     help=STORM_METAFILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
@@ -310,15 +320,16 @@ def _plot_examples(
             pyplot.close()
 
 
-def _run(activation_file_name, storm_metafile_name, top_example_dir_name,
-         radar_field_names, radar_heights_m_agl, plot_soundings, num_radar_rows,
-         num_radar_columns, output_dir_name):
+def _run(activation_file_name, storm_metafile_name, num_examples,
+         top_example_dir_name, radar_field_names, radar_heights_m_agl,
+         plot_soundings, num_radar_rows, num_radar_columns, output_dir_name):
     """Plots many input examples (one per storm object).
 
     This is effectively the main method.
 
     :param activation_file_name: See documentation at top of file.
     :param storm_metafile_name: Same.
+    :param num_examples: Same.
     :param top_example_dir_name: Same.
     :param radar_field_names: Same.
     :param radar_heights_m_agl: Same.
@@ -400,6 +411,12 @@ def _run(activation_file_name, storm_metafile_name, top_example_dir_name,
         else:
             training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
 
+    if 0 < num_examples < len(storm_ids):
+        storm_ids = storm_ids[:num_examples]
+        storm_times_unix_sec = storm_times_unix_sec[:num_examples]
+        if storm_activations is not None:
+            storm_activations = storm_activations[:num_examples]
+
     print SEPARATOR_STRING
     list_of_predictor_matrices = testing_io.read_specific_examples(
         desired_storm_ids=storm_ids,
@@ -423,8 +440,8 @@ if __name__ == '__main__':
     _run(
         activation_file_name=getattr(
             INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
-        storm_metafile_name=getattr(
-            INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
+        storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
+        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         radar_heights_m_agl=numpy.array(

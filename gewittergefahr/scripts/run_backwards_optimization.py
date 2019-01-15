@@ -29,6 +29,7 @@ CHANNEL_COMPONENT_TYPE_STRING = (
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 INIT_FUNCTION_ARG_NAME = 'init_function_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
+NUM_EXAMPLES_ARG_NAME = 'num_examples'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 COMPONENT_TYPE_ARG_NAME = 'component_type_string'
 TARGET_CLASS_ARG_NAME = 'target_class'
@@ -53,6 +54,11 @@ STORM_METAFILE_HELP_STRING = (
     '[used only if `{0:s}` is empty] Path to Pickle file with storm IDs and '
     'times.  Will be read by `storm_tracking_io.read_ids_and_times`.'
 ).format(INIT_FUNCTION_ARG_NAME)
+
+NUM_EXAMPLES_HELP_STRING = (
+    'Number of examples (storm objects) to read from `{0:s}`.  If you want to '
+    'read all examples, make this non-positive.'
+).format(STORM_METAFILE_ARG_NAME)
 
 EXAMPLE_DIR_HELP_STRING = (
     '[used only if `{0:s}` is empty] Name of top-level directory with dataset '
@@ -91,6 +97,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_METAFILE_ARG_NAME, type=str, required=False, default='',
     help=STORM_METAFILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=False, default='',
@@ -193,7 +203,7 @@ def _create_initializer(init_function_name, model_metadata_dict):
         myrorss_2d3d=model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY])
 
 
-def _run(model_file_name, init_function_name, storm_metafile_name,
+def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
          top_example_dir_name, component_type_string, target_class, layer_name,
          neuron_indices, channel_index, num_iterations, ideal_activation,
          learning_rate, output_file_name):
@@ -204,6 +214,7 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
     :param model_file_name: See documentation at top of file.
     :param init_function_name: Same.
     :param storm_metafile_name: Same.
+    :param num_examples: Same.
     :param top_example_dir_name: Same.
     :param component_type_string: Same.
     :param target_class: Same.
@@ -235,6 +246,10 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
 
         storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
             storm_metafile_name)
+
+        if 0 < num_examples < len(storm_ids):
+            storm_ids = storm_ids[:num_examples]
+            storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
         list_of_init_matrices = testing_io.read_specific_examples(
             desired_storm_ids=storm_ids,
@@ -339,6 +354,7 @@ if __name__ == '__main__':
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
         init_function_name=getattr(INPUT_ARG_OBJECT, INIT_FUNCTION_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
+        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         component_type_string=getattr(
             INPUT_ARG_OBJECT, COMPONENT_TYPE_ARG_NAME),

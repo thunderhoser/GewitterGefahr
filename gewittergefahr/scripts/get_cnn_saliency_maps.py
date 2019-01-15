@@ -36,6 +36,7 @@ NEURON_INDICES_ARG_NAME = 'neuron_indices'
 CHANNEL_INDEX_ARG_NAME = 'channel_index'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
+NUM_EXAMPLES_ARG_NAME = 'num_examples'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -88,6 +89,11 @@ STORM_METAFILE_HELP_STRING = (
     'Path to Pickle file with storm IDs and times.  Will be read by '
     '`storm_tracking_io.read_ids_and_times`.')
 
+NUM_EXAMPLES_HELP_STRING = (
+    'Number of examples (storm objects) to read from `{0:s}`.  If you want to '
+    'read all examples, make this non-positive.'
+).format(STORM_METAFILE_ARG_NAME)
+
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `saliency_maps.write_file`).')
 
@@ -130,13 +136,17 @@ INPUT_ARG_PARSER.add_argument(
     help=STORM_METAFILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_EXAMPLES_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
 def _run(model_file_name, component_type_string, target_class, layer_name,
          ideal_activation, neuron_indices, channel_index, top_example_dir_name,
-         storm_metafile_name, output_file_name):
+         storm_metafile_name, num_examples, output_file_name):
     """Computes saliency map for each storm object and each model component.
 
     This is effectively the main method.
@@ -150,6 +160,7 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     :param channel_index: Same.
     :param top_example_dir_name: Same.
     :param storm_metafile_name: Same.
+    :param num_examples: Same.
     :param output_file_name: Same.
     """
 
@@ -172,6 +183,10 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
     print SEPARATOR_STRING
+
+    if 0 < num_examples < len(storm_ids):
+        storm_ids = storm_ids[:num_examples]
+        storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     list_of_input_matrices, sounding_pressure_matrix_pascals = (
         testing_io.read_specific_examples(
@@ -252,5 +267,6 @@ if __name__ == '__main__':
         channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
+        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

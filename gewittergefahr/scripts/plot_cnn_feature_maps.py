@@ -34,6 +34,7 @@ MODEL_FILE_ARG_NAME = 'input_model_file_name'
 LAYER_NAMES_ARG_NAME = 'layer_names'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
 STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
+NUM_EXAMPLES_ARG_NAME = 'num_examples'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -51,6 +52,11 @@ EXAMPLE_DIR_HELP_STRING = (
 STORM_METAFILE_HELP_STRING = (
     'Path to Pickle file with storm IDs and times.  Will be read by '
     '`storm_tracking_io.read_ids_and_times`.')
+
+NUM_EXAMPLES_HELP_STRING = (
+    'Number of examples (storm objects) to read from `{0:s}`.  If you want to '
+    'read all examples, make this non-positive.'
+).format(STORM_METAFILE_ARG_NAME)
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here (one '
@@ -72,6 +78,10 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + STORM_METAFILE_ARG_NAME, type=str, required=True,
     help=STORM_METAFILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
+    '--' + NUM_EXAMPLES_ARG_NAME, type=int, required=False, default=-1,
+    help=NUM_EXAMPLES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
@@ -192,7 +202,7 @@ def _plot_feature_maps_one_layer(
 
 
 def _run(model_file_name, layer_names, top_example_dir_name,
-         storm_metafile_name, top_output_dir_name):
+         storm_metafile_name, num_examples, top_output_dir_name):
     """Evaluates CNN (convolutional neural net) predictions.
 
     This is effectively the main method.
@@ -201,6 +211,7 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     :param layer_names: Same.
     :param top_example_dir_name: Same.
     :param storm_metafile_name: Same.
+    :param num_examples: Same.
     :param top_output_dir_name: Same.
     :raises: ValueError: if feature maps do not have 2 or 3 spatial dimensions.
     """
@@ -219,6 +230,10 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
         storm_metafile_name)
     print SEPARATOR_STRING
+
+    if 0 < num_examples < len(storm_ids):
+        storm_ids = storm_ids[:num_examples]
+        storm_times_unix_sec = storm_times_unix_sec[:num_examples]
 
     list_of_predictor_matrices = testing_io.read_specific_examples(
         top_example_dir_name=top_example_dir_name,
@@ -287,5 +302,6 @@ if __name__ == '__main__':
         layer_names=getattr(INPUT_ARG_OBJECT, LAYER_NAMES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
         storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
+        num_examples=getattr(INPUT_ARG_OBJECT, NUM_EXAMPLES_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
