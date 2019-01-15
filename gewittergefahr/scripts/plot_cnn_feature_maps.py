@@ -224,7 +224,8 @@ def _run(model_file_name, layer_names, top_example_dir_name,
         top_example_dir_name=top_example_dir_name,
         desired_storm_ids=storm_ids,
         desired_times_unix_sec=storm_times_unix_sec,
-        option_dict=training_option_dict)
+        option_dict=training_option_dict
+    )[0]
     print SEPARATOR_STRING
 
     num_layers = len(layer_names)

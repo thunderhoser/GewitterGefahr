@@ -894,6 +894,8 @@ def read_specific_examples(
     :return: list_of_predictor_matrices: length-T list of numpy arrays, where
         T = number of input tensors to model.  The first dimension of each numpy
         array has length E.
+    :return: sounding_pressure_matrix_pascals: numpy array (E x H_s) of
+        pressures.  If soundings were not read, this is None.
     """
 
     desired_spc_date_strings = [
@@ -909,6 +911,7 @@ def read_specific_examples(
     storm_ids = []
     storm_times_unix_sec = numpy.array([], dtype=int)
     list_of_predictor_matrices = None
+    sounding_pressure_matrix_pascals = None
 
     for this_spc_date_string in unique_spc_date_strings:
         this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
@@ -968,6 +971,21 @@ def read_specific_examples(
             this_storm_object_dict[STORM_TIMES_KEY][these_indices]
         ))
 
+        this_pressure_matrix_pascals = this_storm_object_dict[
+            SOUNDING_PRESSURES_KEY]
+
+        if this_pressure_matrix_pascals is not None:
+            this_pressure_matrix_pascals = this_pressure_matrix_pascals[
+                these_indices, ...]
+
+            if sounding_pressure_matrix_pascals is None:
+                sounding_pressure_matrix_pascals = (
+                    this_pressure_matrix_pascals + 0.)
+            else:
+                sounding_pressure_matrix_pascals = numpy.concatenate(
+                    (sounding_pressure_matrix_pascals,
+                     this_pressure_matrix_pascals), axis=0)
+
         if list_of_predictor_matrices is None:
             num_matrices = len(this_storm_object_dict[INPUT_MATRICES_KEY])
             list_of_predictor_matrices = [None] * num_matrices
@@ -991,4 +1009,8 @@ def read_specific_examples(
         list_of_predictor_matrices[k] = list_of_predictor_matrices[k][
             sort_indices, ...]
 
-    return list_of_predictor_matrices
+    if sounding_pressure_matrix_pascals is not None:
+        sounding_pressure_matrix_pascals = sounding_pressure_matrix_pascals[
+            sort_indices, ...]
+
+    return list_of_predictor_matrices, sounding_pressure_matrix_pascals

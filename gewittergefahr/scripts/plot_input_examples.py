@@ -405,7 +405,8 @@ def _run(activation_file_name, storm_metafile_name, top_example_dir_name,
         desired_storm_ids=storm_ids,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
-        top_example_dir_name=top_example_dir_name)
+        top_example_dir_name=top_example_dir_name
+    )[0]
     print SEPARATOR_STRING
 
     _plot_examples(

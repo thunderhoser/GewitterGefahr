@@ -8,11 +8,8 @@ import argparse
 import numpy
 from keras import backend as K
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
-from gewittergefahr.gg_utils import time_conversion
-from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import model_interpretation
@@ -172,155 +169,55 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
     print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
-    desired_storm_ids, desired_storm_times_unix_sec = (
-        tracking_io.read_ids_and_times(storm_metafile_name))
-
-    # Create saliency map for each storm object.
-    desired_spc_dates_unix_sec = numpy.array([
-        time_conversion.time_to_spc_date_unix_sec(t)
-        for t in desired_storm_times_unix_sec
-    ], dtype=int)
-
-    unique_spc_dates_unix_sec = numpy.unique(desired_spc_dates_unix_sec)
-
-    list_of_input_matrices = None
-    list_of_saliency_matrices = None
-    storm_ids = []
-    storm_times_unix_sec = numpy.array([], dtype=int)
-    sounding_pressure_matrix_pascals = None
-
+    storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+        storm_metafile_name)
     print SEPARATOR_STRING
 
-    for this_spc_date_unix_sec in unique_spc_dates_unix_sec:
-        this_spc_date_string = time_conversion.time_to_spc_date_string(
-            this_spc_date_unix_sec)
+    list_of_input_matrices, sounding_pressure_matrix_pascals = (
+        testing_io.read_specific_examples(
+            top_example_dir_name=top_example_dir_name,
+            desired_storm_ids=storm_ids,
+            desired_times_unix_sec=storm_times_unix_sec,
+            option_dict=training_option_dict)
+    )
+    print SEPARATOR_STRING
 
-        this_example_file_name = input_examples.find_example_file(
-            top_directory_name=top_example_dir_name, shuffled=False,
-            spc_date_string=this_spc_date_string)
+    if component_type_string == CLASS_COMPONENT_TYPE_STRING:
+        print 'Computing saliency maps for target class {0:d}...'.format(
+            target_class)
 
-        training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
-        training_option_dict[
-            trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
-        training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
-            time_conversion.get_start_of_spc_date(this_spc_date_string)
+        list_of_saliency_matrices = (
+            saliency_maps.get_saliency_maps_for_class_activation(
+                model_object=model_object, target_class=target_class,
+                list_of_input_matrices=list_of_input_matrices)
         )
-        training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
-            time_conversion.get_end_of_spc_date(this_spc_date_string)
+
+    elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
+        print (
+            'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
+        ).format(str(neuron_indices), layer_name)
+
+        list_of_saliency_matrices = (
+            saliency_maps.get_saliency_maps_for_neuron_activation(
+                model_object=model_object, layer_name=layer_name,
+                neuron_indices=neuron_indices,
+                list_of_input_matrices=list_of_input_matrices,
+                ideal_activation=ideal_activation)
         )
 
-        if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
-            this_generator = testing_io.myrorss_generator_2d3d(
-                option_dict=training_option_dict,
-                num_examples_total=LARGE_INTEGER)
-        else:
-            this_generator = testing_io.generator_2d_or_3d(
-                option_dict=training_option_dict,
-                num_examples_total=LARGE_INTEGER)
+    else:
+        print (
+            'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
+        ).format(channel_index, layer_name)
 
-        this_storm_object_dict = next(this_generator)
-
-        this_start_time_unix_sec = time_conversion.get_start_of_spc_date(
-            this_spc_date_string)
-        this_end_time_unix_sec = time_conversion.get_end_of_spc_date(
-            this_spc_date_string)
-        these_indices = numpy.where(numpy.logical_and(
-            desired_storm_times_unix_sec >= this_start_time_unix_sec,
-            desired_storm_times_unix_sec <= this_end_time_unix_sec
-        ))[0]
-
-        these_indices = tracking_utils.find_storm_objects(
-            all_storm_ids=this_storm_object_dict[testing_io.STORM_IDS_KEY],
-            all_times_unix_sec=this_storm_object_dict[
-                testing_io.STORM_TIMES_KEY],
-            storm_ids_to_keep=[desired_storm_ids[k] for k in these_indices],
-            times_to_keep_unix_sec=desired_storm_times_unix_sec[these_indices],
-            allow_missing=False)
-
-        these_storm_ids = [
-            this_storm_object_dict[testing_io.STORM_IDS_KEY][k]
-            for k in these_indices
-        ]
-        these_storm_times_unix_sec = this_storm_object_dict[
-            testing_io.STORM_TIMES_KEY][these_indices]
-        these_input_matrices = [
-            a[these_indices, ...]
-            for a in this_storm_object_dict[testing_io.INPUT_MATRICES_KEY]
-        ]
-
-        this_pressure_matrix_pascals = this_storm_object_dict[
-            model_interpretation.SOUNDING_PRESSURES_KEY]
-        if this_pressure_matrix_pascals is not None:
-            this_pressure_matrix_pascals = this_pressure_matrix_pascals[
-                these_indices, ...]
-
-        if component_type_string == CLASS_COMPONENT_TYPE_STRING:
-            print 'Computing saliency maps for target class {0:d}...'.format(
-                target_class)
-
-            these_saliency_matrices = (
-                saliency_maps.get_saliency_maps_for_class_activation(
-                    model_object=model_object, target_class=target_class,
-                    list_of_input_matrices=these_input_matrices)
-            )
-
-        elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
-            print (
-                'Computing saliency maps for neuron {0:s} in layer "{1:s}"...'
-            ).format(str(neuron_indices), layer_name)
-
-            these_saliency_matrices = (
-                saliency_maps.get_saliency_maps_for_neuron_activation(
-                    model_object=model_object, layer_name=layer_name,
-                    neuron_indices=neuron_indices,
-                    list_of_input_matrices=these_input_matrices,
-                    ideal_activation=ideal_activation)
-            )
-
-        else:
-            print (
-                'Computing saliency maps for channel {0:d} in layer "{1:s}"...'
-            ).format(channel_index, layer_name)
-
-            these_saliency_matrices = (
-                saliency_maps.get_saliency_maps_for_channel_activation(
-                    model_object=model_object, layer_name=layer_name,
-                    channel_index=channel_index,
-                    list_of_input_matrices=these_input_matrices,
-                    stat_function_for_neuron_activations=K.max,
-                    ideal_activation=ideal_activation)
-            )
-
-        if list_of_input_matrices is None:
-            storm_ids = these_storm_ids + []
-            storm_times_unix_sec = these_storm_times_unix_sec + 0
-            list_of_input_matrices = these_input_matrices + []
-            list_of_saliency_matrices = these_saliency_matrices + []
-
-            if this_pressure_matrix_pascals is not None:
-                sounding_pressure_matrix_pascals = (
-                    this_pressure_matrix_pascals + 0.)
-
-        else:
-            storm_ids += these_storm_ids
-            storm_times_unix_sec = numpy.concatenate((
-                storm_times_unix_sec, these_storm_times_unix_sec))
-
-            for k in range(len(list_of_input_matrices)):
-                list_of_input_matrices[k] = numpy.concatenate(
-                    (list_of_input_matrices[k], these_input_matrices[k]),
-                    axis=0)
-
-                list_of_saliency_matrices[k] = numpy.concatenate(
-                    (list_of_saliency_matrices[k], these_saliency_matrices[k]),
-                    axis=0)
-
-            if this_pressure_matrix_pascals is not None:
-                sounding_pressure_matrix_pascals = numpy.concatenate(
-                    (sounding_pressure_matrix_pascals,
-                     this_pressure_matrix_pascals), axis=0)
-
-        print SEPARATOR_STRING
+        list_of_saliency_matrices = (
+            saliency_maps.get_saliency_maps_for_channel_activation(
+                model_object=model_object, layer_name=layer_name,
+                channel_index=channel_index,
+                list_of_input_matrices=list_of_input_matrices,
+                stat_function_for_neuron_activations=K.max,
+                ideal_activation=ideal_activation)
+        )
 
     print 'Denormalizing model inputs...'
     list_of_input_matrices = model_interpretation.denormalize_data(
