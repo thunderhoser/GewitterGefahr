@@ -27,7 +27,13 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TITLE_FONT_SIZE = 20
+MAIN_FONT_SIZE = 20
+SMALL_FONT_SIZE = 15
+TINY_FONT_SIZE = 10
+NUM_PANELS_FOR_SMALL_FONT = 128
+NUM_PANELS_FOR_TINY_FONT = 256
+NUM_PANELS_FOR_NO_FONT = 384
+
 FIGURE_RESOLUTION_DPI = 300
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
@@ -121,6 +127,16 @@ def _plot_feature_maps_one_layer(
         'Filter {0:d}'.format(c + 1) for c in range(num_channels)
     ]
 
+    if num_channels >= NUM_PANELS_FOR_NO_FONT:
+        annotation_string_by_channel = [''] * num_channels
+        font_size = TINY_FONT_SIZE + 0
+    elif num_channels >= NUM_PANELS_FOR_TINY_FONT:
+        font_size = TINY_FONT_SIZE + 0
+    elif num_channels >= NUM_PANELS_FOR_SMALL_FONT:
+        font_size = SMALL_FONT_SIZE + 0
+    else:
+        font_size = MAIN_FONT_SIZE + 0
+
     max_colour_value = numpy.percentile(numpy.absolute(feature_matrix), 99)
     min_colour_value = -1 * max_colour_value
 
@@ -136,7 +152,7 @@ def _plot_feature_maps_one_layer(
                     num_panel_rows=num_panel_rows,
                     colour_map_object=pyplot.cm.seismic,
                     min_colour_value=min_colour_value,
-                    max_colour_value=max_colour_value)
+                    max_colour_value=max_colour_value, font_size=font_size)
             )
 
             plotting_utils.add_linear_colour_bar(
@@ -148,7 +164,7 @@ def _plot_feature_maps_one_layer(
 
             this_title_string = 'Layer "{0:s}", storm "{1:s}" at {2:s}'.format(
                 layer_name, storm_ids[i], this_time_string)
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
 
             this_figure_file_name = (
                 '{0:s}/storm={1:s}_{2:s}_features.jpg'
@@ -170,7 +186,7 @@ def _plot_feature_maps_one_layer(
                         num_panel_rows=num_panel_rows,
                         colour_map_object=pyplot.cm.seismic,
                         min_colour_value=min_colour_value,
-                        max_colour_value=max_colour_value)
+                        max_colour_value=max_colour_value, font_size=font_size)
                 )
 
                 plotting_utils.add_linear_colour_bar(
@@ -187,7 +203,7 @@ def _plot_feature_maps_one_layer(
                     layer_name, k + 1, num_heights, storm_ids[i],
                     this_time_string)
 
-                pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+                pyplot.suptitle(this_title_string, fontsize=MAIN_FONT_SIZE)
 
                 this_figure_file_name = (
                     '{0:s}/storm={1:s}_{2:s}_features_height{3:02d}.jpg'

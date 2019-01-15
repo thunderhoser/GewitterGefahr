@@ -32,8 +32,8 @@ SOUNDING_HEIGHTS_M_AGL = soundings.DEFAULT_HEIGHT_LEVELS_M_AGL
 
 ACTIVATIONS_KEY = 'storm_activations'
 
+FONT_SIZE = 20
 NUM_PANEL_ROWS = 3
-TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
@@ -204,11 +204,13 @@ def _plot_examples(
                 field_name=radar_utils.REFL_NAME,
                 grid_point_heights_metres=training_option_dict[
                     trainval_io.RADAR_HEIGHTS_KEY],
-                ground_relative=True, num_panel_rows=NUM_PANEL_ROWS)
+                ground_relative=True, num_panel_rows=NUM_PANEL_ROWS,
+                font_size=FONT_SIZE)
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(
-                    radar_utils.REFL_NAME)[:2]
+                    radar_utils.REFL_NAME
+                )[:2]
             )
 
             plotting_utils.add_colour_bar(
@@ -223,7 +225,7 @@ def _plot_examples(
             this_file_name = '{0:s}_reflectivity.jpg'.format(
                 this_base_file_name)
 
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -241,12 +243,14 @@ def _plot_examples(
                     field_name_by_pair=training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY],
                     height_by_pair_metres=these_heights_m_agl,
-                    ground_relative=True, num_panel_rows=1)
+                    ground_relative=True, num_panel_rows=1,
+                    plot_colour_bars=False, font_size=FONT_SIZE)
             )
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(
-                    radar_utils.LOW_LEVEL_SHEAR_NAME)[:2]
+                    radar_utils.LOW_LEVEL_SHEAR_NAME
+                )[:2]
             )
 
             plotting_utils.add_colour_bar(
@@ -257,7 +261,7 @@ def _plot_examples(
                 orientation='horizontal', extend_min=True, extend_max=True)
 
             this_file_name = '{0:s}_shear.jpg'.format(this_base_file_name)
-            pyplot.suptitle(this_base_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_base_title_string, fontsize=FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -282,7 +286,8 @@ def _plot_examples(
                     field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
                     field_name_by_pair=radar_field_names,
                     height_by_pair_metres=radar_heights_m_agl,
-                    ground_relative=True, num_panel_rows=NUM_PANEL_ROWS)
+                    ground_relative=True, num_panel_rows=NUM_PANEL_ROWS,
+                    plot_colour_bars=True, font_size=FONT_SIZE)
 
                 this_title_string = this_base_title_string + ''
                 this_file_name = '{0:s}.jpg'.format(this_base_file_name)
@@ -293,12 +298,14 @@ def _plot_examples(
                             this_radar_matrix[i, ..., j], axis=0),
                         field_name=radar_field_names[j],
                         grid_point_heights_metres=radar_heights_m_agl,
-                        ground_relative=True, num_panel_rows=NUM_PANEL_ROWS)
+                        ground_relative=True, num_panel_rows=NUM_PANEL_ROWS,
+                        font_size=FONT_SIZE)
                 )
 
                 this_colour_map_object, this_colour_norm_object = (
                     radar_plotting.get_default_colour_scheme(
-                        radar_field_names[j])[:2]
+                        radar_field_names[j]
+                    )[:2]
                 )
 
                 plotting_utils.add_colour_bar(
@@ -314,7 +321,7 @@ def _plot_examples(
                     this_base_file_name, radar_field_names[j].replace('_', '-')
                 )
 
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()

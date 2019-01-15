@@ -15,423 +15,345 @@ SHEAR_VORT_DIV_NAMES = [
     radar_utils.LOW_LEVEL_SHEAR_NAME, radar_utils.MID_LEVEL_SHEAR_NAME
 ]
 
-REFL_PLOTTING_UNIT_STRING = 'dBZ'
-SHEAR_VORT_DIV_PLOTTING_UNIT_STRING = 'ks^-1'
-ECHO_TOP_PLOTTING_UNIT_STRING = 'kft'
-MESH_PLOTTING_UNIT_STRING = 'mm'
-SHI_PLOTTING_UNIT_STRING = ''
-VIL_PLOTTING_UNIT_STRING = 'mm'
-
 KM_TO_KILOFEET = 3.2808
 METRES_TO_KM = 1e-3
 PER_SECOND_TO_PER_KILOSECOND = 1e3
 
-DEFAULT_FIGURE_WIDTH_INCHES = 15.
-DEFAULT_FIGURE_HEIGHT_INCHES = 15.
+DEFAULT_FIGURE_WIDTH_INCHES = 15
+DEFAULT_FIGURE_HEIGHT_INCHES = 15
+DEFAULT_FONT_SIZE = 20
 
 
-def _get_friendly_colour_list():
-    """Returns colours in "colourblind-friendly" scheme used by GridRad viewer.
+def _get_friendly_colours():
+    """Returns colours in colourblind-friendly scheme used by GridRad viewer.
 
-    :return: colour_list: 1-D list, where each element is a length-3 numpy array
-        with [R, G, B].
+    :return: colour_list: 1-D list, where each element is a numpy array with the
+        [R, G, B] values in that order.
     """
 
     colour_list = [
-        numpy.array([242., 247., 233.]), numpy.array([220., 240., 212.]),
-        numpy.array([193., 233., 196.]), numpy.array([174., 225., 196.]),
-        numpy.array([156., 218., 205.]), numpy.array([138., 200., 211.]),
-        numpy.array([122., 163., 204.]), numpy.array([106., 119., 196.]),
-        numpy.array([112., 92., 189.]), numpy.array([137., 78., 182.]),
-        numpy.array([167., 64., 174.]), numpy.array([167., 52., 134.]),
-        numpy.array([160., 41., 83.]), numpy.array([153., 30., 30.])]
+        [242, 247, 233], [220, 240, 212], [193, 233, 196], [174, 225, 196],
+        [156, 218, 205], [138, 200, 211], [122, 163, 204], [106, 119, 196],
+        [112, 92, 189], [137, 78, 182], [167, 64, 174], [167, 52, 134],
+        [160, 41, 83], [153, 30, 30]
+    ]
 
     for i in range(len(colour_list)):
-        colour_list[i] /= 255
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
     return colour_list
 
 
-def _get_modern_colour_list():
-    """Returns list of colours in "modern" scheme used by GridRad viewer.
+def _get_modern_colours():
+    """Returns colours in "modern" scheme used by GridRad viewer.
 
-    :return: colour_list: 1-D list, where each element is a length-3 numpy array
-        with [R, G, B].
+    :return: colour_list: See doc for `_get_friendly_colours`.
     """
 
     colour_list = [
-        numpy.array([0., 0., 0.]), numpy.array([64., 64., 64.]),
-        numpy.array([131., 131., 131.]), numpy.array([0., 24., 255.]),
-        numpy.array([0., 132., 255.]), numpy.array([0., 255., 255.]),
-        numpy.array([5., 192., 127.]), numpy.array([5., 125., 0.]),
-        numpy.array([105., 192., 0.]), numpy.array([255., 255., 0.]),
-        numpy.array([255., 147., 8.]), numpy.array([255., 36., 15.]),
-        numpy.array([255., 0., 255.]), numpy.array([255., 171., 255.])]
+        [0, 0, 0], [64, 64, 64], [131, 131, 131], [0, 24, 255],
+        [0, 132, 255], [0, 255, 255], [5, 192, 127], [5, 125, 0],
+        [105, 192, 0], [255, 255, 0], [255, 147, 8], [255, 36, 15],
+        [255, 0, 255], [255, 171, 255]
+    ]
 
     for i in range(len(colour_list)):
-        colour_list[i] /= 255
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
     return colour_list
 
 
-def _get_default_refl_colour_scheme():
-    """Returns default colour scheme for reflectivity.
+def _get_reflectivity_colour_scheme():
+    """Returns colour scheme for reflectivity.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_dbz: See doc for `get_default_colour_scheme`.  In
-        this case, units are dBZ (decibels of reflectivity).
     """
 
-    main_colour_list = [
-        numpy.array([4., 233., 231.]), numpy.array([1., 159., 244.]),
-        numpy.array([3., 0., 244.]), numpy.array([2., 253., 2.]),
-        numpy.array([1., 197., 1.]), numpy.array([0., 142., 0.]),
-        numpy.array([253., 248., 2.]), numpy.array([229., 188., 0.]),
-        numpy.array([253., 149., 0.]), numpy.array([253., 0., 0.]),
-        numpy.array([212., 0., 0.]), numpy.array([188., 0., 0.]),
-        numpy.array([248., 0., 253.]), numpy.array([152., 84., 198.])]
+    colour_list = [
+        [4, 233, 231], [1, 159, 244], [3, 0, 244], [2, 253, 2],
+        [1, 197, 1], [0, 142, 0], [253, 248, 2], [229, 188, 0],
+        [253, 149, 0], [253, 0, 0], [212, 0, 0], [188, 0, 0],
+        [248, 0, 253], [152, 84, 198]
+    ]
 
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
 
-    main_colour_bounds_dbz = numpy.array(
-        [0.1, 5., 10., 15., 20., 25., 30., 35., 40., 45., 50., 55., 60., 65.,
-         70.])
+    colour_bounds_dbz = numpy.array(
+        [0.1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_dbz, colour_map_object.N)
+        colour_bounds_dbz, colour_map_object.N)
 
-    colour_bounds_dbz = numpy.concatenate((
-        numpy.array([0.]), main_colour_bounds_dbz, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_dbz
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_zdr_colour_scheme():
-    """Returns default colour scheme for Z_DR (differential reflectivity).
+def _get_zdr_colour_scheme():
+    """Returns colour scheme for Z_DR (differential reflectivity).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_db: See doc for `get_default_colour_scheme`.  In
-        this case, units are dB (decibels).
     """
 
-    main_colour_list = _get_modern_colour_list()
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_list = _get_modern_colours()
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
 
-    main_colour_bounds_db = numpy.array(
-        [-1., -0.5, 0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.5, 3., 3.5,
-         4.])
+    colour_bounds_db = numpy.array(
+        [-1, -0.5, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_db, colour_map_object.N)
+        colour_bounds_db, colour_map_object.N)
 
-    colour_bounds_db = numpy.concatenate((
-        numpy.array([-100.]), main_colour_bounds_db, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_db
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_kdp_colour_scheme():
-    """Returns default colour scheme for K_DP (specific differential phase).
+def _get_kdp_colour_scheme():
+    """Returns colour scheme for K_DP (specific differential phase).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_deg_km01: See doc for `get_default_colour_scheme`.
-        In this case, units are degrees per km.
     """
 
-    main_colour_list = _get_modern_colour_list()
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
+    colour_list = _get_modern_colours()
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
 
-    main_colour_bounds_deg_km01 = numpy.array(
-        [-1., -0.5, 0., 0.25, 0.5, 0.75, 1., 1.25, 1.5, 1.75, 2., 2.5, 3., 3.5,
-         4.])
+    colour_bounds_deg_km01 = numpy.array(
+        [-1, -0.5, 0, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2, 2.5, 3, 3.5, 4])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_deg_km01, colour_map_object.N)
+        colour_bounds_deg_km01, colour_map_object.N)
 
-    colour_bounds_deg_km01 = numpy.concatenate((
-        numpy.array([-100.]), main_colour_bounds_deg_km01, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_deg_km01
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_rho_hv_colour_scheme():
-    """Returns default colour scheme for rho_hv (correlation coefficient).
+def _get_rho_hv_colour_scheme():
+    """Returns colour scheme for rho_hv (cross-polar correlation coefficient).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds: See doc for `get_default_colour_scheme`.  In this
-        case, units are dimensionless.
     """
 
-    main_colour_list = _get_modern_colour_list()
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_list = _get_modern_colours()
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
 
-    main_colour_bounds = numpy.array(
+    colour_bounds_unitless = numpy.array(
         [0.7, 0.75, 0.8, 0.85, 0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97,
-         0.98, 0.99, 1.])
+         0.98, 0.99, 1]
+    )
+
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds, colour_map_object.N)
+        colour_bounds_unitless, colour_map_object.N)
 
-    colour_bounds = numpy.concatenate((
-        numpy.array([-100.]), main_colour_bounds, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_spectrum_width_colour_scheme():
-    """Returns default colour scheme for sigma_v (velocity-spectrum width).
+def _get_spectrum_width_colour_scheme():
+    """Returns colour scheme for velocity-spectrum width.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_m_s01: See doc for `get_default_colour_scheme`.  In
-        this case, units are metres per second.
     """
 
-    main_colour_list = _get_friendly_colour_list()
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_list = _get_friendly_colours()
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
 
-    main_colour_bounds_m_s01 = numpy.array(
-        [0.1, 0.5, 1., 1.5, 2., 2.5, 3., 3.5, 4., 5., 6., 7., 8., 9., 10.])
+    colour_bounds_m_s01 = numpy.array(
+        [0.1, 0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4, 5, 6, 7, 8, 9, 10])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_m_s01, colour_map_object.N)
+        colour_bounds_m_s01, colour_map_object.N)
 
-    colour_bounds_m_s01 = numpy.concatenate((
-        numpy.array([-100.]), main_colour_bounds_m_s01, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_m_s01
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_vorticity_colour_scheme():
-    """Returns default colour scheme for vorticity.
+def _get_vorticity_colour_scheme():
+    """Returns colour scheme for vorticity.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_ks01: See doc for `get_default_colour_scheme`.  In
-        this case, units are kiloseconds^-1.
     """
 
-    main_colour_list = [
-        numpy.array([0, 0, 76.5]), numpy.array([0, 0, 118.5]),
-        numpy.array([0, 0, 163.3]), numpy.array([0, 0, 208.1]),
-        numpy.array([0, 0, 252.9]), numpy.array([61, 61, 255.]),
-        numpy.array([125, 125, 255.]), numpy.array([189, 189, 255.]),
-        numpy.array([253, 253, 255.]), numpy.array([255, 193, 193.]),
-        numpy.array([255, 129, 129.]), numpy.array([255, 65, 65.]),
-        numpy.array([255, 1, 1.]), numpy.array([223.5, 0, 0]),
-        numpy.array([191.5, 0, 0]), numpy.array([159.5, 0, 0]),
-        numpy.array([127.5, 0, 0]), numpy.array([95.5, 0, 0])
+    colour_list = [
+        [0, 0, 76.5], [0, 0, 118.5], [0, 0, 163.3], [0, 0, 208.1],
+        [0, 0, 252.9], [61, 61, 255], [125, 125, 255], [189, 189, 255],
+        [253, 253, 255], [255, 193, 193], [255, 129, 129], [255, 65, 65],
+        [255, 1, 1], [223.5, 0, 0], [191.5, 0, 0], [159.5, 0, 0],
+        [127.5, 0, 0], [95.5, 0, 0]
     ]
 
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    main_colour_bounds_ks01 = numpy.array(
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_bounds_ks01 = numpy.array(
         [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_ks01, colour_map_object.N)
+        colour_bounds_ks01, colour_map_object.N)
 
-    colour_bounds_ks01 = numpy.concatenate((
-        numpy.array([-0.1]), main_colour_bounds_ks01, numpy.array([0.1])))
-    return colour_map_object, colour_norm_object, colour_bounds_ks01
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_divergence_colour_scheme():
-    """Returns default colour scheme for divergence.
+def _get_az_shear_colour_scheme():
+    """Returns colour scheme for azimuthal shear.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_ks01: See doc for `get_default_colour_scheme`.  In
-        this case, units are kiloseconds^-1.
     """
 
-    return _get_default_shear_colour_scheme()
-
-
-def _get_default_shear_colour_scheme():
-    """Returns default colour scheme for azimuthal shear.
-
-    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
-    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_ks01: See doc for `get_default_colour_scheme`.  In
-        this case, units are kiloseconds^-1.
-    """
-
-    main_colour_list = [
-        numpy.array([0, 0, 76.5]), numpy.array([0, 0, 118.5]),
-        numpy.array([0, 0, 163.3]), numpy.array([0, 0, 208.1]),
-        numpy.array([0, 0, 252.9]), numpy.array([61, 61, 255.]),
-        numpy.array([125, 125, 255.]), numpy.array([189, 189, 255.]),
-        numpy.array([253, 253, 255.]), numpy.array([255, 193, 193.]),
-        numpy.array([255, 129, 129.]), numpy.array([255, 65, 65.]),
-        numpy.array([255, 1, 1.]), numpy.array([223.5, 0, 0]),
-        numpy.array([191.5, 0, 0]), numpy.array([159.5, 0, 0]),
-        numpy.array([127.5, 0, 0]), numpy.array([95.5, 0, 0])
+    colour_list = [
+        [0, 0, 76.5], [0, 0, 118.5], [0, 0, 163.3], [0, 0, 208.1],
+        [0, 0, 252.9], [61, 61, 255], [125, 125, 255], [189, 189, 255],
+        [253, 253, 255], [255, 193, 193], [255, 129, 129], [255, 65, 65],
+        [255, 1, 1], [223.5, 0, 0], [191.5, 0, 0], [159.5, 0, 0],
+        [127.5, 0, 0], [95.5, 0, 0]
     ]
 
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    main_colour_bounds_ks01 = 2 * numpy.array(
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_bounds_ks01 = 2 * numpy.array(
         [-7, -6, -5, -4, -3, -2, -1.5, -1, -0.5, 0.5, 1, 1.5, 2, 3, 4, 5, 6, 7])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_ks01, colour_map_object.N)
+        colour_bounds_ks01, colour_map_object.N)
 
-    colour_bounds_ks01 = numpy.concatenate((
-        numpy.array([-0.1]), main_colour_bounds_ks01, numpy.array([0.1])))
-    return colour_map_object, colour_norm_object, colour_bounds_ks01
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_echo_top_colour_scheme():
-    """Returns default colur scheme for echo tops.
+def _get_divergence_colour_scheme():
+    """Returns colour scheme for divergence.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_s01: See doc for `get_default_colour_scheme`.  In
-        this case, units are kilofeet (why, America, why?).
     """
 
-    main_colour_list = [
-        numpy.array([120., 120., 120.]), numpy.array([16., 220., 244.]),
-        numpy.array([11., 171., 247.]), numpy.array([9., 144., 202.]),
-        numpy.array([48., 6., 134.]), numpy.array([4., 248., 137.]),
-        numpy.array([10., 185., 6.]), numpy.array([1., 241., 8.]),
-        numpy.array([255., 186., 1.]), numpy.array([255., 251., 0.]),
-        numpy.array([132., 17., 22.]), numpy.array([233., 16., 1.])]
-
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
-
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
-
-    main_colour_bounds_kft = numpy.array(
-        [0.1, 10., 15., 20., 25., 30., 35., 40., 45., 50., 55., 60., 65.])
-    colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_kft, colour_map_object.N)
-
-    colour_bounds_kft = numpy.concatenate((
-        numpy.array([0.]), main_colour_bounds_kft, numpy.array([100.])))
-    return colour_map_object, colour_norm_object, colour_bounds_kft
+    return _get_az_shear_colour_scheme()
 
 
-def _get_default_mesh_colour_scheme():
-    """Returns default colour scheme for MESH (max estimated size of hail).
+def _get_echo_top_colour_scheme():
+    """Returns colour scheme for echo top.
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_mm: See doc for `get_default_colour_scheme`.  In
-        this case, units are millimetres.
     """
 
-    main_colour_list = [
-        numpy.array([152., 152., 152.]), numpy.array([152., 203., 254.]),
-        numpy.array([0., 152., 254.]), numpy.array([0., 45., 254.]),
-        numpy.array([0., 101., 0.]), numpy.array([0., 152., 0.]),
-        numpy.array([0., 203., 0.]), numpy.array([254., 254., 50.]),
-        numpy.array([254., 203., 0.]), numpy.array([254., 152., 0.]),
-        numpy.array([254., 0., 0.]), numpy.array([254., 0., 152.]),
-        numpy.array([152., 50., 203.])]
+    colour_list = [
+        [120, 120, 120], [16, 220, 244], [11, 171, 247], [9, 144, 202],
+        [48, 6, 134], [4, 248, 137], [10, 185, 6], [1, 241, 8],
+        [255, 186, 1], [255, 251, 0], [132, 17, 22], [233, 16, 1]
+    ]
 
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
 
-    main_colour_bounds_mm = numpy.array(
-        [0.1, 15.9, 22.2, 28.6, 34.9, 41.3, 47.6, 54., 60.3, 65., 70., 75., 80.,
-         85.])
+    colour_bounds_kft = numpy.array(
+        [0.1, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_mm, colour_map_object.N)
+        colour_bounds_kft, colour_map_object.N)
 
-    colour_bounds_mm = numpy.concatenate((
-        numpy.array([0.]), main_colour_bounds_mm, numpy.array([200.])))
-    return colour_map_object, colour_norm_object, colour_bounds_mm
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_shi_colour_scheme():
-    """Returns default colour scheme for SHI (severe-hail index).
+def _get_mesh_colour_scheme():
+    """Returns colour scheme for MESH (maximum estimated size of hail).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds: See doc for `get_default_colour_scheme`.  In this
-        case, units are dimensionless.
     """
 
-    main_colour_list = [
-        numpy.array([152., 152., 152.]), numpy.array([152., 203., 254.]),
-        numpy.array([0., 152., 254.]), numpy.array([0., 45., 254.]),
-        numpy.array([0., 101., 0.]), numpy.array([0., 152., 0.]),
-        numpy.array([0., 203., 0.]), numpy.array([254., 254., 50.]),
-        numpy.array([254., 203., 0.]), numpy.array([254., 152., 0.]),
-        numpy.array([254., 0., 0.]), numpy.array([254., 0., 152.]),
-        numpy.array([152., 50., 203.]), numpy.array([101., 0., 152.])]
+    colour_list = [
+        [152, 152, 152], [152, 203, 254], [0, 152, 254], [0, 45, 254],
+        [0, 101, 0], [0, 152, 0], [0, 203, 0], [254, 254, 50],
+        [254, 203, 0], [254, 152, 0], [254, 0, 0], [254, 0, 152],
+        [152, 50, 203]
+    ]
 
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
 
-    main_colour_bounds = numpy.array(
-        [1., 30., 60., 90., 120., 150., 180., 210., 240., 270., 300., 330.,
-         360., 390., 420.])
+    colour_bounds_mm = numpy.array(
+        [0.1, 15.9, 22.2, 28.6, 34.9, 41.3, 47.6, 54, 60.3, 65, 70, 75, 80, 85])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds, colour_map_object.N)
+        colour_bounds_mm, colour_map_object.N)
 
-    colour_bounds = numpy.concatenate((
-        numpy.array([0.]), main_colour_bounds, numpy.array([1000.])))
-    return colour_map_object, colour_norm_object, colour_bounds
+    return colour_map_object, colour_norm_object
 
 
-def _get_default_vil_colour_scheme():
-    """Returns default colour scheme for VIL (vertically integrated liquid).
+def _get_shi_colour_scheme():
+    """Returns colour scheme for SHI (severe-hail index).
 
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds_mm: See doc for `get_default_colour_scheme`.  In
-        this case, units are millimetres.
     """
 
-    main_colour_list = [
-        numpy.array([16., 71., 101.]), numpy.array([0., 99., 132.]),
-        numpy.array([46., 132., 181.]), numpy.array([74., 166., 218.]),
-        numpy.array([122., 207., 255.]), numpy.array([179., 0., 179.]),
-        numpy.array([222., 83., 222.]), numpy.array([255., 136., 255.]),
-        numpy.array([253., 191., 253.]), numpy.array([255., 96., 0.]),
-        numpy.array([255., 128., 32.]), numpy.array([255., 208., 0.]),
-        numpy.array([180., 0., 0.]), numpy.array([224., 0., 0.])]
+    colour_list = [
+        [152, 152, 152], [152, 203, 254], [0, 152, 254], [0, 45, 254],
+        [0, 101, 0], [0, 152, 0], [0, 203, 0], [254, 254, 50],
+        [254, 203, 0], [254, 152, 0], [254, 0, 0], [254, 0, 152],
+        [152, 50, 203], [101, 0, 152]
+    ]
 
-    for i in range(len(main_colour_list)):
-        main_colour_list[i] /= 255
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
 
-    colour_map_object = matplotlib.colors.ListedColormap(main_colour_list)
-    colour_map_object.set_under(numpy.array([1., 1., 1.]))
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
 
-    main_colour_bounds_mm = numpy.array(
-        [0.1, 5., 10., 15., 20., 25., 30., 35., 40., 45., 50., 55., 60., 65.,
-         70.])
+    colour_bounds_unitless = numpy.array(
+        [1, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330, 360, 390, 420])
     colour_norm_object = matplotlib.colors.BoundaryNorm(
-        main_colour_bounds_mm, colour_map_object.N)
+        colour_bounds_unitless, colour_map_object.N)
 
-    colour_bounds_mm = numpy.concatenate((
-        numpy.array([0.]), main_colour_bounds_mm, numpy.array([200.])))
-    return colour_map_object, colour_norm_object, colour_bounds_mm
+    return colour_map_object, colour_norm_object
 
 
-def _convert_to_plotting_units(field_matrix, field_name):
-    """Converts field from default (GewitterGefahr) units to plotting units.
+def _get_vil_colour_scheme():
+    """Returns colour scheme for VIL (vertically integrated liquid).
+
+    :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
+    :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    """
+
+    colour_list = [
+        [16, 71, 101], [0, 99, 132], [46, 132, 181], [74, 166, 218],
+        [122, 207, 255], [179, 0, 179], [222, 83, 222], [255, 136, 255],
+        [253, 191, 253], [255, 96, 0], [255, 128, 32], [255, 208, 0],
+        [180, 0, 0], [224, 0, 0]
+    ]
+
+    for i in range(len(colour_list)):
+        colour_list[i] = numpy.array(colour_list[i], dtype=float) / 255
+
+    colour_map_object = matplotlib.colors.ListedColormap(colour_list)
+    colour_map_object.set_under(numpy.full(3, 1))
+
+    colour_bounds_mm = numpy.array(
+        [0.1, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55, 60, 65, 70])
+    colour_norm_object = matplotlib.colors.BoundaryNorm(
+        colour_bounds_mm, colour_map_object.N)
+
+    return colour_map_object, colour_norm_object
+
+
+def _field_to_plotting_units(field_matrix, field_name):
+    """Converts radar field from default units to plotting units.
 
     :param field_matrix: numpy array in default units.
     :param field_name: Name of radar field (must be accepted by
         `radar_utils.check_field_name`).
-    :return: field_matrix: Same as input, but now in plotting units.
+    :return: new_field_matrix: Same as input, except in plotting units.
     """
 
     radar_utils.check_field_name(field_name)
+
     if field_name in radar_utils.ECHO_TOP_NAMES:
         return field_matrix * KM_TO_KILOFEET
 
@@ -441,90 +363,71 @@ def _convert_to_plotting_units(field_matrix, field_name):
     return field_matrix
 
 
-def get_default_colour_scheme(field_name):
-    """Returns default colour scheme for the given radar field.
-
-    N = number of colours
+def _field_name_to_plotting_units(field_name):
+    """Converts field *name* from default units to plotting units.
 
     :param field_name: Name of radar field (must be accepted by
+        `radar_utils.check_field_name`).
+    :return: new_field_name: Same as input, except in plotting units.
+    """
+
+    radar_utils.check_field_name(field_name)
+
+    if field_name in radar_utils.ECHO_TOP_NAMES:
+        return field_name.replace('_km', '_kft')
+
+    if field_name in SHEAR_VORT_DIV_NAMES:
+        return field_name.replace('_s01', '_ks01')
+
+    return field_name
+
+
+def get_default_colour_scheme(field_name):
+    """Returns default colour scheme for radar field.
+
+    :param field_name: Field name (must be accepted by
         `radar_utils.check_field_name`).
     :return: colour_map_object: Instance of `matplotlib.colors.ListedColormap`.
     :return: colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
-    :return: colour_bounds: length-(N + 1) numpy array of colour boundaries.
-        colour_bounds[0] and colour_bounds[1] are the boundaries for the 1st
-        colour; colour_bounds[1] and colour_bounds[2] are the boundaries for the
-        2nd colour; ...; colour_bounds[i] and colour_bounds[i + 1] are the
-        boundaries for the (i + 1)th colour.
     """
 
     radar_utils.check_field_name(field_name)
 
     if field_name in radar_utils.REFLECTIVITY_NAMES:
-        return _get_default_refl_colour_scheme()
+        return _get_reflectivity_colour_scheme()
 
     if field_name in radar_utils.SHEAR_NAMES:
-        return _get_default_shear_colour_scheme()
+        return _get_az_shear_colour_scheme()
 
     if field_name in radar_utils.ECHO_TOP_NAMES:
-        return _get_default_echo_top_colour_scheme()
+        return _get_echo_top_colour_scheme()
 
     if field_name == radar_utils.MESH_NAME:
-        return _get_default_mesh_colour_scheme()
+        return _get_mesh_colour_scheme()
 
     if field_name == radar_utils.SHI_NAME:
-        return _get_default_shi_colour_scheme()
+        return _get_shi_colour_scheme()
 
     if field_name == radar_utils.VIL_NAME:
-        return _get_default_vil_colour_scheme()
+        return _get_vil_colour_scheme()
 
     if field_name == radar_utils.DIFFERENTIAL_REFL_NAME:
-        return _get_default_zdr_colour_scheme()
+        return _get_zdr_colour_scheme()
 
     if field_name == radar_utils.SPEC_DIFF_PHASE_NAME:
-        return _get_default_kdp_colour_scheme()
+        return _get_kdp_colour_scheme()
 
     if field_name == radar_utils.CORRELATION_COEFF_NAME:
-        return _get_default_rho_hv_colour_scheme()
+        return _get_rho_hv_colour_scheme()
 
     if field_name == radar_utils.SPECTRUM_WIDTH_NAME:
-        return _get_default_spectrum_width_colour_scheme()
+        return _get_spectrum_width_colour_scheme()
 
     if field_name == radar_utils.VORTICITY_NAME:
-        return _get_default_vorticity_colour_scheme()
+        return _get_vorticity_colour_scheme()
 
     if field_name == radar_utils.DIVERGENCE_NAME:
-        return _get_default_divergence_colour_scheme()
-
-    return None
-
-
-def get_plotting_units(field_name):
-    """Returns string with plotting units for the given radar field.
-
-    :param field_name: Name of radar field (must be accepted by
-        `radar_utils.check_field_name`).
-    :return: unit_string: String with plotting units.
-    """
-
-    radar_utils.check_field_name(field_name)
-
-    if field_name in radar_utils.REFLECTIVITY_NAMES:
-        return REFL_PLOTTING_UNIT_STRING
-
-    if field_name in SHEAR_VORT_DIV_NAMES:
-        return SHEAR_VORT_DIV_PLOTTING_UNIT_STRING
-
-    if field_name in radar_utils.ECHO_TOP_NAMES:
-        return ECHO_TOP_PLOTTING_UNIT_STRING
-
-    if field_name == radar_utils.MESH_NAME:
-        return MESH_PLOTTING_UNIT_STRING
-
-    if field_name == radar_utils.SHI_NAME:
-        return SHI_PLOTTING_UNIT_STRING
-
-    if field_name == radar_utils.VIL_NAME:
-        return VIL_PLOTTING_UNIT_STRING
+        return _get_divergence_colour_scheme()
 
     return None
 
@@ -564,7 +467,7 @@ def plot_latlng_grid(
     :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
     """
 
-    field_matrix = _convert_to_plotting_units(
+    field_matrix = _field_to_plotting_units(
         field_matrix=field_matrix, field_name=field_name)
 
     (field_matrix_at_edges, grid_cell_edge_latitudes_deg,
@@ -591,8 +494,9 @@ def plot_latlng_grid(
 
 
 def plot_2d_grid_without_coords(
-        field_matrix, field_name, axes_object, annotation_string=None,
-        colour_map_object=None, colour_norm_object=None):
+        field_matrix, field_name, axes_object, font_size=DEFAULT_FONT_SIZE,
+        annotation_string=None, colour_map_object=None,
+        colour_norm_object=None):
     """Plots 2-D grid as colour map.
 
     M = number of rows in grid
@@ -607,6 +511,7 @@ def plot_2d_grid_without_coords(
     :param field_matrix: M-by-N numpy array of radar values.
     :param field_name: Same.
     :param axes_object: Same.
+    :param font_size: Font size for annotation.
     :param annotation_string: Annotation (will be printed in the bottom-center).
         If you want no annotation, leave this alone.
     :param colour_map_object: See doc for `plot_latlng_grid`.
@@ -620,7 +525,7 @@ def plot_2d_grid_without_coords(
     error_checking.assert_is_numpy_array_without_nan(field_matrix)
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=2)
 
-    field_matrix = _convert_to_plotting_units(
+    field_matrix = _field_to_plotting_units(
         field_matrix=field_matrix, field_name=field_name)
     field_matrix = numpy.ma.masked_where(
         numpy.isnan(field_matrix), field_matrix)
@@ -638,9 +543,15 @@ def plot_2d_grid_without_coords(
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
 
-        bounding_box_dict = {'facecolor': 'white', 'alpha': 0.5}
+        bounding_box_dict = {
+            'facecolor': 'white',
+            'alpha': 0.5,
+            'edgecolor': 'black',
+            'linewidth': 2
+        }
+
         axes_object.text(
-            0.5, 0.01, annotation_string, fontsize=20, fontweight='bold',
+            0.5, 0.01, annotation_string, fontsize=font_size, fontweight='bold',
             bbox=bounding_box_dict, color='k', horizontalalignment='center',
             verticalalignment='bottom', transform=axes_object.transAxes)
 
@@ -655,7 +566,7 @@ def plot_many_2d_grids_without_coords(
         ground_relative, num_panel_rows,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
-        plot_colour_bars=False):
+        font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True):
     """Plots each 2-D grid as colour map (one per field/height pair).
 
     M = number of grid rows
@@ -676,6 +587,7 @@ def plot_many_2d_grids_without_coords(
         the number of grid rows).
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
+    :param font_size: Font size for colour-bar ticks and panel labels.
     :param plot_colour_bars: Boolean flag.  If True, colour bar will be plotted
         for each panel.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
@@ -716,8 +628,11 @@ def plot_many_2d_grids_without_coords(
                 break
 
             this_annotation_string = '{0:s}\nat {1:.2f} km'.format(
-                field_name_by_pair[this_fh_pair_index],
-                height_by_pair_metres[this_fh_pair_index] * METRES_TO_KM)
+                _field_name_to_plotting_units(
+                    field_name_by_pair[this_fh_pair_index]),
+                height_by_pair_metres[this_fh_pair_index] * METRES_TO_KM
+            )
+
             if ground_relative:
                 this_annotation_string += ' AGL'
             else:
@@ -728,7 +643,8 @@ def plot_many_2d_grids_without_coords(
                     field_matrix=field_matrix[..., this_fh_pair_index],
                     field_name=field_name_by_pair[this_fh_pair_index],
                     axes_object=axes_objects_2d_list[i][j],
-                    annotation_string=this_annotation_string)
+                    annotation_string=this_annotation_string,
+                    font_size=font_size)
             )
 
             if not plot_colour_bars:
@@ -743,7 +659,7 @@ def plot_many_2d_grids_without_coords(
                 values_to_colour=field_matrix[..., this_fh_pair_index],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
-                orientation='vertical',
+                orientation='vertical', font_size=font_size,
                 extend_min=this_extend_min_flag, extend_max=True,
                 fraction_of_axis_length=0.8)
 
@@ -754,7 +670,8 @@ def plot_3d_grid_without_coords(
         field_matrix, field_name, grid_point_heights_metres, ground_relative,
         num_panel_rows, figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
-        colour_map_object=None, colour_norm_object=None):
+        font_size=DEFAULT_FONT_SIZE, colour_map_object=None,
+        colour_norm_object=None):
     """Plots 3-D grid as many colour maps (one per height).
 
     M = number of grid rows
@@ -775,6 +692,7 @@ def plot_3d_grid_without_coords(
         the number of grid rows).
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
+    :param font_size: Font size for colour-bar ticks and panel labels.
     :param colour_map_object: See doc for `plot_latlng_grid`.
     :param colour_norm_object: Same.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
@@ -820,6 +738,6 @@ def plot_3d_grid_without_coords(
                 field_name=field_name, axes_object=axes_objects_2d_list[i][j],
                 annotation_string=this_annotation_string,
                 colour_map_object=colour_map_object,
-                colour_norm_object=colour_norm_object)
+                colour_norm_object=colour_norm_object, font_size=font_size)
 
     return figure_object, axes_objects_2d_list

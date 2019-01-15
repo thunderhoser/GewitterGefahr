@@ -4,7 +4,6 @@ import os.path
 import argparse
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
@@ -20,7 +19,7 @@ from gewittergefahr.plotting import sounding_plotting
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TITLE_FONT_SIZE = 20
+FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -110,7 +109,8 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                 field_name=radar_utils.REFL_NAME,
                 grid_point_heights_metres=training_option_dict[
                     trainval_io.RADAR_HEIGHTS_KEY],
-                ground_relative=True, num_panel_rows=this_num_panel_rows)
+                ground_relative=True, num_panel_rows=this_num_panel_rows,
+                font_size=FONT_SIZE)
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(
@@ -128,7 +128,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                 '{0:s}/example{1:06d}_optimized={2:d}_reflectivity.jpg'
             ).format(output_dir_name, i, int(optimized))
 
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -146,7 +146,8 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                     field_name_by_pair=training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY],
                     height_by_pair_metres=these_heights_m_agl,
-                    ground_relative=True, num_panel_rows=1)
+                    ground_relative=True, num_panel_rows=1,
+                    plot_colour_bars=False, font_size=FONT_SIZE)
             )
 
             this_colour_map_object, this_colour_norm_object = (
@@ -165,7 +166,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                 '{0:s}/example{1:06d}_optimized={2:d}_azimuthal-shear.jpg'
             ).format(output_dir_name, i, int(optimized))
 
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -195,7 +196,8 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                     field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
                     field_name_by_pair=radar_field_names,
                     height_by_pair_metres=radar_heights_m_agl,
-                    ground_relative=True, num_panel_rows=this_num_panel_rows)
+                    ground_relative=True, num_panel_rows=this_num_panel_rows,
+                    plot_colour_bars=True, font_size=FONT_SIZE)
 
                 this_file_name = (
                     '{0:s}/example{1:06d}_optimized={2:d}_radar.jpg'
@@ -214,7 +216,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                         field_name=radar_field_names[j],
                         grid_point_heights_metres=radar_heights_m_agl,
                         ground_relative=True,
-                        num_panel_rows=this_num_panel_rows)
+                        num_panel_rows=this_num_panel_rows, font_size=FONT_SIZE)
                 )
 
                 this_colour_map_object, this_colour_norm_object = (
@@ -236,7 +238,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                     radar_field_names[j].replace('_', '-')
                 )
 
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()

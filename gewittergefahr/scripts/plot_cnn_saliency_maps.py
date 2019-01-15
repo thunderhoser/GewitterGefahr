@@ -4,7 +4,6 @@ import os
 import argparse
 import numpy
 import matplotlib
-
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
@@ -25,7 +24,7 @@ from gewittergefahr.plotting import imagemagick_utils
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-TITLE_FONT_SIZE = 20
+FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(5e6)
 
@@ -116,7 +115,8 @@ def _plot_2d3d_radar_saliency(
             field_name=radar_utils.REFL_NAME,
             grid_point_heights_metres=training_option_dict[
                 trainval_io.RADAR_HEIGHTS_KEY],
-            ground_relative=True, num_panel_rows=num_panel_rows)
+            ground_relative=True, num_panel_rows=num_panel_rows,
+            font_size=FONT_SIZE)
 
         saliency_plotting.plot_many_2d_grids(
             saliency_matrix_3d=numpy.flip(
@@ -125,8 +125,8 @@ def _plot_2d3d_radar_saliency(
             colour_map_object=colour_map_object,
             max_absolute_colour_value=max_absolute_cval_by_example[i])
 
-        this_colour_map_object, this_colour_norm_object, _ = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
+        this_colour_map_object, this_colour_norm_object = (
+            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)[:2]
         )
 
         plotting_utils.add_colour_bar(
@@ -143,7 +143,7 @@ def _plot_2d3d_radar_saliency(
             max_absolute_cval_by_example[i]
         )
 
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
 
         this_figure_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_reflectivity.jpg'
@@ -164,7 +164,8 @@ def _plot_2d3d_radar_saliency(
                 field_name_by_pair=training_option_dict[
                     trainval_io.RADAR_FIELDS_KEY],
                 height_by_pair_metres=az_shear_heights_m_agl,
-                ground_relative=True, num_panel_rows=1)
+                ground_relative=True, num_panel_rows=1, plot_colour_bars=False,
+                font_size=FONT_SIZE)
         )
 
         saliency_plotting.plot_many_2d_grids(
@@ -174,9 +175,10 @@ def _plot_2d3d_radar_saliency(
             colour_map_object=colour_map_object,
             max_absolute_colour_value=max_absolute_cval_by_example[i])
 
-        this_colour_map_object, this_colour_norm_object, _ = (
+        this_colour_map_object, this_colour_norm_object = (
             radar_plotting.get_default_colour_scheme(
-                radar_utils.LOW_LEVEL_SHEAR_NAME)
+                radar_utils.LOW_LEVEL_SHEAR_NAME
+            )[:2]
         )
 
         plotting_utils.add_colour_bar(
@@ -193,7 +195,7 @@ def _plot_2d3d_radar_saliency(
             max_absolute_cval_by_example[i]
         )
 
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
 
         this_figure_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_azimuthal-shear.jpg'
@@ -249,7 +251,8 @@ def _plot_2d_radar_saliency(
                     trainval_io.RADAR_FIELDS_KEY],
                 height_by_pair_metres=training_option_dict[
                     trainval_io.RADAR_HEIGHTS_KEY],
-                ground_relative=True, num_panel_rows=num_panel_rows)
+                ground_relative=True, num_panel_rows=num_panel_rows,
+                plot_colour_bars=True, font_size=FONT_SIZE)
         )
 
         saliency_plotting.plot_many_2d_grids(
@@ -266,7 +269,7 @@ def _plot_2d_radar_saliency(
             max_absolute_cval_by_example[i]
         )
 
-        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
 
         this_figure_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'
@@ -327,7 +330,8 @@ def _plot_3d_radar_saliency(
                     field_name=this_field_name,
                     grid_point_heights_metres=training_option_dict[
                         trainval_io.RADAR_HEIGHTS_KEY],
-                    ground_relative=True, num_panel_rows=num_panel_rows)
+                    ground_relative=True, num_panel_rows=num_panel_rows,
+                    font_size=FONT_SIZE)
             )
 
             saliency_plotting.plot_many_2d_grids(
@@ -337,8 +341,8 @@ def _plot_3d_radar_saliency(
                 colour_map_object=colour_map_object,
                 max_absolute_colour_value=max_absolute_cval_by_example[i])
 
-            this_colour_map_object, this_colour_norm_object, _ = (
-                radar_plotting.get_default_colour_scheme(this_field_name)
+            this_colour_map_object, this_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(this_field_name)[:2]
             )
 
             plotting_utils.add_colour_bar(
@@ -355,7 +359,7 @@ def _plot_3d_radar_saliency(
                 max_absolute_cval_by_example[i]
             )
 
-            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
 
             this_figure_file_name = (
                 '{0:s}/saliency_{1:s}_{2:s}_{3:s}.jpg'
@@ -471,10 +475,16 @@ def _plot_sounding_saliency(
 
         print 'Concatenating panels into file: "{0:s}"...\n'.format(
             this_figure_file_name)
+
         imagemagick_utils.concatenate_images(
             input_file_names=[this_left_file_name, this_right_file_name],
             output_file_name=this_figure_file_name, num_panel_rows=1,
-            num_panel_columns=2, output_size_pixels=SOUNDING_IMAGE_SIZE_PX)
+            num_panel_columns=2)
+
+        imagemagick_utils.resize_image(
+            input_file_name=this_figure_file_name,
+            output_file_name=this_figure_file_name,
+            output_size_pixels=SOUNDING_IMAGE_SIZE_PX)
 
         os.remove(this_left_file_name)
         os.remove(this_right_file_name)

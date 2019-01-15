@@ -51,9 +51,9 @@ CONVERT_EXE_NAME = '/usr/bin/convert'
 MONTAGE_EXE_NAME = '/usr/bin/montage'
 
 DOTS_PER_INCH = 300
-NUM_PIXELS_FOR_UNPANELED_IMAGE = int(1e6)
-BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX = 10
-BORDER_WIDTH_FOR_PANELED_IMAGE_PX = 50
+SINGLE_IMAGE_SIZE_PX = int(1e6)
+SINGLE_IMAGE_BORDER_WIDTH_PX = 10
+PANELED_IMAGE_BORDER_WIDTH_PX = 50
 
 
 def plot_sounding(
@@ -237,8 +237,12 @@ def plot_many_soundings(
             imagemagick_utils.trim_whitespace(
                 input_file_name=temp_file_names[this_sounding_index],
                 output_file_name=temp_file_names[this_sounding_index],
-                border_width_pixels=BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX,
-                output_size_pixels=NUM_PIXELS_FOR_UNPANELED_IMAGE)
+                border_width_pixels=SINGLE_IMAGE_BORDER_WIDTH_PX)
+
+            imagemagick_utils.resize_image(
+                input_file_name=temp_file_names[this_sounding_index],
+                output_file_name=temp_file_names[this_sounding_index],
+                output_size_pixels=SINGLE_IMAGE_SIZE_PX)
 
     print 'Concatenating panels into one figure: "{0:s}"...'.format(
         output_file_name)
@@ -246,7 +250,7 @@ def plot_many_soundings(
     imagemagick_utils.concatenate_images(
         input_file_names=temp_file_names, output_file_name=output_file_name,
         num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
-        border_width_pixels=BORDER_WIDTH_FOR_UNPANELED_IMAGE_PX)
+        border_width_pixels=PANELED_IMAGE_BORDER_WIDTH_PX)
 
     for i in range(num_soundings):
         os.remove(temp_file_names[i])
