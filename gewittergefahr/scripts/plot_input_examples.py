@@ -6,6 +6,7 @@ import numpy
 import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
 from gewittergefahr.gg_utils import time_conversion
@@ -36,9 +37,8 @@ TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 
 ACTIVATION_FILE_ARG_NAME = 'input_activation_file_name'
+STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
-STORM_IDS_ARG_NAME = 'storm_ids'
-STORM_TIMES_ARG_NAME = 'storm_time_strings'
 RADAR_FIELDS_ARG_NAME = 'radar_field_names'
 RADAR_HEIGHTS_ARG_NAME = 'radar_heights_m_agl'
 PLOT_SOUNDINGS_ARG_NAME = 'plot_soundings'
@@ -47,22 +47,20 @@ NUM_COLUMNS_ARG_NAME = 'num_radar_columns'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 ACTIVATION_FILE_HELP_STRING = (
-    'Path to activation file.  If this argument is non-empty, the file will be '
-    'read by `model_activation.read_file`.')
+    'Path to activation file (will be read by `model_activation.read_file`).  '
+    'If this argument is empty, will use `{0:s}`.'
+).format(STORM_METAFILE_ARG_NAME)
+
+STORM_METAFILE_HELP_STRING = (
+    'Path to Pickle file with storm IDs and times (will be read by '
+    '`storm_tracking_io.read_ids_and_times`).  If this argument is empty, will '
+    'use `{0:s}`.'
+).format(ACTIVATION_FILE_ARG_NAME)
 
 EXAMPLE_DIR_HELP_STRING = (
     'Name of top-level directory with input examples.  Files therein will be '
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
-
-STORM_IDS_HELP_STRING = (
-    '[used only if `{0:s}` is empty] List of storm IDs (one per example).'
-).format(ACTIVATION_FILE_ARG_NAME)
-
-STORM_TIMES_HELP_STRING = (
-    '[used only if `{0:s}` is empty] List of storm times (format '
-    '"yyyy-mm-dd-HHMMSS"; one per example).'
-).format(ACTIVATION_FILE_ARG_NAME)
 
 RADAR_FIELDS_HELP_STRING = (
     '[used only if `{0:s}` is empty] List of radar fields (used as input to '
@@ -101,16 +99,12 @@ INPUT_ARG_PARSER.add_argument(
     help=ACTIVATION_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + STORM_METAFILE_ARG_NAME, type=str, required=False, default='',
+    help=STORM_METAFILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + EXAMPLE_DIR_ARG_NAME, type=str, required=True,
     help=EXAMPLE_DIR_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_IDS_ARG_NAME, type=str, nargs='+', required=False,
-    default=[''], help=STORM_IDS_HELP_STRING)
-
-INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_TIMES_ARG_NAME, type=str, nargs='+', required=False,
-    default=[''], help=STORM_TIMES_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + RADAR_FIELDS_ARG_NAME, type=str, nargs='+', required=False,
@@ -316,17 +310,16 @@ def _plot_examples(
             pyplot.close()
 
 
-def _run(activation_file_name, top_example_dir_name, storm_ids,
-         storm_time_strings, radar_field_names, radar_heights_m_agl,
-         plot_soundings, num_radar_rows, num_radar_columns, output_dir_name):
+def _run(activation_file_name, storm_metafile_name, top_example_dir_name,
+         radar_field_names, radar_heights_m_agl, plot_soundings, num_radar_rows,
+         num_radar_columns, output_dir_name):
     """Plots many input examples (one per storm object).
 
     This is effectively the main method.
 
     :param activation_file_name: See documentation at top of file.
+    :param storm_metafile_name: Same.
     :param top_example_dir_name: Same.
-    :param storm_ids: Same.
-    :param storm_time_strings: Same.
     :param radar_field_names: Same.
     :param radar_heights_m_agl: Same.
     :param plot_soundings: Same.
@@ -341,20 +334,13 @@ def _run(activation_file_name, top_example_dir_name, storm_ids,
         directory_name=output_dir_name)
 
     storm_activations = None
-
     if activation_file_name in ['', 'None']:
-        if len(storm_ids) != len(storm_time_strings):
-            error_string = (
-                'Number of storm IDs ({0:d}) must equal number of storm times '
-                '({1:d}).'
-            ).format(len(storm_ids), len(storm_time_strings))
+        activation_file_name = None
 
-            raise ValueError(error_string)
-
-        storm_times_unix_sec = numpy.array([
-            time_conversion.string_to_unix_sec(s, TIME_FORMAT)
-            for s in storm_time_strings
-        ], dtype=int)
+    if activation_file_name is None:
+        print 'Reading data from: "{0:s}"...'.format(storm_metafile_name)
+        storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+            storm_metafile_name)
 
         training_option_dict = dict()
         training_option_dict[trainval_io.RADAR_FIELDS_KEY] = radar_field_names
@@ -436,9 +422,9 @@ if __name__ == '__main__':
     _run(
         activation_file_name=getattr(
             INPUT_ARG_OBJECT, ACTIVATION_FILE_ARG_NAME),
+        storm_metafile_name=getattr(
+            INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
-        storm_ids=getattr(INPUT_ARG_OBJECT, STORM_IDS_ARG_NAME),
-        storm_time_strings=getattr(INPUT_ARG_OBJECT, STORM_TIMES_ARG_NAME),
         radar_field_names=getattr(INPUT_ARG_OBJECT, RADAR_FIELDS_ARG_NAME),
         radar_heights_m_agl=numpy.array(
             getattr(INPUT_ARG_OBJECT, RADAR_HEIGHTS_ARG_NAME), dtype=int),

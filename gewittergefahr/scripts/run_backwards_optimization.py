@@ -4,13 +4,13 @@ import os.path
 import argparse
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.deep_learning import testing_io
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.scripts import get_cnn_saliency_maps
 
 # random.seed(6695)
 # numpy.random.seed(6695)
@@ -50,9 +50,8 @@ INIT_FUNCTION_HELP_STRING = (
     'dataset examples, leave this argument alone.')
 
 STORM_METAFILE_HELP_STRING = (
-    '[used only if `{0:s}` is empty] Path to file with storm metadata.  Will be'
-    ' read by `_read_storm_metadata` and used to find dataset examples for '
-    'initialization.'
+    '[used only if `{0:s}` is empty] Path to Pickle file with storm IDs and '
+    'times.  Will be read by `storm_tracking_io.read_ids_and_times`.'
 ).format(INIT_FUNCTION_ARG_NAME)
 
 EXAMPLE_DIR_HELP_STRING = (
@@ -218,25 +217,24 @@ def _run(model_file_name, init_function_name, storm_metafile_name,
     """
 
     model_interpretation.check_component_type(component_type_string)
+
     if ideal_activation <= 0:
         ideal_activation = None
     if init_function_name in ['', 'None']:
         init_function_name = None
 
     model_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0]
-    )
+        os.path.split(model_file_name)[0])
 
-    print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
     if init_function_name is None:
-        # TODO(thunderhoser): Get rid of call to private method.
+        print 'Reading storm metadata from: "{0:s}"...'.format(
+            storm_metafile_name)
 
-        print 'Reading metadata from: "{0:s}"...'.format(storm_metafile_name)
-        storm_ids, storm_times_unix_sec = (
-            get_cnn_saliency_maps._read_storm_metadata(storm_metafile_name)
-        )
+        storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+            storm_metafile_name)
 
         list_of_init_matrices = testing_io.read_specific_examples(
             desired_storm_ids=storm_ids,

@@ -1,7 +1,6 @@
 """For each example (storm object), plots feature maps for one CNN layer."""
 
 import random
-import pickle
 import os.path
 import argparse
 import numpy
@@ -9,6 +8,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from keras import backend as K
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
@@ -27,16 +27,13 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-STORM_IDS_KEY = 'storm_ids'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
-
 TITLE_FONT_SIZE = 20
 FIGURE_RESOLUTION_DPI = 300
 
 MODEL_FILE_ARG_NAME = 'input_model_file_name'
 LAYER_NAMES_ARG_NAME = 'layer_names'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
-STORM_DICT_FILE_ARG_NAME = 'input_storm_dict_file_name'
+STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -51,10 +48,9 @@ EXAMPLE_DIR_HELP_STRING = (
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
 
-STORM_DICT_FILE_HELP_STRING = (
-    'Path to Pickle file with "storm dictionary".  This file should contain '
-    'only one dictionary, containing at least the keys "{0:s}" and "{1:s}".'
-).format(STORM_IDS_KEY, STORM_TIMES_KEY)
+STORM_METAFILE_HELP_STRING = (
+    'Path to Pickle file with storm IDs and times.  Will be read by '
+    '`storm_tracking_io.read_ids_and_times`.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here (one '
@@ -74,37 +70,12 @@ INPUT_ARG_PARSER.add_argument(
     help=EXAMPLE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_DICT_FILE_ARG_NAME, type=str, required=True,
-    help=STORM_DICT_FILE_HELP_STRING)
+    '--' + STORM_METAFILE_ARG_NAME, type=str, required=True,
+    help=STORM_METAFILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
-
-
-def _read_storm_metadata(pickle_file_name):
-    """Reads storm metadata (IDs and times) from Pickle file.
-
-    N = number of storm objects
-
-    :param pickle_file_name: Path to input file.
-    :return: storm_ids: length-N list of storm IDs (strings).
-    :return: storm_times_unix_sec: length-N numpy array of valid times.
-    :raises: ValueError: if dictionary cannot be found in Pickle file.
-    """
-
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    while True:
-        storm_metadata_dict = pickle.load(pickle_file_handle)
-        if isinstance(storm_metadata_dict, dict):
-            break
-
-    pickle_file_handle.close()
-    if not isinstance(storm_metadata_dict, dict):
-        raise ValueError('Cannot find dictionary in file.')
-
-    return (storm_metadata_dict[STORM_IDS_KEY],
-            storm_metadata_dict[STORM_TIMES_KEY])
 
 
 def _plot_feature_maps_one_layer(
@@ -221,7 +192,7 @@ def _plot_feature_maps_one_layer(
 
 
 def _run(model_file_name, layer_names, top_example_dir_name,
-         input_storm_dict_file_name, top_output_dir_name):
+         storm_metafile_name, top_output_dir_name):
     """Evaluates CNN (convolutional neural net) predictions.
 
     This is effectively the main method.
@@ -229,27 +200,24 @@ def _run(model_file_name, layer_names, top_example_dir_name,
     :param model_file_name: See documentation at top of file.
     :param layer_names: Same.
     :param top_example_dir_name: Same.
-    :param input_storm_dict_file_name: Same.
+    :param storm_metafile_name: Same.
     :param top_output_dir_name: Same.
     :raises: ValueError: if feature maps do not have 2 or 3 spatial dimensions.
     """
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
-
-    model_directory_name, _ = os.path.split(model_file_name)
-    model_metafile_name = '{0:s}/model_metadata.p'.format(model_directory_name)
+    model_metafile_name = '{0:s}/model_metadata.p'.format(
+        os.path.split(model_file_name)[0])
 
     print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
-
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
-    print 'Reading storm metadata from: "{0:s}"...'.format(
-        input_storm_dict_file_name)
-    storm_ids, storm_times_unix_sec = _read_storm_metadata(
-        input_storm_dict_file_name)
+    print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
+    storm_ids, storm_times_unix_sec = tracking_io.read_ids_and_times(
+        storm_metafile_name)
     print SEPARATOR_STRING
 
     list_of_predictor_matrices = testing_io.read_specific_examples(
@@ -317,7 +285,6 @@ if __name__ == '__main__':
         model_file_name=getattr(INPUT_ARG_OBJECT, MODEL_FILE_ARG_NAME),
         layer_names=getattr(INPUT_ARG_OBJECT, LAYER_NAMES_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
-        input_storm_dict_file_name=getattr(
-            INPUT_ARG_OBJECT, STORM_DICT_FILE_ARG_NAME),
+        storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )

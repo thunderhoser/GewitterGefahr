@@ -15,6 +15,7 @@ import copy
 import pickle
 import numpy
 import keras.utils
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
@@ -30,9 +31,9 @@ STEP1_PREDICTORS_KEY = 'predictor_names_step1'
 STEP1_COSTS_KEY = 'costs_step1'
 
 # Optional keys in result dictionary (see `write_results`).
+STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
 MODEL_FILE_KEY = 'model_file_name'
-STORM_IDS_KEY = 'storm_ids'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
 TARGET_VALUES_KEY = 'target_values'
 
 

@@ -3,11 +3,11 @@
 CNN = convolutional neural network
 """
 
-import pickle
 import os.path
 import argparse
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import storm_tracking_utils as tracking_utils
 from gewittergefahr.gg_utils import file_system_utils
@@ -25,9 +25,6 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
 LARGE_INTEGER = int(1e10)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-STORM_IDS_KEY = 'storm_ids'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
-
 CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
 NEURON_COMPONENT_TYPE_STRING = model_interpretation.NEURON_COMPONENT_TYPE_STRING
 CHANNEL_COMPONENT_TYPE_STRING = (
@@ -41,7 +38,7 @@ IDEAL_ACTIVATION_ARG_NAME = 'ideal_activation'
 NEURON_INDICES_ARG_NAME = 'neuron_indices'
 CHANNEL_INDEX_ARG_NAME = 'channel_index'
 EXAMPLE_DIR_ARG_NAME = 'input_example_dir_name'
-STORM_DICT_FILE_ARG_NAME = 'input_storm_dict_file_name'
+STORM_METAFILE_ARG_NAME = 'input_storm_metafile_name'
 OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 MODEL_FILE_HELP_STRING = (
@@ -90,10 +87,9 @@ EXAMPLE_DIR_HELP_STRING = (
     'found by `input_examples.find_example_file` and read by '
     '`input_examples.read_example_file`.')
 
-STORM_DICT_FILE_HELP_STRING = (
-    'Path to Pickle file with "storm dictionary".  This file should contain '
-    'only one dictionary, containing at least the keys "{0:s}" and "{1:s}".'
-).format(STORM_IDS_KEY, STORM_TIMES_KEY)
+STORM_METAFILE_HELP_STRING = (
+    'Path to Pickle file with storm IDs and times.  Will be read by '
+    '`storm_tracking_io.read_ids_and_times`.')
 
 OUTPUT_FILE_HELP_STRING = (
     'Path to output file (will be written by `saliency_maps.write_file`).')
@@ -133,44 +129,17 @@ INPUT_ARG_PARSER.add_argument(
     help=EXAMPLE_DIR_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
-    '--' + STORM_DICT_FILE_ARG_NAME, type=str, required=True,
-    help=STORM_DICT_FILE_HELP_STRING)
+    '--' + STORM_METAFILE_ARG_NAME, type=str, required=True,
+    help=STORM_METAFILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_FILE_ARG_NAME, type=str, required=True,
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _read_storm_metadata(pickle_file_name):
-    """Reads storm metadata (IDs and times) from Pickle file.
-    
-    N = number of storm objects
-    
-    :param pickle_file_name: Path to input file.
-    :return: storm_ids: length-N list of storm IDs (strings).
-    :return: storm_times_unix_sec: length-N numpy array of valid times.
-    :raises: ValueError: if dictionary cannot be found in Pickle file.
-    """
-
-    print 'Reading storm metadata from: "{0:s}"...'.format(pickle_file_name)
-
-    pickle_file_handle = open(pickle_file_name, 'rb')
-    while True:
-        storm_metadata_dict = pickle.load(pickle_file_handle)
-        if isinstance(storm_metadata_dict, dict):
-            break
-
-    pickle_file_handle.close()
-    if not isinstance(storm_metadata_dict, dict):
-        raise ValueError('Cannot find dictionary in file.')
-
-    return (storm_metadata_dict[STORM_IDS_KEY],
-            storm_metadata_dict[STORM_TIMES_KEY])
-
-
 def _run(model_file_name, component_type_string, target_class, layer_name,
          ideal_activation, neuron_indices, channel_index, top_example_dir_name,
-         input_storm_dict_file_name, output_file_name):
+         storm_metafile_name, output_file_name):
     """Computes saliency map for each storm object and each model component.
 
     This is effectively the main method.
@@ -183,7 +152,7 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     :param neuron_indices: Same.
     :param channel_index: Same.
     :param top_example_dir_name: Same.
-    :param input_storm_dict_file_name: Same.
+    :param storm_metafile_name: Same.
     :param output_file_name: Same.
     """
 
@@ -194,17 +163,17 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     # Read model and metadata.
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
-    metadata_file_name = '{0:s}/model_metadata.p'.format(
+    model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0])
 
-    print 'Reading metadata from: "{0:s}"...'.format(metadata_file_name)
-    model_metadata_dict = cnn.read_model_metadata(metadata_file_name)
-
+    print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
+    model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
 
-    desired_storm_ids, desired_storm_times_unix_sec = _read_storm_metadata(
-        input_storm_dict_file_name)
+    print 'Reading storm metadata from: "{0:s}"...'.format(storm_metafile_name)
+    desired_storm_ids, desired_storm_times_unix_sec = (
+        tracking_io.read_ids_and_times(storm_metafile_name))
 
     # Create saliency map for each storm object.
     desired_spc_dates_unix_sec = numpy.array([
@@ -234,9 +203,11 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         training_option_dict[
             trainval_io.EXAMPLE_FILES_KEY] = [this_example_file_name]
         training_option_dict[trainval_io.FIRST_STORM_TIME_KEY] = (
-            time_conversion.get_start_of_spc_date(this_spc_date_string))
+            time_conversion.get_start_of_spc_date(this_spc_date_string)
+        )
         training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
-            time_conversion.get_end_of_spc_date(this_spc_date_string))
+            time_conversion.get_end_of_spc_date(this_spc_date_string)
+        )
 
         if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
             this_generator = testing_io.myrorss_generator_2d3d(
@@ -383,7 +354,6 @@ if __name__ == '__main__':
             getattr(INPUT_ARG_OBJECT, NEURON_INDICES_ARG_NAME), dtype=int),
         channel_index=getattr(INPUT_ARG_OBJECT, CHANNEL_INDEX_ARG_NAME),
         top_example_dir_name=getattr(INPUT_ARG_OBJECT, EXAMPLE_DIR_ARG_NAME),
-        input_storm_dict_file_name=getattr(
-            INPUT_ARG_OBJECT, STORM_DICT_FILE_ARG_NAME),
+        storm_metafile_name=getattr(INPUT_ARG_OBJECT, STORM_METAFILE_ARG_NAME),
         output_file_name=getattr(INPUT_ARG_OBJECT, OUTPUT_FILE_ARG_NAME)
     )

@@ -3,15 +3,16 @@
 import pickle
 import numpy
 from keras import backend as K
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import model_interpretation
 
 DEFAULT_IDEAL_ACTIVATION = 2.
 
+STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
 MODEL_FILE_NAME_KEY = 'model_file_name'
-STORM_IDS_KEY = 'storm_ids'
-STORM_TIMES_KEY = 'storm_times_unix_sec'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
