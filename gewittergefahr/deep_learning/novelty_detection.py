@@ -117,6 +117,7 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix,
         _normalize_features(feature_matrix=combined_feature_matrix)
     )
 
+    num_features = baseline_feature_matrix.shape[1]
     num_baseline_examples = baseline_feature_matrix.shape[0]
     baseline_feature_matrix = combined_feature_matrix[
         :num_baseline_examples, ...]
@@ -128,9 +129,13 @@ def _fit_svd(baseline_feature_matrix, test_feature_matrix,
     cumulative_explained_variances = numpy.cumsum(explained_variances)
 
     fraction_of_variance_to_keep = 0.01 * percent_variance_to_keep
-    num_modes_to_keep = 1 + numpy.where(
+    these_indices = numpy.where(
         cumulative_explained_variances >= fraction_of_variance_to_keep
-    )[0][0]
+    )[0]
+
+    if len(these_indices) == 0:
+        these_indices = numpy.array([num_features - 1], dtype=int)
+    num_modes_to_keep = 1 + these_indices[0]
 
     print (
         'Number of modes required to explain {0:f}% of variance: {1:d}'
