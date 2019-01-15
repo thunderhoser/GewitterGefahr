@@ -482,7 +482,7 @@ def plot_latlng_grid(
         numpy.isnan(field_matrix_at_edges), field_matrix_at_edges)
 
     if colour_map_object is None or colour_norm_object is None:
-        colour_map_object, colour_norm_object, _ = get_default_colour_scheme(
+        colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
     pyplot.pcolormesh(
@@ -531,7 +531,7 @@ def plot_2d_grid_without_coords(
         numpy.isnan(field_matrix), field_matrix)
 
     if colour_map_object is None or colour_norm_object is None:
-        colour_map_object, colour_norm_object, _ = get_default_colour_scheme(
+        colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
     axes_object.pcolormesh(

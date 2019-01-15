@@ -126,7 +126,7 @@ def _plot_2d3d_radar_saliency(
             max_absolute_colour_value=max_absolute_cval_by_example[i])
 
         this_colour_map_object, this_colour_norm_object = (
-            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)[:2]
+            radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
         )
 
         plotting_utils.add_colour_bar(
@@ -177,8 +177,7 @@ def _plot_2d3d_radar_saliency(
 
         this_colour_map_object, this_colour_norm_object = (
             radar_plotting.get_default_colour_scheme(
-                radar_utils.LOW_LEVEL_SHEAR_NAME
-            )[:2]
+                radar_utils.LOW_LEVEL_SHEAR_NAME)
         )
 
         plotting_utils.add_colour_bar(
@@ -342,7 +341,7 @@ def _plot_3d_radar_saliency(
                 max_absolute_colour_value=max_absolute_cval_by_example[i])
 
             this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(this_field_name)[:2]
+                radar_plotting.get_default_colour_scheme(this_field_name)
             )
 
             plotting_utils.add_colour_bar(

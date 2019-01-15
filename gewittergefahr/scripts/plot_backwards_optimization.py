@@ -113,8 +113,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
                 font_size=FONT_SIZE)
 
             this_colour_map_object, this_colour_norm_object = (
-                radar_plotting.get_default_colour_scheme(
-                    radar_utils.REFL_NAME)[:2]
+                radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
             )
 
             plotting_utils.add_colour_bar(
@@ -152,7 +151,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(
-                    radar_utils.LOW_LEVEL_SHEAR_NAME)[:2]
+                    radar_utils.LOW_LEVEL_SHEAR_NAME)
             )
 
             plotting_utils.add_colour_bar(
@@ -221,7 +220,7 @@ def _plot_examples(list_of_predictor_matrices, training_option_dict, optimized,
 
                 this_colour_map_object, this_colour_norm_object = (
                     radar_plotting.get_default_colour_scheme(
-                        radar_field_names[j])[:2]
+                        radar_field_names[j])
                 )
 
                 plotting_utils.add_colour_bar(
