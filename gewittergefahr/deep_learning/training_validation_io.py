@@ -23,8 +23,6 @@ from gewittergefahr.gg_utils import target_val_utils
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 
-# TODO(thunderhoser): Implement data augmentation in generators.
-
 KM_TO_METRES = 1000
 
 EXAMPLE_FILES_KEY = 'example_file_names'
@@ -329,8 +327,8 @@ def _augment_radar_images(
     )
 
     print (
-        'Augmenting radar images ({0:d} translations, {1:d} rotations, and '
-        '{2:d} noisings, {3:d} x-flips, {4:d} y-flips each)...'
+        'Augmenting radar images ({0:d} translations, {1:d} rotations, {2:d} '
+        'noisings, {3:d} x-flips, and {4:d} y-flips each)...'
     ).format(
         num_translations, num_rotations, num_noisings, int(flip_in_x),
         int(flip_in_y)
@@ -514,13 +512,14 @@ def generator_2d_or_3d(option_dict):
     option_dict['refl_masking_threshold_dbz']: Reflectivity mask, used only for
         3-D images.  Any grid cell (voxel) with reflectivity < threshold is
         masked out.
-    option_dict['num_translations']: Used for data augmentation.  See doc for
-        `_augment_radar_images`.
-    option_dict['max_translation_pixels']: Same.
-    option_dict['num_rotations']: Same.
-    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['x_translations_pixels']: Used for data augmentation.  See doc
+        for `_augment_radar_images`.
+    option_dict['y_translations_pixels']: Same.
+    option_dict['ccw_rotation_angles_deg']: Same.
+    option_dict['noise_standard_deviation']: Same.
     option_dict['num_noisings']: Same.
-    option_dict['max_noise_standard_deviation']: Same.
+    option_dict['flip_in_x']: Same.
+    option_dict['flip_in_y']: Same.
 
     If `sounding_field_names is None`...
 
@@ -768,12 +767,13 @@ def myrorss_generator_2d3d(option_dict):
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
-    option_dict['num_translations']: Same.
-    option_dict['max_translation_pixels']: Same.
-    option_dict['num_rotations']: Same.
-    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['x_translations_pixels']: Same.
+    option_dict['y_translations_pixels']: Same.
+    option_dict['ccw_rotation_angles_deg']: Same.
+    option_dict['noise_standard_deviation']: Same.
     option_dict['num_noisings']: Same.
-    option_dict['max_noise_standard_deviation']: Same.
+    option_dict['flip_in_x']: Same.
+    option_dict['flip_in_y']: Same.
 
     :return: predictor_list: List with the following items.
     predictor_list[0] = reflectivity_image_matrix_dbz: numpy array
@@ -1055,12 +1055,13 @@ def gridrad_generator_2d_reduced(option_dict, list_of_operation_dicts):
     option_dict['min_normalized_value']: Same.
     option_dict['max_normalized_value']: Same.
     option_dict['class_to_sampling_fraction_dict']: Same.
-    option_dict['num_translations']: Same.
-    option_dict['max_translation_pixels']: Same.
-    option_dict['num_rotations']: Same.
-    option_dict['max_absolute_rotation_angle_deg']: Same.
+    option_dict['x_translations_pixels']: Same.
+    option_dict['y_translations_pixels']: Same.
+    option_dict['ccw_rotation_angles_deg']: Same.
+    option_dict['noise_standard_deviation']: Same.
     option_dict['num_noisings']: Same.
-    option_dict['max_noise_standard_deviation']: Same.
+    option_dict['flip_in_x']: Same.
+    option_dict['flip_in_y']: Same.
 
     :param list_of_operation_dicts: See doc for
         `input_examples.reduce_examples_3d_to_2d`.

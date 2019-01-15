@@ -196,6 +196,28 @@ def _get_checkpoint_object(
         period=1)
 
 
+def _remove_data_augmentation(validation_option_dict):
+    """Removes data augmentation from option list.
+
+    In other words, this method sets all data-augmentation options to False or
+    None.
+
+    :param validation_option_dict: See doc for any generator in
+        training_validation_io.py.
+    :return: validation_option_dict: Same but with no data augmentation.
+    """
+
+    validation_option_dict[trainval_io.X_TRANSLATIONS_KEY] = None
+    validation_option_dict[trainval_io.Y_TRANSLATIONS_KEY] = None
+    validation_option_dict[trainval_io.ROTATION_ANGLES_KEY] = None
+    validation_option_dict[trainval_io.NOISE_STDEV_KEY] = None
+    validation_option_dict[trainval_io.NUM_NOISINGS_KEY] = 0
+    validation_option_dict[trainval_io.FLIP_X_KEY] = False
+    validation_option_dict[trainval_io.FLIP_Y_KEY] = False
+
+    return validation_option_dict
+
+
 def model_to_feature_generator(model_object, output_layer_name):
     """Reduces Keras model from predictor to feature-generator.
 
@@ -373,6 +395,9 @@ def train_cnn_2d_or_3d(
         validation_option_dict[
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
 
+        validation_option_dict = _remove_data_augmentation(
+            validation_option_dict)
+
         model_object.fit_generator(
             generator=trainval_io.generator_2d_or_3d(training_option_dict),
             steps_per_epoch=num_training_batches_per_epoch, epochs=num_epochs,
@@ -447,6 +472,9 @@ def train_cnn_2d3d_myrorss(
             trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
         validation_option_dict[
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        validation_option_dict = _remove_data_augmentation(
+            validation_option_dict)
 
         model_object.fit_generator(
             generator=trainval_io.myrorss_generator_2d3d(training_option_dict),
@@ -525,6 +553,9 @@ def train_cnn_gridrad_2d_reduced(
             trainval_io.FIRST_STORM_TIME_KEY] = first_validn_time_unix_sec
         validation_option_dict[
             trainval_io.LAST_STORM_TIME_KEY] = last_validn_time_unix_sec
+
+        validation_option_dict = _remove_data_augmentation(
+            validation_option_dict)
 
         model_object.fit_generator(
             generator=trainval_io.gridrad_generator_2d_reduced(
