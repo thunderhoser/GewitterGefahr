@@ -14,13 +14,10 @@ https://doi.org/10.1109/ICCV.2017.74.
 import numpy
 import keras
 from keras import backend as K
-from keras.applications.vgg16 import VGG16
 import tensorflow
 from tensorflow.python.framework import ops as tensorflow_ops
 from cv2 import resize as cv2_resize
 from gewittergefahr.gg_utils import error_checking
-
-SMALL_NUMBER = 1e-5
 
 
 def _register_gradient():
@@ -49,7 +46,7 @@ def _normalize_tensor(input_tensor):
     """
 
     rms_tensor = K.sqrt(K.mean(K.square(input_tensor)))
-    return input_tensor / (rms_tensor + SMALL_NUMBER)
+    return input_tensor / (rms_tensor + K.epsilon())
 
 
 def _compute_gradients(loss_tensor, list_of_input_tensors):
@@ -85,33 +82,21 @@ def _change_backprop_function(model_object,
         function.
     """
 
-    # TODO(thunderhoser): I don't think this method even works.
+    # TODO(thunderhoser): I know that "Relu" is a valid operation name, but I
+    # have no clue about the last three.
+    orig_to_new_operation_dict = {
+        'Relu': backprop_function_name,
+        'LeakyRelu': backprop_function_name,
+        'Elu': backprop_function_name,
+        'Selu': backprop_function_name
+    }
 
     graph_object = tensorflow.get_default_graph()
 
-    with graph_object.gradient_override_map({'Relu': backprop_function_name}):
-        activation_layer_dict = dict([
-            (lyr.name, lyr) for lyr in model_object.layers[1:]
-            if hasattr(lyr, 'activation')
-        ])
-
-        for this_key in activation_layer_dict:
-
-            # TODO(thunderhoser): What about layers with other activation
-            # functions?
-            if (activation_layer_dict[this_key].activation ==
-                    keras.activations.relu):
-                activation_layer_dict[this_key].activation = tensorflow.nn.relu
-
-        new_model_object = VGG16(weights='imagenet')
+    with graph_object.gradient_override_map(orig_to_new_operation_dict):
+        new_model_object = keras.models.clone_model(model_object)
+        new_model_object.set_weights(model_object.get_weights())
         new_model_object.summary()
-
-    list_of_activn_layer_objects = [
-        lyr for lyr in new_model_object.layers[1:] if hasattr(lyr, 'activation')
-    ]
-
-    for this_layer_object in list_of_activn_layer_objects:
-        print this_layer_object.activation
 
     return new_model_object
 
@@ -160,7 +145,7 @@ def _normalize_guided_gradcam_output(image_matrix):
 
     # Standardize.
     image_matrix -= numpy.mean(image_matrix)
-    image_matrix /= (numpy.std(image_matrix, ddof=0) + SMALL_NUMBER)
+    image_matrix /= (numpy.std(image_matrix, ddof=0) + K.epsilon())
 
     # Force standard deviation of 0.1 and mean of 0.5.
     image_matrix = 0.5 + image_matrix * 0.1
@@ -170,7 +155,7 @@ def _normalize_guided_gradcam_output(image_matrix):
     return image_matrix
 
 
-def run_gradcam(model_object, input_matrix, target_class, conv_layer_name):
+def run_gradcam(model_object, input_matrix, target_class, target_layer_name):
     """Runs Grad-CAM.
 
     M = number of rows in grid
@@ -183,8 +168,8 @@ def run_gradcam(model_object, input_matrix, target_class, conv_layer_name):
     :param target_class: Target class (integer from 0...[K - 1], where K =
         number of classes).  The class-activation map (CAM) will be created for
         this class.
-    :param conv_layer_name: Name of convolutional layer.  Neuron-importance
-        weights will be based on activations in this layer.
+    :param target_layer_name: Name of target layer.  Neuron-importance weights
+        will be based on activations in this layer.
     :return: class_activation_matrix: M-by-N numpy array of class activations.
     """
 
@@ -203,32 +188,32 @@ def run_gradcam(model_object, input_matrix, target_class, conv_layer_name):
         error_checking.assert_is_less_than(target_class, num_output_neurons)
         loss_tensor = model_object.layers[-1].output[..., target_class]
 
-    # TODO(thunderhoser): Need post-activation values.
-    conv_layer_activation_tensor = model_object.get_layer(
-        name=conv_layer_name
+    target_layer_activation_tensor = model_object.get_layer(
+        name=target_layer_name
     ).output
+
     gradient_tensor = _compute_gradients(
-        loss_tensor, [conv_layer_activation_tensor]
+        loss_tensor, [target_layer_activation_tensor]
     )[0]
     gradient_tensor = _normalize_tensor(gradient_tensor)
 
     gradient_function = K.function(
-        [model_object.input],
-        [conv_layer_activation_tensor, gradient_tensor]
+        [model_object.input], [target_layer_activation_tensor, gradient_tensor]
     )
 
-    conv_layer_activation_matrix, gradient_matrix = gradient_function(
+    target_layer_activation_matrix, gradient_matrix = gradient_function(
         [input_matrix])
-    conv_layer_activation_matrix = conv_layer_activation_matrix[0, ...]
+    target_layer_activation_matrix = target_layer_activation_matrix[0, ...]
     gradient_matrix = gradient_matrix[0, ...]
 
-    weight_by_conv_filter = numpy.mean(gradient_matrix, axis=(0, 1))
-    class_activation_matrix = numpy.ones(conv_layer_activation_matrix.shape[:2])
+    mean_weight_by_filter = numpy.mean(gradient_matrix, axis=(0, 1))
+    class_activation_matrix = numpy.ones(
+        target_layer_activation_matrix.shape[:2])
 
-    num_conv_filters = len(weight_by_conv_filter)
-    for m in range(num_conv_filters):
+    num_filters = len(mean_weight_by_filter)
+    for m in range(num_filters):
         class_activation_matrix += (
-            weight_by_conv_filter[m] * conv_layer_activation_matrix[..., m]
+            mean_weight_by_filter[m] * target_layer_activation_matrix[..., m]
         )
 
     num_input_rows = input_matrix.shape[1]
@@ -241,7 +226,7 @@ def run_gradcam(model_object, input_matrix, target_class, conv_layer_name):
     return class_activation_matrix / numpy.max(class_activation_matrix)
 
 
-def run_guided_gradcam(model_object, input_matrix, conv_layer_name,
+def run_guided_gradcam(model_object, input_matrix, target_layer_name,
                        class_activation_matrix):
     """Runs guided Grad-CAM.
 
@@ -251,7 +236,7 @@ def run_guided_gradcam(model_object, input_matrix, conv_layer_name,
 
     :param model_object: See doc for `run_gradcam`.
     :param input_matrix: Same.
-    :param conv_layer_name: Same.
+    :param target_layer_name: Same.
     :param class_activation_matrix: Matrix created by `run_gradcam`.
     :return: gradient_matrix: M-by-N-by-C numpy array of gradients.
     """
@@ -260,7 +245,7 @@ def run_guided_gradcam(model_object, input_matrix, conv_layer_name,
 
     new_model_object = _change_backprop_function(model_object=model_object)
     saliency_function = _make_saliency_function(
-        model_object=new_model_object, layer_name=conv_layer_name)
+        model_object=new_model_object, layer_name=target_layer_name)
 
     saliency_matrix = saliency_function([input_matrix, 0])[0]
     gradient_matrix = saliency_matrix * class_activation_matrix[
