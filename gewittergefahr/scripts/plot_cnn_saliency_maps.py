@@ -24,7 +24,9 @@ from gewittergefahr.plotting import imagemagick_utils
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-FONT_SIZE = 20
+TITLE_FONT_SIZE = 20
+FONT_SIZE_WITH_COLOUR_BARS = 16
+FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
 SOUNDING_IMAGE_SIZE_PX = int(5e6)
 
@@ -112,7 +114,7 @@ def _plot_2d3d_radar_saliency(
             grid_point_heights_metres=training_option_dict[
                 trainval_io.RADAR_HEIGHTS_KEY],
             ground_relative=True, num_panel_rows=num_panel_rows,
-            font_size=FONT_SIZE)
+            font_size=FONT_SIZE_SANS_COLOUR_BARS)
 
         saliency_plotting.plot_many_2d_grids(
             saliency_matrix_3d=numpy.flip(
@@ -139,7 +141,7 @@ def _plot_2d3d_radar_saliency(
             max_absolute_cval_by_example[i]
         )
 
-        pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_figure_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_reflectivity.jpg'
@@ -162,7 +164,7 @@ def _plot_2d3d_radar_saliency(
                 num_panel_rows=1,
                 panel_names=training_option_dict[
                     trainval_io.RADAR_FIELDS_KEY],
-                font_size=FONT_SIZE, plot_colour_bars=False)
+                font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
         )
 
         saliency_plotting.plot_many_2d_grids(
@@ -191,7 +193,7 @@ def _plot_2d3d_radar_saliency(
             max_absolute_cval_by_example[i]
         )
 
-        pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_figure_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_azimuthal-shear.jpg'
@@ -264,7 +266,7 @@ def _plot_2d_radar_saliency(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
                 num_panel_rows=num_panel_rows, panel_names=panel_names,
-                font_size=FONT_SIZE, plot_colour_bars=False)
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=False)
         )
 
         saliency_plotting.plot_many_2d_grids(
@@ -281,7 +283,7 @@ def _plot_2d_radar_saliency(
             max_absolute_cval_by_example[i]
         )
 
-        pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
         this_figure_file_name = (
             '{0:s}/saliency_{1:s}_{2:s}_radar.jpg'
@@ -343,7 +345,7 @@ def _plot_3d_radar_saliency(
                     grid_point_heights_metres=training_option_dict[
                         trainval_io.RADAR_HEIGHTS_KEY],
                     ground_relative=True, num_panel_rows=num_panel_rows,
-                    font_size=FONT_SIZE)
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
             )
 
             saliency_plotting.plot_many_2d_grids(
@@ -371,7 +373,7 @@ def _plot_3d_radar_saliency(
                 max_absolute_cval_by_example[i]
             )
 
-            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
             this_figure_file_name = (
                 '{0:s}/saliency_{1:s}_{2:s}_{3:s}.jpg'

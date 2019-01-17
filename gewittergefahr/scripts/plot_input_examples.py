@@ -440,6 +440,8 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         else:
             training_option_dict[trainval_io.SOUNDING_FIELDS_KEY] = None
 
+        model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY] = training_option_dict
+
     if 0 < num_examples < len(storm_ids):
         storm_ids = storm_ids[:num_examples]
         storm_times_unix_sec = storm_times_unix_sec[:num_examples]
@@ -451,7 +453,9 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         desired_storm_ids=storm_ids,
         desired_times_unix_sec=storm_times_unix_sec,
         option_dict=training_option_dict,
-        top_example_dir_name=top_example_dir_name
+        top_example_dir_name=top_example_dir_name,
+        list_of_layer_operation_dicts=model_metadata_dict[
+            cnn.LAYER_OPERATIONS_KEY]
     )[0]
     print SEPARATOR_STRING
 
