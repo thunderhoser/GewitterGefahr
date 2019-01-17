@@ -722,7 +722,8 @@ def plot_many_2d_grids_without_coords(
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', font_size=font_size,
-                extend_min=this_extend_min_flag, extend_max=True)
+                extend_min=this_extend_min_flag, extend_max=True,
+                fraction_of_axis_length=0.9)
 
     return figure_object, axes_objects_2d_list
 
