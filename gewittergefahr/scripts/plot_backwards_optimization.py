@@ -21,7 +21,7 @@ from gewittergefahr.plotting import sounding_plotting
 METRES_TO_KM = 0.001
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-FONT_SIZE = 20
+FONT_SIZE = 16
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -55,6 +55,8 @@ def _layer_ops_to_field_names_and_annotations(list_of_layer_operation_dicts):
         printed at bottoms of figure panels).
     """
 
+    # TODO(thunderhoser): Put this method somewhere else.
+
     num_channels = len(list_of_layer_operation_dicts)
     field_name_by_channel = [''] * num_channels
     annotation_string_by_channel = [''] * num_channels
@@ -64,13 +66,19 @@ def _layer_ops_to_field_names_and_annotations(list_of_layer_operation_dicts):
         field_name_by_channel[m] = this_operation_dict[
             input_examples.RADAR_FIELD_KEY]
 
+        this_min_height_m_agl = int(numpy.round(
+            this_operation_dict[input_examples.MIN_HEIGHT_KEY] * METRES_TO_KM
+        ))
+        this_max_height_m_agl = int(numpy.round(
+            this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
+        ))
+
         annotation_string_by_channel[m] = (
-            '{0:s}\n{1:s} from {2:.2f}-{3:.2f} km AGL'
+            '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
         ).format(
             field_name_by_channel[m],
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
-            this_operation_dict[input_examples.MIN_HEIGHT_KEY] * METRES_TO_KM,
-            this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
+            this_min_height_m_agl, this_max_height_m_agl
         )
 
     return field_name_by_channel, annotation_string_by_channel
@@ -88,6 +96,8 @@ def _radar_fields_and_heights_to_annotations(field_name_by_channel,
     :return: annotation_string_by_channel: length-C list of annotations (to be
         printed at bottoms of figure panels).
     """
+
+    # TODO(thunderhoser): Put this method somewhere else.
 
     num_channels = len(field_name_by_channel)
     annotation_string_by_channel = [''] * num_channels
