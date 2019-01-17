@@ -242,6 +242,9 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         list_of_input_matrices=list_of_input_matrices,
         model_metadata_dict=model_metadata_dict)
 
+    print list_of_input_matrices[0].shape
+    print list_of_input_matrices[1].shape
+
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
     saliency_maps.write_file(
         pickle_file_name=output_file_name,
