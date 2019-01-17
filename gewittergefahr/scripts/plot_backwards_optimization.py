@@ -20,7 +20,9 @@ from gewittergefahr.plotting import sounding_plotting
 METRES_TO_KM = 0.001
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-FONT_SIZE = 16
+TITLE_FONT_SIZE = 20
+FONT_SIZE_WITH_COLOUR_BARS = 12
+FONT_SIZE_SANS_COLOUR_BARS = 20
 FIGURE_RESOLUTION_DPI = 300
 
 INPUT_FILE_ARG_NAME = 'input_file_name'
@@ -114,7 +116,7 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                 grid_point_heights_metres=training_option_dict[
                     trainval_io.RADAR_HEIGHTS_KEY],
                 ground_relative=True, num_panel_rows=this_num_panel_rows,
-                font_size=FONT_SIZE)
+                font_size=FONT_SIZE_SANS_COLOUR_BARS)
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(radar_utils.REFL_NAME)
@@ -131,7 +133,7 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                 '{0:s}/example{1:06d}_optimized={2:d}_reflectivity.jpg'
             ).format(output_dir_name, i, int(optimized))
 
-            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -147,7 +149,8 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                     num_panel_rows=1,
                     panel_names=training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY],
-                    font_size=FONT_SIZE, plot_colour_bars=False)
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS,
+                    plot_colour_bars=False)
             )
 
             this_colour_map_object, this_colour_norm_object = (
@@ -166,7 +169,7 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                 '{0:s}/example{1:06d}_optimized={2:d}_azimuthal-shear.jpg'
             ).format(output_dir_name, i, int(optimized))
 
-            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -209,7 +212,7 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                     field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
                     field_name_by_panel=field_name_by_panel,
                     num_panel_rows=this_num_panel_rows, panel_names=panel_names,
-                    font_size=FONT_SIZE, plot_colour_bars=True)
+                    font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
 
                 this_file_name = (
                     '{0:s}/example{1:06d}_optimized={2:d}_radar.jpg'
@@ -233,7 +236,8 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                         field_name=radar_field_names[j],
                         grid_point_heights_metres=radar_heights_m_agl,
                         ground_relative=True,
-                        num_panel_rows=this_num_panel_rows, font_size=FONT_SIZE)
+                        num_panel_rows=this_num_panel_rows,
+                        font_size=FONT_SIZE_SANS_COLOUR_BARS)
                 )
 
                 this_colour_map_object, this_colour_norm_object = (
@@ -255,7 +259,7 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                     radar_field_names[j].replace('_', '-')
                 )
 
-            pyplot.suptitle(this_title_string, fontsize=FONT_SIZE)
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
