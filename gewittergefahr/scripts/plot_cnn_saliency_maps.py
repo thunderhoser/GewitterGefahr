@@ -228,7 +228,7 @@ def _plot_2d_radar_saliency(
     """
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
-    list_of_layer_operation_dicts = training_option_dict[
+    list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
     if list_of_layer_operation_dicts is None:
