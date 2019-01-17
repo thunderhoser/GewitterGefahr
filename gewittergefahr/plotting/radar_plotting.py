@@ -627,7 +627,8 @@ def plot_2d_grid_without_coords(
         axes_object.text(
             0.5, 0.01, annotation_string, fontsize=font_size, fontweight='bold',
             bbox=bounding_box_dict, color='k', horizontalalignment='center',
-            verticalalignment='bottom', transform=axes_object.transAxes)
+            verticalalignment='bottom', transform=axes_object.transAxes,
+            zorder=1e10)
 
     axes_object.set_xticks([])
     axes_object.set_yticks([])
