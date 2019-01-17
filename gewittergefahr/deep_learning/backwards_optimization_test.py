@@ -5,6 +5,7 @@ import numpy
 import pandas
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import soundings
+from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
@@ -296,9 +297,14 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 3-D.
         """
 
+        this_metadata_dict = {
+            cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_3D,
+            cnn.USE_2D3D_CONVOLUTION_KEY: False
+        }
+
         this_init_function = backwards_opt.create_climo_initializer(
-            training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
-            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            model_metadata_dict=this_metadata_dict, test_mode=True,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(SOUNDING_DIMENSIONS)
@@ -311,9 +317,15 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 4-D.
         """
 
+        this_metadata_dict = {
+            cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_2D,
+            cnn.USE_2D3D_CONVOLUTION_KEY: False,
+            cnn.LAYER_OPERATIONS_KEY: None
+        }
+
         this_init_function = backwards_opt.create_climo_initializer(
-            training_option_dict=TRAINING_OPTION_DICT_2D, myrorss_2d3d=False,
-            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            model_metadata_dict=this_metadata_dict, test_mode=True,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(RADAR_DIMENSIONS_4D)
@@ -326,9 +338,14 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 5-D.
         """
 
+        this_metadata_dict = {
+            cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_3D,
+            cnn.USE_2D3D_CONVOLUTION_KEY: False
+        }
+
         this_init_function = backwards_opt.create_climo_initializer(
-            training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
-            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            model_metadata_dict=this_metadata_dict, test_mode=True,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(RADAR_DIMENSIONS_5D)
@@ -341,9 +358,14 @@ class FeatureOptimizationTests(unittest.TestCase):
         In this case, the desired matrix is 2-D (invalid).
         """
 
+        this_metadata_dict = {
+            cnn.TRAINING_OPTION_DICT_KEY: TRAINING_OPTION_DICT_3D,
+            cnn.USE_2D3D_CONVOLUTION_KEY: False
+        }
+
         this_init_function = backwards_opt.create_climo_initializer(
-            training_option_dict=TRAINING_OPTION_DICT_3D, myrorss_2d3d=False,
-            test_mode=True, radar_normalization_table=RADAR_NORMALIZATION_TABLE,
+            model_metadata_dict=this_metadata_dict, test_mode=True,
+            radar_normalization_table=RADAR_NORMALIZATION_TABLE,
             sounding_normalization_table=SOUNDING_NORMALIZATION_TABLE)
 
         this_matrix = this_init_function(ARRAY_DIMENSIONS_2D)

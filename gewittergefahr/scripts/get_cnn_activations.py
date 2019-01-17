@@ -190,7 +190,15 @@ def _run(
     training_option_dict[trainval_io.LAST_STORM_TIME_KEY] = (
         time_conversion.get_end_of_spc_date(last_spc_date_string))
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
+        generator_object = testing_io.gridrad_generator_2d_reduced(
+            option_dict=training_option_dict,
+            list_of_operation_dicts=model_metadata_dict[
+                cnn.LAYER_OPERATIONS_KEY],
+            num_examples_total=LARGE_INTEGER
+        )
+
+    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=LARGE_INTEGER)
     else:

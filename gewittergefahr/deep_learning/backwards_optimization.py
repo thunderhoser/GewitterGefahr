@@ -14,6 +14,8 @@ from keras import backend as K
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
@@ -231,28 +233,19 @@ def create_constant_initializer(constant_value):
 
 
 def create_climo_initializer(
-        training_option_dict, myrorss_2d3d, test_mode=False,
-        radar_normalization_table=None, sounding_normalization_table=None):
+        model_metadata_dict, test_mode=False, radar_normalization_table=None,
+        sounding_normalization_table=None):
     """Creates climatological initializer.
 
-    :param training_option_dict: See doc for
-        `training_validation_io.example_generator_2d_or_3d` or
-        `training_validation_io.example_generator_2d3d_myrorss`.
-    :param myrorss_2d3d: Boolean flag.  If True, this method will assume that
-        model input contains 2-D azimuthal-shear images and 3-D reflectivity
-        images.  In other words, this method will treat `training_option_dict`
-        in the same way that
-        `training_validation_io.example_generator_2d3d_myrorss` does.  If False,
-        will treat `training_option_dict` in the same way that
-        `training_validation_io.example_generator_2d_or_3d` does.
+    :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
     :param test_mode: Never mind.  Leave this alone.
     :param radar_normalization_table: Never mind.  Leave this alone.
     :param sounding_normalization_table: Never mind.  Leave this alone.
     :return: init_function: Function (see below).
     """
 
-    error_checking.assert_is_boolean(myrorss_2d3d)
     error_checking.assert_is_boolean(test_mode)
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     if not test_mode:
         _, radar_normalization_table, _, sounding_normalization_table = (
@@ -291,7 +284,7 @@ def create_climo_initializer(
         initial_matrix = numpy.full(matrix_dimensions, numpy.nan)
 
         if len(matrix_dimensions) == 5:
-            if myrorss_2d3d:
+            if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
                 radar_field_names = [radar_utils.REFL_NAME]
             else:
                 radar_field_names = training_option_dict[
@@ -322,16 +315,45 @@ def create_climo_initializer(
                 normalization_table=radar_normalization_table)
 
         if len(matrix_dimensions) == 4:
-            radar_field_names = training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY]
-            radar_heights_m_agl = training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY]
+            list_of_layer_operation_dicts = model_metadata_dict[
+                cnn.LAYER_OPERATIONS_KEY]
 
-            for j in range(len(radar_field_names)):
-                this_key = (radar_field_names[j], radar_heights_m_agl[j])
+            if list_of_layer_operation_dicts is None:
+                radar_field_names = training_option_dict[
+                    trainval_io.RADAR_FIELDS_KEY]
+                radar_heights_m_agl = training_option_dict[
+                    trainval_io.RADAR_HEIGHTS_KEY]
 
-                initial_matrix[..., j] = radar_normalization_table[
-                    dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
+                for j in range(len(radar_field_names)):
+                    this_key = (radar_field_names[j], radar_heights_m_agl[j])
+                    initial_matrix[..., j] = radar_normalization_table[
+                        dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
+
+            else:
+                radar_field_names = [
+                    d[input_examples.RADAR_FIELD_KEY]
+                    for d in list_of_layer_operation_dicts
+                ]
+                min_heights_m_agl = numpy.array([
+                    d[input_examples.MIN_HEIGHT_KEY]
+                    for d in list_of_layer_operation_dicts
+                ], dtype=int)
+                max_heights_m_agl = numpy.array([
+                    d[input_examples.MAX_HEIGHT_KEY]
+                    for d in list_of_layer_operation_dicts
+                ], dtype=int)
+
+                for j in range(len(radar_field_names)):
+                    this_key = (radar_field_names[j], min_heights_m_agl[j])
+                    this_first_mean = radar_normalization_table[
+                        dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
+
+                    this_key = (radar_field_names[j], max_heights_m_agl[j])
+                    this_second_mean = radar_normalization_table[
+                        dl_utils.MEAN_VALUE_COLUMN].loc[[this_key]].values[0]
+
+                    initial_matrix[..., j] = numpy.mean(
+                        [this_first_mean, this_second_mean])
 
             return dl_utils.normalize_radar_images(
                 radar_image_matrix=initial_matrix,

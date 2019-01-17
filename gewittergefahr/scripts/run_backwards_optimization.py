@@ -199,8 +199,7 @@ def _create_initializer(init_function_name, model_metadata_dict):
             mean=0., standard_deviation=1.)
 
     return backwards_opt.create_climo_initializer(
-        training_option_dict=training_option_dict,
-        myrorss_2d3d=model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY])
+        model_metadata_dict=model_metadata_dict)
 
 
 def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
@@ -255,7 +254,9 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
             desired_storm_ids=storm_ids,
             desired_times_unix_sec=storm_times_unix_sec,
             option_dict=model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY],
-            top_example_dir_name=top_example_dir_name
+            top_example_dir_name=top_example_dir_name,
+            list_of_layer_operation_dicts=model_metadata_dict[
+                cnn.LAYER_OPERATIONS_KEY]
         )[0]
 
         num_examples = list_of_init_matrices[0].shape[0]

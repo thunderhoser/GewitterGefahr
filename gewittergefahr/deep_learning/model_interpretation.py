@@ -4,6 +4,7 @@ import numpy
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
@@ -213,9 +214,21 @@ def denormalize_data(list_of_input_matrices, model_metadata_dict):
             max_normalized_value=training_option_dict[
                 trainval_io.MAX_NORMALIZED_VALUE_KEY])
     else:
+        list_of_layer_operation_dicts = model_metadata_dict[
+            cnn.LAYER_OPERATIONS_KEY]
+
+        if list_of_layer_operation_dicts is None:
+            radar_field_names = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
+        else:
+            radar_field_names = [
+                d[input_examples.RADAR_FIELD_KEY]
+                for d in list_of_layer_operation_dicts
+            ]
+
         list_of_input_matrices[0] = dl_utils.denormalize_radar_images(
             radar_image_matrix=list_of_input_matrices[0],
-            field_names=training_option_dict[trainval_io.RADAR_FIELDS_KEY],
+            field_names=radar_field_names,
             normalization_type_string=training_option_dict[
                 trainval_io.NORMALIZATION_TYPE_KEY],
             normalization_param_file_name=training_option_dict[

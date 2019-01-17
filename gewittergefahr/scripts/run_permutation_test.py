@@ -97,6 +97,89 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
+def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
+    """Creates predictor names for input to `permutation.run_permutation_test`.
+
+    T = number of predictor matrices
+
+    :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
+    :param list_of_predictor_matrices: length-T list of predictor matrices,
+        where each item is a numpy array.
+    :return: predictor_names_by_matrix: length-T list, where the [q]th element
+        is a 1-D list of predictor names correspond to the [q]th predictor
+        matrix.
+    """
+
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+
+    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+        predictor_names_by_matrix = [
+            [radar_utils.REFL_NAME],
+            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+        ]
+
+        if len(list_of_predictor_matrices) == 3:
+            predictor_names_by_matrix.append(
+                training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+            )
+
+        return predictor_names_by_matrix
+
+    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
+
+    if num_radar_dimensions == 3:
+        predictor_names_by_matrix = [
+            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+        ]
+    else:
+        list_of_layer_operation_dicts = model_metadata_dict[
+            cnn.LAYER_OPERATIONS_KEY]
+
+        if list_of_layer_operation_dicts is None:
+            field_name_by_channel = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
+            height_by_channel_m_agl = training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY]
+
+            num_radar_channels = len(field_name_by_channel)
+            radar_channel_names = []
+
+            for m in range(num_radar_channels):
+                this_name = '{0:s}_{1:05d}metres-agl'.format(
+                    field_name_by_channel[m],
+                    int(numpy.round(height_by_channel_m_agl[m]))
+                )
+
+                radar_channel_names.append(this_name)
+        else:
+            num_radar_channels = len(list_of_layer_operation_dicts)
+            radar_channel_names = []
+
+            for m in range(num_radar_channels):
+                this_operation_dict = list_of_layer_operation_dicts[m]
+
+                this_name = '{0:s}_{1:05d}-{2:05d}metres-agl'.format(
+                    this_operation_dict[input_examples.RADAR_FIELD_KEY],
+                    int(numpy.round(
+                        this_operation_dict[input_examples.MIN_HEIGHT_KEY]
+                    )),
+                    int(numpy.round(
+                        this_operation_dict[input_examples.MAX_HEIGHT_KEY]
+                    ))
+                )
+
+                radar_channel_names.append(this_name)
+
+        predictor_names_by_matrix = [radar_channel_names]
+
+    if len(list_of_predictor_matrices) == 2:
+        predictor_names_by_matrix.append(
+            training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
+        )
+
+    return predictor_names_by_matrix
+
+
 def _run(model_file_name, top_example_dir_name,
          first_spc_date_string, last_spc_date_string, num_examples,
          class_fraction_keys, class_fraction_values, output_file_name):
@@ -147,7 +230,15 @@ def _run(model_file_name, top_example_dir_name,
         time_conversion.get_end_of_spc_date(last_spc_date_string)
     )
 
-    if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
+    if model_metadata_dict[cnn.LAYER_OPERATIONS_KEY] is not None:
+        generator_object = testing_io.gridrad_generator_2d_reduced(
+            option_dict=training_option_dict,
+            list_of_operation_dicts=model_metadata_dict[
+                cnn.LAYER_OPERATIONS_KEY],
+            num_examples_total=num_examples
+        )
+
+    elif model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         generator_object = testing_io.myrorss_generator_2d3d(
             option_dict=training_option_dict, num_examples_total=num_examples)
     else:
@@ -158,6 +249,8 @@ def _run(model_file_name, top_example_dir_name,
     storm_times_unix_sec = numpy.array([], dtype=int)
     target_values = numpy.array([], dtype=int)
     list_of_predictor_matrices = None
+
+    print SEPARATOR_STRING
 
     for _ in range(len(example_file_names)):
         try:
@@ -191,29 +284,22 @@ def _run(model_file_name, top_example_dir_name,
                     list_of_predictor_matrices[k], these_predictor_matrices[k]
                 ))
 
+    predictor_names_by_matrix = _create_predictor_names(
+        model_metadata_dict=model_metadata_dict,
+        list_of_predictor_matrices=list_of_predictor_matrices)
+
+    for i in range(len(predictor_names_by_matrix)):
+        print 'Predictors in {0:d}th matrix:\n{1:s}\n'.format(
+            i, str(predictor_names_by_matrix[i])
+        )
+
+    print SEPARATOR_STRING
+
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         prediction_function = permutation.prediction_function_2d3d_cnn
-        predictor_names_by_matrix = [
-            training_option_dict[trainval_io.RADAR_FIELDS_KEY],
-            [radar_utils.REFL_NAME]
-        ]
-
-        if len(list_of_predictor_matrices) == 3:
-            predictor_names_by_matrix.append(
-                training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-            )
-
     else:
-        predictor_names_by_matrix = [
-            training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-        ]
-
-        if len(list_of_predictor_matrices) == 2:
-            predictor_names_by_matrix.append(
-                training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
-            )
-
         num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
+
         if num_radar_dimensions == 2:
             prediction_function = permutation.prediction_function_2d_cnn
         else:
