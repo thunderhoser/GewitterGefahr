@@ -38,6 +38,8 @@ DEFAULT_OPTION_DICT = {
 }
 
 FONT_SIZE = 30
+TITLE_FONT_SIZE = 25
+
 pyplot.rc('font', size=FONT_SIZE)
 pyplot.rc('axes', titlesize=FONT_SIZE)
 pyplot.rc('axes', labelsize=FONT_SIZE)
@@ -168,7 +170,7 @@ def plot_sounding(
         tick_labels.append('{0:d}'.format(int(numpy.round(this_tick_value))))
 
     axes_object.set_xticklabels(tick_labels)
-    pyplot.title(title_string)
+    pyplot.title(title_string, fontsize=TITLE_FONT_SIZE)
 
 
 def plot_many_soundings(

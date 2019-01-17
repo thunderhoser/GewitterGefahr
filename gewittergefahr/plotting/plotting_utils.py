@@ -499,6 +499,11 @@ def add_colour_bar(
         shrink=fraction_of_axis_length)
 
     colour_bar_object.ax.tick_params(labelsize=font_size)
+
+    if orientation == 'horizontal':
+        colour_bar_object.ax.set_xticklabels(
+            colour_bar_object.ax.get_xticklabels(), rotation=90)
+
     return colour_bar_object
 
 
