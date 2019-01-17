@@ -24,6 +24,8 @@ from gewittergefahr.plotting import imagemagick_utils
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
+HALF_NUM_CONTOURS = 10
+
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
 FONT_SIZE_SANS_COLOUR_BARS = 20
@@ -116,7 +118,7 @@ def _plot_2d3d_radar_saliency(
             ground_relative=True, num_panel_rows=num_panel_rows,
             font_size=FONT_SIZE_SANS_COLOUR_BARS)
 
-        saliency_plotting.plot_many_2d_grids(
+        saliency_plotting.plot_many_2d_grids_with_pm_signs(
             saliency_matrix_3d=numpy.flip(
                 refl_saliency_matrix[i, ..., 0], axis=0),
             axes_objects_2d_list=these_axes_objects,
@@ -167,7 +169,7 @@ def _plot_2d3d_radar_saliency(
                 font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
         )
 
-        saliency_plotting.plot_many_2d_grids(
+        saliency_plotting.plot_many_2d_grids_with_pm_signs(
             saliency_matrix_3d=numpy.flip(
                 az_shear_saliency_matrix[i, ...], axis=0),
             axes_objects_2d_list=these_axes_objects,
@@ -269,12 +271,17 @@ def _plot_2d_radar_saliency(
                 font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=False)
         )
 
-        saliency_plotting.plot_many_2d_grids(
+        this_contour_interval = (
+            max_absolute_cval_by_example[i] / HALF_NUM_CONTOURS
+        )
+
+        saliency_plotting.plot_many_2d_grids_with_contours(
             saliency_matrix_3d=numpy.flip(
                 radar_saliency_matrix[i, ...], axis=0),
             axes_objects_2d_list=these_axes_objects,
             colour_map_object=colour_map_object,
-            max_absolute_colour_value=max_absolute_cval_by_example[i])
+            max_absolute_contour_level=max_absolute_cval_by_example[i],
+            contour_interval=this_contour_interval)
 
         this_title_string = (
             'Storm "{0:s}" at {1:s} (max absolute saliency = {2:.3f})'
@@ -348,7 +355,7 @@ def _plot_3d_radar_saliency(
                     font_size=FONT_SIZE_SANS_COLOUR_BARS)
             )
 
-            saliency_plotting.plot_many_2d_grids(
+            saliency_plotting.plot_many_2d_grids_with_pm_signs(
                 saliency_matrix_3d=numpy.flip(
                     radar_saliency_matrix[i, ..., k], axis=0),
                 axes_objects_2d_list=these_axes_objects,
