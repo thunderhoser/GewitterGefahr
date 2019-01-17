@@ -9,7 +9,6 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
-from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.deep_learning import model_interpretation
@@ -41,73 +40,6 @@ INPUT_ARG_PARSER.add_argument(
 INPUT_ARG_PARSER.add_argument(
     '--' + OUTPUT_DIR_ARG_NAME, type=str, required=True,
     help=OUTPUT_DIR_HELP_STRING)
-
-
-def _layer_ops_to_field_names_and_annotations(list_of_layer_operation_dicts):
-    """Converts list of layer operations to list of field names and annotations.
-
-    C = number of layer operations = number of radar channels
-
-    :param list_of_layer_operation_dicts: See doc for
-        `input_examples.reduce_examples_3d_to_2d`.
-    :return: field_name_by_channel: length-C list with names of radar fields.
-    :return: annotation_string_by_channel: length-C list of annotations (to be
-        printed at bottoms of figure panels).
-    """
-
-    # TODO(thunderhoser): Put this method somewhere else.
-
-    num_channels = len(list_of_layer_operation_dicts)
-    field_name_by_channel = [''] * num_channels
-    annotation_string_by_channel = [''] * num_channels
-
-    for m in range(num_channels):
-        this_operation_dict = list_of_layer_operation_dicts[m]
-        field_name_by_channel[m] = this_operation_dict[
-            input_examples.RADAR_FIELD_KEY]
-
-        this_min_height_m_agl = int(numpy.round(
-            this_operation_dict[input_examples.MIN_HEIGHT_KEY] * METRES_TO_KM
-        ))
-        this_max_height_m_agl = int(numpy.round(
-            this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
-        ))
-
-        annotation_string_by_channel[m] = (
-            '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
-        ).format(
-            field_name_by_channel[m],
-            this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
-            this_min_height_m_agl, this_max_height_m_agl
-        )
-
-    return field_name_by_channel, annotation_string_by_channel
-
-
-def _radar_fields_and_heights_to_annotations(field_name_by_channel,
-                                             height_by_channel_m_agl):
-    """Converts list of radar fields and heights to annotations.
-
-    C = number of channels (field/height pairs)
-
-    :param field_name_by_channel: length-C list with names of radar fields.
-    :param height_by_channel_m_agl: length-C numpy array of radar heights
-        (metres above ground level).
-    :return: annotation_string_by_channel: length-C list of annotations (to be
-        printed at bottoms of figure panels).
-    """
-
-    # TODO(thunderhoser): Put this method somewhere else.
-
-    num_channels = len(field_name_by_channel)
-    annotation_string_by_channel = [''] * num_channels
-
-    for m in range(num_channels):
-        annotation_string_by_channel[m] = '{0:s}\nat {1:.2f} km AGL'.format(
-            field_name_by_channel[m], height_by_channel_m_agl[m] * METRES_TO_KM
-        )
-
-    return annotation_string_by_channel
 
 
 def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
@@ -210,12 +142,12 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
             _, these_axes_objects = (
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=this_az_shear_matrix_s01,
-                    field_name_by_channel=training_option_dict[
+                    field_name_by_panel=training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY],
-                    annotation_string_by_channel=training_option_dict[
+                    num_panel_rows=1,
+                    panel_names=training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY],
-                    num_panel_rows=1, plot_colour_bars=False,
-                    font_size=FONT_SIZE)
+                    font_size=FONT_SIZE, plot_colour_bars=False)
             )
 
             this_colour_map_object, this_colour_norm_object = (
@@ -251,34 +183,33 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
 
         for j in range(j_max):
             if num_radar_dimensions == 2:
-                if list_of_layer_operation_dicts:
-                    field_name_by_channel, annotation_string_by_channel = (
-                        _layer_ops_to_field_names_and_annotations(
-                            list_of_layer_operation_dicts)
-                    )
-                else:
-                    field_name_by_channel = training_option_dict[
+                if list_of_layer_operation_dicts is None:
+                    field_name_by_panel = training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY]
 
-                    annotation_string_by_channel = (
-                        _radar_fields_and_heights_to_annotations(
-                            field_name_by_channel=field_name_by_channel,
-                            height_by_channel_m_agl=training_option_dict[
+                    panel_names = (
+                        radar_plotting.radar_fields_and_heights_to_panel_names(
+                            field_names=field_name_by_panel,
+                            heights_m_agl=training_option_dict[
                                 trainval_io.RADAR_HEIGHTS_KEY]
                         )
                     )
+                else:
+                    field_name_by_panel, panel_names = (
+                        radar_plotting.layer_ops_to_field_and_panel_names(
+                            list_of_layer_operation_dicts)
+                    )
 
                 this_num_predictors = this_radar_matrix.shape[-1]
-                this_num_panel_rows = int(
-                    numpy.floor(numpy.sqrt(this_num_predictors))
-                )
+                this_num_panel_rows = int(numpy.floor(
+                    numpy.sqrt(this_num_predictors)
+                ))
 
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
-                    field_name_by_channel=field_name_by_channel,
-                    annotation_string_by_channel=annotation_string_by_channel,
-                    num_panel_rows=this_num_panel_rows, plot_colour_bars=True,
-                    font_size=FONT_SIZE)
+                    field_name_by_panel=field_name_by_panel,
+                    num_panel_rows=this_num_panel_rows, panel_names=panel_names,
+                    font_size=FONT_SIZE, plot_colour_bars=True)
 
                 this_file_name = (
                     '{0:s}/example{1:06d}_optimized={2:d}_radar.jpg'
@@ -291,9 +222,9 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                     trainval_io.RADAR_HEIGHTS_KEY]
 
                 this_num_heights = this_radar_matrix.shape[-2]
-                this_num_panel_rows = int(
-                    numpy.floor(numpy.sqrt(this_num_heights))
-                )
+                this_num_panel_rows = int(numpy.floor(
+                    numpy.sqrt(this_num_heights)
+                ))
 
                 _, these_axes_objects = (
                     radar_plotting.plot_3d_grid_without_coords(

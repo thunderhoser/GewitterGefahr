@@ -8,6 +8,7 @@ import matplotlib.colors
 from gewittergefahr.gg_utils import grids
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import input_examples
 from gewittergefahr.plotting import plotting_utils
 
 SHEAR_VORT_DIV_NAMES = [
@@ -382,6 +383,79 @@ def _field_name_to_plotting_units(field_name):
     return field_name
 
 
+def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
+    """Converts list of layer operations to list of field and panel names.
+
+    P = number of layer operations = number of panels
+
+    :param list_of_layer_operation_dicts: See doc for
+        `input_examples.reduce_examples_3d_to_2d`.
+    :return: field_name_by_panel: length-P list with names of radar fields.
+    :return: panel_names: length-P list of panel names (to be printed at bottoms
+        of panels).
+    """
+
+    num_panels = len(list_of_layer_operation_dicts)
+    field_name_by_panel = [''] * num_panels
+    panel_names = [''] * num_panels
+
+    for i in range(num_panels):
+        this_operation_dict = list_of_layer_operation_dicts[i]
+        field_name_by_panel[i] = this_operation_dict[
+            input_examples.RADAR_FIELD_KEY]
+
+        this_min_height_m_agl = int(numpy.round(
+            this_operation_dict[input_examples.MIN_HEIGHT_KEY] * METRES_TO_KM
+        ))
+        this_max_height_m_agl = int(numpy.round(
+            this_operation_dict[input_examples.MAX_HEIGHT_KEY] * METRES_TO_KM
+        ))
+
+        panel_names[i] = (
+            '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
+        ).format(
+            field_name_by_panel[i],
+            this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
+            this_min_height_m_agl, this_max_height_m_agl
+        )
+
+    return field_name_by_panel, panel_names
+
+
+def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
+    """Converts list of radar field/height pairs to panel names.
+
+    P = number of panels
+
+    :param field_names: length-P list with names of radar fields.  Each must be
+        accepted by `radar_utils.check_field_name`.
+    :param heights_m_agl: length-P numpy array of heights (metres above ground
+        level).
+    :return: panel_names: length-P list of panel names (to be printed at bottoms
+        of panels).
+    """
+
+    error_checking.assert_is_string_list(field_names)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_names), num_dimensions=1)
+    num_panels = len(field_names)
+
+    error_checking.assert_is_numpy_array(
+        heights_m_agl, exact_dimensions=numpy.array([num_panels])
+    )
+    error_checking.assert_is_geq_numpy_array(heights_m_agl, 0.)
+    heights_m_agl = numpy.round(heights_m_agl).astype(int)
+
+    panel_names = [''] * num_panels
+
+    for i in range(num_panels):
+        panel_names[i] = '{0:s}\nat {1:.2f} km AGL'.format(
+            field_names[i], heights_m_agl[i] * METRES_TO_KM
+        )
+
+    return panel_names
+
+
 def get_default_colour_scheme(field_name):
     """Returns default colour scheme for radar field.
 
@@ -562,61 +636,57 @@ def plot_2d_grid_without_coords(
 
 
 def plot_many_2d_grids_without_coords(
-        field_matrix, field_name_by_channel, num_panel_rows,
-        annotation_string_by_channel=None,
+        field_matrix, field_name_by_panel, num_panel_rows, panel_names=None,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
         font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True):
-    """Plots each 2-D grid as colour map (one per field/height pair).
+    """Plots 2-D colour map in each panel (one per field/height pair).
 
-    M = number of grid rows
-    N = number of grid columns
-    C = number of channels (field/height pairs)
+    M = number of rows in spatial grid
+    N = number of columns in spatial grid
+    P = number of panels (field/height pairs)
 
     This method uses the default colour scheme for each radar field.
 
-    :param field_matrix: M-by-N-by-C numpy array of radar values.
-    :param field_name_by_channel: length-C list of field names, in the order
-        that they appear in `field_matrix`.  Each must be accepted by
-        `radar_utils.check_field_name`.
+    :param field_matrix: M-by-N-by-P numpy array of radar values.
+    :param field_name_by_panel: length-P list of field names.
     :param num_panel_rows: Number of rows in paneled figure (different than M,
-        the number of grid rows).
-    :param annotation_string_by_channel: length-C list of annotations.  The
-        [k]th string will be printed at the bottom of the panel showing the
-        [k]th channel.  If you do not want annotations, make this None.
+        which is number of rows in spatial grid).
+    :param panel_names: length-P list of panel names (will be printed at bottoms
+        of panels).  If you do not want panel names, make this None.
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
-    :param font_size: Font size for colour-bar ticks and panel labels.
-    :param plot_colour_bars: Boolean flag.  If True, colour bar will be plotted
-        for each panel.
+    :param font_size: Font size.
+    :param plot_colour_bars: Boolean flag.  If True, vertical colour bar will be
+        plotted next to each panel.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where each item is an instance of
         `matplotlib.axes._subplots.AxesSubplot`.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
-    num_channels = field_matrix.shape[2]
+    num_panels = field_matrix.shape[2]
 
     error_checking.assert_is_numpy_array(
-        numpy.array(field_name_by_channel),
-        exact_dimensions=numpy.array([num_channels])
+        numpy.array(field_name_by_panel),
+        exact_dimensions=numpy.array([num_panels])
     )
 
-    if annotation_string_by_channel is None:
-        annotation_string_by_channel = [''] * num_channels
+    if panel_names is None:
+        panel_names = [''] * num_panels
 
     error_checking.assert_is_numpy_array(
-        numpy.array(annotation_string_by_channel),
-        exact_dimensions=numpy.array([num_channels])
+        numpy.array(panel_names),
+        exact_dimensions=numpy.array([num_panels])
     )
 
     error_checking.assert_is_boolean(plot_colour_bars)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
-    error_checking.assert_is_leq(num_panel_rows, num_channels)
+    error_checking.assert_is_leq(num_panel_rows, num_panels)
 
     num_panel_columns = int(numpy.ceil(
-        float(num_channels) / num_panel_rows
+        float(num_panels) / num_panel_rows
     ))
 
     figure_object, axes_objects_2d_list = plotting_utils.init_panels(
@@ -626,17 +696,16 @@ def plot_many_2d_grids_without_coords(
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
-            this_channel_index = i * num_panel_columns + j
-            if this_channel_index >= num_channels:
+            this_panel_index = i * num_panel_columns + j
+            if this_panel_index >= num_panels:
                 break
 
             this_colour_map_object, this_colour_norm_object = (
                 plot_2d_grid_without_coords(
-                    field_matrix=field_matrix[..., this_channel_index],
-                    field_name=field_name_by_channel[this_channel_index],
+                    field_matrix=field_matrix[..., this_panel_index],
+                    field_name=field_name_by_panel[this_panel_index],
                     axes_object=axes_objects_2d_list[i][j],
-                    annotation_string=annotation_string_by_channel[
-                        this_channel_index],
+                    annotation_string=panel_names[this_panel_index],
                     font_size=font_size)
             )
 
@@ -644,18 +713,17 @@ def plot_many_2d_grids_without_coords(
                 continue
 
             this_extend_min_flag = (
-                field_name_by_channel[this_channel_index] in
-                SHEAR_VORT_DIV_NAMES
+                field_name_by_panel[this_panel_index] in SHEAR_VORT_DIV_NAMES
             )
 
             plotting_utils.add_colour_bar(
                 axes_object_or_list=axes_objects_2d_list[i][j],
-                values_to_colour=field_matrix[..., this_channel_index],
+                values_to_colour=field_matrix[..., this_panel_index],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='vertical', font_size=font_size,
                 extend_min=this_extend_min_flag, extend_max=True,
-                fraction_of_axis_length=0.8)
+                fraction_of_axis_length=0.666)
 
     return figure_object, axes_objects_2d_list
 

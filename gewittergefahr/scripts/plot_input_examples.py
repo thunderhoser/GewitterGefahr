@@ -143,7 +143,7 @@ INPUT_ARG_PARSER.add_argument(
 
 def _plot_examples(
         list_of_predictor_matrices, storm_ids, storm_times_unix_sec,
-        training_option_dict, output_dir_name, storm_activations=None):
+        model_metadata_dict, output_dir_name, storm_activations=None):
     """Plots one or more learning examples.
 
     E = number of examples (storm objects)
@@ -152,15 +152,14 @@ def _plot_examples(
         `testing_io.read_specific_examples`.  Contains data to be plotted.
     :param storm_ids: length-E list of storm IDs.
     :param storm_times_unix_sec: length-E numpy array of storm times.
-    :param training_option_dict: Dictionary returned by
-        `cnn.read_model_metadata`.  Contains metadata for
-        `list_of_predictor_matrices`.
+    :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
     :param output_dir_name: Name of output directory (figures will be saved
         here).
     :param storm_activations: length-E numpy array of storm activations (may be
         None).  Will be included in title of each figure.
     """
 
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
     plot_soundings = sounding_field_names is not None
 
@@ -168,6 +167,28 @@ def _plot_examples(
         list_of_metpy_dictionaries = dl_utils.soundings_to_metpy_dictionaries(
             sounding_matrix=list_of_predictor_matrices[-1],
             field_names=sounding_field_names)
+    else:
+        list_of_metpy_dictionaries = None
+
+    list_of_layer_operation_dicts = model_metadata_dict[
+        cnn.LAYER_OPERATIONS_KEY]
+
+    if list_of_layer_operation_dicts is None:
+        field_name_by_panel = training_option_dict[
+            trainval_io.RADAR_FIELDS_KEY]
+
+        panel_names = (
+            radar_plotting.radar_fields_and_heights_to_panel_names(
+                field_names=field_name_by_panel,
+                heights_m_agl=training_option_dict[
+                    trainval_io.RADAR_HEIGHTS_KEY]
+            )
+        )
+    else:
+        field_name_by_panel, panel_names = (
+            radar_plotting.layer_ops_to_field_and_panel_names(
+                list_of_layer_operation_dicts)
+        )
 
     num_storms = len(storm_ids)
     myrorss_2d3d = len(list_of_predictor_matrices) == 3
@@ -196,11 +217,11 @@ def _plot_examples(
             pyplot.close()
 
         if myrorss_2d3d:
-            this_radar_matrix = numpy.flip(
+            this_reflectivity_matrix_dbz = numpy.flip(
                 list_of_predictor_matrices[0][i, ..., 0], axis=0)
 
             _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
-                field_matrix=this_radar_matrix,
+                field_matrix=this_reflectivity_matrix_dbz,
                 field_name=radar_utils.REFL_NAME,
                 grid_point_heights_metres=training_option_dict[
                     trainval_io.RADAR_HEIGHTS_KEY],
@@ -213,7 +234,7 @@ def _plot_examples(
 
             plotting_utils.add_colour_bar(
                 axes_object_or_list=these_axes_objects,
-                values_to_colour=this_radar_matrix,
+                values_to_colour=this_reflectivity_matrix_dbz,
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
@@ -228,21 +249,18 @@ def _plot_examples(
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
-            these_heights_m_agl = numpy.full(
-                len(training_option_dict[trainval_io.RADAR_FIELDS_KEY]),
-                radar_utils.SHEAR_HEIGHT_M_ASL)
-
-            this_radar_matrix = numpy.flip(
+            this_az_shear_matrix_s01 = numpy.flip(
                 list_of_predictor_matrices[1][i, ..., 0], axis=0)
 
             _, these_axes_objects = (
                 radar_plotting.plot_many_2d_grids_without_coords(
-                    field_matrix=this_radar_matrix,
-                    field_name_by_pair=training_option_dict[
+                    field_matrix=this_az_shear_matrix_s01,
+                    field_name_by_panel=training_option_dict[
                         trainval_io.RADAR_FIELDS_KEY],
-                    height_by_pair_metres=these_heights_m_agl,
-                    ground_relative=True, num_panel_rows=1,
-                    plot_colour_bars=False, font_size=FONT_SIZE)
+                    num_panel_rows=1,
+                    panel_names=training_option_dict[
+                        trainval_io.RADAR_FIELDS_KEY],
+                    font_size=FONT_SIZE, plot_colour_bars=False)
             )
 
             this_colour_map_object, this_colour_norm_object = (
@@ -252,7 +270,7 @@ def _plot_examples(
 
             plotting_utils.add_colour_bar(
                 axes_object_or_list=these_axes_objects,
-                values_to_colour=this_radar_matrix,
+                values_to_colour=this_az_shear_matrix_s01,
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
@@ -265,26 +283,28 @@ def _plot_examples(
 
             continue
 
-        radar_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-        radar_heights_m_agl = training_option_dict[
-            trainval_io.RADAR_HEIGHTS_KEY]
-
         this_radar_matrix = list_of_predictor_matrices[0]
         num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
         if num_radar_dimensions == 2:
             j_max = 1
+            radar_field_names = None
+            radar_heights_m_agl = None
         else:
+            radar_field_names = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
+            radar_heights_m_agl = training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY]
+
             j_max = len(radar_field_names)
 
         for j in range(j_max):
             if num_radar_dimensions == 2:
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
-                    field_name_by_pair=radar_field_names,
-                    height_by_pair_metres=radar_heights_m_agl,
-                    ground_relative=True, num_panel_rows=NUM_PANEL_ROWS,
-                    plot_colour_bars=True, font_size=FONT_SIZE)
+                    field_name_by_panel=field_name_by_panel,
+                    num_panel_rows=NUM_PANEL_ROWS, panel_names=panel_names,
+                    font_size=FONT_SIZE, plot_colour_bars=True)
 
                 this_title_string = this_base_title_string + ''
                 this_file_name = '{0:s}.jpg'.format(this_base_file_name)
@@ -376,6 +396,12 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         training_option_dict[trainval_io.BINARIZE_TARGET_KEY] = False
         training_option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
         training_option_dict[trainval_io.REFLECTIVITY_MASK_KEY] = None
+
+        model_metadata_dict = {
+            cnn.TRAINING_OPTION_DICT_KEY: training_option_dict,
+            cnn.LAYER_OPERATIONS_KEY: None,
+        }
+
     else:
         print 'Reading data from: "{0:s}"...'.format(activation_file_name)
         activation_matrix, activation_metadata_dict = (
@@ -433,7 +459,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
         list_of_predictor_matrices=list_of_predictor_matrices,
         storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations,
-        training_option_dict=training_option_dict,
+        model_metadata_dict=model_metadata_dict,
         output_dir_name=output_dir_name)
 
 

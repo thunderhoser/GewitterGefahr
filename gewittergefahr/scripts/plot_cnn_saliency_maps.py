@@ -94,10 +94,6 @@ def _plot_2d3d_radar_saliency(
     azimuthal_shear_matrix_s01 = list_of_input_matrices[1]
     az_shear_saliency_matrix = list_of_saliency_matrices[1]
 
-    az_shear_heights_m_agl = numpy.full(
-        len(training_option_dict[trainval_io.RADAR_FIELDS_KEY]),
-        radar_utils.SHEAR_HEIGHT_M_ASL)
-
     num_examples = reflectivity_matrix_dbz.shape[0]
     num_heights = len(training_option_dict[trainval_io.RADAR_HEIGHTS_KEY])
     num_panel_rows = int(numpy.floor(numpy.sqrt(num_heights)))
@@ -160,12 +156,13 @@ def _plot_2d3d_radar_saliency(
         _, these_axes_objects = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=numpy.flip(
-                    azimuthal_shear_matrix_s01[i, ...], axis=-1),
-                field_name_by_pair=training_option_dict[
+                    azimuthal_shear_matrix_s01[i, ...], axis=0),
+                field_name_by_panel=training_option_dict[
                     trainval_io.RADAR_FIELDS_KEY],
-                height_by_pair_metres=az_shear_heights_m_agl,
-                ground_relative=True, num_panel_rows=1, plot_colour_bars=False,
-                font_size=FONT_SIZE)
+                num_panel_rows=1,
+                panel_names=training_option_dict[
+                    trainval_io.RADAR_FIELDS_KEY],
+                font_size=FONT_SIZE, plot_colour_bars=False)
         )
 
         saliency_plotting.plot_many_2d_grids(
@@ -210,8 +207,8 @@ def _plot_2d3d_radar_saliency(
 
 
 def _plot_2d_radar_saliency(
-        radar_matrix, radar_saliency_matrix, saliency_metadata_dict,
-        training_option_dict, colour_map_object, max_absolute_cval_by_example,
+        radar_matrix, radar_saliency_matrix, model_metadata_dict,
+        saliency_metadata_dict, colour_map_object, max_absolute_cval_by_example,
         output_dir_name):
     """Plots 2-D radar images along with their saliency maps.
 
@@ -223,18 +220,37 @@ def _plot_2d_radar_saliency(
     :param radar_matrix: E-by-M-by-N-by-C numpy array of radar values.
     :param radar_saliency_matrix: E-by-M-by-N-by-C numpy array of
         corresponding saliency values.
+    :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
     :param saliency_metadata_dict: See doc for `_plot_2d3d_radar_saliency`.
-    :param training_option_dict: Same.
-    :param colour_map_object: See doc for `_plot_2d3d_radar_saliency`.
+    :param colour_map_object: Same.
     :param max_absolute_cval_by_example: Same.
     :param output_dir_name: Same.
     """
 
+    training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
+    list_of_layer_operation_dicts = training_option_dict[
+        cnn.LAYER_OPERATIONS_KEY]
+
+    if list_of_layer_operation_dicts is None:
+        field_name_by_panel = training_option_dict[
+            trainval_io.RADAR_FIELDS_KEY]
+
+        panel_names = (
+            radar_plotting.radar_fields_and_heights_to_panel_names(
+                field_names=field_name_by_panel,
+                heights_m_agl=training_option_dict[
+                    trainval_io.RADAR_HEIGHTS_KEY]
+            )
+        )
+    else:
+        field_name_by_panel, panel_names = (
+            radar_plotting.layer_ops_to_field_and_panel_names(
+                list_of_layer_operation_dicts)
+        )
+
     num_examples = radar_matrix.shape[0]
-    num_field_height_pairs = len(
-        training_option_dict[trainval_io.RADAR_FIELDS_KEY]
-    )
-    num_panel_rows = int(numpy.floor(numpy.sqrt(num_field_height_pairs)))
+    num_panels = len(field_name_by_panel)
+    num_panel_rows = int(numpy.floor(numpy.sqrt(num_panels)))
 
     for i in range(num_examples):
         this_storm_id = saliency_metadata_dict[
@@ -245,13 +261,10 @@ def _plot_2d_radar_saliency(
 
         _, these_axes_objects = (
             radar_plotting.plot_many_2d_grids_without_coords(
-                field_matrix=numpy.flip(radar_matrix[i, ...], axis=-1),
-                field_name_by_pair=training_option_dict[
-                    trainval_io.RADAR_FIELDS_KEY],
-                height_by_pair_metres=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY],
-                ground_relative=True, num_panel_rows=num_panel_rows,
-                plot_colour_bars=True, font_size=FONT_SIZE)
+                field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
+                field_name_by_panel=field_name_by_panel,
+                num_panel_rows=num_panel_rows, panel_names=panel_names,
+                font_size=FONT_SIZE, plot_colour_bars=False)
         )
 
         saliency_plotting.plot_many_2d_grids(
@@ -570,8 +583,8 @@ def _run(input_file_name, saliency_colour_map_name,
     _plot_2d_radar_saliency(
         radar_matrix=list_of_input_matrices[0],
         radar_saliency_matrix=list_of_saliency_matrices[0],
+        model_metadata_dict=model_metadata_dict,
         saliency_metadata_dict=saliency_metadata_dict,
-        training_option_dict=training_option_dict,
         colour_map_object=saliency_colour_map_object,
         max_absolute_cval_by_example=max_absolute_cval_by_example,
         output_dir_name=output_dir_name)
