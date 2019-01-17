@@ -158,14 +158,15 @@ def _create_predictor_names(model_metadata_dict, list_of_predictor_matrices):
             for m in range(num_radar_channels):
                 this_operation_dict = list_of_layer_operation_dicts[m]
 
-                this_name = '{0:s}_{1:05d}-{2:05d}metres-agl'.format(
+                this_name = '{0:s}_{1:05d}-{2:05d}metres-agl_{3:s}'.format(
                     this_operation_dict[input_examples.RADAR_FIELD_KEY],
                     int(numpy.round(
                         this_operation_dict[input_examples.MIN_HEIGHT_KEY]
                     )),
                     int(numpy.round(
                         this_operation_dict[input_examples.MAX_HEIGHT_KEY]
-                    ))
+                    )),
+                    this_operation_dict[input_examples.OPERATION_NAME_KEY]
                 )
 
                 radar_channel_names.append(this_name)
