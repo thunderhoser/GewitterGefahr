@@ -562,8 +562,8 @@ def plot_2d_grid_without_coords(
 
 
 def plot_many_2d_grids_without_coords(
-        field_matrix, field_name_by_pair, height_by_pair_metres,
-        ground_relative, num_panel_rows,
+        field_matrix, field_name_by_channel, num_panel_rows,
+        annotation_string_by_channel=None,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
         font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True):
@@ -571,20 +571,19 @@ def plot_many_2d_grids_without_coords(
 
     M = number of grid rows
     N = number of grid columns
-    C = number of field/height pairs
+    C = number of channels (field/height pairs)
 
     This method uses the default colour scheme for each radar field.
 
     :param field_matrix: M-by-N-by-C numpy array of radar values.
-    :param field_name_by_pair: length-C list with names of radar fields, in the
-        order that they appear in `field_matrix`.  Each field name must be
-        accepted by `radar_utils.check_field_name`.
-    :param height_by_pair_metres: length-C numpy array of radar heights.
-    :param ground_relative: Boolean flag.  If True, heights in
-        `height_by_pair_metres` are ground-relative.  If False,
-        sea-level-relative.
+    :param field_name_by_channel: length-C list of field names, in the order
+        that they appear in `field_matrix`.  Each must be accepted by
+        `radar_utils.check_field_name`.
     :param num_panel_rows: Number of rows in paneled figure (different than M,
         the number of grid rows).
+    :param annotation_string_by_channel: length-C list of annotations.  The
+        [k]th string will be printed at the bottom of the panel showing the
+        [k]th channel.  If you do not want annotations, make this None.
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
     :param font_size: Font size for colour-bar ticks and panel labels.
@@ -596,26 +595,30 @@ def plot_many_2d_grids_without_coords(
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
+    num_channels = field_matrix.shape[2]
 
-    num_field_height_pairs = field_matrix.shape[2]
     error_checking.assert_is_numpy_array(
-        numpy.array(field_name_by_pair),
-        exact_dimensions=numpy.array([num_field_height_pairs]))
+        numpy.array(field_name_by_channel),
+        exact_dimensions=numpy.array([num_channels])
+    )
 
-    error_checking.assert_is_geq_numpy_array(height_by_pair_metres, 0)
+    if annotation_string_by_channel is None:
+        annotation_string_by_channel = [''] * num_channels
+
     error_checking.assert_is_numpy_array(
-        height_by_pair_metres,
-        exact_dimensions=numpy.array([num_field_height_pairs]))
-    height_by_pair_metres = numpy.round(height_by_pair_metres).astype(int)
+        numpy.array(annotation_string_by_channel),
+        exact_dimensions=numpy.array([num_channels])
+    )
 
-    error_checking.assert_is_boolean(ground_relative)
     error_checking.assert_is_boolean(plot_colour_bars)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
-    error_checking.assert_is_leq(num_panel_rows, num_field_height_pairs)
+    error_checking.assert_is_leq(num_panel_rows, num_channels)
 
     num_panel_columns = int(numpy.ceil(
-        float(num_field_height_pairs) / num_panel_rows))
+        float(num_channels) / num_panel_rows
+    ))
+
     figure_object, axes_objects_2d_list = plotting_utils.init_panels(
         num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
@@ -623,27 +626,17 @@ def plot_many_2d_grids_without_coords(
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
-            this_fh_pair_index = i * num_panel_columns + j
-            if this_fh_pair_index >= num_field_height_pairs:
+            this_channel_index = i * num_panel_columns + j
+            if this_channel_index >= num_channels:
                 break
-
-            this_annotation_string = '{0:s}\nat {1:.2f} km'.format(
-                _field_name_to_plotting_units(
-                    field_name_by_pair[this_fh_pair_index]),
-                height_by_pair_metres[this_fh_pair_index] * METRES_TO_KM
-            )
-
-            if ground_relative:
-                this_annotation_string += ' AGL'
-            else:
-                this_annotation_string += ' ASL'
 
             this_colour_map_object, this_colour_norm_object = (
                 plot_2d_grid_without_coords(
-                    field_matrix=field_matrix[..., this_fh_pair_index],
-                    field_name=field_name_by_pair[this_fh_pair_index],
+                    field_matrix=field_matrix[..., this_channel_index],
+                    field_name=field_name_by_channel[this_channel_index],
                     axes_object=axes_objects_2d_list[i][j],
-                    annotation_string=this_annotation_string,
+                    annotation_string=annotation_string_by_channel[
+                        this_channel_index],
                     font_size=font_size)
             )
 
@@ -651,12 +644,13 @@ def plot_many_2d_grids_without_coords(
                 continue
 
             this_extend_min_flag = (
-                field_name_by_pair[this_fh_pair_index] in SHEAR_VORT_DIV_NAMES
+                field_name_by_channel[this_channel_index] in
+                SHEAR_VORT_DIV_NAMES
             )
 
             plotting_utils.add_colour_bar(
                 axes_object_or_list=axes_objects_2d_list[i][j],
-                values_to_colour=field_matrix[..., this_fh_pair_index],
+                values_to_colour=field_matrix[..., this_channel_index],
                 colour_map=this_colour_map_object,
                 colour_norm_object=this_colour_norm_object,
                 orientation='vertical', font_size=font_size,

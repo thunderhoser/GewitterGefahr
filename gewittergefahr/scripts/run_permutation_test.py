@@ -291,7 +291,7 @@ def _run(model_file_name, top_example_dir_name,
 
     for i in range(len(predictor_names_by_matrix)):
         print 'Predictors in {0:d}th matrix:\n{1:s}\n'.format(
-            i, str(predictor_names_by_matrix[i])
+            i + 1, str(predictor_names_by_matrix[i])
         )
 
     print SEPARATOR_STRING
