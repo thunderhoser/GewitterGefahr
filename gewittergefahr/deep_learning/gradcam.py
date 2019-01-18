@@ -197,10 +197,10 @@ def _change_backprop_function(model_object):
         new_model_object = keras.models.clone_model(model_object)
         new_model_object.set_weights(model_object.get_weights())
 
-        new_model_object.compile(
-            loss=keras.losses.binary_crossentropy,
-            optimizer=keras.optimizers.Adam(),
-            metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
+        # new_model_object.compile(
+        #     loss=keras.losses.binary_crossentropy,
+        #     optimizer=keras.optimizers.Adam(),
+        #     metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
 
         new_model_object.summary()
 
@@ -229,7 +229,7 @@ def _make_saliency_function(model_object, layer_name):
     print list_of_input_tensors
 
     list_of_saliency_tensors = K.gradients(
-        K.sum(filter_maxxed_output_tensor), list_of_input_tensors)
+        K.sum(filter_maxxed_output_tensor), list_of_input_tensors[0])
 
     return K.function(
         list_of_input_tensors + [K.learning_phase()],
