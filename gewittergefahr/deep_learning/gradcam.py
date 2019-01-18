@@ -212,11 +212,14 @@ def _make_saliency_function(model_object, layer_name):
 
     output_tensor = model_object.get_layer(name=layer_name).output
     filter_maxxed_output_tensor = K.max(output_tensor, axis=-1)
+    print filter_maxxed_output_tensor
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
     else:
         list_of_input_tensors = [model_object.input]
+
+    print list_of_input_tensors
 
     list_of_saliency_tensors = K.gradients(
         K.sum(filter_maxxed_output_tensor), list_of_input_tensors)
