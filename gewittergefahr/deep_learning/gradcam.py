@@ -22,7 +22,6 @@ from scipy.interpolate import (
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
-from gewittergefahr.deep_learning import cnn_setup
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 
@@ -196,40 +195,33 @@ def _change_backprop_function(model_object):
     with graph_object.gradient_override_map(orig_to_new_operation_dict):
         new_model_object = keras.models.clone_model(model_object)
         new_model_object.set_weights(model_object.get_weights())
-
-        # new_model_object.compile(
-        #     loss=keras.losses.binary_crossentropy,
-        #     optimizer=keras.optimizers.Adam(),
-        #     metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
-
         new_model_object.summary()
 
     return new_model_object
 
 
-def _make_saliency_function(model_object, layer_name):
+def _make_saliency_function(model_object, layer_name, input_index):
     """Creates saliency function.
 
     :param model_object: Instance of `keras.models.Model` or
         `keras.models.Sequential`.
-    :param layer_name: Saliency will be computed with respect to activations in
+    :param layer_name: Numerator in gradient will be based on activations in
         this layer.
+    :param input_index: Denominators in gradient will be each value in the [q]th
+        input tensor to the model, where q = `input_index`.
     :return: saliency_function: Instance of `keras.backend.function`.
     """
 
     output_tensor = model_object.get_layer(name=layer_name).output
     filter_maxxed_output_tensor = K.max(output_tensor, axis=-1)
-    print filter_maxxed_output_tensor
 
     if isinstance(model_object.input, list):
         list_of_input_tensors = model_object.input
     else:
         list_of_input_tensors = [model_object.input]
 
-    print list_of_input_tensors
-
     list_of_saliency_tensors = K.gradients(
-        K.sum(filter_maxxed_output_tensor), list_of_input_tensors[0])
+        K.sum(filter_maxxed_output_tensor), list_of_input_tensors[input_index])
 
     return K.function(
         list_of_input_tensors + [K.learning_phase()],
@@ -379,18 +371,17 @@ def run_guided_gradcam(model_object, list_of_input_matrices, target_layer_name,
     _register_guided_backprop()
 
     new_model_object = _change_backprop_function(model_object=model_object)
-    saliency_function = _make_saliency_function(
-        model_object=new_model_object, layer_name=target_layer_name)
 
     input_index = _find_relevant_input_matrix(
         list_of_input_matrices=list_of_input_matrices,
         num_spatial_dim=len(class_activation_matrix.shape)
     )
 
-    saliency_matrix = saliency_function(
-        list_of_input_matrices + [0]
-    )[input_index]
+    saliency_function = _make_saliency_function(
+        model_object=new_model_object, layer_name=target_layer_name,
+        input_index=input_index)
 
+    saliency_matrix = saliency_function(list_of_input_matrices + [0])[0]
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
     return _normalize_guided_gradcam_output(ggradcam_output_matrix)
