@@ -11,6 +11,7 @@ localization".  International Conference on Computer Vision, IEEE,
 https://doi.org/10.1109/ICCV.2017.74.
 """
 
+import pickle
 import numpy
 import keras
 from keras import backend as K
@@ -18,9 +19,18 @@ import tensorflow
 from tensorflow.python.framework import ops as tensorflow_ops
 from scipy.interpolate import (
     UnivariateSpline, RectBivariateSpline, RegularGridInterpolator)
+from gewittergefahr.gg_io import storm_tracking_io as tracking_io
+from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
+
+STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
+STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+MODEL_FILE_NAME_KEY = 'model_file_name'
+TARGET_CLASS_KEY = 'target_class'
+TARGET_LAYER_KEY = 'target_layer_name'
+SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
 
 def _find_relevant_input_matrix(list_of_input_matrices, num_spatial_dim):
@@ -367,3 +377,121 @@ def run_guided_gradcam(model_object, list_of_input_matrices, target_layer_name,
     gradient_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
     return _normalize_guided_gradcam_output(gradient_matrix)
+
+
+def write_file(
+        pickle_file_name, list_of_input_matrices, class_activation_matrix,
+        model_file_name, storm_ids, storm_times_unix_sec, target_class,
+        target_layer_name, sounding_pressure_matrix_pascals=None):
+    """Writes class-activation maps to Pickle file.
+
+    Specifically, this method writes class-activation maps for one target class,
+    one target layer, and many examples (storm objects).
+
+    T = number of input tensors to the model
+    E = number of examples (storm objects)
+    H = number of height levels per sounding
+
+    :param pickle_file_name: Path to output file.
+    :param list_of_input_matrices: length-T list of numpy arrays, containing
+        denormalized input data for all examples.  The first axis of each array
+        must have length E.
+    :param class_activation_matrix: numpy array, where
+        class_activation_matrix[i, ...] is the activation matrix for the [i]th
+        example, created by `run_gradcam`.
+    :param model_file_name: Path to file with trained CNN (readable by
+        `cnn.read_model`).
+    :param storm_ids: length-E list of storm IDs (strings).
+    :param storm_times_unix_sec: length-E numpy array of storm times.
+    :param target_class: See doc for `run_gradcam`.
+    :param target_layer_name: Same.
+    :param sounding_pressure_matrix_pascals: E-by-H numpy array of pressure
+        levels in soundings.  Useful when model input contains soundings with no
+        pressure variable, since pressure is needed to plot soundings.
+    :raises: ValueError: if `list_of_input_matrices` and
+        `class_activation_matrix` have non-matching dimensions.
+    """
+
+    error_checking.assert_is_string(model_file_name)
+    error_checking.assert_is_integer(target_class)
+    error_checking.assert_is_geq(target_class, 0)
+    error_checking.assert_is_string(target_layer_name)
+
+    error_checking.assert_is_string_list(storm_ids)
+    error_checking.assert_is_numpy_array(
+        numpy.array(storm_ids), num_dimensions=1)
+
+    num_storm_objects = len(storm_ids)
+    error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
+    error_checking.assert_is_numpy_array(
+        storm_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects])
+    )
+
+    error_checking.assert_is_numpy_array_without_nan(class_activation_matrix)
+    error_checking.assert_is_geq(len(class_activation_matrix.shape), 2)
+
+    these_expected_dim = numpy.array(
+        (num_storm_objects,) + class_activation_matrix.shape[1:], dtype=int)
+    error_checking.assert_is_numpy_array(
+        class_activation_matrix, exact_dimensions=these_expected_dim)
+
+    error_checking.assert_is_list(list_of_input_matrices)
+
+    for this_input_matrix in list_of_input_matrices:
+        error_checking.assert_is_numpy_array_without_nan(this_input_matrix)
+
+        these_expected_dim = numpy.array(
+            (num_storm_objects,) + this_input_matrix.shape[1:], dtype=int)
+        error_checking.assert_is_numpy_array(
+            this_input_matrix, exact_dimensions=these_expected_dim)
+
+    if sounding_pressure_matrix_pascals is not None:
+        error_checking.assert_is_numpy_array(
+            sounding_pressure_matrix_pascals, num_dimensions=2)
+
+        these_expected_dim = numpy.array(
+            (num_storm_objects,) + sounding_pressure_matrix_pascals.shape[1:],
+            dtype=int)
+        error_checking.assert_is_numpy_array(
+            sounding_pressure_matrix_pascals,
+            exact_dimensions=these_expected_dim)
+
+    metadata_dict = {
+        MODEL_FILE_NAME_KEY: model_file_name,
+        STORM_IDS_KEY: storm_ids,
+        STORM_TIMES_KEY: storm_times_unix_sec,
+        TARGET_CLASS_KEY: target_class,
+        TARGET_LAYER_KEY: target_layer_name,
+        SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(list_of_input_matrices, pickle_file_handle)
+    pickle.dump(class_activation_matrix, pickle_file_handle)
+    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_file(pickle_file_name):
+    """Reads class-activation maps from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: list_of_input_matrices: See doc for `write_file`.
+    :return: class_activation_matrix: Same.
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['model_file_name']: See doc for `write_file`.
+    metadata_dict['storm_ids']: Same.
+    metadata_dict['storm_times_unix_sec']: Same.
+    metadata_dict['target_class']: Same.
+    metadata_dict['target_layer_name']: Same.
+    metadata_dict['sounding_pressure_matrix_pascals']: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    list_of_input_matrices = pickle.load(pickle_file_handle)
+    class_activation_matrix = pickle.load(pickle_file_handle)
+    metadata_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return list_of_input_matrices, class_activation_matrix, metadata_dict

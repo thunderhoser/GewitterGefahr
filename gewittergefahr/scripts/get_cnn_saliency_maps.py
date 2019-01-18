@@ -19,7 +19,6 @@ K.set_session(K.tf.Session(config=K.tf.ConfigProto(
     intra_op_parallelism_threads=1, inter_op_parallelism_threads=1
 )))
 
-LARGE_INTEGER = int(1e10)
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 CLASS_COMPONENT_TYPE_STRING = model_interpretation.CLASS_COMPONENT_TYPE_STRING
@@ -172,7 +171,8 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
     model_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(model_file_name)[0])
+        os.path.split(model_file_name)[0]
+    )
 
     print 'Reading model metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
