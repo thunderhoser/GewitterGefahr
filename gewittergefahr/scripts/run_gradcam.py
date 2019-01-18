@@ -136,6 +136,8 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
 
     class_activation_matrix = None
     ggradcam_output_matrix = None
+    new_model_object = None
+
     num_examples = len(storm_ids)
 
     for i in range(num_examples):
@@ -148,11 +150,17 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
             list_of_input_matrices=these_input_matrices,
             target_class=target_class, target_layer_name=target_layer_name)
 
-        this_ggradcam_output_matrix = gradcam.run_guided_gradcam(
-            model_object=model_object,
-            list_of_input_matrices=these_input_matrices,
-            target_layer_name=target_layer_name,
-            class_activation_matrix=this_class_activation_matrix)
+        print 'Running guided Grad-CAM for example {0:d} of {1:d}...'.format(
+            i + 1, num_examples)
+
+        this_ggradcam_output_matrix, new_model_object = (
+            gradcam.run_guided_gradcam(
+                orig_model_object=model_object,
+                list_of_input_matrices=these_input_matrices,
+                target_layer_name=target_layer_name,
+                class_activation_matrix=this_class_activation_matrix,
+                new_model_object=new_model_object)
+        )
 
         this_class_activation_matrix = numpy.expand_dims(
             this_class_activation_matrix, axis=0)

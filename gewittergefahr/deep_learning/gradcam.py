@@ -353,24 +353,30 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
     return class_activation_matrix / denominator
 
 
-def run_guided_gradcam(model_object, list_of_input_matrices, target_layer_name,
-                       class_activation_matrix):
+def run_guided_gradcam(
+        orig_model_object, list_of_input_matrices, target_layer_name,
+        class_activation_matrix, new_model_object=None):
     """Runs guided Grad-CAM.
 
     M = number of rows in grid
     N = number of columns in grid
     C = number of channels
 
-    :param model_object: See doc for `run_gradcam`.
-    :param list_of_input_matrices: Same.
+    :param orig_model_object: Original model (trained instance of
+        `keras.models.Model` or `keras.models.Sequential`).
+    :param list_of_input_matrices: See doc for `run_gradcam`.
     :param target_layer_name: Same.
-    :param class_activation_matrix: Matrix created by `run_gradcam`.
+    :param class_activation_matrix: Same.
+    :param new_model_object: New model (created by `_change_backprop_function`),
+        to be used for guided backprop.
     :return: ggradcam_output_matrix: M-by-N-by-C numpy array of output values.
+    :return: new_model_object: See input doc.
     """
 
-    _register_guided_backprop()
-
-    new_model_object = _change_backprop_function(model_object=model_object)
+    if new_model_object is None:
+        _register_guided_backprop()
+        new_model_object = _change_backprop_function(
+            model_object=orig_model_object)
 
     input_index = _find_relevant_input_matrix(
         list_of_input_matrices=list_of_input_matrices,
@@ -384,7 +390,10 @@ def run_guided_gradcam(model_object, list_of_input_matrices, target_layer_name,
     saliency_matrix = saliency_function(list_of_input_matrices + [0])[0]
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
-    return _normalize_guided_gradcam_output(ggradcam_output_matrix)
+    ggradcam_output_matrix = _normalize_guided_gradcam_output(
+        ggradcam_output_matrix)
+
+    return ggradcam_output_matrix, new_model_object
 
 
 def write_file(
