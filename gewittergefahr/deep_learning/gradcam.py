@@ -22,6 +22,7 @@ from scipy.interpolate import (
 from gewittergefahr.gg_io import storm_tracking_io as tracking_io
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
+from gewittergefahr.deep_learning import cnn_setup
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 
@@ -195,6 +196,12 @@ def _change_backprop_function(model_object):
     with graph_object.gradient_override_map(orig_to_new_operation_dict):
         new_model_object = keras.models.clone_model(model_object)
         new_model_object.set_weights(model_object.get_weights())
+
+        new_model_object.compile(
+            loss=keras.losses.binary_crossentropy,
+            optimizer=keras.optimizers.Adam(),
+            metrics=cnn_setup.DEFAULT_METRIC_FUNCTION_LIST)
+
         new_model_object.summary()
 
     return new_model_object
