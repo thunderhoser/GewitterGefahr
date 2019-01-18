@@ -183,12 +183,16 @@ def _change_backprop_function(model_object):
 
     # TODO(thunderhoser): I know that "Relu" is a valid operation name, but I
     # have no clue about the last three.
+    # orig_to_new_operation_dict = {
+    #     'Relu': BACKPROP_FUNCTION_NAME,
+    #     'Lrelu': BACKPROP_FUNCTION_NAME,
+    #     'LRelu': BACKPROP_FUNCTION_NAME,
+    #     'lrelu': BACKPROP_FUNCTION_NAME,
+    #     'Elu': BACKPROP_FUNCTION_NAME,
+    #     'Selu': BACKPROP_FUNCTION_NAME
+    # }
+
     orig_to_new_operation_dict = {
-        'Relu': BACKPROP_FUNCTION_NAME,
-        'Lrelu': BACKPROP_FUNCTION_NAME,
-        'LRelu': BACKPROP_FUNCTION_NAME,
-        'lrelu': BACKPROP_FUNCTION_NAME,
-        'Elu': BACKPROP_FUNCTION_NAME,
         'Selu': BACKPROP_FUNCTION_NAME
     }
 

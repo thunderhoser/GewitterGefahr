@@ -55,21 +55,24 @@ def _do_saliency_calculations(
     inputs_to_gradients_function = K.function(
         list_of_input_tensors + [K.learning_phase()], list_of_gradient_tensors)
 
-    list_of_saliency_matrices = None
-    num_examples = list_of_input_matrices[0].shape[0]
+    # list_of_saliency_matrices = None
+    # num_examples = list_of_input_matrices[0].shape[0]
+    #
+    # for i in range(num_examples):
+    #     these_input_matrices = [a[[i], ...] for a in list_of_input_matrices]
+    #     these_saliency_matrices = inputs_to_gradients_function(
+    #         these_input_matrices + [0])
+    #
+    #     if list_of_saliency_matrices is None:
+    #         list_of_saliency_matrices = these_saliency_matrices + []
+    #     else:
+    #         for k in range(num_input_tensors):
+    #             list_of_saliency_matrices[k] = numpy.concatenate(
+    #                 (list_of_saliency_matrices[k], these_saliency_matrices[k]),
+    #                 axis=0)
 
-    for i in range(num_examples):
-        these_input_matrices = [a[[i], ...] for a in list_of_input_matrices]
-        these_saliency_matrices = inputs_to_gradients_function(
-            these_input_matrices + [0])
-
-        if list_of_saliency_matrices is None:
-            list_of_saliency_matrices = these_saliency_matrices + []
-        else:
-            for k in range(num_input_tensors):
-                list_of_saliency_matrices[k] = numpy.concatenate(
-                    (list_of_saliency_matrices[k], these_saliency_matrices[k]),
-                    axis=0)
+    list_of_saliency_matrices = inputs_to_gradients_function(
+        list_of_input_matrices + [0])
 
     for k in range(num_input_tensors):
         list_of_saliency_matrices[k] *= -1
