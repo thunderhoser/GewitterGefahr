@@ -19,7 +19,7 @@ from gewittergefahr.plotting import cam_plotting
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
-NUM_CONTOURS = 20
+NUM_CONTOURS = 12
 
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
@@ -222,8 +222,6 @@ def _plot_2d_radar_cams(
             this_class_activation_matrix, axis=-1)
         this_class_activation_matrix = numpy.repeat(
             this_class_activation_matrix, repeats=num_channels, axis=-1)
-
-        print this_class_activation_matrix.shape
 
         cam_plotting.plot_many_2d_grids(
             class_activation_matrix_3d=numpy.flip(
