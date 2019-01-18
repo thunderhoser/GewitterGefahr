@@ -147,7 +147,8 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
             list_of_input_matrices=these_input_matrices,
             target_class=target_class, target_layer_name=target_layer_name)
 
-        print this_class_activation_matrix.shape
+        this_class_activation_matrix = numpy.expand_dims(
+            this_class_activation_matrix, axis=0)
 
         if class_activation_matrix is None:
             class_activation_matrix = this_class_activation_matrix + 0.
