@@ -185,7 +185,9 @@ def _change_backprop_function(model_object):
     # have no clue about the last three.
     orig_to_new_operation_dict = {
         'Relu': BACKPROP_FUNCTION_NAME,
-        'LeakyRelu': BACKPROP_FUNCTION_NAME,
+        'Lrelu': BACKPROP_FUNCTION_NAME,
+        'LRelu': BACKPROP_FUNCTION_NAME,
+        'lrelu': BACKPROP_FUNCTION_NAME,
         'Elu': BACKPROP_FUNCTION_NAME,
         'Selu': BACKPROP_FUNCTION_NAME
     }
