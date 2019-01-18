@@ -218,8 +218,12 @@ def _plot_2d_radar_cams(
         this_max_contour_level = numpy.percentile(
             this_class_activation_matrix, max_colour_prctile_for_cam)
 
+        this_class_activation_matrix = numpy.expand_dims(
+            this_class_activation_matrix, axis=-1)
         this_class_activation_matrix = numpy.repeat(
             this_class_activation_matrix, repeats=num_channels, axis=-1)
+
+        print this_class_activation_matrix.shape
 
         cam_plotting.plot_many_2d_grids(
             class_activation_matrix_3d=numpy.flip(
