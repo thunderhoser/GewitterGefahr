@@ -25,6 +25,10 @@ from gewittergefahr.gg_utils import error_checking
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
 
+INPUT_MATRICES_KEY = 'list_of_input_matrices'
+CLASS_ACTIVATIONS_KEY = 'class_activation_matrix'
+GUIDED_GRADCAM_KEY = 'ggradcam_output_matrix'
+
 STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
 MODEL_FILE_NAME_KEY = 'model_file_name'
@@ -223,27 +227,30 @@ def _make_saliency_function(model_object, layer_name):
     )
 
 
-def _normalize_guided_gradcam_output(gradient_matrix):
+def _normalize_guided_gradcam_output(ggradcam_output_matrix):
     """Normalizes image produced by guided Grad-CAM.
 
-    :param gradient_matrix: numpy array with output of guided Grad-CAM.
-    :return: gradient_matrix: Normalized version of input.  If the first axis
-        had length 1, it has been removed ("squeezed out").
+    :param ggradcam_output_matrix: numpy array of output values from guided
+        Grad-CAM.
+    :return: ggradcam_output_matrix: Normalized version of input.  If the first
+        axis had length 1, it has been removed ("squeezed out").
     """
 
-    if gradient_matrix.shape[0] == 1:
-        gradient_matrix = gradient_matrix[0, ...]
+    if ggradcam_output_matrix.shape[0] == 1:
+        ggradcam_output_matrix = ggradcam_output_matrix[0, ...]
 
     # Standardize.
-    gradient_matrix -= numpy.mean(gradient_matrix)
-    gradient_matrix /= (numpy.std(gradient_matrix, ddof=0) + K.epsilon())
+    ggradcam_output_matrix -= numpy.mean(ggradcam_output_matrix)
+    ggradcam_output_matrix /= (
+        numpy.std(ggradcam_output_matrix, ddof=0) + K.epsilon()
+    )
 
     # Force standard deviation of 0.1 and mean of 0.5.
-    gradient_matrix = 0.5 + gradient_matrix * 0.1
-    gradient_matrix[gradient_matrix < 0.] = 0.
-    gradient_matrix[gradient_matrix > 1.] = 1.
+    ggradcam_output_matrix = 0.5 + ggradcam_output_matrix * 0.1
+    ggradcam_output_matrix[ggradcam_output_matrix < 0.] = 0.
+    ggradcam_output_matrix[ggradcam_output_matrix > 1.] = 1.
 
-    return gradient_matrix
+    return ggradcam_output_matrix
 
 
 def run_gradcam(model_object, list_of_input_matrices, target_class,
@@ -356,7 +363,7 @@ def run_guided_gradcam(model_object, list_of_input_matrices, target_layer_name,
     :param list_of_input_matrices: Same.
     :param target_layer_name: Same.
     :param class_activation_matrix: Matrix created by `run_gradcam`.
-    :return: gradient_matrix: M-by-N-by-C numpy array of gradients.
+    :return: ggradcam_output_matrix: M-by-N-by-C numpy array of output values.
     """
 
     _register_guided_backprop()
@@ -374,15 +381,16 @@ def run_guided_gradcam(model_object, list_of_input_matrices, target_layer_name,
         list_of_input_matrices + [0]
     )[input_index]
 
-    gradient_matrix = saliency_matrix * class_activation_matrix[
+    ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
-    return _normalize_guided_gradcam_output(gradient_matrix)
+    return _normalize_guided_gradcam_output(ggradcam_output_matrix)
 
 
 def write_file(
         pickle_file_name, list_of_input_matrices, class_activation_matrix,
         model_file_name, storm_ids, storm_times_unix_sec, target_class,
-        target_layer_name, sounding_pressure_matrix_pascals=None):
+        target_layer_name, ggradcam_output_matrix=None,
+        sounding_pressure_matrix_pascals=None):
     """Writes class-activation maps to Pickle file.
 
     Specifically, this method writes class-activation maps for one target class,
@@ -405,6 +413,9 @@ def write_file(
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param target_class: See doc for `run_gradcam`.
     :param target_layer_name: Same.
+    :param ggradcam_output_matrix: numpy array, where
+        ggradcam_output_matrix[i, ...] contains output of guided Grad-CAM for
+        the [i]th example, created by `run_guided_gradcam`.
     :param sounding_pressure_matrix_pascals: E-by-H numpy array of pressure
         levels in soundings.  Useful when model input contains soundings with no
         pressure variable, since pressure is needed to plot soundings.
@@ -435,6 +446,15 @@ def write_file(
     error_checking.assert_is_numpy_array(
         class_activation_matrix, exact_dimensions=these_expected_dim)
 
+    if ggradcam_output_matrix is not None:
+        error_checking.assert_is_numpy_array_without_nan(ggradcam_output_matrix)
+        num_channels = ggradcam_output_matrix.shape[-1]
+
+        these_expected_dim = numpy.array(
+            class_activation_matrix.shape + (num_channels,), dtype=int)
+        error_checking.assert_is_numpy_array(
+            ggradcam_output_matrix, exact_dimensions=these_expected_dim)
+
     error_checking.assert_is_list(list_of_input_matrices)
 
     for this_input_matrix in list_of_input_matrices:
@@ -456,7 +476,10 @@ def write_file(
             sounding_pressure_matrix_pascals,
             exact_dimensions=these_expected_dim)
 
-    metadata_dict = {
+    gradcam_dict = {
+        INPUT_MATRICES_KEY: list_of_input_matrices,
+        CLASS_ACTIVATIONS_KEY: class_activation_matrix,
+        GUIDED_GRADCAM_KEY: ggradcam_output_matrix,
         MODEL_FILE_NAME_KEY: model_file_name,
         STORM_IDS_KEY: storm_ids,
         STORM_TIMES_KEY: storm_times_unix_sec,
@@ -467,9 +490,7 @@ def write_file(
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(list_of_input_matrices, pickle_file_handle)
-    pickle.dump(class_activation_matrix, pickle_file_handle)
-    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle.dump(gradcam_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
@@ -477,21 +498,20 @@ def read_file(pickle_file_name):
     """Reads class-activation maps from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_input_matrices: See doc for `write_file`.
-    :return: class_activation_matrix: Same.
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['model_file_name']: See doc for `write_file`.
-    metadata_dict['storm_ids']: Same.
-    metadata_dict['storm_times_unix_sec']: Same.
-    metadata_dict['target_class']: Same.
-    metadata_dict['target_layer_name']: Same.
-    metadata_dict['sounding_pressure_matrix_pascals']: Same.
+    :return: gradcam_dict: Dictionary with the following keys.
+    gradcam_dict['list_of_input_matrices']: See doc for `write_file`.
+    gradcam_dict['class_activation_matrix']: Same.
+    gradcam_dict['ggradcam_output_matrix']: Same.
+    gradcam_dict['model_file_name']: Same.
+    gradcam_dict['storm_ids']: Same.
+    gradcam_dict['storm_times_unix_sec']: Same.
+    gradcam_dict['target_class']: Same.
+    gradcam_dict['target_layer_name']: Same.
+    gradcam_dict['sounding_pressure_matrix_pascals']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    list_of_input_matrices = pickle.load(pickle_file_handle)
-    class_activation_matrix = pickle.load(pickle_file_handle)
-    metadata_dict = pickle.load(pickle_file_handle)
+    gradcam_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return list_of_input_matrices, class_activation_matrix, metadata_dict
+    return gradcam_dict

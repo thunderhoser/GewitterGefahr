@@ -135,6 +135,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
     print SEPARATOR_STRING
 
     class_activation_matrix = None
+    ggradcam_output_matrix = None
     num_examples = len(storm_ids)
 
     for i in range(num_examples):
@@ -147,14 +148,25 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
             list_of_input_matrices=these_input_matrices,
             target_class=target_class, target_layer_name=target_layer_name)
 
+        this_ggradcam_output_matrix = gradcam.run_guided_gradcam(
+            model_object=model_object,
+            list_of_input_matrices=these_input_matrices,
+            target_layer_name=target_layer_name,
+            class_activation_matrix=this_class_activation_matrix)
+
         this_class_activation_matrix = numpy.expand_dims(
             this_class_activation_matrix, axis=0)
+        this_ggradcam_output_matrix = numpy.expand_dims(
+            this_ggradcam_output_matrix, axis=0)
 
         if class_activation_matrix is None:
             class_activation_matrix = this_class_activation_matrix + 0.
+            ggradcam_output_matrix = this_ggradcam_output_matrix + 0.
         else:
             class_activation_matrix = numpy.concatenate(
                 (class_activation_matrix, this_class_activation_matrix), axis=0)
+            ggradcam_output_matrix = numpy.concatenate(
+                (ggradcam_output_matrix, this_ggradcam_output_matrix), axis=0)
 
     print SEPARATOR_STRING
 
@@ -169,6 +181,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
         pickle_file_name=output_file_name,
         list_of_input_matrices=list_of_input_matrices,
         class_activation_matrix=class_activation_matrix,
+        ggradcam_output_matrix=ggradcam_output_matrix,
         model_file_name=model_file_name, storm_ids=storm_ids,
         storm_times_unix_sec=storm_times_unix_sec,
         target_class=target_class, target_layer_name=target_layer_name,
