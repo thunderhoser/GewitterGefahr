@@ -596,16 +596,16 @@ def _run(input_file_name, saliency_colour_map_name,
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     sounding_field_names = training_option_dict[trainval_io.SOUNDING_FIELDS_KEY]
 
-    if sounding_field_names is not None:
-        # _plot_sounding_saliency(
-        #     sounding_matrix=list_of_input_matrices[-1],
-        #     sounding_saliency_matrix=list_of_saliency_matrices[-1],
-        #     sounding_field_names=sounding_field_names,
-        #     saliency_metadata_dict=saliency_metadata_dict,
-        #     colour_map_object=saliency_colour_map_object,
-        #     max_colour_value_by_example=max_colour_value_by_example,
-        #     output_dir_name=output_dir_name)
-        # print SEPARATOR_STRING
+    # if sounding_field_names is not None:
+    #     _plot_sounding_saliency(
+    #         sounding_matrix=list_of_input_matrices[-1],
+    #         sounding_saliency_matrix=list_of_saliency_matrices[-1],
+    #         sounding_field_names=sounding_field_names,
+    #         saliency_metadata_dict=saliency_metadata_dict,
+    #         colour_map_object=saliency_colour_map_object,
+    #         max_colour_value_by_example=max_colour_value_by_example,
+    #         output_dir_name=output_dir_name)
+    #     print SEPARATOR_STRING
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         _plot_saliency_for_2d3d_radar(
