@@ -158,8 +158,14 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
-    print list_of_mean_input_matrices[0].shape
-    print list_of_mean_input_matrices[0][..., 0]
+    this_mean_matrix = list_of_mean_input_matrices[0][..., 0]
+    this_num_rows = this_mean_matrix.shape[0]
+    this_num_columns = this_mean_matrix.shape[1]
+
+    for i in range(this_num_rows):
+        for j in range(this_num_columns):
+            print this_mean_matrix[i, j]
+        print '\n'
 
     if input_saliency_file_name is None:
         class_activation_matrix = gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY]
