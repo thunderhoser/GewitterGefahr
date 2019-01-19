@@ -22,9 +22,6 @@ from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
 # TODO(thunderhoser): Use threshold counts at some point.
-# TODO(thunderhoser): IO methods in saliency_maps.py should ensure that standard
-# and PMM files are not mixed up.
-# TODO(thunderhoser): Allow Grad-CAM to plot PMM.
 
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
@@ -547,15 +544,18 @@ def _run(input_file_name, saliency_colour_map_name,
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
 
     try:
-        (list_of_input_matrices, list_of_saliency_matrices,
-         saliency_metadata_dict
-        ) = saliency_maps.read_standard_file(input_file_name)
+        saliency_dict = saliency_maps.read_standard_file(input_file_name)
+        list_of_input_matrices = saliency_dict.pop(
+            saliency_maps.INPUT_MATRICES_KEY)
+        list_of_saliency_matrices = saliency_dict.pop(
+            saliency_maps.SALIENCY_MATRICES_KEY)
 
+        saliency_metadata_dict = saliency_dict
         storm_ids = saliency_metadata_dict[saliency_maps.STORM_IDS_KEY]
         storm_times_unix_sec = saliency_metadata_dict[
             saliency_maps.STORM_TIMES_KEY]
 
-    except EOFError:
+    except ValueError:
         saliency_dict = saliency_maps.read_pmm_file(input_file_name)
         list_of_input_matrices = saliency_dict[
             saliency_maps.MEAN_INPUT_MATRICES_KEY]
@@ -573,9 +573,12 @@ def _run(input_file_name, saliency_colour_map_name,
 
         print 'Reading metadata from: "{0:s}"...'.format(
             orig_saliency_file_name)
-        saliency_metadata_dict = saliency_maps.read_standard_file(
-            orig_saliency_file_name
-        )[-1]
+        orig_saliency_dict = saliency_maps.read_standard_file(
+            orig_saliency_file_name)
+
+        orig_saliency_dict.pop(saliency_maps.INPUT_MATRICES_KEY)
+        orig_saliency_dict.pop(saliency_maps.SALIENCY_MATRICES_KEY)
+        saliency_metadata_dict = orig_saliency_dict
 
         storm_ids = None
         storm_times_unix_sec = None

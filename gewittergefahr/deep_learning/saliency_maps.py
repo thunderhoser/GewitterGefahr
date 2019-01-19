@@ -10,9 +10,11 @@ from gewittergefahr.deep_learning import model_interpretation
 
 DEFAULT_IDEAL_ACTIVATION = 2.
 
+INPUT_MATRICES_KEY = 'list_of_input_matrices'
+SALIENCY_MATRICES_KEY = 'list_of_saliency_matrices'
+
 STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
-
 MODEL_FILE_NAME_KEY = 'model_file_name'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
@@ -22,11 +24,23 @@ NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
+STANDARD_FILE_KEYS = [
+    INPUT_MATRICES_KEY, SALIENCY_MATRICES_KEY, STORM_IDS_KEY, STORM_TIMES_KEY,
+    MODEL_FILE_NAME_KEY, COMPONENT_TYPE_KEY, TARGET_CLASS_KEY, LAYER_NAME_KEY,
+    IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY, CHANNEL_INDEX_KEY,
+    SOUNDING_PRESSURES_KEY
+]
+
 MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
 MEAN_SALIENCY_MATRICES_KEY = 'list_of_mean_saliency_matrices'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_saliency_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
+
+PMM_FILE_KEYS = [
+    MEAN_INPUT_MATRICES_KEY, MEAN_SALIENCY_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
+    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+]
 
 
 def _do_saliency_calculations(
@@ -55,9 +69,9 @@ def _do_saliency_calculations(
 
     list_of_gradient_tensors = K.gradients(loss_tensor, list_of_input_tensors)
     num_input_tensors = len(list_of_input_tensors)
-    for k in range(num_input_tensors):
-        list_of_gradient_tensors[k] /= K.maximum(
-            K.std(list_of_gradient_tensors[k]), K.epsilon())
+    for i in range(num_input_tensors):
+        list_of_gradient_tensors[i] /= K.maximum(
+            K.std(list_of_gradient_tensors[i]), K.epsilon())
 
     inputs_to_gradients_function = K.function(
         list_of_input_tensors + [K.learning_phase()], list_of_gradient_tensors)
@@ -73,16 +87,16 @@ def _do_saliency_calculations(
     #     if list_of_saliency_matrices is None:
     #         list_of_saliency_matrices = these_saliency_matrices + []
     #     else:
-    #         for k in range(num_input_tensors):
-    #             list_of_saliency_matrices[k] = numpy.concatenate(
-    #                 (list_of_saliency_matrices[k], these_saliency_matrices[k]),
+    #         for i in range(num_input_tensors):
+    #             list_of_saliency_matrices[i] = numpy.concatenate(
+    #                 (list_of_saliency_matrices[i], these_saliency_matrices[i]),
     #                 axis=0)
 
     list_of_saliency_matrices = inputs_to_gradients_function(
         list_of_input_matrices + [0])
 
-    for k in range(num_input_tensors):
-        list_of_saliency_matrices[k] *= -1
+    for i in range(num_input_tensors):
+        list_of_saliency_matrices[i] *= -1
 
     return list_of_saliency_matrices
 
@@ -101,6 +115,14 @@ def check_metadata(
     :param neuron_indices: See doc for
         `get_saliency_maps_for_neuron_activation`.
     :param channel_index: See doc for `get_saliency_maps_for_class_activation`.
+
+    :return: metadata_dict: Dictionary with the following keys.
+    metadata_dict['component_type_string']: See input doc.
+    metadata_dict['target_class']: Same.
+    metadata_dict['layer_name']: Same.
+    metadata_dict['ideal_activation']: Same.
+    metadata_dict['neuron_indices']: Same.
+    metadata_dict['channel_index']: Same.
     """
 
     model_interpretation.check_component_type(component_type_string)
@@ -127,6 +149,15 @@ def check_metadata(
             model_interpretation.CHANNEL_COMPONENT_TYPE_STRING):
         error_checking.assert_is_integer(channel_index)
         error_checking.assert_is_geq(channel_index, 0)
+
+    return {
+        COMPONENT_TYPE_KEY: component_type_string,
+        TARGET_CLASS_KEY: target_class,
+        LAYER_NAME_KEY: layer_name,
+        IDEAL_ACTIVATION_KEY: ideal_activation,
+        NEURON_INDICES_KEY: neuron_indices,
+        CHANNEL_INDEX_KEY: channel_index
+    }
 
 
 def get_saliency_maps_for_class_activation(
@@ -338,49 +369,56 @@ def read_pmm_file(pickle_file_name):
     """Reads mean saliency map from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: saliency_dict: Dictionary with the following keys.
-    metadata_dict['list_of_mean_input_matrices']: See doc for `write_pmm_file`.
-    metadata_dict['list_of_mean_saliency_matrices']: Same.
-    metadata_dict['threshold_count_matrix']: Same.
-    metadata_dict['standard_saliency_file_name']: Same.
-    metadata_dict['pmm_metadata_dict']: Same.
+    :return: mean_saliency_dict: Dictionary with the following keys.
+    mean_saliency_dict['list_of_mean_input_matrices']: See doc for
+        `write_pmm_file`.
+    mean_saliency_dict['list_of_mean_saliency_matrices']: Same.
+    mean_saliency_dict['threshold_count_matrix']: Same.
+    mean_saliency_dict['standard_saliency_file_name']: Same.
+    mean_saliency_dict['pmm_metadata_dict']: Same.
+
+    :raises: ValueError: if any of the aforelisted keys are missing from the
+        dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    saliency_dict = pickle.load(pickle_file_handle)
+    mean_saliency_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return saliency_dict
+    missing_keys = list(set(PMM_FILE_KEYS) - set(mean_saliency_dict.keys()))
+    if len(missing_keys) == 0:
+        return mean_saliency_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
 
 
 def write_standard_file(
         pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
-        model_file_name, storm_ids, storm_times_unix_sec, component_type_string,
-        target_class=None, layer_name=None, ideal_activation=None,
-        neuron_indices=None, channel_index=None,
-        sounding_pressure_matrix_pascals=None):
-    """Writes saliency maps (one for each example) to Pickle file.
+        storm_ids, storm_times_unix_sec, model_file_name,
+        saliency_metadata_dict, sounding_pressure_matrix_pascals=None):
+    """Writes saliency maps (one per example) to Pickle file.
 
     T = number of input tensors to the model
-    E = number of examples (storm objects) for which saliency maps were computed
+    E = number of examples (storm objects)
     H = number of height levels per sounding
 
     :param pickle_file_name: Path to output file.
-    :param list_of_input_matrices: length-T list of numpy arrays, comprising the
-        input data for all storm objects  The first dimension of each array has
-        length E.
-    :param list_of_saliency_matrices: length-T list of numpy arrays, comprising
-        the saliency map for each storm object.  list_of_saliency_matrices[k]
-        has the same dimensions as list_of_input_matrices[k].
-    :param model_file_name: Path to file with trained model.
-    :param storm_ids: length-E list of storm IDs.
+    :param list_of_input_matrices: length-T list of numpy arrays, containing
+        predictors (inputs to the model).  The first dimension of each array
+        must have length E.
+    :param list_of_saliency_matrices: length-T list of numpy arrays, containing
+        saliency values.  list_of_saliency_matrices[i] must have the same
+        dimensions as list_of_input_matrices[i].
+    :param storm_ids: length-E list of storm IDs (strings).
     :param storm_times_unix_sec: length-E numpy array of storm times.
-    :param component_type_string: See doc for `check_metadata`.
-    :param target_class: Same.
-    :param layer_name: Same.
-    :param ideal_activation: Same.
-    :param neuron_indices: Same.
-    :param channel_index: Same.
+    :param model_file_name: Path to file with trained model (readable by
+        `cnn.read_model`).
+    :param saliency_metadata_dict: Dictionary created by `check_metadata`.
     :param sounding_pressure_matrix_pascals: E-by-H numpy array of pressure
         levels in soundings.  Useful only when the model input contains
         soundings with no pressure, because it is needed to plot soundings.
@@ -388,21 +426,18 @@ def write_standard_file(
         `list_of_saliency_matrices` have different lengths.
     """
 
-    check_metadata(
-        component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_indices=neuron_indices, channel_index=channel_index)
-
+    error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_string_list(storm_ids)
     error_checking.assert_is_numpy_array(
         numpy.array(storm_ids), num_dimensions=1)
 
     num_storm_objects = len(storm_ids)
+    these_expected_dim = numpy.array([num_storm_objects], dtype=int)
+
     error_checking.assert_is_integer_numpy_array(storm_times_unix_sec)
     error_checking.assert_is_numpy_array(
-        storm_times_unix_sec, exact_dimensions=numpy.array([num_storm_objects]))
+        storm_times_unix_sec, exact_dimensions=these_expected_dim)
 
-    error_checking.assert_is_string(model_file_name)
     error_checking.assert_is_list(list_of_input_matrices)
     error_checking.assert_is_list(list_of_saliency_matrices)
     num_input_matrices = len(list_of_input_matrices)
@@ -416,19 +451,28 @@ def write_standard_file(
 
         raise ValueError(error_string)
 
-    for k in range(num_input_matrices):
-        error_checking.assert_is_numpy_array(list_of_input_matrices[k])
+    for i in range(num_input_matrices):
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_input_matrices[i])
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_saliency_matrices[i])
+
         these_expected_dim = numpy.array(
-            (num_storm_objects,) + list_of_input_matrices[k].shape[1:],
+            (num_storm_objects,) + list_of_input_matrices[i].shape[1:],
             dtype=int)
         error_checking.assert_is_numpy_array(
-            list_of_input_matrices[k], exact_dimensions=these_expected_dim)
+            list_of_input_matrices[i], exact_dimensions=these_expected_dim)
 
+        these_expected_dim = numpy.array(
+            list_of_input_matrices[i].shape, dtype=int)
         error_checking.assert_is_numpy_array(
-            list_of_saliency_matrices[k],
-            exact_dimensions=numpy.array(list_of_input_matrices[k].shape))
+            list_of_saliency_matrices[i], exact_dimensions=these_expected_dim)
 
     if sounding_pressure_matrix_pascals is not None:
+        error_checking.assert_is_numpy_array_without_nan(
+            sounding_pressure_matrix_pascals)
+        error_checking.assert_is_greater_numpy_array(
+            sounding_pressure_matrix_pascals, 0.)
         error_checking.assert_is_numpy_array(
             sounding_pressure_matrix_pascals, num_dimensions=2)
 
@@ -439,50 +483,60 @@ def write_standard_file(
             sounding_pressure_matrix_pascals,
             exact_dimensions=these_expected_dim)
 
-    metadata_dict = {
-        MODEL_FILE_NAME_KEY: model_file_name,
+    saliency_dict = {
+        INPUT_MATRICES_KEY: list_of_input_matrices,
+        SALIENCY_MATRICES_KEY: list_of_saliency_matrices,
         STORM_IDS_KEY: storm_ids,
         STORM_TIMES_KEY: storm_times_unix_sec,
-        COMPONENT_TYPE_KEY: component_type_string,
-        TARGET_CLASS_KEY: target_class,
-        LAYER_NAME_KEY: layer_name,
-        IDEAL_ACTIVATION_KEY: ideal_activation,
-        NEURON_INDICES_KEY: neuron_indices,
-        CHANNEL_INDEX_KEY: channel_index,
+        MODEL_FILE_NAME_KEY: model_file_name,
+        COMPONENT_TYPE_KEY: saliency_metadata_dict[COMPONENT_TYPE_KEY],
+        TARGET_CLASS_KEY: saliency_metadata_dict[TARGET_CLASS_KEY],
+        LAYER_NAME_KEY: saliency_metadata_dict[LAYER_NAME_KEY],
+        IDEAL_ACTIVATION_KEY: saliency_metadata_dict[IDEAL_ACTIVATION_KEY],
+        NEURON_INDICES_KEY: saliency_metadata_dict[NEURON_INDICES_KEY],
+        CHANNEL_INDEX_KEY: saliency_metadata_dict[CHANNEL_INDEX_KEY],
         SOUNDING_PRESSURES_KEY: sounding_pressure_matrix_pascals
     }
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(list_of_input_matrices, pickle_file_handle)
-    pickle.dump(list_of_saliency_matrices, pickle_file_handle)
-    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle.dump(saliency_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
 def read_standard_file(pickle_file_name):
-    """Reads saliency maps (one for each example) from Pickle file.
+    """Reads saliency maps (one per example) from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_input_matrices: See doc for `write_standard_file`.
-    :return: list_of_saliency_matrices: Same.
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['model_file_name']: See doc for `write_standard_file`.
-    metadata_dict['storm_ids']: Same.
-    metadata_dict['storm_times_unix_sec']: Same.
-    metadata_dict['component_type_string']: Same.
-    metadata_dict['target_class']: Same.
-    metadata_dict['layer_name']: Same.
-    metadata_dict['ideal_activation']: Same.
-    metadata_dict['neuron_indices']: Same.
-    metadata_dict['channel_index']: Same.
-    metadata_dict['sounding_pressure_matrix_pascals']: Same.
+    :return: saliency_dict: Dictionary with the following keys.
+    saliency_dict['list_of_input_matrices']: See doc for `write_standard_file`.
+    saliency_dict['list_of_saliency_matrices']: Same.
+    saliency_dict['storm_ids']: Same.
+    saliency_dict['storm_times_unix_sec']: Same.
+    saliency_dict['model_file_name']: Same.
+    saliency_dict['component_type_string']: Same.
+    saliency_dict['target_class']: Same.
+    saliency_dict['layer_name']: Same.
+    saliency_dict['ideal_activation']: Same.
+    saliency_dict['neuron_indices']: Same.
+    saliency_dict['channel_index']: Same.
+    saliency_dict['sounding_pressure_matrix_pascals']: Same.
+
+    :raises: ValueError: if any of the aforelisted keys are missing from the
+        dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    list_of_input_matrices = pickle.load(pickle_file_handle)
-    list_of_saliency_matrices = pickle.load(pickle_file_handle)
-    metadata_dict = pickle.load(pickle_file_handle)
+    saliency_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return list_of_input_matrices, list_of_saliency_matrices, metadata_dict
+    missing_keys = list(set(STANDARD_FILE_KEYS) - set(saliency_dict.keys()))
+    if len(missing_keys) == 0:
+        return saliency_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)

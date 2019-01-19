@@ -124,9 +124,9 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
         list_of_input_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
     else:
         print 'Reading data from: "{0:s}"...'.format(input_saliency_file_name)
-        list_of_input_matrices, list_of_saliency_matrices = (
-            saliency_maps.read_standard_file(input_saliency_file_name)[:2]
-        )
+        saliency_dict = saliency_maps.read_standard_file(
+            input_saliency_file_name)
+        list_of_input_matrices = saliency_dict[gradcam.INPUT_MATRICES_KEY]
 
     print 'Running PMM on denormalized predictor matrices...'
 
@@ -158,20 +158,10 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
-    # this_mean_matrix = list_of_mean_input_matrices[0][..., 0]
-    # this_num_rows = this_mean_matrix.shape[0]
-    # this_num_columns = this_mean_matrix.shape[1]
-    #
-    # for i in range(this_num_rows):
-    #     for j in range(this_num_columns):
-    #         print this_mean_matrix[i, j]
-    #     print '\n'
-
     if input_saliency_file_name is None:
+        print 'Running PMM on class-activation matrices...'
         class_activation_matrix = gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY]
         ggradcam_output_matrix = gradcam_dict[gradcam.GUIDED_GRADCAM_KEY]
-
-        print 'Running PMM on class-activation matrices...'
         class_activation_matrix = numpy.expand_dims(
             class_activation_matrix, axis=-1)
 
@@ -201,6 +191,8 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
         return
 
     print 'Running PMM on saliency matrices...'
+    list_of_saliency_matrices = saliency_dict[
+        saliency_maps.SALIENCY_MATRICES_KEY]
 
     num_input_matrices = len(list_of_input_matrices)
     list_of_mean_saliency_matrices = [None] * num_input_matrices
@@ -225,10 +217,10 @@ if __name__ == '__main__':
     INPUT_ARG_OBJECT = INPUT_ARG_PARSER.parse_args()
 
     _run(
-        input_saliency_file_name=getattr(INPUT_ARG_OBJECT,
-                                         SALIENCY_FILE_ARG_NAME),
-        input_gradcam_file_name=getattr(INPUT_ARG_OBJECT,
-                                        GRADCAM_FILE_ARG_NAME),
+        input_saliency_file_name=getattr(
+            INPUT_ARG_OBJECT, SALIENCY_FILE_ARG_NAME),
+        input_gradcam_file_name=getattr(
+            INPUT_ARG_OBJECT, GRADCAM_FILE_ARG_NAME),
         max_percentile_level=getattr(INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         radar_channel_idx_for_thres=getattr(
             INPUT_ARG_OBJECT, THRESHOLD_INDEX_ARG_NAME),

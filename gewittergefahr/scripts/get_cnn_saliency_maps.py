@@ -244,15 +244,19 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         model_metadata_dict=model_metadata_dict)
 
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
+
+    saliency_metadata_dict = saliency_maps.check_metadata(
+        component_type_string=component_type_string, target_class=target_class,
+        layer_name=layer_name, ideal_activation=ideal_activation,
+        neuron_indices=neuron_indices, channel_index=channel_index)
+
     saliency_maps.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_input_matrices=list_of_input_matrices,
         list_of_saliency_matrices=list_of_saliency_matrices,
-        model_file_name=model_file_name, storm_ids=storm_ids,
-        storm_times_unix_sec=storm_times_unix_sec,
-        component_type_string=component_type_string, target_class=target_class,
-        layer_name=layer_name, ideal_activation=ideal_activation,
-        neuron_indices=neuron_indices, channel_index=channel_index,
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
+        model_file_name=model_file_name,
+        saliency_metadata_dict=saliency_metadata_dict,
         sounding_pressure_matrix_pascals=sounding_pressure_matrix_pascals)
 
 

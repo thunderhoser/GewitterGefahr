@@ -36,12 +36,24 @@ TARGET_CLASS_KEY = 'target_class'
 TARGET_LAYER_KEY = 'target_layer_name'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
+STANDARD_FILE_KEYS = [
+    INPUT_MATRICES_KEY, CLASS_ACTIVATIONS_KEY, GUIDED_GRADCAM_KEY,
+    STORM_IDS_KEY, STORM_TIMES_KEY, MODEL_FILE_NAME_KEY,
+    TARGET_CLASS_KEY, TARGET_LAYER_KEY, SOUNDING_PRESSURES_KEY
+]
+
 MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
 MEAN_CLASS_ACTIVATIONS_KEY = 'mean_class_activation_matrix'
 MEAN_GUIDED_GRADCAM_KEY = 'mean_ggradcam_output_matrix'
 THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
 STANDARD_FILE_NAME_KEY = 'standard_gradcam_file_name'
 PMM_METADATA_KEY = 'pmm_metadata_dict'
+
+PMM_FILE_KEYS = [
+    MEAN_INPUT_MATRICES_KEY, MEAN_CLASS_ACTIVATIONS_KEY,
+    MEAN_GUIDED_GRADCAM_KEY, THRESHOLD_COUNTS_KEY, STANDARD_FILE_NAME_KEY,
+    PMM_METADATA_KEY
+]
 
 
 def _find_relevant_input_matrix(list_of_input_matrices, num_spatial_dim):
@@ -482,19 +494,32 @@ def read_pmm_file(pickle_file_name):
 
     :param pickle_file_name: Path to input file.
     :return: mean_gradcam_dict: Dictionary with the following keys.
-    mean_gradcam_dict['list_of_mean_input_matrices']: See doc for `write_pmm_file`.
+    mean_gradcam_dict['list_of_mean_input_matrices']: See doc for
+        `write_pmm_file`.
     mean_gradcam_dict['mean_class_activation_matrix']: Same.
     mean_gradcam_dict['mean_ggradcam_output_matrix']: Same
     mean_gradcam_dict['threshold_count_matrix']: Same.
     mean_gradcam_dict['standard_gradcam_file_name']: Same.
     mean_gradcam_dict['pmm_metadata_dict']: Same.
+
+    :raises: ValueError: if any of the aforelisted keys are missing from the
+        dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     mean_gradcam_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return mean_gradcam_dict
+    missing_keys = list(set(PMM_FILE_KEYS) - set(mean_gradcam_dict.keys()))
+    if len(missing_keys) == 0:
+        return mean_gradcam_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
 
 
 def write_standard_file(
@@ -615,10 +640,22 @@ def read_standard_file(pickle_file_name):
     gradcam_dict['target_class']: Same.
     gradcam_dict['target_layer_name']: Same.
     gradcam_dict['sounding_pressure_matrix_pascals']: Same.
+
+    :raises: ValueError: if any of the aforelisted keys are missing from the
+        dictionary.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
     gradcam_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return gradcam_dict
+    missing_keys = list(set(STANDARD_FILE_KEYS) - set(gradcam_dict.keys()))
+    if len(missing_keys) == 0:
+        return gradcam_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
