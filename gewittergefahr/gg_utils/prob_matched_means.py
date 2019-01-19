@@ -96,6 +96,8 @@ def _run_pmm_one_variable(
     min_pooled_value = numpy.percentile(
         pooled_values, 100 - max_percentile_level)
     pooled_values = pooled_values[pooled_values >= min_pooled_value]
+    print numpy.min(pooled_values)
+    print numpy.max(pooled_values)
 
     # Find ensemble mean at each grid point.
     mean_field_matrix = numpy.mean(input_matrix, axis=0)
