@@ -898,6 +898,8 @@ def read_specific_examples(
         pressures.  If soundings were not read, this is None.
     """
 
+    option_dict[trainval_io.SAMPLING_FRACTIONS_KEY] = None
+
     desired_spc_date_strings = [
         time_conversion.time_to_spc_date_string(t)
         for t in desired_times_unix_sec
