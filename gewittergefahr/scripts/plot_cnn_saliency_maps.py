@@ -21,6 +21,11 @@ from gewittergefahr.plotting import sounding_plotting
 from gewittergefahr.plotting import saliency_plotting
 from gewittergefahr.plotting import imagemagick_utils
 
+# TODO(thunderhoser): Use threshold counts at some point.
+# TODO(thunderhoser): IO methods in saliency_maps.py should ensure that standard
+# and PMM files are not mixed up.
+# TODO(thunderhoser): Allow Grad-CAM to plot PMM.
+
 TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
