@@ -99,6 +99,8 @@ def _run_pmm_one_variable(
 
     # Find ensemble mean at each grid point.
     mean_field_matrix = numpy.mean(input_matrix, axis=0)
+    print mean_field_matrix.shape
+
     # mean_field_flattened = numpy.ravel(mean_field_matrix)
     #
     # # At each grid point, replace ensemble mean with the same percentile from
@@ -121,7 +123,7 @@ def _run_pmm_one_variable(
     #
     # return mean_field_matrix, threshold_count_matrix
 
-    return mean_field_matrix
+    return mean_field_matrix, threshold_count_matrix
 
 
 def check_input_args(
