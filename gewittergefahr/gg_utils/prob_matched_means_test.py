@@ -10,7 +10,7 @@ MAX_PERCENTILE_LEVEL = 99.
 THRESHOLD_VALUE = 50.
 THRESHOLD_VAR_INDEX = 0
 
-# The following constants are used to test run_pmm_one_variable.
+# The following constants are used to test _run_pmm_one_variable.
 THIS_EXAMPLE_MATRIX = numpy.array([
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
     [14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]
@@ -51,13 +51,13 @@ class ProbMatchedMeansTests(unittest.TestCase):
     """Each method is a unit test for prob_matched_means.py."""
 
     def test_run_pmm_one_variable_no_threshold(self):
-        """Ensures correct output from run_pmm_one_variable.
+        """Ensures correct output from _run_pmm_one_variable.
 
         In this case there is no thresholding.
         """
 
         this_mean_field_matrix, this_threshold_count_matrix = (
-            pmm.run_pmm_one_variable(
+            pmm._run_pmm_one_variable(
                 input_matrix=INPUT_MATRIX_ONE_VAR,
                 max_percentile_level=MAX_PERCENTILE_LEVEL)
         )
@@ -67,13 +67,13 @@ class ProbMatchedMeansTests(unittest.TestCase):
         self.assertTrue(this_threshold_count_matrix is None)
 
     def test_run_pmm_one_variable_min_threshold(self):
-        """Ensures correct output from run_pmm_one_variable.
+        """Ensures correct output from _run_pmm_one_variable.
 
         In this case there is minimum-thresholding.
         """
 
         this_mean_field_matrix, this_threshold_count_matrix = (
-            pmm.run_pmm_one_variable(
+            pmm._run_pmm_one_variable(
                 input_matrix=INPUT_MATRIX_ONE_VAR,
                 max_percentile_level=MAX_PERCENTILE_LEVEL,
                 threshold_value=THRESHOLD_VALUE,
@@ -88,13 +88,13 @@ class ProbMatchedMeansTests(unittest.TestCase):
             this_threshold_count_matrix, MIN_THRESHOLD_COUNT_MATRIX))
 
     def test_run_pmm_one_variable_max_threshold(self):
-        """Ensures correct output from run_pmm_one_variable.
+        """Ensures correct output from _run_pmm_one_variable.
 
         In this case there is maximum-thresholding.
         """
 
         this_mean_field_matrix, this_threshold_count_matrix = (
-            pmm.run_pmm_one_variable(
+            pmm._run_pmm_one_variable(
                 input_matrix=INPUT_MATRIX_ONE_VAR,
                 max_percentile_level=MAX_PERCENTILE_LEVEL,
                 threshold_value=THRESHOLD_VALUE,
