@@ -36,6 +36,13 @@ TARGET_CLASS_KEY = 'target_class'
 TARGET_LAYER_KEY = 'target_layer_name'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
 
+MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+MEAN_CLASS_ACTIVATIONS_KEY = 'mean_class_activation_matrix'
+MEAN_GUIDED_GRADCAM_KEY = 'mean_ggradcam_output_matrix'
+THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
+STANDARD_FILE_NAME_KEY = 'standard_gradcam_file_name'
+PMM_METADATA_KEY = 'pmm_metadata_dict'
+
 
 def _find_relevant_input_matrix(list_of_input_matrices, num_spatial_dim):
     """Finds relevant input matrix (with desired number of spatial dimensions).
@@ -402,15 +409,100 @@ def run_guided_gradcam(
     return ggradcam_output_matrix, new_model_object
 
 
-def write_file(
-        pickle_file_name, list_of_input_matrices, class_activation_matrix,
-        model_file_name, storm_ids, storm_times_unix_sec, target_class,
-        target_layer_name, ggradcam_output_matrix=None,
-        sounding_pressure_matrix_pascals=None):
-    """Writes class-activation maps to Pickle file.
+def write_pmm_file(
+        pickle_file_name, list_of_mean_input_matrices,
+        mean_class_activation_matrix, mean_ggradcam_output_matrix,
+        threshold_count_matrix, standard_gradcam_file_name, pmm_metadata_dict):
+    """Writes mean class-activation map to Pickle file.
 
-    Specifically, this method writes class-activation maps for one target class,
-    one target layer, and many examples (storm objects).
+    This is a mean over many examples, created by PMM (probability-matched
+    means).
+
+    :param pickle_file_name: Path to output file.
+    :param list_of_mean_input_matrices: Same as input `list_of_input_matrices`
+        to `write_standard_file`, but without the first axis.
+    :param mean_class_activation_matrix: Same as input `class_activation_matrix`
+        to `write_standard_file`, but without the first axis.
+    :param mean_ggradcam_output_matrix: Same as input `ggradcam_output_matrix`
+        to `write_standard_file`, but without the first axis.
+    :param threshold_count_matrix: See doc for
+        `prob_matched_means.run_pmm_many_variables`.
+    :param standard_gradcam_file_name: Path to file with standard Grad-CAM
+        output (readable by `read_standard_file`).
+    :param pmm_metadata_dict: Dictionary created by
+        `prob_matched_means.check_input_args`.
+    """
+
+    # TODO(thunderhoser): This method currently does not deal with sounding
+    # pressures.
+
+    error_checking.assert_is_string(standard_gradcam_file_name)
+
+    error_checking.assert_is_numpy_array_without_nan(
+        mean_class_activation_matrix)
+    spatial_dimensions = numpy.array(
+        mean_class_activation_matrix.shape, dtype=int)
+
+    error_checking.assert_is_numpy_array_without_nan(
+        mean_ggradcam_output_matrix)
+    num_channels = mean_ggradcam_output_matrix.shape[-1]
+
+    these_expected_dim = numpy.array(
+        mean_class_activation_matrix.shape + (num_channels,), dtype=int)
+    error_checking.assert_is_numpy_array(
+        mean_ggradcam_output_matrix, exact_dimensions=these_expected_dim)
+
+    if threshold_count_matrix is not None:
+        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
+        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
+        error_checking.assert_is_numpy_array(
+            threshold_count_matrix, exact_dimensions=spatial_dimensions)
+
+    error_checking.assert_is_list(list_of_mean_input_matrices)
+    for this_input_matrix in list_of_mean_input_matrices:
+        error_checking.assert_is_numpy_array_without_nan(this_input_matrix)
+
+    mean_gradcam_dict = {
+        MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
+        MEAN_CLASS_ACTIVATIONS_KEY: mean_class_activation_matrix,
+        MEAN_GUIDED_GRADCAM_KEY: mean_ggradcam_output_matrix,
+        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        STANDARD_FILE_NAME_KEY: standard_gradcam_file_name,
+        PMM_METADATA_KEY: pmm_metadata_dict
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_gradcam_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_pmm_file(pickle_file_name):
+    """Reads mean class-activation map from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mean_gradcam_dict: Dictionary with the following keys.
+    mean_gradcam_dict['list_of_mean_input_matrices']: See doc for `write_pmm_file`.
+    mean_gradcam_dict['mean_class_activation_matrix']: Same.
+    mean_gradcam_dict['mean_ggradcam_output_matrix']: Same
+    mean_gradcam_dict['threshold_count_matrix']: Same.
+    mean_gradcam_dict['standard_gradcam_file_name']: Same.
+    mean_gradcam_dict['pmm_metadata_dict']: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mean_gradcam_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return mean_gradcam_dict
+
+
+def write_standard_file(
+        pickle_file_name, list_of_input_matrices, class_activation_matrix,
+        ggradcam_output_matrix, model_file_name, storm_ids,
+        storm_times_unix_sec, target_class, target_layer_name,
+        sounding_pressure_matrix_pascals=None):
+    """Writes class-activation maps (one for each example) to Pickle file.
 
     T = number of input tensors to the model
     E = number of examples (storm objects)
@@ -423,15 +515,15 @@ def write_file(
     :param class_activation_matrix: numpy array, where
         class_activation_matrix[i, ...] is the activation matrix for the [i]th
         example, created by `run_gradcam`.
+    :param ggradcam_output_matrix: numpy array, where
+        ggradcam_output_matrix[i, ...] contains output of guided Grad-CAM for
+        the [i]th example, created by `run_guided_gradcam`.
     :param model_file_name: Path to file with trained CNN (readable by
         `cnn.read_model`).
     :param storm_ids: length-E list of storm IDs (strings).
     :param storm_times_unix_sec: length-E numpy array of storm times.
     :param target_class: See doc for `run_gradcam`.
     :param target_layer_name: Same.
-    :param ggradcam_output_matrix: numpy array, where
-        ggradcam_output_matrix[i, ...] contains output of guided Grad-CAM for
-        the [i]th example, created by `run_guided_gradcam`.
     :param sounding_pressure_matrix_pascals: E-by-H numpy array of pressure
         levels in soundings.  Useful when model input contains soundings with no
         pressure variable, since pressure is needed to plot soundings.
@@ -462,14 +554,13 @@ def write_file(
     error_checking.assert_is_numpy_array(
         class_activation_matrix, exact_dimensions=these_expected_dim)
 
-    if ggradcam_output_matrix is not None:
-        error_checking.assert_is_numpy_array_without_nan(ggradcam_output_matrix)
-        num_channels = ggradcam_output_matrix.shape[-1]
+    error_checking.assert_is_numpy_array_without_nan(ggradcam_output_matrix)
+    num_channels = ggradcam_output_matrix.shape[-1]
 
-        these_expected_dim = numpy.array(
-            class_activation_matrix.shape + (num_channels,), dtype=int)
-        error_checking.assert_is_numpy_array(
-            ggradcam_output_matrix, exact_dimensions=these_expected_dim)
+    these_expected_dim = numpy.array(
+        class_activation_matrix.shape + (num_channels,), dtype=int)
+    error_checking.assert_is_numpy_array(
+        ggradcam_output_matrix, exact_dimensions=these_expected_dim)
 
     error_checking.assert_is_list(list_of_input_matrices)
 
@@ -510,12 +601,12 @@ def write_file(
     pickle_file_handle.close()
 
 
-def read_file(pickle_file_name):
-    """Reads class-activation maps from Pickle file.
+def read_standard_file(pickle_file_name):
+    """Reads class-activation maps (one for each example) from Pickle file.
 
     :param pickle_file_name: Path to input file.
     :return: gradcam_dict: Dictionary with the following keys.
-    gradcam_dict['list_of_input_matrices']: See doc for `write_file`.
+    gradcam_dict['list_of_input_matrices']: See doc for `write_standard_file`.
     gradcam_dict['class_activation_matrix']: Same.
     gradcam_dict['ggradcam_output_matrix']: Same.
     gradcam_dict['model_file_name']: Same.

@@ -94,7 +94,8 @@ NUM_EXAMPLES_HELP_STRING = (
 ).format(STORM_METAFILE_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (will be written by `saliency_maps.write_file`).')
+    'Path to output file (will be written by '
+    '`saliency_maps.write_standard_file`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -243,7 +244,7 @@ def _run(model_file_name, component_type_string, target_class, layer_name,
         model_metadata_dict=model_metadata_dict)
 
     print 'Writing saliency maps to file: "{0:s}"...'.format(output_file_name)
-    saliency_maps.write_file(
+    saliency_maps.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_input_matrices=list_of_input_matrices,
         list_of_saliency_matrices=list_of_saliency_matrices,

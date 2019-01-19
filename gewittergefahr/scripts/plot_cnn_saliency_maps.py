@@ -38,7 +38,7 @@ MAX_SALIENCY_PRCTILE_ARG_NAME = 'max_colour_prctile_for_saliency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `saliency_maps.read_file`.')
+    'Path to input file.  Will be read by `saliency_maps.read_standard_file`.')
 
 SALIENCY_CMAP_HELP_STRING = (
     'Name of colour map.  Saliency for each predictor will be plotted with the '
@@ -81,7 +81,8 @@ def _plot_2d3d_radar_saliency(
 
     2-D images contain azimuthal shear, and 3-D images contain reflectivity.
 
-    :param list_of_input_matrices: See doc for `saliency_maps.read_saliency`.
+    :param list_of_input_matrices: See doc for
+        `saliency_maps.read_standard_file`.
     :param list_of_saliency_matrices: Same.
     :param saliency_metadata_dict: Same.
     :param training_option_dict: Dictionary returned by
@@ -410,7 +411,7 @@ def _plot_sounding_saliency(
         saliency values.
     :param sounding_field_names: length-F list of field names.
     :param saliency_metadata_dict: Dictionary returned by
-        `saliency_maps.read_file`.
+        `saliency_maps.read_standard_file`.
     :param colour_map_object: See doc for `_plot_2d3d_radar_saliency`.
     :param max_absolute_cval_by_example: Same.
     :param output_dir_name: Name of output directory (figures will be saved
@@ -532,7 +533,7 @@ def _run(input_file_name, saliency_colour_map_name,
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
     (list_of_input_matrices, list_of_saliency_matrices, saliency_metadata_dict
-    ) = saliency_maps.read_file(input_file_name)
+    ) = saliency_maps.read_standard_file(input_file_name)
 
     num_examples = list_of_input_matrices[0].shape[0]
     max_absolute_cval_by_example = numpy.full(num_examples, numpy.nan)

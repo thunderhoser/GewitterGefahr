@@ -12,6 +12,7 @@ DEFAULT_IDEAL_ACTIVATION = 2.
 
 STORM_IDS_KEY = tracking_io.STORM_IDS_KEY + ''
 STORM_TIMES_KEY = tracking_io.STORM_TIMES_KEY + ''
+
 MODEL_FILE_NAME_KEY = 'model_file_name'
 COMPONENT_TYPE_KEY = 'component_type_string'
 TARGET_CLASS_KEY = 'target_class'
@@ -20,6 +21,12 @@ IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
 SOUNDING_PRESSURES_KEY = 'sounding_pressure_matrix_pascals'
+
+MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+MEAN_SALIENCY_MATRICES_KEY = 'list_of_mean_saliency_matrices'
+THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
+STANDARD_FILE_NAME_KEY = 'standard_saliency_file_name'
+PMM_METADATA_KEY = 'pmm_metadata_dict'
 
 
 def _do_saliency_calculations(
@@ -249,16 +256,110 @@ def get_saliency_maps_for_channel_activation(
         list_of_input_matrices=list_of_input_matrices)
 
 
-def write_file(
+def write_pmm_file(
+        pickle_file_name, list_of_mean_input_matrices,
+        list_of_mean_saliency_matrices, threshold_count_matrix,
+        standard_saliency_file_name, pmm_metadata_dict):
+    """Writes mean saliency map to Pickle file.
+
+    This is a mean over many examples, created by PMM (probability-matched
+    means).
+
+    :param pickle_file_name: Path to output file.
+    :param list_of_mean_input_matrices: Same as input `list_of_input_matrices`
+        to `write_standard_file`, but without the first axis.
+    :param list_of_mean_saliency_matrices: Same as input
+        `list_of_saliency_matrices` to `write_standard_file`, but without the
+        first axis.
+    :param threshold_count_matrix: See doc for
+        `prob_matched_means.run_pmm_many_variables`.
+    :param standard_saliency_file_name: Path to file with standard saliency
+        output (readable by `read_standard_file`).
+    :param pmm_metadata_dict: Dictionary created by
+        `prob_matched_means.check_input_args`.
+    :raises: ValueError: if `list_of_mean_input_matrices` and
+        `list_of_mean_saliency_matrices` have different lengths.
+    """
+
+    # TODO(thunderhoser): This method currently does not deal with sounding
+    # pressures.
+
+    error_checking.assert_is_string(standard_saliency_file_name)
+    error_checking.assert_is_list(list_of_mean_input_matrices)
+    error_checking.assert_is_list(list_of_mean_saliency_matrices)
+
+    num_input_matrices = len(list_of_mean_input_matrices)
+    num_saliency_matrices = len(list_of_mean_saliency_matrices)
+
+    if num_input_matrices != num_saliency_matrices:
+        error_string = (
+            'Number of input matrices ({0:d}) should equal number of saliency '
+            'matrices ({1:d}).'
+        ).format(num_input_matrices, num_saliency_matrices)
+
+        raise ValueError(error_string)
+
+    for i in range(num_input_matrices):
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_mean_input_matrices[i])
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_mean_saliency_matrices[i])
+
+        these_expected_dim = numpy.array(
+            list_of_mean_input_matrices[i].shape, dtype=int)
+        error_checking.assert_is_numpy_array(
+            list_of_mean_saliency_matrices[i],
+            exact_dimensions=these_expected_dim)
+
+    if threshold_count_matrix is not None:
+        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
+        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
+
+        spatial_dimensions = numpy.array(
+            list_of_mean_input_matrices[0].shape[:-1], dtype=int)
+        error_checking.assert_is_numpy_array(
+            threshold_count_matrix, exact_dimensions=spatial_dimensions)
+
+    saliency_dict = {
+        MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
+        MEAN_SALIENCY_MATRICES_KEY: list_of_mean_saliency_matrices,
+        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        STANDARD_FILE_NAME_KEY: standard_saliency_file_name,
+        PMM_METADATA_KEY: pmm_metadata_dict
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(saliency_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_pmm_file(pickle_file_name):
+    """Reads mean saliency map from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: saliency_dict: Dictionary with the following keys.
+    metadata_dict['list_of_mean_input_matrices']: See doc for `write_pmm_file`.
+    metadata_dict['list_of_mean_saliency_matrices']: Same.
+    metadata_dict['threshold_count_matrix']: Same.
+    metadata_dict['standard_saliency_file_name']: Same.
+    metadata_dict['pmm_metadata_dict']: Same.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    saliency_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    return saliency_dict
+
+
+def write_standard_file(
         pickle_file_name, list_of_input_matrices, list_of_saliency_matrices,
         model_file_name, storm_ids, storm_times_unix_sec, component_type_string,
         target_class=None, layer_name=None, ideal_activation=None,
         neuron_indices=None, channel_index=None,
         sounding_pressure_matrix_pascals=None):
-    """Writes saliency maps to Pickle file.
-
-    Specifically, this method writes saliency maps for many storm objects and
-    one model component.
+    """Writes saliency maps (one for each example) to Pickle file.
 
     T = number of input tensors to the model
     E = number of examples (storm objects) for which saliency maps were computed
@@ -284,7 +385,7 @@ def write_file(
         levels in soundings.  Useful only when the model input contains
         soundings with no pressure, because it is needed to plot soundings.
     :raises: ValueError: if `list_of_input_matrices` and
-        `list_of_saliency_matrices` have different dimensions.
+        `list_of_saliency_matrices` have different lengths.
     """
 
     check_metadata(
@@ -312,6 +413,7 @@ def write_file(
             'Number of input matrices ({0:d}) should equal number of saliency '
             'matrices ({1:d}).'
         ).format(num_input_matrices, num_saliency_matrices)
+
         raise ValueError(error_string)
 
     for k in range(num_input_matrices):
@@ -358,14 +460,14 @@ def write_file(
     pickle_file_handle.close()
 
 
-def read_file(pickle_file_name):
-    """Reads saliency maps from Pickle file.
+def read_standard_file(pickle_file_name):
+    """Reads saliency maps (one for each example) from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_input_matrices: See doc for `write_file`.
+    :return: list_of_input_matrices: See doc for `write_standard_file`.
     :return: list_of_saliency_matrices: Same.
     :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['model_file_name']: See doc for `write_file`.
+    metadata_dict['model_file_name']: See doc for `write_standard_file`.
     metadata_dict['storm_ids']: Same.
     metadata_dict['storm_times_unix_sec']: Same.
     metadata_dict['component_type_string']: Same.

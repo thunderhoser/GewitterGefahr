@@ -32,7 +32,7 @@ MAX_PERCENTILE_ARG_NAME = 'max_colour_prctile_for_cam'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `gradcam.read_file`.')
+    'Path to input file.  Will be read by `gradcam.read_standard_file`.')
 
 COLOUR_MAP_HELP_STRING = (
     'Name of colour map for class activations.  The same colour map will be '
@@ -83,7 +83,7 @@ def _plot_3d_radar_cams(
 
     :param radar_matrix: E-by-M-by-N-by-H-by-F numpy array of radar values.
     :param cam_metadata_dict: Dictionary with CAM metadata (see doc for
-        `gradcam.read_file`).
+        `gradcam.read_standard_file`).
     :param model_metadata_dict: Dictionary with CNN metadata (see doc for
         `cnn.read_model_metadata`).
     :param cam_colour_map_object: See documentation at top of file.
@@ -305,7 +305,7 @@ def _run(input_file_name, cam_colour_map_name, max_colour_prctile_for_cam,
     cam_colour_map_object = pyplot.cm.get_cmap(cam_colour_map_name)
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    gradcam_dict = gradcam.read_file(input_file_name)
+    gradcam_dict = gradcam.read_standard_file(input_file_name)
 
     list_of_input_matrices = gradcam_dict.pop(gradcam.INPUT_MATRICES_KEY)
     class_activation_matrix = gradcam_dict.pop(gradcam.CLASS_ACTIVATIONS_KEY)

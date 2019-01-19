@@ -52,7 +52,7 @@ NUM_EXAMPLES_HELP_STRING = (
 ).format(STORM_METAFILE_ARG_NAME)
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (will be written by `gradcam.write_file`).')
+    'Path to output file (will be written by `gradcam.write_standard_file`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -185,7 +185,7 @@ def _run(model_file_name, target_class, target_layer_name, top_example_dir_name,
 
     print 'Writing class-activation maps to file: "{0:s}"...'.format(
         output_file_name)
-    gradcam.write_file(
+    gradcam.write_standard_file(
         pickle_file_name=output_file_name,
         list_of_input_matrices=list_of_input_matrices,
         class_activation_matrix=class_activation_matrix,
