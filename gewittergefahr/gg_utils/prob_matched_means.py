@@ -111,6 +111,9 @@ def _run_pmm_one_variable(
     sort_indices = numpy.argsort(mean_field_flattened)
     mean_value_percentiles = mean_value_percentiles[sort_indices]
 
+    print mean_field_flattened[:10]
+    print mean_value_percentiles[:10]
+
     interp_object = interp1d(
         pooled_value_percentiles, pooled_values, kind='linear',
         bounds_error=True, assume_sorted=True)
