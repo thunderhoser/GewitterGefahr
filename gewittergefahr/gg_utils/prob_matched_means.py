@@ -99,29 +99,29 @@ def _run_pmm_one_variable(
 
     # Find ensemble mean at each grid point.
     mean_field_matrix = numpy.mean(input_matrix, axis=0)
-    mean_field_flattened = numpy.ravel(mean_field_matrix)
-    print mean_field_matrix
-    print '\n\n\n'
+    # mean_field_flattened = numpy.ravel(mean_field_matrix)
+    #
+    # # At each grid point, replace ensemble mean with the same percentile from
+    # # pooled array.
+    # pooled_value_percentiles = numpy.linspace(
+    #     0, 100, num=len(pooled_values), dtype=float)
+    # mean_value_percentiles = numpy.linspace(
+    #     0, 100, num=len(mean_field_flattened), dtype=float)
+    #
+    # sort_indices = numpy.argsort(mean_field_flattened)
+    # mean_value_percentiles = mean_value_percentiles[sort_indices]
+    #
+    # interp_object = interp1d(
+    #     pooled_value_percentiles, pooled_values, kind='linear',
+    #     bounds_error=True, assume_sorted=True)
+    #
+    # mean_field_flattened = interp_object(mean_value_percentiles)
+    # mean_field_matrix = numpy.reshape(
+    #     mean_field_flattened, mean_field_matrix.shape)
+    #
+    # return mean_field_matrix, threshold_count_matrix
 
-    # At each grid point, replace ensemble mean with the same percentile from
-    # pooled array.
-    pooled_value_percentiles = numpy.linspace(
-        0, 100, num=len(pooled_values), dtype=float)
-    mean_value_percentiles = numpy.linspace(
-        0, 100, num=len(mean_field_flattened), dtype=float)
-
-    sort_indices = numpy.argsort(mean_field_flattened)
-    mean_value_percentiles = mean_value_percentiles[sort_indices]
-
-    interp_object = interp1d(
-        pooled_value_percentiles, pooled_values, kind='linear',
-        bounds_error=True, assume_sorted=True)
-
-    mean_field_flattened = interp_object(mean_value_percentiles)
-    mean_field_matrix = numpy.reshape(
-        mean_field_flattened, mean_field_matrix.shape)
-
-    return mean_field_matrix, threshold_count_matrix
+    return mean_field_matrix
 
 
 def check_input_args(
