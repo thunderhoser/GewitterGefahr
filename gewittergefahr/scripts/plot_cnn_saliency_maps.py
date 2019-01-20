@@ -40,7 +40,8 @@ MAX_SALIENCY_PRCTILE_ARG_NAME = 'max_colour_prctile_for_saliency'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `saliency_maps.read_standard_file`.')
+    'Path to input file.  Will be read by `saliency_maps.read_standard_file` or'
+    ' `saliency_maps.read_pmm_file`.')
 
 SALIENCY_CMAP_HELP_STRING = (
     'Name of colour map.  Saliency for each predictor will be plotted with the '
@@ -103,7 +104,7 @@ def _plot_saliency_for_2d3d_radar(
     :param storm_times_unix_sec: length-E numpy array of storm times.
     """
 
-    prob_matched_means = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = storm_ids is None and storm_times_unix_sec is None
 
     reflectivity_matrix_dbz = list_of_input_matrices[0]
     reflectivity_saliency_matrix = list_of_saliency_matrices[0]
@@ -146,7 +147,7 @@ def _plot_saliency_for_2d3d_radar(
             colour_norm_object=this_colour_norm_object,
             orientation='horizontal', extend_min=True, extend_max=True)
 
-        if prob_matched_means:
+        if pmm_flag:
             this_title_string = 'Probability-matched mean'
             this_file_name = '{0:s}/saliency_pmm_reflectivity.jpg'.format(
                 output_dir_name)
@@ -237,7 +238,7 @@ def _plot_saliency_for_2d_radar(
     :param storm_times_unix_sec: Same.
     """
 
-    prob_matched_means = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = storm_ids is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
@@ -284,7 +285,7 @@ def _plot_saliency_for_2d_radar(
             max_absolute_contour_level=max_colour_value_by_example[i],
             contour_interval=this_contour_interval)
 
-        if prob_matched_means:
+        if pmm_flag:
             this_title_string = 'Probability-matched mean'
             this_file_name = '{0:s}/saliency_pmm_radar.jpg'.format(
                 output_dir_name)
@@ -336,7 +337,7 @@ def _plot_saliency_for_3d_radar(
     :param storm_times_unix_sec: Same.
     """
 
-    prob_matched_means = storm_ids is None and storm_times_unix_sec is None
+    pmm_flag = storm_ids is None and storm_times_unix_sec is None
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
 
     num_examples = radar_matrix.shape[0]
@@ -377,7 +378,7 @@ def _plot_saliency_for_3d_radar(
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
 
-            if prob_matched_means:
+            if pmm_flag:
                 this_title_string = 'Probability-matched mean'
                 this_file_name = '{0:s}/saliency_pmm_{1:s}.jpg'.format(
                     output_dir_name, this_field_name.replace('_', '-')
