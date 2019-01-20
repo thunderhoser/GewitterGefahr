@@ -386,10 +386,10 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
         new_dimensions=spatial_dimensions)
 
     class_activation_matrix[class_activation_matrix < 0.] = 0.
-    # denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
-    # return class_activation_matrix / denominator
+    # return class_activation_matrix
 
-    return class_activation_matrix
+    denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
+    return class_activation_matrix / denominator
 
 
 def run_guided_gradcam(
@@ -446,10 +446,8 @@ def run_guided_gradcam(
 
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
-    ggradcam_output_matrix = ggradcam_output_matrix[0, ...]
-
-    # ggradcam_output_matrix = _normalize_guided_gradcam_output(
-    #     ggradcam_output_matrix[0, ...])
+    ggradcam_output_matrix = _normalize_guided_gradcam_output(
+        ggradcam_output_matrix[0, ...])
 
     return ggradcam_output_matrix, new_model_object
 
