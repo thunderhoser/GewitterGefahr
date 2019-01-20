@@ -200,27 +200,40 @@ def _change_backprop_function(model_object):
         function.
     """
 
-    # TODO(thunderhoser): I know that "Relu" is a valid operation name, but I
-    # have no clue about the rest.
+    model_dict = model_object.get_config()
+    standard_function_names = ['relu', 'elu', 'selu']
+    advanced_function_names = ['LeakyReLU', 'ELU']
+
+    for this_layer_dict in model_dict['layers']:
+        first_flag = this_layer_dict['class_name'] in advanced_function_names
+        second_flag = (
+            this_layer_dict['class_name'] == 'Activation' and
+            this_layer_dict['config']['activation'] in standard_function_names
+        )
+
+        change_this_activation_function = first_flag or second_flag
+        if change_this_activation_function:
+            this_layer_dict['class_name'] = 'Activation'
+            this_layer_dict['config']['activation'] = 'relu'
+
+            if 'alpha' in this_layer_dict['config']:
+                this_layer_dict['config'].pop('alpha')
+
     orig_to_new_operation_dict = {
-        'Relu': BACKPROP_FUNCTION_NAME,
-        'Lrelu': BACKPROP_FUNCTION_NAME,
-        'LRelu': BACKPROP_FUNCTION_NAME,
-        'lrelu': BACKPROP_FUNCTION_NAME,
-        'Leaky_relu': BACKPROP_FUNCTION_NAME,
-        'leaky_relu': BACKPROP_FUNCTION_NAME,
-        'Leaky_Relu': BACKPROP_FUNCTION_NAME,
-        'Leaky_ReLU': BACKPROP_FUNCTION_NAME,
-        'Elu': BACKPROP_FUNCTION_NAME,
-        'Selu': BACKPROP_FUNCTION_NAME
+        'Relu': BACKPROP_FUNCTION_NAME
     }
 
     graph_object = tensorflow.get_default_graph()
 
     with graph_object.gradient_override_map(orig_to_new_operation_dict):
-        new_model_object = keras.models.clone_model(model_object)
+        # new_model_object = keras.models.clone_model(model_object)
+
+        new_model_object = keras.models.Model.from_config(model_dict)
         new_model_object.set_weights(model_object.get_weights())
-        new_model_object.summary()
+
+        new_model_dict = new_model_object.get_config()
+        for this_layer_dict in new_model_dict['layers']:
+            print this_layer_dict
 
     return new_model_object
 
