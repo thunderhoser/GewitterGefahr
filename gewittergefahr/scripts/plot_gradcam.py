@@ -15,6 +15,7 @@ from gewittergefahr.deep_learning import training_validation_io as trainval_io
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import cam_plotting
+from gewittergefahr.plotting import saliency_plotting
 
 # TODO(thunderhoser): Use threshold counts at some point.
 
@@ -110,7 +111,7 @@ def _plot_3d_radar_cams(
     num_panel_rows = int(numpy.floor(numpy.sqrt(num_heights)))
 
     if class_activation_matrix is None:
-        quantity_string = 'max guided Grad-CAM output'
+        quantity_string = 'max absolute guided Grad-CAM output'
         pathless_file_name_prefix = 'guided-gradcam'
     else:
         quantity_string = 'max class activation'
@@ -133,20 +134,33 @@ def _plot_3d_radar_cams(
 
             if class_activation_matrix is None:
                 this_matrix = ggradcam_output_matrix[i, ..., k]
+
+                this_max_contour_level = numpy.percentile(
+                    numpy.absolute(this_matrix), max_colour_prctile_for_cam)
+                if this_max_contour_level == 0:
+                    this_max_contour_level = 10.
+
+                saliency_plotting.plot_many_2d_grids_with_contours(
+                    saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
+                    axes_objects_2d_list=these_axes_objects,
+                    colour_map_object=cam_colour_map_object,
+                    max_absolute_contour_level=this_max_contour_level,
+                    contour_interval=this_max_contour_level / 10)
+
             else:
                 this_matrix = class_activation_matrix[i, ...]
 
-            this_max_contour_level = numpy.percentile(
-                this_matrix, max_colour_prctile_for_cam)
-            if this_max_contour_level == 0:
-                this_max_contour_level = 10.
+                this_max_contour_level = numpy.percentile(
+                    this_matrix, max_colour_prctile_for_cam)
+                if this_max_contour_level == 0:
+                    this_max_contour_level = 10.
 
-            cam_plotting.plot_many_2d_grids(
-                class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
-                axes_objects_2d_list=these_axes_objects,
-                colour_map_object=cam_colour_map_object,
-                max_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / NUM_CONTOURS)
+                cam_plotting.plot_many_2d_grids(
+                    class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
+                    axes_objects_2d_list=these_axes_objects,
+                    colour_map_object=cam_colour_map_object,
+                    max_contour_level=this_max_contour_level,
+                    contour_interval=this_max_contour_level / NUM_CONTOURS)
 
             this_colour_map_object, this_colour_norm_object = (
                 radar_plotting.get_default_colour_scheme(this_field_name)
@@ -250,7 +264,7 @@ def _plot_2d_radar_cams(
     num_panel_rows = int(numpy.floor(numpy.sqrt(num_channels)))
 
     if class_activation_matrix is None:
-        quantity_string = 'max guided Grad-CAM output'
+        quantity_string = 'max absolute guided Grad-CAM output'
         pathless_file_name_prefix = 'guided-gradcam'
     else:
         quantity_string = 'max class activation'
@@ -267,23 +281,36 @@ def _plot_2d_radar_cams(
 
         if class_activation_matrix is None:
             this_matrix = ggradcam_output_matrix[i, ...]
+
+            this_max_contour_level = numpy.percentile(
+                numpy.absolute(this_matrix), max_colour_prctile_for_cam)
+            if this_max_contour_level == 0:
+                this_max_contour_level = 10.
+
+            saliency_plotting.plot_many_2d_grids_with_contours(
+                saliency_matrix_3d=numpy.flip(this_matrix, axis=0),
+                axes_objects_2d_list=these_axes_objects,
+                colour_map_object=cam_colour_map_object,
+                max_absolute_contour_level=this_max_contour_level,
+                contour_interval=this_max_contour_level / 10)
+
         else:
             this_matrix = numpy.expand_dims(
                 class_activation_matrix[i, ...], axis=-1)
             this_matrix = numpy.repeat(
                 this_matrix, repeats=num_channels, axis=-1)
 
-        this_max_contour_level = numpy.percentile(
-            this_matrix, max_colour_prctile_for_cam)
-        if this_max_contour_level == 0:
-            this_max_contour_level = 10.
+            this_max_contour_level = numpy.percentile(
+                this_matrix, max_colour_prctile_for_cam)
+            if this_max_contour_level == 0:
+                this_max_contour_level = 10.
 
-        cam_plotting.plot_many_2d_grids(
-            class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
-            axes_objects_2d_list=these_axes_objects,
-            colour_map_object=cam_colour_map_object,
-            max_contour_level=this_max_contour_level,
-            contour_interval=this_max_contour_level / NUM_CONTOURS)
+            cam_plotting.plot_many_2d_grids(
+                class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
+                axes_objects_2d_list=these_axes_objects,
+                colour_map_object=cam_colour_map_object,
+                max_contour_level=this_max_contour_level,
+                contour_interval=this_max_contour_level / NUM_CONTOURS)
 
         if pmm_flag:
             this_title_string = 'Probability-matched mean'
