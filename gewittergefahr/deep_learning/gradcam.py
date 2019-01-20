@@ -336,7 +336,8 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
         if target_class == 1:
             loss_tensor = model_object.layers[-1].output[..., 0]
         else:
-            loss_tensor = 1 - model_object.layers[-1].output[..., 0]
+            # loss_tensor = 1 - model_object.layers[-1].output[..., 0]
+            loss_tensor = -1 * model_object.layers[-1].output[..., 0]
     else:
         error_checking.assert_is_less_than(target_class, num_output_neurons)
         loss_tensor = model_object.layers[-1].output[..., target_class]
