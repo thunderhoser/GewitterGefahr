@@ -44,7 +44,6 @@ DEFAULT_ACTIVATION_FUNCTION_STRING = (
 
 VALID_NUMBERS_OF_SOUNDING_HEIGHTS = numpy.array([49], dtype=int)
 
-
 DEFAULT_METRIC_FUNCTION_LIST = [
     keras_metrics.accuracy, keras_metrics.binary_accuracy,
     keras_metrics.binary_csi, keras_metrics.binary_frequency_bias,
@@ -52,6 +51,8 @@ DEFAULT_METRIC_FUNCTION_LIST = [
     keras_metrics.binary_peirce_score, keras_metrics.binary_success_ratio,
     keras_metrics.binary_focn
 ]
+
+# TODO(thunderhoser): Make padding an input option.
 
 
 def _create_sounding_layers(
@@ -858,7 +859,7 @@ def create_3d_cnn(
     error_checking.assert_is_integer(num_sounding_heights)
     include_soundings = num_sounding_fields > 0 or num_sounding_heights > 0
 
-    first_num_radar_filters = check_radar_options(
+    first_num_radar_filters, _ = check_radar_options(
         num_grid_rows=num_radar_rows, num_grid_columns=num_radar_columns,
         num_dimensions=3, num_classes=num_classes,
         num_conv_layer_sets=num_conv_layer_sets,
@@ -872,6 +873,7 @@ def create_3d_cnn(
         use_batch_normalization=use_batch_normalization,
         num_heights=num_radar_heights, num_fields=num_radar_fields,
         do_separable_conv=False, first_num_filters=first_num_radar_filters)
+    print first_num_radar_filters
 
     radar_input_layer_object = keras.layers.Input(
         shape=(num_radar_rows, num_radar_columns, num_radar_heights,

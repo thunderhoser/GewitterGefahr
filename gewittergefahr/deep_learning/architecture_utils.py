@@ -537,14 +537,14 @@ def get_3d_pooling_layer(
         pooling_type_string=pooling_type_string, num_dimensions=3)
 
     if pooling_type_string == MAX_POOLING_STRING:
-        return keras.layers.MaxPooling2D(
+        return keras.layers.MaxPooling3D(
             pool_size=(num_rows_in_window, num_columns_in_window,
                        num_heights_in_window),
             strides=(num_rows_per_stride, num_columns_per_stride,
                      num_heights_per_stride),
             padding=NO_PADDING_STRING)
 
-    return keras.layers.AveragePooling2D(
+    return keras.layers.AveragePooling3D(
         pool_size=(num_rows_in_window, num_columns_in_window,
                    num_heights_in_window),
         strides=(num_rows_per_stride, num_columns_per_stride,
