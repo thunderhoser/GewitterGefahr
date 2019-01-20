@@ -24,6 +24,7 @@ from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.gg_utils import error_checking
 
 BACKPROP_FUNCTION_NAME = 'GuidedBackProp'
+SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
 INPUT_MATRICES_KEY = 'list_of_input_matrices'
 CLASS_ACTIVATIONS_KEY = 'class_activation_matrix'
@@ -220,21 +221,23 @@ def _change_backprop_function(model_object):
                 this_layer_dict['config'].pop('alpha')
 
     orig_to_new_operation_dict = {
-        'Relu': BACKPROP_FUNCTION_NAME
+        'Relu': BACKPROP_FUNCTION_NAME,
+        'relu': BACKPROP_FUNCTION_NAME
     }
 
     graph_object = tensorflow.get_default_graph()
 
     with graph_object.gradient_override_map(orig_to_new_operation_dict):
         # new_model_object = keras.models.clone_model(model_object)
-
         new_model_object = keras.models.Model.from_config(model_dict)
         new_model_object.set_weights(model_object.get_weights())
 
-        new_model_dict = new_model_object.get_config()
-        for this_layer_dict in new_model_dict['layers']:
-            print this_layer_dict
+    print SEPARATOR_STRING
+    new_model_dict = new_model_object.get_config()
+    for this_layer_dict in new_model_dict['layers']:
+        print this_layer_dict
 
+    print SEPARATOR_STRING
     return new_model_object
 
 
@@ -386,10 +389,10 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
         new_dimensions=spatial_dimensions)
 
     class_activation_matrix[class_activation_matrix < 0.] = 0.
-    # return class_activation_matrix
+    # denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
+    # return class_activation_matrix / denominator
 
-    denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
-    return class_activation_matrix / denominator
+    return class_activation_matrix
 
 
 def run_guided_gradcam(
@@ -446,8 +449,10 @@ def run_guided_gradcam(
 
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
-    ggradcam_output_matrix = _normalize_guided_gradcam_output(
-        ggradcam_output_matrix[0, ...])
+    ggradcam_output_matrix = ggradcam_output_matrix[0, ...]
+
+    # ggradcam_output_matrix = _normalize_guided_gradcam_output(
+    #     ggradcam_output_matrix[0, ...])
 
     return ggradcam_output_matrix, new_model_object
 
