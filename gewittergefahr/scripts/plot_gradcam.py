@@ -138,6 +138,8 @@ def _plot_3d_radar_cams(
 
             this_max_contour_level = numpy.percentile(
                 this_matrix, max_colour_prctile_for_cam)
+            if this_max_contour_level == 0:
+                this_max_contour_level = 10.
 
             cam_plotting.plot_many_2d_grids(
                 class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
@@ -273,10 +275,8 @@ def _plot_2d_radar_cams(
 
         this_max_contour_level = numpy.percentile(
             this_matrix, max_colour_prctile_for_cam)
-
-        print this_max_contour_level
-        print numpy.min(this_matrix)
-        print numpy.max(this_matrix)
+        if this_max_contour_level == 0:
+            this_max_contour_level = 10.
 
         cam_plotting.plot_many_2d_grids(
             class_activation_matrix_3d=numpy.flip(this_matrix, axis=0),
