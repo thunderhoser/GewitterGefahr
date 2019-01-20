@@ -263,9 +263,6 @@ def _normalize_guided_gradcam_output(ggradcam_output_matrix):
         axis had length 1, it has been removed ("squeezed out").
     """
 
-    if ggradcam_output_matrix.shape[0] == 1:
-        ggradcam_output_matrix = ggradcam_output_matrix[0, ...]
-
     # Standardize.
     ggradcam_output_matrix -= numpy.mean(ggradcam_output_matrix)
     ggradcam_output_matrix /= (
@@ -304,6 +301,8 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
 
     # Check input args.
     error_checking.assert_is_string(target_layer_name)
+    error_checking.assert_is_list(list_of_input_matrices)
+
     for q in range(len(list_of_input_matrices)):
         error_checking.assert_is_numpy_array(list_of_input_matrices[q])
 
@@ -374,8 +373,10 @@ def run_gradcam(model_object, list_of_input_matrices, target_class,
         new_dimensions=spatial_dimensions)
 
     class_activation_matrix[class_activation_matrix < 0.] = 0.
-    denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
-    return class_activation_matrix / denominator
+    return class_activation_matrix
+
+    # denominator = numpy.maximum(numpy.max(class_activation_matrix), K.epsilon())
+    # return class_activation_matrix / denominator
 
 
 def run_guided_gradcam(
@@ -398,6 +399,19 @@ def run_guided_gradcam(
     :return: new_model_object: See input doc.
     """
 
+    # Check input args.
+    error_checking.assert_is_string(target_layer_name)
+    error_checking.assert_is_list(list_of_input_matrices)
+    error_checking.assert_is_numpy_array_without_nan(class_activation_matrix)
+
+    for q in range(len(list_of_input_matrices)):
+        error_checking.assert_is_numpy_array(list_of_input_matrices[q])
+
+        if list_of_input_matrices[q].shape[0] != 1:
+            list_of_input_matrices[q] = numpy.expand_dims(
+                list_of_input_matrices[q], axis=0)
+
+    # Do the dirty work.
     if new_model_object is None:
         _register_guided_backprop()
         new_model_object = _change_backprop_function(
@@ -419,8 +433,10 @@ def run_guided_gradcam(
 
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
-    ggradcam_output_matrix = _normalize_guided_gradcam_output(
-        ggradcam_output_matrix)
+    ggradcam_output_matrix = ggradcam_output_matrix[0, ...]
+
+    # ggradcam_output_matrix = _normalize_guided_gradcam_output(
+    #     ggradcam_output_matrix)
 
     return ggradcam_output_matrix, new_model_object
 
