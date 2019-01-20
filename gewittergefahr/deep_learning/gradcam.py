@@ -413,6 +413,9 @@ def run_guided_gradcam(
         input_index=input_index)
 
     saliency_matrix = saliency_function(list_of_input_matrices + [0])[0]
+    print numpy.min(saliency_matrix)
+    print numpy.max(saliency_matrix)
+
     ggradcam_output_matrix = saliency_matrix * class_activation_matrix[
         ..., numpy.newaxis]
     ggradcam_output_matrix = _normalize_guided_gradcam_output(
