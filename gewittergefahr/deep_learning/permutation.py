@@ -372,8 +372,8 @@ def read_results(pickle_file_name):
     """Reads results from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: result_dict: Dictionary created by `run_permutation_test`, maybe with
-        additional keys.
+    :return: result_dict: Dictionary created by `run_permutation_test`, maybe
+        with additional keys.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')

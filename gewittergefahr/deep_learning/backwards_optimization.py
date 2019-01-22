@@ -21,8 +21,8 @@ from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
 
 DEFAULT_IDEAL_ACTIVATION = 2.
-DEFAULT_LEARNING_RATE = 0.01
-DEFAULT_NUM_ITERATIONS = 200
+DEFAULT_LEARNING_RATE = 0.0025
+DEFAULT_NUM_ITERATIONS = 100
 
 MODEL_FILE_NAME_KEY = 'model_file_name'
 NUM_ITERATIONS_KEY = 'num_iterations'
