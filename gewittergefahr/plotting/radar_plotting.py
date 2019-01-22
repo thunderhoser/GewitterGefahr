@@ -414,7 +414,7 @@ def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
         panel_names[i] = (
             '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
         ).format(
-            field_name_by_panel[i],
+            _field_name_to_plotting_units(field_name_by_panel[i]),
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
             this_min_height_m_agl, this_max_height_m_agl
         )
@@ -450,7 +450,8 @@ def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
 
     for i in range(num_panels):
         panel_names[i] = '{0:s}\nat {1:.2f} km AGL'.format(
-            field_names[i], heights_m_agl[i] * METRES_TO_KM
+            _field_name_to_plotting_units(field_names[i]),
+            heights_m_agl[i] * METRES_TO_KM
         )
 
     return panel_names

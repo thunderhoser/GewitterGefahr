@@ -7,18 +7,20 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
+from gewittergefahr.gg_utils import time_conversion
 from gewittergefahr.gg_utils import file_system_utils
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 from gewittergefahr.deep_learning import training_validation_io as trainval_io
-from gewittergefahr.deep_learning import model_interpretation
 from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 
-METRES_TO_KM = 0.001
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
+
+METRES_TO_KM = 0.001
+TIME_FORMAT = '%Y-%m-%d-%H%M%S'
 
 TITLE_FONT_SIZE = 20
 FONT_SIZE_WITH_COLOUR_BARS = 16
@@ -29,7 +31,8 @@ INPUT_FILE_ARG_NAME = 'input_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `backwards_opt.read_standard_file`.')
+    'Path to input file.  Will be read by `backwards_opt.read_standard_file` or'
+    ' `backwards_opt.read_pmm_file`.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here.')
@@ -44,23 +47,43 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
-                   output_dir_name):
-    """Plots one or more (either original or optimized) examples.
+def _plot_inputs_or_outputs(
+        list_of_predictor_matrices, model_metadata_dict, output_dir_name,
+        optimized_flag, pmm_flag, storm_ids=None, storm_times_unix_sec=None):
+    """Plots either inputs or outputs (before or after backwards optimization).
 
-    :param list_of_predictor_matrices: List created by
-        `testing_io.read_specific_examples`.  Contains data to be plotted.
-    :param model_metadata_dict: See doc for `cnn.read_model_metadata`.
-    :param optimized: Boolean flag.  If True, `list_of_predictor_matrices`
-        contains optimized input examples.  If False, contains original examples
-        (pre-optimization).  This piece of metadata will be reflected in file
-        names and titles.
-    :param output_dir_name: Name of output directory (figures will be saved
+    T = number of input tensors to the model
+    E = number of examples (storm objects)
+
+    :param list_of_predictor_matrices: length-T list of numpy arrays, where the
+        [i]th array is either the optimized or non-optimized version of the
+        [i]th input matrix to the model.
+    :param model_metadata_dict: Dictionary returned by `cnn.read_model_metadata`.
+    :param output_dir_name: Path to output directory (figures will be saved
         here).
+    :param optimized_flag: Boolean flag.  If True, `list_of_predictor_matrices`
+        contains optimized examples.  If False, `list_of_predictor_matrices`
+        contains input examples (before optimization).
+    :param pmm_flag: Boolean flag.  If True, `list_of_predictor_matrices`
+        contains probability-matched means.
+    :param storm_ids: [optional and used only if `pmm_flag = False`]
+        length-E list of storm IDs (strings).
+    :param storm_times_unix_sec: [optional and used only if `pmm_flag = False`]
+        length-E numpy array of storm times.
     """
 
     file_system_utils.mkdir_recursive_if_necessary(
         directory_name=output_dir_name)
+
+    if pmm_flag:
+        have_storm_ids = False
+    else:
+        have_storm_ids = not (storm_ids is None or storm_times_unix_sec is None)
+
+    if optimized_flag:
+        optimized_flag_as_string = 'after optimization'
+    else:
+        optimized_flag_as_string = 'before optimization'
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     myrorss_2d3d = model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]
@@ -81,20 +104,41 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
     else:
         list_of_metpy_dictionaries = None
 
-    if optimized:
-        optimized_flag_as_string = 'optimized'
-    else:
-        optimized_flag_as_string = 'original (pre-optimization)'
-
     for i in range(num_storms):
-        this_title_string = 'Example {0:d}, {1:s}'.format(
-            i, optimized_flag_as_string)
+        if pmm_flag:
+            this_title_string = 'Probability-matched mean'
+            this_base_file_name = '{0:s}/pmm_optimized={1:d}'.format(
+                output_dir_name, int(optimized_flag)
+            )
+
+        else:
+            if have_storm_ids:
+                this_storm_time_string = time_conversion.unix_sec_to_string(
+                    storm_times_unix_sec[i], TIME_FORMAT)
+
+                this_title_string = 'Storm "{0:s}" at {1:s}'.format(
+                    storm_ids[i], this_storm_time_string)
+
+                this_base_file_name = (
+                    '{0:s}/{1:s}_{2:s}_optimized={3:d}'
+                ).format(
+                    output_dir_name, storm_ids[i].replace('_', '-'),
+                    this_storm_time_string, int(optimized_flag)
+                )
+
+            else:
+                this_title_string = 'Example {0:d}'.format(i + 1)
+
+                this_base_file_name = (
+                    '{0:s}/example{1:06d}_optimized={2:d}'
+                ).format(
+                    output_dir_name, i, int(optimized_flag)
+                )
+
+        this_title_string += ' ({0:s})'.format(optimized_flag_as_string)
 
         if plot_soundings:
-            this_file_name = (
-                '{0:s}/example{1:06d}_optimized={2:d}_sounding.jpg'
-            ).format(output_dir_name, i, int(optimized))
-
+            this_file_name = '{0:s}_sounding.jpg'.format(this_base_file_name)
             sounding_plotting.plot_sounding(
                 sounding_dict_for_metpy=list_of_metpy_dictionaries[i],
                 title_string=this_title_string)
@@ -108,7 +152,9 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                 list_of_predictor_matrices[0][i, ..., 0], axis=0)
 
             this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
-            this_num_panel_rows = int(numpy.floor(numpy.sqrt(this_num_heights)))
+            this_num_panel_rows = int(numpy.floor(
+                numpy.sqrt(this_num_heights)
+            ))
 
             _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
                 field_matrix=this_reflectivity_matrix_dbz,
@@ -129,11 +175,10 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
 
-            this_file_name = (
-                '{0:s}/example{1:06d}_optimized={2:d}_reflectivity.jpg'
-            ).format(output_dir_name, i, int(optimized))
-
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            this_file_name = '{0:s}_reflectivity.jpg'.format(
+                this_base_file_name)
+
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -165,11 +210,10 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                 colour_norm_object=this_colour_norm_object,
                 orientation='horizontal', extend_min=True, extend_max=True)
 
-            this_file_name = (
-                '{0:s}/example{1:06d}_optimized={2:d}_azimuthal-shear.jpg'
-            ).format(output_dir_name, i, int(optimized))
-
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            this_file_name = '{0:s}_azimuthal-shear.jpg'.format(
+                this_base_file_name)
+
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -214,9 +258,7 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                     num_panel_rows=this_num_panel_rows, panel_names=panel_names,
                     font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
 
-                this_file_name = (
-                    '{0:s}/example{1:06d}_optimized={2:d}_radar.jpg'
-                ).format(output_dir_name, i, int(optimized))
+                this_file_name = '{0:s}_radar.jpg'.format(this_base_file_name)
 
             else:
                 radar_field_names = training_option_dict[
@@ -252,14 +294,12 @@ def _plot_examples(list_of_predictor_matrices, model_metadata_dict, optimized,
                     colour_norm_object=this_colour_norm_object,
                     orientation='horizontal', extend_min=True, extend_max=True)
 
-                this_file_name = (
-                    '{0:s}/example{1:06d}_optimized={2:d}_{3:s}.jpg'
-                ).format(
-                    output_dir_name, i, int(optimized),
-                    radar_field_names[j].replace('_', '-')
+                this_file_name = '{0:s}_{1:s}.jpg'.format(
+                    this_base_file_name, radar_field_names[j].replace('_', '-')
                 )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
@@ -275,14 +315,53 @@ def _run(input_file_name, top_output_dir_name):
     """
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    backwards_opt_dict = backwards_opt.read_standard_file(input_file_name)
+    pmm_flag = False
 
-    list_of_optimized_matrices = backwards_opt_dict.pop(
-        backwards_opt.OPTIMIZED_MATRICES_KEY)
-    backwards_opt_metadata_dict = backwards_opt_dict
+    try:
+        backwards_opt_dict = backwards_opt.read_standard_file(input_file_name)
+        list_of_optimized_matrices = backwards_opt_dict.pop(
+            backwards_opt.OPTIMIZED_MATRICES_KEY)
+        list_of_input_matrices = backwards_opt_dict.pop(
+            backwards_opt.INIT_FUNCTION_KEY)
 
-    model_file_name = backwards_opt_metadata_dict[
-        backwards_opt.MODEL_FILE_NAME_KEY]
+        if not isinstance(list_of_input_matrices, list):
+            list_of_input_matrices = None
+
+        bwo_metadata_dict = backwards_opt_dict
+        storm_ids = bwo_metadata_dict[backwards_opt.STORM_IDS_KEY]
+        storm_times_unix_sec = bwo_metadata_dict[backwards_opt.STORM_TIMES_KEY]
+
+    except ValueError:
+        pmm_flag = True
+        backwards_opt_dict = backwards_opt.read_pmm_file(input_file_name)
+
+        list_of_input_matrices = backwards_opt_dict.pop(
+            backwards_opt.MEAN_INPUT_MATRICES_KEY)
+        list_of_optimized_matrices = backwards_opt_dict.pop(
+            backwards_opt.MEAN_OPTIMIZED_MATRICES_KEY)
+
+        for i in range(len(list_of_input_matrices)):
+            list_of_input_matrices[i] = numpy.expand_dims(
+                list_of_input_matrices[i], axis=0)
+            list_of_optimized_matrices[i] = numpy.expand_dims(
+                list_of_optimized_matrices[i], axis=0)
+
+        original_bwo_file_name = backwards_opt_dict[
+            backwards_opt.STANDARD_FILE_NAME_KEY]
+
+        print 'Reading metadata from: "{0:s}"...'.format(
+            original_bwo_file_name)
+        original_bwo_dict = backwards_opt.read_standard_file(
+            original_bwo_file_name)
+
+        original_bwo_dict.pop(backwards_opt.OPTIMIZED_MATRICES_KEY)
+        original_bwo_dict.pop(backwards_opt.INIT_FUNCTION_KEY)
+        bwo_metadata_dict = original_bwo_dict
+
+        storm_ids = None
+        storm_times_unix_sec = None
+
+    model_file_name = bwo_metadata_dict[backwards_opt.MODEL_FILE_NAME_KEY]
     model_metafile_name = '{0:s}/model_metadata.p'.format(
         os.path.split(model_file_name)[0]
     )
@@ -290,41 +369,33 @@ def _run(input_file_name, top_output_dir_name):
     print 'Reading metadata from: "{0:s}"...'.format(model_metafile_name)
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
-    print 'Denormalizing optimized input data...'
-    list_of_optimized_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_optimized_matrices,
-        model_metadata_dict=model_metadata_dict)
+    print SEPARATOR_STRING
 
-    init_function_name_or_matrices = backwards_opt_metadata_dict[
-        backwards_opt.INIT_FUNCTION_KEY]
-
-    if isinstance(init_function_name_or_matrices, str):
-        print SEPARATOR_STRING
-        _plot_examples(
+    if list_of_input_matrices is None:
+        _plot_inputs_or_outputs(
             list_of_predictor_matrices=list_of_optimized_matrices,
-            model_metadata_dict=model_metadata_dict, optimized=True,
-            output_dir_name=top_output_dir_name)
-
+            model_metadata_dict=model_metadata_dict,
+            output_dir_name=top_output_dir_name,
+            optimized_flag=True, pmm_flag=pmm_flag,
+            storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
         return
 
-    print 'Denormalizing original input data...'
-    init_function_name_or_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=init_function_name_or_matrices,
-        model_metadata_dict=model_metadata_dict)
+    before_dir_name = '{0:s}/before_optimization'.format(top_output_dir_name)
+    _plot_inputs_or_outputs(
+        list_of_predictor_matrices=list_of_input_matrices,
+        model_metadata_dict=model_metadata_dict,
+        output_dir_name=before_dir_name,
+        optimized_flag=False, pmm_flag=pmm_flag,
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
     print SEPARATOR_STRING
 
-    original_output_dir_name = '{0:s}/original'.format(top_output_dir_name)
-    _plot_examples(
-        list_of_predictor_matrices=init_function_name_or_matrices,
-        model_metadata_dict=model_metadata_dict, optimized=False,
-        output_dir_name=original_output_dir_name)
-    print SEPARATOR_STRING
-
-    optimized_output_dir_name = '{0:s}/optimized'.format(top_output_dir_name)
-    _plot_examples(
-        list_of_predictor_matrices=list_of_optimized_matrices,
-        model_metadata_dict=model_metadata_dict, optimized=True,
-        output_dir_name=optimized_output_dir_name)
+    after_dir_name = '{0:s}/after_optimization'.format(top_output_dir_name)
+    _plot_inputs_or_outputs(
+        list_of_predictor_matrices=list_of_input_matrices,
+        model_metadata_dict=model_metadata_dict,
+        output_dir_name=after_dir_name,
+        optimized_flag=True, pmm_flag=pmm_flag,
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':

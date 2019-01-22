@@ -256,6 +256,11 @@ def _run(model_file_name, init_function_name, component_type_string,
             ideal_activation=ideal_activation)
 
     print SEPARATOR_STRING
+
+    print 'Denormalizing optimized examples...'
+    list_of_optimized_matrices[0] = _denormalize_data(
+        list_of_optimized_matrices[0])
+
     print 'Writing results to: "{0:s}"...'.format(output_file_name)
     backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,

@@ -332,7 +332,17 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
 
     print SEPARATOR_STRING
 
+    print 'Denormalizing optimized examples...'
+    list_of_optimized_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_optimized_matrices,
+        model_metadata_dict=model_metadata_dict)
+
     if init_function_name is None:
+        print 'Denormalizing input examples...'
+        list_of_init_matrices = model_interpretation.denormalize_data(
+            list_of_input_matrices=list_of_init_matrices,
+            model_metadata_dict=model_metadata_dict)
+
         this_init_arg = list_of_init_matrices
     else:
         this_init_arg = init_function_name + ''

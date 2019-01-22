@@ -48,7 +48,8 @@ for k in range(NUM_LAYER_OPERATIONS):
     PANEL_NAMES_WITH_LAYER_OPS[k] = (
         '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
     ).format(
-        THESE_FIELD_NAMES[k], LAYER_OPERATION_NAMES[k].upper(),
+        radar_plotting._field_name_to_plotting_units(THESE_FIELD_NAMES[k]),
+        LAYER_OPERATION_NAMES[k].upper(),
         int(numpy.round(MIN_HEIGHTS_M_AGL[k] * METRES_TO_KM)),
         int(numpy.round(MAX_HEIGHTS_M_AGL[k] * METRES_TO_KM))
     )
@@ -66,7 +67,8 @@ PANEL_NAMES_WITHOUT_LAYER_OPS = [''] * NUM_FIELD_HEIGHT_PAIRS
 
 for k in range(NUM_FIELD_HEIGHT_PAIRS):
     PANEL_NAMES_WITHOUT_LAYER_OPS[k] = '{0:s}\nat {1:.2f} km AGL'.format(
-        FIELD_NAME_BY_PAIR[k], HEIGHT_BY_PAIR_M_AGL[k] * METRES_TO_KM
+        radar_plotting._field_name_to_plotting_units(FIELD_NAME_BY_PAIR[k]),
+        HEIGHT_BY_PAIR_M_AGL[k] * METRES_TO_KM
     )
 
 
