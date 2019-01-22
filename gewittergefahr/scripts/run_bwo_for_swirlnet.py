@@ -52,8 +52,8 @@ COMPONENT_HELP_STRING = (
 
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] See '
-    '`backwards_opt.optimize_input_for_neuron_activation` or '
-    '`backwards_opt.optimize_input_for_channel_activation` for details.'
+    '`backwards_opt.optimize_input_for_neuron` or '
+    '`backwards_opt.optimize_input_for_channel` for details.'
 ).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
          CLASS_COMPONENT_TYPE_STRING)
 
@@ -62,7 +62,8 @@ NUM_ITERATIONS_HELP_STRING = 'Number of iterations for backwards optimization.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for backwards optimization.'
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (will be written by `backwards_opt.write_results`).')
+    'Path to output file (will be written by '
+    '`backwards_opt.write_standard_file`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -226,45 +227,39 @@ def _run(model_file_name, init_function_name, component_type_string,
     if component_type_string == CLASS_COMPONENT_TYPE_STRING:
         print 'Optimizing image for target class {0:d}...'.format(target_class)
 
-        list_of_optimized_input_matrices = (
-            backwards_opt.optimize_input_for_class(
-                model_object=model_object, target_class=target_class,
-                init_function_or_matrices=init_function,
-                num_iterations=num_iterations, learning_rate=learning_rate)
-        )
+        list_of_optimized_matrices = backwards_opt.optimize_input_for_class(
+            model_object=model_object, target_class=target_class,
+            init_function_or_matrices=init_function,
+            num_iterations=num_iterations, learning_rate=learning_rate)
 
     elif component_type_string == NEURON_COMPONENT_TYPE_STRING:
         print 'Optimizing image for neuron {0:s} in layer "{1:s}"...'.format(
             str(neuron_indices), layer_name)
 
-        list_of_optimized_input_matrices = (
-            backwards_opt.optimize_input_for_neuron(
-                model_object=model_object, layer_name=layer_name,
-                neuron_indices=neuron_indices,
-                init_function_or_matrices=init_function,
-                num_iterations=num_iterations, learning_rate=learning_rate,
-                ideal_activation=ideal_activation)
-        )
+        list_of_optimized_matrices = backwards_opt.optimize_input_for_neuron(
+            model_object=model_object, layer_name=layer_name,
+            neuron_indices=neuron_indices,
+            init_function_or_matrices=init_function,
+            num_iterations=num_iterations, learning_rate=learning_rate,
+            ideal_activation=ideal_activation)
 
     else:
         print 'Optimizing image for channel {0:d} in layer "{1:s}"...'.format(
             channel_index, layer_name)
 
-        list_of_optimized_input_matrices = (
-            backwards_opt.optimize_input_for_channel(
-                model_object=model_object, layer_name=layer_name,
-                channel_index=channel_index,
-                init_function_or_matrices=init_function,
-                stat_function_for_neuron_activations=K.max,
-                num_iterations=num_iterations, learning_rate=learning_rate,
-                ideal_activation=ideal_activation)
-        )
+        list_of_optimized_matrices = backwards_opt.optimize_input_for_channel(
+            model_object=model_object, layer_name=layer_name,
+            channel_index=channel_index,
+            init_function_or_matrices=init_function,
+            stat_function_for_neuron_activations=K.max,
+            num_iterations=num_iterations, learning_rate=learning_rate,
+            ideal_activation=ideal_activation)
 
     print SEPARATOR_STRING
     print 'Writing results to: "{0:s}"...'.format(output_file_name)
-    backwards_opt.write_results(
+    backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
-        list_of_optimized_input_matrices=list_of_optimized_input_matrices,
+        list_of_optimized_matrices=list_of_optimized_matrices,
         model_file_name=model_file_name,
         init_function_name_or_matrices=init_function_name,
         num_iterations=num_iterations, learning_rate=learning_rate,

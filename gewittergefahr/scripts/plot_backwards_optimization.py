@@ -29,7 +29,7 @@ INPUT_FILE_ARG_NAME = 'input_file_name'
 OUTPUT_DIR_ARG_NAME = 'output_dir_name'
 
 INPUT_FILE_HELP_STRING = (
-    'Path to input file.  Will be read by `backwards_opt.read_file`.')
+    'Path to input file.  Will be read by `backwards_opt.read_standard_file`.')
 
 OUTPUT_DIR_HELP_STRING = (
     'Name of top-level output directory.  Figures will be saved here.')
@@ -275,9 +275,11 @@ def _run(input_file_name, top_output_dir_name):
     """
 
     print 'Reading data from: "{0:s}"...'.format(input_file_name)
-    list_of_optimized_input_matrices, backwards_opt_metadata_dict = (
-        backwards_opt.read_results(input_file_name)
-    )
+    backwards_opt_dict = backwards_opt.read_standard_file(input_file_name)
+
+    list_of_optimized_matrices = backwards_opt_dict.pop(
+        backwards_opt.OPTIMIZED_MATRICES_KEY)
+    backwards_opt_metadata_dict = backwards_opt_dict
 
     model_file_name = backwards_opt_metadata_dict[
         backwards_opt.MODEL_FILE_NAME_KEY]
@@ -289,8 +291,8 @@ def _run(input_file_name, top_output_dir_name):
     model_metadata_dict = cnn.read_model_metadata(model_metafile_name)
 
     print 'Denormalizing optimized input data...'
-    list_of_optimized_input_matrices = model_interpretation.denormalize_data(
-        list_of_input_matrices=list_of_optimized_input_matrices,
+    list_of_optimized_matrices = model_interpretation.denormalize_data(
+        list_of_input_matrices=list_of_optimized_matrices,
         model_metadata_dict=model_metadata_dict)
 
     init_function_name_or_matrices = backwards_opt_metadata_dict[
@@ -299,7 +301,7 @@ def _run(input_file_name, top_output_dir_name):
     if isinstance(init_function_name_or_matrices, str):
         print SEPARATOR_STRING
         _plot_examples(
-            list_of_predictor_matrices=list_of_optimized_input_matrices,
+            list_of_predictor_matrices=list_of_optimized_matrices,
             model_metadata_dict=model_metadata_dict, optimized=True,
             output_dir_name=top_output_dir_name)
 
@@ -320,7 +322,7 @@ def _run(input_file_name, top_output_dir_name):
 
     optimized_output_dir_name = '{0:s}/optimized'.format(top_output_dir_name)
     _plot_examples(
-        list_of_predictor_matrices=list_of_optimized_input_matrices,
+        list_of_predictor_matrices=list_of_optimized_matrices,
         model_metadata_dict=model_metadata_dict, optimized=True,
         output_dir_name=optimized_output_dir_name)
 

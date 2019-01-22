@@ -73,8 +73,8 @@ COMPONENT_HELP_STRING = (
 
 IDEAL_ACTIVATION_HELP_STRING = (
     '[used only if {0:s} = "{1:s}" or "{2:s}"] See '
-    '`backwards_opt.optimize_input_for_neuron_activation` or '
-    '`backwards_opt.optimize_input_for_channel_activation` for details.'
+    '`backwards_opt.optimize_input_for_neuron` or '
+    '`backwards_opt.optimize_input_for_channel` for details.'
 ).format(COMPONENT_TYPE_ARG_NAME, NEURON_COMPONENT_TYPE_STRING,
          CLASS_COMPONENT_TYPE_STRING)
 
@@ -83,7 +83,8 @@ NUM_ITERATIONS_HELP_STRING = 'Number of iterations for backwards optimization.'
 LEARNING_RATE_HELP_STRING = 'Learning rate for backwards optimization.'
 
 OUTPUT_FILE_HELP_STRING = (
-    'Path to output file (will be written by `backwards_opt.write_results`).')
+    'Path to output file (will be written by '
+    '`backwards_opt.write_standard_file`).')
 
 INPUT_ARG_PARSER = argparse.ArgumentParser()
 INPUT_ARG_PARSER.add_argument(
@@ -337,9 +338,9 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         this_init_arg = init_function_name + ''
 
     print 'Writing results to: "{0:s}"...'.format(output_file_name)
-    backwards_opt.write_results(
+    backwards_opt.write_standard_file(
         pickle_file_name=output_file_name,
-        list_of_optimized_input_matrices=list_of_optimized_matrices,
+        list_of_optimized_matrices=list_of_optimized_matrices,
         model_file_name=model_file_name,
         init_function_name_or_matrices=this_init_arg,
         num_iterations=num_iterations, learning_rate=learning_rate,

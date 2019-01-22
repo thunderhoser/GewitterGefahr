@@ -7,7 +7,6 @@ Olah, C., A. Mordvintsev, and L. Schubert, 2017: Feature visualization. Distill,
     URL https://distill.pub/2017/feature-visualization.
 """
 
-import copy
 import pickle
 import numpy
 from keras import backend as K
@@ -24,16 +23,36 @@ DEFAULT_IDEAL_ACTIVATION = 2.
 DEFAULT_LEARNING_RATE = 0.0025
 DEFAULT_NUM_ITERATIONS = 100
 
+INIT_FUNCTION_KEY = 'init_function_name_or_matrices'
+OPTIMIZED_MATRICES_KEY = 'list_of_optimized_matrices'
+
 MODEL_FILE_NAME_KEY = 'model_file_name'
 NUM_ITERATIONS_KEY = 'num_iterations'
 LEARNING_RATE_KEY = 'learning_rate'
 COMPONENT_TYPE_KEY = 'component_type_string'
-INIT_FUNCTION_KEY = 'init_function_name_or_matrices'
 TARGET_CLASS_KEY = 'target_class'
 LAYER_NAME_KEY = 'layer_name'
 IDEAL_ACTIVATION_KEY = 'ideal_activation'
 NEURON_INDICES_KEY = 'neuron_indices'
 CHANNEL_INDEX_KEY = 'channel_index'
+
+STANDARD_FILE_KEYS = [
+    INIT_FUNCTION_KEY, OPTIMIZED_MATRICES_KEY, MODEL_FILE_NAME_KEY,
+    NUM_ITERATIONS_KEY, LEARNING_RATE_KEY, COMPONENT_TYPE_KEY,
+    TARGET_CLASS_KEY, LAYER_NAME_KEY, IDEAL_ACTIVATION_KEY, NEURON_INDICES_KEY,
+    CHANNEL_INDEX_KEY
+]
+
+MEAN_INPUT_MATRICES_KEY = 'list_of_mean_input_matrices'
+MEAN_OPTIMIZED_MATRICES_KEY = 'list_of_mean_optimized_matrices'
+THRESHOLD_COUNTS_KEY = 'threshold_count_matrix'
+STANDARD_FILE_NAME_KEY = 'standard_bwo_file_name'
+PMM_METADATA_KEY = 'pmm_metadata_dict'
+
+PMM_FILE_KEYS = [
+    MEAN_INPUT_MATRICES_KEY, MEAN_OPTIMIZED_MATRICES_KEY, THRESHOLD_COUNTS_KEY,
+    STANDARD_FILE_NAME_KEY, PMM_METADATA_KEY
+]
 
 GAUSSIAN_INIT_FUNCTION_NAME = 'gaussian'
 UNIFORM_INIT_FUNCTION_NAME = 'uniform'
@@ -89,10 +108,10 @@ def _do_gradient_descent(
     :param learning_rate: Learning rate.  At each iteration, each input value x
         will be decremented by `learning_rate * gradient`, where `gradient` is
         the gradient of the loss function with respect to x.
-    :return: list_of_optimized_input_matrices: length-T list of optimized input
+    :return: list_of_optimized_matrices: length-T list of optimized input
         matrices (numpy arrays), where T = number of input tensors to the model.
         If the input arg `init_function_or_matrices` is a list of numpy arrays
-        (rather than a function), `list_of_optimized_input_matrices` will have
+        (rather than a function), `list_of_optimized_matrices` will have
         the exact same shape, just with different values.
     """
 
@@ -116,34 +135,34 @@ def _do_gradient_descent(
     )
 
     if isinstance(init_function_or_matrices, list):
-        list_of_optimized_input_matrices = copy.deepcopy(
-            init_function_or_matrices)
+        list_of_optimized_matrices = init_function_or_matrices + []
     else:
-        list_of_optimized_input_matrices = [None] * num_input_tensors
+        list_of_optimized_matrices = [None] * num_input_tensors
 
         for i in range(num_input_tensors):
             these_dimensions = numpy.array(
                 [1] + list_of_input_tensors[i].get_shape().as_list()[1:],
                 dtype=int)
 
-            list_of_optimized_input_matrices[i] = init_function_or_matrices(
+            list_of_optimized_matrices[i] = init_function_or_matrices(
                 these_dimensions)
 
     for j in range(num_iterations):
         these_outputs = inputs_to_loss_and_gradients(
-            list_of_optimized_input_matrices + [0])
+            list_of_optimized_matrices + [0])
 
         if numpy.mod(j, 100) == 0:
             print 'Loss after {0:d} of {1:d} iterations: {2:.2e}'.format(
                 j, num_iterations, these_outputs[0])
 
         for i in range(num_input_tensors):
-            list_of_optimized_input_matrices[i] -= (
-                these_outputs[i + 1] * learning_rate)
+            list_of_optimized_matrices[i] -= (
+                these_outputs[i + 1] * learning_rate
+            )
 
     print 'Loss after {0:d} iterations: {1:.2e}'.format(
         num_iterations, these_outputs[0])
-    return list_of_optimized_input_matrices
+    return list_of_optimized_matrices
 
 
 def check_init_function(init_function_name):
@@ -416,7 +435,7 @@ def optimize_input_for_class(
     :param init_function_or_matrices: See doc for `_do_gradient_descent`.
     :param num_iterations: Same.
     :param learning_rate: Same.
-    :return: list_of_optimized_input_matrices: Same.
+    :return: list_of_optimized_matrices: Same.
     """
 
     model_interpretation.check_component_metadata(
@@ -478,8 +497,7 @@ def optimize_input_for_neuron(
         If this value is None, the loss function will be
         -sign(neuron_activation) * neuron_activation^2.
 
-    :return: list_of_optimized_input_matrices: See doc for
-        `_do_gradient_descent`.
+    :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
     """
 
     model_interpretation.check_component_metadata(
@@ -546,8 +564,7 @@ def optimize_input_for_channel(
     If this value is None, loss function will be
     -abs[stat_function_for_neuron_activations(neuron_activations)].
 
-    :return: list_of_optimized_input_matrices: See doc for
-        `_do_gradient_descent`.
+    :return: list_of_optimized_matrices: See doc for `_do_gradient_descent`.
     """
 
     model_interpretation.check_component_metadata(
@@ -579,20 +596,22 @@ def optimize_input_for_channel(
         num_iterations=num_iterations, learning_rate=learning_rate)
 
 
-def write_results(
-        pickle_file_name, list_of_optimized_input_matrices, model_file_name,
-        init_function_name_or_matrices, num_iterations, learning_rate,
-        component_type_string, target_class=None, layer_name=None,
-        neuron_indices=None, channel_index=None, ideal_activation=None):
-    """Writes results of backwards optimization to Pickle file.
+def write_standard_file(
+        pickle_file_name, init_function_name_or_matrices,
+        list_of_optimized_matrices, model_file_name, num_iterations,
+        learning_rate, component_type_string, target_class=None,
+        layer_name=None, neuron_indices=None, channel_index=None,
+        ideal_activation=None):
+    """Writes optimized learning examples to Pickle file.
 
     :param pickle_file_name: Path to output file.
-    :param list_of_optimized_input_matrices: Optimized input data (see doc for
-        `_do_gradient_descent`).
-    :param model_file_name: Path to file with trained model.
     :param init_function_name_or_matrices: See doc for `_do_gradient_descent`.
-        The only difference here is that the variable must be a function *name*
-        (rather than the function itself) or list of numpy arrays.
+        The only difference here is that, if a function was used, the input
+        argument must be the function *name* rather than the function itself.
+    :param list_of_optimized_matrices: List of numpy arrays created by
+        `_do_gradient_descent`.
+    :param model_file_name: Path to file with trained model (readable by
+        `cnn.read_model`).
     :param num_iterations: See doc for `_do_gradient_descent`.
     :param learning_rate: Same.
     :param component_type_string: See doc for
@@ -601,11 +620,10 @@ def write_results(
     :param layer_name: Same.
     :param neuron_indices: Same.
     :param channel_index: Same.
-    :param ideal_activation: See doc for `optimize_input_for_neuron_activation`
-        or `optimize_input_for_channel_activation`.
+    :param ideal_activation: See doc for `optimize_input_for_neuron` or
+        `optimize_input_for_channel`.
     :raises: ValueError: if `init_function_name_or_matrices` is a list of numpy
-        arrays and has a different length than
-        `list_of_optimized_input_matrices`.
+        arrays and has a different length than `list_of_optimized_matrices`.
     """
 
     model_interpretation.check_component_metadata(
@@ -618,39 +636,44 @@ def write_results(
         ideal_activation=ideal_activation)
 
     error_checking.assert_is_string(model_file_name)
-    error_checking.assert_is_list(list_of_optimized_input_matrices)
+    error_checking.assert_is_list(list_of_optimized_matrices)
 
     if not isinstance(init_function_name_or_matrices, str):
         num_init_matrices = len(init_function_name_or_matrices)
-        num_optimized_matrices = len(list_of_optimized_input_matrices)
+        num_optimized_matrices = len(list_of_optimized_matrices)
 
         if num_init_matrices != num_optimized_matrices:
             error_string = (
-                'Number of initial matrices ({0:d}) should equal number of '
-                'optimized matrices ({1:d}).'
+                'Number of input matrices ({0:d}) should equal number of output'
+                ' matrices ({1:d}).'
             ).format(num_init_matrices, num_optimized_matrices)
 
             raise ValueError(error_string)
 
-    num_matrices = len(list_of_optimized_input_matrices)
+    num_matrices = len(list_of_optimized_matrices)
 
     for i in range(num_matrices):
-        error_checking.assert_is_numpy_array(
-            list_of_optimized_input_matrices[i])
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_optimized_matrices[i])
 
         if not isinstance(init_function_name_or_matrices, str):
+            error_checking.assert_is_numpy_array_without_nan(
+                init_function_name_or_matrices[i])
+
+            these_expected_dim = numpy.array(
+                list_of_optimized_matrices[i].shape, dtype=int)
+
             error_checking.assert_is_numpy_array(
                 init_function_name_or_matrices[i],
-                exact_dimensions=numpy.array(
-                    list_of_optimized_input_matrices[i].shape)
-            )
+                exact_dimensions=these_expected_dim)
 
-    metadata_dict = {
+    optimization_dict = {
+        INIT_FUNCTION_KEY: init_function_name_or_matrices,
+        OPTIMIZED_MATRICES_KEY: list_of_optimized_matrices,
         MODEL_FILE_NAME_KEY: model_file_name,
         NUM_ITERATIONS_KEY: num_iterations,
         LEARNING_RATE_KEY: learning_rate,
         COMPONENT_TYPE_KEY: component_type_string,
-        INIT_FUNCTION_KEY: init_function_name_or_matrices,
         TARGET_CLASS_KEY: target_class,
         LAYER_NAME_KEY: layer_name,
         IDEAL_ACTIVATION_KEY: ideal_activation,
@@ -660,32 +683,154 @@ def write_results(
 
     file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
     pickle_file_handle = open(pickle_file_name, 'wb')
-    pickle.dump(list_of_optimized_input_matrices, pickle_file_handle)
-    pickle.dump(metadata_dict, pickle_file_handle)
+    pickle.dump(optimization_dict, pickle_file_handle)
     pickle_file_handle.close()
 
 
-def read_results(pickle_file_name):
-    """Reads results of backwards optimization from Pickle file.
+def read_standard_file(pickle_file_name):
+    """Reads optimized learning examples from Pickle file.
 
     :param pickle_file_name: Path to input file.
-    :return: list_of_optimized_input_matrices: See doc for `write_file`.
-    :return: metadata_dict: Dictionary with the following keys.
-    metadata_dict['model_file_name']: See doc for `write_file`.
-    metadata_dict['num_iterations']: Same.
-    metadata_dict['learning_rate']: Same.
-    metadata_dict['component_type_string']: Same.
-    metadata_dict['init_function_name_or_matrices']: Same.
-    metadata_dict['target_class']: Same.
-    metadata_dict['layer_name']: Same.
-    metadata_dict['ideal_activation']: Same.
-    metadata_dict['neuron_indices']: Same.
-    metadata_dict['channel_index']: Same.
+    :return: optimization_dict: Dictionary with the following keys.
+    optimization_dict['init_function_name_or_matrices']: See doc for
+        `write_standard_file`.
+    optimization_dict['list_of_optimized_matrices']: Same.
+    optimization_dict['model_file_name']: Same.
+    optimization_dict['num_iterations']: Same.
+    optimization_dict['learning_rate']: Same.
+    optimization_dict['component_type_string']: Same.
+    optimization_dict['target_class']: Same.
+    optimization_dict['layer_name']: Same.
+    optimization_dict['ideal_activation']: Same.
+    optimization_dict['neuron_indices']: Same.
+    optimization_dict['channel_index']: Same.
     """
 
     pickle_file_handle = open(pickle_file_name, 'rb')
-    list_of_optimized_input_matrices = pickle.load(pickle_file_handle)
-    metadata_dict = pickle.load(pickle_file_handle)
+    optimization_dict = pickle.load(pickle_file_handle)
     pickle_file_handle.close()
 
-    return list_of_optimized_input_matrices, metadata_dict
+    missing_keys = list(set(STANDARD_FILE_KEYS) - set(optimization_dict.keys()))
+    if len(missing_keys) == 0:
+        return optimization_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
+
+
+def write_pmm_file(
+        pickle_file_name, list_of_mean_input_matrices,
+        list_of_mean_optimized_matrices, threshold_count_matrix,
+        standard_bwo_file_name, pmm_metadata_dict):
+    """Writes mean backwards-optimized map to Pickle file.
+
+    This is a mean over many examples, created by PMM (probability-matched
+    means).
+
+    T = number of input tensors to the model
+
+    :param pickle_file_name: Path to output file.
+    :param list_of_mean_input_matrices: length-T list of numpy arrays, where
+        list_of_mean_input_matrices[i] is the mean (over many examples) of the
+        [i]th input tensor to the model.  list_of_mean_input_matrices[i] should
+        have the same dimensions as the [i]th input tensor, except without the
+        first axis.
+    :param list_of_mean_optimized_matrices: Same as
+        `list_of_mean_input_matrices` (and with the same dimensions), but for
+        optimized learning examples.  In other words,
+        `list_of_mean_input_matrices` contains the mean input and
+        `list_of_mean_optimized_matrices` contains the mean output.
+    :param threshold_count_matrix: See doc for
+        `prob_matched_means.run_pmm_many_variables`.
+    :param standard_bwo_file_name: Path to file with standard
+        backwards-optimization output (readable by `read_standard_file`).
+    :param pmm_metadata_dict: Dictionary created by
+        `prob_matched_means.check_input_args`.
+    :raises: ValueError: if `list_of_mean_input_matrices` and
+        `list_of_mean_optimized_matrices` have different lengths.
+    """
+
+    error_checking.assert_is_string(standard_bwo_file_name)
+    error_checking.assert_is_list(list_of_mean_input_matrices)
+    error_checking.assert_is_list(list_of_mean_optimized_matrices)
+
+    num_input_matrices = len(list_of_mean_input_matrices)
+    num_output_matrices = len(list_of_mean_optimized_matrices)
+
+    if num_input_matrices != num_output_matrices:
+        error_string = (
+            'Number of input matrices ({0:d}) should equal number of output '
+            'matrices ({1:d}).'
+        ).format(num_input_matrices, num_output_matrices)
+
+        raise ValueError(error_string)
+
+    for i in range(num_input_matrices):
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_mean_input_matrices[i])
+        error_checking.assert_is_numpy_array_without_nan(
+            list_of_mean_optimized_matrices[i])
+
+        these_expected_dim = numpy.array(
+            list_of_mean_input_matrices[i].shape, dtype=int)
+        error_checking.assert_is_numpy_array(
+            list_of_mean_optimized_matrices[i],
+            exact_dimensions=these_expected_dim)
+
+    if threshold_count_matrix is not None:
+        error_checking.assert_is_integer_numpy_array(threshold_count_matrix)
+        error_checking.assert_is_geq_numpy_array(threshold_count_matrix, 0)
+
+        spatial_dimensions = numpy.array(
+            list_of_mean_input_matrices[0].shape[:-1], dtype=int)
+        error_checking.assert_is_numpy_array(
+            threshold_count_matrix, exact_dimensions=spatial_dimensions)
+
+    mean_optimization_dict = {
+        MEAN_INPUT_MATRICES_KEY: list_of_mean_input_matrices,
+        MEAN_OPTIMIZED_MATRICES_KEY: list_of_mean_optimized_matrices,
+        THRESHOLD_COUNTS_KEY: threshold_count_matrix,
+        STANDARD_FILE_NAME_KEY: standard_bwo_file_name,
+        PMM_METADATA_KEY: pmm_metadata_dict
+    }
+
+    file_system_utils.mkdir_recursive_if_necessary(file_name=pickle_file_name)
+    pickle_file_handle = open(pickle_file_name, 'wb')
+    pickle.dump(mean_optimization_dict, pickle_file_handle)
+    pickle_file_handle.close()
+
+
+def read_pmm_file(pickle_file_name):
+    """Reads mean backwards-optimized map from Pickle file.
+
+    :param pickle_file_name: Path to input file.
+    :return: mean_optimization_dict: Dictionary with the following keys.
+    mean_optimization_dict['list_of_mean_input_matrices']: See doc for
+        `write_pmm_file`.
+    mean_optimization_dict['list_of_mean_optimized_matrices']: Same.
+    mean_optimization_dict['threshold_count_matrix']: Same.
+    mean_optimization_dict['standard_bwo_file_name']: Same.
+    mean_optimization_dict['pmm_metadata_dict']: Same.
+
+    :raises: ValueError: if any of the aforelisted keys are missing from the
+        dictionary.
+    """
+
+    pickle_file_handle = open(pickle_file_name, 'rb')
+    mean_optimization_dict = pickle.load(pickle_file_handle)
+    pickle_file_handle.close()
+
+    missing_keys = list(set(PMM_FILE_KEYS) - set(mean_optimization_dict.keys()))
+    if len(missing_keys) == 0:
+        return mean_optimization_dict
+
+    error_string = (
+        '\n{0:s}\nKeys listed above were expected, but not found, in file '
+        '"{1:s}".'
+    ).format(str(missing_keys), pickle_file_name)
+
+    raise ValueError(error_string)
