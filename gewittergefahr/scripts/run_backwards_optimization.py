@@ -264,10 +264,13 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         print SEPARATOR_STRING
 
     else:
+        storm_ids = None
+        storm_times_unix_sec = None
+        num_examples = 1
+
         init_function = _create_initializer(
             init_function_name=init_function_name,
             model_metadata_dict=model_metadata_dict)
-        num_examples = 1
 
     print 'Reading model from: "{0:s}"...'.format(model_file_name)
     model_object = cnn.read_model(model_file_name)
@@ -356,7 +359,8 @@ def _run(model_file_name, init_function_name, storm_metafile_name, num_examples,
         num_iterations=num_iterations, learning_rate=learning_rate,
         component_type_string=component_type_string, target_class=target_class,
         layer_name=layer_name, neuron_indices=neuron_indices,
-        channel_index=channel_index, ideal_activation=ideal_activation)
+        channel_index=channel_index, ideal_activation=ideal_activation,
+        storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
 
 
 if __name__ == '__main__':
