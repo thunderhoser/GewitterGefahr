@@ -391,7 +391,7 @@ def _run(input_file_name, top_output_dir_name):
 
     after_dir_name = '{0:s}/after_optimization'.format(top_output_dir_name)
     _plot_inputs_or_outputs(
-        list_of_predictor_matrices=list_of_input_matrices,
+        list_of_predictor_matrices=list_of_optimized_matrices,
         model_metadata_dict=model_metadata_dict,
         output_dir_name=after_dir_name,
         optimized_flag=True, pmm_flag=pmm_flag,
