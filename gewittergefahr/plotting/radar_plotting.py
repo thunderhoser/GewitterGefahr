@@ -631,6 +631,9 @@ def plot_2d_grid_without_coords(
         colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
+    print colour_norm_object
+    print dir(colour_norm_object)
+
     if hasattr(colour_norm_object, 'boundaries'):
         min_colour_value = colour_norm_object.boundaries[0]
         max_colour_value = colour_norm_object.boundaries[-1]
@@ -649,7 +652,7 @@ def plot_2d_grid_without_coords(
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None')
 
-    pyplot.grid(b=True, which='major', axis='both')
+    axes_object.grid(b=True, which='major', axis='both')
 
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
