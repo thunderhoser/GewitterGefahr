@@ -15,9 +15,13 @@ import numpy
 from gewittergefahr.gg_utils import prob_matched_means as pmm
 from gewittergefahr.deep_learning import saliency_maps
 from gewittergefahr.deep_learning import gradcam
+from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
+
+NONE_STRINGS = ['', 'None']
 
 SALIENCY_FILE_ARG_NAME = 'input_saliency_file_name'
 GRADCAM_FILE_ARG_NAME = 'input_gradcam_file_name'
+BWO_FILE_ARG_NAME = 'input_bwo_file_name'
 MAX_PERCENTILE_ARG_NAME = 'max_percentile_level'
 THRESHOLD_INDEX_ARG_NAME = 'radar_channel_idx_for_thres'
 THRESHOLD_VALUE_ARG_NAME = 'threshold_value'
@@ -26,13 +30,18 @@ OUTPUT_FILE_ARG_NAME = 'output_file_name'
 
 SALIENCY_FILE_HELP_STRING = (
     'Path to saliency file (will be read by `saliency_maps.read_standard_file`)'
-    '.  If you want to composite class-activation maps instead, leave this '
+    '.  If you are compositing something other than saliency maps, leave this '
     'argument alone.')
 
 GRADCAM_FILE_HELP_STRING = (
     'Path to Grad-CAM file (will be read by `gradcam.read_standard_file`).  If '
-    'you want to composite saliency maps instead of class-activation maps, '
-    'leave this argument alone.')
+    'you are compositing something other than class-activation maps, leave this'
+    ' argument alone.')
+
+BWO_FILE_HELP_STRING = (
+    'Path to backwards-optimization file (will be read by '
+    '`backwards_optimization.read_standard_file`).  If you are compositing '
+    'something other than backwards-optimized maps, leave this argument alone.')
 
 MAX_PERCENTILE_HELP_STRING = (
     'Max percentile used in PMM procedure.  See '
@@ -71,6 +80,10 @@ INPUT_ARG_PARSER.add_argument(
     help=GRADCAM_FILE_HELP_STRING)
 
 INPUT_ARG_PARSER.add_argument(
+    '--' + BWO_FILE_ARG_NAME, type=str, required=False, default='',
+    help=BWO_FILE_HELP_STRING)
+
+INPUT_ARG_PARSER.add_argument(
     '--' + MAX_PERCENTILE_ARG_NAME, type=float, required=False,
     default=pmm.DEFAULT_MAX_PERCENTILE_LEVEL, help=MAX_PERCENTILE_HELP_STRING)
 
@@ -91,16 +104,16 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_FILE_HELP_STRING)
 
 
-def _run(input_saliency_file_name, input_gradcam_file_name,
-         max_percentile_level,
-         radar_channel_idx_for_thres, threshold_value, threshold_type_string,
-         output_file_name):
+def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
+         max_percentile_level, radar_channel_idx_for_thres, threshold_value,
+         threshold_type_string, output_file_name):
     """Runs probability-matched means (PMM).
 
     This is effectively the main method.
 
     :param input_saliency_file_name: See documentation at top of file.
     :param input_gradcam_file_name: Same.
+    :param input_bwo_file_name: Same.
     :param max_percentile_level: Same.
     :param radar_channel_idx_for_thres: Same.
     :param threshold_value: Same.
@@ -108,9 +121,16 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
     :param output_file_name: Same.
     """
 
-    if input_saliency_file_name in ['', 'None']:
+    if input_saliency_file_name not in NONE_STRINGS:
+        input_gradcam_file_name = None
+        input_bwo_file_name = None
+
+    if input_gradcam_file_name not in NONE_STRINGS:
         input_saliency_file_name = None
-    if input_gradcam_file_name in ['', 'None']:
+        input_bwo_file_name = None
+
+    if input_bwo_file_name not in NONE_STRINGS:
+        input_saliency_file_name = None
         input_gradcam_file_name = None
 
     if radar_channel_idx_for_thres < 0:
@@ -118,15 +138,21 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
         threshold_value = None
         threshold_type_string = None
 
-    if input_saliency_file_name is None:
-        print 'Reading data from: "{0:s}"...'.format(input_gradcam_file_name)
-        gradcam_dict = gradcam.read_standard_file(input_gradcam_file_name)
-        list_of_input_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
-    else:
+    if input_saliency_file_name is not None:
         print 'Reading data from: "{0:s}"...'.format(input_saliency_file_name)
         saliency_dict = saliency_maps.read_standard_file(
             input_saliency_file_name)
         list_of_input_matrices = saliency_dict[gradcam.INPUT_MATRICES_KEY]
+
+    elif input_gradcam_file_name is not None:
+        print 'Reading data from: "{0:s}"...'.format(input_gradcam_file_name)
+        gradcam_dict = gradcam.read_standard_file(input_gradcam_file_name)
+        list_of_input_matrices = gradcam_dict[gradcam.INPUT_MATRICES_KEY]
+
+    else:
+        print 'Reading data from: "{0:s}"...'.format(input_bwo_file_name)
+        bwo_dictionary = backwards_opt.read_standard_file(input_bwo_file_name)
+        list_of_input_matrices = bwo_dictionary[backwards_opt.INIT_FUNCTION_KEY]
 
     print 'Running PMM on denormalized predictor matrices...'
 
@@ -158,7 +184,32 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
                 max_percentile_level=max_percentile_level
             )[0]
 
-    if input_saliency_file_name is None:
+    if input_saliency_file_name is not None:
+        print 'Running PMM on saliency matrices...'
+        list_of_saliency_matrices = saliency_dict[
+            saliency_maps.SALIENCY_MATRICES_KEY]
+
+        num_input_matrices = len(list_of_input_matrices)
+        list_of_mean_saliency_matrices = [None] * num_input_matrices
+
+        for i in range(num_input_matrices):
+            list_of_mean_saliency_matrices[i] = pmm.run_pmm_many_variables(
+                input_matrix=list_of_saliency_matrices[i],
+                max_percentile_level=max_percentile_level
+            )[0]
+
+        print 'Writing output to: "{0:s}"...'.format(output_file_name)
+        saliency_maps.write_pmm_file(
+            pickle_file_name=output_file_name,
+            list_of_mean_input_matrices=list_of_mean_input_matrices,
+            list_of_mean_saliency_matrices=list_of_mean_saliency_matrices,
+            threshold_count_matrix=threshold_count_matrix,
+            standard_saliency_file_name=input_saliency_file_name,
+            pmm_metadata_dict=pmm_metadata_dict)
+
+        return
+
+    if input_gradcam_file_name is not None:
         print 'Running PMM on class-activation matrices...'
         class_activation_matrix = gradcam_dict[gradcam.CLASS_ACTIVATIONS_KEY]
         ggradcam_output_matrix = gradcam_dict[gradcam.GUIDED_GRADCAM_KEY]
@@ -190,26 +241,26 @@ def _run(input_saliency_file_name, input_gradcam_file_name,
 
         return
 
-    print 'Running PMM on saliency matrices...'
-    list_of_saliency_matrices = saliency_dict[
-        saliency_maps.SALIENCY_MATRICES_KEY]
+    print 'Running PMM on backwards-optimized maps...'
+    list_of_optimized_matrices = bwo_dictionary[
+        backwards_opt.OPTIMIZED_MATRICES_KEY]
 
     num_input_matrices = len(list_of_input_matrices)
-    list_of_mean_saliency_matrices = [None] * num_input_matrices
+    list_of_mean_optimized_matrices = [None] * num_input_matrices
 
     for i in range(num_input_matrices):
-        list_of_mean_saliency_matrices[i] = pmm.run_pmm_many_variables(
-            input_matrix=list_of_saliency_matrices[i],
+        list_of_mean_optimized_matrices[i] = pmm.run_pmm_many_variables(
+            input_matrix=list_of_optimized_matrices[i],
             max_percentile_level=max_percentile_level
         )[0]
 
     print 'Writing output to: "{0:s}"...'.format(output_file_name)
-    saliency_maps.write_pmm_file(
+    backwards_opt.write_pmm_file(
         pickle_file_name=output_file_name,
         list_of_mean_input_matrices=list_of_mean_input_matrices,
-        list_of_mean_saliency_matrices=list_of_mean_saliency_matrices,
+        list_of_mean_optimized_matrices=list_of_mean_optimized_matrices,
         threshold_count_matrix=threshold_count_matrix,
-        standard_saliency_file_name=input_saliency_file_name,
+        standard_bwo_file_name=input_bwo_file_name,
         pmm_metadata_dict=pmm_metadata_dict)
 
 
@@ -221,6 +272,7 @@ if __name__ == '__main__':
             INPUT_ARG_OBJECT, SALIENCY_FILE_ARG_NAME),
         input_gradcam_file_name=getattr(
             INPUT_ARG_OBJECT, GRADCAM_FILE_ARG_NAME),
+        input_bwo_file_name=getattr(INPUT_ARG_OBJECT, BWO_FILE_ARG_NAME),
         max_percentile_level=getattr(INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
         radar_channel_idx_for_thres=getattr(
             INPUT_ARG_OBJECT, THRESHOLD_INDEX_ARG_NAME),
