@@ -953,19 +953,19 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
 
     print SEPARATOR_STRING
 
-    if sounding_field_names is not None:
-        if list_of_input_matrices is None:
-            this_input_matrix = None
-        else:
-            this_input_matrix = list_of_input_matrices[-1]
-
-        _plot_bwo_for_soundings(
-            optimized_sounding_matrix=list_of_optimized_matrices[-1],
-            training_option_dict=training_option_dict,
-            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
-            input_sounding_matrix=this_input_matrix, storm_ids=storm_ids,
-            storm_times_unix_sec=storm_times_unix_sec)
-        print SEPARATOR_STRING
+    # if sounding_field_names is not None:
+    #     if list_of_input_matrices is None:
+    #         this_input_matrix = None
+    #     else:
+    #         this_input_matrix = list_of_input_matrices[-1]
+    #
+    #     _plot_bwo_for_soundings(
+    #         optimized_sounding_matrix=list_of_optimized_matrices[-1],
+    #         training_option_dict=training_option_dict,
+    #         top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
+    #         input_sounding_matrix=this_input_matrix, storm_ids=storm_ids,
+    #         storm_times_unix_sec=storm_times_unix_sec)
+    #     print SEPARATOR_STRING
 
     if model_metadata_dict[cnn.USE_2D3D_CONVOLUTION_KEY]:
         _plot_bwo_for_2d3d_radar(
