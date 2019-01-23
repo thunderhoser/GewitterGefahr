@@ -681,6 +681,9 @@ def plot_2d_grid_without_coords(
             verticalalignment='bottom', transform=axes_object.transAxes,
             zorder=1e10)
 
+    print axes_object.xlim()
+    print axes_object.ylim()
+
     axes_object.set_xticks([])
     axes_object.set_yticks([])
 
