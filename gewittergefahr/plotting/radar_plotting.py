@@ -538,8 +538,10 @@ def plot_latlng_grid(
         rows.
     :param longitude_spacing_deg: Spacing (deg E) between grid points in
         adjacent columns.
-    :param colour_map_object: Instance of `matplotlib.pyplot.cm`.
-    :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.
+    :param colour_map_object: Instance of `matplotlib.pyplot.cm`.  If this is
+        None, the default colour scheme for `field_name` will be used.
+    :param colour_norm_object: Instance of `matplotlib.colors.BoundaryNorm`.  If
+        this is None, the default colour scheme for `field_name` will be used.
     """
 
     field_matrix = _field_to_plotting_units(
@@ -639,6 +641,7 @@ def plot_2d_grid_without_coords(
 
 def plot_many_2d_grids_without_coords(
         field_matrix, field_name_by_panel, num_panel_rows, panel_names=None,
+        colour_map_object_by_panel=None, colour_norm_object_by_panel=None,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
         font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True):
@@ -656,6 +659,11 @@ def plot_many_2d_grids_without_coords(
         which is number of rows in spatial grid).
     :param panel_names: length-P list of panel names (will be printed at bottoms
         of panels).  If you do not want panel names, make this None.
+    :param colour_map_object_by_panel: length-P list of `matplotlib.pyplot.cm`
+        objects.  If this is None, the default will be used for each field.
+    :param colour_norm_object_by_panel: length-P list of
+        `matplotlib.colors.BoundaryNorm` objects.  If this is None, the default
+        will be used for each field.
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
     :param font_size: Font size.
@@ -664,23 +672,49 @@ def plot_many_2d_grids_without_coords(
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where each item is an instance of
         `matplotlib.axes._subplots.AxesSubplot`.
+    :raises: ValueError: if `colour_map_object_by_panel` or
+        `colour_norm_object_by_panel` has different length than number of
+        panels.
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
     num_panels = field_matrix.shape[2]
+    if panel_names is None:
+        panel_names = [''] * num_panels
+
+    if (colour_map_object_by_panel is None
+            or colour_norm_object_by_panel is None):
+        colour_map_object_by_panel = [None] * num_panels
+        colour_norm_object_by_panel = [None] * num_panels
 
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_panel),
         exact_dimensions=numpy.array([num_panels])
     )
 
-    if panel_names is None:
-        panel_names = [''] * num_panels
-
     error_checking.assert_is_numpy_array(
         numpy.array(panel_names),
         exact_dimensions=numpy.array([num_panels])
     )
+
+    error_checking.assert_is_list(colour_map_object_by_panel)
+    error_checking.assert_is_list(colour_norm_object_by_panel)
+
+    if len(colour_map_object_by_panel) != num_panels:
+        error_string = (
+            'Number of colour maps ({0:d}) should equal number of panels '
+            '({1:d}).'
+        ).format(len(colour_map_object_by_panel), num_panels)
+
+        raise ValueError(error_string)
+
+    if len(colour_norm_object_by_panel) != num_panels:
+        error_string = (
+            'Number of colour-normalizers ({0:d}) should equal number of panels '
+            '({1:d}).'
+        ).format(len(colour_norm_object_by_panel), num_panels)
+
+        raise ValueError(error_string)
 
     error_checking.assert_is_boolean(plot_colour_bars)
     error_checking.assert_is_integer(num_panel_rows)
@@ -708,7 +742,12 @@ def plot_many_2d_grids_without_coords(
                     field_name=field_name_by_panel[this_panel_index],
                     axes_object=axes_objects_2d_list[i][j],
                     annotation_string=panel_names[this_panel_index],
-                    font_size=font_size)
+                    font_size=font_size,
+                    colour_map_object=colour_map_object_by_panel[
+                        this_panel_index],
+                    colour_norm_object=colour_norm_object_by_panel[
+                        this_panel_index]
+                )
             )
 
             if not plot_colour_bars:

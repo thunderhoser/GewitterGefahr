@@ -5,6 +5,7 @@ import argparse
 import numpy
 import matplotlib
 matplotlib.use('agg')
+import matplotlib.colors
 import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import radar_utils
 from gewittergefahr.gg_utils import time_conversion
@@ -17,6 +18,8 @@ from gewittergefahr.deep_learning import backwards_optimization as backwards_opt
 from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
+
+# TODO(thunderhoser): Fuck with directories.
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -104,8 +107,12 @@ def _plot_bwo_for_2d3d_radar(
         have_storm_ids = not (storm_ids is None or storm_times_unix_sec is None)
 
     num_storms = list_of_optimized_matrices[0].shape[0]
+    az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    num_az_shear_fields = len(az_shear_field_names)
 
     for i in range(num_storms):
+        print '\n'
+
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
             this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
@@ -169,10 +176,8 @@ def _plot_bwo_for_2d3d_radar(
         _, these_axes_objects = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=this_az_shear_matrix_s01,
-                field_name_by_panel=training_option_dict[
-                    trainval_io.RADAR_FIELDS_KEY],
-                num_panel_rows=1,
-                panel_names=training_option_dict[trainval_io.RADAR_FIELDS_KEY],
+                field_name_by_panel=az_shear_field_names, num_panel_rows=1,
+                panel_names=az_shear_field_names,
                 font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
         )
 
@@ -203,11 +208,6 @@ def _plot_bwo_for_2d3d_radar(
 
         this_reflectivity_matrix_dbz = numpy.flip(
             list_of_input_matrices[0][i, ..., 0], axis=0)
-
-        this_num_heights = this_reflectivity_matrix_dbz.shape[-1]
-        this_num_panel_rows = int(numpy.floor(
-            numpy.sqrt(this_num_heights)
-        ))
 
         _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
             field_matrix=this_reflectivity_matrix_dbz,
@@ -244,10 +244,8 @@ def _plot_bwo_for_2d3d_radar(
         _, these_axes_objects = (
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=this_az_shear_matrix_s01,
-                field_name_by_panel=training_option_dict[
-                    trainval_io.RADAR_FIELDS_KEY],
-                num_panel_rows=1,
-                panel_names=training_option_dict[trainval_io.RADAR_FIELDS_KEY],
+                field_name_by_panel=az_shear_field_names, num_panel_rows=1,
+                panel_names=az_shear_field_names,
                 font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
         )
 
@@ -266,6 +264,90 @@ def _plot_bwo_for_2d3d_radar(
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
         this_file_name = '{0:s}_optimized=0_azimuthal-shear.jpg'.format(
+            this_base_file_name)
+
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.close()
+
+        this_refl_diff_matrix_dbz = (
+            list_of_optimized_matrices[0][i, ..., 0] -
+            list_of_input_matrices[0][i, ..., 0]
+        )
+        this_refl_diff_matrix_dbz = numpy.flip(
+            this_refl_diff_matrix_dbz, axis=0)
+
+        this_max_value_dbz = numpy.percentile(
+            numpy.absolute(this_refl_diff_matrix_dbz),
+            max_colour_percentile_for_diff)
+
+        this_colour_norm_object = matplotlib.colors.Normalize(
+            vmin=-1 * this_max_value_dbz, vmax=this_max_value_dbz, clip=False)
+
+        _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+            field_matrix=this_refl_diff_matrix_dbz,
+            field_name=radar_utils.REFL_NAME,
+            grid_point_heights_metres=training_option_dict[
+                trainval_io.RADAR_HEIGHTS_KEY],
+            ground_relative=True, num_panel_rows=this_num_panel_rows,
+            font_size=FONT_SIZE_SANS_COLOUR_BARS,
+            colour_map_object=diff_colour_map_object,
+            colour_norm_object=this_colour_norm_object)
+
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=these_axes_objects,
+            values_to_colour=this_refl_diff_matrix_dbz,
+            colour_map=diff_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            orientation='horizontal', extend_min=True, extend_max=True)
+
+        this_title_string = '{0:s} (after minus before optimization)'.format(
+            this_base_title_string)
+        this_file_name = '{0:s}_optimization-diff_reflectivity.jpg'.format(
+            this_base_file_name)
+
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.close()
+
+        this_shear_diff_matrix_s01 = (
+            list_of_optimized_matrices[1][i, ..., 0] -
+            list_of_input_matrices[1][i, ..., 0]
+        )
+        this_shear_diff_matrix_s01 = numpy.flip(
+            this_shear_diff_matrix_s01, axis=0)
+
+        this_max_value_s01 = numpy.percentile(
+            numpy.absolute(this_shear_diff_matrix_s01),
+            max_colour_percentile_for_diff)
+
+        this_colour_norm_object = matplotlib.colors.Normalize(
+            vmin=-1 * this_max_value_s01, vmax=this_max_value_s01, clip=False)
+
+        _, these_axes_objects = (
+            radar_plotting.plot_many_2d_grids_without_coords(
+                field_matrix=this_shear_diff_matrix_s01,
+                field_name_by_panel=az_shear_field_names, num_panel_rows=1,
+                panel_names=az_shear_field_names,
+                colour_map_object_by_panel=
+                [diff_colour_map_object] * num_az_shear_fields,
+                colour_norm_object_by_panel=
+                [this_colour_norm_object] * num_az_shear_fields,
+                font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
+        )
+
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=these_axes_objects,
+            values_to_colour=this_shear_diff_matrix_s01,
+            colour_map=diff_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            orientation='horizontal', extend_min=True, extend_max=True)
+
+        this_title_string = '{0:s} (after minus before optimization)'.format(
+            this_base_title_string)
+        this_file_name = '{0:s}_optimization-diff_azimuthal-shear.jpg'.format(
             this_base_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
@@ -314,6 +396,8 @@ def _plot_bwo_for_3d_radar(
     ))
 
     for i in range(num_storms):
+        print '\n'
+
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
             this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
@@ -404,6 +488,49 @@ def _plot_bwo_for_3d_radar(
             pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
             pyplot.close()
 
+            this_diff_matrix = (
+                optimized_radar_matrix[i, ..., j] -
+                input_radar_matrix[i, ..., j]
+            )
+
+            this_max_value = numpy.percentile(
+                numpy.absolute(this_diff_matrix),
+                max_colour_percentile_for_diff)
+
+            this_colour_norm_object = matplotlib.colors.Normalize(
+                vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
+
+            _, these_axes_objects = (
+                radar_plotting.plot_3d_grid_without_coords(
+                    field_matrix=numpy.flip(this_diff_matrix, axis=0),
+                    field_name=radar_field_names[j],
+                    grid_point_heights_metres=radar_heights_m_agl,
+                    ground_relative=True, num_panel_rows=num_panel_rows,
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS,
+                    colour_map_object=diff_colour_map_object,
+                    colour_norm_object=this_colour_norm_object)
+            )
+
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=these_axes_objects,
+                values_to_colour=this_diff_matrix,
+                colour_map=diff_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation='horizontal', extend_min=True, extend_max=True)
+
+            this_title_string = (
+                '{0:s} (after minus before optimization)'
+            ).format(this_base_title_string)
+
+            this_file_name = '{0:s}_optimization-diff_{1:s}.jpg'.format(
+                this_base_file_name, radar_field_names[j].replace('_', '-')
+            )
+
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.close()
+
 
 def _plot_bwo_for_2d_radar(
         optimized_radar_matrix, model_metadata_dict, diff_colour_map_object,
@@ -456,13 +583,16 @@ def _plot_bwo_for_2d_radar(
                 list_of_layer_operation_dicts)
         )
 
+    num_panels = len(panel_names)
     num_storms = optimized_radar_matrix.shape[0]
     num_channels = optimized_radar_matrix.shape[-1]
-    num_panel_rows = int(numpy.ceil(
+    num_panel_rows = int(numpy.floor(
         numpy.sqrt(num_channels)
     ))
 
     for i in range(num_storms):
+        print '\n'
+
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
             this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
@@ -511,6 +641,69 @@ def _plot_bwo_for_2d_radar(
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
         this_file_name = '{0:s}_optimized=0_radar.jpg'.format(
+            this_base_file_name)
+
+        pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
+        print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+        pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+        pyplot.close()
+
+        this_cmap_object_by_panel = [diff_colour_map_object] * num_panels
+        this_cnorm_object_by_panel = [None] * num_panels
+
+        if list_of_layer_operation_dicts is None:
+            for j in range(num_panels):
+                this_diff_matrix = (
+                    optimized_radar_matrix[i, ..., j] -
+                    input_radar_matrix[i, ..., j]
+                )
+
+                this_max_value = numpy.percentile(
+                    numpy.absolute(this_diff_matrix),
+                    max_colour_percentile_for_diff)
+
+                this_cnorm_object_by_panel[j] = matplotlib.colors.Normalize(
+                    vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
+
+        else:
+            unique_field_names = numpy.unique(numpy.array(field_name_by_panel))
+
+            for this_field_name in unique_field_names:
+                these_panel_indices = numpy.where(
+                    numpy.array(field_name_by_panel) == this_field_name
+                )[0]
+
+                this_diff_matrix = (
+                    optimized_radar_matrix[i, ..., these_panel_indices] -
+                    input_radar_matrix[i, ..., these_panel_indices]
+                )
+
+                this_max_value = numpy.percentile(
+                    numpy.absolute(this_diff_matrix),
+                    max_colour_percentile_for_diff)
+
+                this_colour_norm_object = matplotlib.colors.Normalize(
+                    vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
+
+                for this_index in these_panel_indices:
+                    this_cnorm_object_by_panel[
+                        this_index] = this_colour_norm_object
+
+        this_diff_matrix = (
+            optimized_radar_matrix[i, ...] - input_radar_matrix[i, ...]
+        )
+
+        radar_plotting.plot_many_2d_grids_without_coords(
+            field_matrix=numpy.flip(this_diff_matrix, axis=0),
+            field_name_by_panel=field_name_by_panel,
+            num_panel_rows=num_panel_rows, panel_names=panel_names,
+            colour_map_object_by_panel=this_cmap_object_by_panel,
+            colour_norm_object_by_panel=this_cnorm_object_by_panel,
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
+
+        this_title_string = '{0:s} (after minus before optimization)'.format(
+            this_base_title_string)
+        this_file_name = '{0:s}_optimization-diff_radar.jpg'.format(
             this_base_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
