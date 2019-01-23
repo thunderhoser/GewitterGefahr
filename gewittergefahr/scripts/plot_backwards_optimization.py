@@ -1,5 +1,6 @@
 """Plots results of backwards optimization."""
 
+import copy
 import os.path
 import argparse
 import numpy
@@ -19,7 +20,8 @@ from gewittergefahr.plotting import plotting_utils
 from gewittergefahr.plotting import radar_plotting
 from gewittergefahr.plotting import sounding_plotting
 
-# TODO(thunderhoser): Fuck with directories.
+# TODO(thunderhoser): This file contains a lot of duplicated code for
+# determining output paths and titles.
 
 SEPARATOR_STRING = '\n\n' + '*' * 50 + '\n\n'
 
@@ -76,8 +78,8 @@ INPUT_ARG_PARSER.add_argument(
 def _plot_bwo_for_2d3d_radar(
         list_of_optimized_matrices, training_option_dict,
         diff_colour_map_object, max_colour_percentile_for_diff,
-        output_dir_name, pmm_flag, list_of_input_matrices=None, storm_ids=None,
-        storm_times_unix_sec=None):
+        top_output_dir_name, pmm_flag, list_of_input_matrices=None,
+        storm_ids=None, storm_times_unix_sec=None):
     """Plots BWO results for 2-D azimuthal-shear and 3-D reflectivity fields.
 
     E = number of examples (storm objects)
@@ -89,8 +91,8 @@ def _plot_bwo_for_2d3d_radar(
     :param training_option_dict: See doc for `cnn.read_model_metadata`.
     :param diff_colour_map_object: See documentation at top of file.
     :param max_colour_percentile_for_diff: Same.
-    :param output_dir_name: Path to output directory (figures will be saved
-        here).
+    :param top_output_dir_name: Path to top-level output directory (figures will
+        be saved here).
     :param pmm_flag: Boolean flag.  If True, `list_of_predictor_matrices`
         contains probability-matched means.
     :param list_of_input_matrices: Same as `list_of_optimized_matrices` but with
@@ -100,6 +102,20 @@ def _plot_bwo_for_2d3d_radar(
     :param storm_times_unix_sec: [optional and used only if `pmm_flag = False`]
         length-E numpy array of storm times.
     """
+
+    before_optimization_dir_name = '{0:s}/before_optimization'.format(
+        top_output_dir_name)
+    after_optimization_dir_name = '{0:s}/after_optimization'.format(
+        top_output_dir_name)
+    difference_dir_name = '{0:s}/after_minus_before_optimization'.format(
+        top_output_dir_name)
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=before_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=after_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=difference_dir_name)
 
     if pmm_flag:
         have_storm_ids = False
@@ -115,7 +131,7 @@ def _plot_bwo_for_2d3d_radar(
 
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
-            this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
+            this_base_pathless_file_name = 'pmm'
         else:
             if have_storm_ids:
                 this_storm_time_string = time_conversion.unix_sec_to_string(
@@ -124,14 +140,12 @@ def _plot_bwo_for_2d3d_radar(
                 this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
                     storm_ids[i], this_storm_time_string)
 
-                this_base_file_name = '{0:s}/{1:s}_{2:s}'.format(
-                    output_dir_name, storm_ids[i].replace('_', '-'),
-                    this_storm_time_string)
+                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
+                    storm_ids[i].replace('_', '-'), this_storm_time_string)
 
             else:
                 this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_file_name = '{0:s}/example{1:06d}'.format(
-                    output_dir_name, i)
+                this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
         this_reflectivity_matrix_dbz = numpy.flip(
             list_of_optimized_matrices[0][i, ..., 0], axis=0)
@@ -162,8 +176,10 @@ def _plot_bwo_for_2d3d_radar(
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=1_reflectivity.jpg'.format(
-            this_base_file_name)
+
+        this_file_name = (
+            '{0:s}/{1:s}_after-optimization_reflectivity.jpg'
+        ).format(after_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -195,8 +211,10 @@ def _plot_bwo_for_2d3d_radar(
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=1_azimuthal-shear.jpg'.format(
-            this_base_file_name)
+
+        this_file_name = (
+            '{0:s}/{1:s}_after-optimization_azimuthal-shear.jpg'
+        ).format(after_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -230,8 +248,10 @@ def _plot_bwo_for_2d3d_radar(
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=0_reflectivity.jpg'.format(
-            this_base_file_name)
+
+        this_file_name = (
+            '{0:s}/{1:s}_before-optimization_reflectivity.jpg'
+        ).format(before_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -263,8 +283,10 @@ def _plot_bwo_for_2d3d_radar(
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=0_azimuthal-shear.jpg'.format(
-            this_base_file_name)
+
+        this_file_name = (
+            '{0:s}/{1:s}_before-optimization_azimuthal-shear.jpg'
+        ).format(before_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -304,8 +326,10 @@ def _plot_bwo_for_2d3d_radar(
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimization-diff_reflectivity.jpg'.format(
-            this_base_file_name)
+
+        this_file_name = (
+            '{0:s}/{1:s}_optimization-diff_reflectivity.jpg'
+        ).format(difference_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -347,8 +371,10 @@ def _plot_bwo_for_2d3d_radar(
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimization-diff_azimuthal-shear.jpg'.format(
-            this_base_file_name)
+
+        this_file_name = (
+            '{0:s}/{1:s}_optimization-diff_azimuthal-shear.jpg'
+        ).format(difference_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -358,7 +384,7 @@ def _plot_bwo_for_2d3d_radar(
 
 def _plot_bwo_for_3d_radar(
         optimized_radar_matrix, training_option_dict, diff_colour_map_object,
-        max_colour_percentile_for_diff, output_dir_name, pmm_flag,
+        max_colour_percentile_for_diff, top_output_dir_name, pmm_flag,
         input_radar_matrix=None, storm_ids=None, storm_times_unix_sec=None):
     """Plots BWO results for 3-D radar fields.
 
@@ -373,13 +399,27 @@ def _plot_bwo_for_3d_radar(
     :param training_option_dict: See doc for `_plot_bwo_for_2d3d_radar`.
     :param diff_colour_map_object: Same.
     :param max_colour_percentile_for_diff: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     :param pmm_flag: Same.
     :param input_radar_matrix: Same as `optimized_radar_matrix` but with
         non-optimized input.
     :param storm_ids: See doc for `_plot_bwo_for_2d3d_radar`.
     :param storm_times_unix_sec: Same.
     """
+
+    before_optimization_dir_name = '{0:s}/before_optimization'.format(
+        top_output_dir_name)
+    after_optimization_dir_name = '{0:s}/after_optimization'.format(
+        top_output_dir_name)
+    difference_dir_name = '{0:s}/after_minus_before_optimization'.format(
+        top_output_dir_name)
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=before_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=after_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=difference_dir_name)
 
     if pmm_flag:
         have_storm_ids = False
@@ -400,7 +440,7 @@ def _plot_bwo_for_3d_radar(
 
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
-            this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
+            this_base_pathless_file_name = 'pmm'
         else:
             if have_storm_ids:
                 this_storm_time_string = time_conversion.unix_sec_to_string(
@@ -409,14 +449,12 @@ def _plot_bwo_for_3d_radar(
                 this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
                     storm_ids[i], this_storm_time_string)
 
-                this_base_file_name = '{0:s}/{1:s}_{2:s}'.format(
-                    output_dir_name, storm_ids[i].replace('_', '-'),
-                    this_storm_time_string)
+                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
+                    storm_ids[i].replace('_', '-'), this_storm_time_string)
 
             else:
                 this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_file_name = '{0:s}/example{1:06d}'.format(
-                    output_dir_name, i)
+                this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
         for j in range(len(radar_field_names)):
             _, these_axes_objects = (
@@ -443,8 +481,12 @@ def _plot_bwo_for_3d_radar(
 
             this_title_string = '{0:s} (after optimization)'.format(
                 this_base_title_string)
-            this_file_name = '{0:s}_optimized=1_{1:s}.jpg'.format(
-                this_base_file_name, radar_field_names[j].replace('_', '-')
+
+            this_file_name = (
+                '{0:s}/{1:s}_after-optimization_{2:s}.jpg'
+            ).format(
+                after_optimization_dir_name, this_base_pathless_file_name,
+                radar_field_names[j].replace('_', '-')
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
@@ -479,8 +521,12 @@ def _plot_bwo_for_3d_radar(
 
             this_title_string = '{0:s} (before optimization)'.format(
                 this_base_title_string)
-            this_file_name = '{0:s}_optimized=0_{1:s}.jpg'.format(
-                this_base_file_name, radar_field_names[j].replace('_', '-')
+
+            this_file_name = (
+                '{0:s}/{1:s}_before-optimization_{2:s}.jpg'
+            ).format(
+                before_optimization_dir_name, this_base_pathless_file_name,
+                radar_field_names[j].replace('_', '-')
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
@@ -522,8 +568,11 @@ def _plot_bwo_for_3d_radar(
                 '{0:s} (after minus before optimization)'
             ).format(this_base_title_string)
 
-            this_file_name = '{0:s}_optimization-diff_{1:s}.jpg'.format(
-                this_base_file_name, radar_field_names[j].replace('_', '-')
+            this_file_name = (
+                '{0:s}/{1:s}_optimization-diff_{2:s}.jpg'
+            ).format(
+                difference_dir_name, this_base_pathless_file_name,
+                radar_field_names[j].replace('_', '-')
             )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
@@ -534,7 +583,7 @@ def _plot_bwo_for_3d_radar(
 
 def _plot_bwo_for_2d_radar(
         optimized_radar_matrix, model_metadata_dict, diff_colour_map_object,
-        max_colour_percentile_for_diff, output_dir_name, pmm_flag,
+        max_colour_percentile_for_diff, top_output_dir_name, pmm_flag,
         input_radar_matrix=None, storm_ids=None, storm_times_unix_sec=None):
     """Plots BWO results for 2-D radar fields.
 
@@ -549,13 +598,27 @@ def _plot_bwo_for_2d_radar(
         `cnn.read_model_metadata`.
     :param diff_colour_map_object: See doc for `_plot_bwo_for_2d3d_radar`.
     :param max_colour_percentile_for_diff: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     :param pmm_flag: Same.
     :param input_radar_matrix: Same as `optimized_radar_matrix` but with
         non-optimized input.
     :param storm_ids: See doc for `_plot_bwo_for_2d3d_radar`.
     :param storm_times_unix_sec: Same.
     """
+
+    before_optimization_dir_name = '{0:s}/before_optimization'.format(
+        top_output_dir_name)
+    after_optimization_dir_name = '{0:s}/after_optimization'.format(
+        top_output_dir_name)
+    difference_dir_name = '{0:s}/after_minus_before_optimization'.format(
+        top_output_dir_name)
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=before_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=after_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=difference_dir_name)
 
     training_option_dict = model_metadata_dict[cnn.TRAINING_OPTION_DICT_KEY]
     list_of_layer_operation_dicts = model_metadata_dict[
@@ -595,7 +658,7 @@ def _plot_bwo_for_2d_radar(
 
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
-            this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
+            this_base_pathless_file_name = 'pmm'
         else:
             if have_storm_ids:
                 this_storm_time_string = time_conversion.unix_sec_to_string(
@@ -604,14 +667,12 @@ def _plot_bwo_for_2d_radar(
                 this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
                     storm_ids[i], this_storm_time_string)
 
-                this_base_file_name = '{0:s}/{1:s}_{2:s}'.format(
-                    output_dir_name, storm_ids[i].replace('_', '-'),
-                    this_storm_time_string)
+                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
+                    storm_ids[i].replace('_', '-'), this_storm_time_string)
 
             else:
                 this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_file_name = '{0:s}/example{1:06d}'.format(
-                    output_dir_name, i)
+                this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
         radar_plotting.plot_many_2d_grids_without_coords(
             field_matrix=numpy.flip(optimized_radar_matrix[i, ...], axis=0),
@@ -621,8 +682,8 @@ def _plot_bwo_for_2d_radar(
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=1_radar.jpg'.format(
-            this_base_file_name)
+        this_file_name = '{0:s}/{1:s}_after-optimization_radar.jpg'.format(
+            after_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -640,8 +701,8 @@ def _plot_bwo_for_2d_radar(
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=0_radar.jpg'.format(
-            this_base_file_name)
+        this_file_name = '{0:s}/{1:s}_before-optimization_radar.jpg'.format(
+            before_optimization_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -703,8 +764,8 @@ def _plot_bwo_for_2d_radar(
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimization-diff_radar.jpg'.format(
-            this_base_file_name)
+        this_file_name = '{0:s}/{1:s}_optimization-diff_radar.jpg'.format(
+            difference_dir_name, this_base_pathless_file_name)
 
         pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
         print 'Saving figure to: "{0:s}"...'.format(this_file_name)
@@ -713,7 +774,7 @@ def _plot_bwo_for_2d_radar(
 
 
 def _plot_bwo_for_soundings(
-        optimized_sounding_matrix, training_option_dict, output_dir_name,
+        optimized_sounding_matrix, training_option_dict, top_output_dir_name,
         pmm_flag, input_sounding_matrix=None, storm_ids=None,
         storm_times_unix_sec=None):
     """Plots BWO results for soundings.
@@ -725,13 +786,23 @@ def _plot_bwo_for_soundings(
     :param optimized_sounding_matrix: E-by-H-by-F numpy array of sounding values
         (predictors).
     :param training_option_dict: See doc for `_plot_bwo_for_2d3d_radar`.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     :param pmm_flag: Same.
     :param input_sounding_matrix: Same as `optimized_sounding_matrix` but with
         non-optimized input.
     :param storm_ids: See doc for `_plot_bwo_for_2d3d_radar`.
     :param storm_times_unix_sec: Same.
     """
+
+    before_optimization_dir_name = '{0:s}/before_optimization'.format(
+        top_output_dir_name)
+    after_optimization_dir_name = '{0:s}/after_optimization'.format(
+        top_output_dir_name)
+
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=before_optimization_dir_name)
+    file_system_utils.mkdir_recursive_if_necessary(
+        directory_name=after_optimization_dir_name)
 
     if pmm_flag:
         have_storm_ids = False
@@ -760,7 +831,7 @@ def _plot_bwo_for_soundings(
     for i in range(num_storms):
         if pmm_flag:
             this_base_title_string = 'Probability-matched mean'
-            this_base_file_name = '{0:s}/pmm'.format(output_dir_name)
+            this_base_pathless_file_name = 'pmm'
         else:
             if have_storm_ids:
                 this_storm_time_string = time_conversion.unix_sec_to_string(
@@ -769,19 +840,17 @@ def _plot_bwo_for_soundings(
                 this_base_title_string = 'Storm "{0:s}" at {1:s}'.format(
                     storm_ids[i], this_storm_time_string)
 
-                this_base_file_name = '{0:s}/{1:s}_{2:s}'.format(
-                    output_dir_name, storm_ids[i].replace('_', '-'),
-                    this_storm_time_string)
+                this_base_pathless_file_name = '{0:s}_{1:s}'.format(
+                    storm_ids[i].replace('_', '-'), this_storm_time_string)
 
             else:
                 this_base_title_string = 'Example {0:d}'.format(i + 1)
-                this_base_file_name = '{0:s}/example{1:06d}'.format(
-                    output_dir_name, i)
+                this_base_pathless_file_name = 'example{0:06d}'.format(i)
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=1_sounding.jpg'.format(
-            this_base_file_name)
+        this_file_name = '{0:s}/{1:s}_after-optimization_sounding.jpg'.format(
+            after_optimization_dir_name, this_base_pathless_file_name)
 
         sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_optimized_metpy_dicts[i],
@@ -796,8 +865,8 @@ def _plot_bwo_for_soundings(
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
-        this_file_name = '{0:s}_optimized=0_sounding.jpg'.format(
-            this_base_file_name)
+        this_file_name = '{0:s}/{1:s}_before-optimization_sounding.jpg'.format(
+            before_optimization_dir_name, this_base_pathless_file_name)
 
         sounding_plotting.plot_sounding(
             sounding_dict_for_metpy=list_of_input_metpy_dicts[i],
@@ -809,7 +878,7 @@ def _plot_bwo_for_soundings(
 
 
 def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
-         output_dir_name):
+         top_output_dir_name):
     """Plots results of backwards optimization.
 
     This is effectively the main method.
@@ -817,11 +886,8 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
     :param input_file_name: See documentation at top of file.
     :param diff_colour_map_name: Same.
     :param max_colour_percentile_for_diff: Same.
-    :param output_dir_name: Same.
+    :param top_output_dir_name: Same.
     """
-
-    file_system_utils.mkdir_recursive_if_necessary(
-        directory_name=output_dir_name)
 
     pmm_flag = False
 
@@ -896,7 +962,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         _plot_bwo_for_soundings(
             optimized_sounding_matrix=list_of_optimized_matrices[-1],
             training_option_dict=training_option_dict,
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
             input_sounding_matrix=this_input_matrix, storm_ids=storm_ids,
             storm_times_unix_sec=storm_times_unix_sec)
         print SEPARATOR_STRING
@@ -907,7 +973,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             training_option_dict=training_option_dict,
             diff_colour_map_object=diff_colour_map_object,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
             list_of_input_matrices=list_of_input_matrices,
             storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
         return
@@ -924,7 +990,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
             training_option_dict=training_option_dict,
             diff_colour_map_object=diff_colour_map_object,
             max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-            output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+            top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
             input_radar_matrix=this_input_matrix,
             storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
         return
@@ -934,7 +1000,7 @@ def _run(input_file_name, diff_colour_map_name, max_colour_percentile_for_diff,
         model_metadata_dict=model_metadata_dict,
         diff_colour_map_object=diff_colour_map_object,
         max_colour_percentile_for_diff=max_colour_percentile_for_diff,
-        output_dir_name=output_dir_name, pmm_flag=pmm_flag,
+        top_output_dir_name=top_output_dir_name, pmm_flag=pmm_flag,
         input_radar_matrix=this_input_matrix,
         storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec)
 
@@ -947,5 +1013,5 @@ if __name__ == '__main__':
         diff_colour_map_name=getattr(INPUT_ARG_OBJECT, COLOUR_MAP_ARG_NAME),
         max_colour_percentile_for_diff=getattr(
             INPUT_ARG_OBJECT, MAX_PERCENTILE_ARG_NAME),
-        output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
+        top_output_dir_name=getattr(INPUT_ARG_OBJECT, OUTPUT_DIR_ARG_NAME)
     )
