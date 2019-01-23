@@ -334,7 +334,7 @@ def _plot_bwo_for_2d3d_radar(
                 colour_map_object_by_panel=
                 [diff_colour_map_object] * num_az_shear_fields,
                 colour_norm_object_by_panel=
-                [this_colour_norm_object] * num_az_shear_fields,
+                [copy.deepcopy(this_colour_norm_object)] * num_az_shear_fields,
                 font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
         )
 
@@ -682,12 +682,12 @@ def _plot_bwo_for_2d_radar(
                     numpy.absolute(this_diff_matrix),
                     max_colour_percentile_for_diff)
 
-                this_colour_norm_object = matplotlib.colors.Normalize(
-                    vmin=-1 * this_max_value, vmax=this_max_value, clip=False)
-
                 for this_index in these_panel_indices:
-                    this_cnorm_object_by_panel[
-                        this_index] = this_colour_norm_object
+                    this_cnorm_object_by_panel[this_index] = (
+                        matplotlib.colors.Normalize(
+                            vmin=-1 * this_max_value, vmax=this_max_value,
+                            clip=False)
+                    )
 
         this_diff_matrix = (
             optimized_radar_matrix[i, ...] - input_radar_matrix[i, ...]
