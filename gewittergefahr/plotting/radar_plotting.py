@@ -665,10 +665,12 @@ def plot_2d_grid_without_coords(
 
     axes_object.set_xticks([8, 16, 24])
     axes_object.set_yticks([8, 16, 24])
-    axes_object.grid(b=True, which='major', axis='both')
+    axes_object.grid(b=True, which='major', axis='both', linestyle='-.', linewidth=2)
 
     axes_object.xaxis.set_ticklabels([])
     axes_object.yaxis.set_ticklabels([])
+    axes_object.xaxis.set_ticks_position('none')
+    axes_object.yaxis.set_ticks_position('none')
 
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
