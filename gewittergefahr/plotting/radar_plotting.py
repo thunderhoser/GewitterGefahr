@@ -667,6 +667,9 @@ def plot_2d_grid_without_coords(
     axes_object.set_yticks([8, 16, 24])
     axes_object.grid(b=True, which='major', axis='both')
 
+    axes_object.xaxis.set_ticklabels([])
+    axes_object.yaxis.set_ticklabels([])
+
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
 
