@@ -663,6 +663,8 @@ def plot_2d_grid_without_coords(
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None')
 
+    axes_object.set_xticks([8, 16, 24])
+    axes_object.set_yticks([8, 16, 24])
     axes_object.grid(b=True, which='major', axis='both')
 
     if annotation_string is not None:
@@ -680,12 +682,6 @@ def plot_2d_grid_without_coords(
             bbox=bounding_box_dict, color='k', horizontalalignment='center',
             verticalalignment='bottom', transform=axes_object.transAxes,
             zorder=1e10)
-
-    print axes_object.get_xlim()
-    print axes_object.get_ylim()
-
-    axes_object.set_xticks([])
-    axes_object.set_yticks([])
 
     return colour_map_object, colour_norm_object
 
