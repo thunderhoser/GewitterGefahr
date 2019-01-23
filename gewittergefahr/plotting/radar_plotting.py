@@ -629,6 +629,8 @@ def plot_2d_grid_without_coords(
         vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None')
 
+    pyplot.grid(b=True, which='major', axis='both')
+
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
 
