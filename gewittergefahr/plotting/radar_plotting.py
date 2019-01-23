@@ -562,11 +562,17 @@ def plot_latlng_grid(
         colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
+    if hasattr(colour_norm_object, 'boundaries'):
+        min_colour_value = colour_norm_object.boundaries[0]
+        max_colour_value = colour_norm_object.boundaries[-1]
+    else:
+        min_colour_value = colour_norm_object.vmin
+        max_colour_value = colour_norm_object.vmax
+
     pyplot.pcolormesh(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
         field_matrix_at_edges, cmap=colour_map_object, norm=colour_norm_object,
-        vmin=colour_norm_object.boundaries[0],
-        vmax=colour_norm_object.boundaries[-1], shading='flat',
+        vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None', axes=axes_object)
 
 
@@ -611,10 +617,16 @@ def plot_2d_grid_without_coords(
         colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
+    if hasattr(colour_norm_object, 'boundaries'):
+        min_colour_value = colour_norm_object.boundaries[0]
+        max_colour_value = colour_norm_object.boundaries[-1]
+    else:
+        min_colour_value = colour_norm_object.vmin
+        max_colour_value = colour_norm_object.vmax
+
     axes_object.pcolormesh(
         field_matrix, cmap=colour_map_object, norm=colour_norm_object,
-        vmin=colour_norm_object.boundaries[0],
-        vmax=colour_norm_object.boundaries[-1], shading='flat',
+        vmin=min_colour_value, vmax=max_colour_value, shading='flat',
         edgecolors='None')
 
     if annotation_string is not None:

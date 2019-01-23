@@ -42,8 +42,12 @@ def plot_2d_feature_map(
         error_checking.assert_is_greater(max_colour_value, min_colour_value)
         colour_norm_object = None
     else:
-        min_colour_value = colour_norm_object.boundaries[0]
-        max_colour_value = colour_norm_object.boundaries[-1]
+        if hasattr(colour_norm_object, 'boundaries'):
+            min_colour_value = colour_norm_object.boundaries[0]
+            max_colour_value = colour_norm_object.boundaries[-1]
+        else:
+            min_colour_value = colour_norm_object.vmin
+            max_colour_value = colour_norm_object.vmax
 
     axes_object.pcolormesh(
         feature_matrix, cmap=colour_map_object, norm=colour_norm_object,
