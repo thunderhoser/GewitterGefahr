@@ -558,7 +558,11 @@ def plot_latlng_grid(
     field_matrix_at_edges = numpy.ma.masked_where(
         numpy.isnan(field_matrix_at_edges), field_matrix_at_edges)
 
-    if colour_map_object is None or colour_norm_object is None:
+    use_default_colour_scheme = (
+        colour_map_object is None or colour_norm_object is None
+    )
+
+    if use_default_colour_scheme:
         colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
@@ -568,6 +572,12 @@ def plot_latlng_grid(
     else:
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
+
+    if not use_default_colour_scheme:
+        min_colour_value = _field_to_plotting_units(
+            field_matrix=min_colour_value, field_name=field_name)
+        max_colour_value = _field_to_plotting_units(
+            field_matrix=max_colour_value, field_name=field_name)
 
     pyplot.pcolormesh(
         grid_cell_edge_longitudes_deg, grid_cell_edge_latitudes_deg,
@@ -613,7 +623,11 @@ def plot_2d_grid_without_coords(
     field_matrix = numpy.ma.masked_where(
         numpy.isnan(field_matrix), field_matrix)
 
-    if colour_map_object is None or colour_norm_object is None:
+    use_default_colour_scheme = (
+        colour_map_object is None or colour_norm_object is None
+    )
+
+    if use_default_colour_scheme:
         colour_map_object, colour_norm_object = get_default_colour_scheme(
             field_name)
 
@@ -623,6 +637,12 @@ def plot_2d_grid_without_coords(
     else:
         min_colour_value = colour_norm_object.vmin
         max_colour_value = colour_norm_object.vmax
+
+    if not use_default_colour_scheme:
+        min_colour_value = _field_to_plotting_units(
+            field_matrix=min_colour_value, field_name=field_name)
+        max_colour_value = _field_to_plotting_units(
+            field_matrix=max_colour_value, field_name=field_name)
 
     axes_object.pcolormesh(
         field_matrix, cmap=colour_map_object, norm=colour_norm_object,
