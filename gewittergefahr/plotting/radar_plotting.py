@@ -857,6 +857,7 @@ def plot_many_2d_grids_without_coords(
             fraction_of_axis_length=0.9)
 
         this_colour_bar_object.set_label(panel_names[k], fontsize=font_size)
+        this_colour_bar_object.ax.xaxis.set_label_position('top')
 
     return figure_object, axes_objects_2d_list
 
