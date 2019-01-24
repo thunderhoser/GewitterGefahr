@@ -48,7 +48,7 @@ DEFAULT_LCC_STANDARD_LATS_DEG = numpy.array([25., 25.])
 DEFAULT_LCC_CENTRAL_LNG_DEG = 265.
 
 PADDING_FOR_VERTICAL_COLOUR_BAR = 0.05
-PADDING_FOR_HORIZ_COLOUR_BAR = 0.075
+PADDING_FOR_HORIZ_COLOUR_BAR = 0.05
 DEFAULT_COLOUR_BAR_ORIENTATION = 'horizontal'
 
 DEFAULT_ANNOT_FONT_SIZE = 50
@@ -493,25 +493,6 @@ def add_colour_bar(
         this_padding = PADDING_FOR_HORIZ_COLOUR_BAR
     else:
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
-
-    # if isinstance(axes_object_or_list, list):
-    #     colour_bar_object = pyplot.colorbar(
-    #         ax=axes_object_or_list, mappable=scalar_mappable_object,
-    #         orientation=orientation, pad=this_padding, extend=extend_argument,
-    #         shrink=fraction_of_axis_length)
-    # else:
-    #     if orientation == 'horizontal':
-    #         position_string = 'bottom'
-    #     else:
-    #         position_string = 'right'
-    #
-    #     divider_object = make_axes_locatable(axes_object_or_list)
-    #     this_axes_object = divider_object.append_axes(
-    #         position=position_string, size='5%', pad=0.05)
-    #
-    #     colour_bar_object = pyplot.colorbar(
-    #         cax=this_axes_object, mappable=scalar_mappable_object,
-    #         orientation=orientation, extend=extend_argument)
 
     colour_bar_object = pyplot.colorbar(
         ax=axes_object_or_list, mappable=scalar_mappable_object,
