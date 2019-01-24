@@ -817,13 +817,25 @@ def plot_many_2d_grids_without_coords(
             k, (num_panel_rows, num_panel_columns), order=order_string
         )
 
+        # this_colour_map_object, this_colour_norm_object = (
+        #     plot_2d_grid_without_coords(
+        #         field_matrix=field_matrix[..., k],
+        #         field_name=field_name_by_panel[k],
+        #         axes_object=axes_objects_2d_list[
+        #             this_panel_row][this_panel_column],
+        #         annotation_string=panel_names[k], font_size=font_size,
+        #         colour_map_object=colour_map_object_by_panel[k],
+        #         colour_norm_object=colour_norm_object_by_panel[k]
+        #     )
+        # )
+
         this_colour_map_object, this_colour_norm_object = (
             plot_2d_grid_without_coords(
                 field_matrix=field_matrix[..., k],
                 field_name=field_name_by_panel[k],
                 axes_object=axes_objects_2d_list[
                     this_panel_row][this_panel_column],
-                annotation_string=panel_names[k], font_size=font_size,
+                annotation_string=None, font_size=font_size,
                 colour_map_object=colour_map_object_by_panel[k],
                 colour_norm_object=colour_norm_object_by_panel[k]
             )
@@ -834,7 +846,7 @@ def plot_many_2d_grids_without_coords(
 
         this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES
 
-        plotting_utils.add_colour_bar(
+        this_colour_bar_object = plotting_utils.add_colour_bar(
             axes_object_or_list=axes_objects_2d_list[
                 this_panel_row][this_panel_column],
             values_to_colour=field_matrix[..., k],
@@ -843,6 +855,8 @@ def plot_many_2d_grids_without_coords(
             orientation='horizontal', font_size=font_size,
             extend_min=this_extend_min_flag, extend_max=True,
             fraction_of_axis_length=0.9)
+
+        this_colour_bar_object.set_label(panel_names[k], fontsize=font_size)
 
     return figure_object, axes_objects_2d_list
 
