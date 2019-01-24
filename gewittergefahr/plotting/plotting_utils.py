@@ -114,7 +114,7 @@ def init_panels(num_panel_rows, num_panel_columns, figure_width_inches,
         axes_objects_2d_list = [axes_objects_2d_list]
 
     pyplot.subplots_adjust(
-        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0.01, wspace=0.01)
+        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0., wspace=0.)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
