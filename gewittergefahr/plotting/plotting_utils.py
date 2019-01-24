@@ -511,8 +511,7 @@ def add_colour_bar(
 
         colour_bar_object = pyplot.colorbar(
             cax=this_axes_object, mappable=scalar_mappable_object,
-            orientation=orientation, pad=this_padding, extend=extend_argument,
-            shrink=fraction_of_axis_length)
+            orientation=orientation, extend=extend_argument)
 
     colour_bar_object.ax.tick_params(labelsize=font_size)
 
