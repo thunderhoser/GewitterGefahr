@@ -253,11 +253,19 @@ def _plot_2d_radar_cams(
                     trainval_io.RADAR_HEIGHTS_KEY]
             )
         )
+
+        plot_colour_bar_by_panel = numpy.full(
+            len(panel_names), True, dtype=bool)
+
     else:
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts)
         )
+
+        plot_colour_bar_by_panel = numpy.full(
+            len(panel_names), False, dtype=bool)
+        plot_colour_bar_by_panel[2::3] = True
 
     num_examples = radar_matrix.shape[0]
     num_channels = radar_matrix.shape[-1]
@@ -275,9 +283,9 @@ def _plot_2d_radar_cams(
             radar_plotting.plot_many_2d_grids_without_coords(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
-                num_panel_rows=num_panel_rows, panel_names=panel_names,
-                font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=False,
-                row_major=False)
+                panel_names=panel_names, num_panel_rows=num_panel_rows,
+                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
         )
 
         if class_activation_matrix is None:

@@ -171,25 +171,42 @@ def _plot_examples(
     else:
         list_of_metpy_dictionaries = None
 
+    num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
     list_of_layer_operation_dicts = model_metadata_dict[
         cnn.LAYER_OPERATIONS_KEY]
 
-    if list_of_layer_operation_dicts is None:
-        field_name_by_panel = training_option_dict[
-            trainval_io.RADAR_FIELDS_KEY]
+    if num_radar_dimensions == 2:
+        if list_of_layer_operation_dicts is None:
+            field_name_by_panel = training_option_dict[
+                trainval_io.RADAR_FIELDS_KEY]
 
-        panel_names = (
-            radar_plotting.radar_fields_and_heights_to_panel_names(
-                field_names=field_name_by_panel,
-                heights_m_agl=training_option_dict[
-                    trainval_io.RADAR_HEIGHTS_KEY]
+            panel_names = (
+                radar_plotting.radar_fields_and_heights_to_panel_names(
+                    field_names=field_name_by_panel,
+                    heights_m_agl=training_option_dict[
+                        trainval_io.RADAR_HEIGHTS_KEY]
+                )
             )
-        )
+
+            plot_colour_bar_by_panel = numpy.full(
+                len(panel_names), True, dtype=bool)
+
+        else:
+            field_name_by_panel, panel_names = (
+                radar_plotting.layer_ops_to_field_and_panel_names(
+                    list_of_layer_operation_dicts)
+            )
+
+            plot_colour_bar_by_panel = numpy.full(
+                len(panel_names), False, dtype=bool)
+            plot_colour_bar_by_panel[2::3] = True
     else:
-        field_name_by_panel, panel_names = (
-            radar_plotting.layer_ops_to_field_and_panel_names(
-                list_of_layer_operation_dicts)
-        )
+        field_name_by_panel = None
+        panel_names = None
+        plot_colour_bar_by_panel = None
+
+    az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
+    num_az_shear_fields = len(az_shear_field_names)
 
     num_storms = len(storm_ids)
     myrorss_2d3d = len(list_of_predictor_matrices) == 3
@@ -259,13 +276,11 @@ def _plot_examples(
             _, these_axes_objects = (
                 radar_plotting.plot_many_2d_grids_without_coords(
                     field_matrix=this_az_shear_matrix_s01,
-                    field_name_by_panel=training_option_dict[
-                        trainval_io.RADAR_FIELDS_KEY],
-                    num_panel_rows=1,
-                    panel_names=training_option_dict[
-                        trainval_io.RADAR_FIELDS_KEY],
-                    font_size=FONT_SIZE_SANS_COLOUR_BARS,
-                    plot_colour_bars=False)
+                    field_name_by_panel=az_shear_field_names,
+                    panel_names=az_shear_field_names, num_panel_rows=1,
+                    plot_colour_bar_by_panel=numpy.full(
+                        num_az_shear_fields, False, dtype=bool),
+                    font_size=FONT_SIZE_SANS_COLOUR_BARS)
             )
 
             this_colour_map_object, this_colour_norm_object = (
@@ -289,70 +304,65 @@ def _plot_examples(
             continue
 
         this_radar_matrix = list_of_predictor_matrices[0]
-        num_radar_dimensions = len(list_of_predictor_matrices[0].shape) - 2
 
         if num_radar_dimensions == 2:
-            j_max = 1
-            radar_field_names = None
-            radar_heights_m_agl = None
-        else:
-            radar_field_names = training_option_dict[
-                trainval_io.RADAR_FIELDS_KEY]
-            radar_heights_m_agl = training_option_dict[
-                trainval_io.RADAR_HEIGHTS_KEY]
+            this_num_channels = this_radar_matrix.shape[-1]
+            this_num_panel_rows = int(numpy.floor(
+                numpy.sqrt(this_num_channels)
+            ))
 
-            j_max = len(radar_field_names)
+            radar_plotting.plot_many_2d_grids_without_coords(
+                field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
+                field_name_by_panel=field_name_by_panel,
+                panel_names=panel_names, num_panel_rows=this_num_panel_rows,
+                plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
-        for j in range(j_max):
-            if num_radar_dimensions == 2:
-                this_num_channels = this_radar_matrix.shape[-1]
-                this_num_panel_rows = int(numpy.floor(
-                    numpy.sqrt(this_num_channels)
-                ))
+            this_title_string = this_base_title_string + ''
+            pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
 
-                radar_plotting.plot_many_2d_grids_without_coords(
-                    field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
-                    field_name_by_panel=field_name_by_panel,
-                    num_panel_rows=this_num_panel_rows, panel_names=panel_names,
-                    font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
-                    row_major=False)
+            this_file_name = '{0:s}.jpg'.format(this_base_file_name)
+            print 'Saving figure to: "{0:s}"...'.format(this_file_name)
+            pyplot.savefig(this_file_name, dpi=FIGURE_RESOLUTION_DPI)
+            pyplot.close()
 
-                this_title_string = this_base_title_string + ''
-                this_file_name = '{0:s}.jpg'.format(this_base_file_name)
-            else:
-                this_num_heights = this_radar_matrix.shape[-2]
-                this_num_panel_rows = int(numpy.floor(
-                    numpy.sqrt(this_num_heights)
-                ))
+            continue
 
-                _, these_axes_objects = (
-                    radar_plotting.plot_3d_grid_without_coords(
-                        field_matrix=numpy.flip(
-                            this_radar_matrix[i, ..., j], axis=0),
-                        field_name=radar_field_names[j],
-                        grid_point_heights_metres=radar_heights_m_agl,
-                        ground_relative=True,
-                        num_panel_rows=this_num_panel_rows,
-                        font_size=FONT_SIZE_SANS_COLOUR_BARS)
-                )
+        radar_field_names = training_option_dict[
+            trainval_io.RADAR_FIELDS_KEY]
+        radar_heights_m_agl = training_option_dict[
+            trainval_io.RADAR_HEIGHTS_KEY]
 
-                this_colour_map_object, this_colour_norm_object = (
-                    radar_plotting.get_default_colour_scheme(
-                        radar_field_names[j])
-                )
+        for j in range(len(radar_field_names)):
+            this_num_heights = this_radar_matrix.shape[-2]
+            this_num_panel_rows = int(numpy.floor(
+                numpy.sqrt(this_num_heights)
+            ))
 
-                plotting_utils.add_colour_bar(
-                    axes_object_or_list=these_axes_objects,
-                    values_to_colour=this_radar_matrix[i, ..., j],
-                    colour_map=this_colour_map_object,
-                    colour_norm_object=this_colour_norm_object,
-                    orientation='horizontal', extend_min=True, extend_max=True)
+            _, these_axes_objects = radar_plotting.plot_3d_grid_without_coords(
+                field_matrix=numpy.flip(this_radar_matrix[i, ..., j], axis=0),
+                field_name=radar_field_names[j],
+                grid_point_heights_metres=radar_heights_m_agl,
+                ground_relative=True, num_panel_rows=this_num_panel_rows,
+                font_size=FONT_SIZE_SANS_COLOUR_BARS)
 
-                this_title_string = '{0:s}; {1:s}'.format(
-                    this_base_title_string, radar_field_names[j])
-                this_file_name = '{0:s}_{1:s}.jpg'.format(
-                    this_base_file_name, radar_field_names[j].replace('_', '-')
-                )
+            this_colour_map_object, this_colour_norm_object = (
+                radar_plotting.get_default_colour_scheme(
+                    radar_field_names[j])
+            )
+
+            plotting_utils.add_colour_bar(
+                axes_object_or_list=these_axes_objects,
+                values_to_colour=this_radar_matrix[i, ..., j],
+                colour_map=this_colour_map_object,
+                colour_norm_object=this_colour_norm_object,
+                orientation='horizontal', extend_min=True, extend_max=True)
+
+            this_title_string = '{0:s}; {1:s}'.format(
+                this_base_title_string, radar_field_names[j])
+            this_file_name = '{0:s}_{1:s}.jpg'.format(
+                this_base_file_name, radar_field_names[j].replace('_', '-')
+            )
 
             pyplot.suptitle(this_title_string, fontsize=TITLE_FONT_SIZE)
             print 'Saving figure to: "{0:s}"...'.format(this_file_name)
