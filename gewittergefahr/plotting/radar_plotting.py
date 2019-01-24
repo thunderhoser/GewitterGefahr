@@ -793,8 +793,8 @@ def plot_many_2d_grids_without_coords(
 
     if len(colour_norm_object_by_panel) != num_panels:
         error_string = (
-            'Number of colour-normalizers ({0:d}) should equal number of panels '
-            '({1:d}).'
+            'Number of colour-normalizers ({0:d}) should equal number of panels'
+            ' ({1:d}).'
         ).format(len(colour_norm_object_by_panel), num_panels)
 
         raise ValueError(error_string)
