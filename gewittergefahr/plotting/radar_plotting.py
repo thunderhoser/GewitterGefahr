@@ -705,9 +705,10 @@ def plot_2d_grid_without_coords(
 def plot_many_2d_grids_without_coords(
         field_matrix, field_name_by_panel, num_panel_rows, panel_names=None,
         colour_map_object_by_panel=None, colour_norm_object_by_panel=None,
+        plot_colour_bar_by_panel=None,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
-        font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True, row_major=True):
+        font_size=DEFAULT_FONT_SIZE, row_major=True):
     """Plots 2-D colour map in each panel (one per field/height pair).
 
     M = number of rows in spatial grid
@@ -727,11 +728,13 @@ def plot_many_2d_grids_without_coords(
     :param colour_norm_object_by_panel: length-P list of
         `matplotlib.colors.BoundaryNorm` objects.  If this is None, the default
         will be used for each field.
+    :param plot_colour_bar_by_panel: length-P numpy array of Boolean flags.  If
+        plot_colour_bar_by_panel[k] = True, horizontal colour bar will be
+        plotted under [k]th panel.  If you want to plot colour bar for every
+        panel, leave this as None.
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
     :param font_size: Font size.
-    :param plot_colour_bars: Boolean flag.  If True, vertical colour bar will be
-        plotted next to each panel.
     :param row_major: Boolean flag.  If True, panels will be filled along rows
         first, then down columns.  If False, down columns first, then along
         rows.
@@ -755,20 +758,27 @@ def plot_many_2d_grids_without_coords(
     if panel_names is None:
         panel_names = [''] * num_panels
 
-    if (colour_map_object_by_panel is None
-            or colour_norm_object_by_panel is None):
-        colour_map_object_by_panel = [None] * num_panels
-        colour_norm_object_by_panel = [None] * num_panels
-
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_panel),
         exact_dimensions=numpy.array([num_panels])
     )
 
     error_checking.assert_is_numpy_array(
-        numpy.array(panel_names),
-        exact_dimensions=numpy.array([num_panels])
+        numpy.array(panel_names), exact_dimensions=numpy.array([num_panels])
     )
+
+    if plot_colour_bar_by_panel is None:
+        plot_colour_bar_by_panel = numpy.full(num_panels, True, dtype=bool)
+
+    error_checking.assert_is_boolean_numpy_array(plot_colour_bar_by_panel)
+    error_checking.assert_is_numpy_array(
+        plot_colour_bar_by_panel, exact_dimensions=numpy.array([num_panels])
+    )
+
+    if (colour_map_object_by_panel is None
+            or colour_norm_object_by_panel is None):
+        colour_map_object_by_panel = [None] * num_panels
+        colour_norm_object_by_panel = [None] * num_panels
 
     error_checking.assert_is_list(colour_map_object_by_panel)
     error_checking.assert_is_list(colour_norm_object_by_panel)
@@ -789,7 +799,6 @@ def plot_many_2d_grids_without_coords(
 
         raise ValueError(error_string)
 
-    error_checking.assert_is_boolean(plot_colour_bars)
     error_checking.assert_is_integer(num_panel_rows)
     error_checking.assert_is_geq(num_panel_rows, 1)
     error_checking.assert_is_leq(num_panel_rows, num_panels)
@@ -820,7 +829,7 @@ def plot_many_2d_grids_without_coords(
             )
         )
 
-        if not plot_colour_bars:
+        if not plot_colour_bar_by_panel[k]:
             continue
 
         this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES

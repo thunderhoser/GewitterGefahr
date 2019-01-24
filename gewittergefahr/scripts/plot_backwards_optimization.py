@@ -122,9 +122,11 @@ def _plot_bwo_for_2d3d_radar(
     else:
         have_storm_ids = not (storm_ids is None or storm_times_unix_sec is None)
 
-    num_storms = list_of_optimized_matrices[0].shape[0]
     az_shear_field_names = training_option_dict[trainval_io.RADAR_FIELDS_KEY]
     num_az_shear_fields = len(az_shear_field_names)
+    plot_colour_bar_flags = numpy.full(num_az_shear_fields, False, dtype=bool)
+
+    num_storms = list_of_optimized_matrices[0].shape[0]
 
     for i in range(num_storms):
         print '\n'
@@ -194,7 +196,8 @@ def _plot_bwo_for_2d3d_radar(
                 field_matrix=this_az_shear_matrix_s01,
                 field_name_by_panel=az_shear_field_names, num_panel_rows=1,
                 panel_names=az_shear_field_names,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
+                plot_colour_bar_by_panel=plot_colour_bar_flags,
+                font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
 
         this_colour_map_object, this_colour_norm_object = (
@@ -266,7 +269,8 @@ def _plot_bwo_for_2d3d_radar(
                 field_matrix=this_az_shear_matrix_s01,
                 field_name_by_panel=az_shear_field_names, num_panel_rows=1,
                 panel_names=az_shear_field_names,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
+                plot_colour_bar_by_panel=plot_colour_bar_flags,
+                font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
 
         this_colour_map_object, this_colour_norm_object = (
@@ -359,7 +363,8 @@ def _plot_bwo_for_2d3d_radar(
                 [diff_colour_map_object] * num_az_shear_fields,
                 colour_norm_object_by_panel=
                 [copy.deepcopy(this_colour_norm_object)] * num_az_shear_fields,
-                font_size=FONT_SIZE_SANS_COLOUR_BARS, plot_colour_bars=False)
+                plot_colour_bar_by_panel=plot_colour_bar_flags,
+                font_size=FONT_SIZE_SANS_COLOUR_BARS)
         )
 
         plotting_utils.add_colour_bar(
@@ -640,11 +645,19 @@ def _plot_bwo_for_2d_radar(
                     trainval_io.RADAR_HEIGHTS_KEY]
             )
         )
+
+        plot_colour_bar_by_panel = numpy.full(
+            len(panel_names), True, dtype=bool)
+
     else:
         field_name_by_panel, panel_names = (
             radar_plotting.layer_ops_to_field_and_panel_names(
                 list_of_layer_operation_dicts)
         )
+
+        plot_colour_bar_by_panel = numpy.full(
+            len(panel_names), False, dtype=bool)
+        plot_colour_bar_by_panel[2::3] = True
 
     num_panels = len(panel_names)
     num_storms = optimized_radar_matrix.shape[0]
@@ -678,8 +691,8 @@ def _plot_bwo_for_2d_radar(
             field_matrix=numpy.flip(optimized_radar_matrix[i, ...], axis=0),
             field_name_by_panel=field_name_by_panel,
             num_panel_rows=num_panel_rows, panel_names=panel_names,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
-            row_major=False)
+            plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
@@ -698,8 +711,8 @@ def _plot_bwo_for_2d_radar(
             field_matrix=numpy.flip(input_radar_matrix[i, ...], axis=0),
             field_name_by_panel=field_name_by_panel,
             num_panel_rows=num_panel_rows, panel_names=panel_names,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
-            row_major=False)
+            plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
@@ -762,8 +775,8 @@ def _plot_bwo_for_2d_radar(
             num_panel_rows=num_panel_rows, panel_names=panel_names,
             colour_map_object_by_panel=this_cmap_object_by_panel,
             colour_norm_object_by_panel=this_cnorm_object_by_panel,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
-            row_major=False)
+            plot_colour_bar_by_panel=plot_colour_bar_by_panel,
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, row_major=False)
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
