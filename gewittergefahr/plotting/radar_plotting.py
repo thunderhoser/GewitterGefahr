@@ -755,17 +755,17 @@ def plot_many_2d_grids_without_coords(
         order_string = 'F'
 
     num_panels = field_matrix.shape[2]
-    if panel_names is None:
-        panel_names = [''] * num_panels
-
     error_checking.assert_is_numpy_array(
         numpy.array(field_name_by_panel),
         exact_dimensions=numpy.array([num_panels])
     )
 
-    error_checking.assert_is_numpy_array(
-        numpy.array(panel_names), exact_dimensions=numpy.array([num_panels])
-    )
+    if panel_names is None:
+        panel_names = [None] * num_panels
+    else:
+        error_checking.assert_is_numpy_array(
+            numpy.array(panel_names), exact_dimensions=numpy.array([num_panels])
+        )
 
     if plot_colour_bar_by_panel is None:
         plot_colour_bar_by_panel = numpy.full(num_panels, True, dtype=bool)
