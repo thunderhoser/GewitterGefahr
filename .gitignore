@@ -12,9 +12,10 @@ dist/
 .idea/
 *.iml
 
-# Slurm scripts, figure-making scripts for Purdue talk.
+# Slurm scripts, figure-making scripts for papers and talks.
 slurm/
 purdue_talk/
+bams2019/
 
 # Code that I don't intend to commit.
 gewittergefahr/*.py
