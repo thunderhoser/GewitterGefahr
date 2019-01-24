@@ -66,7 +66,8 @@ def plot_2d_grid(class_activation_matrix_2d, axes_object, colour_map_object,
 
 def plot_many_2d_grids(
         class_activation_matrix_3d, axes_objects_2d_list, colour_map_object,
-        max_contour_level, contour_interval, line_width=DEFAULT_CONTOUR_WIDTH):
+        max_contour_level, contour_interval, line_width=DEFAULT_CONTOUR_WIDTH,
+        row_major=True):
     """Plots the same 2-D class-activation map for each predictor.
 
     M = number of rows in spatial grid
@@ -80,11 +81,20 @@ def plot_many_2d_grids(
     :param max_contour_level: Same.
     :param contour_interval: Same.
     :param line_width: Same.
+    :param row_major: Boolean flag.  If True, panels will be filled along rows
+        first, then down columns.  If False, down columns first, then along
+        rows.
     """
 
     error_checking.assert_is_numpy_array_without_nan(class_activation_matrix_3d)
     error_checking.assert_is_numpy_array(
         class_activation_matrix_3d, num_dimensions=3)
+    error_checking.assert_is_boolean(row_major)
+
+    if row_major:
+        order_string = 'C'
+    else:
+        order_string = 'F'
 
     num_predictors = class_activation_matrix_3d.shape[-1]
     num_panel_rows = len(axes_objects_2d_list)
@@ -92,7 +102,7 @@ def plot_many_2d_grids(
 
     for k in range(num_predictors):
         this_panel_row, this_panel_column = numpy.unravel_index(
-            k, (num_panel_rows, num_panel_columns)
+            k, (num_panel_rows, num_panel_columns), order=order_string
         )
 
         plot_2d_grid(

@@ -314,7 +314,8 @@ def _plot_examples(
                     field_matrix=numpy.flip(this_radar_matrix[i, ...], axis=0),
                     field_name_by_panel=field_name_by_panel,
                     num_panel_rows=this_num_panel_rows, panel_names=panel_names,
-                    font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
+                    font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
+                    row_major=False)
 
                 this_title_string = this_base_title_string + ''
                 this_file_name = '{0:s}.jpg'.format(this_base_file_name)

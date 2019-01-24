@@ -707,7 +707,7 @@ def plot_many_2d_grids_without_coords(
         colour_map_object_by_panel=None, colour_norm_object_by_panel=None,
         figure_width_inches=DEFAULT_FIGURE_WIDTH_INCHES,
         figure_height_inches=DEFAULT_FIGURE_HEIGHT_INCHES,
-        font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True):
+        font_size=DEFAULT_FONT_SIZE, plot_colour_bars=True, row_major=True):
     """Plots 2-D colour map in each panel (one per field/height pair).
 
     M = number of rows in spatial grid
@@ -732,6 +732,9 @@ def plot_many_2d_grids_without_coords(
     :param font_size: Font size.
     :param plot_colour_bars: Boolean flag.  If True, vertical colour bar will be
         plotted next to each panel.
+    :param row_major: Boolean flag.  If True, panels will be filled along rows
+        first, then down columns.  If False, down columns first, then along
+        rows.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where each item is an instance of
         `matplotlib.axes._subplots.AxesSubplot`.
@@ -741,6 +744,13 @@ def plot_many_2d_grids_without_coords(
     """
 
     error_checking.assert_is_numpy_array(field_matrix, num_dimensions=3)
+    error_checking.assert_is_boolean(row_major)
+
+    if row_major:
+        order_string = 'C'
+    else:
+        order_string = 'F'
+
     num_panels = field_matrix.shape[2]
     if panel_names is None:
         panel_names = [''] * num_panels
@@ -793,41 +803,37 @@ def plot_many_2d_grids_without_coords(
         figure_width_inches=figure_width_inches,
         figure_height_inches=figure_height_inches)
 
-    for i in range(num_panel_rows):
-        for j in range(num_panel_columns):
-            this_panel_index = i * num_panel_columns + j
-            if this_panel_index >= num_panels:
-                break
+    for k in range(num_panels):
+        this_panel_row, this_panel_column = numpy.unravel_index(
+            k, (num_panel_rows, num_panel_columns), order=order_string
+        )
 
-            this_colour_map_object, this_colour_norm_object = (
-                plot_2d_grid_without_coords(
-                    field_matrix=field_matrix[..., this_panel_index],
-                    field_name=field_name_by_panel[this_panel_index],
-                    axes_object=axes_objects_2d_list[i][j],
-                    annotation_string=panel_names[this_panel_index],
-                    font_size=font_size,
-                    colour_map_object=colour_map_object_by_panel[
-                        this_panel_index],
-                    colour_norm_object=colour_norm_object_by_panel[
-                        this_panel_index]
-                )
+        this_colour_map_object, this_colour_norm_object = (
+            plot_2d_grid_without_coords(
+                field_matrix=field_matrix[..., k],
+                field_name=field_name_by_panel[k],
+                axes_object=axes_objects_2d_list[
+                    this_panel_row][this_panel_column],
+                annotation_string=panel_names[k], font_size=font_size,
+                colour_map_object=colour_map_object_by_panel[k],
+                colour_norm_object=colour_norm_object_by_panel[k]
             )
+        )
 
-            if not plot_colour_bars:
-                continue
+        if not plot_colour_bars:
+            continue
 
-            this_extend_min_flag = (
-                field_name_by_panel[this_panel_index] in SHEAR_VORT_DIV_NAMES
-            )
+        this_extend_min_flag = field_name_by_panel[k] in SHEAR_VORT_DIV_NAMES
 
-            plotting_utils.add_colour_bar(
-                axes_object_or_list=axes_objects_2d_list[i][j],
-                values_to_colour=field_matrix[..., this_panel_index],
-                colour_map=this_colour_map_object,
-                colour_norm_object=this_colour_norm_object,
-                orientation='horizontal', font_size=font_size,
-                extend_min=this_extend_min_flag, extend_max=True,
-                fraction_of_axis_length=0.9)
+        plotting_utils.add_colour_bar(
+            axes_object_or_list=axes_objects_2d_list[
+                this_panel_row][this_panel_column],
+            values_to_colour=field_matrix[..., k],
+            colour_map=this_colour_map_object,
+            colour_norm_object=this_colour_norm_object,
+            orientation='horizontal', font_size=font_size,
+            extend_min=this_extend_min_flag, extend_max=True,
+            fraction_of_axis_length=0.9)
 
     return figure_object, axes_objects_2d_list
 

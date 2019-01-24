@@ -270,7 +270,8 @@ def _plot_saliency_for_2d_radar(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
                 num_panel_rows=num_panel_rows, panel_names=panel_names,
-                font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
+                row_major=False)
         )
 
         this_contour_interval = (
@@ -283,7 +284,7 @@ def _plot_saliency_for_2d_radar(
             axes_objects_2d_list=these_axes_objects,
             colour_map_object=saliency_colour_map_object,
             max_absolute_contour_level=max_colour_value_by_example[i],
-            contour_interval=this_contour_interval)
+            contour_interval=this_contour_interval, row_major=False)
 
         if pmm_flag:
             this_title_string = 'Probability-matched mean'

@@ -291,7 +291,7 @@ def plot_2d_grid_with_contours(
 def plot_many_2d_grids_with_contours(
         saliency_matrix_3d, axes_objects_2d_list, colour_map_object,
         max_absolute_contour_level, contour_interval,
-        line_width=DEFAULT_CONTOUR_WIDTH):
+        line_width=DEFAULT_CONTOUR_WIDTH, row_major=True):
     """Plots 2-D saliency map with line contours for each predictor.
 
     M = number of rows in spatial grid
@@ -304,10 +304,19 @@ def plot_many_2d_grids_with_contours(
     :param max_absolute_contour_level: Same.
     :param contour_interval: Same.
     :param line_width: Same.
+    :param row_major: Boolean flag.  If True, panels will be filled along rows
+        first, then down columns.  If False, down columns first, then along
+        rows.
     """
 
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix_3d)
     error_checking.assert_is_numpy_array(saliency_matrix_3d, num_dimensions=3)
+    error_checking.assert_is_boolean(row_major)
+
+    if row_major:
+        order_string = 'C'
+    else:
+        order_string = 'F'
 
     num_predictors = saliency_matrix_3d.shape[-1]
     num_panel_rows = len(axes_objects_2d_list)
@@ -315,7 +324,7 @@ def plot_many_2d_grids_with_contours(
 
     for k in range(num_predictors):
         this_panel_row, this_panel_column = numpy.unravel_index(
-            k, (num_panel_rows, num_panel_columns)
+            k, (num_panel_rows, num_panel_columns), order=order_string
         )
 
         plot_2d_grid_with_contours(
@@ -380,7 +389,7 @@ def plot_2d_grid_with_pm_signs(
 def plot_many_2d_grids_with_pm_signs(
         saliency_matrix_3d, axes_objects_2d_list, colour_map_object,
         max_absolute_colour_value, min_font_size=DEFAULT_MIN_FONT_SIZE,
-        max_font_size=DEFAULT_MAX_FONT_SIZE):
+        max_font_size=DEFAULT_MAX_FONT_SIZE, row_major=True):
     """Plots many 2-D saliency map with plus and minus signs ("+" and "-").
 
     :param saliency_matrix_3d: See doc for `plot_many_2d_grids_with_contours`.
@@ -389,10 +398,17 @@ def plot_many_2d_grids_with_pm_signs(
     :param max_absolute_colour_value: Same.
     :param min_font_size: Same.
     :param max_font_size: Same.
+    :param row_major: See doc for `plot_many_2d_grids_with_contours`.
     """
 
     error_checking.assert_is_numpy_array_without_nan(saliency_matrix_3d)
     error_checking.assert_is_numpy_array(saliency_matrix_3d, num_dimensions=3)
+    error_checking.assert_is_boolean(row_major)
+
+    if row_major:
+        order_string = 'C'
+    else:
+        order_string = 'F'
 
     num_predictors = saliency_matrix_3d.shape[-1]
     num_panel_rows = len(axes_objects_2d_list)
@@ -400,7 +416,7 @@ def plot_many_2d_grids_with_pm_signs(
 
     for k in range(num_predictors):
         this_panel_row, this_panel_column = numpy.unravel_index(
-            k, (num_panel_rows, num_panel_columns)
+            k, (num_panel_rows, num_panel_columns), order=order_string
         )
 
         plot_2d_grid_with_pm_signs(

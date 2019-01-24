@@ -276,7 +276,8 @@ def _plot_2d_radar_cams(
                 field_matrix=numpy.flip(radar_matrix[i, ...], axis=0),
                 field_name_by_panel=field_name_by_panel,
                 num_panel_rows=num_panel_rows, panel_names=panel_names,
-                font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=False)
+                font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=False,
+                row_major=False)
         )
 
         if class_activation_matrix is None:
@@ -292,7 +293,7 @@ def _plot_2d_radar_cams(
                 axes_objects_2d_list=these_axes_objects,
                 colour_map_object=cam_colour_map_object,
                 max_absolute_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / 10)
+                contour_interval=this_max_contour_level / 10, row_major=False)
 
         else:
             this_matrix = numpy.expand_dims(
@@ -310,7 +311,8 @@ def _plot_2d_radar_cams(
                 axes_objects_2d_list=these_axes_objects,
                 colour_map_object=cam_colour_map_object,
                 max_contour_level=this_max_contour_level,
-                contour_interval=this_max_contour_level / NUM_CONTOURS)
+                contour_interval=this_max_contour_level / NUM_CONTOURS,
+                row_major=False)
 
         if pmm_flag:
             this_title_string = 'Probability-matched mean'

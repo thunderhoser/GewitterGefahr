@@ -678,7 +678,8 @@ def _plot_bwo_for_2d_radar(
             field_matrix=numpy.flip(optimized_radar_matrix[i, ...], axis=0),
             field_name_by_panel=field_name_by_panel,
             num_panel_rows=num_panel_rows, panel_names=panel_names,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
+            row_major=False)
 
         this_title_string = '{0:s} (after optimization)'.format(
             this_base_title_string)
@@ -697,7 +698,8 @@ def _plot_bwo_for_2d_radar(
             field_matrix=numpy.flip(input_radar_matrix[i, ...], axis=0),
             field_name_by_panel=field_name_by_panel,
             num_panel_rows=num_panel_rows, panel_names=panel_names,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
+            row_major=False)
 
         this_title_string = '{0:s} (before optimization)'.format(
             this_base_title_string)
@@ -760,7 +762,8 @@ def _plot_bwo_for_2d_radar(
             num_panel_rows=num_panel_rows, panel_names=panel_names,
             colour_map_object_by_panel=this_cmap_object_by_panel,
             colour_norm_object_by_panel=this_cnorm_object_by_panel,
-            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True)
+            font_size=FONT_SIZE_WITH_COLOUR_BARS, plot_colour_bars=True,
+            row_major=False)
 
         this_title_string = '{0:s} (after minus before optimization)'.format(
             this_base_title_string)
