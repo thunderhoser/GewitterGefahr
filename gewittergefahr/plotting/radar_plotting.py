@@ -412,7 +412,7 @@ def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
         ))
 
         panel_names[i] = (
-            '{0:s}, {1:s} from {2:d}-{3:d} km AGL'
+            '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
         ).format(
             _field_name_to_plotting_units(field_name_by_panel[i]),
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
@@ -449,7 +449,7 @@ def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
     panel_names = [''] * num_panels
 
     for i in range(num_panels):
-        panel_names[i] = '{0:s}, at {1:.2f} km AGL'.format(
+        panel_names[i] = '{0:s}\nat {1:.2f} km AGL'.format(
             _field_name_to_plotting_units(field_names[i]),
             heights_m_agl[i] * METRES_TO_KM
         )
@@ -685,20 +685,19 @@ def plot_2d_grid_without_coords(
 
     if annotation_string is not None:
         error_checking.assert_is_string(annotation_string)
-        axes_object.set_xlabel(annotation_string)
 
-        # bounding_box_dict = {
-        #     'facecolor': 'white',
-        #     'alpha': 0.5,
-        #     'edgecolor': 'black',
-        #     'linewidth': 2
-        # }
-        #
-        # axes_object.text(
-        #     0.5, 0.01, annotation_string, fontsize=font_size, fontweight='bold',
-        #     bbox=bounding_box_dict, color='k', horizontalalignment='center',
-        #     verticalalignment='bottom', transform=axes_object.transAxes,
-        #     zorder=1e10)
+        bounding_box_dict = {
+            'facecolor': 'white',
+            'alpha': 0.5,
+            'edgecolor': 'black',
+            'linewidth': 2
+        }
+
+        axes_object.text(
+            0.5, 0.01, annotation_string, fontsize=font_size, fontweight='bold',
+            bbox=bounding_box_dict, color='k', horizontalalignment='center',
+            verticalalignment='bottom', transform=axes_object.transAxes,
+            zorder=1e10)
 
     return colour_map_object, colour_norm_object
 
@@ -794,8 +793,8 @@ def plot_many_2d_grids_without_coords(
 
     if len(colour_norm_object_by_panel) != num_panels:
         error_string = (
-            'Number of colour-normalizers ({0:d}) should equal number of panels'
-            ' ({1:d}).'
+            'Number of colour-normalizers ({0:d}) should equal number of panels '
+            '({1:d}).'
         ).format(len(colour_norm_object_by_panel), num_panels)
 
         raise ValueError(error_string)

@@ -46,7 +46,7 @@ for k in range(NUM_LAYER_OPERATIONS):
     }
 
     PANEL_NAMES_WITH_LAYER_OPS[k] = (
-        '{0:s}, {1:s} from {2:d}-{3:d} km AGL'
+        '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
     ).format(
         radar_plotting._field_name_to_plotting_units(THESE_FIELD_NAMES[k]),
         LAYER_OPERATION_NAMES[k].upper(),
@@ -66,7 +66,7 @@ NUM_FIELD_HEIGHT_PAIRS = len(FIELD_NAME_BY_PAIR)
 PANEL_NAMES_WITHOUT_LAYER_OPS = [''] * NUM_FIELD_HEIGHT_PAIRS
 
 for k in range(NUM_FIELD_HEIGHT_PAIRS):
-    PANEL_NAMES_WITHOUT_LAYER_OPS[k] = '{0:s}, at {1:.2f} km AGL'.format(
+    PANEL_NAMES_WITHOUT_LAYER_OPS[k] = '{0:s}\nat {1:.2f} km AGL'.format(
         radar_plotting._field_name_to_plotting_units(FIELD_NAME_BY_PAIR[k]),
         HEIGHT_BY_PAIR_M_AGL[k] * METRES_TO_KM
     )
