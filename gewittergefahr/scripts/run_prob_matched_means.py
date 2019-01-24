@@ -121,6 +121,8 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
     :param output_file_name: Same.
     """
 
+    print input_gradcam_file_name
+
     if input_saliency_file_name not in NONE_STRINGS:
         input_gradcam_file_name = None
         input_bwo_file_name = None
@@ -133,9 +135,8 @@ def _run(input_saliency_file_name, input_gradcam_file_name, input_bwo_file_name,
         input_saliency_file_name = None
         input_gradcam_file_name = None
 
-    print input_saliency_file_name
     print input_gradcam_file_name
-    print input_bwo_file_name
+    print '\n\n\n'
 
     if radar_channel_idx_for_thres < 0:
         radar_channel_idx_for_thres = None
