@@ -5,6 +5,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 from mpl_toolkits.basemap import Basemap
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
@@ -493,10 +494,25 @@ def add_colour_bar(
     else:
         this_padding = PADDING_FOR_VERTICAL_COLOUR_BAR
 
-    colour_bar_object = pyplot.colorbar(
-        ax=axes_object_or_list, mappable=scalar_mappable_object,
-        orientation=orientation, pad=this_padding, extend=extend_argument,
-        shrink=fraction_of_axis_length)
+    if isinstance(axes_object_or_list, list):
+        colour_bar_object = pyplot.colorbar(
+            ax=axes_object_or_list, mappable=scalar_mappable_object,
+            orientation=orientation, pad=this_padding, extend=extend_argument,
+            shrink=fraction_of_axis_length)
+    else:
+        if orientation == 'horizontal':
+            position_string = 'bottom'
+        else:
+            position_string = 'right'
+
+        divider_object = make_axes_locatable(axes_object_or_list)
+        this_axes_object = divider_object.append_axes(
+            position=position_string, size='5%', pad=0.05)
+
+        colour_bar_object = pyplot.colorbar(
+            cax=this_axes_object, mappable=scalar_mappable_object,
+            orientation=orientation, pad=this_padding, extend=extend_argument,
+            shrink=fraction_of_axis_length)
 
     colour_bar_object.ax.tick_params(labelsize=font_size)
 
