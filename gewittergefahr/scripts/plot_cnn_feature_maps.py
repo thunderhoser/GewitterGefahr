@@ -123,9 +123,11 @@ def _plot_feature_maps_one_layer(
         num_heights = None
 
     num_panel_rows = int(numpy.round(numpy.sqrt(num_channels)))
-    annotation_string_by_channel = [
-        'Filter {0:d}'.format(c + 1) for c in range(num_channels)
-    ]
+    annotation_string_by_channel = [None] * num_channels
+
+    # annotation_string_by_channel = [
+    #     'Filter {0:d}'.format(c + 1) for c in range(num_channels)
+    # ]
 
     if num_channels >= NUM_PANELS_FOR_NO_FONT:
         annotation_string_by_channel = [''] * num_channels

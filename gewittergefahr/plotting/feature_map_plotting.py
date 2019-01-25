@@ -2,10 +2,12 @@
 
 import numpy
 import matplotlib
+matplotlib.use('agg')
+import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
-matplotlib.use('agg')
+pyplot.rc('axes', linewidth=4)
 
 DEFAULT_FIG_WIDTH_INCHES = 15
 DEFAULT_FIG_HEIGHT_INCHES = 15
@@ -118,6 +120,7 @@ def plot_many_2d_feature_maps(
         for j in range(num_panel_columns):
             this_linear_index = i * num_panel_columns + j
             if this_linear_index >= num_panels:
+                axes_objects_2d_list[i][j].axis('off')
                 break
 
             plot_2d_feature_map(
