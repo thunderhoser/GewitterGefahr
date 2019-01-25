@@ -387,7 +387,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     :param num_radar_rows: Same.
     :param num_radar_columns: Same.
     :param output_dir_name: Same.
-    :raises: ValueError: if activation file contains activations for more than
+    :raises: TypeError: if activation file contains activations for more than
         one model component.
     """
 
@@ -441,7 +441,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
                 'component, not {0:d}.'
             ).format(num_model_components)
 
-            raise ValueError(error_string)
+            raise TypeError(error_string)
 
         storm_ids = activation_metadata_dict[model_activation.STORM_IDS_KEY]
         storm_times_unix_sec = activation_metadata_dict[
