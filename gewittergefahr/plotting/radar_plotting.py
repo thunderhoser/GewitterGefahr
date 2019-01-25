@@ -45,9 +45,9 @@ FIELD_NAME_TO_VERBOSE_DICT = {
     radar_utils.DIFFERENTIAL_REFL_NAME: 'Diff reflectivity (dB)',
     radar_utils.SPEC_DIFF_PHASE_NAME: r'Spec diff phase ($^{\circ}$ km$^{-1}$)',
     radar_utils.CORRELATION_COEFF_NAME: 'Correlation coefficient',
-    radar_utils.SPECTRUM_WIDTH_NAME: r'Spectrum width (m s${-1}$)',
-    radar_utils.VORTICITY_NAME: r'Vorticity (ks${-1}$)',
-    radar_utils.DIVERGENCE_NAME: r'Divergence (ks${-1}$)'
+    radar_utils.SPECTRUM_WIDTH_NAME: r'Spectrum width (m s$^{-1}$)',
+    radar_utils.VORTICITY_NAME: r'Vorticity (ks$^{-1}$)',
+    radar_utils.DIVERGENCE_NAME: r'Divergence (ks$^{-1}$)'
 }
 
 
