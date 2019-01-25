@@ -198,6 +198,8 @@ def _plot_feature_maps_one_layer(
                     colour_max=max_colour_value, orientation='horizontal',
                     extend_min=True, extend_max=True)
 
+                pyplot.tight_layout()
+
                 this_title_string = (
                     'Layer "{0:s}", height {1:d} of {2:d}, storm "{3:s}" at '
                     '{4:s}'

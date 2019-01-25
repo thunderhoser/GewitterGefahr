@@ -7,7 +7,7 @@ import matplotlib.pyplot as pyplot
 from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.plotting import plotting_utils
 
-pyplot.rc('axes', linewidth=4)
+pyplot.rc('axes', linewidth=3)
 
 DEFAULT_FIG_WIDTH_INCHES = 15
 DEFAULT_FIG_HEIGHT_INCHES = 15
