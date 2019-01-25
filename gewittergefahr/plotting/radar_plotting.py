@@ -24,6 +24,32 @@ DEFAULT_FIGURE_WIDTH_INCHES = 15
 DEFAULT_FIGURE_HEIGHT_INCHES = 15
 DEFAULT_FONT_SIZE = 20
 
+FIELD_NAME_TO_VERBOSE_DICT = {
+    radar_utils.ECHO_TOP_15DBZ_NAME: '15-dBZ echo top (kft ASL)',
+    radar_utils.ECHO_TOP_18DBZ_NAME: '18-dBZ echo top (kft ASL)',
+    radar_utils.ECHO_TOP_20DBZ_NAME: '20-dBZ echo top (kft ASL)',
+    radar_utils.ECHO_TOP_25DBZ_NAME: '25-dBZ echo top (kft ASL)',
+    radar_utils.ECHO_TOP_40DBZ_NAME: '40-dBZ echo top (kft ASL)',
+    radar_utils.ECHO_TOP_50DBZ_NAME: '50-dBZ echo top (kft ASL)',
+    radar_utils.LOW_LEVEL_SHEAR_NAME: r'Low-level shear (ks$^{-1}$)',
+    radar_utils.MID_LEVEL_SHEAR_NAME: r'Mid-level shear (ks$^{-1}$)',
+    radar_utils.MESH_NAME: 'Max estimated hail size (mm)',
+    radar_utils.REFL_NAME: 'Reflectivity (dBZ)',
+    radar_utils.REFL_COLUMN_MAX_NAME: 'Column-max reflectivity (dBZ)',
+    radar_utils.REFL_0CELSIUS_NAME: r'0 $^{\circ}C$ reflectivity (dBZ)',
+    radar_utils.REFL_M10CELSIUS_NAME: r'-10 $^{\circ}C$ reflectivity (dBZ)',
+    radar_utils.REFL_M20CELSIUS_NAME: r'-20 $^{\circ}C$ reflectivity (dBZ)',
+    radar_utils.REFL_LOWEST_ALTITUDE_NAME: 'Lowest-altitude refl (dBZ)',
+    radar_utils.SHI_NAME: 'Severe-hail index',
+    radar_utils.VIL_NAME: 'Vertically integ liquid (mm)',
+    radar_utils.DIFFERENTIAL_REFL_NAME: 'Diff reflectivity (dB)',
+    radar_utils.SPEC_DIFF_PHASE_NAME: r'Spec diff phase ($^{\circ}$ km$^{-1}$)',
+    radar_utils.CORRELATION_COEFF_NAME: 'Correlation coefficient',
+    radar_utils.SPECTRUM_WIDTH_NAME: r'Spectrum width (m s${-1}$)',
+    radar_utils.VORTICITY_NAME: r'Vorticity (ks${-1}$)',
+    radar_utils.DIVERGENCE_NAME: r'Divergence (ks${-1}$)'
+}
+
 
 def _get_friendly_colours():
     """Returns colours in colourblind-friendly scheme used by GridRad viewer.
@@ -414,7 +440,7 @@ def layer_ops_to_field_and_panel_names(list_of_layer_operation_dicts):
         panel_names[i] = (
             '{0:s}\n{1:s} from {2:d}-{3:d} km AGL'
         ).format(
-            _field_name_to_plotting_units(field_name_by_panel[i]),
+            FIELD_NAME_TO_VERBOSE_DICT[field_name_by_panel[i]],
             this_operation_dict[input_examples.OPERATION_NAME_KEY].upper(),
             this_min_height_m_agl, this_max_height_m_agl
         )
@@ -450,7 +476,7 @@ def radar_fields_and_heights_to_panel_names(field_names, heights_m_agl):
 
     for i in range(num_panels):
         panel_names[i] = '{0:s}\nat {1:.2f} km AGL'.format(
-            _field_name_to_plotting_units(field_names[i]),
+            FIELD_NAME_TO_VERBOSE_DICT[field_names[i]],
             heights_m_agl[i] * METRES_TO_KM
         )
 
