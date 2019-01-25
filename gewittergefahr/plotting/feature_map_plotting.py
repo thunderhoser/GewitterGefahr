@@ -111,10 +111,11 @@ def plot_many_2d_feature_maps(
     error_checking.assert_is_leq(num_panel_rows, num_panels)
 
     num_panel_columns = int(numpy.ceil(float(num_panels) / num_panel_rows))
+
     figure_object, axes_objects_2d_list = plotting_utils.init_panels(
         num_panel_rows=num_panel_rows, num_panel_columns=num_panel_columns,
         figure_width_inches=figure_width_inches,
-        figure_height_inches=figure_height_inches)
+        figure_height_inches=figure_height_inches, keep_aspect_ratio=False)
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):

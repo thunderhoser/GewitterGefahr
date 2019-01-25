@@ -5,7 +5,7 @@ import matplotlib
 matplotlib.use('agg')
 import matplotlib.pyplot as pyplot
 import matplotlib.colors
-from mpl_toolkits.axes_grid1 import make_axes_locatable
+
 from mpl_toolkits.basemap import Basemap
 from gewittergefahr.gg_utils import nwp_model_utils
 from gewittergefahr.gg_utils import number_rounding as rounder
@@ -90,22 +90,28 @@ def annotate_axes(
 
 
 def init_panels(num_panel_rows, num_panel_columns, figure_width_inches,
-                figure_height_inches):
+                figure_height_inches, keep_aspect_ratio=True):
     """Initializes paneled figure.
 
     :param num_panel_rows: Number of panel rows.
     :param num_panel_columns: Number of panel columns.
     :param figure_width_inches: Figure width.
     :param figure_height_inches: Figure height.
+    :param keep_aspect_ratio: Boolean flag.  If True, aspect ratio of each panel
+        will be forced to reflect aspect ratio of the data.  For example, if the
+        grid plotted in each panel is 32 x 32, each panel must be a square.
     :return: figure_object: Instance of `matplotlib.figure.Figure`.
     :return: axes_objects_2d_list: 2-D list, where axes_objects_2d_list[j][k] is
         a `matplotlib.axes._subplots.AxesSubplot` object for the [j]th row and
         [k]th column.
     """
 
+    error_checking.assert_is_boolean(keep_aspect_ratio)
+
     figure_object, axes_objects_2d_list = pyplot.subplots(
         num_panel_rows, num_panel_columns, sharex=True, sharey=True,
-        figsize=(figure_width_inches, figure_height_inches))
+        figsize=(figure_width_inches, figure_height_inches)
+    )
 
     if num_panel_rows == num_panel_columns == 1:
         axes_objects_2d_list = [[axes_objects_2d_list]]
@@ -115,7 +121,10 @@ def init_panels(num_panel_rows, num_panel_columns, figure_width_inches,
         axes_objects_2d_list = [axes_objects_2d_list]
 
     pyplot.subplots_adjust(
-        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0., wspace=0.)
+        left=0.02, bottom=0.02, right=0.98, top=0.95, hspace=0, wspace=0)
+
+    if not keep_aspect_ratio:
+        return figure_object, axes_objects_2d_list
 
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
