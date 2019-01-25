@@ -119,9 +119,10 @@ def plot_many_2d_feature_maps(
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_linear_index = i * num_panel_columns + j
+
             if this_linear_index >= num_panels:
                 axes_objects_2d_list[i][j].axis('off')
-                break
+                continue
 
             plot_2d_feature_map(
                 feature_matrix=feature_matrix[..., this_linear_index],

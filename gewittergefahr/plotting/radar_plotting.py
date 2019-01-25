@@ -781,25 +781,20 @@ def plot_many_2d_grids_without_coords(
         order_string = 'F'
 
     num_panels = field_matrix.shape[2]
-    error_checking.assert_is_numpy_array(
-        numpy.array(field_name_by_panel),
-        exact_dimensions=numpy.array([num_panels])
-    )
-
     if panel_names is None:
         panel_names = [None] * num_panels
-    else:
-        error_checking.assert_is_numpy_array(
-            numpy.array(panel_names), exact_dimensions=numpy.array([num_panels])
-        )
-
     if plot_colour_bar_by_panel is None:
         plot_colour_bar_by_panel = numpy.full(num_panels, True, dtype=bool)
 
+    these_expected_dim = numpy.array([num_panels], dtype=int)
+    error_checking.assert_is_numpy_array(
+        numpy.array(panel_names), exact_dimensions=these_expected_dim)
+    error_checking.assert_is_numpy_array(
+        numpy.array(field_name_by_panel), exact_dimensions=these_expected_dim)
+
     error_checking.assert_is_boolean_numpy_array(plot_colour_bar_by_panel)
     error_checking.assert_is_numpy_array(
-        plot_colour_bar_by_panel, exact_dimensions=numpy.array([num_panels])
-    )
+        plot_colour_bar_by_panel, exact_dimensions=these_expected_dim)
 
     if (colour_map_object_by_panel is None
             or colour_norm_object_by_panel is None):
@@ -878,6 +873,16 @@ def plot_many_2d_grids_without_coords(
         axes_objects_2d_list[this_panel_row][this_panel_column].set_xlabel(
             panel_names[k], fontsize=font_size, fontweight='bold')
 
+    for k in range(num_panel_rows * num_panel_columns):
+        if k < num_panels:
+            continue
+
+        this_panel_row, this_panel_column = numpy.unravel_index(
+            k, (num_panel_rows, num_panel_columns), order=order_string
+        )
+
+        axes_objects_2d_list[this_panel_row][this_panel_column].axis('off')
+
     return figure_object, axes_objects_2d_list
 
 
@@ -938,8 +943,10 @@ def plot_3d_grid_without_coords(
     for i in range(num_panel_rows):
         for j in range(num_panel_columns):
             this_height_index = i * num_panel_columns + j
+
             if this_height_index >= num_heights:
-                break
+                axes_objects_2d_list[i][j].axis('off')
+                continue
 
             this_annotation_string = '{0:.1f} km'.format(
                 grid_point_heights_metres[this_height_index] * METRES_TO_KM)
