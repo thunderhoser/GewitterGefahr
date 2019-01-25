@@ -150,7 +150,7 @@ def _check_pooling_options(
 
     if num_dimensions == 3:
         error_checking.assert_is_integer(num_heights_in_window)
-        error_checking.assert_is_geq(num_heights_in_window, 2)
+        error_checking.assert_is_geq(num_heights_in_window, 1)
         error_checking.assert_is_integer(num_heights_per_stride)
         error_checking.assert_is_geq(num_heights_per_stride, 1)
         error_checking.assert_is_leq(num_heights_per_stride,
