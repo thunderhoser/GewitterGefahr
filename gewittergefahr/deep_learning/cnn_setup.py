@@ -1011,6 +1011,10 @@ def _create_sounding_layers_resnet(
     :return: num_scalar_features: Same.
     """
 
+    # TODO(thunderhoser): This is my first attempt at res-nets.  I don't know
+    # what the best architecture is, especially vis-a-vis where activation and
+    # batch-norm layers should go.
+
     first_num_filters, _ = check_sounding_options(
         num_fields=num_fields, num_heights=num_heights, do_separable_conv=False,
         first_num_filters=first_num_filters)
@@ -1144,6 +1148,10 @@ def create_3d_resnet(
     :param list_of_metric_functions: Same.
     :return: resnet_model_object: Untrained instance of `keras.models.Model`.
     """
+
+    # TODO(thunderhoser): This is my first attempt at res-nets.  I don't know
+    # what the best architecture is, especially vis-a-vis where activation and
+    # batch-norm layers should go.
 
     error_checking.assert_is_integer(num_sounding_fields)
     error_checking.assert_is_integer(num_sounding_heights)

@@ -13,9 +13,7 @@ from gewittergefahr.gg_utils import error_checking
 from gewittergefahr.deep_learning import cnn
 from gewittergefahr.deep_learning import deep_learning_utils as dl_utils
 
-# TODO(thunderhoser): This file deals only with models that have one input
-# tensor (e.g., models trained with only radar images, rather than radar images
-# and soundings).
+# TODO(thunderhoser): Fix IO methods.
 
 DEFAULT_PCT_VARIANCE_TO_KEEP = 97.5
 NUM_EXAMPLES_PER_CNN_BATCH = 1000
@@ -34,6 +32,10 @@ UCN_FILE_NAME_KEY = 'ucn_file_name'
 PERCENT_VARIANCE_KEY = 'percent_svd_variance_to_keep'
 NORM_FUNCTION_KEY = 'norm_function_name'
 DENORM_FUNCTION_KEY = 'denorm_function_name'
+
+NOVEL_EXAMPLES_ACTUAL_KEY = 'list_of_novel_input_matrices'
+CNN_FEATURE_LAYER_KEY = 'cnn_feature_layer_name'
+MULTIPASS_KEY = 'multipass'
 
 REQUIRED_KEYS = [
     NOVEL_IMAGES_ACTUAL_KEY, NOVEL_IMAGES_UPCONV_KEY,
@@ -178,17 +180,17 @@ def _apply_svd(feature_vector, svd_dictionary):
     )
 
 
-def _apply_cnn(cnn_model_object, predictor_matrix_norm, output_layer_name,
+def _apply_cnn(cnn_model_object, list_of_predictor_matrices, output_layer_name,
                verbose=True):
-    """Applies trained CNN (convolutional neural net) to new data.
+    """Applies trained CNN to new data.
 
+    T = number of input tensors to the model
     E = number of examples
 
     :param cnn_model_object: Trained instance of `keras.models.Model`.
-    :param predictor_matrix_norm: numpy array of predictor values.  Must be
-        normalized in the same way as training data for the CNN.  Must have the
-        same shape as training data for the CNN.  Length of first axis must be
-        E.
+    :param list_of_predictor_matrices: length-T list of numpy arrays, where the
+        [i]th array is the [i]th input matrix to the model.  The first axis of
+        each array must have length E.
     :param output_layer_name: Will return output from this layer.
     :param verbose: Boolean flag.  If True, will print progress messages.
     :return: feature_matrix: numpy array of features (outputs from the given
@@ -199,7 +201,7 @@ def _apply_cnn(cnn_model_object, predictor_matrix_norm, output_layer_name,
     intermediate_model_object = cnn.model_to_feature_generator(
         model_object=cnn_model_object, output_layer_name=output_layer_name)
 
-    num_examples = predictor_matrix_norm.shape[0]
+    num_examples = list_of_predictor_matrices[0].shape[0]
     feature_matrix = None
 
     for i in range(0, num_examples, NUM_EXAMPLES_PER_CNN_BATCH):
@@ -216,9 +218,14 @@ def _apply_cnn(cnn_model_object, predictor_matrix_norm, output_layer_name,
             this_first_index, this_last_index,
             num=this_last_index - this_first_index + 1, dtype=int)
 
-        this_feature_matrix = intermediate_model_object.predict(
-            predictor_matrix_norm[these_indices, ...],
-            batch_size=NUM_EXAMPLES_PER_CNN_BATCH)
+        if len(list_of_predictor_matrices) == 1:
+            this_feature_matrix = intermediate_model_object.predict(
+                list_of_predictor_matrices[0][these_indices, ...],
+                batch_size=NUM_EXAMPLES_PER_CNN_BATCH)
+        else:
+            this_feature_matrix = intermediate_model_object.predict(
+                [a[these_indices, ...] for a in list_of_predictor_matrices],
+                batch_size=NUM_EXAMPLES_PER_CNN_BATCH)
 
         if feature_matrix is None:
             feature_matrix = this_feature_matrix + 0.
@@ -301,7 +308,7 @@ def gg_denorm_function(radar_field_names, normalization_type_string,
     return denorm_function
 
 
-def do_novelty_detection(
+def do_novelty_detection_old(
         baseline_image_matrix, test_image_matrix, cnn_model_object,
         cnn_feature_layer_name, ucn_model_object, num_novel_test_images,
         norm_function, denorm_function,
@@ -371,6 +378,8 @@ def do_novelty_detection(
     novelty_dict['denorm_function_name']: Name of input `denorm_function`.
     """
 
+    # TODO(thunderhoser): Move this method to GeneralExam repository.
+
     error_checking.assert_is_numpy_array_without_nan(baseline_image_matrix)
     num_dimensions = len(baseline_image_matrix.shape)
     error_checking.assert_is_geq(num_dimensions, 4)
@@ -399,12 +408,12 @@ def do_novelty_detection(
 
     baseline_feature_matrix = _apply_cnn(
         cnn_model_object=cnn_model_object,
-        predictor_matrix_norm=baseline_image_matrix_norm,
+        list_of_predictor_matrices=[baseline_image_matrix_norm],
         output_layer_name=cnn_feature_layer_name, verbose=False)
 
     test_feature_matrix = _apply_cnn(
         cnn_model_object=cnn_model_object,
-        predictor_matrix_norm=test_image_matrix_norm,
+        list_of_predictor_matrices=[test_image_matrix_norm],
         output_layer_name=cnn_feature_layer_name, verbose=False)
 
     novel_indices = []
@@ -490,6 +499,147 @@ def do_novelty_detection(
         PERCENT_VARIANCE_KEY: percent_svd_variance_to_keep,
         NORM_FUNCTION_KEY: norm_function_name,
         DENORM_FUNCTION_KEY: denorm_function_name
+    }
+
+
+def do_novelty_detection(
+        list_of_baseline_input_matrices, list_of_trial_input_matrices,
+        cnn_model_object, cnn_feature_layer_name, upconvnet_model_object,
+        num_novel_examples, multipass=False,
+        percent_svd_variance_to_keep=DEFAULT_PCT_VARIANCE_TO_KEEP):
+    """Runs novelty detection.
+
+    I = number of input tensors to the CNN
+    B = number of baseline examples
+    T = number of trial examples
+
+    This method assumes that both `list_of_baseline_input_matrices` and
+    `list_of_trial_input_matrices` are normalized.
+
+    :param list_of_baseline_input_matrices: length-I list of numpy arrays, where
+        the [i]th array is the [i]th input matrix to the CNN.  The first axis of
+        each array must have length B.
+    :param list_of_trial_input_matrices: Same, except the first axis of each
+        array must have length T.
+    :param cnn_model_object: Trained CNN (instance of `keras.models.Model` or
+        `keras.models.Sequential`).
+    :param cnn_feature_layer_name: Name of feature layer in CNN.  Outputs of
+        this layer will be inputs to the upconvnet.
+    :param upconvnet_model_object: Trained upconvnet (instance of
+        `keras.models.Model` or `keras.models.Sequential`).
+    :param num_novel_examples: Number of novel trial examples to find.  This
+        method will find the N most novel trial examples, where N =
+        `num_novel_examples`.
+    :param multipass: Boolean flag.  If True, will run multi-pass version.  If
+        False, will run single-pass version.  In the multi-pass version,
+        whenever the next-most novel trial example is found, it is used to fit a
+        new SVD model.  In other words, after finding the [k]th-most novel trial
+        example, a new SVD model is fit on all baseline examples and the k most
+        novel trial examples.
+    :param percent_svd_variance_to_keep: See doc for `_fit_svd`.
+    :return: novelty_dict: Dictionary with the following keys, letting
+        Q = `num_novel_examples`.
+    novelty_dict['novel_indices']: length-Q numpy array with indices of novel
+        examples, where novel_indices[k] is the index of the [k]th-most novel.
+        These are indices into the first axis of each array in
+        `list_of_trial_input_matrices`.
+    novelty_dict['novel_image_matrix_upconv']: numpy array with upconvnet
+        reconstructions of novel examples.  The first axis has length Q.
+    novelty_dict['novel_image_matrix_upconv_svd']: Same as
+        "novel_image_matrix_upconv", except that images were reconstructed by
+        SVD and then the upconvnet.
+    novelty_dict['percent_svd_variance_to_keep']: Same as input.
+    novelty_dict['cnn_feature_layer_name']: Same as input.
+    novelty_dict['multipass']: Same as input.
+    """
+
+    baseline_feature_matrix = _apply_cnn(
+        cnn_model_object=cnn_model_object,
+        list_of_predictor_matrices=list_of_baseline_input_matrices,
+        output_layer_name=cnn_feature_layer_name, verbose=True)
+    print '\n'
+
+    trial_feature_matrix = _apply_cnn(
+        cnn_model_object=cnn_model_object,
+        list_of_predictor_matrices=list_of_trial_input_matrices,
+        output_layer_name=cnn_feature_layer_name, verbose=True)
+    print '\n'
+
+    num_trial_examples = trial_feature_matrix.shape[0]
+
+    error_checking.assert_is_integer(num_novel_examples)
+    error_checking.assert_is_greater(num_novel_examples, 0)
+    error_checking.assert_is_leq(num_trial_examples, 0)
+    error_checking.assert_is_boolean(multipass)
+
+    svd_dictionary = None
+    novel_indices = numpy.array([], dtype=int)
+    novel_image_matrix_upconv = None
+    novel_image_matrix_upconv_svd = None
+
+    for k in range(num_novel_examples):
+        print 'Finding {0:d}th-most novel trial example...'.format(
+            k + 1, num_novel_examples)
+
+        fit_new_svd = multipass or k == 0
+
+        if fit_new_svd:
+            this_baseline_feature_matrix = numpy.concatenate(
+                (baseline_feature_matrix,
+                 trial_feature_matrix[novel_indices, ...]),
+                axis=0)
+
+            this_trial_feature_matrix = numpy.delete(
+                trial_feature_matrix, obj=novel_indices, axis=0)
+
+            svd_dictionary = _fit_svd(
+                baseline_feature_matrix=this_baseline_feature_matrix,
+                test_feature_matrix=this_trial_feature_matrix,
+                percent_variance_to_keep=percent_svd_variance_to_keep)
+
+        trial_svd_errors = numpy.full(num_trial_examples, numpy.nan)
+        trial_feature_matrix_svd = numpy.full(
+            trial_feature_matrix.shape, numpy.nan)
+
+        for i in range(num_trial_examples):
+            if i in novel_indices:
+                continue
+
+            trial_feature_matrix_svd[i, ...] = _apply_svd(
+                feature_vector=trial_feature_matrix[i, ...],
+                svd_dictionary=svd_dictionary)
+
+            trial_svd_errors[i] = numpy.linalg.norm(
+                trial_feature_matrix_svd[i, ...] - trial_feature_matrix[i, ...]
+            )
+
+        these_novel_indices = numpy.full(1, numpy.nanargmax(trial_svd_errors))
+        novel_indices = numpy.concatenate((novel_indices, these_novel_indices))
+
+        this_image_matrix_upconv = upconvnet_model_object.predict(
+            trial_feature_matrix[these_novel_indices, ...], batch_size=1)
+
+        this_image_matrix_upconv_svd = upconvnet_model_object.predict(
+            trial_feature_matrix_svd[these_novel_indices, ...], batch_size=1)
+
+        if novel_image_matrix_upconv is None:
+            novel_image_matrix_upconv = this_image_matrix_upconv + 0.
+            novel_image_matrix_upconv_svd = this_image_matrix_upconv_svd + 0.
+        else:
+            novel_image_matrix_upconv = numpy.concatenate(
+                (novel_image_matrix_upconv, this_image_matrix_upconv), axis=0)
+            novel_image_matrix_upconv_svd = numpy.concatenate(
+                (novel_image_matrix_upconv_svd, this_image_matrix_upconv_svd),
+                axis=0)
+
+    return {
+        NOVEL_EXAMPLES_ACTUAL_KEY:
+            [a[novel_indices, ...] for a in list_of_trial_input_matrices],
+        NOVEL_IMAGES_UPCONV_KEY: novel_image_matrix_upconv,
+        NOVEL_IMAGES_UPCONV_SVD_KEY: novel_image_matrix_upconv_svd,
+        PERCENT_VARIANCE_KEY: percent_svd_variance_to_keep,
+        CNN_FEATURE_LAYER_KEY: cnn_feature_layer_name,
+        MULTIPASS_KEY: multipass
     }
 
 
