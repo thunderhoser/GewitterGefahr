@@ -328,7 +328,7 @@ def trainval_generator_2d_radar(
             radar_matrix = these_image_matrices
 
         feature_matrix = partial_cnn_model_object.predict(
-            radar_matrix, batch_size=radar_matrix.shape[0])
+            these_image_matrices, batch_size=radar_matrix.shape[0])
 
         yield (feature_matrix, radar_matrix)
 
@@ -392,7 +392,7 @@ def testing_generator_2d_radar(
             radar_matrix = these_image_matrices
 
         feature_matrix = partial_cnn_model_object.predict(
-            radar_matrix, batch_size=radar_matrix.shape[0])
+            these_image_matrices, batch_size=radar_matrix.shape[0])
 
         yield (feature_matrix, radar_matrix)
 
