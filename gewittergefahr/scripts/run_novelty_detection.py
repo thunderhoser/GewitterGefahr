@@ -152,6 +152,10 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         upconvnet_file_name)
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
 
+    print upconvnet_model_object.output
+    print upconvnet_model_object.output.get_shape()
+    print upconvnet_model_object.output.get_shape().as_list()
+
     ucn_output_dimensions = numpy.array(
         upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int
     )
