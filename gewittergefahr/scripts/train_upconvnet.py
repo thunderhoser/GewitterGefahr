@@ -223,7 +223,7 @@ def _run(input_cnn_file_name, input_upconvnet_file_name, cnn_feature_layer_name,
     print SEPARATOR_STRING
 
     upconvnet_metafile_name = '{0:s}/model_metadata.p'.format(
-        os.path.split(input_upconvnet_file_name)[0]
+        os.path.split(output_model_file_name)[0]
     )
 
     print 'Writing upconvnet metadata to: "{0:s}"...'.format(

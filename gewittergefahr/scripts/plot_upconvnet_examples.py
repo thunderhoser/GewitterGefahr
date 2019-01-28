@@ -84,7 +84,8 @@ def _run(upconvnet_file_name, storm_metafile_name, num_examples,
 
     print 'Reading upconvnet metadata from: "{0:s}"...'.format(
         upconvnet_metafile_name)
-    upconvnet_metadata_dict = cnn.read_model_metadata(upconvnet_metafile_name)
+    upconvnet_metadata_dict = upconvnet.read_model_metadata(
+        upconvnet_metafile_name)
     cnn_file_name = upconvnet_metadata_dict[upconvnet.CNN_FILE_KEY]
 
     print 'Reading trained CNN from: "{0:s}"...'.format(cnn_file_name)
