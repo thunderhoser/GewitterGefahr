@@ -151,15 +151,10 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     print 'Reading trained upconvnet from: "{0:s}"...'.format(
         upconvnet_file_name)
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
-    upconvnet_model_object.summary()
 
-    print upconvnet_model_object.output
-    print upconvnet_model_object.output.get_shape()
-    print upconvnet_model_object.output.get_shape().as_list()
-
-    ucn_output_dimensions = numpy.array(
-        upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int
-    )
+    # ucn_output_dimensions = numpy.array(
+    #     upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int
+    # )
 
     if isinstance(cnn_model_object.input, list):
         first_cnn_input_tensor = cnn_model_object.input[0]
@@ -170,13 +165,13 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         first_cnn_input_tensor.get_shape().as_list()[1:], dtype=int
     )
 
-    if not numpy.array_equal(cnn_input_dimensions, ucn_output_dimensions):
-        error_string = (
-            'Dimensions of first CNN input matrix ({0:s}) should equal '
-            'dimensions of upconvnet output ({1:s}).'
-        ).format(str(cnn_input_dimensions), str(ucn_output_dimensions))
-
-        raise ValueError(error_string)
+    # if not numpy.array_equal(cnn_input_dimensions, ucn_output_dimensions):
+    #     error_string = (
+    #         'Dimensions of first CNN input matrix ({0:s}) should equal '
+    #         'dimensions of upconvnet output ({1:s}).'
+    #     ).format(str(cnn_input_dimensions), str(ucn_output_dimensions))
+    #
+    #     raise ValueError(error_string)
 
     print 'Reading CNN metadata from: "{0:s}"...'.format(cnn_metafile_name)
     cnn_metadata_dict = cnn.read_model_metadata(cnn_metafile_name)
