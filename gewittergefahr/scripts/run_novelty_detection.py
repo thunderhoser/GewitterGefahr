@@ -196,6 +196,9 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
         trial_storm_ids = trial_storm_ids[:num_trial_examples]
         trial_times_unix_sec = trial_times_unix_sec[:num_trial_examples]
 
+    # num_baseline_examples = len(baseline_storm_ids)
+    num_trial_examples = len(trial_storm_ids)
+
     print SEPARATOR_STRING
 
     list_of_baseline_input_matrices, _ = testing_io.read_specific_examples(
