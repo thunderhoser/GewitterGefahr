@@ -151,6 +151,8 @@ def _run(cnn_file_name, upconvnet_file_name, top_example_dir_name,
     print 'Reading trained upconvnet from: "{0:s}"...'.format(
         upconvnet_file_name)
     upconvnet_model_object = cnn.read_model(upconvnet_file_name)
+    
+    print upconvnet_model_object.layers[-1].get_shape()
 
     # ucn_output_dimensions = numpy.array(
     #     upconvnet_model_object.output.get_shape().as_list()[1:], dtype=int

@@ -305,7 +305,7 @@ def do_novelty_detection(
 
     error_checking.assert_is_integer(num_novel_examples)
     error_checking.assert_is_greater(num_novel_examples, 0)
-    error_checking.assert_is_leq(num_trial_examples, 0)
+    error_checking.assert_is_leq(num_novel_examples, num_trial_examples)
     error_checking.assert_is_boolean(multipass)
 
     svd_dictionary = None
