@@ -1,4 +1,4 @@
-"""Plots many input examples (one per storm object)."""
+"""Plots many dataset examples (storm objects)."""
 
 import os.path
 import argparse
@@ -142,7 +142,7 @@ INPUT_ARG_PARSER.add_argument(
     help=OUTPUT_DIR_HELP_STRING)
 
 
-def _plot_examples(
+def plot_examples(
         list_of_predictor_matrices, storm_ids, storm_times_unix_sec,
         model_metadata_dict, output_dir_name, storm_activations=None):
     """Plots one or more learning examples.
@@ -373,7 +373,7 @@ def _plot_examples(
 def _run(activation_file_name, storm_metafile_name, num_examples,
          top_example_dir_name, radar_field_names, radar_heights_m_agl,
          plot_soundings, num_radar_rows, num_radar_columns, output_dir_name):
-    """Plots many input examples (one per storm object).
+    """Plots many dataset examples (storm objects).
 
     This is effectively the main method.
 
@@ -486,7 +486,7 @@ def _run(activation_file_name, storm_metafile_name, num_examples,
     )[0]
     print SEPARATOR_STRING
 
-    _plot_examples(
+    plot_examples(
         list_of_predictor_matrices=list_of_predictor_matrices,
         storm_ids=storm_ids, storm_times_unix_sec=storm_times_unix_sec,
         storm_activations=storm_activations,
